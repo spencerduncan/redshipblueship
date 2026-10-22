@@ -88,6 +88,7 @@ char sTimeFormat[kMaxOptionRows][8];
 /** The note rows' names, rewritten each frame by their PreFuncs. */
 std::string sStatusNote;
 std::string sTricksNote;
+std::string sTricksHeadline;
 
 SohMenuPresentation ToPresentation(ComboMMRowState state) {
     switch (state) {
@@ -587,12 +588,15 @@ void DrawMmTrickList(WidgetInfo& info) {
 } // namespace
 
 /**
- * Combo > MM Randomizer: MM's 47 randomizer options as rows, laid out like SoH's
- * Randomizer > General (two columns, SEPARATOR_TEXT groups in MM's own
- * taxonomy, the primary button at 250 px). Column 1 opens with the page's state
- * notes and its two warnings, then Logic & Conditions and Shuffle Options;
- * column 2 holds Items, Starting Items, Hints and Reset. The column of each
- * group is the model's (Combo_MMOptionsPage_GroupColumn).
+ * Combo > MM Randomizer: MM's 47 randomizer options as rows, laid out like
+ * SoH's Randomizer > General (two columns, SEPARATOR_TEXT groups, the primary
+ * button at 250 px). The groups are SoH's own Randomizer headers in SoH's order
+ * (#1101: the one randomizer menu speaks one vocabulary). Column 1 opens with
+ * the page's state notes and its warning, then Logic, Win Condition, Area Access
+ * and Shuffle Items; column 2 holds Shuffle Shops & Merchants, Additional Items,
+ * Traps, Hints, Starting Items and Reset. The column of each group is the
+ * model's (Combo_MMOptionsPage_GroupColumn), its name the model's
+ * (Combo_MMOptionGroupName).
  *
  * No "[Both Games]" marker: every row is a tier-3 Majora's Mask key, none is in
  * RSBS::kSharedIntentKeys, so no row claims to apply to both games (ADR 0004
@@ -707,8 +711,8 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
 
 /**
  * Combo > MM Tricks: one column, like SoH's Randomizer > Tricks/Glitches: the
- * page's gray note (the honest headline, or the freeze), a section header, and
- * the trick list (DrawMmTrickList).
+ * page's gray notes (the shared status sentence and the honest headline, or the
+ * freeze), a section header, and the trick list (DrawMmTrickList).
  */
 void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path) {
     Combo_MMOptionsPages_Init();
@@ -718,6 +722,14 @@ void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path) {
         char note[256];
         sTricksNote = Combo_MMOptionsPage_TricksNote(note, sizeof(note));
         info.name = sTricksNote;
+    });
+    // The honest headline, a note of its own: hidden once frozen, where the
+    // freeze sentence alone speaks.
+    AddNote(menu, path, "MM Tricks Headline", [](WidgetInfo& info) {
+        char headline[128];
+        sTricksHeadline = Combo_MMOptionsPage_TricksHeadline(headline, sizeof(headline));
+        info.name = sTricksHeadline;
+        info.isHidden = sTricksHeadline.empty();
     });
     menu.AddWidget(path, "Majora's Mask Tricks", WIDGET_SEPARATOR_TEXT);
     // Kept out of the menu search: the list draws its own table, and SoH's

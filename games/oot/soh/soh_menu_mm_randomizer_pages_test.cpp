@@ -29,7 +29,11 @@
  *      sliders), and nothing else interactive but Reset.
  *
  *   3. A ROW LANDS IN THE WRONG COLUMN, or in one the page never draws, or
- *      outside its group's header.
+ *      outside its group's header. The headers are SoH's Randomizer headers in
+ *      SoH's order (#1101, option C), spelled here independently of the model:
+ *      Logic, Win Condition, Area Access, Shuffle Items down the left column;
+ *      Shuffle Shops & Merchants, Additional Items, Traps, Hints, Starting
+ *      Items down the right.
  *
  *   4. A ROW SHOWS THE WRONG STATE. Unpaired: a capability-blocked row is
  *      disabled with SoH's disabled tooltip around the table's own reason, and
@@ -52,7 +56,8 @@
  *   7. THE NOTES DISAGREE WITH THE MODEL. The status note is the model's
  *      sentence in each state; the suspended note shows exactly while Majora's
  *      Mask is not running and the profile is editable; the tricks page's note
- *      is the model's headline.
+ *      is the model's headline. Unpaired, both pages open with the one status
+ *      sentence every randomizer page of ours shares (#1101 decision 7).
  *
  *   8. THE RACE LOCKOUT DIFFERS FROM SOH'S RANDOMIZER PAGES. SoH's race lockout
  *      (CVAR_SETTING("DisableChanges"), Menu.cpp's MenuDrawItem) disables every
@@ -331,8 +336,32 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        header != nullptr ? header->name.c_str() : "(none)", Combo_MMOptionGroupName(desc->group));
         }
     }
+    // ---- Leg 3 (cont.): the headers are SoH's, in SoH's order --------------
+    {
+        const std::vector<std::vector<std::string>> kHeaders = {
+            { "Logic", "Win Condition", "Area Access", "Shuffle Items" },
+            { "Shuffle Shops & Merchants", "Additional Items", "Traps", "Hints", "Starting Items" },
+        };
+        for (uint32_t column = 0; column < kHeaders.size(); column++) {
+            std::vector<std::string> seen;
+            if (column < options.columnWidgets.size()) {
+                for (WidgetInfo& row : options.columnWidgets.at(column)) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        seen.push_back(row.name);
+                    }
+                }
+            }
+            std::string got;
+            for (const std::string& h : seen) {
+                got += (got.empty() ? "" : ", ") + h;
+            }
+            MMRP_CHECK(seen == kHeaders.at(column),
+                       "column %u of the options page reads the headers [%s], not SoH's vocabulary in SoH's order",
+                       column + 1, got.c_str());
+        }
+    }
     printf("[TEST] leg 2-3: the options page's rows are the %d descriptors, once each, in the model's columns under "
-           "their groups' headers\n",
+           "their groups' headers, which are SoH's in SoH's order\n",
            count);
 
     // ---- Leg 4: the states -----------------------------------------------------
@@ -474,6 +503,9 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
 
     // ---- Leg 7: the notes --------------------------------------------------------
     {
+        // The one status sentence (#1101 decision 7), spelled independently.
+        const std::string kNextWorldNote =
+            "These apply to the next world you generate. Loading a paired file shows its own.";
         FlatRow* status = FindByName(rows, "MM Randomizer Status");
         FlatRow* suspended = FindByName(rows, "MM Randomizer Suspended");
         MMRP_CHECK(status != nullptr && suspended != nullptr, "the options page lacks its state notes");
@@ -487,6 +519,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                     DrawPass(s);
                     MMRP_CHECK(s.name == Combo_MMOptionsPage_StatusNote(), "the status note reads \"%s\"",
                                s.name.c_str());
+                    if (!frozen) {
+                        MMRP_CHECK(s.name == kNextWorldNote,
+                                   "unpaired, the status note reads \"%s\", not the shared sentence \"%s\"",
+                                   s.name.c_str(), kNextWorldNote.c_str());
+                    }
                     WidgetInfo n = *suspended->info;
                     DrawPass(n);
                     const bool shown = !n.isHidden;
@@ -508,7 +545,15 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         MMRP_CHECK(FindByName(trickRows, "Majora's Mask Tricks") != nullptr, "the tricks page has no section header");
         FlatRow* tricksNote = FindByName(trickRows, "MM Tricks Status");
         MMRP_CHECK(tricksNote != nullptr, "the tricks page has no note");
+        // The trick headline is a note row of its own, under the status note: the
+        // shared sentence is two sentences already, a note's whole budget.
+        FlatRow* tricksHeadline = FindByName(trickRows, "MM Tricks Headline");
+        MMRP_CHECK(tricksHeadline != nullptr, "the tricks page has no headline row under its status note");
         if (tricksNote != nullptr) {
+            // The headline, spelled independently of the model.
+            char kHeadline[128];
+            snprintf(kHeadline, sizeof(kHeadline), "%d of %d tricks are supported by the randomizer logic so far.",
+                     Combo_MMOptionsPage_SettableTrickCount(), Combo_MMTrickCount());
             for (int frozen = 0; frozen <= 1; frozen++) {
                 Freeze(frozen != 0);
                 char expected[256];
@@ -517,6 +562,57 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 DrawPass(t);
                 MMRP_CHECK(t.name == expected, "the tricks note reads \"%s\", the model \"%s\"", t.name.c_str(),
                            expected);
+                if (!frozen) {
+                    MMRP_CHECK(t.name == kNextWorldNote,
+                               "unpaired, the tricks note reads \"%s\", not the shared sentence \"%s\"", t.name.c_str(),
+                               kNextWorldNote.c_str());
+                }
+                if (tricksHeadline != nullptr) {
+                    WidgetInfo h = *tricksHeadline->info;
+                    DrawPass(h);
+                    // Unpaired, the honest headline; frozen, nothing is settable,
+                    // so the freeze sentence alone speaks (as before #1101).
+                    MMRP_CHECK(h.isHidden == (frozen != 0), "the trick headline is %s (frozen %d)",
+                               h.isHidden ? "hidden" : "shown", frozen);
+                    if (!frozen) {
+                        MMRP_CHECK(h.name == kHeadline, "the trick headline reads \"%s\", expected \"%s\"",
+                                   h.name.c_str(), kHeadline);
+                    }
+                }
+            }
+        }
+        // UiSnapshot's R6, held here ROM-free: every note on both pages is at
+        // most two sentences and 200 characters, in every state it is drawn in.
+        auto sentences = [](const std::string& text) {
+            int n = 0;
+            for (size_t i = 0; i < text.size(); i++) {
+                if ((text[i] == '.' || text[i] == '!' || text[i] == '?') &&
+                    (i + 1 == text.size() || text[i + 1] == ' ')) {
+                    n++;
+                }
+            }
+            return n;
+        };
+        for (int frozen = 0; frozen <= 1; frozen++) {
+            for (GameId game : { GAME_OOT, GAME_MM }) {
+                Freeze(frozen != 0);
+                Context_SetCurrentGame(game);
+                for (SidebarEntry* page : { &options, &tricks }) {
+                    for (FlatRow& row : FlattenRows(*page)) {
+                        if (row.info->type != WIDGET_TEXT) {
+                            continue;
+                        }
+                        WidgetInfo n = *row.info;
+                        DrawPass(n);
+                        if (n.isHidden) {
+                            continue;
+                        }
+                        MMRP_CHECK(sentences(n.name) <= 2 && n.name.size() <= 200,
+                                   "the note \"%s\" is %d sentence(s) and %zu characters (frozen %d, game %d); a "
+                                   "note is at most two sentences and 200 characters",
+                                   n.name.c_str(), sentences(n.name), n.name.size(), frozen, (int)game);
+                    }
+                }
             }
         }
     }

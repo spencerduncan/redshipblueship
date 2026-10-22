@@ -93,6 +93,28 @@ extern "C" {
 #define COMBO_MM_OPTIONS_PAGE_COLUMNS 2
 
 /**
+ * THE ONE STATUS SENTENCE (#1101 decision 7). Every randomizer page of ours
+ * (Combo > MM Randomizer, MM Tricks and Cross-Game Rules) says the same thing in
+ * the same words while no paired file is loaded: an edit authors the next world
+ * Generate makes, and loading a paired file puts that file's own values back
+ * (#781). Until #1101 the three pages said it in three sentences. The rules
+ * page draws it too (SohMenuCombo.cpp), which is why it lives here, beside the
+ * MM pages' notes, rather than in either page's TU.
+ */
+#define COMBO_RANDO_PAGES_NEXT_WORLD_NOTE \
+    "These apply to the next world you generate. Loading a paired file shows its own."
+
+/**
+ * The frozen twin of that sentence, written into @p buf (always NUL-terminated
+ * when @p size > 0; returns @p buf): "Already decided when this world was
+ * created (fingerprint XXXXXXXX). Return to the title screen to choose settings
+ * for a new world." @p fingerprint is the pair's comboSettingsHash, the number
+ * the file select prints beside the seed icons; 0 (unset) drops the
+ * parenthesis rather than printing a number that names no world.
+ */
+const char* Combo_RandoPages_FrozenNote(uint32_t fingerprint, char* buf, size_t size);
+
+/**
  * Publish MM's two descriptor tables (options and tricks) and bring up the
  * tier-4 settings model beside them. Idempotent, headless-safe, and needs no
  * Gui: the page registrar calls it before it reads the tables (the menu is
@@ -104,10 +126,12 @@ void Combo_MMOptionsPages_Init(void);
 
 /**
  * The column (0 or 1) an option group sits in on the options page, or -1 for a
- * group outside ComboMMOptionGroup. Groups keep MM's own order within a column:
- * column 0 holds Logic & Conditions then Shuffle Options (23 rows), column 1
- * holds Items, Starting Items and Hints then Reset (25 rows), so the two columns
- * end within a couple of rows of each other.
+ * group outside ComboMMOptionGroup. The groups are SoH's headers in SoH's order
+ * (#1101), read down column 0 and then down column 1: column 0 holds Logic, Win
+ * Condition, Area Access and Shuffle Items (24 rows, under the page's notes),
+ * column 1 holds Shuffle Shops & Merchants, Additional Items, Traps, Hints and
+ * Starting Items then Reset (24 rows), so the two columns end within a few rows
+ * of each other.
  */
 int Combo_MMOptionsPage_GroupColumn(uint8_t group);
 
@@ -139,11 +163,11 @@ ComboMMRowState Combo_MMOptionsPage_TrickState(const ComboMMTrickDesc* desc, con
 
 /**
  * The options page's gray state note, one of three sentences (never NULL):
- *  - frozen: the profile was stamped at creation; it names the escape (the
- *    title screen) and prints no fingerprint, because the one number shown for
- *    the world is Combo > Cross-Game Rules';
+ *  - frozen: the profile was stamped at creation; Combo_RandoPages_FrozenNote's
+ *    sentence, with the pair's fingerprint (the number Cross-Game prints too);
  *  - paired but not frozen: a legacy pre-freeze pair, frozen at first crossing;
- *  - unpaired: these are saved into the next paired world at generation.
+ *  - unpaired: COMBO_RANDO_PAGES_NEXT_WORLD_NOTE, the shared sentence.
+ * The frozen sentence is held in a static buffer until the next call.
  */
 const char* Combo_MMOptionsPage_StatusNote(void);
 
@@ -162,12 +186,21 @@ int Combo_MMOptionsPage_SettableTrickCount(void);
 
 /**
  * The tricks page's gray note, written into @p buf (always NUL-terminated when
- * @p size > 0; returns @p buf): the freeze sentence once frozen, otherwise the
- * honest headline "N of M tricks are supported by the randomizer logic so
- * far..." (86 checkboxes of which most do nothing would be the overclaim). With
- * no trick table registered, a sentence saying so.
+ * @p size > 0; returns @p buf): the shared frozen sentence once frozen,
+ * otherwise the shared status sentence alone. With no trick table registered,
+ * a sentence saying so.
  */
 const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size);
+
+/**
+ * The tricks page's headline, its own gray note under the status note (the
+ * shared sentence is two sentences, a note's whole budget): "N of M tricks are
+ * supported by the randomizer logic so far." (86 checkboxes of which most do
+ * nothing would be the overclaim). Empty (the row hides) once frozen, when
+ * nothing is settable, and with no trick table. Same buffer contract as
+ * Combo_MMOptionsPage_TricksNote.
+ */
+const char* Combo_MMOptionsPage_TricksHeadline(char* buf, size_t size);
 
 /**
  * Reset's action (the confirm's Reset button): clears every option CVar and
