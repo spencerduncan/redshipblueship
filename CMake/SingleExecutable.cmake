@@ -3116,8 +3116,9 @@ crossing to refuse (#954).")
     # #1069: the moon falls on a live MM session whose frozen Moon Crash Behavior
     # is New Cycle (OoTMM's moonCrash 'cycle', which the Shared Song of Time rule
     # forces). MM boots on its debug save outside the Clock Tower, the crash runs
-    # the real Interface_StartMoonCrash and the real crash cutscene, and the scene
-    # after it must be a NEW cycle (one more three-day reset, the cycle's Deku
+    # the real Interface_StartMoonCrash and the real crash and Fire Wall
+    # cutscenes (the reset cue is the Fire Wall's, in SCENE_SPOT00), and the scene
+    # after them must be a NEW cycle (one more three-day reset, the cycle's Deku
     # record cleared) at the Dawn of the First Day with the mask, the bottle and
     # the song kept. Red under Last Save: a debug session has no commit, so that
     # path restarts the clock and keeps the bytes but counts no reset. Same

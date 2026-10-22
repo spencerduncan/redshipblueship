@@ -903,9 +903,10 @@ static void MMCrRegisterHooks(void) {
 // records what a new cycle must keep (the Bunny Hood, the Song of Healing, a
 // bottle) and what only a new cycle clears (a Deku Playground record and the
 // three-day reset count), and lets the moon fall through the REAL
-// Interface_StartMoonCrash. The crash cutscene runs in Termina Field and its
+// Interface_StartMoonCrash. The moon falls in Termina Field, the Fire Wall
+// follows in the cutscene scene (SCENE_SPOT00), and its
 // CS_MISC_RESET_SAVE_FROM_MOON_CRASH runs the reset. Once gameplay is live in
-// the scene after Termina Field, the file must be in a NEW cycle with its
+// the scene after the Fire Wall, the file must be in a NEW cycle with its
 // progress: day 1 or the dawn before it, one more three-day reset, the record
 // cleared, the mask, the song and the bottle kept. A debug session has no
 // .redsave slot, so under Last Save the crash would restart the clock and keep
@@ -1050,9 +1051,15 @@ static void MMMcFrame(void) {
         }
         return;
     }
-    // CRASHING: Termina Field holds the crash cutscene; the scene after it is
-    // where the new cycle plays.
-    if (play->sceneId == SCENE_00KEIKOKU) {
+    // CRASHING: Termina Field holds the moon's fall, and its
+    // CS_MISC_DEST_MOON_CRASH_FIRE_WALL hands over to the cutscene scene
+    // (SCENE_SPOT00, cutscene 0xFFF8): the Fire Wall, whose
+    // CS_MISC_RESET_SAVE_FROM_MOON_CRASH cue runs the reset late in its
+    // timeline. Gameplay reads as live through both (GAMEMODE_NORMAL, no
+    // transition), so the verdict waits for the scene after the Fire Wall, where
+    // the new cycle plays; counting frames in SCENE_SPOT00 read the file before
+    // the reset (day 4, time 0x400A: Interface_StartMoonCrash's own values).
+    if (play->sceneId == SCENE_00KEIKOKU || play->sceneId == SCENE_SPOT00) {
         sMMMcLiveFrames = 0;
         return;
     }
