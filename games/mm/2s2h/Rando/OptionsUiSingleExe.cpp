@@ -259,18 +259,21 @@ struct OptionUi {
 
 // clang-format off
 const OptionUi kOptionUi[] = {
-    // ---- Logic & Conditions ------------------------------------------------
+    // ---- Logic, Area Access, Win Condition ---------------------------------
+    // SoH's header names (#1101): the group field decides the header and the
+    // model decides its column; the table's order only orders rows WITHIN a
+    // group, so the triforce rows lead Win Condition as SoH's Triforce Hunt does.
     { RO_LOGIC, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_COMBO,
       "Logic",
       "Glitchless guarantees a beatable seed; No Logic and Nearly No Logic place freely; Vanilla does not shuffle.",
       0, 0, kLogicLabels, UI_COUNT(kLogicLabels),
       COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
-    { RO_ACCESS_DUNGEONS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_COMBO,
+    { RO_ACCESS_DUNGEONS, COMBO_MM_GROUP_AREA_ACCESS, COMBO_MM_WIDGET_COMBO,
       "Dungeon Access",
       "What a dungeon entrance requires: form and song, form or song, form only, song only, or nothing.",
       0, 0, kDungeonAccessLabels, UI_COUNT(kDungeonAccessLabels),
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_ACCESS_TRIALS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_COMBO,
+    { RO_ACCESS_TRIALS, COMBO_MM_GROUP_AREA_ACCESS, COMBO_MM_WIDGET_COMBO,
       "Trials Access",
       "What the Moon trials require. Mask counts, the matching remains, the matching transformation, or open.",
       0, 0, kTrialsAccessLabels, UI_COUNT(kTrialsAccessLabels),
@@ -286,10 +289,20 @@ const OptionUi kOptionUi[] = {
       // dispatched hook types, EnJs.cpp is in the link, so the gate this row
       // sets is the gate the player gets.
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_ACCESS_MOON_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
+    { RO_SHUFFLE_TRIFORCE_PIECES, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_CHECKBOX,
+      "Triforce Hunt", "Scatters Triforce Pieces through the pool; collecting enough of them wins the seed.",
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_TRIFORCE_PIECES_MAX, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
+      "Triforce Pieces Shuffled",
+      "How many pieces are placed. Reduced automatically if the pool cannot hold that many.",
+      1, 1000, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+    { RO_TRIFORCE_PIECES_REQUIRED, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
+      "Triforce Pieces Required", "How many pieces win the seed. Capped at the number shuffled.",
+      1, 15, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_ACCESS_MOON_MASKS_COUNT, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
       "Masks to Enter Moon", "How many masks are needed to enter the Moon.",
       0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_ACCESS_MOON_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
+    { RO_ACCESS_MOON_REMAINS_COUNT, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
       "Remains to Enter Moon", "How many boss remains are needed to enter the Moon.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     // Both Majora sliders were PARTIAL on "logic only: the gate needs
@@ -300,13 +313,13 @@ const OptionUi kOptionUi[] = {
     // when either is short, routing to 0x21FD to end the exchange. Nothing else
     // gates them, so "logic only" stopped being true when #512 dispatched
     // OnOpenText.
-    { RO_ACCESS_MAJORA_MASKS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
+    { RO_ACCESS_MAJORA_MASKS_COUNT, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
       "Masks to Reach Majora", "How many masks are needed to reach Majora.",
       0, 20, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_ACCESS_MAJORA_REMAINS_COUNT, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_SLIDER,
+    { RO_ACCESS_MAJORA_REMAINS_COUNT, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_SLIDER,
       "Remains to Reach Majora", "How many boss remains are needed to reach Majora.",
       0, 4, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_ACCESS_MAJORA_REMAINS, COMBO_MM_GROUP_WIN_CONDITION, COMBO_MM_WIDGET_CHECKBOX,
       // Player-facing copy (UI parity M6): no ruling or ADR reference in the
       // label, tooltip or reason (docs/ui-style-guide.md R-N4, R-TT5); the ruling
       // is recorded in the comment below, where a maintainer reads it. The label
@@ -328,36 +341,36 @@ const OptionUi kOptionUi[] = {
       // ruling, not finishing a TODO; the mm-rando-options lock pins this.
       COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
-    // ---- Shuffle Options ---------------------------------------------------
-    { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    // ---- Shuffle Items, Shuffle Shops & Merchants --------------------------
+    { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Cows", "Adds the reward for playing Epona's Song for a cow to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_OWL_STATUES, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_OWL_STATUES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Owl Statues", "Adds activating each Owl Statue to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_FREESTANDING_ITEMS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_FREESTANDING_ITEMS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Freestanding Items", "Adds collectibles lying loose in the world to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_POT_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_POT_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Pot Drops", "Adds the item dropped by breaking a pot to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_SNOWBALL_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_SNOWBALL_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Snowball Drops", "Adds the item dropped by breaking a snowball to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_BOSS_REMAINS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_BOSS_REMAINS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Boss Remains", "Shuffles the four Boss Remains into the item pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     // LIVE as of #514: the only leg this row was ever missing was the cycle-save
     // restore (AfterEndOfCycleSave copies skullTokenCount back under exactly
     // this option), and that now dispatches.
-    { RO_SHUFFLE_GOLD_SKULLTULAS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_GOLD_SKULLTULAS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Skulltula Tokens", "Adds the Spider House tokens to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_MINIMUM_SKULLTULA_TOKENS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_SLIDER,
+    { RO_MINIMUM_SKULLTULA_TOKENS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Minimum Skulltula Tokens",
       "Tokens needed for the Spider House reward. Forced to the vanilla value when tokens are not shuffled.",
       1, SPIDER_HOUSE_TOKENS_REQUIRED, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_SLIDER,
+    { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Minimum Stray Fairies",
       "Stray Fairies needed for a Great Fairy reward. Does not affect the Clock Town fairy.",
       1, STRAY_FAIRY_SCATTERED_TOTAL, nullptr, 0,
@@ -368,7 +381,7 @@ const OptionUi kOptionUi[] = {
       // reward one. That hook type dispatches (#512, ExecuteForID leg present)
       // and z_actor.c's call site is live. Its other legs are VB.
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_FROGS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_FROGS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Frogs", "Adds the Frog Choir frogs to the check pool.",
       0, 0, nullptr, 0,
       // Pool-widening, so the payout was checked rather than assumed:
@@ -378,7 +391,7 @@ const OptionUi kOptionUi[] = {
       // path every LIVE check rides. VB_DESPAWN_FROG keeps an obtained frog
       // gone and OnOpenText[0xD81] carries the text. All three dispatch.
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_SHOPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_SHOPS, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Shops", "Adds purchaseable shop slots to the check pool.",
       0, 0, nullptr, 0,
       // The widest of the three pool-widening promotions, and the one whose old
@@ -396,7 +409,7 @@ const OptionUi kOptionUi[] = {
       // RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM): that machinery has been
       // carrying real checks all along, which is corroboration the path works.
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_TINGLE_SHOPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_TINGLE_SHOPS, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Tingle Maps", "Adds the maps Tingle sells to the check pool.",
       0, 0, nullptr, 0,
       // EnBal.cpp: VB_TINGLE_GIVE_MAP_UNLOCK sets .eligible for the map the
@@ -410,7 +423,7 @@ const OptionUi kOptionUi[] = {
     // OnActorKill and OnActorDestroy, which #515 dispatched. Every behaviour TU
     // is under 2s2h/Rando/, which links WHOLE_ARCHIVE, and every remaining leg
     // is ShouldVanillaBehavior, live since #392. Nothing left to block them.
-    { RO_SHUFFLE_CRATE_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_CRATE_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Crate Drops", "Adds the item dropped by breaking a crate to the check pool.",
       0, 0, nullptr, 0,
       // Was DORMANT on "the drop's OnActorInit dispatch is not placed". It is
@@ -420,12 +433,12 @@ const OptionUi kOptionUi[] = {
       // (VB_CRATE_DRAW_BE_OVERRIDDEN, VB_BARREL_OR_CRATE_DROP_COLLECTIBLE) are
       // ShouldVanillaBehavior.
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_BARREL_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_BARREL_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Barrel Drops", "Adds the item dropped by breaking a barrel to the check pool.",
       // ObjTaru.cpp, same two hook types as the crate row: id-keyed OnActorInit
       // on ACTOR_OBJ_TARU plus VB_BARREL_OR_CRATE_DROP_COLLECTIBLE.
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_GRASS_DROPS, COMBO_MM_GROUP_SHUFFLE, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_GRASS_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Grass Drops", "Adds the item dropped by cutting grass to the check pool.",
       // The one that needed two separate fixes, and the reason this row was held
       // back longest. ObjGrass.cpp identifies actor-backed bushes through
@@ -437,20 +450,20 @@ const OptionUi kOptionUi[] = {
       // that pair together, for exactly that reason. Five VB legs, all live.
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
 
-    // ---- Items -------------------------------------------------------------
-    { RO_PLENTIFUL_ITEMS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    // ---- Additional Items, Traps -------------------------------------------
+    { RO_PLENTIFUL_ITEMS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Plentiful Items", "Major items, masks and keys get an extra copy in the pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
-    { RO_SHUFFLE_TRAPS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_TRAPS, COMBO_MM_GROUP_TRAPS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Traps", "Mixes Ice Traps into the item pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_TRAP_AMOUNT, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_SLIDER,
+    { RO_TRAP_AMOUNT, COMBO_MM_GROUP_TRAPS, COMBO_MM_WIDGET_SLIDER,
       "Trap Count", "How many traps are shuffled into the item pool. Only used when traps are shuffled.",
       1, 100, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
-    { RO_SHUFFLE_BOSS_SOULS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_BOSS_SOULS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Boss Souls", "Boss Souls enter the item pool; a boss does not spawn until its soul is found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_ENEMY_SOULS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_ENEMY_SOULS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Enemy Souls", "Enemy Souls enter the item pool; an enemy is immune until its soul is found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     // LIVE as of #515. The one leg this row was missing was the kill-drop path:
@@ -460,25 +473,15 @@ const OptionUi kOptionUi[] = {
     // — VB_ENEMY_DROP_COLLECTIBLE for DROP_TYPE_NORMAL, and OnFlagSet /
     // OnSceneFlagSet for the two cutscene deaths (Captain Keeta, Igos) — and the
     // payout itself is a CustomItem::Spawn, not a hook, so nothing else gates it.
-    { RO_SHUFFLE_ENEMY_DROPS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_ENEMY_DROPS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Enemy Drops", "Shuffles the first drop from a non-boss enemy.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_OCARINA_BUTTONS, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_OCARINA_BUTTONS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Ocarina Buttons", "Ocarina buttons become items; a song is unplayable until its notes are found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_SWIM, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_SHUFFLE_SWIM, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Swim", "Swimming becomes an item; deep water respawns Link until it is found.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_SHUFFLE_TRIFORCE_PIECES, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
-      "Triforce Hunt", "Scatters Triforce Pieces through the pool; collecting enough of them wins the seed.",
-      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_TRIFORCE_PIECES_MAX, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_SLIDER,
-      "Triforce Pieces Shuffled",
-      "How many pieces are placed. Reduced automatically if the pool cannot hold that many.",
-      1, 1000, nullptr, 0, COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
-    { RO_TRIFORCE_PIECES_REQUIRED, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_SLIDER,
-      "Triforce Pieces Required", "How many pieces win the seed. Capped at the number shuffled.",
-      1, 15, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     // THE ROW THE #669 RE-MEASURE LEFT GATED, NOW PROMOTED BY FIXING WHAT IT
     // NAMED (#678). Worth reading as the whole arc, because it is the one row
     // where each layer of reason was wrong in a different way.
@@ -529,15 +532,15 @@ const OptionUi kOptionUi[] = {
     // selector refusing an unowned half-day by name, and a Song of Time reset
     // landing on the earliest OWNED half-day rather than the vanilla dawn — did
     // not exist to be reached.
-    { RO_CLOCK_SHUFFLE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+    { RO_CLOCK_SHUFFLE, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Time", "Breaks the three-day cycle into six half-days that must be unlocked as items.",
       0, 0, nullptr, 0,
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_CLOCK_SHUFFLE_PROGRESSIVE, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_COMBO,
+    { RO_CLOCK_SHUFFLE_PROGRESSIVE, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Time Progression", "Random shuffles all six half-days; Ascending and Descending unlock them in order.",
       0, 0, kClockProgressiveLabels, UI_COUNT(kClockProgressiveLabels),
       COMBO_MM_LIVENESS_LIVE, "" },
-    { RO_CLOCK_TERMINAL_TIME, COMBO_MM_GROUP_ITEMS, COMBO_MM_WIDGET_TIME,
+    { RO_CLOCK_TERMINAL_TIME, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_TIME,
       "Final Hours Start Time",
       "When the Final Hours begin, 00:00 to 05:59. Baked into the seed and fixed once generated.",
       0, 359, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },

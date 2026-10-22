@@ -61,17 +61,26 @@ const ComboMMOptionDesc* Combo_MMOptionById(uint16_t id) {
 }
 
 const char* Combo_MMOptionGroupName(uint8_t group) {
+    // SoH's own section names, spelled as settings.cpp spells them (#1101).
     switch ((ComboMMOptionGroup)group) {
         case COMBO_MM_GROUP_LOGIC:
-            return "Logic & Conditions";
-        case COMBO_MM_GROUP_SHUFFLE:
-            return "Shuffle Options";
-        case COMBO_MM_GROUP_ITEMS:
-            return "Items";
-        case COMBO_MM_GROUP_STARTING:
-            return "Starting Items";
+            return "Logic";
+        case COMBO_MM_GROUP_WIN_CONDITION:
+            return "Win Condition";
+        case COMBO_MM_GROUP_AREA_ACCESS:
+            return "Area Access";
+        case COMBO_MM_GROUP_SHUFFLE_ITEMS:
+            return "Shuffle Items";
+        case COMBO_MM_GROUP_SHUFFLE_SHOPS:
+            return "Shuffle Shops & Merchants";
+        case COMBO_MM_GROUP_ADDITIONAL_ITEMS:
+            return "Additional Items";
+        case COMBO_MM_GROUP_TRAPS:
+            return "Traps";
         case COMBO_MM_GROUP_HINTS:
             return "Hints";
+        case COMBO_MM_GROUP_STARTING:
+            return "Starting Items";
         default:
             // Visible placeholder rather than NULL: every caller here is a
             // printf-family or ImGui text call, and a NULL would be an invalid

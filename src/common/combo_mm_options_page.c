@@ -29,17 +29,46 @@ void Combo_MMOptionsPages_Init(void) {
 }
 
 int Combo_MMOptionsPage_GroupColumn(uint8_t group) {
+    // SoH's headers in SoH's order, read down the left column and then down the
+    // right (#1101). The split falls after Shuffle Items, where the two columns
+    // end within a few rows of each other once the left one's notes are counted.
     switch ((ComboMMOptionGroup)group) {
         case COMBO_MM_GROUP_LOGIC:
-        case COMBO_MM_GROUP_SHUFFLE:
+        case COMBO_MM_GROUP_WIN_CONDITION:
+        case COMBO_MM_GROUP_AREA_ACCESS:
+        case COMBO_MM_GROUP_SHUFFLE_ITEMS:
             return 0;
-        case COMBO_MM_GROUP_ITEMS:
-        case COMBO_MM_GROUP_STARTING:
+        case COMBO_MM_GROUP_SHUFFLE_SHOPS:
+        case COMBO_MM_GROUP_ADDITIONAL_ITEMS:
+        case COMBO_MM_GROUP_TRAPS:
         case COMBO_MM_GROUP_HINTS:
+        case COMBO_MM_GROUP_STARTING:
             return 1;
         default:
             return -1;
     }
+}
+
+const char* Combo_RandoPages_FrozenNote(uint32_t fingerprint, char* buf, size_t size) {
+    if (buf == NULL || size == 0) {
+        return buf;
+    }
+    // The stamp lands at generation, so re-generating re-stamps the same
+    // identity: the real escape is the title screen, where
+    // Context_InvalidateSessionState drops the pair's identity. The number is
+    // the one the file select prints beside the seed icons
+    // (combo_identity_display.h); zero is its "unset", not a number to show.
+    if (fingerprint != 0u) {
+        snprintf(buf, size,
+                 "Already decided when this world was created (fingerprint %08X). Return to the title screen to "
+                 "choose settings for a new world.",
+                 (unsigned)fingerprint);
+    } else {
+        snprintf(buf, size,
+                 "Already decided when this world was created. Return to the title screen to choose settings for a "
+                 "new world.");
+    }
+    return buf;
 }
 
 ComboMMRowState Combo_MMOptionsPage_OptionState(const ComboMMOptionDesc* desc, const char** reason) {
@@ -81,11 +110,10 @@ ComboMMRowState Combo_MMOptionsPage_TrickState(const ComboMMTrickDesc* desc, con
 
 const char* Combo_MMOptionsPage_StatusNote(void) {
     if (Combo_MMProfileFrozen()) {
-        // The stamp lands at generation, so re-generating re-stamps the same
-        // profile: the real escape is the title screen, where
-        // Context_InvalidateSessionState drops the pair's identity.
-        return "Already decided when this world was created. Return to the title screen to choose options for a "
-               "new world.";
+        // The sentence every randomizer page of ours shares (#1101 decision 7),
+        // naming the pair's fingerprint as the Cross-Game page does.
+        static char frozen[192];
+        return Combo_RandoPages_FrozenNote(gComboCtx.comboSettingsHash, frozen, sizeof(frozen));
     }
     ComboMMProfileSummary summary;
     Combo_MMProfileSummary(&summary);
@@ -95,9 +123,9 @@ const char* Combo_MMOptionsPage_StatusNote(void) {
                "cross into Majora's Mask.";
     }
     // No paired file is loaded, so the rows author the NEXT world; loading an
-    // existing paired file puts that file's own options back (#781).
-    return "These options apply to the next paired world you create. Loading a paired file restores its own "
-           "options.";
+    // existing paired file puts that file's own options back (#781). The one
+    // sentence every randomizer page of ours says it in (#1101 decision 7).
+    return COMBO_RANDO_PAGES_NEXT_WORLD_NOTE;
 }
 
 bool Combo_MMOptionsPage_Suspended(void) {
@@ -136,16 +164,29 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size) {
         // Distinct from "MM has no tricks": say the table is missing.
         snprintf(buf, size, "The Majora's Mask trick table is not available in this build.");
     } else if (Combo_MMProfileFrozen()) {
-        snprintf(buf, size,
-                 "Already decided when this world was created. Return to the title screen to choose "
-                 "tricks for a new world.");
+        Combo_RandoPages_FrozenNote(gComboCtx.comboSettingsHash, buf, size);
     } else {
-        // ONE line at the page's width (the reference page has no note at all
-        // above its filter): the trick headline, then what a load does (#781).
+        // The shared status sentence (#1101 decision 7: what an edit here
+        // reaches, and what a load does, #781). It is two sentences, a note's
+        // whole budget, so the trick headline is a note of its own
+        // (Combo_MMOptionsPage_TricksHeadline).
+        snprintf(buf, size, "%s", COMBO_RANDO_PAGES_NEXT_WORLD_NOTE);
+    }
+    return buf;
+}
+
+const char* Combo_MMOptionsPage_TricksHeadline(char* buf, size_t size) {
+    if (buf == NULL || size == 0) {
+        return buf;
+    }
+    const int count = Combo_MMTrickCount();
+    if (count == 0 || Combo_MMProfileFrozen()) {
+        // No table, or a world whose tricks are already decided: the tricks
+        // note says which, and nothing here is settable to count.
+        buf[0] = '\0';
+    } else {
         // A trick that cannot be turned on says why in its own disabled row.
-        snprintf(buf, size,
-                 "%d of %d tricks are supported by the randomizer logic so far. Loading a paired file restores its "
-                 "own tricks.",
+        snprintf(buf, size, "%d of %d tricks are supported by the randomizer logic so far.",
                  Combo_MMOptionsPage_SettableTrickCount(), count);
     }
     return buf;

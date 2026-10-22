@@ -88,7 +88,8 @@
  * (SetupMenuElements is skipped, and SohMenu::DrawElement refuses to draw an
  * unpopulated menu), so the harness draws a probe menu of its own holding
  * exactly the sections known to register ROM-free: the Randomizer header with
- * the Cross-Game pointer page, the tier-4 Combo section, and Dev Tools. The
+ * our pages only (SohGui::AddComboRandomizerPages: MM Randomizer, MM Tricks,
+ * Cross-Game), the tier-4 Combo section, and Dev Tools. The
  * probe is drawn inside each frame by the harness and never takes the Gui's
  * single menu slot (the SetMenuCount row pins that slot to the live shell).
  * Pages that need the full menu are recorded as skipped with the reason. soh.o2r is
@@ -142,7 +143,7 @@
 #include "ComboTrackerWindow.h"
 #include "combo_logic.h"           // RSBS_COMBO_HALF_* (the goal-warning toast page)
 #include "pairing_refusal_toast.h" // the cross-game refusal toast pages
-#include "combo_mm_options_page.h" // Combo > MM Randomizer / MM Tricks: page names, row suffix, reset title
+#include "combo_mm_options_page.h" // Randomizer > MM Randomizer / MM Tricks: page names, row suffix, reset title
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -186,10 +187,6 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 
 namespace SohGui {
-// Defined in SohMenuRandomizer.cpp and declared in no header (the combo section
-// lock declares it the same way): AddMenuRandomizer as a whole cannot run
-// ROM-free, so the probe menu drives the pointer page directly.
-void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
 // Combo > Majora's Mask's body over a manifest table, and its group note's
 // sentence (SohMenuComboMmEnhancements.cpp, declared in no header, #747). The
 // MM note probe builds a page from a synthetic non-live table through it.
@@ -871,7 +868,7 @@ struct PageSpec {
     // Hover variants on a row drawn through the combo_ui seam, found by the
     // label it passes to the seam's rect recorder (such a row has no WidgetInfo
     // whose postFunc could be wrapped: a pane's rows, or a trick row inside
-    // Combo > MM Tricks' custom list), each captured in one named state. WINDOW
+    // Randomizer > MM Tricks' custom list), each captured in one named state. WINDOW
     // and MENU_PAGE alike.
     struct PaneHover {
         std::string name;
@@ -880,7 +877,7 @@ struct PageSpec {
         bool disabled = false; // the row is disabled: its tooltip must be SoH's disabled shape
     };
     std::vector<PaneHover> paneHovers;
-    // Combo > MM Tricks' row census (CheckTrickCensus): in every state, the
+    // Randomizer > MM Tricks' row census (CheckTrickCensus): in every state, the
     // trick list draws each of MM's tricks exactly once, in the column its
     // value puts it in, with the tooltip its state gives it.
     bool trickCensus = false;
@@ -1368,9 +1365,12 @@ void Session::BuildRomFreeMenu() {
     // What Gui::SetMenu would do for a menu, minus taking the slot: Init() runs
     // InitElement (the window-backend tables and SoH's disabledMap).
     probe->Init();
+    // AddMenuRandomizer as a whole cannot run ROM-free, so the Randomizer header
+    // holds only our slice of it (#1101): the pages it registers after SoH's
+    // Tricks/Glitches.
     probe->AddMenuEntry("Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"));
-    WidgetPath path = { "Randomizer", "Cross-Game", SECTION_COLUMN_1 };
-    SohGui::AddCrossGamePointerWidgets(*probe, path);
+    WidgetPath path = { "Randomizer", SohGui::kComboRulesRandomizerPage, SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(*probe, path);
     probe->AddMenuCombo();
     probe->AddMenuDevTools();
     probe->ApplySharedIntentMarkers();
@@ -1745,7 +1745,7 @@ ImGuiID TrackerChecksId(ImGuiWindow* w, int game) {
 }
 
 /**
- * The first trick row Combo > MM Tricks draws (DrawMmTrickList,
+ * The first trick row Randomizer > MM Tricks draws (DrawMmTrickList,
  * SohMenuComboMmRandomizer.cpp): the lowest area id that has a row (it walks
  * areas in id order), and that area's first row in table order. @p areaOut
  * receives the area id, -1 if none. With @p want set, only rows it accepts
@@ -1771,7 +1771,7 @@ bool IsReservedTrick(const ComboMMTrickDesc* d) {
 }
 
 /**
- * The tricks Combo > MM Tricks' states turn on, so both of the list's columns
+ * The tricks Randomizer > MM Tricks' states turn on, so both of the list's columns
  * draw rows and the trick census counts both: the last two settable rows in
  * table order (the hovers' targets are the first area's, so they stay put).
  */
@@ -1881,6 +1881,17 @@ void Session::BuildPageList() {
         p.kind = Kind::MENU_PAGE;
         p.states = { "" };
         p.bodyText = PickBodyText(*menu, header, sidebar);
+        // A page whose first section header is a sibling's too names a section
+        // only it has. Since #1101 our randomizer pages share SoH's and OoTMM's
+        // section names on purpose ("Win Condition" heads both Cross-Game Rules
+        // and MM Randomizer), so the auto pick would name neither page whenever
+        // the other is its sibling contrast.
+        static const std::map<std::string, std::string> kPinnedBody = {
+            { "Combo/Cross-Game Rules", "Item Crossing" },
+        };
+        if (kPinnedBody.contains(p.id)) {
+            p.bodyText = kPinnedBody.at(p.id);
+        }
         // A page whose only row is a WIDGET_CUSTOM draws its own widgets, so no
         // registered name is drawn; its string is named here instead, and
         // CheckBodyText holds it to the same sibling contrast.
@@ -1933,7 +1944,7 @@ void Session::BuildPageList() {
         p.kind = Kind::MODAL;
         p.window = "Clear Config";
         // over-menu: the same modal over the same open menu page the creation
-        // overlay's over-menu variant sits on (Combo > Cross-Game Rules), so the
+        // overlay's over-menu variant sits on (Randomizer > Cross-Game), so the
         // two can be read side by side: the dim, and what shows through the box.
         p.states = { "", "over-menu" };
         p.expectText = { "Clear Config", "Cancel" };
@@ -2004,55 +2015,74 @@ void Session::BuildPageList() {
         pages.push_back(p);
     }
 
-    // Ours. Every Combo sidebar the live menu registered, in its own order, so a
-    // page added later cannot escape the harness: an unlisted page compares with
-    // Randomizer/General by default and says so in the manifest.
+    // Ours. Every page we register under the Randomizer header (#1101) and every
+    // Combo sidebar, each in its header's own order, so a page added later cannot
+    // escape the harness: an unlisted page compares with Randomizer/General by
+    // default and says so in the manifest. Keyed by page id.
     static const std::map<std::string, std::string> kCompare = {
-        { "Cross-Game Rules", "Randomizer/General" },
-        { "Windows", "Randomizer/Item Tracker" },
-        { "Majora's Mask", "Enhancements/Quality of Life" },
+        { "Randomizer/Cross-Game", "Randomizer/General" },
+        { "Combo/Windows", "Randomizer/Item Tracker" },
+        { "Combo/Majora's Mask", "Enhancements/Quality of Life" },
         // OoT's own mod menu (Settings/Mod Menu, which embeds ModMenuWindow)
         // cannot be the reference: with the harness's fresh config and no mods
         // folder, its GetEnabledModsFromCVar yields one empty name, UpdateModFiles
         // leaves it in place when the folder is absent, and DrawMods's
         // filePaths.at("") throws. Tricks/Glitches is SoH's other two-column
         // Disabled/Enabled table page, the layout this page shares.
-        { "MM Mods", "Randomizer/Tricks/Glitches" },
+        { "Combo/MM Mods", "Randomizer/Tricks/Glitches" },
         // MM's randomizer options and tricks, pages since 2026-09-27 (they were
-        // a pop-out pane): read against the SoH pages whose shape they take.
-        { COMBO_MM_OPTIONS_PAGE_NAME, "Randomizer/General" },
-        { COMBO_MM_TRICKS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
+        // a pop-out pane), under the Randomizer header since #1101: read against
+        // the SoH pages whose shape they take.
+        { std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME, "Randomizer/General" },
+        { std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
-        { "Save Files", "Randomizer/Tricks/Glitches" },
+        { "Combo/Save Files", "Randomizer/Tricks/Glitches" },
         // The unified trackers' settings (#458 U7): SoH's tracker page, whose
         // embedded Item Tracker Settings hold the rows this page takes.
-        { "Tracker Settings", "Randomizer/Item Tracker" },
+        { "Combo/Tracker Settings", "Randomizer/Item Tracker" },
     };
     auto& entries = MenuEntries(*menu);
-    if (entries.contains("Combo")) {
-        // Every page named in kCompare must be registered. The loop below captures
-        // what IS registered, so without this a contributed page whose registrar
-        // was elided or renamed would vanish from the run and the row stay green
-        // (#706's review).
-        for (const auto& [named, reference] : kCompare) {
-            const auto& order = entries.at("Combo").sidebarOrder;
-            if (std::find(order.begin(), order.end(), named) == order.end()) {
-                Fail("Combo/" + named + " has a reference (" + reference +
-                     ") but no registered Combo page carries that name: its registrar was elided or renamed, so "
-                     "its captures would silently drop out of this run");
+    // Our pages, header by header: under Randomizer only the ones
+    // AddComboRandomizerPages registers (SoH's own are references, never ours),
+    // under Combo every sidebar.
+    std::vector<std::pair<std::string, std::string>> ours;
+    if (entries.contains("Randomizer")) {
+        const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
+        for (const std::string& sidebar : entries.at("Randomizer").sidebarOrder) {
+            if (std::find(randoPages.begin(), randoPages.end(), sidebar) != randoPages.end()) {
+                ours.emplace_back("Randomizer", sidebar);
             }
         }
+    }
+    if (entries.contains("Combo")) {
         for (const std::string& sidebar : entries.at("Combo").sidebarOrder) {
-            PageSpec p = menuPage("Combo", sidebar, Origin::RSBS);
-            auto it = kCompare.find(sidebar);
+            ours.emplace_back("Combo", sidebar);
+        }
+    }
+    if (entries.contains("Combo")) {
+        // Every page named in kCompare must be registered under the header its
+        // id names. The loop below captures what IS registered, so without this
+        // a contributed page whose registrar was elided, renamed or moved would
+        // vanish from the run and the row stay green (#706's review).
+        for (const auto& [named, reference] : kCompare) {
+            if (std::find_if(ours.begin(), ours.end(),
+                             [&](const auto& hs) { return hs.first + "/" + hs.second == named; }) == ours.end()) {
+                Fail(named + " has a reference (" + reference +
+                     ") but no page of ours is registered under that header and name: its registrar was elided, "
+                     "renamed or moved, so its captures would silently drop out of this run");
+            }
+        }
+        for (const auto& [header, sidebar] : ours) {
+            PageSpec p = menuPage(header, sidebar, Origin::RSBS);
+            auto it = kCompare.find(p.id);
             if (it != kCompare.end()) {
                 p.compareWith = it->second;
             } else {
                 p.compareWith = "Randomizer/General";
                 p.compareDefaulted = true;
             }
-            if (sidebar == "Cross-Game Rules") {
+            if (p.id == std::string("Randomizer/") + SohGui::kComboRulesRandomizerPage) {
                 // (empty-oot-classes drew the empty-set note until #834 retired
                 // the item-class rows.)
                 p.states = { "unpaired", "paired-legacy", "frozen", "corrupt" };
@@ -2072,8 +2102,10 @@ void Session::BuildPageList() {
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
-                p.stateText["unpaired"] = { "apply to the next paired world",
-                                            "Loading a paired file restores its own rules" };
+                // Unpaired and frozen are the sentences every randomizer page
+                // of ours shares (#1101 decision 7).
+                p.stateText["unpaired"] = { "These apply to the next world you generate.",
+                                            "Loading a paired file shows its own." };
                 p.stateText["paired-legacy"] = { "Your paired world predates these rules",
                                                  "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
@@ -2082,7 +2114,7 @@ void Session::BuildPageList() {
                                     { "paired-legacy", "unpaired" },
                                     { "frozen", "unpaired" },
                                     { "corrupt", "unpaired" } };
-            } else if (sidebar == "Majora's Mask") {
+            } else if (p.id == "Combo/Majora's Mask") {
                 p.states = { "", "autosave" };
                 // The row gated on gEnhancements.Autosave (the table's
                 // shownWhileKey), which hides while Autosave is off.
@@ -2104,7 +2136,7 @@ void Session::BuildPageList() {
                     p.hovers = { "first-row" };
                     p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
                 }
-            } else if (sidebar == "MM Mods") {
+            } else if (p.id == "Combo/MM Mods") {
                 // "": an empty model, so the empty-folder note. "listed": a
                 // synthetic list with one disabled mod, so both columns and every
                 // arrow draw. "unfinished": the same list from a walk that ended
@@ -2121,7 +2153,7 @@ void Session::BuildPageList() {
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
                 p.hovers = { "rescan" };
                 p.hoverRows["rescan"] = "Rescan Mods Folder";
-            } else if (sidebar == "Save Files") {
+            } else if (p.id == "Combo/Save Files") {
                 // "": no cross-game record at any slot, so its note and three
                 // record-less rows. "listed": a ready file, a load refused for its
                 // rules (the toast's words) and a CRC-refused one with a backup
@@ -2139,7 +2171,7 @@ void Session::BuildPageList() {
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
-            } else if (sidebar == "Tracker Settings") {
+            } else if (p.id == "Combo/Tracker Settings") {
                 // "": the overlay floats (its default), so the two floating-only
                 // rows show. "window": the overlay is a window, so they hide
                 // (their PreFunc; SoH's Item Tracker Settings hides them too).
@@ -2152,16 +2184,17 @@ void Session::BuildPageList() {
                 // The Window Type row: its tooltip's "Value: effect" lines.
                 p.hovers = { "window-type" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
-            } else if (sidebar == "Windows") {
+            } else if (p.id == "Combo/Windows") {
                 // A tracker toggle: SoH's "Toggles the <Window>." (the unified
                 // Item Tracker's, since MM's tracker rows left the page, #458 U6).
                 p.hovers = { "item-tracker" };
                 p.hoverRows["item-tracker"] = "Toggle Combo Item Tracker";
-            } else if (sidebar == COMBO_MM_OPTIONS_PAGE_NAME) {
+            } else if (p.id == std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME) {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
                 p.states = { "unpaired", "frozen", "mm-suspended" };
-                p.stateText["unpaired"] = { "Loading a paired file restores its own options" };
+                p.stateText["unpaired"] = { "These apply to the next world you generate.",
+                                            "Loading a paired file shows its own." };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
                 p.stateContrast = { { "unpaired", "frozen" },
@@ -2205,11 +2238,11 @@ void Session::BuildPageList() {
                 p.hovers.push_back("trap-row");
                 p.hoverRows["trap-row"] = std::string("Freeze Traps") + COMBO_MM_OPTIONS_ROW_ID_SUFFIX;
                 p.hoverRowState["trap-row"] = "unpaired";
-            } else if (sidebar == COMBO_MM_TRICKS_PAGE_NAME) {
+            } else if (p.id == std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME) {
                 // Unpaired: the model's headline; frozen: the freeze sentence.
                 p.states = { "unpaired", "frozen" };
                 p.stateText["unpaired"] = { "tricks are supported by the randomizer logic",
-                                            "Loading a paired file restores its own tricks" };
+                                            "These apply to the next world you generate." };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
                 // Every trick row draws its name through the combo_ui seam, whose
@@ -2320,11 +2353,6 @@ void Session::BuildPageList() {
         pages.push_back(p);
     }
     {
-        PageSpec p = menuPage("Randomizer", "Cross-Game", Origin::RSBS);
-        p.compareWith = "Randomizer/General";
-        pages.push_back(p);
-    }
-    {
         PageSpec p;
         p.id = std::string("window/") + ComboGui::kComboSpoilerWindowName;
         p.kind = Kind::WINDOW;
@@ -2420,13 +2448,14 @@ void Session::BuildPageList() {
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
     // Callback (so the capture is the popup a player gets) and compared with
     // SoH's "Clear Config" modal.
-    if (entries.contains("Combo") && entries.at("Combo").sidebars.contains("Cross-Game Rules")) {
+    if (entries.contains("Randomizer") &&
+        entries.at("Randomizer").sidebars.contains(SohGui::kComboRulesRandomizerPage)) {
         PageSpec p;
         p.id = "modal/Reset Combo Rules";
         p.origin = Origin::RSBS;
         p.kind = Kind::MODAL;
-        p.header = "Combo";
-        p.sidebar = "Cross-Game Rules";
+        p.header = "Randomizer";
+        p.sidebar = SohGui::kComboRulesRandomizerPage;
         p.window = "Reset Combo Rules";
         p.states = { "" };
         p.compareWith = "modal/Clear Config";
@@ -2434,16 +2463,16 @@ void Session::BuildPageList() {
         p.scroll = false;
         pages.push_back(p);
     }
-    // Ours: Combo > MM Randomizer's Reset confirm, opened through the row's own
+    // Ours: Randomizer > MM Randomizer's Reset confirm, opened through the row's own
     // Callback (so the capture is the popup a player gets) and compared with
     // SoH's "Clear Config" modal. It was the MM options pane's confirm until the
     // options became pages.
-    if (entries.contains("Combo") && entries.at("Combo").sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME)) {
+    if (entries.contains("Randomizer") && entries.at("Randomizer").sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME)) {
         PageSpec p;
         p.id = std::string("modal/") + COMBO_MM_OPTIONS_RESET_TITLE;
         p.origin = Origin::RSBS;
         p.kind = Kind::MODAL;
-        p.header = "Combo";
+        p.header = "Randomizer";
         p.sidebar = COMBO_MM_OPTIONS_PAGE_NAME;
         p.window = COMBO_MM_OPTIONS_RESET_TITLE;
         p.states = { "" };
@@ -2828,7 +2857,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
     if (opt.Sabotaged("no-state")) {
         return;
     }
-    if (p.id == "Combo/Cross-Game Rules") {
+    if (p.id == std::string("Randomizer/") + SohGui::kComboRulesRandomizerPage) {
         if (state == "paired-legacy") {
             AuthorPairing();
         } else if (state == "frozen" || state == "corrupt") {
@@ -2900,8 +2929,8 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             // for.
             CVarSetInteger(CVAR_SETTING("DisableChanges"), 1);
         }
-    } else if (p.id == std::string("Combo/") + COMBO_MM_OPTIONS_PAGE_NAME ||
-               p.id == std::string("Combo/") + COMBO_MM_TRICKS_PAGE_NAME) {
+    } else if (p.id == std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME ||
+               p.id == std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME) {
         // Majora's Mask running unless the state is the suspended one, so the
         // suspended note shows in exactly one state; frozen is a creation stamp.
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
@@ -3548,7 +3577,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             // The row-state probe's hovers are the four presentation states'
             // disabled rows: each must show SoH's disabled shape (a), and no
             // tracker number (ADR 0004's 2026-09-27 amendment). So must a named
-            // hover the page lists as disabled (Combo > MM Randomizer's frozen and
+            // hover the page lists as disabled (Randomizer > MM Randomizer's frozen and
             // capability-blocked rows).
             if (HoverVerdict(c, label, authoredTip) && (p.rowStateProbe || p.disabledHovers.contains(hv))) {
                 DisabledShapeVerdict(c, label, authoredTip);
@@ -3559,7 +3588,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         }
 
         // Seam hovers on a menu page: a row drawn inside a custom widget through
-        // the combo_ui seam (Combo > MM Tricks' trick rows), found by the label
+        // the combo_ui seam (Randomizer > MM Tricks' trick rows), found by the label
         // it hands the seam's rect recorder, scrolled into view in whichever
         // window drew it (the tricks table's own child), then hovered.
         CapturePaneHovers(p, state);
@@ -3661,7 +3690,7 @@ struct PaneHoverProbe {
     ImRect rect;
     std::string tooltip;
     // The window the row was drawn in: the pane itself, or the child a menu
-    // page's custom list scrolls in (Combo > MM Tricks' table columns).
+    // page's custom list scrolls in (Randomizer > MM Tricks' table columns).
     ImGuiWindow* window = nullptr;
 };
 
@@ -3678,7 +3707,7 @@ void PaneHoverRecord(void* user, const char* label, const char* tooltip, float m
 }
 
 /**
- * The combo_ui rect recorder's sink for Combo > MM Tricks' row census: every
+ * The combo_ui rect recorder's sink for Randomizer > MM Tricks' row census: every
  * trick name the list drew in one frame, the column child that drew it
  * (DrawMmTrickList's "ChildMmTricksDisabled" / "ChildMmTricksEnabled"), and the
  * tooltip a hover would show. A report from any other window is not a trick row
@@ -3746,7 +3775,7 @@ const char* PaneCvar(const std::string& window) {
  * the combo_ui seam, whose rect recorder reports where it drew, in which window,
  * and the tooltip a hover shows; it is scrolled into view in that window and
  * hovered the way a menu row is. Shared by panes and by menu pages whose rows
- * live inside a custom widget (Combo > MM Tricks).
+ * live inside a custom widget (Randomizer > MM Tricks).
  */
 void Session::CapturePaneHovers(const PageSpec& p, const std::string& state) {
     for (const PageSpec::PaneHover& ph : p.paneHovers) {
@@ -3831,7 +3860,7 @@ void Session::CapturePaneHovers(const PageSpec& p, const std::string& state) {
 }
 
 /**
- * Combo > MM Tricks' row census, in @p state: one frame of the page drawn with
+ * Randomizer > MM Tricks' row census, in @p state: one frame of the page drawn with
  * the rect recorder listening, then every one of MM's trick descriptors must
  * have been drawn exactly once, in the column its value puts it in (Enabled
  * when on), with the tooltip its row state gives it (its description while
@@ -4227,8 +4256,8 @@ void Session::CaptureWindowPage(const PageSpec& p) {
 /** The menu page every over-menu variant sits on: one of ours, drawn on a ROM-free run too. */
 PageSpec OverMenuPage() {
     PageSpec under;
-    under.header = "Combo";
-    under.sidebar = "Cross-Game Rules";
+    under.header = "Randomizer";
+    under.sidebar = SohGui::kComboRulesRandomizerPage;
     return under;
 }
 
@@ -5408,8 +5437,12 @@ int Session::RuntimeLint() {
             lintPage("Combo", sidebar, page);
         }
     }
-    if (entries.contains("Randomizer") && entries.at("Randomizer").sidebars.contains("Cross-Game")) {
-        lintPage("Randomizer", "Cross-Game", entries.at("Randomizer").sidebars.at("Cross-Game"));
+    if (entries.contains("Randomizer")) {
+        for (const std::string& sidebar : SohGui::ComboRandomizerPageNames()) {
+            if (entries.at("Randomizer").sidebars.contains(sidebar)) {
+                lintPage("Randomizer", sidebar, entries.at("Randomizer").sidebars.at(sidebar));
+            }
+        }
     }
     // R5: an interactive row's name must not have been changed by its PreFunc in
     // any state the captures drove. The registered names were recorded before the
@@ -5433,24 +5466,24 @@ int Session::RuntimeLint() {
     for (int i = 0; i < Combo_MMOptionCount(); i++) {
         const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
         if (d != nullptr) {
-            refString("Combo/MM Randomizer table", d->label);
-            refString("Combo/MM Randomizer table", d->tooltip);
-            refString("Combo/MM Randomizer table", d->disabledReason);
+            refString("Randomizer/MM Randomizer table", d->label);
+            refString("Randomizer/MM Randomizer table", d->tooltip);
+            refString("Randomizer/MM Randomizer table", d->disabledReason);
         }
     }
     for (int i = 0; i < Combo_MMTrickCount(); i++) {
         const ComboMMTrickDesc* d = Combo_MMTrickAt(i);
         if (d != nullptr) {
-            refString("Combo/MM Tricks table", d->label);
-            refString("Combo/MM Tricks table", d->tooltip);
-            refString("Combo/MM Tricks table", d->disabledReason);
+            refString("Randomizer/MM Tricks table", d->label);
+            refString("Randomizer/MM Tricks table", d->tooltip);
+            refString("Randomizer/MM Tricks table", d->disabledReason);
         }
     }
     for (int i = 0; i < Combo_MMTrapTypeCount(); i++) {
         const ComboMMTrapTypeDesc* d = Combo_MMTrapTypeAt(i);
         if (d != nullptr) {
-            refString("Combo/MM Randomizer trap types", d->label);
-            refString("Combo/MM Randomizer trap types", d->tooltip);
+            refString("Randomizer/MM Randomizer trap types", d->label);
+            refString("Randomizer/MM Randomizer trap types", d->tooltip);
         }
     }
 
@@ -5542,13 +5575,16 @@ void Session::DumpSohNames() {
     // already in the baseline it compares with) changed an original SoH row.
     std::string body;
     auto& entries = MenuEntries(*menu);
+    const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
     for (const std::string& header : MenuOrder(*menu)) {
         if (header == "Combo" || !entries.contains(header)) {
             continue;
         }
         const MainMenuEntry& e = entries.at(header);
         for (const std::string& sidebar : e.sidebarOrder) {
-            if (header == "Randomizer" && sidebar == "Cross-Game") {
+            // Our pages under SoH's Randomizer header (#1101) are not SoH's rows.
+            if (header == "Randomizer" &&
+                std::find(randoPages.begin(), randoPages.end(), sidebar) != randoPages.end()) {
                 continue;
             }
             if (!e.sidebars.contains(sidebar)) {
@@ -5631,7 +5667,7 @@ int Session::Run() {
     printf("[UI-SNAPSHOT] profile %s (%dx%d at %d,%d), backend %s, readback %s, %s\n", profile.name.c_str(), profile.w,
            profile.h, profile.posX, profile.posY, renderer.backend == Backend::GL ? "OpenGL" : "DirectX 11",
            renderer.readbackName.c_str(),
-           romFree ? "ROM-free (probe menu: Randomizer pointer page, Combo, Dev Tools)" : "ROM-rich (production menu)");
+           romFree ? "ROM-free (probe menu: our Randomizer pages, Combo, Dev Tools)" : "ROM-rich (production menu)");
     if (renderer.backend == Backend::GL && (colorBits[0] < 8 || colorBits[1] < 8 || colorBits[2] < 8)) {
         fprintf(stderr,
                 "[UI-SNAPSHOT] FAIL: the GL visual has %d/%d/%d colour bits; an 8-bit-per-channel "

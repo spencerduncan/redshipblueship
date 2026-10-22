@@ -307,8 +307,10 @@ under `Cutscenes.Skip*Cutscenes`. Same behaviour, both bool.
 | Skip story cutscenes | `gEnhancements.TimeSavers.SkipCutscene.Story` | `gEnhancements.Cutscenes.SkipStoryCutscenes` |
 
 Remaining members of each family are (O): OoT-only `SkipCutscene.{BossIntro, GlitchAiding,
-LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipMiscInteractions,
-SkipToFileSelect, SkipEnemyCutscenes}`.
+LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipToFileSelect,
+SkipEnemyCutscenes}`. `Cutscenes.SkipMiscInteractions` is no longer MM-only: since #1046 MM reads
+SoH's `gEnhancements.TimeSavers.SkipMiscInteractions` ("Skip Misc Interactions"), and #1093 linked
+its providers.
 
 `Cutscenes.SkipGetItemCutscenes` is NOT MM-only (#1060): its twin is SoH's
 `gRandoEnhancements.TimeSavers.SkipGetItemAnimation` ("Skip Get Item Animations", Randomizer
@@ -425,7 +427,7 @@ are not rediscovered.
    longer an orphan: #1038 moved MM's reader onto OoT's `gEnhancements.N64WeirdFrames`, whose
    widget is SoH's Fixes > N64 Weird Frames checkbox, and linked the provider.)
 4. **High fan-out single toggles** — 25 TUs in `Cutscenes/MiscInteractions/` all read the one
-   key `gEnhancements.Cutscenes.SkipMiscInteractions`; 28 TUs in `Cutscenes/StoryCutscenes/`
+   key `gEnhancements.Cutscenes.SkipMiscInteractions` (SoH's `TimeSavers.SkipMiscInteractions` since #1046); 27 TUs in `Cutscenes/StoryCutscenes/`
    all read `…SkipStoryCutscenes`. Relevant to capability gating (ADR 0004 §4): the control
    is only as live as the *least* linked of its 25 TUs.
 5. **MM's directory taxonomy ≠ MM's menu taxonomy.** `Modes/`, `Player/`, `Equipment/`,

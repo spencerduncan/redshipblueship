@@ -43,11 +43,14 @@
  * WHERE THE ROWS LIVE NOW (#497 step 6). They were registered by
  * `SohGui::AddCrossGameWidgets` into `Randomizer → Cross-Game`, a page that said
  * in-tree it was the interim host until the tier-4 Combo section existed. That
- * section exists, so this lock follows them: the rows are now
- * `Combo → Cross-Game Rules`, registered by `SohMenu::AddMenuCombo()`. The old
- * page survives with a pointer row, and `MenuComboSection` owns the section's
- * shape (both pages, the pointer row, the extension point); this row still owns
- * the seam between the model and the rows, which is unchanged by the move.
+ * section exists, so this lock followed them to `Combo → Cross-Game Rules`,
+ * registered by `SohMenu::AddMenuCombo()`. #1101 (operator ruling 2026-10-21,
+ * option C) moved them back under SoH's Randomizer header as
+ * `Randomizer → Cross-Game`, the one randomizer menu for both games, registered
+ * by `SohGui::AddComboRandomizerPages()` (our slice of `AddMenuRandomizer()`),
+ * and this lock follows them again. `MenuComboSection` owns the headers' shape
+ * (which pages, in which order, the persisted selection); this row still owns
+ * the seam between the model and the rows, which no move changed.
  *
  * HOW IT OBSERVES. It builds a real SohMenu headless and calls the REAL
  * production entry point, `AddMenuCombo()` — not a test-only registrar. That is
@@ -290,29 +293,33 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         Combo_ComboSettingClear((ComboSettingId)i);
     }
 
-    // The REAL production entry point, not a test-only registrar: AddMenuCombo()
-    // creates the "Combo" header, both sidebars and every row, and nothing in it
-    // reaches Rando::Settings. So the page layout under test is the one a player
-    // gets, including which column each row lands in -- the scope the interim
-    // host's lock had to give up.
+    // The REAL production entry points, not test-only registrars:
+    // AddComboRandomizerPages() is the slice of AddMenuRandomizer() that creates
+    // our Randomizer pages (the rules among them), and AddMenuCombo() the "Combo"
+    // header; neither reaches Rando::Settings. So the page layout under test is
+    // the one a player gets, including which column each row lands in.
     ComboRulesMenuProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
 
     // ---- Leg 1: the section and the two rows exist ----------------------------
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
-               "(#497 step 6) is gone or was renamed\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no \"Randomizer\" and/or \"Combo\" menu entry\n");
+        return 1;
+    }
+    auto& randoSidebars = entries.at("Randomizer").sidebars;
+    if (!randoSidebars.contains("Cross-Game") || randoSidebars.at("Cross-Game").columnWidgets.empty() ||
+        randoSidebars.at("Cross-Game").columnWidgets.at(0).empty()) {
+        printf("[TEST] FAIL(1): the \"Randomizer\" menu has no \"Cross-Game\" page with rows -- the host for the "
+               "tier-4 combo rules under the one randomizer menu (operator ruling 2026-10-21)\n");
         return 1;
     }
     auto& sidebars = entries.at("Combo").sidebars;
-    if (!sidebars.contains("Cross-Game Rules")) {
-        printf("[TEST] FAIL(1): the \"Combo\" menu has no \"Cross-Game Rules\" sidebar page -- the host for the "
-               "tier-4 combo rules (#509/#655, moved by #497 step 6) is gone or was renamed\n");
-        return 1;
-    }
-    const SidebarEntry& page = sidebars.at("Cross-Game Rules");
-    auto& columns = sidebars.at("Cross-Game Rules").columnWidgets;
+    const SidebarEntry& page = randoSidebars.at("Cross-Game");
+    auto& columns = randoSidebars.at("Cross-Game").columnWidgets;
     if (columns.empty()) {
         printf("[TEST] FAIL(1): the Cross-Game Rules page has no widget columns\n");
         return 1;
@@ -409,7 +416,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all three tier-4 settings are rows in Randomizer / Cross-Game, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----
@@ -560,6 +567,77 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 15 "
                "(#879, #886, #1068, #1065, #1066, #1067, #968, #970, #978)\n",
                ocarinaRows, checkboxes);
+    }
+
+    // ---- Leg 1f: OoTMM's sections, in OoTMM's order (#1101, option C) -------
+    // The page reads as OoTMM's Settings do: "Win Condition" over the Goal,
+    // "Item Crossing" over the Crossing Direction, then OoTMM's own section name,
+    // "Shared Items", over every Shared <Item> rule, and the rules in the order
+    // OoTMM's settings list them (packages/core/src/settings/data.ts). The ranks
+    // are by LABEL, spelled here, and cover the rules in flight too: a name the
+    // page does not hold yet is skipped, so each rule lands in its place as it
+    // merges and this leg pins it there.
+    {
+        static const char* const kOotmmSharedOrder[] = {
+            "Shared Fire Arrows",    "Shared Ice Arrows",   "Shared Light Arrows",    "Shared Epona's Song",
+            "Shared Song of Storms", "Shared Song of Time", "Shared Lens of Truth",   "Shared Goron Mask",
+            "Shared Zora Mask",      "Shared Bunny Hood",   "Shared Keaton Mask",     "Shared Mask of Truth",
+            "Shared Kokiri Sword",   "Shared Shields",      "Shared Ocarina Buttons", "Shared Bottles",
+        };
+        const int ranks = (int)(sizeof(kOotmmSharedOrder) / sizeof(kOotmmSharedOrder[0]));
+        const std::string marker = std::string(Combo_ComboSettingSharedMarker()) + " ";
+        auto rankOf = [&](const std::string& name) {
+            for (int r = 0; r < ranks; r++) {
+                if (name == marker + kOotmmSharedOrder[r]) {
+                    return r;
+                }
+            }
+            return -1;
+        };
+        std::vector<std::string> separators;
+        std::string section;
+        int lastRank = -1;
+        std::string lastName;
+        int sharedRows = 0;
+        for (PageRow& pageRow : rows) {
+            const WidgetInfo& row = *pageRow.first;
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                separators.push_back(row.name);
+                section = row.name;
+                continue;
+            }
+            if (row.name == RowName(COMBO_SETTING_GOAL)) {
+                ROWS_CHECK(section == "Win Condition", "the Goal row sits under '%s', expected \"Win Condition\"",
+                           section.c_str());
+            } else if (row.name == RowName(COMBO_SETTING_DIRECTION)) {
+                ROWS_CHECK(section == "Item Crossing",
+                           "the Crossing Direction row sits under '%s', expected \"Item Crossing\"", section.c_str());
+            } else if (row.type == WIDGET_CHECKBOX) {
+                sharedRows++;
+                ROWS_CHECK(section == "Shared Items", "the rule '%s' sits under '%s', expected \"Shared Items\"",
+                           row.name.c_str(), section.c_str());
+                const int rank = rankOf(row.name);
+                ROWS_CHECK(rank >= 0, "the rule '%s' has no place in OoTMM's order; add it to this leg's table",
+                           row.name.c_str());
+                ROWS_CHECK(rank > lastRank, "the rule '%s' comes after '%s'; OoTMM lists it first", row.name.c_str(),
+                           lastName.c_str());
+                if (rank > lastRank) {
+                    lastRank = rank;
+                    lastName = row.name;
+                }
+            }
+        }
+        const std::vector<std::string> kSections = { "Win Condition", "Item Crossing", "Shared Items" };
+        std::string got;
+        for (const std::string& s : separators) {
+            got += (got.empty() ? "" : ", ") + s;
+        }
+        ROWS_CHECK(separators == kSections,
+                   "the page's sections read [%s]; OoTMM's are Win Condition, Item Crossing, Shared Items",
+                   got.c_str());
+        printf("[TEST] leg 1f: the page's sections are [%s] and its %d shared rule(s) sit under Shared Items in "
+               "OoTMM's order\n",
+               got.c_str(), sharedRows);
     }
 
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
@@ -924,10 +1002,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("apply to the next paired world") != std::string::npos &&
-                       statusRow->name.find("Loading a paired file restores its own rules") != std::string::npos,
-                   "the pre-creation status line does not say these author the next world and that a load restores "
-                   "a file's own rules (#781): '%s'",
+        // The one status sentence every randomizer page of ours shares (#1101
+        // decision 7): these author the next world, a load shows its own (#781).
+        ROWS_CHECK(statusRow->name ==
+                       "These apply to the next world you generate. Loading a paired file shows its own.",
+                   "the pre-creation status line is not the shared sentence that these author the next world and "
+                   "that a load shows a file's own rules (#781): '%s'",
                    statusRow->name.c_str());
     }
 

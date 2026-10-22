@@ -67,21 +67,32 @@ extern "C" {
 #endif
 
 /**
- * Presentation groups, taken from the 9-sidebar taxonomy MM's own (link-elided)
- * rando menu uses at `games/mm/2s2h/Rando/Menu.cpp:988-1028`.
+ * Presentation groups: SoH's Randomizer headers, in SoH's order (#1101, option
+ * C: one randomizer menu, with Majora's Mask's options in the words OoT's pages
+ * use). Each is the section name SoH's own option groups carry
+ * (Enhancements/randomizer/settings.cpp, the RSG_MENU_SECTION_* groups), and an
+ * option sits under the header its OoT twin does: the Moon and Majora counts
+ * beside SoH's Triforce Hunt under Win Condition, the dungeon and trial rows
+ * under Area Access, the souls, swim, buttons, clock and pool rows under
+ * Additional Items.
  *
- * Five, not nine. MM's other four sidebars carry no `RO_*` option at all:
- * General holds seed/spoiler controls (not options), Check Filter drives a
- * tracker filter held in separate CVars, and Item Tracker / Check Tracker are
- * window buttons. Inventing empty groups for them would put four permanently
- * blank sections in the pane and imply options are missing from it.
+ * Until #1101 these were five groups in MM's own (link-elided) rando menu's
+ * taxonomy (`games/mm/2s2h/Rando/Menu.cpp:988-1028`: Logic & Conditions,
+ * Shuffle Options, Items, Starting Items, Hints). SoH headers no MM option
+ * belongs under (Item Pool, Entrances, the dungeon-item and Master Quest
+ * groups, Static Hints) are not listed: a permanently empty section would imply
+ * options are missing from it.
  */
 typedef enum {
-    COMBO_MM_GROUP_LOGIC,    // logic mode and the access/entry conditions
-    COMBO_MM_GROUP_SHUFFLE,  // the RO_SHUFFLE_* family and its thresholds
-    COMBO_MM_GROUP_ITEMS,    // item-pool shaping
-    COMBO_MM_GROUP_STARTING, // what the file starts with
-    COMBO_MM_GROUP_HINTS,    // the RO_HINTS_* family
+    COMBO_MM_GROUP_LOGIC,            // the logic mode
+    COMBO_MM_GROUP_WIN_CONDITION,    // the triforce hunt and the Moon and Majora counts
+    COMBO_MM_GROUP_AREA_ACCESS,      // what a dungeon and a Moon trial require
+    COMBO_MM_GROUP_SHUFFLE_ITEMS,    // the check-pool shuffles and their thresholds
+    COMBO_MM_GROUP_SHUFFLE_SHOPS,    // shops and Tingle's maps
+    COMBO_MM_GROUP_ADDITIONAL_ITEMS, // items the pool gains: souls, swim, buttons, time
+    COMBO_MM_GROUP_TRAPS,            // the trap rows
+    COMBO_MM_GROUP_HINTS,            // the RO_HINTS_* family
+    COMBO_MM_GROUP_STARTING,         // what the file starts with
     COMBO_MM_GROUP_COUNT
 } ComboMMOptionGroup;
 
