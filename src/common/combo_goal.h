@@ -72,7 +72,12 @@
  * at RC_TRIFORCE_COMPLETED and a blue rupee at RC_GANON), so a paired creation
  * under a boss goal generates it as "Ganon's Boss Key" instead
  * (Combo_GoalKeepsOwnHuntWin, read by OoT's Playthrough_Init right after its
- * settings are finalized).
+ * settings are finalized). Under the combo triforce hunt the reverse holds
+ * (#997): the give reaching the COMBO requirement grants Ganon's Boss Key and
+ * ends the paired game in the same frame, so "Ganon's Boss Key" would have the
+ * fill credit the boss key (and Ganondorf's Lair) at OoT's OWN requirement, a
+ * door play opens only as the game ends; the creation generates it as "Win",
+ * the mode the arms already play (Combo_GoalGeneratesOwnHuntAsWin).
  *
  * Game-header-free, like triforce_hunt.c. THREADING: game thread only.
  */
@@ -191,6 +196,18 @@ int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces);
  * creation refuses that record elsewhere). Pure.
  */
 bool Combo_GoalKeepsOwnHuntWin(uint8_t goal);
+
+/**
+ * Must a paired creation generate a half's own triforce hunt, when that hunt is
+ * on, in its WIN mode (#997)? True for triforce-hunt only: there the combo
+ * requirement is the end of the paired game and both piece-give arms take the
+ * Win branch on it whichever mode the half named, so a half's own "lock on the
+ * final boss" mode (OoT's "Ganon's Boss Key") would describe a door the game
+ * opens only as it ends, behind the half's OWN requirement in the proof. False
+ * for every boss goal (Combo_GoalKeepsOwnHuntWin covers those) and for a value
+ * outside the pinned table. Pure.
+ */
+bool Combo_GoalGeneratesOwnHuntAsWin(uint8_t goal);
 
 #ifdef __cplusplus
 }
