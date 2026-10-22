@@ -4114,6 +4114,106 @@ TestResult Test_ResourceCacheOwner(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1040 R4: an unload with an explicit owner in its ResourceFilter must unload
+// that owner's entries, not the current default owner's. Body in
+// src/common/tests/test_resource_cache_owner.c; same bring-up as the row above.
+TestResult Test_ResourceCacheOwnerUnloadFilter(void) {
+    printf("[TEST] resource-cache-owner-unload-filter: a filtered unload honours the filter's owner (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    int rc = ResourceCacheOwner_RunUnloadFilterHeadless();
+    printf("[TEST] %s: filtered unload rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1040 R1: OoT's Cosmetics Editor patches display lists in whatever copy the
+// current resource cache owner holds (#981). While Majora's Mask runs that is
+// MM's owner, so a colour changed then would parse OoT-only display lists again
+// under MM's owner and write OoT's command indices into MM's copies of the ones
+// both archives carry. The editor must patch only while OoT runs, owe the pass
+// otherwise, and pay it once on OoT's next frame. Seams in
+// games/oot/soh/Enhancements/cosmetics/CosmeticsEditor.cpp. ROM-free: the row
+// skips the patch body once a pass is counted, because that body reads
+// OTRGlobals::Instance (the Greg Bridge check), which this bring-up never builds.
+extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void);
+extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void);
+extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void);
+extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void);
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip);
+
+TestResult Test_CosmeticsPatchOwnerGate(void) {
+    printf("[TEST] cosmetics-patch-owner-gate: the Cosmetics Editor patches only while OoT runs (#1040)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    const GameId savedGame = Context_GetCurrentGame();
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(1);
+    int failures = 0;
+    auto expect = [&failures](bool ok, const char* what, int passes, int deferred) {
+        if (!ok) {
+            printf("[TEST] FAIL: %s (patch passes %d, deferred %d)\n", what, passes, deferred);
+            failures++;
+        }
+    };
+
+    // 1. OoT runs: a change patches at once and owes nothing.
+    Context_SetCurrentGame(GAME_OOT);
+    const int p0 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    int passes = CosmeticsEditor_CustomGfxPatchPasses();
+    int deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p0 + 1 && deferred == 0, "under OoT a change did not patch at once", passes - p0, deferred);
+
+    // 2. MM runs: a change reaches no patch (that would write MM's owner's copies)
+    //    and is owed to OoT. A reapply attempt while MM still runs pays nothing.
+    Context_SetCurrentGame(GAME_MM);
+    const int p1 = CosmeticsEditor_CustomGfxPatchPasses();
+    CosmeticsEditor_ApplyCustomGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1, "under MM a change reached the patches", passes - p1, deferred);
+    expect(deferred == 1, "under MM a change was not owed to OoT", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 && deferred == 1, "the owed pass was paid while MM still ran", passes - p1, deferred);
+
+    // 3. OoT's next frame pays the owed pass, once.
+    Context_SetCurrentGame(GAME_OOT);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    deferred = CosmeticsEditor_CustomGfxPatchesDeferred();
+    expect(passes == p1 + 1 && deferred == 0, "OoT's return did not pay the owed pass", passes - p1, deferred);
+    CosmeticsEditor_ReapplyDeferredGfxPatches();
+    passes = CosmeticsEditor_CustomGfxPatchPasses();
+    expect(passes == p1 + 1, "the owed pass was paid twice", passes - p1, deferred);
+
+    CosmeticsEditor_SetCustomGfxPatchBodySkipped(0);
+    Context_SetCurrentGame(savedGame);
+    printf("[TEST] %s: cosmetics patch owner gate (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #987: a game switch re-adds the arriving game's archives by path, and the
 // ArchiveManager must not mount a second copy of one that is already mounted.
 // Body in src/common/tests/test_archive_add_dedup.c: two temporary O2R zips
@@ -6461,6 +6561,10 @@ const TestDescriptor gTests[] = {
       Test_ModArchiveSurvivesSwitch },
     { "resource-cache-owner", "Each resource cache owner keeps its own copy of a shared path (#981)",
       Test_ResourceCacheOwner },
+    { "resource-cache-owner-unload-filter", "A filtered unload honours the filter's cache owner (#1040)",
+      Test_ResourceCacheOwnerUnloadFilter },
+    { "cosmetics-patch-owner-gate", "The Cosmetics Editor patches only while OoT runs (#1040)",
+      Test_CosmeticsPatchOwnerGate },
     { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
