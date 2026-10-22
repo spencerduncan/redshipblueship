@@ -931,11 +931,12 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 7,
-                            "exactly seven tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+            CVARCLASS_CHECK(identityKeys == 8,
+                            "exactly eight tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, the Shared "
-                            "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, and "
-                            "Shared Epona's Song and Song of Storms, #1066; #879 retired #668's shared ocarina)");
+                            "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, Shared "
+                            "Epona's Song and Song of Storms, #1066, and the Shared Ocarina Buttons, #1067; #879 "
+                            "retired #668's shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);
