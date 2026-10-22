@@ -280,7 +280,10 @@ int Combo_ModelAddPart(ComboModel* model, const char* dl, uint8_t layer, uint8_t
 
 /** 1 when every field is something a host can draw: at least one part, every
  *  part a known layer with an "__OTR__objects/<dir>/<name>" path, a setup list
- *  for exactly the layers in use, well-formed scrolls, a finite positive scale. */
+ *  for exactly the layers in use, well-formed scrolls, a finite positive scale;
+ *  and (#964) joints whose parents come first and that some part uses, parts
+ *  naming only existing joints, and segment colours and a joint segment in the
+ *  actor segments (8-0xD) that no scroll or other binding already fills. */
 int Combo_ModelIsWellFormed(const ComboModel* model);
 
 /** 1 when an object directory of that name exists in BOTH games' archives
@@ -289,7 +292,9 @@ int Combo_ModelIsWellFormed(const ComboModel* model);
  *  ForeignModel row re-derives it from both asset trees. */
 int Combo_ForeignModel_ObjectDirCollides(const char* objectDir);
 /** Combo_ForeignModel_ObjectDirCollides of the directory a display-list path
- *  names; 0 for a path that names no object directory. */
+ *  names; 0 for a path that names no object directory, and 0 for the few paths
+ *  in a colliding directory that only one game's tree names and the curated
+ *  half carries by name (#964: the stray fairy's gameplay_keep lists). */
 int Combo_ForeignModel_PathCollides(const char* dl);
 /** Size of the collision table (test observability). */
 int Combo_ForeignModel_CollidingDirCount(void);

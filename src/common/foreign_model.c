@@ -253,6 +253,23 @@ int Combo_ForeignModel_ObjectDirCollides(const char* objectDir) {
                : 0;
 }
 
+// ---- Collision-free paths in colliding directories (#964) --------------------
+//
+// A directory both trees carry collides as a whole (the table above), but a
+// resource NAME only one game's tree carries is not shadowed by the other game:
+// the curated half carries it as a single-path manifest entry (both generators
+// refuse a path any of the host's base archives carries), so it resolves to the
+// origin's one copy whichever archive was added last. These are the display
+// lists such entries let a host draw, as "<dir>/<name>", sorted by strcmp. The
+// ForeignModel row (M17) checks the stray fairy's against both asset trees; an
+// entry for another model needs the same check.
+static const char* const kCollisionFreePaths[] = {
+    "gameplay_keep/gStrayFairyGlowDL",           "gameplay_keep/gStrayFairyLeftArmDL",
+    "gameplay_keep/gStrayFairyLeftFacingHeadDL", "gameplay_keep/gStrayFairyLeftWingDL",
+    "gameplay_keep/gStrayFairyPelvisAndLegsDL",  "gameplay_keep/gStrayFairyRightArmDL",
+    "gameplay_keep/gStrayFairyRightWingDL",      "gameplay_keep/gStrayFairyTorsoDL",
+};
+
 int Combo_ForeignModel_PathCollides(const char* dl) {
     const char* dir = NULL;
     size_t len = 0;
@@ -262,7 +279,14 @@ int Combo_ForeignModel_PathCollides(const char* dl) {
     }
     memcpy(name, dir, len);
     name[len] = '\0';
-    return Combo_ForeignModel_ObjectDirCollides(name);
+    if (!Combo_ForeignModel_ObjectDirCollides(name)) {
+        return 0;
+    }
+    // `dir` runs on to the end of the path: "<dir>/<name>".
+    return bsearch(dir, kCollisionFreePaths, sizeof(kCollisionFreePaths) / sizeof(kCollisionFreePaths[0]),
+                   sizeof(kCollisionFreePaths[0]), CompareDirKey) != NULL
+               ? 0
+               : 1;
 }
 
 int Combo_ForeignModel_CollidingDirCount(void) {
@@ -330,6 +354,84 @@ static int ScrollWellFormed(const ComboModelScroll* scroll, int hasOpa, int hasX
            scroll->w2 == 0 && scroll->h2 == 0;
 }
 
+// ---- Segment colours and joints (#964) ---------------------------------------
+
+static int ActorSegment(uint8_t segment) {
+    return segment >= 8 && segment <= 0xD;
+}
+
+static int SegmentColorUnused(const ComboModelSegmentColor* c) {
+    static const uint8_t kZero[4];
+    return c->segment == 0 && c->layer == 0 && c->primLodFrac == 0 && memcmp(c->prim, kZero, 4) == 0 &&
+           memcmp(c->env, kZero, 4) == 0;
+}
+
+static int JointUnused(const ComboModelJoint* j) {
+    return j->parent == 0 && j->pos[0] == 0 && j->pos[1] == 0 && j->pos[2] == 0 && j->rot[0] == 0 && j->rot[1] == 0 &&
+           j->rot[2] == 0;
+}
+
+/** The joints form a forest whose parents come first, every joint a part names
+ *  exists, some part uses the joints, and the joint segment and each segment
+ *  colour name an actor segment that no scroll, other colour or the joints
+ *  already fill on that layer. */
+static int PoseWellFormed(const ComboModel* model, int hasOpa, int hasXlu) {
+    if (model->jointCount > COMBO_MODEL_MAX_JOINTS) {
+        return 0;
+    }
+    for (int i = 0; i < COMBO_MODEL_MAX_JOINTS; i++) {
+        const ComboModelJoint* j = &model->joints[i];
+        if (i >= (int)model->jointCount ? !JointUnused(j) : (j->parent < -1 || j->parent >= i)) {
+            return 0;
+        }
+    }
+    int usesJoint = 0;
+    for (uint8_t i = 0; i < model->partCount; i++) {
+        if (model->parts[i].joint > model->jointCount) {
+            return 0;
+        }
+        usesJoint |= model->parts[i].joint != 0;
+    }
+    if ((model->jointCount != 0) != usesJoint) {
+        return 0;
+    }
+    if (model->jointSegment != 0 && (!ActorSegment(model->jointSegment) || model->jointCount == 0)) {
+        return 0;
+    }
+    for (int i = 0; i < COMBO_MODEL_MAX_SCROLLS; i++) {
+        if (model->scrolls[i].segment != 0 && model->scrolls[i].segment == model->jointSegment) {
+            return 0;
+        }
+    }
+    for (int i = 0; i < COMBO_MODEL_MAX_SEGMENT_COLORS; i++) {
+        const ComboModelSegmentColor* c = &model->segmentColors[i];
+        if (c->segment == 0) {
+            if (!SegmentColorUnused(c)) {
+                return 0;
+            }
+            continue;
+        }
+        if (!ActorSegment(c->segment) || !LayerValid(c->layer) || c->segment == model->jointSegment) {
+            return 0;
+        }
+        if ((c->layer == (uint8_t)COMBO_MODEL_LAYER_OPA && !hasOpa) ||
+            (c->layer == (uint8_t)COMBO_MODEL_LAYER_XLU && !hasXlu)) {
+            return 0;
+        }
+        for (int k = 0; k < COMBO_MODEL_MAX_SCROLLS; k++) {
+            if (model->scrolls[k].segment == c->segment && model->scrolls[k].layer == c->layer) {
+                return 0;
+            }
+        }
+        for (int k = 0; k < i; k++) {
+            if (model->segmentColors[k].segment == c->segment && model->segmentColors[k].layer == c->layer) {
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 int Combo_ModelIsWellFormed(const ComboModel* model) {
     if (model == NULL || model->partCount == 0 || model->partCount > COMBO_MODEL_MAX_PARTS) {
         return 0;
@@ -367,7 +469,7 @@ int Combo_ModelIsWellFormed(const ComboModel* model) {
             return 0;
         }
     }
-    return 1;
+    return PoseWellFormed(model, hasOpa, hasXlu);
 }
 
 // ---- Host-native tables (#577 M7) -------------------------------------------

@@ -79,6 +79,35 @@ mm->oot objects/object_mask_truth/
 # on a raw segment-6 operand, which is what keeps that true.
 mm->oot objects/object_bsmask/
 #
+# The stray fairy (#964).  MM draws it with custom code (DrawStrayFairy, a flex
+# skeleton in gameplay_keep); OoT draws it as a still posed model of the same
+# eight limb lists, binding the colour lists (segments 8 and 9) and the joint
+# matrices (segment 0xD) the lists jump into.  gameplay_keep is a directory both
+# games carry, so these are single-path entries: the lists, their four textures
+# and their eight vertex arrays, none of which any OoT base archive names (the
+# collision guard checks each).  The skeleton, animation and colour tracks are
+# not curated: the descriptor carries the pose and the colours as data.
+mm->oot objects/gameplay_keep/gStrayFairyLeftWingDL
+mm->oot objects/gameplay_keep/gStrayFairyRightWingDL
+mm->oot objects/gameplay_keep/gStrayFairyGlowDL
+mm->oot objects/gameplay_keep/gStrayFairyTorsoDL
+mm->oot objects/gameplay_keep/gStrayFairyRightArmDL
+mm->oot objects/gameplay_keep/gStrayFairyPelvisAndLegsDL
+mm->oot objects/gameplay_keep/gStrayFairyLeftArmDL
+mm->oot objects/gameplay_keep/gStrayFairyLeftFacingHeadDL
+mm->oot objects/gameplay_keep/gStrayFairyBodyTex
+mm->oot objects/gameplay_keep/gStrayFairyWingTex
+mm->oot objects/gameplay_keep/gStrayFairyGlowTex
+mm->oot objects/gameplay_keep/gStrayFairyLeftFacingHeadTex
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B4B0
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B500
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B530
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B560
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B590
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B5D0
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B600
+mm->oot objects/gameplay_keep/gameplay_keepVtx_02B630
+#
 # The 43 MM-exclusive get-item objects (#577 M6).  Every display list here
 # names only its own directory.
 mm->oot objects/object_gi_bigbomb/
