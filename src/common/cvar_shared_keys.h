@@ -185,6 +185,13 @@
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE "gCombo.Rando.SharedArrowFire"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE "gCombo.Rando.SharedArrowIce"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT "gCombo.Rando.SharedArrowLight"
+/* #970: the bottle COUNT is one quantity for the pair up to OoT's four slots, the
+ * contents stay each game's own. A deliberate divergence from OoTMM's sharedBottles
+ * (six bottles, contents and refills shared, needs extraBottlesOot's six OoT
+ * slots): see PR #1094. Boolean (0/1), DEFAULT 0:
+ * a BIT of the item rules record, so with it off the record stays all clear and
+ * every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES "gCombo.Rando.SharedBottles"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -661,6 +668,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_LIGHT bit (#968): the Light Arrows are ONE "
       "shared-pair family across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BOTTLES bit (#970): the bottle count is ONE shared "
+      "quantity across both games, up to OoT's four slots" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -1077,20 +1087,20 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Eleven identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Twelve identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
-// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968);
-// #879 retired SharedOcarina (#668)) + four
+// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968) and SharedBottles
+// (#970); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 24, "eleven gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 24");
+static_assert(kComboKeyCount == 25, "twelve gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 25");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

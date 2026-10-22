@@ -71,7 +71,7 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: shared families a row is MM's copy of (#1065, #1067)
+#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families a row is MM's copy of (#1067)
 #include "game.h"          // MM_SAVE_CONTEXT_SIZE
 
 // The view hands this TU either the unified live storage (unified_save.c,
@@ -588,6 +588,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             key = MMItemRandoIcon(RI_TRIFORCE_PIECE);
+            break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            key = MMItemIcon(ITEM_BOTTLE);
             break;
         default:
             break;
