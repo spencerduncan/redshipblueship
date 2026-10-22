@@ -18,7 +18,17 @@ extern s32 MM_sCameraInterfaceFlags;
 }
 
 // Check if bombchu remote control is active
+#if defined(RSBS_SINGLE_EXECUTABLE)
+// #1023: Equipment/RemoteBombchu.cpp (the only definition of IsBombchuFocused) is not in the single-exe link, and a
+// reference from here would drag it in from the plain 2ship_enh archive and arm its hooks as a side effect of a
+// camera row. With it absent no bombchu is ever remote-controlled, so the check is always false. Whoever links
+// RemoteBombchu.cpp restores the upstream extern here in the same change.
+static bool IsBombchuFocused() {
+    return false;
+}
+#else
 extern bool IsBombchuFocused();
+#endif
 
 // Static Data Used For Free Camera
 static bool sCanFreeLook = false;
@@ -141,6 +151,15 @@ bool Camera_FreeLook(Camera* camera) {
 }
 
 bool Camera_CanFreeLook(Camera* camera) {
+#if defined(RSBS_SINGLE_EXECUTABLE)
+    // #1023: Camera_FreeLook and this function dereference both play-state pointers and the player actor. The
+    // camera update that dispatches here runs inside Play, but a missing play state or a player that has not
+    // spawned yet leaves vanilla camera behavior untouched instead of faulting (the #516 class).
+    if (sCamPlayState == nullptr || MM_gPlayState == nullptr || GET_PLAYER(MM_gPlayState) == nullptr) {
+        sCanFreeLook = false;
+        return false;
+    }
+#endif
     f32 camX = sCamPlayState->state.input[0].cur.right_stick_x * 10.0f;
     f32 camY = sCamPlayState->state.input[0].cur.right_stick_y * 10.0f;
     if (!sCanFreeLook && (fabsf(camX) >= 15.0f || fabsf(camY) >= 15.0f)) {
