@@ -947,6 +947,10 @@ extern "C" {
 // progression item of both games classifies, descriptors round-trip, and the
 // collision table matches the asset trees. FILE SCOPE (compiled as C++).
 #include "tests/test_foreign_model.c"
+// Wearing the other game's masks (#977): the worn-mask table and its curated
+// models, both games' equip rules, the fields' persistence, and OoT's list-based
+// child trade cycle. FILE SCOPE (compiled as C++).
+#include "tests/test_foreign_masks.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -6160,6 +6164,32 @@ TestResult Test_SharedSongsBag(void) {
     return SharedSongsBag_Run();
 }
 
+// #1085: one copy of each shared song per Shuffle Songs value (0 Off, 1 Song
+// Locations, 2 Dungeon Rewards, 3 Anywhere), shared-lens-bag's bring-up.
+static TestResult SharedSongsOneCopyRow(int shuffleSongs) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ssoArg0[] = "redship";
+    static char* ssoArgv[] = { ssoArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ssoArgv);
+    return SharedSongsOneCopy_Run(shuffleSongs);
+}
+TestResult Test_SharedSongsOneCopyOff(void) {
+    return SharedSongsOneCopyRow(0);
+}
+TestResult Test_SharedSongsOneCopySongLocations(void) {
+    return SharedSongsOneCopyRow(1);
+}
+TestResult Test_SharedSongsOneCopyDungeonRewards(void) {
+    return SharedSongsOneCopyRow(2);
+}
+TestResult Test_SharedSongsOneCopyAnywhere(void) {
+    return SharedSongsOneCopyRow(3);
+}
+
 // #968: the shared arrows' bag rows over a real generation, shared-lens-bag's
 // bring-up.
 TestResult Test_SharedArrowsBag(void) {
@@ -7629,6 +7659,22 @@ const TestDescriptor gTests[] = {
       "With both shared-song rules on, the single bag holds one row per song both solvers credit, each placed once "
       "over both games, and the GOAL is still proven (#1066)",
       Test_SharedSongsBag },
+    { "shared-songs-one-copy-off",
+      "With the three shared-song rules on and Shuffle Songs Off, the paired world holds one copy of each shared song "
+      "and the other songs stay vanilla (#1085)",
+      Test_SharedSongsOneCopyOff },
+    { "shared-songs-one-copy-song-locations",
+      "With the three shared-song rules on and Shuffle Songs at Song Locations, the paired world holds one copy of "
+      "each shared song (#1085)",
+      Test_SharedSongsOneCopySongLocations },
+    { "shared-songs-one-copy-dungeon-rewards",
+      "With the three shared-song rules on and Shuffle Songs at Dungeon Rewards, the paired world holds one copy of "
+      "each shared song (#1085)",
+      Test_SharedSongsOneCopyDungeonRewards },
+    { "shared-songs-one-copy-anywhere",
+      "With the three shared-song rules on and Shuffle Songs Anywhere, the paired world holds one copy of each shared "
+      "song (#1085)",
+      Test_SharedSongsOneCopyAnywhere },
     { "shared-arrows-bag",
       "With all three shared-arrow rules on, the single bag holds one row per arrow both solvers credit, each placed "
       "once over both games, and the GOAL is still proven (#968)",
@@ -7666,6 +7712,25 @@ const TestDescriptor gTests[] = {
       "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
       "descriptors round-trip, and the collision table matches both asset trees (#577 M2)",
       Test_ForeignModel },
+    { "foreign-mask-table",
+      "Each game wears three of the other's masks: every mask is hosted by the other game, its worn list and icon are "
+      "curated in the host's half, its rule bits are the item rules record's, it is wearable only under its frozen "
+      "extension rule, every byte sanitizes to a mask the host wears or none, and the toggle, ownership, shared-slot "
+      "and list-cycle rules hold (#977)",
+      Test_ForeignMaskTable },
+    { "foreign-mask-rules",
+      "A worn foreign mask never reaches currentMask in either game; OoT wears one mask at a time, as a child, off at "
+      "a scene load unless Persistent Masks; MM in human form only, with the shared pause slots' cycle, equip and "
+      "icon; neither wears a mask whose extension rule the world did not freeze on (#977)",
+      Test_ForeignMaskRules },
+    { "foreign-mask-persistence",
+      "Both games' worn-mask fields are appended to their saves, cross with the frozen half and survive a .redsave "
+      "save and load (#977)",
+      Test_ForeignMaskPersistence },
+    { "oot-child-trade-cycle",
+      "OoT's list-based child trade cycle answers exactly as the contiguous cycle for every slot value and ownership "
+      "set, and visits a registered custom ItemID (#977)",
+      Test_OoTChildTradeCycle },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
@@ -7959,6 +8024,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-songs-bag") == 0 || strcmp(gTests[i].name, "shared-arrows-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-masks-bag") == 0 ||
+                strncmp(gTests[i].name, "shared-songs-one-copy-", 22) == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||

@@ -97,6 +97,20 @@
  *     Rando::Foreign::ChestItemTypeForCheck); the expectation from each game's
  *     own table, read directly.
  *
+ *  M17 THE CUSTOM-DRAWN MM CLASSES (#964): a boss remains, a stray fairy, the
+ *     seahorse row, the Moon's Tear and the bottled-fairy row each answer a
+ *     DESCRIPTOR in OoT, not the stand-in. The five stray fairies carry
+ *     DrawStrayFairy's shape: gStrayFairySkel's eight drawn limb lists, each
+ *     under its own joint, the skeleton posed at gStrayFairyFlyingAnim's first
+ *     frame with its matrices bound to segment 0xD, scale 0.03, camera-facing,
+ *     and the area's body and glow colours bound to segments 8 and 9; their
+ *     gameplay_keep lists are collision-free because only MM's tree names them.
+ *     The bottled fairy carries GetItem_DrawFairyContainer's shape with its
+ *     colour track's segment 8. The shelf's real draw binds 8, 9 and 0xD before
+ *     the lists, sets the area's colours, and puts each list at its joint's
+ *     posed position; the get-item cutscene shows the fairy. MM as a host is
+ *     never handed a model with segment colours or joints.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
  */
@@ -150,6 +164,8 @@ int OoT_ForeignModel_ModelForOoTCheck(uint16_t rc, ComboModel* out);
 void OoT_ForeignModel_TestSetMountOverride(int value);
 int OoT_ForeignModel_TestPathMountedReal(const char* dl);
 int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* want);
+int OoT_ForeignModel_TestShelfXlu(uint16_t rc, uint8_t bound[16], uint8_t colorSegment, uint8_t prim[4], uint8_t env[4],
+                                  float translation[][3], int maxParts);
 // #577 M4: OoT's get-item cutscene (ForeignModelHostOoT.cpp).
 int OoT_ForeignModel_TestShowOnlyGetItem(uint16_t rc, int wantEntry, const ComboModel* want, const char* wantName);
 // #577 M5: OoT's chest appearance for a crossing host (ForeignItemsSingleExe.cpp).
@@ -208,7 +224,26 @@ bool FmModelEqual(const ComboModel& a, const ComboModel& b) {
     }
     for (int i = 0; i < a.partCount; i++) {
         if (a.parts[i].dl != b.parts[i].dl || a.parts[i].layer != b.parts[i].layer ||
-            a.parts[i].billboard != b.parts[i].billboard) {
+            a.parts[i].billboard != b.parts[i].billboard || a.parts[i].joint != b.parts[i].joint) {
+            return false;
+        }
+    }
+    // #964: the segment colours and the posed skeleton.
+    for (int i = 0; i < COMBO_MODEL_MAX_SEGMENT_COLORS; i++) {
+        const ComboModelSegmentColor& x = a.segmentColors[i];
+        const ComboModelSegmentColor& y = b.segmentColors[i];
+        if (x.segment != y.segment || x.layer != y.layer || x.primLodFrac != y.primLodFrac ||
+            std::memcmp(x.prim, y.prim, 4) != 0 || std::memcmp(x.env, y.env, 4) != 0) {
+            return false;
+        }
+    }
+    if (a.jointCount != b.jointCount || a.jointSegment != b.jointSegment) {
+        return false;
+    }
+    for (int i = 0; i < a.jointCount && i < COMBO_MODEL_MAX_JOINTS; i++) {
+        if (a.joints[i].parent != b.joints[i].parent ||
+            std::memcmp(a.joints[i].pos, b.joints[i].pos, sizeof(a.joints[i].pos)) != 0 ||
+            std::memcmp(a.joints[i].rot, b.joints[i].rot, sizeof(a.joints[i].rot)) != 0) {
             return false;
         }
     }
@@ -300,16 +335,21 @@ TestResult FmWalkDrawRows(const FmGame& g) {
             }
             if (std::strstr(list, "BillboardRotMtx") != nullptr) {
                 // A matrix RESOURCE, not a display list: the descriptor must express it as billboardOffset (#964).
-                // Only the caught seahorse's gGiSeahorseBillboardRotMtx is understood (a pure translation,
-                // (-2, 27, 0), read off the resource); any other matrix resource a row starts answering must be
-                // decoded and pinned here on purpose, so it fails until it is.
-                if (std::strstr(list, "gGiSeahorseBillboardRotMtx") == nullptr) {
+                // Only the caught seahorse's gGiSeahorseBillboardRotMtx (a pure translation, (-2, 27, 0)) and
+                // the bottled fairy's gGiFairyBottleBillboardRotMtx (a pure translation, (0, -10, 0)) are
+                // understood, both read off the resource; any other matrix resource a row starts answering
+                // must be decoded and pinned here on purpose, so it fails until it is.
+                const bool seahorse = std::strstr(list, "gGiSeahorseBillboardRotMtx") != nullptr;
+                const bool bottle = std::strstr(list, "gGiFairyBottleBillboardRotMtx") != nullptr;
+                const float wantX = seahorse ? -2.0f : 0.0f;
+                const float wantY = seahorse ? 27.0f : -10.0f;
+                if (!seahorse && !bottle) {
                     printf("[TEST]   %s row %d: the matrix %s has no decoded offset in this test\n", g.name, row, list);
                     failures++;
-                } else if (model.billboardOffset[0] != -2.0f || model.billboardOffset[1] != 27.0f ||
+                } else if (model.billboardOffset[0] != wantX || model.billboardOffset[1] != wantY ||
                            model.billboardOffset[2] != 0.0f) {
-                    printf("[TEST]   %s row %d: the matrix %s is not expressed as the offset (-2, 27, 0)\n", g.name,
-                           row, list);
+                    printf("[TEST]   %s row %d: the matrix %s is not expressed as the offset (%g, %g, 0)\n", g.name,
+                           row, list, (double)wantX, (double)wantY);
                     failures++;
                 }
                 continue;
@@ -838,6 +878,370 @@ bool FmIncludes(const char* rel, std::set<std::string>* out) {
 #endif
 }
 
+// ---- M17: the custom-drawn MM rows (#964) ------------------------------------
+
+/** M17: 1 when the checkout file `rel` contains `needle`, 0 when not, -1 unreadable. */
+int FmFileContains(const char* rel, const char* needle) {
+#ifdef RSBS_SOURCE_DIR
+    FILE* f = fopen((std::string(RSBS_SOURCE_DIR) + "/" + rel).c_str(), "rb");
+    if (f == nullptr) {
+        return -1;
+    }
+    std::string text;
+    char buf[4096];
+    size_t n = 0;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        text.append(buf, n);
+    }
+    fclose(f);
+    return text.find(needle) != std::string::npos ? 1 : 0;
+#else
+    (void)rel;
+    (void)needle;
+    return -1;
+#endif
+}
+
+/** M17: 1 when a file in the checkout directory `rel` is named `stem` (any
+ *  extension), 0 when none is, -1 unreadable. */
+int FmDirHasStem(const char* rel, const char* stem) {
+#ifdef RSBS_SOURCE_DIR
+    std::error_code ec;
+    std::filesystem::directory_iterator it(std::filesystem::path(RSBS_SOURCE_DIR) / rel, ec);
+    if (ec) {
+        return -1;
+    }
+    for (const auto& entry : it) {
+        if (entry.path().stem().string() == stem || entry.path().filename().string() == stem) {
+            return 1;
+        }
+    }
+    return 0;
+#else
+    (void)rel;
+    (void)stem;
+    return -1;
+#endif
+}
+
+struct FmStrayFairy {
+    const char* name;
+    uint8_t bodyPrim[4];
+    uint8_t bodyEnv[4];
+    uint8_t glowPrim[4];
+    uint8_t glowEnv[4];
+};
+
+// DrawStrayFairy (2s2h/Rando/DrawItem.cpp) binds the area's colour track,
+// gStrayFairy<Area>TexAnim: AnimatedMat segment 1 (+7 = 8, the body) and 2
+// (+7 = 9, the glow), each a prim (RGBA, LOD 255) and env colour. Key frame 0,
+// read off mm.o2r's resources.
+const FmStrayFairy kFmStrayFairies[] = {
+    { "Clock Town Stray Fairy",
+      { 255, 255, 200, 255 },
+      { 150, 50, 0, 255 },
+      { 255, 180, 30, 90 },
+      { 255, 180, 30, 255 } },
+    { "Woodfall Stray Fairy",
+      { 255, 235, 255, 255 },
+      { 170, 40, 100, 255 },
+      { 255, 140, 220, 90 },
+      { 255, 140, 220, 255 } },
+    { "Snowhead Stray Fairy", { 255, 255, 200, 255 }, { 40, 90, 0, 255 }, { 180, 230, 40, 90 }, { 180, 230, 40, 255 } },
+    { "Great Bay Stray Fairy",
+      { 225, 235, 255, 255 },
+      { 60, 20, 160, 255 },
+      { 200, 140, 255, 90 },
+      { 200, 140, 255, 255 } },
+    { "Stone Tower Stray Fairy",
+      { 255, 255, 225, 255 },
+      { 160, 160, 60, 255 },
+      { 200, 200, 140, 90 },
+      { 255, 255, 140, 255 } },
+};
+
+// SkelAnime_DrawFlex's order over gStrayFairySkel: limb 0 (the right-facing
+// head) is dropped by StrayFairyOverrideLimbDraw, limbs 1-8 draw their lists,
+// each under its own joint (part joint = limb + 1).
+const char* const kFmStrayFairyLists[8] = {
+    "/gameplay_keep/gStrayFairyLeftWingDL", "/gameplay_keep/gStrayFairyRightWingDL",
+    "/gameplay_keep/gStrayFairyGlowDL",     "/gameplay_keep/gStrayFairyTorsoDL",
+    "/gameplay_keep/gStrayFairyRightArmDL", "/gameplay_keep/gStrayFairyPelvisAndLegsDL",
+    "/gameplay_keep/gStrayFairyLeftArmDL",  "/gameplay_keep/gStrayFairyLeftFacingHeadDL",
+};
+
+// gStrayFairySkel's nine limbs (the parent from each limb's child and sibling
+// index, the position from its joint position, the root's from
+// gStrayFairyFlyingAnim's root translation) at gStrayFairyFlyingAnim's first
+// frame (its rotations), read off mm.o2r's resources.
+const ComboModelJoint kFmStrayFairyJoints[9] = {
+    { -1, { 0, 0, 125 }, { 0, 0, 0 } },
+    { 0, { 0, 950, -76 }, { 0, 0, 11192 } },
+    { 0, { 0, 950, -76 }, { 0, -32768, -11192 } },
+    { 0, { 0, 0, -125 }, { 0, 0, 0 } },
+    { 3, { 0, -350, 75 }, { 0, 0, -54 } },
+    { 4, { -103, -52, -45 }, { 0, -32768, 10005 } },
+    { 4, { 0, -325, 0 }, { 0, 0, 3452 } },
+    { 4, { 103, -52, -45 }, { 0, 0, -2967 } },
+    { 0, { 0, 0, 0 }, { 0, 0, 0 } },
+};
+
+const ComboModelSegmentColor* FmSegColor(const ComboModel& m, uint8_t segment) {
+    for (const ComboModelSegmentColor& c : m.segmentColors) {
+        if (c.segment == segment) {
+            return &c;
+        }
+    }
+    return nullptr;
+}
+
+bool FmSegColorIs(const ComboModelSegmentColor* c, uint8_t layer, const uint8_t prim[4], const uint8_t env[4]) {
+    return c != nullptr && c->layer == layer && c->primLodFrac == 255 && std::memcmp(c->prim, prim, 4) == 0 &&
+           std::memcmp(c->env, env, 4) == 0;
+}
+
+/** A model that needs the #964 descriptor fields (segment colours or joints). */
+bool FmCarriesPose(const ComboModel& m) {
+    bool any = m.jointCount != 0 || m.jointSegment != 0;
+    for (const ComboModelSegmentColor& c : m.segmentColors) {
+        any |= c.segment != 0;
+    }
+    for (int i = 0; i < m.partCount; i++) {
+        any |= m.parts[i].joint != 0;
+    }
+    return any;
+}
+
+bool FmNear(const float v[3], float x, float y, float z) {
+    return std::fabs(v[0] - x) < 1e-3f && std::fabs(v[1] - y) < 1e-3f && std::fabs(v[2] - z) < 1e-3f;
+}
+
+/**
+ * M17 (#964): the MM item classes whose MM draw is custom code each answer a
+ * model in OoT, with the shape that code gives them; OoT's shop shelf and
+ * get-item cutscene draw it; MM, as a host, never meets the new fields.
+ */
+TestResult FmCustomDrawModels(void) {
+    const uint8_t kDesc = COMBO_MODEL_ANSWER_DESCRIPTOR;
+    const uint8_t kOpa = COMBO_MODEL_LAYER_OPA;
+    const uint8_t kXlu = COMBO_MODEL_LAYER_XLU;
+    constexpr int kSeahorseCaughtRow = 0x62; // GID_SEAHORSE_CAUGHT (MM z64item.h)
+    constexpr int kBottledFairyRow = 0x3B;   // GID_FAIRY (MM z64item.h)
+
+    // The five classes #964 names, each asked of the registry as OoT asks it.
+    // No randomizer item names the seahorse or bottled-fairy row: those two are
+    // asked on the row and classified for OoT.
+    {
+        SharedItem odolwa;
+        SharedItem fairy;
+        SharedItem tear;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Odolwa's Remains", &odolwa) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Clock Town Stray Fairy", &fairy) &&
+                      TestNamedItem((uint8_t)GAME_MM, "Moon's Tear", &tear),
+                  "M17 named items");
+        ComboModelAnswer a;
+        const uint8_t remainsKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, odolwa, &a);
+        const uint8_t fairyKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, fairy, &a);
+        const uint8_t tearKind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, tear, &a);
+        ComboModel seahorse;
+        ComboModel bottle;
+        const char* seahorseReason = nullptr;
+        const char* bottleReason = nullptr;
+        const int seahorseRow = MM_ComboModel_TestForDrawRow(kSeahorseCaughtRow, &seahorse, &seahorseReason);
+        const int bottleRow = MM_ComboModel_TestForDrawRow(kBottledFairyRow, &bottle, &bottleReason);
+        const uint8_t seahorseKind = seahorseRow == 1
+                                         ? Combo_ClassifyForeignModel((uint8_t)GAME_OOT, &seahorse, nullptr)
+                                         : (uint8_t)COMBO_MODEL_ANSWER_NONE;
+        const uint8_t bottleKind = bottleRow == 1 ? Combo_ClassifyForeignModel((uint8_t)GAME_OOT, &bottle, nullptr)
+                                                  : (uint8_t)COMBO_MODEL_ANSWER_NONE;
+        printf("[TEST]   M17 in OoT: boss remains %u, stray fairy %u (%s), seahorse row %u (%s), Moon's Tear %u, "
+               "bottled fairy row %u (%s)\n",
+               (unsigned)remainsKind, (unsigned)fairyKind,
+               fairyKind == kDesc ? "a model" : MM_ComboModel_TestItemReason(fairy.id), (unsigned)seahorseKind,
+               seahorseReason != nullptr ? seahorseReason : "a model", (unsigned)tearKind, (unsigned)bottleKind,
+               bottleReason != nullptr ? bottleReason : "a model");
+        FM_ASSERT(remainsKind == kDesc && fairyKind == kDesc && seahorseKind == kDesc && tearKind == kDesc &&
+                      bottleKind == kDesc,
+                  "M17 each of #964's five classes (boss remains, stray fairies, the seahorse, the Moon's Tear, the "
+                  "bottled fairy) is a DESCRIPTOR in OoT, not the stand-in");
+    }
+
+    // DrawStrayFairy: setup 25 on XLU, the area's colour track bound to
+    // segments 8 and 9, the billboard rotation, MM_Matrix_Scale(0.03), then
+    // gStrayFairySkel drawn by SkelAnime_DrawFlex (its matrices bound to
+    // segment 0xD) at gStrayFairyFlyingAnim's pose.
+    for (const FmStrayFairy& f : kFmStrayFairies) {
+        SharedItem item;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, f.name, &item), "M17 named item");
+        ComboModelAnswer a;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &a) == kDesc,
+                  "M17 a stray fairy is a DESCRIPTOR in OoT");
+        const ComboModel& m = a.model;
+        bool lists = m.partCount == 8;
+        for (int i = 0; lists && i < 8; i++) {
+            lists = FmTailIs(m.parts[i].dl, kFmStrayFairyLists[i]) && m.parts[i].layer == kXlu &&
+                    m.parts[i].billboard == 1 && m.parts[i].joint == i + 2;
+        }
+        FM_ASSERT(lists, "M17 a stray fairy is its eight limb lists, camera-facing on XLU, each under its own "
+                         "joint, in SkelAnime_DrawFlex's order (the right-facing head dropped)");
+        FM_ASSERT(m.opaSetupDl == 0 && m.xluSetupDl == 25 && std::fabs(m.scale - 0.03f) < 1e-6f &&
+                      m.billboardOffset[0] == 0.0f && m.billboardOffset[1] == 0.0f && m.billboardOffset[2] == 0.0f &&
+                      m.rotation[0] == 0 && m.rotation[1] == 0 && m.rotation[2] == 0 && m.scrolls[0].segment == 0 &&
+                      m.scrolls[1].segment == 0 && !m.opaColor.set && !m.xluColor.set && !m.grayscale,
+                  "M17 a stray fairy is drawn under setup 25 on XLU at MM_Matrix_Scale(0.03), with no offset, "
+                  "scroll or layer colour");
+        bool joints = m.jointCount == 9 && m.jointSegment == 0x0D;
+        for (int j = 0; joints && j < 9; j++) {
+            const ComboModelJoint& want = kFmStrayFairyJoints[j];
+            joints = m.joints[j].parent == want.parent &&
+                     std::memcmp(m.joints[j].pos, want.pos, sizeof(want.pos)) == 0 &&
+                     std::memcmp(m.joints[j].rot, want.rot, sizeof(want.rot)) == 0;
+        }
+        FM_ASSERT(joints, "M17 a stray fairy carries gStrayFairySkel posed at gStrayFairyFlyingAnim's first frame, "
+                          "its matrices bound to segment 0xD as SkelAnime_DrawFlex binds them");
+        FM_ASSERT(FmSegColorIs(FmSegColor(m, 8), kXlu, f.bodyPrim, f.bodyEnv) &&
+                      FmSegColorIs(FmSegColor(m, 9), kXlu, f.glowPrim, f.glowEnv),
+                  "M17 a stray fairy binds its area's body (segment 8) and glow (segment 9) colours, its colour "
+                  "track's first key frame");
+    }
+    // gameplay_keep is a directory both games carry, but these names only MM's
+    // tree does: the curated half's copy is the only one OoT can resolve.
+    for (const char* tail : kFmStrayFairyLists) {
+        const std::string path = std::string("__OTR__objects") + tail;
+        const std::string name = std::string(tail).substr(std::strlen("/gameplay_keep/"));
+        const std::string needle = std::string("objects/gameplay_keep/") + name + "\"";
+        const int inMm = FmFileContains("games/mm/assets/objects/gameplay_keep/gameplay_keep.h", needle.c_str());
+        const int inOoT = FmFileContains("games/oot/assets/objects/gameplay_keep/gameplay_keep.h", needle.c_str());
+        const int inOoTCustom = FmDirHasStem("games/oot/assets/custom/objects/gameplay_keep", name.c_str());
+        const int collides = Combo_ForeignModel_PathCollides(path.c_str());
+        if (inMm != 1 || inOoT != 0 || inOoTCustom != 0 || collides != 0) {
+            printf("[TEST]   M17 %s: in MM's tree %d, OoT's %d, OoT's custom %d; collides %d\n", path.c_str(), inMm,
+                   inOoT, inOoTCustom, collides);
+        }
+        FM_ASSERT(inMm == 1 && inOoT == 0 && inOoTCustom == 0,
+                  "M17 only MM's asset tree names a stray-fairy list (see the M17 line above)");
+        FM_ASSERT(collides == 0, "M17 a stray-fairy list is collision-free although gameplay_keep is shared");
+    }
+    FM_ASSERT(Combo_ForeignModel_PathCollides("__OTR__objects/gameplay_keep/gRsbsAnyOtherDL") == 1,
+              "M17 any other gameplay_keep path still collides (the exemption is per path)");
+
+    // GetItem_DrawFairyContainer: setup 25 on both layers, gGiFairyBottleTexAnim
+    // (a colour track, AnimatedMat segment -1, +7 = 8), the empty list (OPA),
+    // the glass and cork (XLU), then the contents facing the camera after
+    // gGiFairyBottleBillboardRotMtx, a pure translation (0, -10, 0).
+    {
+        ComboModel d;
+        const char* reason = nullptr;
+        FM_ASSERT(MM_ComboModel_TestForDrawRow(kBottledFairyRow, &d, &reason) == 1,
+                  "M17 the bottled fairy row answers a model");
+        FM_ASSERT(d.partCount == 3 && FmTailIs(d.parts[0].dl, "/object_gi_bottle_04/gGiFairyBottleEmptyDL") &&
+                      d.parts[0].layer == kOpa && d.parts[0].billboard == 0 &&
+                      FmTailIs(d.parts[1].dl, "/object_gi_bottle_04/gGiFairyBottleGlassCorkDL") &&
+                      d.parts[1].layer == kXlu && d.parts[1].billboard == 0 &&
+                      FmTailIs(d.parts[2].dl, "/object_gi_bottle_04/gGiFairyBottleContentsDL") &&
+                      d.parts[2].layer == kXlu && d.parts[2].billboard == 1 && d.opaSetupDl == 25 &&
+                      d.xluSetupDl == 25 && d.jointCount == 0 && d.jointSegment == 0,
+                  "M17 the bottled fairy is the empty list (OPA), the glass and cork (XLU) and the camera-facing "
+                  "contents (XLU)");
+        FM_ASSERT(d.billboardOffset[0] == 0.0f && d.billboardOffset[1] == -10.0f && d.billboardOffset[2] == 0.0f,
+                  "M17 the bottled fairy's contents sit at gGiFairyBottleBillboardRotMtx's translation");
+        const uint8_t prim[4] = { 255, 255, 255, 255 };
+        const uint8_t env[4] = { 205, 105, 205, 255 };
+        FM_ASSERT(FmSegColorIs(FmSegColor(d, 8), kXlu, prim, env) && FmSegColor(d, 9) == nullptr,
+                  "M17 the contents' segment 8 holds gGiFairyBottleTexAnim's first key frame");
+    }
+
+    // OoT's shop shelf and get-item cutscene draw a stray fairy.
+    {
+        SharedItem woodfall;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Woodfall Stray Fairy", &woodfall), "M17 named item");
+        ComboModelAnswer a;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, woodfall, &a) == kDesc,
+                  "M17 the Woodfall Stray Fairy is a DESCRIPTOR in OoT");
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t shelf = 0x0126; // opaque to the table; the host draw keys on the placement alone
+        Combo_ClearForeignPlacementsOoT();
+        const int placed = Combo_SetForeignPlacementOoT(shelf, woodfall);
+        OoT_ForeignModel_TestSetMountOverride(1);
+        printf("[TEST]   M17 Woodfall Stray Fairy on an OoT shelf, archive mounted:\n");
+        const int drawFairy = OoT_ForeignModel_TestShelfDraw(shelf, &a.model);
+        uint8_t bound[16] = {};
+        uint8_t bodyPrim[4] = {};
+        uint8_t bodyEnv[4] = {};
+        float at[COMBO_MODEL_MAX_PARTS][3] = {};
+        const int xluParts =
+            OoT_ForeignModel_TestShelfXlu(shelf, bound, 8, bodyPrim, bodyEnv, at, COMBO_MODEL_MAX_PARTS);
+        uint8_t bound9[16] = {};
+        uint8_t glowPrim[4] = {};
+        uint8_t glowEnv[4] = {};
+        float at9[COMBO_MODEL_MAX_PARTS][3] = {};
+        OoT_ForeignModel_TestShelfXlu(shelf, bound9, 9, glowPrim, glowEnv, at9, COMBO_MODEL_MAX_PARTS);
+        printf("[TEST]   M17 shelf XLU: %d model lists; bound before the first: segment 8 %u, 9 %u, 0xD %u; "
+               "segment 8 prim %u,%u,%u,%u env %u,%u,%u,%u; segment 9 prim %u,%u,%u,%u\n",
+               xluParts, (unsigned)bound[8], (unsigned)bound[9], (unsigned)bound[0xD], bodyPrim[0], bodyPrim[1],
+               bodyPrim[2], bodyPrim[3], bodyEnv[0], bodyEnv[1], bodyEnv[2], bodyEnv[3], glowPrim[0], glowPrim[1],
+               glowPrim[2], glowPrim[3]);
+        printf("[TEST]   M17 left wing at (%.3f, %.3f, %.3f), glow at (%.3f, %.3f, %.3f), torso at (%.3f, %.3f, "
+               "%.3f)\n",
+               at[0][0], at[0][1], at[0][2], at[2][0], at[2][1], at[2][2], at[3][0], at[3][1], at[3][2]);
+        printf("[TEST]   M17 Woodfall Stray Fairy on an OoT check, the get-item cutscene:\n");
+        const int show = OoT_ForeignModel_TestShowOnlyGetItem(shelf, 1, &a.model, "Woodfall Stray Fairy");
+        OoT_ForeignModel_TestSetMountOverride(-1);
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+
+        const FmStrayFairy& wf = kFmStrayFairies[1];
+        FM_ASSERT(placed >= 0, "M17 placement accepted");
+        FM_ASSERT(drawFairy == 0, "M17 the shelf draws the stray fairy's lists, not the stand-in (see the M17 lines "
+                                  "above)");
+        FM_ASSERT(xluParts == 8 && bound[8] == 1 && bound[9] == 1 && bound[0xD] == 1,
+                  "M17 the shelf binds the body and glow colours (segments 8, 9) and the joint matrices (0xD) "
+                  "before the fairy's lists jump into them");
+        FM_ASSERT(std::memcmp(bodyPrim, wf.bodyPrim, 4) == 0 && std::memcmp(bodyEnv, wf.bodyEnv, 4) == 0 &&
+                      std::memcmp(glowPrim, wf.glowPrim, 4) == 0 && std::memcmp(glowEnv, wf.glowEnv, 4) == 0,
+                  "M17 the shelf's segment 8 and 9 lists set Woodfall's body and glow colours");
+        // Under the shelf's identity matrix and camera: the left wing (joint 1)
+        // at the root's (0, 0, 125) plus its own (0, 950, -76); the glow (joint
+        // 3) at the root plus (0, 0, -125); the torso (joint 4) at the glow plus
+        // (0, -350, 75); all at scale 0.03.
+        FM_ASSERT(FmNear(at[0], 0.0f, 28.5f, 1.47f) && FmNear(at[2], 0.0f, 0.0f, 0.0f) &&
+                      FmNear(at[3], 0.0f, -10.5f, 2.25f),
+                  "M17 each stray-fairy list is drawn at its joint's posed position (see the M17 lines above)");
+        FM_ASSERT(show == 0, "M17 OoT's get-item cutscene shows the stray fairy, not the mystery stand-in (see the "
+                             "M17 lines above)");
+    }
+
+    // MM as a HOST never meets these fields (its host keeps the stand-in for a
+    // model that carries them): no OoT draw row's descriptor carries one, and no
+    // MM row a colliding OoT model maps to does.
+    {
+        int carrying = 0;
+        for (int row = 0; row < OoT_ComboModel_TestDrawRowCount(); row++) {
+            ComboModel m;
+            const char* reason = nullptr;
+            if (OoT_ComboModel_TestForDrawRow(row, &m, &reason) != 1) {
+                continue;
+            }
+            if (FmCarriesPose(m)) {
+                printf("[TEST]   M17 OoT row %d carries segment colours or joints\n", row);
+                carrying++;
+            }
+            uint16_t key = 0;
+            int tableRow = -1;
+            ComboModel host;
+            if (MM_ComboModelHostNative_TestAnswer(&m, &key, &reason, &tableRow) == 1 &&
+                MM_ComboModel_TestForHostKey((int)key, &host, &reason) == 1 && FmCarriesPose(host)) {
+                printf("[TEST]   M17 OoT row %d maps to MM key %u, which carries segment colours or joints\n", row,
+                       (unsigned)key);
+                carrying++;
+            }
+        }
+        FM_ASSERT(carrying == 0, "M17 MM as a host is never handed segment colours or joints (see the M17 lines "
+                                 "above)");
+    }
+    return TEST_PASS;
+}
+
 } // namespace
 
 TestResult Test_ForeignModel(void) {
@@ -855,9 +1259,9 @@ TestResult Test_ForeignModel(void) {
     FM_ASSERT(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "M1 OoT's item table is available");
 
     // ---- M2 --------------------------------------------------------------------
-    // OoT: the Triforce piece and the fishing pole. MM: the three empty rows and
-    // the bottled fairy's row (no item names any of the four; #964 gave the
-    // seahorse, the Moon's Tear and the four remains a model).
+    // OoT: the Triforce piece and the fishing pole. MM: the three empty rows (no
+    // item names any of them; #964 gave the seahorse, the Moon's Tear, the four
+    // remains and the bottled fairy a model).
     const FmGame oot = { "OoT",
                          (uint8_t)GAME_OOT,
                          (uint8_t)GAME_MM,
@@ -880,7 +1284,7 @@ TestResult Test_ForeignModel(void) {
                         MM_ComboModel_TestIdSpace,
                         MM_ComboLogic_ClassifyItem,
                         MM_ComboModel_TestItemReason,
-                        4,
+                        3,
                         MM_ComboModelHostNative_TestAnswer,
                         MM_ComboModelHostNative_TestRowCount,
                         MM_ComboModel_TestForHostKey };
@@ -1535,6 +1939,11 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(showUnmounted == 0 && showGoht == 0,
                   "M13 (control, also true on main) unmounted, or no model: the cutscene shows the mystery stand-in "
                   "and still gives nothing (see the M13 lines above)");
+    }
+
+    // ---- M17 (#964) -------------------------------------------------------------
+    if (FmCustomDrawModels() != TEST_PASS) {
+        return TEST_FAIL;
     }
 
     // ---- M14 (#577 M5) -----------------------------------------------------------
