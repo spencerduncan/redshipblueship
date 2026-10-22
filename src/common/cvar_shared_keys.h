@@ -476,6 +476,34 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
 };
 
 /**
+ * A pair where SoH's control drives MM through a VALUE TRANSLATION (#1060).
+ *
+ * Neither a rename (kConvergedKeys: the value spaces differ, so a key swap
+ * would mean something else in MM) nor a held-apart pair (kMustStayDistinct:
+ * there is one control for the concept, and it is SoH's). MM keeps its own key
+ * only for its elided widget; every linked MM reader calls one translator that
+ * reads `ootKey` and returns MM's value. CvarClassification pins each row and
+ * checks the tree agrees.
+ */
+struct TranslatedKey {
+    int issue;              ///< The issue that decided the translation.
+    const char* mmKey;      ///< MM's key. Named in games/mm only by the translator and elided widgets.
+    const char* ootKey;     ///< SoH's key: the one control writes it.
+    const char* translator; ///< The games/mm-relative TU that maps ootKey's values onto MM's.
+    const char* why;        ///< Why a rename would be wrong.
+};
+
+inline constexpr TranslatedKey kTranslatedKeys[] = {
+    { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
+      "2s2h/Rando/StaticData/Items.cpp",
+      "SoH has three tiers (Off / Junk Items / All Items), MM four (Never / Junk Items Only / Everything But "
+      "Major / Always). A rename would give SoH's All Items (2) MM's Everything But Major and keep presenting "
+      "majors, so Rando::StaticData::SkipGetItemCutsceneTierFromSoh maps Off->Never, Junk Items->Junk Items "
+      "Only, All Items->Always." },
+};
+inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
+
+/**
  * Casing hazard, inventory §5.1. MM uses `gEnhancements.Timesavers.*`
  * (lowercase s, 9 keys), OoT uses `gEnhancements.TimeSavers.*` (capital S, 16
  * keys). They do NOT collide, but they are one keystroke apart in a
