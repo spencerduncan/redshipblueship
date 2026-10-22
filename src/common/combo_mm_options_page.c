@@ -9,8 +9,9 @@
 
 #include "combo_mm_options_page.h"
 
-#include "ComboSettingsWindow.h" // Combo_ComboSettingsWindow_Init: the tier-4 twin's bring-up
-#include "context.h"             // Context_GetCurrentGame, for the suspended note
+#include "ComboSettingsWindow.h"     // Combo_ComboSettingsWindow_Init: the tier-4 twin's bring-up
+#include "combo_mm_locations_view.h" // MM_RandoLocationsUi_Register: the third table
+#include "context.h"                 // Context_GetCurrentGame, for the suspended note
 
 #include <stdio.h>
 
@@ -22,6 +23,8 @@ void Combo_MMOptionsPages_Init(void) {
     // table each, and re-registering the same table is silent.
     MM_RandoOptionsUi_Register();
     MM_RandoTricksUi_Register();
+    // Randomizer > MM Locations' check table (#1101 lane R3), the same seam.
+    MM_RandoLocationsUi_Register();
     // The tier-4 combo settings model freezes at the same creation event as
     // this profile, so the two share a bring-up point, as they did when both
     // were windows. Idempotent and headless-safe on its own.

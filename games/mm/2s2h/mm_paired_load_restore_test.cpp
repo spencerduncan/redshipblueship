@@ -301,6 +301,8 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
     memset(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks, 0,
            sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks));
     gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = 0;
+    memset(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, 0,
+           sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks));
     return 0;
 }
 

@@ -73,6 +73,7 @@
 // reads src/common, never MM's headers and never either game's gSaveContext.
 #include "cvar_shared_keys.h"
 // The MM randomizer pages' names and column count, registered below.
+#include "combo_mm_locations_view.h" // COMBO_MM_LOCATIONS_PAGE_NAME
 #include "combo_mm_options_page.h"
 
 #include <cstddef>
@@ -401,21 +402,26 @@ void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmE
 static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 2, AddMmEnhancementWidgets);
 
 /**
- * MM's randomizer options and tricks (SohMenuComboMmRandomizer.cpp), registered
- * HERE, right after this page, rather than from their own TU. The registry keeps
- * registration order, and file-scope initializers in different TUs run in an
- * order the language leaves to the linker, so this is the one way to pin their
- * order: MM Randomizer, then MM Tricks.
+ * MM's randomizer options, locations and tricks (SohMenuComboMmRandomizer.cpp),
+ * registered HERE, right after this page, rather than from their own TU. The
+ * registry keeps registration order, and file-scope initializers in different
+ * TUs run in an order the language leaves to the linker, so this is the one way
+ * to pin their order: MM Randomizer, MM Locations, then MM Tricks.
  *
- * Both are hosted under SoH's Randomizer header (#1101, operator ruling
+ * All three are hosted under SoH's Randomizer header (#1101, operator ruling
  * 2026-10-21, option C): AddComboRandomizerPages draws them after
  * Tricks/Glitches and before Cross-Game, so the one randomizer menu holds both
  * games' settings. MenuMmRandomizerPages pins host and order.
  */
 void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path);
+void AddMmLocationsWidgets(SohMenu& menu, WidgetPath& path);
 void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path);
 static RegisterComboSectionPage_t sMmRandomizerPage(COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_OPTIONS_PAGE_COLUMNS,
                                                     AddMmRandomizerOptionsWidgets, ComboPageHost::Randomizer);
+// MM's excluded checks (#1101 lane R3), between the options and the tricks: the
+// ruling's order. One column, as SoH's Randomizer > Locations.
+static RegisterComboSectionPage_t sMmLocationsPage(COMBO_MM_LOCATIONS_PAGE_NAME, 1, AddMmLocationsWidgets,
+                                                   ComboPageHost::Randomizer);
 static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, AddMmTricksWidgets,
                                                 ComboPageHost::Randomizer);
 

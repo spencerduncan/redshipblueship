@@ -36,6 +36,7 @@ STRINGS src/common/combo_settings_view.cpp
 STRINGS src/common/gen_progress_overlay.c
 STRINGS src/common/combo_mm_options_view.c
 STRINGS src/common/combo_mm_tricks_view.c
+STRINGS src/common/combo_mm_locations_view.c
 STRINGS src/common/combo_mm_options_page.c
 STRINGS src/common/combo_save_files_view.cpp
 

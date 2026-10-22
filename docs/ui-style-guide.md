@@ -12,7 +12,7 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 - `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
   `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp` and
   `SohGui/SohMenuComboTrackerSettings.cpp`
-- our pages under SoH's Randomizer header (#1101): MM Randomizer, MM Tricks and Cross-Game, registered by
+- our pages under SoH's Randomizer header (#1101): MM Randomizer, MM Locations, MM Tricks and Cross-Game, registered by
   `AddComboRandomizerPages` (`SohMenuCombo.cpp`), which `AddMenuRandomizer` calls after Tricks/Glitches
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
@@ -387,6 +387,7 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
 | Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
 | Randomizer > MM Randomizer | Randomizer > General (the two-column option page) |
+| Randomizer > MM Locations | Randomizer > Tricks/Glitches (SoH's captured bordered two-column table; SoH's own Locations page, whose shape it takes, is not captured) |
 | Randomizer > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
 | Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
 | Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
@@ -426,8 +427,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
   drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
   registers is `.RaceDisable(false)`, so a lockout changes nothing there), Randomizer > MM Randomizer's unpaired,
-  frozen and mm-suspended (each shows its own note), and Randomizer > MM Tricks'
-  unpaired and frozen (the trick headline, then the freeze sentence).
+  frozen and mm-suspended (each shows its own note), Randomizer > MM Tricks'
+  unpaired and frozen (the trick headline, then the freeze sentence), and Randomizer > MM Locations' unpaired (the
+  shared status sentence, with one check moved to Forced Junk so both columns draw) and frozen (the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
   glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
@@ -451,7 +453,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   first row unpaired and frozen, its first capability-blocked row and its Freeze Traps row unpaired (named rows; the
   frozen and blocked ones are in `PageSpec::disabledHovers`). Randomizer > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
   one frozen (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder, because the trick list is one custom
-  row; the harness scrolls the table's own child to reach a row). A disabled row's hover must show SoH's disabled
+  row; the harness scrolls the table's own child to reach a row). Randomizer > MM Locations hovers the first check it
+  lists, frozen (SoH's disabled shape, "Already Decided"), the same way. A disabled row's hover must show SoH's disabled
   shape with no tracker number. The trick hovers are composited against Settings > Graphics' Current FPS hover
   (`PageSpec::hoverCompareWith`), SoH's one captured tooltip: SoH's Tricks page draws its trick names as plain text
   with no item id, so no hover can be injected there.

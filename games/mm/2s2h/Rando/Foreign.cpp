@@ -77,6 +77,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib> // strtol: the excluded-check list's ids (#1101 lane R3)
 #include <cstring>
 #include <fstream>
 #include <memory>
@@ -221,6 +222,48 @@ static uint8_t ResolveMoonCrashFromCVar() {
                : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
 }
 
+/** Bytes of the frozen excluded-check set (randoSaveExcludedChecks): one bit
+ *  per RandoCheckId. */
+constexpr size_t kExcludedChecksBytes = (RC_MAX + 7) / 8;
+static_assert(sizeof(((RandoSaveInfo*)0)->randoSaveExcludedChecks) == kExcludedChecksBytes,
+              "randoSaveExcludedChecks holds one bit per RandoCheckId");
+
+/** Resolve gRando.ExcludedChecks into `bits` (kExcludedChecksBytes), with no
+ *  side effects (#1101 lane R3): the ids MM's pool generation parses out of the
+ *  key (GeneratePools.cpp), as a set. A token that is not an id below RC_MAX is
+ *  skipped: GeneratePools could never match it to a check. */
+static void ResolveExcludedChecks(uint8_t* bits) {
+    memset(bits, 0, kExcludedChecksBytes);
+    const char* raw = CVarGetString("gRando.ExcludedChecks", "");
+    for (const char* p = raw != nullptr ? raw : ""; *p != '\0';) {
+        char* end = nullptr;
+        const long id = strtol(p, &end, 10);
+        if (end != p && id >= 0 && id < (long)RC_MAX) {
+            bits[id >> 3] |= (uint8_t)(1u << (id & 7));
+        }
+        while (*p != '\0' && *p != ',') {
+            p++;
+        }
+        if (*p == ',') {
+            p++;
+        }
+    }
+}
+
+/** The set's one spelling: ascending ids, each followed by a comma, the form MM's
+ *  own menu (SaveExcludedChecks) and Randomizer > MM Locations' writers emit;
+ *  "" for the empty set. */
+static std::string ExcludedChecksString(const uint8_t* bits) {
+    std::string s;
+    for (int id = 0; id < (int)RC_MAX; id++) {
+        if ((bits[id >> 3] >> (id & 7)) & 1u) {
+            s += std::to_string(id);
+            s += ',';
+        }
+    }
+    return s;
+}
+
 /** The canonical identity string the profile digest hashes (#564 V4's widened
  *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
  *  paired start shape the generated world exactly as the 47 options do
@@ -229,7 +272,7 @@ static uint8_t ResolveMoonCrashFromCVar() {
  *  different MM worlds. OoT's own settings hash is the precedent: it folds
  *  excludes and tricks. */
 static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes,
-                                         uint8_t moonCrash) {
+                                         uint8_t moonCrash, const uint8_t* excludedChecks) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         s += std::to_string(values[randoOptionId]);
@@ -256,14 +299,17 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         s += (tricks[mmRandoTrickId] != 0) ? '1' : '0';
     }
-    // The excluded-check list, folded as the raw CVar string GeneratePools
-    // consumes. Raw rather than parse-normalized on purpose: the only writer
-    // is UI code emitting a canonical "id,id,..." form, and a string that
-    // changed in ANY way between creation and arrival means something wrote
-    // the identity input mid-pair — which is precisely what the digest exists
-    // to catch.
+    // The excluded-check list, folded as the SET GeneratePools consumes, in its
+    // one spelling (ExcludedChecksString). It was the raw CVar string until
+    // #1101 lane R3, while nothing but the golden harness wrote the key; now
+    // Randomizer > MM Locations writes it and the file records the set
+    // (randoSaveExcludedChecks), so the load-time restore can rebuild the term
+    // from the file, which a spelling could not survive. Two spellings of one
+    // set generate one world, so they are one identity; any change to the set
+    // between creation and arrival still moves the digest. The empty set folds
+    // as before (""), so no existing pair's digest moves.
     s += "|excluded:";
-    s += CVarGetString("gRando.ExcludedChecks", "");
+    s += ExcludedChecksString(excludedChecks);
     // The paired start, folded as its item-id list — the SAME accessor the
     // paired generation consumes, so the identity term and the generation input
     // are one computation. Since #879 that is the combo's own constant
@@ -387,6 +433,11 @@ uint32_t ResolvePairedProfile(bool paired) {
     // Shared Song of Time rule's force is the combo record's, applied in play).
     const uint8_t moonCrash = ResolveMoonCrashFromCVar();
     gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = moonCrash;
+    // #1101 lane R3: the excluded-check set freezes here too, in the same
+    // resolution, so the file records what the digest folds and a load can put
+    // the list back into the key (MM_Rando_RestoreProfileForLoad). GeneratePools
+    // reads the CVar after this, so the set written is the set generated with.
+    ResolveExcludedChecks(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks);
 
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
@@ -402,7 +453,8 @@ uint32_t ResolvePairedProfile(bool paired) {
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
     const uint32_t digest =
-        DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes, moonCrash));
+        DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes, moonCrash,
+                                                 gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks));
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -851,9 +903,13 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     std::vector<uint8_t> tricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(tricks.data());
     // The trap-type set likewise (#1047): the same resolution ResolvePairedProfile
-    // freezes into the half at the first crossing.
-    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
-        values.data(), tricks.data(), ResolveTrapTypesFromCVars(), Rando::Foreign::ResolveMoonCrashFromCVar()));
+    // freezes into the half at the first crossing; and the excluded-check set
+    // (#1101 lane R3).
+    std::vector<uint8_t> excluded(Rando::Foreign::kExcludedChecksBytes, 0);
+    Rando::Foreign::ResolveExcludedChecks(excluded.data());
+    return Rando::Foreign::DigestFromIdentity(
+        Rando::Foreign::ProfileIdentityString(values.data(), tricks.data(), ResolveTrapTypesFromCVars(),
+                                              Rando::Foreign::ResolveMoonCrashFromCVar(), excluded.data()));
 }
 
 // ============================================================================
@@ -886,12 +942,15 @@ extern "C" int MM_Rando_FrozenMoonCrash(void) {
 // that loaded.
 //
 // The source is the file's MM half: creation resolved the profile into
-// RANDO_SAVE_OPTIONS, randoSaveTricks and randoSaveTrapTypes
-// (ResolvePairedProfile), so those ARE the frozen options, tricks and trap
-// types. The digest also folds the excluded-check list, which the half does
-// not record, and the paired start, a constant since #879 (a file created before #879 folded 2Ship's list and
-// cannot match it); the candidate is therefore checked against the frozen
-// digest BEFORE anything is written, and a mismatch there writes nothing.
+// RANDO_SAVE_OPTIONS, randoSaveTricks, randoSaveTrapTypes, randoSaveMoonCrash
+// and (since #1101 lane R3) randoSaveExcludedChecks (ResolvePairedProfile), so
+// those ARE the frozen options, tricks, trap types, moon crash and excluded
+// checks. A half written before lane R3 zero-extends into the excluded set,
+// which is the empty list every paired world had then. The digest also folds
+// the paired start, a constant since #879 (a file created before #879 folded
+// 2Ship's list and cannot match it); the candidate is therefore checked against
+// the frozen digest BEFORE anything is written, and a mismatch there writes
+// nothing.
 // ============================================================================
 namespace {
 
@@ -919,7 +978,7 @@ namespace {
  */
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
                            std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
-                           uint8_t& fileMoonCrash) {
+                           uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
@@ -957,13 +1016,18 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     fileMoonCrash = half->save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
                         ? (uint8_t)RSBS_MM_MOON_CRASH_CYCLE
                         : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
-    const uint32_t candidate = Rando::Foreign::DigestFromIdentity(
-        Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash));
+    // #1101 lane R3: a half written before the set existed zero-extends: the
+    // empty list, as its stamp folded.
+    fileExcluded.assign(half->save.shipSaveInfo.rando.randoSaveExcludedChecks,
+                        half->save.shipSaveInfo.rando.randoSaveExcludedChecks + Rando::Foreign::kExcludedChecksBytes);
+    const uint32_t candidate = Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
+        fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash, fileExcluded.data()));
     if (candidate != frozenDigest) {
         fprintf(stderr,
-                "[MM] profile: load-time restore impossible — the file's own options, tricks and trap types give "
-                "%08X, not the frozen %08X, so what differs is an input the file does not record (the excluded-check "
-                "list, or the paired start of a file created before #879); nothing was written\n",
+                "[MM] profile: load-time restore impossible — the file's own options, tricks, trap types, moon "
+                "crash and excluded checks give %08X, not the frozen %08X, so what differs is an input the file does "
+                "not record (the paired start of a file created before #879, or an excluded-check list a file written "
+                "before the set was recorded held); nothing was written\n",
                 (unsigned)candidate, (unsigned)frozenDigest);
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
@@ -977,7 +1041,9 @@ extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalf
     std::vector<uint8_t> fileTricks;
     uint8_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
-    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash);
+    std::vector<uint8_t> fileExcluded;
+    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash,
+                                  fileExcluded);
 }
 
 extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,
@@ -1036,8 +1102,9 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     std::vector<uint8_t> fileTricks;
     uint8_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
-    const int classified =
-        ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash);
+    std::vector<uint8_t> fileExcluded;
+    const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps,
+                                                  fileMoonCrash, fileExcluded);
     if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE) {
         return classified;
     }
@@ -1108,6 +1175,28 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         fprintf(stderr, "[MM] profile: load restored %s to the file's value %d\n", RSBS_CVAR_MM_MOON_CRASH,
                 (int)fileMoonCrash);
     }
+    // #1101 lane R3: the excluded-check list, written back in its one spelling
+    // (cleared when the file's list is empty) when the live set differs. Its
+    // undo is a string, so it is kept apart from the integer keys'.
+    std::vector<uint8_t> liveExcluded(Rando::Foreign::kExcludedChecksBytes, 0);
+    Rando::Foreign::ResolveExcludedChecks(liveExcluded.data());
+    const char* const kExcludedKey = "gRando.ExcludedChecks";
+    bool excludedWritten = false;
+    const char* excludedPriorRaw = CVarGetString(kExcludedKey, nullptr);
+    const bool excludedWasSet = excludedPriorRaw != nullptr;
+    const std::string excludedPrior = excludedWasSet ? excludedPriorRaw : "";
+    if (liveExcluded != fileExcluded) {
+        const std::string fileList = Rando::Foreign::ExcludedChecksString(fileExcluded.data());
+        if (fileList.empty()) {
+            CVarClear(kExcludedKey);
+        } else {
+            CVarSetString(kExcludedKey, fileList.c_str());
+        }
+        excludedWritten = true;
+        restored.push_back("Forced Junk Checks");
+        fprintf(stderr, "[MM] profile: load restored %s to the file's list '%s' (was '%s')\n", kExcludedKey,
+                fileList.c_str(), excludedPrior.c_str());
+    }
 
     const uint32_t after = MM_Rando_ComputeProfileStamp();
     if (after != frozenDigest || gForceProfileRestoreVerifyFail) {
@@ -1122,6 +1211,13 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
                 CVarSetInteger(it->cvar, it->value);
             } else {
                 CVarClear(it->cvar);
+            }
+        }
+        if (excludedWritten) {
+            if (excludedWasSet) {
+                CVarSetString(kExcludedKey, excludedPrior.c_str());
+            } else {
+                CVarClear(kExcludedKey);
             }
         }
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;

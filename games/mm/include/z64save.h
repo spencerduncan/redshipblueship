@@ -434,6 +434,16 @@ typedef struct RandoSaveInfo {
     // Shared Song of Time rule FORCES a New Cycle in play whatever this holds
     // (MM_Rando_FrozenMoonCrash): that force is the combo record's, frozen there.
     u8 randoSaveMoonCrash;
+    // The FROZEN excluded-check set (#1101 lane R3): bit (1 << (id & 7)) of byte
+    // (id >> 3) per RandoCheckId in gRando.ExcludedChecks, resolved at creation
+    // beside the trick and trap-type sets. Appended last, after the moon-crash
+    // byte, for the same reason: a .redsave written before it zero-extends into
+    // it, and zero is the empty list, the only one a paired world could have
+    // before Randomizer > MM Locations wrote the key. Not read by any fill (GeneratePools reads the
+    // CVar at the same moment this is written); it is what the load-time
+    // restore puts back into the key (Foreign.cpp, #781), since the profile
+    // digest folds the list.
+    u8 randoSaveExcludedChecks[(RC_MAX + 7) / 8];
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file
