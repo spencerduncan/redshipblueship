@@ -50,6 +50,11 @@ const char* const kSpcFixedNames[] = {
     "rsbs_test_commit_gen",
     "rsbs_test_crossing_commit",
     "rsbs_test_saves_crossings",
+    "rsbs_test_saves_crossings_roundtrip",
+    "rsbs_test_saves_crossings_capacity",
+    "rsbs_test_saves_crossings_redsave",
+    "rsbs_test_saves_crossings_spoiler",
+    "rsbs_test_crossing_views_world",
     "rsbs_test_saves_foreign",
     "rsbs_test_saves_grants",
     "rsbs_test_refusal_saves",
@@ -76,7 +81,8 @@ const SpcGroup kSpcGroups[] = {
       "foreign-item-give,foreign-item-give-reverse,foreign-host-eligibility,foreign-host-gossip-hint,"
       "save-roundtrip-tiers,save-has-delete,save-refused-quarantine,save-write-latch,commit-generation-monotonic,"
       "commit-torn-write,whole-file-commit,whole-file-redeemed-item,session-invalidation,grant-idempotency,"
-      "grant-persistence,crossing-commit,crossing-store-redsave,combo-settings-format,combo-settings-legacy-freeze,"
+      "grant-persistence,crossing-commit,crossing-store-roundtrip,crossing-store-capacity,crossing-store-redsave,"
+      "crossing-store-spoiler,combo-settings-format,combo-settings-legacy-freeze,"
       "combo-spoiler-view,combo-triforce-hunt" },
 };
 
