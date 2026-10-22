@@ -4777,6 +4777,41 @@ static uint16_t MM_ReadKokiriSword(void) {
     return GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) != EQUIP_VALUE_SWORD_NONE ? 1u : 0u;
 }
 
+// The bottle count as a shared tier (#970), the twin of OoT's. MM has six bottle
+// slots and OoT four: the shared count is OoT's 0..4, so MM's harvest is clamped
+// at four and MM's fifth and sixth bottles never reach Hyrule; the apply raises
+// MM only up to the shared count, so those two slots fill only from MM's own
+// pickups. Contents never cross.
+#define MM_MAX_BOTTLE_COUNT 4u
+
+static uint16_t MM_HeldBottles(void) {
+    uint16_t count = 0u;
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] != ITEM_NONE) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static uint16_t MM_ReadBottleCount(void) {
+    const uint16_t held = MM_HeldBottles();
+    return held > MM_MAX_BOTTLE_COUNT ? (uint16_t)MM_MAX_BOTTLE_COUNT : held;
+}
+
+/** Raise MM's bottle count to @p count by putting an EMPTY bottle in the next
+ *  empty slots, as MM's own Item_Give(ITEM_BOTTLE) does; a filled slot is never
+ *  touched. */
+static void MM_WriteBottleCount(uint16_t count) {
+    uint16_t held = MM_HeldBottles();
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_6 && held < count; slot++) {
+        if (gSaveContext.save.saveInfo.inventory.items[slot] == ITEM_NONE) {
+            gSaveContext.save.saveInfo.inventory.items[slot] = ITEM_BOTTLE;
+            held++;
+        }
+    }
+}
+
 // ============================================================================
 // The Shared Shields families (#1068; OoTMM sharedShields)
 // ============================================================================
@@ -5107,6 +5142,10 @@ extern "C" void MM_HarvestSharedResources(void) {
     // one at the smithy) reads 0 here and cannot lower the pool: the kind is
     // monotonic. The arming gate is inside Combo_HarvestSharedResource.
     Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
+
+    // The bottle count (#970), the twin of OoT's line, clamped at OoT's four. The
+    // arming gate is inside Combo_HarvestSharedResource.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_ReadBottleCount());
 
     // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
     // counter is a MIRROR of the one combo count, so harvesting it max-merges
@@ -5489,6 +5528,16 @@ extern "C" void MM_ApplySharedResources(void) {
         kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
         SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
         BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
+    }
+
+    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
+    // Bottles rule (#970). A bottle found in Hyrule is one more EMPTY bottle here,
+    // in the next empty slot; MM's own bottles keep what they hold. Read through
+    // the clamped reader, so an MM holding five or six is already at the cap and
+    // gains nothing. With the rule off nothing below runs.
+    uint16_t bottleCount = MM_ReadBottleCount();
+    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_MAX_BOTTLE_COUNT, &bottleCount)) {
+        MM_WriteBottleCount(bottleCount);
     }
 
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the

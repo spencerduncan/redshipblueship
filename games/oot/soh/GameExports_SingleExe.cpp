@@ -3709,6 +3709,35 @@ static uint16_t OoT_ReadKokiriSword(void) {
     return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI) ? 1u : 0u;
 }
 
+// The bottle count as a shared tier (#970): how many of OoT's four bottle slots
+// hold a bottle, whatever it holds (Ruto's Letter and a Big Poe included: each
+// is a bottle in the inventory). The shared count is OoT's 0..4, so this is
+// also the apply's cap. Contents never cross.
+#define OOT_MAX_BOTTLE_COUNT 4u
+
+static uint16_t OoT_ReadBottleCount(void) {
+    uint16_t count = 0u;
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_4; slot++) {
+        if (gSaveContext.inventory.items[slot] != ITEM_NONE) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/** Raise OoT's bottle count to @p count by putting an EMPTY bottle in the next
+ *  empty slots, as OoT's own Item_Give(ITEM_BOTTLE) does; a filled slot is never
+ *  touched. */
+static void OoT_WriteBottleCount(uint16_t count) {
+    uint16_t held = OoT_ReadBottleCount();
+    for (int slot = SLOT_BOTTLE_1; slot <= SLOT_BOTTLE_4 && held < count; slot++) {
+        if (gSaveContext.inventory.items[slot] == ITEM_NONE) {
+            gSaveContext.inventory.items[slot] = ITEM_BOTTLE;
+            held++;
+        }
+    }
+}
+
 // ============================================================================
 // The Shared Shields families (#1068; OoTMM sharedShields)
 // ============================================================================
@@ -4194,6 +4223,11 @@ extern "C" void OoT_HarvestSharedResources(void) {
     // Combo_HarvestSharedResource, the same predicate the apply consults.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, OoT_ReadKokiriSword());
 
+    // The bottle count (#970), offered unconditionally like the sword: the
+    // arming gate (the frozen Shared Bottles rule) lives in
+    // Combo_HarvestSharedResource, the same predicate the apply consults.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOTTLE_COUNT, OoT_ReadBottleCount());
+
     // Triforce pieces (ADR 0010 answer O10): OoT's counter is a MIRROR of the
     // one combo count, so harvesting it max-merges OoT's collects into that
     // count. Offered unconditionally like the ocarina; the arming gate (the
@@ -4431,6 +4465,15 @@ extern "C" void OoT_ApplySharedResources(void) {
     if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, OOT_MAX_KOKIRI_SWORD, &kokiriSword) &&
         kokiriSword >= 1u) {
         gSaveContext.inventory.equipment |= (u16)OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI);
+    }
+
+    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
+    // Bottles rule (#970). A bottle found in Termina is one more EMPTY bottle
+    // here, in the next empty slot; what OoT's own bottles hold stays OoT's. With
+    // the rule off Combo_ApplySharedResource returns false and nothing below runs.
+    uint16_t bottleCount = OoT_ReadBottleCount();
+    if (Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_BOTTLE_COUNT, OOT_MAX_BOTTLE_COUNT, &bottleCount)) {
+        OoT_WriteBottleCount(bottleCount);
     }
 
     // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
