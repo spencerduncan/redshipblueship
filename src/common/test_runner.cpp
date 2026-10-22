@@ -8001,6 +8001,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-songs-bag") == 0 || strcmp(gTests[i].name, "shared-arrows-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-masks-bag") == 0 ||
+                strncmp(gTests[i].name, "shared-songs-one-copy-", 22) == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
