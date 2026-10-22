@@ -552,6 +552,9 @@ paired with removal (per the tracker's lock guidance).
 
 ### Increment 2 — merged generation, FULL delivery (DECIDED)
 
+> Amended 2026-10-22 (#1044): the world now completes at Generate and file
+> creation binds a frozen seed package; see the amendment of that date.
+
 The #500 probe's delivery **option 1**, which #564 ruled is the one that
 satisfies one-game semantics (the hybrid is acceptable only as a transition
 and is "option 1 with the bytes thrown away"):
@@ -2464,3 +2467,56 @@ operator's ruling on #1101 (2026-10-21, option C: one randomizer menu for both g
 SoH's Randomizer header as **Randomizer > Cross-Game**, after MM Randomizer and MM Tricks and before Plandomizer
 (ADR 0004's amendment of the same date). Only the host changed: the row, its labels, its default, the freeze at the
 creation event and the arrival and load compares are as D1 states them.
+
+### 2026-10-22 -- The paired world freezes at Generate; file creation binds a frozen package (#1044)
+
+Operator request 2026-10-19 ("the generation should happen when you hit the
+generate button, not wherever it was last time I played"), with rulings: after
+the v0.2.0-prealpha tag, the package carries the full placement, and import is a
+Randomizer-folder listing. This amends increment 2's "the whole creation runs at
+the OoT file-create seam" and increment 3's "one fill, at the creation event".
+
+- **The one-game ruling, re-worded.** "Every combo-level decision freezes at file
+  creation" becomes "**freezes at Generate; file creation binds a frozen
+  package**". Nothing about what freezes changes: the identity, the profiles, the
+  combo record and the GOAL are frozen by the same `Playthrough_Init` block, before
+  OoT's `Fill()`. What moved is the rest of the world: MM's half, the single-bag
+  fill under MM's attempt ladder, the crossings, OoT's remainder and the one
+  spoiler.
+- **Where it runs.** The Generate worker runs OoT's passes as before; its last act
+  marks it finished, and the next file-select frame completes the paired world on
+  the GAME thread (`OoT_SeedPackage_FileSelectTick` -> `OoT_PairedGen_CompleteWorld`,
+  under the creation event's own snapshot bracket and progress overlay). Not on the
+  worker: MM's generation writes `gSaveContext`, which the file select reads every
+  frame (`CreationProgressOverlay.cpp`'s header), and Generate is reachable only at
+  the file select. The progress overlay therefore shows at Generate; file creation
+  no longer blocks.
+- **The package.** The completed world is written to
+  `Randomizer/<seed name>-<fingerprint>.rsbs-seed.zip` (src/common/seed_package.h:
+  identity, digest, the three spoilers, OoT's world as a created file saves it,
+  MM's half, the combo record and the crossing store) and STAGED. Randomizer >
+  General's "Load seed package" stages one from that folder through the same apply,
+  after validating it whole (generator version first; then every entry's digest,
+  the layouts, the crossing block, the record against the identity and the
+  fingerprint formula).
+- **The creation event keeps only its save-authoring tail.** It binds the staged
+  package: re-applies the identity, records, crossings and give capabilities,
+  stamps the file's name into MM's half and arms it (#680's order holds: store,
+  spoiler and identity exist before the armed shadow does; the step record still
+  reads `M0S0J0A1`). No fill runs and no CVar is read, so settings changed at file
+  select cannot move the world. A world still waiting at its general pass with no
+  package staged (the headless locks; SoH's `gen_rando` console command) is
+  completed by Generate's own completion before the bind.
+- **Refusal.** A package whose generator version is not this build's is refused at
+  load and again at the bind, with the refusal toasts' prefix ("Refused: Seed
+  package from another generator"); nothing is staged.
+- **Not changed.** The arrival still compares the live MM option CVars with the
+  frozen profile digest (`MM_Rando_GateCrossGameArrival`), so a package from a
+  machine whose MM options differ is refused at the first crossing until they
+  match.
+
+Locked by `SeedPackageContainer`, `SeedPackageGeneratorVersionRefused`,
+`SeedPackageRoundTrip` (two processes), `SeedPackageCVarsCannotMoveWorld` and
+`GoldenSeedDigestPackagePath` (a file created from a package loaded off disk
+reproduces `seed-digest-default`); `GoldenSeedDigestPlayerPath` now ticks the file
+select like a player.
