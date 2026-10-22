@@ -129,6 +129,14 @@ bool Combo_GoalKeepsOwnHuntWin(uint8_t goal) {
     return Combo_Logic_EvaluateGoal(goal, 0, 0) < 0;
 }
 
+bool Combo_GoalGeneratesOwnHuntAsWin(uint8_t goal) {
+    // The combo hunt's completion is the end of the paired game, and both arms
+    // play it as a Win whichever mode a half named (Combo_TriforceHuntOnPieceGiven
+    // and the ports' ownModeIsWin overrides). Generating that same mode keeps the
+    // proved world the played one (#997).
+    return goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+}
+
 int Combo_GoalOnTriforceHuntCompleted(GameId game, int liveTriforcePieces) {
     if (GoalFlagFor(game) == 0u || !Combo_GoalArmed()) {
         return RSBS_GOAL_ENDING_OWN;
