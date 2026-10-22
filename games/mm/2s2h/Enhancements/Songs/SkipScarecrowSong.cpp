@@ -14,6 +14,9 @@ extern "C" {
 
 void RegisterSkipScarecrowSong() {
     COND_VB_SHOULD(VB_NEED_SCARECROW_SONG, CVAR, {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnKakasi* enKakasi = va_arg(args, EnKakasi*);
         /*
          * This is somewhat similar to the condition that the scarecrow normally checks, except it checks if the
