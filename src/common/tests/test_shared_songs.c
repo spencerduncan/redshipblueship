@@ -528,9 +528,9 @@ TestResult Test_SharedSongsMerge(void) {
 namespace {
 /** OoT's song shuffle for this row: anywhere (RO_SONG_SHUFFLE_ANYWHERE), so
  *  OoT's songs are general-pass bag rows like MM's and each pair has both
- *  halves. Under the default (song locations) OoT's restricted pass places its
- *  own copy before the bag, and the composer keeps MM's copy as the shared row
- *  alone (combo_logic.c pass 2b's one-side case). */
+ *  halves. Under every other value OoT holds its shared copy back from its
+ *  restricted song placement for the bag (#1085), so the pair has both halves
+ *  there too; the shared-songs-one-copy-* rows cover those values. */
 const char* const kSsSongShuffleKey = "gRandoSettings.ShuffleSongs";
 const int kSsSongShuffleAnywhere = 3;
 } // namespace
