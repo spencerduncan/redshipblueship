@@ -22,6 +22,8 @@
 // ComboLogicEngineOoT.cpp: a loaded spoiler replaces the world, so a general pass
 // deferred for the previous generation's single-bag fill no longer exists.
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+// SeedPackageSingleExe.cpp (#1044): the staged seed package goes with the staged generation.
+extern "C" void OoT_SeedPackage_Unstage(void);
 #include "soh/Notification/Notification.h" // the refusal of a paired world's spoiler (PR #743 review)
 #include "pairing_refusal_toast.h" // that refusal's one-line copy
 #include <cstdio>
@@ -494,6 +496,9 @@ void Context::ParseSpoiler(const char* spoilerFileName) {
     mSpoilerLoaded = false;
 #ifdef RSBS_SINGLE_EXECUTABLE
     OoT_ComboLogic_SetGeneralPassDeferred(0);
+    // #1044: a spoiler load replaces the staged generation, and the seed package
+    // staged with it goes too (the creation would otherwise bind it under this world).
+    OoT_SeedPackage_Unstage();
 #endif
     try {
         nlohmann::json spoilerFileJson;

@@ -1031,6 +1031,8 @@ extern "C" int Rando_HeadlessWorkerGenerate(const char* seedStr);
 extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
 // ForeignItemsSingleExe.cpp (#1055): this generation's spoilers out of the shared build directory.
 extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
+// SeedPackageSingleExe.cpp (#1044): the file select's per-frame completion of a Generate.
+extern "C" int OoT_SeedPackage_FileSelectTick(void);
 
 /**
  * #982: THE PLAYER'S PATH, DIGESTED. Driven only by the GoldenSeedDigestPlayerPath
@@ -1041,12 +1043,15 @@ extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
  * OnSaveInit driven directly and OoT's side of the tail (MM_Rando_HeadlessForeignDigest
  * above). A player takes another path: the full OTR bring-up, the Generate
  * button's GenerateRandomizer(seed) on its worker thread (which reads the settings
- * snapshot and the menu's exclude and trick CVars itself), and then, at file
- * creation, OoT_RunPairedCreationEvent: MM's half through
+ * snapshot and the menu's exclude and trick CVars itself), then, the frame the
+ * worker ends, the file select's tick (OoT_SeedPackage_FileSelectTick, #1044),
+ * which completes the paired world -- MM's half through
  * MM_Rando_AuthorHalfAtCreation, the crossings, OoT's remainder with its spoiler,
- * the spoiler join and the armed MM shadow. This generates the same seed that way
- * and writes the same fields with the same writers: Rando_HeadlessWriteDeterminismHead
- * after the worker joins, then WritePairedHalfDigest with MM's armed half in view.
+ * the spoiler join -- and writes and stages its seed package; and then, at file
+ * creation, OoT_RunPairedCreationEvent, which binds the package and arms MM's half.
+ * This generates the same seed that way and writes the same fields with the same
+ * writers: Rando_HeadlessWriteDeterminismHead after the worker joins, then
+ * WritePairedHalfDigest with MM's armed half in view.
  *
  * One field is read from another source, because the creation's commit drops the
  * coordinator's tables before the event returns: coordinatorDigest is the fill's
@@ -1092,8 +1097,17 @@ extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char
     }
 
     // #1055: a spoiler of this seed that a run of another build left in the build
-    // directory must not meet this creation's spoiler write.
+    // directory must not meet this generation's spoiler write.
     OoT_Creation_TestClearPairedSpoiler();
+    // #1044: the file select's tick the frame the worker ends: Generate's completion,
+    // which writes and stages the seed package the creation below binds.
+    const int ticked = OoT_SeedPackage_FileSelectTick();
+    if (ticked != 1) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(8): the file select's tick did not complete the paired world (%d)\n",
+                ticked);
+        cleanup();
+        return 8;
+    }
     // Cleared first, so the shadow read below can only be the one this creation armed.
     Combo_ClearFrozenState("mm");
     if (OoT_RunPairedCreationEvent(0) == 0) {
@@ -3516,6 +3530,29 @@ int SpkCompareLines(const std::vector<std::string>& expected, const std::vector<
 }
 
 } // namespace
+
+/**
+ * #1044: THE PACKAGE'S DIGEST, ITS WORLD HALF. Called by Generate's completion
+ * (OoT_PairedGen_CompleteWorld, ForeignItemsSingleExe.cpp) with MM's finished half
+ * in view, after the crossings are stored and OoT's remainder is down: appends to
+ * @p outPath the lines the golden rows write for a complete paired world (MM's
+ * world, the single bag's run, OoT's final world, the content and every crossing),
+ * through WritePairedHalfDigest, the goldens' own writer, with the fill's digest of
+ * its tables as the player-path row takes it. The head (OoT's world at its general
+ * pass) is Rando_HeadlessWriteDeterminismHead's, written before the completion. So
+ * the digest a package carries is the digest the goldens pin for its identity.
+ * @return 0, or nonzero when the file cannot be written.
+ */
+extern "C" int MM_SeedPackage_AppendDigestTail(const char* outPath) {
+    if (outPath == nullptr || outPath[0] == '\0') {
+        return 1;
+    }
+    const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    size_t ootFinalPlaced = 0;
+    const uint32_t ootFinalHash = Rando_HeadlessPlacementHash(&ootFinalPlaced);
+    return WritePairedHalfDigest(outPath, mmWorld, bag, bag.fill.placementDigest, ootFinalHash, ootFinalPlaced);
+}
 
 /**
  * SeedPackageRoundTrip, process 1 (--test seed-package-write): generate @p seed the

@@ -3695,6 +3695,84 @@ extern "C" void Rando_TestRoundTripRandomizerSection(int* outResetCleared, int* 
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+namespace {
+// What SaveRandomizer and LoadRandomizer read or write in gSaveContext besides the
+// context: the quest they are gated on, the language the hint areas are named in,
+// and the three counters LoadRandomizer restores. A seed package is serialized and
+// loaded at file select (or in a lock), where those bytes are not a file's, so they
+// are set for the duration and put back after.
+struct SeedPackageSaveFieldsGuard {
+    decltype(gSaveContext.ship.quest.id) questId = gSaveContext.ship.quest.id;
+    decltype(gSaveContext.language) language = gSaveContext.language;
+    decltype(gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected) triforcePieces =
+        gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected;
+    decltype(gSaveContext.ship.quest.data.randomizer.bombchuUpgradeLevel) bombchuLevel =
+        gSaveContext.ship.quest.data.randomizer.bombchuUpgradeLevel;
+    decltype(gSaveContext.ship.pendingIceTrapCount) pendingIceTraps = gSaveContext.ship.pendingIceTrapCount;
+    SeedPackageSaveFieldsGuard() {
+        gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
+        gSaveContext.language = LANGUAGE_ENG;
+    }
+    ~SeedPackageSaveFieldsGuard() {
+        gSaveContext.ship.quest.id = questId;
+        gSaveContext.language = language;
+        gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected = triforcePieces;
+        gSaveContext.ship.quest.data.randomizer.bombchuUpgradeLevel = bombchuLevel;
+        gSaveContext.ship.pendingIceTrapCount = pendingIceTraps;
+    }
+};
+} // namespace
+
+std::string SaveManager::SeedPackageSerializeWorld() {
+    SeedPackageSaveFieldsGuard guard;
+    nlohmann::json section = nlohmann::json::object();
+    nlohmann::json* prev = currentJsonContext;
+    currentJsonContext = &section;
+    SaveRandomizer(&gSaveContext, 0, true);
+    currentJsonContext = prev;
+    // nlohmann::json objects keep their keys sorted, so the text is a function of
+    // the world alone.
+    return section.dump(1);
+}
+
+bool SaveManager::SeedPackageLoadWorld(const std::string& sectionJson) {
+    nlohmann::json section;
+    try {
+        section = nlohmann::json::parse(sectionJson);
+    } catch (...) { return false; }
+    if (!section.is_object() || !section.contains("itemLocations")) {
+        return false;
+    }
+    SeedPackageSaveFieldsGuard guard;
+    // The context reset Save_LoadFile performs before a load: a loaded world never
+    // keeps the context it replaces.
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetContext(nullptr);
+    Rando::Settings::GetInstance()->ClearContext();
+    OTRGlobals::Instance->gRandoContext.reset();
+    OTRGlobals::Instance->gRandoContext = Rando::Context::CreateInstance();
+    OTRGlobals::Instance->gRandoContext->GetLogic()->SetSaveContext(&gSaveContext);
+    Rando::Settings::GetInstance()->AssignContext(OTRGlobals::Instance->gRandoContext);
+    OTRGlobals::Instance->gRandoContext->AddExcludedOptions();
+    nlohmann::json* prev = currentJsonContext;
+    currentJsonContext = &section;
+    bool ok = true;
+    try {
+        LoadRandomizer();
+    } catch (...) { ok = false; }
+    currentJsonContext = prev;
+    return ok;
+}
+
+extern "C++" std::string OoT_SeedPackage_SerializeOoTWorld() {
+    return SaveManager::Instance->SeedPackageSerializeWorld();
+}
+
+extern "C++" bool OoT_SeedPackage_LoadOoTWorld(const std::string& sectionJson) {
+    return SaveManager::Instance->SeedPackageLoadWorld(sectionJson);
+}
+#endif
+
 // C to C++ bridge
 
 extern "C" void Save_Init(void) {

@@ -144,6 +144,15 @@ class SaveManager {
     // reports whether the reload put it back.
     void TestRoundTripRandomizerSection(bool* outResetCleared, bool* outPlacementRestored);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1044: OoT's world as a seed package carries it (placement/oot-world.json):
+    // the randomizer section a created file saves, serialized from the live
+    // context, and loaded into a fresh context exactly as Save_LoadFile ->
+    // LoadRandomizer does. English text either way, whatever the file's language.
+    std::string SeedPackageSerializeWorld();
+    bool SeedPackageLoadWorld(const std::string& sectionJson);
+#endif
+
     // Use a name of "" to save to an array. You must be in a SaveArray callback.
     template <typename T> void SaveData(const std::string& name, const T& data) {
         if (name == "") {

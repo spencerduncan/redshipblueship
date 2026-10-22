@@ -93,6 +93,10 @@ extern "C" {
 /** The status's machine name ("ok", "generatorVersion", ...), for logs and tests. */
 const char* SeedPackage_StatusName(int status);
 
+/** The player's words for a refused load, after RSBS_REFUSAL_TOAST_PREFIX: one short
+ *  line in the refusal toasts' shape (src/common/pairing_refusal_toast.h). */
+const char* SeedPackage_RefusalWords(int status);
+
 /** RSBS_SEEDPKG_OK when @p packageGeneratorVersion is this build's RSBS_GENERATOR_VERSION,
  *  RSBS_SEEDPKG_ERR_GENERATOR_VERSION otherwise. */
 int SeedPackage_CheckGeneratorVersion(uint32_t packageGeneratorVersion);
@@ -143,6 +147,10 @@ int OoT_SeedPackage_CompletePendingGeneration(void);
  *  generation the Generate worker finished since the last frame. Same returns. */
 int OoT_SeedPackage_FileSelectTick(void);
 
+/** The Generate worker's last act (randomizer.cpp): a generation finished, so the
+ *  next file-select tick completes it. */
+void OoT_SeedPackage_MarkWorkerFinished(void);
+
 /**
  * Load the seed package at @p path and stage it exactly as Generate stages the one
  * it writes: OoT's world, the frozen identity and records, the crossing store and
@@ -162,7 +170,11 @@ const char* OoT_SeedPackage_StagedPath(void);
  *  @return its length, or -1 when nothing is staged or @p cap is too small. */
 int OoT_SeedPackage_StagedDigest(char* out, size_t cap);
 
-/** Copy the staged package file to @p destinationPath. @return RSBS_SEEDPKG_OK or a negative status. */
+/** What the staged package is, in one line for Randomizer > General: its file, seed
+ *  string, fingerprint and generator. @return its length, or -1 when nothing is staged. */
+int OoT_SeedPackage_StagedSummary(char* out, size_t cap);
+
+/** Write the staged package to @p destinationPath. @return RSBS_SEEDPKG_OK or a negative status. */
 int OoT_SeedPackage_ExportStaged(const char* destinationPath);
 
 /** Drop the staged package (a file consumed it, or a new generation began). */
@@ -188,6 +200,30 @@ const uint8_t* OoT_SeedPackage_TestStagedMMHalf(size_t* outSize);
 
 #ifdef __cplusplus
 }
+
+#include <map>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace rsbs::seedpkg {
+
+/** A package's entries, by name. */
+using Entries = std::map<std::string, std::string>;
+
+/** Every entry of the zip at @p path into @p out. @return RSBS_SEEDPKG_OK or a negative status. */
+int ReadAll(const std::string& path, Entries& out);
+
+/** Write @p entries, in order, as the zip at @p path (SeedPackage_WriteEntries). */
+int WriteAll(const std::string& path, const std::vector<std::pair<std::string, std::string>>& entries);
+
+/** The names of the seed packages in @p dir (files ending in RSBS_SEED_PACKAGE_EXTENSION), sorted. */
+std::vector<std::string> ListDirectory(const std::string& dir);
+
+/** Copy the package at @p source to @p destination, replacing it. @return RSBS_SEEDPKG_OK or ERR_IO. */
+int CopyPackage(const std::string& source, const std::string& destination);
+
+} // namespace rsbs::seedpkg
 #endif
 
 #endif // RSBS_COMMON_SEED_PACKAGE_H
