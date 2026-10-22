@@ -29,13 +29,14 @@
  *
  * THE DRAW. One guarded call in the head limb's post-limb draw
  * (games/oot/src/code/z_player_lib.c, OoT_Player_PostLimbDrawGameplay) lands in
- * OoT_ForeignMask_DrawOnHead. MM draws its masks from its own head limb's
- * post-limb draw in that limb's space (MM z_player_lib.c, D_801C0B20), so the
- * same list drawn under OoT's head matrix sits where MM puts it. The matrix is
- * loaded explicitly from the CPU stack (the head limb's list may leave another
- * limb's matrix loaded). The list is named by its path in redship-oot.o2r, the
- * curated MM half OoT mounts, never through mm.o2r's (#981). A path no mounted
- * archive holds draws nothing.
+ * OoT_ForeignMask_DrawOnHead, for the real player only (Dark Link draws through
+ * the same function), and draws what OoT_ForeignMask_WornDl selects. MM draws
+ * its masks from its own head limb's post-limb draw in that limb's space (MM
+ * z_player_lib.c, D_801C0B20), so the same list drawn under OoT's head matrix
+ * sits where MM puts it. The matrix is loaded explicitly from the CPU stack
+ * (the head limb's list may leave another limb's matrix loaded). The list is
+ * named by its path in redship-oot.o2r, the curated MM half OoT mounts, never
+ * through mm.o2r's (#981). A path no mounted archive holds draws nothing.
  *
  * The Blast Mask's list calls segment 0x09, where MM's Player_DrawBlastMask
  * binds a one-command list setting the env colour to opaque black while the
@@ -199,13 +200,14 @@ extern "C" void OoT_ForeignMask_OnPlayerInit(Player* player, int persistentMasks
 }
 
 extern "C" void OoT_ForeignMask_DrawOnHead(PlayState* play, Player* player, int headDrawn) {
-    const uint8_t worn = OoT_ForeignMask_Worn();
-    if (worn == COMBO_FOREIGN_MASK_NONE || play == nullptr || player == nullptr || !headDrawn || !IsChild() ||
-        player->currentMask != PLAYER_MASK_NONE) {
+    // Dark Link (ovl_En_Torch2) draws through the same post-limb draw with a
+    // Player of its own: only the real player wears the worn field.
+    if (play == nullptr || player == nullptr || player != GET_PLAYER(play)) {
         return;
     }
-    const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(worn);
-    if (info == nullptr || !PathMounted(info->wornDl)) {
+    const char* dl = OoT_ForeignMask_WornDl(player, headDrawn);
+    const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(OoT_ForeignMask_Worn());
+    if (dl == nullptr || info == nullptr || !PathMounted(dl)) {
         return;
     }
 
@@ -221,7 +223,7 @@ extern "C" void OoT_ForeignMask_DrawOnHead(PlayState* play, Player* player, int 
     // The head list may leave another limb's matrix loaded: load the head
     // limb's own from the CPU stack.
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)info->wornDl);
+    gSPDisplayList(POLY_OPA_DISP++, (Gfx*)dl);
 
     CLOSE_DISPS(play->state.gfxCtx);
 }
@@ -254,9 +256,11 @@ extern "C" void OoT_ChildTradeCycle_ClearExtrasForTest(void) {
 }
 
 extern "C" const char* OoT_ForeignMask_WornDl(Player* player, int headDrawn) {
-    (void)player;
-    (void)headDrawn;
-    return nullptr;
+    const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(OoT_ForeignMask_Worn());
+    if (info == nullptr || player == nullptr || !headDrawn || !IsChild() || player->currentMask != PLAYER_MASK_NONE) {
+        return nullptr;
+    }
+    return info->wornDl;
 }
 
 extern "C" uint8_t OoT_ForeignMask_StoredRaw(void) {
