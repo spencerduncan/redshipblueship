@@ -818,6 +818,9 @@ extern "C" void MM_SeedPackage_StampPlayerName(const uint8_t* playerName);
 // SeedPackageSingleExe.cpp: what a creation binds.
 extern "C" int OoT_SeedPackage_BindForCreation(const uint8_t** outHalf, size_t* outSize, uint32_t* outUnprovedHalves);
 extern "C" int OoT_SeedPackage_CompleteForCreation(void);
+// src/common/test_runner.cpp: a --test or --integration-test process (the creation's
+// completion of a headless generation is for those alone).
+extern "C" bool TestRunner_IsTestMode(void);
 
 /**
  * RETRACT A PAIRED WORLD THAT FAILED: everything the freeze and the completion published,
@@ -1132,18 +1135,25 @@ extern "C" void OoT_PairedGen_RetractWorld(void) {
  * settings as they stand at file select cannot move the world.
  *
  * A world still waiting at its general pass with no package staged had no
- * Generate frame complete it (the locks' headless generation; SoH's gen_rando
- * console command): it is completed here by the same function Generate runs,
- * which writes and stages its package, and then bound like any other.
+ * file-select frame complete it. In a player's game that cannot happen: the
+ * Generate button and SoH's gen_rando console command both end on the Generate
+ * worker, whose next file-select frame completes and stages the world. So the
+ * creation never generates in a player's game: such a world is REFUSED below
+ * ("no seed package is staged"), never quietly completed at file select. Only a
+ * test process (--test / --integration-test, whose headless generations drive no
+ * file-select frame) completes it here, with the same function Generate runs,
+ * and then binds it like any other.
  *
  * @return 1 when the file may be written; 0 when the creation failed (the
  *         identity is retracted and the refusal surface is raised).
  */
 extern "C" int OoT_RunPairedCreationEvent(int slot) {
-    if (OoT_SeedPackage_Staged() == 0 && Combo_ForeignPairingActive() && OoT_ComboLogic_GeneralPassDeferred() != 0) {
+    if (OoT_SeedPackage_Staged() == 0 && Combo_ForeignPairingActive() && OoT_ComboLogic_GeneralPassDeferred() != 0 &&
+        TestRunner_IsTestMode()) {
         fprintf(stderr,
-                "[OoT] creation event: slot %d — the paired world is still waiting at its general pass (no Generate "
-                "frame completed it); completing it now with Generate's own completion (#1044)\n",
+                "[OoT] creation event: slot %d — TEST PROCESS: the paired world is still waiting at its general pass "
+                "(a headless generation, no file-select frame completed it); completing it now with Generate's own "
+                "completion (#1044)\n",
                 slot);
         if (OoT_SeedPackage_CompleteForCreation() != 1) {
             // The completion retracted the identity; the creation surfaces it.

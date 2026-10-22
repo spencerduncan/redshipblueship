@@ -179,6 +179,34 @@ std::string SeedNameOf(const Rando::Context& ctx) {
 // Building a package from the completed world
 // ----------------------------------------------------------------------------
 
+/**
+ * placement/combo-context.bin: the WORLD fields of @p live (the ones ApplyComboWorld
+ * applies, plus the layout's magic and version) in an otherwise zeroed record. At
+ * Generate the session fields (the switch request, shared flags and items, the
+ * slot, the grant cursors, the shared pools, the commit count, the family bits)
+ * can still hold what an earlier opened file left, and none of it is the world:
+ * copied raw, a package's bytes, and identity.json's digest of them, would depend
+ * on the session's history.
+ */
+std::string WorldRecordBytes(const ComboContext& live) {
+    auto rec = std::make_unique<ComboContext>();
+    memset(rec.get(), 0, sizeof(ComboContext));
+    memcpy(rec->magic, live.magic, sizeof(rec->magic));
+    memcpy(&rec->version, &live.version, sizeof(rec->version));
+    memcpy(&rec->sourceIsRando, &live.sourceIsRando, sizeof(rec->sourceIsRando));
+    memcpy(&rec->sharedRandoSeed, &live.sharedRandoSeed, sizeof(rec->sharedRandoSeed));
+    memcpy(&rec->sharedRandoSettingsHash, &live.sharedRandoSettingsHash, sizeof(rec->sharedRandoSettingsHash));
+    memcpy(rec->foreignPlacements, live.foreignPlacements, sizeof(rec->foreignPlacements));
+    memcpy(rec->foreignPlacementsOoT, live.foreignPlacementsOoT, sizeof(rec->foreignPlacementsOoT));
+    memcpy(&rec->mmProfileDigest, &live.mmProfileDigest, sizeof(rec->mmProfileDigest));
+    memcpy(&rec->mmPairedAttempt, &live.mmPairedAttempt, sizeof(rec->mmPairedAttempt));
+    memcpy(&rec->comboSettingsHash, &live.comboSettingsHash, sizeof(rec->comboSettingsHash));
+    memcpy(&rec->comboSettings, &live.comboSettings, sizeof(rec->comboSettings));
+    memcpy(&rec->comboTriforce, &live.comboTriforce, sizeof(rec->comboTriforce));
+    memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
+    return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
+}
+
 int BuildEntries(std::vector<std::pair<std::string, std::string>>& out, std::string& outFileName) {
     out.clear();
     const uint8_t* half = nullptr;
@@ -226,7 +254,7 @@ int BuildEntries(std::vector<std::pair<std::string, std::string>>& out, std::str
     // The placements.
     const std::string ootWorld = OoT_SeedPackage_SerializeOoTWorld();
     const std::string mmHalf(reinterpret_cast<const char*>(half), halfSize);
-    const std::string comboRecord(reinterpret_cast<const char*>(&gComboCtx), sizeof(ComboContext));
+    const std::string comboRecord = WorldRecordBytes(gComboCtx);
     std::string crossings(Combo_Crossings_SerializedSize(), '\0');
     if (Combo_Crossings_Serialize(reinterpret_cast<uint8_t*>(crossings.data()), crossings.size()) != crossings.size()) {
         return RSBS_SEEDPKG_ERR_NO_WORLD;
@@ -700,7 +728,8 @@ extern "C" int OoT_SeedPackage_CompletePendingGeneration(void) {
     return CompleteAndStage(/*fromGenerate=*/true);
 }
 
-/** ForeignItemsSingleExe.cpp's creation fallback: the same completion, no Generate toast. */
+/** ForeignItemsSingleExe.cpp's creation fallback, in a test process only (a headless
+ *  generation no file-select frame completed): the same completion, no Generate toast. */
 extern "C" int OoT_SeedPackage_CompleteForCreation(void) {
     if (!Combo_ForeignPairingActive() || OoT_ComboLogic_GeneralPassDeferred() == 0) {
         return 0;

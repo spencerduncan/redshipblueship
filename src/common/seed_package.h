@@ -25,7 +25,8 @@
  *                             save section for a randomizer file).
  *   placement/mm-half.bin     MM's authored half, the bytes the creation arms.
  *   placement/combo-context.bin  the frozen combo record (ComboContext, the .redsave
- *                             Tier-1 layout), of which the world fields are applied.
+ *                             Tier-1 layout): its world fields, which are applied;
+ *                             every session field is zero.
  *   placement/crossings.bin   the crossing store (the .redsave Tier-4 block).
  *
  * WHO WRITES AND WHO READS. Generate writes one (the file select completes the

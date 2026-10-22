@@ -52,6 +52,10 @@
 #include "rsbs_version.h"
 #include "seed_package.h"
 
+// ForeignItemsSingleExe.cpp: the completed world Generate holds.
+extern "C" int OoT_PairedGen_CompletedWorld(const uint8_t** outHalf, size_t* outHalfSize, const char** outDigest,
+                                            const char** outMMProfile, uint32_t* outUnprovedHalves, unsigned* outGoal);
+
 namespace {
 
 // The entries a package can carry, in the order the writer stores them.
@@ -67,13 +71,19 @@ const char* const kEntryNames[] = {
  * @return 1 when a completed world is held, else 0.
  */
 int CompletedExtras(std::string& digest, std::string& mmProfile, uint32_t& unprovedHalves, unsigned& goal) {
-    // THE LOCK COMMIT'S SEAM: no completed world is ever held (today's behaviour);
-    // the fix reads the completion's own record.
-    digest.clear();
-    mmProfile.clear();
+    // The completion's own record (ForeignItemsSingleExe.cpp), the one the writer reads.
+    const char* digestText = nullptr;
+    const char* profileText = nullptr;
     unprovedHalves = 0;
     goal = 0;
-    return 0;
+    if (!OoT_PairedGen_CompletedWorld(nullptr, nullptr, &digestText, &profileText, &unprovedHalves, &goal)) {
+        digest.clear();
+        mmProfile.clear();
+        return 0;
+    }
+    digest = digestText != nullptr ? digestText : "";
+    mmProfile = profileText != nullptr ? profileText : "";
+    return 1;
 }
 
 std::string Hex8(uint32_t v) {
