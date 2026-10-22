@@ -1804,6 +1804,13 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   `RSBS_XITEM_SHARED_SONG_EPONA` (0x00400000) and
   `RSBS_XITEM_SHARED_SONG_STORMS` (0x00800000) through the same table, making
   `RSBS_XITEM_ALL_V1` 0x02FFFFFF.
+  *2026-10-21 (#968):* three more keys, `gCombo.Rando.SharedArrowFire`,
+  `gCombo.Rando.SharedArrowIce` and `gCombo.Rando.SharedArrowLight`
+  ("[Both Games] Shared Fire Arrows", "Shared Ice Arrows" and "Shared Light
+  Arrows", 0 or 1, default off), author the bits this carve reserved for them,
+  `RSBS_XITEM_SHARED_ARROW_FIRE` (0x00020000), `_ICE` (0x00040000) and
+  `_LIGHT` (0x00080000), through the same table. No bit is allocated, so
+  `RSBS_XITEM_ALL_V1` and `RSBS_XITEM_FAMILY_MASK` do not move.
 - **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
   at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
   shared masks, the six shared extensions, the three arrows and, since #1065
