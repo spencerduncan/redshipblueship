@@ -112,6 +112,11 @@ static bool comboRuleSharedArrowFire;      // #968: the item rules' RSBS_XITEM_S
 static bool comboRuleSharedArrowIce;       // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
 static bool comboRuleSharedArrowLight;     // #968: the item rules' RSBS_XITEM_SHARED_ARROW_LIGHT bit
 static bool comboRuleSharedBottles;        // #970: ComboItemRulesRecord.crossItemFlags' shared-bottles bit
+static bool comboRuleSharedMaskGoron;      // #978: the item rules' RSBS_XITEM_SHARED_GORON bit
+static bool comboRuleSharedMaskZora;       // #978: the item rules' RSBS_XITEM_SHARED_ZORA bit
+static bool comboRuleSharedMaskBunny;      // #978: the item rules' RSBS_XITEM_SHARED_BUNNY bit
+static bool comboRuleSharedMaskKeaton;     // #978: the item rules' RSBS_XITEM_SHARED_KEATON bit
+static bool comboRuleSharedMaskTruth;      // #978: the item rules' RSBS_XITEM_SHARED_TRUTH bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -725,6 +730,84 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
             "Only four bottles are placed across both games (Ruto's Letter, when it is shuffled, is one of them), "
             "so Majora's Mask's fifth and sixth bottle slots stay empty."));
+
+    // The five shared masks (#978; OoTMM sharedMaskGoron, Zora, Bunny, Keaton and
+    // Truth, off by default): the lens row's shape, one row per mask as OoTMM has
+    // one option per mask. The bits are the ones #976 reserved.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_GORON), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskGoron)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskGoron = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_GORON)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_GORON) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GORON, comboRuleSharedMaskGoron ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Goron Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Goron Mask is shuffled, and both games' logic counts it. In Hyrule it stays a trade "
+            "mask; in Termina it still transforms."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_ZORA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskZora)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskZora = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ZORA)
+                                              : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_ZORA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, comboRuleSharedMaskZora ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Zora Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Zora Mask is shuffled, and both games' logic counts it. In Hyrule it stays a trade "
+            "mask; in Termina it still transforms."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BUNNY), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskBunny)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskBunny = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BUNNY)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_BUNNY) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, comboRuleSharedMaskBunny ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Bunny Hood one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Bunny Hood is shuffled, and both games' logic counts it. In Hyrule it also gives "
+            "Majora's Mask's speed boost, as if Enhancements > Bunny Hood Effect were on, whatever that setting "
+            "says."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_KEATON), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskKeaton)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskKeaton = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_KEATON)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_KEATON) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, comboRuleSharedMaskKeaton ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Keaton Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Keaton Mask is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_TRUTH), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskTruth)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskTruth = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_TRUTH)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_TRUTH) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, comboRuleSharedMaskTruth ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Mask of Truth one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Mask of Truth is shuffled, and both games' logic counts it."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

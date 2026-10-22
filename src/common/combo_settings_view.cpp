@@ -52,6 +52,11 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE, "Shared Ice Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, "Shared Light Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_BOTTLES, "Shared Bottles" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GORON, "Shared Goron Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_ZORA, "Shared Zora Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, "Shared Bunny Hood" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, "Shared Keaton Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -76,6 +81,11 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_ARROW_ICE, RSBS_XITEM_SHARED_ARROW_ICE },             // #968
     { COMBO_SETTING_SHARED_ARROW_LIGHT, RSBS_XITEM_SHARED_ARROW_LIGHT },         // #968
     { COMBO_SETTING_SHARED_BOTTLES, RSBS_XITEM_SHARED_BOTTLES },                 // #970
+    { COMBO_SETTING_SHARED_MASK_GORON, RSBS_XITEM_SHARED_GORON },                // #978
+    { COMBO_SETTING_SHARED_MASK_ZORA, RSBS_XITEM_SHARED_ZORA },                  // #978
+    { COMBO_SETTING_SHARED_MASK_BUNNY, RSBS_XITEM_SHARED_BUNNY },                // #978
+    { COMBO_SETTING_SHARED_MASK_KEATON, RSBS_XITEM_SHARED_KEATON },              // #978
+    { COMBO_SETTING_SHARED_MASK_TRUTH, RSBS_XITEM_SHARED_TRUTH },                // #978
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -123,8 +133,13 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_SHARED_ARROW_FIRE:      // #968
         case COMBO_SETTING_SHARED_ARROW_ICE:       // #968
         case COMBO_SETTING_SHARED_ARROW_LIGHT:     // #968
-        case COMBO_SETTING_SHARED_BOTTLES: {       // #970
-            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #968, #970),
+        case COMBO_SETTING_SHARED_BOTTLES:         // #970
+        case COMBO_SETTING_SHARED_MASK_GORON:      // #978
+        case COMBO_SETTING_SHARED_MASK_ZORA:       // #978
+        case COMBO_SETTING_SHARED_MASK_BUNNY:      // #978
+        case COMBO_SETTING_SHARED_MASK_KEATON:     // #978
+        case COMBO_SETTING_SHARED_MASK_TRUTH: {    // #978
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #968, #970, #978),
             // the same one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
@@ -162,6 +177,11 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_ARROW_ICE:       // #968, the same
         case COMBO_SETTING_SHARED_ARROW_LIGHT:     // #968, the same
         case COMBO_SETTING_SHARED_BOTTLES:         // #970: likewise
+        case COMBO_SETTING_SHARED_MASK_GORON:      // #978, the same
+        case COMBO_SETTING_SHARED_MASK_ZORA:       // #978, the same
+        case COMBO_SETTING_SHARED_MASK_BUNNY:      // #978, the same
+        case COMBO_SETTING_SHARED_MASK_KEATON:     // #978, the same
+        case COMBO_SETTING_SHARED_MASK_TRUTH:      // #978, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -332,7 +352,8 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
-    // (kItemRuleKeys) is one row under it (#1068, #1065, #1066, #1067, #968, #970).
+    // (kItemRuleKeys) is one row under it (#1068, #1065, #1066, #1067, #968, #970,
+    // #978).
     // Restorable only when every differing bit has a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_LENS },
@@ -343,11 +364,16 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_ARROW_ICE },       // #968
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_ARROW_LIGHT },     // #968
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_BOTTLES },         // #970
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_GORON },      // #978
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_ZORA },       // #978
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BUNNY },      // #978
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_KEATON },     // #978
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_TRUTH },      // #978
 };
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
  *  differs from the session's resolution has a key; a rule only another build
- *  authors (a shared mask, say) cannot be restored, and the load refuses it by
+ *  authors (an extension mask, say) cannot be restored, and the load refuses it by
  *  name. */
 bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules) {
     ComboItemRulesRecord live;
@@ -373,6 +399,11 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_ARROW_ICE:
         case COMBO_SETTING_SHARED_ARROW_LIGHT:
         case COMBO_SETTING_SHARED_BOTTLES:
+        case COMBO_SETTING_SHARED_MASK_GORON:
+        case COMBO_SETTING_SHARED_MASK_ZORA:
+        case COMBO_SETTING_SHARED_MASK_BUNNY:
+        case COMBO_SETTING_SHARED_MASK_KEATON:
+        case COMBO_SETTING_SHARED_MASK_TRUTH:
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         default:

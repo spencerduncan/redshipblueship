@@ -124,6 +124,13 @@ typedef enum {
     COMBO_SETTING_SHARED_ARROW_LIGHT, // gCombo.Rando.SharedArrowLight -> RSBS_XITEM_SHARED_ARROW_LIGHT
     // #970, the same shape: gCombo.Rando.SharedBottles -> rules.crossItemFlags & 0x00100000.
     COMBO_SETTING_SHARED_BOTTLES,
+    // #978. The five masks' bits #976 reserved, the lens's shape: 0 or 1,
+    // default 0 each, one row per mask (OoTMM's five sharedMask* options).
+    COMBO_SETTING_SHARED_MASK_GORON,  // gCombo.Rando.SharedMaskGoron -> RSBS_XITEM_SHARED_GORON
+    COMBO_SETTING_SHARED_MASK_ZORA,   // gCombo.Rando.SharedMaskZora -> RSBS_XITEM_SHARED_ZORA
+    COMBO_SETTING_SHARED_MASK_BUNNY,  // gCombo.Rando.SharedMaskBunny -> RSBS_XITEM_SHARED_BUNNY
+    COMBO_SETTING_SHARED_MASK_KEATON, // gCombo.Rando.SharedMaskKeaton -> RSBS_XITEM_SHARED_KEATON
+    COMBO_SETTING_SHARED_MASK_TRUTH,  // gCombo.Rando.SharedMaskTruth -> RSBS_XITEM_SHARED_TRUTH
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
