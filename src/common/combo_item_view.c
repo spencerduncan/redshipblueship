@@ -155,6 +155,59 @@ static uint16_t SharedValue(uint8_t kind) {
 }
 
 /**
+ * The ACTIVE game's LIVE reading of shared kind `kind` (#971), or false: through
+ * ComboItemOps::sharedLive over the buffer PickSource calls LIVE. A read only, and
+ * never of the inactive game: its snapshot is the pool until it applies it.
+ */
+static bool LiveSharedRead(uint8_t kind, uint16_t* out) {
+    const GameId active = Context_GetCurrentGame();
+    if (active != GAME_OOT && active != GAME_MM) {
+        return false;
+    }
+    const ComboItemOps* ops = NULL;
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const void* src = PickSource((uint8_t)active, &ops, &freshness);
+    if (src == NULL || freshness != COMBO_TRACKER_FRESH_LIVE || ops->sharedLive == NULL) {
+        return false;
+    }
+    return ops->sharedLive(src, kind, out);
+}
+
+/** A quantity the player spends (shared_resources.h CONSUMABLE): the live game's value is the truth. */
+static bool SharedKindConsumable(uint8_t kind) {
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+        case RSBS_SHARED_RES_ARROW_COUNT:
+        case RSBS_SHARED_RES_BOMB_COUNT:
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+        case RSBS_SHARED_RES_STICK_COUNT:
+        case RSBS_SHARED_RES_NUT_COUNT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+/**
+ * What the Shared column shows for `kind` (#971): the pool's value, brought up to
+ * the active game's live reading when that is ahead for a MONOTONIC kind (the
+ * hookshot, the wallet, magic, double defense, hearts: a capacity that only
+ * grows, so a live save behind the pool never lowers it), and replaced by it for
+ * a CONSUMABLE count. The pool itself is not written.
+ */
+static uint16_t SharedColumnValue(uint8_t kind) {
+    const uint16_t pool = SharedValue(kind);
+    uint16_t live = 0;
+    if (!LiveSharedRead(kind, &live)) {
+        return pool;
+    }
+    if (SharedKindConsumable(kind)) {
+        return live;
+    }
+    return (live > pool) ? live : pool;
+}
+
+/**
  * The ACTIVE game's own copy of shared tier `kind`: the row of its LIVE save that
  * names `kind` (ComboItemRow::sharedKind). The pool is written at a game switch
  * or a save only, so a find made since is in the live save and nowhere else.
@@ -575,7 +628,11 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     out->name = def->name;
     out->iconKey = NULL; // the icon game's own, below; NULL draws the row as text
     out->iconKeyFaded = NULL;
-    out->count = (int)(SharedValue(def->countKind) / def->unitsPerCount);
+    // An ammo count is bounded by its capacity tier, so it follows the live game only
+    // below, where the tier is read; every other kind is live here (#971).
+    out->count = (int)(((def->tierKind != RSBS_SHARED_RES_NONE) ? SharedValue(def->countKind)
+                                                                : SharedColumnValue(def->countKind)) /
+                       def->unitsPerCount);
     uint16_t iconTier = (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
         // The tier and the ammo of the active game's live copy when it is at
@@ -587,7 +644,10 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
             tier = 3;
         }
         if (read.live) {
-            out->count = read.liveCount;
+            // The live game's own count (#971), the copy's row count when the
+            // adapter has no live reading of the kind.
+            uint16_t liveAmmo = 0;
+            out->count = LiveSharedRead(def->countKind, &liveAmmo) ? (int)liveAmmo : read.liveCount;
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];

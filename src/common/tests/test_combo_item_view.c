@@ -913,6 +913,148 @@ static int CivSharedTierLegs(const ComboItemOps* ootOps, const ComboItemOps* mmO
     return TEST_PASS;
 }
 
+// ---- the Shared column follows the active game's live save (#971) -------------
+
+/** The pool's value for `kind`, 0 when nothing was ever written. Read-only. */
+static uint16_t CivPoolValue(uint8_t kind) {
+    uint16_t v = 0;
+    return Combo_GetSharedResource(kind, &v) ? v : 0;
+}
+
+/** A pool holding `rupees` and nothing else, the way a departing game's harvest leaves it. */
+static void CivFreshPool(uint16_t rupees) {
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, rupees);
+}
+
+/**
+ * The Shared column over the ACTIVE game's live save, with no harvest: a hookshot or
+ * a wallet found since the last save or crossing shows at once, the monotonic tiers
+ * never fall below the pool, a consumable count is the live game's own, and the
+ * pool is never written by a draw. The inactive game keeps its snapshot.
+ */
+static int CivSharedLiveLegs(const ComboItemOps* ootOps, const ComboItemOps* mmOps) {
+    ComboItemRow row;
+    ComboItemRow sharedRow;
+    std::vector<uint8_t> ootV0((size_t)OOT_SAVE_CONTEXT_SIZE, 0); // Longshot, Adult's Wallet, 123 rupees, tier-2 quiver
+    std::vector<uint8_t> ootV2((size_t)OOT_SAVE_CONTEXT_SIZE, 0); // the shadow: no hookshot
+    std::vector<uint8_t> mmV0((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // Adult's Wallet, 150 rupees, magic
+    std::vector<uint8_t> mmV1((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // the Hookshot
+    std::vector<uint8_t> mmV2((size_t)MM_SAVE_CONTEXT_SIZE, 0);   // the shadow: no hookshot
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootV0.data(), ootV0.size(), 0) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootV2.data(), ootV2.size(), 2) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV0.data(), mmV0.size(), 0) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV1.data(), mmV1.size(), 1) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmV2.data(), mmV2.size(), 2) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, ootV2.data(), ootV2.size());
+    Context_UpdateShadowCopy(GAME_MM, mmV2.data(), mmV2.size());
+
+    static ComboItemOps sLiveOoTOps;
+    static ComboItemOps sLiveMMOps;
+    sLiveOoTOps = *ootOps;
+    sLiveOoTOps.liveSave = CivLiveSave;
+    sLiveMMOps = *mmOps;
+    sLiveMMOps.liveSave = CivMMLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sLiveOoTOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, &sLiveMMOps);
+
+    // ---- OoT played live, the pool holding 99 rupees and nothing else ---------------
+    CivFreshPool(99);
+    sCivLive = ootV0.data();
+    sCivMMLive = NULL;
+    Context_SetCurrentGame(GAME_OOT);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live Longshot, pool 0: shared Hookshot have=%d count=%d max=%d\n",
+           (int)sharedRow.have, sharedRow.count, sharedRow.max);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 2 && sharedRow.max == 2);
+    // The draw wrote nothing: no harvest ran, so the pool still holds only the rupees.
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_WALLET_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HEALTH_QUARTERS) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 99);
+
+    // A wallet and the hearts the live save holds (three whole hearts).
+    CIV_ASSERT(CivFindSharedRow("Wallet", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 1 && sharedRow.max == 3);
+    CIV_ASSERT(CivFindSharedRow("Hearts", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live, pool 0: shared Hearts count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 3);
+
+    // The rupees are the live game's, below or above the pool's.
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live 123 rupees, pool 99: shared Rupees count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 123);
+    CivFreshPool(250);
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow));
+    printf("[TEST] combo-item-view: OoT live 123 rupees, pool 250: shared Rupees count=%d\n", sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 123);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 250);
+
+    // A monotonic tier never falls below the pool: 16 hearts pooled, 3 live.
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x100, 0));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &sharedRow) && sharedRow.have && sharedRow.count == 16);
+
+    // The ammo: the live quiver (tier 2, 35 arrows) is ahead of a tier-1 pool, so
+    // its count shows; a live quiver behind the pool leaves the pool's.
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 10);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 35 && sharedRow.max == 40);
+    CivFreshPool(99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 50);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 50 && sharedRow.max == 50);
+
+    // The inactive game keeps its snapshot: MM's own Hookshot (its shadow holds none) stays dark.
+    CIV_ASSERT(!(CivFindRow((uint8_t)GAME_MM, "Hookshot", &row) && row.have));
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_STALE);
+
+    // No live source (a title screen, file select): the column is the pool alone.
+    CivFreshPool(250);
+    sCivLive = NULL;
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_OOT) == COMBO_TRACKER_FRESH_STALE);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow) && !sharedRow.have && sharedRow.count == 0);
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow) && sharedRow.count == 250);
+
+    // ---- MM played live ---------------------------------------------------------------
+    CivFreshPool(99);
+    sCivLive = NULL;
+    sCivMMLive = mmV1.data();
+    Context_SetCurrentGame(GAME_MM);
+    CIV_ASSERT(Combo_ItemFreshness((uint8_t)GAME_MM) == COMBO_TRACKER_FRESH_LIVE);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow));
+    printf("[TEST] combo-item-view: MM live Hookshot, pool 0: shared Hookshot have=%d count=%d\n", (int)sharedRow.have,
+           sharedRow.count);
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_HOOKSHOT_TIER) == 0);
+    // MM tops out at a hookshot: a Longshot the pool holds stays.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HOOKSHOT_TIER, 2);
+    CIV_ASSERT(CivFindSharedRow("Hookshot", &sharedRow) && sharedRow.have && sharedRow.count == 2);
+
+    CivFreshPool(99);
+    sCivMMLive = mmV0.data();
+    CIV_ASSERT(CivFindSharedRow("Rupees", &sharedRow) && sharedRow.count == 150);
+    CIV_ASSERT(CivFindSharedRow("Wallet", &sharedRow) && sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivFindSharedRow("Magic", &sharedRow) && sharedRow.have && sharedRow.count == 1);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_MAGIC_LEVEL) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_WALLET_TIER) == 0);
+    CIV_ASSERT(CivPoolValue(RSBS_SHARED_RES_RUPEES) == 99);
+
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ootOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    printf("[TEST] combo-item-view: the Shared column follows the active game's live save, the pool untouched PASS "
+           "(#971)\n");
+    return TEST_PASS;
+}
+
 extern "C" int Combo_ItemView_RunHeadless(void) {
     printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
@@ -1012,6 +1154,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
         // ---- 5b. the shared capacity tiers, once (#967) -----------------------
         if (CivSharedTierLegs(ops, mmOps) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5c. the Shared column follows the active game's live save (#971) --
+        if (CivSharedLiveLegs(ops, mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }
