@@ -143,6 +143,7 @@ games/mm/2s2h/Rando/StaticData/TrickIds.h
 games/mm/2s2h/Rando/StaticData/Tricks.h
 games/mm/2s2h/Rando/StaticData/Tricks.cpp
 games/mm/2s2h/mm_trick_table_test.cpp
+games/mm/2s2h/mm_locations_view_test.cpp
 games/oot/soh/oot_entrance_pin_test.cpp
 games/oot/soh/oot_price_range_test.cpp
 games/oot/soh/SohGui/SohMenuComboMmEnhancements.cpp

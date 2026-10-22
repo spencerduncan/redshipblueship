@@ -73,6 +73,9 @@ set(REDSHIP_COMMON_SOURCES
     # descriptor set covers RandoOptionId exactly.
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_tricks_view.c
     ${CMAKE_SOURCE_DIR}/src/common/combo_mm_options_page.c
+    # MM's excluded-check list for Randomizer > MM Locations (#1101 lane R3):
+    # the same seam a third time, over MM's check table.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_mm_locations_view.c
     # The combo_ui seam (UI parity M6): the table our common-owned panes draw
     # through, SoH's disabled-tooltip composer, the snapshot harness's rect
     # recorder, and the raw-ImGui fallback. SoH's implementation is
@@ -1411,6 +1414,12 @@ if(BUILD_TESTING)
     # runs in this display-free tier; finding (b)'s probe needs the region graph
     # and is MMTrickGbtGate in the rando tier below.
     redship_add_test(NAME MMTrickTable COMMAND redship --test mm-trick-table)
+    # Randomizer > MM Locations' model (#1101 lane R3): the check table mirrors
+    # MM's checks, the writers emit MM's one spelling of gRando.ExcludedChecks
+    # and refuse while the profile is frozen or the logic is Vanilla, and the
+    # profile digest moves with an edit. Display-free and ROM-free, the bring-up
+    # MMTrickTable uses. games/mm/2s2h/mm_locations_view_test.cpp.
+    redship_add_test(NAME MMLocations COMMAND redship --test mm-locations)
 
     # #661: the Happy Mask Shop interior door IS the OoT<->MM crossing, and OoT's
     # own entrance shuffle lists it as an ordinary EntranceType::Interior pair.

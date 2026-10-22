@@ -57,7 +57,8 @@ s16 Play_GetOriginalSceneId(s16 sceneId);
 // own linkage and pulls context.h, whose <type_traits> include must not be
 // wrapped in C linkage (matching Foreign.cpp).
 #include "combo_tracker_view.h"
-#include "game.h" // MM_SAVE_CONTEXT_SIZE
+#include "combo_mm_locations_view.h" // Randomizer > MM Locations' check table (#1101 lane R3)
+#include "game.h"                    // MM_SAVE_CONTEXT_SIZE
 
 // The reader in combo_tracker_view.c walks the row's flag bytes as u8 and the
 // header fields as u32; these pin the assumptions to the real types.
@@ -350,6 +351,13 @@ extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId,
  */
 extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped) {
     return MMTrackerSetSkippedIn(static_cast<SaveContext*>(save), checkId, skipped != 0) ? 1 : 0;
+}
+
+/**
+ * Randomizer > MM Locations' check table (#1101 lane R3). The seam, as today:
+ * no table is published, so the page has nothing to list.
+ */
+extern "C" void MM_RandoLocationsUi_Register(void) {
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE
