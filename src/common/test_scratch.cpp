@@ -204,4 +204,79 @@ std::vector<int> RunRowConcurrently(const char* row, int copies, const std::file
     return codes;
 }
 
+int RunRowsInDir(const std::string& rowArg, const std::filesystem::path& cwd, const std::filesystem::path& log) {
+    const std::string exe = ThisExecutablePath();
+    if (exe.empty()) {
+        printf("[TestScratch] could not resolve this executable's path\n");
+        return -1;
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(cwd, ec);
+    fflush(nullptr); // nothing buffered in this process may be duplicated into the child
+    const std::string logPath = log.string();
+    const std::string cwdPath = cwd.string();
+
+#ifdef _WIN32
+    SECURITY_ATTRIBUTES sa = { sizeof(sa), nullptr, TRUE };
+    HANDLE logHandle = CreateFileA(logPath.c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, &sa,
+                                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (logHandle == INVALID_HANDLE_VALUE) {
+        printf("[TestScratch] could not create %s: error %lu\n", logPath.c_str(), GetLastError());
+        return -1;
+    }
+    std::string cmdLine = "\"" + exe + "\" --test " + rowArg;
+    std::vector<char> mutableCmd(cmdLine.begin(), cmdLine.end());
+    mutableCmd.push_back('\0');
+    STARTUPINFOA si = { 0 };
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdInput = nullptr;
+    si.hStdOutput = logHandle;
+    si.hStdError = logHandle;
+    PROCESS_INFORMATION pi = { 0 };
+    int code = -1;
+    // CREATE_NO_WINDOW: never a console window, so never a focus change.
+    if (CreateProcessA(exe.c_str(), mutableCmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
+                       cwdPath.c_str(), &si, &pi)) {
+        CloseHandle(pi.hThread);
+        WaitForSingleObject(pi.hProcess, INFINITE);
+        DWORD exitCode = static_cast<DWORD>(-1);
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        CloseHandle(pi.hProcess);
+        code = static_cast<int>(exitCode);
+    } else {
+        printf("[TestScratch] could not spawn %s: error %lu\n", exe.c_str(), GetLastError());
+    }
+    CloseHandle(logHandle);
+    return code;
+#else
+    std::vector<char*> argv = { const_cast<char*>(exe.c_str()), const_cast<char*>("--test"),
+                                const_cast<char*>(rowArg.c_str()), nullptr };
+    const pid_t pid = fork();
+    if (pid == 0) {
+        if (chdir(cwdPath.c_str()) != 0) {
+            _exit(126);
+        }
+        const int fd = open(logPath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd >= 0) {
+            dup2(fd, 1);
+            dup2(fd, 2);
+            close(fd);
+        }
+        execv(exe.c_str(), argv.data());
+        _exit(127);
+    }
+    if (pid < 0) {
+        printf("[TestScratch] could not fork for %s\n", rowArg.c_str());
+        return -1;
+    }
+    int status = 0;
+    pid_t waited;
+    do {
+        waited = waitpid(pid, &status, 0);
+    } while (waited < 0 && errno == EINTR);
+    return (waited == pid && WIFEXITED(status)) ? WEXITSTATUS(status) : -1;
+#endif
+}
+
 } // namespace rsbs::test

@@ -49,6 +49,17 @@ void ScratchDirs_EndRow(const char* rowName, bool passed);
  */
 std::vector<int> RunRowConcurrently(const char* row, int copies, const std::filesystem::path& logDir);
 
+/**
+ * Runs `<this executable> --test <rowArg>` ONCE with @p cwd as its working
+ * directory and waits for it; its stdout and stderr go to @p log. @p rowArg is
+ * a row name or a comma-separated list of row names, which the runner runs back
+ * to back in that one process (`--test a,b,c`).
+ *
+ * @return the exit code, or -1 if the child could not be spawned or did not
+ *         exit normally
+ */
+int RunRowsInDir(const std::string& rowArg, const std::filesystem::path& cwd, const std::filesystem::path& log);
+
 } // namespace rsbs::test
 
 #endif // RSBS_COMMON_TEST_SCRATCH_H

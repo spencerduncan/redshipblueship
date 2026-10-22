@@ -770,6 +770,11 @@ extern "C" {
 // both to pass. No display, no ROM archives, no game loop.
 #include "tests/test_scratch_concurrent.c"
 
+// The same save-writing rows in a working directory whose every fixed name is
+// taken (#824, #925). FILE SCOPE: it starts this executable per group of rows
+// through test_scratch.h and requires each to pass. No display, no ROM archives.
+#include "tests/test_scratch_poisoned_cwd.c"
+
 // #560 root-cause contention lock over the shared per-archive handle. FILE
 // SCOPE (compiled as C++): it drives the C++-linkage Ship::Context /
 // ResourceManager / ArchiveManager APIs directly. The wrapper
@@ -7149,6 +7154,12 @@ const TestDescriptor gTests[] = {
     // process writes its own scratch directory). Spawns this executable.
     { "test-scratch-concurrent", "Two concurrent copies of each save-writing row both pass (per-process scratch dirs)",
       Test_TestScratchConcurrent },
+    // #824/#925: the same rows, plus the foreign-item and .redsave rows, in a
+    // working directory whose every fixed name is already taken. Spawns this
+    // executable.
+    { "test-scratch-poisoned-cwd",
+      "Save-writing rows pass in a working directory whose Save/ and fixed scratch names are poisoned (#824, #925)",
+      Test_TestScratchPoisonedCwd },
     // #564 V18: an MM save that cannot commit is told to the player, once per
     // cause. Pure (no display, no ROM).
     { "mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
@@ -8020,6 +8031,32 @@ int TestRunner_Run(const char* testName) {
         printf("Total: %d, Passed: %d, Skipped: %d, Failed: %d\n", total, passed, skipped, failures);
 
         return failures;
+    }
+
+    // `--test a,b,c`: the named rows back to back in THIS process, in the order
+    // given, each followed by its scratch directories' end-of-row sweep -- what
+    // `--test all` does, for a chosen few. A row that fails does not stop the
+    // rest. The exit code is 0 only if every row passed or skipped.
+    if (strchr(testName, ',') != nullptr) {
+        int listFailures = 0;
+        const std::string list(testName);
+        size_t from = 0;
+        while (from <= list.size()) {
+            const size_t comma = list.find(',', from);
+            const std::string name = list.substr(from, comma == std::string::npos ? std::string::npos : comma - from);
+            from = comma == std::string::npos ? list.size() + 1 : comma + 1;
+            if (name.empty()) {
+                continue;
+            }
+            printf("\n--- Running: %s ---\n", name.c_str());
+            const TestResult one = RunSingleTest(name.c_str());
+            rsbs::test::ScratchDirs_EndRow(name.c_str(), one == TEST_PASS || one == TEST_SKIP);
+            if (one != TEST_PASS && one != TEST_SKIP) {
+                listFailures++;
+            }
+        }
+        printf("\n=== Test Summary ===\nFailed: %d\n", listFailures);
+        return listFailures == 0 ? 0 : 1;
     }
 
     // Run single test
