@@ -253,8 +253,12 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         CMOP_ASSERT(Combo_MMOptionsPage_FallbackWarning() != NULL);
         char expected[64];
         snprintf(expected, sizeof(expected), "%d of %d tricks", Combo_MMOptionsPage_SettableTrickCount(), trickCount);
-        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), expected));
-        CMOP_ASSERT(strncmp(tricks, kNextWorld, strlen(kNextWorld)) == 0);
+        // The tricks page's note IS the shared sentence, nothing after it: the
+        // sentence is already two sentences, a note's whole budget (UiSnapshot's
+        // R6), so the trick headline is a note row of its own, which
+        // MenuMmRandomizerPages leg 7 holds.
+        CMOP_ASSERT(strcmp(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), kNextWorld) == 0);
+        CMOP_ASSERT(!CmopContains(tricks, expected));
 
         Context_SetCurrentGame(GAME_MM);
         CMOP_ASSERT(!Combo_MMOptionsPage_Suspended());

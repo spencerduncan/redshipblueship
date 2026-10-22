@@ -527,7 +527,15 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         MMRP_CHECK(FindByName(trickRows, "Majora's Mask Tricks") != nullptr, "the tricks page has no section header");
         FlatRow* tricksNote = FindByName(trickRows, "MM Tricks Status");
         MMRP_CHECK(tricksNote != nullptr, "the tricks page has no note");
+        // The trick headline is a note row of its own, under the status note: the
+        // shared sentence is two sentences already, a note's whole budget.
+        FlatRow* tricksHeadline = FindByName(trickRows, "MM Tricks Headline");
+        MMRP_CHECK(tricksHeadline != nullptr, "the tricks page has no headline row under its status note");
         if (tricksNote != nullptr) {
+            // The headline, spelled independently of the model.
+            char kHeadline[128];
+            snprintf(kHeadline, sizeof(kHeadline), "%d of %d tricks are supported by the randomizer logic so far.",
+                     Combo_MMOptionsPage_SettableTrickCount(), Combo_MMTrickCount());
             for (int frozen = 0; frozen <= 1; frozen++) {
                 Freeze(frozen != 0);
                 char expected[256];
@@ -537,9 +545,55 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 MMRP_CHECK(t.name == expected, "the tricks note reads \"%s\", the model \"%s\"", t.name.c_str(),
                            expected);
                 if (!frozen) {
-                    MMRP_CHECK(t.name.rfind(kNextWorldNote, 0) == 0,
-                               "unpaired, the tricks note \"%s\" does not open with the shared sentence",
-                               t.name.c_str());
+                    MMRP_CHECK(t.name == kNextWorldNote,
+                               "unpaired, the tricks note reads \"%s\", not the shared sentence \"%s\"", t.name.c_str(),
+                               kNextWorldNote.c_str());
+                }
+                if (tricksHeadline != nullptr) {
+                    WidgetInfo h = *tricksHeadline->info;
+                    DrawPass(h);
+                    // Unpaired, the honest headline; frozen, nothing is settable,
+                    // so the freeze sentence alone speaks (as before #1101).
+                    MMRP_CHECK(h.isHidden == (frozen != 0), "the trick headline is %s (frozen %d)",
+                               h.isHidden ? "hidden" : "shown", frozen);
+                    if (!frozen) {
+                        MMRP_CHECK(h.name == kHeadline, "the trick headline reads \"%s\", expected \"%s\"",
+                                   h.name.c_str(), kHeadline);
+                    }
+                }
+            }
+        }
+        // UiSnapshot's R6, held here ROM-free: every note on both pages is at
+        // most two sentences and 200 characters, in every state it is drawn in.
+        auto sentences = [](const std::string& text) {
+            int n = 0;
+            for (size_t i = 0; i < text.size(); i++) {
+                if ((text[i] == '.' || text[i] == '!' || text[i] == '?') &&
+                    (i + 1 == text.size() || text[i + 1] == ' ')) {
+                    n++;
+                }
+            }
+            return n;
+        };
+        for (int frozen = 0; frozen <= 1; frozen++) {
+            for (GameId game : { GAME_OOT, GAME_MM }) {
+                Freeze(frozen != 0);
+                Context_SetCurrentGame(game);
+                for (SidebarEntry* page : { &options, &tricks }) {
+                    for (FlatRow& row : FlattenRows(*page)) {
+                        if (row.info->type != WIDGET_TEXT) {
+                            continue;
+                        }
+                        WidgetInfo n = *row.info;
+                        DrawPass(n);
+                        if (n.isHidden) {
+                            continue;
+                        }
+                        MMRP_CHECK(sentences(n.name) <= 2 && n.name.size() <= 200,
+                                   "the note \"%s\" is %d sentence(s) and %zu characters (frozen %d, game %d); a "
+                                   "note is at most two sentences and 200 characters",
+                                   n.name.c_str(), sentences(n.name), n.name.size(), frozen, (int)game);
+                    }
                 }
             }
         }
