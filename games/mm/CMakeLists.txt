@@ -440,6 +440,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Audio/Sfx/DisableEnemyProximityMusic.cpp"
         # #1026
         "2s2h/Enhancements/Audio/AudioHook.cpp"
+        # #1023: the Free Look, Camera Distance and Camera Transition Speed rows (Settings > Controls). FreeLook.cpp
+        # registers only through a file-scope RegisterShipInitFunc keyed on gSettings.FreeLook.Enabled (kConvergedKeys),
+        # and rides ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (Camera_Update) and OnCameraChangeModeFlags
+        # (Camera_ChangeMode), both dispatched by z_camera.c via MM_GameHooks_*. The play-state guards landed with the
+        # carve-out (Camera_CanFreeLook). It reads the right stick from the play state input, which PadMgr copies from
+        # libultraship's pad whole (right_stick_x/y included). Camera/DebugCam.cpp shares the VB leg but keys on its own
+        # CVar and stays out. IsBombchuFocused is fenced to false in the TU so RemoteBombchu.cpp is not dragged in.
+        # Its definitions (Camera_FreeLook, Camera_CanFreeLook, UpdateFreeLookState, RegisterCameraFreeLook) have no
+        # twin in games/oot or games/mm.
+        "2s2h/Enhancements/Camera/FreeLook.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
