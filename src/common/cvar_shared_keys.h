@@ -158,6 +158,10 @@
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD "gCombo.Rando.SharedKokiriSword"
+/* #1068: one Hylian/Hero's Shield and one Mirror Shield across both games
+ * (OoTMM sharedShields). Boolean (0/1), DEFAULT 0: a BIT of the item rules
+ * record, so with it off the record stays all clear and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS "gCombo.Rando.SharedShields"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -610,6 +614,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SHIELDS, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SHIELDS bit (#1068): the Hylian/Hero's Shield and the "
+      "Mirror Shield are each ONE shared item across both games" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -1026,17 +1033,18 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, Goal (ADR 0010 D1) and
-// SharedKokiriSword (#886); #879 retired SharedOcarina (#668)) + four
+// Four identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
+// SharedKokiriSword (#886) and SharedShields (#1068); #879 retired
+// SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 16, "three gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
-                                    "gCombo.Tracker.Items.* preferences = 16");
+static_assert(kComboKeyCount == 17, "four gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + nine "
+                                    "gCombo.Tracker.Items.* preferences = 17");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

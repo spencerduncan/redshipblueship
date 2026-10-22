@@ -178,12 +178,29 @@ TestResult Test_CrossItemRulesRecord(void) {
                   RSBS_XITEM_BLAST_MASK_OOT == 0x20u && RSBS_XITEM_SPOOKY_MASK_MM == 0x400u &&
                   RSBS_XITEM_SHARED_BLAST == 0x800u && RSBS_XITEM_SHARED_SPOOKY == 0x10000u &&
                   RSBS_XITEM_SHARED_ARROW_FIRE == 0x20000u && RSBS_XITEM_SHARED_ARROW_LIGHT == 0x80000u &&
-                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_ALL_V1 == 0x1FFFFFu,
+                  RSBS_XITEM_SHARED_BOTTLES == 0x100000u && RSBS_XITEM_SHARED_SHIELDS == 0x02000000u,
               "an RSBS_XITEM_* bit moved; they are .redsave format, append-only");
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x000FF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 000FF81F (the five shared masks, the six shared extensions, "
-              "the three arrows; not the extensions, not the bottles)",
+    // #1068 allocates the Shared Shields bit: ALLOCATED (a record holding it is
+    // valid and the bit has a name) and a FAMILY (the Hylian/Hero's pair).
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x021FFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 021FFFFF (#976's 21 bits and #1068's Shared Shields)",
+              (unsigned)RSBS_XITEM_ALL_V1);
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x020FF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 020FF81F (the five shared masks, the six shared extensions, "
+              "the three arrows and the shared shields; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
+    {
+        ComboItemRulesRecord shields;
+        memset(&shields, 0, sizeof(shields));
+        shields.crossItemFlags = RSBS_XITEM_SHARED_SHIELDS;
+        XIR_CHECK(Combo_ComboItemRulesValid(&shields) &&
+                      strcmp(Combo_ComboItemRuleName(RSBS_XITEM_SHARED_SHIELDS), "sharedShields") == 0,
+                  "a record with only the Shared Shields rule must be valid and the rule named sharedShields (#1068); "
+                  "this build would refuse its own world");
+        XIR_CHECK(strcmp(Combo_ComboItemRuleName(RSBS_XFAMILY_SLOT_MIRROR_SHIELD), "(unknown)") == 0 &&
+                      (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u,
+                  "the Mirror Shield's family slot is not a rule");
+    }
     XIR_CHECK(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_MAX == 5u,
               "the cooldown space moved; DEFAULT must stay 0");
     for (uint32_t b = 0; b < 32u; ++b) {
@@ -207,7 +224,7 @@ TestResult Test_CrossItemRulesRecord(void) {
     memset(&live, 0xEE, sizeof(live));
     Combo_ResolveComboItemRules(&live);
     XIR_CHECK(memcmp(&live, &defaults, sizeof(live)) == 0,
-              "the session resolver must be the shipped defaults while no key authors the rules");
+              "the session resolver must be the shipped defaults while no rule key is set");
     XIR_CHECK(Combo_ComboItemRulesValid(&defaults) && Combo_ComboItemRulesValid(NULL), "the defaults are valid");
     {
         const ComboItemRulesRecord on = XirOnRecord();
@@ -428,8 +445,10 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
-        XIR_CHECK((Combo_ComboSettingsRestorableMask() & bits) == 0u,
-                  "no key authors the rules yet, so no load may claim to restore them");
+        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
+                  "no key of this build authors these rules (only #1068's Shared Shields has one), so no load may "
+                  "claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
