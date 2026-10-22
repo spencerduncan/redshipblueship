@@ -392,8 +392,8 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
         case COMBO_SETTING_SHARED_LENS:
-        case COMBO_SETTING_SHARED_SONG_EPONA:
-        case COMBO_SETTING_SHARED_SONG_STORMS:
+        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
         case COMBO_SETTING_SHARED_ARROW_FIRE:
         case COMBO_SETTING_SHARED_ARROW_ICE:
