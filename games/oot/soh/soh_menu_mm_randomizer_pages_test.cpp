@@ -1,6 +1,6 @@
 /**
  * @file soh_menu_mm_randomizer_pages_test.cpp
- * @brief ROM-free, display-free lock for Combo > MM Randomizer and Combo > MM
+ * @brief ROM-free, display-free lock for Randomizer > MM Randomizer and Randomizer > MM
  *        Tricks: MM's randomizer options and tricks as menu pages instead of a
  *        pop-out window (ADR 0004's 2026-09-27 host amendment; #497, #578).
  *
@@ -13,10 +13,13 @@
  * edit still goes through the gated writers. Every failure it catches is silent
  * otherwise, because a registered row with the wrong binding still draws.
  *
- *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER. Both register from a file-scope
- *      initializer beside the Majora's Mask page's (SohMenuComboMmEnhancements.cpp),
- *      so the sidebar reads Majora's Mask, MM Randomizer, MM Tricks. The options
- *      page declares two columns (Randomizer > General's), the tricks page one
+ *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER, OR UNDER THE WRONG HEADER. Both
+ *      register from a file-scope initializer beside the Majora's Mask page's
+ *      (SohMenuComboMmEnhancements.cpp) with ComboPageHost::Randomizer, so they
+ *      are pages of SoH's Randomizer header (#1101, operator ruling 2026-10-21):
+ *      AddComboRandomizerPages draws them as MM Randomizer, MM Tricks, then the
+ *      rules as Cross-Game, and the Combo header holds neither. The options page
+ *      declares two columns (Randomizer > General's), the tricks page one
  *      (Randomizer > Tricks/Glitches').
  *
  *   2. AN OPTION IS LOST OR DOUBLED. The options page's interactive rows are
@@ -26,7 +29,11 @@
  *      sliders), and nothing else interactive but Reset.
  *
  *   3. A ROW LANDS IN THE WRONG COLUMN, or in one the page never draws, or
- *      outside its group's header.
+ *      outside its group's header. The headers are SoH's Randomizer headers in
+ *      SoH's order (#1101, option C), spelled here independently of the model:
+ *      Logic, Win Condition, Area Access, Shuffle Items down the left column;
+ *      Shuffle Shops & Merchants, Additional Items, Traps, Hints, Starting
+ *      Items down the right.
  *
  *   4. A ROW SHOWS THE WRONG STATE. Unpaired: a capability-blocked row is
  *      disabled with SoH's disabled tooltip around the table's own reason, and
@@ -49,7 +56,8 @@
  *   7. THE NOTES DISAGREE WITH THE MODEL. The status note is the model's
  *      sentence in each state; the suspended note shows exactly while Majora's
  *      Mask is not running and the profile is editable; the tricks page's note
- *      is the model's headline.
+ *      is the model's headline. Unpaired, both pages open with the one status
+ *      sentence every randomizer page of ours shares (#1101 decision 7).
  *
  *   8. THE RACE LOCKOUT DIFFERS FROM SOH'S RANDOMIZER PAGES. SoH's race lockout
  *      (CVAR_SETTING("DisableChanges"), Menu.cpp's MenuDrawItem) disables every
@@ -207,46 +215,61 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     const GameId prevGame = Context_GetCurrentGame();
     ComboContext_Init();
 
+    // Both headers, as production builds them: our slice of the Randomizer header
+    // (AddMenuRandomizer() as a whole cannot run ROM-free), then Combo.
     MmRandomizerPagesProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no Combo section\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no Combo and/or Randomizer section\n");
         return 1;
     }
     MainMenuEntry& combo = entries.at("Combo");
+    MainMenuEntry& rando = entries.at("Randomizer");
 
-    // ---- Leg 1: the pages, their column counts, their place -----------------
-    if (!combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
-        printf("[TEST] FAIL(1): the Combo section has no \"%s\" and/or \"%s\" page: MM's randomizer options are "
-               "unreachable from the menu\n",
+    // ---- Leg 1: the pages, their column counts, their header and place ------
+    if (!rando.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !rando.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
+        printf("[TEST] FAIL(1): the Randomizer header has no \"%s\" and/or \"%s\" page: MM's randomizer options "
+               "are not where the one randomizer menu puts them (operator ruling 2026-10-21)\n",
                COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
         return 1;
     }
-    SidebarEntry& options = combo.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
-    SidebarEntry& tricks = combo.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
+    MMRP_CHECK(
+        !combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) && !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME),
+        "the Combo header still holds \"%s\" or \"%s\" as well", COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
+    SidebarEntry& options = rando.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
+    SidebarEntry& tricks = rando.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
     MMRP_CHECK(options.columnCount == COMBO_MM_OPTIONS_PAGE_COLUMNS,
                "the options page declares %u columns, expected %d (Randomizer > General's)", options.columnCount,
                COMBO_MM_OPTIONS_PAGE_COLUMNS);
     MMRP_CHECK(tricks.columnCount == 1, "the tricks page declares %u columns, expected 1 (Tricks/Glitches')",
                tricks.columnCount);
     {
-        long mm = -1, rando = -1, trick = -1;
-        for (std::size_t i = 0; i < combo.sidebarOrder.size(); i++) {
-            if (combo.sidebarOrder[i] == "Majora's Mask") {
-                mm = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
-                rando = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_TRICKS_PAGE_NAME) {
-                trick = (long)i;
+        // The ruling's order: MM Randomizer, MM Tricks, Cross-Game, the last
+        // three pages AddComboRandomizerPages registers (MM Locations joins
+        // between the first two when it exists).
+        const std::vector<std::string>& order = rando.sidebarOrder;
+        long options_at = -1, tricks_at = -1, rules_at = -1;
+        for (std::size_t i = 0; i < order.size(); i++) {
+            if (order[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
+                options_at = (long)i;
+            } else if (order[i] == COMBO_MM_TRICKS_PAGE_NAME) {
+                tricks_at = (long)i;
+            } else if (order[i] == "Cross-Game") {
+                rules_at = (long)i;
             }
         }
-        MMRP_CHECK(mm >= 0 && rando == mm + 1 && trick == rando + 1,
-                   "the sidebar order is Majora's Mask at %ld, MM Randomizer at %ld, MM Tricks at %ld; the MM pages "
-                   "must sit together in that order",
-                   mm, rando, trick);
+        MMRP_CHECK(options_at >= 0 && tricks_at == options_at + 1 && rules_at == tricks_at + 1 &&
+                       rules_at == (long)order.size() - 1,
+                   "the Randomizer sidebar has MM Randomizer at %ld, MM Tricks at %ld, Cross-Game at %ld of %zu; the "
+                   "ruling's order is MM Randomizer, MM Tricks, Cross-Game",
+                   options_at, tricks_at, rules_at, order.size());
     }
-    printf("[TEST] leg 1: both pages are registered with their column counts, right under Majora's Mask\n");
+    printf("[TEST] leg 1: both pages are registered with their column counts under the Randomizer header, in the "
+           "order MM Randomizer, MM Tricks, Cross-Game\n");
 
     // ---- Leg 2: the row set equals the descriptor table ---------------------
     std::vector<FlatRow> rows = FlattenRows(options);
@@ -313,8 +336,32 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        header != nullptr ? header->name.c_str() : "(none)", Combo_MMOptionGroupName(desc->group));
         }
     }
+    // ---- Leg 3 (cont.): the headers are SoH's, in SoH's order --------------
+    {
+        const std::vector<std::vector<std::string>> kHeaders = {
+            { "Logic", "Win Condition", "Area Access", "Shuffle Items" },
+            { "Shuffle Shops & Merchants", "Additional Items", "Traps", "Hints", "Starting Items" },
+        };
+        for (uint32_t column = 0; column < kHeaders.size(); column++) {
+            std::vector<std::string> seen;
+            if (column < options.columnWidgets.size()) {
+                for (WidgetInfo& row : options.columnWidgets.at(column)) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        seen.push_back(row.name);
+                    }
+                }
+            }
+            std::string got;
+            for (const std::string& h : seen) {
+                got += (got.empty() ? "" : ", ") + h;
+            }
+            MMRP_CHECK(seen == kHeaders.at(column),
+                       "column %u of the options page reads the headers [%s], not SoH's vocabulary in SoH's order",
+                       column + 1, got.c_str());
+        }
+    }
     printf("[TEST] leg 2-3: the options page's rows are the %d descriptors, once each, in the model's columns under "
-           "their groups' headers\n",
+           "their groups' headers, which are SoH's in SoH's order\n",
            count);
 
     // ---- Leg 4: the states -----------------------------------------------------
@@ -456,6 +503,9 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
 
     // ---- Leg 7: the notes --------------------------------------------------------
     {
+        // The one status sentence (#1101 decision 7), spelled independently.
+        const std::string kNextWorldNote =
+            "These apply to the next world you generate. Loading a paired file shows its own.";
         FlatRow* status = FindByName(rows, "MM Randomizer Status");
         FlatRow* suspended = FindByName(rows, "MM Randomizer Suspended");
         MMRP_CHECK(status != nullptr && suspended != nullptr, "the options page lacks its state notes");
@@ -469,6 +519,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                     DrawPass(s);
                     MMRP_CHECK(s.name == Combo_MMOptionsPage_StatusNote(), "the status note reads \"%s\"",
                                s.name.c_str());
+                    if (!frozen) {
+                        MMRP_CHECK(s.name == kNextWorldNote,
+                                   "unpaired, the status note reads \"%s\", not the shared sentence \"%s\"",
+                                   s.name.c_str(), kNextWorldNote.c_str());
+                    }
                     WidgetInfo n = *suspended->info;
                     DrawPass(n);
                     const bool shown = !n.isHidden;
@@ -490,7 +545,15 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         MMRP_CHECK(FindByName(trickRows, "Majora's Mask Tricks") != nullptr, "the tricks page has no section header");
         FlatRow* tricksNote = FindByName(trickRows, "MM Tricks Status");
         MMRP_CHECK(tricksNote != nullptr, "the tricks page has no note");
+        // The trick headline is a note row of its own, under the status note: the
+        // shared sentence is two sentences already, a note's whole budget.
+        FlatRow* tricksHeadline = FindByName(trickRows, "MM Tricks Headline");
+        MMRP_CHECK(tricksHeadline != nullptr, "the tricks page has no headline row under its status note");
         if (tricksNote != nullptr) {
+            // The headline, spelled independently of the model.
+            char kHeadline[128];
+            snprintf(kHeadline, sizeof(kHeadline), "%d of %d tricks are supported by the randomizer logic so far.",
+                     Combo_MMOptionsPage_SettableTrickCount(), Combo_MMTrickCount());
             for (int frozen = 0; frozen <= 1; frozen++) {
                 Freeze(frozen != 0);
                 char expected[256];
@@ -499,6 +562,57 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 DrawPass(t);
                 MMRP_CHECK(t.name == expected, "the tricks note reads \"%s\", the model \"%s\"", t.name.c_str(),
                            expected);
+                if (!frozen) {
+                    MMRP_CHECK(t.name == kNextWorldNote,
+                               "unpaired, the tricks note reads \"%s\", not the shared sentence \"%s\"", t.name.c_str(),
+                               kNextWorldNote.c_str());
+                }
+                if (tricksHeadline != nullptr) {
+                    WidgetInfo h = *tricksHeadline->info;
+                    DrawPass(h);
+                    // Unpaired, the honest headline; frozen, nothing is settable,
+                    // so the freeze sentence alone speaks (as before #1101).
+                    MMRP_CHECK(h.isHidden == (frozen != 0), "the trick headline is %s (frozen %d)",
+                               h.isHidden ? "hidden" : "shown", frozen);
+                    if (!frozen) {
+                        MMRP_CHECK(h.name == kHeadline, "the trick headline reads \"%s\", expected \"%s\"",
+                                   h.name.c_str(), kHeadline);
+                    }
+                }
+            }
+        }
+        // UiSnapshot's R6, held here ROM-free: every note on both pages is at
+        // most two sentences and 200 characters, in every state it is drawn in.
+        auto sentences = [](const std::string& text) {
+            int n = 0;
+            for (size_t i = 0; i < text.size(); i++) {
+                if ((text[i] == '.' || text[i] == '!' || text[i] == '?') &&
+                    (i + 1 == text.size() || text[i + 1] == ' ')) {
+                    n++;
+                }
+            }
+            return n;
+        };
+        for (int frozen = 0; frozen <= 1; frozen++) {
+            for (GameId game : { GAME_OOT, GAME_MM }) {
+                Freeze(frozen != 0);
+                Context_SetCurrentGame(game);
+                for (SidebarEntry* page : { &options, &tricks }) {
+                    for (FlatRow& row : FlattenRows(*page)) {
+                        if (row.info->type != WIDGET_TEXT) {
+                            continue;
+                        }
+                        WidgetInfo n = *row.info;
+                        DrawPass(n);
+                        if (n.isHidden) {
+                            continue;
+                        }
+                        MMRP_CHECK(sentences(n.name) <= 2 && n.name.size() <= 200,
+                                   "the note \"%s\" is %d sentence(s) and %zu characters (frozen %d, game %d); a "
+                                   "note is at most two sentences and 200 characters",
+                                   n.name.c_str(), sentences(n.name), n.name.size(), frozen, (int)game);
+                    }
+                }
             }
         }
     }
@@ -529,8 +643,8 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
     if (gFailures == 0) {
-        printf("[TEST] PASS: Combo > MM Randomizer and Combo > MM Tricks carry MM's whole option table and trick list "
-               "behind the same gates the pop-out window had\n");
+        printf("[TEST] PASS: Randomizer > MM Randomizer and Randomizer > MM Tricks carry MM's whole option table "
+               "and trick list behind the same gates the pop-out window had\n");
     }
     return gFailures == 0 ? 0 : 1;
 }

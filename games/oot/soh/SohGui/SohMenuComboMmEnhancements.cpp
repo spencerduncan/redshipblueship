@@ -268,7 +268,7 @@ const RSBS::HostedMmEnhancement* PointerGroupEnd(const RSBS::HostedMmEnhancement
 
 /**
  * The contributed page's registrar. Externally linked and declared in no header,
- * the way `AddCrossGamePointerWidgets` and the other Combo registrars are: the
+ * the way `AddComboRulesWidgets` and the other Combo registrars are: the
  * extension point hands it the section and a PINNED `path.column`, and
  * MenuMmEnhancementRows reaches it through `AddMenuCombo()` rather than by
  * name, so that the row exercises the real seam instead of a shortcut.
@@ -329,8 +329,8 @@ void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmE
             // more way for two surfaces to disagree, which is the duplicate-host
             // shape #655 removed for the tier-4 rules.
             //
-            // Two widgets, the same shape `AddCrossGamePointerWidgets` uses for
-            // the stranded interim page: a searchable SEPARATOR_TEXT carrying the
+            // Two widgets, the same shape the retired Cross-Game pointer page used
+            // (until #1101): a searchable SEPARATOR_TEXT carrying the
             // short label, then the sentence as a gray TEXT row kept OUT of the
             // menu search. A widget's NAME is what the search indexes, so seeding
             // it with a sentence buries the rows a player was looking for; and
@@ -404,16 +404,20 @@ static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 2, Ad
  * MM's randomizer options and tricks (SohMenuComboMmRandomizer.cpp), registered
  * HERE, right after this page, rather than from their own TU. The registry keeps
  * registration order, and file-scope initializers in different TUs run in an
- * order the language leaves to the linker, so this is the one way to pin the
- * sidebar as Majora's Mask, MM Randomizer, MM Tricks: the three MM pages
- * together, the settings under the enhancements. MenuMmRandomizerPages pins the
- * order.
+ * order the language leaves to the linker, so this is the one way to pin their
+ * order: MM Randomizer, then MM Tricks.
+ *
+ * Both are hosted under SoH's Randomizer header (#1101, operator ruling
+ * 2026-10-21, option C): AddComboRandomizerPages draws them after
+ * Tricks/Glitches and before Cross-Game, so the one randomizer menu holds both
+ * games' settings. MenuMmRandomizerPages pins host and order.
  */
 void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path);
 void AddMmTricksWidgets(SohMenu& menu, WidgetPath& path);
 static RegisterComboSectionPage_t sMmRandomizerPage(COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_OPTIONS_PAGE_COLUMNS,
-                                                    AddMmRandomizerOptionsWidgets);
-static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, AddMmTricksWidgets);
+                                                    AddMmRandomizerOptionsWidgets, ComboPageHost::Randomizer);
+static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, AddMmTricksWidgets,
+                                                ComboPageHost::Randomizer);
 
 /** The page's registered name, for the lock. Defined here so the test cannot
  *  drift from the registration by spelling the literal a second time. */

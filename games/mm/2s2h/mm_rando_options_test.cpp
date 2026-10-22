@@ -49,6 +49,12 @@
  *      the claim on every build and the list cannot rot the way the reasons
  *      did. Check (d) already said a gated row must explain itself; (g) says
  *      the explanation must be true.
+ *  (h) every option sits in SoH's randomizer vocabulary (#1101, option C):
+ *      the group taxonomy is SoH's Randomizer headers, in SoH's order (Logic,
+ *      Win Condition, Area Access, Shuffle Items, Shuffle Shops & Merchants,
+ *      Additional Items, Traps, Hints, Starting Items), and each id is under
+ *      the header its OoT twin uses. Spelled here by NAME, independently of
+ *      the enum, so a regrouping that renames or drops a header turns red.
  *
  * ============================================================================
  * mm-paired-profile — the profile lock (#499 Tier 1; #498/#564 phase 2)
@@ -462,6 +468,118 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
         Combo_MMOptionClear(logic);
         if (Combo_MMOptionIsExplicit(logic)) {
             return Fail(52, "Combo_MMOptionClear left the option explicitly set");
+        }
+    }
+
+    // ---- (h) SoH's vocabulary (#1101, option C) ---------------------------
+    // The groups are SoH's Randomizer headers, in SoH's order, and every option
+    // sits under the header its OoT twin uses (settings.cpp's RSG_MENU_SECTION_*
+    // groups): the win counts and the triforce rows under Win Condition, as
+    // SoH's Triforce Hunt is; the two access rows under Area Access; the souls,
+    // swim, buttons, clock and pool rows under Additional Items; the two trap
+    // rows under Traps. Names, not enumerators, so this cannot agree with a
+    // regrouping by construction.
+    {
+        static const char* const kSohHeaders[] = {
+            "Logic",
+            "Win Condition",
+            "Area Access",
+            "Shuffle Items",
+            "Shuffle Shops & Merchants",
+            "Additional Items",
+            "Traps",
+            "Hints",
+            "Starting Items",
+        };
+        const int headerCount = (int)(sizeof(kSohHeaders) / sizeof(kSohHeaders[0]));
+        if ((int)COMBO_MM_GROUP_COUNT != headerCount) {
+            return Fail(77, "the option taxonomy has %d groups, SoH's Randomizer headers are %d",
+                        (int)COMBO_MM_GROUP_COUNT, headerCount);
+        }
+        for (int g = 0; g < headerCount; g++) {
+            if (strcmp(Combo_MMOptionGroupName((uint8_t)g), kSohHeaders[g]) != 0) {
+                return Fail(77, "option group %d is named '%s', SoH's header in that place is '%s'", g,
+                            Combo_MMOptionGroupName((uint8_t)g), kSohHeaders[g]);
+            }
+        }
+        struct Placement {
+            RandoOptionId id;
+            const char* header;
+        };
+        static const Placement kPlacement[] = {
+            { RO_LOGIC, "Logic" },
+            { RO_SHUFFLE_TRIFORCE_PIECES, "Win Condition" },
+            { RO_TRIFORCE_PIECES_MAX, "Win Condition" },
+            { RO_TRIFORCE_PIECES_REQUIRED, "Win Condition" },
+            { RO_ACCESS_MOON_MASKS_COUNT, "Win Condition" },
+            { RO_ACCESS_MOON_REMAINS_COUNT, "Win Condition" },
+            { RO_ACCESS_MAJORA_MASKS_COUNT, "Win Condition" },
+            { RO_ACCESS_MAJORA_REMAINS_COUNT, "Win Condition" },
+            { RO_ACCESS_MAJORA_REMAINS, "Win Condition" },
+            { RO_ACCESS_DUNGEONS, "Area Access" },
+            { RO_ACCESS_TRIALS, "Area Access" },
+            { RO_SHUFFLE_COWS, "Shuffle Items" },
+            { RO_SHUFFLE_OWL_STATUES, "Shuffle Items" },
+            { RO_SHUFFLE_FREESTANDING_ITEMS, "Shuffle Items" },
+            { RO_SHUFFLE_POT_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_SNOWBALL_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_CRATE_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_BARREL_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_GRASS_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_BOSS_REMAINS, "Shuffle Items" },
+            { RO_SHUFFLE_GOLD_SKULLTULAS, "Shuffle Items" },
+            { RO_MINIMUM_SKULLTULA_TOKENS, "Shuffle Items" },
+            { RO_MINIMUM_STRAY_FAIRIES, "Shuffle Items" },
+            { RO_SHUFFLE_FROGS, "Shuffle Items" },
+            { RO_SHUFFLE_SHOPS, "Shuffle Shops & Merchants" },
+            { RO_SHUFFLE_TINGLE_SHOPS, "Shuffle Shops & Merchants" },
+            { RO_SHUFFLE_SWIM, "Additional Items" },
+            { RO_SHUFFLE_OCARINA_BUTTONS, "Additional Items" },
+            { RO_SHUFFLE_BOSS_SOULS, "Additional Items" },
+            { RO_SHUFFLE_ENEMY_SOULS, "Additional Items" },
+            { RO_SHUFFLE_ENEMY_DROPS, "Additional Items" },
+            { RO_CLOCK_SHUFFLE, "Additional Items" },
+            { RO_CLOCK_SHUFFLE_PROGRESSIVE, "Additional Items" },
+            { RO_CLOCK_TERMINAL_TIME, "Additional Items" },
+            { RO_PLENTIFUL_ITEMS, "Additional Items" },
+            { RO_SHUFFLE_TRAPS, "Traps" },
+            { RO_TRAP_AMOUNT, "Traps" },
+            { RO_HINTS_GOSSIP_STONES, "Hints" },
+            { RO_HINTS_PURCHASEABLE, "Hints" },
+            { RO_HINTS_SPIDER_HOUSES, "Hints" },
+            { RO_HINTS_HOOKSHOT, "Hints" },
+            { RO_HINTS_BOSS_REMAINS, "Hints" },
+            { RO_HINTS_OATH_TO_ORDER, "Hints" },
+            { RO_STARTING_HEALTH, "Starting Items" },
+            { RO_STARTING_CONSUMABLES, "Starting Items" },
+            { RO_STARTING_RUPEES, "Starting Items" },
+            { RO_STARTING_MAPS_AND_COMPASSES, "Starting Items" },
+        };
+        const int placed = (int)(sizeof(kPlacement) / sizeof(kPlacement[0]));
+        if (placed != RO_MAX) {
+            return Fail(78, "the vocabulary table places %d options of %d: an option was added without a header",
+                        placed, (int)RO_MAX);
+        }
+        for (const Placement& want : kPlacement) {
+            const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)want.id);
+            if (desc == NULL) {
+                return Fail(78, "option id %d has no descriptor", (int)want.id);
+            }
+            if (strcmp(Combo_MMOptionGroupName(desc->group), want.header) != 0) {
+                return Fail(78, "%s sits under '%s', SoH's vocabulary puts it under '%s'", desc->name,
+                            Combo_MMOptionGroupName(desc->group), want.header);
+            }
+        }
+        // Within a group the rows keep SoH's reading order: the triforce rows
+        // lead Win Condition, as SoH's Triforce Hunt leads its own.
+        int firstWin = -1;
+        for (int i = 0; i < descCount && firstWin < 0; i++) {
+            if (strcmp(Combo_MMOptionGroupName(Combo_MMOptionAt(i)->group), "Win Condition") == 0) {
+                firstWin = i;
+            }
+        }
+        if (firstWin < 0 || Combo_MMOptionAt(firstWin)->id != (uint16_t)RO_SHUFFLE_TRIFORCE_PIECES) {
+            return Fail(78, "Win Condition does not open with Triforce Hunt, as SoH's does");
         }
     }
 
