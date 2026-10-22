@@ -1881,6 +1881,17 @@ void Session::BuildPageList() {
         p.kind = Kind::MENU_PAGE;
         p.states = { "" };
         p.bodyText = PickBodyText(*menu, header, sidebar);
+        // A page whose first section header is a sibling's too names a section
+        // only it has. Since #1101 our randomizer pages share SoH's and OoTMM's
+        // section names on purpose ("Win Condition" heads both Cross-Game Rules
+        // and MM Randomizer), so the auto pick would name neither page whenever
+        // the other is its sibling contrast.
+        static const std::map<std::string, std::string> kPinnedBody = {
+            { "Combo/Cross-Game Rules", "Item Crossing" },
+        };
+        if (kPinnedBody.contains(p.id)) {
+            p.bodyText = kPinnedBody.at(p.id);
+        }
         // A page whose only row is a WIDGET_CUSTOM draws its own widgets, so no
         // registered name is drawn; its string is named here instead, and
         // CheckBodyText holds it to the same sibling contrast.
