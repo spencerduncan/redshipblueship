@@ -88,7 +88,9 @@ extern "C" int Switch_PrepareHotSwap(GameId departing, const void* saveContext, 
 
 namespace {
 
-const char* const kCrossingTestDir = "rsbs_test_crossing_commit";
+inline const char* kCrossingTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_crossing_commit");
+}
 
 using XcBlob = std::vector<uint8_t>;
 
@@ -187,7 +189,7 @@ void XcKill() {
 // A fresh session with slot 0 created, armed and active, and nothing resident.
 void XcFreshSlot() {
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCrossingTestDir);
+    mgr.SetSaveDirectory(kCrossingTestDir());
     Context_InitFrozenStates();
     XcKill();
     mgr.DeleteSave(0);

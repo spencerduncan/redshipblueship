@@ -123,7 +123,9 @@ namespace {
         }                                                                                           \
     } while (0)
 
-const char* const kCxvSaveDir = "rsbs_test_saves_crossing_views";
+inline const char* kCxvSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_crossing_views");
+}
 
 ComboCrossing CxvCrossing(uint16_t host, SharedItem item) {
     ComboCrossing c;
@@ -364,7 +366,7 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     const std::vector<CxvRow> savedOoT = CxvPaneRows((uint8_t)GAME_OOT, &ok);
     CXV_ASSERT(ok);
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCxvSaveDir);
+    mgr.SetSaveDirectory(kCxvSaveDir());
     mgr.ResetSlotSessionState();
     mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
     CXV_ASSERT(mgr.Save(0));
@@ -453,8 +455,8 @@ TestResult ComboCrossingViews_RunWorld(void) {
 
     // The one spoiler's combo section, by its production builder.
     std::error_code ec;
-    std::filesystem::create_directories("rsbs_test_crossing_views_world", ec);
-    const std::string path = "rsbs_test_crossing_views_world/spoiler.json";
+    const std::string worldDir = rsbs::test::ScratchDir("rsbs_test_crossing_views_world").string();
+    const std::string path = worldDir + "/spoiler.json";
     std::filesystem::remove(path, ec);
     CXV_ASSERT(MM_Rando_WriteCrossingSpoilerSection(path.c_str()) == 0);
     nlohmann::json doc;

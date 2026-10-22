@@ -32,6 +32,13 @@ namespace rsbs::test {
 std::filesystem::path ScratchDir(const std::string& name);
 
 /**
+ * ScratchDir(@p name) as a C string, for the rows that spell their save
+ * directory as a `const char*` (SaveManager::SetSaveDirectory, create_directories,
+ * a path joined with `/`). The pointer stays valid for the life of the process.
+ */
+const char* ScratchDirCStr(const std::string& name);
+
+/**
  * End of a test row: removes every directory ScratchDir handed out since the
  * previous call when @p passed, otherwise keeps them and prints their paths.
  */

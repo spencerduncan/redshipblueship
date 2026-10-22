@@ -139,7 +139,9 @@ bool TfRecordZero(const ComboTriforceRecord* r) {
 
 // T10's own save directory: RsbsSave_HasQuarantine reports ANY .bak beside the
 // slot, so an earlier run's evidence must not be able to satisfy the leg.
-const char* const kTfLoadTestDir = "rsbs_test_triforce_hunt_load";
+inline const char* kTfLoadTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_triforce_hunt_load");
+}
 
 /** Write slot 0 for a paired world whose combo record is what THIS session
  *  resolves (so no field or fingerprint divergence can fire) and whose triforce
@@ -760,9 +762,9 @@ TestResult Test_ComboTriforceHunt(void) {
     // ---- T10: the .redsave load refusal (SaveManager::LoadSlot) -----------------
     {
         std::error_code ec;
-        std::filesystem::remove_all(kTfLoadTestDir, ec); // no stale .bak from an earlier run
+        std::filesystem::remove_all(kTfLoadTestDir(), ec); // no stale .bak from an earlier run
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kTfLoadTestDir);
+        mgr.SetSaveDirectory(kTfLoadTestDir());
 
         // Counter-leg first: the same world with the four zero bytes every
         // non-hunt world stores loads, so the refusal below is the record's.
@@ -798,7 +800,7 @@ TestResult Test_ComboTriforceHunt(void) {
 
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
-        std::filesystem::remove_all(kTfLoadTestDir, ec);
+        std::filesystem::remove_all(kTfLoadTestDir(), ec);
     }
 
     ComboContext_Init();

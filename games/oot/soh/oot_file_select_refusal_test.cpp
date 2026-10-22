@@ -158,6 +158,8 @@ std::string LastToast() {
 
 } // namespace
 
+extern "C" void OoT_SaveManager_SetSavDirectoryForTest(const char* dir);
+
 extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
     printf("[TEST] oot-file-select-refusal: a file the open path would refuse is not opened at the file select, and a "
            "load refused after the gate returns to the file select (#836)\n");
@@ -170,6 +172,15 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
     std::error_code ec;
     rsbs::SaveManager& rsbsSave = rsbs::SaveManager::Instance();
     rsbsSave.SetSaveDirectory(dir.string());
+    // SoH's own fileN.sav goes under this process's directory too (#824, #925): the working
+    // directory, and the Save/ in it, is shared with every other row of the build directory.
+    const std::filesystem::path savDir = dir / "sav";
+    OoT_SaveManager_SetSavDirectoryForTest(savDir.string().c_str());
+    struct SavDirectoryReset {
+        ~SavDirectoryReset() {
+            OoT_SaveManager_SetSavDirectoryForTest(nullptr);
+        }
+    } savDirectoryReset;
     RsbsSave_ResetSlotSessionState();
     Context_InitFrozenStates();
     ComboContext_Init();
@@ -350,9 +361,7 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
         RsbsSave_SetActiveSlot(kVanilla);
 
         // SoH's own .sav location (SaveManager::GetFileName): <app dir>/Save/file<N+1>.sav.
-        const std::filesystem::path savPath =
-            std::filesystem::path(Ship::Context::GetPathRelativeToAppDirectory("Save")) /
-            ("file" + std::to_string(kSkew + 1) + ".sav");
+        const std::filesystem::path savPath = savDir / ("file" + std::to_string(kSkew + 1) + ".sav");
         const bool savExisted = std::filesystem::exists(savPath);
         const std::vector<uint8_t> savOriginal = savExisted ? FileBytes(savPath.string()) : std::vector<uint8_t>();
         std::filesystem::create_directories(savPath.parent_path(), ec);
@@ -436,9 +445,7 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
         RsbsSave_ResetSlotSessionState();
         RsbsSave_SetActiveSlot(kVanilla);
 
-        const std::filesystem::path savPath =
-            std::filesystem::path(Ship::Context::GetPathRelativeToAppDirectory("Save")) /
-            ("file" + std::to_string(kOther + 1) + ".sav");
+        const std::filesystem::path savPath = savDir / ("file" + std::to_string(kOther + 1) + ".sav");
         const bool savExisted = std::filesystem::exists(savPath);
         const std::vector<uint8_t> savOriginal = savExisted ? FileBytes(savPath.string()) : std::vector<uint8_t>();
         std::filesystem::create_directories(savPath.parent_path(), ec);
@@ -533,9 +540,7 @@ extern "C" int OoT_FileSelectRefusal_RunHeadless(void) {
         const uint32_t kDigest = 0x5E770070u;
         const uint32_t kForeignDigest = 0x5E770071u;
         const char* const kOtherWords = "Cross-game record is for another file";
-        const std::filesystem::path savPath =
-            std::filesystem::path(Ship::Context::GetPathRelativeToAppDirectory("Save")) /
-            ("file" + std::to_string(kWrite + 1) + ".sav");
+        const std::filesystem::path savPath = savDir / ("file" + std::to_string(kWrite + 1) + ".sav");
         const bool savExisted = std::filesystem::exists(savPath);
         const std::vector<uint8_t> savOriginal = savExisted ? FileBytes(savPath.string()) : std::vector<uint8_t>();
         std::filesystem::create_directories(savPath.parent_path(), ec);

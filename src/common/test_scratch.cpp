@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
+#include <map>
 #include <system_error>
 
 #ifdef _WIN32
@@ -83,6 +84,14 @@ std::filesystem::path ScratchDir(const std::string& name) {
         dirs.push_back(dir);
     }
     return dir;
+}
+
+const char* ScratchDirCStr(const std::string& name) {
+    // std::map nodes never move, so the c_str() of a stored path stays valid.
+    static std::map<std::string, std::string> sPaths;
+    std::string& slot = sPaths[name];
+    slot = ScratchDir(name).string();
+    return slot.c_str();
 }
 
 void ScratchDirs_EndRow(const char* rowName, bool passed) {
