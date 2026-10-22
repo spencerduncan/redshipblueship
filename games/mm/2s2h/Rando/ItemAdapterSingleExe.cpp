@@ -71,6 +71,7 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
+#include "foreign_items.h" // RSBS_XITEM_*: the shared families a row is MM's copy of (#1065)
 #include "game.h"             // MM_SAVE_CONTEXT_SIZE
 #include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
@@ -478,6 +479,15 @@ bool MMItemHasSave(const void* buf) {
     return std::memcmp(gSaveContext.save.saveInfo.playerData.newf, kNewf, sizeof(kNewf)) == 0;
 }
 
+/** The shared family (foreign_items.h) a slot row's item is MM's own copy of,
+ *  or 0: the view draws an armed family once, in the Shared group (#1065). */
+uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
+    if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_LENS_OF_TRUTH) {
+        return RSBS_XITEM_SHARED_LENS;
+    }
+    return 0u;
+}
+
 bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount + kMMButtonRowCount) {
         return false;
@@ -489,7 +499,11 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     if (index >= kMMItemRowCount) {
         return MMItemDeriveButton(src, index - kMMItemRowCount, out);
     }
-    return MMItemDerive(src, kMMItemRows[index], out);
+    if (!MMItemDerive(src, kMMItemRows[index], out)) {
+        return false;
+    }
+    out->sharedFamily = MMItemSharedFamily(kMMItemRows[index]);
+    return true;
 }
 
 } // namespace
