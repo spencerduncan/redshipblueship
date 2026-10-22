@@ -23,12 +23,56 @@
 // increment 3, lane K11). Declared here rather than through a src/common header
 // because the state lives in OoT's own engine TU.
 extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void);
+// #1085: a shared song the single bag places as the pair's one copy
+// (ComboLogicEngineOoT.cpp).
+extern "C" int OoT_ComboLogic_SharedSongHeldBack(uint16_t rg);
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 #endif
 
 using namespace Rando;
 
 static bool placementFailure = false;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1085 (OoTMM sharedSongEpona, sharedSongStorms, sharedSongTime): with a shared
+// song's rule frozen on, the pair's ONE copy is the single bag's shared row, so
+// OoT's own copy does not also take a song spot. These two hand it back to the
+// pool, where the bag composes it as that row (OoT_ComboLogic_SharedSongHeldBack).
+
+/** Song Locations / Dungeon Rewards: move the held-back songs out of the
+ *  restricted pass's list and back into the pool. */
+static void RsbsHoldBackSharedSongs(std::vector<RandomizerGet>& songs) {
+    for (auto it = songs.begin(); it != songs.end();) {
+        if (OoT_ComboLogic_SharedSongHeldBack((uint16_t)*it)) {
+            SPDLOG_INFO("Paired world: {} is a shared song; the single bag places its one copy",
+                        Rando::StaticData::RetrieveItem(*it).GetName().GetEnglish());
+            itemPool.push_back(*it);
+            it = songs.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+/** Off: empty a held-back song's vanilla check (item_pool.cpp placed it) and put
+ *  the song back into the pool. */
+static void RsbsReleaseVanillaSharedSongs() {
+    auto ctx = Rando::Context::GetInstance();
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        const RandomizerGet song = il->GetPlacedRandomizerGet();
+        if (Rando::StaticData::GetLocation(rc)->GetRCType() != RCTYPE_SONG_LOCATION || song == RG_NONE ||
+            !OoT_ComboLogic_SharedSongHeldBack((uint16_t)song)) {
+            continue;
+        }
+        SPDLOG_INFO("Paired world: {} is a shared song; its vanilla check is left to the single bag",
+                    Rando::StaticData::RetrieveItem(song).GetName().GetEnglish());
+        il->SetPlacedItem(RG_NONE);
+        il->SetHidden(false);
+        itemPool.push_back(song);
+    }
+}
+#endif
 
 PriceSettingsStruct shopsanityPrices = {
     RSK_SHOPSANITY_PRICES,
@@ -1416,6 +1460,11 @@ int Fill() {
             std::vector<RandomizerGet> songs = FilterAndEraseFromPool(itemPool, [](const auto i) {
                 return Rando::StaticData::RetrieveItem(i).GetItemType() == ITEMTYPE_SONG;
             });
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1085: a shared song stays in the pool for the single bag, which
+            // places it as the pair's ONE copy; its song spot is left to the bag.
+            RsbsHoldBackSharedSongs(songs);
+#endif
 
             // Get each song location
             std::vector<RandomizerCheck> songLocations;
@@ -1433,6 +1482,13 @@ int Fill() {
 
             AssumedFill(songs, songLocations, true);
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        else if (ctx->GetOption(RSK_SHUFFLE_SONGS).Is(RO_SONG_SHUFFLE_OFF)) {
+            // #1085: Off placed every song at its vanilla check (item_pool.cpp); a
+            // shared song leaves it for the pool, and the check for the bag.
+            RsbsReleaseVanillaSharedSongs();
+        }
+#endif
 
         // Then place dungeon items that are assigned to restrictive location pools
         RandomizeDungeonItems();

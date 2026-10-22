@@ -45,8 +45,8 @@
 // GenerateFromSaveContext - the MM half of the ONE paired spoiler
 // artifact (#660; #564 V23).
 #include "Rando/Spoiler/Spoiler.h"
-// ComputeReachableCheckSet — the reachability gate on host candidates (ADR
-// 0010 increment 1.3, #500).
+// Rando::Logic. (ComputeReachableCheckSet, the reachability gate the retired forward
+// overlay pass filtered host candidates by, is no longer called from here; #996.)
 #include "Rando/Logic/Logic.h"
 #include "2s2h/ShipUtils.h"
 // ResolvePairedProfile reads the option CVars (and asks CVarExists whether the

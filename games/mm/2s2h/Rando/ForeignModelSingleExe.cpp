@@ -14,11 +14,12 @@
  * through MM's graph allocator); it re-expresses each draw function as a
  * ComboModel recipe below, one per function, read off games/mm/src/code/
  * z_draw.c. Rows that answer no model, by name: the three empty rows (GID_37,
- * GID_46, GID_4C: MM draws nothing for them either) and the bottled fairy's
- * (GID_FAIRY: a colour animation bound to segment 8; no item names it). #964
- * gave the caught seahorse (its matrix resource is a pure translation), the Moon's
- * Tear (two texture scrolls) and the four remains (the segment-6 bind of
- * OBJECT_BSMASK is a no-op for lists that name everything by path) a model.
+ * GID_46, GID_4C: MM draws nothing for them either). #964 gave the caught
+ * seahorse (its matrix resource is a pure translation), the Moon's Tear (two
+ * texture scrolls), the four remains (the segment-6 bind of OBJECT_BSMASK is a
+ * no-op for lists that name everything by path) and the bottled fairy (GID_FAIRY:
+ * its colour track frozen at its first key frame as a segment colour; no item
+ * names it) a model.
  *
  * Rando::DrawItem's special cases:
  *  - small and boss keys, Double Defense, the milk refill and the Gold Skulltula
@@ -27,9 +28,11 @@
  *    that row, the vanilla model;
  *  - progressive items answer their static `drawId` (the first tier; Rando::
  *    ConvertItem reads live inventory, which belongs to a suspended game here);
- *  - every other special case (songs, stray fairies, owl statues, clocks, souls,
- *    frogs, the swim ability, the Triforce piece, traps, ocarina buttons) is a
- *    2S2H custom draw and answers no model.
+ *  - the five stray fairies (DrawStrayFairy, a posed flex skeleton) answer a
+ *    still model of that draw (#964, ModelForStrayFairy below);
+ *  - every other special case (songs, owl statues, clocks, souls, frogs, the
+ *    swim ability, the Triforce piece, traps, ocarina buttons) is a 2S2H custom
+ *    draw and answers no model.
  *
  * WHAT IT NEVER DOES: read the save, a CVar or any live state. The answer is a
  * pure function of static tables (ForeignModel row).
@@ -78,6 +81,7 @@ extern "C" {
 #include "variables.h" // MM_gPlayState, MM_sMatrixStack, MM_sCurrentMatrix
 #include "functions.h"
 #include "objects/object_gi_melody/object_gi_melody.h" // gGiSongNoteDL (#830)
+#include "objects/gameplay_keep/gameplay_keep.h"       // the stray fairy's lists (#964)
 // Test bridges only (#800): the shop shelf actor the shelf-draw bridge stands up.
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 }
@@ -256,9 +260,23 @@ int RecipeForRow(MMGetItemDrawFn fn, void* const* d, ComboModel* out, const char
         out->billboardOffset[1] = 27.0f;
         ok = AddSteps(out, d, { { 0, kOpa, 0 }, { 1, kXlu, 0 }, { 2, kXlu, 1 } });
     } else if (fn == GetItem_DrawFairyContainer) {
-        *reason = "bottled fairy: its contents list jumps into segment 8, which AnimatedMat_Draw fills with an "
-                  "animated colour (no item names this row; the Fairy refill draws GID_FAIRY_2)";
-        return 0;
+        // GID_FAIRY (no randomizer item names it; the Fairy refill draws GID_FAIRY_2). AnimatedMat_Draw of
+        // gGiFairyBottleTexAnim binds one colour track, AnimatedMat segment -1 (+7 = 8), and the contents list
+        // jumps into it: the descriptor binds its first key frame (prim 255,255,255,255 at LOD 255, env
+        // 205,105,205,255, read off the resource) on XLU, where the contents draw (#964). The matrix
+        // gGiFairyBottleBillboardRotMtx (d[3]) is a pure translation, (0, -10, 0): its fixed-point rows are the
+        // identity with row 3 = (0, -10, 0), so the contents face the camera after billboardOffset, as the
+        // seahorse's glow does.
+        out->billboardOffset[1] = -10.0f;
+        static const uint8_t kPrim[4] = { 255, 255, 255, 255 };
+        static const uint8_t kEnv[4] = { 205, 105, 205, 255 };
+        ComboModelSegmentColor& contents = out->segmentColors[0];
+        contents.segment = 8;
+        contents.layer = kXlu;
+        contents.primLodFrac = 255;
+        std::memcpy(contents.prim, kPrim, 4);
+        std::memcpy(contents.env, kEnv, 4);
+        ok = AddSteps(out, d, { { 0, kOpa, 0 }, { 1, kXlu, 0 }, { 2, kXlu, 1 } });
     } else if (fn == GetItem_DrawMoonsTear) {
         // AnimatedMat_Draw(gGiMoonsTearTexAnim): two two-tile scrolls, AnimatedMat segment 2 (+7 = 9) for the item
         // list's texture and segment 3 (+7 = 10) for the glow's; the y step is negated by AnimatedMat_TexScroll,
@@ -323,11 +341,6 @@ bool IsCustomDrawn(RandoItemId ri) {
         case RI_SONG_OATH:
         case RI_SONG_EPONA:
         case RI_SONG_NOVA:
-        case RI_CLOCK_TOWN_STRAY_FAIRY:
-        case RI_WOODFALL_STRAY_FAIRY:
-        case RI_SNOWHEAD_STRAY_FAIRY:
-        case RI_GREAT_BAY_STRAY_FAIRY:
-        case RI_STONE_TOWER_STRAY_FAIRY:
         case RI_OWL_CLOCK_TOWN_SOUTH:
         case RI_OWL_GREAT_BAY_COAST:
         case RI_OWL_IKANA_CANYON:
@@ -365,12 +378,140 @@ bool IsCustomDrawn(RandoItemId ri) {
     }
 }
 
+// ---- Stray fairies (#964) -----------------------------------------------------
+//
+// DrawStrayFairy (DrawItem.cpp) is custom code: setup 25 on XLU, the area's
+// colour track (gStrayFairy<Area>TexAnim: AnimatedMat segment 1, +7 = 8, the
+// body, and 2, +7 = 9, the glow), the camera-facing rotation,
+// MM_Matrix_Scale(0.03), then gStrayFairySkel through SkelAnime_DrawFlex (its
+// matrices bound to segment 0xD) at the running frame of gStrayFairyFlyingAnim,
+// limb 0 (the right-facing head) dropped by StrayFairyOverrideLimbDraw. The
+// descriptor is that draw held still: the skeleton at the animation's first
+// frame and each colour track at its first key frame, read off mm.o2r's
+// resources. The eight lists live in gameplay_keep, a directory both games
+// carry, under names only MM's tree has; the curated half carries them by path
+// (assets/crossgame/manifest.txt) and foreign_model.c lists them as
+// collision-free.
+
+// gStrayFairySkel's nine limbs: the parent from each limb's child and sibling
+// index, the position from its joint position (the root's from
+// gStrayFairyFlyingAnim's root translation), the rotation from the animation's
+// first frame.
+const ComboModelJoint kStrayFairyJoints[] = {
+    { -1, { 0, 0, 125 }, { 0, 0, 0 } },              // 0 right-facing head (drawn by no part)
+    { 0, { 0, 950, -76 }, { 0, 0, 11192 } },         // 1 left wing
+    { 0, { 0, 950, -76 }, { 0, -32768, -11192 } },   // 2 right wing
+    { 0, { 0, 0, -125 }, { 0, 0, 0 } },              // 3 glow
+    { 3, { 0, -350, 75 }, { 0, 0, -54 } },           // 4 torso
+    { 4, { -103, -52, -45 }, { 0, -32768, 10005 } }, // 5 right arm
+    { 4, { 0, -325, 0 }, { 0, 0, 3452 } },           // 6 pelvis and legs (skins onto the torso through 0xD)
+    { 4, { 103, -52, -45 }, { 0, 0, -2967 } },       // 7 left arm
+    { 0, { 0, 0, 0 }, { 0, 0, 0 } },                 // 8 left-facing head
+};
+static_assert(sizeof(kStrayFairyJoints) / sizeof(kStrayFairyJoints[0]) <= COMBO_MODEL_MAX_JOINTS,
+              "the stray fairy's skeleton fits the descriptor");
+
+// Limbs 1-8's lists in SkelAnime_DrawFlex's order; list i draws under joint i + 1.
+const char* const kStrayFairyLists[] = {
+    gStrayFairyLeftWingDL, gStrayFairyRightWingDL,     gStrayFairyGlowDL,    gStrayFairyTorsoDL,
+    gStrayFairyRightArmDL, gStrayFairyPelvisAndLegsDL, gStrayFairyLeftArmDL, gStrayFairyLeftFacingHeadDL,
+};
+static_assert(sizeof(kStrayFairyLists) / sizeof(kStrayFairyLists[0]) <= COMBO_MODEL_MAX_PARTS,
+              "the stray fairy's lists fit the descriptor");
+
+struct StrayFairyColors {
+    RandoItemId ri;
+    uint8_t bodyPrim[4];
+    uint8_t bodyEnv[4];
+    uint8_t glowPrim[4];
+    uint8_t glowEnv[4];
+};
+
+// Each area's gStrayFairy<Area>TexAnim at key frame 0 (prims at LOD 255).
+const StrayFairyColors kStrayFairyColors[] = {
+    { RI_CLOCK_TOWN_STRAY_FAIRY,
+      { 255, 255, 200, 255 },
+      { 150, 50, 0, 255 },
+      { 255, 180, 30, 90 },
+      { 255, 180, 30, 255 } },
+    { RI_WOODFALL_STRAY_FAIRY,
+      { 255, 235, 255, 255 },
+      { 170, 40, 100, 255 },
+      { 255, 140, 220, 90 },
+      { 255, 140, 220, 255 } },
+    { RI_SNOWHEAD_STRAY_FAIRY,
+      { 255, 255, 200, 255 },
+      { 40, 90, 0, 255 },
+      { 180, 230, 40, 90 },
+      { 180, 230, 40, 255 } },
+    { RI_GREAT_BAY_STRAY_FAIRY,
+      { 225, 235, 255, 255 },
+      { 60, 20, 160, 255 },
+      { 200, 140, 255, 90 },
+      { 200, 140, 255, 255 } },
+    { RI_STONE_TOWER_STRAY_FAIRY,
+      { 255, 255, 225, 255 },
+      { 160, 160, 60, 255 },
+      { 200, 200, 140, 90 },
+      { 255, 255, 140, 255 } },
+};
+
+ComboModelSegmentColor StrayFairySegmentColor(uint8_t segment, const uint8_t prim[4], const uint8_t env[4]) {
+    ComboModelSegmentColor c = {};
+    c.segment = segment;
+    c.layer = kXlu;
+    c.primLodFrac = 255;
+    std::memcpy(c.prim, prim, 4);
+    std::memcpy(c.env, env, 4);
+    return c;
+}
+
+/** A stray fairy's still model: 1 and *out; 0 and *reason (NULL: not a stray fairy). */
+int ModelForStrayFairy(RandoItemId ri, ComboModel* out, const char** reason) {
+    *reason = nullptr;
+    const StrayFairyColors* colors = nullptr;
+    for (const StrayFairyColors& c : kStrayFairyColors) {
+        colors = c.ri == ri ? &c : colors;
+    }
+    if (colors == nullptr) {
+        return 0;
+    }
+    Combo_ModelInit(out);
+    for (size_t i = 0; i < sizeof(kStrayFairyLists) / sizeof(kStrayFairyLists[0]); i++) {
+        if (Combo_ModelAddPart(out, kStrayFairyLists[i], kXlu, 1) != 1) {
+            Combo_ModelInit(out);
+            *reason = "stray fairy list path malformed";
+            return 0;
+        }
+        out->parts[out->partCount - 1].joint = (uint8_t)(i + 2);
+    }
+    out->xluSetupDl = 25;
+    out->scale = 0.03f;
+    out->jointCount = (uint8_t)(sizeof(kStrayFairyJoints) / sizeof(kStrayFairyJoints[0]));
+    std::memcpy(out->joints, kStrayFairyJoints, sizeof(kStrayFairyJoints));
+    out->jointSegment = 0x0D;
+    out->segmentColors[0] = StrayFairySegmentColor(8, colors->bodyPrim, colors->bodyEnv);
+    out->segmentColors[1] = StrayFairySegmentColor(9, colors->glowPrim, colors->glowEnv);
+    if (!Combo_ModelIsWellFormed(out)) {
+        Combo_ModelInit(out);
+        *reason = "recipe produced a malformed model";
+        return 0;
+    }
+    return 1;
+}
+
 int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     Combo_ModelInit(out);
     *reason = nullptr;
     const RandoItemId ri = (RandoItemId)id;
     if (id >= (uint16_t)RI_MAX || ri == RI_NONE || ri == RI_UNKNOWN || ri == RI_JUNK) {
         *reason = "not an item";
+        return 0;
+    }
+    if (ModelForStrayFairy(ri, out, reason) == 1) {
+        return 1;
+    }
+    if (*reason != nullptr) {
         return 0;
     }
     if (IsCustomDrawn(ri)) {
@@ -858,6 +999,17 @@ bool ModelPathMounted(const char* dl) {
 }
 
 bool ModelMounted(const ComboModel& model) {
+    // #964: segment colours and joints are OoT's host's to draw. No OoT
+    // descriptor and no MM row a colliding OoT model maps to carries them
+    // (ForeignModel M17); one that did keeps the stand-in here rather than draw
+    // lists that jump into segments this host never bound.
+    bool pose = model.jointCount != 0 || model.jointSegment != 0;
+    for (const ComboModelSegmentColor& c : model.segmentColors) {
+        pose |= c.segment != 0;
+    }
+    if (pose) {
+        return false;
+    }
     for (uint8_t i = 0; i < model.partCount; i++) {
         if (!ModelPathMounted(model.parts[i].dl)) {
             return false;

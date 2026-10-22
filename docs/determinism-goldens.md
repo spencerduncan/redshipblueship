@@ -251,7 +251,7 @@ different reviews:
 
 * **OUTPUT fields moved** — the world changed under the same question. Examples:
   `placementHash`, `placedCount`, `crossingDigest`, `crossingOoT<n>`,
-  `crossingMM<n>`, `mmPlacementHash`, `mmReachableHash`, `ootFinalPlacementHash`,
+  `crossingMM<n>`, `mmPlacementHash`, `ootFinalPlacementHash`,
   `ootHintDigest`, `mmPriceDigest`, `mmFinalSeed`, `winningAttempt`. Something in
   the PR changed what the fill, the hints, the prices or the start decided.
 * **INPUT fields moved** — the fill was asked a different question:

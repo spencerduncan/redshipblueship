@@ -186,10 +186,11 @@ TestResult Test_SharedSongOfTimePairs(void) {
         pool[1].item.originGame = (uint8_t)GAME_MM;
         pool[1].item.id = mmSot;
         // OoT's songs roam only under Shuffle Songs "Anywhere" (OoTFillClassArmedBy:
-        // ITEMTYPE_SONG needs RSBS_FILL_ARM_SONGS_ROAM), the world the rule's
-        // tooltip names as the one with a single shuffled Song of Time. Any other
-        // Shuffle Songs setting confines OoT's copy to its own song spots, so it is
-        // not a row the bag can pair. The compose below is that "Anywhere" world.
+        // ITEMTYPE_SONG needs RSBS_FILL_ARM_SONGS_ROAM), the world where every
+        // OoT song is a bag row. Under any other Shuffle Songs setting OoT's songs
+        // are confined, and a shared song's held-back copy reaches the bag only
+        // because OoT_ComboLogic_ConfinementArmed arms the family for it (#1085).
+        // The compose below is that armed world.
         const uint32_t armedOoT = RSBS_FILL_ARM_SONGS_ROAM;
         const int ootConfined = Combo_Logic_ComposeDisposition(pool[0].item, 0u, 0u);
         const int ootDisp = Combo_Logic_ComposeDisposition(pool[0].item, 0u, armedOoT);

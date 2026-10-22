@@ -328,16 +328,33 @@ void CgmWalkStream(Ship::ResourceManager* rm, Ship::ArchiveManager* am, const st
 
 // The curated MM display lists OoT's shop shelves and get-item cutscene draw for
 // Majora's Mask items whose draw is custom code (#964): the four boss remains,
-// the Moon's Tear's item list and glow, the seahorse's body and glow. Each is
-// walked as its own model: it must be served by the curated archive, carry no
-// raw segmented texture reference and no raw G_DL/G_VTX/G_MTX/G_MOVEMEM operand
-// in segment 6 (the segment-6 bind MM's GetItem_DrawRemains does is only
-// harmless because none exists) and resolve every reference.
+// the Moon's Tear's item list and glow, the seahorse's body and glow, the
+// stray fairy's eight limb lists (single-path gameplay_keep entries) and the
+// bottled fairy's glass and contents. Each is walked as its own model: it must
+// be served by the curated archive, carry no raw segmented texture reference
+// and no raw G_DL/G_VTX/G_MTX/G_MOVEMEM operand in segment 6 (the segment-6
+// bind MM's GetItem_DrawRemains does is only harmless because none exists) and
+// resolve every reference. The fairy lists' raw operands are segments 8 and 9
+// (the colour lists the descriptor binds) and 0xD (the joint matrices).
 constexpr const char* kCgmCustomDrawLists[] = {
-    "objects/object_bsmask/gRemainsOdolwaDL",         "objects/object_bsmask/gRemainsGohtDL",
-    "objects/object_bsmask/gRemainsGyorgDL",          "objects/object_bsmask/gRemainsTwinmoldDL",
-    "objects/object_gi_reserve00/gGiMoonsTearItemDL", "objects/object_gi_reserve00/gGiMoonsTearGlowDL",
-    "objects/object_gi_seahorse/gGiSeahorseBodyDL",   "objects/object_gi_seahorse/gGiSeahorseGlowDL",
+    "objects/object_bsmask/gRemainsOdolwaDL",
+    "objects/object_bsmask/gRemainsGohtDL",
+    "objects/object_bsmask/gRemainsGyorgDL",
+    "objects/object_bsmask/gRemainsTwinmoldDL",
+    "objects/object_gi_reserve00/gGiMoonsTearItemDL",
+    "objects/object_gi_reserve00/gGiMoonsTearGlowDL",
+    "objects/object_gi_seahorse/gGiSeahorseBodyDL",
+    "objects/object_gi_seahorse/gGiSeahorseGlowDL",
+    "objects/gameplay_keep/gStrayFairyLeftWingDL",
+    "objects/gameplay_keep/gStrayFairyRightWingDL",
+    "objects/gameplay_keep/gStrayFairyGlowDL",
+    "objects/gameplay_keep/gStrayFairyTorsoDL",
+    "objects/gameplay_keep/gStrayFairyRightArmDL",
+    "objects/gameplay_keep/gStrayFairyPelvisAndLegsDL",
+    "objects/gameplay_keep/gStrayFairyLeftArmDL",
+    "objects/gameplay_keep/gStrayFairyLeftFacingHeadDL",
+    "objects/object_gi_bottle_04/gGiFairyBottleGlassCorkDL",
+    "objects/object_gi_bottle_04/gGiFairyBottleContentsDL",
 };
 
 static int CgmCheckModel(const char* dlPath);

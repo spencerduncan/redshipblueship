@@ -630,8 +630,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Makes Epona's Song one song across both games: learning it in either game teaches it to you in the "
-            "other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only one "
-            "Epona's Song is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
+            "other, and both games' logic counts it. Only one Epona's Song is shuffled, whatever Ocarina of Time's "
+            "Shuffle Songs says; the song spot it would have taken holds another item."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_STORMS), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedSongStorms)
         .PreFunc([](WidgetInfo& info) {
@@ -645,9 +645,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Makes the Song of Storms one song across both games: learning it in either game teaches it to you in "
-            "the other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only "
-            "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
-            "too."));
+            "the other, and both games' logic counts it. Only one Song of Storms is shuffled, whatever Ocarina of "
+            "Time's Shuffle Songs says; the song spot it would have taken holds another item."));
 
     // The Shared Song of Time (#1069; OoTMM sharedSongTime, off by default): the
     // lens row's shape. On, Majora's Mask starts without the song and its moon
@@ -667,8 +666,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Makes the Song of Time one song across both games: learning it in either game teaches it to you in the "
             "other, and both games' logic counts it. Majora's Mask then starts without it, so its Moon Crash "
             "Behavior is New Cycle whatever that option says: when the moon falls, a new cycle starts and you keep "
-            "your progress. With Ocarina of Time's Shuffle Songs set to Anywhere, only one Song of Time is shuffled; "
-            "with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
+            "your progress. Only one Song of Time is shuffled, whatever Ocarina of Time's Shuffle Songs says; the "
+            "song spot it would have taken holds another item."));
 
     // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
     // first rule of the cross-game item rules record (#976). The sword row's
