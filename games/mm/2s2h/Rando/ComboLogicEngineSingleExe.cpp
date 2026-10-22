@@ -1619,7 +1619,7 @@ extern "C" int MM_ComboLogic_ApplyShippedProfile(void) {
     MM_Sram_InitNewSave();
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     Rando::Foreign::ResolvePairedProfile(false);
-    auto startingItems = Rando::Foreign::PairedStartingItems();
+    auto startingItems = Rando::Foreign::PairedStartingItemsForWorld(); // #1069: the frozen rules' start
     Rando::SetStartingItemsInSave(gSaveContext.save.shipSaveInfo.rando, startingItems);
     Rando::GrantStartingItems();
     return (int)RANDO_SAVE_OPTIONS[RO_LOGIC];
@@ -1700,7 +1700,7 @@ int GeneratePoolBridge(bool authorCheckTable, uint16_t* outItems, uint16_t* outF
     }
     std::unique_ptr<RandoSaveInfo> info = std::make_unique<RandoSaveInfo>();
     memcpy(info.get(), &gSaveContext.save.shipSaveInfo.rando, sizeof(RandoSaveInfo));
-    auto startingItems = Rando::Foreign::PairedStartingItems();
+    auto startingItems = Rando::Foreign::PairedStartingItemsForWorld(); // #1069: the frozen rules' start
     Rando::SetStartingItemsInSave(*info, startingItems);
     std::vector<RandoCheckId> checkPool;
     std::vector<RandoItemId> itemPool;

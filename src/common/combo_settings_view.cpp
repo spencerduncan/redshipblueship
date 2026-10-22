@@ -48,6 +48,7 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA, "Shared Epona's Song" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, "Shared Song of Storms" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, "Shared Ocarina Buttons" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_TIME, "Shared Song of Time" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE, "Shared Fire Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_ICE, "Shared Ice Arrows" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_LIGHT, "Shared Light Arrows" },
@@ -63,7 +64,7 @@ bool ComboSettingIdValid(ComboSettingId id) {
     return (int)id >= 0 && (int)id < (int)COMBO_SETTING_COUNT;
 }
 
-// THE ITEM-RULE KEYS (#1068, #1065, #1067, #970): the settings that author one RSBS_XITEM_* bit of
+// THE ITEM-RULE KEYS (#1068, #1065, #1067, #1069, #970): the settings that author one RSBS_XITEM_* bit of
 // the frozen ComboItemRulesRecord rather than a field of ComboSettingsRecord.
 // One row per Cross-Game Rules row, in page order (the restore names them in
 // this order). Every bit here is a plain 0/1 rule.
@@ -77,6 +78,7 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_SONG_EPONA, RSBS_XITEM_SHARED_SONG_EPONA },           // #1066
     { COMBO_SETTING_SHARED_SONG_STORMS, RSBS_XITEM_SHARED_SONG_STORMS },         // #1066
     { COMBO_SETTING_SHARED_OCARINA_BUTTONS, RSBS_XITEM_SHARED_OCARINA_BUTTONS }, // #1067
+    { COMBO_SETTING_SHARED_SONG_TIME, RSBS_XITEM_SHARED_SONG_TIME },             // #1069
     { COMBO_SETTING_SHARED_ARROW_FIRE, RSBS_XITEM_SHARED_ARROW_FIRE },           // #968
     { COMBO_SETTING_SHARED_ARROW_ICE, RSBS_XITEM_SHARED_ARROW_ICE },             // #968
     { COMBO_SETTING_SHARED_ARROW_LIGHT, RSBS_XITEM_SHARED_ARROW_LIGHT },         // #968
@@ -130,6 +132,7 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_SHARED_SONG_EPONA:      // #1066
         case COMBO_SETTING_SHARED_SONG_STORMS:     // #1066
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS: // #1067
+        case COMBO_SETTING_SHARED_SONG_TIME:       // #1069
         case COMBO_SETTING_SHARED_ARROW_FIRE:      // #968
         case COMBO_SETTING_SHARED_ARROW_ICE:       // #968
         case COMBO_SETTING_SHARED_ARROW_LIGHT:     // #968
@@ -139,7 +142,7 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_SHARED_MASK_BUNNY:      // #978
         case COMBO_SETTING_SHARED_MASK_KEATON:     // #978
         case COMBO_SETTING_SHARED_MASK_TRUTH: {    // #978
-            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #968, #970, #978),
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978),
             // the same one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
@@ -173,6 +176,7 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_SONG_EPONA:      // #1066, the same
         case COMBO_SETTING_SHARED_SONG_STORMS:     // #1066, the same
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS: // #1067: likewise
+        case COMBO_SETTING_SHARED_SONG_TIME:       // #1069: likewise
         case COMBO_SETTING_SHARED_ARROW_FIRE:      // #968, the same
         case COMBO_SETTING_SHARED_ARROW_ICE:       // #968, the same
         case COMBO_SETTING_SHARED_ARROW_LIGHT:     // #968, the same
@@ -352,14 +356,15 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
-    // (kItemRuleKeys) is one row under it (#1068, #1065, #1066, #1067, #968, #970,
-    // #978).
+    // (kItemRuleKeys) is one row under it (#1068, #1065, #1066, #1067, #1069, #968,
+    // #970, #978).
     // Restorable only when every differing bit has a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_LENS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_EPONA },      // #1066
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_STORMS },     // #1066
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_TIME },       // #1069
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_ARROW_FIRE },      // #968
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_ARROW_ICE },       // #968
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_ARROW_LIGHT },     // #968
@@ -395,6 +400,7 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
         case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
         case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
+        case COMBO_SETTING_SHARED_SONG_TIME:
         case COMBO_SETTING_SHARED_ARROW_FIRE:
         case COMBO_SETTING_SHARED_ARROW_ICE:
         case COMBO_SETTING_SHARED_ARROW_LIGHT:

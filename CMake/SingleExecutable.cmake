@@ -689,6 +689,12 @@ if(BUILD_TESTING)
     # and the arrival giving and wearing the shield in the other game. ROM-free.
     redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
     redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
+    # #1069: the Shared Song of Time rule (OoTMM sharedSongTime) on that
+    # mechanism: both games' Song of Time registered as one family and composed
+    # into one shared row, and the song learnt in one game known in the other at
+    # the arrival. ROM-free.
+    redship_add_test(NAME SharedSongOfTimePairs COMMAND redship --test shared-song-of-time-pairs)
+    redship_add_test(NAME SharedSongOfTimeArrival COMMAND redship --test shared-song-of-time-arrival)
     # #1065: the Shared Lens of Truth, a family a player can turn on. Its
     # bit, its Cross-Game Rules key (off by default, 0 or 1), the creation freezing
     # it into the fingerprint, and a load restoring it into the key (CVar store,
@@ -1709,6 +1715,14 @@ if(BUILD_TESTING)
     # world. Same display requirement as MMPairSwitchEntry, hence the same
     # label/env; the timeout covers one OoT generation plus MM's half.
     redship_add_test(NAME MMPairedStart COMMAND redship --test mm-paired-start
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1069: the same paired creation under the Shared Song of Time rule (OoTMM
+    # sharedSongTime): MM's start is the Ocarina alone and the song is an MM pool
+    # item (the pair's one copy); with the rule off the start keeps it; MM's
+    # identity list and creation stamp never move with the rule. Same label/env.
+    redship_add_test(NAME MMPairedStartSharedSongTime COMMAND redship --test mm-paired-start-shared-song-time
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
@@ -2858,6 +2872,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashPoolApplied COMMAND redship --test mm-moon-crash-pool-applied)
 
+    # #1069: MM's Moon Crash Behavior (OoTMM's moonCrash: "Last Save", the
+    # default and the rows above, or "New Cycle"). The frozen value a file plays
+    # under, forced to New Cycle by the Shared Song of Time rule (which never moves
+    # MM's profile stamp); and a crash under New Cycle starting a new cycle that
+    # keeps progress and is committed, not the last commit. ROM-free (default
+    # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
+    redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
+
     # #770: two OoT actor Destroys write the save on ANY exit from their scene
     # (the windmill gear clears the Song of Storms windmill flag; in rando, after
     # the Water Temple blue warp, every Lake Hylia object raises the lake again),
@@ -3090,6 +3113,21 @@ crossing to refuse (#954).")
         LABEL integration-soak
         TIMEOUT ${REDSHIP_GAMEPLAY_SOAK_TIMEOUT}
         ENVIRONMENT "RSBS_GP_CYCLES=3")
+
+    # #1069: the moon falls on a live MM session whose frozen Moon Crash Behavior
+    # is New Cycle (OoTMM's moonCrash 'cycle', which the Shared Song of Time rule
+    # forces). MM boots on its debug save outside the Clock Tower, the crash runs
+    # the real Interface_StartMoonCrash and the real crash and Fire Wall
+    # cutscenes (the reset cue is the Fire Wall's, in SCENE_SPOT00), and the scene
+    # after them must be a NEW cycle (one more three-day reset, the cycle's Deku
+    # record cleared) at the Dawn of the First Day with the mask, the bottle and
+    # the song kept. Red under Last Save: a debug session has no commit, so that
+    # path restarts the clock and keeps the bytes but counts no reset. Same
+    # ROM/display needs and timeout as the round trip (the cutscene plays whole).
+    redship_add_test(NAME IntMoonCrashCycle
+        COMMAND redship --integration-test int-mm-moon-crash-cycle
+        LABEL integration
+        TIMEOUT ${REDSHIP_GAMEPLAY_TEST_TIMEOUT})
 
     # The FIRST CROSSING OF A PAIRED FILE with the archives mounted, in one
     # process (hop 6 of the playtest path, which no row ran before: the rows

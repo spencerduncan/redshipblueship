@@ -199,6 +199,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedOcarinaButtons";
         case RSBS_XITEM_SHARED_SHIELDS:
             return "sharedShields";
+        case RSBS_XITEM_SHARED_SONG_TIME:
+            return "sharedSongTime";
         default:
             return "(unknown)";
     }

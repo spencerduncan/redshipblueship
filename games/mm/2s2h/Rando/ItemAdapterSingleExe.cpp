@@ -498,6 +498,9 @@ uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
     if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_STORMS) {
         return RSBS_XITEM_SHARED_SONG_STORMS; // #1066
     }
+    if (def.kind == MMRK_QUEST && def.data == (uint32_t)QUEST_SONG_TIME) {
+        return RSBS_XITEM_SHARED_SONG_TIME; // #1069
+    }
     if (def.kind == MMRK_SLOT && def.item == (uint8_t)ITEM_ARROW_FIRE) {
         return RSBS_XITEM_SHARED_ARROW_FIRE; // #968
     }

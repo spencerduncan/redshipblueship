@@ -297,6 +297,36 @@ void MM_Rando_PublishProfileGiveCaps(int fromSave);
  */
 void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* outRequired);
 
+/**
+ * MM's "Moon Crash Behavior" (#1069; OoTMM's moonCrash, key and values taken
+ * from OoTMM's settings data): what a moon crash does to the paired file.
+ * Pinned: the value is .redsave format (RandoSaveInfo.randoSaveMoonCrash).
+ */
+#define RSBS_MM_MOON_CRASH_RESET 0 // "Last Save": the file as last saved (OoTMM 'reset', the default)
+#define RSBS_MM_MOON_CRASH_CYCLE 1 // "New Cycle": a new cycle, keeping progress (OoTMM 'cycle')
+/** Its authoring key, in MM's option namespace beside the RO_* rows. */
+#define RSBS_CVAR_MM_MOON_CRASH "gRando.Options.MoonCrash"
+/**
+ * Its descriptor id on Combo > Majora's Mask. The option is the combo's, not a
+ * 2Ship RO_* row: an RO_* id would grow randoSaveOptions[RO_MAX] and move every
+ * later field of every .redsave's MM half, and its default would add a term to
+ * every MM profile digest. So it is frozen in its own appended byte
+ * (randoSaveMoonCrash) and its row takes an id from 0x8000 up, a range no
+ * RandoOptionId reaches (Combo_MMOptionById still finds it).
+ */
+#define RSBS_MM_OPTION_ID_MOON_CRASH 0x8000u
+
+/**
+ * THE MOON CRASH THIS FILE PLAYS UNDER, from its two frozen records (#1069):
+ * RSBS_MM_MOON_CRASH_CYCLE when the live MM half's frozen option
+ * (randoSaveMoonCrash) says New Cycle, or when the frozen combo record holds the
+ * Shared Song of Time rule (which forces it: with one Song of Time for the pair,
+ * MM starts without it, and the crash is then the free, progress-keeping reset
+ * 2Ship's logic assumes); RSBS_MM_MOON_CRASH_RESET otherwise. Never a CVar read.
+ * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_FrozenMoonCrash(void);
+
 /** Outcomes of MM_Rando_RestoreProfileForLoad. */
 enum {
     RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile

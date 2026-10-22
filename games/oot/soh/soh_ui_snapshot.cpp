@@ -1885,9 +1885,10 @@ void Session::BuildPageList() {
         // only it has. Since #1101 our randomizer pages share SoH's and OoTMM's
         // section names on purpose ("Win Condition" heads both Cross-Game Rules
         // and MM Randomizer), so the auto pick would name neither page whenever
-        // the other is its sibling contrast.
+        // the other is its sibling contrast. Keyed by the page's id since #1104
+        // moved it under the Randomizer header.
         static const std::map<std::string, std::string> kPinnedBody = {
-            { "Combo/Cross-Game Rules", "Item Crossing" },
+            { "Randomizer/Cross-Game", "Item Crossing" },
         };
         if (kPinnedBody.contains(p.id)) {
             p.bodyText = kPinnedBody.at(p.id);

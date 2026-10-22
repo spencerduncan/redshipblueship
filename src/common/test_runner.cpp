@@ -122,6 +122,11 @@ int MM_MoonCrashNeverSaved_Run(void);
 // mm-moon-crash-pool-applied (#785 review, same file): after a moon crash
 // restores a commit taken on OoT's side, MM's consumables equal the pool.
 int MM_MoonCrashPoolApplied_Run(void);
+// mm-moon-crash-cycle-forced / mm-moon-crash-cycle-reset (#1069, same file): the
+// frozen Moon Crash Behavior (OoTMM's moonCrash), forced to New Cycle by the
+// Shared Song of Time rule; and a crash under New Cycle starts a new cycle.
+int MM_MoonCrashCycleForced_Run(void);
+int MM_MoonCrashCycleReset_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -670,6 +675,10 @@ extern "C" {
 // bag makes each one shared row, and the arrival gives and wears the shield in
 // the other game. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_shields.c"
+// The Shared Song of Time rule (#1069): both games register their Song of Time
+// as one family, the bag makes it one shared row, and the arrival teaches it in
+// the other game. FILE SCOPE for the same reason as its neighbours.
+#include "tests/test_shared_song_of_time.c"
 
 // The Shared Ocarina Buttons rule (#1067): both games register all five button
 // pairs, the bag makes each one shared row, and a button found in one game is
@@ -1092,6 +1101,10 @@ static TestResult Test_MMMoonCrashPoolApplied(void) {
     return MM_MoonCrashPoolApplied_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+static TestResult Test_MMMoonCrashCycleReset(void) {
+    return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
     const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
@@ -1311,6 +1324,23 @@ TestResult Test_MMComboFirstCycle(void) {
     }
 
     return MM_ComboFirstCycle_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Needs the display-free shared bring-up its mm-paired-profile sibling has: it
+// drives the real ResolvePairedProfile and MM_Rando_ComputeProfileStamp, which
+// read the Ship::Context singleton's ConsoleVariables (alone in its process, as
+// CTest runs it, that singleton is otherwise null and the row crashes).
+TestResult Test_MMMoonCrashCycleForced(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_BootOoT(void) {
@@ -3707,6 +3737,25 @@ TestResult Test_MMPairedStart(void) {
     InitOTRForMMFirstBoot(1, fakeArgv);
 
     return MM_PairedStart_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1069: under the frozen Shared Song of Time rule MM's paired start drops the
+// song (the pair's one copy is a pool item) and the identity list never moves.
+// Same body file and the same bring-up; `--test all` skips it.
+extern "C" int MM_PairedStartSharedSongTime_RunHeadless(void);
+
+TestResult Test_MMPairedStartSharedSongTime(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    return MM_PairedStartSharedSongTime_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
@@ -6634,6 +6683,11 @@ const TestDescriptor gTests[] = {
       "A paired MM half starts with exactly the Ocarina and the Song of Time, never 2Ship's StartingItems block; "
       "the Kokiri Sword and the Hero's Shield are MM pool items (#879)",
       Test_MMPairedStart },
+    // #1069: the same start under the Shared Song of Time rule.
+    { "mm-paired-start-shared-song-time",
+      "Under the frozen Shared Song of Time rule a paired MM half starts with the Ocarina alone and the Song of Time "
+      "is an MM pool item; with the rule off the start keeps it; MM's identity never moves with the rule (#1069)",
+      Test_MMPairedStartSharedSongTime },
     // ADR 0010 increment 1.2 lock (b): a pinned master seed that NEEDS the
     // attempt ladder converges, records its winning attempt, and digests the
     // world for the two-process MMPairedAttemptDeterminism diff. Same display
@@ -6812,6 +6866,16 @@ const TestDescriptor gTests[] = {
       "With the Shared Shields rule on, a shield found in one game is given and worn in the other on arrival; off, "
       "nothing crosses (#1068)",
       Test_SharedShieldsArrival },
+    // #1069: the Shared Song of Time rule on the same mechanism. ROM-free, as
+    // the shields rows.
+    { "shared-song-of-time-pairs",
+      "The Shared Song of Time rule arms the family both games register their Song of Time as, and the bag makes the "
+      "two copies one row both solvers credit (#1069)",
+      Test_SharedSongOfTimePairs },
+    { "shared-song-of-time-arrival",
+      "With the Shared Song of Time rule on, the song learnt in one game is known in the other at its arrival; off, "
+      "nothing crosses (#1069)",
+      Test_SharedSongOfTimeArrival },
     // #1065: the Shared Lens of Truth on the #976 mechanism.
     { "shared-lens-rule",
       "The Shared Lens of Truth is one Cross-Game Rule, off by default, frozen at creation into the fingerprint, and "
@@ -7682,6 +7746,14 @@ const TestDescriptor gTests[] = {
       "A moon crash that restores a commit taken on OoT's side (the pool moved after MM's departure) leaves MM's "
       "rupees, health and ammo EQUAL to the restored pool, and a later spend is an exact delta (#785)",
       Test_MMMoonCrashPoolApplied },
+    { "mm-moon-crash-cycle-forced",
+      "The frozen Moon Crash Behavior (OoTMM's moonCrash) is Last Save by default, the frozen option otherwise, and "
+      "New Cycle whenever the frozen Shared Song of Time rule is on; the rule never moves MM's profile stamp (#1069)",
+      Test_MMMoonCrashCycleForced },
+    { "mm-moon-crash-cycle-reset",
+      "A moon crash under New Cycle starts a new cycle (Dawn of the First Day, human form, no mask) keeping inventory "
+      "and quest items found after the last commit, and commits it; the last-commit rollback does not run (#1069)",
+      Test_MMMoonCrashCycleReset },
     { "oot-departure-windmill-flag",
       "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
       "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "
@@ -7780,6 +7852,12 @@ const IntegrationTestDescriptor gIntegrationTests[] = {
       "on in South Clock Town; then a switch request that leaves the loop is refused by main and MM comes back "
       "through its suspend/resume contract with its save (#954)",
       INT_TEST_CROSSING_REFUSED_MM, GAME_MM },
+    { "int-mm-moon-crash-cycle",
+      "MM boots on its debug save outside the Clock Tower, the file is marked New Cycle (OoTMM's moonCrash 'cycle'), "
+      "and the moon falls through the real crash cutscene: the scene after it must be a NEW cycle (one more three-day "
+      "reset, the cycle's Deku record cleared) at the Dawn of the First Day with the mask, the bottle and the song "
+      "kept (#1069)",
+      INT_TEST_MM_MOON_CRASH_CYCLE, GAME_MM },
     { nullptr, nullptr, INT_TEST_NONE, GAME_NONE } // Sentinel
 };
 
@@ -7831,7 +7909,9 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||
                 strcmp(gTests[i].name, "crossgame-frame-interpolation") == 0 ||
                 strcmp(gTests[i].name, "mm-rando-gen") == 0 || strcmp(gTests[i].name, "mm-pair-switch-entry") == 0 ||
-                strcmp(gTests[i].name, "mm-paired-start") == 0 || strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-start-shared-song-time") == 0 ||
+                strcmp(gTests[i].name, "mm-paired-attempt") == 0 ||
                 strcmp(gTests[i].name, "mm-paired-exhaustion") == 0 ||
                 strcmp(gTests[i].name, "mm-round-budget-host-scale") == 0 ||
                 strcmp(gTests[i].name, "mm-golden-seeds-round-budget") == 0 ||

@@ -23,6 +23,12 @@ extern int MM_Combo_CaptureSaveToUnifiedSlot(void);
 extern int MM_Combo_ResetFromLastCommitOnMoonCrash(void);
 // #564 V21: no new save over an open paired file (same TU).
 extern int MM_Combo_RefuseNewSaveOverSession(const char* path);
+// #1069: the moon crash this file plays under, from its frozen records
+// (games/mm/2s2h/Rando/Foreign.cpp; RSBS_MM_MOON_CRASH_* in
+// src/common/combo_mm_options_view.h, restated: 1 is "New Cycle").
+#include <stdio.h> // fprintf: the New Cycle line
+extern int MM_Rando_FrozenMoonCrash(void);
+#define RSBS_MOON_CRASH_NEW_CYCLE 1
 #endif
 
 #define CHECK_NEWF(newf)                                                                                 \
@@ -1393,10 +1399,62 @@ static void Sram_EndRandoPreserve(void) {
 // diagnosed and operator-confirmed.
 #endif
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * RSBS (#1069): the moon crash under "New Cycle" (OoTMM's moonCrash 'cycle', its
+ * MoonCrashCycle in packages/generator/src/mm/save.c): a new cycle starts as the
+ * Song of Time starts one, and the file keeps its items and progress. Human form
+ * and no mask (OoTMM's two writes), then the Song of Time's own end-of-cycle
+ * reset (Sram_SaveEndOfCycle, which the single-exe's cycle hooks bracket so the
+ * shared rupees and ammo survive it), the moon's timer off as the song turns it
+ * off, and the marshal, which commits the new cycle to the .redsave
+ * (Sram_ComboCommitUnifiedSave) before the cutscene index comes back. The tail
+ * the crash path ends with (timers, horse, the powder keg and jinx timers) runs
+ * as it does after Last Save.
+ */
+static void Sram_MoonCrashNewCycle(SramContext* sramCtx, s32 cutsceneIndex) {
+    s32 i;
+
+    gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    gSaveContext.save.equippedMask = PLAYER_MASK_NONE;
+    Sram_SaveEndOfCycle(MM_gPlayState);
+    gSaveContext.timerStates[TIMER_ID_MOON_CRASH] = TIMER_STATE_OFF;
+    func_8014546C(sramCtx);
+    gSaveContext.save.cutsceneIndex = cutsceneIndex;
+
+    for (i = 0; i < TIMER_ID_MAX; i++) {
+        gSaveContext.timerStates[i] = TIMER_STATE_OFF;
+        gSaveContext.timerCurTimes[i] = SECONDS_TO_TIMER(0);
+        gSaveContext.timerTimeLimits[i] = SECONDS_TO_TIMER(0);
+        gSaveContext.timerStartOsTimes[i] = 0;
+        gSaveContext.timerStopTimes[i] = SECONDS_TO_TIMER(0);
+        gSaveContext.timerPausedOsTimes[i] = 0;
+    }
+
+    D_801BDAA0 = true;
+    gHorseIsMounted = false;
+    gSaveContext.powderKegTimer = 0;
+    gSaveContext.unk_1014 = 0;
+    gSaveContext.jinxTimer = 0;
+}
+#endif
+
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx) {
     GameInteractor_ExecuteBeforeMoonCrashSaveReset();
     s32 i;
     s32 cutsceneIndex = gSaveContext.save.cutsceneIndex;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#1069): Moon Crash Behavior "New Cycle" (or the Shared Song of Time
+    // rule, which forces it) starts a new cycle instead of reloading the last
+    // save. The end-of-cycle reset needs the play state; with none (no live
+    // gameplay) the crash falls back to Last Save, below, unchanged.
+    if (MM_Rando_FrozenMoonCrash() == RSBS_MOON_CRASH_NEW_CYCLE && MM_gPlayState != NULL) {
+        fprintf(stderr, "[MM] moon crash: New Cycle (#1069): a new cycle starts and keeps the file's progress\n");
+        Sram_MoonCrashNewCycle(sramCtx, cutsceneIndex);
+        return;
+    }
+#endif
 
     RSBS_RANDO_PRESERVE_BEGIN();
 

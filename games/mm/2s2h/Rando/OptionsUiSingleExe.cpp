@@ -670,6 +670,32 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
         desc.disabledReason = ui.disabledReason;
         sDescriptors.push_back(desc);
     }
+    // #1069: the combo's own MM option, after the RO_* rows (no RandoStaticOption
+    // row exists for it, so its key and default are stated here, once). OoTMM's
+    // "Moon Crash Behavior" (moonCrash): name, values and default from OoTMM's
+    // settings data. Frozen at creation into randoSaveMoonCrash and read when the
+    // moon falls (z_sram_NES.c's fenced branch), so it is LIVE.
+    static const char* const kMoonCrashLabels[] = {
+        "Last Save", // RSBS_MM_MOON_CRASH_RESET
+        "New Cycle", // RSBS_MM_MOON_CRASH_CYCLE
+    };
+    ComboMMOptionDesc moonCrash = {};
+    moonCrash.id = (uint16_t)RSBS_MM_OPTION_ID_MOON_CRASH;
+    moonCrash.name = "MOON_CRASH";
+    moonCrash.cvar = RSBS_CVAR_MM_MOON_CRASH;
+    moonCrash.label = "Moon Crash Behavior";
+    moonCrash.tooltip = "What happens when the Moon crashes. Last Save: everything since you last saved in Majora's "
+                        "Mask is lost. New Cycle: a new cycle starts at the Dawn of the First Day and you keep your "
+                        "items and progress, as with the Song of Time. Always New Cycle when the Cross-Game Rule "
+                        "Shared Song of Time is on.";
+    moonCrash.group = (uint8_t)COMBO_MM_GROUP_LOGIC;
+    moonCrash.widget = (uint8_t)COMBO_MM_WIDGET_COMBO;
+    moonCrash.defaultValue = RSBS_MM_MOON_CRASH_RESET;
+    moonCrash.valueLabels = kMoonCrashLabels;
+    moonCrash.valueCount = (uint8_t)(sizeof(kMoonCrashLabels) / sizeof(kMoonCrashLabels[0]));
+    moonCrash.liveness = (uint8_t)COMBO_MM_LIVENESS_LIVE;
+    moonCrash.disabledReason = "";
+    sDescriptors.push_back(moonCrash);
     return sDescriptors;
 }
 

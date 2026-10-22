@@ -74,6 +74,7 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h" // the trick labels the load-time restore names
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -206,6 +207,20 @@ static void ResolveProfileTricks(uint8_t* tricks) {
     }
 }
 
+/** The AUTHORED "Moon Crash Behavior" (#1069; OoTMM's moonCrash), resolved from
+ *  its key with no side effects: RSBS_MM_MOON_CRASH_RESET ("Last Save", the
+ *  default) unless the key holds New Cycle. Any other stored value is Last Save,
+ *  as an out-of-space value resolves to its default everywhere else. The Shared
+ *  Song of Time rule's force is NOT folded here: the identity must stay
+ *  rule-independent (MM_Rando_ComputeProfileStamp runs before the combo freeze),
+ *  so the force is applied in play from the frozen combo record
+ *  (MM_Rando_FrozenMoonCrash). */
+static uint8_t ResolveMoonCrashFromCVar() {
+    return CVarGetInteger(RSBS_CVAR_MM_MOON_CRASH, RSBS_MM_MOON_CRASH_RESET) == RSBS_MM_MOON_CRASH_CYCLE
+               ? (uint8_t)RSBS_MM_MOON_CRASH_CYCLE
+               : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
+}
+
 /** The canonical identity string the profile digest hashes (#564 V4's widened
  *  term). Wider than MMOptionsString on purpose: gRando.ExcludedChecks and the
  *  paired start shape the generated world exactly as the 47 options do
@@ -213,7 +228,8 @@ static void ResolveProfileTricks(uint8_t* tricks) {
  *  them is a vacuous guard — same seed + same digest could still yield
  *  different MM worlds. OoT's own settings hash is the precedent: it folds
  *  excludes and tricks. */
-static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes) {
+static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes,
+                                         uint8_t moonCrash) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         s += std::to_string(values[randoOptionId]);
@@ -279,6 +295,15 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
         s += "|traps:";
         s += traps;
     }
+    // MOON CRASH BEHAVIOR (#1069; OoTMM's moonCrash). Not a generation input, but
+    // world identity: it decides what the moon does to the file. Frozen into the
+    // half beside the trap-type set (randoSaveMoonCrash), and folded the same way,
+    // only when it is not the default: "Last Save", which every world before
+    // #1069 had, adds no term, so no existing pair's mmProfileDigest moves.
+    if (moonCrash != RSBS_MM_MOON_CRASH_RESET) {
+        s += "|moonCrash:";
+        s += std::to_string((unsigned)moonCrash);
+    }
     // ------------------------------------------------------------------------
     // WHAT IS DELIBERATELY *NOT* FOLDED, and why. #564 V4 asks for each
     // remaining CVar family to be CLASSIFIED world-identity vs runtime flavour
@@ -303,6 +328,18 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
 
 std::vector<RandoItemId> PairedStartingItems() {
     return { RI_OCARINA, RI_SONG_TIME };
+}
+
+std::vector<RandoItemId> PairedStartingItemsForWorld() {
+    std::vector<RandoItemId> items = PairedStartingItems();
+    // #1069: under the frozen Shared Song of Time rule (OoTMM sharedSongTime) the
+    // pair has ONE Song of Time, which OoTMM places in the pool after replacing
+    // both games' copies with it. MM's copy is then a pool item the bag pairs
+    // with OoT's; the start keeps the Ocarina (the 2026-10-09 ruling).
+    if (Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_TIME)) {
+        items.erase(std::remove(items.begin(), items.end(), RI_SONG_TIME), items.end());
+    }
+    return items;
 }
 
 /** Hash the identity string, displacing 0: zero is the growth contract's
@@ -346,6 +383,10 @@ uint32_t ResolvePairedProfile(bool paired) {
     // identity term (ProfileIdentityString), compared below like the tricks.
     const uint8_t trapTypes = ResolveTrapTypesFromCVars();
     gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = trapTypes;
+    // #1069: Moon Crash Behavior freezes here too, the player's choice (the
+    // Shared Song of Time rule's force is the combo record's, applied in play).
+    const uint8_t moonCrash = ResolveMoonCrashFromCVar();
+    gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = moonCrash;
 
     if (!paired) {
         // A solo MM rando file has no cross-game identity to publish, and must
@@ -360,7 +401,8 @@ uint32_t ResolvePairedProfile(bool paired) {
     // under the frozen MM rules", a question about the rules alone;
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
-    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes));
+    const uint32_t digest =
+        DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes, moonCrash));
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -810,8 +852,25 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     Rando::Foreign::ResolveProfileTricks(tricks.data());
     // The trap-type set likewise (#1047): the same resolution ResolvePairedProfile
     // freezes into the half at the first crossing.
-    return Rando::Foreign::DigestFromIdentity(
-        Rando::Foreign::ProfileIdentityString(values.data(), tricks.data(), ResolveTrapTypesFromCVars()));
+    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
+        values.data(), tricks.data(), ResolveTrapTypesFromCVars(), Rando::Foreign::ResolveMoonCrashFromCVar()));
+}
+
+// ============================================================================
+// THE MOON CRASH (#1069; declared in src/common/combo_mm_options_view.h).
+// ============================================================================
+extern "C" int MM_Rando_FrozenMoonCrash(void) {
+    // The Shared Song of Time rule FORCES a New Cycle (#1069): with one Song of
+    // Time for the pair MM starts without it, and the crash is then the free,
+    // progress-keeping reset 2Ship's logic assumes (it has no reset term; OoTMM's
+    // can_reset_time_impl counts setting(moonCrash, cycle) as one). The combo
+    // record is frozen at creation, so this is the world's, never a key's.
+    if (Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_TIME)) {
+        return RSBS_MM_MOON_CRASH_CYCLE;
+    }
+    return gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
+               ? RSBS_MM_MOON_CRASH_CYCLE
+               : RSBS_MM_MOON_CRASH_RESET;
 }
 
 // ============================================================================
@@ -855,10 +914,12 @@ namespace {
  * probe, #836) and MM_Rando_RestoreProfileForLoad (the load) run, so the two
  * cannot disagree. Writes nothing. On RESTORABLE, @p fileValues / @p fileTricks
  * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks, and
- * @p fileTraps its trap-type set (#1047).
+ * @p fileTraps its trap-type set (#1047) and @p fileMoonCrash its Moon Crash
+ * Behavior (#1069).
  */
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
-                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps) {
+                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
+                           uint8_t& fileMoonCrash) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
@@ -892,8 +953,12 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     }
     // A half written before #1047 zero-extends here: no trap term, as its stamp.
     fileTraps = half->save.shipSaveInfo.rando.randoSaveTrapTypes;
+    // A half written before #1069 zero-extends here: Last Save, no term, as its stamp.
+    fileMoonCrash = half->save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
+                        ? (uint8_t)RSBS_MM_MOON_CRASH_CYCLE
+                        : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
     const uint32_t candidate = Rando::Foreign::DigestFromIdentity(
-        Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data(), fileTraps));
+        Rando::Foreign::ProfileIdentityString(fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash));
     if (candidate != frozenDigest) {
         fprintf(stderr,
                 "[MM] profile: load-time restore impossible — the file's own options, tricks and trap types give "
@@ -911,7 +976,8 @@ extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalf
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
     uint8_t fileTraps = 0;
-    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps);
+    uint8_t fileMoonCrash = 0;
+    return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash);
 }
 
 extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,
@@ -969,7 +1035,9 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
     uint8_t fileTraps = 0;
-    const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps);
+    uint8_t fileMoonCrash = 0;
+    const int classified =
+        ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash);
     if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE) {
         return classified;
     }
@@ -981,6 +1049,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     std::vector<uint8_t> liveTricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(liveTricks.data());
     const uint8_t liveTraps = ResolveTrapTypesFromCVars();
+    const uint8_t liveMoonCrash = Rando::Foreign::ResolveMoonCrashFromCVar();
 
     // Every key written is recorded first (set, and to what, or unset), so a
     // restore whose after-check fails puts the keys back exactly as the player
@@ -1029,6 +1098,15 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         CVarSetInteger(cvar, fileOn);
         restored.push_back(MMProfileRestoreLabel(TrapTypeLabel(type), cvar));
         fprintf(stderr, "[MM] profile: load restored trap type %s to the file's value %d\n", cvar, fileOn);
+    }
+    // #1069: Moon Crash Behavior, its one key.
+    if (liveMoonCrash != fileMoonCrash) {
+        remember(RSBS_CVAR_MM_MOON_CRASH);
+        CVarSetInteger(RSBS_CVAR_MM_MOON_CRASH, fileMoonCrash);
+        const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)RSBS_MM_OPTION_ID_MOON_CRASH);
+        restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, RSBS_CVAR_MM_MOON_CRASH));
+        fprintf(stderr, "[MM] profile: load restored %s to the file's value %d\n", RSBS_CVAR_MM_MOON_CRASH,
+                (int)fileMoonCrash);
     }
 
     const uint32_t after = MM_Rando_ComputeProfileStamp();
@@ -1718,6 +1796,9 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             { "comboFlags", gComboCtx.comboSettings.comboFlags },
             { "crossItemFlags", gComboCtx.comboItemRules.crossItemFlags },
             { "blastMaskCooldown", gComboCtx.comboItemRules.blastMaskCooldown },
+            // #1069: the moon crash this world plays under (MM's frozen option,
+            // forced to New Cycle by the Shared Song of Time rule), as OoTMM names it.
+            { "moonCrash", MM_Rando_FrozenMoonCrash() == RSBS_MM_MOON_CRASH_CYCLE ? "cycle" : "reset" },
         };
 
         // The MM world, in MM's own schema, under its own key.

@@ -257,10 +257,14 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
     }
 
     // ---- (b)(c) descriptor coverage, exactness, and binding ---------------
+    // Every RO_* option, plus the combo's own MM rows (#1069's Moon Crash
+    // Behavior), which no RandoStaticOption row backs.
+    const int kComboOwnRows = 1;
     const int descCount = Combo_MMOptionCount();
-    if (descCount != RO_MAX) {
-        return Fail(25, "descriptor table holds %d rows for %d option ids — the pane would silently omit options",
-                    descCount, (int)RO_MAX);
+    if (descCount != RO_MAX + kComboOwnRows) {
+        return Fail(25, "descriptor table holds %d rows for %d option ids and %d combo rows — the pane would "
+                        "silently omit options",
+                    descCount, (int)RO_MAX, kComboOwnRows);
     }
 
     bool seen[RO_MAX] = { false };
@@ -268,6 +272,19 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
         const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
         if (desc == NULL) {
             return Fail(26, "descriptor index %d is NULL below the reported count", i);
+        }
+        if (desc->id == (uint16_t)RSBS_MM_OPTION_ID_MOON_CRASH) {
+            // #1069: OoTMM's moonCrash, the combo's own row. No StaticData row to
+            // compare with, so its binding is checked against the one spelling.
+            if (desc->cvar == NULL || strcmp(desc->cvar, RSBS_CVAR_MM_MOON_CRASH) != 0 ||
+                desc->defaultValue != RSBS_MM_MOON_CRASH_RESET || desc->widget != (uint8_t)COMBO_MM_WIDGET_COMBO ||
+                desc->valueCount != 2 || desc->valueLabels == NULL || desc->label == NULL || desc->tooltip == NULL ||
+                desc->liveness != (uint8_t)COMBO_MM_LIVENESS_LIVE || desc->disabledReason == NULL ||
+                desc->disabledReason[0] != '\0') {
+                return Fail(77, "the Moon Crash Behavior row does not bind %s, default Last Save, two values, live",
+                            RSBS_CVAR_MM_MOON_CRASH);
+            }
+            continue;
         }
         if (desc->id >= (uint16_t)RO_MAX) {
             return Fail(27, "descriptor %d carries id %u, outside the option id space", i, (unsigned)desc->id);

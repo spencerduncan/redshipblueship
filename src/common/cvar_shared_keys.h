@@ -177,6 +177,11 @@
  * sharedOcarinaButtons). Boolean (0/1), DEFAULT 0: a BIT of the item rules
  * record, so with it off the record stays all clear and every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS "gCombo.Rando.SharedOcarinaButtons"
+/* #1069: one Song of Time across both games (OoTMM sharedSongTime). Boolean
+ * (0/1), DEFAULT 0. A bit of the same crossItemFlags (RSBS_XITEM_SHARED_SONG_TIME),
+ * folded into comboSettingsHash only when on. On, MM's paired start drops the
+ * song and MM's moon crash is a New Cycle. */
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_TIME "gCombo.Rando.SharedSongTime"
 /* #968: one Fire, one Ice and one Light Arrows across both games (OoTMM
  * sharedMagicArrowFire, sharedMagicArrowIce, sharedMagicArrowLight). Boolean
  * (0/1), DEFAULT 0 each. Bits of the same crossItemFlags
@@ -698,6 +703,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_OCARINA_BUTTONS bit (#1067): each of the five ocarina "
       "buttons is ONE shared item across both games" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_TIME, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SONG_TIME bit (#1069): the Song of Time is ONE "
+      "shared-pair family across both games, MM starts without it and its moon crash is a New Cycle" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_ARROW_FIRE, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_ARROW_FIRE bit (#968): the Fire Arrows are ONE "
       "shared-pair family across both games" },
@@ -1145,11 +1153,11 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Seventeen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Eighteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
-// SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
+// SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
 // (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
 // SharedMaskTruth (#978); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
@@ -1158,8 +1166,8 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 30, "seventeen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "nine gCombo.Tracker.Items.* preferences = 30");
+static_assert(kComboKeyCount == 31, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "nine gCombo.Tracker.Items.* preferences = 31");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

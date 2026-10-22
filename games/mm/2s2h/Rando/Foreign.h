@@ -44,6 +44,15 @@ std::string PairedInputSeedString();
  *  that generation (ComboLogicEngineSingleExe.cpp). */
 std::vector<RandoItemId> PairedStartingItems();
 
+/** THE PAIRED MM START THE WORLD IS GENERATED WITH (#1069): PairedStartingItems
+ *  as the FROZEN combo rules leave it. Under the Shared Song of Time rule
+ *  (OoTMM's sharedSongTime) the pair has ONE Song of Time, a pool item, so MM's
+ *  start drops it and keeps the Ocarina. The identity term stays
+ *  PairedStartingItems (rule-independent): MM_Rando_ComputeProfileStamp runs
+ *  before the combo freeze. Every consumer that GENERATES (OnFileCreate's paired
+ *  start, the measurement bridges) reads this one. */
+std::vector<RandoItemId> PairedStartingItemsForWorld();
+
 /** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
  *  paired world, CHECK it against the creation-frozen identity
  *  (#499 steps 2-4; ADR 0009 claim 3; #498/#564 phase 2).
