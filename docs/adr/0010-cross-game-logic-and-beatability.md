@@ -2456,3 +2456,11 @@ credits both engines once; placed on an OoT host it proves beat-both with one
 copy in each engine and MM's half waits for OoT's crossing; placed on an MM
 host OoT's half waits for both crossings; HOME_ONLY is refused; the composer
 makes one row and trims the other game's.
+
+### 2026-10-21 -- D1: the Goal row's host is Randomizer > Cross-Game (#1101)
+
+The 2026-09-27 D1 amendment names the "[Both Games] Goal" row's host as Combo > Cross-Game Rules. Under the
+operator's ruling on #1101 (2026-10-21, option C: one randomizer menu for both games) the rules page moved under
+SoH's Randomizer header as **Randomizer > Cross-Game**, after MM Randomizer and MM Tricks and before Plandomizer
+(ADR 0004's amendment of the same date). Only the host changed: the row, its labels, its default, the freeze at the
+creation event and the arrival and load compares are as D1 states them.

@@ -43,11 +43,15 @@
  *     native MM windows stay registered as fallbacks; that their keys still
  *     open them is MMTrackersGui's lock, not this row's.
  *
- *  5. THE PLAYER'S SIDEBAR SELECTION IS STRANDED. Sidebar selection persists BY
- *     DISPLAY-NAME STRING into `gSettings.Menu.RandomizerSidebarSection`, so
- *     deleting `Randomizer → Cross-Game` outright would land every config holding
- *     that string on a header with no such sidebar. Leg 4 asserts the page
- *     survives, is non-empty, and actually names where its rows went.
+ *  5. THE RANDOMIZER PAGES ARE NOT UNDER THE RANDOMIZER HEADER (#1101, operator
+ *     ruling 2026-10-21, option C). MM Randomizer, MM Tricks and the cross-game
+ *     rules are pages of SoH's Randomizer header, after Tricks/Glitches and
+ *     before Plandomizer, in that order, the rules under the "Cross-Game" name
+ *     the pointer page kept alive (sidebar selection persists BY DISPLAY-NAME
+ *     STRING into `gSettings.Menu.RandomizerSidebarSection`, so a config holding
+ *     it lands on the rules). Leg 4 drives AddComboRandomizerPages between
+ *     stand-ins for Tricks/Glitches and Plandomizer and requires that order, the
+ *     rules page's rows and no pointer row left behind.
  *
  *  6. THE EXTENSION POINT DOES NOT WORK, or works only by accident. Lane G adds
  *     MM enhancement toggles here after this merges, so leg 5 drives
@@ -64,7 +68,7 @@
  *     return to the baseline it started from; the production page's own shape is
  *     MenuMmEnhancementRows' invariant, not this row's.
  *
- *  7. A RENAMED PAGE STRANDS THE SELECTION. The Windows page shipped as "Cross-Game
+ *  7. A RENAMED OR MOVED PAGE STRANDS THE SELECTION. The Windows page shipped as "Cross-Game
  *     Windows" and was renamed on 2026-09-27 because the old name was wider than
  *     the 200 px sidebar (the snapshot harness drew it as "ross-Game Window");
  *     the same day "MM Enhancements" became "Majora's Mask", because its 192 px
@@ -72,7 +76,10 @@
  *     display name in gSettings.Menu.ComboSidebarSection, so leg 6 drives
  *     AddMenuCombo over a config holding each old name and requires the new one
  *     afterwards (a registered page, so the carry table cannot name a page that
- *     does not exist), and leaves every other value alone.
+ *     does not exist), and leaves every other value alone. The three pages #1101
+ *     moved to the Randomizer header are carried ACROSS headers: a config that
+ *     had Combo open on one of them opens on the moved page under Randomizer,
+ *     and no Combo selection is left naming a page the header no longer has.
  *
  *  8. THE UNIFIED TRACKERS' SETTINGS HAVE NO MENU WRITER. ADR 0004's 2026-09-30
  *     amendment puts the unified trackers in Combo > Windows and their settings
@@ -98,19 +105,17 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <string>
 #include <vector>
 
+// AddMenuRandomizer() as a whole cannot run ROM-free (its five Rando::Settings
+// option groups reach Option::AddWidget, which RUNS each option's callback at
+// registration time and dereferences a null gRandoContext), so legs 4 and 6 drive
+// our slice of it, SohGui::AddComboRandomizerPages (SohMenu.h), directly.
 namespace SohGui {
-// The interim host's surviving registrar, defined in SohGui/SohMenuRandomizer.cpp
-// and declared in no header: AddMenuRandomizer() as a whole cannot run ROM-free
-// (its five Rando::Settings option groups reach Option::AddWidget, which RUNS
-// each option's callback at registration time and dereferences a null
-// gRandoContext), so this row drives the page directly. Declared here the way the
-// SohGui TUs already declare SohGui::mSohMenu.
-void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
 // Leg 7 points THEME_COLOR (SohGui::GetMenuThemeColor) at the probe for one call.
 extern std::shared_ptr<SohMenu> mSohMenu;
 } // namespace SohGui
@@ -204,6 +209,9 @@ void ExtReplacementRegistrar(SohGui::SohMenu& menu, WidgetPath& path) {
 }
 
 const char* kExtPageName = "Contributed Test Page";
+// The same seam with ComboPageHost::Randomizer (#1101): drawn under SoH's
+// Randomizer header by AddComboRandomizerPages, never under Combo.
+const char* kExtRandoPageName = "Contributed Randomizer Test Page";
 
 // Leg 7. Restated as literals on purpose, as leg 3's are: the point is that the
 // page and this lock agree on the spelling.
@@ -221,6 +229,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // The registry is process-global, so start from a known state rather than
     // from whatever ran before in AllTests.
     while (SohGui::UnregisterComboSectionPage(kExtPageName)) {}
+    while (SohGui::UnregisterComboSectionPage(kExtRandoPageName)) {}
 
     // ---- Leg 1: the section, its header CVar, and its two shipped pages -----
     ComboSectionMenuProbe probe;
@@ -249,8 +258,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     }
 
     // "Windows" shipped as "Cross-Game Windows" until 2026-09-27; leg 6 pins the
-    // rename's carried selection.
-    const char* kShippedPages[] = { "Cross-Game Rules", "Windows" };
+    // rename's carried selection. Cross-Game Rules is no longer a Combo page
+    // (#1101): it is Randomizer > Cross-Game, leg 4.
+    const char* kShippedPages[] = { "Windows" };
     for (const char* pageName : kShippedPages) {
         if (!combo.sidebars.contains(pageName)) {
             printf("[TEST] FAIL(1): the Combo section has no \"%s\" sidebar page\n", pageName);
@@ -296,22 +306,40 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         COMBO_CHECK(found, "Combo / %s is in `sidebars` but not in `sidebarOrder`", pageName);
     }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and both shipped pages hold widgets in "
-           "every column they declare\n");
+    // The Combo header after #1101: exactly five pages, Windows first, and none
+    // of the three that moved to the Randomizer header.
+    {
+        const std::vector<std::string> kComboPages = { "Windows", "Majora's Mask", "MM Mods", "Save Files",
+                                                       "Tracker Settings" };
+        const auto& order = combo.sidebarOrder;
+        COMBO_CHECK(order.size() == kComboPages.size(), "the Combo header holds %zu pages, expected the %zu below",
+                    order.size(), kComboPages.size());
+        COMBO_CHECK(!order.empty() && order.front() == "Windows", "the Combo header's first page is '%s', not Windows",
+                    order.empty() ? "(none)" : order.front().c_str());
+        for (const std::string& name : kComboPages) {
+            COMBO_CHECK(combo.sidebars.contains(name), "the Combo header has no \"%s\" page", name.c_str());
+        }
+        for (const char* moved : { "Cross-Game Rules", "Cross-Game", "MM Randomizer", "MM Tricks" }) {
+            COMBO_CHECK(!combo.sidebars.contains(moved),
+                        "the Combo header still holds \"%s\"; the randomizer pages are under the Randomizer header "
+                        "(operator ruling 2026-10-21)",
+                        moved);
+        }
+    }
+    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its five pages, Windows "
+           "first, each holding widgets in every column it declares\n");
 
-    // ---- Leg 2: the rules page hosts the tier-4 rows -----------------------
+    // ---- Leg 2: no Combo page hosts the tier-4 rows ------------------------
     // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
-    // that they are HERE and not on the interim host -- the move itself.
-    if (combo.sidebars.contains("Cross-Game Rules")) {
-        SidebarEntry& rules = combo.sidebars.at("Cross-Game Rules");
-        COMBO_CHECK(FindRow(rules, "Combo Rules Status") != nullptr,
-                    "the Cross-Game Rules page has no \"Combo Rules Status\" row");
-        COMBO_CHECK(FindRow(rules, "Reset Combo Rules") != nullptr,
-                    "the Cross-Game Rules page has no \"Reset Combo Rules\" row");
-        COMBO_CHECK(RowCount(rules) >= 6,
-                    "the Cross-Game Rules page holds %zu widgets; the two tier-4 settings alone are a status line, "
-                    "two group separators, two comboboxes and a button",
-                    RowCount(rules));
+    // that they are NOT under Combo any more (#1101): leg 4 finds them under
+    // Randomizer > Cross-Game, so two hosts cannot both write the keys.
+    for (const std::string& name : combo.sidebarOrder) {
+        if (!combo.sidebars.contains(name)) {
+            continue;
+        }
+        SidebarEntry& page = combo.sidebars.at(name);
+        COMBO_CHECK(FindRow(page, "Combo Rules Status") == nullptr && FindRow(page, "Reset Combo Rules") == nullptr,
+                    "Combo / %s still hosts the cross-game rules", name.c_str());
     }
 
     // ---- Leg 3: the windows page's CVar/name pairs and their embed flag ----
@@ -451,61 +479,81 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                (int)(sizeof(kRetiredRows) / sizeof(kRetiredRows[0])));
     }
 
-    // ---- Leg 4: the interim host survives, and points somewhere ------------
-    // Not politeness: gSettings.Menu.RandomizerSidebarSection holds the selection
-    // as a DISPLAY-NAME STRING, which is the measured reason ADR 0004's resolved
-    // call 1 refused to promote Cheats out of Enhancements.
+    // ---- Leg 4: our pages under SoH's Randomizer header (#1101) ------------
+    // The operator's ruling of 2026-10-21 (option C): after Tricks/Glitches and
+    // before Plandomizer, in the order MM Randomizer, MM Tricks, Cross-Game (MM
+    // Locations joins between the first two when it exists). "Cross-Game" is the
+    // rules page under the name the pointer page kept alive, so a config holding
+    // it in gSettings.Menu.RandomizerSidebarSection lands on the rules.
+    // AddMenuRandomizer() as a whole cannot run ROM-free, so SoH's neighbours are
+    // stand-ins registered the way it registers them.
     {
-        ComboSectionMenuProbe interim;
-        interim.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
-        // A deliberately WRONG incoming column: the registrar pins its own,
-        // because five Rando::Settings option groups run immediately before it in
-        // production and leave path.column wherever their last COLUMN container
-        // landed.
-        WidgetPath interimPath = { "Randomizer", "Ignored", SECTION_COLUMN_3 };
-        SohGui::AddCrossGamePointerWidgets(interim, interimPath);
+        ComboSectionMenuProbe rando;
+        rando.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+        WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+        rando.AddSidebarEntry("Randomizer", randoPath.sidebarName, 1);
+        rando.AddWidget(randoPath, "Tricks/Glitches", WIDGET_SEPARATOR_TEXT);
+        // A deliberately WRONG incoming column and sidebar: every page pins its
+        // own, because SoH's option groups leave path.column wherever their last
+        // COLUMN container landed (option.cpp).
+        randoPath.sidebarName = "Ignored";
+        randoPath.column = SECTION_COLUMN_3;
+        SohGui::AddComboRandomizerPages(rando, randoPath);
+        randoPath.sidebarName = "Plandomizer";
+        randoPath.column = SECTION_COLUMN_1;
+        rando.AddSidebarEntry("Randomizer", randoPath.sidebarName, 1);
+        rando.AddWidget(randoPath, "Plandomizer", WIDGET_SEPARATOR_TEXT);
 
-        auto& randoSidebars = interim.Entries().at("Randomizer").sidebars;
-        if (!randoSidebars.contains("Cross-Game")) {
+        MainMenuEntry& randoEntry = rando.Entries().at("Randomizer");
+        const std::vector<std::string> kExpectedOrder = { "Tricks/Glitches", "MM Randomizer", "MM Tricks", "Cross-Game",
+                                                          "Plandomizer" };
+        std::string got;
+        for (const std::string& name : randoEntry.sidebarOrder) {
+            got += (got.empty() ? "" : ", ") + name;
+        }
+        COMBO_CHECK(randoEntry.sidebarOrder == kExpectedOrder, "the Randomizer sidebar reads [%s], expected [%s]",
+                    got.c_str(), "Tricks/Glitches, MM Randomizer, MM Tricks, Cross-Game, Plandomizer");
+        COMBO_CHECK(SohGui::ComboRandomizerPageNames() ==
+                        std::vector<std::string>({ "MM Randomizer", "MM Tricks", "Cross-Game" }),
+                    "ComboRandomizerPageNames() does not name MM Randomizer, MM Tricks, Cross-Game in that order");
+
+        if (!randoEntry.sidebars.contains("Cross-Game")) {
             printf("[TEST] FAIL(4): Randomizer / Cross-Game is gone. Every config holding \"Cross-Game\" in "
                    "gSettings.Menu.RandomizerSidebarSection now selects a sidebar that does not exist\n");
             gFailures++;
         } else {
-            SidebarEntry& page = randoSidebars.at("Cross-Game");
-            COMBO_CHECK(RowCount(page) > 0, "Randomizer / Cross-Game survives with no widgets -- #640's failure mode");
-            // The MEASURE (UI parity M2): two declared columns with the rows in
-            // the first, so the gray note wraps at Randomizer > General's column
-            // width instead of running as one line across the whole page.
-            COMBO_CHECK(page.columnCount == 2,
-                        "Randomizer / Cross-Game declares %u columns, expected 2: with one, its gray note runs as a "
-                        "single line across the page instead of wrapping like Randomizer > General's notes",
+            SidebarEntry& page = randoEntry.sidebars.at("Cross-Game");
+            // One column, as the rules page has been since #844.
+            COMBO_CHECK(page.columnCount == 1, "Randomizer / Cross-Game declares %u columns, expected 1",
                         page.columnCount);
-            for (std::size_t column = 1; column < page.columnWidgets.size(); column++) {
-                COMBO_CHECK(page.columnWidgets.at(column).empty(),
-                            "Randomizer / Cross-Game has %zu widget(s) in column %zu; the pointer rows belong in the "
-                            "first",
-                            page.columnWidgets.at(column).size(), column);
-            }
-            bool pointsAtCombo = false;
-            for (auto& column : page.columnWidgets) {
-                for (WidgetInfo& row : column) {
-                    if (row.name.find("Combo") != std::string::npos) {
-                        pointsAtCombo = true;
-                    }
+            COMBO_CHECK(FindRow(page, "Combo Rules Status") != nullptr,
+                        "Randomizer / Cross-Game has no \"Combo Rules Status\" row: it is not the rules page");
+            COMBO_CHECK(FindRow(page, "Reset Combo Rules") != nullptr,
+                        "Randomizer / Cross-Game has no \"Reset Combo Rules\" row: it is not the rules page");
+            COMBO_CHECK(RowCount(page) >= 6,
+                        "Randomizer / Cross-Game holds %zu widgets; the tier-4 settings alone are a status line, two "
+                        "group separators, two comboboxes and a button",
+                        RowCount(page));
+            COMBO_CHECK(FindRow(page, "Moved to Combo") == nullptr,
+                        "Randomizer / Cross-Game still carries the pointer row \"Moved to Combo\"");
+        }
+        for (const std::string& name : randoEntry.sidebarOrder) {
+            SidebarEntry& page = randoEntry.sidebars.at(name);
+            COMBO_CHECK(RowCount(page) > 0, "Randomizer / %s is registered with no widgets -- #640's failure mode",
+                        name.c_str());
+            for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
+                for (WidgetInfo& row : page.columnWidgets.at(column)) {
+                    COMBO_CHECK(column < page.columnCount,
+                                "Randomizer / %s row '%s' landed in column %u of a page that draws %u -- registered "
+                                "and never drawn",
+                                name.c_str(), row.name.c_str(), column, page.columnCount);
                 }
             }
-            COMBO_CHECK(pointsAtCombo,
-                        "Randomizer / Cross-Game survives but no row on it names the Combo section, so a player whose "
-                        "config lands them here has no clue where their cross-game settings went");
-            // The rows really moved: none of the tier-4 controls may be left
-            // behind, or the two hosts would both write the same six keys.
-            COMBO_CHECK(FindRow(page, "Combo Rules Status") == nullptr,
-                        "the tier-4 status row is still on the interim host as well as in the Combo section");
-            COMBO_CHECK(FindRow(page, "Toggle MM Randomizer Options") == nullptr,
-                        "the MM options window row is still on the interim host as well as in the Combo section");
-            printf("[TEST] leg 4: Randomizer / Cross-Game survives with a pointer row and none of the moved "
-                   "controls\n");
         }
+        COMBO_CHECK(!randoEntry.sidebars.contains("Ignored"),
+                    "AddComboRandomizerPages registered rows under the stale incoming sidebar name");
+        printf("[TEST] leg 4: MM Randomizer, MM Tricks and Cross-Game (the rules) sit between Tricks/Glitches and "
+               "Plandomizer under the Randomizer header, every row in a drawn column\n");
     }
 
     // ---- Leg 5: the extension point (#682's seam) --------------------------
@@ -521,6 +569,12 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // itself is registered, with the right rows, is MenuMmEnhancementRows' job,
     // not this row's.
     const std::size_t baselinePages = SohGui::GetComboSectionPages().size();
+    std::size_t baselineComboPages = 0;
+    for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
+        if (page.host == SohGui::ComboPageHost::Combo) {
+            baselineComboPages++;
+        }
+    }
 
     gExtRan = 0;
     gExtColumn = -1;
@@ -566,17 +620,17 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             COMBO_CHECK(FindRow(extPage, kExtRowName) != nullptr, "the contributed page holds no row");
         }
         // Contributed pages come LAST, so a contributor cannot reorder the
-        // shipped ones out from under a player's persisted selection.
+        // shipped one out from under a player's persisted selection; a page
+        // hosted under Randomizer is not created here at all.
         auto& order = extProbe.Entries().at("Combo").sidebarOrder;
-        COMBO_CHECK(order.size() >= baselinePages + 3,
-                    "the Combo section has %zu sidebars in order, expected the two shipped plus the %zu already "
-                    "registered plus the one this leg added",
-                    order.size(), baselinePages);
-        if (order.size() >= baselinePages + 3) {
-            COMBO_CHECK(order.at(0) == "Cross-Game Rules" && order.at(1) == "Windows" && order.back() == kExtPageName,
-                        "sidebar order is [%s, %s, ..., %s]; the shipped pages must come first and contributed ones "
-                        "last",
-                        order.at(0).c_str(), order.at(1).c_str(), order.back().c_str());
+        COMBO_CHECK(order.size() == baselineComboPages + 2,
+                    "the Combo section has %zu sidebars in order, expected the shipped Windows plus the %zu "
+                    "Combo-hosted pages already registered plus the one this leg added",
+                    order.size(), baselineComboPages);
+        if (!order.empty()) {
+            COMBO_CHECK(order.front() == "Windows" && order.back() == kExtPageName,
+                        "sidebar order is [%s, ..., %s]; the shipped page must come first and contributed ones last",
+                        order.front().c_str(), order.back().c_str());
         }
     }
 
@@ -597,6 +651,39 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(gExtRan == 0, "the replaced registrar ran anyway");
     }
 
+    // The Randomizer host (#1101): the same registry, drawn by
+    // AddComboRandomizerPages after the pages already registered there and
+    // before Cross-Game, and never by AddMenuCombo.
+    SohGui::RegisterComboSectionPage(kExtRandoPageName, 1, ExtRegistrar, SohGui::ComboPageHost::Randomizer);
+    {
+        ComboSectionMenuProbe hostProbe;
+        gExtRan = 0;
+        hostProbe.AddMenuCombo();
+        COMBO_CHECK(!hostProbe.Entries().at("Combo").sidebars.contains(kExtRandoPageName),
+                    "a page registered for the Randomizer header was created under Combo");
+        COMBO_CHECK(gExtRan == 0, "AddMenuCombo ran a Randomizer-hosted registrar");
+
+        hostProbe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+        WidgetPath hostPath = { "Randomizer", "Ignored", SECTION_COLUMN_2 };
+        gExtSectionName.clear();
+        gExtColumn = -1;
+        SohGui::AddComboRandomizerPages(hostProbe, hostPath);
+        COMBO_CHECK(gExtRan == 1, "the Randomizer-hosted registrar ran %d times, expected once", gExtRan);
+        COMBO_CHECK(gExtSectionName == "Randomizer" && gExtColumn == (int)SECTION_COLUMN_1,
+                    "the Randomizer-hosted registrar was handed section '%s' column %d, expected 'Randomizer' and the "
+                    "pinned first column",
+                    gExtSectionName.c_str(), gExtColumn);
+        const auto& order = hostProbe.Entries().at("Randomizer").sidebarOrder;
+        COMBO_CHECK(order.size() >= 2 && order.at(order.size() - 2) == kExtRandoPageName &&
+                        order.back() == SohGui::kComboRulesRandomizerPage,
+                    "the Randomizer-hosted page is not the last page before %s", SohGui::kComboRulesRandomizerPage);
+        const std::vector<std::string> names = SohGui::ComboRandomizerPageNames();
+        COMBO_CHECK(names == order,
+                    "ComboRandomizerPageNames() disagrees with what AddComboRandomizerPages registered");
+    }
+    COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtRandoPageName),
+                "UnregisterComboSectionPage did not remove the Randomizer-hosted page");
+
     COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtPageName), "UnregisterComboSectionPage did not remove the page");
     COMBO_CHECK(!SohGui::UnregisterComboSectionPage(kExtPageName),
                 "UnregisterComboSectionPage removed a page twice, so the registry held a duplicate");
@@ -612,8 +699,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(!cleanProbe.Entries().at("Combo").sidebars.contains(kExtPageName),
                     "an unregistered contributed page is still created");
     }
-    printf("[TEST] leg 5: a contributed page is created after the shipped ones with a pinned column, replaces on "
-           "re-registration, is refused when invalid, and unregisters cleanly\n");
+    printf("[TEST] leg 5: a contributed page is created after the shipped one with a pinned column, replaces on "
+           "re-registration, is refused when invalid, is drawn only under the header it names, and unregisters "
+           "cleanly\n");
 
     // ---- Leg 6: the renamed Windows page carries a persisted selection ------
     // Menu::DrawElement reads gSettings.Menu.ComboSidebarSection as a display
@@ -633,7 +721,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             { "Windows", "Windows" },               // the new name stays
             { "MM Enhancements", "Majora's Mask" }, // the second rename, the same day
             { "Majora's Mask", "Majora's Mask" },
-            { "Cross-Game Rules", "Cross-Game Rules" }, // a page never renamed is left alone
+            { "Save Files", "Save Files" }, // a page never renamed is left alone
         };
         for (const Carry& carry : kCarries) {
             CVarSetString(kSidebarKey, carry.before);
@@ -653,6 +741,66 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         printf("[TEST] leg 6: selections saved on \"Cross-Game Windows\" and \"MM Enhancements\" are carried to "
                "\"Windows\" and \"Majora's Mask\"; every other value is left alone\n");
+    }
+    // The pages #1101 moved to the Randomizer header, carried ACROSS headers. A
+    // config that had Combo open on one of them opens on the moved page under
+    // Randomizer (Menu::DrawElement reads gSettings.Menu.ActiveHeader, then that
+    // header's sidebar key); one whose open header was another leaves the
+    // Randomizer selection alone. Either way no Combo selection is left naming
+    // a page Combo no longer has. All three keys are restored afterwards.
+    {
+        const char* kComboKey = "gSettings.Menu.ComboSidebarSection";
+        const char* kRandoKey = "gSettings.Menu.RandomizerSidebarSection";
+        const char* kHeaderKey = "gSettings.Menu.ActiveHeader";
+        const std::string savedCombo = CVarGetString(kComboKey, "");
+        const std::string savedRando = CVarGetString(kRandoKey, "");
+        const std::string savedHeader = CVarGetString(kHeaderKey, "");
+        struct Move {
+            const char* header;
+            const char* comboBefore;
+            const char* headerAfter;
+            const char* randoAfter;
+        };
+        const Move kMoves[] = {
+            { "Combo", "MM Randomizer", "Randomizer", "MM Randomizer" },
+            { "Combo", "MM Tricks", "Randomizer", "MM Tricks" },
+            { "Combo", "Cross-Game Rules", "Randomizer", "Cross-Game" },
+            // Another header open: the Randomizer selection is the player's own.
+            { "Settings", "MM Randomizer", "Settings", "Shuffles" },
+        };
+        const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
+        for (const Move& move : kMoves) {
+            CVarSetString(kHeaderKey, move.header);
+            CVarSetString(kComboKey, move.comboBefore);
+            CVarSetString(kRandoKey, "Shuffles");
+            ComboSectionMenuProbe moveProbe;
+            moveProbe.AddMenuCombo();
+            const std::string header = CVarGetString(kHeaderKey, "");
+            const std::string rando = CVarGetString(kRandoKey, "");
+            const std::string comboNow = CVarGetString(kComboKey, "");
+            COMBO_CHECK(header == move.headerAfter && rando == move.randoAfter,
+                        "a config on %s > %s opens on %s > %s after AddMenuCombo, expected %s > %s", move.header,
+                        move.comboBefore, header.c_str(), rando.c_str(), move.headerAfter, move.randoAfter);
+            COMBO_CHECK(std::string(move.randoAfter) == "Shuffles" ||
+                            std::find(randoPages.begin(), randoPages.end(), rando) != randoPages.end(),
+                        "the carried Randomizer selection \"%s\" is not a page AddComboRandomizerPages registers",
+                        rando.c_str());
+            COMBO_CHECK(comboNow.empty() || moveProbe.Entries().at("Combo").sidebars.contains(comboNow),
+                        "the Combo selection still reads \"%s\", a page the Combo header no longer has",
+                        comboNow.c_str());
+        }
+        auto restore = [](const char* key, const std::string& value) {
+            if (value.empty()) {
+                CVarClear(key);
+            } else {
+                CVarSetString(key, value.c_str());
+            }
+        };
+        restore(kComboKey, savedCombo);
+        restore(kRandoKey, savedRando);
+        restore(kHeaderKey, savedHeader);
+        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks or Cross-Game Rules opens on the "
+               "moved page under Randomizer, and no Combo selection is left stranded\n");
     }
 
     // ---- Leg 7: Combo > Tracker Settings writes the unified trackers' keys ----

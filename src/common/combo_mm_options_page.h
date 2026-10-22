@@ -25,8 +25,8 @@
  * into SohMenu rows. The model reads gComboCtx, the MM descriptor tables and the
  * active game. It reads no gSettings.Menu.* key (ADR 0004 section 4.1a(ii)'s
  * invariant, kept for the model; the pages persist their sidebar selection in
- * the Combo section's own gSettings.Menu.ComboSidebarSection, which no MM-side
- * code reads) and no game's gSaveContext (ADR 0008 rule 5).
+ * gSettings.Menu.RandomizerSidebarSection since #1101 moved them under SoH's
+ * Randomizer header, which no MM-side code reads) and no game's gSaveContext (ADR 0008 rule 5).
  *
  * NO OPTION SEMANTICS CHANGE. The rows read and write through the same gated
  * accessors the window used (combo_mm_options_view.h, combo_mm_tricks_view.h):
@@ -53,8 +53,9 @@
 extern "C" {
 #endif
 
-/** The two Combo section sidebars. Selection persists BY DISPLAY NAME in
- *  gSettings.Menu.ComboSidebarSection, so these are the one spelling. */
+/** The two Randomizer-header sidebars (#1101). Selection persists BY DISPLAY
+ *  NAME in gSettings.Menu.RandomizerSidebarSection, so these are the one
+ *  spelling. */
 #define COMBO_MM_OPTIONS_PAGE_NAME "MM Randomizer"
 #define COMBO_MM_TRICKS_PAGE_NAME "MM Tricks"
 

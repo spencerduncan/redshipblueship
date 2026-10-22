@@ -1368,12 +1368,12 @@ if(BUILD_TESTING)
     # section (Dev Tools, the only one that registers ROM-free).
     #
     # MenuComboSection owns step 6's shape: the Combo header and its own sidebar
-    # CVar, both shipped pages non-empty (an empty multi-column page is #640's
-    # undocked-window failure), every row inside a column the page draws, the seven
-    # window rows' CVar/WindowName pairs with EmbedWindow(false), the pointer row
-    # left on Randomizer / Cross-Game so a persisted sidebar name is not stranded,
-    # and the contributed-page extension point lane G hangs #682's MM enhancement
-    # rows off.
+    # CVar, its five pages non-empty (an empty multi-column page is #640's
+    # undocked-window failure), every row inside a column the page draws, the
+    # window rows' CVar/WindowName pairs with EmbedWindow(false), our pages under
+    # the Randomizer header (#1101: MM Randomizer, MM Tricks, Cross-Game after
+    # Tricks/Glitches), the persisted selections carried across renames and
+    # headers, and the contributed-page extension point with its host.
     #
     # SetMenuCount is #497 step 2's second half, which shipped as prose: ADR 0004
     # §3's "one shell" proviso. Ship::Gui holds a SINGLE menu slot, so a second
@@ -1475,10 +1475,11 @@ if(BUILD_TESTING)
     # store but no window.
     redship_add_test(NAME MenuMmEnhancementRows COMMAND redship --test menu-mm-enhancement-rows)
     redship_add_test(NAME MMEnhancementToggles COMMAND redship --test mm-enhancement-toggles)
-    # MM's randomizer options and tricks as Combo pages (ADR 0004's 2026-09-27
-    # host amendment). Display-free and ROM-free, like the two rows above: it
-    # builds a SohMenu probe, walks the registered rows of Combo > MM Randomizer
-    # and Combo > MM Tricks, and runs their PreFuncs and Callbacks itself. The
+    # MM's randomizer options and tricks as Randomizer pages (ADR 0004's
+    # 2026-09-27 host amendment, moved under the Randomizer header by #1101).
+    # Display-free and ROM-free, like the two rows above: it builds a SohMenu
+    # probe, walks the registered rows of Randomizer > MM Randomizer and
+    # Randomizer > MM Tricks, and runs their PreFuncs and Callbacks itself. The
     # row set must equal MM's descriptor table, each row must sit in the model's
     # column, carry the model's state (live, blocked with its reason, frozen) and
     # write only through the gated writers, and the Windows page must no longer
