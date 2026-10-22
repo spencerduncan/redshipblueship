@@ -117,6 +117,10 @@ typedef enum {
     COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
     // #1067, the same shape: gCombo.Rando.SharedOcarinaButtons -> rules.crossItemFlags & 0x01000000.
     COMBO_SETTING_SHARED_OCARINA_BUTTONS,
+    // #1069. Another item-rule bit, the lens's shape: 0 or 1, default 0. On, it
+    // also drops the Song of Time from MM's paired start and forces MM's Moon
+    // Crash Behavior to New Cycle (both read from the FROZEN record).
+    COMBO_SETTING_SHARED_SONG_TIME, // gCombo.Rando.SharedSongTime -> RSBS_XITEM_SHARED_SONG_TIME
     // #968. The three magic arrows' bits #976 reserved, the lens's shape: 0 or
     // 1, default 0 each, one row per arrow (OoTMM's three options).
     COMBO_SETTING_SHARED_ARROW_FIRE,  // gCombo.Rando.SharedArrowFire -> RSBS_XITEM_SHARED_ARROW_FIRE
@@ -285,8 +289,8 @@ typedef struct ComboSettingsKeyUndo {
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
  * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
  * from the session has a key: today the Shared Shields, #1068, the Shared
- * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, and the Shared
- * Bottles, #970), the CVar
+ * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, the Shared Song
+ * of Time, #1069, and the Shared Bottles, #970), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's

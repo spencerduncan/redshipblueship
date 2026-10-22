@@ -3520,6 +3520,19 @@ static void OoT_SharedSongGive(uint16_t nativeId) {
     gSaveContext.inventory.questItems |= OoT_SharedSongQuestBit(nativeId);
 }
 
+// #1069: the Song of Time (OoTMM sharedSongTime). Item_Give(ITEM_SONG_TIME) only
+// sets the song's quest bit, and the ocarina staff builds its playable set from
+// the quest bits alone (z_message_PAL.c, the CHECK_QUEST_ITEM(QUEST_SONG_MINUET +
+// i) loop), so the bit is the whole of knowing the song.
+static bool OoT_SharedSongOfTimeHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+}
+static void OoT_SharedSongOfTimeGive(uint16_t nativeId) {
+    (void)nativeId;
+    gSaveContext.inventory.questItems |= (1u << QUEST_SONG_TIME);
+}
+
 // #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
 // Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot (z_parameter.c
 // has no branch for them, so they take the plain INV_CONTENT write); the bow
@@ -3583,6 +3596,9 @@ struct OoTSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
         const ComboSharedFamilyMember storms = { (uint16_t)RG_SONG_OF_STORMS, OoT_SharedSongHeld, OoT_SharedSongGive };
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember songOfTime = { (uint16_t)RG_SONG_OF_TIME, OoT_SharedSongOfTimeHeld,
+                                                     OoT_SharedSongOfTimeGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SONG_TIME, &songOfTime);
         const ComboSharedFamilyMember fire = { (uint16_t)RG_FIRE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
         const ComboSharedFamilyMember ice = { (uint16_t)RG_ICE_ARROWS, OoT_SharedArrowHeld, OoT_SharedArrowGive };

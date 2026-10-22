@@ -4885,6 +4885,20 @@ static void MM_SharedSongGive(uint16_t nativeId) {
     gSaveContext.save.saveInfo.inventory.questItems |= MM_SharedSongQuestBit(nativeId);
 }
 
+// #1069: the Song of Time (OoTMM sharedSongTime). Item_Give(ITEM_SONG_TIME) only
+// sets the song's quest bit; free play builds the playable set from the quest
+// bits alone (z_message.c, Message_DisplayOcarinaStaffImpl; the #1070 finding),
+// the Songs of Inverted and Double Time follow from it, and songs survive the
+// Song of Time's own reset.
+static bool MM_SharedSongOfTimeHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return CHECK_QUEST_ITEM(QUEST_SONG_TIME) != 0;
+}
+static void MM_SharedSongOfTimeGive(uint16_t nativeId) {
+    (void)nativeId;
+    gSaveContext.save.saveInfo.inventory.questItems |= (1u << QUEST_SONG_TIME);
+}
+
 // #968: the Fire, Ice and Light Arrows (OoTMM sharedMagicArrowFire, Ice,
 // Light). Item_Give(ITEM_ARROW_*) only fills the arrow's own slot, and the
 // Song of Time keeps the magic arrows (only ammo and the cycle's items reset);
@@ -4941,6 +4955,9 @@ struct MMSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_EPONA, &epona);
         const ComboSharedFamilyMember storms = { (uint16_t)RI_SONG_STORMS, MM_SharedSongHeld, MM_SharedSongGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_STORMS, &storms);
+        const ComboSharedFamilyMember songOfTime = { (uint16_t)RI_SONG_TIME, MM_SharedSongOfTimeHeld,
+                                                     MM_SharedSongOfTimeGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SONG_TIME, &songOfTime);
         const ComboSharedFamilyMember fire = { (uint16_t)RI_ARROW_FIRE, MM_SharedArrowHeld, MM_SharedArrowGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_FIRE, &fire);
         const ComboSharedFamilyMember ice = { (uint16_t)RI_ARROW_ICE, MM_SharedArrowHeld, MM_SharedArrowGive };
