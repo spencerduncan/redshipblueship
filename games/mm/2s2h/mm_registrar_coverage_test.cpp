@@ -186,6 +186,23 @@
  *   - OnCameraChangeModeFlags, unkeyed (z_camera.c, Camera_ChangeMode): the
  *     per-mode "may free-look" reset.
  *
+ * PHASE 9 (#1030-#1034) -- THE FIVE KEY-GAP TUs. Accessibility/NoScreenFlashForEnemyKill,
+ * Graphics/3DItemDrops, Cutscenes/MiscInteractions/* (25 TUs), Songs/SkipScarecrowSong and
+ * Equipment/ArrowCycle register only through a file-scope RegisterShipInitFunc
+ * keyed on the key SoH's row writes (PR #1046 moved MM's readers onto it:
+ * gSettings.A11yNoScreenFlashForFinishingBlow, gEnhancements.NewDrops,
+ * gEnhancements.TimeSavers.SkipMiscInteractions, gEnhancements.InstantScarecrow,
+ * gEnhancements.BowArrowCycle), in the plain `2ship_enh` archive, so the linker
+ * dropped all 29 and the five rows stayed dead even once mapped. Same probe as
+ * Phases 5-8: the key ON plus ShipInit::Init(key), driven twice, must raise every
+ * registry the TU(s) write to by EXACTLY the count the table names. Each key is
+ * read by these TUs alone (BenMenu.cpp only draws it; ChuDrops.cpp reads
+ * gEnhancements.NewDrops inline and registers nothing on it), so the delta is
+ * attributable. Nothing a TU defines is named here (a reference would un-elide it).
+ *   - Skip Misc Interactions: the 25 TUs' registrations are summed per bucket in the table
+ *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
+ *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -541,6 +558,112 @@ void ResetFreeLookKeys() {
     }
 }
 
+// ---- Phase 9 (#1030-#1034): the five key-gap TUs ---------------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+#define GAP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define GAP_HOOK_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+
+const std::vector<SkipKeyProbe>& KeyGapProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gSettings.A11yNoScreenFlashForFinishingBlow",
+          "Disable Screen Flash for Finishing Blow",
+          { { "VB_FLASH_SCREEN_FOR_ENEMY_KILL (Accessibility/NoScreenFlashForEnemyKill.cpp)",
+              GAP_VB_COUNT(VB_FLASH_SCREEN_FOR_ENEMY_KILL), 1 } } },
+        { "gEnhancements.NewDrops",
+          "Enable 3D Dropped Items/Projectiles",
+          { { "VB_DRAW_SLIME_BODY_ITEM (Graphics/3DItemDrops.cpp)", GAP_VB_COUNT(VB_DRAW_SLIME_BODY_ITEM), 1 },
+            { "OnActorInit[EN_ITEM00] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_ITEM00), 1 },
+            { "OnActorUpdate[EN_ITEM00] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_ITEM00),
+              1 },
+            { "OnActorInit[EN_TANRON5] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_TANRON5), 1 },
+            { "OnActorUpdate[EN_TANRON5] (Graphics/3DItemDrops.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_TANRON5),
+              1 } } },
+        { "gEnhancements.InstantScarecrow",
+          "Skip Playing Scarecrow's Song",
+          { { "VB_NEED_SCARECROW_SONG (Songs/SkipScarecrowSong.cpp)", GAP_VB_COUNT(VB_NEED_SCARECROW_SONG), 1 } } },
+        { "gEnhancements.BowArrowCycle",
+          "Arrow Cycle",
+          { { "VB_SHIELD_FROM_BUTTON_HOLD (Equipment/ArrowCycle.cpp)", GAP_VB_COUNT(VB_SHIELD_FROM_BUTTON_HOLD), 1 },
+            { "VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON (Equipment/ArrowCycle.cpp)",
+              GAP_VB_COUNT(VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON), 1 },
+            { "OnActorUpdate[PLAYER] (Equipment/ArrowCycle.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        // Skip Misc Interactions: 25 TUs under Cutscenes/MiscInteractions/, one key. Per registry, the contributors:
+        //   VB_START_CUTSCENE 8 = AlienStartAndFail, DekuTelescope, GivingBombersNotebook, KamaroTeachDance,
+        //     KotakeFlying, MayorsOfficeCutscene, RosaSistersDance, TurtleGoodbye.
+        //   VB_PLAY_TRANSITION_CS 3 = AlienStartAndFail, EvanSong, TatlInterrupts.
+        //   ShouldActorInit: EN_MA4 (AlienWarning), DOOR_WARP1 (BossWarpPrompt), EN_SELLNUTS (DekuSalesman),
+        //     EN_GEG (HungryGoronDialogue), EN_ZOG (PushingMikau), EN_BAL (TingleTime).
+        //   OnActorInit: EN_GINKO_MAN (BankerDialogue), EN_STOP_HEISHI (GateGuards), EN_BOM_BOWL_MAN
+        //     (GivingBombersNotebook), EN_OWL (OwlInteractions).
+        //   OnActorUpdate: EN_SELLNUTS and EN_AKINDONUTS (DekuSalesman), EN_SCOPENUTS (DekuTelescope),
+        //     EN_BJI_01 (FallingMoonsTear), EN_KAKASI (ScarecrowDance). OnActorDestroy: EN_BJI_01 (FallingMoonsTear).
+        //   OnOpenText: 0x72F and 0x716 (GivingBombersNotebook), 0x296A (KafeiReveal).
+        //   The rest are single VB buckets, one TU each (named on the row).
+        { "gEnhancements.TimeSavers.SkipMiscInteractions",
+          "Skip Misc Interactions",
+          { { "VB_START_CUTSCENE", GAP_VB_COUNT(VB_START_CUTSCENE), 8 },
+            { "VB_PLAY_TRANSITION_CS", GAP_VB_COUNT(VB_PLAY_TRANSITION_CS), 3 },
+            { "VB_QUEUE_CUTSCENE (SkipEponaReveal.cpp)", GAP_VB_COUNT(VB_QUEUE_CUTSCENE), 1 },
+            { "VB_CONTINUE_BANKER_DIALOGUE (SkipBankerDialogue.cpp)", GAP_VB_COUNT(VB_CONTINUE_BANKER_DIALOGUE), 1 },
+            { "VB_MONKEY_WAIT_TO_TALK_AFTER_APPROACH (SkipBothersomeMonkey.cpp)",
+              GAP_VB_COUNT(VB_MONKEY_WAIT_TO_TALK_AFTER_APPROACH), 1 },
+            { "VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN (SkipGivingBombersNotebook.cpp)",
+              GAP_VB_COUNT(VB_SETUP_EAST_CLOCK_TOWN_BOM_BOWL_MAN), 1 },
+            { "VB_START_GREAT_FAIRY_CUTSCENE (SkipGreatFairyCutscene.cpp)", GAP_VB_COUNT(VB_START_GREAT_FAIRY_CUTSCENE),
+              1 },
+            { "VB_OWL_TELL_ABOUT_SHRINE (SkipOwlInteractions.cpp)", GAP_VB_COUNT(VB_OWL_TELL_ABOUT_SHRINE), 1 },
+            { "VB_TATL_INTERRUPT_MSG (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG), 1 },
+            { "VB_TATL_INTERRUPT_MSG3 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG3), 1 },
+            { "VB_TATL_INTERRUPT_MSG4 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG4), 1 },
+            { "VB_TATL_INTERRUPT_MSG6 (SkipTatlInterrupts.cpp)", GAP_VB_COUNT(VB_TATL_INTERRUPT_MSG6), 1 },
+            { "ShouldActorInit[EN_MA4] (SkipAlienWarning.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_MA4), 1 },
+            { "ShouldActorInit[DOOR_WARP1] (SkipBossWarpPrompt.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_DOOR_WARP1),
+              1 },
+            { "ShouldActorInit[EN_SELLNUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_SELLNUTS),
+              1 },
+            { "ShouldActorInit[EN_GEG] (SkipHungryGoronDialogue.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_GEG),
+              1 },
+            { "ShouldActorInit[EN_ZOG] (SkipPushingMikau.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_ZOG), 1 },
+            { "ShouldActorInit[EN_BAL] (SkipTingleTime.cpp)", GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_BAL), 1 },
+            { "OnActorInit[EN_GINKO_MAN] (SkipBankerDialogue.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_GINKO_MAN),
+              1 },
+            { "OnActorInit[EN_STOP_HEISHI] (SkipGateGuards.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_STOP_HEISHI),
+              1 },
+            { "OnActorInit[EN_BOM_BOWL_MAN] (SkipGivingBombersNotebook.cpp)",
+              GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_BOM_BOWL_MAN), 1 },
+            { "OnActorInit[EN_OWL] (SkipOwlInteractions.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_OWL), 1 },
+            { "OnActorUpdate[EN_SELLNUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_SELLNUTS),
+              1 },
+            { "OnActorUpdate[EN_AKINDONUTS] (SkipDekuSalesman.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_AKINDONUTS),
+              1 },
+            { "OnActorUpdate[EN_SCOPENUTS] (SkipDekuTelescope.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_SCOPENUTS),
+              1 },
+            { "OnActorUpdate[EN_BJI_01] (SkipFallingMoonsTear.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_BJI_01),
+              1 },
+            { "OnActorUpdate[EN_KAKASI] (SkipScarecrowDance.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_KAKASI), 1 },
+            { "OnActorDestroy[EN_BJI_01] (SkipFallingMoonsTear.cpp)", GAP_HOOK_COUNT(OnActorDestroy, ACTOR_EN_BJI_01),
+              1 },
+            { "OnOpenText[0x72F] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x72F), 1 },
+            { "OnOpenText[0x716] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x716), 1 },
+            { "OnOpenText[0x296A] (SkipKafeiReveal.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x296A), 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetKeyGapKeys() {
+    for (const auto& probe : KeyGapProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : KeyGapProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -582,6 +705,10 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     // Phase 8: the same for Free Look.
     for (const auto& probe : FreeLookProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 9: the same for the five key-gap keys.
+    for (const auto& probe : KeyGapProbes()) {
         CVarSetInteger(probe.key, 0);
     }
 
@@ -874,11 +1001,48 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetFreeLookKeys();
 
+    // ---- #1030-#1034: the five key-gap rows --------------------------------------
+    // Same drive as Free Look above.
+    for (const auto& probe : KeyGapProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(17): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the TU(s) behind the \"%s\" row are not in the link (a plain 2ship_enh "
+                       "archive drops a TU whose only anchor is a RegisterShipInitFunc), or one stacks a "
+                       "registration per toggle, so the row SoH's menu draws does nothing or misbehaves in "
+                       "Majora's Mask (#1030-#1034)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetKeyGapKeys();
+                ResetFreeLookKeys();
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 17;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetKeyGapKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
            "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
-           "of #1023 armed both its hooks)\n");
+           "of #1023 armed both its hooks; the 5 key-gap keys of #1030-#1034 each armed their TUs)\n");
     return 0;
 }
 
