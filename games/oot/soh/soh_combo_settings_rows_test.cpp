@@ -210,6 +210,15 @@ int StagedBool(WidgetInfo& row) {
     return p != nullptr ? (*p ? 1 : 0) : -1;
 }
 
+/** #1065: the Shared Lens of Truth row, found by its NAME TEXT (the marker and
+ *  the rule's label) so the lock compiles, and goes red, on a tree that has no
+ *  such row yet; and its rule bit (RSBS_XITEM_SHARED_LENS). */
+const char* const kLensLabel = "Shared Lens of Truth";
+const uint32_t kLensBit = 0x00200000u;
+std::string LensRowName() {
+    return std::string(Combo_ComboSettingSharedMarker()) + " " + kLensLabel;
+}
+
 /**
  * The disabled tooltip a frozen row must show: MenuDrawItem's disabled shape
  * ("This setting is disabled because: \n" then "\n- Reason", Menu.cpp) around
@@ -340,6 +349,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_KOKIRI_SWORD, WIDGET_CHECKBOX, "" },
         // #1068's Shared Shields: a checkbox over a bit of the item rules record.
         { COMBO_SETTING_SHARED_SHIELDS, WIDGET_CHECKBOX, "" },
+        // #1065: the Shared Lens of Truth, the sword's shape over an item rule.
+        { COMBO_SETTING_SHARED_LENS, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -502,7 +513,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // only effect was to carry that free instrument back to Hyrule. Operator
     // ruling 2026-10-09: the row, its key and its effect go. Matched by NAME
     // TEXT, as legs 1c and 1d are, so the check does not depend on the id the
-    // fix removes. The page's one checkbox is #886's Shared Kokiri Sword.
+    // fix removes. The page's three checkboxes are #886's Shared Kokiri Sword,
+    // #1068's Shared Shields and #1065's Shared Lens of Truth.
     {
         int ocarinaRows = 0;
         int checkboxes = 0;
@@ -516,12 +528,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 2,
-                   "the Cross-Game Rules page has %d checkbox row(s); the two expected are the Shared Kokiri Sword "
-                   "(#886) and the Shared Shields (#1068), after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 3,
+                   "the Cross-Game Rules page has %d checkbox row(s); the three expected are the Shared Kokiri Sword "
+                   "(#886), the Shared Shields (#1068) and the Shared Lens of Truth (#1065), after #879 retired the "
+                   "Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 2 "
-               "(#879, #886, #1068)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 3 "
+               "(#879, #886, #1068, #1065)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -563,6 +576,18 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation Shared Kokiri Sword");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1,
                "the writer refused a pre-creation Shared Shields");
+    // #1065: the lens is authored ON through its own row's Callback (the row's
+    // only write path), so the PreFunc below must stage what the writer kept.
+    WidgetInfo* lensRow = FindRow(rows, LensRowName());
+    ROWS_CHECK(lensRow != nullptr && lensRow->type == WIDGET_CHECKBOX && lensRow->callback != nullptr,
+               "no Cross-Game Rules checkbox named '%s' with a Callback (#1065)", LensRowName().c_str());
+    if (lensRow != nullptr && (lensRow->type != WIDGET_CHECKBOX || lensRow->callback == nullptr)) {
+        lensRow = nullptr;
+    }
+    if (lensRow != nullptr) {
+        *std::get<bool*>(lensRow->valuePointer) = true;
+        lensRow->callback(*lensRow);
+    }
 
     RunAllPreFuncs(rows);
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() == nullptr, "the model reports a read-only reason before creation");
@@ -585,6 +610,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 1,
                "the Shared Shields row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
+    if (lensRow != nullptr) {
+        ROWS_CHECK(!lensRow->options->disabled, "the Shared Lens of Truth row is disabled before the creation event");
+        ROWS_CHECK(StagedBool(*lensRow) == 1,
+                   "the Shared Lens of Truth row staged %d after its own Callback authored ON; the edit did not reach "
+                   "the resolver",
+                   StagedBool(*lensRow));
+    }
     printf("[TEST] leg 3: before the creation event every row is editable and stages the resolver's value\n");
 
     // ---- Leg 4: a pre-creation edit reaches the store through the model -----
@@ -653,6 +685,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]) == 0,
                "the frozen Shared Shields row staged %d; it must show the SAVE's OFF, not the CVar's ON",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_SHIELDS]));
+    // #1065: the frozen ITEM RULES record (every rule off: the freeze above
+    // passed none) against the authored ON key.
+    if (lensRow != nullptr) {
+        ExpectDecided(*lensRow, "the Shared Lens of Truth row");
+        ROWS_CHECK(StagedBool(*lensRow) == 0,
+                   "the frozen Shared Lens of Truth row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+                   StagedBool(*lensRow));
+    }
     printf("[TEST] leg 5: once frozen every row is read-only with the model's reason and shows the save's record\n");
 
     // ---- Leg 6: a frozen row's Callback cannot move the store ---------------
@@ -717,6 +757,20 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "after a refused toggle the Shared Kokiri Sword row staged %d; the next frame must restore the "
                    "save's OFF",
                    StagedBool(swordRow));
+
+        // And the lens (#1065): a toggle on a decided world's row must move
+        // neither the frozen item rules nor, after the next PreFunc, the row.
+        if (lensRow != nullptr) {
+            *std::get<bool*>(lensRow->valuePointer) = true;
+            lensRow->callback(*lensRow);
+            ROWS_CHECK(!Combo_ComboCrossItemRule(kLensBit),
+                       "a post-creation toggle changed the world's lens rule; the frozen record is the authority");
+            RunPreFunc(*lensRow);
+            ROWS_CHECK(StagedBool(*lensRow) == 0,
+                       "after a refused toggle the Shared Lens of Truth row staged %d; the next frame must restore "
+                       "the save's OFF",
+                       StagedBool(*lensRow));
+        }
     }
 
     // ---- Leg 7: an unknown direction cannot take the process down ----------
@@ -845,7 +899,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
