@@ -17,6 +17,9 @@ static int frames = 0;
 
 void RegisterSkipFallingMoonsTear() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BJI_01, CVAR, [](Actor* actor) {
+        // #1030-#1034, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnBji01* bji = (EnBji01*)actor;
         if (bji->actor.playerHeightRel >= -350.0f && !CHECK_WEEKEVENTREG(WEEKEVENTREG_74_80)) {
             // Normally set in the cutscene
