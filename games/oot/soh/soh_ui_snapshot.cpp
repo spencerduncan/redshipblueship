@@ -2065,7 +2065,9 @@ void Session::BuildPageList() {
                 // lens: #1065's Shared Lens of Truth checkbox and its tooltip, by
                 // its row name (marker and label) in the first state.
                 // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
-                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "lens", "ocarina-buttons", "frozen-goal" };
+                // bottles: #970's Shared Bottles checkbox and its tooltip.
+                p.hovers = { "direction",       "goal",    "kokiri-sword", "shields", "lens",
+                             "ocarina-buttons", "bottles", "frozen-goal" };
                 p.hoverRows["lens"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Lens of Truth";
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
@@ -3428,6 +3430,7 @@ void Session::CaptureMenuPage(const PageSpec& p) {
                                           : (hv == "kokiri-sword")    ? COMBO_SETTING_SHARED_KOKIRI_SWORD
                                           : (hv == "shields")         ? COMBO_SETTING_SHARED_SHIELDS
                                           : (hv == "ocarina-buttons") ? COMBO_SETTING_SHARED_OCARINA_BUTTONS
+                                          : (hv == "bottles")         ? COMBO_SETTING_SHARED_BOTTLES
                                                                       : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }

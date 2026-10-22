@@ -622,6 +622,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             key = MMItemRandoIcon(RI_TRIFORCE_PIECE);
             break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            key = MMItemIcon(ITEM_BOTTLE);
+            break;
         default:
             break;
     }

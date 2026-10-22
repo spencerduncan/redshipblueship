@@ -150,12 +150,20 @@ extern "C" {
  * table, which is indexed by KIND (stable) rather than by slot (slots are found
  * by scan and a future compaction could move them).
  */
-#define RSBS_SHARED_RES_KIND_COUNT 21u
+#define RSBS_SHARED_RES_KIND_COUNT 22u
+
+/* Every kind one world can arm at once must have a slot in the two blocks: the
+ * real kinds less the retired ocarina tier, which is never armed (#879). Today
+ * that is twenty of twenty (#970's bottles took the last one), so the next kind
+ * fails here and needs a third block (context.h), rather than silently finding
+ * no slot at its first harvest. */
+RSBS_CTX_STATIC_ASSERT(RSBS_SHARED_RES_KIND_COUNT - 2u <= RSBS_SHARED_RESOURCE_TOTAL_CAP,
+                       "more shared-resource kinds can be armed at once than the two blocks have slots");
 
 /**
  * Is `kind` ARMED for this world?
  *
- * Seventeen of the twenty kinds are unconditional: #525 decided that both
+ * Seventeen of the twenty-one kinds are unconditional: #525 decided that both
  * games share one wallet, one health bar, one magic meter, one set of ammo and
  * one hookshot, and no save can turn that off. RSBS_SHARED_RES_OCARINA_TIER
  * (#668) was the first that a PLAYER chose, through a tier-4 key frozen into
@@ -166,6 +174,8 @@ extern "C" {
  * (Combo_TriforceHuntArmed, triforce_hunt.h). RSBS_SHARED_RES_KOKIRI_SWORD
  * (#886) is armed only by the FROZEN record's RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD
  * bit, the player's Cross-Game Rules choice (Combo_ComboSharedKokiriSword).
+ * RSBS_SHARED_RES_BOTTLE_COUNT (#970) is armed only by the FROZEN item rules'
+ * RSBS_XITEM_SHARED_BOTTLES bit (Combo_ComboCrossItemRule).
  *
  * THE GATE LIVES HERE, ONCE, AND BOTH ENTRY POINTS CONSULT IT. A gate written
  * into the four per-game call sites instead would be four chances to gate one

@@ -1861,6 +1861,47 @@ static void ComboTrimGroup(const ComboLogicComposeRequest* req, uint8_t* disp, i
     }
 }
 
+/**
+ * A SLOTS kind (#970's bottles): every kept copy, REQUIRED or SURPLUS, takes one
+ * slot when it is given, and so does every kept copy of a registered SLOT
+ * RESERVE (Ruto's Letter; shared_items.h), which feeds no kind and is never
+ * trimmed. The pair's slot-bound items must not outnumber the shared count's
+ * `fixedCap` slots, or the count can fill a game's slots before a reserve is
+ * found and the reserve's give finds no empty slot (PR #1094 review F1).
+ *
+ * So the reserves are counted first, per origin, and the REQUIRED budget is
+ * the tier budget over (copies + reserves) less the reserves; SURPLUS copies
+ * keep only the slots both left free (none, once the cap is reached).
+ */
+static void ComboTrimSlots(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch, uint8_t kind,
+                           const ComboSharedQuantityPolicy* policy, ComboLogicComposeResult* res) {
+    int reserved[3] = { 0, 0, 0 }; // indexed by GameId
+    for (int i = 0; i < req->rowCount; ++i) {
+        const uint8_t origin = req->rows[i].item.originGame;
+        if (disp[i] != (uint8_t)RSBS_COMBO_COMPOSE_TRIMMED && (origin == GAME_OOT || origin == GAME_MM) &&
+            Combo_SharedSlotReserveKind(req->rows[i].item) == kind) {
+            reserved[origin]++;
+        }
+    }
+    const int reserves = reserved[GAME_OOT] + reserved[GAME_MM];
+    int nO = 0;
+    int nM = 0;
+    ComboTrimCount(req, disp, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, &nO, &nM);
+    int budget = Combo_SharedQuantityTierBudget(policy, nO + reserved[GAME_OOT], nM + reserved[GAME_MM]);
+    if (budget < 0) {
+        return; // unreachable: a SLOTS budget is never kept whole
+    }
+    budget = (budget > reserves) ? budget - reserves : 0;
+    ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_REQUIRED, budget, res);
+    if (policy->fixedCap == 0u) {
+        return; // no slot cap to keep under: surplus copies stay (unreachable for today's one SLOTS kind)
+    }
+    const int keptRequired = (nO + nM < budget) ? nO + nM : budget;
+    const int left = (int)policy->fixedCap - reserves - keptRequired;
+    ComboTrimGroup(req, disp, scratch, kind, COMBO_TRIM_GRADE_ANY, (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS,
+                   (left > 0) ? left : 0, res);
+}
+
 static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8_t* disp, int* scratch,
                                       ComboLogicComposeResult* res) {
     const uint16_t start =
@@ -1892,6 +1933,10 @@ static void ComboTrimSharedQuantities(const ComboLogicComposeRequest* req, uint8
                 ComboTrimGroup(req, disp, scratch, kind, grades[g], (uint8_t)RSBS_COMBO_COMPOSE_SURPLUS,
                                (sO > sM) ? sO : sM, res);
             }
+            continue;
+        }
+        if (policy.budget == RSBS_SHARED_QTY_BUDGET_SLOTS) {
+            ComboTrimSlots(req, disp, scratch, kind, &policy, res);
             continue;
         }
         int nO = 0;

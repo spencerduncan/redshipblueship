@@ -629,6 +629,9 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             OOT_SHARED_ICON("RG_TRIFORCE_PIECE");
             break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT: // #970
+            OOT_SHARED_ICON("ITEM_BOTTLE");
+            break;
         default:
             break;
     }
