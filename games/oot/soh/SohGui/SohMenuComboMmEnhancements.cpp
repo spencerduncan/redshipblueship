@@ -77,6 +77,8 @@
 #include "combo_mm_options_page.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <map>
 #include <string>
 
 namespace SohGui {
@@ -424,6 +426,32 @@ static RegisterComboSectionPage_t sMmLocationsPage(COMBO_MM_LOCATIONS_PAGE_NAME,
                                                    ComboPageHost::Randomizer);
 static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, AddMmTricksWidgets,
                                                 ComboPageHost::Randomizer);
+
+/**
+ * #1037: MM's own damage multiplier row, hosted beside SoH's on Enhancements > Difficulty.
+ *
+ * SoH's "Damage Multiplier" writes gEnhancements.DamageMult (0-8: 1x to 256x, left-shifts) and MM reads its own key
+ * with a different list (0-4 plus 10 = 1 Hit KO), so the keys stay apart (RSBS::kMustStayDistinct) and each game
+ * has its own control. This is the project-added function: SohMenuEnhancements.cpp calls it right after SoH's row
+ * and nothing else of SoH's page changes. The key comes from the src/common constant because games/oot may not
+ * spell MM's key (the classification lock's 3c-2). The widget is its own writer, and the ShipInit::Init it makes
+ * re-arms MM's registrar (#539).
+ */
+void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path) {
+    // MM's value list, in SoH's voice (allPowers): the left-shift of the damage MM applies, 0-4, and 10 = 1 Hit KO.
+    // Static storage: the combobox keeps a pointer to the map.
+    static const std::map<int32_t, const char*> mmDamageMultipliers = {
+        { 0, "Vanilla (1x)" }, { 1, "Double (2x)" },   { 2, "Quadruple (4x)" },
+        { 3, "Octuple (8x)" }, { 4, "Foolish (16x)" }, { 10, "1 Hit KO" },
+    };
+    menu.AddWidget(path, "MM Damage Multiplier", WIDGET_CVAR_COMBOBOX)
+        .CVar(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)
+        .Options(
+            ComboboxOptions()
+                .ComboMap(mmDamageMultipliers)
+                .DefaultIndex(0)
+                .Tooltip("Multiplies the damage Link takes from all sources, up to 1 Hit KO. Majora's Mask only."));
+}
 
 /** The page's registered name, for the lock. Defined here so the test cannot
  *  drift from the registration by spelling the literal a second time. */
