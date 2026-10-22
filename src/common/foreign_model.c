@@ -294,6 +294,7 @@ int Combo_ModelAddPart(ComboModel* model, const char* dl, uint8_t layer, uint8_t
         return 0;
     }
     ComboModelPart part;
+    memset(&part, 0, sizeof(part));
     part.dl = dl;
     part.layer = layer;
     part.billboard = billboard;

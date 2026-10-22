@@ -538,6 +538,76 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
     return 0;
 }
 
+/**
+ * TEST BRIDGE (ForeignModel row M17, #964): the shelf's REAL draw call for OoT
+ * check `rc`, every path mounted (test override), its XLU layer read back:
+ * `bound[s]` 1 for each segment it binds before its first model list, the prim
+ * and env colours (RGBA) the list bound to `colorSegment` sets (zero when none
+ * is bound), and the translation of the matrix in force at each model list.
+ * Returns the number of model lists, or -1 when the draw left OoT's matrix
+ * stack unbalanced.
+ */
+extern "C" int OoT_ForeignModel_TestShelfXlu(uint16_t rc, uint8_t bound[16], uint8_t colorSegment, uint8_t prim[4],
+                                             uint8_t env[4], float translation[][3], int maxParts) {
+    OoTFakeDrawPlay fake;
+    const int savedMount = sHostMountOverride;
+    sHostMountOverride = 1;
+    sHostEmitUnresolved = true;
+    OoT_ForeignModel_DrawForOoTCheck(fake.play, rc);
+    sHostEmitUnresolved = false;
+    sHostMountOverride = savedMount;
+    std::memset(bound, 0, 16);
+    std::memset(prim, 0, 4);
+    std::memset(env, 0, 4);
+    if (OoT_sCurrentMatrix != fake.stack) {
+        return -1;
+    }
+    int parts = 0;
+    Mtx* current = nullptr;
+    for (const Gfx* g = fake.xlu.data(); g < fake.gfxCtx->polyXlu.p; g++) {
+        const uint32_t w0 = (uint32_t)g->words.w0;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        const uint32_t op = (w0 >> 24) & 0xFF;
+        if (op == (uint32_t)(uint8_t)G_MOVEWORD && (w0 & 0xFF) == G_MW_SEGMENT) {
+            const uint32_t segment = ((w0 >> 8) & 0xFFFF) / 4;
+            if (parts == 0 && segment < 16) {
+                bound[segment] = 1;
+            }
+            if (segment == colorSegment && w1 != 0) {
+                // The bound colour list, read up to its end.
+                for (const Gfx* c = (const Gfx*)w1; c < (const Gfx*)w1 + 8; c++) {
+                    const uint32_t cop = ((uint32_t)c->words.w0 >> 24) & 0xFF;
+                    const uint32_t rgba = (uint32_t)c->words.w1;
+                    uint8_t* dst = cop == (uint32_t)(uint8_t)G_SETPRIMCOLOR  ? prim
+                                   : cop == (uint32_t)(uint8_t)G_SETENVCOLOR ? env
+                                                                             : nullptr;
+                    if (dst != nullptr) {
+                        dst[0] = (uint8_t)(rgba >> 24);
+                        dst[1] = (uint8_t)(rgba >> 16);
+                        dst[2] = (uint8_t)(rgba >> 8);
+                        dst[3] = (uint8_t)rgba;
+                    }
+                    if (cop == (uint32_t)(uint8_t)G_ENDDL) {
+                        break;
+                    }
+                }
+            }
+        } else if (op == (uint32_t)(uint8_t)G_MTX) {
+            current = (Mtx*)w1;
+        } else if (op == (uint32_t)(uint8_t)G_DL && w1 != 0 && std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+            if (parts < maxParts && current != nullptr) {
+                MtxF mf;
+                OoT_Matrix_MtxToMtxF(current, &mf);
+                translation[parts][0] = mf.xw;
+                translation[parts][1] = mf.yw;
+                translation[parts][2] = mf.zw;
+            }
+            parts++;
+        }
+    }
+    return parts;
+}
+
 // hook_handlers.cpp: the treasure chest game's prize display, seen through the
 // Lens of Truth (the drawFunc the actor-init hook gives it).
 void ItemEtcetera_DrawRandomizedItemThroughLens(ItemEtcetera* itemEtcetera, PlayState* play);

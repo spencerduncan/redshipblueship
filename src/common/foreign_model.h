@@ -77,6 +77,11 @@ extern "C" {
 #define COMBO_MODEL_MAX_PARTS 8
 /** Most scrolling-texture segments one get-item draw binds (OoT's jewels: 2). */
 #define COMBO_MODEL_MAX_SCROLLS 2
+/** Most segments one get-item draw fills with a fixed colour list (MM's stray
+ *  fairy: 2, its body and its glow). */
+#define COMBO_MODEL_MAX_SEGMENT_COLORS 2
+/** Most joints a posed model carries (MM's stray fairy skeleton: 9 limbs). */
+#define COMBO_MODEL_MAX_JOINTS 10
 
 /** Values are stable: both games and the test bridges agree on them. */
 typedef enum {
@@ -100,6 +105,10 @@ typedef struct {
     /** 1: drawn under the camera-facing rotation (after `billboardOffset`), the
      *  way the origin draws a flame or a bottled spirit. */
     uint8_t billboard;
+    /** 0: drawn under the model's (or the camera-facing) matrix. n: drawn under
+     *  joint n - 1's matrix (`joints`), the way a skeleton draws a limb's list
+     *  (#964). */
+    uint8_t joint;
 } ComboModelPart;
 
 /**
@@ -135,6 +144,34 @@ typedef struct {
     uint8_t env[3];
 } ComboModelColor;
 
+/**
+ * A segment the origin fills with a fixed colour list before drawing `layer`:
+ * gDPSetPrimColor(0, primLodFrac, prim) then gDPSetEnvColor(env), the list an
+ * animated material's colour track binds (MM's AnimatedMat_SetColor), frozen at
+ * one frame. The parts jump into it with a raw G_DL to that segment, so a host
+ * that drew them without it would follow whatever the segment held. An unused
+ * slot has segment 0 (#964).
+ */
+typedef struct {
+    uint8_t segment;
+    uint8_t layer;
+    uint8_t primLodFrac;
+    uint8_t prim[4];
+    uint8_t env[4];
+} ComboModelSegmentColor;
+
+/**
+ * One joint of a posed skeleton (#964): its matrix is its parent's (the model's
+ * matrix for a root, parent -1) times a translate by `pos` and a ZYX rotation by
+ * `rot`, what both games' SkelAnime does per limb (Matrix_TranslateRotateZYX).
+ * A parent always comes before its children.
+ */
+typedef struct {
+    int8_t parent;
+    int16_t pos[3];
+    int16_t rot[3];
+} ComboModelJoint;
+
 typedef struct {
     /** Parts in the origin's emission order (order matters within a layer). */
     uint8_t partCount;
@@ -161,6 +198,15 @@ typedef struct {
     /** Translation applied before the camera-facing rotation of the billboard
      *  parts (OoT's blue fire sits off-centre). */
     float billboardOffset[3];
+    /** Fixed colour lists bound to segments before the parts (#964). */
+    ComboModelSegmentColor segmentColors[COMBO_MODEL_MAX_SEGMENT_COLORS];
+    /** A posed skeleton the parts name by `joint` (#964); 0 joints for none. */
+    uint8_t jointCount;
+    ComboModelJoint joints[COMBO_MODEL_MAX_JOINTS];
+    /** Nonzero: every joint's matrix, in joint order, is also bound to this
+     *  segment as one array, the way a flex skeleton binds segment 0xD (a limb
+     *  list that skins across limbs loads its neighbours' matrices from it). */
+    uint8_t jointSegment;
 } ComboModel;
 
 typedef struct {
