@@ -33,7 +33,10 @@
  * THE SHARED GROUP. The shared-resource pool (shared_resources.h) is a third
  * source, origin-neutral by construction: rupees, hearts, magic, ammo and the
  * rest are one quantity across both games. It is harvested at every game switch
- * and before every save, so its rows are STALE, never live.
+ * and before every save, so its rows are STALE, never live. It also draws each
+ * SHARED FAMILY the frozen rules arm (#976, #1065: the Lens of Truth) once, held
+ * when the pool or either game's own copy holds it, and the games' own rows for
+ * that family are then left out of their sections.
  *
  * A SHARED TIER SHOWS ONCE (#967). The quiver, the bomb bag, the stick and nut
  * bags and (under the shared-sword rule) the Kokiri Sword are one item for the
@@ -93,6 +96,11 @@ typedef struct {
     // copy dimmed once the Shared column holds the tier, so an item never reads as held twice.
     uint8_t sharedKind;
     uint8_t sharedTier;
+    // The RSBS_XITEM_* shared family (foreign_items.h) this row is the game's own
+    // copy of, set by the adapter; 0 for every other row. While the frozen rules
+    // arm that family the view draws it ONCE, in the Shared group, and leaves
+    // this game's row out (#1065's Lens of Truth the first).
+    uint32_t sharedFamily;
 } ComboItemRow;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
@@ -203,7 +211,8 @@ void MM_ItemAdapter_Register(void);
 /** Which source `game`'s rows come from right now (see the header comment). */
 uint8_t Combo_ItemFreshness(uint8_t game);
 
-/** Rows for `game`; 0 whenever its data is UNAVAILABLE. */
+/** Rows for `game`; 0 whenever its data is UNAVAILABLE. A row whose shared
+ *  family the Shared group draws is not counted (and Combo_ItemRowAt skips it). */
 int Combo_ItemCount(uint8_t game);
 
 /** Fill `out` with `game`'s row `index`, read from the source the view picks for
@@ -240,7 +249,8 @@ uint8_t Combo_ItemSharedFreshness(void);
 const char* Combo_ItemSharedLabel(void);
 
 /** Shared rows: one per resource this world shares (the triforce pieces only
- *  when armed); 0 while the pool is empty. */
+ *  when armed), then one per shared family the frozen rules arm; 0 while the
+ *  pool is empty. */
 int Combo_ItemSharedCount(void);
 
 /** Fill `out` with shared row `index`, its icon the active game's own (OoT's
