@@ -361,10 +361,11 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     //
     // Mapping is not the same as live. The first three rows (#1027-#1029) have
     // readers that are LINKED (the actor-cull TUs and AuthenticGfxPatches.cpp).
-    // The other eight providers sit in the plain 2ship_enh archive and are
-    // elided from the single exe today, so those rows are mapped and wait on the
-    // link-class issues to become effective; mapping first means the day a
-    // provider links it already reads the one shared key.
+    // The other eight providers sat in the plain 2ship_enh archive and were
+    // elided from the single exe; mapping came first so the day a provider
+    // linked it already read the one shared key, and #1030-#1036 and #1038 have
+    // since carved them into the WHOLE_ARCHIVE'd registrars list (games/mm/
+    // CMakeLists.txt), which test_cvar_classification pins row by row.
     // Defaults: N64WeirdFrames (#1038) is the one row whose MM reader default
     // differed (2Ship: on, to match hardware); the reader now takes OoT's off, so
     // the one checkbox cannot show a state MM is not in. SkipMiscInteractions
@@ -381,6 +382,20 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     { "gEnhancements.Equipment.MagicArrowEquipSpeed", "gEnhancements.SkipArrowAnimation", false },
     { "gEnhancements.DifficultyOptions.PermanentHeartLoss", "gEnhancements.PermanentHeartLoss", false },
     { "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames", false },
+    // #1062: the ocarina D-pad and right-stick switches and "Prevent Dropped Ocarina Inputs". MM kept them
+    // under Playback.*; SoH writes gSettings.CustomOcarina.Dpad and gSettings.CustomOcarina.RightStick (Settings >
+    // Controls > Ocarina Controls) and gEnhancements.DpadNoDropOcarinaInput.
+    // All bool, default off, read per frame by GameInteractor_Dpad,
+    // GameInteractor_RightStickOcarina and the two ocarina input loops, so a plain rename. The held-apart P6 pair that
+    // stood in kMustStayDistinct is gone: both games have all three switches, and the one genuinely OoT-only piece (the
+    // custom button-mapping layer, gSettings.CustomOcarina.Enabled) has no MM key to pair.
+    { "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad", false },
+    { "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick", false },
+    { "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput", false },
+    // #1064: SoH's Containers Match Contents. MM's chest/pot/grass/crate/barrel readers sat on gRando.CSMC (its only
+    // widget, in the excluded Rando/Menu.cpp, never drew). Both bool, default off. ChestSizeDependsStoneOfAgony stays
+    // OoT-only: MM has no Stone of Agony.
+    { "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents", false },
 };
 
 /**
@@ -411,7 +426,8 @@ struct DistinctPair {
 };
 
 /**
- * Inventory §4 rows (P1-P7, minus the ones with no single representative key)
+ * Inventory §4 rows (P1-P7, minus the ones with no single representative key and
+ * minus P6, which #1062 converged: the D-pad and right-stick ocarina switches)
  * plus §5.3's four PARKED rows, which are real convergence candidates blocked
  * on maintainer answers rather than settled non-merges.
  */
@@ -429,9 +445,6 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "
       "input device (right stick / gyro / first-person). No 1:1 mapping — OoT has no gyro axis, MM has no "
       "shield-aim axis. Merging drops settings on both sides." },
-    { "P6 ocarina d-pad input", "gEnhancements.Playback.DpadOcarina", "gSettings.OcarinaControl.Dpad",
-      "Split across different top-level namespaces with different member sets: MM adds right-stick "
-      "ocarina, OoT adds a custom-mapping layer. Structurally parallel, not identical." },
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
@@ -1078,10 +1091,11 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // §5.3 remainder's 26 rows (the 3 held out are ClimbSpeed and the two parked
 // cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. The #966 audit adds 11
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
-// out in kMustStayDistinct). 32 + 11 = 43. Pinning the count makes a silently
-// dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 43, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
-                                        "key-name gaps (11 of 12; #1037 held out) = 43");
+// out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
+// right-stick and no-dropped-input switches, Containers Match Contents). 32 + 11 + 4 = 47. Pinning
+// the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 47, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+                                        "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) = 47");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to

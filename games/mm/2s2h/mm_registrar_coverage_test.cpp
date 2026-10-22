@@ -203,6 +203,17 @@
  *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
  *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
  *
+ * PHASE 10 (#1035, #1036, #1038) -- THE THREE REMAINING KEY-GAP TUs. Equipment/SkipMagicArrowEquip,
+ * DifficultyOptions/PermanentHeartLoss and Restorations/N64WeirdFrames/N64WeirdFrames have the shape of
+ * Phase 9 (PR #1046 moved their readers onto gEnhancements.SkipArrowAnimation, gEnhancements.PermanentHeartLoss
+ * and gEnhancements.N64WeirdFrames; each registers only through a file-scope RegisterShipInitFunc in the plain
+ * `2ship_enh` archive) and ride the same table. Each key is read by its one TU alone, so the delta is
+ * attributable.
+ *   - Skip Magic Arrow Equip Animation: OnKaleidoUpdate, unkeyed (z_kaleido_scope_NES.c, through
+ *     MM_GameHooks_ExecuteOnKaleidoUpdate).
+ *   - Permanent Heart Loss: OnActorUpdate[ACTOR_PLAYER].
+ *   - N64 Weird Frames: VB_LOAD_PLAYER_ANIMATION_FRAME (z_skelanime.c, AnimTaskQueue_AddLoadPlayerFrame).
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -587,6 +598,19 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
             { "VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON (Equipment/ArrowCycle.cpp)",
               GAP_VB_COUNT(VB_EXIT_FIRST_PERSON_MODE_FROM_BUTTON), 1 },
             { "OnActorUpdate[PLAYER] (Equipment/ArrowCycle.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        // #1035, #1036, #1038: the three providers PR #1046 mapped and the first link wave left out.
+        { "gEnhancements.SkipArrowAnimation",
+          "Skip Magic Arrow Equip Animation",
+          { { "OnKaleidoUpdate, unkeyed (Equipment/SkipMagicArrowEquip.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnKaleidoUpdate>(); }, 1 } } },
+        { "gEnhancements.PermanentHeartLoss",
+          "Permanent Heart Loss",
+          { { "OnActorUpdate[PLAYER] (DifficultyOptions/PermanentHeartLoss.cpp)",
+              GAP_HOOK_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        { "gEnhancements.N64WeirdFrames",
+          "N64 Weird Frames",
+          { { "VB_LOAD_PLAYER_ANIMATION_FRAME (Restorations/N64WeirdFrames/N64WeirdFrames.cpp)",
+              GAP_VB_COUNT(VB_LOAD_PLAYER_ANIMATION_FRAME), 1 } } },
         // Skip Misc Interactions: 25 TUs under Cutscenes/MiscInteractions/, one key. Per registry, the contributors:
         //   VB_START_CUTSCENE 8 = AlienStartAndFail, DekuTelescope, GivingBombersNotebook, KamaroTeachDance,
         //     KotakeFlying, MayorsOfficeCutscene, RosaSistersDance, TurtleGoodbye.
@@ -707,7 +731,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     for (const auto& probe : FreeLookProbes()) {
         CVarSetInteger(probe.key, 0);
     }
-    // Phase 9: the same for the five key-gap keys.
+    // Phase 9: the same for the key-gap keys (#1030-#1036, #1038).
     for (const auto& probe : KeyGapProbes()) {
         CVarSetInteger(probe.key, 0);
     }
@@ -1042,7 +1066,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
            "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
-           "of #1023 armed both its hooks; the 5 key-gap keys of #1030-#1034 each armed their TUs)\n");
+           "of #1023 armed both its hooks; the 8 key-gap keys of #1030-#1036 and #1038 each armed their TUs)\n");
     return 0;
 }
 

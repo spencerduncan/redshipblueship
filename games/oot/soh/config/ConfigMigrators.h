@@ -1652,9 +1652,9 @@ std::vector<Migration> version8Migrations = {
 };
 
 /**
- * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038).
+ * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038, #1062, #1064).
  *
- * Eleven more MM keys move onto the spelling Ship of Harkinian's menu writes,
+ * Fifteen more MM keys move onto the spelling Ship of Harkinian's menu writes,
  * for settings both games mean identically. MM's readers sat on a differently
  * spelled twin with no manifest row, so the control moved a key nothing in MM
  * read. Direction MM -> OoT per ADR 0003 decision (3).
@@ -1663,7 +1663,7 @@ std::vector<Migration> version8Migrations = {
  * block at the end of RSBS::kConvergedKeys), so all are pure renames and need
  * no value transform. Same conflict rule as versions 7 and 8 (ADR 0003 §6.3):
  * OoT's value wins, and the MM spelling is cleared either way so the migration
- * cannot oscillate. This table mirrors those eleven rows of RSBS::kConvergedKeys
+ * cannot oscillate. This table mirrors those fifteen rows of RSBS::kConvergedKeys
  * (the 2Ship importer maps through the manifest itself); test_cvar_classification
  * fails when a row is missing from either place. #1037's damage multiplier is
  * not here: its value spaces differ, so it waits in RSBS::kMustStayDistinct.
@@ -1686,5 +1686,13 @@ std::vector<Migration> version9Migrations = {
     { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.PermanentHeartLoss",
       "gEnhancements.PermanentHeartLoss" },
     { MigrationAction::RenameIfAbsent, "gEnhancements.Restorations.N64WeirdFrames", "gEnhancements.N64WeirdFrames" },
+    // #1062: the ocarina D-pad / right-stick / no-dropped-input switches (MM kept them under Playback.*).
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Playback.RightStickOcarina",
+      "gSettings.CustomOcarina.RightStick" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Playback.NoDropOcarinaInput",
+      "gEnhancements.DpadNoDropOcarinaInput" },
+    // #1064: Containers Match Contents (MM's rando readers kept it under gRando.CSMC).
+    { MigrationAction::RenameIfAbsent, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
 };
 } // namespace SOH
