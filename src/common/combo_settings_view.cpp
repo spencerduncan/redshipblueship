@@ -47,13 +47,14 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_LENS, "Shared Lens of Truth" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_EPONA, "Shared Epona's Song" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_STORMS, "Shared Song of Storms" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_OCARINA_BUTTONS, "Shared Ocarina Buttons" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
     return (int)id >= 0 && (int)id < (int)COMBO_SETTING_COUNT;
 }
 
-// THE ITEM-RULE KEYS (#1068, #1065): the settings that author one RSBS_XITEM_* bit of
+// THE ITEM-RULE KEYS (#1068, #1065, #1067): the settings that author one RSBS_XITEM_* bit of
 // the frozen ComboItemRulesRecord rather than a field of ComboSettingsRecord.
 // One row per Cross-Game Rules row, in page order (the restore names them in
 // this order). Every bit here is a plain 0/1 rule.
@@ -62,10 +63,11 @@ struct ItemRuleKey {
     uint32_t bit;
 };
 const ItemRuleKey kItemRuleKeys[] = {
-    { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS },         // #1068
-    { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },               // #1065
-    { COMBO_SETTING_SHARED_SONG_EPONA, RSBS_XITEM_SHARED_SONG_EPONA },   // #1066
-    { COMBO_SETTING_SHARED_SONG_STORMS, RSBS_XITEM_SHARED_SONG_STORMS }, // #1066
+    { COMBO_SETTING_SHARED_SHIELDS, RSBS_XITEM_SHARED_SHIELDS },                 // #1068
+    { COMBO_SETTING_SHARED_LENS, RSBS_XITEM_SHARED_LENS },                       // #1065
+    { COMBO_SETTING_SHARED_SONG_EPONA, RSBS_XITEM_SHARED_SONG_EPONA },           // #1066
+    { COMBO_SETTING_SHARED_SONG_STORMS, RSBS_XITEM_SHARED_SONG_STORMS },         // #1066
+    { COMBO_SETTING_SHARED_OCARINA_BUTTONS, RSBS_XITEM_SHARED_OCARINA_BUTTONS }, // #1067
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -107,9 +109,10 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (defaults.comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:
         case COMBO_SETTING_SHARED_LENS:
-        case COMBO_SETTING_SHARED_SONG_EPONA:    // #1066
-        case COMBO_SETTING_SHARED_SONG_STORMS: { // #1066
-            // A bit of the item rules' defaults (#1068, #1065), the same
+        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
+        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: {
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067), the same
             // one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
@@ -138,10 +141,11 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
                    value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
-        case COMBO_SETTING_SHARED_SHIELDS:     // #1068: one crossItemFlags bit, the same rule
-        case COMBO_SETTING_SHARED_LENS:        // #1065: likewise
-        case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066, the same
-        case COMBO_SETTING_SHARED_SONG_STORMS: // #1066, the same
+        case COMBO_SETTING_SHARED_SHIELDS:         // #1068: one crossItemFlags bit, the same rule
+        case COMBO_SETTING_SHARED_LENS:            // #1065: likewise
+        case COMBO_SETTING_SHARED_SONG_EPONA:      // #1066, the same
+        case COMBO_SETTING_SHARED_SONG_STORMS:     // #1066, the same
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS: // #1067: likewise
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -312,12 +316,13 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
-    // (kItemRuleKeys) is one row under it (#1068, #1065). Restorable only when
+    // (kItemRuleKeys) is one row under it (#1068, #1065, #1067). Restorable only when
     // every differing bit has a key (ItemRulesKeyedDiff).
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SHIELDS },
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_LENS },
-    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_EPONA },  // #1066
-    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_STORMS }, // #1066
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_EPONA },      // #1066
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_STORMS },     // #1066
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_OCARINA_BUTTONS }, // #1067
 };
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
@@ -343,6 +348,7 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_LENS:
         case COMBO_SETTING_SHARED_SONG_EPONA:  // #1066
         case COMBO_SETTING_SHARED_SONG_STORMS: // #1066
+        case COMBO_SETTING_SHARED_OCARINA_BUTTONS:
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         default:
