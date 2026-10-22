@@ -166,6 +166,12 @@ uint32_t Combo_SingleBag_SeedFor(int ladderAttempt);
  *  frozen identity: its own domain tag, no ladder attempt (see rule 3 above). */
 uint32_t Combo_SingleBag_TrimSeed(void);
 
+/** THE SHARED PAIRS the bag composes for this world (ABI 7, #976): every family
+ *  slot the FROZEN record arms whose two native copies are both registered, as
+ *  (OoT id, MM id), at most @p cap. Exactly what Combo_SingleBag_Run hands the
+ *  composer; empty with every rule off. Returns the count. */
+int Combo_SingleBag_SharedPairs(ComboLogicSharedPair* out, int cap);
+
 /** The pair-level FOOLISH analysis's seed (epic #575 H4: OoTMM's probabilistic
  *  zig-zag, `analysis-foolish.ts`) under the frozen identity: its own domain tag,
  *  no ladder attempt, so the analysis can never alias the fill's or the trim's

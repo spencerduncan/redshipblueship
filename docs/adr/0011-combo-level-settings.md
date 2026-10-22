@@ -1836,3 +1836,38 @@ bumped by hand in any PR that re-pins a golden for a world-moving reason
 Locked by `ComboGeneratorVersion` (the fold, the legacy and newer-version load
 legs, the version-free bag seeds, the file-select text) and `ComboSettingsCanonical`
 (vectors pinned at explicit versions 0 and 1).
+
+### 2026-10-21 -- The "Shared Shields" rule, and a rule with two pairs (#1068)
+
+The first item rule with an authoring surface (operator ruling 2026-10-20:
+follow OoTMM's `sharedShields`, off by default). One Cross-Game Rules row,
+"[Both Games] Shared Shields", key `gCombo.Rando.SharedShields` (0 or 1,
+IDENTITY), resolved into `crossItemFlags` by `Combo_ResolveComboItemRules` and
+frozen at creation like every rule.
+
+- **The bit.** `RSBS_XITEM_SHARED_SHIELDS` 0x02000000, a family. The bits
+  between it and #976's 21 are #1065, #1066 and #1067's (0x00200000 to
+  0x01000000), and 0x04000000 is #1069's. `RSBS_XITEM_ALL_V1` is
+  0x021FFFFF on this change alone.
+- **One rule, two pairs.** OoT's Hylian Shield with MM's Hero's Shield, and the
+  two Mirror Shields. A family is one ownership bit, so the second pair needs a
+  bit of its own in `sharedFamilyOwned`: an **extra family slot**
+  (`RSBS_XFAMILY_SLOTS_EXTRA`, pinned and append-only like the rule bits). The
+  Mirror pair's is `RSBS_XFAMILY_SLOT_MIRROR_SHIELD` 0x80000000: bit 31 is never
+  a rule bit, so it is free in the ownership bitset, and it is never a
+  `crossItemFlags` bit (a record holding it is still invalid). The rule arms
+  its own bit and its extra slot together (`Combo_SharedFamilySlotsArmedBy`);
+  the registry, the OR merge and the bag's pair list work over slots.
+- **Restore.** The item rules diverge as one bit, so a key under it is restored
+  only when every `crossItemFlags` bit that differs from the session has a key
+  in this build (`Combo_ComboSettingsUnrestorableBits`). A rule only a later
+  build authors is still refused by name, as before.
+- With the rule off nothing changes: the record stays all clear, the
+  fingerprint and every `Golden*` digest hold, nothing is armed or registered
+  into the bag.
+
+Locked by `CrossItemRulesRecord` (the bit allocated, named, valid and a
+family), `SharedShieldsPairs` (both games register both pairs, the bag names
+them, the real composer makes each one shared row) and `SharedShieldsArrival`
+(through both games' real shims, the shield found in one game is given and
+worn in the other; off, nothing crosses).
