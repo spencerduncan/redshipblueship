@@ -122,6 +122,8 @@ typedef enum {
     COMBO_SETTING_SHARED_ARROW_FIRE,  // gCombo.Rando.SharedArrowFire -> RSBS_XITEM_SHARED_ARROW_FIRE
     COMBO_SETTING_SHARED_ARROW_ICE,   // gCombo.Rando.SharedArrowIce -> RSBS_XITEM_SHARED_ARROW_ICE
     COMBO_SETTING_SHARED_ARROW_LIGHT, // gCombo.Rando.SharedArrowLight -> RSBS_XITEM_SHARED_ARROW_LIGHT
+    // #970, the same shape: gCombo.Rando.SharedBottles -> rules.crossItemFlags & 0x00100000.
+    COMBO_SETTING_SHARED_BOTTLES,
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -276,7 +278,8 @@ typedef struct ComboSettingsKeyUndo {
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
  * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
  * from the session has a key: today the Shared Shields, #1068, the Shared
- * Lens of Truth, #1065, and the Shared Ocarina Buttons, #1067), the CVar
+ * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, and the Shared
+ * Bottles, #970), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's

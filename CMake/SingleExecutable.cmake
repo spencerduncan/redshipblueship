@@ -660,6 +660,13 @@ if(BUILD_TESTING)
     # either game's Kokiri Sword lights both through the real harvest/apply shims;
     # with it off, neither crosses and no slot appears. Display-free, ROM-free.
     redship_add_test(NAME SharedKokiriSword COMMAND redship --test shared-kokiri-sword)
+    # #970: the Shared Bottles rule. The key reaches the frozen record; with it on,
+    # the bottle count is one tier through both games' real harvest/apply shims
+    # (empty slots given, filled slots untouched, capped at OoT's four) and the
+    # fill keeps four of the pair's bottle items. ROM-free.
+    redship_add_test(NAME SharedBottlesRule COMMAND redship --test shared-bottles-rule)
+    redship_add_test(NAME SharedBottlesTier COMMAND redship --test shared-bottles-tier)
+    redship_add_test(NAME SharedBottlesTrim COMMAND redship --test shared-bottles-trim)
     # #991/#992: one wallet progression. A wallet found in Termina is the pair's
     # wallet, so OoT's arrival apply sets RAND_INF_HAS_WALLET at tier 1 or more
     # (logic's capacity and the per-frame rupee pin then agree with the tier),

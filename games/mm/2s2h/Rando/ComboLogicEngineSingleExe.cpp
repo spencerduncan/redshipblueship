@@ -2154,6 +2154,14 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RI_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #970: a bottle, whatever it holds (MM's six bottle checks). The policy
+        // trims only while the frozen Shared Bottles rule arms the kind.
+        case RI_BOTTLE_EMPTY:
+        case RI_BOTTLE_CHATEAU_ROMANI:
+        case RI_BOTTLE_GOLD_DUST:
+        case RI_BOTTLE_MILK:
+        case RI_BOTTLE_RED_POTION:
+            return RSBS_SHARED_RES_BOTTLE_COUNT;
         default:
             return 0u;
     }
