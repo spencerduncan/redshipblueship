@@ -55,6 +55,8 @@
 // gSaveContext.
 #include "combo_settings_view.h"
 #include "foreign_items.h"
+// The status sentences every randomizer page of ours shares (#1101 decision 7).
+#include "combo_mm_options_page.h"
 // The windows the Windows page opens: their registered names and visibility
 // CVars, from the constants the windows themselves are built with.
 #include "ComboSpoilerWindow.h"
@@ -384,10 +386,9 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
                  "Session state is corrupt: these rules are frozen but no paired world is loaded, so the values "
                  "below are not in effect. Return to the title screen.");
     } else if (reason != nullptr) {
-        snprintf(buffer, sizeof(buffer),
-                 "Already decided when this world was created (fingerprint %08X). Return to the title screen to "
-                 "choose rules for a new world.",
-                 (unsigned)summary.comboSettingsHash);
+        // The frozen sentence every randomizer page of ours shares (#1101
+        // decision 7), with the identity the rules are frozen to.
+        Combo_RandoPages_FrozenNote(summary.comboSettingsHash, buffer, sizeof(buffer));
     } else if (summary.paired) {
         snprintf(buffer, sizeof(buffer),
                  "Your paired world predates these rules and will use the defaults. Keep them at the defaults "
@@ -395,12 +396,10 @@ static void ComboRuleStatusPreFunc(WidgetInfo& info) {
     } else {
         // No paired file is loaded, so the rows author the NEXT world. Loading
         // an existing paired file puts that file's own rules back (#781), so an
-        // edit here never reaches a world that already exists. It wraps at the
-        // page's one column (#844): one line at desk-1280x800, two at
-        // min-832x600; the freeze itself is the frozen state's own sentence.
-        snprintf(buffer, sizeof(buffer),
-                 "These rules apply to the next paired world you create. Loading a paired file restores its own "
-                 "rules.");
+        // edit here never reaches a world that already exists. One sentence for
+        // every randomizer page of ours (#1101 decision 7), so MM Randomizer, MM
+        // Tricks and Cross-Game say it in the same words.
+        snprintf(buffer, sizeof(buffer), "%s", COMBO_RANDO_PAGES_NEXT_WORLD_NOTE);
     }
     comboRuleStatusText = buffer;
     info.name = comboRuleStatusText;
@@ -549,8 +548,70 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     // paired world holding its Ocarina of Time, so the rule's only effect was
     // to hand OoT a free Fairy Ocarina at the first return.
 
+    // ---- Shared Items (#1101) ----------------------------------------------
+    // OoTMM's own section name for its "Shared <Item>" rules (Items > Extended
+    // Items > Shared Items), and its order: the rows below follow the order
+    // OoTMM's settings list them in (packages/core/src/settings/data.ts:
+    // arrows, songs, Lens of Truth, masks, swords, shields, ocarina buttons,
+    // bottles). A rule added later takes its OoTMM place, not the end of the
+    // list; ComboSettingsRows leg 1f holds the whole order by name.
+    menu.AddWidget(path, "Shared Items", WIDGET_SEPARATOR_TEXT);
+
+    // Shared Epona's Song and Shared Song of Storms (#1066; OoTMM sharedSongEpona,
+    // sharedSongStorms, off by default): the lens row's shape, one row per song.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_EPONA), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSongEpona)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedSongEpona = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_EPONA)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_EPONA) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, comboRuleSharedSongEpona ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes Epona's Song one song across both games: learning it in either game teaches it to you in the "
+            "other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only one "
+            "Epona's Song is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_STORMS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSongStorms)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedSongStorms = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_STORMS)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_STORMS) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, comboRuleSharedSongStorms ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Song of Storms one song across both games: learning it in either game teaches it to you in "
+            "the other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only "
+            "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
+            "too."));
+
+    // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
+    // first rule of the cross-game item rules record (#976). The sword row's
+    // pattern, except that the frozen value is a bit of the item rules, read
+    // through the frozen-rule accessor rather than ComboRuleShownRecord.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_LENS), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedLens)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedLens = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_LENS)
+                                          : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_LENS) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, comboRuleSharedLens ? 1 : 0); })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Lens of Truth one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Lens of Truth is shuffled, and both games' logic counts it."));
+
     // The Shared Kokiri Sword (#886; operator ruling 2026-10-09 on #879: an
-    // option, default off), where the Shared Ocarina row was. One line: the
+    // option, default off): OoTMM's sharedSwords, which it lists after the
+    // masks and before the shields. One line: the
     // page is one column since #844, so "[Both Games] Shared Kokiri Sword"
     // fits beside the box at min-832x600 (the retired row needed a two-line
     // name on the old two-column page).
@@ -593,57 +654,6 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Shields one item: finding one in either game gives it to you in the other. In Majora's Mask the Mirror "
             "Shield replaces the Hero's Shield. Shops still sell their own game's shield. The Deku Shield stays "
             "Ocarina of Time's own."));
-    // The Shared Lens of Truth (#1065; OoTMM sharedLens, off by default), the
-    // first rule of the cross-game item rules record (#976). The sword row's
-    // pattern, except that the frozen value is a bit of the item rules, read
-    // through the frozen-rule accessor rather than ComboRuleShownRecord.
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_LENS), WIDGET_CHECKBOX)
-        .ValuePointer(&comboRuleSharedLens)
-        .PreFunc([](WidgetInfo& info) {
-            const bool decided = Combo_ComboSettingsFrozen();
-            comboRuleSharedLens = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_LENS)
-                                          : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_LENS) != 0;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback(
-            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, comboRuleSharedLens ? 1 : 0); })
-        .Options(CheckboxOptions().Tooltip(
-            "Makes the Lens of Truth one item across both games: finding it in either game gives it to you in the "
-            "other. Only one Lens of Truth is shuffled, and both games' logic counts it."));
-
-    // Shared Epona's Song and Shared Song of Storms (#1066; OoTMM sharedSongEpona,
-    // sharedSongStorms, off by default): the lens row's shape, one row per song.
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_EPONA), WIDGET_CHECKBOX)
-        .ValuePointer(&comboRuleSharedSongEpona)
-        .PreFunc([](WidgetInfo& info) {
-            const bool decided = Combo_ComboSettingsFrozen();
-            comboRuleSharedSongEpona = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_EPONA)
-                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_EPONA) != 0;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) {
-            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_EPONA, comboRuleSharedSongEpona ? 1 : 0);
-        })
-        .Options(CheckboxOptions().Tooltip(
-            "Makes Epona's Song one song across both games: learning it in either game teaches it to you in the "
-            "other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only one "
-            "Epona's Song is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy too."));
-    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SONG_STORMS), WIDGET_CHECKBOX)
-        .ValuePointer(&comboRuleSharedSongStorms)
-        .PreFunc([](WidgetInfo& info) {
-            const bool decided = Combo_ComboSettingsFrozen();
-            comboRuleSharedSongStorms = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SONG_STORMS)
-                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SONG_STORMS) != 0;
-            ComboRuleApplyDecided(info, decided);
-        })
-        .Callback([](WidgetInfo& info) {
-            Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_STORMS, comboRuleSharedSongStorms ? 1 : 0);
-        })
-        .Options(CheckboxOptions().Tooltip(
-            "Makes the Song of Storms one song across both games: learning it in either game teaches it to you in "
-            "the other, and both games' logic counts it. With Ocarina of Time's Shuffle Songs set to Anywhere, only "
-            "one Song of Storms is shuffled; with any other Shuffle Songs setting, Ocarina of Time keeps its own copy "
-            "too."));
 
     // The Shared Ocarina Buttons (#1067; OoTMM's sharedOcarinaButtons, default
     // off). The Shared Shields row's pattern exactly.

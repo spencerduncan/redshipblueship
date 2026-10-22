@@ -587,12 +587,15 @@ void DrawMmTrickList(WidgetInfo& info) {
 } // namespace
 
 /**
- * Combo > MM Randomizer: MM's 47 randomizer options as rows, laid out like SoH's
- * Randomizer > General (two columns, SEPARATOR_TEXT groups in MM's own
- * taxonomy, the primary button at 250 px). Column 1 opens with the page's state
- * notes and its two warnings, then Logic & Conditions and Shuffle Options;
- * column 2 holds Items, Starting Items, Hints and Reset. The column of each
- * group is the model's (Combo_MMOptionsPage_GroupColumn).
+ * Randomizer > MM Randomizer: MM's 47 randomizer options as rows, laid out like
+ * SoH's Randomizer > General (two columns, SEPARATOR_TEXT groups, the primary
+ * button at 250 px). The groups are SoH's own Randomizer headers in SoH's order
+ * (#1101: the one randomizer menu speaks one vocabulary). Column 1 opens with
+ * the page's state notes and its warning, then Logic, Win Condition, Area Access
+ * and Shuffle Items; column 2 holds Shuffle Shops & Merchants, Additional Items,
+ * Traps, Hints, Starting Items and Reset. The column of each group is the
+ * model's (Combo_MMOptionsPage_GroupColumn), its name the model's
+ * (Combo_MMOptionGroupName).
  *
  * No "[Both Games]" marker: every row is a tier-3 Majora's Mask key, none is in
  * RSBS::kSharedIntentKeys, so no row claims to apply to both games (ADR 0004
