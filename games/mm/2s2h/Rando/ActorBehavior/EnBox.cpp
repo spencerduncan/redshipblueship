@@ -218,7 +218,7 @@ void Rando::ActorBehavior::InitEnBoxBehavior() {
         ENBOX_RC = randoCheckId;
         actor->params = ((actor->params & ~(0x7F << 5)) | ((GI_RECOVERY_HEART & 0x7F) << 5));
 
-        if (CVarGetInteger("gRando.CSMC", 0)) {
+        if (CVarGetInteger("gEnhancements.ChestSizeAndTextureMatchContents", 0)) {
             actor->draw = EnBox_RandoDraw;
         }
     });
@@ -234,7 +234,7 @@ static RegisterShipInitFunc initFunc(
 
         while (actor != NULL) {
             if (actor->id == ACTOR_EN_BOX) {
-                if (CVarGetInteger("gRando.CSMC", 0) && IS_RANDO) {
+                if (CVarGetInteger("gEnhancements.ChestSizeAndTextureMatchContents", 0) && IS_RANDO) {
                     actor->draw = EnBox_RandoDraw;
                 } else if (actor->draw == EnBox_RandoDraw) {
                     actor->draw = MM_EnBox_Draw;
@@ -244,7 +244,7 @@ static RegisterShipInitFunc initFunc(
             actor = actor->next;
         }
     },
-    { "gRando.CSMC", "IS_RANDO" });
+    { "gEnhancements.ChestSizeAndTextureMatchContents", "IS_RANDO" });
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // ROM-free harness guard (#392): with no mm.o2r registered,

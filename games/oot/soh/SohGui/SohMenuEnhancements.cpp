@@ -1231,7 +1231,8 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("PermanentHeartLoss"))
         .Options(CheckboxOptions().Tooltip(
             "When you lose 4 quarters of a heart you will permanently lose that Heart Container.\n\n"
-            "Disabling this after the fact will restore your Heart Containers."));
+            "Disabling this after the fact will restore your Heart Containers in Ocarina of Time; Majora's Mask "
+            "keeps what was already lost."));
     AddWidget(path, "Damage Multiplier", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_ENHANCEMENT("DamageMult"))
         .Options(ComboboxOptions().ComboMap(allPowers).DefaultIndex(0).Tooltip(
