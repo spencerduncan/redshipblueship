@@ -156,6 +156,21 @@
  * Each key is driven TWICE per probe, so a registrar that stacks one
  * registration per toggle shows up as a second delta.
  *
+ * PHASE 7 (#1024-#1026) -- THE THREE AUDIO EDITOR TUs. Audio/Sfx/MuteLowHpAlarm,
+ * Audio/Sfx/DisableEnemyProximityMusic and Audio/AudioHook (the sequence-name
+ * notification) register only through a file-scope RegisterShipInitFunc keyed on
+ * the gAudioEditor.* key SoH's Audio Editor row writes (kSharedIntentKeys), in
+ * the plain `2ship_enh` archive, so the linker dropped all three and the rows did
+ * nothing in Majora's Mask. Same probe as Phases 5 and 6: the key ON plus
+ * ShipInit::Init(key), driven twice, must raise the registry the TU writes to by
+ * EXACTLY the count the table names. Nothing a TU defines is named here (a
+ * reference would un-elide it).
+ *   - gAudioEditor.LowHpAlarm: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c).
+ *   - gAudioEditor.EnemyBGMDisable: VB_PLAY_ENEMY_PROXIMITY_MUSIC (z_player.c).
+ *   - gAudioEditor.SeqNameNotification: OnSeqPlayerInit, unkeyed (audio/lib/load.c).
+ *     The duration row, gAudioEditor.SeqNameNotificationDuration, is READ by that
+ *     same TU's handler at emit time, so it has no registration of its own.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -448,6 +463,41 @@ void ResetEnhKeys() {
     }
 }
 
+// ---- Phase 7 (#1024-#1026): the three Audio Editor TUs ---------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+const std::vector<SkipKeyProbe>& AudioProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gAudioEditor.LowHpAlarm",
+          "Mute Low HP Alarm",
+          { { "VB_PLAY_LOW_HP_ALARM (Audio/Sfx/MuteLowHpAlarm.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_LOW_HP_ALARM); }, 1 } } },
+        { "gAudioEditor.EnemyBGMDisable",
+          "Disable Enemy Proximity Music",
+          { { "VB_PLAY_ENEMY_PROXIMITY_MUSIC (Audio/Sfx/DisableEnemyProximityMusic.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_ENEMY_PROXIMITY_MUSIC); },
+              1 } } },
+        { "gAudioEditor.SeqNameNotification",
+          "Display Sequence Name in Notifications",
+          { { "OnSeqPlayerInit, unkeyed (Audio/AudioHook.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSeqPlayerInit>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetAudioKeys() {
+    for (const auto& probe : AudioProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : AudioProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -481,6 +531,10 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     // Phase 6: the same for the enhancement keys (an operator config may hold
     // any of them on, and a linked TU would then arm at MM_Rando_Init).
     for (const auto& probe : EnhProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 7: the same for the Audio Editor keys.
+    for (const auto& probe : AudioProbes()) {
         CVarSetInteger(probe.key, 0);
     }
 
@@ -688,6 +742,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
                 ResetEnhKeys();
                 ResetSkipKeys();
                 ResetCheatKeys();
+                ResetAudioKeys();
                 return 14;
             }
         }
@@ -699,10 +754,47 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetEnhKeys();
 
+    // ---- #1024-#1026: the three Audio Editor TUs -----------------------------
+    // Same drive as the enhancement loop above: ONE key on, ShipInit::Init(key)
+    // twice, every registry the key's TU writes to must move by exactly the
+    // table's count.
+    for (const auto& probe : AudioProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(15): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - the Audio Editor TU behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so the row does nothing or misbehaves in Majora's Mask "
+                       "(#1024-#1026)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 15;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetAudioKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
-           "theirs)\n");
+           "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs)\n");
     return 0;
 }
 
