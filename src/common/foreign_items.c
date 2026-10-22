@@ -189,6 +189,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedLightArrows";
         case RSBS_XITEM_SHARED_BOTTLES:
             return "sharedBottles";
+        case RSBS_XITEM_SHARED_SHIELDS:
+            return "sharedShields";
         default:
             return "(unknown)";
     }
@@ -225,15 +227,21 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec) {
 }
 
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
-    // NO AUTHORING SURFACE YET (#976 adds the format and the mechanism; the
-    // Cross-Game Rules rows come with the phase that gives each rule its
-    // behaviour, epic #975 P2 on). So the session's rules are the shipped
-    // defaults, every world this build creates freezes every rule off, and the
-    // one-resolver discipline holds trivially: creation and every compare read
-    // this one function. When the keys land, they are read HERE and nowhere
-    // else, validated through Combo_ComboItemRulesValid with an invalid store
-    // resolving to the defaults with a logged reason.
+    if (out == NULL) {
+        return;
+    }
+    // THE SHIPPED DEFAULTS, OVERLAID WITH THE AUTHORED RULES: the one resolver
+    // creation and every compare read (Combo_ResolveComboSettings' discipline).
+    // crossItemFlags is ASSEMBLED from its rule keys, never overlaid, as
+    // comboFlags is: each key authors one bit, so every bit without a key stays
+    // 0 whatever a store holds. Combo_ComboSettingResolved validates each value
+    // against its 0/1 space and resolves anything else to the default with a
+    // logged reason, so the assembled record is always valid. With every key
+    // unset this is the defaults, byte for byte.
     Combo_ComboItemRulesDefaults(out);
+    if (Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SHIELDS) != 0) {
+        out->crossItemFlags |= (uint32_t)RSBS_XITEM_SHARED_SHIELDS; // #1068
+    }
 }
 
 uint32_t Combo_ComboCrossItemFlags(void) {
