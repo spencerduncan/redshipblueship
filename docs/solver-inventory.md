@@ -638,8 +638,8 @@ before increment 3 because trick sets freeze into identity (ADR 0010 §3.3).
   it as the *dominant* first-attempt failure (14/66 heavy-profile seeds, 0
   dead-ends); #582 holds the budget decision.
 - Digest: `MM_Rando_HeadlessForeignDigest` (`mm_rando_gen_test.cpp:1004-1140`)
-  emits `mmFinalSeed`, `mmPlacementHash`, `mmReachableCount`,
-  `mmReachableHash`, `mmPairedAttempt`, and every foreign placement;
+  emits `mmFinalSeed`, `mmPlacementHash`,
+  `mmPairedAttempt`, and every foreign placement;
   `MM_Rando_HeadlessPairedAttemptDigest` (`:2373`) is the ladder's two-process
   twin.
 
@@ -839,7 +839,7 @@ both generations already run in one process from one master seed.
 
 | Row | Anchors | Folds |
 |---|---|---|
-| RandoDeterminism / SeedDeterminism (two-process) | `test_runner.cpp:858`; `menu.cpp:508`; `CMake/CheckSeedDeterminism.cmake` | OoT `seed`, `settingsHash`, `placementHash`, `placedCount`, `foreignOoTHash/Count`, `comboSettingsHash`; MM `mmFinalSeed`, `mmPlacementHash`, `mmReachableCount/Hash`, `mmPairedAttempt`, `foreign0..3` |
+| RandoDeterminism / SeedDeterminism (two-process) | `test_runner.cpp:858`; `menu.cpp:508`; `CMake/CheckSeedDeterminism.cmake` | OoT `seed`, `settingsHash`, `placementHash`, `placedCount`, `foreignOoTHash/Count`, `comboSettingsHash`; MM `mmFinalSeed`, `mmPlacementHash`, `mmPairedAttempt`, `foreign0..3` |
 | MMRandoGen | `mm_rando_gen_test.cpp`; `SingleExecutable.cmake:963` | placement-in-closure (FAIL 30), premise (29), coverage (33), closure purity + save byte-identity (28), under-supply (31/32) |
 | MMPairedAttempt / MMPairedAttemptDeterminism | `:2373`; `CMake/CheckPairedAttemptDeterminism.cmake` | injected rung → attempt 1; two-process byte-diff of seed + attempt + placements |
 | MMPairedExhaustion | `test_runner.cpp:1212` | 10-rung exhaustion refuses; timeout does not climb |
