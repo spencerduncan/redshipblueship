@@ -677,6 +677,12 @@ main() {
         "RegisterSkipTatlInterrupts()"
         "RegisterSkipTingleTime()"
         "RegisterSkipTurtleGoodbye()"
+        # #1035, #1036, #1038: Skip Magic Arrow Equip Animation, Permanent Heart Loss and N64 Weird Frames, in
+        # lib2ship_enh_registrars.a. The last two are MM_-prefixed in the source because OoT ships a registrar of the
+        # same name (PermanentLosses.cpp has a static one; N64WeirdFrames.cpp an exported one); the first has no OoT twin.
+        "RegisterSkipMagicArrowEquip()"
+        "MM_RegisterPermanentHeartLoss()"
+        "MM_RegisterN64WeirdFrames()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do

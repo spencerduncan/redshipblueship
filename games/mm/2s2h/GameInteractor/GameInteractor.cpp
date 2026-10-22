@@ -390,7 +390,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 
     switch (type) {
         case GI_DPAD_OCARINA:
-            if (CVarGetInteger("gEnhancements.Playback.DpadOcarina", 0)) {
+            if (CVarGetInteger("gSettings.CustomOcarina.Dpad", 0)) {
                 result = buttonCombo;
             }
             break;
@@ -407,7 +407,7 @@ uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo) {
 uint32_t GameInteractor_RightStickOcarina(Input* input) {
     uint32_t result = 0;
 
-    if (!CVarGetInteger("gEnhancements.Playback.RightStickOcarina", 0)) {
+    if (!CVarGetInteger("gSettings.CustomOcarina.RightStick", 0)) {
         return result;
     }
 

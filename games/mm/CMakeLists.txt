@@ -491,6 +491,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Songs/SkipScarecrowSong.cpp"
         # #1034
         "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
+        # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;
+        # the body touches only the kaleido equip-state globals and the pauseCtx the dispatcher passes)
+        "2s2h/Enhancements/Equipment/SkipMagicArrowEquip.cpp"
+        # #1036 (Permanent Heart Loss, OnActorUpdate[PLAYER]; MM_RegisterPermanentHeartLoss is MM_-prefixed because OoT's
+        # PermanentLosses.cpp has a same-named static registrar the CI symbol probe could not tell apart)
+        "2s2h/Enhancements/DifficultyOptions/PermanentHeartLoss.cpp"
+        # #1038 (N64 Weird Frames, VB_LOAD_PLAYER_ANIMATION_FRAME from z_skelanime; OoT ships an identically named
+        # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
+        "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
+        "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 
