@@ -418,13 +418,17 @@ int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t
  * Tier-3 SaveContext bytes the .redsave carries; its RANDO_SAVE_OPTIONS and
  * randoSaveTricks are what creation resolved).
  *
- * Writes only when the half's options and tricks, folded with the LIVE
- * excluded-check list and starting-item block, reproduce @p frozenDigest
- * exactly — i.e. only when writing them is known to restore the file's
- * identity. The excluded-check list and the starting-item block are identity
- * inputs the file does not record (and no single-exe page authors), so a
- * divergence there, an MM half that is not a randomizer save, or a half too
- * short to read returns UNRESTORABLE with nothing written: the arrival gate
+ * Since #1101 lane R3 the half also records the excluded-check set
+ * (randoSaveExcludedChecks), which Randomizer > MM Locations authors into
+ * `gRando.ExcludedChecks`, and the restore writes it back too, in the list's
+ * one spelling (combo_mm_locations_view.h).
+ *
+ * Writes only when the half's options, tricks, trap types and excluded checks,
+ * folded with the paired start, reproduce @p frozenDigest exactly — i.e. only
+ * when writing them is known to restore the file's identity. The paired start
+ * is an identity input the file does not record (a constant since #879), so a
+ * file created before it, an MM half that is not a randomizer save, or a half
+ * too short to read returns UNRESTORABLE with nothing written: the arrival gate
  * stays the last line of defence for those. If the keys it did write still do
  * not resolve @p frozenDigest (unreachable while the resolver and the save
  * write agree), every one of them is put back as it was, set to its old value

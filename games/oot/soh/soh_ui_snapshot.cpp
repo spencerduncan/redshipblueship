@@ -141,9 +141,10 @@
 // src/common (on soh's include path). All game-header-free.
 #include "ComboSpoilerWindow.h"
 #include "ComboTrackerWindow.h"
-#include "combo_logic.h"           // RSBS_COMBO_HALF_* (the goal-warning toast page)
-#include "pairing_refusal_toast.h" // the cross-game refusal toast pages
-#include "combo_mm_options_page.h" // Randomizer > MM Randomizer / MM Tricks: page names, row suffix, reset title
+#include "combo_logic.h"             // RSBS_COMBO_HALF_* (the goal-warning toast page)
+#include "pairing_refusal_toast.h"   // the cross-game refusal toast pages
+#include "combo_mm_locations_view.h" // Randomizer > MM Locations: page name, the check table, its writers
+#include "combo_mm_options_page.h"   // Randomizer > MM Randomizer / MM Tricks: page names, row suffix, reset title
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
@@ -2036,6 +2037,10 @@ void Session::BuildPageList() {
         // the SoH pages whose shape they take.
         { std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME, "Randomizer/General" },
         { std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
+        // MM's excluded checks (#1101 lane R3), in the shape of SoH's
+        // Randomizer > Locations, whose own page is not captured: SoH's other
+        // bordered two-column table page.
+        { std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
         { "Combo/Save Files", "Randomizer/Tricks/Glitches" },
@@ -2284,6 +2289,23 @@ void Session::BuildPageList() {
                 }
                 // The hovers above read four rows; the census reads every row.
                 p.trickCensus = true;
+            } else if (p.id == std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME) {
+                // Unpaired: the shared sentence, with one check excluded so both
+                // columns draw rows (EnterState); frozen: the shared frozen
+                // sentence. The model's notes (combo_mm_locations_view.c).
+                p.states = { "unpaired", "frozen" };
+                p.stateText["unpaired"] = { "These apply to the next world you generate.",
+                                            "Loading a paired file shows its own." };
+                p.stateText["frozen"] = { "Already decided when this world was created" };
+                p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
+                // One hover: the first check the table lists, once the world is
+                // decided (SoH's disabled shape, "Already Decided"). Its name is
+                // drawn through the combo_ui seam, as a trick's is, so the rect
+                // recorder finds it inside the table's child.
+                p.hoverCompareWith = "Settings/Graphics";
+                if (Combo_MMLocationCount() > 0 && Combo_MMLocationAt(0) != nullptr) {
+                    p.paneHovers.push_back({ "location-frozen", "frozen", Combo_MMLocationAt(0)->name, true });
+                }
             }
             pages.push_back(p);
         }
@@ -2931,7 +2953,8 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             CVarSetInteger(CVAR_SETTING("DisableChanges"), 1);
         }
     } else if (p.id == std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME ||
-               p.id == std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME) {
+               p.id == std::string("Randomizer/") + COMBO_MM_TRICKS_PAGE_NAME ||
+               p.id == std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME) {
         // Majora's Mask running unless the state is the suspended one, so the
         // suspended note shows in exactly one state; frozen is a creation stamp.
         Context_SetCurrentGame(state == "mm-suspended" ? GAME_OOT : GAME_MM);
@@ -2941,6 +2964,12 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             for (const ComboMMTrickDesc* d : CensusOnTricks()) {
                 Combo_MMTrickSetValue(d, true);
             }
+        }
+        if (p.id == std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME && Combo_MMLocationCount() > 1) {
+            // The last check the table lists goes to Forced Junk before any
+            // freeze (the writer refuses once frozen), so both columns draw
+            // rows; the hover's check (the first) stays Included.
+            Combo_MMLocationSetExcluded(Combo_MMLocationAt(Combo_MMLocationCount() - 1)->id, true);
         }
         if (state == "frozen") {
             AuthorPairing();
@@ -3000,6 +3029,10 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     ComboContext_Init();
     Combo_Crossings_Clear();
+    if (p.id == std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME) {
+        // After ComboContext_Init: the writers refuse while the stamp stands.
+        Combo_MMLocationsClearExcluded();
+    }
     if (p.trickCensus) {
         // After ComboContext_Init: the writers refuse while the stamp stands.
         for (const ComboMMTrickDesc* d : CensusOnTricks()) {

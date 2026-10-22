@@ -376,6 +376,9 @@ int MM_PairedProfile_RunHeadless(void);
 // Rando::Logic::Regions. The table bridge is graph-free and runs in the
 // display-free tier; the GBT bridge needs the region graph. Return 0 on pass.
 int MM_TrickTable_RunHeadless(void);
+// games/mm/2s2h/mm_locations_view_test.cpp (#1101 lane R3): Randomizer > MM
+// Locations' model over MM's check table and gRando.ExcludedChecks. Return 0 on pass.
+int MM_LocationsView_RunHeadless(void);
 int MM_TrickGbtGate_RunHeadless(void);
 // games/mm/2s2h/mm_trick_bindings_test.cpp (#578 part 2): the table-driven
 // red/green lock on every trick binding part 2 authored. Needs the region graph
@@ -5719,6 +5722,23 @@ TestResult Test_MMTrickTable(void) {
     return MM_TrickTable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Randomizer > MM Locations' model (#1101 lane R3). The bring-up mm-trick-table
+// uses: no Gui and no region graph, the real ConsoleVariables store, and the
+// real MM_Rando_ComputeProfileStamp.
+TestResult Test_MMLocations(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_LocationsView_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM trick GATE lock on the live region graph (#578 finding (b)). Needs MM's
 // boot, because Rando::Logic::Regions is populated by ShipInit registrars — the
 // same requirement (and the same bring-up) as mm-rando-gen, so `--test all`
@@ -7318,6 +7338,10 @@ const TestDescriptor gTests[] = {
     { "mm-trick-table",
       "MM's trick table is total, mirrored and honest; the Powder Keg gate and the trick digest term are real (#578)",
       Test_MMTrickTable },
+    { "mm-locations",
+      "MM Locations lists MM's checks and writes gRando.ExcludedChecks only through gated writers the digest "
+      "follows (#1101)",
+      Test_MMLocations },
     { "mm-trick-gbt-gate", "The Great Bay Temple boss-key edge is gated on MMRT_GBT_BOSS_KEY_ICE (#578)",
       Test_MMTrickGbtGate },
     // Keep archive-hotswap-logic LAST: it re-inits the entrance table, so it

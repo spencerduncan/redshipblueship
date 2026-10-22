@@ -860,3 +860,14 @@ Tricks/Glitches and Plandomizer, the host seam, the cross-header carry), `MenuMm
 order), `ComboSettingsRows` (the rules' host), `UiSnapshot` and `UiSnapshotMin` (page ids `Randomizer/MM Randomizer`,
 `Randomizer/MM Tricks` and `Randomizer/Cross-Game`; `Combo/Cross-Game Rules` and the pointer page retired). The later
 lanes of #1101 (R2 vocabulary, R3 MM Locations, R4 trap types, R5 docs) amend this section when they land.
+
+**Lane R3 (2026-10-21): Randomizer > MM Locations.** Majora's Mask's excluded checks (`gRando.ExcludedChecks`, MM's
+own key; MM's elided Check Filter tab was its only surface) are a page between MM Randomizer and MM Tricks, one column
+in the shape of SoH's Randomizer > Locations: the gray status note, a section header and one custom row, the Included /
+Forced Junk table. The model is `src/common/combo_mm_locations_view.{h,c}` (the check table, one row per check MM's
+pool can hold, built MM-side beside the combo tracker's name and area resolvers; a gated writer that refuses while
+the profile is frozen and under Vanilla logic, and writes MM's one spelling of the list). The list is world identity
+(the profile digest folds it, now as a set), so the MM half records it (`randoSaveExcludedChecks`) and the load-time
+restore (#781) puts it back. Locks: `MMLocations`, `PairedLoadRestore` leg 2e, `MenuMmRandomizerPages` legs 1 and 9,
+`MenuComboSection` leg 4, `UiSnapshot` / `UiSnapshotMin` (page `Randomizer/MM Locations`). The sidebar now has 16
+entries; SoH's own 12 already scroll at `min-832x600`, so the page was kept rather than folded into MM Randomizer.

@@ -63,6 +63,14 @@
  *                   moves, and ResolvePairedProfile refuses to author the half);
  *                   a file whose half froze the set loads with the file's set
  *                   back in the keys, a toast names it, and the arrival agrees
+ *   leg 2e - #1101 lane R3: the MM excluded-check list (gRando.ExcludedChecks,
+ *           Randomizer > MM Locations) changed at the title screen
+ *                -> the file's own list is put back into the key in the
+ *                   writers' one spelling, the live profile digest matches the
+ *                   file's again, a toast names it, and the arrival does not
+ *                   refuse (before, the half did not record the list, so the
+ *                   load could not answer the divergence and the file was
+ *                   refused: an MM Locations edit stranded every older file)
  *   leg 3 - the .redsave round trip in a process where Majora's Mask never
  *           booted: nothing changed -> the file select accepts, the load
  *           pairs, no toast, no key written (Cross-Game Rules, MM options AND
@@ -229,6 +237,7 @@ void ClearAuthoredKeys() {
     for (int type = 0; type < TRAP_MAX; type++) {
         CVarClear(TrapTypeCVar(type));
     }
+    CVarClear("gRando.ExcludedChecks");
 }
 
 /** A fresh launch: nothing resident, no slot armed. */
@@ -292,6 +301,8 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
     memset(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks, 0,
            sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks));
     gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = 0;
+    memset(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, 0,
+           sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks));
     return 0;
 }
 
@@ -856,6 +867,57 @@ int LegMmTrapTypes() {
         !PlrContains(toast.message, "Blast Traps") ||
         ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 2 || !FitsOneLine(toast)) {
         return Fail(49, "leg 2d: no toast names the two trap types the load restored (prefix '%s', message '%s')",
+                    toast.prefix.c_str(), toast.message.c_str());
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 2e (#1101 lane R3): the excluded-check list changed at the title screen.
+// ---------------------------------------------------------------------------
+int LegMmExcludedChecks() {
+    // Two checks by enumerator, in the spelling Randomizer > MM Locations' writers
+    // and MM's own menu emit (ascending ids, each followed by a comma).
+    const std::string list = std::to_string((int)RC_CLOCK_TOWN_EAST_TREASURE_CHEST_GAME_GORON) + "," +
+                             std::to_string((int)RC_ROMANI_RANCH_ALIENS) + ",";
+    ClearAuthoredKeys();
+    CVarSetString("gRando.ExcludedChecks", list.c_str());
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    const uint32_t fileDigest = gComboCtx.mmProfileDigest;
+
+    // The player empties MM Locations for the next file, then loads this one.
+    Relaunch();
+    CVarClear("gRando.ExcludedChecks");
+    if (MM_Rando_ComputeProfileStamp() == fileDigest) {
+        return Fail(80, "leg 2e setup: emptying the excluded-check list did not move the live profile digest");
+    }
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const bool matches = MM_Rando_ComputeProfileStamp() == fileDigest;
+    const std::string listNow = CVarGetString("gRando.ExcludedChecks", "");
+    const int writable = RsbsSave_IsSlotWritable(kSlot);
+    const Toast toast = LastToast();
+    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
+    printf("[TEST] leg 2e OBSERVED: load rc=%d paired=%d liveProfileMatchesFile=%d list='%s' (file '%s') writable=%d "
+           "toast=%s%s%s%s arrivalGate=%d\n",
+           rc, paired ? 1 : 0, matches ? 1 : 0, listNow.c_str(), list.c_str(), writable, toast.any ? "'" : "(none)",
+           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
+    if (!paired || !matches || listNow != list) {
+        return Fail(81,
+                    "leg 2e: the load did not put the file's excluded-check list back ('%s', the file's is "
+                    "'%s'), so the file is refused or its first crossing into Termina will be",
+                    listNow.c_str(), list.c_str());
+    }
+    if (writable != 1 || gate != 0) {
+        return Fail(82, "leg 2e: a restoring load latched the slot, or the arrival gate refused a file that loaded");
+    }
+    if (!toast.any || !PlrContains(toast.prefix + " " + toast.message, "Majora's Mask") ||
+        !PlrContains(toast.message, "Forced Junk") ||
+        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 1 || !FitsOneLine(toast)) {
+        return Fail(83, "leg 2e: no toast names the excluded-check list the load restored (prefix '%s', message '%s')",
                     toast.prefix.c_str(), toast.message.c_str());
     }
     return 0;
@@ -1512,17 +1574,9 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // observed state; the first failure is the row's result.
     int rc = 0;
     int (*const legs[])() = {
-        LegCrossGameRules,
-        LegMmProfile,
-        LegMmTrickOnly,
-        LegMmManyTricks,
-        LegMmTrapTypes,
-        LegRoundTrip,
-        LegUnrestorableRule,
-        LegRollback,
-        LegProbeRefusals,
-        LegProbeAccepts,
-        LegProbeMmHalfNotThisPairs,
+        LegCrossGameRules,     LegMmProfile,        LegMmTrickOnly,  LegMmManyTricks,
+        LegMmTrapTypes,        LegMmExcludedChecks, LegRoundTrip,    LegUnrestorableRule,
+        LegRollback,           LegProbeRefusals,    LegProbeAccepts, LegProbeMmHalfNotThisPairs,
         LegProbeOtherOoTWorld,
     };
     for (auto leg : legs) {

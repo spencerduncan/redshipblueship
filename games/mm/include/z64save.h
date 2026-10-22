@@ -434,6 +434,26 @@ typedef struct RandoSaveInfo {
     // Shared Song of Time rule FORCES a New Cycle in play whatever this holds
     // (MM_Rando_FrozenMoonCrash): that force is the combo record's, frozen there.
     u8 randoSaveMoonCrash;
+    // The FROZEN excluded-check set (#1101 lane R3): bit (1 << (id & 7)) of byte
+    // (id >> 3) per RandoCheckId in gRando.ExcludedChecks, resolved at creation
+    // beside the trick and trap-type sets, appended after the moon-crash byte.
+    // Not read by any fill (GeneratePools reads the CVar at the same moment this
+    // is written); it is what the load-time restore puts back into the key
+    // (Foreign.cpp, #781), since the profile digest folds the list.
+    //
+    // A .redsave written before this field does NOT zero-extend into it: Save
+    // is the FIRST member of SaveContext, and the MM tier is a raw SaveContext
+    // image of fixed size (MM_SAVE_CONTEXT_SIZE), so growing Save shifts every
+    // later SaveContext field. On such a file these bytes are that file's
+    // eventInf, bButtonStatus, jinxTimer and the fields after them (the trick,
+    // trap-type and moon-crash appends shift the same way). A file whose live
+    // MM profile still matches its frozen digest is unaffected (that path reads
+    // the live CVars only); one that needs the load-time restore folds those
+    // bytes as a set and, unless they happen to be zero, is refused as
+    // UNRESTORABLE. That invalidation is stated rather than papered over; the
+    // trick set's was accepted pre-release (operator ruling 2026-09-17), and
+    // accepting this one is the operator's call.
+    u8 randoSaveExcludedChecks[(RC_MAX + 7) / 8];
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file

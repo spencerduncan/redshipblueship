@@ -481,8 +481,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
 
     // ---- Leg 4: our pages under SoH's Randomizer header (#1101) ------------
     // The operator's ruling of 2026-10-21 (option C): after Tricks/Glitches and
-    // before Plandomizer, in the order MM Randomizer, MM Tricks, Cross-Game (MM
-    // Locations joins between the first two when it exists). "Cross-Game" is the
+    // before Plandomizer, in the order MM Randomizer, MM Locations, MM Tricks,
+    // Cross-Game (MM Locations since lane R3). "Cross-Game" is the
     // rules page under the name the pointer page kept alive, so a config holding
     // it in gSettings.Menu.RandomizerSidebarSection lands on the rules.
     // AddMenuRandomizer() as a whole cannot run ROM-free, so SoH's neighbours are
@@ -505,17 +505,18 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         rando.AddWidget(randoPath, "Plandomizer", WIDGET_SEPARATOR_TEXT);
 
         MainMenuEntry& randoEntry = rando.Entries().at("Randomizer");
-        const std::vector<std::string> kExpectedOrder = { "Tricks/Glitches", "MM Randomizer", "MM Tricks", "Cross-Game",
-                                                          "Plandomizer" };
+        const std::vector<std::string> kExpectedOrder = { "Tricks/Glitches", "MM Randomizer", "MM Locations",
+                                                          "MM Tricks",       "Cross-Game",    "Plandomizer" };
         std::string got;
         for (const std::string& name : randoEntry.sidebarOrder) {
             got += (got.empty() ? "" : ", ") + name;
         }
         COMBO_CHECK(randoEntry.sidebarOrder == kExpectedOrder, "the Randomizer sidebar reads [%s], expected [%s]",
-                    got.c_str(), "Tricks/Glitches, MM Randomizer, MM Tricks, Cross-Game, Plandomizer");
+                    got.c_str(), "Tricks/Glitches, MM Randomizer, MM Locations, MM Tricks, Cross-Game, Plandomizer");
         COMBO_CHECK(SohGui::ComboRandomizerPageNames() ==
-                        std::vector<std::string>({ "MM Randomizer", "MM Tricks", "Cross-Game" }),
-                    "ComboRandomizerPageNames() does not name MM Randomizer, MM Tricks, Cross-Game in that order");
+                        std::vector<std::string>({ "MM Randomizer", "MM Locations", "MM Tricks", "Cross-Game" }),
+                    "ComboRandomizerPageNames() does not name MM Randomizer, MM Locations, MM Tricks, Cross-Game in "
+                    "that order");
 
         if (!randoEntry.sidebars.contains("Cross-Game")) {
             printf("[TEST] FAIL(4): Randomizer / Cross-Game is gone. Every config holding \"Cross-Game\" in "
@@ -552,7 +553,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         }
         COMBO_CHECK(!randoEntry.sidebars.contains("Ignored"),
                     "AddComboRandomizerPages registered rows under the stale incoming sidebar name");
-        printf("[TEST] leg 4: MM Randomizer, MM Tricks and Cross-Game (the rules) sit between Tricks/Glitches and "
+        printf("[TEST] leg 4: MM Randomizer, MM Locations, MM Tricks and Cross-Game (the rules) sit between "
+               "Tricks/Glitches and "
                "Plandomizer under the Randomizer header, every row in a drawn column\n");
     }
 
