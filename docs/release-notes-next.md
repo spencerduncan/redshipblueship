@@ -1,28 +1,48 @@
-# Release notes draft: the release after v0.2.0-prealpha
+# Release notes: v0.3.0-prealpha ("Ripley Alfa")
 
-**Status:** draft for the operator to edit. Nothing under "Since v0.2.0-prealpha" is released.
+**Status:** released. The release is cut as the tag `v0.3.0-prealpha` on the commit that merges this text (the version
+bump and these notes), whose code is `main` at `30b841c1`. The next release's draft starts above this section when
+something merges after the tag.
+**Version:** `v0.3.0-prealpha`, codename "Ripley Alfa" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md)
+that is a `y` bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION
+9.1.1)`, is unchanged), so it takes a new film character and the code word starts again at Alfa. A build's window
+title reads `RedShipBlueShip v0.3.0-prealpha+<commit> (Ripley Alfa)`, and `redship --version` prints the same first
+line.
 **Last release:** `v0.2.0-prealpha` ("Trinity Alfa"), tagged 2026-10-20 at `1ace3c7b` (code tip `7671196a`). Its notes
 are the release's own text and this file as it stood at the tag
 ([`release-notes-next.md` at `v0.2.0-prealpha`](https://github.com/spencerduncan/redshipblueship/blob/v0.2.0-prealpha/docs/release-notes-next.md)).
 They are kept below, unchanged, under "v0.2.0-prealpha, as released".
-**Version:** not bumped. A build of `main` still reads `v0.2.0-prealpha+<commit>`; the next version and codename are
-the operator's call ([`VERSIONING.md`](VERSIONING.md)).
-**Merged up to:** `main` at `db8d38e8` (2026-10-21): the 27 pull requests merged after the tag, #1073 to #1100 (#1085
-is an issue; #1081 to #1100 landed through the pyramid driver, #1081 to #1083 by its landing PR #1103).
-**Pending:** five open pull requests this draft already describes, each line marked "pending": Shared Song of Time and
-Moon Crash Behavior (#1102) and the one randomizer menu (#1104 to #1107). They are not on `main` yet; until they land,
-the pages are named as `main` has them (Combo > Cross-Game Rules, Combo > MM Randomizer, Combo > MM Tricks).
+**Merged up to:** `main` at `30b841c1` (2026-10-22), 33 commits after the tag: pull requests #1073 to #1108 (#1085 is an
+issue; #1103 and #1110 were the pyramid driver's landing PRs, and #1109 was a stale landing PR closed unmerged). #1081 to
+#1100 landed through the two landing PRs, so each of their commits on `main` still carries its own PR number.
 **Covers:** everything merged after `1ace3c7b`. Numbers in parentheses are pull requests; issues are written "issue #N".
 Nobody has played any of it: every change below is locked by test rows and, for the menu, by the UI harness.
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.3.0-prealpha) carries
+`redshipblueship-v0.3.0-prealpha-windows.zip` and `redshipblueship-v0.3.0-prealpha-linux.AppImage` once the tag's
+`generate-builds` run finishes. What to test first is section P of [`playtest-2026-09.md`](playtest-2026-09.md).
 
 ---
 
 ## Since v0.2.0-prealpha
 
-### Pending: one randomizer menu for both games (issue #1101)
+### Read this first
+
+- **Create a new paired file for this release.** The Majora's Mask half of a paired save gained two fields after the
+  tag: Moon Crash Behavior (#1102) and the excluded-check list of Randomizer > MM Locations (#1106). Each is appended
+  inside Majora's Mask's save, so it shifts the fields after it. A paired file saved by an earlier build,
+  `v0.2.0-prealpha` included, loads as before while its Majora's Mask settings still match the ones it was created
+  with. If they were changed at the title screen, so that the load has to restore them, the file is refused as
+  unrestorable ("Refused: ..." at the file select). Pre-alpha saves are disposable; back up any file you care about.
+- **Seeds.** With every new rule and option at its default, no golden world moved after the tag
+  (`git diff 1ace3c7b 30b841c1 -- tests/golden/` is empty). A rule or option that is on, or a check moved to Forced
+  Junk, changes the world and its fingerprint.
+- **The randomizer pages moved.** Majora's Mask's randomizer pages and the Cross-Game rules are now under the
+  Randomizer header (next section). A menu last left on one of the old Combo pages opens on it in its new place.
+
+### One randomizer menu for both games (issue #1101)
 
 The operator's ruling of 2026-10-21 (option C): one randomizer menu, as OoTMM has one generator, with every Ship of
-Harkinian page left as it ships. **Pending:** PRs #1104 to #1107 are open; nothing in this section is on `main` yet.
+Harkinian page left as it ships.
 
 - **Majora's Mask's randomizer pages and the Cross-Game rules are pages of the Randomizer header**, after
   Tricks/Glitches and before Plandomizer, in this order: MM Randomizer, MM Locations, MM Tricks, Cross-Game. The
@@ -34,18 +54,21 @@ Harkinian page left as it ships. **Pending:** PRs #1104 to #1107 are open; nothi
   Starting Items), and the Cross-Game page groups every shared-item rule under Shared Items, in OoTMM's order. Our
   randomizer pages share one status sentence ("These apply to the next world you generate. Loading a paired file
   shows its own."), and with a paired file loaded each says it was already decided and shows the fingerprint the
-  file select prints beside the seed icons (#1105).
+  file select prints beside the seed icons. MM Tricks' count of supported tricks is a gray note of its own (#1105).
 - **Randomizer > MM Locations (new):** Majora's Mask's excluded checks, an Included / Forced Junk table drawn like
-  SoH's Locations page. A check moved to Forced Junk holds junk in the next world. The list is part of the world: it
-  is greyed once the world is created, and loading a paired file restores its own list (#1106).
+  SoH's Locations page, between MM Randomizer and MM Tricks. A check moved to Forced Junk holds junk in the next
+  world. The list is part of the world: it is greyed once the world is created (and under Vanilla logic, which never
+  reads it), and loading a paired file restores its own list, with a toast naming "Forced Junk Checks" (#1106).
 - **Majora's Mask's trap types are rows:** Freeze, Blast, Shock, Jinx, Wallet, Like Like and Time Traps, under Traps
-  on Randomizer > MM Randomizer. They used to be console-only. They are frozen with the world like every other MM
-  option; with none ticked, every trap is a Freeze Trap (#1107).
+  on Randomizer > MM Randomizer, after Shuffle Traps and Trap Count. They used to be console-only. They are frozen
+  with the world like every other MM option, and Reset MM Randomizer clears them; with none ticked, every trap is a
+  Freeze Trap (#1107).
+- The release notes, known issues and playtest guide were brought up to the merges after the tag (#1108).
 
 ### Cross-Game Rules: OoTMM's Shared Items
 
-Each is a "[Both Games]" checkbox on Combo > Cross-Game Rules under Item Crossing (Randomizer > Cross-Game under
-Shared Items once #1104 and #1105 land), off by default, named after OoTMM's option. With a rule on, one copy of the item is placed for both games, both games' logic counts it, and finding it in
+Each is a "[Both Games]" checkbox on Randomizer > Cross-Game under Shared Items (#1104, #1105), off by default, named
+after OoTMM's option. With a rule on, one copy of the item is placed for both games, both games' logic counts it, and finding it in
 either game gives it to you in the other at your next crossing. The rules freeze when the world is created, and
 loading a paired file puts its own rules back. `v0.2.0-prealpha` refuses a file created with any of them on, and says
 so by name.
@@ -66,10 +89,14 @@ so by name.
 - **Shared Goron Mask**, **Shared Zora Mask**, **Shared Bunny Hood**, **Shared Keaton Mask** and **Shared Mask of
   Truth** (sharedMask*). With Shared Bunny Hood on, the Bunny Hood also gives Majora's Mask's speed boost in Hyrule,
   whatever Enhancements > Bunny Hood Effect says (#1095).
-- **Pending: Shared Song of Time** (sharedSongTime; PR #1102 is open): the Song of Time is one song for both games, Majora's Mask starts without
-  it, and its moon crash starts a new cycle that keeps your progress. **New Majora's Mask option, Moon Crash
-  Behavior** (OoTMM's moonCrash), on the MM Randomizer page under Logic: Last Save (the default, as before) or New
-  Cycle (#1102).
+- **Shared Song of Time** (sharedSongTime): the Song of Time is one song for both games, Majora's Mask starts a paired
+  world with the Ocarina alone, and its moon crash always starts a new cycle that keeps your progress (#1102,
+  issue #1069).
+- **New Majora's Mask option, Moon Crash Behavior** (OoTMM's moonCrash), on Randomizer > MM Randomizer under Logic:
+  Last Save (the default: the crash restores the file's last save, as before) or New Cycle (a new cycle starts at the
+  Dawn of the First Day and you keep your items and progress, as with the Song of Time). It is frozen with the world
+  like every MM option, and Shared Song of Time forces New Cycle whatever it says. Forcing it is a divergence from
+  OoTMM, which reasons about time resets in its logic instead (#1102).
 
 ### Majora's Mask now honours more of the shared settings
 
@@ -135,40 +162,56 @@ the executable or did not read the shared key. Each now takes effect there too (
 
 ### Known limitations added since v0.2.0-prealpha
 
-- With Shared Epona's Song or Shared Song of Storms on (or Shared Song of Time, pending) and Ocarina of Time's Shuffle Songs at Song
-  Locations (the default), Dungeon Rewards or Off, the world holds two copies of that song: Ocarina of Time's own and
-  the shared one. Either teaches both games. Set Shuffle Songs to Anywhere for a single copy (issue #1085).
+- With Shared Epona's Song, Shared Song of Storms or Shared Song of Time on and Ocarina of Time's Shuffle Songs at
+  Song Locations (the default), Dungeon Rewards or Off, the world holds two copies of that song: Ocarina of Time's own
+  and the shared one. Either teaches both games. Set Shuffle Songs to Anywhere for a single copy (issue #1085; a fix
+  that places one copy whatever Shuffle Songs says is in review, PR #1111, and is not in this release).
 - Under the plentiful item pool, Ocarina of Time still shuffles a surplus second copy of a shared Lens, arrow or mask.
 - With Shared Shields on, a Mirror Shield found in Termina before any Hero's Shield also gives Ocarina of Time the
   Hylian Shield; Ocarina of Time's own Hylian Shield stays in the item pool beside the shared one; and the Item
   Tracker lists each game's shield in its own section rather than once under Shared.
 - While Ocarina of Time is running, the tracker's Shared mask rows use Majora's Mask's icons.
 - With Shared Bottles on, Majora's Mask's fifth and sixth bottle slots stay empty.
-- Pending (#1102): Moon Crash Behavior's New Cycle does not yet let you save on the Clock Tower roof, as OoTMM's does.
+- Moon Crash Behavior's New Cycle (and the moon crash under Shared Song of Time) does not yet let you save on the
+  Clock Tower roof, as OoTMM's does (#1102).
 - Fast Chests does nothing in a Majora's Mask randomizer file: the chest contents belong to the randomizer.
 - D-pad in text boxes, D-pad hold change, D-pad on the pause screen and Customize Ocarina Controls are Ocarina of
   Time only. Damage Multiplier is still Ocarina of Time only (issue #1037). Skip Enemy Cutscenes and Skip To File
   Select still do nothing in Majora's Mask.
 - Majora's Mask's free look ignores the remote bombchu's camera focus.
-- **Pending (#1102, #1106): older paired files, and the operator's decision:** once both land, the Majora's Mask half
-  of a paired save gains two fields (Moon Crash Behavior, #1102, and the excluded-check list, #1106), and each shifts
-  the fields after it. A paired file saved by an earlier build, `v0.2.0-prealpha` and `main` at `db8d38e8` included, that needs its Majora's Mask settings restored at load
-  (because they were changed at the title screen) is refused as unrestorable. A file whose settings were not changed
-  loads as before. Accepting this before a release is the operator's call (#1106).
-- Pending (#1104 to #1107): the Randomizer sidebar will have 16 entries and scroll in a small window (832x600), as Ship of Harkinian's own 12
-  already did there.
-- New reports, open: Woodfall Temple does not rise after the Sonata of Awakening (issue #1070; the leading explanation
-  is the ocarina-button shuffle with C-up not yet found, issue #1072), and an Ocarina of Time texture pack crashed the
-  game after a while (issue #1063).
+- **Older paired files** (#1102, #1106): the Majora's Mask half of a paired save gained two fields (Moon Crash
+  Behavior and the excluded-check list), and each shifts the fields after it. A paired file saved by an earlier
+  build, `v0.2.0-prealpha` included, that needs its Majora's Mask settings restored at load (because they were
+  changed at the title screen) is refused as unrestorable. A file whose settings were not changed loads as before.
+  Create a new file for this release (see Read this first).
+- The Randomizer sidebar has 16 entries (Ship of Harkinian's 12 and our MM Randomizer, MM Locations, MM Tricks and
+  Cross-Game), so it scrolls in a small window; Ship of Harkinian's own 12 already scrolled at 832x600. The pull
+  requests estimated this from the menu code (about 10 entries fit at 832x600, about 14 at 1280x800); nobody has
+  measured it on screen (#1104, #1106).
+- New reports, open: Woodfall Temple does not rise after the Sonata of Awakening (issue #1070: the playtester's save
+  and the code are clean; the lead is Majora's Mask's rule that holding L while playing cancels songs in free play,
+  and the playtester's controller config is awaited), and an Ocarina of Time texture overhaul pack crashed the game
+  after a while (issue #1063: the pack's name is needed to reproduce it).
 
 ### Open decisions (operator), added since v0.2.0-prealpha
 
-- #1106 (pending): accept the older-paired-file invalidation above, or ask for a migration.
+- #1106: the older-paired-file invalidation above ships in this release, as the trick set's did before it; whether a
+  later build migrates such files is open.
 - #1094: Shared Bottles shares the count, capped at Ocarina of Time's four, with per-game contents; OoTMM shares six
   bottles with their contents. Kept as a deliberate divergence, open to the operator.
-- Issue #1085: whether a shared song should take Ocarina of Time's own song location, so that the default Shuffle
-  Songs places one copy.
-- The next version and codename.
+- Issue #1085: a shared song places two copies under the default Shuffle Songs; the fix in review (PR #1111) makes it
+  one copy.
+
+### Run record
+
+#1073 to #1100 were gated on the workstation (Windows, OpenGL, ROM archives mounted) by the pyramid driver: a pull
+request's `[lock]` commits were built alone on `main` and their rows seen red, then the batch was built once and the
+`redship`, `rando` and `ui` tiers and the parity lint run on it, then `integration` and `integration-soak`. #1081 to
+#1100 were merged through the landing PRs #1103 and #1110, whose hosted CI rounds were green. #1102 and #1104 to #1108
+were merged once their hosted CI was green, and the driver then ran the ROM tiers on `main`. On `main` itself,
+`integration` passed 20 of 20 and `integration-soak` 1 of 1 at `db8d38e8` (cycle 17), then 21 of 21 and 1 of 1 at
+`2a57d1c6` (cycle 18, with `IntMoonCrashCycle` of #1102) and at `30b841c1`, the code of this release (cycle 19), all
+on 2026-10-22. Nobody has played the release; the full records are in [`known-issues.md`](known-issues.md).
 
 ---
 
