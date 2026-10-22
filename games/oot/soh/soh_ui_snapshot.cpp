@@ -2072,8 +2072,10 @@ void Session::BuildPageList() {
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
-                p.stateText["unpaired"] = { "apply to the next paired world",
-                                            "Loading a paired file restores its own rules" };
+                // Unpaired and frozen are the sentences every randomizer page
+                // of ours shares (#1101 decision 7).
+                p.stateText["unpaired"] = { "These apply to the next world you generate.",
+                                            "Loading a paired file shows its own." };
                 p.stateText["paired-legacy"] = { "Your paired world predates these rules",
                                                  "Keep them at the defaults until you have crossed into it once" };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
@@ -2161,7 +2163,8 @@ void Session::BuildPageList() {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
                 p.states = { "unpaired", "frozen", "mm-suspended" };
-                p.stateText["unpaired"] = { "Loading a paired file restores its own options" };
+                p.stateText["unpaired"] = { "These apply to the next world you generate.",
+                                            "Loading a paired file shows its own." };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateText["mm-suspended"] = { "Majora's Mask is suspended" };
                 p.stateContrast = { { "unpaired", "frozen" },
@@ -2204,7 +2207,7 @@ void Session::BuildPageList() {
                 // Unpaired: the model's headline; frozen: the freeze sentence.
                 p.states = { "unpaired", "frozen" };
                 p.stateText["unpaired"] = { "tricks are supported by the randomizer logic",
-                                            "Loading a paired file restores its own tricks" };
+                                            "These apply to the next world you generate." };
                 p.stateText["frozen"] = { "Already decided when this world was created" };
                 p.stateContrast = { { "unpaired", "frozen" }, { "frozen", "unpaired" } };
                 // Every trick row draws its name through the combo_ui seam, whose

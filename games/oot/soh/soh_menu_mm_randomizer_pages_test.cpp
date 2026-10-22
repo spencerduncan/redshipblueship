@@ -26,7 +26,11 @@
  *      sliders), and nothing else interactive but Reset.
  *
  *   3. A ROW LANDS IN THE WRONG COLUMN, or in one the page never draws, or
- *      outside its group's header.
+ *      outside its group's header. The headers are SoH's Randomizer headers in
+ *      SoH's order (#1101, option C), spelled here independently of the model:
+ *      Logic, Win Condition, Area Access, Shuffle Items down the left column;
+ *      Shuffle Shops & Merchants, Additional Items, Traps, Hints, Starting
+ *      Items down the right.
  *
  *   4. A ROW SHOWS THE WRONG STATE. Unpaired: a capability-blocked row is
  *      disabled with SoH's disabled tooltip around the table's own reason, and
@@ -49,7 +53,8 @@
  *   7. THE NOTES DISAGREE WITH THE MODEL. The status note is the model's
  *      sentence in each state; the suspended note shows exactly while Majora's
  *      Mask is not running and the profile is editable; the tricks page's note
- *      is the model's headline.
+ *      is the model's headline. Unpaired, both pages open with the one status
+ *      sentence every randomizer page of ours shares (#1101 decision 7).
  *
  *   8. THE RACE LOCKOUT DIFFERS FROM SOH'S RANDOMIZER PAGES. SoH's race lockout
  *      (CVAR_SETTING("DisableChanges"), Menu.cpp's MenuDrawItem) disables every
@@ -313,8 +318,32 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        header != nullptr ? header->name.c_str() : "(none)", Combo_MMOptionGroupName(desc->group));
         }
     }
+    // ---- Leg 3 (cont.): the headers are SoH's, in SoH's order --------------
+    {
+        const std::vector<std::vector<std::string>> kHeaders = {
+            { "Logic", "Win Condition", "Area Access", "Shuffle Items" },
+            { "Shuffle Shops & Merchants", "Additional Items", "Traps", "Hints", "Starting Items" },
+        };
+        for (uint32_t column = 0; column < kHeaders.size(); column++) {
+            std::vector<std::string> seen;
+            if (column < options.columnWidgets.size()) {
+                for (WidgetInfo& row : options.columnWidgets.at(column)) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        seen.push_back(row.name);
+                    }
+                }
+            }
+            std::string got;
+            for (const std::string& h : seen) {
+                got += (got.empty() ? "" : ", ") + h;
+            }
+            MMRP_CHECK(seen == kHeaders.at(column),
+                       "column %u of the options page reads the headers [%s], not SoH's vocabulary in SoH's order",
+                       column + 1, got.c_str());
+        }
+    }
     printf("[TEST] leg 2-3: the options page's rows are the %d descriptors, once each, in the model's columns under "
-           "their groups' headers\n",
+           "their groups' headers, which are SoH's in SoH's order\n",
            count);
 
     // ---- Leg 4: the states -----------------------------------------------------
@@ -456,6 +485,9 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
 
     // ---- Leg 7: the notes --------------------------------------------------------
     {
+        // The one status sentence (#1101 decision 7), spelled independently.
+        const std::string kNextWorldNote =
+            "These apply to the next world you generate. Loading a paired file shows its own.";
         FlatRow* status = FindByName(rows, "MM Randomizer Status");
         FlatRow* suspended = FindByName(rows, "MM Randomizer Suspended");
         MMRP_CHECK(status != nullptr && suspended != nullptr, "the options page lacks its state notes");
@@ -469,6 +501,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                     DrawPass(s);
                     MMRP_CHECK(s.name == Combo_MMOptionsPage_StatusNote(), "the status note reads \"%s\"",
                                s.name.c_str());
+                    if (!frozen) {
+                        MMRP_CHECK(s.name == kNextWorldNote,
+                                   "unpaired, the status note reads \"%s\", not the shared sentence \"%s\"",
+                                   s.name.c_str(), kNextWorldNote.c_str());
+                    }
                     WidgetInfo n = *suspended->info;
                     DrawPass(n);
                     const bool shown = !n.isHidden;
@@ -499,6 +536,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 DrawPass(t);
                 MMRP_CHECK(t.name == expected, "the tricks note reads \"%s\", the model \"%s\"", t.name.c_str(),
                            expected);
+                if (!frozen) {
+                    MMRP_CHECK(t.name.rfind(kNextWorldNote, 0) == 0,
+                               "unpaired, the tricks note \"%s\" does not open with the shared sentence",
+                               t.name.c_str());
+                }
             }
         }
     }

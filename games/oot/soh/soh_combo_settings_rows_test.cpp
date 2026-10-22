@@ -562,6 +562,77 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                ocarinaRows, checkboxes);
     }
 
+    // ---- Leg 1f: OoTMM's sections, in OoTMM's order (#1101, option C) -------
+    // The page reads as OoTMM's Settings do: "Win Condition" over the Goal,
+    // "Item Crossing" over the Crossing Direction, then OoTMM's own section name,
+    // "Shared Items", over every Shared <Item> rule, and the rules in the order
+    // OoTMM's settings list them (packages/core/src/settings/data.ts). The ranks
+    // are by LABEL, spelled here, and cover the rules in flight too: a name the
+    // page does not hold yet is skipped, so each rule lands in its place as it
+    // merges and this leg pins it there.
+    {
+        static const char* const kOotmmSharedOrder[] = {
+            "Shared Fire Arrows",    "Shared Ice Arrows",   "Shared Light Arrows",    "Shared Epona's Song",
+            "Shared Song of Storms", "Shared Song of Time", "Shared Lens of Truth",   "Shared Goron Mask",
+            "Shared Zora Mask",      "Shared Bunny Hood",   "Shared Keaton Mask",     "Shared Mask of Truth",
+            "Shared Kokiri Sword",   "Shared Shields",      "Shared Ocarina Buttons", "Shared Bottles",
+        };
+        const int ranks = (int)(sizeof(kOotmmSharedOrder) / sizeof(kOotmmSharedOrder[0]));
+        const std::string marker = std::string(Combo_ComboSettingSharedMarker()) + " ";
+        auto rankOf = [&](const std::string& name) {
+            for (int r = 0; r < ranks; r++) {
+                if (name == marker + kOotmmSharedOrder[r]) {
+                    return r;
+                }
+            }
+            return -1;
+        };
+        std::vector<std::string> separators;
+        std::string section;
+        int lastRank = -1;
+        std::string lastName;
+        int sharedRows = 0;
+        for (PageRow& pageRow : rows) {
+            const WidgetInfo& row = *pageRow.first;
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                separators.push_back(row.name);
+                section = row.name;
+                continue;
+            }
+            if (row.name == RowName(COMBO_SETTING_GOAL)) {
+                ROWS_CHECK(section == "Win Condition", "the Goal row sits under '%s', expected \"Win Condition\"",
+                           section.c_str());
+            } else if (row.name == RowName(COMBO_SETTING_DIRECTION)) {
+                ROWS_CHECK(section == "Item Crossing",
+                           "the Crossing Direction row sits under '%s', expected \"Item Crossing\"", section.c_str());
+            } else if (row.type == WIDGET_CHECKBOX) {
+                sharedRows++;
+                ROWS_CHECK(section == "Shared Items", "the rule '%s' sits under '%s', expected \"Shared Items\"",
+                           row.name.c_str(), section.c_str());
+                const int rank = rankOf(row.name);
+                ROWS_CHECK(rank >= 0, "the rule '%s' has no place in OoTMM's order; add it to this leg's table",
+                           row.name.c_str());
+                ROWS_CHECK(rank > lastRank, "the rule '%s' comes after '%s'; OoTMM lists it first", row.name.c_str(),
+                           lastName.c_str());
+                if (rank > lastRank) {
+                    lastRank = rank;
+                    lastName = row.name;
+                }
+            }
+        }
+        const std::vector<std::string> kSections = { "Win Condition", "Item Crossing", "Shared Items" };
+        std::string got;
+        for (const std::string& s : separators) {
+            got += (got.empty() ? "" : ", ") + s;
+        }
+        ROWS_CHECK(separators == kSections,
+                   "the page's sections read [%s]; OoTMM's are Win Condition, Item Crossing, Shared Items",
+                   got.c_str());
+        printf("[TEST] leg 1f: the page's sections are [%s] and its %d shared rule(s) sit under Shared Items in "
+               "OoTMM's order\n",
+               got.c_str(), sharedRows);
+    }
+
     // ---- Leg 2: no row is its own writer, and no pop-out is offered ---------
     // The enforcement rule (ADR 0004 §6): the gate is on the src/common writers,
     // so no widget in this section may bind one of the three keys directly -- a
@@ -924,10 +995,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // Unfrozen and unpaired: the ordinary pre-creation state.
         ComboContext_Init();
         RunPreFunc(*statusRow);
-        ROWS_CHECK(statusRow->name.find("apply to the next paired world") != std::string::npos &&
-                       statusRow->name.find("Loading a paired file restores its own rules") != std::string::npos,
-                   "the pre-creation status line does not say these author the next world and that a load restores "
-                   "a file's own rules (#781): '%s'",
+        // The one status sentence every randomizer page of ours shares (#1101
+        // decision 7): these author the next world, a load shows its own (#781).
+        ROWS_CHECK(statusRow->name ==
+                       "These apply to the next world you generate. Loading a paired file shows its own.",
+                   "the pre-creation status line is not the shared sentence that these author the next world and "
+                   "that a load shows a file's own rules (#781): '%s'",
                    statusRow->name.c_str());
     }
 

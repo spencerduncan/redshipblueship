@@ -20,6 +20,9 @@
  * 2. EVERY OPTION GROUP HAS A COLUMN, and both columns hold rows. A group with
  *    no column would register rows past the page's two columns, which
  *    Menu::DrawElement never draws (#640's failure mode with the halves swapped).
+ *    The columns read SoH's headers in SoH's order (#1101, option C): Logic,
+ *    Win Condition, Area Access and Shuffle Items on the left; Shuffle Shops &
+ *    Merchants, Additional Items, Traps, Hints and Starting Items on the right.
  *
  * 3. THE ROW STATES ARE THE TABLES' AND THE FREEZE'S, in both directions. An
  *    option is BLOCKED exactly when its liveness is PARTIAL or DORMANT, with the
@@ -30,7 +33,11 @@
  *    at least one live and one blocked trick, or the split is untested.
  *
  * 4. THE NOTES SAY WHICH STATE THE PAGE IS IN. Unpaired, legacy-paired and
- *    frozen each get their own sentence; the suspended note shows exactly when
+ *    frozen each get their own sentence; unpaired and frozen are the one pair of
+ *    sentences every randomizer page of ours shares (#1101 decision 7: "These
+ *    apply to the next world you generate. Loading a paired file shows its
+ *    own." and "Already decided ... (fingerprint XXXXXXXX)"), on the options
+ *    page and the tricks page alike; the suspended note shows exactly when
  *    the profile is editable and Majora's Mask is not the running game; the
  *    orange creation-lock warning is gone (the gray note says it); the tricks
  *    headline counts the settable tricks, and the freeze replaces it.
@@ -140,6 +147,29 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
             CMOP_ASSERT(rowsInColumn[c] > 0);
         }
         CMOP_ASSERT(Combo_MMOptionsPage_GroupColumn((uint8_t)COMBO_MM_GROUP_COUNT) == -1);
+        // SoH's headers, by name, in reading order: down the left column, then
+        // down the right (#1101, option C).
+        static const char* const kLeft[] = { "Logic", "Win Condition", "Area Access", "Shuffle Items" };
+        static const char* const kRight[] = { "Shuffle Shops & Merchants", "Additional Items", "Traps", "Hints",
+                                              "Starting Items" };
+        const int left = (int)(sizeof(kLeft) / sizeof(kLeft[0]));
+        const int right = (int)(sizeof(kRight) / sizeof(kRight[0]));
+        if ((int)COMBO_MM_GROUP_COUNT != left + right) {
+            printf("[TEST] FAIL: the options page has %d groups, SoH's vocabulary %d\n", (int)COMBO_MM_GROUP_COUNT,
+                   left + right);
+            return TEST_FAIL;
+        }
+        for (int g = 0; g < (int)COMBO_MM_GROUP_COUNT; g++) {
+            const char* want = g < left ? kLeft[g] : kRight[g - left];
+            const int wantColumn = g < left ? 0 : 1;
+            if (strcmp(Combo_MMOptionGroupName((uint8_t)g), want) != 0 ||
+                Combo_MMOptionsPage_GroupColumn((uint8_t)g) != wantColumn) {
+                printf("[TEST] FAIL: group %d is '%s' in column %d; SoH's vocabulary puts '%s' in column %d\n", g,
+                       Combo_MMOptionGroupName((uint8_t)g), Combo_MMOptionsPage_GroupColumn((uint8_t)g), want,
+                       wantColumn);
+                return TEST_FAIL;
+            }
+        }
         printf("[TEST] leg 2: every option group has a column (%d rows in column 1, %d in column 2)\n", rowsInColumn[0],
                rowsInColumn[1]);
     }
@@ -215,13 +245,16 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         char tricks[256];
         ComboContext_Init();
         Context_SetCurrentGame(GAME_OOT);
-        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "Loading a paired file restores"));
+        // The shared sentence, spelled here independently of the model.
+        static const char* const kNextWorld =
+            "These apply to the next world you generate. Loading a paired file shows its own.";
+        CMOP_ASSERT(strcmp(Combo_MMOptionsPage_StatusNote(), kNextWorld) == 0);
         CMOP_ASSERT(Combo_MMOptionsPage_Suspended());
         CMOP_ASSERT(Combo_MMOptionsPage_FallbackWarning() != NULL);
         char expected[64];
         snprintf(expected, sizeof(expected), "%d of %d tricks", Combo_MMOptionsPage_SettableTrickCount(), trickCount);
         CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), expected));
-        CMOP_ASSERT(CmopContains(tricks, "Loading a paired file restores"));
+        CMOP_ASSERT(strncmp(tricks, kNextWorld, strlen(kNextWorld)) == 0);
 
         Context_SetCurrentGame(GAME_MM);
         CMOP_ASSERT(!Combo_MMOptionsPage_Suspended());
@@ -231,10 +264,21 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
 
         CmopAuthorPairing(true);
         Context_SetCurrentGame(GAME_OOT);
-        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_StatusNote(), "Already decided when this world was created"));
+        // The frozen sentence names the world's fingerprint, as the Cross-Game
+        // page's does: one sentence for the three pages (#1101 decision 7).
+        gComboCtx.comboSettingsHash = 0xC0DE1101u;
+        static const char* const kFrozen = "Already decided when this world was created (fingerprint C0DE1101). "
+                                           "Return to the title screen to choose settings for a new world.";
+        CMOP_ASSERT(strcmp(Combo_MMOptionsPage_StatusNote(), kFrozen) == 0);
         CMOP_ASSERT(!Combo_MMOptionsPage_Suspended());
-        CMOP_ASSERT(CmopContains(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), "Already decided"));
+        CMOP_ASSERT(strcmp(Combo_MMOptionsPage_TricksNote(tricks, sizeof(tricks)), kFrozen) == 0);
         CMOP_ASSERT(!CmopContains(tricks, expected));
+        // A frozen profile with no fingerprint yet (a legacy pair's rules) says
+        // the same without the parenthesis rather than printing 00000000.
+        gComboCtx.comboSettingsHash = 0u;
+        CMOP_ASSERT(strcmp(Combo_MMOptionsPage_StatusNote(),
+                           "Already decided when this world was created. Return to the title screen to choose "
+                           "settings for a new world.") == 0);
         ComboContext_Init();
         Context_SetCurrentGame(prevGame);
         printf("[TEST] leg 4: the status, suspended, warning and tricks notes each follow the state\n");
