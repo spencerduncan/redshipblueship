@@ -166,11 +166,28 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size) {
     } else if (Combo_MMProfileFrozen()) {
         Combo_RandoPages_FrozenNote(gComboCtx.comboSettingsHash, buf, size);
     } else {
-        // The shared status sentence first (#1101 decision 7: what an edit here
-        // reaches, and what a load does, #781), then the trick headline. A trick
-        // that cannot be turned on says why in its own disabled row.
-        snprintf(buf, size, "%s %d of %d tricks are supported by the randomizer logic so far.",
-                 COMBO_RANDO_PAGES_NEXT_WORLD_NOTE, Combo_MMOptionsPage_SettableTrickCount(), count);
+        // The shared status sentence (#1101 decision 7: what an edit here
+        // reaches, and what a load does, #781). It is two sentences, a note's
+        // whole budget, so the trick headline is a note of its own
+        // (Combo_MMOptionsPage_TricksHeadline).
+        snprintf(buf, size, "%s", COMBO_RANDO_PAGES_NEXT_WORLD_NOTE);
+    }
+    return buf;
+}
+
+const char* Combo_MMOptionsPage_TricksHeadline(char* buf, size_t size) {
+    if (buf == NULL || size == 0) {
+        return buf;
+    }
+    const int count = Combo_MMTrickCount();
+    if (count == 0 || Combo_MMProfileFrozen()) {
+        // No table, or a world whose tricks are already decided: the tricks
+        // note says which, and nothing here is settable to count.
+        buf[0] = '\0';
+    } else {
+        // A trick that cannot be turned on says why in its own disabled row.
+        snprintf(buf, size, "%d of %d tricks are supported by the randomizer logic so far.",
+                 Combo_MMOptionsPage_SettableTrickCount(), count);
     }
     return buf;
 }

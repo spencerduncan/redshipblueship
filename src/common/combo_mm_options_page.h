@@ -93,7 +93,7 @@ extern "C" {
 
 /**
  * THE ONE STATUS SENTENCE (#1101 decision 7). Every randomizer page of ours
- * (Randomizer > MM Randomizer, MM Tricks and Cross-Game) says the same thing in
+ * (Combo > MM Randomizer, MM Tricks and Cross-Game Rules) says the same thing in
  * the same words while no paired file is loaded: an edit authors the next world
  * Generate makes, and loading a paired file puts that file's own values back
  * (#781). Until #1101 the three pages said it in three sentences. The rules
@@ -186,12 +186,20 @@ int Combo_MMOptionsPage_SettableTrickCount(void);
 /**
  * The tricks page's gray note, written into @p buf (always NUL-terminated when
  * @p size > 0; returns @p buf): the shared frozen sentence once frozen,
- * otherwise the shared status sentence followed by the honest headline "N of M
- * tricks are supported by the randomizer logic so far." (86 checkboxes of which
- * most do nothing would be the overclaim). With no trick table registered, a
- * sentence saying so.
+ * otherwise the shared status sentence alone. With no trick table registered,
+ * a sentence saying so.
  */
 const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size);
+
+/**
+ * The tricks page's headline, its own gray note under the status note (the
+ * shared sentence is two sentences, a note's whole budget): "N of M tricks are
+ * supported by the randomizer logic so far." (86 checkboxes of which most do
+ * nothing would be the overclaim). Empty (the row hides) once frozen, when
+ * nothing is settable, and with no trick table. Same buffer contract as
+ * Combo_MMOptionsPage_TricksNote.
+ */
+const char* Combo_MMOptionsPage_TricksHeadline(char* buf, size_t size);
 
 /**
  * Reset's action (the confirm's Reset button): clears every option CVar and
