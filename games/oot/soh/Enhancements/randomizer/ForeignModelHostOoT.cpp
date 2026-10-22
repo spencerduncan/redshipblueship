@@ -22,10 +22,13 @@
  * "no model" case the caller keeps its stand-in.
  *
  * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list,
- * the layer's scrolling segments, its colours (and the grayscale tint), the
- * matrix, the plain parts, then the camera-facing parts under their offset and
- * the billboard rotation. The descriptor's own scale and rotation go on top of
- * the caller's matrix. Every display list is named by its "__OTR__" path, which
+ * the layer's scrolling segments, its segment colour lists (#964), its colours
+ * (and the grayscale tint), the matrix, the plain parts, then the camera-facing
+ * parts under their offset and the billboard rotation. A part that names a
+ * joint (#964: MM's stray fairy, a posed skeleton) draws under that joint's
+ * matrix instead, posed from the matrix its group would draw under, with the
+ * joint array bound to the joint segment first. The descriptor's own scale and
+ * rotation go on top of the caller's matrix. Every display list is named by its "__OTR__" path, which
  * OoT's gSPDisplayList resolves through the shared resource manager (GbiWrap.cpp).
  *
  * WHAT IT NEVER DOES: call an MM draw function, or read MM's live state.
@@ -151,6 +154,62 @@ void HostEmitPart(Gfx* pkt, const char* dl) {
 // namespace that declaration would name a C++-linkage function of that
 // namespace instead of the extern "C" one frame_interpolation.h declares.
 
+/** The matrix of every joint of `parent`'s subtree into `out` (indexed by
+ *  joint), each its parent's (the current matrix for a root) times
+ *  Matrix_TranslateRotateZYX of its own position and rotation: SkelAnime's
+ *  walk, so frame interpolation records it the same way (#964). */
+static void OoTHostModel_PoseJoints(const ComboModel& model, int parent, Mtx* out) {
+    for (int i = parent + 1; i < (int)model.jointCount; i++) {
+        const ComboModelJoint& joint = model.joints[i];
+        if (joint.parent != parent) {
+            continue;
+        }
+        Vec3f pos = { (f32)joint.pos[0], (f32)joint.pos[1], (f32)joint.pos[2] };
+        Vec3s rot = { joint.rot[0], joint.rot[1], joint.rot[2] };
+        OoT_Matrix_Push();
+        OoT_Matrix_TranslateRotateZYX(&pos, &rot);
+        OoT_Matrix_ToMtx(&out[i], const_cast<char*>(__FILE__), __LINE__);
+        OoTHostModel_PoseJoints(model, i, out);
+        OoT_Matrix_Pop();
+    }
+}
+
+/** The layer's plain (`billboard` false) or camera-facing parts, under `base`
+ *  (already loaded) or, for a part that names a joint, that joint's matrix,
+ *  posed from the current matrix; the joint array is bound to the joint
+ *  segment first, as a flex skeleton binds segment 0xD (#964). */
+static void OoTHostModel_EmitParts(GraphicsContext* gfxCtx, const ComboModel& model, uint8_t layer, bool billboard,
+                                   Mtx* base, Gfx*& disp) {
+    bool jointed = false;
+    for (uint8_t i = 0; i < model.partCount; i++) {
+        const ComboModelPart& part = model.parts[i];
+        jointed |= part.layer == layer && (part.billboard != 0) == billboard && part.joint != 0;
+    }
+    Mtx* joints = nullptr;
+    if (jointed) {
+        joints = (Mtx*)Graph_Alloc(gfxCtx, model.jointCount * sizeof(Mtx));
+        OoTHostModel_PoseJoints(model, -1, joints);
+        if (model.jointSegment != 0) {
+            gSPSegment(disp++, model.jointSegment, (uintptr_t)joints);
+        }
+    }
+    bool baseLoaded = true;
+    for (uint8_t i = 0; i < model.partCount; i++) {
+        const ComboModelPart& part = model.parts[i];
+        if (part.layer != layer || (part.billboard != 0) != billboard) {
+            continue;
+        }
+        if (part.joint != 0) {
+            gSPMatrix(disp++, &joints[part.joint - 1], G_MTX_MODELVIEW | G_MTX_LOAD);
+            baseLoaded = false;
+        } else if (!baseLoaded) {
+            gSPMatrix(disp++, base, G_MTX_MODELVIEW | G_MTX_LOAD);
+            baseLoaded = true;
+        }
+        HostEmitPart(disp++, part.dl);
+    }
+}
+
 /** One layer of the descriptor (see the file header for the order). */
 static void OoTHostModel_DrawLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
     const uint8_t setup = layer == kHostOpa ? model.opaSetupDl : model.xluSetupDl;
@@ -177,6 +236,19 @@ static void OoTHostModel_DrawLayer(PlayState* play, const ComboModel& model, uin
                                                   (u32)(s.y1 + s.y1PerFrame * frames), s.w1, s.h1);
         gSPSegment(disp++, s.segment, (uintptr_t)tex);
     }
+    // #964: a colour track frozen at one frame, the list MM's
+    // AnimatedMat_SetColor binds (the parts jump into the segment).
+    for (const ComboModelSegmentColor& c : model.segmentColors) {
+        if (c.segment == 0 || c.layer != layer) {
+            continue;
+        }
+        Gfx* list = (Gfx*)Graph_Alloc(gfxCtx, 3 * sizeof(Gfx));
+        Gfx* g = list;
+        gDPSetPrimColor(g++, 0, c.primLodFrac, c.prim[0], c.prim[1], c.prim[2], c.prim[3]);
+        gDPSetEnvColor(g++, c.env[0], c.env[1], c.env[2], c.env[3]);
+        gSPEndDisplayList(g++);
+        gSPSegment(disp++, c.segment, (uintptr_t)list);
+    }
     if (color.set) {
         gDPSetPrimColor(disp++, 0, color.primLodFrac, color.prim[0], color.prim[1], color.prim[2], 255);
         gDPSetEnvColor(disp++, color.env[0], color.env[1], color.env[2], 255);
@@ -186,31 +258,21 @@ static void OoTHostModel_DrawLayer(PlayState* play, const ComboModel& model, uin
         gSPGrayscale(disp++, true);
     }
 
-    gSPMatrix(disp++, MATRIX_NEWMTX(gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
+    Mtx* base = MATRIX_NEWMTX(gfxCtx);
+    gSPMatrix(disp++, base, G_MTX_MODELVIEW | G_MTX_LOAD);
+    OoTHostModel_EmitParts(gfxCtx, model, layer, false, base, disp);
     bool anyBillboard = false;
     for (uint8_t i = 0; i < model.partCount; i++) {
-        const ComboModelPart& part = model.parts[i];
-        if (part.layer != layer) {
-            continue;
-        }
-        if (part.billboard) {
-            anyBillboard = true;
-            continue;
-        }
-        HostEmitPart(disp++, part.dl);
+        anyBillboard |= model.parts[i].layer == layer && model.parts[i].billboard != 0;
     }
     if (anyBillboard) {
         OoT_Matrix_Push();
         OoT_Matrix_Translate(model.billboardOffset[0], model.billboardOffset[1], model.billboardOffset[2],
                              MTXMODE_APPLY);
         OoT_Matrix_ReplaceRotation(&play->billboardMtxF);
-        gSPMatrix(disp++, MATRIX_NEWMTX(gfxCtx), G_MTX_MODELVIEW | G_MTX_LOAD);
-        for (uint8_t i = 0; i < model.partCount; i++) {
-            const ComboModelPart& part = model.parts[i];
-            if (part.layer == layer && part.billboard) {
-                HostEmitPart(disp++, part.dl);
-            }
-        }
+        Mtx* facing = MATRIX_NEWMTX(gfxCtx);
+        gSPMatrix(disp++, facing, G_MTX_MODELVIEW | G_MTX_LOAD);
+        OoTHostModel_EmitParts(gfxCtx, model, layer, true, facing, disp);
         OoT_Matrix_Pop();
     }
     if (model.grayscale) {
@@ -536,6 +598,77 @@ extern "C" int OoT_ForeignModel_TestShelfDraw(uint16_t rc, const ComboModel* wan
         return 1;
     }
     return 0;
+}
+
+/**
+ * TEST BRIDGE (ForeignModel row M17, #964): the shelf's REAL draw call for OoT
+ * check `rc`, every path mounted (test override), its XLU layer read back:
+ * `bound[s]` 1 for each segment it binds before its first model list, the prim
+ * and env colours (RGBA) the list bound to `colorSegment` sets (zero when none
+ * is bound), and the translation of the matrix in force at each model list.
+ * Returns the number of model lists, or -1 when the draw left OoT's matrix
+ * stack unbalanced.
+ */
+extern "C" int OoT_ForeignModel_TestShelfXlu(uint16_t rc, uint8_t bound[16], uint8_t colorSegment, uint8_t prim[4],
+                                             uint8_t env[4], float translation[][3], int maxParts) {
+    OoTFakeDrawPlay fake;
+    const int savedMount = sHostMountOverride;
+    sHostMountOverride = 1;
+    sHostEmitUnresolved = true;
+    OoT_ForeignModel_DrawForOoTCheck(fake.play, rc);
+    sHostEmitUnresolved = false;
+    sHostMountOverride = savedMount;
+    std::memset(bound, 0, 16);
+    std::memset(prim, 0, 4);
+    std::memset(env, 0, 4);
+    if (OoT_sCurrentMatrix != fake.stack) {
+        return -1;
+    }
+    int parts = 0;
+    Mtx* current = nullptr;
+    for (const Gfx* g = fake.xlu.data(); g < fake.gfxCtx->polyXlu.p; g++) {
+        const uint32_t w0 = (uint32_t)g->words.w0;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        const uint32_t op = (w0 >> 24) & 0xFF;
+        // F3DEX2's gMoveWd (gDma1p): the index in bits 16-23, the offset in bits 0-15.
+        if (op == (uint32_t)(uint8_t)G_MOVEWORD && ((w0 >> 16) & 0xFF) == G_MW_SEGMENT) {
+            const uint32_t segment = (w0 & 0xFFFF) / 4;
+            if (parts == 0 && segment < 16) {
+                bound[segment] = 1;
+            }
+            if (segment == colorSegment && w1 != 0) {
+                // The bound colour list, read up to its end.
+                for (const Gfx* c = (const Gfx*)w1; c < (const Gfx*)w1 + 8; c++) {
+                    const uint32_t cop = ((uint32_t)c->words.w0 >> 24) & 0xFF;
+                    const uint32_t rgba = (uint32_t)c->words.w1;
+                    uint8_t* dst = cop == (uint32_t)(uint8_t)G_SETPRIMCOLOR  ? prim
+                                   : cop == (uint32_t)(uint8_t)G_SETENVCOLOR ? env
+                                                                             : nullptr;
+                    if (dst != nullptr) {
+                        dst[0] = (uint8_t)(rgba >> 24);
+                        dst[1] = (uint8_t)(rgba >> 16);
+                        dst[2] = (uint8_t)(rgba >> 8);
+                        dst[3] = (uint8_t)rgba;
+                    }
+                    if (cop == (uint32_t)(uint8_t)G_ENDDL) {
+                        break;
+                    }
+                }
+            }
+        } else if (op == (uint32_t)(uint8_t)G_MTX) {
+            current = (Mtx*)w1;
+        } else if (op == (uint32_t)(uint8_t)G_DL && w1 != 0 && std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+            if (parts < maxParts && current != nullptr) {
+                MtxF mf;
+                OoT_Matrix_MtxToMtxF(current, &mf);
+                translation[parts][0] = mf.xw;
+                translation[parts][1] = mf.yw;
+                translation[parts][2] = mf.zw;
+            }
+            parts++;
+        }
+    }
+    return parts;
 }
 
 // hook_handlers.cpp: the treasure chest game's prize display, seen through the

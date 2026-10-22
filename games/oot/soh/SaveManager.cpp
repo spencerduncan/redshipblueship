@@ -2990,6 +2990,10 @@ void SaveManager::LoadBaseVersion4() {
     SaveManager::Instance->LoadData("dogParams", gSaveContext.dogParams);
     SaveManager::Instance->LoadData("filenameLanguage", gSaveContext.ship.filenameLanguage);
     SaveManager::Instance->LoadData("maskMemory", gSaveContext.ship.maskMemory);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #977: the worn Majora's Mask mask, kept like maskMemory (absent: none).
+    SaveManager::Instance->LoadData("foreignMask", gSaveContext.ship.foreignMask);
+#endif
 }
 
 void SaveManager::SaveBase(SaveContext* saveContext, int sectionID, bool fullSave) {
@@ -3158,6 +3162,10 @@ void SaveManager::SaveBase(SaveContext* saveContext, int sectionID, bool fullSav
     SaveManager::Instance->SaveData("dogParams", saveContext->dogParams);
     SaveManager::Instance->SaveData("filenameLanguage", saveContext->ship.filenameLanguage);
     SaveManager::Instance->SaveData("maskMemory", saveContext->ship.maskMemory);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #977: the worn Majora's Mask mask, kept like maskMemory.
+    SaveManager::Instance->SaveData("foreignMask", saveContext->ship.foreignMask);
+#endif
 }
 
 // Load a string into a char array based on size and ensuring it is null terminated when overflowed

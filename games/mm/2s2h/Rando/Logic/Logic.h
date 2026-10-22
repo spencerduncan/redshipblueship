@@ -243,8 +243,9 @@ std::set<RandoCheckId> EvaluateReachableChecks(const ReachabilityCrawl& crawl);
  *  Determinism: iteration is over std::set/std::map orderings only and the
  *  give path consumes no Ship_Random, so the result is a pure function of the
  *  save + options + region graph — same inputs, identical set, any process.
- *  The SeedDeterminism row's two-process byte-compare locks this via the
- *  mmReachable* digest lines. */
+ *  No production path calls it (the foreign-host gate that did is retired); the
+ *  tests that do are diagnostics, and the determinism digests no longer fold it
+ *  (#996). */
 std::set<RandoCheckId> ComputeReachableCheckSet();
 void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 

@@ -156,6 +156,9 @@ set(REDSHIP_COMMON_SOURCES
     # ORIGIN game answers through, and the host-native mapping seam for object
     # directories both archives carry. Game-header-free.
     ${CMAKE_SOURCE_DIR}/src/common/foreign_model.c
+    # Wearing the other game's masks (#977): the worn-mask id space both saves
+    # persist, the curated worn models and icons, and the equip rules. Game-header-free.
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_masks.c
     # The curated cross-game archives those models are drawn from, generated on
     # the player's machine (#806): a C++ port of scripts/make_redship_otr.py's
     # rules over the embedded assets/crossgame/manifest.txt, run at boot.
@@ -223,6 +226,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/foreign_items.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_textbox_icon.h
     ${CMAKE_SOURCE_DIR}/src/common/foreign_model.h
+    ${CMAKE_SOURCE_DIR}/src/common/foreign_masks.h
     ${CMAKE_SOURCE_DIR}/src/common/curated_archives.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
@@ -2605,6 +2609,24 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1085: ONE copy of each shared song (Epona's, Storms, Time) in the paired
+    # world whatever OoT's Shuffle Songs says, one real paired generation per value.
+    redship_add_test(NAME SharedSongsOneCopyOff COMMAND redship --test shared-songs-one-copy-off
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopySongLocations COMMAND redship --test shared-songs-one-copy-song-locations
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopyDungeonRewards COMMAND redship --test shared-songs-one-copy-dungeon-rewards
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopyAnywhere COMMAND redship --test shared-songs-one-copy-anywhere
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #968: each shared arrow's ONE bag row over a real paired generation: one
     # copy per arrow, both solvers credit it (OoT's logic and MM's Snowhead, Great
     # Bay and Stone Tower logic), MM's world holds no second copy, the GOAL proven.
@@ -2679,6 +2701,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # trees' intersection; the registry includes no game header. Static tables
     # and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
     redship_add_test(NAME ForeignModel COMMAND redship --test foreign-model)
+    # WEARING THE OTHER GAME'S MASKS (#977, epic #975 P3): the worn-mask table and
+    # its curated models (checked against the embedded manifest), both games' equip
+    # rules on a heap Player (the worn field never reaches currentMask), the
+    # fields' persistence across a crossing and a .redsave, and OoT's list-based
+    # child trade cycle against the contiguous one it replaced. ROM-free.
+    redship_add_test(NAME ForeignMaskTable COMMAND redship --test foreign-mask-table)
+    redship_add_test(NAME ForeignMaskRules COMMAND redship --test foreign-mask-rules)
+    redship_add_test(NAME ForeignMaskPersistence COMMAND redship --test foreign-mask-persistence)
+    redship_add_test(NAME OoTChildTradeCycle COMMAND redship --test oot-child-trade-cycle)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every
