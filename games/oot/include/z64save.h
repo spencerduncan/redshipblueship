@@ -233,6 +233,11 @@ typedef struct ShipSaveContextData {
     u8 filenameLanguage;
     //TODO: Move non-rando specific flags to a new sohInf and move the remaining randomizerInf to ShipRandomizerSaveContextData
     u16 randomizerInf[(RAND_INF_MAX + 15) / 16];
+    // RedShipBlueShip (#977): the Majora's Mask mask Link wears, a ComboForeignMask
+    // (src/common/foreign_masks.h), never currentMask: OoT indexes unbounded tables
+    // by currentMask. APPENDED at the end of `ship`, the last member of SaveContext,
+    // so an older save's Tier-2 blob zero-extends into it (zero is no mask).
+    u8 foreignMask;
 } ShipSaveContextData;
 
 #pragma endregion

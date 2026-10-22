@@ -733,13 +733,13 @@ extern "C" int MM_Rando_Logic_JoinOrderProbe(void) {
 
 namespace {
 
-/** The MM world's own hashes, as the paired determinism digests fold them: MM's
- *  placement in fixed check order and its reachable-check closure. Read off MM's
- *  save, so MM's bytes must be the ones in view. */
+/** The MM world's own hash, as the paired determinism digests fold it: MM's
+ *  placement in fixed check order. Read off MM's save, so MM's bytes must be the
+ *  ones in view. (#996: the digest no longer folds Rando::Logic::ComputeReachableCheckSet;
+ *  no production path calls it since PlaceForeignItems was retired, so a hash of it
+ *  pinned nothing the player's world depends on.) */
 struct PairedMMWorldHashes {
     uint32_t placementHash = 0;
-    size_t reachableCount = 0;
-    uint32_t reachableHash = 0;
 };
 
 PairedMMWorldHashes ComputePairedMMWorldHashes() {
@@ -758,21 +758,6 @@ PairedMMWorldHashes ComputePairedMMWorldHashes() {
     }
     out.placementHash = Ship_Hash(blob);
 
-    // ADR 0010 increment 1.3: the reachable-check closure is now a GENERATION
-    // INPUT (the foreign-host gate filters candidates by it), so the
-    // determinism artifact folds it too. Two processes computing different
-    // closures for the same world is exactly the divergence
-    // CheckSeedDeterminism's byte-compare exists to catch — this is the
-    // two-process half of the callable's determinism lock (the in-process
-    // half lives in MM_Rando_HeadlessGenTest's paired phase).
-    std::string reachableBlob;
-    const std::set<RandoCheckId> digestReachable = Rando::Logic::ComputeReachableCheckSet();
-    for (RandoCheckId randoCheckId : digestReachable) {
-        reachableBlob += std::to_string((int)randoCheckId);
-        reachableBlob += ';';
-    }
-    out.reachableCount = digestReachable.size();
-    out.reachableHash = Ship_Hash(reachableBlob);
     return out;
 }
 
@@ -856,8 +841,6 @@ int WritePairedHalfDigest(const char* outPath, const PairedMMWorldHashes& mm, co
     fprintf(out,
             "mmFinalSeed=%08X\n"
             "mmPlacementHash=%08X\n"
-            "mmReachableCount=%zu\n"
-            "mmReachableHash=%08X\n"
             // ADR 0010 increment 1.2: the winning ladder attempt joins the
             // two-process diff, so both processes must not merely reach the
             // same world — they must reach it via the same derivation.
@@ -884,7 +867,7 @@ int WritePairedHalfDigest(const char* outPath, const PairedMMWorldHashes& mm, co
             "crossingDigest=%08X\n"
             "crossingsInOoT=%d\n"
             "crossingsInMM=%d\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mm.placementHash, mm.reachableCount, mm.reachableHash,
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mm.placementHash,
             (unsigned)gComboCtx.mmPairedAttempt, bag.seed, bag.bagCount, bag.trimmedOoT, bag.trimmedMM, bag.homeOnlyRows, bag.fill.requiredPlaced,
             bag.fill.surplusPlaced, bag.fill.surplusDropped, bag.fill.attempts, bag.fill.rounds,
             bag.fill.leftoverHostsOoT, bag.fill.leftoverHostsMM, coordinatorDigest, ootFinalHash, ootFinalPlaced,
@@ -1016,9 +999,9 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath) {
         return 4;
     }
     fprintf(stderr,
-            "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X crossings=%d (OoT %d, MM "
+            "[MM-FOREIGN-DIGEST] mmFinalSeed=%08X mmPlacementHash=%08X crossings=%d (OoT %d, MM "
             "%d) ootFinal=%08X\n",
-            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmWorld.placementHash, mmWorld.reachableHash, crossings,
+            gSaveContext.save.shipSaveInfo.rando.finalSeed, mmWorld.placementHash, crossings,
             Combo_Crossings_Count(GAME_OOT), Combo_Crossings_Count(GAME_MM), ootFinalHash);
     return 0;
 }
@@ -1131,9 +1114,9 @@ extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char
         return 7;
     }
     fprintf(stderr,
-            "[MM-PLAYER-PATH] mmFinalSeed=%08X mmPlacementHash=%08X mmReachableHash=%08X crossings OoT %d, MM %d, "
+            "[MM-PLAYER-PATH] mmFinalSeed=%08X mmPlacementHash=%08X crossings OoT %d, MM %d, "
             "ootFinal=%08X\n",
-            mmFinalSeed, mmWorld.placementHash, mmWorld.reachableHash, Combo_Crossings_Count(GAME_OOT),
+            mmFinalSeed, mmWorld.placementHash, Combo_Crossings_Count(GAME_OOT),
             Combo_Crossings_Count(GAME_MM), ootFinalHash);
     return 0;
 }

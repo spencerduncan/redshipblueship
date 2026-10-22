@@ -30,6 +30,16 @@
  *   once over both games as a shared pair, MM's own world holds no second copy,
  *   and the GOAL is still proven.
  *
+ *   shared-songs-one-copy-off / -song-locations / -dungeon-rewards / -anywhere
+ *   (CTest SharedSongsOneCopy*, rando tier, #1085) -- ONE COPY WHATEVER SHUFFLE
+ *   SONGS SAYS. A real paired generation per Shuffle Songs value with all three
+ *   shared-song rules on (Epona's Song, the Song of Storms, the Song of Time):
+ *   each song is held by exactly one check over both games' generated worlds
+ *   (OoT's own copy is not also left at a song check, a dungeon reward or its
+ *   vanilla check), under Off the other nine songs stay at their vanilla checks,
+ *   and the GOAL is still proven. (The headless half does not run OoT's junk
+ *   remainder, so the check OoT's copy leaves is not inspected here.)
+ *
  * Every key is spelled from the identity prefix rather than as a literal, so
  * the tier-4 classification scan sees only the manifest's spelling.
  *
@@ -75,6 +85,9 @@ int MM_SharedSongsTest_PoolId(int song);
 int Rando_HeadlessSeedTest(const char* seedStr);
 int MM_Rando_HeadlessPairedHalf(void);
 int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
+int OoT_SharedSongsTest_WorldCopies(int rg);
+int OoT_SharedSongsTest_OtherVanillaSongsAtHome(const int* sharedRgs, int sharedCount);
+int OoT_SharedSongsTest_VanillaSongCount(void);
 #ifdef __cplusplus
 }
 #endif
@@ -515,9 +528,9 @@ TestResult Test_SharedSongsMerge(void) {
 namespace {
 /** OoT's song shuffle for this row: anywhere (RO_SONG_SHUFFLE_ANYWHERE), so
  *  OoT's songs are general-pass bag rows like MM's and each pair has both
- *  halves. Under the default (song locations) OoT's restricted pass places its
- *  own copy before the bag, and the composer keeps MM's copy as the shared row
- *  alone (combo_logic.c pass 2b's one-side case). */
+ *  halves. Under every other value OoT holds its shared copy back from its
+ *  restricted song placement for the bag (#1085), so the pair has both halves
+ *  there too; the shared-songs-one-copy-* rows cover those values. */
 const char* const kSsSongShuffleKey = "gRandoSettings.ShuffleSongs";
 const int kSsSongShuffleAnywhere = 3;
 } // namespace
@@ -639,5 +652,131 @@ TestResult SharedSongsBag_Run(void) {
     }
 
     printf("[TEST] shared-songs-bag: %s\n", sSsFailures == 0 ? "PASS" : "FAIL");
+    return sSsFailures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// ============================================================================
+// shared-songs-one-copy-*: ONE copy of each shared song, whatever Shuffle Songs
+// says (#1085; OoTMM sharedSongEpona, sharedSongStorms, sharedSongTime)
+// ============================================================================
+
+namespace {
+/** OoT's Shuffle Songs values (RO_SONG_SHUFFLE_*), by the CVar's integer. */
+const char* const kSsShuffleNames[4] = { "Off", "Song Locations", "Dungeon Rewards", "Anywhere" };
+/** The three shared-song rules: #1066's two and #1069's Song of Time, spelled as
+ *  literals like kSsSongs (the key from the identity prefix). */
+struct SsOneCopySong {
+    uint32_t bit;
+    const char* keySuffix;
+    const char* itemName;
+};
+const SsOneCopySong kSsOneCopySongs[3] = {
+    { 0x00400000u, "SharedSongEpona", "Epona's Song" },
+    { 0x00800000u, "SharedSongStorms", "Song of Storms" },
+    { 0x04000000u, "SharedSongTime", "Song of Time" },
+};
+std::string SsOneCopyKey(int song) {
+    return std::string(RSBS::kComboIdentityKeyPrefix) + kSsOneCopySongs[song].keySuffix;
+}
+} // namespace
+
+TestResult SharedSongsOneCopy_Run(int shuffleSongs) {
+    const char* shuffleName = (shuffleSongs >= 0 && shuffleSongs < 4) ? kSsShuffleNames[shuffleSongs] : "?";
+    printf("[TEST] shared-songs-one-copy (Shuffle Songs %s): with the three shared-song rules on, the paired world "
+           "holds exactly ONE copy of each shared song over both games, and the GOAL is still proven (#1085)\n",
+           shuffleName);
+    sSsFailures = 0;
+    ComboContext_Init();
+    SsClearAllKeys();
+    for (int s = 0; s < 3; s++) {
+        CVarSetInteger(SsOneCopyKey(s).c_str(), 1);
+    }
+    const int priorShuffle = CVarGetInteger(kSsSongShuffleKey, -1);
+    CVarSetInteger(kSsSongShuffleKey, shuffleSongs);
+    struct Restore {
+        int prior;
+        ~Restore() {
+            if (prior < 0) {
+                CVarClear(kSsSongShuffleKey);
+            } else {
+                CVarSetInteger(kSsSongShuffleKey, prior);
+            }
+            for (int s = 0; s < 3; s++) {
+                CVarClear(SsOneCopyKey(s).c_str());
+            }
+        }
+    } restore{ priorShuffle };
+
+    const int gen = Rando_HeadlessSeedTest("RSBSSONGSONECOPY");
+    SS_CHECK(gen == 0, "the paired OoT generation failed under Shuffle Songs %s", shuffleName);
+    bool allFrozen = Combo_ComboSettingsFrozen();
+    for (int s = 0; s < 3; s++) {
+        allFrozen = allFrozen && Combo_ComboCrossItemRule(kSsOneCopySongs[s].bit);
+    }
+    SS_CHECK(allFrozen, "the creation did not freeze the three shared-song rules from the keys (rules %08X)",
+             (unsigned)gComboCtx.comboItemRules.crossItemFlags);
+    const int mmHalf = (gen == 0) ? MM_Rando_HeadlessPairedHalf() : -1;
+    SS_CHECK(mmHalf == 0, "MM's creation-time half did not produce a rando world");
+    if (gen != 0 || mmHalf != 0) {
+        printf("[TEST] shared-songs-one-copy (%s): FAIL\n", shuffleName);
+        return TEST_FAIL;
+    }
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    printf("[TEST] shared-songs-one-copy (%s): bag %d rows, %d shared pair(s), %d trimmed OoT / %d trimmed MM, goal "
+           "proven %d\n",
+           shuffleName, bag.bagCount, bag.compose.sharedPairs, bag.trimmedOoT, bag.trimmedMM,
+           bag.fill.goalProven ? 1 : 0);
+    SS_CHECK(bag.status == RSBS_COMBO_LOGIC_OK && bag.fill.goalProven,
+             "the single-bag fill did not prove the GOAL with the shared songs under Shuffle Songs %s", shuffleName);
+    SS_CHECK(bag.compose.sharedPairs == 3, "the composer made %d shared pair(s), expected the three songs",
+             bag.compose.sharedPairs);
+
+    const int shuffledTotal = MM_ComboLogic_TestShuffledItems(nullptr, nullptr, 0);
+    std::vector<uint16_t> items((size_t)(shuffledTotal > 0 ? shuffledTotal : 1));
+    const int shuffled = MM_ComboLogic_TestShuffledItems(items.data(), nullptr, (int)items.size());
+    SS_CHECK(shuffled > 0, "MM's generated world lists no shuffled items");
+
+    int sharedRgs[3] = { -1, -1, -1 };
+    for (int s = 0; s < 3; s++) {
+        uint16_t ootId = 0;
+        uint16_t mmId = 0;
+        const bool registered = Combo_SharedFamilyMemberId(GAME_OOT, kSsOneCopySongs[s].bit, &ootId) &&
+                                Combo_SharedFamilyMemberId(GAME_MM, kSsOneCopySongs[s].bit, &mmId);
+        SS_CHECK(registered, "the %s family is not registered in both games", kSsOneCopySongs[s].itemName);
+        if (!registered) {
+            continue;
+        }
+        sharedRgs[s] = (int)ootId;
+        // OoT's world: its restricted song pass, a vanilla placement, or the bag's
+        // OoT-hosted shared row (a host holds its own game's half of the pair).
+        const int ootCopies = OoT_SharedSongsTest_WorldCopies((int)ootId);
+        // MM's world: the bag's MM-hosted shared row, or MM's own copy back in play.
+        int mmCopies = 0;
+        for (int i = 0; i < shuffled && i < (int)items.size(); i++) {
+            if (items[(size_t)i] == mmId) {
+                mmCopies++;
+            }
+        }
+        printf("[TEST] shared-songs-one-copy (%s): %s held by %d OoT check(s) and %d MM check(s) (expected one in "
+               "all)\n",
+               shuffleName, kSsOneCopySongs[s].itemName, ootCopies, mmCopies);
+        SS_CHECK(ootCopies >= 0 && ootCopies + mmCopies == 1,
+                 "under Shuffle Songs %s the paired world holds %d copies of %s (OoT %d, MM %d), expected ONE: "
+                 "OoT's own copy is still in the world beside the shared row",
+                 shuffleName, ootCopies + mmCopies, kSsOneCopySongs[s].itemName, ootCopies, mmCopies);
+    }
+
+    // Off: only the shared songs leave their vanilla checks.
+    if (shuffleSongs == 0) {
+        const int expectAtHome = OoT_SharedSongsTest_VanillaSongCount() - 3;
+        const int atHome = OoT_SharedSongsTest_OtherVanillaSongsAtHome(sharedRgs, 3);
+        printf("[TEST] shared-songs-one-copy (Off): %d of the other vanilla songs at home (expected %d)\n", atHome,
+               expectAtHome);
+        SS_CHECK(atHome == expectAtHome,
+                 "under Shuffle Songs Off %d of the %d unshared songs are at their vanilla checks, expected all",
+                 atHome, expectAtHome);
+    }
+
+    printf("[TEST] shared-songs-one-copy (%s): %s\n", shuffleName, sSsFailures == 0 ? "PASS" : "FAIL");
     return sSsFailures == 0 ? TEST_PASS : TEST_FAIL;
 }
