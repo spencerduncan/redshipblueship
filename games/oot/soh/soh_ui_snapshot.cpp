@@ -1887,7 +1887,7 @@ void Session::BuildPageList() {
         // and MM Randomizer), so the auto pick would name neither page whenever
         // the other is its sibling contrast.
         static const std::map<std::string, std::string> kPinnedBody = {
-            { "Combo/Cross-Game Rules", "Item Crossing" },
+            { "Randomizer/Cross-Game", "Item Crossing" },
         };
         if (kPinnedBody.contains(p.id)) {
             p.bodyText = kPinnedBody.at(p.id);
