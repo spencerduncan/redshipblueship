@@ -677,6 +677,11 @@ if(BUILD_TESTING)
     # and the shared-family OR merge through both games' real shims. ROM-free.
     redship_add_test(NAME CrossItemRulesRecord COMMAND redship --test cross-item-rules-record)
     redship_add_test(NAME SharedFamilyMerge COMMAND redship --test shared-family-merge)
+    # #1068: the Shared Shields rule (OoTMM sharedShields) on that mechanism: the
+    # two pairs registered by both games and composed into one shared row each,
+    # and the arrival giving and wearing the shield in the other game. ROM-free.
+    redship_add_test(NAME SharedShieldsPairs COMMAND redship --test shared-shields-pairs)
+    redship_add_test(NAME SharedShieldsArrival COMMAND redship --test shared-shields-arrival)
     redship_add_test(NAME ComboSpoilerView COMMAND redship --test combo-spoiler-view)
     redship_add_test(NAME ComboSpoilerWindow COMMAND redship --test combo-spoiler-window)
     # Combo tracker (#458). Display-free: the MM adapter is driven over an
