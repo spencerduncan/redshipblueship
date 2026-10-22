@@ -2597,6 +2597,24 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1085: ONE copy of each shared song (Epona's, Storms, Time) in the paired
+    # world whatever OoT's Shuffle Songs says, one real paired generation per value.
+    redship_add_test(NAME SharedSongsOneCopyOff COMMAND redship --test shared-songs-one-copy-off
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopySongLocations COMMAND redship --test shared-songs-one-copy-song-locations
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopyDungeonRewards COMMAND redship --test shared-songs-one-copy-dungeon-rewards
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SharedSongsOneCopyAnywhere COMMAND redship --test shared-songs-one-copy-anywhere
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #968: each shared arrow's ONE bag row over a real paired generation: one
     # copy per arrow, both solvers credit it (OoT's logic and MM's Snowhead, Great
     # Bay and Stone Tower logic), MM's world holds no second copy, the GOAL proven.

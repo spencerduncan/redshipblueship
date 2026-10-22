@@ -2354,6 +2354,55 @@ const OoTItemClassRegistrar gOoTItemClassRegistrar;
 extern std::vector<RandomizerGet> gRsbsComboPlentifulAdded;
 extern std::vector<RandomizerGet> itemPool;
 
+#include "combo_single_bag.h" // src/common — Combo_SingleBag_SharedPairs, the pairs the bag composes
+
+extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void);
+
+/**
+ * THE SHARED SONGS' ONE COPY (#1085; OoTMM sharedSongEpona, sharedSongStorms,
+ * sharedSongTime): is OoT's own copy of song @p rg HELD BACK from OoT's
+ * restricted song placement (fill.cpp's song pass under Song Locations or
+ * Dungeon Rewards, item_pool.cpp's vanilla placement under Off) for the single
+ * bag? Yes exactly when the world defers its general pass to the bag and the bag
+ * composes @p rg as one half of a shared pair (a frozen shared-song rule on, both
+ * games' copies registered and pooled). A held-back copy stays in `itemPool`, so
+ * every restricted pass after it still assumes it, and it reaches the bag as a
+ * roaming row (OoT_ComboLogic_ConfinementArmed below) that the composer pairs
+ * with MM's copy: ONE row, both solvers credit it, MM's copy is trimmed. The
+ * song check it would have taken is an ordinary empty host. With every rule off
+ * (the shipped default) nothing is held back and no world moves.
+ */
+extern "C" int OoT_ComboLogic_SharedSongHeldBack(uint16_t rg) {
+    if (rg == (uint16_t)RG_NONE || rg >= (uint16_t)RG_MAX ||
+        Rando::StaticData::RetrieveItem((RandomizerGet)rg).GetItemType() != ITEMTYPE_SONG ||
+        !OoT_ComboLogic_DeferGeneralPassWanted()) {
+        return 0;
+    }
+    ComboLogicSharedPair pairs[RSBS_XITEM_BIT_COUNT];
+    const int n = Combo_SingleBag_SharedPairs(pairs, (int)RSBS_XITEM_BIT_COUNT);
+    for (int i = 0; i < n; ++i) {
+        if (pairs[i].ootId == rg) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** Does this world hold back any OoT song for the single bag (above)? */
+static bool OoTComboLogicHoldsBackASong() {
+    if (!OoT_ComboLogic_DeferGeneralPassWanted()) {
+        return false;
+    }
+    ComboLogicSharedPair pairs[RSBS_XITEM_BIT_COUNT];
+    const int n = Combo_SingleBag_SharedPairs(pairs, (int)RSBS_XITEM_BIT_COUNT);
+    for (int i = 0; i < n; ++i) {
+        if (OoT_ComboLogic_SharedSongHeldBack(pairs[i].ootId)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /**
  * The CONFINEMENT bits OoT's frozen settings arm (shared_items.h, "ONE SETTING
  * PER CONFINEMENT BIT"): a bit is set only when its ONE setting hands the family
@@ -2379,6 +2428,13 @@ extern "C" uint32_t OoT_ComboLogic_ConfinementArmed(void) {
         armed |= RSBS_FILL_ARM_MAPS_ROAM;
     }
     if (ctx->GetOption(RSK_SHUFFLE_SONGS).Is(RO_SONG_SHUFFLE_ANYWHERE)) {
+        armed |= RSBS_FILL_ARM_SONGS_ROAM;
+    }
+    // #1085: a shared song held back from the restricted song placement is handed
+    // to the general pass, the bag. It is the only song left in the pool at the
+    // seam (the restricted pass took every other one, and Off placed them), so
+    // arming the family moves no other song.
+    if (OoTComboLogicHoldsBackASong()) {
         armed |= RSBS_FILL_ARM_SONGS_ROAM;
     }
     if (ctx->GetOption(RSK_SHUFFLE_TOKENS).IsNot(RO_TOKENSANITY_OFF)) {

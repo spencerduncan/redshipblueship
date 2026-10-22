@@ -6160,6 +6160,32 @@ TestResult Test_SharedSongsBag(void) {
     return SharedSongsBag_Run();
 }
 
+// #1085: one copy of each shared song per Shuffle Songs value (0 Off, 1 Song
+// Locations, 2 Dungeon Rewards, 3 Anywhere), shared-lens-bag's bring-up.
+static TestResult SharedSongsOneCopyRow(int shuffleSongs) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ssoArg0[] = "redship";
+    static char* ssoArgv[] = { ssoArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ssoArgv);
+    return SharedSongsOneCopy_Run(shuffleSongs);
+}
+TestResult Test_SharedSongsOneCopyOff(void) {
+    return SharedSongsOneCopyRow(0);
+}
+TestResult Test_SharedSongsOneCopySongLocations(void) {
+    return SharedSongsOneCopyRow(1);
+}
+TestResult Test_SharedSongsOneCopyDungeonRewards(void) {
+    return SharedSongsOneCopyRow(2);
+}
+TestResult Test_SharedSongsOneCopyAnywhere(void) {
+    return SharedSongsOneCopyRow(3);
+}
+
 // #968: the shared arrows' bag rows over a real generation, shared-lens-bag's
 // bring-up.
 TestResult Test_SharedArrowsBag(void) {
@@ -7629,6 +7655,22 @@ const TestDescriptor gTests[] = {
       "With both shared-song rules on, the single bag holds one row per song both solvers credit, each placed once "
       "over both games, and the GOAL is still proven (#1066)",
       Test_SharedSongsBag },
+    { "shared-songs-one-copy-off",
+      "With the three shared-song rules on and Shuffle Songs Off, the paired world holds one copy of each shared song "
+      "and the other songs stay vanilla (#1085)",
+      Test_SharedSongsOneCopyOff },
+    { "shared-songs-one-copy-song-locations",
+      "With the three shared-song rules on and Shuffle Songs at Song Locations, the paired world holds one copy of "
+      "each shared song (#1085)",
+      Test_SharedSongsOneCopySongLocations },
+    { "shared-songs-one-copy-dungeon-rewards",
+      "With the three shared-song rules on and Shuffle Songs at Dungeon Rewards, the paired world holds one copy of "
+      "each shared song (#1085)",
+      Test_SharedSongsOneCopyDungeonRewards },
+    { "shared-songs-one-copy-anywhere",
+      "With the three shared-song rules on and Shuffle Songs Anywhere, the paired world holds one copy of each shared "
+      "song (#1085)",
+      Test_SharedSongsOneCopyAnywhere },
     { "shared-arrows-bag",
       "With all three shared-arrow rules on, the single bag holds one row per arrow both solvers credit, each placed "
       "once over both games, and the GOAL is still proven (#968)",
@@ -7959,6 +8001,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-songs-bag") == 0 || strcmp(gTests[i].name, "shared-arrows-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-masks-bag") == 0 ||
+                strncmp(gTests[i].name, "shared-songs-one-copy-", 22) == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||
