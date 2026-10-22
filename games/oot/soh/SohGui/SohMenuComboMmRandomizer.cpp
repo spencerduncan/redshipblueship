@@ -85,6 +85,13 @@ char sUnknownLabel[kMaxOptionRows][24];
 // The Final Hours row's in-slider text ("05:59"), rewritten by its PreFunc.
 char sTimeFormat[kMaxOptionRows][8];
 
+/** The trap-type rows' staging values (#1101 lane R4); MM has seven types and
+ *  its frozen set is one byte, so eight is every type there can be. */
+constexpr int kMaxTrapTypeRows = 8;
+bool sTrapTypeOn[kMaxTrapTypeRows];
+/** The option the trap-type rows follow: Trap Count, as on MM's own Items tab. */
+constexpr const char* kTrapTypesFollow = "RO_TRAP_AMOUNT";
+
 /** The note rows' names, rewritten each frame by their PreFuncs. */
 std::string sStatusNote;
 std::string sTricksNote;
@@ -221,6 +228,34 @@ void AddOptionRow(SohMenu& menu, WidgetPath& path, int index) {
                 .Options(TextOptions().Color(Colors::Gray));
             break;
     }
+}
+
+/**
+ * One trap-type row (#1101 lane R4): a checkbox directly after Shuffle Traps and
+ * Trap Count, as MM's own Items tab drew its "Toggle Trap Types". Pointer
+ * widget over a staging value, like an option row, so the only writer is the
+ * gated one (Combo_MMTrapTypeSetValue). Live until the profile is stamped, then
+ * "Already Decided": the option rows' state with no capability to block it,
+ * since every type is armed in this build (Traps.cpp is linked).
+ */
+void AddTrapTypeRow(SohMenu& menu, WidgetPath& path, int index) {
+    const ComboMMTrapTypeDesc* desc = Combo_MMTrapTypeAt(index);
+    if (desc == nullptr || index >= kMaxTrapTypeRows) {
+        return;
+    }
+    const std::string label = desc->label != nullptr ? desc->label : "";
+    menu.AddWidget(path, label + COMBO_MM_OPTIONS_ROW_ID_SUFFIX, WIDGET_CHECKBOX)
+        .ValuePointer(&sTrapTypeOn[index])
+        .PreFunc([index](WidgetInfo& info) {
+            sTrapTypeOn[index] = Combo_MMTrapTypeGetValue(Combo_MMTrapTypeAt(index));
+            const char* reason = "";
+            const ComboMMRowState state = Combo_MMOptionsPage_OptionState(nullptr, &reason);
+            SohMenu::ApplyPresentation(info, info.name, ToPresentation(state),
+                                       state == COMBO_MM_ROW_LIVE ? nullptr : reason);
+        })
+        .Callback(
+            [index](WidgetInfo& info) { Combo_MMTrapTypeSetValue(Combo_MMTrapTypeAt(index), sTrapTypeOn[index]); })
+        .Options(CheckboxOptions().Tooltip(desc->tooltip != nullptr ? desc->tooltip : ""));
 }
 
 /** A gray note row whose sentence its PreFunc supplies. */
@@ -592,7 +627,8 @@ void DrawMmTrickList(WidgetInfo& info) {
  * taxonomy, the primary button at 250 px). Column 1 opens with the page's state
  * notes and its two warnings, then Logic & Conditions and Shuffle Options;
  * column 2 holds Items, Starting Items, Hints and Reset. The column of each
- * group is the model's (Combo_MMOptionsPage_GroupColumn).
+ * group is the model's (Combo_MMOptionsPage_GroupColumn). MM's seven trap types
+ * follow Trap Count, one checkbox each (AddTrapTypeRow, #1101 lane R4).
  *
  * No "[Both Games]" marker: every row is a tier-3 Majora's Mask key, none is in
  * RSBS::kSharedIntentKeys, so no row claims to apply to both games (ADR 0004
@@ -678,6 +714,13 @@ void AddMmRandomizerOptionsWidgets(SohMenu& menu, WidgetPath& path) {
                 const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
                 if (desc != nullptr && desc->group == group) {
                     AddOptionRow(menu, path, i);
+                    // The trap types follow Shuffle Traps and Trap Count, in
+                    // whichever group holds Trap Count (#1101 lane R4).
+                    if (desc->name != nullptr && std::string(desc->name) == kTrapTypesFollow) {
+                        for (int t = 0; t < Combo_MMTrapTypeCount(); t++) {
+                            AddTrapTypeRow(menu, path, t);
+                        }
+                    }
                 }
             }
         }

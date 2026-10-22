@@ -172,36 +172,75 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc) {
 }
 
 // ---- the trap types (#1101 lane R4) -------------------------------------------
-// [lock] seam: today no trap-type row exists and nothing writes the keys, so
-// nothing registers, nothing is listed and every write is refused.
+
+static const ComboMMTrapTypeDesc* sTrapTypeTable = NULL;
+static int sTrapTypeCount = 0;
 
 void Combo_RegisterMMTrapTypeTable(const ComboMMTrapTypeDesc* table, int count) {
-    (void)table;
-    (void)count;
+    if (table == NULL && count == 0) {
+        sTrapTypeTable = NULL;
+        sTrapTypeCount = 0;
+        return;
+    }
+    if (table == NULL || count <= 0) {
+        fprintf(stderr, "[MMOptions] trap-type table registration rejected: empty table (%d entries)\n", count);
+        return;
+    }
+    if (sTrapTypeTable != NULL && (sTrapTypeTable != table || sTrapTypeCount != count)) {
+        fprintf(stderr, "[MMOptions] trap-type table re-registered (%d entries replace %d)\n", count, sTrapTypeCount);
+    }
+    sTrapTypeTable = table;
+    sTrapTypeCount = count;
 }
 
 int Combo_MMTrapTypeCount(void) {
-    return 0;
+    return sTrapTypeCount;
 }
 
 const ComboMMTrapTypeDesc* Combo_MMTrapTypeAt(int index) {
-    (void)index;
-    return NULL;
+    if (sTrapTypeTable == NULL || index < 0 || index >= sTrapTypeCount) {
+        return NULL;
+    }
+    return &sTrapTypeTable[index];
 }
 
 bool Combo_MMTrapTypeGetValue(const ComboMMTrapTypeDesc* desc) {
-    (void)desc;
-    return false;
+    if (desc == NULL || desc->cvar == NULL) {
+        return false;
+    }
+    return CVarGetInteger(desc->cvar, 0) != 0;
 }
 
 bool Combo_MMTrapTypeSetValue(const ComboMMTrapTypeDesc* desc, bool on) {
-    (void)desc;
-    (void)on;
-    return false;
+    if (desc == NULL || desc->cvar == NULL) {
+        return false;
+    }
+    // The set is folded into mmProfileDigest and frozen into the save
+    // (randoSaveTrapTypes, #1047): once stamped it is world identity, as the
+    // options are, so the gate is the option writer's.
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] write to '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return false;
+    }
+    CVarSetInteger(desc->cvar, on ? 1 : 0);
+    return true;
 }
 
 void Combo_MMTrapTypeClear(const ComboMMTrapTypeDesc* desc) {
-    (void)desc;
+    if (desc == NULL || desc->cvar == NULL) {
+        return;
+    }
+    if (Combo_MMProfileFrozen()) {
+        fprintf(stderr,
+                "[MMOptions] clear of '%s' REJECTED: the MM profile is frozen into the paired world's "
+                "creation identity (digest %08X)\n",
+                desc->cvar, (unsigned)gComboCtx.mmProfileDigest);
+        return;
+    }
+    CVarClear(desc->cvar);
 }
 
 bool Combo_MMProfileFrozen(void) {

@@ -443,8 +443,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
   Windows its Combo Item Tracker toggle and Tracker Settings its Window Type row (`PageSpec::hoverRows`, a named row,
   captured in the page's first state unless `PageSpec::hoverRowState` names another). Combo > MM Randomizer hovers its
-  first row unpaired and frozen and its first capability-blocked row (named rows; the frozen and blocked ones are in
-  `PageSpec::disabledHovers`). Combo > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
+  first row unpaired and frozen, its first capability-blocked row and its Freeze Traps row unpaired (named rows; the
+  frozen and blocked ones are in `PageSpec::disabledHovers`). Combo > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
   one frozen (`PageSpec::paneHovers`, found through the `combo_ui` rect recorder, because the trick list is one custom
   row; the harness scrolls the table's own child to reach a row). A disabled row's hover must show SoH's disabled
   shape with no tracker number. The trick hovers are composited against Settings > Graphics' Current FPS hover

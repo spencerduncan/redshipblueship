@@ -161,4 +161,8 @@ void Combo_MMOptionsPage_ResetAll(void) {
     for (int i = 0; i < Combo_MMTrickCount(); i++) {
         Combo_MMTrickClear(Combo_MMTrickAt(i));
     }
+    // The trap types are rows of the same page and fold into the same digest.
+    for (int i = 0; i < Combo_MMTrapTypeCount(); i++) {
+        Combo_MMTrapTypeClear(Combo_MMTrapTypeAt(i));
+    }
 }
