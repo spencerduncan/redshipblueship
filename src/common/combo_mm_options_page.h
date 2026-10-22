@@ -203,8 +203,8 @@ const char* Combo_MMOptionsPage_TricksNote(char* buf, size_t size);
 const char* Combo_MMOptionsPage_TricksHeadline(char* buf, size_t size);
 
 /**
- * Reset's action (the confirm's Reset button): clears every option CVar and
- * every trick CVar, back to "never chosen". Clears rather than writing the
+ * Reset's action (the confirm's Reset button): clears every option CVar, every
+ * trick CVar and every trap-type CVar (#1101 lane R4), back to "never chosen". Clears rather than writing the
  * defaults, because the paired logic default tells "the player chose this" from
  * "nobody touched it" by the key's presence. Under a freeze the writers refuse
  * on their own, so a confirm answered after a freeze landed changes nothing.

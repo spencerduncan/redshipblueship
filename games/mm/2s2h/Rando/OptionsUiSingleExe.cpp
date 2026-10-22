@@ -167,6 +167,7 @@
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
+#include "Rando/MiscBehavior/Traps.h" // TrapTypeCVar, TrapTypeLabel: the trap-type rows (#1101 lane R4)
 
 extern "C" {
 // SPIDER_HOUSE_TOKENS_REQUIRED and STRAY_FAIRY_SCATTERED_TOTAL — the two
@@ -699,6 +700,44 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
     return sDescriptors;
 }
 
+/**
+ * The trap-type rows' table (#1101 lane R4), built once at registration: the
+ * key and the name are COPIED from Traps.cpp (TrapTypeCVar, TrapTypeLabel, the
+ * map creation freezes from), so a row cannot bind a key the roll does not
+ * read. The descriptions are MM's own Items tab's, in SoH's tooltip length.
+ */
+std::vector<ComboMMTrapTypeDesc>& TrapTypeTable() {
+    static std::vector<ComboMMTrapTypeDesc> sTrapTypes;
+    if (!sTrapTypes.empty()) {
+        return sTrapTypes;
+    }
+    // TrapTypes order. Freeze also says what an empty set springs
+    // (getEnabledTrapTypes' fallback), which no other row could say.
+    static const char* const kTooltips[TRAP_MAX] = {
+        "Freezes Link in place. With no trap type chosen, every trap is a Freeze Trap.",
+        "Link explodes with the force of a Powder Keg.",
+        "Shocks Link for a few seconds.",
+        "Jinxes Link, so he cannot use his sword for a while.",
+        "Scatters some of Link's rupees around him.",
+        "Spawns a Like Like on top of Link.",
+        "Moves the clock forward about 90 minutes.",
+    };
+    for (int type = 0; type < (int)TRAP_MAX; type++) {
+        const char* cvar = TrapTypeCVar(type);
+        const char* label = TrapTypeLabel(type);
+        if (cvar == nullptr || label == nullptr) {
+            continue;
+        }
+        ComboMMTrapTypeDesc desc = {};
+        desc.type = (uint8_t)type;
+        desc.cvar = cvar;
+        desc.label = label;
+        desc.tooltip = kTooltips[type];
+        sTrapTypes.push_back(desc);
+    }
+    return sTrapTypes;
+}
+
 } // namespace
 
 /**
@@ -721,6 +760,11 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
 extern "C" void MM_RandoOptionsUi_Register(void) {
     auto& table = DescriptorTable();
     Combo_RegisterMMOptionTable(table.data(), (int)table.size());
+    // The trap types are rows of the same page (#1101 lane R4), published with it.
+    auto& traps = TrapTypeTable();
+    if (!traps.empty()) {
+        Combo_RegisterMMTrapTypeTable(traps.data(), (int)traps.size());
+    }
 }
 
 // ============================================================================

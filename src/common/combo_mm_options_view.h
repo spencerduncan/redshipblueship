@@ -239,6 +239,49 @@ bool Combo_MMOptionIsExplicit(const ComboMMOptionDesc* desc);
 void Combo_MMOptionClear(const ComboMMOptionDesc* desc);
 
 /**
+ * MM's trap types (#1101 lane R4): which kinds of trap a shuffled trap may be,
+ * one checkbox each on the MM Randomizer page, directly after Shuffle Traps
+ * and Trap Count (MM's own Items tab drew them there as "Toggle Trap Types",
+ * games/mm/2s2h/Rando/Menu.cpp, which is not linked).
+ *
+ * A SEPARATE TABLE, not seven more option rows: the keys are `gRando.Traps.*`,
+ * not `gRando.Options.RO_*`, so no RandoStaticOption row exists for them and
+ * no RANDO_SAVE_OPTIONS slot holds them. They freeze as one bit set
+ * (randoSaveTrapTypes, #1047) and fold into mmProfileDigest as that set, so they
+ * are world identity exactly as the options are, behind the same gate.
+ *
+ * Registered MM-side by MM_RandoOptionsUi_Register (Traps.cpp owns the keys and
+ * the names), as flat data: this file holds no MM knowledge.
+ */
+typedef struct {
+    uint8_t type;        // MM's TrapTypes value: bit `type` of the frozen set
+    const char* cvar;    // "gRando.Traps.<Name>"; never NULL
+    const char* label;   // e.g. "Freeze Traps"; never NULL or empty
+    const char* tooltip; // one sentence; never NULL
+} ComboMMTrapTypeDesc;
+
+/** Install MM's trap-type table; (NULL, 0) un-registers. Re-registering the same
+ *  table is silent, a different one complains on stderr (the option table's rule). */
+void Combo_RegisterMMTrapTypeTable(const ComboMMTrapTypeDesc* table, int count);
+
+/** Number of registered trap types; 0 when the MM table did not link. */
+int Combo_MMTrapTypeCount(void);
+
+/** Trap type at `index` in table order, or NULL if out of range. */
+const ComboMMTrapTypeDesc* Combo_MMTrapTypeAt(int index);
+
+/** Whether the trap type is on: its CVar, default off (MM's own default). */
+bool Combo_MMTrapTypeGetValue(const ComboMMTrapTypeDesc* desc);
+
+/** Turn the trap type on or off. REJECTED (no CVar write, stderr log, returns
+ *  false) while Combo_MMProfileFrozen() is true, as the option writer is: the
+ *  set is world identity once the profile is stamped. True when written. */
+bool Combo_MMTrapTypeSetValue(const ComboMMTrapTypeDesc* desc, bool on);
+
+/** Clear the trap type's CVar (Reset). REJECTED while frozen, as above. */
+void Combo_MMTrapTypeClear(const ComboMMTrapTypeDesc* desc);
+
+/**
  * The frozen-state predicate (#498/#564; ADR 0004 §6's fourth presentation
  * state, ADR 0009 D1 as amended): true once a creation event has stamped the
  * MM profile identity — literally `gComboCtx.mmProfileDigest != 0`, a

@@ -26,7 +26,11 @@
  *      EXACTLY MM's descriptor table: one row per descriptor, of the widget type
  *      the descriptor names, under the name the page derives from its label (the
  *      "##MMRando" id suffix on checkboxes and comboboxes, SoH's "Name: %d" on
- *      sliders), and nothing else interactive but Reset.
+ *      sliders), plus the seven trap-type rows (#1101 lane R4: Freeze, Blast,
+ *      Shock, Jinx, Wallet, Like Like and Time Traps, each a "##MMRando"
+ *      checkbox over its gRando.Traps.* key, spelled here, directly after Trap
+ *      Count in Trap Count's column, as MM's own Items tab drew its "Toggle Trap
+ *      Types"), and nothing else interactive but Reset.
  *
  *   3. A ROW LANDS IN THE WRONG COLUMN, or in one the page never draws, or
  *      outside its group's header. The headers are SoH's Randomizer headers in
@@ -70,6 +74,12 @@
  *      ignored the lockout; the change is deliberate (ADR 0004's 2026-09-27
  *      host amendment). The trick list applies the lockout itself, as SoH's
  *      DrawTricksMenu does.
+ *
+ *   9. A TRAP-TYPE ROW WRITES AROUND THE GATE (#1101 lane R4). Each of the seven
+ *      rows refreshes from the model and offers its edit to the gated trap-type
+ *      writer: an unfrozen edit lands in its own gRando.Traps.* key and no
+ *      other, a frozen one is refused and the next draw restores the model's
+ *      value, and Reset clears all seven with the options and tricks.
  *
  * What the trick list DRAWS (every trick once, in its column, with its reason)
  * is UiSnapshot's trick census: it needs an ImGui frame, which this row has not.
@@ -196,6 +206,21 @@ FlatRow* FindByName(std::vector<FlatRow>& rows, const std::string& name) {
     return nullptr;
 }
 
+/** The seven trap-type rows (#1101 lane R4), spelled independently of the table:
+ *  MM's own labels (Rando/Menu.cpp's "Toggle Trap Types") and the keys Traps.cpp
+ *  freezes, in MM's TrapTypes order. */
+struct TrapRow {
+    const char* label;
+    const char* cvar;
+};
+const TrapRow kTrapRows[] = {
+    { "Freeze Traps", "gRando.Traps.Freeze" }, { "Blast Traps", "gRando.Traps.Blast" },
+    { "Shock Traps", "gRando.Traps.Shock" },   { "Jinx Traps", "gRando.Traps.Jinx" },
+    { "Wallet Traps", "gRando.Traps.Wallet" }, { "Like Like Traps", "gRando.Traps.Enemy" },
+    { "Time Traps", "gRando.Traps.Time" },
+};
+constexpr int kTrapRowCount = (int)(sizeof(kTrapRows) / sizeof(kTrapRows[0]));
+
 void Freeze(bool frozen) {
     ComboContext_Init();
     if (frozen) {
@@ -296,10 +321,65 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                        row.info->name.c_str(), row.column, options.columnCount);
         }
         MMRP_CHECK(resets == 1, "the options page holds %d Reset buttons, expected 1", resets);
-        MMRP_CHECK(interactive == count + 1,
-                   "the options page holds %d interactive rows, expected the %d descriptors plus Reset: an option is "
-                   "lost or doubled",
-                   interactive, count);
+        MMRP_CHECK(interactive == count + kTrapRowCount + 1,
+                   "the options page holds %d interactive rows, expected the %d descriptors, the %d trap types and "
+                   "Reset: an option is lost or doubled",
+                   interactive, count, kTrapRowCount);
+        // The seven trap-type rows (#1101 lane R4): the model's table is those
+        // seven, in MM's order, and each is one checkbox after Trap Count.
+        MMRP_CHECK(Combo_MMTrapTypeCount() == kTrapRowCount, "the trap-type table holds %d rows, expected %d",
+                   Combo_MMTrapTypeCount(), kTrapRowCount);
+        for (int t = 0; t < kTrapRowCount; t++) {
+            const ComboMMTrapTypeDesc* d = Combo_MMTrapTypeAt(t);
+            MMRP_CHECK(d != nullptr && d->type == (uint8_t)t && std::string(d->label) == kTrapRows[t].label &&
+                           std::string(d->cvar) == kTrapRows[t].cvar,
+                       "trap type %d is not %s over %s", t, kTrapRows[t].label, kTrapRows[t].cvar);
+            const std::string name = std::string(kTrapRows[t].label) + "##MMRando";
+            int matches = 0;
+            FlatRow* found = nullptr;
+            for (FlatRow& row : rows) {
+                if (row.info->name == name) {
+                    matches++;
+                    found = &row;
+                }
+            }
+            MMRP_CHECK(matches == 1, "the trap type %s has %d rows named '%s', expected exactly 1", kTrapRows[t].label,
+                       matches, name.c_str());
+            if (found == nullptr) {
+                continue;
+            }
+            MMRP_CHECK(found->info->type == WIDGET_CHECKBOX, "the trap row '%s' has widget type %d, expected %d",
+                       name.c_str(), (int)found->info->type, (int)WIDGET_CHECKBOX);
+            // Directly after Trap Count, in MM's order, in Trap Count's column
+            // and so under its header (MM's own Items tab drew the "Toggle Trap
+            // Types" there). Trap Count is named here, not read from the page.
+            const WidgetInfo* anchor = nullptr;
+            unsigned anchorColumn = 0;
+            for (FlatRow& row : rows) {
+                if (row.info->name == "Trap Count: %d") {
+                    anchor = row.info;
+                    anchorColumn = row.column;
+                }
+            }
+            MMRP_CHECK(anchor != nullptr, "the options page has no Trap Count row for the trap types to follow");
+            if (anchor == nullptr) {
+                continue;
+            }
+            MMRP_CHECK(found->column == anchorColumn, "the trap row '%s' sits in column %u, Trap Count in column %u",
+                       name.c_str(), found->column, anchorColumn);
+            const std::vector<WidgetInfo>& column = options.columnWidgets.at(anchorColumn);
+            size_t at = column.size();
+            for (size_t w = 0; w < column.size(); w++) {
+                if (&column[w] == anchor) {
+                    at = w;
+                }
+            }
+            const size_t want = at + 1 + (size_t)t;
+            MMRP_CHECK(
+                want < column.size() && &column[want] == found->info,
+                "the trap row '%s' is not row %d after Trap Count: the trap types do not follow it in MM's order",
+                name.c_str(), t + 1);
+        }
         for (int i = 0; i < count; i++) {
             const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
             const std::string name = ExpectedRowName(desc);
@@ -392,6 +472,26 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                            IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
             } else {
                 MMRP_CHECK(!IsDisabled(*row->info), "live option %s is drawn disabled", desc->name);
+            }
+        }
+        // A trap row is live until the profile is stamped, then "Already Decided".
+        for (int t = 0; t < kTrapRowCount; t++) {
+            FlatRow* row = FindByName(rows, std::string(kTrapRows[t].label) + "##MMRando");
+            if (row == nullptr) {
+                continue;
+            }
+            const std::string registered = row->info->name;
+            DrawPass(*row->info);
+            DrawPass(*row->info);
+            MMRP_CHECK(row->info->name == registered, "the trap row %s was renamed to '%s' by its PreFunc",
+                       kTrapRows[t].label, row->info->name.c_str());
+            if (frozen) {
+                MMRP_CHECK(IsDisabled(*row->info) &&
+                               TooltipShown(*row->info) == SohDisabledShape(COMBO_MM_OPTIONS_FROZEN_REASON),
+                           "frozen: the trap row %s is %s with tooltip \"%s\"", kTrapRows[t].label,
+                           IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
+            } else {
+                MMRP_CHECK(!IsDisabled(*row->info), "the trap row %s is drawn disabled unpaired", kTrapRows[t].label);
             }
         }
         if (reset != nullptr) {
@@ -635,10 +735,69 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 }
             }
         }
-        MMRP_CHECK(locked == count + 1, "%d rows obey the race lockout, expected every option row and Reset (%d)",
-                   locked, count + 1);
+        MMRP_CHECK(locked == count + kTrapRowCount + 1,
+                   "%d rows obey the race lockout, expected every option row, trap row and Reset (%d)", locked,
+                   count + kTrapRowCount + 1);
     }
-    printf("[TEST] leg 8: every option row and Reset obeys SoH's race lockout; every note stays legible\n");
+    printf("[TEST] leg 8: every option row, trap row and Reset obeys SoH's race lockout; every note stays legible\n");
+
+    // ---- Leg 9: the trap-type rows write through the gated writer (#1101 R4) ---
+    {
+        Freeze(false);
+        auto trapKeysOn = []() {
+            int on = 0;
+            for (int u = 0; u < kTrapRowCount; u++) {
+                on |= CVarGetInteger(kTrapRows[u].cvar, 0) != 0 ? (1 << u) : 0;
+            }
+            return on;
+        };
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarClear(kTrapRows[u].cvar);
+        }
+        int landed = 0;
+        for (int t = 0; t < kTrapRowCount; t++) {
+            FlatRow* row = FindByName(rows, std::string(kTrapRows[t].label) + "##MMRando");
+            if (row == nullptr || row->info->type != WIDGET_CHECKBOX || row->info->callback == nullptr) {
+                continue;
+            }
+            WidgetInfo& cb = *row->info;
+            bool* value = std::get<bool*>(cb.valuePointer);
+            DrawPass(cb);
+            MMRP_CHECK(!*value, "the trap row %s starts on with every key clear", kTrapRows[t].label);
+            *value = true;
+            cb.callback(cb);
+            MMRP_CHECK(trapKeysOn() == (1 << t), "turning on %s left the trap keys at %02X, expected %02X (%s alone)",
+                       kTrapRows[t].label, (unsigned)trapKeysOn(), (unsigned)(1 << t), kTrapRows[t].cvar);
+            landed += trapKeysOn() == (1 << t) ? 1 : 0;
+            // Frozen: the edit is refused and the next draw restores the model.
+            Freeze(true);
+            DrawPass(cb);
+            *value = false;
+            cb.callback(cb);
+            MMRP_CHECK(CVarGetInteger(kTrapRows[t].cvar, 0) == 1, "a FROZEN edit of %s reached %s", kTrapRows[t].label,
+                       kTrapRows[t].cvar);
+            DrawPass(cb);
+            MMRP_CHECK(*value, "the next draw did not restore %s's frozen value", kTrapRows[t].label);
+            Freeze(false);
+            DrawPass(cb);
+            *value = false;
+            cb.callback(cb);
+            MMRP_CHECK(trapKeysOn() == 0, "turning %s off again left the trap keys at %02X", kTrapRows[t].label,
+                       (unsigned)trapKeysOn());
+        }
+        MMRP_CHECK(landed == kTrapRowCount, "%d of the %d trap rows wrote their own key", landed, kTrapRowCount);
+        // Reset clears the trap types with the options and tricks.
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarSetInteger(kTrapRows[u].cvar, 1);
+        }
+        Combo_MMOptionsPage_ResetAll();
+        MMRP_CHECK(trapKeysOn() == 0, "Reset MM Randomizer left the trap keys at %02X", (unsigned)trapKeysOn());
+        for (int u = 0; u < kTrapRowCount; u++) {
+            CVarClear(kTrapRows[u].cvar);
+        }
+    }
+    printf("[TEST] leg 9: each trap-type row writes its own key through the gated writer, is refused while frozen, "
+           "and Reset clears all seven\n");
 
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
