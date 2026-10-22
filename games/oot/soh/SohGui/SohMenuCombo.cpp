@@ -421,7 +421,8 @@ std::vector<ComboSectionPage>& MutableComboSectionPages() {
 
 } // namespace
 
-void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar) {
+void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
+                              ComboPageHost host) {
     if (sidebarName == nullptr || sidebarName[0] == '\0' || registrar == nullptr || columnCount == 0) {
         SPDLOG_ERROR("RegisterComboSectionPage: refused - a page needs a name, a registrar and at least one column");
         return;
@@ -436,10 +437,11 @@ void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, Com
                         sidebarName);
             page.columnCount = columnCount;
             page.registrar = registrar;
+            page.host = host;
             return;
         }
     }
-    pages.push_back(ComboSectionPage{ sidebarName, columnCount, registrar });
+    pages.push_back(ComboSectionPage{ sidebarName, columnCount, registrar, host });
 }
 
 bool UnregisterComboSectionPage(const char* sidebarName) {
@@ -1006,7 +1008,7 @@ void SohMenu::AddMenuCombo() {
     // created here rather than in its own registrar - a registrar that had to
     // call AddSidebarEntry itself could name a section it does not belong to.
     for (const ComboSectionPage& page : GetComboSectionPages()) {
-        if (page.registrar == nullptr || page.sidebarName.empty()) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Combo) {
             continue;
         }
         path.sidebarName = page.sidebarName;
@@ -1014,6 +1016,33 @@ void SohMenu::AddMenuCombo() {
         AddSidebarEntry("Combo", path.sidebarName, page.columnCount);
         page.registrar(*this, path);
     }
+}
+
+// The interim host's pointer page (SohMenuRandomizer.cpp), declared in no header.
+void AddCrossGamePointerWidgets(SohMenu& menu, WidgetPath& path);
+
+void AddComboRandomizerPages(SohMenu& menu, WidgetPath& path) {
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Randomizer) {
+            continue;
+        }
+        path.sidebarName = page.sidebarName;
+        path.column = SECTION_COLUMN_1;
+        menu.AddSidebarEntry("Randomizer", path.sidebarName, page.columnCount);
+        page.registrar(menu, path);
+    }
+    AddCrossGamePointerWidgets(menu, path);
+}
+
+std::vector<std::string> ComboRandomizerPageNames() {
+    std::vector<std::string> names;
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar != nullptr && !page.sidebarName.empty() && page.host == ComboPageHost::Randomizer) {
+            names.push_back(page.sidebarName);
+        }
+    }
+    names.push_back(kComboRulesRandomizerPage);
+    return names;
 }
 
 } // namespace SohGui

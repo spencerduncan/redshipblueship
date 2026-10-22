@@ -194,12 +194,25 @@ class SohMenu;
 /** A Combo-section page contributed by another translation unit. */
 using ComboPageRegistrar = void (*)(SohMenu& menu, WidgetPath& path);
 
-/** One contributed page: its sidebar label, how many columns it draws, and the
- *  registrar that fills it. */
+/**
+ * Which header a contributed page is drawn under (#1101, operator ruling
+ * 2026-10-21, option C). Combo: AddMenuCombo() walks it after the Windows page.
+ * Randomizer: AddComboRandomizerPages() walks it under SoH's Randomizer header,
+ * after Tricks/Glitches and before Cross-Game, the one randomizer menu for both
+ * games.
+ */
+enum class ComboPageHost : uint8_t {
+    Combo,
+    Randomizer,
+};
+
+/** One contributed page: its sidebar label, how many columns it draws, the
+ *  registrar that fills it, and the header it is drawn under. */
 struct ComboSectionPage {
     std::string sidebarName;
     uint32_t columnCount;
     ComboPageRegistrar registrar;
+    ComboPageHost host = ComboPageHost::Combo;
 };
 
 /**
@@ -230,7 +243,27 @@ struct ComboSectionPage {
  * complains on stderr - two registrars claiming one page is the ambiguity this
  * registry would otherwise hide.
  */
-void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar);
+void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
+                              ComboPageHost host = ComboPageHost::Combo);
+
+/** The Randomizer header's sidebar name for the cross-game rules page. Selection
+ *  persists by display name in gSettings.Menu.RandomizerSidebarSection, so this
+ *  is the one spelling. */
+inline constexpr const char* kComboRulesRandomizerPage = "Cross-Game";
+
+/**
+ * Registers this project's pages under SoH's Randomizer header (#1101): every
+ * contributed page whose host is ComboPageHost::Randomizer, in registration
+ * order, then Cross-Game. AddMenuRandomizer() calls it right after
+ * Tricks/Glitches, so the pages sit between SoH's option pages and Plandomizer.
+ * Each page's sidebar is created here with a pinned first column. Defined in
+ * SohMenuCombo.cpp; callable ROM-free, unlike AddMenuRandomizer() as a whole,
+ * so the locks and the UI snapshot probe drive it directly.
+ */
+void AddComboRandomizerPages(SohMenu& menu, WidgetPath& path);
+
+/** The sidebar names AddComboRandomizerPages() registers, in its order. */
+std::vector<std::string> ComboRandomizerPageNames();
 
 /** Drop a contributed page again. Returns true if one was removed. Exists so a
  *  test can restore the registry rather than leave process-global state behind
@@ -441,8 +474,9 @@ class SohMenu : public Ship::Menu {
 
 /** File-scope helper for RegisterComboSectionPage; see its doc comment. */
 struct RegisterComboSectionPage_t {
-    RegisterComboSectionPage_t(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar) {
-        RegisterComboSectionPage(sidebarName, columnCount, registrar);
+    RegisterComboSectionPage_t(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
+                               ComboPageHost host = ComboPageHost::Combo) {
+        RegisterComboSectionPage(sidebarName, columnCount, registrar, host);
     }
 };
 } // namespace SohGui

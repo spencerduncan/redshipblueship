@@ -43,11 +43,14 @@
  * WHERE THE ROWS LIVE NOW (#497 step 6). They were registered by
  * `SohGui::AddCrossGameWidgets` into `Randomizer → Cross-Game`, a page that said
  * in-tree it was the interim host until the tier-4 Combo section existed. That
- * section exists, so this lock follows them: the rows are now
- * `Combo → Cross-Game Rules`, registered by `SohMenu::AddMenuCombo()`. The old
- * page survives with a pointer row, and `MenuComboSection` owns the section's
- * shape (both pages, the pointer row, the extension point); this row still owns
- * the seam between the model and the rows, which is unchanged by the move.
+ * section exists, so this lock followed them to `Combo → Cross-Game Rules`,
+ * registered by `SohMenu::AddMenuCombo()`. #1101 (operator ruling 2026-10-21,
+ * option C) moved them back under SoH's Randomizer header as
+ * `Randomizer → Cross-Game`, the one randomizer menu for both games, registered
+ * by `SohGui::AddComboRandomizerPages()` (our slice of `AddMenuRandomizer()`),
+ * and this lock follows them again. `MenuComboSection` owns the headers' shape
+ * (which pages, in which order, the persisted selection); this row still owns
+ * the seam between the model and the rows, which no move changed.
  *
  * HOW IT OBSERVES. It builds a real SohMenu headless and calls the REAL
  * production entry point, `AddMenuCombo()` — not a test-only registrar. That is
@@ -290,29 +293,33 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         Combo_ComboSettingClear((ComboSettingId)i);
     }
 
-    // The REAL production entry point, not a test-only registrar: AddMenuCombo()
-    // creates the "Combo" header, both sidebars and every row, and nothing in it
-    // reaches Rando::Settings. So the page layout under test is the one a player
-    // gets, including which column each row lands in -- the scope the interim
-    // host's lock had to give up.
+    // The REAL production entry points, not test-only registrars:
+    // AddComboRandomizerPages() is the slice of AddMenuRandomizer() that creates
+    // our Randomizer pages (the rules among them), and AddMenuCombo() the "Combo"
+    // header; neither reaches Rando::Settings. So the page layout under test is
+    // the one a player gets, including which column each row lands in.
     ComboRulesMenuProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
 
     // ---- Leg 1: the section and the two rows exist ----------------------------
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section "
-               "(#497 step 6) is gone or was renamed\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no \"Randomizer\" and/or \"Combo\" menu entry\n");
+        return 1;
+    }
+    auto& randoSidebars = entries.at("Randomizer").sidebars;
+    if (!randoSidebars.contains("Cross-Game") || randoSidebars.at("Cross-Game").columnWidgets.empty() ||
+        randoSidebars.at("Cross-Game").columnWidgets.at(0).empty()) {
+        printf("[TEST] FAIL(1): the \"Randomizer\" menu has no \"Cross-Game\" page with rows -- the host for the "
+               "tier-4 combo rules under the one randomizer menu (operator ruling 2026-10-21)\n");
         return 1;
     }
     auto& sidebars = entries.at("Combo").sidebars;
-    if (!sidebars.contains("Cross-Game Rules")) {
-        printf("[TEST] FAIL(1): the \"Combo\" menu has no \"Cross-Game Rules\" sidebar page -- the host for the "
-               "tier-4 combo rules (#509/#655, moved by #497 step 6) is gone or was renamed\n");
-        return 1;
-    }
-    const SidebarEntry& page = sidebars.at("Cross-Game Rules");
-    auto& columns = sidebars.at("Cross-Game Rules").columnWidgets;
+    const SidebarEntry& page = randoSidebars.at("Cross-Game");
+    auto& columns = randoSidebars.at("Cross-Game").columnWidgets;
     if (columns.empty()) {
         printf("[TEST] FAIL(1): the Cross-Game Rules page has no widget columns\n");
         return 1;
@@ -409,7 +416,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] combo-settings-rows: %d failure(s) in leg 1; the later legs need the rows\n", gFailures);
         return gFailures;
     }
-    printf("[TEST] leg 1: all three tier-4 settings are rows in Combo / Cross-Game Rules, each marked '%s'\n",
+    printf("[TEST] leg 1: all three tier-4 settings are rows in Randomizer / Cross-Game, each marked '%s'\n",
            Combo_ComboSettingSharedMarker());
 
     // ---- Leg 1b: the goal row offers exactly OoTMM's goals, in its words ----

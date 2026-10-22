@@ -1,6 +1,6 @@
 /**
  * @file soh_menu_mm_randomizer_pages_test.cpp
- * @brief ROM-free, display-free lock for Combo > MM Randomizer and Combo > MM
+ * @brief ROM-free, display-free lock for Randomizer > MM Randomizer and Randomizer > MM
  *        Tricks: MM's randomizer options and tricks as menu pages instead of a
  *        pop-out window (ADR 0004's 2026-09-27 host amendment; #497, #578).
  *
@@ -13,10 +13,13 @@
  * edit still goes through the gated writers. Every failure it catches is silent
  * otherwise, because a registered row with the wrong binding still draws.
  *
- *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER. Both register from a file-scope
- *      initializer beside the Majora's Mask page's (SohMenuComboMmEnhancements.cpp),
- *      so the sidebar reads Majora's Mask, MM Randomizer, MM Tricks. The options
- *      page declares two columns (Randomizer > General's), the tricks page one
+ *   1. THE PAGES ARE NOT THERE, OR NOT TOGETHER, OR UNDER THE WRONG HEADER. Both
+ *      register from a file-scope initializer beside the Majora's Mask page's
+ *      (SohMenuComboMmEnhancements.cpp) with ComboPageHost::Randomizer, so they
+ *      are pages of SoH's Randomizer header (#1101, operator ruling 2026-10-21):
+ *      AddComboRandomizerPages draws them as MM Randomizer, MM Tricks, then the
+ *      rules as Cross-Game, and the Combo header holds neither. The options page
+ *      declares two columns (Randomizer > General's), the tricks page one
  *      (Randomizer > Tricks/Glitches').
  *
  *   2. AN OPTION IS LOST OR DOUBLED. The options page's interactive rows are
@@ -207,46 +210,61 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     const GameId prevGame = Context_GetCurrentGame();
     ComboContext_Init();
 
+    // Both headers, as production builds them: our slice of the Randomizer header
+    // (AddMenuRandomizer() as a whole cannot run ROM-free), then Combo.
     MmRandomizerPagesProbe probe;
+    probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+    SohGui::AddComboRandomizerPages(probe, randoPath);
     probe.AddMenuCombo();
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no Combo section\n");
+    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no Combo and/or Randomizer section\n");
         return 1;
     }
     MainMenuEntry& combo = entries.at("Combo");
+    MainMenuEntry& rando = entries.at("Randomizer");
 
-    // ---- Leg 1: the pages, their column counts, their place -----------------
-    if (!combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
-        printf("[TEST] FAIL(1): the Combo section has no \"%s\" and/or \"%s\" page: MM's randomizer options are "
-               "unreachable from the menu\n",
+    // ---- Leg 1: the pages, their column counts, their header and place ------
+    if (!rando.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) || !rando.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME)) {
+        printf("[TEST] FAIL(1): the Randomizer header has no \"%s\" and/or \"%s\" page: MM's randomizer options "
+               "are not where the one randomizer menu puts them (operator ruling 2026-10-21)\n",
                COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
         return 1;
     }
-    SidebarEntry& options = combo.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
-    SidebarEntry& tricks = combo.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
+    MMRP_CHECK(
+        !combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) && !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME),
+        "the Combo header still holds \"%s\" or \"%s\" as well", COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
+    SidebarEntry& options = rando.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
+    SidebarEntry& tricks = rando.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
     MMRP_CHECK(options.columnCount == COMBO_MM_OPTIONS_PAGE_COLUMNS,
                "the options page declares %u columns, expected %d (Randomizer > General's)", options.columnCount,
                COMBO_MM_OPTIONS_PAGE_COLUMNS);
     MMRP_CHECK(tricks.columnCount == 1, "the tricks page declares %u columns, expected 1 (Tricks/Glitches')",
                tricks.columnCount);
     {
-        long mm = -1, rando = -1, trick = -1;
-        for (std::size_t i = 0; i < combo.sidebarOrder.size(); i++) {
-            if (combo.sidebarOrder[i] == "Majora's Mask") {
-                mm = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
-                rando = (long)i;
-            } else if (combo.sidebarOrder[i] == COMBO_MM_TRICKS_PAGE_NAME) {
-                trick = (long)i;
+        // The ruling's order: MM Randomizer, MM Tricks, Cross-Game, the last
+        // three pages AddComboRandomizerPages registers (MM Locations joins
+        // between the first two when it exists).
+        const std::vector<std::string>& order = rando.sidebarOrder;
+        long options_at = -1, tricks_at = -1, rules_at = -1;
+        for (std::size_t i = 0; i < order.size(); i++) {
+            if (order[i] == COMBO_MM_OPTIONS_PAGE_NAME) {
+                options_at = (long)i;
+            } else if (order[i] == COMBO_MM_TRICKS_PAGE_NAME) {
+                tricks_at = (long)i;
+            } else if (order[i] == "Cross-Game") {
+                rules_at = (long)i;
             }
         }
-        MMRP_CHECK(mm >= 0 && rando == mm + 1 && trick == rando + 1,
-                   "the sidebar order is Majora's Mask at %ld, MM Randomizer at %ld, MM Tricks at %ld; the MM pages "
-                   "must sit together in that order",
-                   mm, rando, trick);
+        MMRP_CHECK(options_at >= 0 && tricks_at == options_at + 1 && rules_at == tricks_at + 1 &&
+                       rules_at == (long)order.size() - 1,
+                   "the Randomizer sidebar has MM Randomizer at %ld, MM Tricks at %ld, Cross-Game at %ld of %zu; the "
+                   "ruling's order is MM Randomizer, MM Tricks, Cross-Game",
+                   options_at, tricks_at, rules_at, order.size());
     }
-    printf("[TEST] leg 1: both pages are registered with their column counts, right under Majora's Mask\n");
+    printf("[TEST] leg 1: both pages are registered with their column counts under the Randomizer header, in the "
+           "order MM Randomizer, MM Tricks, Cross-Game\n");
 
     // ---- Leg 2: the row set equals the descriptor table ---------------------
     std::vector<FlatRow> rows = FlattenRows(options);
@@ -529,8 +547,8 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
     if (gFailures == 0) {
-        printf("[TEST] PASS: Combo > MM Randomizer and Combo > MM Tricks carry MM's whole option table and trick list "
-               "behind the same gates the pop-out window had\n");
+        printf("[TEST] PASS: Randomizer > MM Randomizer and Randomizer > MM Tricks carry MM's whole option table "
+               "and trick list behind the same gates the pop-out window had\n");
     }
     return gFailures == 0 ? 0 : 1;
 }
