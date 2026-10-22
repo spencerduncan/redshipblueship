@@ -115,6 +115,8 @@ typedef enum {
     // #1066. Two more item-rule bits, the lens's shape: 0 or 1, default 0 each.
     COMBO_SETTING_SHARED_SONG_EPONA,  // gCombo.Rando.SharedSongEpona -> RSBS_XITEM_SHARED_SONG_EPONA
     COMBO_SETTING_SHARED_SONG_STORMS, // gCombo.Rando.SharedSongStorms -> RSBS_XITEM_SHARED_SONG_STORMS
+    // #1067, the same shape: gCombo.Rando.SharedOcarinaButtons -> rules.crossItemFlags & 0x01000000.
+    COMBO_SETTING_SHARED_OCARINA_BUTTONS,
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -268,8 +270,8 @@ typedef struct ComboSettingsKeyUndo {
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
  * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
- * from the session has a key: today the Shared Shields, #1068, and the Shared
- * Lens of Truth, #1065), the CVar
+ * from the session has a key: today the Shared Shields, #1068, the Shared
+ * Lens of Truth, #1065, and the Shared Ocarina Buttons, #1067), the CVar
  * store exists,
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's

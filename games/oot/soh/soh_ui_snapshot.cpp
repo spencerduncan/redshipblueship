@@ -2064,7 +2064,8 @@ void Session::BuildPageList() {
                 // shields: #1068's Shared Shields checkbox and its tooltip.
                 // lens: #1065's Shared Lens of Truth checkbox and its tooltip, by
                 // its row name (marker and label) in the first state.
-                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "lens", "frozen-goal" };
+                // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
+                p.hovers = { "direction", "goal", "kokiri-sword", "shields", "lens", "ocarina-buttons", "frozen-goal" };
                 p.hoverRows["lens"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Lens of Truth";
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
@@ -3423,10 +3424,11 @@ void Session::CaptureMenuPage(const PageSpec& p) {
             if (byName) {
                 label = namedRow->second;
             } else {
-                ComboSettingId targetId = (hv == "direction")      ? COMBO_SETTING_DIRECTION
-                                          : (hv == "kokiri-sword") ? COMBO_SETTING_SHARED_KOKIRI_SWORD
-                                          : (hv == "shields")      ? COMBO_SETTING_SHARED_SHIELDS
-                                                                   : COMBO_SETTING_GOAL;
+                ComboSettingId targetId = (hv == "direction")         ? COMBO_SETTING_DIRECTION
+                                          : (hv == "kokiri-sword")    ? COMBO_SETTING_SHARED_KOKIRI_SWORD
+                                          : (hv == "shields")         ? COMBO_SETTING_SHARED_SHIELDS
+                                          : (hv == "ocarina-buttons") ? COMBO_SETTING_SHARED_OCARINA_BUTTONS
+                                                                      : COMBO_SETTING_GOAL;
                 label = Combo_ComboSettingLabel(targetId);
             }
             WidgetInfo* row = FindRow(*menu, p.header, p.sidebar, [&](const WidgetInfo& w) {

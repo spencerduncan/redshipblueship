@@ -81,6 +81,7 @@
 #include "../ComboTrackerWindow.h" // Combo_TrackerWindow_Init: the production registration
 #include "../combo_item_view.h"
 #include "../context.h"
+#include "../foreign_items.h" // RSBS_XITEM_SHARED_OCARINA_BUTTONS: the #1067 leg
 #include "../game.h"
 #include "../save.h" // rsbs::SaveManager, SlotMeta: the new-file row's slot-panel leg (#873)
 #include "../shared_resources.h"
@@ -532,6 +533,43 @@ static int CivMMOcarinaButtonLegs(const ComboItemOps* ops) {
     Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
     for (int i = 0; i < 5; i++) {
         CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row));
+    }
+
+    // #1067: under the frozen Shared Ocarina Buttons rule the five buttons are
+    // ONE set for the pair: drawn once, in the Shared group (held from MM's own
+    // bits or the pool), and left out of MM's section.
+    {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x1067F00Du;
+        gComboCtx.sharedRandoSettingsHash = 0x1067CA5Eu;
+        gComboCtx.mmProfileDigest = 0x1067D16Eu;
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 1); // a Shared group to draw in
+        CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(buf.data(), buf.size(), 1, 0x0Fu) == 1);
+        Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+        CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == baseRows);
+        for (int i = 0; i < 5; i++) {
+            CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, kButtons[i], &row)); // not in MM's section
+            CIV_ASSERT(CivFindSharedRow(kButtons[i], &row));
+            printf("[TEST] combo-item-view: shared button row %s have=%d\n", kButtons[i], (int)row.have);
+            CIV_ASSERT(strcmp(row.group, COMBO_ITEM_SHARED_GROUP) == 0);
+            CIV_ASSERT(row.have == (i != 4));
+        }
+        for (int i = 0; i < Combo_ItemCount((uint8_t)GAME_MM); i++) {
+            CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, i, &row)); // contiguous after the walk-past
+        }
+        // The pool lights a button MM's own save does not hold yet (found in Hyrule).
+        Combo_SharedFamiliesHarvest(GAME_OOT, (uint32_t)RSBS_XFAMILY_SLOT_OCARINA_C_UP);
+        CIV_ASSERT(CivFindSharedRow("C Up Button", &row) && row.have);
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
     }
     return TEST_PASS;
 }
