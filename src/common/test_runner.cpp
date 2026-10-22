@@ -659,6 +659,10 @@ extern "C" {
 // #968: Shared Fire, Ice and Light Arrows, the same three rows for the three
 // arrow families #976 reserved (shared-arrows-rule, -merge, -bag).
 #include "tests/test_shared_arrows.c"
+// #978 (absorbs #969): the five shared masks, the same three rows for the mask
+// families #976 reserved, and the Bunny Hood's speed in Hyrule under its rule
+// (shared-masks-rule, -merge, -bag, -bunny-boost).
+#include "tests/test_shared_masks.c"
 
 // The Shared Shields rule (#1068): both games register both shield pairs, the
 // bag makes each one shared row, and the arrival gives and wears the shield in
@@ -5878,6 +5882,35 @@ TestResult Test_SharedArrowsRule(void) {
     return SharedArrowsRule_Run();
 }
 
+// #978: the shared masks' rule rows, the same bring-up as shared-lens-rule.
+TestResult Test_SharedMasksRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedMasksRule_Run();
+}
+
+// #969: the Bunny Hood's speed in Hyrule under the frozen rule. Needs only the
+// console variables, the rule rows' bring-up.
+TestResult Test_SharedMasksBunnyBoost(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedMasksBunnyBoost_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -6057,6 +6090,20 @@ TestResult Test_SharedArrowsBag(void) {
     static char* sabArgv[] = { sabArg0, nullptr };
     InitOTRForMMFirstBoot(1, sabArgv);
     return SharedArrowsBag_Run();
+}
+
+// #978: the shared masks' bag rows over a real generation, shared-lens-bag's
+// bring-up.
+TestResult Test_SharedMasksBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char smbArg0[] = "redship";
+    static char* smbArgv[] = { smbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, smbArgv);
+    return SharedMasksBag_Run();
 }
 
 // #755/#757's two rows (tests/test_combo_crossing_views.c). The synthetic row
@@ -6786,6 +6833,19 @@ const TestDescriptor gTests[] = {
       "Both games register their Fire, Ice and Light Arrows as shared families, and an arrow found in either game is "
       "in the other's inventory at arrival through the real shims (#968)",
       Test_SharedArrowsMerge },
+    // #978 (absorbs #969): the five shared masks on the same mechanism.
+    { "shared-masks-rule",
+      "The Shared Goron, Zora, Keaton and Truth masks and the Shared Bunny Hood are five Cross-Game Rules, off by "
+      "default, frozen at creation into the fingerprint, and restored from the file at load (#978)",
+      Test_SharedMasksRule },
+    { "shared-masks-merge",
+      "Both games register their five shared masks as shared families, and a mask found in either game is owned in "
+      "the other at arrival through the real shims (#978)",
+      Test_SharedMasksMerge },
+    { "shared-masks-bunny-boost",
+      "With the shared Bunny Hood rule frozen on, OoT's Bunny Hood gets SoH's Bunny Hood Effect speed boost whatever "
+      "the enhancement's own setting, and nothing is written to that setting (#969)",
+      Test_SharedMasksBunnyBoost },
     { "combo-spoiler-view", "In-game spoiler view model: named crossings, collected state, unpaired != empty (#496)",
       Test_ComboSpoilerView },
     { "combo-spoiler-window", "Common-owned spoiler window registers de-collided; inert under every active game (#496)",
@@ -7469,6 +7529,10 @@ const TestDescriptor gTests[] = {
       "With all three shared-arrow rules on, the single bag holds one row per arrow both solvers credit, each placed "
       "once over both games, and the GOAL is still proven (#968)",
       Test_SharedArrowsBag },
+    { "shared-masks-bag",
+      "With all five shared-mask rules on, the single bag holds one row per mask both solvers credit, each placed "
+      "once over both games, the GOAL is still proven, and OoT's logic reads each mask's ownership (#978)",
+      Test_SharedMasksBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "
       "tiers to the pools' own ceiling (unequal ceilings kept whole), removed copies become origin filler, and the "
@@ -7774,6 +7838,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
                 strcmp(gTests[i].name, "shared-songs-bag") == 0 || strcmp(gTests[i].name, "shared-arrows-bag") == 0 ||
+                strcmp(gTests[i].name, "shared-masks-bag") == 0 ||
                 strcmp(gTests[i].name, "combo-crossing-views-world") == 0 ||
                 strcmp(gTests[i].name, "combo-item-view-new-file") == 0 ||
                 strcmp(gTests[i].name, "mm-creation-new-file-world") == 0 ||

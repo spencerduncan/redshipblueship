@@ -1811,6 +1811,15 @@ of `reserved[]`, and the combo record's `formatVersion` stays 1.
   `RSBS_XITEM_SHARED_ARROW_FIRE` (0x00020000), `_ICE` (0x00040000) and
   `_LIGHT` (0x00080000), through the same table. No bit is allocated, so
   `RSBS_XITEM_ALL_V1` and `RSBS_XITEM_FAMILY_MASK` do not move.
+  *2026-10-21 (#978, epic #975 P2):* five more keys,
+  `gCombo.Rando.SharedMaskGoron`, `SharedMaskZora`, `SharedMaskBunny`,
+  `SharedMaskKeaton` and `SharedMaskTruth` ("[Both Games] Shared Goron Mask",
+  "Shared Zora Mask", "Shared Bunny Hood", "Shared Keaton Mask" and "Shared
+  Mask of Truth", 0 or 1, default off), author the five mask bits this carve
+  reserved, `RSBS_XITEM_SHARED_GORON` (0x00000001) to `_TRUTH` (0x00000010),
+  through the same table. No bit is allocated. #969's Bunny Hood speed in
+  Hyrule rides `RSBS_XITEM_SHARED_BUNNY`, read through `OoT_BunnyHoodEffectMode`
+  and never written to the enhancement's own key.
 - **The family bitset.** `sharedFamilyOwned` holds one bit per SHARED family,
   at the family's own rule bit (`RSBS_XITEM_FAMILY_MASK` 0x022FF81F: the five
   shared masks, the six shared extensions, the three arrows and, since #1065
