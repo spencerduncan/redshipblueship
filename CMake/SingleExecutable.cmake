@@ -2442,6 +2442,20 @@ records as a meta row. A plain --test row would only regenerate the same world w
     redship_test_exempt(rando-player-path-digest
         "Driven by the GoldenSeedDigestPlayerPath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
 records as a meta row. A plain --test row would only regenerate the same world without comparing it (#982).")
+    # The seed package's two-process drivers (#1044), for the same reason: each
+    # dispatch needs the package path its driver sets, and only the driver compares.
+    redship_test_exempt(seed-package-write
+        "Process 1 of the SeedPackageRoundTrip row (cmake -P CheckSeedPackageRoundTrip.cmake), which sets the package \
+and report paths and compares the two processes' reports (#1044).")
+    redship_test_exempt(seed-package-load
+        "Process 2 of the SeedPackageRoundTrip row (cmake -P CheckSeedPackageRoundTrip.cmake), which sets the package \
+and report paths and compares the two processes' reports (#1044).")
+    redship_test_exempt(seed-package-golden-write
+        "The PRE_DISPATCH of the GoldenSeedDigestPackagePath golden row (cmake -P CheckGoldenDigest.cmake), which \
+writes the package the row's digest process loads (#1044).")
+    redship_test_exempt(seed-package-golden-create
+        "Driven by the GoldenSeedDigestPackagePath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
+records as a meta row (#1044).")
 
     redship_test_exempt(combo-logic-give-probe
         "Diagnostic, not a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so an id whose \
