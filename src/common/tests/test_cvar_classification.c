@@ -153,6 +153,7 @@ bool CvarClassOotTreeNamesKey(const std::vector<std::string>& tree, const char* 
         { "gEnhancements.", "CVAR_ENHANCEMENT(\"" },
         { "gCheats.", "CVAR_CHEAT(\"" },
         { "gSettings.", "CVAR_SETTING(\"" },
+        { "gRandoEnhancements.", "CVAR_RANDOMIZER_ENHANCEMENT(\"" }, // #1060's translated row
     };
     const std::string k(key);
     for (const PrefixMacro& m : kMacros) {
@@ -288,6 +289,51 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
 /// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
 constexpr const char* kCvarClassDamageMultMm = "gEnhancements.DifficultyOptions.DamageMultiplier";
 constexpr const char* kCvarClassDamageMultOot = "gEnhancements.DamageMult";
+
+/// #1060: SoH's three-tier "Skip Get Item Animations" drives MM's four-tier
+/// get-item presentation through a translator. The lock's own copy of the row,
+/// apart from RSBS::kTranslatedKeys for the reason the key-gap rows are.
+struct CvarClassTranslatedRow {
+    int issue;
+    const char* mmKey;
+    const char* ootKey;
+    const char* translator;
+};
+
+constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
+    { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
+      "2s2h/Rando/StaticData/Items.cpp" },
+};
+
+/// #1060's linked read sites: each must call the translator's tier.
+constexpr const char* kCvarClassGetItemTierReaders[] = {
+    "2s2h/Rando/StaticData/Items.cpp",
+    "2s2h/Rando/MiscBehavior/CheckQueue.cpp",
+};
+
+/// #1060's story-cutscene gives (they queue only outside rando): each must ask
+/// StoryGiveShowsGetItemCutscene(), which keeps the hold unless SoH says All
+/// Items, so the default Junk Items never strips a mask, song or the Oath.
+constexpr const char* kCvarClassStoryGiveReaders[] = {
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipGiantsChamber.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingDarmani.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipHealingMikau.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipIkanaCurseCutscenes.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningElegyOfEmptiness.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullaby.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningGoronLullabyIntro.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningNewWaveBossaNova.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSonataOfAwakening.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfSoaring.cpp",
+    "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearningSongOfStorms.cpp",
+};
+
+/// MM files that may still name a translated row's MM key: BenMenu.cpp, whose
+/// widget writes it, is excluded wholesale by games/mm/CMakeLists.txt's BenGui
+/// filter, so nothing linked reads or writes the key.
+constexpr const char* kCvarClassTranslatedElidedWriters[] = {
+    "2s2h/BenGui/BenMenu.cpp",
+};
 
 } // namespace
 
@@ -435,6 +481,42 @@ TestResult Test_CVarClassification(void) {
             CVARCLASS_CHECK(strcmp(RSBS::kConvergedKeys[i].legacy, kCvarClassDamageMultMm) != 0 &&
                                 strcmp(RSBS::kConvergedKeys[i].canonical, kCvarClassDamageMultOot) != 0,
                             "#1037: the damage multiplier was converged while its value spaces still differ");
+        }
+    }
+
+    // #1060: each translated row is in the manifest as pinned, and is classified
+    // ONCE: a rename row or a held-apart pair would contradict the translation.
+    for (const CvarClassTranslatedRow& row : kCvarClassTranslatedRows) {
+        bool inManifest = false;
+        for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+            const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+            if (key.issue == row.issue && strcmp(key.mmKey, row.mmKey) == 0 && strcmp(key.ootKey, row.ootKey) == 0 &&
+                strcmp(key.translator, row.translator) == 0) {
+                inManifest = true;
+                break;
+            }
+        }
+        if (!inManifest) {
+            printf("[TEST] FAIL: #%d: RSBS::kTranslatedKeys has no row translating SoH's \"%s\" onto MM's \"%s\"\n"
+                   "[TEST]       in games/mm/%s. Without it nothing records that SoH's control drives MM, and\n"
+                   "[TEST]       MM's key, which nothing in the single exe writes, decides alone (#1060).\n",
+                   row.issue, row.ootKey, row.mmKey, row.translator);
+            return TEST_FAIL;
+        }
+        for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+            const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
+            CVARCLASS_CHECK(strcmp(key.legacy, row.mmKey) != 0 && strcmp(key.canonical, row.ootKey) != 0,
+                            "#1060: a translated key is also a rename row; the value spaces differ, so a key swap "
+                            "would give SoH's All Items MM's Everything But Major");
+        }
+        for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kSharedIntentKeys[i], row.mmKey) != 0 &&
+                                strcmp(RSBS::kSharedIntentKeys[i], row.ootKey) != 0,
+                            "#1060: a translated key is also a shared-intent key");
+        }
+        for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+            CVARCLASS_CHECK(strcmp(RSBS::kMustStayDistinct[i].mmKey, row.mmKey) != 0,
+                            "#1060: a translated key is also held apart in kMustStayDistinct");
         }
     }
 
@@ -820,6 +902,83 @@ TestResult Test_CVarClassification(void) {
                                row.issue, listed.c_str(), row.canonical);
                         return TEST_FAIL;
                     }
+                }
+            }
+        }
+
+        // (3f-4) #1060's translated rows, in the tree: the translator reads SoH's
+        // key, SoH's menu writes it, every linked MM read site calls the
+        // translator, and no linked MM file names MM's own key any more.
+        {
+            bool mmPathsOk = false;
+            const std::vector<CvarClassSourceFile> mmFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", mmPathsOk);
+            CVARCLASS_CHECK(mmPathsOk && !mmFiles.empty(), "could not re-scan games/mm for the translated rows");
+            bool menuOk = false;
+            const std::vector<std::string> sohMenuTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+
+            auto fileText = [&mmFiles](const char* relPath) -> const std::string* {
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.relPath == relPath) {
+                        return &f.text;
+                    }
+                }
+                return nullptr;
+            };
+
+            for (const CvarClassTranslatedRow& row : kCvarClassTranslatedRows) {
+                const std::string mmLiteral = std::string("\"") + row.mmKey + "\"";
+                const std::string ootLiteral = std::string("\"") + row.ootKey + "\"";
+                const std::string* translator = fileText(row.translator);
+                if (translator == nullptr || translator->find(ootLiteral) == std::string::npos) {
+                    printf("[TEST] FAIL: #%d: games/mm/%s does not read SoH's \"%s\".\n"
+                           "[TEST]       The translator must read the key SoH's menu writes, or the control does\n"
+                           "[TEST]       nothing in Majora's Mask.\n",
+                           row.issue, row.translator, row.ootKey);
+                    return TEST_FAIL;
+                }
+                if (!CvarClassOotTreeNamesKey(sohMenuTree, row.ootKey)) {
+                    printf("[TEST] FAIL: #%d: no SoH menu row under games/oot/soh/SohGui writes \"%s\".\n", row.issue,
+                           row.ootKey);
+                    return TEST_FAIL;
+                }
+                for (const CvarClassSourceFile& f : mmFiles) {
+                    if (f.text.find(mmLiteral) == std::string::npos || f.relPath == row.translator) {
+                        continue;
+                    }
+                    bool elided = false;
+                    for (const char* ok : kCvarClassTranslatedElidedWriters) {
+                        elided = elided || f.relPath == ok;
+                    }
+                    if (!elided) {
+                        printf("[TEST] FAIL: #%d: games/mm/%s reads MM's \"%s\" directly.\n"
+                               "[TEST]       Nothing in the single exe writes that key; SoH's \"%s\" decides it\n"
+                               "[TEST]       through the translator in games/mm/%s. Call the translator instead.\n",
+                               row.issue, f.relPath.c_str(), row.mmKey, row.ootKey, row.translator);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+            for (const char* reader : kCvarClassGetItemTierReaders) {
+                const std::string* text = fileText(reader);
+                if (text == nullptr || text->find("SkipGetItemCutsceneTier()") == std::string::npos) {
+                    printf("[TEST] FAIL: #1060: games/mm/%s does not call SkipGetItemCutsceneTier(); its get-item\n"
+                           "[TEST]       presentation would not follow SoH's Skip Get Item Animations.\n",
+                           reader);
+                    return TEST_FAIL;
+                }
+            }
+            for (const char* reader : kCvarClassStoryGiveReaders) {
+                const std::string* text = fileText(reader);
+                if (text == nullptr || text->find("StoryGiveShowsGetItemCutscene()") == std::string::npos ||
+                    text->find("!Rando::StaticData::SkipGetItemCutsceneTier()") != std::string::npos) {
+                    printf("[TEST] FAIL: #1060: games/mm/%s does not ask StoryGiveShowsGetItemCutscene() for its\n"
+                           "[TEST]       story give's hold (or still negates the raw tier, which strips the hold\n"
+                           "[TEST]       at SoH's default Junk Items).\n",
+                           reader);
+                    return TEST_FAIL;
                 }
             }
         }

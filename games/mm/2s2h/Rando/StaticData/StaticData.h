@@ -59,6 +59,17 @@ RandoItemId GetItemIdFromVanillaItemId(u32 itemId);
 u8 GetIconForZMessage(RandoItemId itemId);
 const char* GetIconTexturePath(RandoItemId itemId);
 bool ShouldShowGetItemCutscene(RandoItemId itemId);
+// #1060: the get-item presentation tier every MM reader consumes (0 never skip,
+// 1 junk only, 2 everything but major, 3 always). In the single exe it comes from
+// SoH's "Skip Get Item Animations" (SkipGetItemCutsceneTierFromSoh); standalone it
+// is MM's own key.
+int SkipGetItemCutsceneTier();
+#ifdef RSBS_SINGLE_EXECUTABLE
+int SkipGetItemCutsceneTierFromSoh(int sohSkipGetItemAnimation);
+#endif
+// #1060: does a story-cutscene give (SkipGiantsChamber.cpp and the
+// StoryCutscenes gives, which queue only outside rando) hold the item overhead?
+bool StoryGiveShowsGetItemCutscene();
 std::string GetItemName(RandoItemId randoItemId, bool includeArticle = true);
 std::string GetTrapMessage();
 

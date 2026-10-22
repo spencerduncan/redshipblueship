@@ -2,6 +2,7 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/CustomItem/CustomItem.h"
+#include "2s2h/Rando/StaticData/StaticData.h"
 #include "2s2h/ShipInit.hpp"
 
 extern "C" {
@@ -33,7 +34,7 @@ void RegisterSkipHealingMikau() {
                 gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
                 if (GameInteractor_Should(VB_GIVE_ITEM_FROM_DMCHAR05, true, ITEM_MASK_ZORA)) {
                     MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                        .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                        .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                         .param = GID_MASK_ZORA,
                         .giveItem =
                             [](Actor* actor, PlayState* play) {

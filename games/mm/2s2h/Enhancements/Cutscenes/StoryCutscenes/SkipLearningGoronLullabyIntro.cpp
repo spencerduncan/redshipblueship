@@ -25,7 +25,7 @@ void RegisterSkipLearningGoronLullabyIntro() {
 
         if (GameInteractor_Should(VB_GIVE_ITEM_FROM_JG, !CHECK_QUEST_ITEM(QUEST_SONG_LULLABY_INTRO))) {
             MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
-                .showGetItemCutscene = !CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0),
+                .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),
                 .giveItem =
                     [](Actor* actor, PlayState* play) {
                         if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
