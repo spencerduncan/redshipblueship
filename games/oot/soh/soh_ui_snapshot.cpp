@@ -2391,10 +2391,12 @@ void Session::BuildPageList() {
         // redship-oot.o2r, the curated half OoT mounts at boot (mirrored in
         // Session::BringUp). So a ROM-rich run holds the MM column to its icons
         // by their count (stateImages: more than OoT's 66 cells and the pool's
-        // can draw), and ROM-free MM's section is the text fallback: its
-        // snapshot bow in "live", its live mask in "snapshot".
+        // can draw), and ROM-free MM's section is the text fallback. The
+        // pool's tier-2 quiver shows once, in the Shared column (#967): "live"
+        // reads its "Arrows 33/40" and neither game's copy of the bow repeats
+        // a count (forbidText), while "snapshot" reads MM's live mask.
         if (romFree) {
-            p.stateText["live"] = { "Bow 25/40" };
+            p.stateText["live"] = { "Arrows 33/40" };
             p.stateText["snapshot"] = { "Zora Mask" };
         }
         p.stateImages["live"] = 100;
@@ -2405,7 +2407,9 @@ void Session::BuildPageList() {
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
         // #927: no section says how fresh it is, and an empty one is its
         // header alone.
-        p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data" };
+        p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data",
+                         // #967: the shared quiver is the pair's, so a per-game copy never repeats its count.
+                         "Bow 25/40", "Fairy Bow 35/40" };
         pages.push_back(p);
     }
     // Ours: the Cross-Game Rules Reset confirm, opened through the row's own
