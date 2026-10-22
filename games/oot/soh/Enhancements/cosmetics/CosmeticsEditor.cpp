@@ -15,6 +15,9 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "context.h" // src/common: Context_GetCurrentGame (#1040 R1)
+#endif
 
 extern "C" {
 #include "z64.h"
@@ -528,11 +531,58 @@ void ResetPositionAll() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1040 R1: the patches below are written into whatever copy of each display list
+// the current resource cache owner holds (rsbs/src/main.cpp, ApplyResourceCacheOwner),
+// and while Majora's Mask runs that is MM's owner: OoT-only display lists would be
+// parsed again under it, and the ones both archives carry would get OoT's command
+// indices written into MM's bytes. So a pass is made only while OoT runs; one
+// asked for while MM runs (the editor window stays usable) is owed to OoT and made
+// on OoT's next frame (CosmeticsUpdateTick). These seams also let the ROM-free
+// cosmetics-patch-owner-gate row see whether a pass reached the patches and
+// whether one is owed.
+static int sCustomGfxPatchPasses = 0;
+static bool sCustomGfxPatchesDeferred = false;
+
+extern "C" int CosmeticsEditor_CustomGfxPatchPasses(void) {
+    return sCustomGfxPatchPasses;
+}
+
+extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void) {
+    return sCustomGfxPatchesDeferred ? 1 : 0;
+}
+
+// The row's display-free bring-up has no OTRGlobals::Instance, which the patch
+// body reads (the Greg Bridge check), so the row stops each pass once it is
+// counted: it checks the gate and the owed pass, never the patches themselves.
+static bool sCustomGfxPatchBodySkipped = false;
+
+extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip) {
+    sCustomGfxPatchBodySkipped = skip != 0;
+}
+
+// A manual pass, as the editor's widgets make one with ApplyOrResetCustomGfxPatches().
+extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void) {
+    ApplyOrResetCustomGfxPatches(true);
+}
+
+extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void) {
+    if (!sCustomGfxPatchesDeferred || Context_GetCurrentGame() != GAME_OOT) {
+        return;
+    }
+    sCustomGfxPatchesDeferred = false;
+    ApplyOrResetCustomGfxPatches(true);
+}
+#endif
+
 int hue = 0;
 
 // Runs every frame to update rainbow hue, a potential future optimization is to only run this a once or twice a second
 // and increase the speed of the rainbow hue rotation.
 void CosmeticsUpdateTick() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    CosmeticsEditor_ReapplyDeferredGfxPatches(); // #1040 R1: a pass owed while MM ran
+#endif
     int index = 0;
     float rainbowSpeed = CVarGetFloat(CVAR_COSMETIC("RainbowSpeed"), 0.6f);
     for (auto& [id, cosmeticOption] : cosmeticOptions) {
@@ -582,7 +632,19 @@ void CosmeticsUpdateTick() {
     5. GFX Command: The GFX command you want to insert
 */
 void ApplyOrResetCustomGfxPatches(bool manualChange) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        sCustomGfxPatchesDeferred = true; // #1040 R1: owed to OoT, see above
+        return;
+    }
+    sCustomGfxPatchPasses++;
+#endif
     static CosmeticOption& magicFaroresPrimary = cosmeticOptions.at("Magic.FaroresPrimary");
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (sCustomGfxPatchBodySkipped) {
+        return; // the cosmetics-patch-owner-gate row: counted, not patched (see above)
+    }
+#endif
     if (manualChange || CVarGetInteger(magicFaroresPrimary.rainbowCvar, 0)) {
         Color_RGBA8 color = CVarGetColor(magicFaroresPrimary.valuesCvar, magicFaroresPrimary.defaultColor);
         PATCH_GFX(sInnerCylinderDL, "Magic_FaroresPrimary1", magicFaroresPrimary.changedCvar, 24,
