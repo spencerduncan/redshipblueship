@@ -2510,10 +2510,12 @@ the OoT file-create seam" and increment 3's "one fill, at the creation event".
 - **Refusal.** A package whose generator version is not this build's is refused at
   load and again at the bind, with the refusal toasts' prefix ("Refused: Seed
   package from another generator"); nothing is staged.
-- **Not changed.** The arrival still compares the live MM option CVars with the
-  frozen profile digest (`MM_Rando_GateCrossGameArrival`), so a package from a
-  machine whose MM options differ is refused at the first crossing until they
-  match.
+- **A package from another machine.** The arrival still compares the live MM
+  option keys with the frozen profile digest (`MM_Rando_GateCrossGameArrival`),
+  but opening the file first puts the file's own frozen rules back into those keys
+  (ADR 0011's "Frozen wins at load", `MM_Rando_RestoreProfileForLoad` and
+  `Combo_ComboSettingsRestoreLive`), so the receiver's own staging settings do not
+  refuse a world the package froze.
 
 Locked by `SeedPackageContainer`, `SeedPackageGeneratorVersionRefused`,
 `SeedPackageRoundTrip` (two processes), `SeedPackageCVarsCannotMoveWorld` and
