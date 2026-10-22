@@ -94,6 +94,7 @@ TestResult Test_MmGossipStoneSeed(void) {
         const uint32_t expected = (uint32_t)sum;
         negative += sum < 0 ? 1 : 0;
         printf("[pure] stone %d scene=%d x=%d z=%d seed=%08X\n", i, (int)sceneId, (int)x, (int)z, (unsigned)seed);
+        fflush(stdout); // whole line before any log write interleaves (#1107 CI)
         if (seed != expected) {
             printf("[TEST]   stone %d (scene %d, x %d, z %d): seed %08X, expected %08X\n", i, (int)sceneId, (int)x,
                    (int)z, (unsigned)seed, (unsigned)expected);
@@ -141,6 +142,7 @@ TestResult Test_MmGossipStoneSeed(void) {
         MM_Rando_Hints_TestFreeStonesAfterStream(worldSeed, 0x1234ull, &first);
         MM_Rando_Hints_TestFreeStonesAfterStream(worldSeed, 0xFEDCBA9876543210ull, &second);
         printf("[pure] world %08X freeStoneDigest=%08X\n", (unsigned)worldSeed, (unsigned)first);
+        fflush(stdout); // whole line before any log write interleaves (#1107 CI)
         if (first != second) {
             printf("[TEST] FAIL: world %08X: what the free stones say depends on where MM's stream was (%08X / "
                    "%08X)\n",
@@ -206,6 +208,7 @@ static TestResult MmTrapRollFrozen_Run(void) {
             notFreeze += MM_Rando_Traps_TestRoll(worldSeed, 0, (uint16_t)id, 0xABull) != 0 ? 1 : 0;
         }
         printf("[pure] world %08X traps=%s\n", (unsigned)worldSeed, line.c_str());
+        fflush(stdout); // whole line before any log write interleaves (#1107 CI)
     }
     printf("[TEST]   %d checks x %zu worlds: %zu distinct types under the full set\n", idMax - 1,
            sizeof(kPfWorldSeeds) / sizeof(kPfWorldSeeds[0]), fullTypes.size());
@@ -242,6 +245,7 @@ static TestResult MmTrapRollFrozen_Run(void) {
     const int frozenNone = MM_Rando_Traps_TestCreationFreezes();
     printf("[pure] creation froze %02X / %02X / %02X\n", (unsigned)frozenAll, (unsigned)frozenOne,
            (unsigned)frozenNone);
+    fflush(stdout); // whole line before any log write interleaves (#1107 CI)
     if (frozenAll != fullMask || frozenOne != 0x02 || frozenNone != 0) {
         printf("[TEST] FAIL: creation froze %02X, %02X and %02X; expected %02X (every CVar on), 02 (Blast) and 00 "
                "(none)\n",
