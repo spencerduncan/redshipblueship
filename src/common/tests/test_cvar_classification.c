@@ -811,9 +811,9 @@ TestResult Test_CVarClassification(void) {
             // direction ADR 0011 increment 2 introduced (its pool sizes and
             // item classes were retired by #801 and #834), the goal, #886's
             // Shared Kokiri Sword, a BIT of the same frozen record and therefore
-            // identity for the same reason, and #1068's Shared Shields and #1065's
-            // Shared Lens of Truth, bits of the sibling frozen item rules. #668's
-            // shared ocarina was a third
+            // identity for the same reason, and #1068's Shared Shields, #1065's
+            // Shared Lens of Truth and #1066's two shared songs, bits of the
+            // sibling frozen item rules. #668's shared ocarina was a third
             // until #879 retired it.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
@@ -825,12 +825,11 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 5,
-                            "exactly five tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+            CVARCLASS_CHECK(identityKeys == 7,
+                            "exactly seven tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, the Shared "
-                            "Kokiri Sword, #886, the Shared Shields, #1068, and the Shared Lens of Truth, #1065; "
-                            "#879 retired #668's shared "
-                            "ocarina)");
+                            "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, and "
+                            "Shared Epona's Song and Song of Storms, #1066; #879 retired #668's shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);
