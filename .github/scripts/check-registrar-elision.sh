@@ -646,6 +646,37 @@ main() {
         # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
         # the archive gate above covers the same file by member.
         "RegisterCameraFreeLook()"
+        # #1030-#1034: the key-gap registrars in lib2ship_enh_registrars.a (Disable Screen Flash for Finishing Blow,
+        # 3D Dropped Items, Skip Misc Interactions (25 TUs), Skip Scarecrow's Song, Arrow Cycle). MM's ArrowCycle
+        # registrar is MM_-prefixed in the source because OoT ships RegisterArrowCycle. The file-scope static
+        # registrars (RegisterDisableScreenFlash, SkipHungryGoronDialogue, SkipMayorsOfficeCutscene) have no
+        # exported name to probe; the archive gate above covers every file by member.
+        "Register3DItemDrops()"
+        "RegisterSkipScarecrowSong()"
+        "MM_RegisterArrowCycle()"
+        "RegisterSkipAlienStartAndFail()"
+        "RegisterSkipAlienWarning()"
+        "RegisterSkipBankerDialogue()"
+        "RegisterSkipBossWarpPrompt()"
+        "RegisterSkipBothersomeMonkey()"
+        "RegisterSkipDekuSalesman()"
+        "RegisterSkipDekuTelescope()"
+        "RegisterSkipEponaReveal()"
+        "RegisterSkipEvansSong()"
+        "RegisterSkipFallingMoonsTear()"
+        "RegisterSkipGateGuards()"
+        "RegisterSkipGivingBombersNotebook()"
+        "RegisterSkipGreatFairyCutscene()"
+        "RegisterSkipKafeiReveal()"
+        "RegisterSkipKamaroTeachDance()"
+        "RegisterSkipKotakeFlying()"
+        "RegisterSkipOwlInteractions()"
+        "RegisterSkipPushingMikau()"
+        "RegisterSkipRosaSistersDance()"
+        "RegisterSkipScarecrowDance()"
+        "RegisterSkipTatlInterrupts()"
+        "RegisterSkipTingleTime()"
+        "RegisterSkipTurtleGoodbye()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
