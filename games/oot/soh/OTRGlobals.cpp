@@ -2498,6 +2498,61 @@ void RunCommands(Gfx* Commands, const std::vector<std::unordered_map<Mtx*, MtxF>
 // OoT_Graph_HasPresentedFrame below; see the increment at the end of
 // Graph_ProcessGfxCommands for what it is for.
 static uint64_t sOoTPresentedFrames = 0;
+
+// #965: the recorder Graph_ProcessGfxCommands builds its interpolated
+// sub-frames from. Graph_BeginInterpolatedFrame runs once per processed frame,
+// before any step; Graph_InterpolateActiveRecorder is one step. Kept apart from
+// the processor so OoT_Graph_ProbeInterpolatedFrame can drive the selection
+// without a GL context.
+//
+// Both games' frames come through this one processor, but each game's draw code
+// records into its own recorder: MM's call sites are renamed to
+// MM_FrameInterpolation_* (games/mm/include/mm_frame_interpolation_prefix.h).
+// Reading OoT's recorder on an MM frame found nothing of MM's, so every MM
+// sub-frame repeated the last 20 fps frame. The two recorders stay separate; the
+// processor reads the active game's. MM's Interpolate is C++ and mangles exactly
+// like OoT's (both name their types Mtx/MtxF, the same libultraship types).
+std::unordered_map<Mtx*, MtxF> MM_FrameInterpolation_Interpolate(float step);
+
+enum class GraphRecorder { None, OoT, MM };
+static GraphRecorder sGraphFrameRecorder = GraphRecorder::None;
+static bool sGraphFrameAfterSwitch = false;
+
+static void Graph_BeginInterpolatedFrame(void) {
+    GraphRecorder recorder = Context_GetCurrentGame() == GAME_MM ? GraphRecorder::MM : GraphRecorder::OoT;
+    // The first frame after the active game changes interpolates nothing: the
+    // arriving game's recorder last recorded before that game was suspended, so
+    // its previous frame is a stale pre-switch one, not the frame before this.
+    sGraphFrameAfterSwitch = sGraphFrameRecorder != GraphRecorder::None && sGraphFrameRecorder != recorder;
+    sGraphFrameRecorder = recorder;
+}
+
+static std::unordered_map<Mtx*, MtxF> Graph_InterpolateActiveRecorder(float step) {
+    if (sGraphFrameAfterSwitch) {
+        return {};
+    }
+    if (sGraphFrameRecorder == GraphRecorder::MM) {
+        return MM_FrameInterpolation_Interpolate(step);
+    }
+    return FrameInterpolation_Interpolate(step);
+}
+
+// Test seam (#965): one processed frame's recorder selection followed by one
+// interpolation step at `step`. Returns 1 and copies the replacement's 16
+// floats into out16 (when non-null) if the step replaced `mtx`, else 0.
+extern "C" int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, float* out16) {
+    static_assert(sizeof(MtxF) == 16 * sizeof(float), "MtxF is a 4x4 float matrix");
+    Graph_BeginInterpolatedFrame();
+    std::unordered_map<Mtx*, MtxF> replacements = Graph_InterpolateActiveRecorder(step);
+    auto it = replacements.find(const_cast<Mtx*>(static_cast<const Mtx*>(mtx)));
+    if (it == replacements.end()) {
+        return 0;
+    }
+    if (out16 != nullptr) {
+        memcpy(out16, &it->second, sizeof(MtxF));
+    }
+    return 1;
+}
 #endif
 
 // C->C++ Bridge
@@ -2531,10 +2586,17 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     // time_base = fps * original_fps (one second)
     int next_original_frame = fps;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    Graph_BeginInterpolatedFrame(); // #965: pick this frame's recorder
+#endif
     while (time + original_fps <= next_original_frame) {
         time += original_fps;
         if (time != next_original_frame) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            mtx_replacements.push_back(Graph_InterpolateActiveRecorder((float)time / next_original_frame));
+#else
             mtx_replacements.push_back(FrameInterpolation_Interpolate((float)time / next_original_frame));
+#endif
         } else {
             mtx_replacements.emplace_back();
         }
