@@ -103,6 +103,7 @@
 #         -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT -DGOLDEN_DIR=<repo>/tests/golden
 #         -DGOLDEN_NAME=seed-digest-default [-DARCHIVE_FREE_ONLY=ON]
 #         [-DREGEN=ON -DALLOW_ROM_ARCHIVE_REGEN=ON|OFF]
+#         [-DPRE_DISPATCH=<dispatch> -DPACKAGE_ENV=<variable>]  (#1044: a first process)
 #         -P CheckGoldenDigest.cmake
 # REGEN=ON writes the generated digest over the golden instead of comparing. It is
 # the ONLY supported way to re-pin — see docs/determinism-goldens.md and the
@@ -121,6 +122,9 @@ foreach(_required REDSHIP_EXE WORK_DIR DISPATCH DIGEST_ENV GOLDEN_DIR GOLDEN_NAM
         message(FATAL_ERROR "CheckGoldenDigest: -D${_required}=<value> is required")
     endif()
 endforeach()
+if(DEFINED PRE_DISPATCH AND NOT DEFINED PACKAGE_ENV)
+    message(FATAL_ERROR "CheckGoldenDigest: -DPRE_DISPATCH needs -DPACKAGE_ENV=<variable naming the package>")
+endif()
 # RUN_TAG (optional, #950): names this run's digest files and sandbox, so a row that
 # checks an EXISTING golden under another environment never shares them with that
 # golden's own row under `ctest -j`. Defaults to GOLDEN_NAME.
@@ -441,8 +445,33 @@ endif()
 # inherited accident.
 function(_golden_generate run_dir run_exe run_env actual)
     file(REMOVE "${actual}")
+    # PRE_DISPATCH (#1044): a first process whose product the digest dispatch reads,
+    # the seed package GoldenSeedDigestPackagePath creates its file from. It writes
+    # the package at a path beside this run's digest, named in PACKAGE_ENV for both
+    # processes, so the digest process is a separate process that never generated.
+    set(_package_env "")
+    if(DEFINED PRE_DISPATCH)
+        string(REGEX REPLACE "\\.txt$" ".rsbs-seed.zip" _package "${actual}")
+        file(REMOVE "${_package}")
+        set(_package_env "${PACKAGE_ENV}=${_package}")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E env "${_package_env}"
+                    "${run_exe}" --test ${PRE_DISPATCH}
+            WORKING_DIRECTORY "${run_dir}"
+            RESULT_VARIABLE _pre_rc
+            OUTPUT_VARIABLE _pre_out
+            ERROR_VARIABLE _pre_err
+        )
+        if(NOT _pre_rc EQUAL 0 OR NOT EXISTS "${_package}")
+            message(FATAL_ERROR
+                "CheckGoldenDigest(${GOLDEN_NAME}): the pre-dispatch '--test ${PRE_DISPATCH}' exited ${_pre_rc} "
+                "(package expected at ${_package}) — no digest was generated, so nothing was compared.\n"
+                "  ran: ${run_exe}\n  in:  ${run_dir} [${run_env}]\n"
+                "stdout:\n${_pre_out}\nstderr:\n${_pre_err}")
+        endif()
+    endif()
     execute_process(
-        COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${actual}"
+        COMMAND ${CMAKE_COMMAND} -E env "${DIGEST_ENV}=${actual}" ${_package_env}
                 "${run_exe}" --test ${DISPATCH}
         WORKING_DIRECTORY "${run_dir}"
         RESULT_VARIABLE _rc
