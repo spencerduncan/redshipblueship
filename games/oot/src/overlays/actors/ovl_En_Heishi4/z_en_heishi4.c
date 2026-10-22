@@ -3,6 +3,7 @@
 #include "vt.h"
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/Enhancements/enhancementTypes.h" // [RSBS #969] OoT_BunnyHoodEffectMode
 
 #define FLAGS (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY)
 
@@ -341,7 +342,7 @@ void func_80A56B40(EnHeishi4* this, PlayState* play) {
             // these interactions, so bunny hood is fine in that case.
             if (CVarGetInteger(CVAR_ENHANCEMENT("MarketSneak"), 0) &&
                 (player->currentMask == PLAYER_MASK_NONE ||
-                 (player->currentMask == PLAYER_MASK_BUNNY && CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), 0)))) {
+                 (player->currentMask == PLAYER_MASK_BUNNY && OoT_BunnyHoodEffectMode() /* [RSBS #969] */))) {
                 this->actionFunc = EnHeishi4_MarketSneak;
             } else {
                 this->actionFunc = func_80A56614;

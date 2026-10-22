@@ -417,7 +417,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 //
 // Bit 31 is never allocated: a future tier-4 key stores the bitset in an int32.
 
-// The five masks both games have (OoTMM sharedMask*), shared-pair families.
+// The five masks both games have (OoTMM sharedMask*), shared-pair families
+// (#978): OoT's RG_GORON_MASK, RG_ZORA_MASK, RG_BUNNY_HOOD, RG_KEATON_MASK and
+// RG_MASK_OF_TRUTH, MM's RI_MASK_GORON ... RI_MASK_TRUTH, each registered by its
+// game, each authored by its own Cross-Game Rules row.
 #define RSBS_XITEM_SHARED_GORON 0x00000001u
 #define RSBS_XITEM_SHARED_ZORA 0x00000002u
 #define RSBS_XITEM_SHARED_BUNNY 0x00000004u // #969 rides this bit
