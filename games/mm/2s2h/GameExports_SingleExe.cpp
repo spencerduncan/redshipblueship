@@ -217,6 +217,8 @@ int ArchiveHotswap_TargetArrivals(void);
 // #981 resource cache owner checks (src/common/tests/test_resource_cache_owner.c).
 int ResourceCacheOwner_CheckArrival(GameId game, int arrival, const void* skel, int limbCount, char* msg, size_t cap);
 void ResourceCacheOwner_SetMMLegPassed(void);
+int ResourceCacheOwner_PatchProbeMM(char* msg, size_t cap);                     // #1040 R2
+int ResourceCacheOwner_CheckBootOwner(const char* when, char* msg, size_t cap); // #1040 R3
 // OoT's port layer defines the one ResourceMgr_LoadSkeletonByName both games call.
 SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime);
 // MM's staff roll table (z_message.c), built by MM_OTRMessage_Init.
@@ -776,6 +778,13 @@ static void MMCrSceneInit(void) {
                 MMCrFail("the refused door froze MM's half: the refusal must come before the departure freeze");
                 return;
             }
+            // #1040 R3: MM booted (--game mm's path) loads under owner 0, and a
+            // refused crossing never reaches ApplyResourceCacheOwner.
+            if (!ResourceCacheOwner_CheckBootOwner(door ? "after the refused door" : "after the late refusal", msg,
+                                                   sizeof(msg))) {
+                MMCrFail(msg);
+                return;
+            }
             const int expectedEntries = door ? 1 : 2;
             if (sMMRunEntries != expectedEntries) {
                 snprintf(msg, sizeof(msg),
@@ -1080,7 +1089,7 @@ static void MM_RegisterIntegrationTestHooks(void) {
             }
             sLegDone = true;
             char msg[512];
-            if (!RcoMMCheck(msg, sizeof(msg))) {
+            if (!RcoMMCheck(msg, sizeof(msg)) || !ResourceCacheOwner_PatchProbeMM(msg, sizeof(msg))) {
                 fprintf(stderr, "[MM-INT-TEST] FAIL (int-resource-cache-owner): %s\n", msg);
                 fflush(stderr);
                 IntegrationTest_RequestExit();
