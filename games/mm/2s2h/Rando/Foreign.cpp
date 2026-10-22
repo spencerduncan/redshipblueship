@@ -945,12 +945,14 @@ extern "C" int MM_Rando_FrozenMoonCrash(void) {
 // RANDO_SAVE_OPTIONS, randoSaveTricks, randoSaveTrapTypes, randoSaveMoonCrash
 // and (since #1101 lane R3) randoSaveExcludedChecks (ResolvePairedProfile), so
 // those ARE the frozen options, tricks, trap types, moon crash and excluded
-// checks. A half written before lane R3 zero-extends into the excluded set,
-// which is the empty list every paired world had then. The digest also folds
-// the paired start, a constant since #879 (a file created before #879 folded
-// 2Ship's list and cannot match it); the candidate is therefore checked against
-// the frozen digest BEFORE anything is written, and a mismatch there writes
-// nothing.
+// checks. A half written before lane R3 does not hold the set: Save leads
+// SaveContext and the tier is a fixed-size SaveContext image, so the appended
+// bytes read that file's later SaveContext fields (z64save.h), the candidate
+// almost always misses, and such a file restores nothing (an invalidation
+// stated in z64save.h). The digest also folds the paired start, a constant
+// since #879 (a file created before #879 folded 2Ship's list and cannot match
+// it); the candidate is therefore checked against the frozen digest BEFORE
+// anything is written, and a mismatch there writes nothing.
 // ============================================================================
 namespace {
 
@@ -1016,8 +1018,9 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     fileMoonCrash = half->save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
                         ? (uint8_t)RSBS_MM_MOON_CRASH_CYCLE
                         : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
-    // #1101 lane R3: a half written before the set existed zero-extends: the
-    // empty list, as its stamp folded.
+    // #1101 lane R3: a half written before the set existed holds other
+    // SaveContext fields here (Save grew; z64save.h), so its candidate almost
+    // always misses below and nothing is written.
     fileExcluded.assign(half->save.shipSaveInfo.rando.randoSaveExcludedChecks,
                         half->save.shipSaveInfo.rando.randoSaveExcludedChecks + Rando::Foreign::kExcludedChecksBytes);
     const uint32_t candidate = Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(

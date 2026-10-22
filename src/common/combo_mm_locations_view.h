@@ -83,7 +83,10 @@ void Combo_RegisterMMLocationTable(const ComboMMLocationDesc* table, int count, 
  * Build and register MM's check table. DEFINED MM-SIDE
  * (games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp). A call rather than a
  * file-scope registrar for the option and trick tables' reason: it reads
- * namespace-scope std::maps in other translation units. Idempotent.
+ * namespace-scope std::maps in other translation units. Idempotent: the rows
+ * and their (owned) names are built once; the areas are re-resolved and the
+ * rows re-sorted in place when MM's region graph has grown, so the page calls
+ * it each frame it draws. The table pointer and row count never change.
  */
 void MM_RandoLocationsUi_Register(void);
 

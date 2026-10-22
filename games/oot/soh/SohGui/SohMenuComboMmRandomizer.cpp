@@ -651,6 +651,9 @@ struct LocationMove {
  */
 void DrawMmLocationTable(WidgetInfo& info) {
     static ImGuiTextFilter locationSearch;
+    // Re-groups the grotto and enemy-drop checks if MM's region graph grew since
+    // the table was built (MMCheckScenes' rule); a no-op otherwise.
+    MM_RandoLocationsUi_Register();
     const int count = Combo_MMLocationCount();
     if (count == 0) {
         ImGui::TextColored(UIWidgets::ColorValues.at(Colors::Gray), "%s",
