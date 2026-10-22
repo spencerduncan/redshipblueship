@@ -171,6 +171,21 @@
  *     The duration row, gAudioEditor.SeqNameNotificationDuration, is READ by that
  *     same TU's handler at emit time, so it has no registration of its own.
  *
+ * PHASE 8 (#1023) -- FREE LOOK. Camera/FreeLook.cpp registers only through a
+ * file-scope RegisterShipInitFunc keyed on gSettings.FreeLook.Enabled (the
+ * converged key SoH's Settings > Controls > Free Look row writes), in the plain
+ * `2ship_enh` archive, so the linker dropped it and Free Look, Camera Distance
+ * and Camera Transition Speed did nothing in Majora's Mask. Same probe as
+ * Phases 5-7: the key ON plus ShipInit::Init(key), driven twice, must raise each
+ * registry the TU writes to by EXACTLY the count the table names. The key is read
+ * by one TU tree-wide (BenMenu.cpp only draws it), so the delta is attributable.
+ * Nothing the TU defines is named here (a reference would un-elide it).
+ *   - ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (z_camera.c, Camera_Update): the
+ *     free-look camera itself. DebugCam.cpp also registers there but keys on
+ *     gEnhancements.Camera.DebugCam.Enable and is not linked.
+ *   - OnCameraChangeModeFlags, unkeyed (z_camera.c, Camera_ChangeMode): the
+ *     per-mode "may free-look" reset.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -498,6 +513,34 @@ void ResetAudioKeys() {
     }
 }
 
+// ---- Phase 8 (#1023): Free Look ---------------------------------------------
+// Same shape as Phase 5 (SkipKeyProbe).
+const std::vector<SkipKeyProbe>& FreeLookProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gSettings.FreeLook.Enabled",
+          "Free Look",
+          { { "VB_USE_CUSTOM_CAMERA (Camera/FreeLook.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_USE_CUSTOM_CAMERA); }, 1 },
+            { "OnCameraChangeModeFlags, unkeyed (Camera/FreeLook.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnCameraChangeModeFlags>(); }, 1 } } },
+    };
+    return probes;
+}
+
+// Puts every probed key back to 0 and re-drives it, so the registrants a probe
+// armed are queued for removal and the row leaves no hook behind.
+void ResetFreeLookKeys() {
+    for (const auto& probe : FreeLookProbes()) {
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+    }
+    for (const auto& probe : FreeLookProbes()) {
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -535,6 +578,10 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     // Phase 7: the same for the Audio Editor keys.
     for (const auto& probe : AudioProbes()) {
+        CVarSetInteger(probe.key, 0);
+    }
+    // Phase 8: the same for Free Look.
+    for (const auto& probe : FreeLookProbes()) {
         CVarSetInteger(probe.key, 0);
     }
 
@@ -791,10 +838,47 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetAudioKeys();
 
+    // ---- #1023: Free Look ------------------------------------------------------
+    // Same drive as the Audio Editor loop above.
+    for (const auto& probe : FreeLookProbes()) {
+        std::vector<size_t> before;
+        for (const auto& reg : probe.registries) {
+            before.push_back(reg.count());
+        }
+        CVarSetInteger(probe.key, 1);
+        ShipInit::Init(probe.key);
+        ShipInit::Init(probe.key);
+        for (size_t i = 0; i < probe.registries.size(); ++i) {
+            const auto& reg = probe.registries[i];
+            const size_t after = reg.count();
+            if (after != before[i] + reg.expected) {
+                printf("[TEST] FAIL(16): %s went %zu -> %zu when %s was turned on and driven twice, expected "
+                       "exactly +%zu - Camera/FreeLook.cpp behind the \"%s\" row is not in the link (a plain "
+                       "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or it stacks "
+                       "a registration per toggle, so Free Look, Camera Distance and Camera Transition Speed do "
+                       "nothing or misbehave in Majora's Mask (#1023)\n",
+                       reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                ResetFreeLookKeys();
+                ResetAudioKeys();
+                ResetEnhKeys();
+                ResetSkipKeys();
+                ResetCheatKeys();
+                return 16;
+            }
+        }
+        CVarSetInteger(probe.key, 0);
+        ShipInit::Init(probe.key);
+        for (const auto& reg : probe.registries) {
+            (void)reg.count();
+        }
+    }
+    ResetFreeLookKeys();
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
-           "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs)\n");
+           "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
+           "of #1023 armed both its hooks)\n");
     return 0;
 }
 
