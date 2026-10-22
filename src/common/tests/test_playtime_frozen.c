@@ -25,17 +25,23 @@
  *      type over the checks (the roll is not stuck on one type);
  *   4. an empty set (every save from before #1047) springs Freeze only;
  *   5. creation (Rando::Foreign::ResolvePairedProfile) freezes the set the
- *      CVars ask for into the save.
+ *      CVars ask for into the save;
+ *   6. the trap-type rows author that set (#1101 lane R4): through the gated
+ *      writer the MM Randomizer page's seven rows use, each type alone is
+ *      the set creation freezes and gives the profile digest a value of its
+ *      own; a frozen profile refuses the write; Reset clears the set.
  *
  * Linkage note: #included into test_runner.cpp at file scope (compiled as C++).
  */
 
+#include "../combo_mm_options_page.h"
 #include "../context.h"
 #include "../game.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
 
 #include <cstdio>
+#include <cstring>
 #include <set>
 #include <string>
 #include <vector>
@@ -242,6 +248,76 @@ static TestResult MmTrapRollFrozen_Run(void) {
                (unsigned)frozenAll, (unsigned)frozenOne, (unsigned)frozenNone, (unsigned)fullMask);
         ok = false;
     }
+
+    // 6. The trap-type rows author the set (#1101 lane R4), through the writer
+    // the rows call. Unfrozen for the leg; the stamp is put back after it.
+    Combo_MMOptionsPages_Init();
+    const uint32_t priorDigest = gComboCtx.mmProfileDigest;
+    gComboCtx.mmProfileDigest = 0;
+    if (Combo_MMTrapTypeCount() != typeCount) {
+        printf("[TEST] FAIL: the trap-type rows' table holds %d types, MM has %d\n", Combo_MMTrapTypeCount(),
+               typeCount);
+        ok = false;
+    } else {
+        auto clearAll = [typeCount]() {
+            for (int u = 0; u < typeCount; u++) {
+                Combo_MMTrapTypeClear(Combo_MMTrapTypeAt(u));
+            }
+        };
+        clearAll();
+        const uint32_t noneStamp = MM_Rando_ComputeProfileStamp();
+        std::set<uint32_t> stamps = { noneStamp };
+        int followed = 0;
+        for (int t = 0; t < typeCount; t++) {
+            const ComboMMTrapTypeDesc* d = Combo_MMTrapTypeAt(t);
+            const bool row = d != nullptr && d->type == (uint8_t)t && d->cvar != nullptr &&
+                             MM_Rando_Traps_TestCVarName(t) != nullptr &&
+                             strcmp(d->cvar, MM_Rando_Traps_TestCVarName(t)) == 0;
+            clearAll();
+            const bool wrote = Combo_MMTrapTypeSetValue(d, true);
+            const int frozenSet = MM_Rando_Traps_TestCreationFreezes();
+            const uint32_t stamp = MM_Rando_ComputeProfileStamp();
+            const bool own = stamps.insert(stamp).second;
+            if (!row || !wrote || frozenSet != (1 << t) || !own) {
+                printf("[TEST] FAIL: trap row %d (%s): row %d, written %d, creation froze %02X (expected %02X), "
+                       "digest %08X %s\n",
+                       t, d != nullptr && d->label != nullptr ? d->label : "(none)", row ? 1 : 0, wrote ? 1 : 0,
+                       (unsigned)frozenSet, (unsigned)(1u << t), (unsigned)stamp,
+                       own ? "of its own" : "shared with another set");
+                ok = false;
+            } else {
+                followed++;
+            }
+        }
+        // Frozen: the last type stays on, and neither another type nor a clear lands.
+        const int last = typeCount - 1;
+        gComboCtx.mmProfileDigest = 0x4D4D0047u;
+        const bool setRefused = !Combo_MMTrapTypeSetValue(Combo_MMTrapTypeAt(0), true);
+        Combo_MMTrapTypeClear(Combo_MMTrapTypeAt(last));
+        gComboCtx.mmProfileDigest = 0;
+        const int frozenKept = MM_Rando_Traps_TestCreationFreezes();
+        if (!setRefused || frozenKept != (1 << last)) {
+            printf("[TEST] FAIL: with the profile frozen the trap-type writer %s and the set read %02X, expected "
+                   "%02X\n",
+                   setRefused ? "refused" : "WROTE", (unsigned)frozenKept, (unsigned)(1u << last));
+            ok = false;
+        }
+        // Reset clears the set with the options and tricks.
+        Combo_MMOptionsPage_ResetAll();
+        const int afterReset = MM_Rando_Traps_TestCreationFreezes();
+        if (afterReset != 0) {
+            printf("[TEST] FAIL: Reset MM Randomizer left the trap-type set at %02X\n", (unsigned)afterReset);
+            ok = false;
+        }
+        clearAll();
+        printf("[TEST]   %d of %d trap rows: the set creation freezes and the profile digest follow the row\n",
+               followed, typeCount);
+    }
+    for (int t = 0; t < typeCount; t++) {
+        CVarClear(MM_Rando_Traps_TestCVarName(t));
+    }
+    gComboCtx.mmProfileDigest = priorDigest;
+
     if (!ok) {
         return TEST_FAIL;
     }

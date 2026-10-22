@@ -2200,6 +2200,11 @@ void Session::BuildPageList() {
                         break;
                     }
                 }
+                // A trap-type row (#1101 lane R4), named here rather than read
+                // from the table: Freeze Traps, MM's first type, unpaired.
+                p.hovers.push_back("trap-row");
+                p.hoverRows["trap-row"] = std::string("Freeze Traps") + COMBO_MM_OPTIONS_ROW_ID_SUFFIX;
+                p.hoverRowState["trap-row"] = "unpaired";
             } else if (sidebar == COMBO_MM_TRICKS_PAGE_NAME) {
                 // Unpaired: the model's headline; frozen: the freeze sentence.
                 p.states = { "unpaired", "frozen" };
@@ -5439,6 +5444,13 @@ int Session::RuntimeLint() {
             refString("Combo/MM Tricks table", d->label);
             refString("Combo/MM Tricks table", d->tooltip);
             refString("Combo/MM Tricks table", d->disabledReason);
+        }
+    }
+    for (int i = 0; i < Combo_MMTrapTypeCount(); i++) {
+        const ComboMMTrapTypeDesc* d = Combo_MMTrapTypeAt(i);
+        if (d != nullptr) {
+            refString("Combo/MM Randomizer trap types", d->label);
+            refString("Combo/MM Randomizer trap types", d->tooltip);
         }
     }
 

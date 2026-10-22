@@ -171,6 +171,39 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc) {
     CVarClear(desc->cvar);
 }
 
+// ---- the trap types (#1101 lane R4) -------------------------------------------
+// [lock] seam: today no trap-type row exists and nothing writes the keys, so
+// nothing registers, nothing is listed and every write is refused.
+
+void Combo_RegisterMMTrapTypeTable(const ComboMMTrapTypeDesc* table, int count) {
+    (void)table;
+    (void)count;
+}
+
+int Combo_MMTrapTypeCount(void) {
+    return 0;
+}
+
+const ComboMMTrapTypeDesc* Combo_MMTrapTypeAt(int index) {
+    (void)index;
+    return NULL;
+}
+
+bool Combo_MMTrapTypeGetValue(const ComboMMTrapTypeDesc* desc) {
+    (void)desc;
+    return false;
+}
+
+bool Combo_MMTrapTypeSetValue(const ComboMMTrapTypeDesc* desc, bool on) {
+    (void)desc;
+    (void)on;
+    return false;
+}
+
+void Combo_MMTrapTypeClear(const ComboMMTrapTypeDesc* desc) {
+    (void)desc;
+}
+
 bool Combo_MMProfileFrozen(void) {
     // The creation-stamped digest IS the predicate (#564 V5): a src/common
     // fact, never a gSaveContext read — ADR 0008 rule 5 and this pane's own
