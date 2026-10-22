@@ -517,23 +517,54 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
 }
 
 bool ShouldShowGetItemCutscene(RandoItemId itemId) {
-    if (!CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0)) {
+    const int tier = SkipGetItemCutsceneTier();
+    if (!tier) {
         return true;
     }
 
     switch (Rando::StaticData::Items[itemId].randoItemType) {
         case RITYPE_JUNK:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 1;
+            return tier < 1;
         case RITYPE_HEALTH:
         case RITYPE_LESSER:
         case RITYPE_STRAY_FAIRY:
         case RITYPE_SKULLTULA_TOKEN:
         case RITYPE_SMALL_KEY:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 2;
+            return tier < 2;
         default:
-            return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) < 3;
+            return tier < 3;
     }
 }
+
+int SkipGetItemCutsceneTier() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1060: one control for one game. MM's own key has no widget or preset in
+    // the single exe, so SoH's "Skip Get Item Animations" (default Junk Items,
+    // SohMenuRandomizer.cpp) decides Termina's presentation too.
+    return SkipGetItemCutsceneTierFromSoh(CVarGetInteger("gRandoEnhancements.TimeSavers.SkipGetItemAnimation", 1));
+#else
+    return CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0);
+#endif
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// SoH's values (enhancementTypes.h SkipGetItemAnimationType): 0 SGIA_DISABLED,
+// 1 SGIA_JUNK, 2 SGIA_ALL. MM's tiers: 0 Never, 1 Junk Items Only, 2 Everything
+// But Major, 3 Always. Junk Items takes MM's tier of the same name (a re-looted
+// check converts to junk, ConvertItem.cpp, so repeats skip too); All Items takes
+// Always. Any other value shows everything, as OoT's reader (hook_handlers.cpp)
+// does.
+int SkipGetItemCutsceneTierFromSoh(int sohSkipGetItemAnimation) {
+    switch (sohSkipGetItemAnimation) {
+        case 1:
+            return 1;
+        case 2:
+            return 3;
+        default:
+            return 0;
+    }
+}
+#endif
 
 std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
     std::string result;
@@ -552,6 +583,80 @@ std::string GetItemName(RandoItemId randoItemId, bool includeArticle) {
     return result;
 }
 
+bool StoryGiveShowsGetItemCutscene() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1060: these gives queue only outside rando, where SoH's own reader always
+    // shows (hook_handlers.cpp). SoH's default Junk Items must not strip a mask,
+    // song or the Oath of its hold, so only the tier that means "everything"
+    // (All Items -> Always) skips it.
+    return SkipGetItemCutsceneTier() < 3;
+#else
+    return !SkipGetItemCutsceneTier();
+#endif
+}
+
 } // namespace StaticData
 
 } // namespace Rando
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ROM-free test bridges (redship tier; src/common/tests/test_mm_get_item_presentation.c, #1060).
+
+/** The MM tier SoH's "Skip Get Item Animations" value maps onto. */
+extern "C" int MM_Rando_GetItemPresentation_TestTierFromSoh(int sohSkipGetItemAnimation) {
+    return Rando::StaticData::SkipGetItemCutsceneTierFromSoh(sohSkipGetItemAnimation);
+}
+
+/** The tier every MM reader consumes, from the live CVar store. */
+extern "C" int MM_Rando_GetItemPresentation_TestTier(void) {
+    return Rando::StaticData::SkipGetItemCutsceneTier();
+}
+
+/** Does a story-cutscene give hold the item overhead? 1 yes, 0 no. */
+extern "C" int MM_Rando_GetItemPresentation_TestStoryGiveShows(void) {
+    return Rando::StaticData::StoryGiveShowsGetItemCutscene() ? 1 : 0;
+}
+
+/** Does `sample` play the full get-item presentation? 1 yes, 0 no, negative on a
+ *  bad sample or a broken fixture. Samples: 0 a green rupee (junk), 1 RI_JUNK
+ *  (what a repeat converts to), 2 a heart piece (health), 3 a trap (lesser),
+ *  4 the bow (major), 5 a heart piece on a check already obtained, through
+ *  ConvertItem exactly as CheckQueue queues it (the repeated pickup). */
+extern "C" int MM_Rando_GetItemPresentation_TestShows(int sample) {
+    switch (sample) {
+        case 0:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_RUPEE_GREEN) ? 1 : 0;
+        case 1:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_JUNK) ? 1 : 0;
+        case 2:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_HEART_PIECE) ? 1 : 0;
+        case 3:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_TRAP) ? 1 : 0;
+        case 4:
+            return Rando::StaticData::ShouldShowGetItemCutscene(RI_BOW) ? 1 : 0;
+        case 5: {
+            RandoCheckId check = RC_UNKNOWN;
+            for (const auto& [id, row] : Rando::StaticData::Checks) {
+                if (id != RC_UNKNOWN) {
+                    check = id;
+                    break;
+                }
+            }
+            if (check == RC_UNKNOWN) {
+                return -2;
+            }
+            const bool priorObtained = RANDO_SAVE_CHECKS[check].obtained;
+            RANDO_SAVE_CHECKS[check].obtained = true;
+            const RandoItemId converted = Rando::ConvertItem(RI_HEART_PIECE, check);
+            const bool shows = Rando::StaticData::ShouldShowGetItemCutscene(converted);
+            RANDO_SAVE_CHECKS[check].obtained = priorObtained;
+            if (Rando::StaticData::Items[converted].randoItemType != RITYPE_JUNK) {
+                return -3; // the repeat no longer converts to junk: the fixture is stale
+            }
+            return shows ? 1 : 0;
+        }
+        default:
+            return -1;
+    }
+}
+#endif

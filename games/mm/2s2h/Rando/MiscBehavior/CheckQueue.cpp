@@ -221,7 +221,7 @@ void Rando::MiscBehavior::CheckQueue() {
 #endif
                             // We need to remove the Color Codes if the player is skipping Item Get Cutscenes as the
                             // Notification Emit doesnt support it.
-                            if (CVarGetInteger("gEnhancements.Cutscenes.SkipGetItemCutscenes", 0) >= 2) {
+                            if (Rando::StaticData::SkipGetItemCutsceneTier() >= 2) {
                                 message = CustomMessage::RemoveColorCodes(message);
                             }
                         }
