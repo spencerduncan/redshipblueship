@@ -868,6 +868,14 @@ if(BUILD_TESTING)
     # ResourceManager::SetDefaultCacheOwner: each owner keeps its own bytes, and
     # the first keeps its original object. ROM-free and archive-free.
     redship_add_test(NAME ResourceCacheOwner COMMAND redship --test resource-cache-owner)
+    # #1040 R4: UnloadResources with an explicit owner in its ResourceFilter
+    # unloads that owner's entry and leaves the default owner's alone (the fork's
+    # UnloadResourcesProcess once took mDefaultCacheOwner instead). ROM-free.
+    redship_add_test(NAME ResourceCacheOwnerUnloadFilter COMMAND redship --test resource-cache-owner-unload-filter)
+    # #1040 R1: OoT's Cosmetics Editor patches display lists only while OoT
+    # runs (under MM it would write MM's owner's copies); a change made under MM
+    # is owed to OoT and paid once on OoT's next frame. ROM-free.
+    redship_add_test(NAME CosmeticsPatchOwnerGate COMMAND redship --test cosmetics-patch-owner-gate)
     # #987: re-adding a mounted archive path (every game switch does) mounts
     # nothing new and keeps newest-wins. Two temporary O2R zips added and
     # re-added by path: archive count, game-version list and mount order
@@ -2881,7 +2889,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
     # #981: T1's crossing and back. Each game is served its own gOctorokSkel (OoT
     # 37 limbs, MM 15) and staff text (SOH::Text, S2H::TextMM with MM's credit
-    # ids), and OoT gets back the very objects it had before it left.
+    # ids), and OoT gets back the very objects it had before it left. #1040 R2:
+    # OoT patches a display list both archives carry before it leaves, MM
+    # unpatches the same name under its own owner and keeps its copy cached and
+    # untouched, and OoT's own unpatch on return still restores its original (the
+    # per-owner gfx-patch registry, games/oot/soh/ResourceManagerHelpers.cpp).
     redship_add_test(NAME IntResourceCacheOwner
         COMMAND redship --integration-test int-resource-cache-owner
         LABEL integration TIMEOUT ${REDSHIP_INTEGRATION_TEST_TIMEOUT})
@@ -2920,8 +2932,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # refused while MM is still in its frame loop (z_play.c loads the 0xD800
     # Combo_CheckEntranceSwitch hands back; MM_Game_Run entered once); then the
     # raw switch request, after which MM must come back through suspend/resume
-    # with its save. Each row also asserts the door's own refusal line, which
-    # only Combo_CheckEntranceSwitch prints.
+    # with its save. After each refusal both drivers also assert the resource
+    # cache owner is still the booted game's 0 (#1040 R3: a refused switch never
+    # reaches ApplyResourceCacheOwner, and --game mm boots MM at owner 0).
+    # Each row also asserts the door's own refusal line, which only
+    # Combo_CheckEntranceSwitch prints.
     #
     # CMake/CheckCrossingRefused.cmake; the drivers are in
     # games/oot/soh/GameExports_SingleExe.cpp and games/mm/2s2h/GameExports_SingleExe.cpp.
