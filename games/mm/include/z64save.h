@@ -412,6 +412,15 @@ typedef struct RandoSaveInfo {
     // APPEND-ONLY: the enumerator's number is the index in every written save
     // and a positional term in the identity string.
     u8 randoSaveTricks[MMRT_MAX];
+    // RedShipBlueShip (#977): the Ocarina of Time mask Link wears in human form, a
+    // ComboForeignMask (src/common/foreign_masks.h), never currentMask or
+    // equippedMask: MM indexes unbounded tables by both. Then the variant each
+    // shared pause slot shows (index ComboForeignMaskSlot - 1; NONE is the slot's
+    // own mask). APPENDED like randoSaveTricks, so an older save zero-extends into
+    // them (no mask worn, every slot on its own mask). Not part of the profile
+    // identity: ProfileIdentityString folds the options and the tricks only.
+    u8 foreignMask;
+    u8 foreignMaskSlotSel[2];
 } RandoSaveInfo;
 
 // These are values added by 2S2H that we need to be persisted to the save file

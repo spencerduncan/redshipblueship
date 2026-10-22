@@ -1140,6 +1140,9 @@ static bool MM_PairedFirstCrossingCheckArrival(int arrival) {
  * repro must preserve, so the harness cannot ride those hooks on the MM side.
  * No-op unless the gameplay round-trip mode is active.
  */
+// Rando/ForeignMaskMM.cpp (#977): the worn-mask integration drive.
+extern "C" int MM_ForeignMask_PlaytestFrame(int frame, int arrival);
+
 extern "C" void MM_IntegrationGameplayFrameTick(void) {
     // Every mode: each MM frame bumps the int-* rows' progress word (#793).
     if (IntegrationTest_IsActive() && Context_GetCurrentGame() == GAME_MM) {
@@ -1274,6 +1277,13 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
             fflush(stderr);
             break;
         }
+    }
+    // #977 IntForeignMasksWorn: the MM window wears and draws the three Ocarina
+    // of Time masks, and the next arrival finds the last one still on
+    // (Rando/ForeignMaskMM.cpp).
+    if (std::getenv("RSBS_GP_FOREIGN_MASKS") != nullptr &&
+        !MM_ForeignMask_PlaytestFrame(sGpMMPlayFrames, sGpMMArrivalCount)) {
+        return;
     }
     // #830: its per-frame half (closes textboxes nobody will press past, and
     // captures the framebuffer; Rando/ForeignModelSingleExe.cpp).

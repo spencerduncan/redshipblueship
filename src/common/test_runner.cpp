@@ -845,6 +845,10 @@ extern "C" {
 // progression item of both games classifies, descriptors round-trip, and the
 // collision table matches the asset trees. FILE SCOPE (compiled as C++).
 #include "tests/test_foreign_model.c"
+// Wearing the other game's masks (#977): the worn-mask table and its curated
+// models, both games' equip rules, the fields' persistence, and OoT's list-based
+// child trade cycle. FILE SCOPE (compiled as C++).
+#include "tests/test_foreign_masks.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -6568,6 +6572,25 @@ const TestDescriptor gTests[] = {
       "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
       "descriptors round-trip, and the collision table matches both asset trees (#577 M2)",
       Test_ForeignModel },
+    { "foreign-mask-table",
+      "Each game wears three of the other's masks: every mask is hosted by the other game, its worn list and icon are "
+      "curated in the host's half, every byte sanitizes to a mask the host wears or none, and the toggle, ownership, "
+      "shared-slot and list-cycle rules hold (#977)",
+      Test_ForeignMaskTable },
+    { "foreign-mask-rules",
+      "A worn foreign mask never reaches currentMask in either game; OoT wears one mask at a time, as a child, off at "
+      "a "
+      "scene load unless Persistent Masks; MM in human form only, with the shared pause slots' cycle, equip and icon "
+      "(#977)",
+      Test_ForeignMaskRules },
+    { "foreign-mask-persistence",
+      "Both games' worn-mask fields are appended to their saves, cross with the frozen half and survive a .redsave "
+      "save and load (#977)",
+      Test_ForeignMaskPersistence },
+    { "oot-child-trade-cycle",
+      "OoT's list-based child trade cycle answers exactly as the contiguous cycle for every slot value and ownership "
+      "set, and visits a registered custom ItemID (#977)",
+      Test_OoTChildTradeCycle },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
