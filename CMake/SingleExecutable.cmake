@@ -1585,6 +1585,18 @@ if(BUILD_TESTING)
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
+    # Frame interpolation in MM (#965). The shared Graph_ProcessGfxCommands runs
+    # both games' frames but built its interpolated sub-frames from OoT's recorder
+    # only, while MM's draws record into MM's own, so interpolation did nothing in
+    # MM. Records into both recorders and locks that the processor's step reads
+    # the active game's, and nothing on the first frame after a switch. Needs the
+    # window (the recorders run only while GetInterpolationFPS() is above 20), so
+    # it sits in this display tier.
+    redship_add_test(NAME CrossGameFrameInterpolation COMMAND redship --test crossgame-frame-interpolation
+        LABEL rando
+        TIMEOUT 180
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+
     # #575 H1: the one shared hint AREA vocabulary (src/common/combo_area.c).
     # Unlike the two rows above it is display-free and ROM-free, so it sits in
     # the redship tier: names unique per half and invertible, no OoT name equal

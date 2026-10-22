@@ -4320,17 +4320,24 @@ extern "C" void MM_GameHooks_ExecuteOnBossDefeated(s16 actorId) {
  * CVar-gated first. Enhancements/Camera/CameraInterpolationFixes.cpp is the one
  * registrant in the set whose COND_HOOK condition is literally `true`, so it
  * arms for every player the instant its TU links, and #438's audit flagged its
- * effect on MM frames as unverified. Re-measured: the body is
- * Camera_ShouldInterpolateDist (camera math over six function-local statics)
- * feeding MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is
- * one bool gating MM's OWN matrix recorder. The consumer of that recording,
- * MM_FrameInterpolation_Interpolate, has exactly one caller in the tree --
- * 2s2h/BenPort.cpp -- and BenPort is excluded from the single-exe link, so MM's
- * recording is never replayed and the bool cannot reach a rendered frame. The
- * gate therefore stays upstream-faithful: diverging from a vendored 2S2H
- * registration to CVar-gate a body that can only make MM skip a recording
- * nothing reads would buy nothing and cost an upstream-sync landmine. Restoring
- * MM's replay path is the change that has to re-measure this row.
+ * effect on MM frames as unverified. The body is Camera_ShouldInterpolateDist
+ * (camera math over six function-local statics) feeding
+ * MM_FrameInterpolation_ShouldInterpolateFrame, whose entire effect is one bool
+ * gating MM's OWN matrix recorder. The TU does NOT link today: it compiles into
+ * the plain STATIC 2ship_enh archive (it is in neither ship__Enh_registrars nor
+ * 2ship_enh_clockshuffle in games/mm/CMakeLists.txt), and nothing references it
+ * but its file-scope RegisterShipInitFunc, so the linker drops it (redship.map
+ * carries no CameraInterpolationFixes.cpp.obj and no Camera_ShouldInterpolateDist).
+ * The gate is therefore inert in the single exe: MM's camera_interpolation stays
+ * true after the first StartRecord, and no MM frame skips its recording after a
+ * large camera jump. Real view resets still break interpolation through the
+ * camera-epoch child (z_view.c, z_camera.c), as in SoH, but a hard camera swing
+ * with no view reset interpolates across it, unlike upstream 2S2H.
+ * Since #965 MM's recording IS replayed (the shared Graph_ProcessGfxCommands in
+ * soh/OTRGlobals.cpp calls MM_FrameInterpolation_Interpolate on MM frames), so
+ * if this TU is ever linked (for example through 2ship_enh_registrars), its
+ * unconditional gate will change rendered MM frames from that point on:
+ * re-measure this row then.
  *
  * LEGS mirror each excluded twin minus ForFilter. OnPlayerPostLimbDraw keys its
  * id leg on limbIndex, which is what PersistentMasks (PLAYER_LIMB_HEAD),
