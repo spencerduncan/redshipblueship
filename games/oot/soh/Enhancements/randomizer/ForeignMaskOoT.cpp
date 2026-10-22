@@ -253,6 +253,12 @@ extern "C" void OoT_ChildTradeCycle_ClearExtrasForTest(void) {
     sTradeExtraCount = 0;
 }
 
+extern "C" const char* OoT_ForeignMask_WornDl(Player* player, int headDrawn) {
+    (void)player;
+    (void)headDrawn;
+    return nullptr;
+}
+
 extern "C" uint8_t OoT_ForeignMask_StoredRaw(void) {
     return gSaveContext.ship.foreignMask;
 }

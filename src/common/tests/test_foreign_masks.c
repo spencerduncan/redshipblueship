@@ -20,7 +20,9 @@
  *     child only, off at a scene load unless Persistent Masks. MM: human form
  *     only, one mask at a time, the shared pause slots (cycle, equip, icon).
  *     Both: a mask whose rule the world did not freeze on is neither put on
- *     nor kept.
+ *     nor kept. OoT's head draw selects the worn list only for a child with no
+ *     native mask on and the head list drawn (OoT_ForeignMask_WornDl). The two
+ *     live saves are one storage, so each game's steps arm that game's save.
  *   ForeignMaskPersistence (foreign-mask-persistence): the fields are appended
  *     at the end of their structs, and each game's worn mask
  *     survives a crossing (the production flush, freeze and restore/consume)
@@ -84,6 +86,7 @@ uint8_t OoT_TradeCycleTest_FirstFreeCustomItem(void);
 int OoT_TradeCycleTest_RegisterExtra(uint8_t itemId, int (*owned)(void));
 void OoT_TradeCycleTest_ClearExtras(void);
 uint8_t OoT_ForeignMaskTest_Worn(void);
+const char* OoT_ForeignMaskTest_WornDl(int headDrawn);
 // games/mm/2s2h/mm_foreign_mask_test.cpp
 void MM_ForeignMaskTest_ArmLive(void);
 void MM_ForeignMaskTest_SetStored(uint8_t value);
@@ -560,33 +563,82 @@ TestResult Test_ForeignMaskRules(void) {
              "Gibdo's Spooky Mask was chosen in Stone's slot");
 
     // ---- R7. both: a mask whose rule is off is neither put on nor kept --------
+    // The two ports' live saves are one storage (src/common/unified_save.c):
+    // arming MM's zeroes OoT's linkAge (adult) and MM's equippedMask is OoT's
+    // linkAge low byte. Each half arms its own game and freezes its own record.
     FmResetAll();
+    OoT_ForeignMaskTest_ArmLive();
+    OoT_ForeignMaskTest_SetPlayerMask(0);
+    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_STONE) == 1, "R7",
+             "OoT: with the rules on, the Stone Mask could not be put on");
+    FmFreezeRules(kFmAllRules & ~RSBS_XITEM_STONE_MASK_OOT);
+    FM_CHECK(OoT_ForeignMaskTest_Worn() == 0, "R7", "OoT: the Stone Mask reads as worn with its rule off (%u)",
+             (unsigned)OoT_ForeignMaskTest_Worn());
+    OoT_ForeignMaskTest_ApplyRules();
+    FM_CHECK(OoT_ForeignMaskTest_Stored() == 0, "R7", "OoT: the rules kept the Stone Mask with its rule off (%u)",
+             (unsigned)OoT_ForeignMaskTest_Stored());
+    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_STONE) == 0 && OoT_ForeignMaskTest_Stored() == 0, "R7",
+             "OoT: the Stone Mask was put on with its rule off");
+    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_BLAST) == 1, "R7",
+             "OoT: the Blast Mask, whose rule is on, was refused beside the Stone Mask's");
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(1) != NULL, "R7", "OoT's worn Blast Mask selects no list");
+    ComboContext_Init(); // nothing frozen: every rule off
+    FM_CHECK(OoT_ForeignMaskTest_Worn() == 0 && OoT_ForeignMaskTest_WornDl(1) == NULL, "R7",
+             "OoT: with no world frozen a mask reads as worn");
+
+    FmFreezeRules(kFmAllRules);
+    MM_ForeignMaskTest_ArmLive();
     MM_ForeignMaskTest_SetForm(1);
     MM_ForeignMaskTest_SetPlayerMask(0);
-    OoT_ForeignMaskTest_SetPlayerMask(0);
-    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_STONE) == 1 &&
-                 MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_SKULL) == 1,
-             "R7", "with the rules on, a mask could not be put on");
-    FmFreezeRules(kFmAllRules & ~(RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_SKULL_MASK_MM));
-    FM_CHECK(OoT_ForeignMaskTest_Worn() == 0 && MM_ForeignMaskTest_Worn() == 0, "R7",
-             "a mask whose rule is off reads as worn (OoT %u, MM %u)", (unsigned)OoT_ForeignMaskTest_Worn(),
+    FM_CHECK(MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_SKULL) == 1, "R7",
+             "MM: with the rules on, the Skull Mask could not be put on");
+    FmFreezeRules(kFmAllRules & ~RSBS_XITEM_SKULL_MASK_MM);
+    FM_CHECK(MM_ForeignMaskTest_Worn() == 0, "R7", "MM: the Skull Mask reads as worn with its rule off (%u)",
              (unsigned)MM_ForeignMaskTest_Worn());
-    OoT_ForeignMaskTest_ApplyRules();
     MM_ForeignMaskTest_ApplyRules();
-    FM_CHECK(OoT_ForeignMaskTest_Stored() == 0 && MM_ForeignMaskTest_Stored() == 0, "R7",
-             "the rules kept a mask whose rule is off (OoT %u, MM %u)", (unsigned)OoT_ForeignMaskTest_Stored(),
+    FM_CHECK(MM_ForeignMaskTest_Stored() == 0, "R7", "MM: the rules kept the Skull Mask with its rule off (%u)",
              (unsigned)MM_ForeignMaskTest_Stored());
-    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_STONE) == 0 &&
-                 MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_SKULL) == 0 && OoT_ForeignMaskTest_Stored() == 0 &&
-                 MM_ForeignMaskTest_Stored() == 0,
-             "R7", "a mask whose rule is off was put on");
-    FM_CHECK(OoT_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_MM_BLAST) == 1 &&
-                 MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_GERUDO) == 1,
-             "R7", "a mask whose rule is on was refused beside one that is off");
+    FM_CHECK(MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_SKULL) == 0 && MM_ForeignMaskTest_Stored() == 0, "R7",
+             "MM: the Skull Mask was put on with its rule off");
+    FM_CHECK(MM_ForeignMaskTest_Use(COMBO_FOREIGN_MASK_OOT_GERUDO) == 1, "R7",
+             "MM: the Gerudo Mask, whose rule is on, was refused beside the Skull Mask's");
     FM_CHECK(MM_ForeignMaskTest_WornDl() != NULL, "R7", "MM's worn Gerudo Mask selects no list");
     ComboContext_Init(); // nothing frozen: every rule off
-    FM_CHECK(OoT_ForeignMaskTest_Worn() == 0 && MM_ForeignMaskTest_Worn() == 0 && MM_ForeignMaskTest_WornDl() == NULL,
-             "R7", "with no world frozen a mask reads as worn");
+    FM_CHECK(MM_ForeignMaskTest_Worn() == 0 && MM_ForeignMaskTest_WornDl() == NULL, "R7",
+             "MM: with no world frozen a mask reads as worn");
+
+    // ---- R8. OoT: the head draw's selection (OoT_ForeignMask_WornDl) ----------
+    // What OoT_ForeignMask_DrawOnHead draws: the worn mask's table list for a
+    // child with no native mask on and the head list drawn, else nothing.
+    FmFreezeRules(kFmAllRules);
+    OoT_ForeignMaskTest_ArmLive();
+    OoT_ForeignMaskTest_SetPlayerMask(0);
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(1) == NULL, "R8", "OoT: nothing worn selects a worn list");
+    for (int v = 0; v < 256; v++) {
+        OoT_ForeignMaskTest_SetStored((uint8_t)v);
+        const bool wearable = Combo_ForeignMask_Wearable((uint8_t)v, GAME_OOT) != 0;
+        const ComboForeignMaskInfo* info = Combo_ForeignMask_Info((uint8_t)v);
+        const char* dl = OoT_ForeignMaskTest_WornDl(1);
+        FM_CHECK(wearable ? (dl != NULL && info != NULL && dl == info->wornDl) : dl == NULL, "R8",
+                 "OoT: stored byte %d selects worn list %s", v, dl != NULL ? dl : "(none)");
+    }
+    OoT_ForeignMaskTest_SetStored(COMBO_FOREIGN_MASK_MM_KAMARO);
+    const ComboForeignMaskInfo* kamaro = Combo_ForeignMask_Info(COMBO_FOREIGN_MASK_MM_KAMARO);
+    FM_CHECK(kamaro != NULL && kamaro->wornDl != NULL && OoT_ForeignMaskTest_WornDl(1) == kamaro->wornDl, "R8",
+             "OoT: a child wearing Kamaro's Mask with the head drawn selects no list");
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(0) == NULL, "R8", "OoT: the head list not drawn (first person) selects a list");
+    OoT_ForeignMaskTest_SetPlayerMask(1); // Keaton on, the rules not yet applied
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(1) == NULL, "R8", "OoT: a native mask on selects the worn list too");
+    OoT_ForeignMaskTest_SetPlayerMask(0);
+    OoT_ForeignMaskTest_SetAdult(1);
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(1) == NULL, "R8", "OoT: an adult Link selects a worn list");
+    OoT_ForeignMaskTest_SetAdult(0);
+    FmFreezeRules(kFmAllRules & ~RSBS_XITEM_KAMARO_MASK_OOT);
+    FM_CHECK(OoT_ForeignMaskTest_WornDl(1) == NULL, "R8", "OoT: Kamaro's Mask with its rule off selects a list");
+    FmFreezeRules(kFmAllRules);
+    FM_CHECK(OoT_ForeignMaskTest_Stored() == COMBO_FOREIGN_MASK_MM_KAMARO &&
+                 OoT_ForeignMaskTest_WornDl(1) == kamaro->wornDl,
+             "R8", "OoT: the selection changed the worn field");
 
     FmLeaveClean();
     return FmVerdict("foreign-mask-rules");

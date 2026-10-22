@@ -25,6 +25,14 @@ struct Player;
  */
 void OoT_ForeignMask_DrawOnHead(struct PlayState* play, struct Player* player, int headDrawn);
 
+/**
+ * The list OoT_ForeignMask_DrawOnHead draws for `player`, or NULL: the worn MM
+ * mask's table list when Link is a child with no native mask on (currentMask)
+ * and the head list was drawn (`headDrawn`). Whether a mounted archive holds
+ * the path, and whether `player` is the real player, are the draw's checks.
+ */
+const char* OoT_ForeignMask_WornDl(struct Player* player, int headDrawn);
+
 /** The worn MM mask: the stored ComboForeignMask when OoT wears it and the
  *  frozen world added it (Combo_ForeignMask_Wearable), else NONE. */
 uint8_t OoT_ForeignMask_Worn(void);

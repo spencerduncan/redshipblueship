@@ -116,6 +116,11 @@ extern "C" void OoT_ForeignMaskTest_PlayerInit(int persistentMasks) {
     OoT_ForeignMask_OnPlayerInit(TestPlayer(), persistentMasks);
 }
 
+/** The list OoT's head draw would emit for the test Player (OoT_ForeignMask_WornDl). */
+extern "C" const char* OoT_ForeignMaskTest_WornDl(int headDrawn) {
+    return OoT_ForeignMask_WornDl(TestPlayer(), headDrawn);
+}
+
 /** The worn field's offset and SaveContext's size: the field is appended. */
 extern "C" size_t OoT_ForeignMaskTest_FieldOffset(void) {
     return OoT_ForeignMask_FieldOffset();
