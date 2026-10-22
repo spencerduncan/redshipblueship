@@ -71,8 +71,9 @@ extern "C" {
 // src/common. Included outside any extern "C" block: the headers manage their
 // own linkage (matching TrackerAdapterSingleExe.cpp).
 #include "combo_item_view.h"
-#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families a row is MM's copy of (#1067)
+#include "foreign_items.h" // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: shared families a row is MM's copy of (#1065, #1067)
 #include "game.h"          // MM_SAVE_CONTEXT_SIZE
+#include "shared_resources.h" // Combo_SaveIsLiveFile, Combo_MakeHealthQuarters (the Shared column's live view, #971)
 
 // The view hands this TU either the unified live storage (unified_save.c,
 // alignas(16)) or MM's shadow, a std::vector<uint8_t> buffer (context.cpp),
@@ -649,12 +650,93 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
     row->iconTint = tint;
 }
 
+// The live view reads the HANDED buffer (the view's liveSave, which production points at the process
+// global and the ROM-free test points at an authored one), so the accessor macros are redirected again.
+#define gSaveContext (*src)
+
+// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
+// MM_ReadHealthQuarters in GameExports_SingleExe.cpp).
+constexpr uint32_t kMMHeartPieceShift = 28u;
+constexpr uint32_t kMMHeartPieceMask = 0xF0000000u;
+
+/**
+ * The Shared column's LIVE view (#971), the twin of OoT's OoTItemSharedLive: the
+ * value of shared kind `kind` in the save `src` over MM_HarvestSharedResources'
+ * arithmetic (GameExports_SingleExe.cpp), READ ONLY: no rupee accumulator settle,
+ * no pool or watermark write, nothing stored in `src`. Gated like the harvest, on
+ * a played file (Combo_SaveIsLiveFile over the buffer's own game mode: MM plays
+ * real frames under its title screen, whose bootstrap save is not the player's).
+ * MM has no longshot, so its hookshot tier tops out at 1. False for a kind this
+ * view has no reading of.
+ */
+bool MMItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
+    if (out == nullptr || !MMItemAligned(srcv)) {
+        return false;
+    }
+    const SaveContext* src = static_cast<const SaveContext*>(srcv);
+    if (!Combo_SaveIsLiveFile(GAME_MM, (int32_t)gSaveContext.gameMode)) {
+        return false;
+    }
+    const auto ammoOf = [src](uint8_t item) -> uint16_t {
+        const s8 held = AMMO(item);
+        return held < 0 ? 0u : (uint16_t)held;
+    };
+    switch (kind) {
+        case RSBS_SHARED_RES_RUPEES:
+            // The HUD's count: a pending rupeeAccumulator (settled by the harvest) lags a few frames.
+            *out = gSaveContext.save.saveInfo.playerData.rupees < 0
+                       ? 0u
+                       : (uint16_t)gSaveContext.save.saveInfo.playerData.rupees;
+            return true;
+        case RSBS_SHARED_RES_WALLET_TIER:
+            *out = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+            return true;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS: {
+            const uint16_t pieces =
+                (uint16_t)((gSaveContext.save.saveInfo.inventory.questItems & kMMHeartPieceMask) >> kMMHeartPieceShift);
+            const s16 rawCapacity = gSaveContext.save.saveInfo.playerData.healthCapacity;
+            *out = Combo_MakeHealthQuarters(rawCapacity < 0 ? 0u : (uint16_t)rawCapacity, pieces);
+            return true;
+        }
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            *out = gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u;
+            return true;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            *out = !gSaveContext.save.saveInfo.playerData.isMagicAcquired
+                       ? 0u
+                       : (gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired ? 2u : 1u);
+            return true;
+        case RSBS_SHARED_RES_ARROW_COUNT:
+            *out = ammoOf(ITEM_BOW);
+            return true;
+        case RSBS_SHARED_RES_BOMB_COUNT:
+            *out = ammoOf(ITEM_BOMB);
+            return true;
+        case RSBS_SHARED_RES_BOMBCHU_COUNT:
+            *out = ammoOf(ITEM_BOMBCHU);
+            return true;
+        case RSBS_SHARED_RES_STICK_COUNT:
+            *out = ammoOf(ITEM_DEKU_STICK);
+            return true;
+        case RSBS_SHARED_RES_NUT_COUNT:
+            *out = ammoOf(ITEM_DEKU_NUT);
+            return true;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            *out = (INV_CONTENT(ITEM_HOOKSHOT) == ITEM_HOOKSHOT) ? 1u : 0u;
+            return true;
+        default:
+            return false;
+    }
+}
+
+#undef gSaveContext
+
 } // namespace
 
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount,  MMItemRowAt,  MMItemHasSave,    MMItemLiveSave,
-        MMItemPaused, &kMMItemGrid, MMItemSharedIcon, MMItemCountFor,
+        MMItemCount,  MMItemRowAt,      MMItemHasSave,  MMItemLiveSave,   MMItemPaused,
+        &kMMItemGrid, MMItemSharedIcon, MMItemCountFor, MMItemSharedLive,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }
