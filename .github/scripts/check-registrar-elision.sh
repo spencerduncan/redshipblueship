@@ -620,6 +620,22 @@ main() {
         "RegisterSkipRaisingWoodfall()"
         "RegisterSkipStoppingMoon()"
         "RegisterSkipWakingAndRidingTurtle()"
+        # #1010-#1017: the enhancement registrars in lib2ship_enh_registrars.a (Fast Chests, Enemy Health Bars,
+        # Bow Reticle, Disable Black Bars, Instant Putaway, Unequip C-Items, Pause Buffer, Hyper Enemies). Where
+        # OoT ships a twin of a name (RegisterItemUnequip, RegisterPauseBufferInputs) MM's copy is MM_-prefixed
+        # in the source, so the OoT copy cannot satisfy the probe. EnemyHealthBars registers through a lambda,
+        # so it is gated by the one function it exports; the parameter list separates it from OoT's C
+        # Interface_DrawEnemyHealthBar. The archive gate above covers the same files by member.
+        # The symbol is matched as a basic regex, so the pointer star is escaped (an unescaped * is a quantifier).
+        "RegisterFastChests()"
+        "GetActorMaxHealth(Actor\*)"
+        "RegisterBowReticle()"
+        "RegisterDisableBlackBars()"
+        "RegisterInstantPutaway()"
+        "MM_RegisterItemUnequip()"
+        "RegisterDpadPageSwitchPrevention()"
+        "MM_RegisterPauseBufferInputs()"
+        "RegisterHyperEnemies()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
