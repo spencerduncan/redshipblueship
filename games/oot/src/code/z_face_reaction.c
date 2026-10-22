@@ -67,7 +67,7 @@ u16 OoT_sReactionTextIds[][PLAYER_MASK_MAX] = {
 u16 OoT_Text_GetFaceReaction(PlayState* play, u32 reactionSet) {
     u8 currentMask = OoT_Player_GetMask(play);
 
-    if (CVarGetInteger(CVAR_ENHANCEMENT("MMBunnyHood"), BUNNY_HOOD_VANILLA) != BUNNY_HOOD_VANILLA &&
+    if (OoT_BunnyHoodEffectMode() /* [RSBS #969] */ != BUNNY_HOOD_VANILLA &&
         currentMask == PLAYER_MASK_BUNNY) {
         return 0;
     } else {

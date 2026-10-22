@@ -319,6 +319,59 @@ bool Logic::HasItem(RandomizerGet itemName) {
                     assert(false);
                     return false;
             }
+        // [RSBS #978] The other four of the eight masks, Skull's and Truth's shape: every
+        // paired world shuffles them (#973), and a shared mask's OoT half is
+        // credited through this flag. Vanilla borrows Keaton's once the shop
+        // opens, the Bunny Hood after the Spooky Mask, Goron's and Zora's with
+        // Truth's (conservative: OoT sells them earlier).
+        case RG_KEATON_MASK:
+            switch (ctx->GetOption(RSK_MASK_QUEST).Get()) {
+                case RO_MASK_QUEST_VANILLA:
+                    return HasItem(RG_ZELDAS_LETTER) && Get(LOGIC_KAKARIKO_GATE_OPEN);
+                case RO_MASK_QUEST_COMPLETED:
+                    return HasItem(RG_ZELDAS_LETTER) && Get(LOGIC_KAKARIKO_GATE_OPEN);
+                case RO_MASK_QUEST_SHUFFLE:
+                    return CheckRandoInf(RAND_INF_CHILD_TRADES_HAS_MASK_KEATON);
+                default:
+                    assert(false);
+                    return false;
+            }
+        case RG_BUNNY_HOOD:
+            switch (ctx->GetOption(RSK_MASK_QUEST).Get()) {
+                case RO_MASK_QUEST_VANILLA:
+                    return Get(LOGIC_BORROW_BUNNY_HOOD);
+                case RO_MASK_QUEST_COMPLETED:
+                    return HasItem(RG_ZELDAS_LETTER) && Get(LOGIC_KAKARIKO_GATE_OPEN);
+                case RO_MASK_QUEST_SHUFFLE:
+                    return CheckRandoInf(RAND_INF_CHILD_TRADES_HAS_MASK_BUNNY);
+                default:
+                    assert(false);
+                    return false;
+            }
+        case RG_GORON_MASK:
+            switch (ctx->GetOption(RSK_MASK_QUEST).Get()) {
+                case RO_MASK_QUEST_VANILLA:
+                    return Get(LOGIC_BORROW_RIGHT_MASKS);
+                case RO_MASK_QUEST_COMPLETED:
+                    return HasItem(RG_ZELDAS_LETTER) && Get(LOGIC_KAKARIKO_GATE_OPEN);
+                case RO_MASK_QUEST_SHUFFLE:
+                    return CheckRandoInf(RAND_INF_CHILD_TRADES_HAS_MASK_GORON);
+                default:
+                    assert(false);
+                    return false;
+            }
+        case RG_ZORA_MASK:
+            switch (ctx->GetOption(RSK_MASK_QUEST).Get()) {
+                case RO_MASK_QUEST_VANILLA:
+                    return Get(LOGIC_BORROW_RIGHT_MASKS);
+                case RO_MASK_QUEST_COMPLETED:
+                    return HasItem(RG_ZELDAS_LETTER) && Get(LOGIC_KAKARIKO_GATE_OPEN);
+                case RO_MASK_QUEST_SHUFFLE:
+                    return CheckRandoInf(RAND_INF_CHILD_TRADES_HAS_MASK_ZORA);
+                default:
+                    assert(false);
+                    return false;
+            }
         case RG_FISHING_POLE:
         case RG_ZELDAS_LETTER:
         case RG_WEIRD_EGG:
@@ -558,6 +611,10 @@ bool Logic::CanUse(RandomizerGet itemName) {
             return IsChild;
         case RG_SKULL_MASK:
         case RG_MASK_OF_TRUTH:
+        case RG_KEATON_MASK: // [RSBS #978] the other four masks, Skull's and Truth's rule
+        case RG_BUNNY_HOOD:
+        case RG_GORON_MASK:
+        case RG_ZORA_MASK:
             return IsChild;
 
         // Songs

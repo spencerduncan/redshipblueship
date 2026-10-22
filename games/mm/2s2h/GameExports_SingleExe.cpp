@@ -4716,6 +4716,33 @@ static void MM_SharedArrowGive(uint16_t nativeId) {
     INV_CONTENT(item) = item;
 }
 
+// #978: the Goron, Zora, Keaton and Truth masks and the Bunny Hood (OoTMM
+// sharedMaskGoron, Zora, Bunny, Keaton, Truth). Item_Give(ITEM_MASK_*) only
+// fills the mask's own slot, and the Song of Time keeps every mask. MM's Goron
+// and Zora masks still transform: holding the mask is all transforming needs.
+static uint8_t MM_SharedMaskItem(uint16_t nativeId) {
+    switch (nativeId) {
+        case (uint16_t)RI_MASK_GORON:
+            return (uint8_t)ITEM_MASK_GORON;
+        case (uint16_t)RI_MASK_ZORA:
+            return (uint8_t)ITEM_MASK_ZORA;
+        case (uint16_t)RI_MASK_BUNNY:
+            return (uint8_t)ITEM_MASK_BUNNY;
+        case (uint16_t)RI_MASK_KEATON:
+            return (uint8_t)ITEM_MASK_KEATON;
+        default:
+            return (uint8_t)ITEM_MASK_TRUTH;
+    }
+}
+static bool MM_SharedMaskHeld(uint16_t nativeId) {
+    const uint8_t item = MM_SharedMaskItem(nativeId);
+    return INV_CONTENT(item) == item;
+}
+static void MM_SharedMaskGive(uint16_t nativeId) {
+    const uint8_t item = MM_SharedMaskItem(nativeId);
+    INV_CONTENT(item) = item;
+}
+
 namespace {
 // Static-init registration (the ComboLogicEngine registrars' shape): this TU is
 // always linked, and the registry is zero-initialised storage.
@@ -4733,6 +4760,16 @@ struct MMSharedFamilyRegistrar {
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_ICE, &ice);
         const ComboSharedFamilyMember light = { (uint16_t)RI_ARROW_LIGHT, MM_SharedArrowHeld, MM_SharedArrowGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ARROW_LIGHT, &light);
+        const ComboSharedFamilyMember maskGoron = { (uint16_t)RI_MASK_GORON, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_GORON, &maskGoron);
+        const ComboSharedFamilyMember maskZora = { (uint16_t)RI_MASK_ZORA, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_ZORA, &maskZora);
+        const ComboSharedFamilyMember maskBunny = { (uint16_t)RI_MASK_BUNNY, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_BUNNY, &maskBunny);
+        const ComboSharedFamilyMember maskKeaton = { (uint16_t)RI_MASK_KEATON, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_KEATON, &maskKeaton);
+        const ComboSharedFamilyMember maskTruth = { (uint16_t)RI_MASK_TRUTH, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_TRUTH, &maskTruth);
     }
 };
 const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;
