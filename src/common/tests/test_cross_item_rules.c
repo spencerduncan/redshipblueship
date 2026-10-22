@@ -497,7 +497,7 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
                   "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens, #1066's "
-                  "songs and #1067's ocarina buttons have one), so no load may claim to restore them");
+                  "songs, #1067's ocarina buttons and #968's arrows have one), so no load may claim to restore them");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),

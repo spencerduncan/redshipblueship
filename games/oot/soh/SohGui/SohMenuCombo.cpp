@@ -108,6 +108,9 @@ static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_
 static bool comboRuleSharedSongEpona;      // #1066: the item rules' RSBS_XITEM_SHARED_SONG_EPONA bit
 static bool comboRuleSharedSongStorms;     // #1066: the item rules' RSBS_XITEM_SHARED_SONG_STORMS bit
 static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
+static bool comboRuleSharedArrowFire;      // #968: the item rules' RSBS_XITEM_SHARED_ARROW_FIRE bit
+static bool comboRuleSharedArrowIce;       // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
+static bool comboRuleSharedArrowLight;     // #968: the item rules' RSBS_XITEM_SHARED_ARROW_LIGHT bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -654,6 +657,52 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
             "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
             "game's own."));
+
+    // Shared Fire, Ice and Light Arrows (#968; OoTMM sharedMagicArrowFire, Ice
+    // and Light, off by default): the lens row's shape, one row per arrow as
+    // OoTMM has one option per arrow. The bits are the ones #976 reserved.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_FIRE), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowFire)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowFire = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_FIRE)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_FIRE) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_FIRE, comboRuleSharedArrowFire ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Fire Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Fire Arrows is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_ICE), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowIce)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowIce = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_ICE)
+                                              : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_ICE) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_ICE, comboRuleSharedArrowIce ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Ice Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Ice Arrows is shuffled, and both games' logic counts it."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_ARROW_LIGHT), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedArrowLight)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedArrowLight = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_ARROW_LIGHT)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_ARROW_LIGHT) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_ARROW_LIGHT, comboRuleSharedArrowLight ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Light Arrows one item across both games: finding them in either game gives them to you in the "
+            "other. Only one set of Light Arrows is shuffled, and both games' logic counts it."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.
