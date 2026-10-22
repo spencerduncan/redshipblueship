@@ -1101,10 +1101,6 @@ static TestResult Test_MMMoonCrashPoolApplied(void) {
     return MM_MoonCrashPoolApplied_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-static TestResult Test_MMMoonCrashCycleForced(void) {
-    return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
-}
-
 static TestResult Test_MMMoonCrashCycleReset(void) {
     return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -1328,6 +1324,23 @@ TestResult Test_MMComboFirstCycle(void) {
     }
 
     return MM_ComboFirstCycle_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Needs the display-free shared bring-up its mm-paired-profile sibling has: it
+// drives the real ResolvePairedProfile and MM_Rando_ComputeProfileStamp, which
+// read the Ship::Context singleton's ConsoleVariables (alone in its process, as
+// CTest runs it, that singleton is otherwise null and the row crashes).
+TestResult Test_MMMoonCrashCycleForced(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_BootOoT(void) {

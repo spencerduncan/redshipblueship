@@ -185,20 +185,32 @@ TestResult Test_SharedSongOfTimePairs(void) {
         pool[0].item.id = ootSot;
         pool[1].item.originGame = (uint8_t)GAME_MM;
         pool[1].item.id = mmSot;
-        const int ootDisp = Combo_Logic_ComposeDisposition(pool[0].item, 0u, 0u);
+        // OoT's songs roam only under Shuffle Songs "Anywhere" (OoTFillClassArmedBy:
+        // ITEMTYPE_SONG needs RSBS_FILL_ARM_SONGS_ROAM), the world the rule's
+        // tooltip names as the one with a single shuffled Song of Time. Any other
+        // Shuffle Songs setting confines OoT's copy to its own song spots, so it is
+        // not a row the bag can pair. The compose below is that "Anywhere" world.
+        const uint32_t armedOoT = RSBS_FILL_ARM_SONGS_ROAM;
+        const int ootConfined = Combo_Logic_ComposeDisposition(pool[0].item, 0u, 0u);
+        const int ootDisp = Combo_Logic_ComposeDisposition(pool[0].item, 0u, armedOoT);
         const int mmDisp = Combo_Logic_ComposeDisposition(pool[1].item, 0u, 0u);
         // The premise: both songs are progression in their own game (OoT's song
-        // is an advancement item, MM's RI_SONG_TIME is RITYPE_MAJOR), so both are
-        // REQUIRED rows the composer can pair (pass 2b pairs only those).
-        printf("[TEST] (4) dispositions: OoT %d, MM %d (expected %d, %d)\n", ootDisp, mmDisp,
-               RSBS_COMBO_COMPOSE_REQUIRED, RSBS_COMBO_COMPOSE_REQUIRED);
+        // is an advancement item, MM's RI_SONG_TIME is RITYPE_MAJOR), so with
+        // OoT's songs roaming both are REQUIRED rows the composer can pair (pass
+        // 2b pairs only those); with them confined OoT's copy is CONFINED.
+        printf("[TEST] (4) dispositions: OoT %d (songs confined: %d), MM %d (expected %d (%d), %d)\n", ootDisp,
+               ootConfined, mmDisp, RSBS_COMBO_COMPOSE_REQUIRED, RSBS_COMBO_COMPOSE_CONFINED,
+               RSBS_COMBO_COMPOSE_REQUIRED);
         SOT_CHECK(ootDisp == RSBS_COMBO_COMPOSE_REQUIRED && mmDisp == RSBS_COMBO_COMPOSE_REQUIRED,
                   "a Song of Time is not a REQUIRED row; the row's premise moved");
+        SOT_CHECK(ootConfined == RSBS_COMBO_COMPOSE_CONFINED,
+                  "OoT's Song of Time is not CONFINED while OoT's songs do not roam; the row's premise moved");
 
         ComboLogicComposeRequest req;
         memset(&req, 0, sizeof(req));
         req.rows = pool;
         req.rowCount = 2;
+        req.armedOoT = armedOoT;
         req.quantityFlags = RSBS_COMBO_QUANTITY_KEEP_ALL; // a song is not a quantity
         req.sharedPairs = pairCount > 0 ? pairs : NULL;
         req.sharedPairCount = pairCount;
