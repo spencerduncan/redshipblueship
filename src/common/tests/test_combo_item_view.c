@@ -55,6 +55,16 @@
  *    being the child's wallet. No label is a caption (#927; the
  *    ComboItemTrackerWindow row's leg 9 holds every label function).
  *
+ * 5b. SHARED CAPACITY TIERS SHOW ONCE (#967). A world holding a Bow (tier-1
+ *    quiver), a tier-2 bomb bag, sticks, nuts and the Kokiri Sword (authoring
+ *    variant 2, both games) draws all five lit per game while the pool holds
+ *    none of them. With the pool at those tiers each game's five per-game copies
+ *    are dimmed (nothing held, no count) and nothing else changes; a copy ahead
+ *    of the pool stays lit; the Shared Arrows row draws the Bow at tier 1 (each
+ *    game's own art) and the quiver beyond; the Shared Kokiri Sword row exists
+ *    only while the frozen rule is on; and a live game's own tiers and counts
+ *    reach the Shared row before the next harvest.
+ *
  * 6. STATE PUT BACK. The OoT shadow goes back to the bytes this row inherited
  *    (asserted byte-equal; a shadow that was absent comes back all-zero, which
  *    reads as absent by the zero-means-no-data rule), the context, the active
@@ -654,6 +664,255 @@ static int CivSharedLegs(void) {
     return TEST_PASS;
 }
 
+/** Every row of `game` as the view hands it over, in order. */
+static void CivReadAll(uint8_t game, std::vector<ComboItemRow>& out) {
+    out.clear();
+    const int n = Combo_ItemCount(game);
+    for (int i = 0; i < n; i++) {
+        ComboItemRow row;
+        if (Combo_ItemRowAt(game, i, &row)) {
+            out.push_back(row);
+        }
+    }
+}
+
+/** Is `name` one of the NULL-terminated `names`? */
+static bool CivNameIn(const char* name, const char* const* names) {
+    for (; *names != NULL; names++) {
+        if (strcmp(name, *names) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * The rows `pooled` draws dimmed that `base` drew held (#967): the per-game
+ * copies of an item the Shared column now holds. Every such row is empty
+ * (nothing held, no count, no ceiling), and no other row may differ from `base`
+ * in `have`. Returns the number of dimmed rows, or -1 on a violation; the names
+ * of the dimmed rows go to `names` (at most `cap`).
+ */
+static int CivDimmedRows(const std::vector<ComboItemRow>& base, const std::vector<ComboItemRow>& pooled,
+                         const char** names, int cap) {
+    if (base.size() != pooled.size()) {
+        return -1;
+    }
+    int dimmed = 0;
+    for (size_t i = 0; i < base.size(); i++) {
+        if (strcmp(base[i].name, pooled[i].name) != 0) {
+            return -1;
+        }
+        if (base[i].have && !pooled[i].have) {
+            if (pooled[i].count != 0 || pooled[i].max != 0) {
+                return -1; // a dimmed copy prints no second count
+            }
+            if (dimmed < cap) {
+                names[dimmed] = pooled[i].name;
+            }
+            dimmed++;
+        } else if (base[i].have != pooled[i].have) {
+            return -1;
+        }
+    }
+    return dimmed;
+}
+
+/**
+ * Leg 5b (#967): a shared capacity tier shows once, in the Shared column, and
+ * the per-game copy of it is dimmed.
+ *
+ * The "capacity tier" world (authoring variant 2, both games): a Bow in a tier-1
+ * quiver holding 12 arrows, bombs in a tier-2 bag holding 7, 5 Deku Sticks in a
+ * tier-1 bag, 9 Deku Nuts in a tier-3 bag, and the Kokiri Sword. Without the pool
+ * holding those tiers, both games draw all five lit. With it (the pool at the
+ * same tiers), each game's five copies are dimmed and nothing else changes; a
+ * copy AHEAD of the pool stays lit (it is the only place the find shows); the
+ * Shared Arrows row draws the Bow at tier 1 and the quiver beyond; and a LIVE
+ * game's own tiers and counts reach the Shared row without waiting for the next
+ * harvest (the pool is written at a game switch or a save only).
+ */
+static int CivSharedTierLegs(const ComboItemOps* ootOps, const ComboItemOps* mmOps) {
+    ComboItemRow row;
+    ComboItemRow sharedRow;
+    std::vector<uint8_t> ootT((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mmT((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorSave(ootT.data(), ootT.size(), 2) == 1);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorSave(mmT.data(), mmT.size(), 2) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, ootT.data(), ootT.size());
+    Context_UpdateShadowCopy(GAME_MM, mmT.data(), mmT.size());
+    Context_SetCurrentGame(GAME_NONE); // no live source: both games read their shadows
+
+    // ---- baseline: the pool holds rupees only ----------------------------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    ComboSettingsRecord rec;
+    Combo_ComboSettingsDefaults(&rec);
+    rec.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD;
+    Combo_FreezeComboSettings(&rec);
+    CIV_ASSERT(Combo_SharedResourceKindArmed(RSBS_SHARED_RES_KOKIRI_SWORD));
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    std::vector<ComboItemRow> ootBase, mmBase, ootPooled, mmPooled;
+    CivReadAll((uint8_t)GAME_OOT, ootBase);
+    CivReadAll((uint8_t)GAME_MM, mmBase);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Bombs", &row) && row.have && row.count == 7 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Sticks", &row) && row.have && row.count == 5 && row.max == 10);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Nuts", &row) && row.have && row.count == 9 && row.max == 40);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow) && !sharedRow.have);       // the pool holds no quiver yet
+    CIV_ASSERT(CivFindSharedRow("Kokiri Sword", &sharedRow) && !sharedRow.have); // the rule is on: the row is there
+
+    // ---- the pool at the same tiers: five copies per game dimmed -----------------
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOMB_BAG_TIER, 2);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_STICK_TIER, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_TIER, 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, 1);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 12);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_BOMB_COUNT, 7);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_STICK_COUNT, 5);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_COUNT, 9);
+    CivReadAll((uint8_t)GAME_OOT, ootPooled);
+    CivReadAll((uint8_t)GAME_MM, mmPooled);
+    const char* dimmedNames[16] = { NULL };
+    static const char* const kOoTShared[] = { "Fairy Bow", "Bombs", "Deku Sticks", "Deku Nuts", "Kokiri Sword", NULL };
+    int dimmed = CivDimmedRows(ootBase, ootPooled, dimmedNames, 16);
+    printf("[TEST] combo-item-view: OoT copies dimmed with the pool at the world's tiers: %d (expected 5)\n", dimmed);
+    CIV_ASSERT(dimmed == 5);
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(CivNameIn(dimmedNames[i], kOoTShared));
+    }
+    dimmed = CivDimmedRows(mmBase, mmPooled, dimmedNames, 16);
+    printf("[TEST] combo-item-view: MM copies dimmed with the pool at the world's tiers: %d (expected 5)\n", dimmed);
+    CIV_ASSERT(dimmed == 5);
+    static const char* const kMMShared[] = { "Bow", "Kokiri Sword", NULL };
+    int mmNamed = 0;
+    for (int i = 0; i < 5; i++) {
+        mmNamed += CivNameIn(dimmedNames[i], kMMShared) ? 1 : 0;
+    }
+    CIV_ASSERT(mmNamed == 2); // the other three are MM's bombs, sticks and nuts, named by MM's own table
+
+    // The Shared column holds each once: the bow icon at quiver tier 1 (each
+    // game's own art), the bag tiers beyond, counts under them.
+    int sharedChecked = 0;
+    for (int i = 0; i < Combo_ItemSharedCount(); i++) {
+        CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(i, (uint8_t)GAME_OOT, &sharedRow));
+        if (strcmp(sharedRow.name, "Arrows") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 12 && sharedRow.max == 30);
+            CIV_ASSERT(sharedRow.iconKey != NULL &&
+                       strcmp(sharedRow.iconKey, "ITEM_BOW") == 0); // the Bow, not a quiver
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Bombs") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 7 && sharedRow.max == 30);
+            CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, "ITEM_BOMB_BAG_30") == 0);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Deku Sticks") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 5 && sharedRow.max == 10);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Deku Nuts") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.count == 9 && sharedRow.max == 40);
+            sharedChecked++;
+        } else if (strcmp(sharedRow.name, "Kokiri Sword") == 0) {
+            CIV_ASSERT(sharedRow.have && sharedRow.iconKey != NULL &&
+                       strcmp(sharedRow.iconKey, "ITEM_SWORD_KOKIRI") == 0);
+            sharedChecked++;
+        }
+    }
+    CIV_ASSERT(sharedChecked == 5);
+    // MM's own art: the Shared bow icon is the one MM's own Bow row draws.
+    const ComboItemRow* mmBowBase = NULL;
+    for (const ComboItemRow& b : mmBase) {
+        if (strcmp(b.name, "Bow") == 0) {
+            mmBowBase = &b;
+        }
+    }
+    CIV_ASSERT(mmBowBase != NULL && mmBowBase->iconKey != NULL);
+    for (int i = 0; i < Combo_ItemSharedCount(); i++) {
+        CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(i, (uint8_t)GAME_MM, &sharedRow));
+        if (strcmp(sharedRow.name, "Arrows") == 0) {
+            CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, mmBowBase->iconKey) == 0);
+        }
+    }
+
+    // ---- a quiver at tier 2 is one Bow row, and both tier-1 copies are dimmed -----
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 2);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 33);
+    CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+    CIV_ASSERT(sharedRow.have && sharedRow.count == 33 && sharedRow.max == 40);
+    CIV_ASSERT(sharedRow.iconKey != NULL && strcmp(sharedRow.iconKey, "ITEM_QUIVER_40") == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && !row.have && row.count == 0 && row.max == 0);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && !row.have && row.count == 0 && row.max == 0);
+
+    // ---- a copy ahead of the pool stays lit --------------------------------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_NUT_TIER, 2); // behind the world's tier-3 nut bag
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Fairy Bow", &row) && row.have && row.count == 12 && row.max == 30);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Bow", &row) && row.have && row.count == 12);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Deku Nuts", &row) && row.have && row.count == 9 && row.max == 40);
+
+    // ---- the rule off: no Shared Kokiri Sword row, the sword stays lit -------------
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_KOKIRI_SWORD, 1);
+    CIV_ASSERT(!CivFindSharedRow("Kokiri Sword", &sharedRow));
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_OOT, "Kokiri Sword", &row) && row.have);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Kokiri Sword", &row) && row.have);
+
+    // ---- a live game's tiers and counts reach the Shared column at once -----------
+    static ComboItemOps sTierOoTOps;
+    static ComboItemOps sTierMMOps;
+    sTierOoTOps = *ootOps;
+    sTierOoTOps.liveSave = CivLiveSave;
+    sTierMMOps = *mmOps;
+    sTierMMOps.liveSave = CivMMLiveSave;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, &sTierOoTOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, &sTierMMOps);
+    for (GameId active : { GAME_OOT, GAME_MM }) {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        Combo_FreezeComboSettings(&rec);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 99); // the pool holds nothing of the tiers
+        sCivLive = (active == GAME_OOT) ? ootT.data() : NULL;
+        sCivMMLive = (active == GAME_MM) ? mmT.data() : NULL;
+        Context_SetCurrentGame(active);
+        const uint8_t activeGame = (uint8_t)active;
+        CIV_ASSERT(Combo_ItemFreshness(activeGame) == COMBO_TRACKER_FRESH_LIVE);
+        CIV_ASSERT(CivFindSharedRow("Arrows", &sharedRow));
+        printf("[TEST] combo-item-view: live %s, empty pool: shared Arrows have=%d count=%d max=%d\n",
+               active == GAME_OOT ? "OoT" : "MM", (int)sharedRow.have, sharedRow.count, sharedRow.max);
+        CIV_ASSERT(sharedRow.have && sharedRow.count == 12 && sharedRow.max == 30);
+        CIV_ASSERT(CivFindSharedRow("Bombs", &sharedRow) && sharedRow.have && sharedRow.count == 7 &&
+                   sharedRow.max == 30);
+        CIV_ASSERT(CivFindSharedRow("Deku Sticks", &sharedRow) && sharedRow.have && sharedRow.count == 5 &&
+                   sharedRow.max == 10);
+        CIV_ASSERT(CivFindSharedRow("Deku Nuts", &sharedRow) && sharedRow.have && sharedRow.count == 9 &&
+                   sharedRow.max == 40);
+        if (active == GAME_OOT) {
+            CIV_ASSERT(CivFindSharedRow("Kokiri Sword", &sharedRow) && sharedRow.have);
+            CIV_ASSERT(CivFindRow(activeGame, "Fairy Bow", &row) && !row.have && row.count == 0);
+        } else {
+            CIV_ASSERT(CivFindRow(activeGame, "Bow", &row) && !row.have && row.count == 0);
+        }
+        // The inactive game, read from its shadow, is dimmed against the live tiers too.
+        const uint8_t other = (active == GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        CIV_ASSERT(CivFindRow(other, other == (uint8_t)GAME_MM ? "Bow" : "Fairy Bow", &row) && !row.have);
+    }
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ootOps);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    printf("[TEST] combo-item-view: shared capacity tiers shown once, per-game copies dimmed PASS (#967)\n");
+    return TEST_PASS;
+}
+
 extern "C" int Combo_ItemView_RunHeadless(void) {
     printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
@@ -747,6 +1006,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
         // ---- 5. the Shared group -----------------------------------------
         if (CivSharedLegs() != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5b. the shared capacity tiers, once (#967) -----------------------
+        if (CivSharedTierLegs(ops, mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

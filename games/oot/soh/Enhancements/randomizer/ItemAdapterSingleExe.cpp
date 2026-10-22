@@ -360,6 +360,23 @@ void FillSlot(ComboItemRow* out, uint32_t content, const RowDef& def) {
     }
 }
 
+/** The shared-resource kind of capacity upgrade `upg` (#967), or NONE when the pair does not share it:
+ *  the quiver, bomb bag, stick bag and nut bag (shared_items.h TRIM_TO_SHARED_MAX). */
+uint8_t SharedTierKindOf(uint32_t upg) {
+    switch (upg) {
+        case UPG_QUIVER:
+            return RSBS_SHARED_RES_QUIVER_TIER;
+        case UPG_BOMB_BAG:
+            return RSBS_SHARED_RES_BOMB_BAG_TIER;
+        case UPG_STICKS:
+            return RSBS_SHARED_RES_STICK_TIER;
+        case UPG_NUTS:
+            return RSBS_SHARED_RES_NUT_TIER;
+        default:
+            return RSBS_SHARED_RES_NONE;
+    }
+}
+
 bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     out->group = def.group;
     switch (def.kind) {
@@ -368,6 +385,9 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             return true;
         case RK_INV_AMMO:
             FillSlot(out, INV_CONTENT(def.item), def);
+            // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
+            out->sharedKind = SharedTierKindOf(def.data);
+            out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = CUR_CAPACITY(def.data);
@@ -388,6 +408,11 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             out->iconKey = def.key;
             out->iconKeyFaded = def.keyFaded;
             out->have = (gSaveContext.inventory.equipment & def.data) != 0;
+            if (def.item == ITEM_SWORD_KOKIRI) {
+                // The shared Kokiri Sword (#886): the owned bit is the pool's 0/1.
+                out->sharedKind = RSBS_SHARED_RES_KOKIRI_SWORD;
+                out->sharedTier = out->have ? 1 : 0;
+            }
             return true;
         case RK_QUEST:
         case RK_TOKENS:
@@ -555,12 +580,14 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             }
             break;
         case RSBS_SHARED_RES_ARROW_COUNT:
+            // The quiver tiers as the player knows them (#967): the Bow, then
+            // the Big and Biggest Quivers.
             if (tier >= 3) {
                 OOT_SHARED_ICON("ITEM_QUIVER_50");
             } else if (tier == 2) {
                 OOT_SHARED_ICON("ITEM_QUIVER_40");
             } else {
-                OOT_SHARED_ICON("ITEM_QUIVER_30");
+                OOT_SHARED_ICON("ITEM_BOW");
             }
             break;
         case RSBS_SHARED_RES_BOMB_COUNT:
@@ -594,6 +621,9 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             } else {
                 OOT_SHARED_ICON("ITEM_OCARINA_FAIRY");
             }
+            break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            OOT_SHARED_ICON("ITEM_SWORD_KOKIRI");
             break;
         case RSBS_SHARED_RES_TRIFORCE_PIECES:
             OOT_SHARED_ICON("RG_TRIFORCE_PIECE");
@@ -637,8 +667,10 @@ extern "C" void OoT_ItemAdapter_Register(void) {
  * a Red Potion in bottle 1, the Kokiri Sword, Zelda's Lullaby, the Forest
  * Medallion, 17 Gold Skulltula Tokens, 5 pieces of heart and an Adult's Wallet
  * holding 123 rupees, on a vanilla (not randomized) file. Variant 1, the "live"
- * world: the Hookshot and the Song of Time only. Returns 1, or 0 when `size`
- * cannot hold a SaveContext or `buf` is misaligned.
+ * world: the Hookshot and the Song of Time only. Variant 2, the "capacity
+ * tier" world (#967): the Fairy Bow (tier-1 quiver, 12 arrows), bombs (tier-2
+ * bag, 7), Deku Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword.
+ * Returns 1, or 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
     if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf)) {
@@ -666,6 +698,23 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
             (1u << QUEST_SONG_LULLABY) | (1u << QUEST_MEDALLION_FOREST) | (1u << QUEST_SKULL_TOKEN);
         s->inventory.gsTokens = 17;
         s->ship.stats.heartPieces = 5;
+    } else if (variant == 2) {
+        // The capacity-tier world (#967): the Fairy Bow with a tier-1 quiver
+        // holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku Sticks
+        // in a tier-1 bag, 9 Deku Nuts in a tier-3 bag, and the Kokiri Sword.
+        s->inventory.items[SLOT_BOW] = ITEM_BOW;
+        s->inventory.ammo[SLOT_BOW] = 12;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_QUIVER]);
+        s->inventory.items[SLOT_BOMB] = ITEM_BOMB;
+        s->inventory.ammo[SLOT_BOMB] = 7;
+        s->inventory.upgrades |= (2u << OoT_gUpgradeShifts[UPG_BOMB_BAG]);
+        s->inventory.items[SLOT_STICK] = ITEM_STICK;
+        s->inventory.ammo[SLOT_STICK] = 5;
+        s->inventory.upgrades |= (1u << OoT_gUpgradeShifts[UPG_STICKS]);
+        s->inventory.items[SLOT_NUT] = ITEM_NUT;
+        s->inventory.ammo[SLOT_NUT] = 9;
+        s->inventory.upgrades |= (3u << OoT_gUpgradeShifts[UPG_NUTS]);
+        s->inventory.equipment |= (1 << 0); // Kokiri Sword
     } else {
         s->inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         s->inventory.questItems |= (1u << QUEST_SONG_TIME);
