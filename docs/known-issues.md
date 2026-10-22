@@ -1,10 +1,10 @@
 # Known issues
 
-**Applies to:** `v0.2.0-prealpha` ("Trinity Alfa"): `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
+**Applies to:** `main` after `v0.2.0-prealpha`: up to `db8d38e8` (2026-10-21; the 27 pull requests after the tag, #1073 to #1100, all listed in [`release-notes-next.md`](release-notes-next.md)). Lines marked **pending** describe open pull requests that are not on `main` yet: Shared Song of Time and Moon Crash Behavior (PR #1102) and the one randomizer menu of [#1101](https://github.com/spencerduncan/redshipblueship/issues/1101) (PRs #1104 to #1107); until they land, the page names below are the ones `main` has (Combo → Cross-Game Rules, Combo → MM Randomizer, Combo → MM Tricks). Before that, `v0.2.0-prealpha` ("Trinity Alfa", tagged 2026-10-20 at `1ace3c7b`): `main` at `851b1ee9` (2026-10-12, PR [#940](https://github.com/spencerduncan/redshipblueship/pull/940): the single-bag switch of PR [#743](https://github.com/spencerduncan/redshipblueship/pull/743)
 plus everything merged after it, the last 92 PRs being the 2026-09-30 wave) plus PRs [#945](https://github.com/spencerduncan/redshipblueship/pull/945) (the first launch also offers Majora's Mask's ROM extraction), [#956](https://github.com/spencerduncan/redshipblueship/pull/956) (the night Happy Mask Shop door) and [#957](https://github.com/spencerduncan/redshipblueship/pull/957) (a crossing refused for a missing archive no longer crashes), with the version bump of PR [#946](https://github.com/spencerduncan/redshipblueship/pull/946) (`ece56551`), then [#958](https://github.com/spencerduncan/redshipblueship/pull/958) (the goldens pin hint text, prices, starting items and entrances; static hints in a fixed order), [#959](https://github.com/spencerduncan/redshipblueship/pull/959) (the creation budget counts fill rounds) and [#960](https://github.com/spencerduncan/redshipblueship/pull/960) (the fingerprint and build beside the seed icons), up to `7e44b8a0` (2026-10-17), then PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974) (2026-10-18: a paired world shuffles the Happy Mask Shop's masks), then the 20 pull requests merged after it from 2026-10-18 to 2026-10-20 up to `ee35d2c6` (PR [#986](https://github.com/spencerduncan/redshipblueship/pull/986) to PR [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056), listed in [`release-notes-next.md`](release-notes-next.md)), and the GitHub Actions builds cut from them; the `v0.1.1-prealpha` tag
 (2026-07-03) is older than everything in the first section. What changed since that tag, in player terms:
 [`release-notes-next.md`](release-notes-next.md).
-**Last updated:** 2026-10-20 (the open issues refreshed at `7671196a`; the gates record of 2026-10-20; the cross-game resource cache crash class of [#981](https://github.com/spencerduncan/redshipblueship/issues/981), F10 on DirectX 11, the stale-spoiler refusal of [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) and Majora's Mask's frozen trap types); 2026-10-18 (the Happy Mask Shop's masks are always in the item pool, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974), [#973](https://github.com/spencerduncan/redshipblueship/issues/973)); 2026-10-17 (the operator's playtest of `7e44b8a0` and its findings, [#962](https://github.com/spencerduncan/redshipblueship/issues/962) to [#971](https://github.com/spencerduncan/redshipblueship/issues/971)); 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`, the gates record at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
+**Last updated:** 2026-10-22 (the merges up to `db8d38e8`: the open issues refreshed there; the Shared Items rules and their limitations; the shared settings that are still Ocarina of Time only; [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) resolved; pending, and marked so: the one randomizer menu of [#1101](https://github.com/spencerduncan/redshipblueship/issues/1101), Majora's Mask's trap types set from the menu, Shared Song of Time, and older paired files with Majora's Mask's two new save fields); 2026-10-20 (the open issues refreshed at `7671196a`; the gates record of 2026-10-20; the cross-game resource cache crash class of [#981](https://github.com/spencerduncan/redshipblueship/issues/981), F10 on DirectX 11, the stale-spoiler refusal of [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) and Majora's Mask's frozen trap types); 2026-10-18 (the Happy Mask Shop's masks are always in the item pool, PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974), [#973](https://github.com/spencerduncan/redshipblueship/issues/973)); 2026-10-17 (the operator's playtest of `7e44b8a0` and its findings, [#962](https://github.com/spencerduncan/redshipblueship/issues/962) to [#971](https://github.com/spencerduncan/redshipblueship/issues/971)); 2026-10-17 (the creation budget of PR [#959](https://github.com/spencerduncan/redshipblueship/pull/959), the open issues refreshed at `7e44b8a0`, the gates record at `7e44b8a0`); 2026-10-16 (the #645, #599 and #497 lines of the open issues at `851b1ee9` brought up to date; the night Happy Mask Shop door of PR [#956](https://github.com/spencerduncan/redshipblueship/pull/956)); 2026-10-12 (the open issues at `851b1ee9`, the run record, and the sentences the wave made false). **Playtesting this build?** Start with
 [`playtest-2026-09.md`](playtest-2026-09.md).
 
 RedShipBlueShip is **pre-alpha**. It boots Ocarina of Time and Majora's Mask from
@@ -151,11 +151,19 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   [#675](https://github.com/spencerduncan/redshipblueship/pull/675)).
 - **Majora's Mask starts a paired world with the Ocarina of Time and the Song of Time
   only.** The Kokiri Sword and the Hero's Shield are in MM's item pool, as in OoTMM (PR
-  [#895](https://github.com/spencerduncan/redshipblueship/pull/895)). Combo → Cross-Game
-  Rules → "[Both Games] Shared Kokiri Sword" (off by default, frozen at file creation)
-  makes the two games' Kokiri Swords one item (PR [#910](https://github.com/spencerduncan/redshipblueship/pull/910)).
-- **You choose the goal, and meeting it ends the paired game.** Combo → Cross-Game
-  Rules → "[Both Games] Goal" offers OoTMM's goals: Ganon & Majora (the default), Any
+  [#895](https://github.com/spencerduncan/redshipblueship/pull/895)). **Pending** (PR
+  [#1102](https://github.com/spencerduncan/redshipblueship/pull/1102), open): with Shared Song of Time on, MM starts with the Ocarina alone.
+- **Shared Items: one item for both games, rule by rule.** Combo → Cross-Game Rules →
+  "Item Crossing" holds OoTMM's "Shared <Item>" rules, each a "[Both Games]" checkbox, off by
+  default and frozen at file creation: Shared Kokiri Sword, Shields, Lens of Truth, Epona's
+  Song, Song of Storms, Ocarina Buttons, Fire, Ice and Light Arrows, Bottles, and the Goron,
+  Zora, Keaton and Truth masks and the Bunny Hood (PR [#910](https://github.com/spencerduncan/redshipblueship/pull/910) for the sword;
+  PRs #1080 to #1095 for the rest, listed in [`release-notes-next.md`](release-notes-next.md)). **Pending:** Shared Song of
+  Time (PR #1102), and a "Shared Items" section of their own on Randomizer → Cross-Game (PRs #1104 and #1105). With one on, one copy is
+  placed for both games and finding it in either game gives it to you in the other at your next crossing. What they
+  do not do yet is under "Randomizer generation" below.
+- **You choose the goal, and meeting it ends the paired game.** Combo → Cross-Game Rules
+  → "[Both Games] Goal" offers OoTMM's goals: Ganon & Majora (the default), Any
   Final Boss, Ganon and Majora. A goal that leaves a half unproved says so with a toast
   at creation ("Not proven: Majora's Mask may be unfinishable."; PR [#760](https://github.com/spencerduncan/redshipblueship/pull/760)). The
   ending plays only in the game whose final-boss defeat meets the goal; a final boss
@@ -341,52 +349,28 @@ items are the same ones the icons would show. Once Majora's Mask has started, it
 loaded until you quit. Ocarina of Time's icons load at launch, so its section and the Shared
 section always have icons.~~
 
-### Open issues at `7671196a`
+### Open issues at `db8d38e8`
 
 Every issue open at this commit that this project's agents filed, one line each, with what a
 player sees. Epics and trackers are listed for what they leave out of this build. (Refreshed
-at `7671196a`, 2026-10-20. Closed since the `7e44b8a0` list:
-[#991](https://github.com/spencerduncan/redshipblueship/issues/991) and [#992](https://github.com/spencerduncan/redshipblueship/issues/992) (the shared wallet with "Shuffle Child's Wallet", PR [#1058](https://github.com/spencerduncan/redshipblueship/pull/1058)),
-[#955](https://github.com/spencerduncan/redshipblueship/issues/955) (F10 on DirectX 11, by the libultraship fork's PR #11 through PR [#1045](https://github.com/spencerduncan/redshipblueship/pull/1045)'s pin),
-[#962](https://github.com/spencerduncan/redshipblueship/issues/962) and [#963](https://github.com/spencerduncan/redshipblueship/issues/963) (the overlay's position and icons, PRs [#1051](https://github.com/spencerduncan/redshipblueship/pull/1051) and [#1043](https://github.com/spencerduncan/redshipblueship/pull/1043)).
-Filed and closed between the two lists: [#954](https://github.com/spencerduncan/redshipblueship/issues/954) (its last lock, PR [#988](https://github.com/spencerduncan/redshipblueship/pull/988)),
-[#973](https://github.com/spencerduncan/redshipblueship/issues/973) (PR [#974](https://github.com/spencerduncan/redshipblueship/pull/974)),
-[#981](https://github.com/spencerduncan/redshipblueship/issues/981) (PR [#1000](https://github.com/spencerduncan/redshipblueship/pull/1000)),
-[#982](https://github.com/spencerduncan/redshipblueship/issues/982) (PR [#1001](https://github.com/spencerduncan/redshipblueship/pull/1001)),
-[#983](https://github.com/spencerduncan/redshipblueship/issues/983) and [#984](https://github.com/spencerduncan/redshipblueship/issues/984) (PRs [#985](https://github.com/spencerduncan/redshipblueship/pull/985) and [#1048](https://github.com/spencerduncan/redshipblueship/pull/1048)),
-[#987](https://github.com/spencerduncan/redshipblueship/issues/987) (PR [#1045](https://github.com/spencerduncan/redshipblueship/pull/1045)),
-[#990](https://github.com/spencerduncan/redshipblueship/issues/990) (PR [#1052](https://github.com/spencerduncan/redshipblueship/pull/1052)),
-[#995](https://github.com/spencerduncan/redshipblueship/issues/995) (PR [#1056](https://github.com/spencerduncan/redshipblueship/pull/1056)),
-[#998](https://github.com/spencerduncan/redshipblueship/issues/998) (PR [#1054](https://github.com/spencerduncan/redshipblueship/pull/1054)),
-[#999](https://github.com/spencerduncan/redshipblueship/issues/999) (PR [#1053](https://github.com/spencerduncan/redshipblueship/pull/1053)),
-[#1003](https://github.com/spencerduncan/redshipblueship/issues/1003) (PR [#1004](https://github.com/spencerduncan/redshipblueship/pull/1004)),
-[#1027](https://github.com/spencerduncan/redshipblueship/issues/1027) to [#1029](https://github.com/spencerduncan/redshipblueship/issues/1029) (PR [#1046](https://github.com/spencerduncan/redshipblueship/pull/1046)),
-[#1039](https://github.com/spencerduncan/redshipblueship/issues/1039) (PR [#1041](https://github.com/spencerduncan/redshipblueship/pull/1041)) and
-[#1047](https://github.com/spencerduncan/redshipblueship/issues/1047) (PR [#1049](https://github.com/spencerduncan/redshipblueship/pull/1049)).
-PR #1046 fixed three of the eleven settings it mapped; [#1030](https://github.com/spencerduncan/redshipblueship/issues/1030) to
-[#1036](https://github.com/spencerduncan/redshipblueship/issues/1036) and [#1038](https://github.com/spencerduncan/redshipblueship/issues/1038) stay open, below.)
+2026-10-22 at `db8d38e8`. Closed since the `7671196a` list: [#855](https://github.com/spencerduncan/redshipblueship/issues/855) (PR [#1074](https://github.com/spencerduncan/redshipblueship/pull/1074)), [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055) (PR [#1076](https://github.com/spencerduncan/redshipblueship/pull/1076)), [#1059](https://github.com/spencerduncan/redshipblueship/issues/1059) (PR [#1073](https://github.com/spencerduncan/redshipblueship/pull/1073)), [#1061](https://github.com/spencerduncan/redshipblueship/issues/1061) (PR [#1077](https://github.com/spencerduncan/redshipblueship/pull/1077)), [#1065](https://github.com/spencerduncan/redshipblueship/issues/1065) (PR [#1081](https://github.com/spencerduncan/redshipblueship/pull/1081)), [#1066](https://github.com/spencerduncan/redshipblueship/issues/1066) (PR [#1083](https://github.com/spencerduncan/redshipblueship/pull/1083)), [#1068](https://github.com/spencerduncan/redshipblueship/issues/1068) (PR [#1080](https://github.com/spencerduncan/redshipblueship/pull/1080)), [#1071](https://github.com/spencerduncan/redshipblueship/issues/1071) (PR [#1078](https://github.com/spencerduncan/redshipblueship/pull/1078)), [#1005](https://github.com/spencerduncan/redshipblueship/issues/1005) to [#1009](https://github.com/spencerduncan/redshipblueship/issues/1009) (PR [#1079](https://github.com/spencerduncan/redshipblueship/pull/1079)), [#1018](https://github.com/spencerduncan/redshipblueship/issues/1018) to [#1022](https://github.com/spencerduncan/redshipblueship/issues/1022) (PR [#1082](https://github.com/spencerduncan/redshipblueship/pull/1082)), [#965](https://github.com/spencerduncan/redshipblueship/issues/965) (PR #1091), [#967](https://github.com/spencerduncan/redshipblueship/issues/967) (PR #1096), [#968](https://github.com/spencerduncan/redshipblueship/issues/968) (PR #1088), [#969](https://github.com/spencerduncan/redshipblueship/issues/969) (PR #1095), [#970](https://github.com/spencerduncan/redshipblueship/issues/970) (PR #1094), [#971](https://github.com/spencerduncan/redshipblueship/issues/971) (PR #1097), [#994](https://github.com/spencerduncan/redshipblueship/issues/994) (PR #1098), [#997](https://github.com/spencerduncan/redshipblueship/issues/997) (PR #1090), [#1010](https://github.com/spencerduncan/redshipblueship/issues/1010) to [#1017](https://github.com/spencerduncan/redshipblueship/issues/1017) (PR #1086), [#1023](https://github.com/spencerduncan/redshipblueship/issues/1023) (PR #1089), [#1024](https://github.com/spencerduncan/redshipblueship/issues/1024) to [#1026](https://github.com/spencerduncan/redshipblueship/issues/1026) (PR #1087), [#1030](https://github.com/spencerduncan/redshipblueship/issues/1030) to [#1034](https://github.com/spencerduncan/redshipblueship/issues/1034) (PR #1093), [#1035](https://github.com/spencerduncan/redshipblueship/issues/1035), [#1036](https://github.com/spencerduncan/redshipblueship/issues/1036), [#1038](https://github.com/spencerduncan/redshipblueship/issues/1038), [#1062](https://github.com/spencerduncan/redshipblueship/issues/1062) and [#1064](https://github.com/spencerduncan/redshipblueship/issues/1064) (PR #1099), [#1040](https://github.com/spencerduncan/redshipblueship/issues/1040) (PR #1092), [#1060](https://github.com/spencerduncan/redshipblueship/issues/1060) (PR #1100) and [#1067](https://github.com/spencerduncan/redshipblueship/issues/1067) (PR #1084).)
 
 - [#964](https://github.com/spencerduncan/redshipblueship/issues/964) (partly fixed): on Ocarina of Time's shop shelves and in its get-item cutscene, Majora's Mask's stray fairies still show the "?" stand-in instead of their model, and so do the other items 2Ship2Harkinian draws with its own code (owl statues, boss and enemy souls, clocks, frogs, the swim ability, Triforce pieces, traps and ocarina buttons) and the bottled fairy (which no randomizer item reaches). Buying or getting one works. [#964](https://github.com/spencerduncan/redshipblueship/issues/964) tracks the stray fairies; the other families have no model in `games/mm/2s2h/Rando/ForeignModelSingleExe.cpp` (`IsCustomDrawn`) at `ee35d2c6` either. The four boss remains, the Moon's Tear and the caught seahorse draw their models since PR [#1042](https://github.com/spencerduncan/redshipblueship/pull/1042).
-- [#965](https://github.com/spencerduncan/redshipblueship/issues/965): frame interpolation (Settings > Graphics, Interpolation FPS above 20 or Match Refresh Rate) smooths Ocarina of Time but not Majora's Mask, which stays at 20 frames a second.
-- [#966](https://github.com/spencerduncan/redshipblueship/issues/966): the audit of which settings and enhancements on the shared pages Majora's Mask does not honour. It has reported; its open findings are the next three lines.
-- [#1005](https://github.com/spencerduncan/redshipblueship/issues/1005) to [#1026](https://github.com/spencerduncan/redshipblueship/issues/1026): settings that do nothing in Majora's Mask because MM's code for them is not linked into the executable (MM's enhancements archive drops a file that only registers itself). By family: the cheats (Money, Health, Magic; Climb and Hookshot Everything; Moon Jump on L; Easy Frame Advancing), the skips (Fast Chests, Disable Title Card, Skip Intro, Skip Entrance, One Point and Story Cutscenes), graphics and items (Enemy Health Bars, the Bow/Slingshot reticle, Disable Black Bar Letterboxes, Instant Putaway, Unequip C-Items on Re-press, Pause Buffer Input Window, Hyper Enemies), Free Look and its camera options, and three Audio Editor options (Mute Low HP Alarm, Disable Enemy Proximity Music, Display Sequence Name). Each works in Ocarina of Time.
-- [#1030](https://github.com/spencerduncan/redshipblueship/issues/1030) to [#1036](https://github.com/spencerduncan/redshipblueship/issues/1036) and [#1038](https://github.com/spencerduncan/redshipblueship/issues/1038): eight settings whose key Majora's Mask now reads (PR [#1046](https://github.com/spencerduncan/redshipblueship/pull/1046)) but whose MM code is not linked yet, so they still do nothing there: Disable Screen Flash for Finishing Blow, Enable 3D Dropped Items/Projectiles, Skip Misc Interactions, Skip Playing Scarecrow's Song, Arrow Cycle, Skip Magic Arrow Equip Animation, Permanent Heart Loss and N64 Weird Frames.
+- [#966](https://github.com/spencerduncan/redshipblueship/issues/966): the audit of which settings on the shared pages Majora's Mask does not honour. Every row it filed is fixed on `main` except [#1037](https://github.com/spencerduncan/redshipblueship/issues/1037), next. Skip Enemy Cutscenes and Skip To File Select still do nothing in Majora's Mask and have no issue of their own; the settings that stay Ocarina of Time only by design are under "Majora's Mask specific".
 - [#1037](https://github.com/spencerduncan/redshipblueship/issues/1037): Damage Multiplier is Ocarina of Time only. The two games' value ranges differ (OoT 0-8 with 8 the one-hit KO, MM 0-4 plus 10), and which one the shared key uses is the operator's call.
-- [#967](https://github.com/spencerduncan/redshipblueship/issues/967): a shared capacity item such as the Bow shows in both games' sections of the Combo Item Tracker, once per game, instead of once in the Shared column.
-- [#971](https://github.com/spencerduncan/redshipblueship/issues/971): the overlay's Shared column shows the shared pool as of the last save or crossing, so a hookshot found in Hyrule stays unlit there until then; the game's own section lights it at once.
-- [#968](https://github.com/spencerduncan/redshipblueship/issues/968), [#969](https://github.com/spencerduncan/redshipblueship/issues/969) and [#970](https://github.com/spencerduncan/redshipblueship/issues/970): requests for new Cross-Game Rules (Shared Fire, Ice and Light Arrows; Shared Bunny Hood; Shared Bottles), off by default; nothing in play. They will ride the cross-game item rules record of PR [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002).
-- [#975](https://github.com/spencerduncan/redshipblueship/issues/975) (epic) and its phases [#976](https://github.com/spencerduncan/redshipblueship/issues/976) to [#980](https://github.com/spencerduncan/redshipblueship/issues/980): cross-game masks as in OoTMM. PR [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002) laid the groundwork with every rule off, so nothing in play yet; a file made by a later build with a rule on is refused by name (`crossItemFlags`).
-- [#1040](https://github.com/spencerduncan/redshipblueship/issues/1040): follow-ups of the per-game resource cache (PR [#1000](https://github.com/spencerduncan/redshipblueship/pull/1000)). The one a player can meet: changing a colour in Ocarina of Time's Cosmetics Editor while Majora's Mask is running patches MM's copy of the models, and OoT keeps the old colour until it reapplies; change cosmetics in Hyrule. The rest are missing locks and a fork-side cleanup.
-- [#1055](https://github.com/spencerduncan/redshipblueship/issues/1055): a spoiler in `Randomizer/` for the same seed name that another fingerprint made (any build before `29e8dba5`, PR [#1004](https://github.com/spencerduncan/redshipblueship/pull/1004)) is left as it is, and the new paired world gets no spoiler; only stderr says so. See the entry under "Randomizer generation".
+- [#975](https://github.com/spencerduncan/redshipblueship/issues/975) (epic) and its phases [#976](https://github.com/spencerduncan/redshipblueship/issues/976) to [#980](https://github.com/spencerduncan/redshipblueship/issues/980): cross-game masks as in OoTMM. The five shared masks of P2 ([#978](https://github.com/spencerduncan/redshipblueship/issues/978)) are in with PR #1095, off by default, and P1 ([#976](https://github.com/spencerduncan/redshipblueship/issues/976)) is the groundwork they ride (PR [#1002](https://github.com/spencerduncan/redshipblueship/pull/1002)); both stay open for the operator to close. Not built: wearing the other game's masks (P3, [#977](https://github.com/spencerduncan/redshipblueship/issues/977)) and each game's masks in the other (P4 and P5, [#979](https://github.com/spencerduncan/redshipblueship/issues/979), [#980](https://github.com/spencerduncan/redshipblueship/issues/980)).
+- [#1085](https://github.com/spencerduncan/redshipblueship/issues/1085): with Shared Epona's Song or Shared Song of Storms on (and Shared Song of Time once PR #1102 lands) and Ocarina of Time's Shuffle Songs anywhere but Anywhere (Song Locations is the default), the world holds two copies of the song. Either teaches both games. See "Randomizer generation".
+- [#1070](https://github.com/spencerduncan/redshipblueship/issues/1070): reported on `v0.2.0-prealpha`: Woodfall Temple does not rise. Root cause not settled; the leading explanation is Majora's Mask's ocarina-button shuffle with C-up not yet found, which makes the Sonata of Awakening buzz ([#1072](https://github.com/spencerduncan/redshipblueship/issues/1072)).
+- [#1072](https://github.com/spencerduncan/redshipblueship/issues/1072) (partly fixed): the Combo Item Tracker and the Combo Tracker show Majora's Mask's five ocarina buttons since PR #1075, so a missing C-up is visible. Still open: a lock on the note gate's verdict and the free-play song bridge.
+- [#1063](https://github.com/spencerduncan/redshipblueship/issues/1063): reported on `v0.2.0-prealpha`: an Ocarina of Time texture overhaul pack worked for a while, then the game crashed. Nothing more is known yet; the issue lists what a report needs (the pack, the `mods/` listing, the log and any `.dmp`).
+- [#1101](https://github.com/spencerduncan/redshipblueship/issues/1101): one randomizer menu for both games. Pending: its lanes are open pull requests (PRs #1104 to #1107, and #1108 for these documents), not on `main` yet, and the review page of the moved pages is to be rebuilt from the landed build. See "Pending: Majora's Mask's randomizer pages move under Randomizer" under "Platform and packaging".
+- [#1069](https://github.com/spencerduncan/redshipblueship/issues/1069): Shared Song of Time, and Majora's Mask's Moon Crash Behavior option. Pending: PR #1102 is open, not on `main` yet.
 - [#1044](https://github.com/spencerduncan/redshipblueship/issues/1044): planned, not in this build. Generate will make the whole paired world and write a shareable seed package, and file creation will read the package instead of generating. Today the paired half is still generated at file creation, from the settings as they are then.
 - [#993](https://github.com/spencerduncan/redshipblueship/issues/993): the Combo Tracker does not show which checks you can reach, and Majora's Mask's own Check Tracker (the only place that shows MM's in-logic checks) has had no menu row since the trackers were unified; it opens only with the console's `set gWindows.CheckTracker 1`. A decision for the operator (tracker reachability audit, PR [#989](https://github.com/spencerduncan/redshipblueship/pull/989)).
-- [#994](https://github.com/spencerduncan/redshipblueship/issues/994): nothing in play. No test drives either Check Tracker's reachability; three rows are proposed.
 - [#996](https://github.com/spencerduncan/redshipblueship/issues/996): nothing in play. A determinism digest pins a Majora's Mask reachability set that generation no longer uses.
-- [#997](https://github.com/spencerduncan/redshipblueship/issues/997): latent, nothing in play today. Under the combo Triforce Hunt goal with OoT's own hunt in Ganon's Boss Key mode, the generator thinks the boss key comes at OoT's own piece count, while the game gives it only at the combined count.
 
 - [#925](https://github.com/spencerduncan/redshipblueship/issues/925): nothing in play. A test row (`AllTests`) failed once on a fresh build tree and then passed; probably the test collision PR [#931](https://github.com/spencerduncan/redshipblueship/pull/931) fixed. Watched.
 - [#824](https://github.com/spencerduncan/redshipblueship/issues/824): nothing in play. The test row `ForeignItemGiveReverse` ended once without a verdict and has not done so again. Watched.
-- [#855](https://github.com/spencerduncan/redshipblueship/issues/855): with OoT's "Scrubs Shuffle" on, a Business Scrub's offer follows "Merchant Hint Text" while the Check Tracker follows "Scrub Hint Text", so one can name the item while the other hides it (Ship of Harkinian's own behaviour; the operator's call).
 - [#694](https://github.com/spencerduncan/redshipblueship/issues/694): MM's game-over prompt (Combo > Majora's Mask, off by default) has never been seen in this build; its artwork may be missing. Awaiting a playtest.
 - [#607](https://github.com/spencerduncan/redshipblueship/issues/607): an OoT item found in Termina shows its OoT icon in MM's get-item textbox (PR [#761](https://github.com/spencerduncan/redshipblueship/pull/761)); not yet looked at in play.
 - [#599](https://github.com/spencerduncan/redshipblueship/issues/599): nothing in play. MM's regular saves and owl saves index their flash slots differently (inherited code), but in the single executable MM's flash write is a no-op and its saves are committed to the `.redsave`, so the difference has no effect; whether to close it is the operator's call.
@@ -418,6 +402,16 @@ durable write goes through one commit point with a generation stamp (PR
 [#569](https://github.com/spencerduncan/redshipblueship/pull/569)). None of that
 is a promise that the *next* format change will migrate. Treat any progress made on
 a pre-alpha build as disposable, and keep copies of files you care about.
+
+**Pending: older paired files that need their Majora's Mask settings restored may be refused
+(the operator's decision).** Once PRs #1102 and #1106 land (both open, not on `main` yet),
+the Majora's Mask half of a paired save gains two fields: Moon Crash Behavior (PR [#1102](https://github.com/spencerduncan/redshipblueship/pull/1102)) and the excluded-check list of
+Randomizer → MM Locations (PR [#1106](https://github.com/spencerduncan/redshipblueship/pull/1106)). Each is appended inside MM's save, so it shifts the
+fields after it. A paired file saved by an earlier build, `v0.2.0-prealpha` and `main` at `db8d38e8` included, whose
+Majora's Mask settings were changed at the title screen, so that the load has to restore them, will be
+refused as unrestorable: the newer layout reads other bytes where the list now sits. A file whose
+MM settings were not changed since it was created loads as before. Whether to accept this before
+a release or migrate is the operator's call (PR #1106).
 
 **Paired files created before PR #895 (2026-10-10) are refused.** PR
 [#895](https://github.com/spencerduncan/redshipblueship/pull/895) changed what Majora's
@@ -1148,6 +1142,21 @@ a switch with custom music installed, it is a new report.
 
 MM is the newer half of the combo and still carries more debt than OoT.
 
+### Some shared settings do less, or nothing, in Majora's Mask
+
+Since the merges after `v0.2.0-prealpha` every row the #966 audit filed works in Majora's Mask except these:
+
+- **Ocarina of Time only:** Damage Multiplier ([#1037](https://github.com/spencerduncan/redshipblueship/issues/1037)), D-pad in text boxes, D-pad hold change, D-pad on
+  the pause screen and Customize Ocarina Controls (Majora's Mask has no code for them), and Skip Enemy Cutscenes and
+  Skip To File Select (MM's code for them is not linked).
+- **Fast Chests** does nothing in a Majora's Mask randomizer file: the chest contents belong to the randomizer, as in
+  2Ship2Harkinian (PR [#1086](https://github.com/spencerduncan/redshipblueship/pull/1086)).
+- **Permanent Heart Loss** turned off restores lost heart containers in Ocarina of Time only (PR [#1099](https://github.com/spencerduncan/redshipblueship/pull/1099)).
+- **Free Look** in Majora's Mask ignores the remote bombchu's camera focus (PR [#1089](https://github.com/spencerduncan/redshipblueship/pull/1089)).
+- **Skip Get Item Animations** (Randomizer > General) now decides Majora's Mask's get-item scenes too; Majora's Mask's
+  own Skip Item Get Cutscene key is no longer read, and a value set by hand in `shipofharkinian.json` is ignored
+  (PR [#1100](https://github.com/spencerduncan/redshipblueship/pull/1100)).
+
 ### Dying in MM respawns you at the entrance instead of showing a game-over prompt — this is intentional
 
 MM's vanilla death behaviour (reload at the area entrance with three hearts, no
@@ -1276,7 +1285,9 @@ state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#
 
 ## Randomizer generation
 
-### A spoiler from an older build with the same seed name leaves a new world without a spoiler ([#1055](https://github.com/spencerduncan/redshipblueship/issues/1055))
+### ~~A spoiler from an older build with the same seed name leaves a new world without a spoiler~~ — RESOLVED ([#1055](https://github.com/spencerduncan/redshipblueship/issues/1055), PR [#1076](https://github.com/spencerduncan/redshipblueship/pull/1076))
+
+**Fixed (PR #1076, 2026-10-21):** a paired seed whose spoiler name is already taken by another identity's spoiler (an older build's, or one made with other MM options) is now written beside it as `Randomizer/<icons>-<fingerprint>.json`, and the Randomizer menu's "Spoiler File:" line names it. The integration rows clear their seed's spoilers before creating, so a stale spoiler in the build folder no longer fails them. What it was:
 
 A paired world's spoiler is named from the seed (`Randomizer/<seed icons>.json`), and a creation
 never writes over another paired world's spoiler (PR [#937](https://github.com/spencerduncan/redshipblueship/pull/937)): the old file is left as it is,
@@ -1290,6 +1301,26 @@ guide's setup says). The integration rows met the same trap in the #1004 gate (s
 2026-10-20"). The planned seed package ([#1044](https://github.com/spencerduncan/redshipblueship/issues/1044)) names its file by seed and fingerprint, which
 removes the collision.
 
+### What the Shared Items rules do not do yet ([#1085](https://github.com/spencerduncan/redshipblueship/issues/1085), PRs #1080 to #1095)
+
+Each Shared rule on Combo > Cross-Game Rules is off by default; these apply only with one on.
+
+- **Two copies of a shared song.** With Shared Epona's Song or Shared Song of Storms on (or, once PR #1102 lands, Shared Song of Time) and
+  Ocarina of Time's Shuffle Songs at Song Locations (the default), Dungeon Rewards or Off, the world holds two copies
+  of that song: Ocarina of Time's own, at its song location, and the shared one. Either teaches both games. Set Shuffle
+  Songs to Anywhere for a single copy ([#1085](https://github.com/spencerduncan/redshipblueship/issues/1085)).
+- **A surplus copy under the plentiful pool.** Ocarina of Time still shuffles a second copy of a shared Lens of Truth,
+  magic arrow or mask when its item pool is plentiful.
+- **Shields.** With Shared Shields on, a Mirror Shield found in Termina before any Hero's Shield also gives Ocarina of
+  Time the Hylian Shield, Ocarina of Time's own Hylian Shield stays in the pool beside the shared one, and the Item
+  Tracker lists each game's shield in its own section rather than once under Shared.
+- **Bottles.** Shared Bottles shares the bottle count up to Ocarina of Time's four, with each bottle's contents kept
+  per game, so Majora's Mask's fifth and sixth bottle slots stay empty. OoTMM's sharedBottles shares six bottles with
+  their contents; the difference is deliberate and open to the operator (PR [#1094](https://github.com/spencerduncan/redshipblueship/pull/1094)).
+- **Masks.** While Ocarina of Time is running, the tracker's Shared mask rows use Majora's Mask's icons.
+- **Song of Time (pending, PR #1102).** Moon Crash Behavior's New Cycle (forced by Shared Song of Time) does not yet let you save on the
+  Clock Tower roof, as OoTMM's does.
+
 ### Majora's Mask's trap types are fixed when the file is created ([#1047](https://github.com/spencerduncan/redshipblueship/issues/1047), PR [#1049](https://github.com/spencerduncan/redshipblueship/pull/1049))
 
 Before PR #1049, which kind of trap an MM trap check sprang was rolled at pickup from the live
@@ -1301,7 +1332,8 @@ made before your first trip to Termina is put back when the file loads, like MM 
 tricks, and the toast names the types (for example "Restored for Majora's Mask: Blast Traps").
 In this build no menu row sets the types: Combo > MM Randomizer only mixes traps into the pool,
 and the other types are reachable only through the console (`set gRando.Traps.Blast 1` and the
-like) before Generate. **A file created before this change reads Freeze only:** its save has no
+like) before Generate (**pending**: PR #1107, open, adds the seven trap-type rows under Traps on the MM
+Randomizer page, greyed once the world is created). **A file created before this change reads Freeze only:** its save has no
 recorded set, and an empty set falls back to Freeze traps, which is all the menu could set
 anyway. Locked headlessly; not played.
 
@@ -1373,6 +1405,17 @@ Settings → General's **Boot Sequence** dropdown is drawn over its own label an
 draws these rows the same way (right-aligned dropdowns as wide as their longest
 option, in a column that narrows with the window), so they are kept as shipped
 ([#899](https://github.com/spencerduncan/redshipblueship/issues/899)).
+
+### Pending: Majora's Mask's randomizer pages move under Randomizer ([#1101](https://github.com/spencerduncan/redshipblueship/issues/1101))
+
+Not on `main` yet: the one randomizer menu is open pull requests (PRs #1104 to #1107). Once they land, Majora's Mask's
+randomizer pages and the pair's rules are pages of the Randomizer header, after Tricks/Glitches: **Combo → MM Randomizer** is **Randomizer → MM Randomizer**, **Combo → MM
+Tricks** is **Randomizer → MM Tricks**, **Combo → Cross-Game Rules** is **Randomizer → Cross-Game**, and **Randomizer →
+MM Locations** is new. This list, older reports and the records below use the old names until then. A menu last left on
+a moved page opens on it in its new place. The Randomizer sidebar will have 16 entries and scrolls in a small window (832x600), as Ship of
+Harkinian's own 12 already did there. The MM Randomizer page's sections will carry Ship of Harkinian's names: "Logic &
+Conditions", "Shuffle Options" and "Items" go, and an option is under Logic, Win Condition, Area Access, Shuffle
+Items, Shuffle Shops & Merchants, Additional Items, Traps, Hints or Starting Items.
 
 ### Some menu entries are stubs
 
