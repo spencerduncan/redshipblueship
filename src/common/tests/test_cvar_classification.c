@@ -260,6 +260,9 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // #1064: the container-matches-contents switch. MM's rando readers (chests, pots, grass, crates, barrels) read
     // gRando.CSMC; SoH writes gEnhancements.ChestSizeAndTextureMatchContents. Both bool, default off.
     { 1064, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
+    // #1123: SoH's "Skip Boss Introductions". MM's boss/miniboss intro skips (Cutscenes/SkipEnemyCutscenes.cpp) read
+    // gEnhancements.Cutscenes.SkipEnemyCutscenes, which nothing in the single exe writes. Both bool, default off in MM.
+    { 1123, "gEnhancements.Cutscenes.SkipEnemyCutscenes", "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
 };
 
 /// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
@@ -287,6 +290,7 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     // #1037: the held-apart damage multiplier. Not a key-name gap (nothing is mapped), but the same defect: the
     // provider registers only through a file-scope RegisterShipInitFunc in the plain 2ship_enh archive.
     { 1037, "gEnhancements.DifficultyOptions.DamageMultiplier", "DifficultyOptions/DamageMultiplier.cpp" },
+    { 1123, "gEnhancements.TimeSavers.SkipCutscene.BossIntro", "Cutscenes/SkipEnemyCutscenes.cpp" },
 };
 
 /// #1037: held APART, not mapped, and HOSTED: OoT's DamageMult list runs 0-8, MM's 0-4 plus 10, so each game keeps its

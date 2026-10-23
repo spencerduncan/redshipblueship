@@ -692,6 +692,14 @@ if(BUILD_TESTING)
     # re-apply) and an older save's crossing is credited at redemption. Both
     # games' real shims and pickup cores, ROM-free.
     redship_add_test(NAME SharedBombchuPickup COMMAND redship --test shared-bombchu-pickup)
+    # #1120: the #1061 credit for the capacity tiers. A far game's tier item (MM's
+    # Progressive Bomb Bag on an OoT check) stepped nothing at its pickup and
+    # crossed into a round trip: the finder held it two switches later. A tier
+    # item now steps the shared pool at its pickup in either game (harvest, step,
+    # re-apply through the kind's own apply), records no crossing, and an older
+    # save's crossing is credited once at redemption. Both games' real shims,
+    # pickup cores and arrival consumers, ROM-free.
+    redship_add_test(NAME SharedTierPickup COMMAND redship --test shared-tier-pickup)
     # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
     # only when set, freeze, the load refusing a rule this build cannot honour)
     # and the shared-family OR merge through both games' real shims. ROM-free.

@@ -685,6 +685,11 @@ main() {
         "MM_RegisterN64WeirdFrames()"
         # #1037: Damage Multiplier (MM's own key, hosted beside SoH's row), in lib2ship_enh_registrars.a. No OoT twin.
         "RegisterDamageMultiplier()"
+        # #1123: Skip Boss Introductions (Cutscenes/SkipEnemyCutscenes.cpp), in lib2ship_enh_registrars.a. No OoT twin
+        # of any of the three names (grep games/oot).
+        "RegisterSkipEnemyIntros()"
+        "RegisterSkipBossWarpCutscenes()"
+        "RegisterSkipEnemyCutscenes()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do
