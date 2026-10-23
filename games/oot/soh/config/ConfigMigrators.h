@@ -1652,9 +1652,9 @@ std::vector<Migration> version8Migrations = {
 };
 
 /**
- * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038, #1062, #1064).
+ * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038, #1062, #1064, #1123).
  *
- * Fifteen more MM keys move onto the spelling Ship of Harkinian's menu writes,
+ * Sixteen more MM keys move onto the spelling Ship of Harkinian's menu writes,
  * for settings both games mean identically. MM's readers sat on a differently
  * spelled twin with no manifest row, so the control moved a key nothing in MM
  * read. Direction MM -> OoT per ADR 0003 decision (3).
@@ -1663,7 +1663,7 @@ std::vector<Migration> version8Migrations = {
  * block at the end of RSBS::kConvergedKeys), so all are pure renames and need
  * no value transform. Same conflict rule as versions 7 and 8 (ADR 0003 §6.3):
  * OoT's value wins, and the MM spelling is cleared either way so the migration
- * cannot oscillate. This table mirrors those fifteen rows of RSBS::kConvergedKeys
+ * cannot oscillate. This table mirrors those sixteen rows of RSBS::kConvergedKeys
  * (the 2Ship importer maps through the manifest itself); test_cvar_classification
  * fails when a row is missing from either place. #1037's damage multiplier is
  * not here: its value spaces differ, so the keys stay distinct (RSBS::kMustStayDistinct) and MM's own row is hosted.
@@ -1694,5 +1694,9 @@ std::vector<Migration> version9Migrations = {
       "gEnhancements.DpadNoDropOcarinaInput" },
     // #1064: Containers Match Contents (MM's rando readers kept it under gRando.CSMC).
     { MigrationAction::RenameIfAbsent, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
+    // #1123: Skip Boss Introductions (MM's boss/miniboss cutscene skips kept it under Cutscenes.SkipEnemyCutscenes;
+    // the manifest row sits in its Group C cutscene block).
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipEnemyCutscenes",
+      "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
 };
 } // namespace SOH

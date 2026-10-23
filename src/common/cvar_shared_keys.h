@@ -340,10 +340,16 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // MM under Cutscenes.Skip*Cutscenes. Both bool. (OoT defaults these to
     // IS_RANDO and MM to 0; that per-reader default difference is inherent to a
     // shared key and pre-dates convergence — it is not a type mismatch.)
+    // SkipEnemyCutscenes joined in #1123 (migrated by ConfigVersion9Updater, not 8):
+    // MM's one checkbox covers the boss intros SoH's "Skip Boss Introductions"
+    // names plus MM's boss-warp and miniboss cutscenes, all under that one key.
+    // LearnSong, QuickBossDeaths and GlitchAiding have no MM twin; MM's song-teacher
+    // skips key on Story, as upstream 2S2H does.
     { "gEnhancements.Cutscenes.SkipEntranceCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Entrances", false },
     { "gEnhancements.Cutscenes.SkipIntroSequence", "gEnhancements.TimeSavers.SkipCutscene.Intro", false },
     { "gEnhancements.Cutscenes.SkipOnePointCutscenes", "gEnhancements.TimeSavers.SkipCutscene.OnePoint", false },
     { "gEnhancements.Cutscenes.SkipStoryCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Story", false },
+    { "gEnhancements.Cutscenes.SkipEnemyCutscenes", "gEnhancements.TimeSavers.SkipCutscene.BossIntro", false },
 
     // Group D — free-look. OoT files it under gSettings.FreeLook, MM under
     // gEnhancements.Camera.FreeLook. Enable is bool; MaxCameraDistance and
@@ -1136,10 +1142,12 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // cheat pairs, all in kMustStayDistinct). 9 + 23 = 32. The #966 audit adds 11
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
-// right-stick and no-dropped-input switches, Containers Match Contents). 32 + 11 + 4 = 47. Pinning
-// the count makes a silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 47, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
-                                        "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) = 47");
+// right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
+// Introductions). 32 + 11 + 4 + 1 = 48. Pinning the count makes a silently dropped or double-added
+// row a compile error.
+static_assert(kConvergedKeyCount == 48, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+                                        "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
+                                        "= 48");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to

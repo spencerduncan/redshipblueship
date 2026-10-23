@@ -305,10 +305,13 @@ under `Cutscenes.Skip*Cutscenes`. Same behaviour, both bool.
 | Skip intro | `gEnhancements.TimeSavers.SkipCutscene.Intro` | `gEnhancements.Cutscenes.SkipIntroSequence` |
 | Skip one-point cutscenes | `gEnhancements.TimeSavers.SkipCutscene.OnePoint` | `gEnhancements.Cutscenes.SkipOnePointCutscenes` |
 | Skip story cutscenes | `gEnhancements.TimeSavers.SkipCutscene.Story` | `gEnhancements.Cutscenes.SkipStoryCutscenes` |
+| Skip boss introductions (#1123, version 9) | `gEnhancements.TimeSavers.SkipCutscene.BossIntro` | `gEnhancements.Cutscenes.SkipEnemyCutscenes` |
 
-Remaining members of each family are (O): OoT-only `SkipCutscene.{BossIntro, GlitchAiding,
-LearnSong, QuickBossDeaths}`; MM-only `Cutscenes.{SkipFirstCycle, SkipToFileSelect,
-SkipEnemyCutscenes}`. `Cutscenes.SkipMiscInteractions` is no longer MM-only: since #1046 MM reads
+Remaining members of each family are (O): OoT-only `SkipCutscene.{GlitchAiding, LearnSong,
+QuickBossDeaths}` (MM's song-teacher skips key on Story, as upstream 2S2H does); MM-only
+`Cutscenes.{SkipFirstCycle, SkipToFileSelect}`, neither of which can act in the paired game (the
+cross-game arrival is MM's intro event and already grants SkipFirstCycle's set, #654/#1123; the
+title screen is OoT's). `Cutscenes.SkipMiscInteractions` is no longer MM-only: since #1046 MM reads
 SoH's `gEnhancements.TimeSavers.SkipMiscInteractions` ("Skip Misc Interactions"), and #1093 linked
 its providers.
 
