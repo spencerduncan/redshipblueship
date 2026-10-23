@@ -770,6 +770,10 @@ extern "C" {
 // no ROM archives, no game loop.
 #include "tests/test_stderr_capture_sync.c"
 
+// The paired-creation rows' single-bag watcher accepts Generate's completion
+// line (#1135). FILE SCOPE, beside the tee lock above: it drives the same tee.
+#include "tests/test_pfc_creation_bag_line.c"
+
 // Concurrent save-writing rows lock (#926). FILE SCOPE: it starts two processes
 // of this executable per save-writing row through test_scratch.h and requires
 // both to pass. No display, no ROM archives, no game loop.
@@ -7331,6 +7335,8 @@ const TestDescriptor gTests[] = {
       Test_GpWatchdog },
     { "stderr-capture-sync", "A stderr-capture query sees the line its caller just wrote (#901)",
       Test_StderrCaptureSync },
+    { "pfc-creation-bag-line", "The paired-creation watcher accepts Generate's completion single-bag line (#1135)",
+      Test_PfcCreationBagLine },
     { "mm-scene-execute", "MM scene commands execute against a PlayState (#344)", Test_MMSceneExecute },
     { "mm-culling-binding", "MM's Ship_ExtendedCulling* bind MM's Actor, not OoT's (#382)", Test_MMCullingBinding },
     { "mm-gi-shim", "MM hook registration goes through the MM-owned shim, not the shared 4-byte instance (#395)",

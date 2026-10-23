@@ -141,7 +141,10 @@ constexpr size_t kCaptureSyncLen = 1 + kCaptureSyncDigits;
 
 bool CaptureKeeps(const std::string& line) {
     // RSBS_REFUSAL_TOAST_PREFIX: a refusal toast's line, whatever its copy says (#836).
-    static const char* const kTags[] = { "pairing", "creation", "[Crossings]", "REFUSED", RSBS_REFUSAL_TOAST_PREFIX,
+    // "paired completion": Generate's completion of the paired world, which a
+    // creation runs since #1116 and whose single-bag line the paired rows read (#1135).
+    static const char* const kTags[] = { "pairing",     "creation", "paired completion",
+                                         "[Crossings]", "REFUSED",  RSBS_REFUSAL_TOAST_PREFIX,
                                          "[PFC" };
     for (const char* tag : kTags) {
         if (line.find(tag) != std::string::npos) {

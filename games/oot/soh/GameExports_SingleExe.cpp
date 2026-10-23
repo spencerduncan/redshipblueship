@@ -919,10 +919,41 @@ static int PfcExplicitWorldSettings(char* msg, size_t cap) {
 }
 
 /**
+ * The single-bag half of PfcCreationMatchesStore: finds the last kept
+ * single-bag line the creation printed and parses its three crossing counts.
+ * Returns 0 with the reason in `msg`. Exported for the ROM-free row
+ * PfcCreationBagLine (#1135), which feeds it captured stderr.
+ */
+extern "C" int OoT_Pfc_CreationBagLine(char* bagLine, size_t bagCap, int* total, int* intoTermina, int* intoHyrule,
+                                       char* msg, size_t cap) {
+    // Two paths print it, with the same counts in the same places (#1135): the
+    // creation event generating the paired world itself, and, since #1116,
+    // Generate's own completion (OoT_PairedGen_CompleteWorld), which a creation
+    // on a world still waiting at its general pass runs instead.
+    if (!IntegrationTest_StderrCaptureLast("[OoT] creation event: single bag", bagLine, bagCap) &&
+        !IntegrationTest_StderrCaptureLast("[OoT] paired completion: single bag", bagLine, bagCap)) {
+        snprintf(msg, cap, "the creation never logged its single-bag line");
+        return 0;
+    }
+    const char* p = strstr(bagLine, "single bag");
+    while (*p != '\0' && (*p < '0' || *p > '9')) {
+        p++;
+    }
+    if (sscanf(p, "%d crossings stored (%d OoT items in Termina, %d MM items in Hyrule)", total, intoTermina,
+               intoHyrule) != 3) {
+        snprintf(msg, cap, "the creation's single-bag line does not parse: \"%s\"", bagLine);
+        return 0;
+    }
+    return 1;
+}
+
+/**
  * The creation's own account of the crossings, read off the lines it printed,
  * against the live store right after OoT_Sram_InitSave returned (before any
  * load): "[OoT] creation event: single bag — N crossings stored (X OoT items in
- * Termina, Y MM items in Hyrule)" and "[Crossings] captured A OoT-hosted and B
+ * Termina, Y MM items in Hyrule)", or since #1116 the same line as "[OoT] paired
+ * completion: single bag — ..." when Generate's completion finished the world
+ * for the creation (#1135), and "[Crossings] captured A OoT-hosted and B
  * MM-hosted crossings (digest D)". Returns false with the reason in `msg`.
  */
 static bool PfcCreationMatchesStore(char* msg, size_t cap) {
@@ -931,17 +962,7 @@ static bool PfcCreationMatchesStore(char* msg, size_t cap) {
     int total = -1;
     int intoTermina = -1;
     int intoHyrule = -1;
-    if (!IntegrationTest_StderrCaptureLast("[OoT] creation event: single bag", bagLine, sizeof(bagLine))) {
-        snprintf(msg, cap, "the creation never logged its single-bag line");
-        return false;
-    }
-    const char* p = strstr(bagLine, "single bag");
-    while (*p != '\0' && (*p < '0' || *p > '9')) {
-        p++;
-    }
-    if (sscanf(p, "%d crossings stored (%d OoT items in Termina, %d MM items in Hyrule)", &total, &intoTermina,
-               &intoHyrule) != 3) {
-        snprintf(msg, cap, "the creation's single-bag line does not parse: \"%s\"", bagLine);
+    if (!OoT_Pfc_CreationBagLine(bagLine, sizeof(bagLine), &total, &intoTermina, &intoHyrule, msg, cap)) {
         return false;
     }
     int capOoT = -1;
