@@ -14,10 +14,11 @@ Nobody has played any of it: every change below is locked by test rows.
 
 - **Start a new paired file: files from `v0.3.0-prealpha` do not carry over.** Shuffle Tree Drops (#1125) added 53
   checks to Majora's Mask's check table, which sits in the middle of Majora's Mask's half of the save, so every field
-  after it moved, the world's seed among them. A paired randomizer file saved by `v0.3.0-prealpha` or any earlier
-  build no longer reads as its own Majora's Mask world, and the file select refuses it ("Refused: This file has no
-  Majora's Mask world"). The operator accepted this break before release (2026-10-23); there is no migration. Keep
-  the `v0.3.0-prealpha` build if you want to finish an old file. See "The `v0.3.0-prealpha` save break" under "Save
+  after it moved, the world's seed among them. A paired randomizer file saved by any build before `fabe7d33`
+  (`v0.3.0-prealpha` included, and the `main` builds after the tag, #1111 to #1124) no longer reads as its own
+  Majora's Mask world, and the file select refuses it ("Refused: This file has no Majora's Mask world"). The operator
+  accepted this break before release (2026-10-23); there is no migration. Keep the build that wrote an old file if
+  you want to finish it. See "The `v0.3.0-prealpha` save break" under "Save
   loss and corruption" in [`known-issues.md`](known-issues.md).
 - **Generate now makes the whole paired world** and writes it to a seed package in `Randomizer/` (next section). The
   progress overlay shows when you press Generate; creating the file is instant.
@@ -102,7 +103,8 @@ Nobody has played any of it: every change below is locked by test rows.
 
 ### Known limitations added since v0.3.0-prealpha
 
-- **The save break above** (#1125): a paired file from `v0.3.0-prealpha` or earlier is refused. Start a new file.
+- **The save break above** (#1125): a paired file from any build before `fabe7d33` (`v0.3.0-prealpha` included) is
+  refused. Start a new file.
 - Ocarina of Time's Progressive Deku Stick and Nut upgrades found in Termina still cross and arrive at Ocarina of
   Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps gating sticks and nuts. The ocarina still crosses as an
   ordinary item (#1122).
