@@ -68,6 +68,7 @@ games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
 games/mm/2s2h/mm_song_teacher_hooks_test.cpp
+games/mm/2s2h/mm_tree_shuffle_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp

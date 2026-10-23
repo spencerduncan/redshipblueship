@@ -73,6 +73,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // cylinderOc != NULL
+    // ```
+    // #### `args`
+    // - `*Actor` (cylinderOc)
+    VB_APPLY_BONK_TO_ACTOR,
+
+    // #### `result`
+    // ```c
     // !play->interfaceCtx.perfectLettersOn
     // ```
     // #### `args`
@@ -2049,6 +2057,21 @@ typedef enum {
     // #### `args`
     // - `*EnMThunder`
     VB_TRANSFORM_THUNDER_MATRIX,
+
+    // #### `result`
+    // #### In `EnSnowwd_Idle`:
+    // ```c
+    // !SNOWWD_DROPPED_COLLECTIBLE(&this->actor)
+    // ```
+    // #### `args`
+    // - `*Actor` (the tree)
+    // #### In `ObjYasi_Update`:
+    // ```c
+    // CAN_DROP_NUT(thisx)
+    // ```
+    // #### `args`
+    // - `*Actor` (the tree)
+    VB_TREE_DROP_COLLECTIBLE,
 
     // #### `result`
     // ```c

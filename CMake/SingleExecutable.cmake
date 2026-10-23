@@ -1357,6 +1357,17 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
+    # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
+    # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in
+    # logic regions and Randomizer > MM Locations, never host an OoT item, and
+    # enter the pool only with the option on (the option-off pool is the on pool
+    # minus the trees). MMTreeShuffleHooks: ObjTree.cpp's hooks arm through
+    # ActorBehavior::OnFileLoad (exactly +1 per probed hook), VB_TREE_DROP_
+    # COLLECTIBLE suppresses a tree check's vanilla drop, and a missing play
+    # state is tolerated. Pure (no display, no ROM); ids looked up by name.
+    redship_add_test(NAME MMTreeShuffle COMMAND redship --test mm-tree-shuffle)
+    redship_add_test(NAME MMTreeShuffleHooks COMMAND redship --test mm-tree-shuffle-hooks)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside
