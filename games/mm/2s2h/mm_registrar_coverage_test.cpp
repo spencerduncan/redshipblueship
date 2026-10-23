@@ -214,6 +214,11 @@
  *   - Permanent Heart Loss: OnActorUpdate[ACTOR_PLAYER].
  *   - N64 Weird Frames: VB_LOAD_PLAYER_ANIMATION_FRAME (z_skelanime.c, AnimTaskQueue_AddLoadPlayerFrame).
  *
+ * PHASE 11 (#1123) -- SKIP BOSS INTRODUCTIONS. Cutscenes/SkipEnemyCutscenes reads SoH's
+ * gEnhancements.TimeSavers.SkipCutscene.BossIntro (it read MM's own Cutscenes.SkipEnemyCutscenes, which nothing in
+ * the single exe writes) and registers only through three file-scope RegisterShipInitFuncs on that key. Same table
+ * as Phase 9; the key is read by this one TU alone in games/mm, so the delta is attributable.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -670,6 +675,31 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
             { "OnOpenText[0x72F] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x72F), 1 },
             { "OnOpenText[0x716] (SkipGivingBombersNotebook.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x716), 1 },
             { "OnOpenText[0x296A] (SkipKafeiReveal.cpp)", GAP_HOOK_COUNT(OnOpenText, 0x296A), 1 } } },
+        // #1123: Skip Boss Introductions. One TU, Cutscenes/SkipEnemyCutscenes.cpp, three registrars on the one key:
+        //   VB_START_CUTSCENE 2 = the boss-warp leg and the enemy-cutscene leg. The other buckets are one each; a
+        //   representative set of its ShouldActorInit / OnActorInit / ShouldActorUpdate / OnActorUpdate ids is probed.
+        { "gEnhancements.TimeSavers.SkipCutscene.BossIntro",
+          "Skip Boss Introductions",
+          { { "VB_START_CUTSCENE (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_VB_COUNT(VB_START_CUTSCENE), 2 },
+            { "VB_SET_CAMERA_AT_EYE (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_VB_COUNT(VB_SET_CAMERA_AT_EYE), 1 },
+            { "VB_SET_CAMERA_FOV (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_VB_COUNT(VB_SET_CAMERA_FOV), 1 },
+            { "VB_PLAYER_CUTSCENE_ACTION (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_VB_COUNT(VB_PLAYER_CUTSCENE_ACTION),
+              1 },
+            { "ShouldActorInit[BOSS_01] (Cutscenes/SkipEnemyCutscenes.cpp)",
+              GAP_HOOK_COUNT(ShouldActorInit, ACTOR_BOSS_01), 1 },
+            { "ShouldActorInit[BOSS_07] (Cutscenes/SkipEnemyCutscenes.cpp)",
+              GAP_HOOK_COUNT(ShouldActorInit, ACTOR_BOSS_07), 1 },
+            { "ShouldActorInit[EN_DINOFOS] (Cutscenes/SkipEnemyCutscenes.cpp)",
+              GAP_HOOK_COUNT(ShouldActorInit, ACTOR_EN_DINOFOS), 1 },
+            { "OnActorInit[EN_BIGPO] (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_BIGPO),
+              1 },
+            { "OnActorInit[EN_WIZ] (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_HOOK_COUNT(OnActorInit, ACTOR_EN_WIZ), 1 },
+            { "ShouldActorUpdate[EN_KNIGHT] (Cutscenes/SkipEnemyCutscenes.cpp)",
+              GAP_HOOK_COUNT(ShouldActorUpdate, ACTOR_EN_KNIGHT), 1 },
+            { "OnActorUpdate[BOSS_06] (Cutscenes/SkipEnemyCutscenes.cpp)", GAP_HOOK_COUNT(OnActorUpdate, ACTOR_BOSS_06),
+              1 },
+            { "OnActorUpdate[EN_KAIZOKU] (Cutscenes/SkipEnemyCutscenes.cpp)",
+              GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_KAIZOKU), 1 } } },
     };
     return probes;
 }
@@ -1066,7 +1096,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
            "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
-           "of #1023 armed both its hooks; the 8 key-gap keys of #1030-#1036 and #1038 each armed their TUs)\n");
+           "of #1023 armed both its hooks; the 9 key-gap keys of #1030-#1036, #1038 and #1123 each armed their TUs)\n");
     return 0;
 }
 

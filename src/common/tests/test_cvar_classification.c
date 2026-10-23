@@ -260,6 +260,9 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // #1064: the container-matches-contents switch. MM's rando readers (chests, pots, grass, crates, barrels) read
     // gRando.CSMC; SoH writes gEnhancements.ChestSizeAndTextureMatchContents. Both bool, default off.
     { 1064, "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents" },
+    // #1123: SoH's "Skip Boss Introductions". MM's boss/miniboss intro skips (Cutscenes/SkipEnemyCutscenes.cpp) read
+    // gEnhancements.Cutscenes.SkipEnemyCutscenes, which nothing in the single exe writes. Both bool, default off in MM.
+    { 1123, "gEnhancements.Cutscenes.SkipEnemyCutscenes", "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
 };
 
 /// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
@@ -284,6 +287,7 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     { 1035, "gEnhancements.SkipArrowAnimation", "Equipment/SkipMagicArrowEquip.cpp" },
     { 1036, "gEnhancements.PermanentHeartLoss", "DifficultyOptions/PermanentHeartLoss.cpp" },
     { 1038, "gEnhancements.N64WeirdFrames", "Restorations/N64WeirdFrames/N64WeirdFrames.cpp" },
+    { 1123, "gEnhancements.TimeSavers.SkipCutscene.BossIntro", "Cutscenes/SkipEnemyCutscenes.cpp" },
 };
 
 /// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
