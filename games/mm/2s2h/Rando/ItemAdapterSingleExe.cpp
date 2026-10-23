@@ -61,7 +61,8 @@
 #include <cstring>
 #include <new>
 
-#include "Rando/Rando.h" // SaveContext (via variables.h), StaticData::Items, GetIconTexturePath
+#include "Rando/Rando.h"               // SaveContext (via variables.h), StaticData::Items, GetIconTexturePath
+#include "Rando/ActorBehavior/Souls.h" // SOUL_RI_TO_RANDO_INF
 
 extern "C" {
 #include <macros.h> // CUR_CAPACITY
@@ -839,6 +840,77 @@ extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, i
             s->save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1u << (flag & 0xF));
         }
     }
+    return 1;
+}
+
+/**
+ * Author the tracker-rows world of #1140 into `buf`: the variant-0 save above
+ * plus Swamp 12 / Ocean 5 Skulltula tokens; stray fairies Woodfall 10,
+ * Snowhead 3, Great Bay 0, Stone Tower 15; small keys held 0 / 1 / none / 2 and
+ * found 1 / 3 / 0 / 2 (the found counts are authored in BOTH modes, so a
+ * vanilla read that took them would show); the Woodfall boss key and map, the
+ * Snowhead compass, all three Stone Tower items; three heart pieces; the souls
+ * of Odolwa and Gyorg and RI_SOUL_ENEMY_WOLFOS given through
+ * SOUL_RI_TO_RANDO_INF, plus the named RANDO_INF_OBTAINED_SOUL_OF_ENEMY_WOLFOS
+ * flag no item sets; the Clock Town and Stone Tower owls; Day 1 and Night 2;
+ * the ability to swim. Every flag is set whatever the options say.
+ *
+ * `rando` 1: a randomizer file (SAVETYPE_RANDO) whose frozen
+ * RO_MINIMUM_SKULLTULA_TOKENS is 20 and RO_MINIMUM_STRAY_FAIRIES 10; 0: a
+ * vanilla file carrying the same option bytes. `options` bit 0
+ * RO_SHUFFLE_BOSS_SOULS, 1 RO_SHUFFLE_ENEMY_SOULS, 2 RO_SHUFFLE_OWL_STATUES,
+ * 3 RO_CLOCK_SHUFFLE, 4 RO_SHUFFLE_SWIM, 5 RO_SHUFFLE_TRIFORCE_PIECES (each
+ * RO_GENERIC_YES when set), bit 6 the Clock Town fairy's WEEKEVENTREG_08_80.
+ * Returns 1, or 0 as above.
+ */
+extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando, unsigned options) {
+    if (MM_ItemAdapter_TestAuthorSave(buf, size, 0) != 1) {
+        return 0;
+    }
+    SaveContext* s = static_cast<SaveContext*>(buf);
+    auto& info = s->save.saveInfo;
+    auto& inv = info.inventory;
+    auto& r = s->save.shipSaveInfo.rando;
+    s->save.shipSaveInfo.saveType = rando ? SAVETYPE_RANDO : SAVETYPE_VANILLA;
+    r.randoSaveOptions[RO_MINIMUM_SKULLTULA_TOKENS] = 20;
+    r.randoSaveOptions[RO_MINIMUM_STRAY_FAIRIES] = 10;
+    static const RandoOptionId kOptions[6] = {
+        RO_SHUFFLE_BOSS_SOULS, RO_SHUFFLE_ENEMY_SOULS, RO_SHUFFLE_OWL_STATUES,
+        RO_CLOCK_SHUFFLE,      RO_SHUFFLE_SWIM,        RO_SHUFFLE_TRIFORCE_PIECES
+    };
+    for (int i = 0; i < 6; i++) {
+        r.randoSaveOptions[kOptions[i]] = ((options & (1u << i)) != 0) ? RO_GENERIC_YES : RO_GENERIC_NO;
+    }
+    if ((options & 0x40u) != 0) {
+        info.weekEventReg[WEEKEVENTREG_08_80 >> 8] |= (u8)(WEEKEVENTREG_08_80 & 0xFF);
+    }
+    info.skullTokenCount = (12u << 16) | 5u;
+    inv.strayFairies[DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE] = 10;
+    inv.strayFairies[DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE] = 3;
+    inv.strayFairies[DUNGEON_SCENE_INDEX_GREAT_BAY_TEMPLE] = 0;
+    inv.strayFairies[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] = 15;
+    std::memset(inv.dungeonKeys, -1, sizeof(inv.dungeonKeys)); // a temple never entered holds -1
+    inv.dungeonKeys[DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE] = 0;
+    inv.dungeonKeys[DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE] = 1;
+    inv.dungeonKeys[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] = 2;
+    r.foundDungeonKeys[DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE] = 1;
+    r.foundDungeonKeys[DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE] = 3;
+    r.foundDungeonKeys[DUNGEON_SCENE_INDEX_GREAT_BAY_TEMPLE] = 0;
+    r.foundDungeonKeys[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] = 2;
+    inv.dungeonItems[DUNGEON_SCENE_INDEX_WOODFALL_TEMPLE] = (u8)((1u << DUNGEON_BOSS_KEY) | (1u << DUNGEON_MAP));
+    inv.dungeonItems[DUNGEON_SCENE_INDEX_SNOWHEAD_TEMPLE] = (u8)(1u << DUNGEON_COMPASS);
+    inv.dungeonItems[DUNGEON_SCENE_INDEX_STONE_TOWER_TEMPLE] =
+        (u8)((1u << DUNGEON_BOSS_KEY) | (1u << DUNGEON_COMPASS) | (1u << DUNGEON_MAP));
+    inv.questItems |= (3u << 28); // three heart pieces: the top nibble
+    const auto setInf = [&r](int flag) { r.randoInf[flag >> 4] |= (u16)(1u << (flag & 0xF)); };
+    setInf(SOUL_RI_TO_RANDO_INF(RI_SOUL_BOSS_ODOLWA));
+    setInf(SOUL_RI_TO_RANDO_INF(RI_SOUL_BOSS_GYORG));
+    setInf(SOUL_RI_TO_RANDO_INF(RI_SOUL_ENEMY_WOLFOS));
+    setInf(RANDO_INF_OBTAINED_SOUL_OF_ENEMY_WOLFOS); // the named flag the macro never reaches
+    info.playerData.owlActivationFlags |= (u16)((1u << OWL_WARP_CLOCK_TOWN) | (1u << OWL_WARP_STONE_TOWER));
+    setInf(RANDO_INF_OBTAINED_CLOCK_DAY_1);
+    setInf(RANDO_INF_OBTAINED_CLOCK_NIGHT_2);
+    setInf(RANDO_INF_OBTAINED_SWIM);
     return 1;
 }
 
