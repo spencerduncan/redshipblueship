@@ -432,6 +432,19 @@ jobs:
         path: crossos-digests/
         if-no-files-found: warn
         retention-days: 7
+    # The seed package this leg's SeedPackageRoundTrip row wrote, with the report of
+    # the world a second Linux process loaded from it, for package-crossos-load
+    # (#1044): a package made here must load on Windows to the same world.
+    - name: Upload this build's seed package (Linux) (#1044)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: seed-package-linux
+        path: |
+          build-cmake/seed-package-roundtrip.rsbs-seed.zip
+          build-cmake/seed-package-roundtrip-load.txt
+        if-no-files-found: warn
+        retention-days: 7
     # The UI snapshot harness (docs/ui-style-guide.md section 12): SoH's own menu
     # pages and every page this project added, rendered the same way into
     # build-cmake/ui-snapshots/ for an agent or reviewer to compare. Its OWN label
@@ -869,6 +882,60 @@ jobs:
         path: digests/windows
     - name: Diff the two legs' digests
       run: python3 .github/scripts/diff-crossos-digests.py digests/linux linux digests/windows windows
+
+  # ==========================================================================
+  # Cross-OS seed package load (#1044)
+  #
+  # A seed package carries a finished paired world, so a package made on one OS
+  # must load on the other to the same world. The Linux leg's SeedPackageRoundTrip
+  # row writes a package and reports the world a second Linux process loaded from
+  # it; this job loads that same package with the Windows build's own
+  # `--test seed-package-load` and requires the two reports equal, field by field
+  # (identity and records, OoT's placement and content, the crossings, the give
+  # capabilities, MM's half byte for byte with its world and content, the
+  # spoiler's bytes). Not a required check, like digest-crossos-diff.
+  # ==========================================================================
+  package-crossos-load:
+    needs: [build-linux, build-windows]
+    if: ${{ !cancelled() && needs.build-linux.result == 'success' && needs.build-windows.result == 'success' }}
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        sparse-checkout: .github/scripts
+        fetch-depth: 1
+    - name: Download the Windows build
+      uses: actions/download-artifact@v4
+      with:
+        name: rsbs-windows
+        path: rsbs-windows
+    - name: Download the Linux leg's seed package
+      uses: actions/download-artifact@v4
+      with:
+        name: seed-package-linux
+        path: linux-package
+    - name: Load the Linux package with the Windows build
+      shell: pwsh
+      env:
+        SDL_AUDIODRIVER: dummy
+        SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN: "1"
+        RSBS_DISABLE_OTR_INIT: "1"
+      run: |
+        $package = Join-Path $PWD 'linux-package/seed-package-roundtrip.rsbs-seed.zip'
+        if (-not (Test-Path $package)) { throw "the Linux leg uploaded no seed package" }
+        New-Item -ItemType Directory -Force reports/linux, reports/windows | Out-Null
+        Copy-Item linux-package/seed-package-roundtrip-load.txt reports/linux/seed-package-load.txt
+        $exe = Get-ChildItem -Path rsbs-windows -Recurse -Filter redship.exe | Select-Object -First 1
+        if ($null -eq $exe) { throw "the Windows build artifact holds no redship.exe" }
+        $env:RSBS_SEED_PACKAGE_PATH = $package
+        $env:RSBS_SEED_PACKAGE_REPORT = Join-Path $PWD 'reports/windows/seed-package-load.txt'
+        Push-Location $exe.DirectoryName
+        & $exe.FullName --test seed-package-load
+        $rc = $LASTEXITCODE
+        Pop-Location
+        if ($rc -ne 0) { throw "redship --test seed-package-load exited $rc on the Linux package" }
+    - name: Diff the Linux and Windows loads of the Linux package
+      run: python .github/scripts/diff-crossos-digests.py reports/linux linux reports/windows windows
 
   create-release:
     # Tag-triggered release publishing (issue #318): attaches the builds from

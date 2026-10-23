@@ -159,7 +159,9 @@ int Fail(int code, const char* fmt, ...) {
 // (and would quarantine) whatever .redsave sits at the slot path, and a lock
 // has no business touching the operator's real saves.
 constexpr int kSlot = 0;
-const char* const kScratchSaveDir = "rsbs_test_saves_spoiler_identity";
+inline const char* kScratchSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_spoiler_identity");
+}
 
 // Planted as the "last toast" before every leg, so a refusal assertion can
 // never be satisfied by a toast an EARLIER leg emitted. The overlay's store has
@@ -258,8 +260,8 @@ extern "C" int MM_SpoilerIdentity_RunHeadless(void) {
     // ---- Stage a spoiler for world A, through the real writer --------------
     {
         std::error_code ec;
-        std::filesystem::create_directories(kScratchSaveDir, ec);
-        rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir);
+        std::filesystem::create_directories(kScratchSaveDir(), ec);
+        rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir());
     }
     memset(&gSaveContext, 0, sizeof(gSaveContext));
     ComboContext_Init();

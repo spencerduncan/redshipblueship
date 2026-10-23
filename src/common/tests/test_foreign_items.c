@@ -111,7 +111,9 @@ namespace {
 // format. Zero is RC_UNKNOWN and must be rejected.
 const uint16_t kForeignTestCheckA = 0x0123;
 const uint16_t kForeignTestCheckB = 0x0456;
-const char* const kForeignSaveDir = "rsbs_test_saves_foreign";
+inline const char* kForeignSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_foreign");
+}
 
 struct ForeignAwardCtx {
     int awardCount;
@@ -151,7 +153,7 @@ bool ForeignTestWriteShortRecord(const std::string& path, uint32_t comboSize) {
     h.mmSize = (uint32_t)MM_SAVE_CONTEXT_SIZE;
     h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
 
-    std::filesystem::create_directories(kForeignSaveDir);
+    std::filesystem::create_directories(kForeignSaveDir());
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) {
         return false;
@@ -342,7 +344,7 @@ TestResult Test_ForeignItemGive(void) {
     memcpy(expected, gComboCtx.foreignPlacements, sizeof(expected));
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kForeignSaveDir);
+    mgr.SetSaveDirectory(kForeignSaveDir());
     mgr.DeleteSave(0);
     FI_ASSERT(mgr.Save(0));
 
@@ -486,7 +488,7 @@ TestResult Test_ForeignItemGiveReverse(void) {
     memcpy(expectedOoT, gComboCtx.foreignPlacementsOoT, sizeof(expectedOoT));
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kForeignSaveDir);
+    mgr.SetSaveDirectory(kForeignSaveDir());
     mgr.DeleteSave(0);
     FI_ASSERT(mgr.Save(0));
 
@@ -675,7 +677,7 @@ TestResult Test_ForeignItemGiveReverse(void) {
     // arrival). Scribbled before the load so a pass cannot come from residue.
     {
         rsbs::SaveManager& commitMgr = rsbs::SaveManager::Instance();
-        commitMgr.SetSaveDirectory(kForeignSaveDir);
+        commitMgr.SetSaveDirectory(kForeignSaveDir());
         commitMgr.DeleteSave(0);
         FI_ASSERT(commitMgr.Save(0));
 

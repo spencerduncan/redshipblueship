@@ -83,7 +83,9 @@ extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, s
 
 namespace {
 
-const char* const kWholeFileTestDir = "rsbs_test_whole_file_commit";
+inline const char* kWholeFileTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_whole_file_commit");
+}
 
 // A whole SaveContext-sized buffer standing in for a game's LIVE gSaveContext.
 // The headless tier cannot include either game's z64save.h (that is the whole
@@ -145,7 +147,7 @@ TestResult Test_WholeFileCommit(void) {
     printf("[TEST] whole-file-commit: one commit carries both halves; the newest whole commit wins (#589)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kWholeFileTestDir);
+    mgr.SetSaveDirectory(kWholeFileTestDir());
 
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
@@ -284,7 +286,7 @@ TestResult Test_WholeFileRedeemedItem(void) {
            "together (#531)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kWholeFileTestDir);
+    mgr.SetSaveDirectory(kWholeFileTestDir());
 
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();

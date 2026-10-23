@@ -257,7 +257,7 @@ void XsRestampCrc(std::vector<uint8_t>& file) {
 // ============================================================================
 TestResult Test_CrossingStoreRoundtrip(void) {
     printf("[TEST] crossing-store-roundtrip: capture, read, hydrate, freeze/restore and invalidation (ADR 0010 O7)\n");
-    XsUseDir("rsbs_test_saves_crossings_roundtrip");
+    XsUseDir(rsbs::test::ScratchDirCStr("rsbs_test_saves_crossings_roundtrip"));
     XsRestore();
     XsUseStubEngines();
     Combo_Logic_ResetPlacements();
@@ -387,7 +387,7 @@ TestResult Test_CrossingStoreRoundtrip(void) {
 // ============================================================================
 TestResult Test_CrossingStoreCapacity(void) {
     printf("[TEST] crossing-store-capacity: the cap is stored, one over is refused, never truncated (ADR 0010 O7)\n");
-    XsUseDir("rsbs_test_saves_crossings_capacity");
+    XsUseDir(rsbs::test::ScratchDirCStr("rsbs_test_saves_crossings_capacity"));
     XsRestore();
     const int cap = (int)RSBS_CROSSING_STORE_CAP;
 
@@ -540,7 +540,7 @@ TestResult Test_CrossingStoreCapacity(void) {
 // ============================================================================
 TestResult Test_CrossingStoreRedsave(void) {
     printf("[TEST] crossing-store-redsave: format v3 Tier-4 round-trip, legacy, malformed, refused (ADR 0010 O7)\n");
-    XsUseDir("rsbs_test_saves_crossings_redsave");
+    XsUseDir(rsbs::test::ScratchDirCStr("rsbs_test_saves_crossings_redsave"));
     XsRestore();
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
     mgr.SetSaveDirectory(sXsSaveDir);
@@ -642,7 +642,7 @@ TestResult Test_CrossingStoreRedsave(void) {
 // ============================================================================
 TestResult Test_CrossingStoreSpoiler(void) {
     printf("[TEST] crossing-store-spoiler: combo.crossingStore write -> load byte-identical (ADR 0010 O7)\n");
-    XsUseDir("rsbs_test_saves_crossings_spoiler");
+    XsUseDir(rsbs::test::ScratchDirCStr("rsbs_test_saves_crossings_spoiler"));
     XsRestore();
     XsPair(); // the section is written for, and loaded into, THIS world (#610)
     std::error_code ec;

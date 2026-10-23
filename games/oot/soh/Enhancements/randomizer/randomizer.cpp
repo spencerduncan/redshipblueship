@@ -41,6 +41,7 @@
 #include "soh/Notification/Notification.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "seed_package.h"  // src/common — #1044: the file select completes what this worker generated
 #include "triforce_hunt.h" // src/common — ADR 0010 O10: the combo requirement a paired hunt ends on
 // soh/Enhancements/randomizer/ComboGoalEndingOoT.cpp — #768: may the triforce
 // piece's win arm end OoT under the frozen combo goal?
@@ -3545,6 +3546,13 @@ void GenerateRandomizerImgui(std::string seed = "") {
     generated = 1;
 
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnGenerationCompletion>();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#1044): the worker's last act. A paired world stops at its general pass
+    // here; the next file-select frame completes it on the game thread (MM's
+    // generation writes gSaveContext, which the file select reads every frame),
+    // writes its seed package and stages it (OoT_SeedPackage_FileSelectTick).
+    OoT_SeedPackage_MarkWorkerFinished();
+#endif
 }
 
 bool GenerateRandomizer(std::string seed /*= ""*/) {

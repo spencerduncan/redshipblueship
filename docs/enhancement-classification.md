@@ -336,6 +336,14 @@ is left to its elided widget.
 | Max camera distance | `gSettings.FreeLook.MaxCameraDistance` | `gEnhancements.Camera.FreeLook.MaxCameraDistance` | identical leaf |
 | Transition speed | `gSettings.FreeLook.TransitionSpeed` | `gEnhancements.Camera.FreeLook.TransitionSpeed` | identical leaf |
 
+**#1037 — Damage Multiplier, held apart and hosted.** `gEnhancements.DamageMult` (OoT) and
+`gEnhancements.DifficultyOptions.DamageMultiplier` (MM) are the same idea (a left-shift of the damage taken) and the
+values 0-4 agree (1x-16x), but OoT's list runs 0-8 (to 256x) and MM's is 0-4 plus 10 (1 Hit KO), so each menu would
+show a blank for the other's value. Ruled: the keys stay distinct (`kMustStayDistinct`, no longer PARKED) and MM's own
+row, with MM's own list, is hosted beside SoH's on Enhancements > Difficulty ("MM Damage Multiplier"). MM's provider
+(`DifficultyOptions/DamageMultiplier.cpp`) was elided from the single exe and is carved into `ship__Enh_registrars`.
+The #966 audit table's row for it reads: not mapped, hosted separately, fixed by #1037.
+
 MM-only within free-look: `MinPitch`, `MaxPitch` → (O). OoT-only:
 `FreeLook.CameraSensitivity.{X,Y}` → see P3, do not merge.
 

@@ -616,6 +616,11 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
           "N64 Weird Frames",
           { { "VB_LOAD_PLAYER_ANIMATION_FRAME (Restorations/N64WeirdFrames/N64WeirdFrames.cpp)",
               GAP_VB_COUNT(VB_LOAD_PLAYER_ANIMATION_FRAME), 1 } } },
+        // #1037: the held-apart damage multiplier (MM's own key, hosted beside SoH's row).
+        { "gEnhancements.DifficultyOptions.DamageMultiplier",
+          "Damage Multiplier",
+          { { "VB_MULTIPLY_INFLICTED_DMG (DifficultyOptions/DamageMultiplier.cpp)",
+              GAP_VB_COUNT(VB_MULTIPLY_INFLICTED_DMG), 1 } } },
         // Skip Misc Interactions: 25 TUs under Cutscenes/MiscInteractions/, one key. Per registry, the contributors:
         //   VB_START_CUTSCENE 8 = AlienStartAndFail, DekuTelescope, GivingBombersNotebook, KamaroTeachDance,
         //     KotakeFlying, MayorsOfficeCutscene, RosaSistersDance, TurtleGoodbye.
@@ -1096,7 +1101,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
            "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
-           "of #1023 armed both its hooks; the 9 key-gap keys of #1030-#1036, #1038 and #1123 each armed their TUs)\n");
+           "of #1023 armed both its hooks; the 10 key-gap keys of #1030-#1038 and #1123 each armed their TUs)\n");
     return 0;
 }
 

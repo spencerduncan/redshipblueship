@@ -49,7 +49,9 @@
 
 namespace {
 
-const char* const kRefusalTestDir = "rsbs_test_refusal_saves";
+inline const char* kRefusalTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_refusal_saves");
+}
 
 uint8_t RefusalOoTByte(size_t i) {
     return static_cast<uint8_t>(0x9Du + i * 13u);
@@ -144,8 +146,8 @@ std::vector<std::string> RefusalQuarantines(int slot) {
 // for "a fresh process meets this file".
 void RefusalFreshDir() {
     std::error_code ec;
-    std::filesystem::remove_all(kRefusalTestDir, ec);
-    std::filesystem::create_directories(kRefusalTestDir, ec);
+    std::filesystem::remove_all(kRefusalTestDir(), ec);
+    std::filesystem::create_directories(kRefusalTestDir(), ec);
     rsbs::SaveManager::Instance().ResetSlotSessionState();
 }
 
@@ -213,7 +215,7 @@ TestResult Test_SaveRefusedQuarantine(void) {
     printf("[TEST] save-refused-quarantine: every refusal quarantines the evidence and latches the slot (#533)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kRefusalTestDir);
+    mgr.SetSaveDirectory(kRefusalTestDir());
 
     // ---- CRC-corrupt (single flipped payload byte) -----------------------
     RefusalFreshDir();
@@ -265,7 +267,7 @@ TestResult Test_SaveRefusedQuarantine(void) {
     }
 
     std::error_code ec;
-    std::filesystem::remove_all(kRefusalTestDir, ec);
+    std::filesystem::remove_all(kRefusalTestDir(), ec);
     rsbs::SaveManager::Instance().ResetSlotSessionState();
     printf("[TEST] PASS: CRC/truncation/wrong-slot/future-version each quarantine + latch, evidence intact\n");
     return TEST_PASS;
@@ -275,7 +277,7 @@ TestResult Test_SaveWriteLatch(void) {
     printf("[TEST] save-write-latch: Save refuses any slot this session did not load, create, or erase (#533)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kRefusalTestDir);
+    mgr.SetSaveDirectory(kRefusalTestDir());
 
     // ---- The counterfactual, authored directly ---------------------------
     // A corrupt fixture sits at slot 0; the session never opened the slot;
@@ -355,7 +357,7 @@ TestResult Test_SaveWriteLatch(void) {
     REFUSE_ASSERT(mgr.GetSlotRefuseReason(0) == RSBS_REFUSE_NONE, "erase must clear the identity refusal record");
 
     std::error_code ec;
-    std::filesystem::remove_all(kRefusalTestDir, ec);
+    std::filesystem::remove_all(kRefusalTestDir(), ec);
     mgr.ResetSlotSessionState();
     printf("[TEST] PASS: the latch protects un-established slots; load/create/erase are the only keys; the "
            "identity refusal latches without touching the healthy file\n");
@@ -366,7 +368,7 @@ TestResult Test_SaveArmOnCreate(void) {
     printf("[TEST] save-arm-on-create: file-create quarantines a failing .redsave before its first write (#533)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kRefusalTestDir);
+    mgr.SetSaveDirectory(kRefusalTestDir());
 
     // ---- Create over a corrupt .redsave preserves the evidence -----------
     // The z_sram.c seam: a new OoT file is created in a slot whose stale
@@ -425,7 +427,7 @@ TestResult Test_SaveArmOnCreate(void) {
     REFUSE_ASSERT(mgr.IsSlotWritable(0), "erase must arm the slot");
 
     std::error_code ec;
-    std::filesystem::remove_all(kRefusalTestDir, ec);
+    std::filesystem::remove_all(kRefusalTestDir(), ec);
     mgr.ResetSlotSessionState();
     printf("[TEST] PASS: create quarantines before first write; refusals are sticky; evidence dedupes\n");
     return TEST_PASS;
@@ -435,7 +437,7 @@ TestResult Test_SaveRefusedMeta(void) {
     printf("[TEST] save-refused-meta: the slot surface reports REFUSED distinctly from empty (#533)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kRefusalTestDir);
+    mgr.SetSaveDirectory(kRefusalTestDir());
 
     // ---- Empty slot: ABSENT, no quarantine -------------------------------
     RefusalFreshDir();
@@ -493,7 +495,7 @@ TestResult Test_SaveRefusedMeta(void) {
     }
 
     std::error_code ec;
-    std::filesystem::remove_all(kRefusalTestDir, ec);
+    std::filesystem::remove_all(kRefusalTestDir(), ec);
     mgr.ResetSlotSessionState();
     printf("[TEST] PASS: ABSENT / VALID / REFUSED are three different surfaced facts\n");
     return TEST_PASS;
