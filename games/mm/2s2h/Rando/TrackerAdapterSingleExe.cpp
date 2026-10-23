@@ -242,15 +242,6 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
     return item->second.name;
 }
 
-/**
- * MM's live save for the view's LIVE read, or NULL (#799). Only while MM's play
- * state is loaded: MM_gPlayState is set late in MM_Play_Init, after the
- * arrival consumes the frozen half into gSaveContext (z_play.c), and nulled
- * by MM_Play_Destroy and MM_Graph_ResetRunFrameContext (graph.c). That excludes the
- * title screen, which authors an unmarked bootstrap save (Sram_InitNewSave),
- * and file select, which reads each slot through the live buffer while it
- * scans them — neither is the player's world.
- */
 // The reachability lock's stand-ins (MM_TrackerAdapter_TestLiveSeam and
 // MM_TrackerAdapter_TestInLogicSeam below, #1129). sLiveTest: -1 is production;
 // 0 or 1 answers "does MM play a randomizer file now" in place of MM's play state.
@@ -261,6 +252,15 @@ bool sInLogicAuthored = false;
 std::vector<uint16_t> sInLogicAuthoredIds;
 int sInLogicCalls = 0;
 
+/**
+ * MM's live save for the view's LIVE read, or NULL (#799). Only while MM's play
+ * state is loaded: MM_gPlayState is set late in MM_Play_Init, after the
+ * arrival consumes the frozen half into gSaveContext (z_play.c), and nulled
+ * by MM_Play_Destroy and MM_Graph_ResetRunFrameContext (graph.c). That excludes the
+ * title screen, which authors an unmarked bootstrap save (Sram_InitNewSave),
+ * and file select, which reads each slot through the live buffer while it
+ * scans them — neither is the player's world.
+ */
 const void* MMTrackerLiveSave(void) {
     if (sLiveTest >= 0) {
         return sLiveTest == 1 ? static_cast<const void*>(&gSaveContext) : nullptr;
