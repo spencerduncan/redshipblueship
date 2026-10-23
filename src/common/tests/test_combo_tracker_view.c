@@ -833,6 +833,8 @@ static int CtvAvailMM(const ComboMMTrackerDesc* real, std::vector<uint8_t>& shad
     Combo_Tracker_RegisterMM(&testDesc);
     const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
     const GameId prevGame = Context_GetCurrentGame();
+    const bool hadKey = CVarExists(kCtvAvailableKey); // put back as found: never lose or leave a player value
+    const int32_t keyValue = CVarGetInteger(kCtvAvailableKey, 0);
 
     int result = TEST_FAIL;
     if (desc != NULL && desc->liveAvailable != NULL) { // the MM TU installs the op
@@ -858,7 +860,11 @@ static int CtvAvailMM(const ComboMMTrackerDesc* real, std::vector<uint8_t>& shad
     }
 
     // Production again, whatever the legs did.
-    CVarClear(kCtvAvailableKey);
+    if (hadKey) {
+        CVarSetInteger(kCtvAvailableKey, keyValue);
+    } else {
+        CVarClear(kCtvAvailableKey);
+    }
     MM_TrackerAdapter_TestLiveSeam(-1);
     (void)MM_TrackerAdapter_TestInLogicSeam(0, nullptr, 0);
     sCtvLive = NULL;

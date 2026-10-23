@@ -749,7 +749,12 @@ int LockAvailBody(void) {
 }
 
 int LockAvail(void) {
+    // OoT is played: the synthetic registrant's rows are the LIVE panel's (while
+    // MM is played the view shows the departure capture instead, #1129).
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_SetCurrentGame(GAME_OOT);
     const int result = LockAvailBody();
+    Context_SetCurrentGame(prevGame);
     sCtwAvailableIds.clear();
     OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
     return result;
