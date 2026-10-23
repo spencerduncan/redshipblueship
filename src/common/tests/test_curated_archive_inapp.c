@@ -350,10 +350,12 @@ const char* const kCaiTrackerIcons[] = {
     "icon_item_field_static/gWorldMapOwlFaceTex",
 };
 // Siblings in the same directories that no tracker row names.
+// Each family's own sibling (an ocarina glyph, a stray-fairy icon, a clock
+// texture) catches a manifest entry shortened to the family's prefix.
 const char* const kCaiTrackerIconSiblings[] = {
-    "parameter_static/gAmmoDigit0Tex",
-    "parameter_static/gArcheryScoreIconTex",
-    "icon_item_dungeon_static/gDungeonMap1FButtonTex",
+    "parameter_static/gAmmoDigit0Tex",          "parameter_static/gArcheryScoreIconTex",
+    "parameter_static/gOcarinaTrebleClefTex",   "parameter_static/gStrayFairyGlowingCircleIconTex",
+    "parameter_static/gThreeDayClockHour1Tex",  "icon_item_dungeon_static/gDungeonMap1FButtonTex",
     "icon_item_field_static/gWorldMapArrowTex",
 };
 
