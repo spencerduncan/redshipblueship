@@ -284,9 +284,13 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     { 1035, "gEnhancements.SkipArrowAnimation", "Equipment/SkipMagicArrowEquip.cpp" },
     { 1036, "gEnhancements.PermanentHeartLoss", "DifficultyOptions/PermanentHeartLoss.cpp" },
     { 1038, "gEnhancements.N64WeirdFrames", "Restorations/N64WeirdFrames/N64WeirdFrames.cpp" },
+    // #1037: the held-apart damage multiplier. Not a key-name gap (nothing is mapped), but the same defect: the
+    // provider registers only through a file-scope RegisterShipInitFunc in the plain 2ship_enh archive.
+    { 1037, "gEnhancements.DifficultyOptions.DamageMultiplier", "DifficultyOptions/DamageMultiplier.cpp" },
 };
 
-/// #1037: held APART, not mapped. OoT's DamageMult list runs 0-8, MM's 0-4 plus 10.
+/// #1037: held APART, not mapped, and HOSTED: OoT's DamageMult list runs 0-8, MM's 0-4 plus 10, so each game keeps its
+/// own key and the SoH menu draws MM's own row beside SoH's (Enhancements > Difficulty).
 constexpr const char* kCvarClassDamageMultMm = "gEnhancements.DifficultyOptions.DamageMultiplier";
 constexpr const char* kCvarClassDamageMultOot = "gEnhancements.DamageMult";
 
@@ -464,19 +468,21 @@ TestResult Test_CVarClassification(void) {
         }
     }
 
-    // #1037 is the one audit row that must NOT be mapped: it stays in
-    // kMustStayDistinct until an operator ruling picks a value space.
+    // #1037 is the one audit row that must NOT be mapped: the value spaces differ, so it stays in kMustStayDistinct
+    // with a ruled reason (hosted beside SoH's row, one key per game), not as a PARKED question.
     {
         bool held = false;
         for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
             if (strcmp(RSBS::kMustStayDistinct[i].mmKey, kCvarClassDamageMultMm) == 0 &&
                 strcmp(RSBS::kMustStayDistinct[i].ootKey, kCvarClassDamageMultOot) == 0) {
                 held = true;
+                CVARCLASS_CHECK(strncmp(RSBS::kMustStayDistinct[i].row, "PARKED", 6) != 0,
+                                "#1037: the damage multiplier entry is still PARKED. The ruling is made: the value "
+                                "spaces differ, MM's own row is hosted beside SoH's, and the entry says so");
             }
         }
         CVARCLASS_CHECK(held, "#1037: the damage multiplier pair is not in kMustStayDistinct — OoT's DamageMult "
-                              "runs 0-8 and MM's 0-4 plus 10 (1-hit KO), so a plain key swap is a regression; "
-                              "an operator ruling on the value space comes first");
+                              "runs 0-8 and MM's 0-4 plus 10 (1-hit KO), so a plain key swap is a regression");
         for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
             CVARCLASS_CHECK(strcmp(RSBS::kConvergedKeys[i].legacy, kCvarClassDamageMultMm) != 0 &&
                                 strcmp(RSBS::kConvergedKeys[i].canonical, kCvarClassDamageMultOot) != 0,
@@ -840,6 +846,34 @@ TestResult Test_CVarClassification(void) {
                     return TEST_FAIL;
                 }
             }
+        }
+
+        // (3f-2b) #1037, the HOSTED half of a held-apart pair. The two keys stay distinct (the value spaces differ),
+        // so MM's own key needs a control of its own or it does nothing in the single exe. The control is a row on
+        // SoH's Enhancements > Difficulty page, bound through the src/common constant: games/oot may not spell MM's
+        // key (3c-2), and a literal there would converge the pair from OoT's side.
+        {
+            bool menuOk = false;
+            const std::vector<std::string> sohGuiTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && !sohGuiTree.empty(), "could not scan games/oot/soh/SohGui for the hosted row");
+            std::ifstream keysFile(sourceRoot / "src" / "common" / "cvar_shared_keys.h", std::ios::binary);
+            const std::string keysText((std::istreambuf_iterator<char>(keysFile)), std::istreambuf_iterator<char>());
+            const std::string defineLine =
+                std::string("#define RSBS_CVAR_MM_DAMAGE_MULTIPLIER \"") + kCvarClassDamageMultMm + "\"";
+            CVARCLASS_CHECK(keysText.find(defineLine) != std::string::npos,
+                            "#1037: src/common/cvar_shared_keys.h does not define RSBS_CVAR_MM_DAMAGE_MULTIPLIER as "
+                            "MM's damage multiplier key");
+            bool hosted = false;
+            for (const std::string& text : sohGuiTree) {
+                if (text.find(".CVar(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)") != std::string::npos) {
+                    hosted = true;
+                }
+            }
+            CVARCLASS_CHECK(hosted, "#1037: no row under games/oot/soh/SohGui writes MM's damage multiplier key "
+                                    "(.CVar(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)), so the MM reader has no control");
+            CVARCLASS_CHECK(CvarClassOotTreeNamesKey(sohGuiTree, kCvarClassDamageMultOot),
+                            "#1037: SoH's own Damage Multiplier row no longer writes gEnhancements.DamageMult");
         }
 
         // (3f-3) Mapped is not live: the #966 key-gap rows whose provider is a RegisterShipInitFunc-only TU

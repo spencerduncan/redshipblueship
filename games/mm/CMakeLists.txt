@@ -501,6 +501,11 @@ if(SINGLE_EXECUTABLE_BUILD)
         # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
         "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
         "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
+        # #1037 (Damage Multiplier, VB_MULTIPLY_INFLICTED_DMG from func_808339D4 in z_player.c; dispatched through
+        # MM_GameHooks_ExecuteVBShould. The body only shifts the damage the hook is handed, so it needs no play-state
+        # guard. Held APART from SoH's gEnhancements.DamageMult, whose value space differs: the row that writes MM's
+        # key is hosted beside SoH's on Enhancements > Difficulty. RegisterDamageMultiplier has no twin in games/oot)
+        "2s2h/Enhancements/DifficultyOptions/DamageMultiplier.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

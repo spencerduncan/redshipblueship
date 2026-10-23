@@ -77,7 +77,9 @@
 
 namespace {
 
-const char* const kCommitGenTestDir = "rsbs_test_commit_gen";
+inline const char* kCommitGenTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_commit_gen");
+}
 
 // Fill both shadows with a single repeated byte. One byte per instant makes a
 // torn mix of two instants detectable by scanning for ANY off-pattern byte.
@@ -113,7 +115,7 @@ TestResult Test_CommitGenerationMonotonic(void) {
     printf("[TEST] commit-generation-monotonic: choke-point commits stamp a monotonic Tier-1 generation (#537)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCommitGenTestDir);
+    mgr.SetSaveDirectory(kCommitGenTestDir());
 
     Context_InitFrozenStates();
     ComboContext_Init();
@@ -163,7 +165,7 @@ TestResult Test_CommitTornWrite(void) {
     printf("[TEST] commit-torn-write: post-stage mutation cannot reach the artifact (#537)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCommitGenTestDir);
+    mgr.SetSaveDirectory(kCommitGenTestDir());
 
     Context_InitFrozenStates();
     ComboContext_Init();
@@ -294,7 +296,7 @@ TestResult Test_CommitGenerationOrder(void) {
     printf("[TEST] commit-generation-order: an older generation never replaces a newer commit (#851)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCommitGenTestDir);
+    mgr.SetSaveDirectory(kCommitGenTestDir());
 
     Context_InitFrozenStates();
     ComboContext_Init();
@@ -395,7 +397,7 @@ TestResult Test_CommitGenerationSkew(void) {
     printf("[TEST] commit-generation-skew: cross-artifact freshness at load, surfaced via #533 (#531/#564 V16)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCommitGenTestDir);
+    mgr.SetSaveDirectory(kCommitGenTestDir());
 
     Context_InitFrozenStates();
     ComboContext_Init();

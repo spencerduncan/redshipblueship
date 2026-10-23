@@ -36,7 +36,9 @@ tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSB
 ```
 
 `GoldenSeedDigestPlayerPath` has no file of its own: it compares the player's path
-with `seed-digest-default.txt` (see "The player's path" below).
+with `seed-digest-default.txt` (see "The player's path" below). Nor does
+`GoldenSeedDigestPackagePath`, which compares a file created from a seed package
+with it (see "The package path" below).
 
 `seed-digest-entrances` exists because the shipped profile shuffles no entrance, so
 in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
@@ -780,3 +782,38 @@ refuses another one.
 Then run the regen target and commit the new file. The dispatch must write its
 digest to the named environment variable's path and must emit one `key=value` per
 line; free text cannot be diffed field by field and the checker refuses it.
+
+## The package path (#1044)
+
+Since #1044 the paired world is completed when the player presses Generate and
+written as a seed package (`Randomizer/<seed name>-<fingerprint>.rsbs-seed.zip`,
+src/common/seed_package.h), which file creation binds. The package carries this
+document's digest of its own world as `digest.txt` (and in `identity.json`'s entry
+table): the head is `Rando_HeadlessWriteDeterminismHead` over OoT's world at its
+general pass, the rest is `WritePairedHalfDigest` with MM's finished half in view,
+the player-path row's writers and sources.
+
+`GoldenSeedDigestPackagePath` checks that a package is the pinned world. It runs
+two processes through `CheckGoldenDigest.cmake`'s `PRE_DISPATCH`:
+
+1. `--test seed-package-golden-write`: the player's Generate (the full OTR
+   bring-up, the worker thread, then the file select's tick, which completes the
+   world and writes the package), exported to
+   `golden-seed-digest-default-package-path-actual.rsbs-seed.zip` beside the
+   digest.
+2. `--test seed-package-golden-create`: a process that never generated loads that
+   package off disk, creates file 0 from it, and writes the digest: the
+   generation's own lines (the identity head and the single bag's run, which
+   describe how the world was made) from the package's `digest.txt`, and every
+   world line (MM's world, OoT's final world, the content, every crossing)
+   recomputed from the created file. It also requires the recomputed digest to
+   equal the package's own.
+
+It requires `seed-digest-default`, and sits outside `REDSHIP_GOLDEN_DIGESTS` for
+the player-path row's reason: a difference is a finding about the package path,
+never a world to re-pin. `SeedPackageRoundTrip` is its two-process twin over the
+whole world (identity and records, OoT's placement and content, the crossings,
+MM's half byte for byte, the spoiler's bytes) rather than the digest's fields.
+
+A package is not compared byte for byte across platforms (deflate's output depends
+on the zlib build); its entries are.

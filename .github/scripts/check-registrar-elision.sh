@@ -683,6 +683,8 @@ main() {
         "RegisterSkipMagicArrowEquip()"
         "MM_RegisterPermanentHeartLoss()"
         "MM_RegisterN64WeirdFrames()"
+        # #1037: Damage Multiplier (MM's own key, hosted beside SoH's row), in lib2ship_enh_registrars.a. No OoT twin.
+        "RegisterDamageMultiplier()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do

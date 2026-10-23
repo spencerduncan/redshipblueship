@@ -1993,3 +1993,20 @@ Locked by `CrossItemRulesRecord`, `SharedSongOfTimePairs`,
 `SharedSongOfTimeArrival`, `MMPairedStartSharedSongTime`,
 `MMMoonCrashCycleForced`, `MMMoonCrashCycleReset` and the ROM-staged
 `IntMoonCrashCycle`.
+
+### 2026-10-22 -- The record freezes at Generate; file creation binds it from a seed package (#1044)
+
+Decision 4's "frozen at creation" is amended with the one-game ruling it
+implements (ADR 0010's amendment of the same date): **the record freezes at
+Generate; file creation binds a frozen package.** The freeze itself is where it
+was (`Playthrough_Init`, before OoT's `Fill()`, decision 4.1's order); what
+changed is that the rest of the paired world is completed at Generate too, and
+written with the record into a seed package (`placement/combo-context.bin`, the
+Tier-1 layout, beside `identity.json`'s readable copy of the record, the item
+rules and the triforce record). File creation re-applies the record from the
+staged package rather than relying on the KEEP invalidation alone, so a record the
+file-create invalidation would DROP (a resident seed that is not the created
+world's, #597) or a session the package outlived still binds the frozen record.
+The arrival and load compares (decision 4.3, "frozen wins at load") are
+unchanged. A loaded package's record is checked against its identity and its
+fingerprint against this generator's formula before anything is applied.

@@ -37,6 +37,11 @@
  *      flash file), so the clock alone restarts at dawn (day 0, 05:59) rather
  *      than keeping the pre-crash day.
  *
+ * Checks 4 and 5 (#599) pin the two page-table layouts against each other and the regular-save
+ * index built on them: gFlashSaveStartPages interleaves main/backup per file (14 entries), the
+ * owl tables (6 entries) do the same for owl saves, and the regular save of file n is therefore
+ * entry n * FLASH_SAVE_MAIN_MULTIPLIER, not entry n.
+ *
  * Removing the fix (reverting the func_80147314 / Sram_ResetSaveFromMoonCrash
  * guards) flips checks 2 and 3 to failure without any crash: the OOB reads land
  * in adjacent .data, the funnel rejects the garbage pages as unavailable, and
@@ -159,6 +164,66 @@ extern "C" int MM_FlashFileNumOob_RunHeadless(void) {
         FLASH_ASSERT(gSaveContext.save.day == 0 && gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
                      "with no commit to restore, the moon-crash reset restarts the clock at dawn (#785), "
                      "not the pre-crash day");
+    }
+
+    // ------------------------------------------------------------------
+    // Check 4 (#599): the two table families' declared layouts, and the relation between them.
+    // Both interleave (main, backup) per file, so a file's main copy is entry
+    // fileNum * FLASH_SAVE_MAIN_MULTIPLIER in either family, and the owl tables are the owl
+    // slice of the main tables: owl[i] == main[FLASH_SAVE_FILE_1_OWL_SAVE + i]. If either table
+    // is re-ordered, extended or re-based this goes red and every indexer must be revisited.
+    // ------------------------------------------------------------------
+    {
+        s32 mainCount = 0;
+        s32 owlCount = 0;
+        Sram_FlashTableExtents(&mainCount, &owlCount);
+
+        FLASH_ASSERT(mainCount == FLASH_SAVE_MAX, "gFlashSaveStartPages must have exactly FLASH_SAVE_MAX entries");
+        FLASH_ASSERT(owlCount == FILE_NUM_MAX * FLASH_SAVE_MAIN_MULTIPLIER,
+                     "gFlashOwlSaveStartPages must have one (main, backup) pair per file slot");
+        FLASH_ASSERT(FLASH_SAVE_FILE_1_OWL_SAVE == FILE_NUM_MAX * FLASH_SAVE_MAIN_MULTIPLIER,
+                     "the owl slice of gFlashSave*Pages must start right after the new-cycle pairs");
+        FLASH_ASSERT(
+            FLASH_SAVE_FILE_2_NEW_CYCLE_SAVE == FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE + FLASH_SAVE_MAIN_MULTIPLIER &&
+                FLASH_SAVE_FILE_3_NEW_CYCLE_SAVE == FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE + 2 * FLASH_SAVE_MAIN_MULTIPLIER &&
+                FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE_BACKUP == FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE + FLASH_SAVE_BACKUP_OFFSET,
+            "new-cycle entries must be (main, backup) pairs spaced by FLASH_SAVE_MAIN_MULTIPLIER");
+
+        for (s32 fileNum = 0; fileNum < FILE_NUM_MAX; fileNum++) {
+            for (s32 copy = 0; copy < FLASH_SAVE_MAIN_MULTIPLIER; copy++) {
+                s32 owlIdx = fileNum * FLASH_SAVE_MAIN_MULTIPLIER + copy;
+                FLASH_ASSERT(gFlashOwlSaveStartPages[owlIdx] ==
+                                 gFlashSaveStartPages[FLASH_SAVE_FILE_1_OWL_SAVE + owlIdx],
+                             "owl start-page table disagrees with the owl slice of gFlashSaveStartPages");
+                FLASH_ASSERT(gFlashOwlSaveNumPages[owlIdx] == gFlashSaveNumPages[FLASH_SAVE_FILE_1_OWL_SAVE + owlIdx],
+                             "owl page-count table disagrees with the owl slice of gFlashSaveNumPages");
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Check 5 (#599): the regular-save flash target of each file slot is that file's MAIN
+    // new-cycle entry. The pause-menu save-and-quit (kaleido) and the game-over save aim the
+    // flash funnel through Sram_SetFlashPagesDefaultForFile; indexing gFlashSaveStartPages by
+    // the bare fileNum aims file 2 at file 1's BACKUP pages (0x40) and file 3 at file 2's MAIN
+    // pages (0x80) -- the owl path's fileNum * FLASH_SAVE_MAIN_MULTIPLIER is the right form.
+    // ------------------------------------------------------------------
+    {
+        const s32 mainEntry[FILE_NUM_MAX] = { FLASH_SAVE_FILE_1_NEW_CYCLE_SAVE, FLASH_SAVE_FILE_2_NEW_CYCLE_SAVE,
+                                              FLASH_SAVE_FILE_3_NEW_CYCLE_SAVE };
+
+        for (s32 fileNum = 0; fileNum < FILE_NUM_MAX; fileNum++) {
+            SramContext sramCtx;
+            memset(&sramCtx, 0, sizeof(sramCtx));
+
+            Sram_SetFlashPagesDefaultForFile(&sramCtx, fileNum);
+
+            FLASH_ASSERT(sramCtx.curPage == (u32)gFlashSaveStartPages[mainEntry[fileNum]],
+                         "regular save of a file slot must target that file's MAIN new-cycle start page");
+            FLASH_ASSERT(sramCtx.numPages == (u32)gFlashSaveNumPages[mainEntry[fileNum]],
+                         "regular save of a file slot must use that file's MAIN new-cycle page count");
+            FLASH_ASSERT(sramCtx.status == 1, "Sram_SetFlashPagesDefaultForFile must arm the funnel (status 1)");
+        }
     }
 
     // Leave gSaveContext clean for whatever runs next.

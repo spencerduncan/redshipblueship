@@ -71,7 +71,9 @@ const uint16_t kSpoilerStoreMM = 0x0401;
 // OoT check ids hosting MM items (store rows).
 const uint16_t kSpoilerStoreOoT1 = 0x0055;
 const uint16_t kSpoilerStoreOoT2 = 0x0056;
-const char* const kSpoilerSaveDir = "rsbs_test_saves_spoiler_view";
+inline const char* kSpoilerSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_spoiler_view");
+}
 
 ComboCrossing SpoilerCrossing(uint16_t host, SharedItem item) {
     ComboCrossing c;
@@ -230,7 +232,7 @@ TestResult Test_ComboSpoilerView(void) {
     }
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSpoilerSaveDir);
+    mgr.SetSaveDirectory(kSpoilerSaveDir());
     mgr.DeleteSave(0);
     CSV_ASSERT(mgr.Save(0));
 

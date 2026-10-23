@@ -20,6 +20,7 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm> // std::remove: the seed package locks' CR strip (#1044)
 #include <cstdio>
 #include <cstdlib> // getenv — the attempt-ladder scan/digest modes
 #include <cstring>
@@ -29,6 +30,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <ship/Context.h>
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -1012,6 +1014,8 @@ extern "C" int Rando_HeadlessWorkerGenerate(const char* seedStr);
 extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
 // ForeignItemsSingleExe.cpp (#1055): this generation's spoilers out of the shared build directory.
 extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
+// SeedPackageSingleExe.cpp (#1044): the file select's per-frame completion of a Generate.
+extern "C" int OoT_SeedPackage_FileSelectTick(void);
 
 /**
  * #982: THE PLAYER'S PATH, DIGESTED. Driven only by the GoldenSeedDigestPlayerPath
@@ -1022,12 +1026,15 @@ extern "C" int OoT_Creation_TestClearPairedSpoiler(void);
  * OnSaveInit driven directly and OoT's side of the tail (MM_Rando_HeadlessForeignDigest
  * above). A player takes another path: the full OTR bring-up, the Generate
  * button's GenerateRandomizer(seed) on its worker thread (which reads the settings
- * snapshot and the menu's exclude and trick CVars itself), and then, at file
- * creation, OoT_RunPairedCreationEvent: MM's half through
+ * snapshot and the menu's exclude and trick CVars itself), then, the frame the
+ * worker ends, the file select's tick (OoT_SeedPackage_FileSelectTick, #1044),
+ * which completes the paired world -- MM's half through
  * MM_Rando_AuthorHalfAtCreation, the crossings, OoT's remainder with its spoiler,
- * the spoiler join and the armed MM shadow. This generates the same seed that way
- * and writes the same fields with the same writers: Rando_HeadlessWriteDeterminismHead
- * after the worker joins, then WritePairedHalfDigest with MM's armed half in view.
+ * the spoiler join -- and writes and stages its seed package; and then, at file
+ * creation, OoT_RunPairedCreationEvent, which binds the package and arms MM's half.
+ * This generates the same seed that way and writes the same fields with the same
+ * writers: Rando_HeadlessWriteDeterminismHead after the worker joins, then
+ * WritePairedHalfDigest with MM's armed half in view.
  *
  * One field is read from another source, because the creation's commit drops the
  * coordinator's tables before the event returns: coordinatorDigest is the fill's
@@ -1073,8 +1080,17 @@ extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char
     }
 
     // #1055: a spoiler of this seed that a run of another build left in the build
-    // directory must not meet this creation's spoiler write.
+    // directory must not meet this generation's spoiler write.
     OoT_Creation_TestClearPairedSpoiler();
+    // #1044: the file select's tick the frame the worker ends: Generate's completion,
+    // which writes and stages the seed package the creation below binds.
+    const int ticked = OoT_SeedPackage_FileSelectTick();
+    if (ticked != 1) {
+        fprintf(stderr, "[MM-PLAYER-PATH] FAIL(8): the file select's tick did not complete the paired world (%d)\n",
+                ticked);
+        cleanup();
+        return 8;
+    }
     // Cleared first, so the shadow read below can only be the one this creation armed.
     Combo_ClearFrozenState("mm");
     if (OoT_RunPairedCreationEvent(0) == 0) {
@@ -3343,6 +3359,549 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
                 budget);
     }
     return rc;
+}
+
+// ============================================================================
+// THE SEED PACKAGE LOCKS (#1044)
+// ============================================================================
+// Generate completes the paired world and writes it as a seed package
+// (src/common/seed_package.h); file creation binds a staged package and never
+// fills. These bridges drive the rando-tier rows: SeedPackageRoundTrip (a package
+// written by one process and loaded by another holds the same world),
+// SeedPackageCVarsCannotMoveWorld (a setting changed between Generate and file
+// creation does not reach the created world) and GoldenSeedDigestPackagePath (a
+// file created from a package loaded off disk is the default golden's world).
+extern "C" {
+void Randomizer_TestClearOoTSave(void);
+void OoT_Creation_TestStageGeneration(void);
+int OoT_Creation_AuthorRandoFile(int slot);
+// SeedPackageTestBridgeSingleExe.cpp: the identity terms and entries, live or from a package.
+int OoT_SeedPackage_TestReportTerms(const char* pkgPath, const char* reportPath);
+}
+#include "seed_package.h" // src/common — the package's OoT-side entry points
+
+namespace {
+
+/** The spoiler document gGeneral.SpoilerLog names, as an absolute path ("" when none). */
+std::string SpkSpoilerPath() {
+    std::string rel = CVarGetString("gGeneral.SpoilerLog", "");
+    if (rel.empty()) {
+        return std::string();
+    }
+    if (rel.rfind("./", 0) == 0) {
+        rel = rel.substr(2);
+    }
+    return Ship::Context::GetPathRelativeToAppDirectory(rel.c_str());
+}
+
+std::string SpkHexBytes(const void* data, size_t len) {
+    static const char kHex[] = "0123456789ABCDEF";
+    std::string s;
+    const uint8_t* p = static_cast<const uint8_t*>(data);
+    for (size_t i = 0; i < len; i++) {
+        s += kHex[p[i] >> 4];
+        s += kHex[p[i] & 15];
+    }
+    return s;
+}
+
+/**
+ * WHAT THE PAIRED WORLD IS, read off the live state into @p outPath: the identity
+ * terms and records in gComboCtx, OoT's placement, the crossing store, MM's give
+ * capabilities, and, with @p mmHalf put in view for the duration, MM's world and
+ * both games' content (WriteContentDigest, the goldens' own writer). The bytes of
+ * the half are folded only when @p includeHalfBytes (a created file's half carries
+ * the player's name, a package's does not). @p spoilerPath's bytes are folded when
+ * it is non-empty. Leaves gSaveContext as it found it.
+ * @return 0, or nonzero when the report cannot be written.
+ */
+int SpkWriteWorldReport(const char* outPath, const uint8_t* mmHalf, size_t mmHalfSize, bool includeHalfBytes,
+                        const std::string& spoilerPath) {
+    FILE* out = fopen(outPath, "w");
+    if (out == nullptr) {
+        return 1;
+    }
+    size_t ootPlaced = 0;
+    const uint32_t ootPlacement = Rando_HeadlessPlacementHash(&ootPlaced);
+    fprintf(out,
+            "sourceIsRando=%d\nseed=%08X\nsettingsHash=%08X\nmmProfileDigest=%08X\nmmPairedAttempt=%u\n"
+            "comboSettingsHash=%08X\ncomboSettings=%s\ncomboTriforce=%s\ncomboItemRules=%s\n"
+            "foreignPlacements=%s\nforeignPlacementsOoT=%s\n"
+            "ootPlacementHash=%08X\nootPlacedCount=%zu\ncrossingDigest=%08X\ncrossingsInOoT=%d\ncrossingsInMM=%d\n"
+            "giveCapsMM=%04X/%d\n",
+            gComboCtx.sourceIsRando ? 1 : 0, (unsigned)gComboCtx.sharedRandoSeed,
+            (unsigned)gComboCtx.sharedRandoSettingsHash, (unsigned)gComboCtx.mmProfileDigest,
+            (unsigned)gComboCtx.mmPairedAttempt, (unsigned)gComboCtx.comboSettingsHash,
+            SpkHexBytes(&gComboCtx.comboSettings, sizeof(gComboCtx.comboSettings)).c_str(),
+            SpkHexBytes(&gComboCtx.comboTriforce, sizeof(gComboCtx.comboTriforce)).c_str(),
+            SpkHexBytes(&gComboCtx.comboItemRules, sizeof(gComboCtx.comboItemRules)).c_str(),
+            SpkHexBytes(gComboCtx.foreignPlacements, sizeof(gComboCtx.foreignPlacements)).c_str(),
+            SpkHexBytes(gComboCtx.foreignPlacementsOoT, sizeof(gComboCtx.foreignPlacementsOoT)).c_str(),
+            (unsigned)ootPlacement, ootPlaced, (unsigned)Combo_Crossings_Digest(), Combo_Crossings_Count(GAME_OOT),
+            Combo_Crossings_Count(GAME_MM), (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM),
+            Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0);
+    if (includeHalfBytes) {
+        fprintf(out, "mmHalfBytes=%zu/%08X\n", mmHalfSize, (unsigned)SeedPackage_Fnv1a(mmHalf, mmHalfSize));
+    }
+    if (mmHalf != nullptr && mmHalfSize > 0) {
+        static unsigned char sReportOoTBytes[sizeof(SaveContext)];
+        memcpy(sReportOoTBytes, &gSaveContext, sizeof(SaveContext));
+        memset(&gSaveContext, 0, sizeof(SaveContext));
+        memcpy(&gSaveContext, mmHalf, mmHalfSize < sizeof(SaveContext) ? mmHalfSize : sizeof(SaveContext));
+        // A process that never generated has MM's region graph unbuilt until MM
+        // boots; the content digest's logic reads need it, as an arrival would build it.
+        if (Rando::Logic::Regions.empty()) {
+            MM_Rando_Init();
+        }
+        if (gRegEditor == NULL) { // logic predicates read registers; MM never booted here
+            static RegEditor sReportRegEditor = {};
+            gRegEditor = &sReportRegEditor;
+        }
+        const PairedMMWorldHashes mm = ComputePairedMMWorldHashes();
+        fprintf(out, "mmFinalSeed=%08X\nmmPlacementHash=%08X\n", (unsigned)gSaveContext.save.shipSaveInfo.rando.finalSeed,
+                (unsigned)mm.placementHash);
+        WriteContentDigest(out);
+        memcpy(&gSaveContext, sReportOoTBytes, sizeof(SaveContext));
+    } else {
+        fprintf(out, "mmHalf=absent\n");
+    }
+    if (!spoilerPath.empty()) {
+        std::ifstream in(spoilerPath, std::ios::binary);
+        const std::string bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        fprintf(out, "spoilerBytes=%zu/%08X\n", bytes.size(), (unsigned)SeedPackage_Fnv1a(bytes.data(), bytes.size()));
+    }
+    fclose(out);
+    return 0;
+}
+
+std::string SpkReadText(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    std::string s((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+    return s;
+}
+
+std::vector<std::string> SpkLines(const std::string& text) {
+    std::vector<std::string> lines;
+    std::stringstream ss(text);
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty()) {
+            lines.push_back(line);
+        }
+    }
+    return lines;
+}
+
+/** The value of `key=` in @p lines, or "" when absent. */
+std::string SpkDigestValue(const std::vector<std::string>& lines, const char* key) {
+    const std::string prefix = std::string(key) + "=";
+    for (const std::string& l : lines) {
+        if (l.rfind(prefix, 0) == 0) {
+            return l.substr(prefix.size());
+        }
+    }
+    return std::string();
+}
+
+/** Line-by-line comparison; prints each difference. @return the number that differ. */
+int SpkCompareLines(const std::vector<std::string>& expected, const std::vector<std::string>& actual,
+                    const char* expectedName, const char* actualName) {
+    int differ = 0;
+    for (size_t i = 0; i < expected.size() || i < actual.size(); i++) {
+        const std::string& x = i < expected.size() ? expected[i] : std::string("(absent)");
+        const std::string& y = i < actual.size() ? actual[i] : std::string("(absent)");
+        if (x != y) {
+            fprintf(stderr, "[SEED-PACKAGE] %s '%s' vs %s '%s'\n", expectedName, x.c_str(), actualName, y.c_str());
+            differ++;
+        }
+    }
+    return differ;
+}
+
+} // namespace
+
+/**
+ * #1044: THE PACKAGE'S DIGEST, ITS WORLD HALF. Called by Generate's completion
+ * (OoT_PairedGen_CompleteWorld, ForeignItemsSingleExe.cpp) with MM's finished half
+ * in view, after the crossings are stored and OoT's remainder is down: appends to
+ * @p outPath the lines the golden rows write for a complete paired world (MM's
+ * world, the single bag's run, OoT's final world, the content and every crossing),
+ * through WritePairedHalfDigest, the goldens' own writer, with the fill's digest of
+ * its tables as the player-path row takes it. The head (OoT's world at its general
+ * pass) is Rando_HeadlessWriteDeterminismHead's, written before the completion. So
+ * the digest a package carries is the digest the goldens pin for its identity.
+ * @return 0, or nonzero when the file cannot be written.
+ */
+extern "C" int MM_SeedPackage_AppendDigestTail(const char* outPath) {
+    if (outPath == nullptr || outPath[0] == '\0') {
+        return 1;
+    }
+    const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    size_t ootFinalPlaced = 0;
+    const uint32_t ootFinalHash = Rando_HeadlessPlacementHash(&ootFinalPlaced);
+    return WritePairedHalfDigest(outPath, mmWorld, bag, bag.fill.placementDigest, ootFinalHash, ootFinalPlaced);
+}
+
+/**
+ * SeedPackageRoundTrip, process 1 (--test seed-package-write): generate @p seed the
+ * way the locks generate (the headless OoT generation, staged as Generate stages
+ * it), complete the paired world, report it from the LIVE state into
+ * @p reportPath, then write its package to @p pkgPath. The report is taken before
+ * the package exists, so a field the writer drops cannot also be missing from it.
+ * @return 0, or a distinct nonzero step code.
+ */
+extern "C" int MM_SeedPackage_TestWrite(const char* seed, const char* pkgPath, const char* reportPath) {
+    if (K11PairedOoTGenerate(seed) != 0) {
+        return 1;
+    }
+    OoT_Creation_TestStageGeneration();
+    const int completed = OoT_SeedPackage_TestCompleteWorld();
+    if (completed != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(2): the paired completion of %s failed (%d, %s)\n", seed, completed,
+                SeedPackage_StatusName(completed));
+        return 2;
+    }
+    size_t halfSize = 0;
+    const uint8_t* half = OoT_SeedPackage_TestFinishedMMHalf(&halfSize);
+    if (half == nullptr || halfSize == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(3): the completed world has no MM half\n");
+        return 3;
+    }
+    const std::string spoiler = SpkSpoilerPath();
+    if (spoiler.empty()) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(4): the completed world wrote no spoiler\n");
+        return 4;
+    }
+    if (SpkWriteWorldReport(reportPath, half, halfSize, true, spoiler) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(5): cannot write the report '%s'\n", reportPath);
+        return 5;
+    }
+    // What the package carries beyond what a load applies: identity.json's terms,
+    // every entry, digest.txt and the split spoilers, from the live sources.
+    if (OoT_SeedPackage_TestReportTerms(nullptr, reportPath) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(7): the live world's identity terms and entries cannot be reported\n");
+        return 7;
+    }
+    // A session an earlier file left in gComboCtx (its slot, its commit count) is
+    // not the world, and the package must not carry it: the report names the
+    // world-only record, and the writer runs with session fields that differ from
+    // a fresh session's.
+    static ComboContext sSessionBefore;
+    memcpy(&sSessionBefore, &gComboCtx, sizeof(ComboContext));
+    gComboCtx.saveSlot = 2;
+    gComboCtx.commitGeneration += 7;
+    gComboCtx.sharedItemOverflowCount += 3;
+    const int written = OoT_SeedPackage_TestWritePackage(pkgPath);
+    memcpy(&gComboCtx, &sSessionBefore, sizeof(ComboContext));
+    if (written != RSBS_SEEDPKG_OK) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(6): writing the package '%s' returned %d (%s)\n", pkgPath, written,
+                SeedPackage_StatusName(written));
+        return 6;
+    }
+    fprintf(stderr, "[SEED-PACKAGE] wrote %s and its live-world report %s\n", pkgPath, reportPath);
+    return 0;
+}
+
+/**
+ * SeedPackageRoundTrip, process 2 (--test seed-package-load): a process that never
+ * generated loads @p pkgPath through the production load and reports the staged
+ * world into @p reportPath, with the same writer as process 1.
+ * @return 0, or a distinct nonzero step code.
+ */
+extern "C" int MM_SeedPackage_TestLoad(const char* pkgPath, const char* reportPath) {
+    if (Combo_ForeignPairingActive()) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(1): this process already holds a paired identity before the load\n");
+        return 1;
+    }
+    // The spoiler the report reads must be the one the load stages, not one the
+    // shared build-tree config or an earlier run left named (the package's own
+    // spoiler entry is also reported directly, below).
+    CVarClear("gGeneral.SpoilerLog");
+    const int loaded = OoT_SeedPackage_LoadFile(pkgPath);
+    if (loaded != RSBS_SEEDPKG_OK || OoT_SeedPackage_Staged() == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(2): loading '%s' returned %d (%s)\n", pkgPath, loaded,
+                SeedPackage_StatusName(loaded));
+        return 2;
+    }
+    size_t halfSize = 0;
+    const uint8_t* half = OoT_SeedPackage_TestStagedMMHalf(&halfSize);
+    if (half == nullptr || halfSize == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(3): the staged package has no MM half\n");
+        return 3;
+    }
+    if (SpkWriteWorldReport(reportPath, half, halfSize, true, SpkSpoilerPath()) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(4): cannot write the report '%s'\n", reportPath);
+        return 4;
+    }
+    if (OoT_SeedPackage_TestReportTerms(pkgPath, reportPath) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(5): the package's identity terms and entries cannot be reported\n");
+        return 5;
+    }
+    fprintf(stderr, "[SEED-PACKAGE] loaded %s and reported the staged world to %s\n", pkgPath, reportPath);
+    return 0;
+}
+
+/**
+ * SeedPackageCVarsCannotMoveWorld (--test seed-package-cvars-frozen): Generate
+ * (the headless generation, then Generate's own completion, which writes and
+ * stages the package), then change one setting of each kind a player can still
+ * reach at file select -- an MM option, a Cross-Game Rule and an OoT setting --
+ * and create a file. The created world must be the staged one, field for field.
+ * Non-vacuity: the MM option change does move the profile the CVars resolve to.
+ * @p scratchDir receives the two reports.
+ * @return 0, or a distinct nonzero step code.
+ */
+extern "C" int MM_SeedPackage_TestCVarsFrozen(const char* seed, const char* scratchDir) {
+    const std::string before = std::string(scratchDir) + "/cvars-frozen-before.txt";
+    const std::string after = std::string(scratchDir) + "/cvars-frozen-after.txt";
+    auto clearCVars = []() {
+        CVarClear("gRando.Options.RO_SHUFFLE_COWS");
+        CVarClear("gCombo.Rando.Direction");
+        CVarClear("gRandoSettings.ShuffleSongs");
+    };
+    clearCVars();
+    if (K11PairedOoTGenerate(seed) != 0) {
+        return 1;
+    }
+    OoT_Creation_TestStageGeneration();
+    const int completed = OoT_SeedPackage_CompletePendingGeneration();
+    if (completed != 1 || OoT_SeedPackage_Staged() == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(2): Generate's completion returned %d and staged %d package(s)\n",
+                completed, OoT_SeedPackage_Staged());
+        return 2;
+    }
+    size_t halfSize = 0;
+    const uint8_t* half = OoT_SeedPackage_TestStagedMMHalf(&halfSize);
+    if (half == nullptr || SpkWriteWorldReport(before.c_str(), half, halfSize, false, std::string()) != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(3): the staged world could not be reported\n");
+        return 3;
+    }
+
+    const uint32_t frozenProfile = gComboCtx.mmProfileDigest;
+    CVarSetInteger("gRando.Options.RO_SHUFFLE_COWS", 1);
+    CVarSetInteger("gCombo.Rando.Direction", 2);
+    CVarSetInteger("gRandoSettings.ShuffleSongs", 2);
+    const uint32_t movedProfile = MM_Rando_ComputeProfileStamp();
+    if (movedProfile == frozenProfile) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(4): the MM option change did not move the profile the CVars resolve "
+                        "to, so the lock would prove nothing\n");
+        clearCVars();
+        return 4;
+    }
+
+    Context_ClearFrozenState(GAME_MM);
+    Randomizer_TestClearOoTSave();
+    const int created = OoT_Creation_AuthorRandoFile(0);
+    clearCVars();
+    if (created != 1) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(5): the file creation after the setting changes failed\n");
+        return 5;
+    }
+    static unsigned char sArmedHalf[sizeof(SaveContext)];
+    {
+        static unsigned char sOoTBytes[sizeof(SaveContext)];
+        memcpy(sOoTBytes, &gSaveContext, sizeof(SaveContext));
+        const bool armed = Context_RestoreState(GAME_MM, &gSaveContext, sizeof(SaveContext)) != 0 &&
+                           gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO;
+        memcpy(sArmedHalf, &gSaveContext, sizeof(SaveContext));
+        memcpy(&gSaveContext, sOoTBytes, sizeof(SaveContext));
+        if (!armed) {
+            fprintf(stderr, "[SEED-PACKAGE] FAIL(6): the creation armed no randomizer MM half\n");
+            return 6;
+        }
+    }
+    if (SpkWriteWorldReport(after.c_str(), sArmedHalf, sizeof(SaveContext), false, std::string()) != 0) {
+        return 7;
+    }
+    const std::vector<std::string> a = SpkLines(SpkReadText(before));
+    const std::vector<std::string> b = SpkLines(SpkReadText(after));
+    const int moved = SpkCompareLines(a, b, "staged", "created");
+    if (a.size() < 20 || moved != 0) {
+        fprintf(stderr,
+                "[SEED-PACKAGE] FAIL(8): %d field(s) of the created world differ from the staged package's (%zu "
+                "field(s) compared): settings changed at file select reached the world\n",
+                moved, a.size());
+        return 8;
+    }
+    fprintf(stderr,
+            "[SEED-PACKAGE] PASS: %zu fields of the created world are the staged package's, with an MM option, a "
+            "Cross-Game Rule and an OoT setting changed before the creation\n",
+            a.size());
+    return 0;
+}
+
+/**
+ * GoldenSeedDigestPackagePath, process 1 (--test seed-package-golden-write): the
+ * player's Generate (the full OTR bring-up and the Generate button's worker
+ * thread, Rando_HeadlessWorkerGenerate), then the file select's per-frame tick,
+ * which completes the paired world, writes the package and stages it; the staged
+ * package is exported to @p pkgPath.
+ * @return 0, or a distinct nonzero step code.
+ */
+extern "C" int MM_SeedPackage_TestGoldenWrite(const char* seed, const char* pkgPath) {
+    const int genRc = Rando_HeadlessWorkerGenerate(seed);
+    if (genRc != 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(1): the worker-thread generation of %s failed (rc=%d)\n", seed, genRc);
+        return 1;
+    }
+    OoT_Creation_TestClearPairedSpoiler(); // #1055: no other build's spoiler of this seed meets this one
+    const int ticked = OoT_SeedPackage_FileSelectTick();
+    if (ticked != 1 || OoT_SeedPackage_Staged() == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(2): the file select's tick completed nothing (returned %d)\n", ticked);
+        return 2;
+    }
+    const int exported = OoT_SeedPackage_ExportStaged(pkgPath);
+    if (exported != RSBS_SEEDPKG_OK) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(3): exporting the staged package to '%s' returned %d (%s)\n", pkgPath,
+                exported, SeedPackage_StatusName(exported));
+        return 3;
+    }
+    fprintf(stderr, "[SEED-PACKAGE] Generate staged %s; exported to %s\n", OoT_SeedPackage_StagedPath(), pkgPath);
+    return 0;
+}
+
+/**
+ * GoldenSeedDigestPackagePath, process 2 (--test seed-package-golden-create): a
+ * process that never generated loads @p pkgPath, creates file 0 from it (the real
+ * OoT_RunPairedCreationEvent), and writes the default golden's fields to
+ * @p outPath: the generation's own lines (the identity head and the single bag's
+ * run, which describe how the world was made, not what it is) from the package's
+ * digest, and every WORLD line recomputed from the created file with the goldens'
+ * writers. The recomputed digest must also equal the package's own, line for line.
+ *
+ * What this row does NOT check: the head lines (the seed, the settings hash, OoT's
+ * world at its general pass, the bag's run) are copied from the package's digest,
+ * so "created equals package" cannot fail on them, and nothing here asserts that
+ * the bind re-applied the identity terms. SeedPackageCVarsCannotMoveWorld covers
+ * the bind (its report of the created world names gComboCtx's identity, records
+ * and placements), and SeedPackageRoundTrip covers digest.txt's bytes against the
+ * live world's.
+ * @return 0, or a distinct nonzero step code.
+ */
+extern "C" int MM_SeedPackage_TestGoldenCreate(const char* pkgPath, const char* outPath) {
+    const char* const kSaveDir = "rsbs_test_packagepath_saves";
+    rsbs::SaveManager::Instance().SetSaveDirectory(kSaveDir);
+    RsbsSave_ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    RsbsSave_SetActiveSlot(0);
+    auto cleanup = [kSaveDir]() {
+        RsbsSave_DeleteSave(0);
+        RsbsSave_ResetSlotSessionState();
+        RsbsSave_SetActiveSlot(-1);
+        rsbs::SaveManager::Instance().SetSaveDirectory("Save");
+        std::error_code ec;
+        std::filesystem::remove_all(kSaveDir, ec);
+    };
+
+    const int loaded = OoT_SeedPackage_LoadFile(pkgPath);
+    if (loaded != RSBS_SEEDPKG_OK) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(1): loading '%s' returned %d (%s)\n", pkgPath, loaded,
+                SeedPackage_StatusName(loaded));
+        cleanup();
+        return 1;
+    }
+    static char sDigest[1 << 16];
+    if (OoT_SeedPackage_StagedDigest(sDigest, sizeof(sDigest)) <= 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(2): the staged package carries no digest\n");
+        cleanup();
+        return 2;
+    }
+    const std::vector<std::string> pkgLines = SpkLines(sDigest);
+
+    Combo_ClearFrozenState("mm");
+    if (OoT_RunPairedCreationEvent(0) == 0) {
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(3): the creation from the package failed\n");
+        cleanup();
+        return 3;
+    }
+
+    // The single bag's run, as the package recorded it.
+    ComboSingleBagReport bag;
+    memset(&bag, 0, sizeof(bag));
+    auto num = [&](const char* key) { return (int)strtol(SpkDigestValue(pkgLines, key).c_str(), nullptr, 10); };
+    auto hex = [&](const char* key) { return (uint32_t)strtoul(SpkDigestValue(pkgLines, key).c_str(), nullptr, 16); };
+    bag.seed = hex("bagSeed");
+    bag.bagCount = num("bagRows");
+    bag.trimmedOoT = num("bagTrimmedOoT");
+    bag.trimmedMM = num("bagTrimmedMM");
+    bag.homeOnlyRows = num("bagHomeOnly");
+    bag.fill.requiredPlaced = num("bagRequiredPlaced");
+    bag.fill.surplusPlaced = num("bagSurplusPlaced");
+    bag.fill.surplusDropped = num("bagSurplusDropped");
+    bag.fill.attempts = num("bagBatchAttempts");
+    bag.fill.rounds = num("bagRounds");
+    bag.fill.leftoverHostsOoT = num("bagLeftoverOoT");
+    bag.fill.leftoverHostsMM = num("bagLeftoverMM");
+    const uint32_t coordinatorDigest = hex("coordinatorDigest");
+
+    // The head: every package line before MM's world.
+    std::string head;
+    for (const std::string& l : pkgLines) {
+        if (l.rfind("mmFinalSeed=", 0) == 0) {
+            break;
+        }
+        head += l + "\n";
+    }
+    const bool toFile = outPath != nullptr && outPath[0] != '\0';
+    if (toFile) {
+        FILE* out = fopen(outPath, "w");
+        if (out == nullptr) {
+            cleanup();
+            return 4;
+        }
+        fputs(head.c_str(), out);
+        fclose(out);
+    } else {
+        fputs(head.c_str(), stdout);
+    }
+
+    static unsigned char sOoTBytes[sizeof(SaveContext)];
+    memcpy(sOoTBytes, &gSaveContext, sizeof(SaveContext));
+    if (Context_RestoreState(GAME_MM, &gSaveContext, sizeof(SaveContext)) == 0 ||
+        gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        memcpy(&gSaveContext, sOoTBytes, sizeof(SaveContext));
+        fprintf(stderr, "[SEED-PACKAGE] FAIL(5): the creation armed no randomizer MM half\n");
+        cleanup();
+        return 5;
+    }
+    // This process never generated: MM's region graph is built as an arrival builds it.
+    if (Rando::Logic::Regions.empty()) {
+        MM_Rando_Init();
+    }
+    if (gRegEditor == NULL) { // logic predicates read registers; MM never booted here
+        static RegEditor sCreateRegEditor = {};
+        gRegEditor = &sCreateRegEditor;
+    }
+    const PairedMMWorldHashes mmWorld = ComputePairedMMWorldHashes();
+    size_t ootFinalPlaced = 0;
+    const uint32_t ootFinalHash = Rando_HeadlessPlacementHash(&ootFinalPlaced);
+    const int writeRc = WritePairedHalfDigest(toFile ? outPath : nullptr, mmWorld, bag, coordinatorDigest,
+                                              ootFinalHash, ootFinalPlaced);
+    memcpy(&gSaveContext, sOoTBytes, sizeof(SaveContext));
+    cleanup();
+    if (writeRc != 0) {
+        return 6;
+    }
+    if (toFile) {
+        const std::vector<std::string> created = SpkLines(SpkReadText(outPath));
+        const int differ = SpkCompareLines(pkgLines, created, "package", "created file");
+        if (differ != 0 || created.size() < 40) {
+            fprintf(stderr,
+                    "[SEED-PACKAGE] FAIL(7): the file created from the package is not the package's world (%d of "
+                    "%zu line(s) differ)\n",
+                    differ, created.size());
+            return 7;
+        }
+    }
+    fprintf(stderr, "[SEED-PACKAGE] created file 0 from %s: mmPlacementHash=%08X ootFinal=%08X crossings %d+%d\n",
+            pkgPath, (unsigned)mmWorld.placementHash, (unsigned)ootFinalHash, Combo_Crossings_Count(GAME_OOT),
+            Combo_Crossings_Count(GAME_MM));
+    return 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

@@ -3633,8 +3633,9 @@ void MM_KaleidoScope_Update(PlayState* play) {
                                     gSaveContext.save.isOwlSave = false;
                                     gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
                                 } else {
-                                    Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[gSaveContext.fileNum],
-                                                              gFlashSaveNumPages[gSaveContext.fileNum]);
+                                    // 2S2H [Port] (#599) main copy of this file's regular save:
+                                    // entry fileNum * FLASH_SAVE_MAIN_MULTIPLIER, as for the owl save above.
+                                    Sram_SetFlashPagesDefaultForFile(sramCtx, gSaveContext.fileNum);
                                     Sram_StartWriteToFlashDefault(sramCtx);
                                 }
                                 pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_4;
@@ -3955,8 +3956,9 @@ void MM_KaleidoScope_Update(PlayState* play) {
                         // sramCtx->status == 0, which is already true when no async write
                         // was started, so it advances on the next frame.
                         if (Sram_FileNumHasFlashSlot(gSaveContext.fileNum)) {
-                            Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[gSaveContext.fileNum],
-                                                      gFlashSaveNumPages[gSaveContext.fileNum]);
+                            // 2S2H [Port] (#599) main copy of this file's regular save
+                            // (entry fileNum * FLASH_SAVE_MAIN_MULTIPLIER, not the bare fileNum).
+                            Sram_SetFlashPagesDefaultForFile(sramCtx, gSaveContext.fileNum);
                             Sram_StartWriteToFlashDefault(sramCtx);
                         }
                         pauseCtx->state = PAUSE_STATE_GAMEOVER_7;

@@ -11,6 +11,12 @@ extern "C" {
 #include "variables.h"
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/Notification/Notification.h"
+#include "pairing_refusal_toast.h" // src/common — RSBS_REFUSAL_TOAST_PREFIX, the refusal toasts' one prefix
+#include "seed_package.h"          // src/common — #1044: the seed package Generate writes and a file binds
+#endif
+
 namespace SohGui {
 
 extern std::shared_ptr<SohMenu> mSohMenu;
@@ -25,6 +31,85 @@ static const std::map<int32_t, const char*> skipGetItemAnimationOptions = {
 static bool locationsDirty = true;
 static bool tricksDirty = true;
 static char seedString[MAX_SEED_STRING_SIZE];
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1044): THE SEED PACKAGE ROWS of Randomizer > General, in the shape of the
+// Plandomizer's spoiler picker: a combo box over Randomizer/*.rsbs-seed.zip and a
+// Load button, then an Export button that writes the staged package under a name
+// typed beside it, and one line saying what is staged. Loading stages a package
+// exactly as Generate stages the one it writes, so the file select's "Start
+// Randomizer" creates a file from it; the gate is Generate's (the file select, no
+// file loaded, no generation running).
+static void DrawSeedPackageRows() {
+    static std::vector<std::string> sPackages;
+    static size_t sSelected = 0;
+    static char sExportName[96] = "";
+    const std::string dir = Ship::Context::GetPathRelativeToAppDirectory("Randomizer");
+    sPackages = rsbs::seedpkg::ListDirectory(dir);
+    if (sSelected >= sPackages.size()) {
+        sSelected = 0;
+    }
+    const bool atFileSelect = gSaveContext.gameMode == GAMEMODE_FILE_SELECT && !GameInteractor::IsSaveLoaded();
+    const bool generating = CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0) != 0;
+
+    if (!sPackages.empty()) {
+        UIWidgets::Combobox("##SeedPackages", &sSelected, sPackages,
+                            UIWidgets::ComboboxOptions().Color(THEME_COLOR).LabelPosition(UIWidgets::LabelPositions::None));
+    } else {
+        ImGui::Text("No seed packages found.");
+    }
+    ImGui::BeginDisabled(sPackages.empty() || !atFileSelect || generating);
+    if (UIWidgets::Button("Load seed package",
+                          UIWidgets::ButtonOptions()
+                              .Color(THEME_COLOR)
+                              .Size(UIWidgets::Sizes::Inline)
+                              .Tooltip("Stages the selected seed package for the next file you create: its whole "
+                                       "paired world, both games' settings and its spoiler, as Generate would."))) {
+        const std::string file = sPackages[sSelected];
+        const int rc = OoT_SeedPackage_LoadFile((dir + "/" + file).c_str());
+        if (rc == RSBS_SEEDPKG_OK) {
+            Notification::Emit({ .prefix = "Seed package loaded:", .message = file });
+        } else {
+            Notification::Emit({ .prefix = RSBS_REFUSAL_TOAST_PREFIX, .message = SeedPackage_RefusalWords(rc) });
+        }
+    }
+    ImGui::EndDisabled();
+
+    char summary[512];
+    const bool staged = OoT_SeedPackage_StagedSummary(summary, sizeof(summary)) >= 0;
+    std::string exportName = sExportName;
+    ImGui::BeginDisabled(!staged || exportName.empty());
+    ImGui::SameLine();
+    if (UIWidgets::Button("Export seed package",
+                          UIWidgets::ButtonOptions()
+                              .Color(THEME_COLOR)
+                              .Size(UIWidgets::Sizes::Inline)
+                              .Tooltip("Writes the staged seed package to the Randomizer folder under the name "
+                                       "typed below, to share it."))) {
+        exportName += RSBS_SEED_PACKAGE_EXTENSION;
+        const int rc = OoT_SeedPackage_ExportStaged((dir + "/" + exportName).c_str());
+        if (rc == RSBS_SEEDPKG_OK) {
+            Notification::Emit({ .prefix = "Seed package exported:", .message = exportName });
+        } else {
+            Notification::Emit({ .prefix = "Not exported:", .message = SeedPackage_RefusalWords(rc) });
+        }
+    }
+    ImGui::EndDisabled();
+    UIWidgets::PushStyleInput(THEME_COLOR);
+    ImGui::InputText("##SeedPackageExportName", sExportName, sizeof(sExportName),
+                     ImGuiInputTextFlags_CallbackCharFilter, UIWidgets::TextFilters::FilterAlphaNum);
+    if (strnlen(sExportName, sizeof(sExportName)) == 0) {
+        ImGui::SameLine(17.0f);
+        ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.4f), "Name for the exported package");
+    }
+    UIWidgets::PopStyleInput();
+    if (staged) {
+        ImGui::TextWrapped("Seed package: %s", summary);
+    } else {
+        ImGui::TextColored(UIWidgets::ColorValues.at(UIWidgets::Colors::Gray), "No seed package staged.");
+    }
+}
+#endif
 static std::set<RandomizerCheck> excludedLocations;
 static std::set<RandomizerTrick> enabledTricks;
 static std::set<RandomizerTrick> enabledGlitches;
@@ -628,6 +713,12 @@ void SohMenu::AddMenuRandomizer() {
             }
         })
         .SameLine(true);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#1044): Generate writes the paired world as a seed package; these rows
+    // load one from the Randomizer folder and export the staged one.
+    AddWidget(path, "Seed Package", WIDGET_SEPARATOR_TEXT);
+    AddWidget(path, "Seed Package Rows", WIDGET_CUSTOM).CustomFunction([](WidgetInfo& info) { DrawSeedPackageRows(); });
+#endif
 
     // Enhancements
     AddWidget(path, "Enhancements", WIDGET_SEPARATOR_TEXT);

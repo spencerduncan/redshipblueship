@@ -1220,14 +1220,16 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 // Rando tier: Save_InitFile reads OTRGlobals and SaveManager::Instance, which
 // only the full OoT bring-up constructs.
 
-static const char* const kCivNewFileSaveDir = "rsbs_test_saves_item_view_new_file";
+static inline const char* kCivNewFileSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_item_view_new_file");
+}
 static bool sCivNewFileSaveDirSet = false; // the entry point puts "Save" back when set
 
 static int CivNewFileSlotPanel(const std::vector<uint8_t>& newFile) {
     const std::vector<uint8_t> zeros((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
     OoT_SlotMeta_Register();
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kCivNewFileSaveDir);
+    mgr.SetSaveDirectory(kCivNewFileSaveDir());
     sCivNewFileSaveDirSet = true;
     mgr.ResetSlotSessionState();
 

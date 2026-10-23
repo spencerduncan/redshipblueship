@@ -70,6 +70,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include "test_scratch.h" // #824, #925: a scratch directory per process
 
 extern "C" SaveContext gSaveContext;
 // The seam (games/oot/soh/SaveManager.cpp).
@@ -85,7 +86,9 @@ extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, u
 
 namespace {
 
-const char* const kSaveDir = "rsbs_test_oot_check_state_load";
+inline const char* kSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_oot_check_state_load");
+}
 constexpr int kSlot = 0;
 constexpr uint32_t kMasterSeed = 0x0849C0DEu;
 
@@ -223,7 +226,7 @@ void SetTrackerStatuses(RandomizerCheckStatus sword, RandomizerCheckStatus heart
 // record: no pairing identity and a blank Majora's Mask half (#861).
 uint32_t WriteCommits(const SaveContext& savBase, const SaveContext& committed, bool rando = true) {
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     Context_InitFrozenStates();
     Context_ClearAllFrozenStates();
     ComboContext_Init();

@@ -40,7 +40,9 @@
 
 namespace {
 
-const char* const kSaveTestDir = "rsbs_test_saves";
+inline const char* kSaveTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves");
+}
 
 // Deterministic, position-dependent fill so a swapped/truncated byte is obvious.
 uint8_t SaveTestOoTByte(size_t i) {
@@ -137,7 +139,7 @@ TestResult Test_SaveRoundtripTiers(void) {
     printf("[TEST] save-roundtrip-tiers: .redsave preserves ComboContext + both SaveContexts (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
 
     const uint32_t tag = 0x1234ABCDu;
     SaveTestSeed(tag);
@@ -169,7 +171,7 @@ TestResult Test_SaveHeader(void) {
     printf("[TEST] save-header: .redsave header fields + CRC are well-formed (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0x55AA1234u);
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -211,7 +213,7 @@ TestResult Test_SaveHasDelete(void) {
     printf("[TEST] save-has-delete: HasSave/DeleteSave lifecycle (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0x00C0FFEEu);
 
     mgr.DeleteSave(0);
@@ -232,7 +234,7 @@ TestResult Test_SaveVersionReject(void) {
     printf("[TEST] save-version-reject: Load refuses an unknown version without clobbering state (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0x11112222u);
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -259,7 +261,7 @@ TestResult Test_SaveSizeMismatch(void) {
     printf("[TEST] save-size-mismatch: Load refuses an oversized tier without clobbering state (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0xAAAA5555u);
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -294,7 +296,7 @@ TestResult Test_SaveLegacySize(void) {
     const uint32_t kLegacyMMSize = 0x48C8;
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     const uint32_t tag = 0x4C454741u; // "LEGA"
     SaveTestSeed(tag);
     mgr.DeleteSave(0);
@@ -325,7 +327,7 @@ TestResult Test_SaveLegacySize(void) {
     h.mmSize = kLegacyMMSize;
     h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
 
-    std::filesystem::create_directories(kSaveTestDir);
+    std::filesystem::create_directories(kSaveTestDir());
     {
         std::ofstream out(mgr.SlotPath(0), std::ios::binary | std::ios::trunc);
         SAVE_ASSERT(static_cast<bool>(out), "could not write legacy slot file");
@@ -373,7 +375,7 @@ TestResult Test_SaveCrcCorrupt(void) {
     printf("[TEST] save-crc-corrupt: Load refuses a corrupt payload without clobbering state (#35)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0x0F0F0F0Fu);
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -433,7 +435,7 @@ bool SaveTestWriteCraftedSlot(const std::string& path, uint32_t version, uint32_
     h.mmSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
     h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
 
-    std::filesystem::create_directories(kSaveTestDir);
+    std::filesystem::create_directories(kSaveTestDir());
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) {
         return false;
@@ -449,7 +451,7 @@ TestResult Test_SaveComboLegacyRecord(void) {
     printf("[TEST] save-combo-legacy-record: a pre-headroom .redsave still loads and zero-extends\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
 
     const uint32_t tag = 0x0DDBA11u;
     SaveTestSeed(tag);
@@ -670,7 +672,7 @@ TestResult Test_SaveComboRecordFixed(void) {
     printf("[TEST] save-combo-record-fixed: Tier-1 is written at a fixed padded size and carries the tail\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0xFEEDFACEu);
 
     // Stand in for a field Lane A will carve out of `reserved`: if these bytes
@@ -712,7 +714,7 @@ TestResult Test_SaveComboOversize(void) {
     printf("[TEST] save-combo-oversize: Load refuses a Tier-1 larger than this build can hold\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
     SaveTestSeed(0x13571357u);
     mgr.DeleteSave(0);
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -740,7 +742,7 @@ TestResult Test_SaveTaggedItems(void) {
     printf("[TEST] save-tagged-items: origin-tagged shared items round-trip byte-exact (ADR 0002)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveTestDir);
+    mgr.SetSaveDirectory(kSaveTestDir());
 
     SaveTestSeed(0x7A66EDu);
 
