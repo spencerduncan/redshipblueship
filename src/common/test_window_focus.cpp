@@ -13,6 +13,8 @@
 #include <ship/Context.h>
 #include <ship/audio/Audio.h>
 #include <ship/config/Config.h>
+#include <ship/controller/controldeck/ControlDeck.h>
+#include <ship/controller/physicaldevice/ConnectedPhysicalDeviceManager.h>
 
 namespace {
 
@@ -22,6 +24,7 @@ bool sAudioOptedOut = false;
 bool sSabotageConfig = false;
 bool sSabotageRestore = false;
 bool sAudioVerdictFailed = false;
+bool sControllerVerdictFailed = false;
 // What TestWindowFocus_BeforeInitAudio changed on the live Ship::Context's config,
 // for TestWindowFocus_AfterInitAudio to put back.
 TestSilentAudioConfigState sLiveConfigState;
@@ -93,6 +96,41 @@ void TestWindowFocus_ArmForTestMode(const char* mode) {
     // Already SDL's default; pinned so no environment can turn SDL_RaiseWindow into
     // the AttachThreadInput foreground grab inside a test process.
     SDL_SetHintWithPriority(SDL_HINT_FORCE_RAISEWINDOW, "0", SDL_HINT_OVERRIDE);
+#endif
+    // #1152: the operator's game controller. libultraship's Gui::ImGuiWMInit sets
+    // SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" at normal priority for every
+    // process (Gui.cpp:200/206), which switches off SDL's focus gate
+    // (SDL_PrivateJoystickShouldIgnoreEvent drops pad input while no SDL window of
+    // the process holds the keyboard -- and a test window never does). An OVERRIDE
+    // "0" set first makes that later call a refused no-op.
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0", SDL_HINT_OVERRIDE);
+    // And the strong half: a test process opens no controller at all, so neither
+    // the ControlDeck nor ImGui's SDL2 backend (both call SDL_GameControllerOpen
+    // on whatever SDL enumerates) ever holds one. SDL is told to enumerate nothing:
+    // an IGNORE_DEVICES_EXCEPT list naming only a VID/PID no device carries (0xFFFF
+    // is no USB-IF vendor) hides every device from each driver that consults
+    // SDL_ShouldIgnoreJoystick (XInput, DirectInput, WGI, HIDAPI, Linux, macOS);
+    // RawInput does not consult it, so the Windows drivers are also switched off by
+    // name. All before SDL_INIT_GAMECONTROLLER (libultraship's osContInit), and
+    // all OVERRIDE for the reason above.
+#ifdef SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT
+    SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT, "0xFFFF/0xFFFF", SDL_HINT_OVERRIDE);
+#endif
+    SDL_SetHintWithPriority("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", "0", SDL_HINT_OVERRIDE);
+#ifdef SDL_HINT_JOYSTICK_RAWINPUT
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_RAWINPUT, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_XINPUT_ENABLED
+    SDL_SetHintWithPriority(SDL_HINT_XINPUT_ENABLED, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_DIRECTINPUT_ENABLED
+    SDL_SetHintWithPriority(SDL_HINT_DIRECTINPUT_ENABLED, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_JOYSTICK_WGI
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_WGI, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_JOYSTICK_HIDAPI
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_HIDAPI, "0", SDL_HINT_OVERRIDE);
 #endif
     sArmed = true;
 }
@@ -197,11 +235,24 @@ int TestWindowFocus_IsArmed(void) {
 int TestWindowFocus_Probe(const char* where) {
     const bool video = SDL_WasInit(SDL_INIT_VIDEO) != 0;
     SDL_Window* focus = video ? SDL_GetKeyboardFocus() : nullptr;
-    printf("[FOCUS] %s: video=%d keyboardFocus=%s noActivationHint=%s armed=%d\n", where != nullptr ? where : "?",
-           video ? 1 : 0, focus != nullptr ? "TAKEN" : "none", HintOrNull(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN),
-           sArmed ? 1 : 0);
+    // #1152: the controller verdict rides the same line, so every row's log and
+    // every integration run's log says whether the process could play a pad.
+    TestWindowControllerState pads;
+    TestWindowFocus_ReadControllers(&pads);
+    const int openControllers = pads.openJoysticks > pads.controlDeckPads ? pads.openJoysticks : pads.controlDeckPads;
+    if (std::strcmp(pads.background, "0") != 0 || openControllers > 0) {
+        sControllerVerdictFailed = true;
+    }
+    printf("[FOCUS] %s: video=%d keyboardFocus=%s noActivationHint=%s armed=%d controllerBackground=%s "
+           "openControllers=%d\n",
+           where != nullptr ? where : "?", video ? 1 : 0, focus != nullptr ? "TAKEN" : "none",
+           HintOrNull(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN), sArmed ? 1 : 0, pads.background, openControllers);
     fflush(stdout);
     return focus != nullptr ? 1 : 0;
+}
+
+int TestWindowFocus_ControllerVerdictFailed(void) {
+    return sControllerVerdictFailed ? 1 : 0;
 }
 
 void TestWindowFocus_ShowProbeWindow(TestWindowFocusProbeResult* out) {
@@ -246,6 +297,57 @@ void TestWindowFocus_ShowProbeWindow(TestWindowFocusProbeResult* out) {
     if (!videoWasUp) {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
+}
+
+void TestWindowFocus_ReadControllers(TestWindowControllerState* out) {
+    std::memset(out, 0, sizeof(*out));
+    std::snprintf(out->background, sizeof(out->background), "%s",
+                  HintOrNull(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS));
+    out->controlDeckPads = -1;
+    out->joystickUp = SDL_WasInit(SDL_INIT_JOYSTICK) != 0 ? 1 : 0;
+    if (out->joystickUp) {
+        out->joysticks = SDL_NumJoysticks();
+        for (int i = 0; i < out->joysticks; i++) {
+            if (SDL_JoystickFromInstanceID(SDL_JoystickGetDeviceInstanceID(i)) != nullptr) {
+                out->openJoysticks++;
+            }
+        }
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx != nullptr && ctx->GetControlDeck() != nullptr &&
+        ctx->GetControlDeck()->GetConnectedPhysicalDeviceManager() != nullptr) {
+        out->controlDeckPads =
+            (int)ctx->GetControlDeck()->GetConnectedPhysicalDeviceManager()->GetConnectedSDLGamepadNames().size();
+    }
+}
+
+int TestWindowFocus_ScanControllersLikeControlDeck(int* joysticksSeen, char* why, int whyLen) {
+    if (joysticksSeen != nullptr) {
+        *joysticksSeen = 0;
+    }
+    const bool wasUp = SDL_WasInit(SDL_INIT_GAMECONTROLLER) != 0;
+    if (!wasUp && SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+        if (why != nullptr && whyLen > 0) {
+            std::snprintf(why, (size_t)whyLen, "no game controller subsystem (%s)", SDL_GetError());
+        }
+        return -1;
+    }
+    if (joysticksSeen != nullptr) {
+        *joysticksSeen = SDL_NumJoysticks();
+    }
+    // The ControlDeck's own class, so the count is what a booted game would hold.
+    Ship::ConnectedPhysicalDeviceManager scan;
+    scan.RefreshConnectedSDLGamepads();
+    const int opened = (int)scan.GetConnectedSDLGamepadNames().size();
+    // Port 0 ignores nothing (the scan only ignores new pads on ports 1-3), so it
+    // hands back every pad the scan opened; close each once, as it opened each once.
+    for (const auto& [instanceId, pad] : scan.GetConnectedSDLGamepadsForPort(0)) {
+        SDL_GameControllerClose(pad);
+    }
+    if (!wasUp) {
+        SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+    }
+    return opened;
 }
 
 } // extern "C"
