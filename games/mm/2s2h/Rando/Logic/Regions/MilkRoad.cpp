@@ -13,6 +13,7 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_CUCCO_SHACK_LARGE_CRATE_01, true),
             CHECK(RC_CUCCO_SHACK_LARGE_CRATE_02, true),
             CHECK(RC_CUCCO_SHACK_LARGE_CRATE_03, true),
+            CHECK(RC_CUCCO_SHACK_TREE, true),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(ROMANI_RANCH, 4),                 ENTRANCE(CUCCO_SHACK, 0), true),
@@ -248,6 +249,13 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ROMANI_RANCH_GRASS_55, true),
             CHECK(RC_ROMANI_RANCH_GRASS_56, true),
             CHECK(RC_ROMANI_RANCH_GRASS_57, true),
+            CHECK(RC_ROMANI_RANCH_TREE_01, true),
+            CHECK(RC_ROMANI_RANCH_TREE_02, true),
+            CHECK(RC_ROMANI_RANCH_TREE_03, true),
+            CHECK(RC_ROMANI_RANCH_TREE_04, true),
+            CHECK(RC_ROMANI_RANCH_TREE_05, true),
+            CHECK(RC_ROMANI_RANCH_TREE_06, true),
+            CHECK(RC_ROMANI_RANCH_TREE_07, true),
             CHECK(RC_ENEMY_DROP_ALIEN, CanKillEnemy(ACTOR_EN_INVADEPOH) && IS_NIGHT1()), // Night 1 only
         },
         .exits = { //     TO                                         FROM

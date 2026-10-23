@@ -159,10 +159,30 @@ mm->oot objects/object_gi_sword_4/
 # not mounted until the first crossing, so the icons that section names by
 # resource path (MM_gItemIcons) are reachable from OoT only through this half.
 # All 117 distinct paths MM_gItemIcons names are absent from oot.o2r and soh.o2r
-# (none collides); 112 sit in these two directories, the five ocarina-button
-# icons in parameter_static are no tracker row's and stay with MM.
+# (none collides); 112 sit in these two directories.
 mm->oot icon_item_static_yar/
 mm->oot icon_item_24_static_yar/
+#
+# The tracker icons outside those two directories (#1139): the five
+# ocarina-button icons (the Ocarina Buttons rows of #1072 and the Shared button
+# rows that take MM's icon), the four stray-fairy icons, the half-day sun and
+# moon, the dungeon-map skull and the world-map owl face.  Single paths, not
+# the directories: parameter_static, icon_item_dungeon_static and
+# icon_item_field_static hold 150 other HUD and map textures no tracker
+# row names.  None collides: OoT's own parameter_static lives under textures/.
+mm->oot parameter_static/gOcarinaATex
+mm->oot parameter_static/gOcarinaCDownTex
+mm->oot parameter_static/gOcarinaCLeftTex
+mm->oot parameter_static/gOcarinaCRightTex
+mm->oot parameter_static/gOcarinaCUpTex
+mm->oot parameter_static/gStrayFairyWoodfallIconTex
+mm->oot parameter_static/gStrayFairySnowheadIconTex
+mm->oot parameter_static/gStrayFairyGreatBayIconTex
+mm->oot parameter_static/gStrayFairyStoneTowerIconTex
+mm->oot parameter_static/gThreeDayClockSunHourTex
+mm->oot parameter_static/gThreeDayClockMoonHourTex
+mm->oot icon_item_dungeon_static/gDungeonMapSkullTex
+mm->oot icon_item_field_static/gWorldMapOwlFaceTex
 #
 # The MM masks OoT wears (#977, epic #975 P3; worn and drawn on Link's head by
 # ForeignMaskOoT.cpp, src/common/foreign_masks.h).  Single paths, not the

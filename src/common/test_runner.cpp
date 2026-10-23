@@ -304,6 +304,12 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
+// the option, its page row, the 53 tree checks and the pool switch; then the
+// tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
+// the display-free shared bring-up first. Return 0 on pass.
+int MM_TreeShuffle_RunHeadless(void);
+int MM_TreeShuffleHooks_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -5625,6 +5631,37 @@ static TestResult Test_MMSongTeacherHooks(void) {
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Tree shuffle (#1121). Same display-free bring-up as mm-song-teacher-hooks: the
+// option table, the page view model and the hook registries are all in the
+// link, and the CVar store must exist.
+static TestResult Test_MMTreeShuffle(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_TreeShuffle_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMTreeShuffleHooks(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_TreeShuffleHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -7482,6 +7519,13 @@ const TestDescriptor gTests[] = {
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // Tree shuffle (#1121). After mm-registrar-coverage: mm-tree-shuffle runs the
+    // irreversible MM_Rando_Init to fill the region graph. Both restore what
+    // they write.
+    { "mm-tree-shuffle", "Shuffle Tree Drops is an MM option, a page row, 53 checks and a pool switch (#1121)",
+      Test_MMTreeShuffle },
+    { "mm-tree-shuffle-hooks", "The MM tree behaviour arms from OnFileLoad and suppresses a tree check's drop (#1121)",
+      Test_MMTreeShuffleHooks },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

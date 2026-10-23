@@ -132,6 +132,9 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_GREAT_BAY_COAST_GRASS_03, true),
             CHECK(RC_GREAT_BAY_COAST_GRASS_04, true),
             CHECK(RC_GREAT_BAY_COAST_GRASS_05, true),
+            CHECK(RC_GREAT_BAY_COAST_TREE_02, true),
+            CHECK(RC_GREAT_BAY_COAST_TREE_03, true),
+            CHECK(RC_GREAT_BAY_COAST_TREE_04, true),
             CHECK(RC_ENEMY_DROP_LEEVER, CanKillEnemy(ACTOR_EN_NEO_REEBA)),
             CHECK(RC_ENEMY_DROP_LIKE_LIKE, CanKillEnemy(ACTOR_EN_RR)),
         },
@@ -183,6 +186,10 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_GREAT_BAY_COAST_LEDGE_POT_01, HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_GREAT_BAY_COAST_LEDGE_POT_02, HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_GREAT_BAY_COAST_LEDGE_POT_03, HAS_ITEM(ITEM_HOOKSHOT)),
+            // On the fisherman's minigame platforms, which the hookshot reaches from
+            // here once the temple is cleared (upstream's RR_GREAT_BAY_COAST_MINIGAME_
+            // PLATFORMS edge, folded into this region rather than adding one, #1121).
+            CHECK(RC_GREAT_BAY_COAST_TREE_01, RANDO_EVENTS[RE_CLEARED_GREAT_BAY_TEMPLE] && HAS_ITEM(ITEM_HOOKSHOT)),
         },
         .connections = {
             CONNECTION(RR_GREAT_BAY_COAST_COW_GROTTO, CAN_HOOK_SCARECROW && CAN_GROW_BEAN_PLANT), // TODO: Grotto mapping
@@ -330,6 +337,11 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ZORA_CAPE_WATERFALL_PIECE_OF_HEART,   CAN_BE_ZORA && CAN_USE_ABILITY(SWIM)),
             CHECK(RC_ZORA_CAPE_NEAR_BEAVERS_POT_01,        true),
             CHECK(RC_ZORA_CAPE_NEAR_BEAVERS_POT_02,        true),
+            CHECK(RC_ZORA_CAPE_TREE_01,                    true),
+            CHECK(RC_ZORA_CAPE_TREE_02,                    true),
+            CHECK(RC_ZORA_CAPE_TREE_03,                    HAS_ITEM(ITEM_HOOKSHOT)),
+            CHECK(RC_ZORA_CAPE_TREE_04,                    HAS_ITEM(ITEM_HOOKSHOT)),
+            CHECK(RC_ZORA_CAPE_TREE_05,                    HAS_ITEM(ITEM_HOOKSHOT)),
             CHECK(RC_ENEMY_DROP_LEEVER,                    CanKillEnemy(ACTOR_EN_NEO_REEBA)),
             CHECK(RC_ENEMY_DROP_LIKE_LIKE,                 CanKillEnemy(ACTOR_EN_RR)),
         },
