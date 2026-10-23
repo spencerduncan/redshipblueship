@@ -1,8 +1,9 @@
 # Next release (draft)
 
 **Status:** draft. No version or codename is decided. This section lists what merged on `main` after the
-`v0.3.0-prealpha` tag (`f2f3d64f`), up to `4fc4fd41` (2026-10-23): 15 pull requests, #1111 to #1144 (#1115 is the
-release itself; the numbers between them that are not listed are issues or pull requests still open).
+`v0.3.0-prealpha` tag (`f2f3d64f`), up to `af4d941f` (2026-10-23): 19 pull requests, #1111 to #1153 (#1115 is the
+release itself and #1148 the first draft of these notes; the numbers between them that are not listed are issues,
+pull requests still open, or the revert #1150, closed unmerged).
 **Covers:** everything merged after `f2f3d64f`. Numbers in parentheses are pull requests; issues are written "issue #N".
 Nobody has played any of it: every change below is locked by test rows.
 
@@ -20,6 +21,15 @@ Nobody has played any of it: every change below is locked by test rows.
   accepted this break before release (2026-10-23); there is no migration. Keep the build that wrote an old file if
   you want to finish it. See "The `v0.3.0-prealpha` save break" under "Save
   loss and corruption" in [`known-issues.md`](known-issues.md).
+- **Files saved by this version do not open in `v0.3.0-prealpha`.** From `efe573ec` the save format is version 4 (the
+  combo record grew from 1024 to 2048 bytes to keep the Combo Tracker's reachability for the game you are not playing,
+  #1147), and `v0.3.0-prealpha` refuses a version 4 file as made by another build. A `v0.3.0-prealpha` file that
+  this version opens at all (the save break above refuses paired ones) loads, and shows no reachability for the other
+  game until you next cross.
+- **Seed packages exported by `v0.3.0-prealpha` are refused** from `efe573ec` on: "Refused: Seed package damaged or
+  incomplete", and the log reads "the combo record is 1004 bytes; this build's is 1712". Generate the seed again from
+  the same settings in this version (issue #1151 will accept the older packages). See "Seed packages from
+  `v0.3.0-prealpha` are refused" under "Randomizer generation" in [`known-issues.md`](known-issues.md).
 - **Generate now makes the whole paired world** and writes it to a seed package in `Randomizer/` (next section). The
   progress overlay shows when you press Generate; creating the file is instant.
 - **Seeds.** With every new option at its default (Shuffle Tree Drops off), no world moved after the tag: the same seed
@@ -85,6 +95,20 @@ Nobody has played any of it: every change below is locked by test rows.
   play Majora's Mask it keeps the list from your last time in Hyrule (#1138, issue #1126).
 - The Combo Item Tracker draws Majora's Mask's ocarina-button icons in Hyrule before Majora's Mask has started, where
   it drew the item's name as clipped text before (#1144).
+- **The Combo Tracker shows which checks you can reach** in both games when Check Tracker Settings > Enable Available
+  Checks is on: SoH's lock or open lock before each check, "N Available / Checks: x / y" on the totals
+  line, "(available / checked / total)" on each area, and an Only Show Available Checks box in each game's pane (each
+  pane its own). The game you are not playing shows what was reachable when you left it, kept in the save; it does
+  not yet change as you collect things in the other game (issue #1146). Majora's Mask's pane refreshes every 20
+  frames, as its own Check Tracker does (#1147, issue #1129; option 1 of issue #993).
+- **The Combo Item Tracker's Majora's Mask section shows Majora's Mask's tracker rows** after Quest: a Heart Pieces
+  count, Tokens (Swamp and Ocean Gold Skulltula Tokens against the file's minimum, 30 on a vanilla file), Stray
+  Fairies (Clock Town, and each temple's count against the file's minimum, 15 on a vanilla file) and Dungeon (one
+  column per temple: boss key, small keys found against the temple's total, lit while one is held, map and compass).
+  When the file's options shuffle them, Boss Souls (no Majora under Triforce Hunt), Enemy Souls (one n/47 count),
+  Owl Statues, Time (the six half-days) and Misc (Ability to Swim) follow the Ocarina Buttons. They draw as icons in
+  Hyrule before Majora's Mask has started, from the curated icons of #1144 (#1149, issue #1140). At 1280x800 the
+  overlay now draws at about 72% of SoH's size to fit Majora's Mask's longer section.
 
 ### Fixes
 
@@ -94,6 +118,10 @@ Nobody has played any of it: every change below is locked by test rows.
 
 ### For contributors
 
+- Test processes ignore game controllers: every `--test` and `--integration-test` process keeps SDL's joystick
+  background events off and opens no controller, and each `[FOCUS]` line ends `controllerBackground=0
+  openControllers=0` (any other value fails an integration run). A pad in use while the tiers run no longer moves
+  Link in the unfocused test windows (#1153, issue #1152; row `TestControllersIgnored`).
 - The integration rows accept the single-bag line that Generate's completion prints, and the integration stderr tee
   keeps it; five paired-creation rows had been red since #1116 (#1136, issue #1135).
 - Save-writing test rows each use their own directory, so rows that run at the same time no longer share save files
@@ -126,6 +154,16 @@ Nobody has played any of it: every change below is locked by test rows.
   pane only once Ocarina of Time's Check Tracker window has been shown since launch (#1138).
 - The Combo Tracker's Majora's Mask pane groups enemy drops and unconnected grottos differently from Majora's Mask's
   own Check Tracker (issue #1127, deferred).
+- **Reachability in the Combo Tracker** (#1147): the pane of the game you are not playing keeps what was reachable
+  when you left it and does not follow what you collect in the other game (issue #1146). Its "Available" counts can
+  read higher than SoH's Check Tracker with Hide options on, because they count every listed check where SoH leaves
+  out the checks its Hide options hide (issue #1146).
+- **Combo Item Tracker, Majora's Mask rows** (#1149): with Owl Statue shuffle on, the owl cells draw wider than their
+  cell and overlap their neighbours (the overlay does not yet clamp Majora's Mask's 46x24 owl face; lane IT-3, issue
+  #1141). Majora's Mask's small keys show the keys found against the temple's total; SoH's Key Counts display mode
+  is not honoured for them yet (issue #1143). The Heart Pieces row reads Majora's Mask's last snapshot of the shared
+  pieces, so a piece found in Hyrule shows in the Shared section at once and in Majora's Mask's row only after the
+  next crossing.
 - A stray fairy on an Ocarina of Time shelf or in its get-item cutscene is a still figure (no wing flap or colour
   pulse). The other items 2Ship2Harkinian draws with its own code (owl statues, souls, clocks, frogs, the swim ability,
   Triforce pieces, traps and ocarina buttons) still show "?" there (#1113).
@@ -137,17 +175,25 @@ Nobody has played any of it: every change below is locked by test rows.
   instead of Skip Boss Introductions. Both keep 2Ship2Harkinian's grouping for now.
 - Issue #1123: whether Tatl's flashback on the road to the swamp should also be skipped under Skip Story Cutscenes.
   It follows Skip Misc Interactions only, as in 2Ship2Harkinian.
+- Issue #993: its option 1, reachability in the Combo Tracker, is built (#1147); the issue stays open until the
+  operator picks that option. Majora's Mask's own Check Tracker still has no menu row.
+- #1149: whether Majora's Mask's Heart Pieces row stays (it shows a shared quantity a second time, from Majora's
+  Mask's snapshot) or is dropped or read from the shared pool.
 
 ### Run record
 
 The pull requests were merged once their hosted CI was green, and the pyramid driver runs the ROM tiers on
 `main` itself (the replan of 2026-10-22). On `main`, `integration` passed 16 of 21 at `bc93e65e` (cycle 20: five
 paired-creation rows waited for the log line #1116 renamed, issue #1135), 21 of 21 at `f416ecee` (cycle 21, with
-#1136's fix; `integration-soak` 1 of 1), and 16 of 21 at `fabe7d33` (cycle 22; `integration-soak` 0 of 1). The
-cycle 22 rows stop because the camera stays put while Link walks ("camera is anchored") or a warp lands at the
-wrong entrance; a re-run failed five of the six, with the messages moving between rows, and the driver is
-bisecting #1137, #1138 and #1125. Not triaged when this was written: the integration tier is not green on `main`.
-The full record is "Gates, 2026-10-23" in [`known-issues.md`](known-issues.md). Nobody has played any of it.
+#1136's fix; `integration-soak` 1 of 1), 16 of 21 at `fabe7d33` (cycle 22; `integration-soak` 0 of 1), 21 of 21 at
+`e3de3ff1` (cycle 23; `integration-soak` 1 of 1) and 21 of 21 at `af4d941f` (cycle 24, with #1147, #1149 and #1153;
+`integration-soak` 1 of 1). The cycle 22 red was not in the code: the operator's game controller was driving the
+test windows. libultraship lets SDL deliver joystick events to a window without focus, so a moved stick walked Link
+(the camera assertion failed) and pressed buttons took doors or loaded a file (warps and boots arrived at the wrong
+entrance), with the failure point moving between runs. The driver's bisect assumed the last green tip was still
+green, so it blamed #1137; its revert (#1150) was closed unmerged and #1137 cleared. Cycle 23 ran with the pad idle,
+and since #1153 (issue #1152) a test process ignores controllers altogether. The full record is in the two
+"Gates, 2026-10-23" sections of [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
 ---
 
