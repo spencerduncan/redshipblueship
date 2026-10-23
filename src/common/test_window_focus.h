@@ -32,6 +32,14 @@
  * ShowWindow(SW_SHOW) (fast/backends/gfx_dxgi.cpp), which never consults SDL's
  * hint, so a DirectX 11 window activates regardless. Tests are run with the GL
  * backend (`shipofharkinian.json` Window.Backend.Id 1), which the staged trees do.
+ *
+ * Game controllers (#1152): the same arming keeps a test process off the
+ * operator's pad. A window without keyboard focus would already have SDL drop pad
+ * input, but libultraship's Gui sets SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to
+ * "1" for every process, so the arming pins it to "0" at OVERRIDE first; and it
+ * hides every device from SDL's joystick drivers, so no controller is ever opened
+ * in a test process at all. The [FOCUS] line reports both
+ * (controllerBackground=0 openControllers=0); locked by test-controllers-ignored.
  */
 
 #ifndef RSBS_TEST_WINDOW_FOCUS_H
@@ -179,9 +187,22 @@ int TestWindowFocus_AudioVerdictFailed(void);
  * Windows, so a window the shell activated reads as focused here without any
  * event pumping. Safe before SDL_Init (reports "video=0").
  *
+ * The line also carries the controller verdict (#1152): controllerBackground (the
+ * SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS value SDL reads) and openControllers
+ * (the larger of the SDL joysticks this process holds open and the gamepads the
+ * live ControlDeck holds). Anything but "0" and 0 marks the controller verdict
+ * failed (TestWindowFocus_ControllerVerdictFailed).
+ *
  * @return 1 if an SDL window holds keyboard focus, else 0.
  */
 int TestWindowFocus_Probe(const char* where);
+
+/**
+ * @brief 1 once any TestWindowFocus_Probe line read a background-events hint other
+ *        than "0" or an open controller, else 0. The integration path fails the run
+ *        on it (main.cpp), the way it does on the audio verdict.
+ */
+int TestWindowFocus_ControllerVerdictFailed(void);
 
 /** Outcome of TestWindowFocus_ShowProbeWindow. */
 typedef struct TestWindowFocusProbeResult {

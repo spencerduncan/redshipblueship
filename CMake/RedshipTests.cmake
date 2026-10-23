@@ -75,6 +75,10 @@ function(redship_add_test)
     # CheckHandRunDigest) launches. PREPENDED, so a row's own ENVIRONMENT is kept
     # and, should a row ever name this variable itself, its later entry wins.
     list(PREPEND _environment "SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN=1")
+    # Same two layers for the operator's game controller (#1152): main.cpp keeps
+    # SDL's joystick background events off in code over libultraship's "1"; this
+    # carries "0" to a binary older than that change and to -P script children.
+    list(PREPEND _environment "SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS=0")
 
     # Every row is also SILENT (S0), whatever else it sets: a test process never
     # plays game audio through the speakers of the person at the workstation. Until

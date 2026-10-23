@@ -24,6 +24,7 @@ bool sAudioOptedOut = false;
 bool sSabotageConfig = false;
 bool sSabotageRestore = false;
 bool sAudioVerdictFailed = false;
+bool sControllerVerdictFailed = false;
 // What TestWindowFocus_BeforeInitAudio changed on the live Ship::Context's config,
 // for TestWindowFocus_AfterInitAudio to put back.
 TestSilentAudioConfigState sLiveConfigState;
@@ -95,6 +96,41 @@ void TestWindowFocus_ArmForTestMode(const char* mode) {
     // Already SDL's default; pinned so no environment can turn SDL_RaiseWindow into
     // the AttachThreadInput foreground grab inside a test process.
     SDL_SetHintWithPriority(SDL_HINT_FORCE_RAISEWINDOW, "0", SDL_HINT_OVERRIDE);
+#endif
+    // #1152: the operator's game controller. libultraship's Gui::ImGuiWMInit sets
+    // SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" at normal priority for every
+    // process (Gui.cpp:200/206), which switches off SDL's focus gate
+    // (SDL_PrivateJoystickShouldIgnoreEvent drops pad input while no SDL window of
+    // the process holds the keyboard -- and a test window never does). An OVERRIDE
+    // "0" set first makes that later call a refused no-op.
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0", SDL_HINT_OVERRIDE);
+    // And the strong half: a test process opens no controller at all, so neither
+    // the ControlDeck nor ImGui's SDL2 backend (both call SDL_GameControllerOpen
+    // on whatever SDL enumerates) ever holds one. SDL is told to enumerate nothing:
+    // an IGNORE_DEVICES_EXCEPT list naming only a VID/PID no device carries (0xFFFF
+    // is no USB-IF vendor) hides every device from each driver that consults
+    // SDL_ShouldIgnoreJoystick (XInput, DirectInput, WGI, HIDAPI, Linux, macOS);
+    // RawInput does not consult it, so the Windows drivers are also switched off by
+    // name. All before SDL_INIT_GAMECONTROLLER (libultraship's osContInit), and
+    // all OVERRIDE for the reason above.
+#ifdef SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT
+    SDL_SetHintWithPriority(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT, "0xFFFF/0xFFFF", SDL_HINT_OVERRIDE);
+#endif
+    SDL_SetHintWithPriority("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD", "0", SDL_HINT_OVERRIDE);
+#ifdef SDL_HINT_JOYSTICK_RAWINPUT
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_RAWINPUT, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_XINPUT_ENABLED
+    SDL_SetHintWithPriority(SDL_HINT_XINPUT_ENABLED, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_DIRECTINPUT_ENABLED
+    SDL_SetHintWithPriority(SDL_HINT_DIRECTINPUT_ENABLED, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_JOYSTICK_WGI
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_WGI, "0", SDL_HINT_OVERRIDE);
+#endif
+#ifdef SDL_HINT_JOYSTICK_HIDAPI
+    SDL_SetHintWithPriority(SDL_HINT_JOYSTICK_HIDAPI, "0", SDL_HINT_OVERRIDE);
 #endif
     sArmed = true;
 }
@@ -199,11 +235,24 @@ int TestWindowFocus_IsArmed(void) {
 int TestWindowFocus_Probe(const char* where) {
     const bool video = SDL_WasInit(SDL_INIT_VIDEO) != 0;
     SDL_Window* focus = video ? SDL_GetKeyboardFocus() : nullptr;
-    printf("[FOCUS] %s: video=%d keyboardFocus=%s noActivationHint=%s armed=%d\n", where != nullptr ? where : "?",
-           video ? 1 : 0, focus != nullptr ? "TAKEN" : "none", HintOrNull(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN),
-           sArmed ? 1 : 0);
+    // #1152: the controller verdict rides the same line, so every row's log and
+    // every integration run's log says whether the process could play a pad.
+    TestWindowControllerState pads;
+    TestWindowFocus_ReadControllers(&pads);
+    const int openControllers = pads.openJoysticks > pads.controlDeckPads ? pads.openJoysticks : pads.controlDeckPads;
+    if (std::strcmp(pads.background, "0") != 0 || openControllers > 0) {
+        sControllerVerdictFailed = true;
+    }
+    printf("[FOCUS] %s: video=%d keyboardFocus=%s noActivationHint=%s armed=%d controllerBackground=%s "
+           "openControllers=%d\n",
+           where != nullptr ? where : "?", video ? 1 : 0, focus != nullptr ? "TAKEN" : "none",
+           HintOrNull(SDL_HINT_WINDOW_NO_ACTIVATION_WHEN_SHOWN), sArmed ? 1 : 0, pads.background, openControllers);
     fflush(stdout);
     return focus != nullptr ? 1 : 0;
+}
+
+int TestWindowFocus_ControllerVerdictFailed(void) {
+    return sControllerVerdictFailed ? 1 : 0;
 }
 
 void TestWindowFocus_ShowProbeWindow(TestWindowFocusProbeResult* out) {

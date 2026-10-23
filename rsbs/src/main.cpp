@@ -1094,6 +1094,12 @@ int main(int argc, char** argv) {
             printf("[INT-TEST] FAIL: the run was not silent (see the [AUDIO] line above)\n");
             integrationResult = 1;
         }
+        // #1152: a run that could have played the operator's pad (background
+        // joystick events on, or a controller open) is not evidence either way.
+        if (integrationResult == 0 && TestWindowFocus_ControllerVerdictFailed()) {
+            printf("[INT-TEST] FAIL: the run could take game controller input (see the [FOCUS] line above)\n");
+            integrationResult = 1;
+        }
         fflush(stdout);
         fflush(stderr);
         _Exit(integrationResult);
