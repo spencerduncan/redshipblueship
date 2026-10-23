@@ -855,6 +855,18 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // SoH's header controls, through the seam, and the totals line through
         // section 5's text.
         CTW_ASSERT(text.find("Ui().Checkbox(\"Show Hidden Items\"") != std::string::npos);
+        // Ruling D12: each pane's Show Hidden Items is its own. The legs above
+        // take `showHidden` as a parameter, so they would pass over one bool
+        // or one key shared by both panes: the window keeps a PaneState per
+        // game, the checkbox flips that pane's, and that pane's list reads it.
+        CTW_ASSERT(text.find("static PaneState sPanes[") != std::string::npos);
+        CTW_ASSERT(text.find("PaneState& pane = Pane(game);") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().Checkbox(\"Show Hidden Items\", &pane.showHidden") != std::string::npos);
+        CTW_ASSERT(text.find("ComboReadCheckHideOptions(pane.showHidden)") != std::string::npos);
+        // "No checks." is for a game (or a search) with none: when the hides
+        // leave nothing, the list asks the unhidden grouping before the note,
+        // and otherwise draws empty, as SoH's does.
+        CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, unhidden);") != std::string::npos);
         CTW_ASSERT(text.find("Ui().Button(\"Expand All\"") != std::string::npos);
         CTW_ASSERT(text.find("Ui().Button(\"Collapse All\"") != std::string::npos);
         CTW_ASSERT(text.find("ComboCheckTotalsText(summary)") != std::string::npos);
