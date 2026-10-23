@@ -26,10 +26,6 @@ Nobody has played any of it: every change below is locked by test rows.
   #1147), and `v0.3.0-prealpha` refuses a version 4 file as made by another build. A `v0.3.0-prealpha` file that
   this version opens at all (the save break above refuses paired ones) loads, and shows no reachability for the other
   game until you next cross.
-- **Seed packages exported by `v0.3.0-prealpha` are refused** from `efe573ec` on: "Refused: Seed package damaged or
-  incomplete", and the log reads "the combo record is 1004 bytes; this build's is 1712". Generate the seed again from
-  the same settings in this version (issue #1151 will accept the older packages). See "Seed packages from
-  `v0.3.0-prealpha` are refused" under "Randomizer generation" in [`known-issues.md`](known-issues.md).
 - **Generate now makes the whole paired world** and writes it to a seed package in `Randomizer/` (next section). The
   progress overlay shows when you press Generate; creating the file is instant.
 - **Seeds.** With every new option at its default (Shuffle Tree Drops off), no world moved after the tag: the same seed
@@ -133,6 +129,13 @@ Nobody has played any of it: every change below is locked by test rows.
 
 - **The save break above** (#1125): a paired file from any build before `fabe7d33` (`v0.3.0-prealpha` included) is
   refused. Start a new file.
+- **Seed packages from `main` builds before `efe573ec` are refused** (#1147). No released build wrote a seed package
+  (they are new in this release, #1116), so a player coming from `v0.3.0-prealpha` has none. A package exported by a
+  `main` build from `bc93e65e` to `e3de3ff1` is refused with "Refused: Seed package damaged or incomplete". From
+  `fabe7d33`, `4fc4fd41` or `e3de3ff1` the log reads "the combo record is 1004 bytes; this build's is 1712", and issue
+  #1151 would accept those packages; from `bc93e65e` to `f29a1a82` (before #1125) it reads "MM's half is N bytes; this
+  build's is M", which #1151 does not change. Generate the seed again. See "Seed packages from `main` builds before
+  `efe573ec` are refused" under "Randomizer generation" in [`known-issues.md`](known-issues.md).
 - Ocarina of Time's Progressive Deku Stick and Nut upgrades found in Termina still cross and arrive at Ocarina of
   Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps gating sticks and nuts. The ocarina still crosses as an
   ordinary item (#1122).
