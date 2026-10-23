@@ -202,6 +202,40 @@ typedef struct TestWindowFocusProbeResult {
  */
 void TestWindowFocus_ShowProbeWindow(TestWindowFocusProbeResult* out);
 
+/** What TestWindowFocus_ReadControllers saw (#1152). */
+typedef struct TestWindowControllerState {
+    char background[16]; /**< SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS as SDL_GetHint reads it, "(unset)" if none */
+    int joystickUp;      /**< SDL's joystick subsystem is initialised in this process */
+    int joysticks;       /**< SDL_NumJoysticks(): devices SDL enumerates (0 when not up) */
+    int openJoysticks;   /**< of those, how many this process holds open (any opener: ControlDeck, ImGui) */
+    int controlDeckPads; /**< gamepads the live Ship::Context's ControlDeck holds; -1 with no ControlDeck */
+} TestWindowControllerState;
+
+/**
+ * @brief Read this process's controller state without changing it: the
+ *        background-events hint, what SDL enumerates, and what is open.
+ *
+ * An opened joystick is one SDL_JoystickFromInstanceID still resolves, which
+ * counts every opener (libultraship's ConnectedPhysicalDeviceManager and ImGui's
+ * SDL2 backend both call SDL_GameControllerOpen). Safe before SDL_Init.
+ */
+void TestWindowFocus_ReadControllers(TestWindowControllerState* out);
+
+/**
+ * @brief Run the scan libultraship's ControlDeck runs on a device-added event
+ *        (Ship::ConnectedPhysicalDeviceManager::RefreshConnectedSDLGamepads, the
+ *        only SDL_GameControllerOpen in libultraship) and count what it opened.
+ *
+ * Brings SDL_INIT_GAMECONTROLLER up itself if it is not already (and takes it
+ * down again in that case), and closes every controller the scan opened before
+ * returning, so it leaves the process as it found it.
+ *
+ * @param joysticksSeen receives SDL_NumJoysticks() at the scan (may be NULL).
+ * @return how many game controllers the scan opened; -1 when the game
+ *         controller subsystem could not be brought up (@p why says why).
+ */
+int TestWindowFocus_ScanControllersLikeControlDeck(int* joysticksSeen, char* why, int whyLen);
+
 #ifdef __cplusplus
 }
 #endif

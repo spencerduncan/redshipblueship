@@ -2432,6 +2432,78 @@ TestResult Test_TestWindowNoActivation(void) {
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1152 lock: a test process never plays the operator's game controller. Its
+// window never holds the keyboard (the row above), so SDL would drop pad input
+// for it -- except that libultraship's Gui::ImGuiWMInit (Gui.cpp:200/206) sets
+// SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" for every process, and the
+// ROM-staged rows then walked, warped and loaded files on the operator's pad.
+//   C1 after a normal-priority SDL_SetHint(..., "1") standing in for Gui.cpp:200,
+//      the background-events hint still reads "0" (the environment variable of
+//      the same name removed first, as W2 does, so the value is main's in-code
+//      override and not the one every CTest row also carries);
+//   C2 SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT is armed (same
+//      measurement), so every SDL driver that consults SDL_ShouldIgnoreJoystick
+//      enumerates nothing;
+//   C3 the ControlDeck's own scan (ConnectedPhysicalDeviceManager::
+//      RefreshConnectedSDLGamepads) opens no game controller. Asserted only when
+//      SDL enumerates at least one joystick: with no pad connected (CI) the scan
+//      has nothing to open and C3 proves nothing, so the row says so and C1/C2
+//      carry it. On main with a pad connected C3 is red as well.
+TestResult Test_TestControllersIgnored(void) {
+    printf("[TEST] test-controllers-ignored: a test process ignores and opens no game controller\n");
+    int failures = 0;
+#define TCI_ASSERT(cond, ...)        \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    DigestOut_SetEnv(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, nullptr);
+#ifdef SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT
+    DigestOut_SetEnv(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT, nullptr);
+#endif
+
+    // libultraship's call, verbatim (normal priority), as Gui::ImGuiWMInit makes it.
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    const char* bg = SDL_GetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS);
+    TCI_ASSERT(bg != nullptr && strcmp(bg, "0") == 0,
+               "C1: SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS reads '%s' after libultraship's SDL_SetHint(\"1\") "
+               "with the environment variable removed, not '0' (an unfocused test window takes the pad)",
+               bg != nullptr ? bg : "(unset)");
+#ifdef SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT
+    const char* except = SDL_GetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT);
+    TCI_ASSERT(except != nullptr && except[0] != '\0',
+               "C2: SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT is '%s' with the environment variable removed, "
+               "so SDL enumerates the operator's pad in a test process",
+               except != nullptr ? except : "(unset)");
+#endif
+
+    int seen = 0;
+    char why[256] = "";
+    const int opened = TestWindowFocus_ScanControllersLikeControlDeck(&seen, why, (int)sizeof(why));
+    if (opened < 0) {
+        printf("[TEST] C3 not run: %s\n", why);
+    } else {
+        printf("[FOCUS] controller scan: joysticks=%d openedByControlDeckScan=%d\n", seen, opened);
+        if (seen > 0) {
+            TCI_ASSERT(opened == 0,
+                       "C3: the ControlDeck's scan opened %d game controller(s) of the %d joystick(s) SDL "
+                       "enumerates in a test process",
+                       opened, seen);
+        } else {
+            printf("[TEST] C3 not asserted: SDL enumerates no joystick here (no pad connected, or the test "
+                   "arming hid every device); C1 and C2 carry the row\n");
+        }
+    }
+#undef TCI_ASSERT
+    printf("[TEST] %s: test-controllers-ignored, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Silent tests (S0): a --test / --integration-test process never plays audio,
 // whatever the staged config's Window.AudioBackend or the caller's environment say.
 // Two layers hold it: redship_add_test() puts SDL_AUDIODRIVER=dummy in every row's
@@ -8069,6 +8141,10 @@ const TestDescriptor gTests[] = {
       "A --test process arms SDL's no-activation hint in code (not only from the environment) and a shown window "
       "takes no keyboard focus, so a tier never steals the caret from the person at the workstation (lane F1, #310)",
       Test_TestWindowNoActivation },
+    { "test-controllers-ignored",
+      "A --test process keeps SDL's joystick background events off in code over libultraship's \"1\" and its "
+      "ControlDeck opens no game controller, so a tier never plays the operator's pad (#1152)",
+      Test_TestControllersIgnored },
     { "test-audio-silent",
       "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
       "so a tier never plays game audio through the speakers of the person at the workstation (S0)",

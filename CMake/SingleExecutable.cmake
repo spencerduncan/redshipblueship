@@ -2962,6 +2962,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts it took no focus; with no display it reports and passes on the hint
     # halves. Default tier: SDL video only, no Fast3dWindow, no archive.
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
+    # #1152: test processes never play the operator's game controller. main.cpp
+    # keeps SDL's joystick background events off in code over libultraship's "1"
+    # (Gui.cpp:200) and hides every device from SDL (src/common/test_window_focus.h).
+    # This row removes the same-named variables from its own process, re-makes
+    # libultraship's SDL_SetHint, asserts the in-code values, then runs the
+    # ControlDeck's own scan and (when SDL sees any joystick) asserts it opened
+    # nothing. Default tier: SDL game controller subsystem only, no window.
+    redship_add_test(NAME TestControllersIgnored COMMAND redship --test test-controllers-ignored)
     # S0: test processes are silent. redship_add_test() puts SDL_AUDIODRIVER=dummy
     # in every row's environment and main.cpp pins the driver in code for every
     # --test / --integration-test process (src/common/test_window_focus.h). This

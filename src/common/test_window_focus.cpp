@@ -13,6 +13,8 @@
 #include <ship/Context.h>
 #include <ship/audio/Audio.h>
 #include <ship/config/Config.h>
+#include <ship/controller/controldeck/ControlDeck.h>
+#include <ship/controller/physicaldevice/ConnectedPhysicalDeviceManager.h>
 
 namespace {
 
@@ -246,6 +248,57 @@ void TestWindowFocus_ShowProbeWindow(TestWindowFocusProbeResult* out) {
     if (!videoWasUp) {
         SDL_QuitSubSystem(SDL_INIT_VIDEO);
     }
+}
+
+void TestWindowFocus_ReadControllers(TestWindowControllerState* out) {
+    std::memset(out, 0, sizeof(*out));
+    std::snprintf(out->background, sizeof(out->background), "%s",
+                  HintOrNull(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS));
+    out->controlDeckPads = -1;
+    out->joystickUp = SDL_WasInit(SDL_INIT_JOYSTICK) != 0 ? 1 : 0;
+    if (out->joystickUp) {
+        out->joysticks = SDL_NumJoysticks();
+        for (int i = 0; i < out->joysticks; i++) {
+            if (SDL_JoystickFromInstanceID(SDL_JoystickGetDeviceInstanceID(i)) != nullptr) {
+                out->openJoysticks++;
+            }
+        }
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx != nullptr && ctx->GetControlDeck() != nullptr &&
+        ctx->GetControlDeck()->GetConnectedPhysicalDeviceManager() != nullptr) {
+        out->controlDeckPads =
+            (int)ctx->GetControlDeck()->GetConnectedPhysicalDeviceManager()->GetConnectedSDLGamepadNames().size();
+    }
+}
+
+int TestWindowFocus_ScanControllersLikeControlDeck(int* joysticksSeen, char* why, int whyLen) {
+    if (joysticksSeen != nullptr) {
+        *joysticksSeen = 0;
+    }
+    const bool wasUp = SDL_WasInit(SDL_INIT_GAMECONTROLLER) != 0;
+    if (!wasUp && SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0) {
+        if (why != nullptr && whyLen > 0) {
+            std::snprintf(why, (size_t)whyLen, "no game controller subsystem (%s)", SDL_GetError());
+        }
+        return -1;
+    }
+    if (joysticksSeen != nullptr) {
+        *joysticksSeen = SDL_NumJoysticks();
+    }
+    // The ControlDeck's own class, so the count is what a booted game would hold.
+    Ship::ConnectedPhysicalDeviceManager scan;
+    scan.RefreshConnectedSDLGamepads();
+    const int opened = (int)scan.GetConnectedSDLGamepadNames().size();
+    // Port 0 ignores nothing (the scan only ignores new pads on ports 1-3), so it
+    // hands back every pad the scan opened; close each once, as it opened each once.
+    for (const auto& [instanceId, pad] : scan.GetConnectedSDLGamepadsForPort(0)) {
+        SDL_GameControllerClose(pad);
+    }
+    if (!wasUp) {
+        SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+    }
+    return opened;
 }
 
 } // extern "C"
