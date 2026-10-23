@@ -213,6 +213,12 @@ green, so it blamed #1137; its revert (#1150) was closed unmerged and #1137 clea
 and since #1153 (issue #1152) a test process ignores controllers altogether. The full record is in the two
 "Gates, 2026-10-23" sections of [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
+The release commit itself (`c1023282` plus the version bump and these notes) was gated on the workstation (Windows,
+ROM archives mounted): `redship` 240 of 240, `rando` 74 of 74, `integration` 21 of 21. Two capture rows,
+`IntGameplayRoundtripCapture` and `IntPairedFileSelectIdentity`, first failed because the build tree's
+`shipofharkinian.json` had fallen back to libultraship's Windows default, DirectX 11, where no frame capture is
+written; on the OpenGL backend the test setup requires, both passed.
+
 ---
 
 # Release notes: v0.3.0-prealpha ("Ripley Alfa")
