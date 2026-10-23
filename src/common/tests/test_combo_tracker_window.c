@@ -39,8 +39,10 @@
  *    registered at all.
  *
  * 4. DRAWN THE SoH WAY (UI parity M8), as far as a source scan can hold it:
- *    through the combo_ui seam, with SoH's close-button chrome, no settings
- *    digest, and check statuses as FontAwesome glyphs rather than "[x]".
+ *    through the combo_ui seam, with SoH's close-button chrome in the Window
+ *    type and none in the Floating type (#1130), SoH's chrome keys each read
+ *    under its own name, no settings digest, and check statuses as FontAwesome
+ *    glyphs rather than "[x]".
  *
  * 5. THE LAYOUT AND GROUPING DECISIONS, as the pure functions the draw code
  *    calls (#458 U4, #815, #816): a balanced wrap never breaks a word inside
@@ -56,7 +58,13 @@
  *    Only Show Available Checks (rows known unavailable and areas with none
  *    available go, whatever Show Hidden Items says; a row of unknown
  *    availability never goes), the "N Available / " totals prefix and the area
- *    header's available count, all behind Enable Available Checks.
+ *    header's available count, all behind Enable Available Checks; and (#1130)
+ *    the window's chrome from SoH's Check Tracker keys: the Window type a
+ *    titled pane with a close button whatever the floating gates say, the
+ *    Floating type SoH's overlay flags (input-less unless Enable Dragging) with
+ *    no close button, drawn only while paused under Only Enable While Paused
+ *    and only while both combo buttons are held under Combo Button Hold, SoH's
+ *    combo-button pad bits, and every key's SoH default.
  *
  * Appearance itself is judged from the UiSnapshot row's captures (Combo
  * Tracker @paired, @unpaired and @progress), not here.
@@ -760,6 +768,193 @@ int LockAvail(void) {
     return result;
 }
 
+// ---- #1130 (lane L1b): the window's chrome ----------------------------------------
+
+// SoH's chrome keys (randomizer_check_tracker.cpp, DrawElement and the Check
+// Tracker Settings table), as the pane reads them.
+const char* const kCtwChromeIntKeys[] = {
+    "gTrackers.CheckTracker.WindowType",     "gTrackers.CheckTracker.Draggable",
+    "gTrackers.CheckTracker.ShowOnlyPaused", "gTrackers.CheckTracker.DisplayType",
+    "gTrackers.CheckTracker.ComboButton1",   "gTrackers.CheckTracker.ComboButton2",
+};
+constexpr size_t kCtwChromeIntKeyCount = sizeof(kCtwChromeIntKeys) / sizeof(kCtwChromeIntKeys[0]);
+constexpr const char* kCtwBgKey = "gTrackers.CheckTracker.BgColor.Value";
+constexpr const char* kCtwFontKey = "gTrackers.CheckTracker.FontSize";
+
+/** The chrome keys as they were, cleared meanwhile and put back afterwards (set again or cleared). */
+struct CtwChromeKeyGuard {
+    bool intExisted[kCtwChromeIntKeyCount] = {};
+    int32_t intValue[kCtwChromeIntKeyCount] = {};
+    bool bgExisted = false;
+    Color_RGBA8 bg = {};
+    bool fontExisted = false;
+    float font = 0.0f;
+    CtwChromeKeyGuard() {
+        for (size_t i = 0; i < kCtwChromeIntKeyCount; i++) {
+            intExisted[i] = CVarExists(kCtwChromeIntKeys[i]);
+            intValue[i] = CVarGetInteger(kCtwChromeIntKeys[i], 0);
+            CVarClear(kCtwChromeIntKeys[i]);
+        }
+        bgExisted = CVarExists(kCtwBgKey);
+        bg = CVarGetColor(kCtwBgKey, Color_RGBA8{ 0, 0, 0, 255 });
+        CVarClear(kCtwBgKey);
+        fontExisted = CVarExists(kCtwFontKey);
+        font = CVarGetFloat(kCtwFontKey, 1.0f);
+        CVarClear(kCtwFontKey);
+    }
+    ~CtwChromeKeyGuard() {
+        for (size_t i = 0; i < kCtwChromeIntKeyCount; i++) {
+            if (intExisted[i]) {
+                CVarSetInteger(kCtwChromeIntKeys[i], intValue[i]);
+            } else {
+                CVarClear(kCtwChromeIntKeys[i]);
+            }
+        }
+        if (bgExisted) {
+            CVarSetColor(kCtwBgKey, bg);
+        } else {
+            CVarClear(kCtwBgKey);
+        }
+        if (fontExisted) {
+            CVarSetFloat(kCtwFontKey, font);
+        } else {
+            CVarClear(kCtwFontKey);
+        }
+    }
+};
+
+int LockChrome(void) {
+    using namespace ComboGui;
+
+    // SoH's `buttons` table (randomizer_entrance_tracker.h), in TrackerComboButton
+    // order: A, B, C-Up, C-Down, C-Left, C-Right, L, Z, R, Start, D-Up, D-Down,
+    // D-Left, D-Right (libultra's BTN_* bits).
+    const uint32_t kSohButtons[kComboTrackerComboButtonCount] = { 0x8000, 0x4000, 0x0008, 0x0004, 0x0002,
+                                                                  0x0001, 0x0020, 0x2000, 0x0010, 0x1000,
+                                                                  0x0800, 0x0400, 0x0200, 0x0100 };
+    for (int b = 0; b < kComboTrackerComboButtonCount; b++) {
+        if (ComboTrackerComboButtonMask(b) != kSohButtons[b]) {
+            printf("[TEST] FAIL: combo-tracker-window #1130: Combo Button %d is pad bit 0x%04X, SoH's is 0x%04X\n", b,
+                   (unsigned)ComboTrackerComboButtonMask(b), (unsigned)kSohButtons[b]);
+            return TEST_FAIL;
+        }
+    }
+    CTW_ASSERT(ComboTrackerComboButtonMask(-1) == 0 && ComboTrackerComboButtonMask(kComboTrackerComboButtonCount) == 0);
+    const uint32_t padL = 0x0020;
+    const uint32_t padR = 0x0010;
+    const uint32_t padZ = 0x2000;
+    const uint32_t padA = 0x8000;
+
+    const int floatingAdds = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar;
+    const int fixedAdds = ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
+
+    // The Window type: a titled pane with a close button, whatever the floating
+    // gates say (SoH applies them to the floating type only); any value but
+    // Floating is the window type, as SoH's == TRACKER_WINDOW_FLOATING tests read it.
+    for (int type : { kComboTrackerWindowWindow, 7 }) {
+        for (int bits = 0; bits < 16; bits++) {
+            ComboTrackerChromeKeys keys;
+            keys.windowType = type;
+            keys.draggable = (bits & 1) != 0;
+            keys.showOnlyPaused = (bits & 2) != 0;
+            keys.displayType = (bits & 4) != 0 ? kComboTrackerDisplayComboButton : kComboTrackerDisplayAlways;
+            const bool paused = (bits & 8) != 0;
+            const ComboTrackerChrome c = ComboTrackerChromeFor(keys, paused, 0);
+            if (!c.draws || !c.closeButton || c.mainViewport || c.flags != ImGuiWindowFlags_NoFocusOnAppearing) {
+                printf("[TEST] FAIL: combo-tracker-window #1130: window type %d, keys %d: draws %d, close %d, main "
+                       "viewport %d, flags 0x%X\n",
+                       type, bits, (int)c.draws, (int)c.closeButton, (int)c.mainViewport, (unsigned)c.flags);
+                return TEST_FAIL;
+            }
+        }
+    }
+
+    // The Floating type: SoH's overlay flags, input-less and fixed unless
+    // Draggable, on the main viewport, with no close button.
+    {
+        ComboTrackerChromeKeys keys;
+        keys.windowType = kComboTrackerWindowFloating;
+        ComboTrackerChrome c = ComboTrackerChromeFor(keys, false, 0);
+        printf("[TEST] combo-tracker-window #1130: floating, draggable: draws %d, close %d, main viewport %d, flags "
+               "0x%X\n",
+               (int)c.draws, (int)c.closeButton, (int)c.mainViewport, (unsigned)c.flags);
+        CTW_ASSERT(c.draws && !c.closeButton && c.mainViewport);
+        CTW_ASSERT(c.flags == (ImGuiWindowFlags_NoFocusOnAppearing | floatingAdds));
+        keys.draggable = false;
+        c = ComboTrackerChromeFor(keys, false, 0);
+        CTW_ASSERT(c.draws && !c.closeButton && c.mainViewport);
+        CTW_ASSERT(c.flags == (ImGuiWindowFlags_NoFocusOnAppearing | floatingAdds | fixedAdds));
+        // The pane scrolls as a whole: SoH's scroll flags are for its outer
+        // window over an inner scrolling table, which this pane does not have.
+        CTW_ASSERT((c.flags & (ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse)) == 0);
+    }
+
+    // Only Enable While Paused: the floating overlay draws only while the
+    // active game is paused.
+    {
+        ComboTrackerChromeKeys keys;
+        keys.windowType = kComboTrackerWindowFloating;
+        keys.showOnlyPaused = true;
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, 0).draws);
+        CTW_ASSERT(ComboTrackerChromeFor(keys, true, 0).draws);
+        keys.showOnlyPaused = false;
+        CTW_ASSERT(ComboTrackerChromeFor(keys, false, 0).draws);
+    }
+
+    // Combo Button Hold: only while both of its buttons are held on the first
+    // pad, by default L and R; other buttons held alongside do not matter.
+    {
+        ComboTrackerChromeKeys keys;
+        keys.windowType = kComboTrackerWindowFloating;
+        keys.displayType = kComboTrackerDisplayComboButton;
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, 0).draws);
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, padL).draws);
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, padR).draws);
+        CTW_ASSERT(ComboTrackerChromeFor(keys, false, padL | padR).draws);
+        CTW_ASSERT(ComboTrackerChromeFor(keys, false, padL | padR | padA).draws);
+        keys.comboButton1 = 0; // A
+        keys.comboButton2 = 7; // Z
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, padL | padR).draws);
+        CTW_ASSERT(ComboTrackerChromeFor(keys, false, padA | padZ).draws);
+        // Both gates at once: held but not paused stays hidden.
+        keys.showOnlyPaused = true;
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, false, padA | padZ).draws);
+        CTW_ASSERT(ComboTrackerChromeFor(keys, true, padA | padZ).draws);
+        CTW_ASSERT(!ComboTrackerChromeFor(keys, true, padA).draws);
+    }
+
+    // The keys, under SoH's names with SoH's defaults (the hold's: Combo Button
+    // 1 L, Combo Button 2 R), each reaching its own field.
+    {
+        CtwChromeKeyGuard guard;
+        ComboTrackerChromeKeys read = ComboReadTrackerChromeKeys();
+        CTW_ASSERT(read.windowType == kComboTrackerWindowWindow && read.draggable && !read.showOnlyPaused &&
+                   read.displayType == kComboTrackerDisplayAlways && read.comboButton1 == kComboTrackerComboButtonL &&
+                   read.comboButton2 == kComboTrackerComboButtonR);
+        CTW_ASSERT(read.bg[0] == 0 && read.bg[1] == 0 && read.bg[2] == 0 && read.bg[3] == 255);
+        CTW_ASSERT(read.fontSize == 1.0f);
+        CVarSetInteger("gTrackers.CheckTracker.WindowType", kComboTrackerWindowFloating);
+        CVarSetInteger("gTrackers.CheckTracker.Draggable", 0);
+        CVarSetInteger("gTrackers.CheckTracker.ShowOnlyPaused", 1);
+        CVarSetInteger("gTrackers.CheckTracker.DisplayType", kComboTrackerDisplayComboButton);
+        CVarSetInteger("gTrackers.CheckTracker.ComboButton1", 3);
+        CVarSetInteger("gTrackers.CheckTracker.ComboButton2", 11);
+        CVarSetColor(kCtwBgKey, Color_RGBA8{ 10, 20, 30, 40 });
+        CVarSetFloat(kCtwFontKey, 1.5f);
+        read = ComboReadTrackerChromeKeys();
+        printf("[TEST] combo-tracker-window #1130: chrome keys flipped read type %d, draggable %d, paused-only %d, "
+               "display %d, buttons %d/%d, bg %d,%d,%d,%d, font %.2f\n",
+               read.windowType, (int)read.draggable, (int)read.showOnlyPaused, read.displayType, read.comboButton1,
+               read.comboButton2, read.bg[0], read.bg[1], read.bg[2], read.bg[3], read.fontSize);
+        CTW_ASSERT(read.windowType == kComboTrackerWindowFloating && !read.draggable && read.showOnlyPaused &&
+                   read.displayType == kComboTrackerDisplayComboButton && read.comboButton1 == 3 &&
+                   read.comboButton2 == 11);
+        CTW_ASSERT(read.bg[0] == 10 && read.bg[1] == 20 && read.bg[2] == 30 && read.bg[3] == 40);
+        CTW_ASSERT(read.fontSize == 1.5f);
+    }
+    return TEST_PASS;
+}
+
 /** Every section runs, so one red section does not hide another's state. */
 int TrackerLayoutLocks(void) {
     const int r815 = Lock815();
@@ -767,12 +962,14 @@ int TrackerLayoutLocks(void) {
     const int rAreas = LockAreas();
     const int rHide = LockHide();
     const int rAvail = LockAvail();
+    const int rChrome = LockChrome();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
-           "#1129 reachability %s\n",
+           "#1129 reachability %s, #1130 chrome %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
-           rAvail == TEST_PASS ? "PASS" : "FAIL");
-    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS && rAvail == TEST_PASS)
+           rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL");
+    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
+            rAvail == TEST_PASS && rChrome == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }
@@ -888,7 +1085,12 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(in.good());
         const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         CTW_ASSERT(text.find("ComboUi_Get()") != std::string::npos);
-        CTW_ASSERT(text.find(", &open,") != std::string::npos);
+        // #1130 (lane L1b), style guide section 10b: the Window type keeps the
+        // close button (an open flag to ImGui::Begin, SetVisibility(false) when
+        // closed); the Floating type passes none, as SoH's overlays and the
+        // Combo Item Tracker do. Both through the decision section 5 locks.
+        CTW_ASSERT(text.find("ComboTrackerChromeFor(keys, paused, pad)") != std::string::npos);
+        CTW_ASSERT(text.find("chrome.closeButton ? &open : nullptr") != std::string::npos);
         CTW_ASSERT(text.find("SetVisibility(false)") != std::string::npos);
         CTW_ASSERT(text.find("ImGui::TextDisabled") == std::string::npos);
         CTW_ASSERT(text.find("ImGui::Spacing") == std::string::npos);
@@ -997,6 +1199,34 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             }
         }
         CTW_ASSERT(text.find("CVarSet") == std::string::npos); // clear-never-store: the pane writes no key
+        // #1130 (lane L1b): SoH's chrome keys (DrawElement, BeginFloatWindows),
+        // each read under its own name with SoH's default, and drawn as SoH
+        // draws them: the floating gates on the active game's pause and the
+        // first pad's held buttons (SoH's own ControlDeck read), the main
+        // viewport, the background colour opaque while docked in the menu's
+        // deck, a transparent border, rounding 4, and the font scale.
+        const char* const kChromeReads[] = {
+            "CVarGetInteger(\"gTrackers.CheckTracker.WindowType\", kComboTrackerWindowWindow)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.Draggable\", 1)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.ShowOnlyPaused\", 0)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.DisplayType\", kComboTrackerDisplayAlways)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.ComboButton1\", kComboTrackerComboButtonL)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.ComboButton2\", kComboTrackerComboButtonR)",
+            "CVarGetColor(\"gTrackers.CheckTracker.BgColor.Value\", kSohBgDefault)",
+            "CVarGetFloat(\"gTrackers.CheckTracker.FontSize\", 1.0f)",
+            "Combo_ItemActiveGamePaused()",
+            "->GetPads()",
+            "ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID)",
+            "\"Main - Deck\"",
+            "ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f)",
+            "ImGui::SetWindowFontScale(keys.fontSize)",
+        };
+        for (const char* read : kChromeReads) {
+            if (text.find(read) == std::string::npos) {
+                printf("[TEST] FAIL: ComboTrackerWindow.cpp does not draw its chrome through %s\n", read);
+                return TEST_FAIL;
+            }
+        }
         // SoH's header controls, through the seam, and the totals line through
         // section 5's text.
         CTW_ASSERT(text.find("Ui().Checkbox(\"Show Hidden Items\"") != std::string::npos);

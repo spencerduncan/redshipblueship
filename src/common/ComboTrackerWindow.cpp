@@ -716,6 +716,20 @@ std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool available
     return text;
 }
 
+ComboTrackerChromeKeys ComboReadTrackerChromeKeys() {
+    return ComboTrackerChromeKeys();
+}
+
+uint32_t ComboTrackerComboButtonMask(int) {
+    return 0;
+}
+
+ComboTrackerChrome ComboTrackerChromeFor(const ComboTrackerChromeKeys&, bool, uint32_t) {
+    ComboTrackerChrome chrome;
+    chrome.flags = ImGuiWindowFlags_NoFocusOnAppearing;
+    return chrome;
+}
+
 /**
  * One direction's crossing table (declared in ComboTrackerWindow.h). The
  * direction is the accessor — the two directions are separate key spaces and
