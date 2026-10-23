@@ -15,7 +15,7 @@ Nobody has played any of it: every change below is locked by test rows.
 - **Start a new paired file: files from `v0.3.0-prealpha` do not carry over.** Shuffle Tree Drops (#1125) added 53
   checks to Majora's Mask's check table, which sits in the middle of Majora's Mask's half of the save, so every field
   after it moved, the world's seed among them. A paired randomizer file saved by any build before `fabe7d33`
-  (`v0.3.0-prealpha` included, and the `main` builds after the tag, #1111 to #1124) no longer reads as its own
+  (`v0.3.0-prealpha` included, and the `main` builds after the tag with #1111 to #1138) no longer reads as its own
   Majora's Mask world, and the file select refuses it ("Refused: This file has no Majora's Mask world"). The operator
   accepted this break before release (2026-10-23); there is no migration. Keep the build that wrote an old file if
   you want to finish it. See "The `v0.3.0-prealpha` save break" under "Save

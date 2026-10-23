@@ -936,7 +936,7 @@ fields #1114 retired.
 
 ### The `v0.3.0-prealpha` save break: a paired file from any build before `fabe7d33` (`v0.3.0-prealpha` included) is refused (PR [#1125](https://github.com/spencerduncan/redshipblueship/pull/1125), [#1121](https://github.com/spencerduncan/redshipblueship/issues/1121))
 
-**What you see.** On a build from `fabe7d33` (2026-10-23) on, pressing A on a paired randomizer file saved by any build before `fabe7d33` (`v0.3.0-prealpha`, every earlier build, and the `main` builds after the tag that predate PR #1125, #1111 to #1124) plays the error sound, shows "Refused: This file has no Majora's Mask world" and keeps you on the file list. The file is not opened and nothing is written to it.
+**What you see.** On a build from `fabe7d33` (2026-10-23) on, pressing A on a paired randomizer file saved by any build before `fabe7d33` (`v0.3.0-prealpha`, every earlier build, and the `main` builds after the tag that predate PR #1125, with #1111 to #1138) plays the error sound, shows "Refused: This file has no Majora's Mask world" and keeps you on the file list. The file is not opened and nothing is written to it.
 
 **Why.** Shuffle Tree Drops (PR #1125) added 53 checks to Majora's Mask's check table, which sits in the middle of Majora's Mask's half of the save, so every field after it moved, among them the seed by which the file select recognises the pair's Majora's Mask world, and an older file's half now reads as another world. The mask groundwork of PR [#1112](https://github.com/spencerduncan/redshipblueship/pull/1112) appended three more bytes to the same half. The operator accepted this break on 2026-10-23 rather than a migration, as with the earlier save-layout changes of this pre-release.
 
