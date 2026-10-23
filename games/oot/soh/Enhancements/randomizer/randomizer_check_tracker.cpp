@@ -975,6 +975,14 @@ extern "C" int RandoTest_CheckTrackerArrivalLock(void) {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+// The combo tracker's OoT panel (#1126, TrackerAdapterSingleExe.cpp) lists what
+// IsVisibleInCheckTracker lists, which reads the statics CheckTrackerLoadGame's
+// LoadSettings fills. 1 once that load ran for the file being played; Teardown
+// (OnExitGame) clears it. A game switch suspends OoT, so it stays 1 under MM.
+extern "C" int OoT_CheckTracker_SettingsLoaded(void) {
+    return initialized ? 1 : 0;
+}
+
 // The item a check's row names once the check is found (#796). One function
 // for the three sites that print a placed item's name: the row's extra text for
 // a found check, the same text for an identified shop item, and the search
@@ -2357,6 +2365,15 @@ extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
     }
     ComputeAvailableChecks(RR_ROOT);
     return 1;
+}
+
+// TEST BRIDGE (#1126): CheckTrackerLoadGame as the OnLoadGame hook runs it. A
+// ROM-free tier never registers that hook (InitElement runs only with a game
+// archive), so `sectionId` is still SECTION_ID_BASE there: the caller sets
+// gSaveContext.fileNum to a sentinel SaveSection refuses, or the load's area
+// spoils would write a base save.
+extern "C" void RandoTest_CheckTrackerLoadGame(int32_t fileNum) {
+    CheckTrackerLoadGame(fileNum);
 }
 #endif
 

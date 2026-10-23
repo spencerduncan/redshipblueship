@@ -2597,6 +2597,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1126: the combo tracker's OoT panel lists what SoH's Check Tracker lists
+    # (its total, an excluded location and an unshuffled shop slot left out), live
+    # and stale, on the same paired creation. `rando`: a generation.
+    redship_add_test(NAME TrackerOoTPanelList COMMAND redship --test tracker-oot-panel-list
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps

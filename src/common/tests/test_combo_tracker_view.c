@@ -74,6 +74,13 @@
  *    is played with a loaded save. Neither writes a found check or one outside
  *    the seed. See CtvSkipLegsMM and CtvSkipLegsOoT.
  *
+ * 11. THE OoT PANEL LISTS WHAT SoH'S CHECK TRACKER LISTS (#1126). Once SoH's
+ *    tracker has loaded its settings, the rows and the summary follow its
+ *    predicate (a stand-in here: the real one needs OTRGlobals), and while MM is
+ *    played the panel keeps the list it read under OoT; before that load, or
+ *    with no randomizer file loaded (a vanilla file, the title screen), the
+ *    placed checks, with the predicate never asked. See CtvOoTListLegs.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -554,6 +561,113 @@ static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
     return TEST_PASS;
 }
 
+// The OoT-side listing seam (TrackerAdapterSingleExe.cpp, #1126): -1 production,
+// 0/1 the answer to "are SoH's Check Tracker settings loaded", with 1 a stand-in
+// for SoH's predicate that lists exactly `visible`; returns the questions put to
+// the predicate since the previous call.
+extern "C" int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_t* visible, int count);
+
+/**
+ * Which OoT checks the panel lists (#1126), over the seam's authored heap world
+ * (ootIds: saved, untouched, skipped; kOutside is not placed).
+ *
+ *   A. Production in this tier: SoH's Check Tracker never loaded its settings
+ *      (its OnLoadGame hook is not registered here), so the panel lists the
+ *      placed checks and never asks SoH's predicate. That predicate dereferences
+ *      OTRGlobals::Instance, which this tier does not have: a question would
+ *      crash the row, and the count proves none was put.
+ *   B. The seam says the settings are not loaded: the same.
+ *   B2. The settings are loaded but no randomizer file is (the skip seam's
+ *      answer: a vanilla file, or the title screen with SoH's `initialized` left
+ *      over from a file MM returned to title from): the same, never asked, so a
+ *      vanilla file is not listed through the predicate's vanilla branch.
+ *   C. The settings are loaded and OoT is playing a randomizer file: the panel
+ *      lists what SoH's predicate (the stand-in) lists, placed or not: the saved
+ *      check and an unplaced one, not the untouched or skipped placed checks;
+ *      the summary counts those rows, and the rows read after it are served
+ *      from the list the summary read (no second question per row).
+ *   D. MM is played: the panel keeps the list it read while OoT ran and asks
+ *      nothing, even though the stand-in now lists nothing.
+ *   E. The settings are unloaded again (a file exit): the placed checks once more.
+ */
+static int CtvOoTListLegs(const uint16_t ootIds[3]) {
+    ComboTrackerCheckRow row;
+    ComboTrackerGameSummary summary;
+    const uint16_t kOutside = (uint16_t)(ootIds[2] + 1); // not placed by the seam
+
+    // ---- A. production: the placed checks, no question asked --------------------
+    (void)OoT_TrackerAdapter_TestListSeam(-1, NULL, 0);
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.hasWorld);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
+    for (int i = 0; i < 3; i++) {
+        CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[i], &row) && row.shuffled);
+    }
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && !row.shuffled);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(-1, NULL, 0) == 0);
+
+    // ---- B. the seam says not loaded: the same ----------------------------------
+    (void)OoT_TrackerAdapter_TestListSeam(0, NULL, 0);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && row.shuffled);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(0, NULL, 0) == 0);
+
+    // ---- B2. loaded, but no randomizer file loaded: the same ------------------------
+    const uint16_t visible[2] = { ootIds[0], kOutside };
+    (void)OoT_TrackerAdapter_TestListSeam(1, visible, 2);
+    (void)OoT_TrackerAdapter_TestSkipSeam(0);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    printf("[TEST] combo-tracker-view #1126 OoT list, settings loaded, no randomizer file: hasWorld=%d shuffled=%d "
+           "obtained=%d skipped=%d\n",
+           summary.hasWorld ? 1 : 0, summary.shuffled, summary.obtained, summary.skipped);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.hasWorld);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && row.shuffled);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && !row.shuffled);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(1, visible, 2) == 0);
+
+    // ---- C. loaded, OoT playing a randomizer file: SoH's list ----------------------
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    printf("[TEST] combo-tracker-view #1126 OoT list, settings loaded: freshness=%u shuffled=%d obtained=%d "
+           "skipped=%d\n",
+           (unsigned)summary.freshness, summary.shuffled, summary.obtained, summary.skipped);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.hasWorld);
+    CTV_ASSERT(summary.shuffled == 2 && summary.obtained == 1 && summary.skipped == 0);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(1, visible, 2) > 0); // the summary asked
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row) && row.shuffled && row.obtained);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.shuffled);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[2], &row) && !row.shuffled && row.skipped);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && row.shuffled);
+    // The rows asked nothing (they read the summary's list); the stand-in now lists nothing.
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(1, NULL, 0) == 0);
+
+    // ---- D. MM played: the list as of OoT, no question asked -----------------------
+    Context_SetCurrentGame(GAME_MM);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(summary.shuffled == 2 && summary.obtained == 1 && summary.skipped == 0);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.shuffled);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && row.shuffled);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(1, NULL, 0) == 0);
+
+    // ---- E. unloaded again: the placed checks, under either game ----------------------
+    (void)OoT_TrackerAdapter_TestListSeam(-1, NULL, 0);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.shuffled == 3 && summary.obtained == 1 && summary.skipped == 1);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)kOutside, &row) && !row.shuffled);
+    CTV_ASSERT(OoT_TrackerAdapter_TestListSeam(-1, NULL, 0) == 0);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    Context_SetCurrentGame(GAME_MM); // as the caller had it
+    return TEST_PASS;
+}
+
 static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
@@ -744,6 +858,15 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[2], &row));
     CTV_ASSERT(row.shuffled && !row.obtained && row.skipped);
     (void)Combo_TrackerCheckName((uint8_t)GAME_OOT, ootIds[0]);
+
+    // ---- 5a. #1126: SoH's Check Tracker's list, once its settings are loaded ---
+    const int ootList = CtvOoTListLegs(ootIds);
+    (void)OoT_TrackerAdapter_TestListSeam(-1, NULL, 0); // production again, whatever the legs did
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    Context_SetCurrentGame(GAME_MM);
+    if (ootList != TEST_PASS) {
+        return TEST_FAIL;
+    }
 
     // ---- 5b. #458 U4: status, area and placed item on OoT rows --------------
     if (CtvOoTRowsU4(ootIds) != TEST_PASS) {
