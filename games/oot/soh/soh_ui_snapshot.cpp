@@ -1738,6 +1738,9 @@ const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary,   SnapshotOoTCh
 // The skip buttons that synthetic world draws: one per check of the seed not yet
 // found (the skipped one and the two open ones), none on the saved one.
 constexpr int kSnapshotOoTSkipButtons = 3;
+// SoH's Check Tracker Settings keys the tracker's "hidden" state sets (#1128).
+constexpr const char* kSnapshotSavedHideKey = "gTrackers.CheckTracker.Saved.Hide";
+constexpr const char* kSnapshotCollectedHideKey = "gTrackers.CheckTracker.Collected.Hide";
 
 /** The id of a game panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
  *  inside the pane's Begin: PushID((int)game), then TreeNode("Checks"). */
@@ -2186,10 +2189,15 @@ void Session::BuildPageList() {
                 p.stateContrast = { { "", "window" } };
                 // The gray caption row #927 cut (its content is the Popout
                 // Check Tracker Settings tooltip now).
-                p.forbidText = { "The Combo Tracker draws its checks in the colors set below" };
+                // #1128: the Popout Check Tracker Settings tooltip no longer
+                // says the Combo Tracker takes only the colors (it takes the
+                // hide options and header toggles too); hovered below.
+                p.forbidText = { "The Combo Tracker draws its checks in the colors set below",
+                                 "whose check colors, and no other setting" };
                 // The Window Type row: its tooltip's "Value: effect" lines.
-                p.hovers = { "window-type" };
+                p.hovers = { "window-type", "check-tracker-settings" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
+                p.hoverRows["check-tracker-settings"] = "Popout Check Tracker Settings";
             } else if (p.id == "Combo/Windows") {
                 // A tracker toggle: SoH's "Toggles the <Window>." (the unified
                 // Item Tracker's, since MM's tracker rows left the page, #458 U6).
@@ -2399,21 +2407,27 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboTrackerWindowName;
-        // "progress" installs a synthetic OoT adapter with a resident world and
-        // opens its Checks list, authors an MM save, and authors crossings both
-        // ways, so the check glyphs and both crossing tables are drawn with their
-        // found state: without a loaded save, "paired" only ever showed the
-        // no-data notes.
-        p.states = { "paired", "unpaired", "progress" };
+        // "progress" installs a synthetic OoT adapter with a resident world,
+        // authors an MM save, and authors crossings both ways, so the check
+        // glyphs are drawn with every status: without a loaded save, "paired"
+        // only ever showed the no-data notes. "hidden" is "progress" under SoH's
+        // Saved.Hide and Collected.Hide (#1128): the collected rows of both panes
+        // leave, the skipped and open ones stay.
+        p.states = { "paired", "unpaired", "progress", "hidden" };
         p.compareWith = kSohPaneReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
-        p.stateText["progress"] = { kSnapshotOoTChecks[0].name, kSnapshotOoTItemA, kSnapshotMMToOoTNote };
+        // The saved OoT row under its area (its short name) and the crossed MM
+        // item it names: shown in "progress", hidden in "hidden".
+        p.stateText["progress"] = { kSnapshotOoTChecks[0].shortName, kSnapshotOoTItemA };
+        p.stateText["hidden"] = { kSnapshotOoTChecks[1].shortName };
         p.stateText["unpaired"] = { "No paired world" };
-        p.stateContrast = { { "progress", "paired" }, { "unpaired", "paired" } };
+        p.stateContrast = { { "progress", "hidden" }, { "hidden", "paired" }, { "unpaired", "paired" } };
         // #927: a panel with no data is its header alone, and no panel or
-        // crossing note says how fresh it is.
-        p.forbidText = { "No data yet", "Updated live", "As of the last game switch", "As of file creation",
-                         "collected, as of" };
+        // crossing note says how fresh it is. Ruling D10 (#1128): no Crossings
+        // section, so none of its notes.
+        p.forbidText = { "No data yet",         "Updated live",     "As of the last game switch",
+                         "As of file creation", "collected, as of", kSnapshotMMToOoTNote,
+                         "In MM Checks",        "In OoT Checks" };
         pages.push_back(p);
     }
     {
@@ -2983,12 +2997,17 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         }
         if (state == "paired") {
             AuthorPairing();
-        } else if (state == "crossings" || state == "progress") {
+        } else if (state == "crossings" || state == "progress" || state == "hidden") {
             AuthorPairing();
             AuthorCrossings();
             AuthorMMShadow();
             Context_SetCurrentGame(GAME_OOT);
             Combo_Tracker_RegisterOoT(&kSnapshotOoTOps);
+            if (state == "hidden") {
+                // SoH's Check Tracker Settings > Saved / Collected "Hide" (#1128).
+                CVarSetInteger(kSnapshotSavedHideKey, 1);
+                CVarSetInteger(kSnapshotCollectedHideKey, 1);
+            }
         }
     }
 }
@@ -3020,9 +3039,11 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.mmNoteProbe && state == "gate-on") {
         CVarClear(kMmNoteParentKey);
     }
-    if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings")) {
+    if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings" || state == "hidden")) {
         OoT_TrackerAdapter_Register();
         RestoreMMShadow();
+        CVarClear(kSnapshotSavedHideKey);
+        CVarClear(kSnapshotCollectedHideKey);
     }
     if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName) {
         RestoreItemTrackerState();
@@ -4168,7 +4189,8 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         } else {
             CVarSetInteger(cvar, 1);
         }
-        const bool checksOpen = (state == "progress" && p.window == ComboGui::kComboTrackerWindowName);
+        const bool checksOpen =
+            ((state == "progress" || state == "hidden") && p.window == ComboGui::kComboTrackerWindowName);
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;

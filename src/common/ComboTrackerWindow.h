@@ -192,6 +192,7 @@ struct ComboTrackerAreaRows {
     const char* name = nullptr; // NULL when the game's adapter names no area
     int total = 0;
     int done = 0;
+    bool filtered = false; // the search is active and leaves none of the area's rows (#1128)
     std::vector<ComboTrackerCheckRow> rows;
 };
 
@@ -204,6 +205,69 @@ struct ComboTrackerAreaRows {
  * area the search leaves empty is omitted. `search` NULL or "" keeps every row.
  */
 void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out);
+
+/**
+ * What a Checks list hides (#1128), read from SoH's Check Tracker Settings keys
+ * (gTrackers.CheckTracker.*) with SoH's defaults, everything shown: each
+ * status's "<State>.Hide", "AreaComplete.Hide" and "AreaIncomplete.Hide", and
+ * "HideFilteredAreas" (SoH's "Filter Empty Areas", on by default). `showHidden`
+ * is the pane's own Show Hidden Items toggle (ruling D12: per pane), which
+ * overrides every hide but the filtered-area one, as SoH's does.
+ */
+struct ComboCheckHideOptions {
+    bool hideStatus[COMBO_TRACKER_CHECK_STATUS_COUNT] = {};
+    bool hideAreaComplete = false;
+    bool hideAreaIncomplete = false;
+    bool hideFilteredAreas = true;
+    bool showHidden = false;
+};
+
+/** The hide keys' values now, with `showHidden` as the pane's toggle. */
+ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden);
+
+/** Whether a Checks list leaves out `row` (SoH's DrawLocation: its status's Hide, unless Show Hidden Items). */
+bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts);
+
+/**
+ * Whether a Checks list leaves out `area`'s header (SoH's DrawElement area
+ * loop): an area the search emptied while Filter Empty Areas is on, or, unless
+ * Show Hidden Items, a complete area under AreaComplete.Hide or an incomplete
+ * one under AreaIncomplete.Hide. An area whose rows are all hidden by status
+ * keeps its header, as SoH's does.
+ */
+bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHideOptions& opts);
+
+/**
+ * Exactly what a Checks list draws (#1128): ComboCollectCheckAreas' areas, every
+ * area the search emptied kept (with `filtered` set and no rows) unless
+ * ComboCheckAreaHidden leaves it out, and each kept area's rows less those
+ * ComboCheckRowHidden leaves out. Area totals still count the whole area.
+ */
+void ComboCollectVisibleCheckAreas(uint8_t game, const char* search, const ComboCheckHideOptions& opts,
+                                   std::vector<ComboTrackerAreaRows>& out);
+
+/**
+ * Which of SoH's Check Tracker header controls a pane draws (#1128), from SoH's
+ * keys with SoH's defaults: the Show Hidden Items checkbox
+ * ("HiddenItemsToggleVisible", on), the Expand All / Collapse All buttons
+ * ("ExpandCollapseButtonsVisible", off), the search box ("SearchInputVisible",
+ * on) and the totals line ("CheckTotalsVisible", on).
+ */
+struct ComboCheckHeaderOptions {
+    bool hiddenItemsToggle = true;
+    bool expandCollapseButtons = false;
+    bool searchInput = true;
+    bool checkTotals = true;
+};
+
+ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
+
+/**
+ * A game panel's totals line (#1128): its checked count over its shuffled
+ * count, where checked is collected or skipped, as SoH's Checked and MM's
+ * collected count are, and as the panel's own area headers count.
+ */
+std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary);
 
 } // namespace ComboGui
 

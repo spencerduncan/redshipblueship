@@ -484,6 +484,41 @@ void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboT
     }
 }
 
+// #1128 lock seam (lane L1a): today's behaviour, no hide key read and the totals
+// line counting collected checks only. The fix commit gives these SoH's rules.
+ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden) {
+    ComboCheckHideOptions opts;
+    opts.showHidden = showHidden;
+    return opts;
+}
+
+bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts) {
+    (void)row;
+    (void)opts;
+    return false;
+}
+
+bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHideOptions& opts) {
+    (void)opts;
+    return area.filtered;
+}
+
+void ComboCollectVisibleCheckAreas(uint8_t game, const char* search, const ComboCheckHideOptions& opts,
+                                   std::vector<ComboTrackerAreaRows>& out) {
+    (void)opts;
+    ComboCollectCheckAreas(game, search, out);
+}
+
+ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
+    return ComboCheckHeaderOptions();
+}
+
+std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
+    char text[64];
+    snprintf(text, sizeof(text), "Checks: %d / %d", summary.obtained, summary.shuffled);
+    return text;
+}
+
 /**
  * One direction's crossing table (declared in ComboTrackerWindow.h). The
  * direction is the accessor — the two directions are separate key spaces and
