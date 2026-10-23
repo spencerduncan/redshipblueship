@@ -63,6 +63,15 @@ extern "C" {
 // randomizer_check_tracker.cpp (#1126): whether SoH's Check Tracker has loaded its
 // settings for the file being played.
 extern "C" int OoT_CheckTracker_SettingsLoaded(void);
+// randomizer_check_tracker.cpp (#1129): whether ItemLocation::IsAvailable is SoH's
+// current answer (Enable Available Checks on and a recalculation run for this file),
+// running the recalculation SoH's window would run at its next draw when one is due.
+extern "C" int OoT_CheckTracker_AvailabilityCurrent(void);
+
+// The departure capture's record holds every OoT check id (#1129).
+static_assert((unsigned)RC_MAX <= RSBS_TRACKER_AVAIL_OOT_CAP,
+              "OoT's RC_MAX outgrew the tracker availability capture (context.h): raise RSBS_TRACKER_AVAIL_OOT_CAP "
+              "with the record size and RSBS_SAVE_VERSION");
 
 namespace {
 
@@ -94,6 +103,12 @@ int sListTestCalls = 0;
 // them the skip's persist step is counted instead of run.
 int sSkipTestSaveLoaded = -1;
 int sSkipTestPersists = 0;
+
+// The reachability lock's stand-in (#1129; OoT_TrackerAdapter_TestAvailableSeam
+// below): -1 is production; 0 or 1 answers "is SoH's available set current"
+// (Enable Available Checks on and a recalculation run), which a ROM-free tier
+// cannot reach for real (the recalculation needs OoT's region graph).
+int sAvailTestCurrent = -1;
 
 /**
  * Whether OoT's live save is a loaded randomizer file:
@@ -201,6 +216,27 @@ bool OoTCheckListed(Rando::Context* ctx, RandomizerCheck rc) {
     return ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
 }
 
+/**
+ * REACHABILITY (#1129): SoH's own answer, ItemLocation::IsAvailable, which its
+ * Enable Available Checks recalculation (ReachabilitySearch) writes on the heap.
+ * Reported only under the list's live gate (OoTTrackerListLive: OoT plays a
+ * randomizer file and SoH's tracker has loaded) and only once that set is current
+ * for the file (OoT_CheckTracker_AvailabilityCurrent, which also runs a pending
+ * recalculation when SoH's window is closed and cannot); otherwise not known. The
+ * suspended heap's bits are never read for the stale panel: the view shows the
+ * departure capture there (OoT_TrackerAdapter_CaptureAvailability).
+ */
+bool OoTAvailabilityCurrent(void) {
+    if (sAvailTestCurrent >= 0) {
+        return sAvailTestCurrent == 1;
+    }
+    return OoT_CheckTracker_AvailabilityCurrent() != 0;
+}
+
+bool OoTAvailabilityLive(void) {
+    return OoTTrackerListLive() && OoTAvailabilityCurrent();
+}
+
 bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     auto ctx = Rando::Context::GetInstance();
     if (ctx == nullptr || out == nullptr) {
@@ -210,10 +246,12 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     if (OoTTrackerListLive()) {
         OoTRefreshListed(ctx.get()); // once per draw; the rows that follow read it
     }
+    const bool availLive = OoTAvailabilityLive(); // #1129
     int placed = 0;
     int shuffled = 0;
     int obtained = 0;
     int skipped = 0;
+    int available = 0;
     for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
         Rando::ItemLocation* loc = ctx->GetItemLocation(i);
         if (loc->GetPlacedRandomizerGet() != RG_NONE) {
@@ -223,6 +261,9 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
             continue; // not on SoH's Check Tracker's list (see OoTCheckListed)
         }
         shuffled++;
+        if (availLive && loc->IsAvailable()) {
+            available++;
+        }
         if (StatusObtained(loc->GetCheckStatus())) {
             obtained++;
         } else if (loc->GetIsSkipped()) {
@@ -240,6 +281,8 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     out->shuffled = shuffled;
     out->obtained = obtained;
     out->skipped = skipped;
+    out->availabilityKnown = availLive;
+    out->available = available;
     return true;
 }
 
@@ -375,6 +418,9 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
         out->placedItemName = OoTPlacedItemName(loc, (RandomizerCheck)index, &game);
         out->placedItemGame = out->placedItemName != nullptr ? game : (uint8_t)GAME_NONE;
     }
+    // #1129: SoH's lock glyph's answer, live only (see OoTAvailabilityCurrent).
+    out->availabilityKnown = OoTAvailabilityLive();
+    out->available = out->availabilityKnown && loc->IsAvailable();
     return true;
 }
 
@@ -439,6 +485,32 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
 }
 
 } // namespace
+
+/**
+ * The departure capture (#1129; combo_tracker_view.h). OoT_Game_Suspend calls it
+ * while OoT's play state and gSaveContext are still OoT's. No randomizer file
+ * played (the title screen, file select, a vanilla file): the last capture
+ * stands, as the departing world is not the one it describes. Otherwise the
+ * checks SoH's tracker lists that IsAvailable marks, or no capture when that set
+ * is not known.
+ */
+extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || Context_GetCurrentGame() != GAME_OOT || !OoTRandoFileLoaded()) {
+        return;
+    }
+    if (!OoTAvailabilityLive()) {
+        Combo_TrackerFreezeAvailability((uint8_t)GAME_OOT, nullptr, 0);
+        return;
+    }
+    std::vector<uint8_t> bits(((size_t)RC_MAX + 7) / 8, 0);
+    for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
+        if (OoTCheckListed(ctx.get(), (RandomizerCheck)i) && ctx->GetItemLocation(i)->IsAvailable()) {
+            bits[i >> 3] |= (uint8_t)(1u << (i & 7));
+        }
+    }
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_OOT, bits.data(), (uint32_t)RC_MAX);
+}
 
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
@@ -586,6 +658,33 @@ extern "C" int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_
     const int calls = sListTestCalls;
     sListTestCalls = 0;
     return calls;
+}
+
+/**
+ * The reachability lock's seam (#1129): @p current -1 restores production; 0 or 1
+ * answers "is SoH's available set current" for the adapter (Enable Available
+ * Checks on and a recalculation run; OoT_CheckTracker_AvailabilityCurrent in
+ * production). The list's gate (OoT played, a randomizer file, SoH's tracker
+ * settings) is still asked through its own seams.
+ */
+extern "C" void OoT_TrackerAdapter_TestAvailableSeam(int current) {
+    sAvailTestCurrent = current < 0 ? -1 : (current != 0 ? 1 : 0);
+}
+
+/**
+ * Author ItemLocation::IsAvailable for OoT check @p rc in whichever heap
+ * Rando::Context is live (#1129), as a recalculation would. @return the previous
+ * value (1 or 0), or -1 with no heap context or an out-of-range id.
+ */
+extern "C" int OoT_TrackerAdapter_TestSetAvailable(uint16_t rc, int available) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || rc == 0 || rc >= (uint16_t)RC_MAX) {
+        return -1;
+    }
+    Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)rc);
+    const int was = loc->IsAvailable() ? 1 : 0;
+    loc->SetAvailable(available != 0);
+    return was;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

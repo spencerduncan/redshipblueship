@@ -2729,6 +2729,10 @@ void OoT_Game_Run(void) {
 // Shared cross-game resources (#525) — defined further down this TU, beside the
 // apply half; forward-declared so Game_Suspend can harvest.
 extern "C" void OoT_HarvestSharedResources(void);
+// The combo tracker's departure capture (#1129), defined in
+// soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp and declared in
+// src/common's combo_tracker_view.h, which this TU does not include.
+extern "C" void OoT_TrackerAdapter_CaptureAvailability(void);
 
 /**
  * Suspend OoT for a game switch (issue #160).
@@ -2755,6 +2759,11 @@ void OoT_Game_Suspend(void) {
     // rather than Combo_CheckEntranceSwitch — the F10 path bypasses the
     // entrance hook, and both switch paths call suspend().
     OoT_HarvestSharedResources();
+
+    // The combo tracker's reachability capture (#1129, ruling D6): SoH's available
+    // set as OoT departs, which the tracker's OoT pane shows while MM is played and
+    // the crossing commit after this suspend writes to the .redsave.
+    OoT_TrackerAdapter_CaptureAvailability();
 
     // Stop OoT audio playback to prevent interference with MM (issue #160).
     // OoT_Audio_PreNMI triggers the audio reset path which stops all sequences

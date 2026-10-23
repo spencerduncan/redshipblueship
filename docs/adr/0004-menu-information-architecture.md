@@ -831,6 +831,8 @@ spellings in `cvar_shared_keys.h` went with the rows, their only writer; the key
 
 **Note (2026-10-11, #897).** Item 3's "the `MMActiveGated` wrapper is unchanged" no longer holds word for word: the wrapper now gives each window it draws a right-click menu with one item, Close, which clears that window's `gWindows.*` key, so a tracker an old config left open (floating or docked) can be shut in game. The ruling itself stands: the keys still open MM's native windows, and `MMTrackersGui` leg 7 locks both.
 
+**Note (2026-10-23, #993, #1129).** U6 took MM's in-logic tracking off the menu with the rows: MM's native Check Tracker, the only surface that showed which MM checks are in logic, opens since then only through its `gWindows.CheckTracker` console key. The Combo Tracker's panes now carry it (lane L3 of the tracker scoping, #993 option 1): with SoH's Enable Available Checks on, each check row leads with SoH's lock glyph, the totals line starts with "N Available", and each pane has its own Only Show Available Checks. The live pane computes it (SoH's `IsAvailable`, MM's `ComputeChecksInLogic`); the other game's pane shows the set captured when that game was left, which the `.redsave` carries. Refreshing that captured set as the active game obtains things is a follow-up.
+
 ## Amendment 2026-10-21 — one randomizer menu: our randomizer pages move under SoH's Randomizer header (#1101)
 
 **The ruling.** The operator's ruling on #1101 (2026-10-21, option C): the paired combo gets one randomizer menu,

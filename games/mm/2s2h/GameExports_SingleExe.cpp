@@ -3147,6 +3147,10 @@ void MM_Game_Run(void) {
 // harvest before they hand MM's state over.
 extern "C" void MM_HarvestSharedResources(void);
 extern "C" void MM_ApplySharedResources(void);
+// The combo tracker's departure capture (#1129), defined in
+// 2s2h/Rando/TrackerAdapterSingleExe.cpp and declared in src/common's
+// combo_tracker_view.h, which this TU does not include.
+extern "C" void MM_TrackerAdapter_CaptureAvailability(void);
 
 /**
  * Suspend MM for a game switch (issue #270).
@@ -3170,6 +3174,11 @@ void MM_Game_Suspend(void) {
     // live rupees, wallet tier, hearts, current health and double defense into
     // the shared pool while gSaveContext still belongs to MM.
     MM_HarvestSharedResources();
+
+    // The combo tracker's reachability capture (#1129, ruling D6): MM's in-logic
+    // set as MM departs, which the tracker's MM pane shows while OoT is played and
+    // the crossing commit after this suspend writes to the .redsave.
+    MM_TrackerAdapter_CaptureAvailability();
 
     // Drain the SHARED audio thread before touching MM's audio state. In
     // single-exe builds MM's synth runs on OoT's OTRAudio_Thread (the

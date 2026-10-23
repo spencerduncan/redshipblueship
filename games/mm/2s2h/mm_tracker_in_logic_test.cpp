@@ -20,6 +20,11 @@
  *   B3 marked obtained, it drops out; the heart piece stays in.
  *   B4 every computation leaves the SaveContext byte-identical (RANDO_EVENTS is
  *      poisoned first, so an unbracketed crawl's zero-and-refire shows).
+ *   C  the combo tracker's MM panel reads the same set (#1129): with Enable
+ *      Available Checks on and MM's play state stood in by the adapter's seam,
+ *      its LIVE summary counts 1, 2 and 1 available through B1-B3 and the chest's
+ *      row follows; the departure capture MM_Game_Suspend makes at B2 holds the
+ *      chest.
  *
  * MM_TrackerFillSuperset_RunMM (row TrackerFillSuperset, MM half): over the
  * MM half the paired creation armed in the shadow, at the arrival entrance:
@@ -56,6 +61,13 @@ extern "C" int MM_TrackerFillSuperset_RunMM(void) {
 #include "combo_logic.h"
 #include "context.h"
 #include "shared_resources.h"
+#include "combo_tracker_view.h" // #1129: the combo tracker's MM panel
+
+#include <libultraship/bridge/consolevariablebridge.h>
+
+// TrackerAdapterSingleExe.cpp (#1129): MM's play state stood in, and the cached set dropped.
+extern "C" void MM_TrackerAdapter_TestLiveSeam(int live);
+extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* ids, int count);
 
 extern "C" {
 #include "z64save.h"
@@ -104,6 +116,28 @@ std::set<RandoCheckId> TilInLogic(bool* saveUnchanged) {
     return inLogic;
 }
 
+const char* const kTilAvailableKey = "gTrackers.CheckTracker.EnableAvailableChecks";
+
+/**
+ * C (#1129): the combo tracker's MM panel on the live save, its cached set dropped
+ * first so it computes on this save: the summary's available count (-1 when not
+ * known, -2 when the panel does not read the live save) and the lower chest's row
+ * (-1 not known).
+ */
+int TilComboPanel(int* outChest) {
+    (void)MM_TrackerAdapter_TestInLogicSeam(0, nullptr, 0);
+    ComboTrackerGameSummary summary;
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    ComboTrackerCheckRow row;
+    *outChest = !Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, &row) ? -2
+                : row.availabilityKnown ? (row.available ? 1 : 0)
+                                        : -1;
+    if (summary.freshness != COMBO_TRACKER_FRESH_LIVE) {
+        return -2;
+    }
+    return summary.availabilityKnown ? summary.available : -1;
+}
+
 } // namespace
 
 extern "C" int MM_TrackerInLogic_RunArrival(void) {
@@ -131,6 +165,19 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
     gSaveContext.save.entrance = kArrivalEntrance;
     RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].shuffled = true;
     RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+    // The new-file marker every MM file carries, so the combo panel reads this save (C).
+    memcpy(gSaveContext.save.saveInfo.playerData.newf, "ZELDA3", 6);
+
+    // C (#1129): the combo tracker's MM panel on this save, as while MM is played
+    // with Enable Available Checks on.
+    MM_TrackerAdapter_Register();
+    MM_TrackerAdapter_TestLiveSeam(1);
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_SetCurrentGame(GAME_MM);
+    const bool hadAvailableKey = CVarExists(kTilAvailableKey);
+    const int32_t availableKey = CVarGetInteger(kTilAvailableKey, 0);
+    CVarSetInteger(kTilAvailableKey, 1);
+    int comboChest = -2;
 
     // The pool: an OoT departure holding the hookshot (OoT's harvest of tier 1).
     ComboContext_Init();
@@ -150,6 +197,10 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
     TIL_CHECK(heartBefore, "B1: the South Clock Town platform heart piece (needs nothing) is not in logic at the "
                            "arrival, so the crawl did not reach the region and the chest legs would be vacuous");
     TIL_CHECK(!chestBefore, "B1: the hookshot-gated South Clock Town lower chest is in logic with no hookshot");
+    const int combo1 = TilComboPanel(&comboChest);
+    printf("[TEST] C (B1): combo panel available %d, lower chest %d\n", combo1, comboChest);
+    TIL_CHECK(combo1 == 1 && comboChest == 0,
+              "C: the combo tracker's MM panel does not show B1's set (the heart piece)");
 
     // ---- B2: the arrival's apply -------------------------------------------------------
     MM_ApplySharedResources();
@@ -164,6 +215,18 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
     TIL_CHECK(holdsHookshot, "B2: MM_ApplySharedResources did not put the pool's hookshot tier in MM's inventory");
     TIL_CHECK(chestAfter && !chestObtained,
               "B2: the lower chest is not in logic (and unobtained) once the hookshot tier is applied");
+    const int combo2 = TilComboPanel(&comboChest);
+    printf("[TEST] C (B2): combo panel available %d, lower chest %d\n", combo2, comboChest);
+    TIL_CHECK(combo2 == 2 && comboChest == 1, "C: the combo tracker's MM panel does not follow the applied hookshot");
+    // The departure: MM_Game_Suspend's capture, computed afresh on this save.
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, nullptr, 0);
+    MM_TrackerAdapter_CaptureAvailability();
+    const int frozenChest =
+        Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, (uint16_t)RC_CLOCK_TOWN_SOUTH_CHEST_LOWER);
+    const int frozenHeart =
+        Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, (uint16_t)RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART);
+    printf("[TEST] C (B2 departure capture): lower chest %d, platform heart piece %d\n", frozenChest, frozenHeart);
+    TIL_CHECK(frozenChest == 1 && frozenHeart == 1, "C: the departure capture does not hold B2's in-logic set");
 
     // ---- B3: collected -----------------------------------------------------------------
     RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].obtained = true;
@@ -175,6 +238,9 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
            heartCollected ? 1 : 0);
     TIL_CHECK(!chestCollected, "B3: an obtained check is still listed in logic");
     TIL_CHECK(heartCollected, "B3: marking the chest obtained dropped an unrelated check");
+    const int combo3 = TilComboPanel(&comboChest);
+    printf("[TEST] C (B3): combo panel available %d, lower chest %d\n", combo3, comboChest);
+    TIL_CHECK(combo3 == 1 && comboChest == 0, "C: the combo tracker's MM panel still counts an obtained check");
 
     // ---- B4: the computation writes nothing ---------------------------------------------
     printf("[TEST] B4: SaveContext byte-identical around each computation: %d %d %d\n", unchanged1 ? 1 : 0,
@@ -182,6 +248,14 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
     TIL_CHECK(unchanged1 && unchanged2 && unchanged3,
               "B4: the in-logic computation changed the live SaveContext (the #995 bracket)");
 
+    if (hadAvailableKey) {
+        CVarSetInteger(kTilAvailableKey, availableKey);
+    } else {
+        CVarClear(kTilAvailableKey);
+    }
+    MM_TrackerAdapter_TestLiveSeam(-1);
+    (void)MM_TrackerAdapter_TestInLogicSeam(0, nullptr, 0);
+    Context_SetCurrentGame(prevGame);
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     if (sFailures != 0) {

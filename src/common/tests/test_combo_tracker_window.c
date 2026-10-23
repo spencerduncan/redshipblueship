@@ -51,7 +51,12 @@
  *    totals, and its search matches check, area and revealed item names;
  *    and (#1128) the rows and areas SoH's hide keys leave out under each pane's
  *    own Show Hidden Items, the keys' SoH defaults, and the totals line counting
- *    skipped checks as checked.
+ *    skipped checks as checked; and (#1129) SoH's reachability: the lock glyph
+ *    a row draws (none when its availability is not known), each pane's own
+ *    Only Show Available Checks (rows known unavailable and areas with none
+ *    available go, whatever Show Hidden Items says; a row of unknown
+ *    availability never goes), the "N Available / " totals prefix and the area
+ *    header's available count, all behind Enable Available Checks.
  *
  * Appearance itself is judged from the UiSnapshot row's captures (Combo
  * Tracker @paired, @unpaired and @progress), not here.
@@ -72,6 +77,7 @@
 #include "../test_runner.h"
 #include "test_named_items.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstring>
@@ -79,9 +85,11 @@
 #include <iterator>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/GuiWindow.h>
+#include <ship/window/gui/IconsFontAwesome4.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #define CTW_ASSERT(cond)                                                   \
@@ -454,6 +462,9 @@ const char* const kCtwOtherKeys[] = {
     "gTrackers.CheckTracker.ExpandCollapseButtonsVisible",
     "gTrackers.CheckTracker.SearchInputVisible",
     "gTrackers.CheckTracker.CheckTotalsVisible",
+    "gTrackers.CheckTracker.EnableAvailableChecks", // #1129
+    "gTrackers.CheckTracker.AvailableChecksToggleVisible",
+    "gTrackers.CheckTracker.OnlyShowAvailable",
 };
 
 /** Every key above as it was, put back afterwards (set again or cleared), so no player value is lost or left. */
@@ -623,17 +634,147 @@ int LockHide(void) {
     return result;
 }
 
+// ---- #1129 (lane L3): reachability ---------------------------------------------
+
+// The grouping world with each row's availability known: the ids in
+// sCtwAvailableIds are available, every other row is not.
+std::vector<uint16_t> sCtwAvailableIds;
+
+bool CtwAvailCheckAt(int index, ComboTrackerCheckRow* out) {
+    if (!CtwCheckAt(index, out)) {
+        return false;
+    }
+    out->availabilityKnown = true;
+    out->available =
+        std::find(sCtwAvailableIds.begin(), sCtwAvailableIds.end(), out->checkId) != sCtwAvailableIds.end();
+    return true;
+}
+const ComboOoTTrackerOps kCtwAvailOps = { CtwSummary, CtwCount, CtwAvailCheckAt, CtwCheckName };
+
+int LockAvailBody(void) {
+    using namespace ComboGui;
+    std::vector<ComboTrackerAreaRows> areas;
+
+    // The glyph: SoH's unlock / lock, and none at all when not known.
+    ComboTrackerCheckRow row = {};
+    CTW_ASSERT(ComboAvailabilityGlyph(row) == nullptr);
+    row.available = true; // without availabilityKnown it is still no answer
+    CTW_ASSERT(ComboAvailabilityGlyph(row) == nullptr);
+    row.availabilityKnown = true;
+    const char* unlock = ComboAvailabilityGlyph(row);
+    row.available = false;
+    const char* lock = ComboAvailabilityGlyph(row);
+    printf("[TEST] combo-tracker-window #1129: glyphs available \"%s\", unavailable \"%s\"\n",
+           unlock != nullptr ? unlock : "(none)", lock != nullptr ? lock : "(none)");
+    CTW_ASSERT(unlock != nullptr && strcmp(unlock, ICON_FA_UNLOCK) == 0);
+    CTW_ASSERT(lock != nullptr && strcmp(lock, ICON_FA_LOCK) == 0);
+
+    // The row decision: Only Show Available leaves out a row known unavailable,
+    // whatever Show Hidden Items says (SoH's DrawLocation returns before its hide
+    // test), and never a row whose availability is not known.
+    ComboCheckHideOptions opts;
+    opts.onlyAvailable = true;
+    row = {};
+    row.shuffled = true;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts)); // not known
+    row.availabilityKnown = true;
+    CTW_ASSERT(ComboCheckRowHidden(row, opts)); // known unavailable
+    opts.showHidden = true;
+    CTW_ASSERT(ComboCheckRowHidden(row, opts));
+    row.available = true;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts));
+    opts.onlyAvailable = false;
+    row.available = false;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts));
+
+    // The list: 0x11 (area 3) and 0x12 (area 7) available.
+    sCtwAvailableIds = { 0x11, 0x12 };
+    Combo_Tracker_RegisterOoT(&kCtwAvailOps);
+    opts = ComboCheckHideOptions();
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(areas.size() == 2 && areas[0].availabilityKnown && areas[0].available == 1 &&
+               areas[1].availabilityKnown && areas[1].available == 1);
+    opts.onlyAvailable = true;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    printf("[TEST] combo-tracker-window #1129: Only Show Available draws \"%s\"\n", CtwDrawn(areas).c_str());
+    CTW_ASSERT(CtwDrawn(areas) == "3:11 7:12");
+    CTW_ASSERT(areas[1].total == 2 && areas[1].done == 2); // the area's totals stay whole
+    // An area with none available goes (SoH's area loop), even under Show Hidden Items.
+    sCtwAvailableIds = { 0x11 };
+    opts.showHidden = true;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "3:11");
+    // A world whose availability is not known: nothing goes.
+    Combo_Tracker_RegisterOoT(&kCtwOps);
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(!areas[0].availabilityKnown && areas[0].available == 0);
+
+    // The totals line and the area header: SoH's Available count in front, only
+    // with Enable Available Checks on and the count known.
+    ComboTrackerGameSummary summary = {};
+    summary.obtained = 5;
+    summary.skipped = 2;
+    summary.shuffled = 100;
+    summary.available = 12;
+    CTW_ASSERT(ComboCheckTotalsText(summary, true) == "Checks: 7 / 100"); // not known
+    summary.availabilityKnown = true;
+    const std::string withAvailable = ComboCheckTotalsText(summary, true);
+    printf("[TEST] combo-tracker-window #1129: 12 available prints \"%s\"\n", withAvailable.c_str());
+    CTW_ASSERT(withAvailable == "12 Available / Checks: 7 / 100");
+    CTW_ASSERT(ComboCheckTotalsText(summary, false) == "Checks: 7 / 100");
+    ComboTrackerAreaRows area;
+    area.total = 4;
+    area.done = 1;
+    area.available = 2;
+    CTW_ASSERT(ComboAreaTotalsText(area, true) == "(1 / 4)"); // not known
+    area.availabilityKnown = true;
+    CTW_ASSERT(ComboAreaTotalsText(area, true) == "(2 / 1 / 4)");
+    CTW_ASSERT(ComboAreaTotalsText(area, false) == "(1 / 4)");
+
+    // The keys, with SoH's defaults: Enable Available Checks off, its toggle shown.
+    {
+        CtwKeyGuard guard;
+        ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
+        CTW_ASSERT(!header.availableChecks && header.availableChecksToggle);
+        CVarSetInteger("gTrackers.CheckTracker.EnableAvailableChecks", 1);
+        CVarSetInteger("gTrackers.CheckTracker.AvailableChecksToggleVisible", 0);
+        header = ComboReadCheckHeaderOptions();
+        printf("[TEST] combo-tracker-window #1129: available keys flipped read enabled %d, toggle %d\n",
+               (int)header.availableChecks, (int)header.availableChecksToggle);
+        CTW_ASSERT(header.availableChecks && !header.availableChecksToggle);
+    }
+    return TEST_PASS;
+}
+
+int LockAvail(void) {
+    // OoT is played: the synthetic registrant's rows are the LIVE panel's (while
+    // MM is played the view shows the departure capture instead, #1129).
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_SetCurrentGame(GAME_OOT);
+    const int result = LockAvailBody();
+    Context_SetCurrentGame(prevGame);
+    sCtwAvailableIds.clear();
+    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
+    return result;
+}
+
 /** Every section runs, so one red section does not hide another's state. */
 int TrackerLayoutLocks(void) {
     const int r815 = Lock815();
     const int r816 = Lock816();
     const int rAreas = LockAreas();
     const int rHide = LockHide();
-    printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s\n",
+    const int rAvail = LockAvail();
+    printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
+           "#1129 reachability %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
-           rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL");
-    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS) ? TEST_PASS
-                                                                                                 : TEST_FAIL;
+           rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
+           rAvail == TEST_PASS ? "PASS" : "FAIL");
+    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS && rAvail == TEST_PASS)
+               ? TEST_PASS
+               : TEST_FAIL;
 }
 
 } // namespace
@@ -844,6 +985,10 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             "CVarGetInteger(\"gTrackers.CheckTracker.ExpandCollapseButtonsVisible\", 0)",
             "CVarGetInteger(\"gTrackers.CheckTracker.SearchInputVisible\", 1)",
             "CVarGetInteger(\"gTrackers.CheckTracker.CheckTotalsVisible\", 1)",
+            // #1129: SoH's reachability keys, with SoH's defaults.
+            "CVarGetInteger(\"gTrackers.CheckTracker.EnableAvailableChecks\", 0)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.AvailableChecksToggleVisible\", 1)",
+            "CVarGetInteger(\"gTrackers.CheckTracker.OnlyShowAvailable\", 0)",
         };
         for (const char* read : kDefaultedReads) {
             if (text.find(read) == std::string::npos) {
@@ -869,7 +1014,19 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, unhidden);") != std::string::npos);
         CTW_ASSERT(text.find("Ui().Button(\"Expand All\"") != std::string::npos);
         CTW_ASSERT(text.find("Ui().Button(\"Collapse All\"") != std::string::npos);
-        CTW_ASSERT(text.find("ComboCheckTotalsText(summary)") != std::string::npos);
+        // #1129: the totals line with SoH's "N Available / " behind Enable Available Checks.
+        CTW_ASSERT(text.find("ComboCheckTotalsText(summary, header.availableChecks)") != std::string::npos);
+        // #1129 (lane L3): SoH's reachability glyph (DrawLocation), whole tokens,
+        // through the decision section 5 locks; the area header's count through
+        // its text; and Only Show Available Checks as each pane's own toggle, in
+        // the shape Show Hidden Items has (ruling D12): the pane's state, seeded
+        // from SoH's key, flipped by the pane's checkbox, read by that pane's list.
+        CTW_ASSERT(hasToken("ICON_FA_UNLOCK") && hasToken("ICON_FA_LOCK"));
+        CTW_ASSERT(text.find("available ? ICON_FA_UNLOCK : ICON_FA_LOCK") != std::string::npos);
+        CTW_ASSERT(text.find("ComboAvailabilityGlyph(row)") != std::string::npos);
+        CTW_ASSERT(text.find("ComboAreaTotalsText(area, availableChecks)") != std::string::npos);
+        CTW_ASSERT(text.find("Ui().Checkbox(\"Only Show Available Checks\", &pane.onlyAvailable") != std::string::npos);
+        CTW_ASSERT(text.find("hide.onlyAvailable = availableChecks && pane.onlyAvailable;") != std::string::npos);
         // SoH's list is always drawn: no default-closed "Checks" node over it.
         CTW_ASSERT(text.find("TreeNode(\"Checks\")") == std::string::npos);
         // Ruling D10: the Crossings section is cut from this window. Its table

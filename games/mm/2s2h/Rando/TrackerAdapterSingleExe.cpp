@@ -46,10 +46,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "Rando/Rando.h"            // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
-#include "2s2h/Rando/Foreign.h"     // ForeignNameForCheck: a crossing host's item (#796)
-#include "2s2h/Rando/Logic/Logic.h" // Regions: the native tracker's grotto/enemy-drop grouping
-#include "2s2h/ShipUtils.h"         // Ship_GetSceneName
+#include "Rando/Rando.h"                          // SaveContext (via variables.h), RC_MAX, SAVETYPE_RANDO, StaticData
+#include "2s2h/Rando/CheckTracker/CheckTracker.h" // ComputeChecksInLogic: the in-logic set (#1129)
+#include "2s2h/Rando/Foreign.h"                   // ForeignNameForCheck: a crossing host's item (#796)
+#include "2s2h/Rando/Logic/Logic.h"               // Regions: the native tracker's grotto/enemy-drop grouping
+#include "2s2h/ShipUtils.h"                       // Ship_GetSceneName
 
 extern "C" {
 s16 Play_GetOriginalSceneId(s16 sceneId);
@@ -79,6 +80,11 @@ static_assert(offsetof(SaveContext, save.shipSaveInfo.rando.randoSaveChecks) +
                   (size_t)MM_SAVE_CONTEXT_SIZE,
               "MM's rando check table no longer fits the cross-game shadow blob; the combo tracker (and the "
               "freeze machinery) would truncate it");
+
+// The departure capture's record holds every MM check id (#1129).
+static_assert((unsigned)RC_MAX <= RSBS_TRACKER_AVAIL_MM_CAP,
+              "MM's RC_MAX outgrew the tracker availability capture (context.h): raise RSBS_TRACKER_AVAIL_MM_CAP with "
+              "the record size and RSBS_SAVE_VERSION");
 
 // Every flag the descriptor names must live inside one row's stride.
 static_assert(offsetof(RandoSaveCheck, shuffled) < sizeof(RandoSaveCheck) &&
@@ -236,6 +242,16 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
     return item->second.name;
 }
 
+// The reachability lock's stand-ins (MM_TrackerAdapter_TestLiveSeam and
+// MM_TrackerAdapter_TestInLogicSeam below, #1129). sLiveTest: -1 is production;
+// 0 or 1 answers "does MM play a randomizer file now" in place of MM's play state.
+// sInLogicAuthored: the computation is replaced by the authored set
+// sInLogicAuthoredIds. sInLogicCalls counts the computations made.
+int sLiveTest = -1;
+bool sInLogicAuthored = false;
+std::vector<uint16_t> sInLogicAuthoredIds;
+int sInLogicCalls = 0;
+
 /**
  * MM's live save for the view's LIVE read, or NULL (#799). Only while MM's play
  * state is loaded: MM_gPlayState is set late in MM_Play_Init, after the
@@ -246,6 +262,9 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
  * scans them — neither is the player's world.
  */
 const void* MMTrackerLiveSave(void) {
+    if (sLiveTest >= 0) {
+        return sLiveTest == 1 ? static_cast<const void*>(&gSaveContext) : nullptr;
+    }
     return (MM_gPlayState != nullptr) ? static_cast<const void*>(&gSaveContext) : nullptr;
 }
 
@@ -292,6 +311,108 @@ bool MMTrackerSetLiveSkipped(uint16_t checkId, bool skipped) {
 
 } // namespace
 
+// ---- #1129: reachability ----------------------------------------------------
+
+namespace {
+
+/**
+ * Whether MM plays a randomizer file now: MM is the active game, its play state
+ * is loaded (MMTrackerLiveSave's rule) and the live save is a marked rando save,
+ * or the lock's stand-in for all three.
+ */
+bool MMPlaysRandoFile(void) {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        return false;
+    }
+    if (sLiveTest >= 0) {
+        return sLiveTest == 1;
+    }
+    return MM_gPlayState != nullptr &&
+           std::memcmp(gSaveContext.save.saveInfo.playerData.newf, kMMNewf, sizeof(kMMNewf)) == 0 &&
+           gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_RANDO;
+}
+
+/** SoH's Enable Available Checks: one set of tracker settings for both panes (ruling D3). */
+bool MMAvailableChecksOn(void) {
+    return CVarGetInteger("gTrackers.CheckTracker.EnableAvailableChecks", 0) != 0;
+}
+
+// The in-logic set the LIVE panel shows, one byte per check, and when it was
+// computed: refreshed at most every 20 frames of one game state, the cadence of
+// MM's own tracker (CheckTracker.cpp, RefreshChecksInLogic), so the crawl runs
+// once per refresh rather than once per row. A new game state (a file load, an
+// arrival) recomputes at once.
+std::vector<uint8_t> sInLogic;
+bool sInLogicValid = false;
+const void* sInLogicState = nullptr;
+u32 sInLogicFrame = 0;
+
+void MMRefreshInLogic(bool force) {
+    const void* state = MM_gGameState;
+    const u32 frame = (MM_gGameState != nullptr) ? MM_gGameState->frames : 0;
+    if (!force && sInLogicValid && state == sInLogicState && (state == nullptr || frame - sInLogicFrame < 20)) {
+        return;
+    }
+    sInLogicCalls++;
+    sInLogic.assign((size_t)RC_MAX, 0);
+    if (sInLogicAuthored) {
+        for (uint16_t id : sInLogicAuthoredIds) {
+            if (id < (uint16_t)RC_MAX) {
+                sInLogic[id] = 1;
+            }
+        }
+    } else {
+        // Gate-free and bracketed (#995): the live save is left byte-identical.
+        for (RandoCheckId id : Rando::CheckTracker::ComputeChecksInLogic(gSaveContext.save.entrance)) {
+            sInLogic[id] = 1;
+        }
+    }
+    sInLogicValid = true;
+    sInLogicState = state;
+    sInLogicFrame = frame;
+}
+
+/**
+ * The descriptor's liveAvailable (combo_tracker_view.h): MM's own tracker's
+ * in-logic set (shuffled, not obtained, reachable from the save's entrance) for
+ * the LIVE panel, while Enable Available Checks is on and MM plays a randomizer
+ * file; -1 otherwise, with nothing computed.
+ */
+int MMTrackerLiveAvailable(uint16_t checkId) {
+    if (checkId >= (uint16_t)RC_MAX || !MMAvailableChecksOn() || !MMPlaysRandoFile()) {
+        return -1;
+    }
+    MMRefreshInLogic(false);
+    return sInLogic[checkId] != 0 ? 1 : 0;
+}
+
+} // namespace
+
+/**
+ * The departure capture (#1129; combo_tracker_view.h). MM_Game_Suspend calls it
+ * after the harvest, while gSaveContext is still MM's. No randomizer file played
+ * (the title screen, file select): the last capture stands. Otherwise the in-logic
+ * set computed afresh on the departing save, or no capture with Enable Available
+ * Checks off.
+ */
+extern "C" void MM_TrackerAdapter_CaptureAvailability(void) {
+    if (!MMPlaysRandoFile()) {
+        return;
+    }
+    if (!MMAvailableChecksOn()) {
+        Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, nullptr, 0);
+        return;
+    }
+    MMRefreshInLogic(true);
+    std::vector<uint8_t> bits(((size_t)RC_MAX + 7) / 8, 0);
+    for (size_t i = 0; i < (size_t)RC_MAX; i++) {
+        if (sInLogic[i] != 0) {
+            bits[i >> 3] |= (uint8_t)(1u << (i & 7));
+        }
+    }
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, bits.data(), (uint32_t)RC_MAX);
+}
+
 extern "C" void MM_TrackerAdapter_Register(void) {
     // Pure overwrite over StaticData::Checks, idempotent, needs no archive —
     // the #457/#489 re-homing precedent. Called here (not from a file-scope
@@ -319,6 +440,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.placedItemName = MMTrackerPlacedItemName;
     desc.liveSave = MMTrackerLiveSave;
     desc.setLiveSkipped = MMTrackerSetLiveSkipped;
+    desc.liveAvailable = MMTrackerLiveAvailable;
 
     Combo_Tracker_RegisterMM(&desc);
 }
@@ -353,6 +475,35 @@ extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId,
  */
 extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped) {
     return MMTrackerSetSkippedIn(static_cast<SaveContext*>(save), checkId, skipped != 0) ? 1 : 0;
+}
+
+/**
+ * TEST BRIDGE (#1129): @p live -1 restores production; 0 or 1 answers "does MM
+ * play a randomizer file now" for the reachability op and the departure capture,
+ * in place of MM's play state, which no ROM-free or rando tier has (1 also hands
+ * the view &gSaveContext as the live save, as the play state would).
+ */
+extern "C" void MM_TrackerAdapter_TestLiveSeam(int live) {
+    sLiveTest = live < 0 ? -1 : (live != 0 ? 1 : 0);
+}
+
+/**
+ * TEST BRIDGE (#1129): with @p authored nonzero, MM's in-logic computation is
+ * replaced by the @p count ids at @p ids (the ROM-free tier has no region graph
+ * to crawl); with 0 the real Rando::CheckTracker::ComputeChecksInLogic runs.
+ * Every call drops the cached set, so the next read computes again. @return the
+ * computations made since the previous call, which resets the count.
+ */
+extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* ids, int count) {
+    sInLogicAuthored = authored != 0;
+    sInLogicValid = false;
+    sInLogicAuthoredIds.clear();
+    if (ids != nullptr && count > 0) {
+        sInLogicAuthoredIds.assign(ids, ids + count);
+    }
+    const int calls = sInLogicCalls;
+    sInLogicCalls = 0;
+    return calls;
 }
 
 // ---- #1101 lane R3: Randomizer > MM Locations' check table ------------------

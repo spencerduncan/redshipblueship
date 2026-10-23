@@ -104,6 +104,10 @@ typedef struct {
     int shuffled;      // listed checks (OoT: SoH's Check Tracker's list once loaded, #1126)
     int obtained;      // shuffled checks already collected
     int skipped;       // shuffled checks the player marked skipped
+    // REACHABILITY (#1129): whether `available` is an answer (see AVAILABILITY
+    // below); false means "not known", never "none available".
+    bool availabilityKnown;
+    int available; // shuffled checks reachable now (0 unless availabilityKnown)
 } ComboTrackerGameSummary;
 
 /**
@@ -161,6 +165,23 @@ typedef enum {
  * "Kokiri Sword Chest" under "Kokiri Forest", where `name` is "KF Kokiri Sword
  * Chest"). NULL when the tracker prints the full name there, as MM's does under
  * its scene headers; the grouped list then draws `name`.
+ *
+ * AVAILABILITY (#1129, #993 option 1). `available` is whether the check can be
+ * collected now, as the game's own check tracker computes it, and
+ * `availabilityKnown` whether there is an answer at all:
+ *   - LIVE panel: OoT's ItemLocation::IsAvailable() once SoH's Enable Available
+ *     Checks has run a recalculation, under the same gate the list has (OoT
+ *     played, a randomizer file loaded, SoH's tracker settings loaded); MM's
+ *     Rando::CheckTracker::ComputeChecksInLogic on its live save, refreshed at
+ *     most every 20 frames as MM's own tracker does, while Enable Available
+ *     Checks is on.
+ *   - STALE panel: the set captured at that game's last departure freeze
+ *     (Combo_TrackerFreezeAvailability), carried by the .redsave; never a live
+ *     computation, which would read the other game's state.
+ *   - otherwise (the option off, no recalculation yet, no capture, a
+ *     .redsave written before #1129): not known. The window then draws no
+ *     glyph and never filters the row out.
+ * A found check is never available (both trackers drop it from the set).
  */
 typedef struct {
     uint16_t checkId;
@@ -174,6 +195,8 @@ typedef struct {
     const char* placedItemName; // NULL unless the status reveals it; storage is the owning game's
     uint8_t placedItemGame;     // GameId of placedItemName's item; GAME_NONE when it is NULL
     const char* shortName;      // name under the area header, or NULL for `name`; see SHORT NAME above
+    bool availabilityKnown;     // see AVAILABILITY above
+    bool available;             // reachable now; meaningful only when availabilityKnown
 } ComboTrackerCheckRow;
 
 // ============================================================================
@@ -240,6 +263,14 @@ typedef struct ComboMMTrackerDesc {
     // found). The view calls it only when its own source pick reads LIVE, never
     // for the shadow. May itself be NULL: MM's panel then offers no toggle.
     bool (*setLiveSkipped)(uint16_t checkId, bool skipped);
+    // Reachability on the LIVE panel (#1129): 1 when check `checkId` is in
+    // logic on MM's live save now (Rando::CheckTracker::ComputeChecksInLogic,
+    // cached by the MM TU at its own tracker's 20-frame cadence), 0 when not,
+    // -1 when there is no answer (Enable Available Checks off, no MM play
+    // state). The answer for any id says whether the set is known at all. The
+    // view calls it only when its source pick reads LIVE; a STALE panel reads
+    // the departure capture instead. May itself be NULL: no availability.
+    int (*liveAvailable)(uint16_t checkId);
 } ComboMMTrackerDesc;
 
 /**
@@ -263,6 +294,17 @@ const ComboMMTrackerDesc* Combo_Tracker_GetMMDesc(void);
  * Rando::StaticData::CheckNames, whose population must not race static init.
  */
 void MM_TrackerAdapter_Register(void);
+
+/**
+ * The departure freeze's reachability capture (#1129, ruling D6). DEFINED
+ * MM-SIDE beside MM_TrackerAdapter_Register; MM_Game_Suspend calls it right
+ * after MM_HarvestSharedResources, while gSaveContext is still MM's. With MM
+ * playing a randomizer file it stores MM's in-logic set, freshly computed, through
+ * Combo_TrackerFreezeAvailability, or clears the record when Enable Available
+ * Checks is off; with no file played (title screen, file select) it leaves the
+ * last capture as it is.
+ */
+void MM_TrackerAdapter_CaptureAvailability(void);
 
 // ============================================================================
 // OoT adapter: an accessor vtable over the heap Rando::Context
@@ -321,6 +363,16 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops);
  */
 void OoT_TrackerAdapter_Register(void);
 
+/**
+ * OoT's departure capture (#1129), the twin of MM_TrackerAdapter_CaptureAvailability:
+ * DEFINED OoT-SIDE, called by OoT_Game_Suspend after OoT_HarvestSharedResources.
+ * With OoT playing a randomizer file it stores the checks SoH's tracker lists and
+ * IsAvailable() marks available, or clears the record when that set is not known
+ * (Enable Available Checks off, no recalculation yet, SoH's tracker not loaded);
+ * with no randomizer file played it leaves the last capture as it is.
+ */
+void OoT_TrackerAdapter_CaptureAvailability(void);
+
 // ============================================================================
 // The reads the window performs (all null-safe; game is GAME_OOT or GAME_MM)
 // ============================================================================
@@ -339,6 +391,32 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
+
+// ============================================================================
+// Reachability of the INACTIVE game (#1129, ruling D6: captured at the freeze)
+// ============================================================================
+//
+// The far game's panel is a snapshot (MM's frozen shadow, OoT's suspended
+// heap), so a live computation cannot serve it: MM's crawl reads gSaveContext,
+// which belongs to the other game then, and OoT's set is only as current as
+// its last recalculation. Each game's suspend path therefore captures its own
+// set at the departure freeze into gComboCtx (context.h, the tracker
+// availability records), the crossing commit that follows writes it to the
+// .redsave, and the STALE panel reads it back. Refreshing that set live as the
+// active game obtains things is the follow-up.
+
+/**
+ * Store `game`'s departure capture: one BIT per check id, LSB first within each
+ * byte (id i is bits[i >> 3] >> (i & 7) & 1), for ids [0, checkCount). NULL
+ * `bits` or a zero `checkCount` clears the record ("not known"); a `checkCount`
+ * past the record's capacity is refused with a stderr complaint and clears it
+ * too, never truncates. Other games are ignored.
+ */
+void Combo_TrackerFreezeAvailability(uint8_t game, const uint8_t* bits, uint32_t checkCount);
+
+/** `game`'s captured answer for `checkId`: 1 available, 0 not, -1 no capture
+ *  (or an id past it). */
+int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId);
 
 // ============================================================================
 // The skip toggle (#458 U5): the view's only write, made by the game's adapter
@@ -431,6 +509,8 @@ typedef struct {
     const char* itemName;    // never NULL
     const char* itemArticle; // never NULL
     uint8_t found;           // ComboTrackerFound
+    bool availabilityKnown;  // the host check's row's (#1129); see AVAILABILITY
+    bool available;
 } ComboTrackerForeignRow;
 
 /** Crossings hosted by `hostGame` (see "WHERE THE ROWS COME FROM"); 0 when the
