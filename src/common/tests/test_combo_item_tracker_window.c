@@ -859,7 +859,11 @@ int CitwLockFit(const ComboGui::ComboItemTrackerSection (&sections)[ComboGui::CO
                 CITW_ASSERT(w2 > room[0] || h2 > room[1]);
             }
             if (!mmText && room[1] == 720.0f) {
-                CITW_ASSERT(fit.scale == 1.0f); // 1280x800 holds both games' grids at SoH's own size
+                // 1280x800: MM's 18 table lines (Tokens, Stray Fairies and
+                // Dungeon on lines 12-17, #1140) are taller than the room at
+                // SoH's own size, so the fit is 23 steps, MM's column the bound.
+                CITW_ASSERT(fit.scale == 23.0f * kComboItemTrackerScaleStep);
+                CITW_ASSERT(boxes[1].height * 24.0f * kComboItemTrackerScaleStep + boxes[1].fixedHeight > room[1]);
             }
             // Hysteresis: the fit drawn last frame is kept as it is; a step
             // down is taken at once; a smaller scale last frame grows back.
