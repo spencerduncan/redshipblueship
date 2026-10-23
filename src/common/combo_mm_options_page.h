@@ -128,7 +128,7 @@ void Combo_MMOptionsPages_Init(void);
  * The column (0 or 1) an option group sits in on the options page, or -1 for a
  * group outside ComboMMOptionGroup. The groups are SoH's headers in SoH's order
  * (#1101), read down column 0 and then down column 1: column 0 holds Logic, Win
- * Condition, Area Access and Shuffle Items (24 rows, under the page's notes),
+ * Condition, Area Access and Shuffle Items (25 rows, under the page's notes),
  * column 1 holds Shuffle Shops & Merchants, Additional Items, Traps, Hints and
  * Starting Items then Reset (24 rows), so the two columns end within a few rows
  * of each other.

@@ -42,6 +42,7 @@ games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h
 games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp
 games/mm/2s2h/GameExports_SingleExe.cpp
 games/mm/2s2h/GameInteractorEventsSingleExe.cpp
+games/mm/2s2h/Rando/ActorBehavior/ObjTree.cpp
 games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
@@ -68,6 +69,7 @@ games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
 games/mm/2s2h/mm_song_teacher_hooks_test.cpp
+games/mm/2s2h/mm_tree_shuffle_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp

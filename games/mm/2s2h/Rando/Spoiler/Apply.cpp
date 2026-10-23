@@ -412,6 +412,14 @@ void ApplyToSaveContext(nlohmann::json spoiler) {
     gSaveContext.save.shipSaveInfo.rando.finalSeed = spoiler["finalSeed"].get<uint32_t>();
 
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // A spoiler written before an option existed (Shuffle Tree Drops, #1121)
+        // has no key for it: the option's default is what that world used.
+        if (!spoiler["options"].contains(randoStaticOption.name)) {
+            RANDO_SAVE_OPTIONS[randoOptionId] = randoStaticOption.defaultValue;
+            continue;
+        }
+#endif
         RANDO_SAVE_OPTIONS[randoOptionId] = spoiler["options"][randoStaticOption.name].get<uint32_t>();
     }
 

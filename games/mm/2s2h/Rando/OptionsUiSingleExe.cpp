@@ -449,6 +449,15 @@ const OptionUi kOptionUi[] = {
       // freed only by its id-keyed OnActorDestroy registrants. #515 dispatched
       // that pair together, for exactly that reason. Five VB legs, all live.
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_SHUFFLE_TREE_DROPS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+      "Shuffle Tree Drops", "Bonking into each tree that shakes is a check. Trees that don't shake have no drops.",
+      // #1121, upstream 2Ship's Tree Shuffle. ObjTree.cpp (2ship_rando,
+      // WHOLE_ARCHIVE, reached from ActorBehavior::OnFileLoad) identifies a tree
+      // through id-keyed OnActorInit on its four actors and keeps a missed drop
+      // tidy through id-keyed OnActorDestroy, both MM-dispatched; its other legs
+      // are ShouldActorInit and ShouldVanillaBehavior (VB_APPLY_BONK_TO_ACTOR in
+      // z_player.c, VB_TREE_DROP_COLLECTIBLE in z_obj_yasi.c and z_en_snowwd.c).
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
 
     // ---- Additional Items, Traps -------------------------------------------
     { RO_PLENTIFUL_ITEMS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
