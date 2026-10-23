@@ -42,6 +42,7 @@ games/mm/2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h
 games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp
 games/mm/2s2h/GameExports_SingleExe.cpp
 games/mm/2s2h/GameInteractorEventsSingleExe.cpp
+games/mm/2s2h/Rando/ActorBehavior/ObjTree.cpp
 games/mm/2s2h/Rando/Foreign.cpp
 games/mm/2s2h/Rando/Foreign.h
 games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp

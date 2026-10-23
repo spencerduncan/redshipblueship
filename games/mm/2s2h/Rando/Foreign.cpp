@@ -109,6 +109,25 @@ std::string PairedInputSeedString() {
     return "RSBSPAIR" + std::to_string(gComboCtx.sharedRandoSeed);
 }
 
+/** Options appended after the identity strings were frozen (#1121): each is folded
+ *  only when it is not off, as a named term after the positional ones, so the
+ *  strings every world created before the option existed hashed are unchanged
+ *  with it off (its default) and still distinct with it on. */
+static bool IsAppendedOption(RandoOptionId randoOptionId) {
+    return randoOptionId == RO_SHUFFLE_TREE_DROPS;
+}
+
+static void FoldAppendedOptions(std::string& s, const uint32_t* values) {
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        if (IsAppendedOption(randoOptionId) && values[randoOptionId] != 0) {
+            s += '|';
+            s += randoStaticOption.name;
+            s += ':';
+            s += std::to_string(values[randoOptionId]);
+        }
+    }
+}
+
 static std::string MMOptionsString(const uint32_t* options) {
     // The persisted options ARE the finalized MM settings profile: generation
     // passes RANDO_SAVE_OPTIONS after OnFileCreate copied them into the save,
@@ -121,9 +140,13 @@ static std::string MMOptionsString(const uint32_t* options) {
     // IDENTITY string lives in ProfileIdentityString below.
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        if (IsAppendedOption(randoOptionId)) {
+            continue;
+        }
         s += std::to_string(options[randoOptionId]);
         s += ';';
     }
+    FoldAppendedOptions(s, options);
     return s;
 }
 
@@ -275,9 +298,15 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
                                          uint8_t moonCrash, const uint8_t* excludedChecks) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        if (IsAppendedOption(randoOptionId)) {
+            continue;
+        }
         s += std::to_string(values[randoOptionId]);
         s += ';';
     }
+    // Shuffle Tree Drops (#1121) and any later appended option: a named term
+    // only when on, so no existing pair's mmProfileDigest moves.
+    FoldAppendedOptions(s, values);
     // The TRICK SET (#578 part 1; #570's widened mmProfileDigest scope; ADR 0010
     // §3.3, and ADR 0009 decision 1's amendment that a narrower digest is
     // vacuous). Tricks are an INPUT of the reachability operator (ADR 0010 D6):

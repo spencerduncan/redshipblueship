@@ -526,6 +526,7 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
             { RO_SHUFFLE_CRATE_DROPS, "Shuffle Items" },
             { RO_SHUFFLE_BARREL_DROPS, "Shuffle Items" },
             { RO_SHUFFLE_GRASS_DROPS, "Shuffle Items" },
+            { RO_SHUFFLE_TREE_DROPS, "Shuffle Items" },
             { RO_SHUFFLE_BOSS_REMAINS, "Shuffle Items" },
             { RO_SHUFFLE_GOLD_SKULLTULAS, "Shuffle Items" },
             { RO_MINIMUM_SKULLTULA_TOKENS, "Shuffle Items" },

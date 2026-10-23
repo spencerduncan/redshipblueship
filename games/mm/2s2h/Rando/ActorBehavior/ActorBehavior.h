@@ -117,6 +117,7 @@ void InitObjGrassBehavior();
 void InitObjMoonStoneBehavior();
 void InitObjSnowballBehavior();
 void InitObjTaruBehavior();
+void InitObjTreeBehavior();
 void InitObjTsuboBehavior();
 void InitObjWarpstoneBehavior();
 void InitPlayerBehavior();
