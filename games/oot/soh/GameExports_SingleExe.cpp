@@ -919,6 +919,30 @@ static int PfcExplicitWorldSettings(char* msg, size_t cap) {
 }
 
 /**
+ * The single-bag half of PfcCreationMatchesStore: finds the last kept
+ * single-bag line the creation printed and parses its three crossing counts.
+ * Returns 0 with the reason in `msg`. Exported for the ROM-free row
+ * PfcCreationBagLine (#1135), which feeds it captured stderr.
+ */
+extern "C" int OoT_Pfc_CreationBagLine(char* bagLine, size_t bagCap, int* total, int* intoTermina, int* intoHyrule,
+                                       char* msg, size_t cap) {
+    if (!IntegrationTest_StderrCaptureLast("[OoT] creation event: single bag", bagLine, bagCap)) {
+        snprintf(msg, cap, "the creation never logged its single-bag line");
+        return 0;
+    }
+    const char* p = strstr(bagLine, "single bag");
+    while (*p != '\0' && (*p < '0' || *p > '9')) {
+        p++;
+    }
+    if (sscanf(p, "%d crossings stored (%d OoT items in Termina, %d MM items in Hyrule)", total, intoTermina,
+               intoHyrule) != 3) {
+        snprintf(msg, cap, "the creation's single-bag line does not parse: \"%s\"", bagLine);
+        return 0;
+    }
+    return 1;
+}
+
+/**
  * The creation's own account of the crossings, read off the lines it printed,
  * against the live store right after OoT_Sram_InitSave returned (before any
  * load): "[OoT] creation event: single bag — N crossings stored (X OoT items in
@@ -931,17 +955,7 @@ static bool PfcCreationMatchesStore(char* msg, size_t cap) {
     int total = -1;
     int intoTermina = -1;
     int intoHyrule = -1;
-    if (!IntegrationTest_StderrCaptureLast("[OoT] creation event: single bag", bagLine, sizeof(bagLine))) {
-        snprintf(msg, cap, "the creation never logged its single-bag line");
-        return false;
-    }
-    const char* p = strstr(bagLine, "single bag");
-    while (*p != '\0' && (*p < '0' || *p > '9')) {
-        p++;
-    }
-    if (sscanf(p, "%d crossings stored (%d OoT items in Termina, %d MM items in Hyrule)", &total, &intoTermina,
-               &intoHyrule) != 3) {
-        snprintf(msg, cap, "the creation's single-bag line does not parse: \"%s\"", bagLine);
+    if (!OoT_Pfc_CreationBagLine(bagLine, sizeof(bagLine), &total, &intoTermina, &intoHyrule, msg, cap)) {
         return false;
     }
     int capOoT = -1;

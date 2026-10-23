@@ -1082,6 +1082,12 @@ if(BUILD_TESTING)
     # complete line absent" on a passing creation). Locks, ROM-free and under a
     # loaded reader, that every query sees the line its caller just wrote.
     redship_add_test(NAME StderrCaptureSync COMMAND redship --test stderr-capture-sync)
+    # The paired-creation rows' single-bag watcher (#1135). Since #1116 a creation
+    # on a world waiting at its general pass is completed by Generate's own
+    # completion, which logs "[OoT] paired completion: single bag" instead of
+    # "[OoT] creation event: single bag". Locks, ROM-free through the real tee,
+    # that the watcher accepts that line and still refuses when neither exists.
+    redship_add_test(NAME PfcCreationBagLine COMMAND redship --test pfc-creation-bag-line)
     # Active-thread-queue contract (#385). soh/stubs.c's empty-bodied
     # __osGetActiveQueue returned the return register, and both games' fault
     # handlers walk that as a thread list — so the crash handler was itself
