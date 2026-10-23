@@ -17,6 +17,11 @@
  *      configured, make_redship_otr.py runs on the same inputs and the two
  *      outputs must hold the same path set, the same payload bytes and the same
  *      stamp (the zip archive comment).
+ *   A2. Tracker icons, ROM-free (#1139). The EMBEDDED manifest's mm->oot
+ *      lines over parameter_static/, icon_item_dungeon_static/ and
+ *      icon_item_field_static/, run over a synthetic mm.o2r holding the
+ *      thirteen textures the Combo Item Tracker's MM rows name there plus
+ *      siblings no row names: the OoT half must hold exactly the thirteen.
  *   B. Refusals, ROM-free. One manifest per content rule (collision with the
  *      other game's archive, collision with a host's port archive, a dispatched
  *      Room resource, a raw segmented G_SETTIMG, a display list truncated
@@ -324,6 +329,66 @@ std::string CaiWant(const rsbs::curated::GenerateInputs& in) {
     return rsbs::curated::CurrentStamp(in, &stamp, &err) ? stamp : "<no current stamp: " + err + ">";
 }
 
+// #1139: the MM textures the Combo Item Tracker's rows name outside the two
+// icon_item_*_static_yar/ directories. OoT reaches them only through
+// redship-oot.o2r (mm.o2r is not mounted before the first crossing).
+const char* const kCaiTrackerIconDirs[] = { "parameter_static/", "icon_item_dungeon_static/",
+                                            "icon_item_field_static/" };
+const char* const kCaiTrackerIcons[] = {
+    "parameter_static/gOcarinaATex",
+    "parameter_static/gOcarinaCDownTex",
+    "parameter_static/gOcarinaCLeftTex",
+    "parameter_static/gOcarinaCRightTex",
+    "parameter_static/gOcarinaCUpTex",
+    "parameter_static/gStrayFairyWoodfallIconTex",
+    "parameter_static/gStrayFairySnowheadIconTex",
+    "parameter_static/gStrayFairyGreatBayIconTex",
+    "parameter_static/gStrayFairyStoneTowerIconTex",
+    "parameter_static/gThreeDayClockSunHourTex",
+    "parameter_static/gThreeDayClockMoonHourTex",
+    "icon_item_dungeon_static/gDungeonMapSkullTex",
+    "icon_item_field_static/gWorldMapOwlFaceTex",
+};
+// Siblings in the same directories that no tracker row names.
+const char* const kCaiTrackerIconSiblings[] = {
+    "parameter_static/gAmmoDigit0Tex",
+    "parameter_static/gArcheryScoreIconTex",
+    "icon_item_dungeon_static/gDungeonMap1FButtonTex",
+    "icon_item_field_static/gWorldMapArrowTex",
+};
+
+// The manifest's mm->oot lines whose prefix lies in (or covers) one of
+// kCaiTrackerIconDirs, one per line, comments dropped.
+std::string CaiTrackerIconLines(std::string_view manifest) {
+    std::string out;
+    size_t pos = 0;
+    while (pos < manifest.size()) {
+        size_t end = manifest.find('\n', pos);
+        if (end == std::string_view::npos) {
+            end = manifest.size();
+        }
+        std::string line(manifest.substr(pos, end - pos));
+        pos = end + 1;
+        if (const size_t hash = line.find('#'); hash != std::string::npos) {
+            line.erase(hash);
+        }
+        char direction[32] = { 0 };
+        char prefix[512] = { 0 };
+        if (sscanf(line.c_str(), "%31s %511s", direction, prefix) != 2 || strcmp(direction, "mm->oot") != 0) {
+            continue;
+        }
+        const std::string p(prefix);
+        for (const char* dir : kCaiTrackerIconDirs) {
+            const std::string d(dir);
+            if (p.rfind(d, 0) == 0 || d.rfind(p, 0) == 0) {
+                out += "mm->oot " + p + "\n";
+                break;
+            }
+        }
+    }
+    return out;
+}
+
 bool CaiWriteText(const std::string& path, const std::string& text) {
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     out << text;
@@ -513,6 +578,90 @@ int CuratedArchiveInApp_RunHeadless(const std::string& pythonExe, const std::str
             } else {
                 failures += CaiCompareHalves("A redship-oot.o2r", in.outOoT, py.outOoT) != 0;
                 failures += CaiCompareHalves("A redship-mm.o2r", in.outMM, py.outMM) != 0;
+            }
+        }
+    }
+
+    // ---- A2. The shipped manifest carries the MM tracker icons (#1139) ------------
+    // The Combo Item Tracker draws an MM row as an icon in OoT only when its
+    // path is in a mounted archive (ComboItemTrackerWindow.cpp refuses any
+    // other), and before the first crossing that is redship-oot.o2r alone. The
+    // embedded manifest's mm->oot lines over parameter_static/,
+    // icon_item_dungeon_static/ and icon_item_field_static/ must carve exactly
+    // the thirteen tracker textures out of an mm.o2r that also holds their
+    // siblings: none missing (a row drawn as clipped text) and no sibling (a
+    // whole-directory entry would ship textures no row names).
+    {
+        CaiFixture ix;
+        bool wrote = CaiWriteFixture(root + "/icons", &ix);
+        std::vector<std::pair<std::string, std::string>> mmEntries;
+        for (const char* path : kCaiTrackerIcons) {
+            mmEntries.push_back({ path, CaiTexture(std::string("mm:") + path) });
+        }
+        for (const char* path : kCaiTrackerIconSiblings) {
+            mmEntries.push_back({ path, CaiTexture(std::string("mm:") + path) });
+        }
+        wrote = wrote && CaiWriteZip(ix.mm, mmEntries);
+        const std::string iconLines = CaiTrackerIconLines(cur::EmbeddedManifest());
+        // A valid oot->mm half, so the only variable is the icon lines.
+        const std::string manifest = iconLines + "oot->mm objects/object_gi_oot_only/\n"
+                                                 "oot->mm objects/gameplay_keep/gSharedTex\n";
+        const cur::GenerateInputs in = CaiInputs(ix, manifest, root + "/icons-cpp");
+        const cur::GenerateResult res = wrote ? cur::Generate(in) : cur::GenerateResult{};
+        printf("[curated-archive-inapp] A2: the embedded manifest's tracker-icon lines:\n%s"
+               "[curated-archive-inapp] A2: in-app generator ok=%d (%zu -> redship-oot.o2r)%s%s\n",
+               iconLines.empty() ? "    (none)\n" : iconLines.c_str(), res.ok, res.resourcesOoT, res.ok ? "" : ": ",
+               res.error.c_str());
+        if (!wrote) {
+            fprintf(stderr, "[curated-archive-inapp] FAIL: A2: could not write the synthetic archives\n");
+            failures++;
+        } else if (!res.ok) {
+            fprintf(stderr,
+                    "[curated-archive-inapp] FAIL: A2: no redship-oot.o2r from the embedded manifest's tracker-icon "
+                    "lines (#1139: without them OoT draws those MM rows as clipped text)\n");
+            failures++;
+        } else {
+            const CaiArchive half = CaiReadZip(in.outOoT);
+            int missing = 0;
+            for (const char* path : kCaiTrackerIcons) {
+                auto it = half.entries.find(path);
+                if (it == half.entries.end()) {
+                    fprintf(stderr, "[curated-archive-inapp] FAIL: A2: redship-oot.o2r lacks %s\n", path);
+                    missing++;
+                } else if (it->second != CaiTexture(std::string("mm:") + path)) {
+                    fprintf(stderr, "[curated-archive-inapp] FAIL: A2: %s is not mm.o2r's bytes\n", path);
+                    missing++;
+                }
+            }
+            int extra = 0;
+            for (const auto& kv : half.entries) {
+                bool known = false;
+                for (const char* path : kCaiTrackerIcons) {
+                    known = known || kv.first == path;
+                }
+                if (!known) {
+                    fprintf(stderr, "[curated-archive-inapp] FAIL: A2: redship-oot.o2r also carries %s\n",
+                            kv.first.c_str());
+                    extra++;
+                }
+            }
+            printf("[curated-archive-inapp] A2: redship-oot.o2r holds %zu entries: %d of the %zu tracker icons "
+                   "missing, %d other\n",
+                   half.entries.size(), missing, sizeof(kCaiTrackerIcons) / sizeof(kCaiTrackerIcons[0]), extra);
+            failures += (missing + extra) != 0;
+            if (havePython) {
+                const std::string iconManifestPath = root + "/icons-manifest.txt";
+                CaiWriteText(iconManifestPath, manifest);
+                const cur::GenerateInputs py = CaiInputs(ix, manifest, root + "/icons-py");
+                const int rc = CaiRunPython(pythonExe, generatorScript, py, iconManifestPath);
+                printf("[curated-archive-inapp] A2: make_redship_otr.py rc=%d\n", rc);
+                if (rc != 0) {
+                    fprintf(stderr, "[curated-archive-inapp] FAIL: A2: make_redship_otr.py refused the tracker-icon "
+                                    "lines\n");
+                    failures++;
+                } else {
+                    failures += CaiCompareHalves("A2 redship-oot.o2r", in.outOoT, py.outOoT) != 0;
+                }
             }
         }
     }
