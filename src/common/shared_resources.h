@@ -117,7 +117,9 @@
  * arriving game holding MORE than the pool is not lost, it is picked up by that
  * game's own next harvest. The ONE exception is CREDIT AT PICKUP (#1061, below):
  * a counted pack found in the other game is added mid-scene, bracketed by a
- * harvest before it and an apply after it, so the watermark stays exact.
+ * harvest before it and an apply after it, so the watermark stays exact — and
+ * its monotonic twin, STEP AT PICKUP (#1120, below): a capacity tier found in
+ * the other game is stepped mid-scene, bracketed the same way.
  *
  * WIRING (both games, see each GameExports_SingleExe.cpp):
  *   - Harvest at `Game_Suspend`, beside `Combo_CommitStagedSharedItems()`, and
@@ -408,8 +410,9 @@ bool Combo_SharedResourceCreditsAtPickup(uint8_t kind);
 
 /**
  * The credit a pickup of @p item makes in place of a crossing: true, with the
- * kind and the pack's units, when @p item feeds a kind credited at pickup;
- * false otherwise (outs untouched).
+ * kind and the copy's units, when @p item feeds a kind credited at pickup — a
+ * counted pack (#1061) or a capacity tier (#1120, Combo_SharedResourceStepsAtPickup
+ * tells the shim which); false otherwise (outs untouched).
  */
 bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits);
 
@@ -422,9 +425,73 @@ bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* out
  */
 bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount);
 
+/*
+ * ---------------------------------------------------------------------------
+ * STEP AT PICKUP (#1120): a capacity tier found in the other game
+ * ---------------------------------------------------------------------------
+ * The #1061 credit for the MONOTONIC kinds. A far game's tier item (MM's
+ * Progressive Bomb Bag on an OoT check, OoT's Progressive Wallet on an MM check)
+ * is one more step of ONE shared capacity, so it belongs in the pool the moment
+ * it is found, exactly as a counted pack does. Crossed instead, it reached the
+ * finder only after a round trip: the far game's arrival redeemed it, the far
+ * game's next harvest put the tier in the pool, and the finder's NEXT arrival
+ * applied it (the operator held the bag two swaps after finding it).
+ *
+ * The finding game runs the same three steps as a pack, through the same shim:
+ *   1. HARVEST its live tier of that kind AND the quantity the tier bounds (the
+ *      bomb count under the bag, rupees under the wallet), so nothing found or
+ *      spent since the arrival is lost or refunded;
+ *   2. STEP the pool by one copy (Combo_StepSharedTier below): pool becomes
+ *      min(cap, max(pool, live) + units) and nothing is ever ADDED — a tier the
+ *      pool already holds absorbs the copy, as both games' own top-tier gives do;
+ *   3. RE-APPLY the kind in place through the game's own per-kind apply, the
+ *      arrival's block for that kind (the tier before the quantity it bounds).
+ * A shim that answers 1 records NO crossing (the far game reads the pool at its
+ * arrival, and a redeemed crossing on top would be a second step). A shim that
+ * answers 0 (the kind disarmed by the frozen rules, not a live file) leaves the
+ * pickup to the crossing, so nothing is lost. A tier crossing an OLDER save
+ * already recorded is credited once when its home game redeems it, through the
+ * same OoT_/MM_AwardSharedItem branch #1061 uses for packs.
+ *
+ * Combo_CreditSharedResource is NOT widened for this: its refusal of every
+ * monotonic kind is the shared-resource discipline pin (a capacity tier is
+ * never "added to"), and Combo_StepSharedTier is its monotonic twin, refusing
+ * every consumable kind the same way.
+ */
+
+/** Is @p kind a capacity tier a pickup steps instead of crossing? (#1120) A
+ *  positive allowlist of the MONOTONIC kinds some pool item of either game
+ *  feeds: the four ammo tiers minus sticks and nuts (OoT's apply blocks those
+ *  at tier 0 under Shuffle Deku Stick/Nut Bag, OoT_SharedAmmoGrantBlocked, and
+ *  only OoT's own give opens that gate, so their items must keep crossing),
+ *  the wallet, magic, double defense, health, the hookshot and the bottle
+ *  count. The arming gate is not consulted here: the step is (so a disarmed
+ *  kind's item still crosses). */
+bool Combo_SharedResourceStepsAtPickup(uint8_t kind);
+
+/**
+ * STEP (step 2 above). Raise the pool's slot for a MONOTONIC @p kind by one
+ * copy of @p units (the item class owner's units for the copy: one tier step,
+ * one heart piece, four for a container), bounded by @p cap, creating the slot
+ * on first use. @p cap is the finder's own apply ceiling (the OOT_/MM_MAX_* its
+ * shim applies with); the pool's ceiling is the HIGHER of the two games', which
+ * the kind's quantity policy publishes (shared_items.h), so a copy found in the
+ * game with the lower ceiling still reaches the other game's top tier (an OoT
+ * longshot found in Termina: MM applies 1, the pool holds 2).
+ *
+ * Never lowers the slot and writes no watermark: a monotonic kind has none, and
+ * giving it one would turn a later lower harvest into a debit (the pin).
+ * @return true when the kind is a real, armed, monotonic kind and the slot
+ *         exists afterwards — INCLUDING when the pool was already at the cap
+ *         and the copy was absorbed; false (nothing written) for a consumable
+ *         kind, a disarmed kind, zero units, or full slot blocks.
+ */
+bool Combo_StepSharedTier(uint8_t kind, uint16_t units, uint16_t cap);
+
 /** Each game's shim: steps 1-3 above over its OWN live save, for @p item (the
  *  found item, of either origin). 1 when the pool was credited and the live
- *  count re-applied; 0 when the pickup is not a credit (the caller crosses it). */
+ *  count re-applied (#1061), or (#1120) the pool stepped and the live tier
+ *  re-applied; 0 when the pickup is not a credit (the caller crosses it). */
 int OoT_CreditSharedPickup(const SharedItem* item);
 int MM_CreditSharedPickup(const SharedItem* item);
 

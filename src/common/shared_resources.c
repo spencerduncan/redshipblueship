@@ -418,6 +418,22 @@ bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount) {
     return true;
 }
 
+bool Combo_SharedResourceStepsAtPickup(uint8_t kind) {
+    // #1120 lock seam: today no tier is credited at pickup (every tier item
+    // crosses). The fix publishes the allowlist here.
+    (void)kind;
+    return false;
+}
+
+bool Combo_StepSharedTier(uint8_t kind, uint16_t units, uint16_t cap) {
+    // #1120 lock seam: today the pool has no step primitive (the only monotonic
+    // write is the harvest's max-merge). The fix implements the step here.
+    (void)kind;
+    (void)units;
+    (void)cap;
+    return false;
+}
+
 bool Combo_GetSharedResource(uint8_t kind, uint16_t* outValue) {
     if (!IsRealKind(kind) || outValue == NULL) {
         return false;
