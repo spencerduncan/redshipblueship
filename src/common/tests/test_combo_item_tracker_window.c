@@ -509,15 +509,18 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     }
     CITW_ASSERT(oot.grid->cellPx == 36.0f && oot.grid->gapPx == 12.0f && oot.grid->countStyle == COMBO_ITEM_COUNT_SOH);
     // MM: one table per group (Inventory 16 and Masks 24 six wide, Songs 10
-    // and Quest 10 five wide): lines 0-2, 3-6, 7-8, 9-10.
+    // and Quest 11 five wide, Tokens 2 two wide, Stray Fairies 5 five wide,
+    // Dungeon 16 four wide): lines 0-2, 3-6, 7-8, 9-11, 12, 13, 14-17.
     ComboItemIconLayout(mm.rows, *mm.grid, cells);
-    CITW_ASSERT(cells.size() == mm.rows.size() && cells.size() == 60);
+    CITW_ASSERT(cells.size() == mm.rows.size() && cells.size() == 84);
     struct Expect {
         const char* group;
         int firstLine;
         int columns;
     };
-    const Expect mmGroups[] = { { "Inventory", 0, 6 }, { "Masks", 3, 6 }, { "Songs", 7, 5 }, { "Quest", 9, 5 } };
+    const Expect mmGroups[] = { { "Inventory", 0, 6 }, { "Masks", 3, 6 },   { "Songs", 7, 5 },
+                                { "Quest", 9, 5 },     { "Tokens", 12, 2 }, { "Stray Fairies", 13, 5 },
+                                { "Dungeon", 14, 4 } };
     for (const Expect& e : mmGroups) {
         int index = 0;
         for (size_t i = 0; i < cells.size(); i++) {
@@ -536,7 +539,7 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
         }
         CITW_ASSERT(index > 0);
     }
-    CITW_ASSERT(cells.back().line == 10);
+    CITW_ASSERT(cells.back().line == 17);
     CITW_ASSERT(mm.grid->cellPx == 46.0f && mm.grid->countStyle == COMBO_ITEM_COUNT_MM);
     // MM's own window, captured in play (#458 U3 review): 54 px across, 50 down.
     CITW_ASSERT(mm.grid->gapPx == 8.0f && ComboItemGridLineGap(*mm.grid) == 4.0f);
@@ -545,7 +548,7 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     ComboItemIconLayout(shared.rows, *shared.grid, cells);
     CITW_ASSERT(!cells.empty() && cells.back().line == (int)(shared.rows.size() - 1) / 4);
     printf("[TEST] combo-item-tracker-window: grids: OoT %zu icons in 11 lines of 6 (SoH's main window), MM %zu in "
-           "its 4 tables (11 lines), the pool %zu four a line\n",
+           "its 7 tables (18 lines), the pool %zu four a line\n",
            oot.rows.size(), mm.rows.size(), shared.rows.size());
 
     // ---- picks: the texture and alpha each cell draws ------------------------
