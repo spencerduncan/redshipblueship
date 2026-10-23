@@ -46,6 +46,19 @@ static bool skipSetCamera = false;
 static s16 shapeRotY = 0;
 static s16 worldRotY = 0;
 
+#if defined(RSBS_SINGLE_EXECUTABLE)
+// #1123: the Gomess OnActorUpdate body also closes the ShouldActorUpdate[EN_DEATH] camera pair. Its play-state guard
+// returns early, so it must clear skipSetCamera first, or VB_SET_CAMERA_AT_EYE / VB_SET_CAMERA_FOV would stay
+// suppressed for every later actor update. With a play state the body runs in upstream's order.
+static bool EnDeathHasPlayStateElseReleaseCamera() {
+    if (MM_gPlayState == NULL) {
+        skipSetCamera = false;
+        return false;
+    }
+    return true;
+}
+#endif
+
 void RegisterSkipEnemyIntros() {
     // Odolwa
     COND_ID_HOOK(ShouldActorInit, ACTOR_BOSS_01, CVAR,
@@ -386,7 +399,7 @@ void RegisterSkipEnemyCutscenes() {
 
     // Gomess
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_DEATH, CVAR, [](Actor* actor) {
-        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
+        RSBS_SINGLE_EXE_REQUIRE(EnDeathHasPlayStateElseReleaseCamera()); // #1123
         EnDeath* enDeath = (EnDeath*)actor;
         if (enDeath->actionFunc == EnDeath_PlayCutscene && actor->colChkInfo.health == 0) {
             actor->shape.rot.y -= 0x2000; // Prevent Gomess from snapping to another angle
