@@ -6,7 +6,9 @@
  * Renders src/common/combo_tracker_view.h's model: the combo identity header
  * and one panel per game fed ONLY by that game's registered adapter, each
  * drawn as SoH's Check Tracker is and governed by SoH's Check Tracker Settings
- * keys (#1128). The cross-game crossings are not drawn here (ruling D10): the
+ * keys (#1128), its window chrome included (#1130: Window Type, Enable
+ * Dragging, Only Enable While Paused, Display Mode and its combo buttons,
+ * Background Color, Font Size). The cross-game crossings are not drawn here (ruling D10): the
  * Cross-Game Spoiler draws them, through DrawCrossingList below. Every panel is labelled by its
  * game's header alone (#927): the inactive game's data is its snapshot (MM's
  * shadow, written at freeze/save; OoT's heap, stopped at suspend), and the

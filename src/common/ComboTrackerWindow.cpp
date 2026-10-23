@@ -13,7 +13,9 @@
  * back, so the two panes toggle apart and no key is stored.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
- * (docs/ui-style-guide.md section 10): the title bar's close button, themed
+ * (docs/ui-style-guide.md section 10): SoH's Check Tracker chrome from its own
+ * keys (#1130; the Window type with the title bar's close button, the Floating
+ * type an overlay with none, its background colour and font size), themed
  * collapsing headers (UIWidgets::PushStyleCombobox(THEME_COLOR), as the Check
  * Tracker Settings pane's section headers are), gray notes for state, and
  * SoH's table shape (cell padding 8x8, horizontal and vertical borders, a
@@ -40,11 +42,13 @@
 #include <vector>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <ship/Context.h>
 #include <ship/window/Window.h>
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/IconsFontAwesome4.h>
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <libultraship/controller/controldeck/ControlDeck.h> // the pad SoH's combo-button hold reads (#1130)
 
 #include "ComboItemTrackerWindow.h" // RegisterComboItemTrackerWindow (#458 U2)
 #include "combo_identity_display.h" // the paired seed as the player typed it (#952)
@@ -105,6 +109,47 @@ void TextBalanced(const char* text) {
     ImGui::PopTextWrapPos();
 }
 
+/**
+ * The first pad's held buttons, read where SoH's Check Tracker reads them for
+ * its combo-button hold (DrawElement: LUS::ControlDeck's GetPads()[0].button),
+ * the one ControlDeck both games poll their pads through. 0 with no deck or no
+ * pad polled yet.
+ */
+uint32_t HeldPadButtons() {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    auto deck = std::dynamic_pointer_cast<LUS::ControlDeck>(ctx->GetControlDeck());
+    OSContPad* pads = deck != nullptr ? deck->GetPads() : nullptr;
+    return pads != nullptr ? pads[0].button : 0;
+}
+
+/**
+ * BeginFloatWindows' style (randomizer_entrance_tracker.cpp), in both window
+ * types as SoH's: the BgColor background, opaque while the pane is docked in
+ * the menu's deck, a transparent border and rounding 4, held until the pane's
+ * End as EndFloatWindows holds them. EndChromeStyle pops them.
+ */
+void BeginChromeStyle(const ComboTrackerChromeKeys& keys) {
+    ImVec4 bg(keys.bg[0] / 255.0f, keys.bg[1] / 255.0f, keys.bg[2] / 255.0f, keys.bg[3] / 255.0f);
+    ImGuiWindow* window = ImGui::FindWindowByName(kComboTrackerWindowName);
+    if (window != nullptr && window->DockTabIsVisible && window->ParentWindow != nullptr &&
+        strncmp(window->ParentWindow->Name, "Main - Deck", strlen("Main - Deck")) == 0) {
+        bg.w = 1.0f;
+    }
+    ImVec4 noBorder = ImGui::GetStyleColorVec4(ImGuiCol_Border);
+    noBorder.w = 0.0f;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, bg);
+    ImGui::PushStyleColor(ImGuiCol_Border, noBorder);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+}
+
+void EndChromeStyle() {
+    ImGui::PopStyleVar();
+    ImGui::PopStyleColor(2);
+}
+
 // ---- SoH's Check Tracker colours (#458 U4) ----------------------------------
 //
 // The Checks lists colour each check, and each area header, the way SoH's Check
@@ -118,6 +163,8 @@ void TextBalanced(const char* text) {
 // spelled out whole (#1128), so a search for the key finds its reader.
 
 constexpr Color_RGBA8 kSohMainDefault = { 255, 255, 255, 255 }; // Color_Main_Default
+// SoH's Check Tracker background (randomizer_entrance_tracker.h, Color_Bg_Default): opaque black.
+constexpr Color_RGBA8 kSohBgDefault = { 0, 0, 0, 255 };
 
 struct SohStatusColourKey {
     const char* state;        // the CVar's state segment
@@ -717,16 +764,57 @@ std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool available
 }
 
 ComboTrackerChromeKeys ComboReadTrackerChromeKeys() {
-    return ComboTrackerChromeKeys();
+    // SoH's keys and defaults (randomizer_check_tracker.cpp, DrawElement): the
+    // window type, dragging on, both floating gates off, the hold's L and R.
+    ComboTrackerChromeKeys keys;
+    keys.windowType = CVarGetInteger("gTrackers.CheckTracker.WindowType", kComboTrackerWindowWindow);
+    keys.draggable = CVarGetInteger("gTrackers.CheckTracker.Draggable", 1) != 0;
+    keys.showOnlyPaused = CVarGetInteger("gTrackers.CheckTracker.ShowOnlyPaused", 0) != 0;
+    keys.displayType = CVarGetInteger("gTrackers.CheckTracker.DisplayType", kComboTrackerDisplayAlways);
+    keys.comboButton1 = CVarGetInteger("gTrackers.CheckTracker.ComboButton1", kComboTrackerComboButtonL);
+    keys.comboButton2 = CVarGetInteger("gTrackers.CheckTracker.ComboButton2", kComboTrackerComboButtonR);
+    const Color_RGBA8 bg = CVarGetColor("gTrackers.CheckTracker.BgColor.Value", kSohBgDefault);
+    keys.bg[0] = bg.r;
+    keys.bg[1] = bg.g;
+    keys.bg[2] = bg.b;
+    keys.bg[3] = bg.a;
+    keys.fontSize = CVarGetFloat("gTrackers.CheckTracker.FontSize", 1.0f);
+    return keys;
 }
 
-uint32_t ComboTrackerComboButtonMask(int) {
-    return 0;
+uint32_t ComboTrackerComboButtonMask(int button) {
+    // SoH's `buttons` (randomizer_entrance_tracker.h), in TrackerComboButton order.
+    static constexpr uint32_t kButtons[kComboTrackerComboButtonCount] = {
+        BTN_A, BTN_B, BTN_CUP,   BTN_CDOWN, BTN_CLEFT, BTN_CRIGHT, BTN_L,
+        BTN_Z, BTN_R, BTN_START, BTN_DUP,   BTN_DDOWN, BTN_DLEFT,  BTN_DRIGHT,
+    };
+    return button >= 0 && button < kComboTrackerComboButtonCount ? kButtons[button] : 0;
 }
 
-ComboTrackerChrome ComboTrackerChromeFor(const ComboTrackerChromeKeys&, bool, uint32_t) {
+ComboTrackerChrome ComboTrackerChromeFor(const ComboTrackerChromeKeys& keys, bool paused, uint32_t padButtons) {
     ComboTrackerChrome chrome;
     chrome.flags = ImGuiWindowFlags_NoFocusOnAppearing;
+    if (keys.windowType != kComboTrackerWindowFloating) {
+        return chrome; // the Window type: SoH applies its gates and overlay flags to the floating type only
+    }
+    // DrawElement's floating gates: Only Enable While Paused, then Combo Button Hold.
+    if (keys.showOnlyPaused && !paused) {
+        chrome.draws = false;
+    }
+    if (keys.displayType == kComboTrackerDisplayComboButton) {
+        const bool held = (padButtons & ComboTrackerComboButtonMask(keys.comboButton1)) != 0 &&
+                          (padButtons & ComboTrackerComboButtonMask(keys.comboButton2)) != 0;
+        if (!held) {
+            chrome.draws = false;
+        }
+    }
+    // BeginFloatWindows' floating flags, less the scroll pair (ComboTrackerWindow.h).
+    chrome.flags |= ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoTitleBar;
+    if (!keys.draggable) {
+        chrome.flags |= ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoMove;
+    }
+    chrome.closeButton = false;
+    chrome.mainViewport = true;
     return chrome;
 }
 
@@ -854,16 +942,36 @@ void ComboTrackerWindow::Draw() {
         return;
     }
 
-    // SoH's pane chrome (docs/ui-style-guide.md section 10): Ship::GuiWindow::Draw
-    // passes its visibility to ImGui::Begin, so an SoH pane has a close button.
-    // Closing clears the visibility CVar through SetVisibility, which also
-    // schedules the save, as a closed SoH pane does.
+    // SoH's Check Tracker chrome (#1130): its keys, its floating gates on the
+    // active game's pause and the first pad's held buttons (each read only
+    // where SoH reads it), its flags.
+    const ComboTrackerChromeKeys keys = ComboReadTrackerChromeKeys();
+    const bool floating = keys.windowType == kComboTrackerWindowFloating;
+    const bool paused = floating && keys.showOnlyPaused && Combo_ItemActiveGamePaused();
+    const uint32_t pad = floating && keys.displayType == kComboTrackerDisplayComboButton ? HeldPadButtons() : 0;
+    const ComboTrackerChrome chrome = ComboTrackerChromeFor(keys, paused, pad);
+    if (!chrome.draws) {
+        return;
+    }
+    if (chrome.mainViewport) {
+        ImGui::SetNextWindowViewport(ImGui::GetMainViewport()->ID);
+    }
+
+    // SoH's pane chrome (docs/ui-style-guide.md section 10b): in the Window
+    // type, Ship::GuiWindow::Draw's, which passes the visibility to
+    // ImGui::Begin, so the pane has a close button; closing clears the
+    // visibility CVar through SetVisibility, which also schedules the save, as a
+    // closed SoH pane does. The Floating type passes none, as SoH's overlays and
+    // the Combo Item Tracker do: the Combo > Windows row toggles it.
     bool open = true;
     BeginComboPaneFit(mFit);
-    if (ImGui::Begin(kComboTrackerWindowName, &open, ImGuiWindowFlags_NoFocusOnAppearing)) {
+    BeginChromeStyle(keys);
+    if (ImGui::Begin(kComboTrackerWindowName, chrome.closeButton ? &open : nullptr, (ImGuiWindowFlags)chrome.flags)) {
+        ImGui::SetWindowFontScale(keys.fontSize);
         DrawElement();
         EndComboPaneFit(mFit);
     }
+    EndChromeStyle();
     ImGui::End();
     if (!open) {
         SetVisibility(false);
