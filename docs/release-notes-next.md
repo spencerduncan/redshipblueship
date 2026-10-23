@@ -1,9 +1,18 @@
-# Next release (draft)
+# Release notes: v0.3.1-prealpha ("Ripley Bravo")
 
-**Status:** draft. No version or codename is decided. This section lists what merged on `main` after the
-`v0.3.0-prealpha` tag (`f2f3d64f`), up to `af4d941f` (2026-10-23): 19 pull requests, #1111 to #1153 (#1115 is the
-release itself and #1148 the first draft of these notes; the numbers between them that are not listed are issues,
-pull requests still open, or the revert #1150, closed unmerged).
+**Status:** released. The release is cut as the tag `v0.3.1-prealpha` on the commit that merges this text (the version
+bump and these notes), whose code is `main` at `c1023282`. The next release's draft starts above this section when
+something merges after the tag.
+**Version:** `v0.3.1-prealpha`, codename "Ripley Bravo" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md)
+that is a `z` bump: the film character stays and the code word moves from Alfa to Bravo. The archive version
+(`project(Ship VERSION 9.1.1)`) is unchanged, but a paired file from `v0.3.0-prealpha` does not carry over (Read this
+first). A build's window title reads `RedShipBlueShip v0.3.1-prealpha+<commit> (Ripley Bravo)`, and `redship --version`
+prints the same first line.
+**Last release:** `v0.3.0-prealpha` ("Ripley Alfa"), tagged 2026-10-22 at `f2f3d64f` (code tip `30b841c1`). Its notes
+follow this section.
+**Merged up to:** `main` at `c1023282` (2026-10-23), 21 commits after the tag: pull requests #1111 to #1155 (#1115 is
+the previous release itself and #1148 and #1155 are docs for these notes; the numbers between them that are not listed
+are issues or the revert #1150, closed unmerged).
 **Covers:** everything merged after `f2f3d64f`. Numbers in parentheses are pull requests; issues are written "issue #N".
 Nobody has played any of it: every change below is locked by test rows.
 
@@ -105,6 +114,10 @@ Nobody has played any of it: every change below is locked by test rows.
   Owl Statues, Time (the six half-days) and Misc (Ability to Swim) follow the Ocarina Buttons. They draw as icons in
   Hyrule before Majora's Mask has started, from the curated icons of #1144 (#1149, issue #1140). At 1280x800 the
   overlay now draws at about 72% of SoH's size to fit Majora's Mask's longer section.
+- **The Combo Tracker follows SoH's Check Tracker window settings** (Combo > Tracker Settings): Window Type (Floating
+  overlay or Window), Enable Dragging, Only Enable While Paused, Display Mode (Always or Combo Button Hold), Background
+  Color and Font Size. As Floating it has no title bar or close button, as SoH's overlays; as Window it keeps both
+  (#1154, issue #1130).
 
 ### Fixes
 
@@ -167,6 +180,8 @@ Nobody has played any of it: every change below is locked by test rows.
   is not honoured for them yet (issue #1143). The Heart Pieces row reads Majora's Mask's last snapshot of the shared
   pieces, so a piece found in Hyrule shows in the Shared section at once and in Majora's Mask's row only after the
   next crossing.
+- Under Ocarina of Time both SoH's Check Tracker and the Combo Tracker draw under the same window settings, until
+  SoH's window retires (lane L5 of the tracker scoping) (#1154).
 - A stray fairy on an Ocarina of Time shelf or in its get-item cutscene is a still figure (no wing flap or colour
   pulse). The other items 2Ship2Harkinian draws with its own code (owl statues, souls, clocks, frogs, the swim ability,
   Triforce pieces, traps and ocarina buttons) still show "?" there (#1113).
@@ -197,6 +212,12 @@ entrance), with the failure point moving between runs. The driver's bisect assum
 green, so it blamed #1137; its revert (#1150) was closed unmerged and #1137 cleared. Cycle 23 ran with the pad idle,
 and since #1153 (issue #1152) a test process ignores controllers altogether. The full record is in the two
 "Gates, 2026-10-23" sections of [`known-issues.md`](known-issues.md). Nobody has played any of it.
+
+The release commit itself (`c1023282` plus the version bump and these notes) was gated on the workstation (Windows,
+ROM archives mounted): `redship` 240 of 240, `rando` 74 of 74, `integration` 21 of 21. Two capture rows,
+`IntGameplayRoundtripCapture` and `IntPairedFileSelectIdentity`, first failed because the build tree's
+`shipofharkinian.json` had fallen back to libultraship's Windows default, DirectX 11, where no frame capture is
+written; on the OpenGL backend the test setup requires, both passed.
 
 ---
 
