@@ -44,7 +44,10 @@
  * panel lists what SoH's tracker lists: its summary counts GetTotalChecks()
  * checks (more than none), a shuffled chest is listed, and the excluded chest and
  * an unshuffled shop slot, both holding a placed item, are not. While MM is
- * played, the stale panel keeps that list.
+ * played, the stale panel keeps that list. On a vanilla file, and at the title
+ * screen with SoH's tracker still loaded, the panel never asks SoH's predicate
+ * (its vanilla branch would list vanilla-completion checks) and lists the
+ * placed checks, as before.
  *
  * Every check runs and reports; the entry point returns the failure count.
  */
@@ -103,6 +106,10 @@ void RandoTest_CheckTrackerSetEnableAvailable(int enabled);
 int RandoTest_CheckTrackerDrainPendingRecalc(void);
 // randomizer_check_tracker.cpp: CheckTrackerLoadGame, as its OnLoadGame hook runs it (#1126).
 void RandoTest_CheckTrackerLoadGame(int32_t fileNum);
+// TrackerAdapterSingleExe.cpp: the adapter's seams (#458 U5, #1126). The skip seam's
+// 2 is "a save is loaded, IS_RANDO read for real"; 0 is "no save is loaded".
+int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded);
+int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_t* visible, int count);
 s32 Flags_GetRandomizerInf(RandomizerInf flag);
 void Flags_SetRandomizerInf(RandomizerInf flag);
 }
@@ -449,10 +456,18 @@ extern "C" int OoT_TrackerOoTPanelList_Run(void) {
             placed++;
         }
     }
+    int placedRows = 0; // what the placed predicate lists over the panel's own rows
+    for (size_t i = 1; i < (size_t)RC_MAX; i++) {
+        if (ctx->GetItemLocation(i)->GetPlacedRandomizerGet() != RG_NONE) {
+            placedRows++;
+        }
+    }
 
     OoT_TrackerAdapter_Register();
     const GameId gameBefore = Context_GetCurrentGame();
     Context_SetCurrentGame(GAME_OOT);
+    // OoT plays a loaded file (no play state in this tier); IS_RANDO is read for real.
+    (void)OoT_TrackerAdapter_TestSkipSeam(2);
     ComboTrackerGameSummary live;
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &live);
     ComboTrackerCheckRow listedRow = {};
@@ -490,6 +505,32 @@ extern "C" int OoT_TrackerOoTPanelList_Run(void) {
     TRR_CHECK(stale.shuffled == total, "the stale OoT panel's count moved off SoH's Check Tracker's total");
     TRR_CHECK(haveStaleExcluded && !staleExcluded.shuffled, "the stale OoT panel lists the excluded location");
 
+    // A vanilla file (ruling D11: randomizer files only): SoH's tracker loads for
+    // every file, so its settings are loaded here too, but its predicate's vanilla
+    // branch must not become the panel's list. The quest id is put back at once.
+    Context_SetCurrentGame(GAME_OOT);
+    const u8 questBefore = gSaveContext.ship.quest.id;
+    gSaveContext.ship.quest.id = QUEST_NORMAL;
+    (void)OoT_TrackerAdapter_TestListSeam(-1, NULL, 0); // zero the question count
+    ComboTrackerGameSummary vanilla;
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &vanilla);
+    const int vanillaAsked = OoT_TrackerAdapter_TestListSeam(-1, NULL, 0);
+    gSaveContext.ship.quest.id = questBefore;
+    // The title screen with SoH's tracker still loaded (a paired file MM returned
+    // to title from: OoT's OnExitGame, which tears the tracker down, never ran).
+    (void)OoT_TrackerAdapter_TestSkipSeam(0);
+    ComboTrackerGameSummary title;
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &title);
+    const int titleAsked = OoT_TrackerAdapter_TestListSeam(-1, NULL, 0);
+    printf("[TEST] tracker-oot-panel-list (vanilla file): panel shuffled %d, predicate asked %d; (title screen): "
+           "panel shuffled %d, predicate asked %d; placed rows %d\n",
+           vanilla.shuffled, vanillaAsked, title.shuffled, titleAsked, placedRows);
+    TRR_CHECK(vanillaAsked == 0, "the OoT panel asked SoH's predicate on a vanilla file");
+    TRR_CHECK(vanilla.shuffled == placedRows, "the OoT panel on a vanilla file does not list the placed checks");
+    TRR_CHECK(titleAsked == 0, "the OoT panel asked SoH's predicate with no file loaded");
+    TRR_CHECK(title.shuffled == placedRows, "the OoT panel with no file loaded does not list the placed checks");
+
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
     Context_SetCurrentGame(gameBefore);
     excluded->SetExcludedOption(RO_LOCATION_INCLUDE);
     CheckTracker::Teardown();
