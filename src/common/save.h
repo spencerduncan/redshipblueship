@@ -58,7 +58,11 @@
 
 // On-disk constants (visible to both C and C++).
 #define RSBS_SAVE_MAGIC "REDSHIP1" // 8 bytes, NOT NUL-terminated on disk
-#define RSBS_SAVE_VERSION 3u       // version THIS build writes
+#define RSBS_SAVE_VERSION 4u       // version THIS build writes
+// v4 (#1129) changes no layout a v3 reader knows: Tier-1 grows from 1024 to
+// RSBS_COMBO_CONTEXT_RECORD_SIZE 2048 bytes, the tracker availability captures
+// appended after reserved[] (context.h). A v1-v3 file's shorter Tier-1 is a
+// byte prefix and zero-extends (no capture); a v4 file is refused by a v3 build.
 // The first version that carries the Tier-4 crossing block (ADR 0010 O7). v3
 // changes nothing about Tiers 0-3; it APPENDS Tier-4, which is why v1 and v2
 // stay inside the read window below: they load with an empty crossing store,

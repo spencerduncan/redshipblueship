@@ -165,7 +165,17 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  *     compile-time error (static_assert below), not a silent format break: the
  *     fix is to raise both this constant and RSBS_SAVE_VERSION together.
  */
-#define RSBS_COMBO_CONTEXT_RECORD_SIZE 1024u
+#define RSBS_COMBO_CONTEXT_RECORD_SIZE 2048u // 1024 until #1129's tracker captures (RSBS_SAVE_VERSION 4)
+
+/**
+ * The tracker availability captures' capacities (#1129), in check ids (bits):
+ * each game's RC_MAX with headroom for upstream growth, a multiple of 64. The
+ * game TUs static_assert their RC_MAX against these (OoT RC_MAX is about 2530
+ * and MM's about 2270 at f29a1a82); outgrowing one is a format change, never a
+ * truncation. Together the two records cost 4 + 384 + 320 = 708 bytes.
+ */
+#define RSBS_TRACKER_AVAIL_OOT_CAP 3072u
+#define RSBS_TRACKER_AVAIL_MM_CAP 2560u
 
 // ============================================================================
 // Origin-tagged shared items (ADR 0002)
@@ -1099,6 +1109,34 @@ typedef struct {
     // and #976's item rules (8 bytes at 900) and family bitset (4 at 908) after
     // it, so the next carver starts from 92 at 912; 92 clears the floor by 28.
     uint8_t reserved[92];
+
+    // #1129 (lane L3, ruling D6 "inactive should be captured at freeze"): each
+    // game's TRACKER AVAILABILITY CAPTURE, the set its check tracker marks
+    // reachable as that game departs, which the combo tracker's snapshot pane
+    // shows while the other game is played (combo_tracker_view.h). Written only
+    // at the departure freeze (OoT_/MM_TrackerAdapter_CaptureAvailability, from
+    // each Game_Suspend beside the shared-resource harvest), so the crossing
+    // commit that follows the suspend writes it to the .redsave's Tier-1 with
+    // the rest of the record; read only by the view.
+    //
+    // APPENDED after reserved[], not carved from it: 708 bytes do not fit
+    // reserved[]'s 92, and carving would leave it under ADR 0009's 64-byte
+    // floor. Every field above keeps its offset, so a record written before
+    // this append is a byte prefix and zero-extends, and RSBS_COMBO_CONTEXT_
+    // RECORD_SIZE and RSBS_SAVE_VERSION rose together (1024 -> 2048, 3 -> 4) as
+    // the growth contract above requires.
+    //
+    // ZERO MEANS "NO CAPTURE": a count of 0 is a record never captured (a
+    // .redsave written before #1129, a fresh file, a departure with the set not
+    // known), which the view reports as availability not known. One BIT per
+    // check id, LSB first within each byte; ids at or past the count are not
+    // captured. Session state like every field ahead of reserved[]: not in the
+    // invalidation KEEP set. Not part of a world (SeedPackageSingleExe.cpp's
+    // WorldRecordBytes copies named world fields only).
+    uint16_t trackerAvailCountOoT; // ids [0, count) captured; 0 = no capture
+    uint16_t trackerAvailCountMM;
+    uint8_t trackerAvailOoT[RSBS_TRACKER_AVAIL_OOT_CAP / 8];
+    uint8_t trackerAvailMM[RSBS_TRACKER_AVAIL_MM_CAP / 8];
 } ComboContext;
 
 /**
@@ -1311,6 +1349,17 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 912u,
 RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
                        "reserved[] must keep at least 64 bytes: Test_SaveComboRecordFixed's headroom "
                        "round-trip degenerates to a vacuous pass when it empties (ADR 0009)");
+// #1129's append, pinned to literals on the same terms as every carve above:
+// directly after reserved[]'s 92 bytes, the two counts, then the two bitsets.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerAvailCountOoT) == 1004u &&
+                           offsetof(ComboContext, trackerAvailCountMM) == 1006u &&
+                           offsetof(ComboContext, trackerAvailOoT) == 1008u &&
+                           offsetof(ComboContext, trackerAvailMM) == 1392u && sizeof(ComboContext) == 1712u,
+                       "the tracker availability captures live at .redsave byte offsets 1004-1711 (#1129); if "
+                       "this fires, a field ahead of them moved");
+RSBS_CTX_STATIC_ASSERT(RSBS_TRACKER_AVAIL_OOT_CAP % 64u == 0 && RSBS_TRACKER_AVAIL_MM_CAP % 64u == 0 &&
+                           RSBS_TRACKER_AVAIL_OOT_CAP <= 0xFFFFu && RSBS_TRACKER_AVAIL_MM_CAP <= 0xFFFFu,
+                       "a tracker availability capacity must be whole 64-bit words and fit its u16 count");
 
 #ifdef __cplusplus
 // The raw-assignment-fails proof (ADR 0002). In C this is a constraint

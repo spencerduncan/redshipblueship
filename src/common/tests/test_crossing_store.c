@@ -71,8 +71,9 @@ int MM_Rando_WriteCrossingSpoilerSection(const char* path);
 int MM_Rando_LoadCrossingsFromSpoiler(const char* path);
 }
 
-static_assert(RSBS_SAVE_VERSION == 3u && RSBS_SAVE_VERSION_CROSSINGS == 3u,
-              "ADR 0010 O7 bumps the .redsave format to 3 for the Tier-4 crossing block");
+static_assert(RSBS_SAVE_VERSION >= 3u && RSBS_SAVE_VERSION_CROSSINGS == 3u,
+              "ADR 0010 O7 bumps the .redsave format to 3 for the Tier-4 crossing block (and #1129 to 4 for the "
+              "larger Tier-1, which leaves Tier-4 as it is)");
 static_assert(RSBS_CROSSING_STORE_CAP >= RSBS_COMBO_LOGIC_PLACEMENT_CAP,
               "the store must hold every crossing a coordinator table can carry");
 static_assert(RSBS_CROSSING_RECORD_SIZE == 8u && RSBS_CROSSING_BLOCK_HEADER_SIZE == 16u,
@@ -557,7 +558,7 @@ TestResult Test_CrossingStoreRedsave(void) {
     rsbs::RsbsSaveHeader h;
     XS_ASSERT(file.size() >= sizeof(h));
     std::memcpy(&h, file.data(), sizeof(h));
-    XS_ASSERT(h.version == 3u && h.version == RSBS_SAVE_VERSION_CROSSINGS);
+    XS_ASSERT(h.version == RSBS_SAVE_VERSION && h.version >= RSBS_SAVE_VERSION_CROSSINGS); // 4 since #1129
     // Tier-4 on disk IS the serialized block, right after Tier-3.
     const size_t t4 = XsTier4Offset();
     XS_ASSERT(file.size() == t4 + known.size());

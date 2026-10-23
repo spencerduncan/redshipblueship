@@ -277,6 +277,13 @@ Color_RGBA8 Color_Saved_Extra = { 0, 185, 0, 255 };               // Green
 
 static ImGuiTextFilter checkSearch;
 static bool recalculateAvailable = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Whether a recalculation has run for the file being played (#1129): until one
+// does, ItemLocation::IsAvailable reads false everywhere, which the combo
+// tracker must not show as "nothing available". Set by ComputeAvailableChecks,
+// cleared by a file load, a teardown and the option's change handler.
+static bool availableComputed = false;
+#endif
 std::array<bool, RCAREA_INVALID> filterAreasHidden = { 0 };
 std::array<bool, RC_MAX> filterChecksHidden = { 0 };
 
@@ -539,6 +546,9 @@ void SetShopSeen(uint32_t sceneNum, bool prices) {
 }
 
 void CheckTrackerLoadGame(int32_t fileNum) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    availableComputed = false; // #1129: the bits belong to the file this load replaces
+#endif
     if (IS_BOSS_RUSH) {
         return;
     }
@@ -1143,6 +1153,9 @@ void LoadFile() {
 
 void Teardown() {
     initialized = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    availableComputed = false; // #1129
+#endif
     ClearAreaChecksAndTotals();
     checksByArea.clear();
     areasSpoiled = 0;
@@ -2315,6 +2328,7 @@ void ArmAvailableChecksRecalc() {
 static void SetEnableAvailableChecks(bool enabled) {
     enableAvailableChecks = enabled;
 #ifdef RSBS_SINGLE_EXECUTABLE
+    availableComputed = false; // #1129: current again only once the recalculation below (or the armed one) runs
     if (!GameInteractor::IsSaveLoaded()) {
         ArmAvailableChecksRecalc();
         return;
@@ -2337,6 +2351,28 @@ extern "C" void RandoTest_CheckTrackerClearRecalcPending(void) {
 
 extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
     SetEnableAvailableChecks(enabled != 0);
+}
+
+// The combo tracker's OoT pane (#1129, TrackerAdapterSingleExe.cpp): whether
+// ItemLocation::IsAvailable is this tracker's current answer. It does for a closed
+// window what DrawElement does each frame: the option is read from its key (the
+// draw re-reads it; only the off-to-on direction is taken here, the change handler
+// owns the other), and a recalculation that is due runs once a save is loaded.
+// The combo tracker replaces this window in the single exe (ruling D1), so the
+// set must not wait for this window's draw.
+extern "C" int OoT_CheckTracker_AvailabilityCurrent(void) {
+    if (!enableAvailableChecks && CVarGetInteger(CVAR_TRACKER_CHECK("EnableAvailableChecks"), 0)) {
+        enableAvailableChecks = true;
+        recalculateAvailable = true;
+    }
+    if (!enableAvailableChecks) {
+        return 0;
+    }
+    if (recalculateAvailable && GameInteractor::IsSaveLoaded()) {
+        recalculateAvailable = false;
+        RecalculateAvailableChecks();
+    }
+    return availableComputed ? 1 : 0;
 }
 #endif
 
@@ -2414,6 +2450,9 @@ static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
         }
         totalChecksAvailable += areaChecksAvailable[rcArea];
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    availableComputed = true; // #1129
+#endif
 
     StopPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
     SPDLOG_INFO("Recalculate Available Checks Time: {}ms",

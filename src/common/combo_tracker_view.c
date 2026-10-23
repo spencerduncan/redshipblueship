@@ -93,6 +93,78 @@ const char* Combo_TrackerFreshnessLabel(uint8_t game, uint8_t freshness) {
 }
 
 // ============================================================================
+// Reachability of the inactive game: the departure captures (#1129)
+// ============================================================================
+
+/** `game`'s capture record in gComboCtx: its bits, its count and its capacity in ids; NULL for any other game. */
+static uint8_t* FrozenRecord(uint8_t game, uint16_t** outCount, uint32_t* outCap) {
+    if (game == (uint8_t)GAME_OOT) {
+        *outCount = &gComboCtx.trackerAvailCountOoT;
+        *outCap = RSBS_TRACKER_AVAIL_OOT_CAP;
+        return gComboCtx.trackerAvailOoT;
+    }
+    if (game == (uint8_t)GAME_MM) {
+        *outCount = &gComboCtx.trackerAvailCountMM;
+        *outCap = RSBS_TRACKER_AVAIL_MM_CAP;
+        return gComboCtx.trackerAvailMM;
+    }
+    return NULL;
+}
+
+void Combo_TrackerFreezeAvailability(uint8_t game, const uint8_t* bits, uint32_t checkCount) {
+    uint16_t* count = NULL;
+    uint32_t cap = 0;
+    uint8_t* store = FrozenRecord(game, &count, &cap);
+    if (store == NULL) {
+        return;
+    }
+    // Cleared first: every path below that stores nothing leaves "no capture".
+    memset(store, 0, cap / 8);
+    *count = 0;
+    if (bits == NULL || checkCount == 0) {
+        return;
+    }
+    if (checkCount > cap) {
+        fprintf(stderr, "[ComboTracker] REFUSED %s availability capture: %u check ids past the record's %u\n",
+                game == (uint8_t)GAME_OOT ? "OoT" : "MM", (unsigned)checkCount, (unsigned)cap);
+        return;
+    }
+    memcpy(store, bits, (checkCount + 7u) / 8u);
+    if ((checkCount & 7u) != 0) {
+        // The last byte's bits past the count are not part of the capture.
+        store[checkCount >> 3] &= (uint8_t)((1u << (checkCount & 7u)) - 1u);
+    }
+    *count = (uint16_t)checkCount;
+}
+
+int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId) {
+    uint16_t* count = NULL;
+    uint32_t cap = 0;
+    const uint8_t* store = FrozenRecord(game, &count, &cap);
+    if (store == NULL || checkId >= *count) {
+        return -1;
+    }
+    return (store[checkId >> 3] >> (checkId & 7u)) & 1;
+}
+
+/** How many ids `game`'s capture marks available, or -1 with no capture. */
+static int FrozenAvailableCount(uint8_t game) {
+    uint16_t* count = NULL;
+    uint32_t cap = 0;
+    const uint8_t* store = FrozenRecord(game, &count, &cap);
+    if (store == NULL || *count == 0) {
+        return -1;
+    }
+    int n = 0;
+    for (uint32_t i = 0; i < ((uint32_t)*count + 7u) / 8u; i++) {
+        for (uint8_t b = store[i]; b != 0; b &= (uint8_t)(b - 1u)) {
+            n++;
+        }
+    }
+    return n;
+}
+
+// ============================================================================
 // MM shadow reads
 // ============================================================================
 
@@ -172,6 +244,21 @@ static const uint8_t* MMBlobIfPresent(uint8_t* outFreshness) {
     return blob;
 }
 
+/**
+ * MM's answer for check `id` on a panel of `freshness` (#1129): the adapter's
+ * in-logic set on the LIVE panel, the departure capture on the STALE one, never
+ * the other way round; -1 when there is no answer.
+ */
+static int MMAvailability(uint8_t freshness, uint16_t id) {
+    if (freshness == COMBO_TRACKER_FRESH_LIVE) {
+        return (sMMDesc.liveAvailable != NULL) ? sMMDesc.liveAvailable(id) : -1;
+    }
+    if (freshness == COMBO_TRACKER_FRESH_STALE) {
+        return Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, id);
+    }
+    return -1;
+}
+
 static void MMSummary(ComboTrackerGameSummary* out) {
     uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
     const uint8_t* blob = MMBlobIfPresent(&freshness);
@@ -185,6 +272,8 @@ static void MMSummary(ComboTrackerGameSummary* out) {
     out->hasWorld = MMBlobReadU32(blob, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando;
     out->seed = out->hasWorld ? MMBlobReadU32(blob, sMMDesc.finalSeedOffset) : 0;
     out->totalChecks = (int)sMMDesc.checkCount;
+    // The answer for one id says whether the set is known at all (#1129).
+    out->availabilityKnown = out->hasWorld && MMAvailability(freshness, 0) >= 0;
 
     const uint8_t* table = blob + sMMDesc.checkTableOffset;
     for (uint32_t i = 0; i < sMMDesc.checkCount; i++) {
@@ -193,6 +282,9 @@ static void MMSummary(ComboTrackerGameSummary* out) {
             continue;
         }
         out->shuffled++;
+        if (out->availabilityKnown && MMAvailability(freshness, (uint16_t)i) == 1) {
+            out->available++;
+        }
         if (row[sMMDesc.obtainedOffset] != 0) {
             out->obtained++;
         } else if (row[sMMDesc.skippedOffset] != 0) {
@@ -223,6 +315,13 @@ void Combo_TrackerGameSummary(uint8_t game, ComboTrackerGameSummary* out) {
         // Freshness is the VIEW's call, not the adapter's: live only while
         // OoT is the running game; otherwise the suspended heap.
         out->freshness = (Context_GetCurrentGame() == GAME_OOT) ? COMBO_TRACKER_FRESH_LIVE : COMBO_TRACKER_FRESH_STALE;
+        if (out->freshness == COMBO_TRACKER_FRESH_STALE) {
+            // The snapshot's reachability is the departure capture (#1129), not
+            // whatever the suspended heap's bits say: the adapter answers only live.
+            const int captured = FrozenAvailableCount((uint8_t)GAME_OOT);
+            out->availabilityKnown = captured >= 0;
+            out->available = captured >= 0 ? captured : 0;
+        }
         return;
     }
     // GAME_NONE / out of range: stays UNAVAILABLE zeros.
@@ -244,7 +343,8 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
     }
     memset(out, 0, sizeof(*out));
     if (game == (uint8_t)GAME_MM) {
-        const uint8_t* blob = MMBlobIfPresent(NULL);
+        uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+        const uint8_t* blob = MMBlobIfPresent(&freshness);
         if (blob == NULL || (uint32_t)index >= sMMDesc.checkCount) {
             return false;
         }
@@ -269,10 +369,26 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
             out->placedItemName = sMMDesc.placedItemName(blob, (uint16_t)index, &itemGame);
             out->placedItemGame = (out->placedItemName != NULL) ? itemGame : (uint8_t)GAME_NONE;
         }
+        // #1129: the live in-logic set or the departure capture, by the pick above.
+        if (MMBlobReadU32(blob, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando) {
+            const int available = MMAvailability(freshness, (uint16_t)index);
+            out->availabilityKnown = available >= 0;
+            out->available = available == 1;
+        }
         return true;
     }
     if (game == (uint8_t)GAME_OOT && sOoTOps != NULL) {
-        return sOoTOps->checkAt(index, out);
+        if (!sOoTOps->checkAt(index, out)) {
+            return false;
+        }
+        if (Context_GetCurrentGame() != GAME_OOT) {
+            // The snapshot (#1129): the departure capture, whatever the adapter
+            // (which answers only while OoT is played) left in the row.
+            const int available = Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, out->checkId);
+            out->availabilityKnown = available >= 0;
+            out->available = available == 1;
+        }
+        return true;
     }
     return false;
 }
@@ -285,22 +401,6 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
         return sOoTOps->checkName(checkId);
     }
     return NULL;
-}
-
-// ============================================================================
-// Reachability of the inactive game (#1129)
-// ============================================================================
-
-void Combo_TrackerFreezeAvailability(uint8_t game, const uint8_t* bits, uint32_t checkCount) {
-    (void)game;
-    (void)bits;
-    (void)checkCount;
-}
-
-int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId) {
-    (void)game;
-    (void)checkId;
-    return -1;
 }
 
 // ============================================================================
@@ -505,6 +605,11 @@ bool Combo_TrackerForeignRowAt(uint8_t hostGame, int index, ComboTrackerForeignR
     out->itemName = (itemName != NULL) ? itemName : RSBS_TRACKER_UNKNOWN_ITEM_NAME;
     out->itemArticle = (article != NULL) ? article : "";
     out->found = HostCheckFound(hostGame, host);
+    // #1129: the host check's row's reachability, as its own panel shows it.
+    ComboTrackerCheckRow hostRow;
+    const bool hostRead = Combo_TrackerCheckAt(hostGame, (int)host, &hostRow) && hostRow.checkId == host;
+    out->availabilityKnown = hostRead && hostRow.availabilityKnown;
+    out->available = out->availabilityKnown && hostRow.available;
     return true;
 }
 

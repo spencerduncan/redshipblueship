@@ -168,8 +168,11 @@ TestResult Test_CrossItemRulesRecord(void) {
     XIR_CHECK(offsetof(ComboContext, reserved) == 912u && sizeof(((ComboContext*)0)->reserved) == 92u,
               "reserved[] is %u bytes at %u, expected 92 at 912", (unsigned)sizeof(((ComboContext*)0)->reserved),
               (unsigned)offsetof(ComboContext, reserved));
-    XIR_CHECK(sizeof(ComboContext) == 1004u, "sizeof(ComboContext) is %u; the record size must not change",
-              (unsigned)sizeof(ComboContext));
+    // #976's carves fit the record's headroom: everything up to the end of
+    // reserved[] still ends at 1004 (the #1129 captures are appended after it).
+    XIR_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1004u,
+              "reserved[] ends at %u; #976's carves must not change the record ahead of it",
+              (unsigned)(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved)));
     XIR_CHECK(sizeof(ComboItemRulesRecord) == 8u, "sizeof(ComboItemRulesRecord) is %u, expected 8",
               (unsigned)sizeof(ComboItemRulesRecord));
 

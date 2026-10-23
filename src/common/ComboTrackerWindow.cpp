@@ -7,8 +7,9 @@
  * mid-session updates on the next frame. The file's only state is each game
  * pane's own (PaneState): its search text, which persists across frames, a
  * closed and reopened pane and file loads within one process, as SoH's
- * checkSearch does, and its Show Hidden Items toggle (#1128, ruling D12: per
- * pane), seeded from SoH's gTrackers.CheckTracker.ShowHidden and never written
+ * checkSearch does, and its Show Hidden Items and Only Show Available Checks
+ * toggles (#1128, #1129, ruling D12: per pane), seeded from SoH's
+ * gTrackers.CheckTracker.ShowHidden and .OnlyShowAvailable and never written
  * back, so the two panes toggle apart and no key is stored.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
@@ -136,16 +137,18 @@ const SohStatusColourKey kSohStatusColours[COMBO_TRACKER_CHECK_STATUS_COUNT] = {
 
 /**
  * One game pane's own state (#1128): its search text, kept across frames like
- * SoH's checkSearch, and its Show Hidden Items toggle (ruling D12: per pane).
- * The toggle is window state, not a key: seeded once from SoH's own
- * gTrackers.CheckTracker.ShowHidden, so a player who left SoH's toggle on finds
- * both panes showing hidden checks, and never written back, so the panes toggle
- * apart, no new key needs classifying, and the pane stores nothing (a stored
- * value would persist into every later run's config).
+ * SoH's checkSearch, and its Show Hidden Items and Only Show Available Checks
+ * toggles (#1129; ruling D12: per pane). The toggles are window state, not
+ * keys: each seeded once from SoH's own key (gTrackers.CheckTracker.ShowHidden,
+ * .OnlyShowAvailable), so a player who left SoH's toggle on finds both panes
+ * that way, and never written back, so the panes toggle apart, no new key needs
+ * classifying, and the pane stores nothing (a stored value would persist into
+ * every later run's config).
  */
 struct PaneState {
     char search[128] = "";
     bool showHidden = false;
+    bool onlyAvailable = false;
     bool seeded = false;
 };
 
@@ -154,6 +157,7 @@ PaneState& Pane(uint8_t game) {
     PaneState& pane = sPanes[game < 3 ? game : 0];
     if (!pane.seeded) {
         pane.showHidden = CVarGetInteger("gTrackers.CheckTracker.ShowHidden", 0) != 0;
+        pane.onlyAvailable = CVarGetInteger("gTrackers.CheckTracker.OnlyShowAvailable", 0) != 0;
         pane.seeded = true;
     }
     return pane;
@@ -206,8 +210,15 @@ CheckListColours ReadCheckListColours() {
  * unskip, on a check of the seed not yet found, and an empty square of the same
  * size on every other row so the names stay in one column. A snapshot panel
  * draws neither.
+ *
+ * With Enable Available Checks on (`availableChecks`, #1129) SoH's reachability
+ * glyph follows, as in DrawLocation: an open lock for a check reachable now, a
+ * closed one otherwise, in the status's colour, and drawn clear on a found check
+ * so the names stay in one column. A row whose availability is not known draws
+ * no glyph.
  */
-void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn) {
+void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn,
+                  bool availableChecks) {
     if (skipColumn) {
         char buttonId[24];
         snprintf(buttonId, sizeof(buttonId), "##skip%u", (unsigned)row.checkId);
@@ -222,6 +233,14 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
         ImGui::SameLine();
     }
     const TextColours& c = colours.status[row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT ? row.status : 0];
+    if (availableChecks) {
+        if (const char* lockGlyph = ComboAvailabilityGlyph(row)) {
+            ImGui::PushStyleColor(ImGuiCol_Text, row.obtained ? ImVec4(0.0f, 0.0f, 0.0f, 0.0f) : c.main);
+            ImGui::TextUnformatted(lockGlyph);
+            ImGui::PopStyleColor();
+            ImGui::SameLine();
+        }
+    }
     char idLabel[24];
     const char* name = ComboCheckListName(row);
     if (name == nullptr) {
@@ -267,11 +286,13 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
  * (SoH's own default) unless Expand All / Collapse All was pressed this frame
  * (`expandAll` 1 / -1), and a padded separator after an open area. Which areas
  * and rows it draws is ComboCollectVisibleCheckAreas' decision (#1128): SoH's
- * hide keys, with the pane's own Show Hidden Items.
+ * hide keys, with the pane's own Show Hidden Items and, while Enable Available
+ * Checks is on (`availableChecks`), its own Only Show Available Checks (#1129).
  */
-void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll) {
+void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool availableChecks) {
     const char* search = pane.search;
-    const ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
+    ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
+    hide.onlyAvailable = availableChecks && pane.onlyAvailable;
     std::vector<ComboTrackerAreaRows> areas;
     ComboCollectVisibleCheckAreas(game, search, hide, areas);
     if (areas.empty()) {
@@ -315,12 +336,12 @@ void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll) {
         ImGui::PopStyleColor();
         ImGui::SameLine();
         ImGui::PushStyleColor(ImGuiCol_Text, c.extra);
-        ImGui::Text("(%d / %d)", area.done, area.total);
+        ImGui::TextUnformatted(ComboAreaTotalsText(area, availableChecks).c_str());
         ImGui::PopStyleColor();
-        Ui().Tooltip("Checked / Total");
+        Ui().Tooltip(availableChecks && area.availabilityKnown ? "Available / Checked / Total" : "Checked / Total");
         if (open) {
             for (const ComboTrackerCheckRow& row : area.rows) {
-                DrawCheckRow(game, row, colours, skipColumn);
+                DrawCheckRow(game, row, colours, skipColumn, availableChecks);
             }
         }
         ImGui::PopID();
@@ -383,6 +404,13 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
                                         false, nullptr };
         (void)Ui().Checkbox("Show Hidden Items", &pane.showHidden, &tip);
     }
+    // #1129: SoH's Only Show Available Checks, this pane's own (ruling D12), shown
+    // as SoH shows it: only with Enable Available Checks on and its toggle visible.
+    const bool availableToggle = header.availableChecks && header.availableChecksToggle;
+    if (availableToggle) {
+        const ComboUiWidgetOpts tip = { "When active, this game's unavailable checks will be hidden.", false, nullptr };
+        (void)Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip);
+    }
     int expandAll = 0;
     if (header.expandCollapseButtons) {
         // SoH's two half-width buttons.
@@ -399,14 +427,16 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         Ui().SearchInput("##checkSearch", pane.search, (int)sizeof(pane.search));
     }
     if (header.checkTotals) {
-        ImGui::TextUnformatted(ComboCheckTotalsText(summary).c_str());
-        Ui().Tooltip("Checked / Total");
+        ImGui::TextUnformatted(ComboCheckTotalsText(summary, header.availableChecks).c_str());
+        Ui().Tooltip(header.availableChecks && summary.availabilityKnown ? "Available / Checked / Total"
+                                                                         : "Checked / Total");
     }
-    if (header.hiddenItemsToggle || header.expandCollapseButtons || header.searchInput || header.checkTotals) {
+    if (header.hiddenItemsToggle || availableToggle || header.expandCollapseButtons || header.searchInput ||
+        header.checkTotals) {
         ImGui::Separator();
     }
 
-    DrawCheckList(game, pane, expandAll);
+    DrawCheckList(game, pane, expandAll, header.availableChecks);
 
     ImGui::PopID();
 }
@@ -501,8 +531,11 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
 }
 
 const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row) {
-    (void)row;
-    return nullptr;
+    if (!row.availabilityKnown) {
+        return nullptr;
+    }
+    // SoH's DrawLocation: `available ? ICON_FA_UNLOCK : ICON_FA_LOCK`.
+    return row.available ? ICON_FA_UNLOCK : ICON_FA_LOCK;
 }
 
 namespace {
@@ -534,6 +567,11 @@ void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std:
         area.total++;
         if (row.obtained || row.skipped) {
             area.done++;
+        }
+        // #1129: like `total`, the whole area, whatever the search hides.
+        if (row.availabilityKnown) {
+            area.availabilityKnown = true;
+            area.available += row.available ? 1 : 0;
         }
         if (filter.IsActive()) {
             // What SoH's ShouldShowCheck searches: the check's short and full
@@ -587,6 +625,11 @@ ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden) {
 }
 
 bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts) {
+    // #1129, SoH's DrawLocation: Only Show Available returns first, so Show Hidden
+    // Items does not bring an unavailable check back; a row with no answer stays.
+    if (opts.onlyAvailable && row.availabilityKnown && !row.available) {
+        return true;
+    }
     // SoH's DrawLocation: the row's status (already SoH's precedence: collected,
     // saved, skipped, seen, scummed, unchecked) picks the one Hide that applies.
     return !opts.showHidden && row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT && opts.hideStatus[row.status];
@@ -596,6 +639,11 @@ bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHide
     // SoH's area loop: a filtered area goes whatever Show Hidden Items says; the
     // complete / incomplete hides yield to it.
     if (opts.hideFilteredAreas && area.filtered) {
+        return true;
+    }
+    // #1129: an area with nothing available goes under Only Show Available, as
+    // SoH's area loop has it, whatever Show Hidden Items says.
+    if (opts.onlyAvailable && area.availabilityKnown && area.available == 0) {
         return true;
     }
     if (opts.showHidden) {
@@ -631,6 +679,9 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     header.expandCollapseButtons = CVarGetInteger("gTrackers.CheckTracker.ExpandCollapseButtonsVisible", 0) != 0;
     header.searchInput = CVarGetInteger("gTrackers.CheckTracker.SearchInputVisible", 1) != 0;
     header.checkTotals = CVarGetInteger("gTrackers.CheckTracker.CheckTotalsVisible", 1) != 0;
+    // #1129: SoH's reachability keys (randomizer_check_tracker.cpp, DrawElement).
+    header.availableChecks = CVarGetInteger("gTrackers.CheckTracker.EnableAvailableChecks", 0) != 0;
+    header.availableChecksToggle = CVarGetInteger("gTrackers.CheckTracker.AvailableChecksToggleVisible", 1) != 0;
     return header;
 }
 
@@ -643,14 +694,23 @@ std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
 }
 
 std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary, bool availableChecks) {
-    (void)availableChecks;
-    return ComboCheckTotalsText(summary);
+    if (!availableChecks || !summary.availabilityKnown) {
+        return ComboCheckTotalsText(summary);
+    }
+    // SoH's DrawElement: "N Available / " in front of its own totals.
+    char text[32];
+    snprintf(text, sizeof(text), "%d Available / ", summary.available);
+    return text + ComboCheckTotalsText(summary);
 }
 
 std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool availableChecks) {
-    (void)availableChecks;
+    // SoH's area header: "(available / checked / total)" with Enable Available Checks.
     char text[48];
-    snprintf(text, sizeof(text), "(%d / %d)", area.done, area.total);
+    if (availableChecks && area.availabilityKnown) {
+        snprintf(text, sizeof(text), "(%d / %d / %d)", area.available, area.done, area.total);
+    } else {
+        snprintf(text, sizeof(text), "(%d / %d)", area.done, area.total);
+    }
     return text;
 }
 
