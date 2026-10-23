@@ -450,6 +450,11 @@ s32 Sram_FileNumHasFlashSlot(s32 fileNum) {
     return (fileNum >= 0) && (fileNum < FILE_NUM_MAX);
 }
 
+void Sram_FlashTableExtents(s32* mainCount, s32* owlCount) {
+    *mainCount = ARRAY_COUNT(gFlashSaveStartPages);
+    *owlCount = ARRAY_COUNT(gFlashOwlSaveStartPages);
+}
+
 u16 D_801F6AF0;
 u8 D_801F6AF2;
 
@@ -2418,6 +2423,16 @@ void Sram_SetFlashPagesDefault(SramContext* sramCtx, u32 curPage, u32 numPages) 
     sramCtx->curPage = curPage;
     sramCtx->numPages = numPages;
     sramCtx->status = 1;
+}
+
+// 2S2H [Port] (#599) gFlashSaveStartPages / gFlashSaveNumPages are (main, backup) pairs per file --
+// 14 entries, new-cycle pairs first, then owl pairs, then the options header -- so file n's main copy
+// is entry n * FLASH_SAVE_MAIN_MULTIPLIER. The owl-only tables (gFlashOwlSave*Pages, 6 entries) use
+// the same pairing and the same multiplier, which is why the owl sites and these sites must agree.
+// Indexing by the bare fileNum aimed file 2 at file 1's BACKUP pages and file 3 at file 2's MAIN pages.
+void Sram_SetFlashPagesDefaultForFile(SramContext* sramCtx, s32 fileNum) {
+    Sram_SetFlashPagesDefault(sramCtx, gFlashSaveStartPages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
+                              gFlashSaveNumPages[fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
 }
 
 void Sram_StartWriteToFlashDefault(SramContext* sramCtx) {

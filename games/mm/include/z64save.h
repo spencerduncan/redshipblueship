@@ -1932,6 +1932,15 @@ void MM_Sram_InitDebugSave(void);
 // fileNum, so 0xFF (or anything past FILE_NUM_MAX) would subscript them far out
 // of bounds. Gate every such path on this.
 s32 Sram_FileNumHasFlashSlot(s32 fileNum);
+// 2S2H [Port] (#599) Extents of the two start-page tables, which are declared unsized
+// (`extern s32 x[]`) and so cannot be measured from outside z_sram_NES.c. *mainCount is
+// the length of gFlashSaveStartPages (== FLASH_SAVE_MAX), *owlCount that of
+// gFlashOwlSaveStartPages (== FILE_NUM_MAX * FLASH_SAVE_MAIN_MULTIPLIER).
+void Sram_FlashTableExtents(s32* mainCount, s32* owlCount);
+// 2S2H [Port] (#599) Aims `sramCtx` at the regular (new-cycle) save of file slot `fileNum`
+// (0..FILE_NUM_MAX-1), main copy. gFlashSaveStartPages interleaves each file's main and
+// backup entries, so the main copy of file n is entry n * FLASH_SAVE_MAIN_MULTIPLIER.
+void Sram_SetFlashPagesDefaultForFile(SramContext* sramCtx, s32 fileNum);
 void Sram_ResetSaveFromMoonCrash(SramContext* sramCtx);
 void MM_Sram_OpenSave(struct FileSelectState* fileSelect, SramContext* sramCtx);
 // #region 2S2H/RSBS [Port] #530: the one cross-game commit funnel every durable
