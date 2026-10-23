@@ -24,18 +24,15 @@
  * (ComboItemTrackerWindow.h), so the page never shows a value the overlay is not
  * drawing.
  *
- * THE CHECK TRACKER. The Combo Tracker window has no keys of its own: it reads
- * SoH's Check Tracker Settings (gTrackers.CheckTracker.*,
- * ComboTrackerWindow.cpp). So the page hosts SoH's own Check Tracker Settings
- * exactly as SoH's Randomizer > Check Tracker page does: embedded, under its
- * "Popout Check Tracker Settings" row. The Combo Tracker follows its colours
- * (each section's Main and Extra colour), its Hide toggles (each state's, Area
- * Complete and Area Incomplete), Filter Empty Areas and its four header toggles
- * (Hidden Items Toggle, Expand/Collapse Buttons, Search Input, Check Totals;
- * #1128); every other row there (background, window type, font size, the
- * floating-window rows, the logic options) sets only SoH's Check Tracker
- * window, and the row's tooltip says so. SoH's window is not copied or edited
- * (rule 0).
+ * THE CHECK TRACKER. The Combo Tracker window has no keys of its own: it draws
+ * its checks in the colours of SoH's Check Tracker Settings
+ * (gTrackers.CheckTracker.*, ComboTrackerWindow.cpp). So the page hosts SoH's
+ * own Check Tracker Settings exactly as SoH's Randomizer > Check Tracker page
+ * does: embedded, under its "Popout Check Tracker Settings" row. The Combo
+ * Tracker follows only its colours (each section's Main and Extra colour); every
+ * other row there (background, window type, font size, filters, the .Hide
+ * toggles) sets only SoH's (Ocarina of Time's) Check Tracker, and one gray
+ * note says so. SoH's window is not copied or edited (rule 0).
  *
  * Locked by MenuComboSection leg 7 (every gCombo.Tracker.Items.* key written
  * exactly once with the overlay's widget, default and range, the floating-only
@@ -180,16 +177,16 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
             "switch or save."));
 
     menu.AddWidget(path, "Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
-    // No caption row (#927): the one thing SoH's window cannot say, which of its
-    // settings the Combo Tracker follows (#1128), is the button's tooltip.
+    // No caption row (#927): the one thing SoH's window cannot say, that the
+    // Combo Tracker takes only its check colors, is the button's tooltip.
     menu.AddWidget(path, "Popout Check Tracker Settings", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("CheckTrackerSettings"))
         .RaceDisable(false)
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip(
-            "Enables the separate Check Tracker Settings Window. The Combo Tracker also follows its colors, Hide "
-            "options, Filter Empty Areas and header toggles; the rest set only the Check Tracker window."));
+            "Enables the separate Check Tracker Settings Window, whose check colors, and no other setting, the "
+            "Combo Tracker also uses."));
 }
 
 /** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract); this

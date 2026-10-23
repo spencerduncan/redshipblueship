@@ -30,9 +30,7 @@
  *    alone proves nothing about the four world states it sets up. So each
  *    iteration additionally drives the exact model reads DrawElement performs
  *    (TrackerDriveModelReads below) — identity, both panels' summary and check
- *    walk, and both directions' crossings, which DrawCrossingList in the same
- *    file reads for the Cross-Game Spoiler since ruling D10 cut the Crossings
- *    section from this window (#1128) — across paired/unpaired x adapters
+ *    walk, both directions' crossings — across paired/unpaired x adapters
  *    present/absent. The paired-with-absent-adapters corner is the one no
  *    other lock reaches: a crossing row must still resolve, with a NULL host
  *    check name and a non-NULL item name, when the host game's adapter is not
@@ -48,10 +46,7 @@
  *    a fake font that wraps the way ImGui does, which reproduces #815's
  *    "Progressiv" / "e Slingshot"); a paired file's panels print no seed of
  *    their own; the Checks list groups by area in key order with SoH's area
- *    totals, and its search matches check, area and revealed item names;
- *    and (#1128) the rows and areas SoH's hide keys leave out under each pane's
- *    own Show Hidden Items, the keys' SoH defaults, and the totals line counting
- *    skipped checks as checked.
+ *    totals, and its search matches check, area and revealed item names.
  *
  * Appearance itself is judged from the UiSnapshot row's captures (Combo
  * Tracker @paired, @unpaired and @progress), not here.
@@ -424,216 +419,15 @@ int LockAreas(void) {
     return result;
 }
 
-// ---- #1128 (lane L1a): SoH's hide keys, Show Hidden Items per pane, totals ----
-
-/** "<area key>:<row ids>" per drawn area, in order ("3:11,13 7:10,12"); a filtered area reads "3:-". */
-std::string CtwDrawn(const std::vector<ComboGui::ComboTrackerAreaRows>& areas) {
-    std::string s;
-    for (const ComboGui::ComboTrackerAreaRows& area : areas) {
-        char key[8];
-        snprintf(key, sizeof(key), "%s%u:", s.empty() ? "" : " ", (unsigned)area.key);
-        s += key;
-        s += area.filtered ? "-" : CtwIds(area);
-    }
-    return s;
-}
-
-// SoH's Check Tracker keys the pane reads (randomizer_check_tracker.cpp), in
-// ComboTrackerCheckStatus order for the six "<State>.Hide" keys.
-const char* const kCtwHideKeys[COMBO_TRACKER_CHECK_STATUS_COUNT] = {
-    "gTrackers.CheckTracker.Unchecked.Hide", "gTrackers.CheckTracker.Seen.Hide",
-    "gTrackers.CheckTracker.Scummed.Hide",   "gTrackers.CheckTracker.Skipped.Hide",
-    "gTrackers.CheckTracker.Collected.Hide", "gTrackers.CheckTracker.Saved.Hide",
-};
-const char* const kCtwOtherKeys[] = {
-    "gTrackers.CheckTracker.ShowHidden",
-    "gTrackers.CheckTracker.AreaComplete.Hide",
-    "gTrackers.CheckTracker.AreaIncomplete.Hide",
-    "gTrackers.CheckTracker.HideFilteredAreas",
-    "gTrackers.CheckTracker.HiddenItemsToggleVisible",
-    "gTrackers.CheckTracker.ExpandCollapseButtonsVisible",
-    "gTrackers.CheckTracker.SearchInputVisible",
-    "gTrackers.CheckTracker.CheckTotalsVisible",
-};
-
-/** Every key above as it was, put back afterwards (set again or cleared), so no player value is lost or left. */
-struct CtwKeyGuard {
-    struct Saved {
-        const char* key;
-        bool existed;
-        int32_t value;
-    };
-    std::vector<Saved> saved;
-    CtwKeyGuard() {
-        for (const char* key : kCtwHideKeys) {
-            Keep(key);
-        }
-        for (const char* key : kCtwOtherKeys) {
-            Keep(key);
-        }
-    }
-    void Keep(const char* key) {
-        saved.push_back({ key, CVarExists(key), CVarGetInteger(key, 0) });
-        CVarClear(key);
-    }
-    ~CtwKeyGuard() {
-        for (const Saved& k : saved) {
-            if (k.existed) {
-                CVarSetInteger(k.key, k.value);
-            } else {
-                CVarClear(k.key);
-            }
-        }
-    }
-};
-
-int LockHideBody(void) {
-    using namespace ComboGui;
-    std::vector<ComboTrackerAreaRows> areas;
-
-    // The row decision, per status: its own Hide hides it, no other status's
-    // does, and the pane's Show Hidden Items overrides every one.
-    for (int s = 0; s < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; s++) {
-        ComboCheckHideOptions opts;
-        opts.hideStatus[s] = true;
-        for (int r = 0; r < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; r++) {
-            ComboTrackerCheckRow row = {};
-            row.shuffled = true;
-            row.status = (uint8_t)r;
-            if (ComboCheckRowHidden(row, opts) != (r == s)) {
-                printf("[TEST] FAIL: combo-tracker-window #1128: %s set, a status-%d row hidden = %d\n",
-                       kCtwHideKeys[s], r, (int)ComboCheckRowHidden(row, opts));
-                return TEST_FAIL;
-            }
-        }
-        ComboCheckHideOptions shown = opts;
-        shown.showHidden = true;
-        ComboTrackerCheckRow row = {};
-        row.status = (uint8_t)s;
-        CTW_ASSERT(!ComboCheckRowHidden(row, shown));
-    }
-
-    // The list as drawn. Defaults (SoH's: everything shown) draw what
-    // ComboCollectCheckAreas lists.
-    ComboCheckHideOptions opts;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    printf("[TEST] combo-tracker-window #1128: defaults draw \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
-    // Collected hidden: its row goes, its area's totals stay whole.
-    opts.hideStatus[COMBO_TRACKER_CHECK_COLLECTED] = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    printf("[TEST] combo-tracker-window #1128: Collected.Hide draws \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12");
-    CTW_ASSERT(areas[1].total == 2 && areas[1].done == 2);
-    // Every row of an area hidden by status: its header stays (SoH draws it).
-    opts.hideStatus[COMBO_TRACKER_CHECK_SKIPPED] = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:");
-    // The pane's Show Hidden Items brings both back.
-    opts.showHidden = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
-
-    // Area complete / incomplete hide, and Show Hidden Items over both.
-    opts = ComboCheckHideOptions();
-    opts.hideAreaComplete = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    printf("[TEST] combo-tracker-window #1128: AreaComplete.Hide draws \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13");
-    opts.showHidden = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
-    opts = ComboCheckHideOptions();
-    opts.hideAreaIncomplete = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
-
-    // Filter Empty Areas: on (SoH's default), an area the search empties goes,
-    // whatever Show Hidden Items says; off, its header stays with no rows.
-    opts = ComboCheckHideOptions();
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "roof", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:12");
-    opts.showHidden = true;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "roof", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:12");
-    opts.hideFilteredAreas = false;
-    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "roof", opts, areas);
-    printf("[TEST] combo-tracker-window #1128: search \"roof\" with Filter Empty Areas off draws \"%s\"\n",
-           CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:- 7:12");
-    CTW_ASSERT(areas[0].total == 2 && areas[0].rows.empty());
-
-    // The keys, with SoH's defaults: nothing set reads as everything shown and
-    // Filter Empty Areas on; each key reaches its own field.
-    {
-        CtwKeyGuard guard;
-        ComboCheckHideOptions read = ComboReadCheckHideOptions(false);
-        for (int s = 0; s < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; s++) {
-            CTW_ASSERT(!read.hideStatus[s]);
-        }
-        CTW_ASSERT(!read.hideAreaComplete && !read.hideAreaIncomplete && read.hideFilteredAreas && !read.showHidden);
-        CTW_ASSERT(ComboReadCheckHideOptions(true).showHidden);
-        for (int s = 0; s < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; s++) {
-            CVarSetInteger(kCtwHideKeys[s], 1);
-            read = ComboReadCheckHideOptions(false);
-            CVarClear(kCtwHideKeys[s]);
-            if (!read.hideStatus[s]) {
-                printf("[TEST] FAIL: combo-tracker-window #1128: %s does not reach the pane\n", kCtwHideKeys[s]);
-                return TEST_FAIL;
-            }
-        }
-        CVarSetInteger("gTrackers.CheckTracker.AreaComplete.Hide", 1);
-        CVarSetInteger("gTrackers.CheckTracker.AreaIncomplete.Hide", 1);
-        CVarSetInteger("gTrackers.CheckTracker.HideFilteredAreas", 0);
-        read = ComboReadCheckHideOptions(false);
-        CTW_ASSERT(read.hideAreaComplete && read.hideAreaIncomplete && !read.hideFilteredAreas);
-
-        ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
-        CTW_ASSERT(header.hiddenItemsToggle && !header.expandCollapseButtons && header.searchInput &&
-                   header.checkTotals);
-        CVarSetInteger("gTrackers.CheckTracker.HiddenItemsToggleVisible", 0);
-        CVarSetInteger("gTrackers.CheckTracker.ExpandCollapseButtonsVisible", 1);
-        CVarSetInteger("gTrackers.CheckTracker.SearchInputVisible", 0);
-        CVarSetInteger("gTrackers.CheckTracker.CheckTotalsVisible", 0);
-        header = ComboReadCheckHeaderOptions();
-        printf("[TEST] combo-tracker-window #1128: header keys flipped read toggle %d, expand/collapse %d, search %d, "
-               "totals %d\n",
-               (int)header.hiddenItemsToggle, (int)header.expandCollapseButtons, (int)header.searchInput,
-               (int)header.checkTotals);
-        CTW_ASSERT(!header.hiddenItemsToggle && header.expandCollapseButtons && !header.searchInput &&
-                   !header.checkTotals);
-    }
-
-    // The totals line counts a skipped check as checked, as SoH's Checked, MM's
-    // collected count and the area headers above do.
-    ComboTrackerGameSummary summary = {};
-    summary.obtained = 5;
-    summary.skipped = 2;
-    summary.shuffled = 100;
-    const std::string totals = ComboCheckTotalsText(summary);
-    printf("[TEST] combo-tracker-window #1128: obtained 5, skipped 2, shuffled 100 prints \"%s\"\n", totals.c_str());
-    CTW_ASSERT(totals == "Checks: 7 / 100");
-    return TEST_PASS;
-}
-
-int LockHide(void) {
-    Combo_Tracker_RegisterOoT(&kCtwOps);
-    const int result = LockHideBody();
-    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
-    return result;
-}
-
 /** Every section runs, so one red section does not hide another's state. */
 int TrackerLayoutLocks(void) {
     const int r815 = Lock815();
     const int r816 = Lock816();
     const int rAreas = LockAreas();
-    const int rHide = LockHide();
-    printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s\n",
+    printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
-           rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL");
-    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS) ? TEST_PASS
-                                                                                                 : TEST_FAIL;
+           rAreas == TEST_PASS ? "PASS" : "FAIL");
+    return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS) ? TEST_PASS : TEST_FAIL;
 }
 
 } // namespace
@@ -799,9 +593,7 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(text.find("if (ComboPanelShowsOwnSeed(identity, summary))") != std::string::npos);
         // The Checks list draws what section 5 locks (#458 U4): the grouping
         // through ComboCollectCheckAreas and SoH's search box through the seam.
-        // #1128: through the hide decision section 5 locks, with the pane's own
-        // Show Hidden Items.
-        CTW_ASSERT(text.find("ComboCollectVisibleCheckAreas(game, search, hide, areas)") != std::string::npos);
+        CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, areas)") != std::string::npos);
         CTW_ASSERT(text.find("Ui().SearchInput(") != std::string::npos);
         // SoH's area loop runs under FramePadding (4, 3)
         // (randomizer_check_tracker.cpp, DrawElement), which puts an area's
@@ -825,65 +617,6 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // decisions (#815).
         CTW_ASSERT(text.find("ComboCrossingItemColumnWidth(columnsWidth, widestItemWord)") != std::string::npos);
         CTW_ASSERT(text.find("ComboBalancedWrapWidth(text, ImGui::GetContentRegionAvail().x") != std::string::npos);
-
-        // #1128 (lane L1a): every SoH Check Tracker key the pane reads, read
-        // under its own name with SoH's default, and none written: Show Hidden
-        // Items is the pane's own state (ruling D12), seeded from SoH's key.
-        for (const char* key : kCtwHideKeys) {
-            if (text.find(std::string("\"") + key + "\"") == std::string::npos) {
-                printf("[TEST] FAIL: ComboTrackerWindow.cpp never reads %s\n", key);
-                return TEST_FAIL;
-            }
-        }
-        const char* const kDefaultedReads[] = {
-            "CVarGetInteger(\"gTrackers.CheckTracker.ShowHidden\", 0)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.AreaComplete.Hide\", 0)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.AreaIncomplete.Hide\", 0)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.HideFilteredAreas\", 1)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.HiddenItemsToggleVisible\", 1)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.ExpandCollapseButtonsVisible\", 0)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.SearchInputVisible\", 1)",
-            "CVarGetInteger(\"gTrackers.CheckTracker.CheckTotalsVisible\", 1)",
-        };
-        for (const char* read : kDefaultedReads) {
-            if (text.find(read) == std::string::npos) {
-                printf("[TEST] FAIL: ComboTrackerWindow.cpp does not read %s\n", read);
-                return TEST_FAIL;
-            }
-        }
-        CTW_ASSERT(text.find("CVarSet") == std::string::npos); // clear-never-store: the pane writes no key
-        // SoH's header controls, through the seam, and the totals line through
-        // section 5's text.
-        CTW_ASSERT(text.find("Ui().Checkbox(\"Show Hidden Items\"") != std::string::npos);
-        // Ruling D12: each pane's Show Hidden Items is its own. The legs above
-        // take `showHidden` as a parameter, so they would pass over one bool
-        // or one key shared by both panes: the window keeps a PaneState per
-        // game, the checkbox flips that pane's, and that pane's list reads it.
-        CTW_ASSERT(text.find("static PaneState sPanes[") != std::string::npos);
-        CTW_ASSERT(text.find("PaneState& pane = Pane(game);") != std::string::npos);
-        CTW_ASSERT(text.find("Ui().Checkbox(\"Show Hidden Items\", &pane.showHidden") != std::string::npos);
-        CTW_ASSERT(text.find("ComboReadCheckHideOptions(pane.showHidden)") != std::string::npos);
-        // "No checks." is for a game (or a search) with none: when the hides
-        // leave nothing, the list asks the unhidden grouping before the note,
-        // and otherwise draws empty, as SoH's does.
-        CTW_ASSERT(text.find("ComboCollectCheckAreas(game, search, unhidden);") != std::string::npos);
-        CTW_ASSERT(text.find("Ui().Button(\"Expand All\"") != std::string::npos);
-        CTW_ASSERT(text.find("Ui().Button(\"Collapse All\"") != std::string::npos);
-        CTW_ASSERT(text.find("ComboCheckTotalsText(summary)") != std::string::npos);
-        // SoH's list is always drawn: no default-closed "Checks" node over it.
-        CTW_ASSERT(text.find("TreeNode(\"Checks\")") == std::string::npos);
-        // Ruling D10: the Crossings section is cut from this window. Its table
-        // (DrawCrossingList) stays in this file for the Cross-Game Spoiler, so
-        // the scan reads the window's own DrawElement body.
-        const size_t bodyAt = text.find("void ComboTrackerWindow::DrawElement()");
-        CTW_ASSERT(bodyAt != std::string::npos);
-        const size_t bodyEnd = text.find("\n}\n", bodyAt);
-        CTW_ASSERT(bodyEnd != std::string::npos);
-        const std::string body = text.substr(bodyAt, bodyEnd - bodyAt);
-        if (body.find("DrawCrossingList") != std::string::npos || body.find("\"Crossings\"") != std::string::npos) {
-            printf("[TEST] FAIL: ComboTrackerWindow::DrawElement still draws the Crossings section (ruling D10)\n");
-            return TEST_FAIL;
-        }
     }
 #endif
 

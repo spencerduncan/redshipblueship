@@ -349,7 +349,6 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         const char* windowName;
         const char* separator; // the SEPARATOR_TEXT directly above the button
         const char* tooltip;
-        bool raceDisable; // SoH's own toggle's flag: a spoiler tool is race-disabled, a tracker is not
     };
     // The authoritative constants are ComboGui::kComboSpoiler*/kComboTracker*/
     // kComboItemTracker* (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h,
@@ -361,16 +360,13 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // is a deliberate lock edit.
     const WindowRow kWindowRows[] = {
         { "Toggle Cross-Game Spoiler", "gCombo.Windows.Spoiler", "Cross-Game Spoiler", "Cross-Game Spoiler",
-          "Toggles the Cross-Game Spoiler.", true },
-        // Not race-disabled, as SoH's Toggle Check Tracker is not
-        // (SohMenuRandomizer.cpp): ruling D10 cut the Crossings section, the
-        // window's only part that named items on uncollected checks (#1128).
+          "Toggles the Cross-Game Spoiler." },
         { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
-          "Toggles the Combo Tracker.", false },
+          "Toggles the Combo Tracker." },
         // The unified Item Tracker overlay (#458 U2; ADR 0004's 2026-09-30
         // amendment: U2 added this row, U6 removed MM's four tracker rows).
         { "Toggle Combo Item Tracker", "gCombo.Windows.ItemTracker", "Combo Item Tracker", "Combo Item Tracker",
-          "Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging.", false },
+          "Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging." },
     };
     // MM's four tracker rows, retired by #458 U6: the Combo Tracker and the
     // Combo Item Tracker above cover both games. Their windows stay registered
@@ -413,9 +409,6 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         "row '%s' names window '%s', expected '%s' -- ToggleVisibility is looked up BY THIS NAME, so a "
                         "mismatch is a button that opens nothing",
                         expected.rowName, row->windowName != nullptr ? row->windowName : "(null)", expected.windowName);
-            COMBO_CHECK(row->raceDisable == expected.raceDisable,
-                        "row '%s' has RaceDisable(%s), expected RaceDisable(%s)", expected.rowName,
-                        row->raceDisable ? "true" : "false", expected.raceDisable ? "true" : "false");
             auto options = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options);
             COMBO_CHECK(options != nullptr && !options->embedWindow,
                         "row '%s' embeds its window; SoH's own tracker toggles pop their windows out, and the embed "
@@ -985,14 +978,6 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                             std::string(check->windowName) == "Check Tracker Settings" && o->embedWindow,
                         "the Check Tracker Settings row is not SoH's embedded pop-out over "
                         "gOpenWindows.CheckTrackerSettings / \"Check Tracker Settings\"");
-            // #1128: the Combo Tracker follows that window's hide options and
-            // header toggles now, not its colors alone, and the tooltip says so.
-            const std::string tip = (o != nullptr && o->tooltip != nullptr) ? o->tooltip : "";
-            COMBO_CHECK(tip.find("no other setting") == std::string::npos &&
-                            tip.find("Hide options") != std::string::npos,
-                        "the Check Tracker Settings row's tooltip \"%s\" does not say the Combo Tracker follows its "
-                        "Hide options",
-                        tip.c_str());
         }
 
         // Move to Default Position (#962) is the one row that writes no key: it asks the

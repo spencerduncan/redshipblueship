@@ -262,10 +262,7 @@ amendment of that date, and under the Randomizer header since #1101, its 2026-10
 Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
 MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
 fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
-which embeds SoH's own Check Tracker Settings because the Combo Tracker follows its colours, its Hide toggles,
-Filter Empty Areas and its header toggles (#1128). The Combo Tracker's in-window quick toggle, Show Hidden Items, is
-per game pane (ruling D12): each pane draws its own checkbox, seeded from SoH's `ShowHidden` key and never written
-back, while the settings page stays one set for both panes. A new
+which embeds SoH's own Check Tracker Settings because the Combo Tracker draws in its colours. A new
 surface that freezes at creation, or that feeds generation, is never a pop-out.
 
 ## 10b. Panes (GuiWindow)
@@ -435,10 +432,9 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
   shared status sentence, with one check moved to Forced Junk so both columns draw) and frozen (the freeze sentence).
   The Cross-Game Spoiler draws paired (no crossings), crossings (crossings both ways authored through the crossing
   store, an MM save in the shadow and a synthetic OoT tracker adapter, so both tables are drawn with their found-state
-  glyphs) and unpaired; the Combo Tracker draws paired, unpaired, progress (the same crossings, MM save and OoT
-  adapter, with one collected, one skipped and two open OoT checks, so the status glyphs are drawn; it has no
-  crossing tables since ruling D10) and hidden (progress under SoH's Saved and Collected Hide, so the collected rows
-  leave both panes). The Combo Item Tracker draws no-data (nothing to read: each section's header alone,
+  glyphs) and unpaired; the Combo Tracker draws paired, unpaired and progress (the same crossings, MM save and OoT
+  adapter, with one collected, one skipped and two open OoT checks and its Checks list open, so the status glyphs and
+  both crossing tables are drawn). The Combo Item Tracker draws no-data (nothing to read: each section's header alone,
   drawn as the Window type so its title bar is captured), live (Ocarina of Time live, Majora's Mask from its
   snapshot, and an authored pool) and snapshot (the mirror image: Majora's Mask live, Ocarina of Time from its
   snapshot), the last two floating; no section carries a caption (#927). It is captured unscrolled,
