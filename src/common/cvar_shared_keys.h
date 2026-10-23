@@ -431,6 +431,14 @@ struct DistinctPair {
 };
 
 /**
+ * MM's damage multiplier key (#1037). Held apart from SoH's gEnhancements.DamageMult (kMustStayDistinct below), so MM's
+ * own row is hosted beside SoH's on Enhancements > Difficulty. games/oot may not spell the key as a literal (the
+ * classification lock's check 3c-2: an OoT reader of MM's key converges the pair from OoT's side), so the hosted
+ * row binds it through this constant.
+ */
+#define RSBS_CVAR_MM_DAMAGE_MULTIPLIER "gEnhancements.DifficultyOptions.DamageMultiplier"
+
+/**
  * Inventory §4 rows (P1-P7, minus the ones with no single representative key and
  * minus P6, which #1062 converged: the D-pad and right-stick ocarina switches)
  * plus §5.3's four PARKED rows, which are real convergence candidates blocked
@@ -465,13 +473,13 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "
       "The interval is MM-only and must NOT ride along with an Autosave rename." },
-    { "PARKED: damage multiplier value space (#1037)", "gEnhancements.DifficultyOptions.DamageMultiplier",
+    { "Damage multiplier value space (#1037, held apart and hosted)", RSBS_CVAR_MM_DAMAGE_MULTIPLIER,
       "gEnhancements.DamageMult",
       "Same intent (a left-shift of incoming damage: OoT z_player.c `1 << DamageMult`, MM `*damage <<= value`) "
       "and 0-4 agree (1x-16x), but the VALUE SPACES differ: OoT's list runs 0-8 (to 256x) while MM's is 0-4 plus "
       "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
-      "OoT's, so each menu would show a blank for the other's value. Pending an operator ruling on which value "
-      "space wins; do not converge until it lands." },
+      "OoT's, so each menu would show a blank for the other's value. Ruled: the keys stay distinct and MM's own "
+      "row (its own value list) is hosted beside SoH's on Enhancements > Difficulty." },
     { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },

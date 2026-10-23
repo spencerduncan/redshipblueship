@@ -2203,4 +2203,48 @@ extern "C" const char* MM_Rando_Foreign_TestChestTypeName(int type) {
     }
 }
 
+/**
+ * #1044: MM's frozen option profile, read off the SAVE with MM's half in view, as
+ * the JSON object the seed package's identity.json carries under "mm.profile": every
+ * option by name with its frozen value, the tricks on, the excluded checks, the
+ * trap-type set and the moon crash behaviour. What a player who receives a package
+ * reads to see the world's MM rules; the digest beside it (mmProfileDigest) is what
+ * the load compares.
+ * @return the length written (NUL excluded), or -1 when @p cap is too small.
+ */
+extern "C" int MM_Rando_ProfileDumpFromSave(char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return -1;
+    }
+    out[0] = '\0';
+    nlohmann::ordered_json dump = nlohmann::ordered_json::object();
+    nlohmann::ordered_json options = nlohmann::ordered_json::object();
+    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+        options[randoStaticOption.name] = RANDO_SAVE_OPTIONS[randoOptionId];
+    }
+    dump["options"] = options;
+    nlohmann::ordered_json tricks = nlohmann::ordered_json::array();
+    for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
+        if (gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0) {
+            tricks.push_back(randoStaticTrick.name);
+        }
+    }
+    dump["tricks"] = tricks;
+    nlohmann::ordered_json excluded = nlohmann::ordered_json::array();
+    for (int id = 0; id < (int)RC_MAX; id++) {
+        if ((gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks[id >> 3] >> (id & 7)) & 1u) {
+            excluded.push_back(id);
+        }
+    }
+    dump["excludedChecks"] = excluded;
+    dump["trapTypes"] = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    dump["moonCrash"] = gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash;
+    const std::string text = dump.dump(2);
+    if (text.size() + 1 > cap) {
+        return -1;
+    }
+    memcpy(out, text.c_str(), text.size() + 1);
+    return (int)text.size();
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

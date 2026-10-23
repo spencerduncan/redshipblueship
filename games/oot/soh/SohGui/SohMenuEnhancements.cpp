@@ -38,6 +38,9 @@ namespace SohGui {
 extern std::shared_ptr<SohMenu> mSohMenu;
 using namespace UIWidgets;
 
+// #1037: MM's own damage multiplier row (SohMenuComboMmEnhancements.cpp), drawn right after SoH's.
+void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
+
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
     { BUNNY_HOOD_FAST, "Faster Run" },
@@ -1244,7 +1247,9 @@ void SohMenu::AddMenuEnhancements() {
             "32x: Can survive all common attacks with max health and double defense.\n"
             "64x: Can survive trivial damage with max health without double defense.\n"
             "128x: Can survive trivial damage with max health and double defense.\n"
-            "256x: Cannot survive damage."));
+            "256x: Cannot survive damage.\n\n"
+            "Ocarina of Time only. Majora's Mask has its own row below."));
+    AddMmDamageMultiplierRow(*this, path);
     AddWidget(path, "Fall Damage Multiplier", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_ENHANCEMENT("FallDamageMult"))
         .Options(ComboboxOptions().ComboMap(subPowers).Tooltip(

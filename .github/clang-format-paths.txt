@@ -104,6 +104,8 @@ games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp
 games/oot/soh/Enhancements/randomizer/CheckStateLoadSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/SeedPackageTestBridgeSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp
 games/oot/soh/GameExports_SingleExe.cpp
 games/oot/soh/OTRGlobals.cpp

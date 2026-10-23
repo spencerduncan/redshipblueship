@@ -6048,6 +6048,36 @@ extern "C" void MM_Creation_StampNewFileFields(const u8* playerName) {
     gSaveContext.flashSaveAvailable = true;
 }
 
+/** #1044: the bytes of MM's half a seed package carries (placement/mm-half.bin). */
+extern "C" size_t MM_SeedPackage_HalfSize(void) {
+    return sizeof(SaveContext);
+}
+
+/**
+ * #1044: THE FILE'S NAME, STAMPED WHEN A FILE BINDS A SEED PACKAGE. Generate
+ * authors MM's half before any file exists, so it carries MM's default name (eight
+ * MM spaces, MM_Creation_StampNewFileFields with NULL); the file that binds the
+ * package gives it OoT's typed name in MM's charset (#773), with MM's half in view.
+ *
+ * The checksum is ADJUSTED rather than recomputed, so the half's bytes are exactly
+ * the ones a creation that stamped the name before generating would hold:
+ * Sram_CalcChecksum is a byte sum over Save, taken in MM_Creation_StampNewFileFields
+ * before OnSaveInit, and the name is the only byte of that sum that differs. NULL
+ * keeps the default name and changes nothing.
+ */
+extern "C" void MM_SeedPackage_StampPlayerName(const u8* playerName) {
+    if (playerName == NULL) {
+        return;
+    }
+    u8* name = reinterpret_cast<u8*>(gSaveContext.save.saveInfo.playerData.playerName);
+    u16 checksum = gSaveContext.save.saveInfo.checksum;
+    for (size_t i = 0; i < sizeof(gSaveContext.save.saveInfo.playerData.playerName); i++) {
+        checksum = (u16)(checksum - name[i] + playerName[i]);
+    }
+    memcpy(name, playerName, sizeof(gSaveContext.save.saveInfo.playerData.playerName));
+    gSaveContext.save.saveInfo.checksum = checksum;
+}
+
 /**
  * MM's slot-metadata descriptor for the Combo > Save Files page (#765).
  *

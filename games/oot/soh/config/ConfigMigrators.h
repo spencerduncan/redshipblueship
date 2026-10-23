@@ -1666,7 +1666,7 @@ std::vector<Migration> version8Migrations = {
  * cannot oscillate. This table mirrors those fifteen rows of RSBS::kConvergedKeys
  * (the 2Ship importer maps through the manifest itself); test_cvar_classification
  * fails when a row is missing from either place. #1037's damage multiplier is
- * not here: its value spaces differ, so it waits in RSBS::kMustStayDistinct.
+ * not here: its value spaces differ, so the keys stay distinct (RSBS::kMustStayDistinct) and MM's own row is hosted.
  */
 std::vector<Migration> version9Migrations = {
     { MigrationAction::RenameIfAbsent, "gEnhancements.Graphics.IncreaseActorDrawDistance",

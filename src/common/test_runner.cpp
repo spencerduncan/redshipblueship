@@ -990,6 +990,10 @@ extern "C" {
 // string (src/common/combo_identity_display.cpp). ROM-free and display-free;
 // its .redsave writes go to a scratch directory. FILE SCOPE (compiled as C++).
 #include "tests/test_combo_identity_display.c"
+// #1044: the seed package's container and the production load's generator
+// refusal (src/common/seed_package.h). ROM-free and display-free; its files go
+// to a scratch directory. FILE SCOPE (compiled as C++).
+#include "tests/test_seed_package.c"
 // #944: the in-app MM extraction bridge (src/common/mm_extract.h): a silent ROM
 // scan and validation, the ROM search dirs and the tools check, ROM-free; plus
 // the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
@@ -1472,6 +1476,14 @@ extern "C" int MM_Rando_HeadlessForeignDigest(const char* outPath);
 // the Generate button's worker-thread generation with the full OTR bring-up, then
 // the real paired creation event, written with the same two writers as above.
 extern "C" int MM_Rando_HeadlessPlayerPathDigest(const char* seedStr, const char* outPath);
+// #1044 (bodies in games/mm/2s2h/mm_rando_gen_test.cpp): the seed package's
+// rando-tier locks -- the two-process round trip, the settings changed between
+// Generate and file creation, and the golden of a file created from a package.
+extern "C" int MM_SeedPackage_TestWrite(const char* seed, const char* pkgPath, const char* reportPath);
+extern "C" int MM_SeedPackage_TestLoad(const char* pkgPath, const char* reportPath);
+extern "C" int MM_SeedPackage_TestCVarsFrozen(const char* seed, const char* scratchDir);
+extern "C" int MM_SeedPackage_TestGoldenWrite(const char* seed, const char* pkgPath);
+extern "C" int MM_SeedPackage_TestGoldenCreate(const char* pkgPath, const char* outPath);
 // randomizer.cpp (#982): Rando_HeadlessFullInitSeedTest's audio teardown.
 extern "C" void Rando_HeadlessFullInitTeardown(void);
 extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
@@ -2106,6 +2118,8 @@ static const DigestOutDispatch kDigestOutDispatches[] = {
       "paired-attempt-run1.txt, golden-paired-attempt-digest-actual.txt" },
     { "rando-player-path-digest", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestPlayerPath",
       "golden-seed-digest-default-player-path-actual.txt" },
+    { "seed-package-golden-create", "RSBS_SEED_DIGEST_OUT", "GoldenSeedDigestPackagePath",
+      "golden-seed-digest-default-package-path-actual.txt" },
 };
 
 static const DigestOutDispatch* DigestOut_Find(const char* dispatch) {
@@ -2797,6 +2811,125 @@ TestResult Test_RandoPlayerPathDigest(void) {
     const int rc = MM_Rando_HeadlessPlayerPathDigest("RSBSUNIFIED1", digestOut);
     Rando_HeadlessFullInitTeardown();
     printf("[TEST] %s: player-path digest rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1044: THE SEED PACKAGE'S RANDO-TIER LOCKS. Generate completes the paired world,
+// writes it as Randomizer/<seed>-<fingerprint>.rsbs-seed.zip and stages it; file
+// creation binds the staged package and never fills (src/common/seed_package.h).
+//
+// The package's path and a report path come from the environment, set by the
+// rows' CMake drivers: RSBS_SEED_PACKAGE_PATH and RSBS_SEED_PACKAGE_REPORT.
+static const char* SeedPackageEnv(const char* name) {
+    const char* v = std::getenv(name);
+    if (v == nullptr || v[0] == '\0') {
+        printf("[TEST] FAIL: %s is unset; this dispatch is driven by its CMake row, which sets it\n", name);
+        return nullptr;
+    }
+    return v;
+}
+
+// The headless bring-up the RSBS_DISABLE_OTR_INIT rows share.
+static bool SeedPackageHeadlessBringUp(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return false;
+    }
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+    return true;
+}
+
+// The full OTR bring-up the player's-path rows share (rando-player-path-digest's
+// precondition and refusal, for its reason).
+static bool SeedPackageFullBringUp(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return false;
+    }
+    const std::string sohArchive = Ship::Context::LocateFileAcrossAppDirs("soh.o2r");
+    if (!std::filesystem::exists(sohArchive)) {
+        printf("[TEST] FAIL: no soh.o2r resolvable (tried '%s'); the full OTR bring-up needs a mounted archive\n",
+               sohArchive.c_str());
+        return false;
+    }
+    if (std::getenv("RSBS_DISABLE_OTR_INIT") != nullptr) {
+        printf("[TEST] FAIL: RSBS_DISABLE_OTR_INIT is set, so this would run the headless bring-up, not a player's\n");
+        return false;
+    }
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+    return true;
+}
+
+// SeedPackageRoundTrip, process 1 (CMake/CheckSeedPackageRoundTrip.cmake).
+TestResult Test_SeedPackageWrite(void) {
+    printf("[TEST] seed-package-write: Generate completes a paired world and writes its seed package (#1044)\n");
+    const char* pkg = SeedPackageEnv("RSBS_SEED_PACKAGE_PATH");
+    const char* report = SeedPackageEnv("RSBS_SEED_PACKAGE_REPORT");
+    if (pkg == nullptr || report == nullptr || !SeedPackageHeadlessBringUp()) {
+        return TEST_FAIL;
+    }
+    const int rc = MM_SeedPackage_TestWrite("RSBSUNIFIED1", pkg, report);
+    printf("[TEST] %s: seed package write rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// SeedPackageRoundTrip, process 2 (CMake/CheckSeedPackageRoundTrip.cmake).
+TestResult Test_SeedPackageLoad(void) {
+    printf("[TEST] seed-package-load: a process that never generated loads the seed package (#1044)\n");
+    const char* pkg = SeedPackageEnv("RSBS_SEED_PACKAGE_PATH");
+    const char* report = SeedPackageEnv("RSBS_SEED_PACKAGE_REPORT");
+    if (pkg == nullptr || report == nullptr || !SeedPackageHeadlessBringUp()) {
+        return TEST_FAIL;
+    }
+    const int rc = MM_SeedPackage_TestLoad(pkg, report);
+    printf("[TEST] %s: seed package load rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// SeedPackageCVarsCannotMoveWorld.
+TestResult Test_SeedPackageCVarsFrozen(void) {
+    printf("[TEST] seed-package-cvars-frozen: settings changed between Generate and file creation do not reach the "
+           "world (#1044)\n");
+    if (!SeedPackageHeadlessBringUp()) {
+        return TEST_FAIL;
+    }
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs-seed-package-cvars");
+    const int rc = MM_SeedPackage_TestCVarsFrozen("RSBSUNIFIED1", dir.string().c_str());
+    printf("[TEST] %s: seed package cvars frozen rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// GoldenSeedDigestPackagePath, process 1 (CheckGoldenDigest.cmake's PRE_DISPATCH).
+TestResult Test_SeedPackageGoldenWrite(void) {
+    printf("[TEST] seed-package-golden-write: the player's Generate writes the seed package (#1044)\n");
+    const char* pkg = SeedPackageEnv("RSBS_SEED_PACKAGE_PATH");
+    if (pkg == nullptr || !SeedPackageFullBringUp()) {
+        return TEST_FAIL;
+    }
+    const int rc = MM_SeedPackage_TestGoldenWrite("RSBSUNIFIED1", pkg);
+    Rando_HeadlessFullInitTeardown();
+    printf("[TEST] %s: seed package golden write rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// GoldenSeedDigestPackagePath, process 2: the digest CheckGoldenDigest compares.
+TestResult Test_SeedPackageGoldenCreate(void) {
+    printf("[TEST] seed-package-golden-create: a file created from a loaded seed package, digested (#1044)\n");
+    DigestOutHandRunReminder handRun{ "seed-package-golden-create", false };
+    const char* digestOut = DigestOut_Resolve("seed-package-golden-create", &handRun.noticed); // NULL => stdout
+    const char* pkg = SeedPackageEnv("RSBS_SEED_PACKAGE_PATH");
+    if (pkg == nullptr || !SeedPackageFullBringUp()) {
+        return TEST_FAIL;
+    }
+    const int rc = MM_SeedPackage_TestGoldenCreate(pkg, digestOut);
+    Rando_HeadlessFullInitTeardown();
+    printf("[TEST] %s: seed package golden create rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5938,6 +6071,25 @@ TestResult Test_ComboIdentityDisplay(void) {
     return ComboIdentityDisplay_RunHeadless();
 }
 
+// #1044: the seed package's container (tests/test_seed_package.c). Display-free.
+TestResult Test_SeedPackageContainer(void) {
+    printf("[TEST] seed-package-container: entries round-trip, refusals name their cause, the name and the "
+           "generator check (#1044)\n");
+    return SeedPackageContainer_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1044: the production load refuses a package from another generator version
+// before applying anything (tests/test_seed_package.c). Display-free.
+TestResult Test_SeedPackageGeneratorRefused(void) {
+    printf("[TEST] seed-package-generator-refused: a package from another generator version is refused (#1044)\n");
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    return SeedPackageGeneratorRefused_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The tier-4 authoring surface (ADR 0011 increment 2). Needs the shared
 // bring-up because the five keys live in the CVar store on the Ship::Context
 // singleton, and libultraship's C bridge dereferences that singleton without
@@ -6749,6 +6901,18 @@ const TestDescriptor gTests[] = {
     // all` skips it (below).
     { "rando-player-path-digest", "The Generate button's worker thread and the creation event, digested (#982)",
       Test_RandoPlayerPathDigest },
+    // #1044: the seed package's rando-tier locks. Driven by their CMake rows, which
+    // set the package and report paths; need a display, so `--test all` skips them.
+    { "seed-package-write", "Generate completes a paired world and writes its seed package (#1044)",
+      Test_SeedPackageWrite },
+    { "seed-package-load", "A process that never generated loads a seed package to the same world (#1044)",
+      Test_SeedPackageLoad },
+    { "seed-package-cvars-frozen", "Settings changed between Generate and file creation do not reach the world (#1044)",
+      Test_SeedPackageCVarsFrozen },
+    { "seed-package-golden-write", "The player's Generate writes the seed package the package golden loads (#1044)",
+      Test_SeedPackageGoldenWrite },
+    { "seed-package-golden-create", "A file created from a loaded seed package, digested against the golden (#1044)",
+      Test_SeedPackageGoldenCreate },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
@@ -7939,6 +8103,13 @@ const TestDescriptor gTests[] = {
       "The file select prints a paired world's fingerprint (comboSettingsHash) and the build beside the seed icons, "
       "for a generated world and for a file's record; an MM option moves it; the panes print the seed string (#952)",
       Test_ComboIdentityDisplay },
+    { "seed-package-container",
+      "The seed package's container: entries round-trip byte for byte, refusals name their cause, the file name and "
+      "the generator check (#1044)",
+      Test_SeedPackageContainer },
+    { "seed-package-generator-refused",
+      "The production load refuses a seed package from another generator version before applying anything (#1044)",
+      Test_SeedPackageGeneratorRefused },
     { "mm-extract",
       "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
       Test_MmExtract },
@@ -8048,6 +8219,10 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-determinism") == 0 ||
                 strcmp(gTests[i].name, "rando-armed-caps-digest") == 0 ||
                 strcmp(gTests[i].name, "rando-player-path-digest") == 0 ||
+                strcmp(gTests[i].name, "seed-package-write") == 0 || strcmp(gTests[i].name, "seed-package-load") == 0 ||
+                strcmp(gTests[i].name, "seed-package-cvars-frozen") == 0 ||
+                strcmp(gTests[i].name, "seed-package-golden-write") == 0 ||
+                strcmp(gTests[i].name, "seed-package-golden-create") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||

@@ -184,6 +184,10 @@ set(REDSHIP_COMMON_SOURCES
     # [FOCUS] probe each row prints, and the probe window its lock shows.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/test_window_focus.cpp
+    # #1044: the seed package's container (one paired world frozen at Generate in
+    # one shareable zip, written and read through libzip, linked below for the
+    # curated archives). Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/seed_package.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -284,6 +288,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_save_files_view.h
     # Header for combo_identity_display.cpp above (#952)
     ${CMAKE_SOURCE_DIR}/src/common/combo_identity_display.h
+    # Header for seed_package.cpp above (#1044)
+    ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
 )
 
 # ============================================================================
@@ -2173,6 +2179,63 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy")
+    # #1044: THE PACKAGE'S PATH against the default golden. Process 1
+    # (PRE_DISPATCH seed-package-golden-write) is the player's Generate -- the full
+    # OTR bring-up, the worker thread, then the file select's tick, which completes
+    # the paired world and writes the seed package; process 2 never generates: it
+    # loads that package off disk, creates file 0 from it and writes the golden's
+    # fields, every world line recomputed from the created file. Requires
+    # seed-digest-default, and the created file's digest must equal the package's
+    # own. Outside REDSHIP_GOLDEN_DIGESTS for the player-path row's reason.
+    redship_add_test(NAME GoldenSeedDigestPackagePath
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DPRE_DISPATCH=seed-package-golden-write
+                -DPACKAGE_ENV=RSBS_SEED_PACKAGE_PATH
+                -DDISPATCH=seed-package-golden-create
+                -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT
+                -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                -DGOLDEN_NAME=seed-digest-default
+                -DRUN_TAG=seed-digest-default-package-path
+                -DARCHIVE_FREE_ONLY=ON
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy")
+    # #1044: a package written by one process and loaded by another holds the same
+    # world. Process 1 generates, completes the paired world and reports it from
+    # the LIVE state before the package exists; process 2 never generates, loads
+    # the package and reports the STAGED world with the same writer (identity and
+    # records, OoT's placement and content, the crossings, the give caps, MM's half
+    # byte for byte with its world and content, and the spoiler's bytes), then both
+    # report what nothing applies (SeedPackageTestBridgeSingleExe.cpp): every
+    # identity.json term, every entry's name, digest.txt's and both spoilers'
+    # bytes, the world-only combo record and the crossing block; the driver
+    # requires the two reports equal. RED with any term or entry the writer drops.
+    redship_add_test(NAME SeedPackageRoundTrip
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckSeedPackageRoundTrip.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1044: the CVars at file-select time cannot move the world. Generate (its
+    # completion writes and stages the package), then an MM option, a Cross-Game
+    # Rule and an OoT setting change, then a file is created: the created world
+    # must be the staged one, field for field.
+    redship_add_test(NAME SeedPackageCVarsCannotMoveWorld COMMAND redship --test seed-package-cvars-frozen
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # The four rows above generate the default seed with the default settings and
+    # read Randomizer/<icons>.json in the build tree (the round trip twice, around
+    # its package write): one at a time under ctest -j, so none reads another's
+    # spoiler mid-rewrite.
+    set_tests_properties(GoldenSeedDigestPlayerPath GoldenSeedDigestPackagePath SeedPackageRoundTrip
+        SeedPackageCVarsCannotMoveWorld
+        PROPERTIES RESOURCE_LOCK rsbs_default_seed_spoiler)
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL
     # candidate; this one proves a REAL fill with entrance shuffle on never writes
@@ -2412,6 +2475,20 @@ records as a meta row. A plain --test row would only regenerate the same world w
     redship_test_exempt(rando-player-path-digest
         "Driven by the GoldenSeedDigestPlayerPath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
 records as a meta row. A plain --test row would only regenerate the same world without comparing it (#982).")
+    # The seed package's two-process drivers (#1044), for the same reason: each
+    # dispatch needs the package path its driver sets, and only the driver compares.
+    redship_test_exempt(seed-package-write
+        "Process 1 of the SeedPackageRoundTrip row (cmake -P CheckSeedPackageRoundTrip.cmake), which sets the package \
+and report paths and compares the two processes' reports (#1044).")
+    redship_test_exempt(seed-package-load
+        "Process 2 of the SeedPackageRoundTrip row (cmake -P CheckSeedPackageRoundTrip.cmake), which sets the package \
+and report paths and compares the two processes' reports (#1044).")
+    redship_test_exempt(seed-package-golden-write
+        "The PRE_DISPATCH of the GoldenSeedDigestPackagePath golden row (cmake -P CheckGoldenDigest.cmake), which \
+writes the package the row's digest process loads (#1044).")
+    redship_test_exempt(seed-package-golden-create
+        "Driven by the GoldenSeedDigestPackagePath golden row (cmake -P CheckGoldenDigest.cmake), which the manifest \
+records as a meta row (#1044).")
 
     redship_test_exempt(combo-logic-give-probe
         "Diagnostic, not a lock: walks MM's giveable vanilla ids through Rando::GiveItem headlessly so an id whose \
@@ -2986,6 +3063,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # MM option moves it; the panes print the paired seed string. ROM-free and
     # display-free (default tier); src/common/tests/test_combo_identity_display.c.
     redship_add_test(NAME ComboIdentityDisplay COMMAND redship --test combo-identity-display)
+    # #1044: the seed package's container (entries round-trip byte for byte, a
+    # rewrite is byte-identical, refusals name their cause, the file name, the
+    # generator check) and the production load's refusal of a package from
+    # another generator version before anything is applied. ROM-free and
+    # display-free (default tier); src/common/tests/test_seed_package.c.
+    redship_add_test(NAME SeedPackageContainer COMMAND redship --test seed-package-container)
+    redship_add_test(NAME SeedPackageGeneratorVersionRefused COMMAND redship --test seed-package-generator-refused)
     # #944: a default launch offers to generate mm.o2r, reaching MM's extractor
     # through src/common/mm_extract.h. Leg A (ROM-free, display-free, never
     # skips): the silent ROM scan and validation reject a zeroed, a zipped, an
