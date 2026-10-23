@@ -28,6 +28,8 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -58,6 +60,10 @@ extern "C" {
 // own linkage (matching ForeignItemsSingleExe.cpp).
 #include "combo_tracker_view.h"
 
+// randomizer_check_tracker.cpp (#1126): whether SoH's Check Tracker has loaded its
+// settings for the file being played.
+extern "C" int OoT_CheckTracker_SettingsLoaded(void);
+
 namespace {
 
 /**
@@ -80,6 +86,74 @@ int sListTestLoaded = -1;
 std::vector<uint16_t> sListTestVisible;
 int sListTestCalls = 0;
 
+/**
+ * WHICH CHECKS THE PANEL LISTS (#1126): what SoH's Check Tracker lists,
+ * CheckTracker::IsVisibleInCheckTracker (randomizer_check_tracker.cpp), so the
+ * rows and the "Checks: n / m" summary equal that tracker's list and its total,
+ * excluded locations, hint stones and unshuffled shop slots left out, and its
+ * Always Show Gold Skulltulas and Hide Unshuffled Shop Item Checks settings
+ * applied. That predicate is not free-standing, so it is asked only when it can
+ * answer:
+ *   - It reads statics only CheckTrackerLoadGame fills (LoadSettings), and
+ *     IsCheckShuffled dereferences OTRGlobals::Instance->gRandomizer for every
+ *     shop location before its IS_RANDO test (no OTRGlobals in a ROM-free tier).
+ *     Until SoH's tracker has loaded (OoT_CheckTracker_SettingsLoaded: its
+ *     `initialized`, which Teardown clears at a file exit) the panel lists the
+ *     checks the seed placed an item on, as it did before, and asks nothing.
+ *   - It reads IS_RANDO, gSaveContext's quest id. Both ports overlay one live save
+ *     (unified_save.c) and the quest id sits past the end of Majora's Mask's save
+ *     blob, so while Majora's Mask runs the byte is whatever Ocarina of Time left
+ *     there, never written by MM and never part of MM's own file. So the
+ *     predicate is asked only while OoT is the running game, and the answers
+ *     are kept: the stale panel lists, for the same seed, what SoH's tracker
+ *     listed when OoT last ran; a panel never read while OoT ran falls back to
+ *     the placed checks.
+ */
+static_assert(offsetof(SaveContext, ship.quest.id) >= MM_SAVE_CONTEXT_SIZE,
+              "IS_RANDO's byte moved inside Majora's Mask's save blob: revisit OoTCheckListed's MM rule");
+
+bool OoTTrackerSettingsLoaded(void) {
+    if (sListTestLoaded >= 0) {
+        return sListTestLoaded != 0;
+    }
+    return OoT_CheckTracker_SettingsLoaded() != 0;
+}
+
+bool OoTTrackerPredicate(RandomizerCheck rc) {
+    sListTestCalls++;
+    if (sListTestLoaded >= 0) {
+        return std::find(sListTestVisible.begin(), sListTestVisible.end(), (uint16_t)rc) != sListTestVisible.end();
+    }
+    return CheckTracker::IsVisibleInCheckTracker(rc);
+}
+
+// The list as of OoT's last live read: one byte per check (1 listed), for the
+// seed sListedSeed. Empty until a live read with the settings loaded.
+std::vector<uint8_t> sListed;
+uint32_t sListedSeed = 0;
+
+bool OoTCheckListed(Rando::Context* ctx, RandomizerCheck rc) {
+    if (!OoTTrackerSettingsLoaded()) {
+        sListed.clear();
+        return ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
+    }
+    const bool keptForSeed = sListed.size() == (size_t)RC_MAX && sListedSeed == ctx->GetSeed();
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        return keptForSeed ? sListed[rc] != 0 : ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
+    }
+    if (!keptForSeed) { // the first live read: keep the whole list, not just the rows read
+        sListed.assign((size_t)RC_MAX, 0);
+        sListedSeed = ctx->GetSeed();
+        for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
+            sListed[i] = OoTTrackerPredicate((RandomizerCheck)i) ? 1 : 0;
+        }
+        return sListed[rc] != 0;
+    }
+    const bool listed = rc != RC_UNKNOWN_CHECK && OoTTrackerPredicate(rc);
+    sListed[rc] = listed ? 1 : 0;
+    return listed;
+}
+
 bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     auto ctx = Rando::Context::GetInstance();
     if (ctx == nullptr || out == nullptr) {
@@ -91,8 +165,8 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     int skipped = 0;
     for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
         Rando::ItemLocation* loc = ctx->GetItemLocation(i);
-        if (loc->GetPlacedRandomizerGet() == RG_NONE) {
-            continue; // not part of this seed (IsLocationShuffled's own predicate)
+        if (!OoTCheckListed(ctx.get(), (RandomizerCheck)i)) {
+            continue; // not on SoH's Check Tracker's list (see OoTCheckListed)
         }
         shuffled++;
         if (StatusObtained(loc->GetCheckStatus())) {
@@ -216,7 +290,7 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)index);
     out->checkId = (uint16_t)index;
     out->name = OoTTrackerCheckName((uint16_t)index);
-    out->shuffled = loc->GetPlacedRandomizerGet() != RG_NONE;
+    out->shuffled = OoTCheckListed(ctx.get(), (RandomizerCheck)index);
     out->obtained = StatusObtained(loc->GetCheckStatus());
     out->skipped = loc->GetIsSkipped();
 
@@ -301,9 +375,10 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
     if (!OoTTrackerSkipWritable() || checkId == 0 || checkId >= (uint16_t)RC_MAX) {
         return false;
     }
-    Rando::ItemLocation* loc = Rando::Context::GetInstance()->GetItemLocation((size_t)checkId);
-    // The checks SoH's button is drawn on: part of the seed, and not found.
-    if (loc->GetPlacedRandomizerGet() == RG_NONE || StatusObtained(loc->GetCheckStatus())) {
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)checkId);
+    // The checks SoH's button is drawn on: on its list (#1126), and not found.
+    if (!OoTCheckListed(ctx.get(), (RandomizerCheck)checkId) || StatusObtained(loc->GetCheckStatus())) {
         return false;
     }
     if (loc->GetIsSkipped() == skipped) {

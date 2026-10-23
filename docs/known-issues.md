@@ -331,6 +331,8 @@ running save, and a collected check shows at once, with no save. In Hyrule it re
 as of the last game switch or save. (Since PR [#929](https://github.com/spencerduncan/redshipblueship/pull/929)
 the panel prints no note saying which of the two it shows.)
 
+**~~The Combo Tracker's Ocarina of Time panel lists more checks than Ocarina of Time's Check Tracker~~ — RESOLVED** ([#1126](https://github.com/spencerduncan/redshipblueship/issues/1126)). The panel listed every location the seed put an item on, excluded locations and unshuffled shop slots included, so its list and "Checks: n / m" did not match the Check Tracker's, and Always Show Gold Skulltulas and Hide Unshuffled Shop Item Checks did nothing there. Now, once a file has loaded, the panel lists what the Check Tracker lists; while you play Majora's Mask it keeps the list from your last time in Hyrule.
+
 **~~The Combo Item Tracker lists Majora's Mask's items by name until Majora's Mask has started~~ — RESOLVED** ([#963](https://github.com/spencerduncan/redshipblueship/issues/963), PR [#1043](https://github.com/spencerduncan/redshipblueship/pull/1043); [#458](https://github.com/spencerduncan/redshipblueship/issues/458)).
 Fixed by PR #1043 (2026-10-20): the curated archive Ocarina of Time mounts at launch
 (`redship-oot.o2r`, rebuilt from your extracted game data when its stamp is old) now carries

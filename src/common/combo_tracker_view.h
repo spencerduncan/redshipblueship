@@ -101,7 +101,7 @@ typedef struct {
     bool hasWorld;     // a randomized world is resident
     uint32_t seed;     // that game's own final seed (0 when none)
     int totalChecks;   // walkable row indices, [0, totalChecks)
-    int shuffled;      // checks the seed placed an item on
+    int shuffled;      // listed checks (OoT: SoH's Check Tracker's list once loaded, #1126)
     int obtained;      // shuffled checks already collected
     int skipped;       // shuffled checks the player marked skipped
 } ComboTrackerGameSummary;
