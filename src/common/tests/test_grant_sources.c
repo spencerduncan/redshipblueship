@@ -52,7 +52,9 @@
 
 namespace {
 
-const char* const kGrantSaveDir = "rsbs_test_saves_grants";
+inline const char* kGrantSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_grants");
+}
 
 // Arbitrary nonzero source keys — the model treats them opaquely.
 const uint32_t kGrantSrcA = 0xA11CE001u;
@@ -130,7 +132,7 @@ bool GrantTestWriteLegacySlot(const std::string& path) {
     h.mmSize = (uint32_t)MM_SAVE_CONTEXT_SIZE;
     h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
 
-    std::filesystem::create_directories(kGrantSaveDir);
+    std::filesystem::create_directories(kGrantSaveDir());
     std::ofstream out(path, std::ios::binary | std::ios::trunc);
     if (!out) {
         return false;
@@ -354,7 +356,7 @@ TestResult Test_GrantPersistence(void) {
            "atomically (ADR 0005)\n");
 
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kGrantSaveDir);
+    mgr.SetSaveDirectory(kGrantSaveDir());
 
     // Save-harness precondition, NOT a grant-model dependency: SaveManager::Save
     // serializes Tiers 2/3 from the context-layer shadow buffers and refuses

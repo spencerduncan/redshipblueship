@@ -161,6 +161,8 @@
 #include "combo_save_files_view.h"
 #include "game.h"
 
+#include "test_scratch.h" // #824, #925: a scratch directory per process
+
 extern "C" {
 #include "variables.h"
 int MM_Rando_GateCrossGameArrival(void);
@@ -169,7 +171,9 @@ int MM_Rando_GateCrossGameArrival(void);
 namespace {
 
 constexpr int kSlot = 0;
-const char* const kScratchSaveDir = "rsbs_test_saves_paired_load_restore";
+inline const char* kScratchSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_paired_load_restore");
+}
 const char* const kToastSentinel = "rsbs781-no-toast-was-emitted";
 constexpr uint32_t kSeed = 0x0781C0DEu;
 constexpr uint32_t kSettingsHash = 0x5E770781u;
@@ -364,7 +368,7 @@ World Snap() {
     if (w.slotExists) {
         w.slotBytes = PlrReadAll(path);
     }
-    for (const auto& entry : std::filesystem::directory_iterator(kScratchSaveDir, ec)) {
+    for (const auto& entry : std::filesystem::directory_iterator(kScratchSaveDir(), ec)) {
         const std::string name = entry.path().filename().string();
         if (name.size() < 8 || name.compare(name.size() - 8, 8, ".redsave") != 0) {
             w.otherFiles++;
@@ -1563,7 +1567,7 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
         return Fail(2, "no CVar store: every leg would pass vacuously on the defaults");
     }
     Combo_MMOptionsPages_Init();
-    rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir);
+    rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir());
 
     // The live MM SaveContext is borrowed as the creation event's scratch; put
     // it back afterwards.

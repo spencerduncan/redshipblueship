@@ -335,13 +335,27 @@ void SaveManager::ReadSaveFile(std::filesystem::path savePath, uintptr_t addr, v
     saveFile.close();
 }
 
+// #824, #925: the directory SoH keeps its fileN.sav, fileN.temp and quarantined .bak in.
+// It is <app dir>/Save unless a test row has set a directory of its own: two rows of one
+// build directory share its working directory, and with it Save/, so a row that writes
+// .sav files there reads and overwrites the other's. Production never sets it.
+static std::string sSavDirectoryOverride;
+
+extern "C" void OoT_SaveManager_SetSavDirectoryForTest(const char* dir) {
+    sSavDirectoryOverride = dir != nullptr ? dir : "";
+}
+
+static std::string SavDirectory() {
+    return sSavDirectoryOverride.empty() ? Ship::Context::GetPathRelativeToAppDirectory("Save") : sSavDirectoryOverride;
+}
+
 std::filesystem::path SaveManager::GetFileName(int fileNum) {
-    const std::filesystem::path sSavePath(Ship::Context::GetPathRelativeToAppDirectory("Save"));
+    const std::filesystem::path sSavePath(SavDirectory());
     return sSavePath / ("file" + std::to_string(fileNum + 1) + ".sav");
 }
 
 std::filesystem::path SaveManager::GetFileTempName(int fileNum) {
-    const std::filesystem::path sSavePath(Ship::Context::GetPathRelativeToAppDirectory("Save"));
+    const std::filesystem::path sSavePath(SavDirectory());
     return sSavePath / ("file" + std::to_string(fileNum + 1) + ".temp");
 }
 
@@ -1040,8 +1054,7 @@ void SaveManager::StartupCheckAndInitMeta(int fileNum) {
 void SaveManager::QuarantineCorruptSave(int fileNum) {
     std::filesystem::path fileName = GetFileName(fileNum);
     std::string newFileName =
-        Ship::Context::GetPathRelativeToAppDirectory("Save") +
-        ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
+        SavDirectory() + ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
     try {
 #if defined(__SWITCH__) || defined(__WIIU__)
         copy_file(fileName.c_str(), newFileName.c_str());
@@ -1112,9 +1125,8 @@ void SaveManager::StartupCheckAndInitMetaImpl(int fileNum, nlohmann::json& metaS
         s16 patch = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionPatch"];
         // block loading outdated rando save
         if (!(major == OoT_gBuildVersionMajor && minor == OoT_gBuildVersionMinor && patch == OoT_gBuildVersionPatch)) {
-            std::string newFileName =
-                Ship::Context::GetPathRelativeToAppDirectory("Save") +
-                ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
+            std::string newFileName = SavDirectory() + ("/file" + std::to_string(fileNum + 1) + "-" +
+                                                        std::to_string(GetUnixTimestamp()) + ".bak");
 #if defined(__SWITCH__) || defined(__WIIU__)
             copy_file(fileName.c_str(), newFileName.c_str());
             std::filesystem::remove(fileName);
@@ -2138,9 +2150,8 @@ void SaveManager::LoadFile(int fileNum) {
         GameInteractor::Instance->ExecuteHooks<GameInteractor::OnLoadFile>(fileNum);
     } catch (const std::exception& e) {
         input.close();
-        std::string newFileName =
-            Ship::Context::GetPathRelativeToAppDirectory("Save") +
-            ("/file" + std::to_string(fileNum + 1) + "-" + std::to_string(GetUnixTimestamp()) + ".bak");
+        std::string newFileName = SavDirectory() + ("/file" + std::to_string(fileNum + 1) + "-" +
+                                                    std::to_string(GetUnixTimestamp()) + ".bak");
 #if defined(__SWITCH__) || defined(__WIIU__)
         copy_file(fileName.c_str(), newFileName.c_str());
         std::filesystem::remove(fileName);

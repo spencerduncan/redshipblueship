@@ -134,6 +134,7 @@
 #include "save.h"
 #include "shared_items.h"
 #include "shared_resources.h"
+#include "test_scratch.h" // #824, #925: a scratch directory per process
 
 extern "C" {
 void MM_Creation_StampNewFileFields(const u8* playerName);
@@ -169,7 +170,9 @@ namespace {
     } while (0)
 
 const char* sRow = "mm-creation-new-file";
-const char* const kSaveDir = "rsbs_test_saves_creation_new_file";
+inline const char* kSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_creation_new_file");
+}
 const u8 kNewf[6] = { 'Z', 'E', 'L', 'D', 'A', '3' };
 
 // OoT's filename languages (soh/SaveManager.h FilenameLanguage; OoT's header is
@@ -278,7 +281,7 @@ int CheckArmedHalf(uint32_t expectSeed) {
         Context_UpdateShadowCopy(GAME_OOT, ootStarted.data(), ootSize);
     }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     mgr.ResetSlotSessionState();
     mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
     CNF_ASSERT(mgr.Save(0), "the slot commits");
@@ -359,7 +362,7 @@ uint16_t PoolRupees() {
 /** Point the SaveManager at this file's scratch directory with slot 0 armed and active. */
 void OpenScratchSlot() {
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     mgr.ResetSlotSessionState();
     mgr.DeleteSave(0); // an erase is what arms the slot for this session's writes
     RsbsSave_SetActiveSlot(0);
@@ -783,7 +786,7 @@ extern "C" int MM_MoonCrashNeverSaved_Run(void) {
         Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
     }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     mgr.DeleteSave(0); // leftovers from an earlier run
     mgr.ResetSlotSessionState();
     RsbsSave_ArmSlotOnCreate(0); // OoT's Sram_InitSave
@@ -913,7 +916,7 @@ extern "C" int MM_MoonCrashPoolApplied_Run(void) {
         Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
     }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
     RsbsSave_ArmSlotOnCreate(0);
@@ -1421,7 +1424,7 @@ extern "C" int MM_MoonCrashCycleReset_Run(void) {
         Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
     }
     rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-    mgr.SetSaveDirectory(kSaveDir);
+    mgr.SetSaveDirectory(kSaveDir());
     mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
     RsbsSave_ArmSlotOnCreate(0);

@@ -32,6 +32,13 @@ namespace rsbs::test {
 std::filesystem::path ScratchDir(const std::string& name);
 
 /**
+ * ScratchDir(@p name) as a C string, for the rows that spell their save
+ * directory as a `const char*` (SaveManager::SetSaveDirectory, create_directories,
+ * a path joined with `/`). The pointer stays valid for the life of the process.
+ */
+const char* ScratchDirCStr(const std::string& name);
+
+/**
  * End of a test row: removes every directory ScratchDir handed out since the
  * previous call when @p passed, otherwise keeps them and prints their paths.
  */
@@ -48,6 +55,17 @@ void ScratchDirs_EndRow(const char* rowName, bool passed);
  *         or did not exit normally
  */
 std::vector<int> RunRowConcurrently(const char* row, int copies, const std::filesystem::path& logDir);
+
+/**
+ * Runs `<this executable> --test <rowArg>` ONCE with @p cwd as its working
+ * directory and waits for it; its stdout and stderr go to @p log. @p rowArg is
+ * a row name or a comma-separated list of row names, which the runner runs back
+ * to back in that one process (`--test a,b,c`).
+ *
+ * @return the exit code, or -1 if the child could not be spawned or did not
+ *         exit normally
+ */
+int RunRowsInDir(const std::string& rowArg, const std::filesystem::path& cwd, const std::filesystem::path& log);
 
 } // namespace rsbs::test
 

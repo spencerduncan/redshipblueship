@@ -103,7 +103,9 @@ extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, s
 
 namespace {
 
-const char* const kSessionTestDir = "rsbs_test_session";
+inline const char* kSessionTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_session");
+}
 
 // A slice of a SaveContext is enough: Context_FreezeState/RestoreState clamp to
 // min(size, per-game capacity), so a short buffer round-trips exactly. Same
@@ -523,10 +525,10 @@ TestResult Test_SessionInvalidation(void) {
     // require that slot's own state to return.
     {
         std::error_code ec;
-        std::filesystem::remove_all(kSessionTestDir, ec);
-        std::filesystem::create_directories(kSessionTestDir, ec);
+        std::filesystem::remove_all(kSessionTestDir(), ec);
+        std::filesystem::create_directories(kSessionTestDir(), ec);
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kSessionTestDir);
+        mgr.SetSaveDirectory(kSessionTestDir());
         // #533: writes are latched per-slot until this session loads, creates,
         // or erases the slot. Simulate a fresh session, then arm slot 1 the
         // way production's create seam does before its first Save.
@@ -662,7 +664,7 @@ TestResult Test_SessionInvalidation(void) {
             SESSION_ASSERT(stored->id == kGenReverseItemId);
         }
 
-        std::filesystem::remove_all(kSessionTestDir, ec);
+        std::filesystem::remove_all(kSessionTestDir(), ec);
     }
 
     printf("[TEST] PASS: a dead session's frozen blobs, shadows and gComboCtx crossings do not "

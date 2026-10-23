@@ -115,6 +115,8 @@
 #include "combo_mm_options_view.h" // MM_Rando_ComputeProfileStamp — the profile leg's input
 #include "triforce_hunt.h"         // Combo_TriforceFreezeAtCreation — leg 4's frozen record
 
+#include "test_scratch.h" // #824, #925: a scratch directory per process
+
 extern "C" {
 #include "variables.h"
 // ADR 0010 increment 2 split the single arrival function in two: the GATE
@@ -167,7 +169,9 @@ int RunArrival(int hadFrozenState) {
 }
 
 constexpr int kSlot = 0;
-const char* const kScratchSaveDir = "rsbs_test_saves_combo_settings";
+inline const char* kScratchSaveDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_saves_combo_settings");
+}
 
 // Planted as the "last toast" before every leg: the overlay's store has no
 // drain entry point, so "a toast exists" would otherwise be satisfiable by an
@@ -421,7 +425,7 @@ extern "C" int MM_ComboSettingsGate_RunHeadless(void) {
     printf("[TEST] mm-combo-settings-gate: the arrival refuses a divergent combo record and NAMES the rule; a "
            "legacy pair freezes the shipped defaults instead (#498, ADR 0011)\n");
 
-    rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir);
+    rsbs::SaveManager::Instance().SetSaveDirectory(kScratchSaveDir());
 
     // ------------------------------------------------------------------------
     // Leg 1 — `direction` alone diverges: REFUSED, naming the field.

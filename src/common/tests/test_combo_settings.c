@@ -84,11 +84,15 @@
 
 namespace {
 
-const char* const kComboSettingsTestDir = "rsbs_test_combo_settings";
+inline const char* kComboSettingsTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_combo_settings");
+}
 // Its own directory for the load-side leg, because RsbsSave_HasQuarantine
 // reports ANY slotN.redsave*.bak beside the slot and an earlier run's
 // evidence would confound "nothing was quarantined by THIS load".
-const char* const kComboSettingsLoadTestDir = "rsbs_test_combo_settings_load";
+inline const char* kComboSettingsLoadTestDir() {
+    return rsbs::test::ScratchDirCStr("rsbs_test_combo_settings_load");
+}
 
 /** Give the commit choke point something to stage. StageCommit refuses when the
  *  context shadows are absent, and a Tier-1-only test would otherwise never get
@@ -323,7 +327,7 @@ TestResult Test_ComboSettingsFormat(void) {
     // ---- Byte-exact .redsave round trip ------------------------------------
     {
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kComboSettingsTestDir);
+        mgr.SetSaveDirectory(kComboSettingsTestDir());
         mgr.DeleteSave(0);
 
         ComboContext_Init();
@@ -367,7 +371,7 @@ TestResult Test_ComboSettingsFormat(void) {
     // after this one.
     {
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kComboSettingsTestDir);
+        mgr.SetSaveDirectory(kComboSettingsTestDir());
         mgr.DeleteSave(0);
 
         ComboContext_Init();
@@ -1660,9 +1664,9 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
             CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "clear the leg-6 junk first");
         }
         std::error_code ec;
-        std::filesystem::remove_all(kComboSettingsLoadTestDir, ec); // no stale .bak from an earlier run
+        std::filesystem::remove_all(kComboSettingsLoadTestDir(), ec); // no stale .bak from an earlier run
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
-        mgr.SetSaveDirectory(kComboSettingsLoadTestDir);
+        mgr.SetSaveDirectory(kComboSettingsLoadTestDir());
         RsbsSave_ResetSlotSessionState();
         // ARM THE WRITE LATCH (#533). Save() refuses a slot that was not
         // loaded, created or erased this session, and the reset above cleared
@@ -1703,7 +1707,7 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
 
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
-        mgr.SetSaveDirectory(kComboSettingsTestDir);
+        mgr.SetSaveDirectory(kComboSettingsTestDir());
         ComboContext_Init();
     }
 

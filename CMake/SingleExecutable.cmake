@@ -1142,6 +1142,14 @@ if(BUILD_TESTING)
     # renamed into each other's files ("Access is denied"); each process now has
     # its own (src/common/test_scratch.h). Display-free and ROM-free.
     redship_add_test(NAME TestScratchConcurrent COMMAND redship --test test-scratch-concurrent)
+    # #824, #925: two rows of one build directory share its working directory, and
+    # every save-writing row but the six above still wrote a fixed name there (and
+    # SoH's Save/file<N>.sav is there too). This row plants a file under every such
+    # name and a directory under every Save/file<N>.sav, then runs the slot-0
+    # subtests of #925 and the foreign-item and .redsave rows of #824 back to back
+    # in one process each: a row that still shares its working directory fails.
+    # Display-free and ROM-free.
+    redship_add_test(NAME TestScratchPoisonedCwd COMMAND redship --test test-scratch-poisoned-cwd)
     # #564 V18 (games/mm/2s2h/mm_save_failure_surface_test.cpp): an MM save that
     # cannot commit (no active slot, a latched slot, a failed write) is shown to
     # the player as a "Save failed:" toast, once per cause, instead of running its
