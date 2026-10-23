@@ -103,6 +103,12 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
 // 2 on in a file that is not a randomizer file; heldMask bit i = the i-th
 // button of A, C-Down, C-Right, C-Left, C-Up).
 extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask);
+// #1140: the variant-0 MM save with tokens, stray fairies, keys, dungeon items,
+// heart pieces, souls, owls, half-days and swim authored (see the seam), as a
+// randomizer file (`rando` 1) or a vanilla one; `options` bits 0-5 switch the
+// frozen RO_SHUFFLE_BOSS_SOULS, _ENEMY_SOULS, _OWL_STATUES, RO_CLOCK_SHUFFLE,
+// RO_SHUFFLE_SWIM and RO_SHUFFLE_TRIFORCE_PIECES on, bit 6 the Clock Town fairy.
+extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando, unsigned options);
 // #873, the combo-item-view-new-file row: a save Ship of Harkinian's own init
 // path authors, copied into `buf`. Variant 0 is the player's new file
 // (Save_InitFile(false)), 1 the title screen's attract save, 2 that debug save
@@ -571,6 +577,255 @@ static int CivMMOcarinaButtonLegs(const ComboItemOps* ops) {
         ComboContext_Init();
         Combo_ResetSharedResourceWatermarks();
     }
+    return TEST_PASS;
+}
+
+/** The view's MM rows of `group`, in order. */
+static std::vector<ComboItemRow> CivMMGroup(const char* group) {
+    std::vector<ComboItemRow> out;
+    ComboItemRow row;
+    const int n = Combo_ItemCount((uint8_t)GAME_MM);
+    for (int i = 0; i < n; i++) {
+        if (Combo_ItemRowAt((uint8_t)GAME_MM, i, &row) && strcmp(row.group, group) == 0) {
+            out.push_back(row);
+        }
+    }
+    return out;
+}
+
+/** Every MM row reads, labelled and with an icon, and the next index is refused. */
+static bool CivMMRowsContiguous(void) {
+    ComboItemRow row;
+    const int n = Combo_ItemCount((uint8_t)GAME_MM);
+    for (int i = 0; i < n; i++) {
+        if (!Combo_ItemRowAt((uint8_t)GAME_MM, i, &row) || row.iconKey == NULL || row.iconKeyFaded == NULL ||
+            strcmp(row.name, "Unknown Item") == 0) {
+            printf("[TEST] combo-item-view: MM row %d does not read with a name and an icon\n", i);
+            return false;
+        }
+    }
+    return !Combo_ItemRowAt((uint8_t)GAME_MM, n, &row);
+}
+
+/**
+ * #1140: MM's tracker rows the curated v1 list left out. Always on, after Quest
+ * and in MM's default-preset order with MM's group names: Tokens (Swamp, Ocean
+ * from skullTokenCount's two halves, against the file's frozen minimum or the
+ * Spider House's 30), Stray Fairies (Clock Town from its week-event bit, four
+ * temple counts against the frozen minimum or 15), Dungeon (column = temple:
+ * boss keys, small keys counted found-in-a-randomizer-file / held-otherwise
+ * against 1/3/1/4, maps, compasses), plus a Quest heart-piece row n/4. Shuffle
+ * gated, each only when the buffer's own FROZEN option is on in a randomizer
+ * file: Boss Souls (Majora's hidden under Triforce Hunt), ONE Enemy Souls row
+ * n/47 counted through SOUL_RI_TO_RANDO_INF, Owl Statues, Time, Misc (swim).
+ * Every read leaves the shadow byte-unchanged.
+ */
+static int CivMMTrackerRowLegs(const ComboItemOps* ops) {
+    ComboItemRow row;
+    std::vector<uint8_t> buf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    Context_SetCurrentGame(GAME_OOT); // MM inactive: its shadow is what the view reads
+
+    // 60 curated rows + Tokens 2 + Stray Fairies 5 + Dungeon 16 + the heart pieces.
+    printf("[TEST] combo-item-view: MM count()=%d (want 84)\n", ops->count());
+    CIV_ASSERT(ops->count() == 84);
+    // MM's own table widths (ItemTrackerSettings.cpp LoadAvailableWindows).
+    CIV_ASSERT(ops->grid != NULL && ops->grid->groupColumns != NULL);
+    CIV_ASSERT(ops->grid->groupColumns("Tokens") == 2);
+    CIV_ASSERT(ops->grid->groupColumns("Stray Fairies") == 5);
+    CIV_ASSERT(ops->grid->groupColumns("Dungeon") == 4);
+    CIV_ASSERT(ops->grid->groupColumns("Boss Souls") == 5);
+    CIV_ASSERT(ops->grid->groupColumns("Enemy Souls") == 6);
+    CIV_ASSERT(ops->grid->groupColumns("Owl Statues") == 5);
+    CIV_ASSERT(ops->grid->groupColumns("Time") == 6);
+    CIV_ASSERT(ops->grid->groupColumns("Misc") == 6);
+
+    // ---- A. a randomizer file, every gate off, the Clock Town fairy found -----
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0x40u) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    const std::vector<uint8_t> authored(buf);
+    printf("[TEST] combo-item-view: MM rando rows=%d (want 84)\n", Combo_ItemCount((uint8_t)GAME_MM));
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 84);
+    CIV_ASSERT(CivMMRowsContiguous());
+
+    std::vector<ComboItemRow> g = CivMMGroup("Tokens");
+    CIV_ASSERT(g.size() == 2);
+    printf("[TEST] combo-item-view: MM tokens %s %d/%d, %s %d/%d\n", g[0].name, g[0].count, g[0].max, g[1].name,
+           g[1].count, g[1].max);
+    CIV_ASSERT(strcmp(g[0].name, "Swamp Gold Skulltula Token") == 0 && g[0].have && g[0].count == 12 && g[0].max == 20);
+    CIV_ASSERT(strcmp(g[1].name, "Ocean Gold Skulltula Token") == 0 && g[1].have && g[1].count == 5 && g[1].max == 20);
+
+    g = CivMMGroup("Stray Fairies");
+    CIV_ASSERT(g.size() == 5);
+    CIV_ASSERT(strcmp(g[0].name, "Clock Town Stray Fairy") == 0 && g[0].have && g[0].max == 0);
+    CIV_ASSERT(strstr(g[0].iconKey, "gStrayFairyStoneTowerIconTex") != NULL); // MM's own pick
+    static const char* const kFairies[4] = { "Woodfall Stray Fairy", "Snowhead Stray Fairy", "Great Bay Stray Fairy",
+                                             "Stone Tower Stray Fairy" };
+    static const int kFairyCounts[4] = { 10, 3, 0, 15 };
+    for (int i = 0; i < 4; i++) {
+        printf("[TEST] combo-item-view: MM %s %d/%d have=%d\n", g[i + 1].name, g[i + 1].count, g[i + 1].max,
+               (int)g[i + 1].have);
+        CIV_ASSERT(strcmp(g[i + 1].name, kFairies[i]) == 0);
+        CIV_ASSERT(g[i + 1].count == kFairyCounts[i] && g[i + 1].max == 10 && g[i + 1].have == (kFairyCounts[i] > 0));
+    }
+    CIV_ASSERT(strcmp(g[1].iconKey, g[2].iconKey) != 0); // a per-temple icon
+
+    // Dungeon, 4 wide, column = temple: boss keys, small keys, maps, compasses.
+    g = CivMMGroup("Dungeon");
+    CIV_ASSERT(g.size() == 16);
+    static const char* const kTemples[4] = { "Woodfall", "Snowhead", "Great Bay", "Stone Tower" };
+    static const char* const kKinds[4] = { "Boss Key", "Small Key", "Map", "Compass" };
+    for (int line = 0; line < 4; line++) {
+        for (int col = 0; col < 4; col++) {
+            char want[64];
+            snprintf(want, sizeof(want), "%s %s", kTemples[col], kKinds[line]); // the tooltip's full name
+            CIV_ASSERT(strcmp(g[line * 4 + col].name, want) == 0);
+        }
+    }
+    static const bool kBossKey[4] = { true, false, false, true };
+    static const bool kMap[4] = { true, false, false, true };
+    static const bool kCompass[4] = { false, true, false, true };
+    for (int col = 0; col < 4; col++) {
+        CIV_ASSERT(g[col].have == kBossKey[col]);
+        CIV_ASSERT(g[8 + col].have == kMap[col] && g[12 + col].have == kCompass[col]);
+        // MM_gItemIcons swaps the map and compass textures; GetIconTexturePath cancels it.
+        CIV_ASSERT(strstr(g[8 + col].iconKey, "gQuestIconDungeonMapTex") != NULL);
+        CIV_ASSERT(strstr(g[12 + col].iconKey, "gQuestIconCompassTex") != NULL);
+    }
+    // Small keys in a randomizer file: found against the temple's keys, lit while one is held.
+    static const int kFound[4] = { 1, 3, 0, 2 };
+    static const int kKeyMax[4] = { 1, 3, 1, 4 };
+    static const bool kHeld[4] = { false, true, false, true };
+    for (int col = 0; col < 4; col++) {
+        const ComboItemRow& k = g[4 + col];
+        printf("[TEST] combo-item-view: MM rando %s %d/%d have=%d\n", k.name, k.count, k.max, (int)k.have);
+        CIV_ASSERT(k.count == kFound[col] && k.max == kKeyMax[col] && k.have == kHeld[col]);
+    }
+
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Heart Pieces", &row));
+    CIV_ASSERT(strcmp(row.group, "Quest") == 0 && row.have && row.count == 3 && row.max == 4);
+
+    // Every gate off: no gated group, however much of it the save holds.
+    for (const char* gated : { "Boss Souls", "Enemy Souls", "Owl Statues", "Time", "Misc" }) {
+        CIV_ASSERT(CivMMGroup(gated).empty());
+    }
+
+    // ---- B. the Clock Town fairy lights from its week-event bit alone ----------
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0u) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Clock Town Stray Fairy", &row) && !row.have);
+
+    // ---- C. every gate on ------------------------------------------------------
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0x1Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    const std::vector<uint8_t> authoredGated(buf);
+    printf("[TEST] combo-item-view: MM rows with every gate on=%d (want 107)\n", Combo_ItemCount((uint8_t)GAME_MM));
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 84 + 5 + 1 + 10 + 6 + 1);
+    CIV_ASSERT(CivMMRowsContiguous());
+    // The gated groups follow the always-on rows, in MM's order.
+    {
+        static const char* const kOrder[] = { "Boss Souls", "Enemy Souls", "Owl Statues", "Time", "Misc" };
+        static const int kRows[] = { 5, 1, 10, 6, 1 };
+        int at = 84;
+        for (int gi = 0; gi < 5; gi++) {
+            for (int j = 0; j < kRows[gi]; j++, at++) {
+                CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_MM, at, &row) && strcmp(row.group, kOrder[gi]) == 0);
+            }
+        }
+    }
+    g = CivMMGroup("Boss Souls");
+    CIV_ASSERT(g.size() == 5);
+    static const char* const kSouls[5] = { "Soul of Odolwa", "Soul of Goht", "Soul of Gyorg", "Soul of Twinmold",
+                                           "Soul of Majora" };
+    static const bool kSoulHeld[5] = { true, false, true, false, false };
+    for (int i = 0; i < 5; i++) {
+        CIV_ASSERT(strcmp(g[i].name, kSouls[i]) == 0 && g[i].have == kSoulHeld[i]);
+    }
+    CIV_ASSERT(strstr(g[4].iconKey, "gDungeonMapSkullTex") != NULL);
+
+    g = CivMMGroup("Enemy Souls");
+    CIV_ASSERT(g.size() == 1);
+    printf("[TEST] combo-item-view: MM %s %d/%d\n", g[0].name, g[0].count, g[0].max);
+    // RI_SOUL_ENEMY_WOLFOS through the macro counts; the named WOLFOS flag (set by no item) does not.
+    CIV_ASSERT(g[0].have && g[0].count == 1 && g[0].max == 47);
+
+    g = CivMMGroup("Owl Statues");
+    CIV_ASSERT(g.size() == 10);
+    static const char* const kOwls[10] = { "Clock Town Owl Statue",       "Milk Road Owl Statue",
+                                           "Southern Swamp Owl Statue",   "Woodfall Owl Statue",
+                                           "Mountain Village Owl Statue", "Snowhead Owl Statue",
+                                           "Great Bay Coast Owl Statue",  "Zora Cape Owl Statue",
+                                           "Ikana Canyon Owl Statue",     "Stone Tower Owl Statue" };
+    for (int i = 0; i < 10; i++) {
+        CIV_ASSERT(strcmp(g[i].name, kOwls[i]) == 0 && g[i].have == (i == 0 || i == 9));
+        CIV_ASSERT(strstr(g[i].iconKey, "gWorldMapOwlFaceTex") != NULL && g[i].iconAspect > 1.0f);
+    }
+
+    g = CivMMGroup("Time");
+    CIV_ASSERT(g.size() == 6);
+    static const char* const kHalves[6] = { "Time (Day 1)",   "Time (Night 1)", "Time (Day 2)",
+                                            "Time (Night 2)", "Time (Day 3)",   "Time (Night 3)" };
+    for (int i = 0; i < 6; i++) {
+        CIV_ASSERT(strcmp(g[i].name, kHalves[i]) == 0 && g[i].have == (i == 0 || i == 3));
+    }
+    CIV_ASSERT(strcmp(g[0].iconKey, g[1].iconKey) != 0); // the sun and the moon
+
+    g = CivMMGroup("Misc");
+    CIV_ASSERT(g.size() == 1 && strcmp(g[0].name, "Ability to Swim") == 0 && g[0].have);
+
+    // ---- D. Triforce Hunt hides Majora's soul ------------------------------------
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0x21u) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 84 + 4);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Soul of Twinmold", &row));
+    CIV_ASSERT(!CivFindRow((uint8_t)GAME_MM, "Soul of Majora", &row));
+    CIV_ASSERT(CivMMRowsContiguous());
+
+    // ---- E. one gate at a time: exactly its group --------------------------------
+    {
+        static const char* const kGroup[5] = { "Boss Souls", "Enemy Souls", "Owl Statues", "Time", "Misc" };
+        static const int kRows[5] = { 5, 1, 10, 6, 1 };
+        for (int bit = 0; bit < 5; bit++) {
+            CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 1u << bit) == 1);
+            Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+            CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 84 + kRows[bit]);
+            for (int other = 0; other < 5; other++) {
+                CIV_ASSERT(CivMMGroup(kGroup[other]).size() == (size_t)(other == bit ? kRows[bit] : 0));
+            }
+        }
+    }
+
+    // ---- F. a vanilla file: the vanilla ceilings and held keys, no gated group ----
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 0, 0x5Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    CIV_ASSERT(Combo_ItemCount((uint8_t)GAME_MM) == 84);
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Swamp Gold Skulltula Token", &row));
+    CIV_ASSERT(row.count == 12 && row.max == 30); // SPIDER_HOUSE_TOKENS_REQUIRED
+    CIV_ASSERT(CivFindRow((uint8_t)GAME_MM, "Stone Tower Stray Fairy", &row));
+    CIV_ASSERT(row.count == 15 && row.max == 15); // STRAY_FAIRY_SCATTERED_TOTAL
+    g = CivMMGroup("Dungeon");
+    CIV_ASSERT(g.size() == 16);
+    static const int kHeldCount[4] = { 0, 1, 0, 2 }; // -1 (never entered) reads 0
+    for (int col = 0; col < 4; col++) {
+        const ComboItemRow& k = g[4 + col];
+        printf("[TEST] combo-item-view: MM vanilla %s %d/%d have=%d\n", k.name, k.count, k.max, (int)k.have);
+        CIV_ASSERT(k.count == kHeldCount[col] && k.max == kKeyMax[col] && k.have == (kHeldCount[col] > 0));
+    }
+    for (const char* gated : { "Boss Souls", "Enemy Souls", "Owl Statues", "Time", "Misc" }) {
+        CIV_ASSERT(CivMMGroup(gated).empty());
+    }
+
+    // Read-only: the last world read is still the bytes authored.
+    const std::vector<uint8_t> authoredVanilla(buf);
+    const uint8_t* resident = (const uint8_t*)Context_GetMMSaveContext();
+    CIV_ASSERT(resident != NULL && memcmp(resident, authoredVanilla.data(), authoredVanilla.size()) == 0);
+    Context_UpdateShadowCopy(GAME_MM, authoredGated.data(), authoredGated.size());
+    CIV_ASSERT(CivMMRowsContiguous());
+    resident = (const uint8_t*)Context_GetMMSaveContext();
+    CIV_ASSERT(resident != NULL && memcmp(resident, authoredGated.data(), authoredGated.size()) == 0);
+    Context_UpdateShadowCopy(GAME_MM, authored.data(), authored.size());
+    CIV_ASSERT(CivMMRowsContiguous());
+    resident = (const uint8_t*)Context_GetMMSaveContext();
+    CIV_ASSERT(resident != NULL && memcmp(resident, authored.data(), authored.size()) == 0);
     return TEST_PASS;
 }
 
@@ -1129,8 +1384,11 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             result = TEST_FAIL;
             break;
         }
-        if (mmOps->count() < 35 || mmOps->count() > 65) {
-            printf("[TEST] FAIL: MM item adapter row count %d is not the curated set\n", mmOps->count());
+        // The 60 curated rows, MM's always-on Tokens, Stray Fairies and Dungeon (83 with them, #1140) and the
+        // heart pieces.
+        if (mmOps->count() < 75 || mmOps->count() > 95) {
+            printf("[TEST] FAIL: MM item adapter row count %d is not the curated 83 plus the heart pieces\n",
+                   mmOps->count());
             result = TEST_FAIL;
             break;
         }
@@ -1142,6 +1400,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
         // ---- 2 for MM's ocarina buttons (#1072) --------------------------------
         if (CivMMOcarinaButtonLegs(mmOps) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 2 for MM's tokens, fairies, dungeon items and gated groups (#1140) --
+        if (CivMMTrackerRowLegs(mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }
