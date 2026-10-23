@@ -1742,12 +1742,6 @@ constexpr int kSnapshotOoTSkipButtons = 3;
 constexpr const char* kSnapshotSavedHideKey = "gTrackers.CheckTracker.Saved.Hide";
 constexpr const char* kSnapshotCollectedHideKey = "gTrackers.CheckTracker.Collected.Hide";
 
-/** The id of a game panel's "Checks" tree node, as ComboTrackerWindow.cpp forms it
- *  inside the pane's Begin: PushID((int)game), then TreeNode("Checks"). */
-ImGuiID TrackerChecksId(ImGuiWindow* w, int game) {
-    return ImHashStr("Checks", 0, ImHashData(&game, sizeof(game), w->ID));
-}
-
 /**
  * The first trick row Randomizer > MM Tricks draws (DrawMmTrickList,
  * SohMenuComboMmRandomizer.cpp): the lowest area id that has a row (it walks
@@ -4205,17 +4199,11 @@ void Session::CaptureWindowPage(const PageSpec& p) {
             c.state = state;
             c.scrollIndex = scrollIndex;
             c.variant = VariantName(state, "scroll" + std::to_string(scrollIndex));
+            // Both games' Checks lists draw open (#1128 dropped the
+            // default-closed "Checks" node): OoT's synthetic world and MM's
+            // authored save, whose collected crossing host names the crossed OoT
+            // item (#458 U4).
             auto before = [&]() {
-                if (checksOpen) {
-                    ImGuiWindow* tw = ImGui::FindWindowByName(p.window.c_str());
-                    if (tw != nullptr) {
-                        // Both games' Checks lists: OoT's synthetic world and
-                        // MM's authored save, whose collected crossing host names
-                        // the crossed OoT item (#458 U4).
-                        tw->StateStorage.SetInt(TrackerChecksId(tw, (int)GAME_OOT), 1);
-                        tw->StateStorage.SetInt(TrackerChecksId(tw, (int)GAME_MM), 1);
-                    }
-                }
                 if (scrollIndex == 0) {
                     ImGuiWindow* w = ImGui::FindWindowByName(p.window.c_str());
                     if (w != nullptr) {

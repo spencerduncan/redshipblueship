@@ -30,7 +30,9 @@
  *    alone proves nothing about the four world states it sets up. So each
  *    iteration additionally drives the exact model reads DrawElement performs
  *    (TrackerDriveModelReads below) — identity, both panels' summary and check
- *    walk, both directions' crossings — across paired/unpaired x adapters
+ *    walk, and both directions' crossings, which DrawCrossingList in the same
+ *    file reads for the Cross-Game Spoiler since ruling D10 cut the Crossings
+ *    section from this window (#1128) — across paired/unpaired x adapters
  *    present/absent. The paired-with-absent-adapters corner is the one no
  *    other lock reaches: a crossing row must still resolve, with a NULL host
  *    check name and a non-NULL item name, when the host game's adapter is not
@@ -46,7 +48,10 @@
  *    a fake font that wraps the way ImGui does, which reproduces #815's
  *    "Progressiv" / "e Slingshot"); a paired file's panels print no seed of
  *    their own; the Checks list groups by area in key order with SoH's area
- *    totals, and its search matches check, area and revealed item names.
+ *    totals, and its search matches check, area and revealed item names;
+ *    and (#1128) the rows and areas SoH's hide keys leave out under each pane's
+ *    own Show Hidden Items, the keys' SoH defaults, and the totals line counting
+ *    skipped checks as checked.
  *
  * Appearance itself is judged from the UiSnapshot row's captures (Combo
  * Tracker @paired, @unpaired and @progress), not here.

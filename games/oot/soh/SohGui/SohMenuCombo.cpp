@@ -939,12 +939,13 @@ void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
     // Combo tracker (#458) - both games' progress at once, the inactive game's
-    // included (from its snapshot). Race-disabled like the spoiler: its
-    // cross-game section names items sitting on uncollected checks.
+    // included (from its snapshot). Not race-disabled, as SoH's own Toggle
+    // Check Tracker row is not: ruling D10 (#1128) cut its Crossings section,
+    // the only part that named items on uncollected checks.
     menu.AddWidget(path, "Combo Tracker", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)
         .CVar(ComboGui::kComboTrackerVisibilityCVar)
-        .RaceDisable(true)
+        .RaceDisable(false)
         .WindowName(ComboGui::kComboTrackerWindowName)
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Toggles the Combo Tracker.").EmbedWindow(false));

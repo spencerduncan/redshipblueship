@@ -3,10 +3,11 @@
  * @brief The combo tracker window: both games' progress in one panel (#458;
  *        ADR 0008).
  *
- * Renders src/common/combo_tracker_view.h's model: the combo identity header,
- * one panel per game fed ONLY by that game's registered adapter, and the
- * cross-game crossings in both directions (the crossing store, plus the legacy
- * pinned tables; combo_tracker_view.h "Cross-game crossings"). Every panel is labelled by its
+ * Renders src/common/combo_tracker_view.h's model: the combo identity header
+ * and one panel per game fed ONLY by that game's registered adapter, each
+ * drawn as SoH's Check Tracker is and governed by SoH's Check Tracker Settings
+ * keys (#1128). The cross-game crossings are not drawn here (ruling D10): the
+ * Cross-Game Spoiler draws them, through DrawCrossingList below. Every panel is labelled by its
  * game's header alone (#927): the inactive game's data is its snapshot (MM's
  * shadow, written at freeze/save; OoT's heap, stopped at suspend), and the
  * panel takes no live write from it (skips are written only while LIVE).
@@ -110,8 +111,8 @@ void RegisterComboTrackerWindow(std::shared_ptr<Ship::Gui> gui);
  * columns: the host check's name, led by the same status glyph the per-game
  * Checks lists use (collected, open, or a question mark when the host game has
  * nothing to read), and the item's name. The
- * Combo Tracker and the Cross-Game Spoiler both call this, so the two panes
- * cannot list a world's crossings differently. Must be called inside an ImGui
+ * Cross-Game Spoiler calls this (the Combo Tracker did until ruling D10 cut its
+ * Crossings section, #1128). Must be called inside an ImGui
  * window, between the seam's PushTheme/PopTheme or not.
  */
 void DrawCrossingList(uint8_t hostGame);
