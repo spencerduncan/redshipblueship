@@ -4,10 +4,12 @@
  *
  * See ComboTrackerWindow.h for the contract. Every value drawn here comes
  * from combo_tracker_view.h and is read again every frame, so progress made
- * mid-session updates on the next frame. The file's only state is the Checks
- * lists' search text (DrawCheckList's per-game buffers), which persists across
- * frames, a closed and reopened pane and file loads within one process, as
- * SoH's checkSearch does.
+ * mid-session updates on the next frame. The file's only state is each game
+ * pane's own (PaneState): its search text, which persists across frames, a
+ * closed and reopened pane and file loads within one process, as SoH's
+ * checkSearch does, and its Show Hidden Items toggle (#1128, ruling D12: per
+ * pane), seeded from SoH's gTrackers.CheckTracker.ShowHidden and never written
+ * back, so the two panes toggle apart and no key is stored.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
  * (docs/ui-style-guide.md section 10): the title bar's close button, themed
@@ -19,8 +21,9 @@
  * HeaderActive colours reach a table's header row only while it is hovered or
  * clicked. A check's status is a FontAwesome glyph, a
  * project convention (SoH's check tracker marks status by row colour instead),
- * and it is the ONE notation for it: the crossing tables lead each host check's
- * name with the same glyph the Checks lists use.
+ * and it is the ONE notation for it: the crossing tables (DrawCrossingList,
+ * drawn by the Cross-Game Spoiler since ruling D10 cut them from this window)
+ * lead each host check's name with the same glyph the Checks lists use.
  * src/common cannot include UIWidgets, so every styled element goes through the
  * combo_ui seam.
  */
@@ -110,23 +113,51 @@ void TextBalanced(const char* text) {
 // (CVAR_TRACKER_CHECK("<State>.MainColor" / ".ExtraColor"), which expands to the
 // "gTrackers.CheckTracker." keys below; src/common has no cvar_prefixes.h) with
 // SoH's defaults. Both games' lists use them: one window, one colour scheme.
+// Each state's "<State>.Hide" key, SoH's Check Tracker Settings > Hide, is
+// spelled out whole (#1128), so a search for the key finds its reader.
 
 constexpr Color_RGBA8 kSohMainDefault = { 255, 255, 255, 255 }; // Color_Main_Default
 
 struct SohStatusColourKey {
     const char* state;        // the CVar's state segment
     Color_RGBA8 extraDefault; // SoH's Color_<State>_Extra_Default
+    const char* hideKey;      // SoH's "<State>.Hide" (default 0: shown)
 };
 
 // Indexed by ComboTrackerCheckStatus.
 const SohStatusColourKey kSohStatusColours[COMBO_TRACKER_CHECK_STATUS_COUNT] = {
-    { "Unchecked", { 255, 255, 255, 255 } }, // COMBO_TRACKER_CHECK_UNCHECKED
-    { "Seen", { 255, 255, 255, 255 } },      // COMBO_TRACKER_CHECK_SEEN
-    { "Scummed", { 0, 174, 239, 255 } },     // COMBO_TRACKER_CHECK_SCUMMED
-    { "Skipped", { 160, 160, 160, 255 } },   // COMBO_TRACKER_CHECK_SKIPPED
-    { "Collected", { 242, 101, 34, 255 } },  // COMBO_TRACKER_CHECK_COLLECTED
-    { "Saved", { 0, 185, 0, 255 } },         // COMBO_TRACKER_CHECK_SAVED
+    { "Unchecked", { 255, 255, 255, 255 }, "gTrackers.CheckTracker.Unchecked.Hide" }, // COMBO_TRACKER_CHECK_UNCHECKED
+    { "Seen", { 255, 255, 255, 255 }, "gTrackers.CheckTracker.Seen.Hide" },           // COMBO_TRACKER_CHECK_SEEN
+    { "Scummed", { 0, 174, 239, 255 }, "gTrackers.CheckTracker.Scummed.Hide" },       // COMBO_TRACKER_CHECK_SCUMMED
+    { "Skipped", { 160, 160, 160, 255 }, "gTrackers.CheckTracker.Skipped.Hide" },     // COMBO_TRACKER_CHECK_SKIPPED
+    { "Collected", { 242, 101, 34, 255 }, "gTrackers.CheckTracker.Collected.Hide" },  // COMBO_TRACKER_CHECK_COLLECTED
+    { "Saved", { 0, 185, 0, 255 }, "gTrackers.CheckTracker.Saved.Hide" },             // COMBO_TRACKER_CHECK_SAVED
 };
+
+/**
+ * One game pane's own state (#1128): its search text, kept across frames like
+ * SoH's checkSearch, and its Show Hidden Items toggle (ruling D12: per pane).
+ * The toggle is window state, not a key: seeded once from SoH's own
+ * gTrackers.CheckTracker.ShowHidden, so a player who left SoH's toggle on finds
+ * both panes showing hidden checks, and never written back, so the panes toggle
+ * apart, no new key needs classifying, and the pane stores nothing (a stored
+ * value would persist into every later run's config).
+ */
+struct PaneState {
+    char search[128] = "";
+    bool showHidden = false;
+    bool seeded = false;
+};
+
+PaneState& Pane(uint8_t game) {
+    static PaneState sPanes[3];
+    PaneState& pane = sPanes[game < 3 ? game : 0];
+    if (!pane.seeded) {
+        pane.showHidden = CVarGetInteger("gTrackers.CheckTracker.ShowHidden", 0) != 0;
+        pane.seeded = true;
+    }
+    return pane;
+}
 
 struct TextColours {
     ImVec4 main;
@@ -230,22 +261,27 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
 }
 
 /**
- * One game's Checks list (#458 U4), shaped like SoH's Check Tracker: its search
- * box, then the checks under their areas, each area a tree node in SoH's
- * complete or incomplete colour with its "(checked / total)" beside it, open
- * while it has checks left (SoH's own default), and a padded separator after an
- * open area.
+ * One game's Checks list (#458 U4), shaped like SoH's Check Tracker: the checks
+ * under their areas, each area a tree node in SoH's complete or incomplete
+ * colour with its "(checked / total)" beside it, open while it has checks left
+ * (SoH's own default) unless Expand All / Collapse All was pressed this frame
+ * (`expandAll` 1 / -1), and a padded separator after an open area. Which areas
+ * and rows it draws is ComboCollectVisibleCheckAreas' decision (#1128): SoH's
+ * hide keys, with the pane's own Show Hidden Items.
  */
-void DrawCheckList(uint8_t game) {
-    // One search per game panel, kept across frames like SoH's checkSearch.
-    static char sSearch[3][128];
-    char* search = sSearch[game < 3 ? game : 0];
-    Ui().SearchInput("##checkSearch", search, (int)sizeof(sSearch[0]));
-
+void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll) {
+    const char* search = pane.search;
+    const ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
     std::vector<ComboTrackerAreaRows> areas;
-    ComboCollectCheckAreas(game, search, areas);
+    ComboCollectVisibleCheckAreas(game, search, hide, areas);
     if (areas.empty()) {
-        Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
+        // The note is for a game (or a search) with no checks. When only the
+        // Hide options leave nothing, SoH draws an empty list, and so does this.
+        std::vector<ComboTrackerAreaRows> unhidden;
+        ComboCollectCheckAreas(game, search, unhidden);
+        if (unhidden.empty()) {
+            Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
+        }
         return;
     }
 
@@ -269,7 +305,11 @@ void DrawCheckList(uint8_t game) {
         const TextColours& c = complete ? colours.areaComplete : colours.areaIncomplete;
         ImGui::PushID((int)area.key);
         ImGui::PushStyleColor(ImGuiCol_Text, c.main);
-        ImGui::SetNextItemOpen(!complete, ImGuiCond_Once);
+        if (expandAll != 0) {
+            ImGui::SetNextItemOpen(expandAll > 0, ImGuiCond_Always);
+        } else {
+            ImGui::SetNextItemOpen(!complete, ImGuiCond_Once);
+        }
         const bool open =
             ImGui::TreeNodeEx(area.name != nullptr ? area.name : "Other Checks", ImGuiTreeNodeFlags_NoTreePushOnOpen);
         ImGui::PopStyleColor();
@@ -290,10 +330,13 @@ void DrawCheckList(uint8_t game) {
 }
 
 /**
- * One game's panel: summary lines and a default-closed
- * per-check list. Fed ONLY by that game's adapter through the view — the
- * game argument is the origin tag, and nothing here compares ids across
- * panels (ADR 0002).
+ * One game's panel: SoH's Check Tracker header (#1128) and its Checks list,
+ * always drawn as SoH's is. The header is SoH's, control for control, each
+ * behind its own SoH visibility key: the pane's Show Hidden Items checkbox, the
+ * Expand All / Collapse All buttons, the search box and the totals line, then a
+ * separator under whichever of them drew. Fed ONLY by that game's adapter
+ * through the view — the game argument is the origin tag, and nothing here
+ * compares ids across panels (ADR 0002).
  */
 void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& identity) {
     if (!ImGui::CollapsingHeader(title, ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -331,16 +374,39 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     if (ComboPanelShowsOwnSeed(identity, summary)) {
         ImGui::Text("Seed: %u", (unsigned)summary.seed);
     }
-    ImGui::Text("Checks: %d / %d", summary.obtained, summary.shuffled);
-    if (summary.skipped > 0) {
-        ImGui::Text("Skipped: %d", summary.skipped);
+
+    PaneState& pane = Pane(game);
+    const ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
+    if (header.hiddenItemsToggle) {
+        const ComboUiWidgetOpts tip = { "When active, this game's checks show even where your Check Tracker Settings "
+                                        "hide them.",
+                                        false, nullptr };
+        (void)Ui().Checkbox("Show Hidden Items", &pane.showHidden, &tip);
+    }
+    int expandAll = 0;
+    if (header.expandCollapseButtons) {
+        // SoH's two half-width buttons.
+        if (Ui().Button("Expand All", ImGui::GetContentRegionAvail().x / 2 - 6, nullptr)) {
+            expandAll = 1;
+        }
+        ImGui::SameLine();
+        if (Ui().Button("Collapse All", ImGui::GetContentRegionAvail().x - 6, nullptr)) {
+            expandAll = -1;
+        }
+    }
+    if (header.searchInput) {
+        // Hidden, the box keeps its text and the list its filter, as SoH's does.
+        Ui().SearchInput("##checkSearch", pane.search, (int)sizeof(pane.search));
+    }
+    if (header.checkTotals) {
+        ImGui::TextUnformatted(ComboCheckTotalsText(summary).c_str());
+        Ui().Tooltip("Checked / Total");
+    }
+    if (header.hiddenItemsToggle || header.expandCollapseButtons || header.searchInput || header.checkTotals) {
+        ImGui::Separator();
     }
 
-    // Default-closed so the (potentially long) walk only runs when asked for.
-    if (ImGui::TreeNode("Checks")) {
-        DrawCheckList(game);
-        ImGui::TreePop();
-    }
+    DrawCheckList(game, pane, expandAll);
 
     ImGui::PopID();
 }
@@ -434,7 +500,14 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
     return text;
 }
 
-void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out) {
+namespace {
+
+/**
+ * ComboCollectCheckAreas, keeping (with `keepFiltered`) each area the search
+ * empties, marked `filtered` and without rows, for ComboCheckAreaHidden to
+ * decide on.
+ */
+void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std::vector<ComboTrackerAreaRows>& out) {
     out.clear();
     const ImGuiTextFilter filter(search != nullptr ? search : "");
     std::map<uint16_t, ComboTrackerAreaRows> byKey; // ascending key: each game's own tracker order
@@ -480,8 +553,88 @@ void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboT
     for (auto& [key, area] : byKey) {
         if (!area.rows.empty()) {
             out.push_back(std::move(area));
+        } else if (keepFiltered) {
+            // Only the search empties an area: every shuffled row is kept otherwise.
+            area.filtered = true;
+            out.push_back(std::move(area));
         }
     }
+}
+
+} // namespace
+
+void ComboCollectCheckAreas(uint8_t game, const char* search, std::vector<ComboTrackerAreaRows>& out) {
+    CollectCheckAreas(game, search, false, out);
+}
+
+ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden) {
+    // SoH's keys and defaults (randomizer_check_tracker.cpp, DrawElement):
+    // every Hide off, Filter Empty Areas on.
+    ComboCheckHideOptions opts;
+    for (int i = 0; i < (int)COMBO_TRACKER_CHECK_STATUS_COUNT; i++) {
+        opts.hideStatus[i] = CVarGetInteger(kSohStatusColours[i].hideKey, 0) != 0;
+    }
+    opts.hideAreaComplete = CVarGetInteger("gTrackers.CheckTracker.AreaComplete.Hide", 0) != 0;
+    opts.hideAreaIncomplete = CVarGetInteger("gTrackers.CheckTracker.AreaIncomplete.Hide", 0) != 0;
+    opts.hideFilteredAreas = CVarGetInteger("gTrackers.CheckTracker.HideFilteredAreas", 1) != 0;
+    opts.showHidden = showHidden;
+    return opts;
+}
+
+bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts) {
+    // SoH's DrawLocation: the row's status (already SoH's precedence: collected,
+    // saved, skipped, seen, scummed, unchecked) picks the one Hide that applies.
+    return !opts.showHidden && row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT && opts.hideStatus[row.status];
+}
+
+bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHideOptions& opts) {
+    // SoH's area loop: a filtered area goes whatever Show Hidden Items says; the
+    // complete / incomplete hides yield to it.
+    if (opts.hideFilteredAreas && area.filtered) {
+        return true;
+    }
+    if (opts.showHidden) {
+        return false;
+    }
+    const bool complete = area.done == area.total;
+    return complete ? opts.hideAreaComplete : opts.hideAreaIncomplete;
+}
+
+void ComboCollectVisibleCheckAreas(uint8_t game, const char* search, const ComboCheckHideOptions& opts,
+                                   std::vector<ComboTrackerAreaRows>& out) {
+    std::vector<ComboTrackerAreaRows> all;
+    CollectCheckAreas(game, search, true, all);
+    out.clear();
+    for (ComboTrackerAreaRows& area : all) {
+        if (ComboCheckAreaHidden(area, opts)) {
+            continue;
+        }
+        std::vector<ComboTrackerCheckRow> shown;
+        for (const ComboTrackerCheckRow& row : area.rows) {
+            if (!ComboCheckRowHidden(row, opts)) {
+                shown.push_back(row);
+            }
+        }
+        area.rows = std::move(shown);
+        out.push_back(std::move(area));
+    }
+}
+
+ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
+    ComboCheckHeaderOptions header;
+    header.hiddenItemsToggle = CVarGetInteger("gTrackers.CheckTracker.HiddenItemsToggleVisible", 1) != 0;
+    header.expandCollapseButtons = CVarGetInteger("gTrackers.CheckTracker.ExpandCollapseButtonsVisible", 0) != 0;
+    header.searchInput = CVarGetInteger("gTrackers.CheckTracker.SearchInputVisible", 1) != 0;
+    header.checkTotals = CVarGetInteger("gTrackers.CheckTracker.CheckTotalsVisible", 1) != 0;
+    return header;
+}
+
+std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
+    // Checked is collected or skipped (the view counts them apart), as SoH's
+    // "Checked", MM's collected count and this pane's area headers count it.
+    char text[64];
+    snprintf(text, sizeof(text), "Checks: %d / %d", summary.obtained + summary.skipped, summary.shuffled);
+    return text;
 }
 
 /**
@@ -645,14 +798,8 @@ void ComboTrackerWindow::DrawElement() {
     Ui().PushTheme();
     DrawGamePanel((uint8_t)GAME_OOT, "Ocarina of Time", identity);
     DrawGamePanel((uint8_t)GAME_MM, "Majora's Mask", identity);
-
-    // "Crossings": the word the notes, the spoiler JSON (combo.crossingStore) and
-    // the docs use for these rows.
-    if (identity.paired && ImGui::CollapsingHeader("Crossings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        DrawCrossingList((uint8_t)GAME_MM);
-        Ui().Spacer(0.0f);
-        DrawCrossingList((uint8_t)GAME_OOT);
-    }
+    // No crossing tables (ruling D10, #1128): they were a debug view, and they
+    // named items on checks not yet collected. The Cross-Game Spoiler draws them.
     Ui().PopTheme();
 }
 
