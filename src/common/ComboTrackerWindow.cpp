@@ -235,7 +235,9 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
     const TextColours& c = colours.status[row.status < (uint8_t)COMBO_TRACKER_CHECK_STATUS_COUNT ? row.status : 0];
     if (availableChecks) {
         if (const char* lockGlyph = ComboAvailabilityGlyph(row)) {
-            ImGui::PushStyleColor(ImGuiCol_Text, row.obtained ? ImVec4(0.0f, 0.0f, 0.0f, 0.0f) : c.main);
+            ImVec4 clear = c.main; // SoH clears the glyph on a found check: the status colour at zero alpha
+            clear.w = 0.0f;
+            ImGui::PushStyleColor(ImGuiCol_Text, row.obtained ? clear : c.main);
             ImGui::TextUnformatted(lockGlyph);
             ImGui::PopStyleColor();
             ImGui::SameLine();
