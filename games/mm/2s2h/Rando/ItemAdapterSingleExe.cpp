@@ -25,22 +25,30 @@
  * WHICH ROWS. MM's native Item Tracker default preset (ItemTrackerSettings.cpp,
  * LoadAvailableWindows + ApplyDefaultItemPreset) expands to 83 rows: Inventory
  * 24 slots, Masks 24, Songs 10, Quest 10, Tokens 2, Stray Fairies 5, Dungeon 8.
- * The curated v1 list here is 60 rows, in the native order: the 15 item slots
- * of Inventory (the three trade slots and the six bottle slots are left out;
- * one Bottles row counts the bottles held instead), all 24 Masks, the 10 Songs
- * and the 10 Quest rows. Left out: the trade items (transient quest objects),
- * the per-bottle contents (consumables), the Skulltula tokens and stray fairies
- * (count goals whose ceilings are seed options), and the Dungeon keys
- * (setting-dependent, as OoT's adapter leaves out its dungeon items).
+ * The list here is 84 rows, in the native order: the 15 item slots of
+ * Inventory (the three trade slots and the six bottle slots are left out; one
+ * Bottles row counts the bottles held instead), all 24 Masks, the 10 Songs, the
+ * 10 Quest rows plus a heart-piece count (n/4), and (#1140) MM's Tokens (Swamp,
+ * Ocean, against the file's frozen minimum or the Spider House's 30), Stray
+ * Fairies (Clock Town as an item, four temple counts against the frozen
+ * minimum or 15) and Dungeon, 4 wide with one column per temple: boss keys,
+ * small keys (found in a randomizer file, else held, against 1/3/1/4; lit while
+ * one is held), maps, compasses. Left out: the trade items (transient quest
+ * objects) and the per-bottle contents (consumables).
  *
- * ONE MORE GROUP, BY THE FILE (#1072). The five ocarina buttons ("Ocarina
- * Buttons", MM's native group of that name) follow the 60 rows, shown only when
- * the buffer's own frozen RO_SHUFFLE_OCARINA_BUTTONS is on in a randomizer file
- * (MMItemButtonRowsShown: the same IS_RANDO + option test the note gate in
- * ActorBehavior/Player.cpp applies, read from the buffer, never the live CVar)
- * and held from the buffer's button bits (RANDO_INF_OBTAINED_OCARINA_BUTTON_*,
- * the bits that gate reads). The adapter's `countFor` reports them, so a file
- * without the shuffle shows 60 rows exactly as before.
+ * MORE GROUPS, BY THE FILE (#1072, #1140). After those rows come MM's
+ * shuffle-gated groups in MM's order, each shown only when the buffer's own
+ * FROZEN option is on in a randomizer file (IS_RANDO + the option byte, read
+ * from the buffer, never the live CVar): the five ocarina buttons ("Ocarina
+ * Buttons", RO_SHUFFLE_OCARINA_BUTTONS, the test the note gate in
+ * ActorBehavior/Player.cpp applies), "Boss Souls" (RO_SHUFFLE_BOSS_SOULS;
+ * Majora's hidden under RO_SHUFFLE_TRIFORCE_PIECES, as GeneratePools leaves it
+ * out), one "Enemy Souls" count n/47 (RO_SHUFFLE_ENEMY_SOULS), "Owl Statues"
+ * (RO_SHUFFLE_OWL_STATUES), "Time" (RO_CLOCK_SHUFFLE) and "Misc", the ability
+ * to swim (RO_SHUFFLE_SWIM). The adapter's `countFor` reports them and its
+ * gated indices are contiguous (kMMItemGatedGroups). The group strings are
+ * MM's own names and the contract with the overlay's per-group visibility
+ * keys: spell them exactly.
  *
  * Names are MM's own (Rando::StaticData::Items, the table MM's tracker tooltips
  * read). Icon keys are resource paths (MM_gItemIcons, GetIconTexturePath), the
@@ -65,7 +73,8 @@
 #include "Rando/ActorBehavior/Souls.h" // SOUL_RI_TO_RANDO_INF
 
 extern "C" {
-#include <macros.h> // CUR_CAPACITY
+#include <macros.h>                            // CUR_CAPACITY
+#include "overlays/actors/ovl_En_Si/z_en_si.h" // SPIDER_HOUSE_TOKENS_REQUIRED
 }
 #include "assets/interface/parameter_static/parameter_static.h" // dgRupeeCounterIconTex
 
@@ -201,7 +210,26 @@ enum MMItemRowKind : uint8_t {
     MMRK_MAGIC,        // isMagicAcquired / isDoubleMagicAcquired
     MMRK_DOUBLE_DEFENSE,
     MMRK_WALLET, // UPG_WALLET tier, rupees
+    // #1140
+    MMRK_HEART_PIECES,     // questItems' top nibble, against 4
+    MMRK_TOKENS,           // skullTokenCount >> `data` (16 Swamp, 0 Ocean), against the frozen minimum
+    MMRK_FAIRY_CLOCK_TOWN, // WEEKEVENTREG_08_80
+    MMRK_FAIRY,            // strayFairies[`data`], against the frozen minimum
+    MMRK_DUNGEON_ITEM,     // dungeon item `item` (DUNGEON_BOSS_KEY, _MAP, _COMPASS) of temple `data`
+    MMRK_SMALL_KEY,        // small keys of temple `data`, against `item`
 };
+
+// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
+// MM_ReadHealthQuarters in GameExports_SingleExe.cpp).
+constexpr uint32_t kMMHeartPieceShift = 28u;
+constexpr uint32_t kMMHeartPieceMask = 0xF0000000u;
+
+// MM's tracker tints these icons (ShipUtils.cpp randoItemColorMap; the alpha is the
+// held/faded rule's, so 0xFF here): the Clock Town fairy, each temple's keys, the half-days.
+constexpr uint32_t kMMTintClockTownFairy = 0xFFE680FFu;
+constexpr uint32_t kMMTintTemple[4] = { 0xE6548FFFu, 0x1A8A29FFu, 0x9C0ADBFFu, 0x94A626FFu };
+constexpr uint32_t kMMTintDay = 0xFFE64DFFu;
+constexpr uint32_t kMMTintNight = 0x80B3FFFFu;
 
 struct MMItemRowDef {
     const char* group;
@@ -221,6 +249,12 @@ struct MMItemRowDef {
     { group, MMRK_QUEST, 0, (uint32_t)(bit), rando }
 #define MMI_KIND(group, kind, rando) \
     { group, kind, 0, 0, rando }
+#define MMI_FAIRY(temple) \
+    { "Stray Fairies", MMRK_FAIRY, 0, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_STRAY_FAIRY }
+#define MMI_DUNGEON(temple, kind) \
+    { "Dungeon", MMRK_DUNGEON_ITEM, DUNGEON_##kind, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_##kind }
+#define MMI_KEYS(temple, keys) \
+    { "Dungeon", MMRK_SMALL_KEY, keys, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_SMALL_KEY }
 
 const MMItemRowDef kMMItemRows[] = {
     // Inventory: the item slots of the native "Inventory" group, in slot order
@@ -287,6 +321,33 @@ const MMItemRowDef kMMItemRows[] = {
     MMI_KIND("Quest", MMRK_MAGIC, RI_SINGLE_MAGIC),
     MMI_KIND("Quest", MMRK_DOUBLE_DEFENSE, RI_DOUBLE_DEFENSE),
     MMI_KIND("Quest", MMRK_WALLET, RI_WALLET_ADULT),
+    MMI_KIND("Quest", MMRK_HEART_PIECES, RI_HEART_PIECE),
+    // Tokens, Stray Fairies and Dungeon (#1140): the rest of MM's default preset
+    // (ItemTrackerSettings.cpp ApplyDefaultItemPreset), in its order.
+    { "Tokens", MMRK_TOKENS, 0, 16, RI_GS_TOKEN_SWAMP },
+    { "Tokens", MMRK_TOKENS, 0, 0, RI_GS_TOKEN_OCEAN },
+    MMI_KIND("Stray Fairies", MMRK_FAIRY_CLOCK_TOWN, RI_CLOCK_TOWN_STRAY_FAIRY),
+    MMI_FAIRY(WOODFALL),
+    MMI_FAIRY(SNOWHEAD),
+    MMI_FAIRY(GREAT_BAY),
+    MMI_FAIRY(STONE_TOWER),
+    // Dungeon, 4 wide: one column per temple, one line per item kind.
+    MMI_DUNGEON(WOODFALL, BOSS_KEY),
+    MMI_DUNGEON(SNOWHEAD, BOSS_KEY),
+    MMI_DUNGEON(GREAT_BAY, BOSS_KEY),
+    MMI_DUNGEON(STONE_TOWER, BOSS_KEY),
+    MMI_KEYS(WOODFALL, 1),
+    MMI_KEYS(SNOWHEAD, 3),
+    MMI_KEYS(GREAT_BAY, 1),
+    MMI_KEYS(STONE_TOWER, 4),
+    MMI_DUNGEON(WOODFALL, MAP),
+    MMI_DUNGEON(SNOWHEAD, MAP),
+    MMI_DUNGEON(GREAT_BAY, MAP),
+    MMI_DUNGEON(STONE_TOWER, MAP),
+    MMI_DUNGEON(WOODFALL, COMPASS),
+    MMI_DUNGEON(SNOWHEAD, COMPASS),
+    MMI_DUNGEON(GREAT_BAY, COMPASS),
+    MMI_DUNGEON(STONE_TOWER, COMPASS),
 };
 
 #undef MMI_SLOT
@@ -294,6 +355,9 @@ const MMItemRowDef kMMItemRows[] = {
 #undef MMI_FIXED
 #undef MMI_QUEST
 #undef MMI_KIND
+#undef MMI_FAIRY
+#undef MMI_DUNGEON
+#undef MMI_KEYS
 
 constexpr int kMMItemRowCount = (int)(sizeof(kMMItemRows) / sizeof(kMMItemRows[0]));
 
@@ -456,6 +520,205 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             out->max = (int)CUR_CAPACITY(UPG_WALLET);
             return true;
         }
+        case MMRK_HEART_PIECES: {
+            MMItemFillRando(out, def.rando);
+            out->name = "Heart Pieces";
+            out->count =
+                (int)((gSaveContext.save.saveInfo.inventory.questItems & kMMHeartPieceMask) >> kMMHeartPieceShift);
+            out->max = 4;
+            out->have = out->count > 0;
+            return true;
+        }
+        case MMRK_TOKENS:
+            // Inventory_GetSkullTokenCount: Swamp in the high half, Ocean in the low. The ceiling is
+            // MM's tracker's (ItemTracker.cpp GetItemCounts); MM's glow backdrop has no row field.
+            MMItemFillRando(out, def.rando);
+            out->count = (int)((gSaveContext.save.saveInfo.skullTokenCount >> def.data) & 0xFFFFu);
+            out->max = IS_RANDO ? (int)RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] : SPIDER_HOUSE_TOKENS_REQUIRED;
+            out->have = out->count > 0;
+            return true;
+        case MMRK_FAIRY_CLOCK_TOWN:
+            // GiveItem.cpp: the Clock Town fairy is a week-event bit; its icon is the Stone Tower one.
+            MMItemFillRando(out, def.rando);
+            out->iconTint = kMMTintClockTownFairy;
+            out->have = CHECK_WEEKEVENTREG(WEEKEVENTREG_08_80) != 0;
+            return true;
+        case MMRK_FAIRY: {
+            MMItemFillRando(out, def.rando);
+            const s8 held = gSaveContext.save.saveInfo.inventory.strayFairies[def.data];
+            out->count = held < 0 ? 0 : (int)held;
+            out->max = IS_RANDO ? (int)RANDO_SAVE_OPTIONS[RO_MINIMUM_STRAY_FAIRIES] : STRAY_FAIRY_SCATTERED_TOTAL;
+            out->have = out->count > 0;
+            return true;
+        }
+        case MMRK_DUNGEON_ITEM:
+            // GetIconTexturePath, never MM_gItemIcons[ITEM_COMPASS]: that slot holds the map's
+            // texture and ITEM_DUNGEON_MAP's the compass's (z_inventory.c).
+            MMItemFillRando(out, def.rando);
+            if (def.item == (uint8_t)DUNGEON_BOSS_KEY) {
+                out->iconTint = kMMTintTemple[def.data];
+            }
+            out->have = CHECK_DUNGEON_ITEM(def.item, def.data) != 0;
+            return true;
+        case MMRK_SMALL_KEY: {
+            // Collected: the keys found in a randomizer file (foundDungeonKeys, written by
+            // Rando::GiveItem and never by vanilla play), otherwise the keys held; a temple never
+            // entered holds -1. Lit while a key is in hand (MM's tracker: DUNGEON_KEY_COUNT > 0).
+            MMItemFillRando(out, def.rando);
+            out->iconTint = kMMTintTemple[def.data];
+            const s8 heldRaw = DUNGEON_KEY_COUNT(def.data);
+            const int held = heldRaw < 0 ? 0 : (int)heldRaw;
+            const s8 foundRaw = gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[def.data];
+            out->count = IS_RANDO ? (foundRaw < 0 ? 0 : (int)foundRaw) : held;
+            out->max = (int)def.item;
+            out->have = held > 0;
+            return true;
+        }
+    }
+    return false;
+}
+
+// ---- the shuffle-gated groups (#1072, #1140) -----------------------------------
+
+/** Is the buffer's frozen option `option` on in a randomizer file? GeneratePools' test, over the buffer. */
+bool MMItemOptionOn(const SaveContext* src, RandoOptionId option) {
+    return IS_RANDO && RANDO_SAVE_OPTIONS[option] == RO_GENERIC_YES;
+}
+
+/** Flags_GetRandoInf's read, over the handed buffer. */
+bool MMItemRandoInf(const SaveContext* src, int flag) {
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+int MMItemButtonRows(const SaveContext* src) {
+    return MMItemButtonRowsShown(src) ? kMMButtonRowCount : 0;
+}
+
+// Boss Souls, in MM's order (ItemTrackerSettings.cpp); Majora last, so Triforce Hunt drops the tail.
+const RandoItemId kMMBossSouls[] = { RI_SOUL_BOSS_ODOLWA, RI_SOUL_BOSS_GOHT, RI_SOUL_BOSS_GYORG, RI_SOUL_BOSS_TWINMOLD,
+                                     RI_SOUL_BOSS_MAJORA };
+
+int MMItemBossSoulRows(const SaveContext* src) {
+    if (!MMItemOptionOn(src, RO_SHUFFLE_BOSS_SOULS)) {
+        return 0;
+    }
+    return MMItemOptionOn(src, RO_SHUFFLE_TRIFORCE_PIECES) ? 4 : 5; // GeneratePools: no Majora's soul then
+}
+
+bool MMItemDeriveBossSoul(const SaveContext* src, int i, ComboItemRow* out) {
+    MMItemFillRando(out, kMMBossSouls[i]);
+    out->have = MMItemRandoInf(src, SOUL_RI_TO_RANDO_INF(kMMBossSouls[i]));
+    return true;
+}
+
+// The 47 enemy-soul items. Counted through SOUL_RI_TO_RANDO_INF, the flag GiveItem sets: the 48
+// named RANDO_INF_OBTAINED_SOUL_OF_ENEMY_* flags sit one off from PEAHAT on, and the last is set
+// by nothing.
+constexpr int kMMEnemySoulCount = (int)RI_SOUL_ENEMY_WOLFOS - (int)RI_SOUL_ENEMY_ALIEN + 1;
+static_assert(kMMEnemySoulCount == 47, "MM's enemy-soul item range changed; the Enemy Souls ceiling follows it");
+
+int MMItemEnemySoulRows(const SaveContext* src) {
+    return MMItemOptionOn(src, RO_SHUFFLE_ENEMY_SOULS) ? 1 : 0;
+}
+
+bool MMItemDeriveEnemySouls(const SaveContext* src, int, ComboItemRow* out) {
+    MMItemFillRando(out, RI_SOUL_ENEMY_ALIEN); // every enemy soul shares the skull icon
+    out->name = "Enemy Souls";
+    int held = 0;
+    for (int ri = RI_SOUL_ENEMY_ALIEN; ri <= RI_SOUL_ENEMY_WOLFOS; ri++) {
+        held += MMItemRandoInf(src, SOUL_RI_TO_RANDO_INF(ri)) ? 1 : 0;
+    }
+    out->count = held;
+    out->max = kMMEnemySoulCount;
+    out->have = held > 0;
+    return true;
+}
+
+// Owl Statues, in MM's order, with the owl each activates (GiveItem.cpp Sram_ActivateOwl).
+struct MMItemOwl {
+    RandoItemId rando;
+    uint8_t warp;
+};
+const MMItemOwl kMMOwls[] = {
+    { RI_OWL_CLOCK_TOWN_SOUTH, OWL_WARP_CLOCK_TOWN },       { RI_OWL_MILK_ROAD, OWL_WARP_MILK_ROAD },
+    { RI_OWL_SOUTHERN_SWAMP, OWL_WARP_SOUTHERN_SWAMP },     { RI_OWL_WOODFALL, OWL_WARP_WOODFALL },
+    { RI_OWL_MOUNTAIN_VILLAGE, OWL_WARP_MOUNTAIN_VILLAGE }, { RI_OWL_SNOWHEAD, OWL_WARP_SNOWHEAD },
+    { RI_OWL_GREAT_BAY_COAST, OWL_WARP_GREAT_BAY_COAST },   { RI_OWL_ZORA_CAPE, OWL_WARP_ZORA_CAPE },
+    { RI_OWL_IKANA_CANYON, OWL_WARP_IKANA_CANYON },         { RI_OWL_STONE_TOWER, OWL_WARP_STONE_TOWER },
+};
+
+int MMItemOwlRows(const SaveContext* src) {
+    return MMItemOptionOn(src, RO_SHUFFLE_OWL_STATUES) ? (int)(sizeof(kMMOwls) / sizeof(kMMOwls[0])) : 0;
+}
+
+bool MMItemDeriveOwl(const SaveContext* src, int i, ComboItemRow* out) {
+    MMItemFillRando(out, kMMOwls[i].rando);
+    out->iconAspect = 46.0f / 24.0f; // MM's tracker: the owl face drawn 24 px tall in its 46 px cell
+    out->have = GET_OWL_STATUE_ACTIVATED(kMMOwls[i].warp) != 0;
+    return true;
+}
+
+// Time: the six half-days in the clock's order; half-day i is RANDO_INF_OBTAINED_CLOCK_DAY_1 + i
+// (GiveItem.cpp, ClockShuffle's half-day index).
+const RandoItemId kMMHalfDays[] = { RI_TIME_DAY_1,   RI_TIME_NIGHT_1, RI_TIME_DAY_2,
+                                    RI_TIME_NIGHT_2, RI_TIME_DAY_3,   RI_TIME_NIGHT_3 };
+
+int MMItemTimeRows(const SaveContext* src) {
+    return MMItemOptionOn(src, RO_CLOCK_SHUFFLE) ? (int)(sizeof(kMMHalfDays) / sizeof(kMMHalfDays[0])) : 0;
+}
+
+bool MMItemDeriveHalfDay(const SaveContext* src, int i, ComboItemRow* out) {
+    MMItemFillRando(out, kMMHalfDays[i]);
+    out->iconTint = (i % 2 == 0) ? kMMTintDay : kMMTintNight;
+    out->have = MMItemRandoInf(src, RANDO_INF_OBTAINED_CLOCK_DAY_1 + i);
+    return true;
+}
+
+int MMItemMiscRows(const SaveContext* src) {
+    return MMItemOptionOn(src, RO_SHUFFLE_SWIM) ? 1 : 0;
+}
+
+bool MMItemDeriveSwim(const SaveContext* src, int, ComboItemRow* out) {
+    MMItemFillRando(out, RI_ABILITY_SWIM); // the Zora Mask's icon, GetIconTexturePath's pick
+    out->have = MMItemRandoInf(src, RANDO_INF_OBTAINED_SWIM);
+    return true;
+}
+
+/** One gated group: its rows for a buffer (0 while its option is off) and row `i` of it. */
+struct MMItemGatedGroup {
+    const char* group;
+    int (*rows)(const SaveContext* src);
+    bool (*derive)(const SaveContext* src, int i, ComboItemRow* out);
+};
+
+// MM's order (ItemTrackerSettings.cpp LoadAvailableWindows). The strings are MM's group names.
+const MMItemGatedGroup kMMItemGatedGroups[] = {
+    { kMMButtonGroup, MMItemButtonRows, MMItemDeriveButton },
+    { "Boss Souls", MMItemBossSoulRows, MMItemDeriveBossSoul },
+    { "Enemy Souls", MMItemEnemySoulRows, MMItemDeriveEnemySouls },
+    { "Owl Statues", MMItemOwlRows, MMItemDeriveOwl },
+    { "Time", MMItemTimeRows, MMItemDeriveHalfDay },
+    { "Misc", MMItemMiscRows, MMItemDeriveSwim },
+};
+
+/** How many gated rows this buffer shows. */
+int MMItemGatedRowCount(const SaveContext* src) {
+    int rows = 0;
+    for (const MMItemGatedGroup& g : kMMItemGatedGroups) {
+        rows += g.rows(src);
+    }
+    return rows;
+}
+
+/** Gated row `index` (0-based over the groups shown), or false past the last. */
+bool MMItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
+    for (const MMItemGatedGroup& g : kMMItemGatedGroups) {
+        const int rows = g.rows(src);
+        if (index < rows) {
+            out->group = g.group;
+            return g.derive(src, index, out);
+        }
+        index -= rows;
     }
     return false;
 }
@@ -466,14 +729,14 @@ int MMItemCount(void) {
     return kMMItemRowCount;
 }
 
-/** The rows this buffer shows: the curated rows plus the ocarina buttons when
- *  its file shuffles them (#1072). */
+/** The rows this buffer shows: the fixed rows plus the gated groups its file's
+ *  frozen options switch on (#1072, #1140). */
 int MMItemCountFor(const void* buf) {
     if (!MMItemAligned(buf)) {
         return kMMItemRowCount;
     }
     const SaveContext* src = static_cast<const SaveContext*>(buf);
-    return kMMItemRowCount + (MMItemButtonRowsShown(src) ? kMMButtonRowCount : 0);
+    return kMMItemRowCount + MMItemGatedRowCount(src);
 }
 
 bool MMItemHasSave(const void* buf) {
@@ -530,7 +793,7 @@ uint32_t MMItemSharedFamily(const MMItemRowDef& def) {
 }
 
 bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
-    if (!MMItemAligned(buf) || out == nullptr || index < 0 || index >= kMMItemRowCount + kMMButtonRowCount) {
+    if (!MMItemAligned(buf) || out == nullptr || index < 0) {
         return false;
     }
     const SaveContext* src = static_cast<const SaveContext*>(buf);
@@ -538,7 +801,7 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
     if (index >= kMMItemRowCount) {
-        return MMItemDeriveButton(src, index - kMMItemRowCount, out);
+        return MMItemDeriveGated(src, index - kMMItemRowCount, out);
     }
     if (!MMItemDerive(src, kMMItemRows[index], out)) {
         return false;
@@ -557,10 +820,22 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
 namespace {
 
 /** MM's own tracker tables (ItemTrackerSettings.cpp LoadAvailableWindows): the
- *  Inventory and Masks tables are 6 wide, Songs, Quest and Ocarina Buttons 5. */
+ *  Inventory, Masks, Enemy Souls, Time and Misc tables are 6 wide; Songs, Quest,
+ *  Stray Fairies, Ocarina Buttons, Boss Souls and Owl Statues 5; Dungeon 4;
+ *  Tokens 2. */
 int MMItemGroupColumns(const char* group) {
-    if (group != nullptr && (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0 ||
-                             std::strcmp(group, kMMButtonGroup) == 0)) {
+    if (group == nullptr) {
+        return 6;
+    }
+    if (std::strcmp(group, "Tokens") == 0) {
+        return 2;
+    }
+    if (std::strcmp(group, "Dungeon") == 0) {
+        return 4;
+    }
+    if (std::strcmp(group, "Songs") == 0 || std::strcmp(group, "Quest") == 0 ||
+        std::strcmp(group, "Stray Fairies") == 0 || std::strcmp(group, kMMButtonGroup) == 0 ||
+        std::strcmp(group, "Boss Souls") == 0 || std::strcmp(group, "Owl Statues") == 0) {
         return 5;
     }
     return 6;
@@ -657,11 +932,6 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
 // The live view reads the HANDED buffer (the view's liveSave, which production points at the process
 // global and the ROM-free test points at an authored one), so the accessor macros are redirected again.
 #define gSaveContext (*src)
-
-// Heart pieces occupy the TOP NIBBLE of questItems (the pool's canonical health quantity,
-// MM_ReadHealthQuarters in GameExports_SingleExe.cpp).
-constexpr uint32_t kMMHeartPieceShift = 28u;
-constexpr uint32_t kMMHeartPieceMask = 0xF0000000u;
 
 /**
  * The Shared column's LIVE view (#971), the twin of OoT's OoTItemSharedLive: the
