@@ -275,7 +275,13 @@ void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll) {
     std::vector<ComboTrackerAreaRows> areas;
     ComboCollectVisibleCheckAreas(game, search, hide, areas);
     if (areas.empty()) {
-        Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
+        // The note is for a game (or a search) with no checks. When only the
+        // Hide options leave nothing, SoH draws an empty list, and so does this.
+        std::vector<ComboTrackerAreaRows> unhidden;
+        ComboCollectCheckAreas(game, search, unhidden);
+        if (unhidden.empty()) {
+            Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
+        }
         return;
     }
 
