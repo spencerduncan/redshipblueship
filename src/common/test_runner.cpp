@@ -654,6 +654,11 @@ extern "C" {
 // same reason as its neighbours.
 #include "tests/test_shared_bombchu.c"
 
+// #1120: a far game's capacity tier found on a host steps the shared pool at
+// its pickup instead of crossing into a round trip. FILE SCOPE like its
+// neighbours.
+#include "tests/test_shared_tier.c"
+
 // The cross-game item rules and the shared-family bitset (#976, epic #975 P1):
 // the sibling record's format, fingerprint, freeze and load check, and the OR
 // merge through both games' real harvest/apply shims. FILE SCOPE for
@@ -7065,6 +7070,13 @@ const TestDescriptor gTests[] = {
       "A bombchu pack found in the other game credits the shared count at its pickup, and MM's bomb-bag cap no "
       "longer eats it (#1061)",
       Test_SharedBombchuPickup },
+    // #1120: the #1061 credit for the capacity tiers. ROM-free: gComboCtx, the
+    // RAM watermark table, both games' real shims, pickup cores and arrival
+    // consumers.
+    { "shared-tier-pickup",
+      "A far game's capacity tier found on a host steps the shared pool at its pickup and raises the finder's tier "
+      "at once, never crossing (#1120)",
+      Test_SharedTierPickup },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "

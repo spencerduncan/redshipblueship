@@ -870,7 +870,10 @@ bool RecordForeignPickup(RandoCheckId randoCheckId) {
     // to the shared pool here and MM's count re-applies from it (up to MM's
     // bomb-bag capacity; the rest stays in the pool for OoT), the twin of OoT's
     // pickup. Gated by the same `obtained` bit above, so a cycle-reset host
-    // credits once.
+    // credits once. #1120: a CAPACITY TIER (OoT's Progressive Bomb Bag, wallet,
+    // magic, ...) the same way: the pool is stepped by one copy and MM's tier
+    // re-applies at once, where a crossing reached MM only after a round trip.
+    // A kind the frozen rules disarm answers 0 and crosses as before.
     if (MM_CreditSharedPickup(item) != 0) {
         return true;
     }
