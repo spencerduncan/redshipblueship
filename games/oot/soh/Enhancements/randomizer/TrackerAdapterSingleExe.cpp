@@ -86,6 +86,28 @@ int sListTestLoaded = -1;
 std::vector<uint16_t> sListTestVisible;
 int sListTestCalls = 0;
 
+// The ROM-free lock's stand-ins for the two things it cannot have: a loaded save
+// (GameInteractor::IsSaveLoaded needs a play state and a player) and a save
+// folder to write (#458 U5; the skip toggle below, and the list's gate, #1126).
+// -1 is production; 0 is "no save is loaded"; 1 is "a randomizer save is
+// loaded"; 2 is "a save is loaded", with IS_RANDO read for real. With any of
+// them the skip's persist step is counted instead of run.
+int sSkipTestSaveLoaded = -1;
+int sSkipTestPersists = 0;
+
+/**
+ * Whether OoT's live save is a loaded randomizer file:
+ * GameInteractor::IsSaveLoaded() (a play state, a player, normal game mode, a
+ * file slot) and IS_RANDO. Asked only while OoT is the running game, because
+ * both read OoT's globals and gSaveContext is MM's while MM runs.
+ */
+bool OoTRandoFileLoaded(void) {
+    if (sSkipTestSaveLoaded >= 0) {
+        return sSkipTestSaveLoaded == 1 || (sSkipTestSaveLoaded == 2 && IS_RANDO);
+    }
+    return GameInteractor::IsSaveLoaded() && IS_RANDO;
+}
+
 /**
  * WHICH CHECKS THE PANEL LISTS (#1126): what SoH's Check Tracker lists,
  * CheckTracker::IsVisibleInCheckTracker (randomizer_check_tracker.cpp), so the
@@ -93,13 +115,21 @@ int sListTestCalls = 0;
  * excluded locations, hint stones and unshuffled shop slots left out, and its
  * Always Show Gold Skulltulas and Hide Unshuffled Shop Item Checks settings
  * applied. That predicate is not free-standing, so it is asked only when it can
- * answer:
+ * answer (OoTTrackerListLive):
  *   - It reads statics only CheckTrackerLoadGame fills (LoadSettings), and
  *     IsCheckShuffled dereferences OTRGlobals::Instance->gRandomizer for every
  *     shop location before its IS_RANDO test (no OTRGlobals in a ROM-free tier).
  *     Until SoH's tracker has loaded (OoT_CheckTracker_SettingsLoaded: its
  *     `initialized`, which Teardown clears at a file exit) the panel lists the
  *     checks the seed placed an item on, as it did before, and asks nothing.
+ *   - SoH's tracker loads for EVERY file (CheckTrackerLoadGame returns early only
+ *     for Boss Rush), and its predicate has a vanilla branch that lists
+ *     vanilla-completion checks; `initialized` also outlives a paired file that
+ *     MM returned to title from (OoT's OnExitGame, which tears it down, never
+ *     runs). The panel is for randomizer files only (#1126 ruling D11), so the
+ *     predicate is asked only while OoT plays a loaded randomizer file
+ *     (OoTRandoFileLoaded: SoH's own draw gate, IsSaveLoaded, plus IS_RANDO); a
+ *     vanilla file lists the placed checks, which ClearItemLocations has emptied.
  *   - It reads IS_RANDO, gSaveContext's quest id. Both ports overlay one live save
  *     (unified_save.c) and the quest id sits past the end of Majora's Mask's save
  *     blob, so while Majora's Mask runs the byte is whatever Ocarina of Time left
@@ -108,6 +138,10 @@ int sListTestCalls = 0;
  *     are kept: the stale panel lists, for the same seed, what SoH's tracker
  *     listed when OoT last ran; a panel never read while OoT ran falls back to
  *     the placed checks.
+ *   - It is a long chain (shop slots identify their item twice), and SoH asks it
+ *     only on a load or a filter change. The summary, read once per draw before
+ *     the rows, asks it for every check and keeps the answers; the rows and the
+ *     skip toggle read that list, and ask only when no list is kept for the seed.
  */
 static_assert(offsetof(SaveContext, ship.quest.id) >= MM_SAVE_CONTEXT_SIZE,
               "IS_RANDO's byte moved inside Majora's Mask's save blob: revisit OoTCheckListed's MM rule");
@@ -128,30 +162,43 @@ bool OoTTrackerPredicate(RandomizerCheck rc) {
 }
 
 // The list as of OoT's last live read: one byte per check (1 listed), for the
-// seed sListedSeed. Empty until a live read with the settings loaded.
+// seed sListedSeed. Empty until a live read, and emptied whenever OoT runs
+// without a randomizer file or SoH's tracker is torn down.
 std::vector<uint8_t> sListed;
 uint32_t sListedSeed = 0;
 
+// SoH's predicate can answer now: OoT plays a loaded randomizer file and SoH's
+// tracker has loaded its settings for it. The current game is asked first.
+bool OoTTrackerListLive(void) {
+    return Context_GetCurrentGame() == GAME_OOT && OoTRandoFileLoaded() && OoTTrackerSettingsLoaded();
+}
+
+bool OoTListKept(Rando::Context* ctx) {
+    return sListed.size() == (size_t)RC_MAX && sListedSeed == ctx->GetSeed();
+}
+
+// Ask SoH's predicate for every check and keep the answers (live only).
+void OoTRefreshListed(Rando::Context* ctx) {
+    sListed.assign((size_t)RC_MAX, 0);
+    sListedSeed = ctx->GetSeed();
+    for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
+        sListed[i] = OoTTrackerPredicate((RandomizerCheck)i) ? 1 : 0;
+    }
+}
+
 bool OoTCheckListed(Rando::Context* ctx, RandomizerCheck rc) {
-    if (!OoTTrackerSettingsLoaded()) {
-        sListed.clear();
-        return ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
-    }
-    const bool keptForSeed = sListed.size() == (size_t)RC_MAX && sListedSeed == ctx->GetSeed();
-    if (Context_GetCurrentGame() != GAME_OOT) {
-        return keptForSeed ? sListed[rc] != 0 : ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
-    }
-    if (!keptForSeed) { // the first live read: keep the whole list, not just the rows read
-        sListed.assign((size_t)RC_MAX, 0);
-        sListedSeed = ctx->GetSeed();
-        for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
-            sListed[i] = OoTTrackerPredicate((RandomizerCheck)i) ? 1 : 0;
+    if (OoTTrackerListLive()) {
+        if (!OoTListKept(ctx)) {
+            OoTRefreshListed(ctx);
         }
         return sListed[rc] != 0;
     }
-    const bool listed = rc != RC_UNKNOWN_CHECK && OoTTrackerPredicate(rc);
-    sListed[rc] = listed ? 1 : 0;
-    return listed;
+    if (Context_GetCurrentGame() == GAME_OOT || !OoTTrackerSettingsLoaded()) {
+        sListed.clear(); // no randomizer file in OoT, or SoH's tracker torn down: nothing to keep
+    } else if (OoTListKept(ctx)) {
+        return sListed[rc] != 0; // MM played: the list as of OoT's last live read
+    }
+    return ctx->GetItemLocation(rc)->GetPlacedRandomizerGet() != RG_NONE;
 }
 
 bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
@@ -160,11 +207,18 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
         return false;
     }
 
+    if (OoTTrackerListLive()) {
+        OoTRefreshListed(ctx.get()); // once per draw; the rows that follow read it
+    }
+    int placed = 0;
     int shuffled = 0;
     int obtained = 0;
     int skipped = 0;
     for (size_t i = 1; i < (size_t)RC_MAX; i++) { // 0 == RC_UNKNOWN_CHECK
         Rando::ItemLocation* loc = ctx->GetItemLocation(i);
+        if (loc->GetPlacedRandomizerGet() != RG_NONE) {
+            placed++;
+        }
         if (!OoTCheckListed(ctx.get(), (RandomizerCheck)i)) {
             continue; // not on SoH's Check Tracker's list (see OoTCheckListed)
         }
@@ -178,7 +232,9 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
 
     // freshness is deliberately left alone — the view owns it (see the vtable
     // contract in combo_tracker_view.h).
-    out->hasWorld = shuffled > 0;
+    // A randomized world is resident when the seed placed an item (#1126: not
+    // when something is listed, which no longer equals "placed").
+    out->hasWorld = placed > 0;
     out->seed = ctx->GetSeed();
     out->totalChecks = (int)RC_MAX;
     out->shuffled = shuffled;
@@ -324,12 +380,8 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
 
 // ---- #458 U5: the skip toggle ------------------------------------------------
 
-// The ROM-free lock's stand-ins for the two things it cannot have: a loaded save
-// (GameInteractor::IsSaveLoaded needs a play state and a player) and a save
-// folder to write. -1 is production; 0 or 1 is the lock's answer to "is a save
-// loaded", and then the persist step is counted instead of run.
-int sSkipTestSaveLoaded = -1;
-int sSkipTestPersists = 0;
+// The ROM-free lock's stand-ins, sSkipTestSaveLoaded and sSkipTestPersists, are
+// declared above the list's gate (OoTRandoFileLoaded), which shares them.
 
 /**
  * A skip write needs OoT running a loaded rando file: the heap then belongs to
@@ -349,10 +401,7 @@ bool OoTTrackerSkipWritable(void) {
     if (Context_GetCurrentGame() != GAME_OOT || Rando::Context::GetInstance() == nullptr) {
         return false;
     }
-    if (sSkipTestSaveLoaded >= 0) {
-        return sSkipTestSaveLoaded != 0;
-    }
-    return GameInteractor::IsSaveLoaded() && IS_RANDO;
+    return OoTRandoFileLoaded();
 }
 
 /**
@@ -505,13 +554,15 @@ extern "C" int OoT_TrackerAdapter_TestSetCollected(uint16_t rc, int collected) {
 
 /**
  * The skip toggle's lock seam (#458 U5): @p saveLoaded -1 restores production;
- * 0 or 1 answers "is a save loaded" for OoTTrackerSkipWritable (the current game
- * and the heap context are still checked for real), and each persist is then
- * counted rather than written to a save folder. @return the persists counted
- * since the previous call, which resets the count.
+ * 0 or 1 answers "is a randomizer save loaded" for OoTRandoFileLoaded (the skip
+ * toggle's and, #1126, the list's gate; the current game and the heap context
+ * are still checked for real), and 2 answers "a save is loaded" with IS_RANDO
+ * read for real. Each persist is then counted rather than written to a save
+ * folder. @return the persists counted since the previous call, which resets
+ * the count.
  */
 extern "C" int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded) {
-    sSkipTestSaveLoaded = saveLoaded < 0 ? -1 : (saveLoaded != 0 ? 1 : 0);
+    sSkipTestSaveLoaded = saveLoaded < 0 ? -1 : (saveLoaded == 2 ? 2 : (saveLoaded != 0 ? 1 : 0));
     const int persists = sSkipTestPersists;
     sSkipTestPersists = 0;
     return persists;
