@@ -139,13 +139,13 @@ Nobody has played any of it: every change below is locked by test rows.
 ### Run record
 
 The pull requests were merged once their hosted CI was green, and the pyramid driver runs the ROM tiers on
-`main` itself (the replan of 2026-10-22). Its `integration` run on `main` at `fabe7d33` (cycle 22, 2026-10-23) passed
-16 of 21. #1136's fix holds: no paired-creation row stops at the single-bag line any more, and
-`IntPairedFileSelectIdentity` passes. Five rows fail on other causes, not yet triaged when this was written:
-`IntGameplayRoundtrip`, `IntPairedFirstCrossingDiverged` and `IntPairedFirstCrossingForeignSpoiler` report that the
-camera stayed put while Link walked ("camera is anchored"), and `IntPairedFirstCrossing` and
-`IntPairedFirstCrossingTwoCycles` that a warp arrived at entrance 0x0033 instead of 0x00B1. The integration tier is
-therefore not green on `main`. Nobody has played any of it.
+`main` itself (the replan of 2026-10-22). On `main`, `integration` passed 16 of 21 at `bc93e65e` (cycle 20: five
+paired-creation rows waited for the log line #1116 renamed, issue #1135), 21 of 21 at `f416ecee` (cycle 21, with
+#1136's fix; `integration-soak` 1 of 1), and 16 of 21 at `fabe7d33` (cycle 22; `integration-soak` 0 of 1). The
+cycle 22 rows stop because the camera stays put while Link walks ("camera is anchored") or a warp lands at the
+wrong entrance; a re-run failed five of the six, with the messages moving between rows, and the driver is
+bisecting #1137, #1138 and #1125. Not triaged when this was written: the integration tier is not green on `main`.
+The full record is "Gates, 2026-10-23" in [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
 ---
 

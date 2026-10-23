@@ -903,6 +903,33 @@ networking is untested.
 **Findings.** None in these runs. The open issues at this commit were listed under "Open issues at `30b841c1`" near the
 top of this document; that list has been refreshed since ("Open issues at `4fc4fd41`").
 
+## Gates, 2026-10-23, `main` after `v0.3.0-prealpha`
+
+The pull requests merged after the tag, #1111 to #1144, listed under "Next release (draft)" in
+[`release-notes-next.md`](release-notes-next.md). Since the replan of 2026-10-22 each was merged once its hosted CI
+was green, and the pyramid driver runs the ROM tiers on `main` itself (same workstation, OpenGL, ROM archives
+mounted, no focus, no sound):
+
+| Cycle | `main` at | `integration` | `integration-soak` |
+|---|---|---|---|
+| 20 | `bc93e65e` (with #1111 to #1119) | 16 of 21: five paired-creation rows waited for a log line #1116 renamed (issue #1135) | 1 of 1 |
+| 21 | `f416ecee` (with #1122, #1124 and the fix, #1136) | 21 of 21 | 1 of 1 |
+| 22 | `fabe7d33` (with #1137, #1138, #1125) | 16 of 21 | 0 of 1 |
+
+**Cycle 22 is red, and not triaged when this was written.** The failing rows were `IntGameplayRoundtrip`,
+`IntPairedFirstCrossing`, `IntPairedFirstCrossingDiverged`, `IntPairedFirstCrossingTwoCycles`,
+`IntPairedFirstCrossingForeignSpoiler` and `IntGameplayRoundtripSoak`. They stop on two kinds of message: the camera
+stays put while Link walks ("camera is anchored"), or a warp lands at the wrong entrance (0x0033 instead of 0x00B1,
+or 0x0171 instead of 0x01D1 on the return leg). The driver's re-run of those six rows failed five, with the
+messages moving between rows (`IntPairedFirstCrossing` passed), and it is bisecting the three merges after the
+green cycle 21. Treat a crossing that lands somewhere unexpected, or a camera that stops following Link, on a
+build after `f416ecee` as this finding until it is triaged.
+
+**Generated worlds.** With every new option at its default no world moved: of the golden digests only
+`mmPlacementHash` moved, in eight files, because it counts Majora's Mask's 53 new tree checks whether or not they
+are shuffled (#1125); `git diff f2f3d64f 4fc4fd41 -- tests/golden/` is that field plus the two `mmReachable*`
+fields #1114 retired.
+
 ---
 
 ## Save loss and corruption
