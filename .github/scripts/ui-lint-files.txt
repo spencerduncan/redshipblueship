@@ -20,6 +20,7 @@ MENU games/oot/soh/SohGui/SohMenuComboMmMods.cpp
 MENU games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 MENU games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 MENU games/oot/soh/SohGui/SohMenuComboTrackerSettings.cpp
+PTR games/oot/soh/SohGui/SohMenuRandomizer.cpp::DrawSeedPackageRows
 
 PANES src/common/ComboSpoilerWindow.cpp
 PANES src/common/ComboTrackerWindow.cpp
@@ -28,6 +29,7 @@ PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
 PANES games/mm/2s2h/TrackersGuiSingleExe.cpp
 
 TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
+TOASTS games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp
 TOASTS games/mm/2s2h/Rando/ForeignItemsSingleExe.cpp
 
 STRINGS games/oot/soh/SohGui/SohMenu.cpp::@from=kCapReasonMMHosted

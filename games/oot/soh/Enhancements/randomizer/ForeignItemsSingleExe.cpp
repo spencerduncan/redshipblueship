@@ -33,11 +33,13 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdio>
 #include <cstring> // memcpy/memset — the creation event's snapshot bracket
 #include <filesystem>
 #include <string>
+#include <random> // std::random_device: the completion's digest scratch name (#1044)
 #include <vector>
 
 #include "soh/OTRGlobals.h"
@@ -59,6 +61,7 @@
 #include "shared_items.h"     // src/common — Combo_RecordSharedItem (#493)
 #include "shared_resources.h" // src/common — OoT_CreditSharedPickup: a counted pack credits the pool (#1061)
 #include "gen_budget.h"       // src/common — the #582 fill budget + progress surface
+#include "seed_package.h"     // src/common — the seed package the creation binds (#1044)
 
 extern "C" {
 #include <z64.h>
@@ -795,8 +798,32 @@ extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves) {
     });
 }
 
+// The completed world, between this completion and the package it is written into.
+// Game-thread state like the bracket above.
+static std::atomic<bool> sPairedWorldComplete{ false };
+static uint32_t sCompletedUnprovedHalves = 0;
+static unsigned sCompletedGoal = 0;
+static std::string sCompletedDigest;
+static std::string sCompletedMMProfile;
+
+// The digest writers the goldens use (games/mm/2s2h/mm_rando_gen_test.cpp,
+// 3drando/menu.cpp), so the digest a package carries is the golden's.
+extern "C" int Rando_HeadlessWriteDeterminismHead(const char* outPath);
+extern "C" int MM_SeedPackage_AppendDigestTail(const char* outPath);
+// MM's frozen profile off its save (games/mm/2s2h/Rando/Foreign.cpp).
+extern "C" int MM_Rando_ProfileDumpFromSave(char* out, size_t cap);
+// MM's half (games/mm/2s2h/GameExports_SingleExe.cpp).
+extern "C" size_t MM_SeedPackage_HalfSize(void);
+extern "C" void MM_SeedPackage_StampPlayerName(const uint8_t* playerName);
+// SeedPackageSingleExe.cpp: what a creation binds.
+extern "C" int OoT_SeedPackage_BindForCreation(const uint8_t** outHalf, size_t* outSize, uint32_t* outUnprovedHalves);
+extern "C" int OoT_SeedPackage_CompleteForCreation(void);
+// src/common/test_runner.cpp: a --test or --integration-test process (the creation's
+// completion of a headless generation is for those alone).
+extern "C" bool TestRunner_IsTestMode(void);
+
 /**
- * RETRACT A FAILED PAIRED CREATION: everything the freeze and the event published,
+ * RETRACT A PAIRED WORLD THAT FAILED: everything the freeze and the completion published,
  * so no artifact of a half-created world survives — no identity for a later
  * arrival to compare against, no crossing tables for either direction, no armed
  * MM shadow, no engine record a later fill could "restore", no combo or triforce
@@ -804,14 +831,14 @@ extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves) {
  * the MM-half failure and the OoT-tail failure used to carry two hand-copied lists,
  * and the tail's had already lost the triforce record's zeroing.
  *
- * The player-visible half (the #533 slot latch and the toast) is raised here too,
- * for the same reason: a creation that failed must surface identically from every
- * route into it.
+ * Since #1044 the world is completed at Generate, so this is shared by Generate's
+ * completion (no file yet, so no slot surface) and the creation event, whose
+ * RetractFailedPairedCreation below adds the player-visible half (the #533 slot
+ * latch and the toast) for the same reason: a creation that failed must surface
+ * identically from every route into it.
  */
-static void RetractFailedPairedCreation(int slot) {
+static void RetractPairedWorld(void) {
     Combo_GenProgress_End(false);
-    RsbsSave_RefuseSlotGeneration(slot);
-    OoT_Creation_ReportFailureAtFileSelect(slot, 0);
     Context_ClearFrozenState(GAME_MM);
     Combo_ClearForeignPlacements();
     Combo_ClearForeignPlacementsOoT();
@@ -837,183 +864,170 @@ static void RetractFailedPairedCreation(int slot) {
     gComboCtx.sharedRandoSettingsHash = 0;
     gComboCtx.mmProfileDigest = 0;
     gComboCtx.mmPairedAttempt = 0;
+    // #1044: no world, so no package either, and nothing waits at a general pass.
+    sPairedWorldComplete = false;
+    OoT_SeedPackage_Unstage();
 }
 
-extern "C" int OoT_RunPairedCreationEvent(int slot) {
-    if (!Combo_ForeignPairingActive()) {
-        // A randomizer file with no pairing identity: a world loaded from a solo
-        // OoT spoiler (no "combo" section), or one whose stamp the KEEP identity
-        // check discarded (#597). Every randomizer file in this build is a
-        // paired file, and the file select refuses to open one without its
-        // pairing (#836), so creating it would write a file nobody can open.
-        // Refused as a creation failure instead: nothing is written, the player
-        // generates again or loads a paired spoiler. (Only randomizer files
-        // reach this seam: OoT_Sram_InitSave calls it for isRandoFile only.)
-        // A world generated for a paired creation and left waiting at its
-        // general pass lands here too, and names its own cause.
-        if (OoT_ComboLogic_GeneralPassDeferred() != 0) {
-            fprintf(stderr,
-                    "[OoT] creation event: slot %d REFUSED — OoT's world was generated for a paired creation that no "
-                    "longer has an identity, and its general pass was never placed; generate the seed again\n",
-                    slot);
-        } else {
-            fprintf(stderr,
-                    "[OoT] creation event: slot %d REFUSED — the randomizer world has no cross-game pairing identity "
-                    "(a solo spoiler, or a discarded stamp); a file created from it could not be opened (#836)\n",
-                    slot);
-        }
-        fflush(stderr);
-        // RetractFailedPairedCreation's player surface (the #533 slot latch and
-        // the "Not created:" toast). There is no identity to retract and no
-        // progress session was opened, so the rest of the retraction has nothing
-        // to undo.
-        RsbsSave_RefuseSlotGeneration(slot);
-        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
-        return 0;
+static void RetractFailedPairedCreation(int slot) {
+    RetractPairedWorld();
+    RsbsSave_RefuseSlotGeneration(slot);
+    OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+}
+
+// ----------------------------------------------------------------------------
+// GENERATE'S COMPLETION (#1044): THE WHOLE PAIRED WORLD, AT GENERATE
+// ----------------------------------------------------------------------------
+// Until #1044 everything below ran inside the creation event, at file select,
+// against the CVars as they stood when the player named a file: MM's half, the
+// single-bag fill under MM's attempt ladder, the crossings, OoT's remainder and
+// the one spoiler. Now it runs when the player presses Generate -- on the game
+// thread, the frame the Generate worker ends (OoT_SeedPackage_FileSelectTick,
+// z_file_choose.c), because MM's generation writes gSaveContext and the file
+// select reads it every frame (CreationProgressOverlay.cpp's header), so the
+// worker cannot run it beside a live file select. The world is then written as a
+// seed package and staged (SeedPackageSingleExe.cpp), and the creation event only
+// binds it: it stamps the file's name into MM's half and arms it.
+//
+// Everything that varies the world is read here, once: the identity and the
+// records Playthrough_Init froze, the MM profile its stamp froze (MM's half reads
+// the CVars it was stamped from, in the same frame-free stretch), the attempt the
+// ladder converges on. Nothing at file select can move it any more.
+//
+// The step record and the overlay are the creation's, unchanged: the record reads
+// "M0S0J0" here and the creation appends "A1" when it arms.
+
+// The digest writers write files, so the completion gives them one of its own in
+// the temp directory, under a random name (every lane's runs share that directory).
+static std::filesystem::path PairedDigestScratchPath() {
+    std::error_code ec;
+    std::filesystem::path dir = std::filesystem::temp_directory_path(ec);
+    if (ec) {
+        dir = std::filesystem::path(".");
+    }
+    std::random_device entropy;
+    char name[64];
+    snprintf(name, sizeof(name), "rsbs-seed-digest-%08X%08X.txt", (unsigned)entropy(), (unsigned)entropy());
+    return dir / name;
+}
+
+static std::string ReadWholeFile(const std::filesystem::path& path) {
+    std::string out;
+    FILE* f = fopen(path.string().c_str(), "rb");
+    if (f == nullptr) {
+        return out;
+    }
+    char buf[8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        out.append(buf, n);
+    }
+    fclose(f);
+    out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
+    return out;
+}
+
+/**
+ * Complete the paired world OoT's generation left at its general pass: MM's half
+ * (the single-bag fill inside it), the crossings, OoT's remainder and its spoiler,
+ * the spoiler join, and the package's digest and MM profile. Game thread only,
+ * with no generation in flight. On failure everything the freeze published is
+ * retracted (RetractPairedWorld) and nothing is completed.
+ * @return 0 when completed; RSBS_SEEDPKG_ERR_NO_WORLD when nothing was waiting;
+ *         RSBS_SEEDPKG_ERR_GENERATION when the completion failed.
+ */
+extern "C" int OoT_PairedGen_CompleteWorld(void) {
+    sPairedWorldComplete = false;
+    if (!Combo_ForeignPairingActive() || OoT_ComboLogic_GeneralPassDeferred() == 0) {
+        return RSBS_SEEDPKG_ERR_NO_WORLD;
     }
 
-    // The pre-Fill gate's answer, read HERE FROM THE FROZEN RECORD rather than
-    // re-resolved from the CVars (#657/#667). That is the whole point of the
-    // gate's second act: the seam must be unable to reach a different conclusion
-    // than the creation did, and the only way to guarantee that is to read the
-    // record the freeze wrote. Combo_ComboDirectionArms serves the frozen
-    // direction once Combo_ComboSettingsFrozen() is true, so this is the same
-    // fact both placement passes gate on.
+    // The pre-Fill gate's answer, read FROM THE FROZEN RECORD rather than
+    // re-resolved from the CVars (#657/#667): this completion must be unable to
+    // reach a different conclusion than the freeze did.
     const bool crossingsAuthored =
         Combo_ComboDirectionArms((uint8_t)GAME_OOT) || Combo_ComboDirectionArms((uint8_t)GAME_MM);
     fprintf(stderr,
-            "[OoT] creation event: slot %d, masterSeed=%u settingsHash=%08X mmProfileDigest=%08X "
-            "comboFingerprint=%08X crossingsAuthored=%d\n",
-            slot, gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
+            "[OoT] paired completion: masterSeed=%u settingsHash=%08X mmProfileDigest=%08X comboFingerprint=%08X "
+            "crossingsAuthored=%d\n",
+            gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
             gComboCtx.comboSettingsHash, crossingsAuthored ? 1 : 0);
-    // A LOG, NOT A REFUSAL, and the asymmetry is deliberate. The sanctioned
-    // writers refuse while frozen, so a live CVar that disagrees with the record
-    // by now can only have come from a raw store write — worth naming loudly
-    // because it means something is authoring behind the freeze. It changes
-    // nothing: the frozen record is the authority for a created world, which is
-    // precisely why a player toggling a setting between Generate and file select
-    // must NOT fail their creation.
+    // A LOG, NOT A REFUSAL (#657): the frozen record is the authority.
     if (Combo_ForeignCrossingsRequested() != crossingsAuthored) {
         fprintf(stderr,
-                "[OoT] creation event: WARNING the live combo store now resolves crossings=%d against a frozen "
+                "[OoT] paired completion: WARNING the live combo store now resolves crossings=%d against a frozen "
                 "record that authored %d — a raw write reached a frozen world; the RECORD wins (#657)\n",
                 Combo_ForeignCrossingsRequested() ? 1 : 0, crossingsAuthored ? 1 : 0);
     }
 
-    // THE OoT SPOILER IS NOT WRITTEN YET (ADR 0010 increment 3, lane K11). A
-    // paired world's OoT half stopped at its general pass at Generate, and its
-    // spoiler is written below, once the single-bag fill inside the MM half has
-    // placed the bag and OoT's own remainder is down. So the MM half is handed
-    // no path and does not join; the join runs at the end of this function.
+    // THE DIGEST'S HEAD: OoT's world as Generate's worker left it, at its general
+    // pass -- exactly where the golden rows write it.
+    const std::filesystem::path digestPath = PairedDigestScratchPath();
+    std::error_code digestEc;
+    std::filesystem::remove(digestPath, digestEc);
+    bool digestOk = Rando_HeadlessWriteDeterminismHead(digestPath.string().c_str()) == 0;
 
-    // The creation seam's own progress session (#582). Separate from the one
-    // Playthrough_Init opened around OoT's staged generation, because the two
-    // are separated by however long the player spent in the menu. THIS is the
-    // one whose elapsed time a player actually waits through at file select, and
-    // therefore the one the ~30 s floor is about (P12).
-    //
-    // The on-screen leg is installed FIRST so that Begin's own report already
-    // paints: the player must see the overlay before MM's first fill attempt
-    // starts, not after it ends. Installing here (rather than at boot) also
-    // latches the render thread to the thread the creation actually blocks,
-    // which is what keeps OoT's menu-side worker-thread generation from
-    // reaching a renderer (CreationProgressOverlay.cpp).
+    // The progress session a player waits through (#582), on the overlay painted
+    // from inside this call, installed first so Begin's own report paints.
     OoT_CreationProgressOverlay_Install();
     Combo_GenProgress_Begin();
 
-    // THE BRACKET. Its buffer is a file static (declared above, beside the
-    // overlay's window into it) rather than a stack array: OoT's SaveContext is
-    // ~136 KB, far past any sane frame budget; this seam is game-thread-only,
-    // and MM's own attempt ladder uses the same shape for the same reason. The
-    // `active` flag is what lets a frame painted from INSIDE the call below show
-    // OoT's bytes instead of MM's (#582).
-    //
-    // SIZED AT OoT's sizeof, NOT at the unified capacity, and that is a fix
-    // rather than a nicety. Copying OOT_SAVE_CONTEXT_SIZE bytes THROUGH a
-    // SaveContext* reads and writes past the declared object even though the
-    // real storage behind it is a larger char array, which glibc's
-    // _FORTIFY_SOURCE catches as "*** buffer overflow detected ***" and aborts —
-    // green on MSVC, SIGABRT on the Linux CI leg. The static_assert above is what
-    // makes the smaller copy sufficient: MM's whole SaveContext fits inside
-    // OoT's, so there is nothing past OoT's struct end for MM to have written.
-    //
-    // THE PAIRED WORLD'S ONE NAME (#773). MM's own new-file path copies the name
-    // typed on MM's naming screen into the half; a paired half has no naming
-    // screen, and one-game semantics give it the name typed on OoT's. OoT's name
-    // and filename language are already in gSaveContext here (Sram_InitSave
-    // writes both before this seam), and are read before the bracket hands the
-    // buffer to MM. MM stamps the translated bytes where MM_Sram_InitSave stamps
-    // the typed name: before the marker and the checksum.
-    uint8_t mmPlayerName[8];
-    OoT_PlayerName_ToMMCharset(gSaveContext.playerName, gSaveContext.ship.filenameLanguage, mmPlayerName);
+    // THE BRACKET (the creation's, unchanged; see the storage above). No name: the
+    // file's name is stamped when a file binds the package.
     memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
     sCreationBracketActive = true;
 
     sCreationSequenceLen = 0;
     sCreationSequence[0] = 0;
     sCreationUnprovedHalves = RSBS_COMBO_HALF_NONE_YET;
-    const int mmRc = MM_Rando_AuthorHalfAtCreation(slot, "", mmPlayerName);
+    const int mmRc = MM_Rando_AuthorHalfAtCreation(-1, "", nullptr);
     CreationStep('M');
 
     sCreationBracketActive = false;
-    // MM's finished half, kept for the spoiler join at the end (see its buffer).
+    // MM's finished half, kept for the spoiler join, the digest and the package.
     memcpy(sMmFinishedSave, &gSaveContext, sizeof(SaveContext));
     memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
-    // The OoT-side tail, measured for the same reason MM measures its two
-    // stretches (#582's review asked for numbers rather than the assertion that
-    // "everything else reports a phase and moves on within milliseconds"). This one
-    // is the shortfall stats read and a toast, and the number below is what says so.
     const uint32_t ootTailStartMs = Combo_GenProgress_ElapsedMs();
 
     if (mmRc != 0) {
-        // TERMINAL. Retract everything the freeze published so no artifact of a
-        // half-created world survives: no identity for a later arrival to
-        // compare against, no crossing tables for either direction, and no armed
-        // MM shadow (nothing has armed one yet: the arm is this event's last step).
-        fprintf(stderr,
-                "[OoT] creation event: FAILED (MM half rc=%d) — retracting the pairing identity; slot %d must not be "
-                "written\n",
-                mmRc, slot);
+        fprintf(stderr, "[OoT] paired completion: FAILED (MM half rc=%d) — retracting the pairing identity\n", mmRc);
         fflush(stderr);
-        RetractFailedPairedCreation(slot);
-        return 0;
+        std::filesystem::remove(digestPath, digestEc);
+        RetractPairedWorld();
+        return RSBS_SEEDPKG_ERR_GENERATION;
     }
 
     // ------------------------------------------------------------------------
-    // THE SINGLE BAG'S OoT-SIDE TAIL (ADR 0010 increment 3, D3; lane K11).
-    //
-    // The MM half ran the single-bag fill over both worlds and MM's own pass over
-    // MM's leftovers. What is left is OoT's, and it runs HERE because it needs
-    // OoT's bytes live (its spoiler writer reads gSaveContext.language):
+    // THE SINGLE BAG'S OoT-SIDE TAIL (ADR 0010 increment 3, D3; lane K11). The MM
+    // half ran the single-bag fill over both worlds and MM's own pass over MM's
+    // leftovers. What is left is OoT's, with OoT's bytes live (its spoiler writer
+    // reads gSaveContext.language):
     //
     //   1. THE CROSSINGS, captured from the coordinator's tables into the store
-    //      (ADR 0010 O7) — the one durable record of which host of either game
-    //      yields an item of the other, frozen with the world, persisted in the
-    //      .redsave's Tier-4 by the Save_SaveFile() this seam's caller runs next.
+    //      (ADR 0010 O7), the one durable record of which host of either game
+    //      yields an item of the other.
     //   2. OoT's REMAINDER: its junk, renewables and traps onto its leftover
     //      hosts, overrides, hints, and its spoiler document.
-    //   3. THE ONE SPOILER: MM's half joined into OoT's document as "combo", over
-    //      a second short bracket that puts MM's finished bytes back in view.
-    //   4. THE ARM, LAST (#680's order: store, spoiler, publish, arm): inside the
-    //      same bracket, MM's finished half becomes the armed MM shadow. Nothing
-    //      before this point has armed anything, so a failure in steps 1-3 — or
-    //      an exception out of them — leaves no armed shadow behind.
-    //   5. COMMIT: the coordinator's and both engines' roll-back records are
-    //      dropped, so no later fill can "restore" this world.
+    //   3. THE ONE SPOILER: MM's half joined into OoT's document as "combo", over a
+    //      second short bracket that puts MM's finished bytes back in view; in the
+    //      same bracket, the digest's world lines and MM's frozen profile.
+    //   4. COMMIT: the coordinator's and both engines' roll-back records dropped.
     //
-    // A failure in any of them fails the creation the same way a failed MM half
-    // does: nothing is written, nothing of the identity survives.
+    // The ARM is no longer here: it is the creation's (#680's order still holds
+    // inside it -- the store, the spoiler and the identity all exist before the
+    // armed shadow does).
     // ------------------------------------------------------------------------
     Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, "Filling Hyrule's remaining checks");
     const int crossings = OoT_Creation_FinishPairedHalf(1);
-    bool tailOk = crossings >= 0;
+    const bool tailOk = crossings >= 0;
     if (tailOk) {
         CreationStep('S');
         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_SPOILER, 0, "writing the paired spoiler");
         const std::string cvarPath = CVarGetString(CVAR_GENERAL("SpoilerLog"), "");
         std::string ootSpoilerAbsolute;
         if (cvarPath.empty()) {
-            fprintf(stderr, "[OoT] creation event: no OoT spoiler on record - the paired half has nothing to join\n");
+            fprintf(stderr,
+                    "[OoT] paired completion: no OoT spoiler on record - the paired half has nothing to join\n");
         } else {
             std::string relative = cvarPath;
             if (relative.rfind("./", 0) == 0) {
@@ -1021,7 +1035,6 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             }
             ootSpoilerAbsolute = Ship::Context::GetPathRelativeToAppDirectory(relative.c_str());
         }
-        // MM's finished bytes back in view, for the join and then the arm.
         memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
         memcpy(&gSaveContext, sMmFinishedSave, sizeof(SaveContext));
         sCreationBracketActive = true;
@@ -1030,52 +1043,202 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
             CreationStep('J');
         }
         Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_PUBLISH, 0, nullptr);
-        const int armRc = MM_Rando_ArmCreatedHalf(slot);
-        CreationStep('A');
+        if (digestOk) {
+            digestOk = MM_SeedPackage_AppendDigestTail(digestPath.string().c_str()) == 0;
+        }
+        static char sProfileDump[1 << 16];
+        sCompletedMMProfile = MM_Rando_ProfileDumpFromSave(sProfileDump, sizeof(sProfileDump)) >= 0
+                                  ? std::string(sProfileDump)
+                                  : std::string("{}");
         sCreationBracketActive = false;
         memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
-        tailOk = armRc == 0;
     }
     const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
     fprintf(stderr,
-            "[OoT] creation event: single bag — %d crossings stored (%d OoT items in Termina, %d MM items in Hyrule), "
-            "%d rows placed, %d surplus dropped, %d rounds, fill %ums\n",
+            "[OoT] paired completion: single bag — %d crossings stored (%d OoT items in Termina, %d MM items in "
+            "Hyrule), %d rows placed, %d surplus dropped, %d rounds, fill %ums\n",
             crossings, bag->crossingsIntoMM, bag->crossingsIntoOoT, bag->fill.placed, bag->fill.surplusDropped,
             bag->fill.rounds, bag->wallMs);
-    // Read off the fill before Forget drops its report: which halves the world
-    // is being created WITHOUT a proof for (none under beat-both).
+    // Read off the fill before Forget drops its report: which halves the world is
+    // generated WITHOUT a proof for (none under beat-both).
     const uint32_t unprovedHalves = Combo_Logic_UnprovedHalves(&bag->fill);
     const unsigned frozenGoal = (unsigned)bag->goal;
     Combo_SingleBag_Forget();
     if (!tailOk) {
-        // A tail failure before the arm leaves nothing armed; the arm itself
-        // refusing leaves nothing armed either. The same retraction as the
-        // MM-half failure regardless, so the two routes cannot drift apart again.
+        std::filesystem::remove(digestPath, digestEc);
+        RetractPairedWorld();
+        return RSBS_SEEDPKG_ERR_GENERATION;
+    }
+
+    sCompletedDigest = digestOk ? ReadWholeFile(digestPath) : std::string();
+    std::filesystem::remove(digestPath, digestEc);
+    if (!digestOk) {
+        fprintf(stderr, "[OoT] paired completion: the world's digest could not be written; the package carries none\n");
+    }
+    fprintf(stderr,
+            "[OoT] paired completion: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the "
+            "spoiler join, the digest) took %ums (#582); steps %s\n",
+            Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
+    fflush(stderr);
+    Combo_GenProgress_End(true);
+    sCompletedUnprovedHalves = unprovedHalves;
+    sCompletedGoal = frozenGoal;
+    sPairedWorldComplete = true;
+    return 0;
+}
+
+/**
+ * The completed world's parts, for the package (SeedPackageSingleExe.cpp).
+ * @return 1 while a completed world is held; 0 otherwise (and the outputs are left as they were).
+ */
+extern "C" int OoT_PairedGen_CompletedWorld(const uint8_t** outHalf, size_t* outHalfSize, const char** outDigest,
+                                            const char** outMMProfile, uint32_t* outUnprovedHalves, unsigned* outGoal) {
+    if (!sPairedWorldComplete) {
+        return 0;
+    }
+    if (outHalf != nullptr) {
+        *outHalf = reinterpret_cast<const uint8_t*>(sMmFinishedSave);
+    }
+    if (outHalfSize != nullptr) {
+        *outHalfSize = MM_SeedPackage_HalfSize();
+    }
+    if (outDigest != nullptr) {
+        *outDigest = sCompletedDigest.c_str();
+    }
+    if (outMMProfile != nullptr) {
+        *outMMProfile = sCompletedMMProfile.c_str();
+    }
+    if (outUnprovedHalves != nullptr) {
+        *outUnprovedHalves = sCompletedUnprovedHalves;
+    }
+    if (outGoal != nullptr) {
+        *outGoal = sCompletedGoal;
+    }
+    return 1;
+}
+
+/** A failed completion's retraction, for the package's write path (SeedPackageSingleExe.cpp). */
+extern "C" void OoT_PairedGen_RetractWorld(void) {
+    RetractPairedWorld();
+}
+
+/**
+ * THE CREATION EVENT, AFTER #1044: BIND THE STAGED PACKAGE. Called for every
+ * randomizer file by OoT_Creation_AuthorRandoFile, before Randomizer_InitSaveFile.
+ *
+ * The paired world was completed at Generate and staged as a seed package (or a
+ * package was loaded from the Randomizer folder, which stages it the same way).
+ * The creation re-applies the package's frozen identity, records, crossings and
+ * give capabilities (the file-create invalidation may have dropped some of them,
+ * and a package outlives the session that loaded it), stamps the file's name into
+ * MM's half and ARMS it as the MM shadow. No fill runs and no CVar is read: the
+ * settings as they stand at file select cannot move the world.
+ *
+ * A world still waiting at its general pass with no package staged had no
+ * file-select frame complete it. In a player's game that cannot happen: the
+ * Generate button and SoH's gen_rando console command both end on the Generate
+ * worker, whose next file-select frame completes and stages the world. So the
+ * creation never generates in a player's game: such a world is REFUSED below
+ * ("no seed package is staged"), never quietly completed at file select. Only a
+ * test process (--test / --integration-test, whose headless generations drive no
+ * file-select frame) completes it here, with the same function Generate runs,
+ * and then binds it like any other.
+ *
+ * @return 1 when the file may be written; 0 when the creation failed (the
+ *         identity is retracted and the refusal surface is raised).
+ */
+extern "C" int OoT_RunPairedCreationEvent(int slot) {
+    if (OoT_SeedPackage_Staged() == 0 && Combo_ForeignPairingActive() && OoT_ComboLogic_GeneralPassDeferred() != 0 &&
+        TestRunner_IsTestMode()) {
+        fprintf(stderr,
+                "[OoT] creation event: slot %d — TEST PROCESS: the paired world is still waiting at its general pass "
+                "(a headless generation, no file-select frame completed it); completing it now with Generate's own "
+                "completion (#1044)\n",
+                slot);
+        if (OoT_SeedPackage_CompleteForCreation() != 1) {
+            // The completion retracted the identity; the creation surfaces it.
+            RsbsSave_RefuseSlotGeneration(slot);
+            OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+            return 0;
+        }
+    }
+
+    if (OoT_SeedPackage_Staged() == 0) {
+        if (!Combo_ForeignPairingActive()) {
+            // A randomizer file with no pairing identity: a world loaded from a
+            // solo OoT spoiler (no "combo" section), or one whose stamp the KEEP
+            // identity check discarded (#597). Every randomizer file in this build
+            // is a paired file, and the file select refuses to open one without
+            // its pairing (#836), so creating it would write a file nobody can
+            // open. Refused as a creation failure instead: nothing is written, the
+            // player generates again or loads a seed package.
+            fprintf(stderr,
+                    "[OoT] creation event: slot %d REFUSED — the randomizer world has no cross-game pairing identity "
+                    "(a solo spoiler, or a discarded stamp); a file created from it could not be opened (#836)\n",
+                    slot);
+        } else {
+            fprintf(stderr,
+                    "[OoT] creation event: slot %d REFUSED — a pairing identity is resident but no seed package is "
+                    "staged for it; generate the seed again or load its package (#1044)\n",
+                    slot);
+        }
+        fflush(stderr);
+        RsbsSave_RefuseSlotGeneration(slot);
+        OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+        return 0;
+    }
+
+    const uint8_t* half = nullptr;
+    size_t halfSize = 0;
+    uint32_t unprovedHalves = 0;
+    const int bound = OoT_SeedPackage_BindForCreation(&half, &halfSize, &unprovedHalves);
+    if (bound != RSBS_SEEDPKG_OK || half == nullptr || halfSize == 0 || halfSize > sizeof(SaveContext)) {
+        fprintf(stderr, "[OoT] creation event: slot %d REFUSED — the staged seed package could not be bound (%s)\n",
+                slot, SeedPackage_StatusName(bound));
+        fflush(stderr);
+        RetractFailedPairedCreation(slot);
+        return 0;
+    }
+    fprintf(stderr,
+            "[OoT] creation event: slot %d binds the seed package %s — masterSeed=%u settingsHash=%08X "
+            "mmProfileDigest=%08X comboFingerprint=%08X\n",
+            slot, OoT_SeedPackage_StagedPath(), gComboCtx.sharedRandoSeed, gComboCtx.sharedRandoSettingsHash,
+            gComboCtx.mmProfileDigest, gComboCtx.comboSettingsHash);
+
+    // THE PAIRED WORLD'S ONE NAME (#773): OoT's typed name, already in gSaveContext
+    // (Sram_InitSave writes it before this seam), translated before the bracket
+    // hands the buffer to MM's half.
+    uint8_t mmPlayerName[8];
+    OoT_PlayerName_ToMMCharset(gSaveContext.playerName, gSaveContext.ship.filenameLanguage, mmPlayerName);
+    memcpy(sOoTSaveSnapshot, &gSaveContext, sizeof(SaveContext));
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    memcpy(&gSaveContext, half, halfSize);
+    sCreationBracketActive = true;
+    MM_SeedPackage_StampPlayerName(mmPlayerName);
+    const int armRc = MM_Rando_ArmCreatedHalf(slot);
+    CreationStep('A');
+    sCreationBracketActive = false;
+    memcpy(&gSaveContext, sOoTSaveSnapshot, sizeof(SaveContext));
+    if (armRc != 0) {
         RetractFailedPairedCreation(slot);
         return 0;
     }
 
-    fprintf(stderr,
-            "[OoT] creation event: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the spoiler "
-            "join, the arm) took %ums (#582); steps %s\n",
-            Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
-    fflush(stderr);
-    Combo_GenProgress_End(true);
     // ADR 0010 section 1.2: a world accepted with a half that carries no proof is
-    // created WITH A VISIBLE WARNING naming that half, at creation, never
-    // discovered in a bug report. After the progress overlay closes, so the
-    // toast is not drawn under it.
+    // created WITH A VISIBLE WARNING naming that half, at creation.
     sCreationUnprovedHalves = unprovedHalves;
     if (unprovedHalves != 0u) {
         fprintf(stderr,
-                "[OoT] creation event: slot %d created under GOAL %u with NO PROOF for %s%s%s -- accepted, as ADR 0010 "
-                "section 1.2 permits, and warned\n",
-                slot, frozenGoal, (unprovedHalves & RSBS_COMBO_HALF_OOT) != 0u ? "Ocarina of Time" : "",
+                "[OoT] creation event: slot %d created with NO PROOF for %s%s%s -- accepted, as ADR 0010 section 1.2 "
+                "permits, and warned\n",
+                slot, (unprovedHalves & RSBS_COMBO_HALF_OOT) != 0u ? "Ocarina of Time" : "",
                 (unprovedHalves == (RSBS_COMBO_HALF_OOT | RSBS_COMBO_HALF_MM)) ? " and " : "",
                 (unprovedHalves & RSBS_COMBO_HALF_MM) != 0u ? "Majora's Mask" : "");
         OoT_Creation_EmitGoalWarningToast(unprovedHalves);
     }
-    fprintf(stderr, "[OoT] creation event: slot %d complete — both halves authored under one frozen identity\n", slot);
+    fprintf(stderr,
+            "[OoT] creation event: slot %d complete — both halves authored under one frozen identity; steps %s\n", slot,
+            sCreationSequence);
     fflush(stderr);
     return 1;
 }
@@ -1127,11 +1290,24 @@ extern "C" int OoT_Creation_StagedGenerationConsumed(void) {
  *  consumed one. */
 extern "C" void OoT_Creation_ForgetConsumedGeneration(void) {
     sStagedGenerationConsumedBy = OOT_STAGED_GEN_NONE;
+    // #1044: a new generation replaces the staged package too (Playthrough_Init
+    // calls this on the Generate worker; the package's own state is locked).
+    OoT_SeedPackage_Unstage();
+    sPairedWorldComplete = false;
+}
+
+/** #1044: a seed package was staged (SeedPackageSingleExe.cpp): it is a fresh world
+ *  for the file select's purposes, as a generation is, without unstaging itself. */
+extern "C" void OoT_Creation_MarkFreshStagedWorld(void) {
+    sStagedGenerationConsumedBy = OOT_STAGED_GEN_NONE;
 }
 
 static void ConsumeStagedGeneration(int slot, bool created) {
     Rando::Context::GetInstance()->SetSeedGenerated(false);
     OoT_ComboLogic_SetGeneralPassDeferred(0);
+    // #1044: the package the file bound is consumed with it; another file loads it again.
+    OoT_SeedPackage_Unstage();
+    sPairedWorldComplete = false;
     sStagedGenerationConsumedBy = created ? slot : OOT_STAGED_GEN_FAILED;
     fprintf(stderr,
             "[OoT] creation: slot %d %s; the staged generation is consumed, and another file needs a new "

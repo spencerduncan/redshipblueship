@@ -377,6 +377,8 @@ extern int OoT_Creation_StagedGenerationConsumed(void);
 // RSBS (#936): 1 when the spoiler is a paired world's, which the auto-load
 // leaves alone (SeedContext.cpp).
 extern int OoT_FileSelect_SkipPairedSpoilerAutoLoad(const char* spoilerFileName);
+// RSBS (#1044): Generate's completion (soh/Enhancements/randomizer/SeedPackageSingleExe.cpp).
+extern int OoT_SeedPackage_FileSelectTick(void);
 #endif
 
 void FileChoose_UpdateRandomizer() {
@@ -2775,6 +2777,12 @@ void FileChoose_Main(GameState* thisx) {
     Color_RGB8 helpTextColor = { 100, 255, 255 };
 
     GameInteractor_ExecuteOnFileChooseMain(thisx);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#1044): Generate's completion. The frame after the Generate worker ends,
+    // the paired world it left at its general pass is completed here, on the game
+    // thread, written as a seed package and staged; file creation only binds it.
+    OoT_SeedPackage_FileSelectTick();
+#endif
 
     if (CVarGetInteger(CVAR_COSMETIC("Title.FileChoose.Changed"), 0)) {
         Color_RGB8 backgroundColor =
