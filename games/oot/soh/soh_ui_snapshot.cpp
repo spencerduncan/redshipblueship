@@ -2189,9 +2189,16 @@ void Session::BuildPageList() {
                 p.forbidText = { "The Combo Tracker draws its checks in the colors set below",
                                  "whose check colors, and no other setting" };
                 // The Window Type row: its tooltip's "Value: effect" lines.
-                p.hovers = { "window-type", "check-tracker-settings" };
+                p.hovers = { "window-type" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
-                p.hoverRows["check-tracker-settings"] = "Popout Check Tracker Settings";
+                // ROM-rich only: SoH registers its Check Tracker Settings window
+                // in SetupGuiElements, which a ROM-free run never reaches, so
+                // there the button draws #535's disabled shape ("Its window is
+                // not available yet") instead of the tooltip under test.
+                if (!romFree) {
+                    p.hovers.push_back("check-tracker-settings");
+                    p.hoverRows["check-tracker-settings"] = "Popout Check Tracker Settings";
+                }
             } else if (p.id == "Combo/Windows") {
                 // A tracker toggle: SoH's "Toggles the <Window>." (the unified
                 // Item Tracker's, since MM's tracker rows left the page, #458 U6).
