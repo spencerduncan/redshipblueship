@@ -1,3 +1,154 @@
+# Next release (draft)
+
+**Status:** draft. No version or codename is decided. This section lists what merged on `main` after the
+`v0.3.0-prealpha` tag (`f2f3d64f`), up to `4fc4fd41` (2026-10-23): 15 pull requests, #1111 to #1144 (#1115 is the
+release itself; the numbers between them that are not listed are issues or pull requests still open).
+**Covers:** everything merged after `f2f3d64f`. Numbers in parentheses are pull requests; issues are written "issue #N".
+Nobody has played any of it: every change below is locked by test rows.
+
+---
+
+## Since v0.3.0-prealpha
+
+### Read this first
+
+- **Start a new paired file: files from `v0.3.0-prealpha` do not carry over.** Shuffle Tree Drops (#1125) added 53
+  checks to Majora's Mask's check table, which sits in the middle of Majora's Mask's half of the save, so every field
+  after it moved, the world's seed among them. A paired randomizer file saved by `v0.3.0-prealpha` or any earlier
+  build no longer reads as its own Majora's Mask world, and the file select refuses it ("Refused: This file has no
+  Majora's Mask world"). The operator accepted this break before release (2026-10-23); there is no migration. Keep
+  the `v0.3.0-prealpha` build if you want to finish an old file. See "The `v0.3.0-prealpha` save break" under "Save
+  loss and corruption" in [`known-issues.md`](known-issues.md).
+- **Generate now makes the whole paired world** and writes it to a seed package in `Randomizer/` (next section). The
+  progress overlay shows when you press Generate; creating the file is instant.
+- **Seeds.** With every new option at its default (Shuffle Tree Drops off), no world moved after the tag: the same seed
+  and settings make the same world with the same fingerprint (`comboSettingsHash`, `mmFinalSeed` and every placement
+  field of the golden digests are unchanged). Eight golden digests re-pinned one field, `mmPlacementHash`, because that
+  hash counts every Majora's Mask check, the 53 tree checks included, whether or not they are shuffled (#1125). With
+  Shuffle Tree Drops on, or a shared song rule on while Shuffle Songs is not Anywhere (#1111), the world differs.
+
+### Seed packages (issue #1044)
+
+- **Generate builds the whole paired world** (both games' placements, the crossings and the spoiler) and writes it to
+  `Randomizer/<icons>-<fingerprint>.rsbs-seed.zip`. The "Creating Your Paired World" overlay now shows at Generate. A
+  generation that runs out of budget fails Generate with "Not generated: try a new seed or other options."
+- **File creation uses the package and generates nothing**, so it is instant, and settings changed after Generate no
+  longer change the world.
+- **Randomizer > General > Seed Package:** a list of the packages in `Randomizer/`, "Load seed package" (stages one
+  for the next file) and "Export seed package" (writes the staged one under a name you type, to share). A line names
+  what is staged. A package from another generator version is refused ("Refused: Seed package from another
+  generator") and nothing is staged (#1116).
+
+### Majora's Mask randomizer
+
+- **Shuffle Tree Drops** (Randomizer > MM Randomizer > Shuffle Items, after Shuffle Grass Drops; off by default),
+  ported from 2Ship2Harkinian's Tree Shuffle: bonking into each of 53 trees that shake is a check, and trees that do
+  not shake have no drops. The Gorman Track trees are not included. A tree check only ever holds a Majora's Mask item
+  (#1125, issue #1121).
+
+### Cross-Game Rules and shared items
+
+- **A capacity upgrade found in the other game raises your tier at the pickup.** Majora's Mask's Progressive Bomb Bag
+  on an Ocarina of Time check, or Ocarina of Time's Progressive Wallet in Termina, now raises the finder's tier at
+  once, as a bombchu pack already did; the other game reads it from the shared pool at its next arrival. This covers
+  the bomb bag, quiver, wallet, magic, Double Defense, Pieces of Heart and Heart Containers, the hookshot, and bottles
+  under Shared Bottles. It used to arrive only after a round trip through the other game (#1122, issue #1120).
+- **Shared Epona's Song, Shared Song of Storms and Shared Song of Time place one copy** whatever Ocarina of Time's
+  Shuffle Songs says; the spot Ocarina of Time's own copy would have taken holds another item. With Shuffle Songs Off,
+  the song's vanilla check (Malon, the Windmill, the Ocarina of Time) holds whatever the fill puts there (#1111, issue
+  #1085).
+- Groundwork for wearing the other game's masks (issue #977): no change in play until the mask items land (#1112).
+
+### Majora's Mask now honours more of the shared settings
+
+- **Skip Boss Introductions** (Enhancements > Skips & Speed-ups) now works in Majora's Mask: boss and miniboss intro
+  cutscenes and the boss blue-warp cutscenes are skipped (#1124, issue #1123).
+- **Damage Multiplier:** a new "MM Damage Multiplier" row on Enhancements > Difficulty, under Ocarina of Time's, with
+  Majora's Mask's own values (Vanilla 1x to Foolish 16x, or 1 Hit KO). The two rows stay separate because the two
+  games' value lists differ (#1119, issue #1037).
+
+### Cross-game items
+
+- Ocarina of Time's shop shelves and get-item cutscene show Majora's Mask's stray fairies (in their area's colour) and
+  the bottled fairy instead of the "?" stand-in. The fairy is a still figure (#1113, issue #964).
+
+### Trackers
+
+- **The Combo Tracker follows Check Tracker Settings:** its Hide options, Filter Empty Areas and header toggles (Show
+  Hidden Items, Expand/Collapse Buttons, Search Input, Check Totals). Each game pane has its own Show Hidden Items. The
+  list is always drawn (there is no "Checks" node to open), and "Checks: n / m" counts skipped checks as checked, as
+  both native trackers do. Its Crossings section is gone (the Cross-Game Spoiler still lists crossings), so Toggle
+  Combo Tracker is no longer disabled in race mode (#1137, issue #1128).
+- **The Combo Tracker's Ocarina of Time pane lists what Ocarina of Time's Check Tracker lists:** excluded and
+  unshuffled checks are out, and Always Show Gold Skulltulas and Hide Unshuffled Shop Item Checks apply. While you
+  play Majora's Mask it keeps the list from your last time in Hyrule (#1138, issue #1126).
+- The Combo Item Tracker draws Majora's Mask's ocarina-button icons in Hyrule before Majora's Mask has started, where
+  it drew the item's name as clipped text before (#1144).
+
+### Fixes
+
+- Majora's Mask's pause-menu and game-over saves on file 2 or 3 address that file's own save pages instead of file
+  1's backup or file 2's save (inherited code, issue #599). In this executable Majora's Mask's saves go to the
+  `.redsave`, so nothing changes in play (#1117).
+
+### For contributors
+
+- The integration rows accept the single-bag line that Generate's completion prints, and the integration stderr tee
+  keeps it; five paired-creation rows had been red since #1116 (#1136, issue #1135).
+- Save-writing test rows each use their own directory, so rows that run at the same time no longer share save files
+  (#1118, refs issues #824, #925).
+- The paired determinism digest no longer carries `mmReachableCount` / `mmReachableHash`, which generation does not
+  use (#1114, issue #996).
+
+### Known limitations added since v0.3.0-prealpha
+
+- **The save break above** (#1125): a paired file from `v0.3.0-prealpha` or earlier is refused. Start a new file.
+- Ocarina of Time's Progressive Deku Stick and Nut upgrades found in Termina still cross and arrive at Ocarina of
+  Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps gating sticks and nuts. The ocarina still crosses as an
+  ordinary item (#1122).
+- With Shared Kokiri Sword on, Ocarina of Time's Kokiri Sword found in Termina still crosses and arrives at Ocarina
+  of Time's next arrival, instead of stepping the shared sword at the pickup (issue #1145).
+- With a shared song rule on and Shuffle Songs Off, the song's vanilla check holds a shuffled item, but Ocarina of
+  Time's Check Tracker hides song checks under Off, so it is not listed there (#1111).
+- Skip Song Cutscenes, Quick Boss Deaths and Exclude Glitch-Aiding Cutscenes are Ocarina of Time only. Majora's
+  Mask's song-teacher cutscenes follow Skip Story Cutscenes, and its boss blue-warp cutscenes follow Skip Boss
+  Introductions. Skip First Cycle has no row: the crossing already starts Majora's Mask past its first cycle. Tatl's
+  long flashback at the tree in southern Termina Field, on the road to the swamp, follows Skip Misc Interactions, as
+  in 2Ship2Harkinian (#1124).
+- In a randomizer file whose config never touched the cutscene-skip checkboxes, Ocarina of Time skips story, entrance
+  and boss-intro cutscenes by default but Majora's Mask plays them; tick the boxes once to apply them to both
+  (#1124).
+- The Combo Tracker's Saved Hide never hides a Majora's Mask check: every obtained Majora's Mask check counts as
+  Collected, never Saved, so Collected Hide hides them even when saved (#1137).
+- A saved Always Show Gold Skulltulas or Hide Unshuffled Shop Item Checks reaches the Combo Tracker's Ocarina of Time
+  pane only once Ocarina of Time's Check Tracker window has been shown since launch (#1138).
+- The Combo Tracker's Majora's Mask pane groups enemy drops and unconnected grottos differently from Majora's Mask's
+  own Check Tracker (issue #1127, deferred).
+- A stray fairy on an Ocarina of Time shelf or in its get-item cutscene is a still figure (no wing flap or colour
+  pulse). The other items 2Ship2Harkinian draws with its own code (owl statues, souls, clocks, frogs, the swim ability,
+  Triforce pieces, traps and ocarina buttons) still show "?" there (#1113).
+
+### Open decisions (operator), added since v0.3.0-prealpha
+
+- #1124: whether Majora's Mask's song-teacher cutscenes should follow Skip Song Cutscenes instead of Skip Story
+  Cutscenes, and whether its boss blue-warp cutscenes should follow Skip Story Cutscenes (as Ocarina of Time's do)
+  instead of Skip Boss Introductions. Both keep 2Ship2Harkinian's grouping for now.
+- Issue #1123: whether Tatl's flashback on the road to the swamp should also be skipped under Skip Story Cutscenes.
+  It follows Skip Misc Interactions only, as in 2Ship2Harkinian.
+
+### Run record
+
+The pull requests were merged once their hosted CI was green, and the pyramid driver runs the ROM tiers on
+`main` itself (the replan of 2026-10-22). Its `integration` run on `main` at `fabe7d33` (cycle 22, 2026-10-23) passed
+16 of 21. #1136's fix holds: no paired-creation row stops at the single-bag line any more, and
+`IntPairedFileSelectIdentity` passes. Five rows fail on other causes, not yet triaged when this was written:
+`IntGameplayRoundtrip`, `IntPairedFirstCrossingDiverged` and `IntPairedFirstCrossingForeignSpoiler` report that the
+camera stayed put while Link walked ("camera is anchored"), and `IntPairedFirstCrossing` and
+`IntPairedFirstCrossingTwoCycles` that a warp arrived at entrance 0x0033 instead of 0x00B1. The integration tier is
+therefore not green on `main`. Nobody has played any of it.
+
+---
+
 # Release notes: v0.3.0-prealpha ("Ripley Alfa")
 
 **Status:** released. The release is cut as the tag `v0.3.0-prealpha` on the commit that merges this text (the version
