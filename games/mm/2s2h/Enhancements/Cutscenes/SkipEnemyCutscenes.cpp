@@ -36,7 +36,7 @@ extern EnKnight* sThinKnightInstance;
 extern EnKnight* sWideKnightInstance;
 }
 
-#define CVAR_NAME "gEnhancements.Cutscenes.SkipEnemyCutscenes"
+#define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.BossIntro"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 // Set by enemy actors to control the camera override hooks
@@ -133,6 +133,9 @@ void RegisterSkipEnemyIntros() {
 
     // Gerudo Pirate
     COND_ID_HOOK(OnActorInit, ACTOR_EN_KAIZOKU, CVAR, [](Actor* actor) {
+        // #1123, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
+        // a missing play state leaves the actor vanilla. The other guarded bodies below follow the same rule.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnKaizoku* enKaizoku = (EnKaizoku*)actor;
         if ((enKaizoku->switchFlag > SWITCH_FLAG_NONE) && MM_Flags_GetSwitch(MM_gPlayState, enKaizoku->switchFlag)) {
             // Pirate already defeated, don't do anything
@@ -169,6 +172,7 @@ void RegisterSkipEnemyIntros() {
 
 void RegisterSkipBossWarpCutscenes() {
     COND_VB_SHOULD(VB_START_CUTSCENE, CVAR, {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123: the vanilla verdict stands without a play state
         s16* csId = va_arg(args, s16*);
         switch (MM_gPlayState->sceneId) {
             case SCENE_MITURIN_BS: // Odolwa's Lair
@@ -292,6 +296,7 @@ void RegisterSkipEnemyCutscenes() {
     });
 
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_KAIZOKU, CVAR, [](Actor* actor, bool* should) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
         EnKaizoku* enKaizoku = (EnKaizoku*)actor;
         if (enKaizoku->actionFunc == EnKaizoku_DefeatKnockdown) {
             // Stop pirate from constantly rotating to face the player
@@ -305,6 +310,7 @@ void RegisterSkipEnemyCutscenes() {
     });
 
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_KAIZOKU, CVAR, [](Actor* actor) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
         EnKaizoku* enKaizoku = (EnKaizoku*)actor;
         if (enKaizoku->actionFunc == EnKaizoku_DefeatKnockdown) {
             if (enKaizoku->skelAnime.curFrame >= 25.0f) {
@@ -335,6 +341,7 @@ void RegisterSkipEnemyCutscenes() {
 
     // Igos du Ikana curtain
     COND_ID_HOOK(OnActorUpdate, ACTOR_BOSS_06, CVAR, [](Actor* actor) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
         Boss06* boss06 = (Boss06*)actor;
         // Igos du Ikana curtain burning. Just instantly snap to the post-burned state
         if (boss06->actionFunc == Boss06_CurtainBurningCutscene) {
@@ -356,6 +363,7 @@ void RegisterSkipEnemyCutscenes() {
 
     // Igos du Ikana
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_KNIGHT, CVAR, [](Actor* actor, bool* should) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
         EnKnight* enKnight = (EnKnight*)actor;
         // Killed two lackeys, so ready Igos for battle
         if (enKnight->actionFunc == EnKnight_IgosSitting) {
@@ -378,6 +386,7 @@ void RegisterSkipEnemyCutscenes() {
 
     // Gomess
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_DEATH, CVAR, [](Actor* actor) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // #1123
         EnDeath* enDeath = (EnDeath*)actor;
         if (enDeath->actionFunc == EnDeath_PlayCutscene && actor->colChkInfo.health == 0) {
             actor->shape.rot.y -= 0x2000; // Prevent Gomess from snapping to another angle

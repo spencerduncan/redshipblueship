@@ -501,6 +501,12 @@ if(SINGLE_EXECUTABLE_BUILD)
         # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
         "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
         "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
+        # #1123 (Skip Boss Introductions, keyed on SoH's gEnhancements.TimeSavers.SkipCutscene.BossIntro via
+        # kConvergedKeys). Hooks, all dispatched: VB_START_CUTSCENE (z_eventmgr.c), VB_SET_CAMERA_AT_EYE and
+        # VB_SET_CAMERA_FOV (z_play.c), VB_PLAYER_CUTSCENE_ACTION (z_actor.c) via MM_GameHooks_ExecuteVBShould;
+        # ShouldActorInit / ShouldActorUpdate / OnActorInit / OnActorUpdate via MM_GameHooks_Execute* (z_actor.c).
+        # Play-state guards in every body that reads MM_gPlayState; its three registrars have no twin in games/oot.
+        "2s2h/Enhancements/Cutscenes/SkipEnemyCutscenes.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

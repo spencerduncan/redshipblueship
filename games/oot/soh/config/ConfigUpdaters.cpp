@@ -252,7 +252,7 @@ void ConfigVersion8Updater::Update(Ship::Config* conf) {
 // ============================================================================
 
 /**
- * 15 pure MM -> SoH renames for settings whose MM reader sat on a differently
+ * 16 pure MM -> SoH renames for settings whose MM reader sat on a differently
  * spelled twin of the key SoH's menu writes. Same shape and the same conflict
  * rule as version 8: OoT's value wins, the MM spelling is cleared either way,
  * so a re-run is a no-op and the migration cannot oscillate.
