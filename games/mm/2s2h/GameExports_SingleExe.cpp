@@ -5306,6 +5306,396 @@ extern "C" int MM_Combo_DepartureIsLiveFile(void) {
     return MM_SaveIsLiveFile() ? 1 : 0;
 }
 
+// ============================================================================
+// ONE KIND AT A TIME (#1120), the twin of OoT's block. The harvest and the
+// apply are written per KIND, each kind with the quantity its ceiling bounds,
+// so the arrival shims below and the pickup credit (MM_CreditSharedPickup) run
+// the SAME arithmetic: a far game's tier item found in Termina harvests its
+// kind, steps the pool and re-applies its kind in place, which is exactly the
+// arrival's block for that kind. The counted bombchu row has no tier and keeps
+// its own #1061 path. Touches gSaveContext only, like the shims.
+// ============================================================================
+
+// The ammo row a capacity tier kind belongs to, or null for a kind that is
+// not an ammo tier.
+static const MMSharedAmmo* MM_SharedAmmoRowForTier(uint8_t kind) {
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        if (kMMSharedAmmo[i].tierKind != RSBS_SHARED_RES_NONE && kMMSharedAmmo[i].tierKind == kind) {
+            return &kMMSharedAmmo[i];
+        }
+    }
+    return nullptr;
+}
+
+// The cap MM's apply bounds a MONOTONIC kind with: the highest value MM's own
+// tables define (see each MM_MAX_*). 0 for a kind this table does not bound
+// (the triforce count derives its cap per world).
+static uint16_t MM_SharedKindCap(uint8_t kind) {
+    switch (kind) {
+        case RSBS_SHARED_RES_WALLET_TIER:
+            return (uint16_t)MM_MAX_WALLET_TIER;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS:
+            return (uint16_t)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS;
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            return 1u;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            return 2u;
+        case RSBS_SHARED_RES_QUIVER_TIER:
+        case RSBS_SHARED_RES_BOMB_BAG_TIER:
+        case RSBS_SHARED_RES_STICK_TIER:
+        case RSBS_SHARED_RES_NUT_TIER:
+            return (uint16_t)MM_MAX_AMMO_TIER;
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            return (uint16_t)MM_MAX_HOOKSHOT_TIER;
+        case RSBS_SHARED_RES_OCARINA_TIER:
+            return (uint16_t)MM_MAX_OCARINA_TIER;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            return (uint16_t)MM_MAX_KOKIRI_SWORD;
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
+            return (uint16_t)MM_MAX_BOTTLE_COUNT;
+        default:
+            return 0u;
+    }
+}
+
+// Settle rupeeAccumulator into the count, then harvest the rupees — MM drains
+// it one per frame exactly as OoT does, so a pending accumulator would be
+// harvested as nothing now and then credited again later. Clamped to the
+// wallet, which is why the wallet tier's harvest runs this.
+static void MM_HarvestSharedRupees(void) {
+    const int32_t walletCap = (int32_t)CUR_CAPACITY(UPG_WALLET);
+    int32_t liveRupees = (int32_t)gSaveContext.save.saveInfo.playerData.rupees + (int32_t)gSaveContext.rupeeAccumulator;
+    if (liveRupees < 0) {
+        liveRupees = 0;
+    }
+    if (liveRupees > walletCap) {
+        liveRupees = walletCap;
+    }
+    gSaveContext.save.saveInfo.playerData.rupees = (s16)liveRupees;
+    gSaveContext.rupeeAccumulator = 0;
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)liveRupees);
+}
+
+/**
+ * HARVEST one MONOTONIC kind from MM's live save, and with it the quantity its
+ * ceiling bounds: the harvest shim's block for that kind, and step 1 of a
+ * pickup credit (#1120). Not gated here: the shim gates on the live file
+ * before its first call, and the credit shim likewise.
+ */
+static void MM_HarvestSharedKind(uint8_t kind) {
+    switch (kind) {
+        case RSBS_SHARED_RES_WALLET_TIER:
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, (uint16_t)CUR_UPG_VALUE(UPG_WALLET));
+            MM_HarvestSharedRupees();
+            break;
+        case RSBS_SHARED_RES_HEALTH_QUARTERS:
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS, MM_ReadHealthQuarters());
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
+                                        gSaveContext.save.saveInfo.playerData.health < 0
+                                            ? 0u
+                                            : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
+            break;
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
+                                        gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
+            break;
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
+            break;
+        case RSBS_SHARED_RES_QUIVER_TIER:
+        case RSBS_SHARED_RES_BOMB_BAG_TIER:
+        case RSBS_SHARED_RES_STICK_TIER:
+        case RSBS_SHARED_RES_NUT_TIER: {
+            const MMSharedAmmo* row = MM_SharedAmmoRowForTier(kind);
+            if (row != nullptr) {
+                Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+                Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+            // Harvesting MM's 1 can never demote a longshot the pool already
+            // holds: monotonic merges take the max, which is the whole reason a
+            // 2-vs-1 ceiling needs no special case here.
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
+            break;
+        case RSBS_SHARED_RES_OCARINA_TIER:
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_ReadOcarinaTier());
+            break;
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
+            // A sword Takkuri stole (or one at the smithy) reads 0 here and
+            // cannot lower the pool: the kind is monotonic.
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
+            break;
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
+            // Clamped at OoT's four (MM_ReadBottleCount).
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_ReadBottleCount());
+            break;
+        case RSBS_SHARED_RES_TRIFORCE_PIECES:
+            // MM's counter is a MIRROR of the one combo count, so harvesting it
+            // max-merges MM's collects into that count.
+            Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES,
+                                        (uint16_t)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces);
+            break;
+        default:
+            break;
+    }
+}
+
+/**
+ * APPLY one ammo row from the pool: the tier BEFORE the count it bounds, per
+ * row. Deliberately does NOT copy MM's own rando bomb-bag give, which refills
+ * bombs AND bombchus to capacity — that is a give's semantics, and running it
+ * on every arrival (or every credit) would hand the player a free restock per
+ * switch. The apply authors an absolute count from the pool instead, which is
+ * what the watermark reconciles against. The arrival's per-row step, and the
+ * re-apply a tier credit runs (#1120).
+ */
+static void MM_ApplySharedAmmoRow(const MMSharedAmmo* row) {
+    if (row->tierKind != RSBS_SHARED_RES_NONE) {
+        uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
+        if (Combo_ApplySharedResource(GAME_MM, row->tierKind, MM_MAX_AMMO_TIER, &tier)) {
+            MM_Inventory_ChangeUpgrade(row->upgrade, (u32)tier);
+            if (tier >= 1u) {
+                MM_EnsureInventoryItem(row->item);
+            }
+        }
+    }
+
+    MM_ApplySharedAmmoCount(row);
+}
+
+/**
+ * APPLY one MONOTONIC kind from the pool into MM's live save, and after it the
+ * quantity its ceiling bounds: the arrival shim's block for that kind
+ * (MM_ApplySharedResources runs these in order), and step 3 of a pickup credit
+ * (#1120), which re-applies exactly the kind it stepped. Capacities are applied
+ * before the quantities they bound inside each case.
+ */
+static void MM_ApplySharedKind(uint8_t kind) {
+    switch (kind) {
+        case RSBS_SHARED_RES_WALLET_TIER: {
+            // --- Wallet tier (monotonic). Raises MM's clamp before rupees land.
+            uint16_t walletTier = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, MM_MAX_WALLET_TIER, &walletTier)) {
+                MM_Inventory_ChangeUpgrade(UPG_WALLET, (u32)walletTier);
+            }
+
+            // --- Rupees (consumable), clamped to the wallet capacity just applied.
+            uint16_t rupees = gSaveContext.save.saveInfo.playerData.rupees < 0
+                                  ? 0u
+                                  : (uint16_t)gSaveContext.save.saveInfo.playerData.rupees;
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET),
+                                          &rupees)) {
+                gSaveContext.save.saveInfo.playerData.rupees = (s16)rupees;
+            }
+            gSaveContext.rupeeAccumulator = 0;
+            break;
+        }
+        case RSBS_SHARED_RES_HEALTH_QUARTERS: {
+            // --- Health capacity + pieces from the one canonical quantity, clamped
+            // at 20 hearts: neither game's give path clamps capacity, and a total
+            // summed across both games' pieces and containers passes 20 easily.
+            uint16_t quarters = MM_ReadHealthQuarters();
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS,
+                                          (uint16_t)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS, &quarters)) {
+                uint16_t capacity = 0;
+                uint16_t pieces = 0;
+                Combo_SplitHealthQuarters(quarters, &capacity, &pieces);
+                gSaveContext.save.saveInfo.playerData.healthCapacity = (s16)capacity;
+                gSaveContext.save.saveInfo.inventory.questItems =
+                    (gSaveContext.save.saveInfo.inventory.questItems & ~MM_HEART_PIECE_MASK) |
+                    ((uint32_t)pieces << MM_HEART_PIECE_SHIFT);
+            }
+
+            // --- Current health (consumable): one bar across both games.
+            uint16_t health = gSaveContext.save.saveInfo.playerData.health < 0
+                                  ? 0u
+                                  : (uint16_t)gSaveContext.save.saveInfo.playerData.health;
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
+                                          (uint16_t)gSaveContext.save.saveInfo.playerData.healthCapacity, &health)) {
+                // Floored at one heart for the same reason as OoT's side: a
+                // departing game cannot normally hand over a dead bar, and spawning
+                // dead on an arrival lands in a death handler no arrival path has
+                // been tested through.
+                gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE: {
+            // --- Double defense (monotonic 0/1). MM spells the flag `doubleDefense`
+            // where OoT spells it `isDoubleDefenseAcquired`, and each game keeps its
+            // own inventory.defenseHearts counter that its life meter reads — so
+            // this shares the FACT and lets each side set its own pair. A byte copy
+            // across the two layouts would be wrong in both directions.
+            uint16_t doubleDefense = gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u;
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE, 1u, &doubleDefense) &&
+                doubleDefense != 0) {
+                gSaveContext.save.saveInfo.playerData.doubleDefense = 1;
+                if (gSaveContext.save.saveInfo.inventory.defenseHearts < 20) {
+                    gSaveContext.save.saveInfo.inventory.defenseHearts = 20;
+                }
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_MAGIC_LEVEL: {
+            // --- Magic level (monotonic 0/1/2), then current magic clamped against
+            // it. The settled-current snapshot is taken BEFORE the level apply moves
+            // the acquired flags. This ordering is load-bearing on MM's side: a
+            // fresh MM save parks MAGIC_NORMAL_METER in playerData.magic with NO
+            // meter acquired (the Sram default-data table), and the settled read
+            // discards that residue only while the level is still 0. Reading it
+            // after the flag flip would promote the residue into a full phantom
+            // meter whenever the pool carries a level but no current slot (e.g. OoT
+            // earned the meter and spent it to exactly zero before crossing).
+            uint16_t magic = MM_ReadSettledMagic();
+            uint16_t magicLevel = MM_ReadMagicLevel();
+            const bool magicLevelShared =
+                Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
+            if (magicLevelShared) {
+                if (magicLevel >= 1u) {
+                    gSaveContext.save.saveInfo.playerData.isMagicAcquired = 1;
+                }
+                if (magicLevel >= 2u) {
+                    gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired = 1;
+                }
+            }
+
+            // --- Current magic (consumable): one meter across both games. The cap
+            // is DERIVED from the level just applied, never read from live
+            // magicCapacity, which the boot chain leaves at 0 until the growth
+            // machine runs.
+            const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
+            const bool magicShared =
+                Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
+
+            if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+                // Re-author through MM's own file-load shape (MM_Sram_OpenSave): the
+                // amount stays in playerData.magic and only magicLevel is zeroed;
+                // MM_Interface_Update's regrow block then parks it in
+                // magicFillTarget ITSELF (magicFillTarget = playerData.magic; magic
+                // = 0) on its way into STEP_CAPACITY -> FILL, as it does after MM's
+                // own double-magic give mid-play (Rando::GiveItem zeroes magicLevel
+                // for the same regrow). This is the one place MM's regrow differs
+                // from OoT's, and it is load-bearing: OoT's regrow leaves an
+                // externally-authored magicFillTarget alone, so OoT's apply parks
+                // the amount THERE — doing that here instead gets the target
+                // overwritten with the zeroed magic field and the meter refills to
+                // empty (caught by the int-gameplay-roundtrip probe, not by any
+                // ROM-free tier).
+                gSaveContext.magicState = MAGIC_STATE_IDLE;
+                gSaveContext.magicFlag = 0;
+                gSaveContext.magicCapacity = 0;
+                gSaveContext.save.saveInfo.playerData.magicLevel = 0;
+                gSaveContext.save.saveInfo.playerData.magic = (s8)(magic > magicCap ? magicCap : magic);
+                // The harvest that filled the pool already counted any pending
+                // magic-jar credit, so a frozen request draining on top of the
+                // amount just authored would be counted twice at the next harvest.
+                // Same rule as rupeeAccumulator, one accumulator further along; the
+                // stale consume request dies with it.
+                gSaveContext.isMagicRequested = 0;
+                gSaveContext.magicToAdd = 0;
+                gSaveContext.magicToConsume = 0;
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_QUIVER_TIER:
+        case RSBS_SHARED_RES_BOMB_BAG_TIER:
+        case RSBS_SHARED_RES_STICK_TIER:
+        case RSBS_SHARED_RES_NUT_TIER: {
+            const MMSharedAmmo* row = MM_SharedAmmoRowForTier(kind);
+            if (row != nullptr) {
+                MM_ApplySharedAmmoRow(row);
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_HOOKSHOT_TIER: {
+            // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
+            // longshot arrives as a plain hookshot; the pool keeps the 2 and OoT
+            // gets its longshot back. No C-button fixup is needed on this side,
+            // unlike OoT's: MM's id never changes, so an equipped hookshot stays
+            // correct.
+            uint16_t hookshotTier = MM_ReadHookshotTier();
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_MAX_HOOKSHOT_TIER,
+                                          &hookshotTier) &&
+                hookshotTier >= 1u) {
+                MM_EnsureInventoryItem(ITEM_HOOKSHOT);
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_OCARINA_TIER: {
+            // --- Ocarina (monotonic), armed per world by the frozen combo setting
+            // (#668; never armed since #879). ANY ocarina in OoT — Fairy or Time —
+            // arrives here as MM's one Ocarina of Time, which is the operator's
+            // "one shared ocarina" read literally: MM has a single instrument, so
+            // the Fairy Ocarina has to count.
+            //
+            // THIS IS ALSO MM'S "HAS THE OCARINA" STATE. Every MM consumer that
+            // matters reads INV_CONTENT(ITEM_OCARINA_OF_TIME) — the Song of Time
+            // gate (z_elf_message.c), the rando logic's HAS_ITEM, Skull Kid's
+            // rooftop event — so authoring the inventory byte here is what makes
+            // the shared state the one MM plays under. No C-button fixup is needed
+            // on this side, unlike OoT's: MM's ocarina id never changes, so an
+            // equipped ocarina stays correct. With the option off
+            // Combo_ApplySharedResource returns false and nothing below runs.
+            uint16_t ocarinaTier = MM_ReadOcarinaTier();
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_MAX_OCARINA_TIER, &ocarinaTier) &&
+                ocarinaTier >= 1u) {
+                MM_EnsureInventoryItem(ITEM_OCARINA_OF_TIME);
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_KOKIRI_SWORD: {
+            // --- The Kokiri Sword (monotonic 0/1), armed per world by the frozen
+            // Shared Kokiri Sword setting (#886). Only when MM holds NO sword: a
+            // Razor or Gilded Sword is never replaced. Written as MM's own give
+            // writes it (z_parameter.c: the equipment value, then the B button) for
+            // the human form's set, as 2Ship's RemoveItem does; no icon reload,
+            // because this runs before there is a PlayState and the arrival's
+            // interface init loads B's icon afterwards. With the option off
+            // Combo_ApplySharedResource returns false and nothing below runs. MM's
+            // pool sword is progressive and resolves from this value, so MM's next
+            // sword pickup is then the Razor Sword (the cost of keeping both pools
+            // whole, stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
+            uint16_t kokiriSword = MM_ReadKokiriSword();
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_MAX_KOKIRI_SWORD, &kokiriSword) &&
+                kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
+                SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+                BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_BOTTLE_COUNT: {
+            // --- The bottle count (monotonic 0..4), armed per world by the frozen
+            // Shared Bottles rule (#970). A bottle found in Hyrule is one more EMPTY
+            // bottle here, in the next empty slot; MM's own bottles keep what they
+            // hold. Read through the clamped reader, so an MM holding five or six is
+            // already at the cap and gains nothing. With the rule off nothing below
+            // runs.
+            uint16_t bottleCount = MM_ReadBottleCount();
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_MAX_BOTTLE_COUNT, &bottleCount)) {
+                MM_WriteBottleCount(bottleCount);
+            }
+            break;
+        }
+        case RSBS_SHARED_RES_TRIFORCE_PIECES: {
+            // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when
+            // the frozen combo goal is triforce-hunt. MM's counter becomes the whole
+            // combo count, capped at the combo total, so MM's give arm compares the
+            // combo requirement against pieces found in EITHER world.
+            uint16_t triforcePieces = gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+            if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(),
+                                          &triforcePieces)) {
+                gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = triforcePieces;
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
 /**
  * HARVEST (#525), the twin of OoT_HarvestSharedResources.
  *
@@ -5332,68 +5722,34 @@ extern "C" void MM_HarvestSharedResources(void) {
         return;
     }
 
-    // Settle rupeeAccumulator into the count first — MM drains it one per frame
-    // exactly as OoT does, so a pending accumulator would be harvested as
-    // nothing now and then credited again later.
-    const int32_t walletCap = (int32_t)CUR_CAPACITY(UPG_WALLET);
-    int32_t liveRupees = (int32_t)gSaveContext.save.saveInfo.playerData.rupees + (int32_t)gSaveContext.rupeeAccumulator;
-    if (liveRupees < 0) {
-        liveRupees = 0;
-    }
-    if (liveRupees > walletCap) {
-        liveRupees = walletCap;
-    }
-    gSaveContext.save.saveInfo.playerData.rupees = (s16)liveRupees;
-    gSaveContext.rupeeAccumulator = 0;
+    MM_HarvestSharedKind(RSBS_SHARED_RES_WALLET_TIER);     // and the rupees it bounds (settled first)
+    MM_HarvestSharedKind(RSBS_SHARED_RES_HEALTH_QUARTERS); // and the current health
+    MM_HarvestSharedKind(RSBS_SHARED_RES_DOUBLE_DEFENSE);
+    MM_HarvestSharedKind(RSBS_SHARED_RES_MAGIC_LEVEL); // and the current magic
 
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)liveRupees);
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, (uint16_t)CUR_UPG_VALUE(UPG_WALLET));
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS, MM_ReadHealthQuarters());
-    Combo_HarvestSharedResource(
-        GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
-        gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health);
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE,
-                                gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u);
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, MM_ReadMagicLevel());
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, MM_ReadSettledMagic());
-
-    // Ammo, the twin of the OoT loop — no settle step, because ammo changes are
+    // Ammo, the twin of the OoT loop — each tier and the count it bounds, then
+    // the tier-less bombchu count; no settle step, because ammo changes are
     // immediate AMMO() writes in both games rather than accumulator drains.
     for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
         const MMSharedAmmo* row = &kMMSharedAmmo[i];
         if (row->tierKind != RSBS_SHARED_RES_NONE) {
-            Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
+            MM_HarvestSharedKind(row->tierKind);
+        } else {
+            Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
         }
-        Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
     }
 
-    // Harvesting MM's 1 can never demote a longshot the pool already holds:
-    // monotonic merges take the max, which is the whole reason a 2-vs-1 ceiling
-    // needs no special case here.
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_ReadHookshotTier());
+    MM_HarvestSharedKind(RSBS_SHARED_RES_HOOKSHOT_TIER);
 
-    // Ocarina (#668), the twin of OoT's line. Offered unconditionally: the
-    // arming gate is inside Combo_HarvestSharedResource and is the same
-    // predicate the apply consults, so the two halves cannot diverge. Harvesting
-    // MM's 1 can never demote an Ocarina of Time the pool already holds — the
-    // tier is monotonic, exactly as for the hookshot just above.
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_ReadOcarinaTier());
-
-    // The Kokiri Sword (#886), the twin of OoT's line. A sword Takkuri stole (or
-    // one at the smithy) reads 0 here and cannot lower the pool: the kind is
-    // monotonic. The arming gate is inside Combo_HarvestSharedResource.
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_ReadKokiriSword());
-
-    // The bottle count (#970), the twin of OoT's line, clamped at OoT's four. The
-    // arming gate is inside Combo_HarvestSharedResource.
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_ReadBottleCount());
-
-    // Triforce pieces (ADR 0010 answer O10), the twin of OoT's line: MM's
-    // counter is a MIRROR of the one combo count, so harvesting it max-merges
-    // MM's collects into that count. The arming gate (the frozen goal is
-    // triforce-hunt) is inside Combo_HarvestSharedResource.
-    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES,
-                                (uint16_t)gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces);
+    // Ocarina (#668), the Kokiri Sword (#886), the bottle count (#970) and the
+    // triforce count (ADR 0010 O10), the twins of OoT's lines: offered
+    // unconditionally. Each arming gate is inside Combo_HarvestSharedResource
+    // and is the same predicate the apply consults, so the two halves cannot
+    // diverge.
+    MM_HarvestSharedKind(RSBS_SHARED_RES_OCARINA_TIER);
+    MM_HarvestSharedKind(RSBS_SHARED_RES_KOKIRI_SWORD);
+    MM_HarvestSharedKind(RSBS_SHARED_RES_BOTTLE_COUNT);
+    MM_HarvestSharedKind(RSBS_SHARED_RES_TRIFORCE_PIECES);
 
     // Shared families (#976), the twin of OoT's line: behind the same live-file
     // gate, a no-op until a family is frozen on and registered.
@@ -5401,20 +5757,55 @@ extern "C" void MM_HarvestSharedResources(void) {
 }
 
 /**
+ * STEP AT PICKUP (#1120; shared_resources.h), the twin of
+ * OoT_StepSharedTierAtPickup: a far game's capacity tier found in Termina
+ * (OoT's Progressive Bomb Bag on an MM check), or an MM tier item redeemed from
+ * an older save's crossing, steps the pool now and MM's tier re-applies from
+ * it at once through the arrival's own block for the kind (MM_ApplySharedKind:
+ * the tier before the quantity, the UPG_* write, the item slot, the ammo count
+ * from the pool — never MM's own give's bomb-and-bombchu refill). Touches
+ * gSaveContext only, so it is safe from MM_AwardSharedItem before
+ * `MM_gPlayState = this`, exactly as the apply is.
+ *
+ * @return 1 when stepped (including a copy absorbed at the cap: nothing in
+ *         Hyrule could hold it either); 0 (the caller crosses the item, as
+ *         before) when the kind is disarmed by the frozen rules or has no cap
+ *         here.
+ */
+static int MM_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
+    MM_HarvestSharedKind(kind);
+    if (!Combo_StepSharedTier(kind, units, MM_SharedKindCap(kind))) {
+        return 0; // the harvest alone changes nothing a later harvest would not
+    }
+    MM_ApplySharedKind(kind);
+    uint16_t pool = 0;
+    Combo_GetSharedResource(kind, &pool);
+    fprintf(stderr, "[MM] shared pickup step: %s id=%u steps shared kind %u by %u; the pool now holds %u (#1120)\n",
+            Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)kind, (unsigned)units,
+            (unsigned)pool);
+    return 1;
+}
+
+/**
  * CREDIT AT PICKUP (#1061; shared_resources.h), the twin of
  * OoT_CreditSharedPickup: an OoT bombchu pack found in Termina, or an MM pack
  * redeemed from an older save's crossing, goes into the pool now and MM's count
  * re-applies from it (harvest, credit, re-apply). MM holds what its bomb bag
- * fits, 0 with no bag; the rest stays in the pool, where OoT reads it.
+ * fits, 0 with no bag; the rest stays in the pool, where OoT reads it. A
+ * capacity tier (#1120) takes the step path above instead.
  *
  * @return 1 when credited; 0 (nothing touched) when @p item is not a counted
- *         pack, MM's live save is not a real file, or the kind has no MM row.
+ *         pack or a tier, MM's live save is not a real file, or the kind has no
+ *         MM row.
  */
 extern "C" int MM_CreditSharedPickup(const SharedItem* item) {
     uint8_t kind = 0;
     uint16_t units = 0;
     if (item == nullptr || !Combo_SharedPickupCreditOf(*item, &kind, &units) || !MM_SaveIsLiveFile()) {
         return 0;
+    }
+    if (Combo_SharedResourceStepsAtPickup(kind)) {
+        return MM_StepSharedTierAtPickup(item, kind, units);
     }
     for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
         const MMSharedAmmo* row = &kMMSharedAmmo[i];
@@ -5588,7 +5979,8 @@ extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
  *
  * Called from MM_Play_ConsumeStartupEntrance beside MM_ConsumeSharedItems, once
  * per cross-game arrival into MM. Capacities are applied before the quantities
- * they bound.
+ * they bound: each kind's block, with the quantity it bounds, is
+ * MM_ApplySharedKind (#1120), which a pickup credit re-runs in place.
  *
  * Touches gSaveContext only — no MM_gPlayState — so it is safe at this point in
  * the arrival, which runs BEFORE `MM_gPlayState = this` (z_play.c). That is the
@@ -5596,200 +5988,21 @@ extern "C" void MM_Combo_ReviveDeadHealthForFreeze(void) {
  * gameplay frame; a direct save-field write has no such dependency.
  */
 extern "C" void MM_ApplySharedResources(void) {
-    // --- Wallet tier (monotonic). Raises MM's clamp before rupees land.
-    uint16_t walletTier = (uint16_t)CUR_UPG_VALUE(UPG_WALLET);
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_WALLET_TIER, MM_MAX_WALLET_TIER, &walletTier)) {
-        MM_Inventory_ChangeUpgrade(UPG_WALLET, (u32)walletTier);
-    }
+    MM_ApplySharedKind(RSBS_SHARED_RES_WALLET_TIER);     // then the rupees it bounds
+    MM_ApplySharedKind(RSBS_SHARED_RES_HEALTH_QUARTERS); // then the current health
+    MM_ApplySharedKind(RSBS_SHARED_RES_DOUBLE_DEFENSE);
+    MM_ApplySharedKind(RSBS_SHARED_RES_MAGIC_LEVEL); // then the current magic
 
-    // --- Health capacity + pieces from the one canonical quantity, clamped at
-    // 20 hearts: neither game's give path clamps capacity, and a total summed
-    // across both games' pieces and containers passes 20 easily.
-    uint16_t quarters = MM_ReadHealthQuarters();
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS,
-                                  (uint16_t)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS, &quarters)) {
-        uint16_t capacity = 0;
-        uint16_t pieces = 0;
-        Combo_SplitHealthQuarters(quarters, &capacity, &pieces);
-        gSaveContext.save.saveInfo.playerData.healthCapacity = (s16)capacity;
-        gSaveContext.save.saveInfo.inventory.questItems =
-            (gSaveContext.save.saveInfo.inventory.questItems & ~MM_HEART_PIECE_MASK) |
-            ((uint32_t)pieces << MM_HEART_PIECE_SHIFT);
-    }
-
-    // --- Double defense (monotonic 0/1). MM spells the flag `doubleDefense`
-    // where OoT spells it `isDoubleDefenseAcquired`, and each game keeps its own
-    // inventory.defenseHearts counter that its life meter reads — so this
-    // shares the FACT and lets each side set its own pair. A byte copy across
-    // the two layouts would be wrong in both directions.
-    uint16_t doubleDefense = gSaveContext.save.saveInfo.playerData.doubleDefense ? 1u : 0u;
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_DOUBLE_DEFENSE, 1u, &doubleDefense) && doubleDefense != 0) {
-        gSaveContext.save.saveInfo.playerData.doubleDefense = 1;
-        if (gSaveContext.save.saveInfo.inventory.defenseHearts < 20) {
-            gSaveContext.save.saveInfo.inventory.defenseHearts = 20;
-        }
-    }
-
-    // --- Rupees (consumable), clamped to the wallet capacity just applied.
-    uint16_t rupees =
-        gSaveContext.save.saveInfo.playerData.rupees < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.rupees;
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_RUPEES, (uint16_t)CUR_CAPACITY(UPG_WALLET), &rupees)) {
-        gSaveContext.save.saveInfo.playerData.rupees = (s16)rupees;
-    }
-    gSaveContext.rupeeAccumulator = 0;
-
-    // --- Current health (consumable): one bar across both games.
-    uint16_t health =
-        gSaveContext.save.saveInfo.playerData.health < 0 ? 0u : (uint16_t)gSaveContext.save.saveInfo.playerData.health;
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_CURRENT,
-                                  (uint16_t)gSaveContext.save.saveInfo.playerData.healthCapacity, &health)) {
-        // Floored at one heart for the same reason as OoT's side: a departing
-        // game cannot normally hand over a dead bar, and spawning dead on an
-        // arrival lands in a death handler no arrival path has been tested
-        // through.
-        gSaveContext.save.saveInfo.playerData.health = (s16)(health < 0x10u ? 0x10u : health);
-    }
-
-    // --- Magic level (monotonic 0/1/2), then current magic clamped against it.
-    // The settled-current snapshot is taken BEFORE the level apply moves the
-    // acquired flags. This ordering is load-bearing on MM's side: a fresh MM
-    // save parks MAGIC_NORMAL_METER in playerData.magic with NO meter acquired
-    // (the Sram default-data table), and the settled read discards that
-    // residue only while the level is still 0. Reading it after the flag flip
-    // would promote the residue into a full phantom meter whenever the pool
-    // carries a level but no current slot (e.g. OoT earned the meter and spent
-    // it to exactly zero before crossing).
-    uint16_t magic = MM_ReadSettledMagic();
-    uint16_t magicLevel = MM_ReadMagicLevel();
-    const bool magicLevelShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_LEVEL, 2u, &magicLevel);
-    if (magicLevelShared) {
-        if (magicLevel >= 1u) {
-            gSaveContext.save.saveInfo.playerData.isMagicAcquired = 1;
-        }
-        if (magicLevel >= 2u) {
-            gSaveContext.save.saveInfo.playerData.isDoubleMagicAcquired = 1;
-        }
-    }
-
-    // --- Current magic (consumable): one meter across both games. The cap is
-    // DERIVED from the level just applied, never read from live magicCapacity,
-    // which the boot chain leaves at 0 until the growth machine runs.
-    const uint16_t magicCap = (uint16_t)(magicLevel * MAGIC_NORMAL_METER);
-    const bool magicShared = Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
-
-    if ((magicLevelShared || magicShared) && magicLevel != 0u) {
-        // Re-author through MM's own file-load shape (MM_Sram_OpenSave): the
-        // amount stays in playerData.magic and only magicLevel is zeroed;
-        // MM_Interface_Update's regrow block then parks it in magicFillTarget
-        // ITSELF (magicFillTarget = playerData.magic; magic = 0) on its way
-        // into STEP_CAPACITY -> FILL. This is the one place MM's regrow
-        // differs from OoT's, and it is load-bearing: OoT's regrow leaves an
-        // externally-authored magicFillTarget alone, so OoT's apply parks the
-        // amount THERE — doing that here instead gets the target overwritten
-        // with the zeroed magic field and the meter refills to empty (caught
-        // by the int-gameplay-roundtrip probe, not by any ROM-free tier).
-        gSaveContext.magicState = MAGIC_STATE_IDLE;
-        gSaveContext.magicFlag = 0;
-        gSaveContext.magicCapacity = 0;
-        gSaveContext.save.saveInfo.playerData.magicLevel = 0;
-        gSaveContext.save.saveInfo.playerData.magic = (s8)(magic > magicCap ? magicCap : magic);
-        // The harvest that filled the pool already counted any pending
-        // magic-jar credit, so a frozen request draining on top of the amount
-        // just authored would be counted twice at the next harvest. Same rule
-        // as rupeeAccumulator, one accumulator further along; the stale consume
-        // request dies with it.
-        gSaveContext.isMagicRequested = 0;
-        gSaveContext.magicToAdd = 0;
-        gSaveContext.magicToConsume = 0;
-    }
-
-    // --- Ammo: tier before the count it bounds, per row. Deliberately does NOT
-    // copy MM's own rando bomb-bag give, which refills bombs AND bombchus to
-    // capacity — that is a give's semantics, and running it on every arrival
-    // would hand the player a free restock per switch. The apply authors an
-    // absolute count from the pool instead, which is what the watermark
-    // reconciles against.
+    // --- Ammo: tier before the count it bounds, per row.
     for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
-        const MMSharedAmmo* row = &kMMSharedAmmo[i];
-
-        if (row->tierKind != RSBS_SHARED_RES_NONE) {
-            uint16_t tier = (uint16_t)CUR_UPG_VALUE(row->upgrade);
-            if (Combo_ApplySharedResource(GAME_MM, row->tierKind, MM_MAX_AMMO_TIER, &tier)) {
-                MM_Inventory_ChangeUpgrade(row->upgrade, (u32)tier);
-                if (tier >= 1u) {
-                    MM_EnsureInventoryItem(row->item);
-                }
-            }
-        }
-
-        MM_ApplySharedAmmoCount(row);
+        MM_ApplySharedAmmoRow(&kMMSharedAmmo[i]);
     }
 
-    // --- Hookshot (monotonic). Clamped to MM's ceiling of 1, so an OoT
-    // longshot arrives as a plain hookshot; the pool keeps the 2 and OoT gets
-    // its longshot back. No C-button fixup is needed on this side, unlike
-    // OoT's: MM's id never changes, so an equipped hookshot stays correct.
-    uint16_t hookshotTier = MM_ReadHookshotTier();
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_HOOKSHOT_TIER, MM_MAX_HOOKSHOT_TIER, &hookshotTier) &&
-        hookshotTier >= 1u) {
-        MM_EnsureInventoryItem(ITEM_HOOKSHOT);
-    }
-
-    // --- Ocarina (monotonic), armed per world by the frozen combo setting
-    // (#668). ANY ocarina in OoT — Fairy or Time — arrives here as MM's one
-    // Ocarina of Time, which is the operator's "one shared ocarina" read
-    // literally: MM has a single instrument, so the Fairy Ocarina has to count.
-    //
-    // THIS IS ALSO MM'S "HAS THE OCARINA" STATE. Every MM consumer that matters
-    // reads INV_CONTENT(ITEM_OCARINA_OF_TIME) — the Song of Time gate
-    // (z_elf_message.c), the rando logic's HAS_ITEM, Skull Kid's rooftop event —
-    // so authoring the inventory byte here is what makes the shared state the
-    // one MM plays under. No C-button fixup is needed on this side, unlike
-    // OoT's: MM's ocarina id never changes, so an equipped ocarina stays correct.
-    // With the option off Combo_ApplySharedResource returns false and nothing
-    // below runs.
-    uint16_t ocarinaTier = MM_ReadOcarinaTier();
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_OCARINA_TIER, MM_MAX_OCARINA_TIER, &ocarinaTier) &&
-        ocarinaTier >= 1u) {
-        MM_EnsureInventoryItem(ITEM_OCARINA_OF_TIME);
-    }
-
-    // --- The Kokiri Sword (monotonic 0/1), armed per world by the frozen Shared
-    // Kokiri Sword setting (#886). Only when MM holds NO sword: a Razor or
-    // Gilded Sword is never replaced. Written as MM's own give writes it
-    // (z_parameter.c: the equipment value, then the B button) for the human
-    // form's set, as 2Ship's RemoveItem does; no icon reload, because this runs
-    // before there is a PlayState and the arrival's interface init loads B's icon
-    // afterwards. With the option off Combo_ApplySharedResource returns false and
-    // nothing below runs. MM's pool sword is progressive and resolves from this
-    // value, so MM's next sword pickup is then the Razor Sword (the cost of
-    // keeping both pools whole, stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
-    uint16_t kokiriSword = MM_ReadKokiriSword();
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_MAX_KOKIRI_SWORD, &kokiriSword) &&
-        kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
-        SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
-        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
-    }
-
-    // --- The bottle count (monotonic 0..4), armed per world by the frozen Shared
-    // Bottles rule (#970). A bottle found in Hyrule is one more EMPTY bottle here,
-    // in the next empty slot; MM's own bottles keep what they hold. Read through
-    // the clamped reader, so an MM holding five or six is already at the cap and
-    // gains nothing. With the rule off nothing below runs.
-    uint16_t bottleCount = MM_ReadBottleCount();
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_BOTTLE_COUNT, MM_MAX_BOTTLE_COUNT, &bottleCount)) {
-        MM_WriteBottleCount(bottleCount);
-    }
-
-    // --- Triforce pieces (monotonic, ADR 0010 answer O10), armed only when the
-    // frozen combo goal is triforce-hunt. MM's counter becomes the whole combo
-    // count, capped at the combo total, so MM's give arm compares the combo
-    // requirement against pieces found in EITHER world.
-    uint16_t triforcePieces = gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
-    if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_TRIFORCE_PIECES, Combo_TriforceHuntTotal(),
-                                  &triforcePieces)) {
-        gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces = triforcePieces;
-    }
+    MM_ApplySharedKind(RSBS_SHARED_RES_HOOKSHOT_TIER);
+    MM_ApplySharedKind(RSBS_SHARED_RES_OCARINA_TIER);
+    MM_ApplySharedKind(RSBS_SHARED_RES_KOKIRI_SWORD);
+    MM_ApplySharedKind(RSBS_SHARED_RES_BOTTLE_COUNT);
+    MM_ApplySharedKind(RSBS_SHARED_RES_TRIFORCE_PIECES);
 
     // Shared families (#976): MM's own copy of every armed family found in either
     // game, before MM_ConsumeSharedItems (z_play.c).

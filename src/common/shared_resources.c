@@ -382,7 +382,9 @@ bool Combo_SharedResourceCreditsAtPickup(uint8_t kind) {
 
 bool Combo_SharedPickupCreditOf(SharedItem item, uint8_t* outKind, uint16_t* outUnits) {
     const uint8_t kind = Combo_ItemClassSharedKind(item);
-    if (!Combo_SharedResourceCreditsAtPickup(kind)) {
+    // A counted pack (#1061) or a capacity tier (#1120): the shim tells them
+    // apart by Combo_SharedResourceStepsAtPickup and runs the matching primitive.
+    if (!Combo_SharedResourceCreditsAtPickup(kind) && !Combo_SharedResourceStepsAtPickup(kind)) {
         return false;
     }
     const uint8_t units = Combo_ItemClassSharedUnits(item);
@@ -419,19 +421,86 @@ bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount) {
 }
 
 bool Combo_SharedResourceStepsAtPickup(uint8_t kind) {
-    // #1120 lock seam: today no tier is credited at pickup (every tier item
-    // crosses). The fix publishes the allowlist here.
-    (void)kind;
-    return false;
+    // #1120: the MONOTONIC kinds a far game's pool item feeds (the item class
+    // sources, ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp). A
+    // positive allowlist, like the counted one above. NOT the stick and nut
+    // tiers: only OoT's Progressive Stick/Nut Upgrade feeds them, and OoT's
+    // apply blocks their grant at tier 0 under Shuffle Deku Stick/Nut Bag
+    // (OoT_SharedAmmoGrantBlocked) because MM is born at tier 1 — OoT's own
+    // give is the only thing that opens that gate, so the item must reach OoT
+    // as a crossing. NOT the ocarina (never armed), the triforce count or the
+    // Kokiri sword (no pool item feeds either kind).
+    switch (kind) {
+        case RSBS_SHARED_RES_WALLET_TIER:
+        case RSBS_SHARED_RES_HEALTH_QUARTERS:
+        case RSBS_SHARED_RES_DOUBLE_DEFENSE:
+        case RSBS_SHARED_RES_MAGIC_LEVEL:
+        case RSBS_SHARED_RES_QUIVER_TIER:
+        case RSBS_SHARED_RES_BOMB_BAG_TIER:
+        case RSBS_SHARED_RES_HOOKSHOT_TIER:
+        case RSBS_SHARED_RES_BOTTLE_COUNT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+// The pool's ceiling for a stepped kind: the HIGHER of the two games' give
+// ceilings, as the kind's quantity policy publishes them (shared_items.c; 0 for
+// a kind without a tier budget, e.g. the health quarters), raised to the
+// finder's own apply cap. See Combo_StepSharedTier's doc for why the finder's
+// cap alone under-caps the hookshot.
+static uint16_t StepCapOf(uint8_t kind, uint16_t finderCap) {
+    ComboSharedQuantityPolicy policy;
+    uint16_t cap = finderCap;
+    if (Combo_SharedQuantityPolicyOf(kind, &policy)) {
+        if ((uint16_t)policy.ceilingOoT > cap) {
+            cap = (uint16_t)policy.ceilingOoT;
+        }
+        if ((uint16_t)policy.ceilingMM > cap) {
+            cap = (uint16_t)policy.ceilingMM;
+        }
+    }
+    return cap;
 }
 
 bool Combo_StepSharedTier(uint8_t kind, uint16_t units, uint16_t cap) {
-    // #1120 lock seam: today the pool has no step primitive (the only monotonic
-    // write is the harvest's max-merge). The fix implements the step here.
-    (void)kind;
-    (void)units;
-    (void)cap;
-    return false;
+    // Monotonic only, by construction: the twin of Combo_CreditSharedResource's
+    // refusal of every monotonic kind, from the other side. A consumable is
+    // CREDITED (added to, behind a watermark); a capacity is STEPPED (max-then-
+    // bound), and neither primitive admits the other's kinds.
+    if (!IsRealKind(kind) || units == 0u || !IsMonotonicKind(kind)) {
+        return false;
+    }
+    // The same arming gate as the harvest and the apply, so a disarmed kind
+    // grows no slot and the caller leaves the pickup to the crossing.
+    if (!Combo_SharedResourceKindArmed(kind)) {
+        return false;
+    }
+    // One copy in the kind's own units. The item class owner counts hearts in
+    // PIECES (shared_items.h: one piece, four for a container); the pool counts
+    // them in quarters, four per piece (Combo_MakeHealthQuarters).
+    uint32_t step = units;
+    if (kind == (uint8_t)RSBS_SHARED_RES_HEALTH_QUARTERS) {
+        step *= 4u;
+    }
+    const uint32_t bound = StepCapOf(kind, cap);
+    if (bound == 0u) {
+        return false; // no ceiling published for this kind here: nothing to step toward, no zero slot
+    }
+    const int slot = FindOrCreateSlot(kind);
+    if (slot < 0) {
+        return false;
+    }
+    ComboSharedResource* entry = SlotAt(slot);
+    uint32_t next = (uint32_t)entry->value + step;
+    if (next > bound) {
+        next = bound; // the copy is absorbed at the cap; never lowers the slot
+    }
+    if (next > entry->value) {
+        entry->value = (uint16_t)next;
+    }
+    return true;
 }
 
 bool Combo_GetSharedResource(uint8_t kind, uint16_t* outValue) {
