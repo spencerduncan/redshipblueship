@@ -32,6 +32,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -70,6 +71,14 @@ namespace {
 bool StatusObtained(RandomizerCheckStatus status) {
     return status == RCSHOW_COLLECTED || status == RCSHOW_SAVED;
 }
+
+// The listing lock's stand-ins (#1126; OoT_TrackerAdapter_TestListSeam below):
+// -1 is production; 0 or 1 is the lock's answer to "are SoH's Check Tracker
+// settings loaded", and the stand-in for SoH's predicate then lists exactly
+// sListTestVisible. sListTestCalls counts every question put to the predicate.
+int sListTestLoaded = -1;
+std::vector<uint16_t> sListTestVisible;
+int sListTestCalls = 0;
 
 bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
     auto ctx = Rando::Context::GetInstance();
@@ -431,6 +440,26 @@ extern "C" int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded) {
     const int persists = sSkipTestPersists;
     sSkipTestPersists = 0;
     return persists;
+}
+
+/**
+ * The listing lock's seam (#1126): @p settingsLoaded -1 restores production; 0
+ * or 1 answers "are SoH's Check Tracker settings loaded" for the adapter, and
+ * with 1 a stand-in for SoH's IsVisibleInCheckTracker lists exactly the @p count
+ * check ids at @p visible (the real predicate dereferences OTRGlobals::Instance,
+ * which a ROM-free tier does not have). @return the questions put to the
+ * predicate (the stand-in or the real one) since the previous call, which resets
+ * the count.
+ */
+extern "C" int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_t* visible, int count) {
+    sListTestLoaded = settingsLoaded < 0 ? -1 : (settingsLoaded != 0 ? 1 : 0);
+    sListTestVisible.clear();
+    if (visible != nullptr && count > 0) {
+        sListTestVisible.assign(visible, visible + count);
+    }
+    const int calls = sListTestCalls;
+    sListTestCalls = 0;
+    return calls;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

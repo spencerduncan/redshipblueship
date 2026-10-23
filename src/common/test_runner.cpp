@@ -6499,6 +6499,7 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void);
 extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
 extern "C" int MM_TrackerInLogic_RunArrival(void);
 extern "C" int MM_TrackerFillSuperset_RunMM(void);
+extern "C" int OoT_TrackerOoTPanelList_Run(void); // #1126, same file as the OoT rows above
 static bool TrackerReachabilityBringUp(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -6531,6 +6532,14 @@ TestResult Test_TrackerFillSuperset(void) {
     printf("[TEST] %s: tracker-fill-superset (OoT failures %d, MM failures %d)\n",
            (oot == 0 && mm == 0) ? "PASS" : "FAIL", oot, mm);
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
+}
+// #1126: the combo tracker's OoT panel against SoH's Check Tracker on one paired
+// creation save. Same bring-up as the rows above.
+TestResult Test_TrackerOoTPanelList(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_TrackerOoTPanelList_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
@@ -7796,6 +7805,11 @@ const TestDescriptor gTests[] = {
       "On one paired creation save, each game's tracker shows every check the fill's sphere zero reaches, minus "
       "obtained (#994)",
       Test_TrackerFillSuperset },
+    { "tracker-oot-panel-list",
+      "On a paired creation save, the combo tracker's OoT panel lists what SoH's Check Tracker lists: its total, a "
+      "shuffled chest, not an excluded location or an unshuffled shop slot, and the same list while MM is played "
+      "(#1126)",
+      Test_TrackerOoTPanelList },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -8205,6 +8219,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "tracker-availability-arrival") == 0 ||
                 strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
+                strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||

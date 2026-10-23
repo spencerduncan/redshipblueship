@@ -2358,6 +2358,15 @@ extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
     ComputeAvailableChecks(RR_ROOT);
     return 1;
 }
+
+// TEST BRIDGE (#1126): CheckTrackerLoadGame as the OnLoadGame hook runs it. A
+// ROM-free tier never registers that hook (InitElement runs only with a game
+// archive), so `sectionId` is still SECTION_ID_BASE there: the caller sets
+// gSaveContext.fileNum to a sentinel SaveSection refuses, or the load's area
+// spoils would write a base save.
+extern "C" void RandoTest_CheckTrackerLoadGame(int32_t fileNum) {
+    CheckTrackerLoadGame(fileNum);
+}
 #endif
 
 // The recalculation below RecalculateAvailableChecks' gate, split out (#994) so a
