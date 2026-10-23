@@ -201,6 +201,11 @@ static bool OoT_Foreign_RecordPickupImpl(uint16_t rc) {
     // crossing would reach the count only through MM's give, which caps
     // bombchus at MM's bomb-bag capacity and lost the pack. Durable the same way
     // a crossing is: the pool is gComboCtx, and the live count is OoT's save.
+    // #1120: a CAPACITY TIER (MM's Progressive Bomb Bag, wallet, magic, ...) the
+    // same way: the pool is stepped by one copy and OoT's tier re-applies at
+    // once, where a crossing reached OoT only after a round trip (MM's arrival
+    // give, MM's harvest, OoT's next arrival apply). A kind the frozen rules
+    // disarm (bottles with Shared Bottles off) answers 0 and crosses as before.
     if (OoT_CreditSharedPickup(item) != 0) {
         return true;
     }
