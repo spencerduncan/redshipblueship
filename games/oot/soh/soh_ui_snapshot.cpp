@@ -849,6 +849,11 @@ struct PageSpec {
     // (HudBandOracle, #962). A state drawn with a title bar is a window, not
     // the floating overlay, and is exempt.
     bool avoidHudBand = false;
+    // WINDOW: per state, whether every view of it is drawn with a title bar and
+    // its close button (true) or title-less with none (false: SoH's floating
+    // overlay chrome, #1130). ChromeOracle holds it; a title-less state is not
+    // held to the pane's title in expectText, since only a title bar draws it.
+    std::map<std::string, bool> stateTitleBar;
     // WINDOW: the floating overlay's Move to Default Position request is driven
     // over real frames in the "live" state (ResetPositionCheck, #962).
     bool checksResetPosition = false;
@@ -1741,6 +1746,8 @@ constexpr int kSnapshotOoTSkipButtons = 3;
 // SoH's Check Tracker Settings keys the tracker's "hidden" state sets (#1128).
 constexpr const char* kSnapshotSavedHideKey = "gTrackers.CheckTracker.Saved.Hide";
 constexpr const char* kSnapshotCollectedHideKey = "gTrackers.CheckTracker.Collected.Hide";
+// SoH's Check Tracker Settings > Window Type, which the "floating" state sets (#1130).
+constexpr const char* kSnapshotWindowTypeKey = "gTrackers.CheckTracker.WindowType";
 
 /**
  * The first trick row Randomizer > MM Tricks draws (DrawMmTrickList,
@@ -2413,10 +2420,17 @@ void Session::BuildPageList() {
         // glyphs are drawn with every status: without a loaded save, "paired"
         // only ever showed the no-data notes. "hidden" is "progress" under SoH's
         // Saved.Hide and Collected.Hide (#1128): the collected rows of both panes
-        // leave, the skipped and open ones stay.
-        p.states = { "paired", "unpaired", "progress", "hidden" };
+        // leave, the skipped and open ones stay. "floating" is "progress" under
+        // SoH's Window Type Floating (#1130): the overlay chrome, no title bar and
+        // no close button, read against SoH's own floating overlay.
+        p.states = { "paired", "unpaired", "progress", "hidden", "floating" };
         p.compareWith = kSohPaneReference;
+        p.stateCompareWith["floating"] = kSohItemTrackerReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
+        p.stateTitleBar = {
+            { "paired", true }, { "unpaired", true }, { "progress", true }, { "hidden", true }, { "floating", false }
+        };
+        p.stateText["floating"] = { kSnapshotOoTChecks[0].shortName, kSnapshotOoTItemA };
         // The saved OoT row under its area (its short name) and the crossed MM
         // item it names: shown in "progress", hidden in "hidden".
         p.stateText["progress"] = { kSnapshotOoTChecks[0].shortName, kSnapshotOoTItemA };
@@ -2998,7 +3012,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         }
         if (state == "paired") {
             AuthorPairing();
-        } else if (state == "crossings" || state == "progress" || state == "hidden") {
+        } else if (state == "crossings" || state == "progress" || state == "hidden" || state == "floating") {
             AuthorPairing();
             AuthorCrossings();
             AuthorMMShadow();
@@ -3008,6 +3022,10 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 // SoH's Check Tracker Settings > Saved / Collected "Hide" (#1128).
                 CVarSetInteger(kSnapshotSavedHideKey, 1);
                 CVarSetInteger(kSnapshotCollectedHideKey, 1);
+            }
+            if (state == "floating") {
+                // SoH's Check Tracker Settings > Window Type: Floating (#1130).
+                CVarSetInteger(kSnapshotWindowTypeKey, ComboGui::kComboTrackerWindowFloating);
             }
         }
     }
@@ -3040,11 +3058,13 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.mmNoteProbe && state == "gate-on") {
         CVarClear(kMmNoteParentKey);
     }
-    if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings" || state == "hidden")) {
+    if (p.kind == Kind::WINDOW &&
+        (state == "progress" || state == "crossings" || state == "hidden" || state == "floating")) {
         OoT_TrackerAdapter_Register();
         RestoreMMShadow();
         CVarClear(kSnapshotSavedHideKey);
         CVarClear(kSnapshotCollectedHideKey);
+        CVarClear(kSnapshotWindowTypeKey);
     }
     if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName) {
         RestoreItemTrackerState();
@@ -3296,7 +3316,12 @@ void Session::Finish(Capture& c, const PageSpec& p) {
                    "PreFunc or is a substring of a header or sidebar label), so reachability by text is unprovable";
         return;
     }
+    const auto titleBar = p.stateTitleBar.find(c.state);
+    const bool titleless = titleBar != p.stateTitleBar.end() && !titleBar->second;
     for (const std::string& want : p.expectText) {
+        if (titleless && want == p.window) {
+            continue; // a title-less state draws no title bar to read the pane's title from (#1130)
+        }
         if (c.text.find(want) != std::string::npos) {
             c.found.push_back(want);
         } else {
@@ -4069,6 +4094,22 @@ void HudBandOracle(const ImGuiWindow* w, Capture& c) {
 }
 
 /**
+ * The pane chrome oracle (#1130): a state the page says is drawn with a title
+ * bar has one and its close button; a title-less one (SoH's floating overlay
+ * chrome) has neither. Held in every view of the state.
+ */
+void ChromeOracle(const ImGuiWindow* w, bool titleBar, Capture& c) {
+    const bool titled = (w->Flags & ImGuiWindowFlags_NoTitleBar) == 0;
+    if (titled == titleBar && w->HasCloseButton == titleBar) {
+        return;
+    }
+    c.status = "fail";
+    c.reason = std::string("the pane is drawn ") + (titled ? "with" : "without") + " a title bar and " +
+               (w->HasCloseButton ? "with" : "without") + " a close button; this state's chrome has " +
+               (titleBar ? "both" : "neither");
+}
+
+/**
  * The icon pane's oracle (#458 U3): the window's last frame drew at least
  * `minImages` draw commands on a texture other than the font atlas, so its
  * icons are pictures and not text. Two neighbouring icons on one texture merge
@@ -4190,8 +4231,8 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         } else {
             CVarSetInteger(cvar, 1);
         }
-        const bool checksOpen =
-            ((state == "progress" || state == "hidden") && p.window == ComboGui::kComboTrackerWindowName);
+        const bool checksOpen = ((state == "progress" || state == "hidden" || state == "floating") &&
+                                 p.window == ComboGui::kComboTrackerWindowName);
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;
@@ -4237,6 +4278,10 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                 if (p.avoidHudBand && c.status == "pass") {
                     HudBandOracle(w, c);
                 }
+            }
+            const auto chrome = p.stateTitleBar.find(state);
+            if (w != nullptr && c.status == "pass" && chrome != p.stateTitleBar.end()) {
+                ChromeOracle(w, chrome->second, c);
             }
             // The icons are textures from the staged archives: a ROM-free run
             // (CI) has none and draws the text fallback, so only a ROM-rich

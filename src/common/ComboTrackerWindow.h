@@ -6,7 +6,9 @@
  * Renders src/common/combo_tracker_view.h's model: the combo identity header
  * and one panel per game fed ONLY by that game's registered adapter, each
  * drawn as SoH's Check Tracker is and governed by SoH's Check Tracker Settings
- * keys (#1128). The cross-game crossings are not drawn here (ruling D10): the
+ * keys (#1128), its window chrome included (#1130: Window Type, Enable
+ * Dragging, Only Enable While Paused, Display Mode and its combo buttons,
+ * Background Color, Font Size). The cross-game crossings are not drawn here (ruling D10): the
  * Cross-Game Spoiler draws them, through DrawCrossingList below. Every panel is labelled by its
  * game's header alone (#927): the inactive game's data is its snapshot (MM's
  * shadow, written at freeze/save; OoT's heap, stopped at suspend), and the
@@ -309,6 +311,72 @@ std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary, bool av
  * "(checked / total)".
  */
 std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool availableChecks);
+
+// ---- The window's chrome (#1130, lane L1b) ---------------------------------
+//
+// SoH's Check Tracker chrome keys, read under SoH's names with SoH's defaults
+// (randomizer_check_tracker.cpp, CheckTrackerWindow::DrawElement, and
+// Trackers::BeginFloatWindows): the Window Type, Enable Dragging, Only Enable
+// While Paused, Display Mode with its two combo buttons, the background colour
+// and the font size. The values are SoH's TrackerWindowType, TrackerDisplayType
+// and TrackerComboButton (randomizerTypes.h), which src/common cannot include.
+
+inline constexpr int kComboTrackerWindowFloating = 0;     // TRACKER_WINDOW_FLOATING
+inline constexpr int kComboTrackerWindowWindow = 1;       // TRACKER_WINDOW_WINDOW, SoH's default
+inline constexpr int kComboTrackerDisplayAlways = 0;      // TRACKER_DISPLAY_ALWAYS, SoH's default
+inline constexpr int kComboTrackerDisplayComboButton = 1; // TRACKER_DISPLAY_COMBO_BUTTON
+inline constexpr int kComboTrackerComboButtonL = 6;       // TRACKER_COMBO_BUTTON_L, the hold's Combo Button 1 default
+inline constexpr int kComboTrackerComboButtonR = 8;       // TRACKER_COMBO_BUTTON_R, the hold's Combo Button 2 default
+inline constexpr int kComboTrackerComboButtonCount = 14;  // A .. D-Right
+
+struct ComboTrackerChromeKeys {
+    int windowType = kComboTrackerWindowWindow;
+    bool draggable = true;
+    bool showOnlyPaused = false;
+    int displayType = kComboTrackerDisplayAlways;
+    int comboButton1 = kComboTrackerComboButtonL;
+    int comboButton2 = kComboTrackerComboButtonR;
+    uint8_t bg[4] = { 0, 0, 0, 255 }; // BgColor.Value, RGBA: SoH's Color_Bg_Default, opaque black
+    float fontSize = 1.0f;
+};
+
+/** The chrome keys' values now (gTrackers.CheckTracker.*), SoH's default for any key not set. */
+ComboTrackerChromeKeys ComboReadTrackerChromeKeys();
+
+/**
+ * The pad bit a Combo Button value names: SoH's `buttons` table
+ * (randomizer_entrance_tracker.h), BTN_A .. BTN_DRIGHT in TrackerComboButton
+ * order. 0 for a value outside it, which no held pad matches.
+ */
+uint32_t ComboTrackerComboButtonMask(int button);
+
+/**
+ * What the window does this frame. `draws` false: it draws nothing (and keeps
+ * its visibility). `flags` are the ImGuiWindowFlags it begins with;
+ * `closeButton` is whether it passes ImGui::Begin an open flag (the title bar's
+ * close button); `mainViewport` pins it to the game window's viewport.
+ */
+struct ComboTrackerChrome {
+    bool draws = true;
+    int flags = 0;
+    bool closeButton = true;
+    bool mainViewport = false;
+};
+
+/**
+ * SoH's chrome decision (DrawElement's floating gates and BeginFloatWindows'
+ * flags) for `keys`, the active game's pause state `paused` and the first
+ * pad's held buttons `padButtons`. The Window type always draws, as a titled,
+ * dockable pane with a close button. The Floating type is an overlay on the
+ * main viewport with no title bar, no docking, no nav and no close button
+ * (SoH's overlays and the Combo Item Tracker have none), input-less and fixed
+ * unless Draggable; it draws only while paused under Only Enable While Paused,
+ * and only while both combo buttons are held under Combo Button Hold. Both
+ * types keep the pane's own scrolling, since the pane scrolls as a whole where
+ * SoH's scrolls an inner table that its NoScrollbar / NoScrollWithMouse do not
+ * reach, and both keep no focus on appearing.
+ */
+ComboTrackerChrome ComboTrackerChromeFor(const ComboTrackerChromeKeys& keys, bool paused, uint32_t padButtons);
 
 } // namespace ComboGui
 
