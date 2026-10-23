@@ -95,6 +95,12 @@ int sListTestCalls = 0;
 int sSkipTestSaveLoaded = -1;
 int sSkipTestPersists = 0;
 
+// The reachability lock's stand-in (#1129; OoT_TrackerAdapter_TestAvailableSeam
+// below): -1 is production; 0 or 1 answers "is SoH's available set current"
+// (Enable Available Checks on and a recalculation run), which a ROM-free tier
+// cannot reach for real (the recalculation needs OoT's region graph).
+int sAvailTestCurrent = -1;
+
 /**
  * Whether OoT's live save is a loaded randomizer file:
  * GameInteractor::IsSaveLoaded() (a play state, a player, normal game mode, a
@@ -440,6 +446,9 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
 
 } // namespace
 
+extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
+}
+
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
         OoTTrackerSummary,   OoTTrackerCheckCount,   OoTTrackerCheckAt,
@@ -586,6 +595,33 @@ extern "C" int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_
     const int calls = sListTestCalls;
     sListTestCalls = 0;
     return calls;
+}
+
+/**
+ * The reachability lock's seam (#1129): @p current -1 restores production; 0 or 1
+ * answers "is SoH's available set current" for the adapter (Enable Available
+ * Checks on and a recalculation run; OoT_CheckTracker_AvailabilityCurrent in
+ * production). The list's gate (OoT played, a randomizer file, SoH's tracker
+ * settings) is still asked through its own seams.
+ */
+extern "C" void OoT_TrackerAdapter_TestAvailableSeam(int current) {
+    sAvailTestCurrent = current < 0 ? -1 : (current != 0 ? 1 : 0);
+}
+
+/**
+ * Author ItemLocation::IsAvailable for OoT check @p rc in whichever heap
+ * Rando::Context is live (#1129), as a recalculation would. @return the previous
+ * value (1 or 0), or -1 with no heap context or an out-of-range id.
+ */
+extern "C" int OoT_TrackerAdapter_TestSetAvailable(uint16_t rc, int available) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || rc == 0 || rc >= (uint16_t)RC_MAX) {
+        return -1;
+    }
+    Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)rc);
+    const int was = loc->IsAvailable() ? 1 : 0;
+    loc->SetAvailable(available != 0);
+    return was;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

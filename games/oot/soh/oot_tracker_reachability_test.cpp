@@ -29,6 +29,11 @@
  *      is why A4's arm is load-bearing).
  *   A6 the drain recalculates: the target flips to available; Mido's chest stays
  *      available; the A3 checks stay out.
+ *   C  the combo tracker's OoT panel reads the same set (#1129), over Mido's
+ *      chest and the target listed through the adapter's list seam: not known
+ *      before Enable Available Checks has run a recalculation, one available at
+ *      sphere zero, two after the arrival's drain; and the departure capture
+ *      OoT_Game_Suspend makes is what the panel shows once MM is played.
  *
  * OoT_TrackerFillSuperset_RunOoT (row TrackerFillSuperset, OoT half): over the
  * shipped defaults (the ComboSingleBag pinned seed), the tracker's available set
@@ -199,6 +204,33 @@ void TrrTrackerOff() {
     RandoTest_CheckTrackerClearRecalcPending();
 }
 
+/**
+ * C (#1129): the combo tracker's OoT panel over Mido's top-left chest and the Lost
+ * Woods target (the only checks the list seam lists), read under `game`: its
+ * summary's available count (-1 when not known) and each row's bit (-1 not known).
+ * OoT's live gate is the seams' (a randomizer save with IS_RANDO read for real,
+ * SoH's tracker settings loaded); the set is SoH's own, current or not.
+ */
+int TrrComboPanel(GameId game, int* outMido, int* outTarget) {
+    const uint16_t listed[2] = { (uint16_t)RC_KF_MIDOS_TOP_LEFT_CHEST, (uint16_t)RC_LW_TARGET_IN_WOODS };
+    (void)OoT_TrackerAdapter_TestListSeam(1, listed, 2);
+    (void)OoT_TrackerAdapter_TestSkipSeam(2);
+    const GameId prev = Context_GetCurrentGame();
+    Context_SetCurrentGame(game);
+    ComboTrackerGameSummary summary;
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    int* outs[2] = { outMido, outTarget };
+    for (int i = 0; i < 2; i++) {
+        ComboTrackerCheckRow row;
+        const bool got = Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)listed[i], &row);
+        *outs[i] = !got ? -2 : (row.availabilityKnown ? (row.available ? 1 : 0) : -1);
+    }
+    Context_SetCurrentGame(prev);
+    (void)OoT_TrackerAdapter_TestListSeam(-1, nullptr, 0);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    return summary.availabilityKnown ? summary.available : -1;
+}
+
 /** A3: the Happy Mask Shop never lends a mask on a paired file (#973). */
 void TrrCheckMaskShop(const char* when) {
     auto logic = Rando::Context::GetInstance()->GetLogic();
@@ -261,8 +293,27 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void) {
     const bool slingshotAtCreation = gSaveContext.inventory.items[SLOT_SLINGSHOT] == ITEM_SLINGSHOT;
     TRR_CHECK(!slingshotAtCreation, "the creation save already holds the slingshot, so the arrival legs are vacuous");
 
+    // ---- C: the combo panel before any recalculation (#1129) --------------------------
+    OoT_TrackerAdapter_Register();
+    {
+        int mido = -2;
+        int target = -2;
+        const int available = TrrComboPanel(GAME_OOT, &mido, &target);
+        printf("[TEST] C (Enable Available Checks off): combo panel available %d; Mido's chest %d, target %d\n",
+               available, mido, target);
+        TRR_CHECK(available == -1 && mido == -1 && target == -1,
+                  "C: the combo tracker's OoT panel claims an availability before Enable Available Checks has run");
+    }
+
     // ---- sphere zero -----------------------------------------------------------------
     if (TrrEnableAndRecalc()) {
+        int comboMido = -2;
+        int comboTarget = -2;
+        const int comboAvailable = TrrComboPanel(GAME_OOT, &comboMido, &comboTarget);
+        printf("[TEST] C (sphere zero): combo panel available %d; Mido's chest %d, target %d\n", comboAvailable,
+               comboMido, comboTarget);
+        TRR_CHECK(comboAvailable == 1 && comboMido == 1 && comboTarget == 0,
+                  "C: the combo tracker's OoT panel does not show SoH's sphere-zero set (one of its two available)");
         const bool mido = TrrAvailable(RC_KF_MIDOS_TOP_LEFT_CHEST);
         const bool woods = TrrChildReaches(RR_THE_LOST_WOODS);
         const bool target = TrrAvailable(RC_LW_TARGET_IN_WOODS);
@@ -309,6 +360,33 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void) {
     TRR_CHECK(target, "A6: the slingshot redeemed at the arrival did not make the Lost Woods target available");
     TRR_CHECK(mido, "A6: Mido's top-left chest dropped out after the arrival");
     TrrCheckMaskShop("after the arrival");
+
+    // ---- C: the combo panel after the drain, then the departure capture (#1129) -------
+    {
+        int comboMido = -2;
+        int comboTarget = -2;
+        const int live = TrrComboPanel(GAME_OOT, &comboMido, &comboTarget);
+        printf("[TEST] C (after the draw): combo panel available %d; Mido's chest %d, target %d\n", live, comboMido,
+               comboTarget);
+        TRR_CHECK(live == 2 && comboMido == 1 && comboTarget == 1,
+                  "C: the combo tracker's OoT panel does not follow the recalculation the arrival armed");
+        // The departure: OoT_Game_Suspend's capture, under the panel's live gate.
+        const uint16_t listed[2] = { (uint16_t)RC_KF_MIDOS_TOP_LEFT_CHEST, (uint16_t)RC_LW_TARGET_IN_WOODS };
+        (void)OoT_TrackerAdapter_TestListSeam(1, listed, 2);
+        (void)OoT_TrackerAdapter_TestSkipSeam(2);
+        const GameId prev = Context_GetCurrentGame();
+        Context_SetCurrentGame(GAME_OOT);
+        OoT_TrackerAdapter_CaptureAvailability();
+        Context_SetCurrentGame(prev);
+        (void)OoT_TrackerAdapter_TestListSeam(-1, nullptr, 0);
+        (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+        const int stale = TrrComboPanel(GAME_MM, &comboMido, &comboTarget);
+        printf("[TEST] C (MM played, the departure capture): combo panel available %d; Mido's chest %d, target %d\n",
+               stale, comboMido, comboTarget);
+        TRR_CHECK(stale == 2 && comboMido == 1 && comboTarget == 1,
+                  "C: the combo tracker's stale OoT panel does not show the set captured at the departure");
+        Combo_TrackerFreezeAvailability((uint8_t)GAME_OOT, nullptr, 0);
+    }
 
     Combo_ClearStartupEntrance();
     Combo_ClearSharedItemOutbox();

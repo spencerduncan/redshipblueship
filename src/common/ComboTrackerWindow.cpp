@@ -500,6 +500,11 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
     return text;
 }
 
+const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row) {
+    (void)row;
+    return nullptr;
+}
+
 namespace {
 
 /**
@@ -634,6 +639,18 @@ std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
     // "Checked", MM's collected count and this pane's area headers count it.
     char text[64];
     snprintf(text, sizeof(text), "Checks: %d / %d", summary.obtained + summary.skipped, summary.shuffled);
+    return text;
+}
+
+std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary, bool availableChecks) {
+    (void)availableChecks;
+    return ComboCheckTotalsText(summary);
+}
+
+std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool availableChecks) {
+    (void)availableChecks;
+    char text[48];
+    snprintf(text, sizeof(text), "(%d / %d)", area.done, area.total);
     return text;
 }
 

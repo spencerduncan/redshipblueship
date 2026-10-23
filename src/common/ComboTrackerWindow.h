@@ -182,6 +182,15 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row);
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
 /**
+ * The reachability glyph a row draws before its check (#1129): SoH's
+ * DrawLocation glyph, ICON_FA_UNLOCK for an available check and ICON_FA_LOCK
+ * for one that is not, or NULL when the row's availability is not known (no
+ * glyph at all). The draw shows it only while Enable Available Checks is on, and
+ * clear on a found check as SoH does, so the names stay in one column.
+ */
+const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row);
+
+/**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
  * and name, its shuffled-check count and how many of them are done (collected
  * or skipped: SoH's and MM's trackers both count a skipped check as checked),
@@ -194,6 +203,10 @@ struct ComboTrackerAreaRows {
     int total = 0;
     int done = 0;
     bool filtered = false; // the search is active and leaves none of the area's rows (#1128)
+    // #1129: the area's rows reachable now, counted like `total` (the whole
+    // area), and whether any row's availability is known.
+    int available = 0;
+    bool availabilityKnown = false;
     std::vector<ComboTrackerCheckRow> rows;
 };
 
@@ -221,6 +234,12 @@ struct ComboCheckHideOptions {
     bool hideAreaIncomplete = false;
     bool hideFilteredAreas = true;
     bool showHidden = false;
+    // #1129: the pane's own Only Show Available Checks (ruling D12: per pane),
+    // in force only while Enable Available Checks is on. It leaves out every
+    // row known not to be available, whatever Show Hidden Items says, and
+    // every area with none available (SoH's DrawLocation and area loop); a row
+    // whose availability is not known is never left out.
+    bool onlyAvailable = false;
 };
 
 /** The hide keys' values now, with `showHidden` as the pane's toggle. */
@@ -259,6 +278,12 @@ struct ComboCheckHeaderOptions {
     bool expandCollapseButtons = false;
     bool searchInput = true;
     bool checkTotals = true;
+    // #1129: SoH's Enable Available Checks ("EnableAvailableChecks", off): the
+    // glyphs, the Available counts and the toggle below show only while it is
+    // on; and SoH's Available Checks Toggle ("AvailableChecksToggleVisible", on):
+    // the pane's Only Show Available Checks checkbox.
+    bool availableChecks = false;
+    bool availableChecksToggle = true;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
@@ -269,6 +294,21 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
  * collected count are, and as the panel's own area headers count.
  */
 std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary);
+
+/**
+ * The totals line with SoH's Available count in front (#1129): "N Available / "
+ * then ComboCheckTotalsText's line, as SoH prints "N Available / " before its
+ * own totals, when `availableChecks` (Enable Available Checks) is on and the
+ * summary's availability is known; ComboCheckTotalsText's line otherwise.
+ */
+std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary, bool availableChecks);
+
+/**
+ * An area header's totals (#1129): SoH's "(available / checked / total)" when
+ * `availableChecks` is on and the area's availability is known, else
+ * "(checked / total)".
+ */
+std::string ComboAreaTotalsText(const ComboTrackerAreaRows& area, bool availableChecks);
 
 } // namespace ComboGui
 

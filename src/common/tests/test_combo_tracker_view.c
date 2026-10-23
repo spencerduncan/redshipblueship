@@ -81,6 +81,17 @@
  *    with no randomizer file loaded (a vanilla file, the title screen), the
  *    placed checks, with the predicate never asked. See CtvOoTListLegs.
  *
+ * 12. REACHABILITY (#1129, #993 option 1). Each row says whether its check can be
+ *    reached now, and whether that is known at all. LIVE: the OoT row's bit is
+ *    the heap's ItemLocation::IsAvailable (authored through a seam), only under
+ *    the list's live gate and once SoH's set is current; the MM row's bit is
+ *    MM's in-logic set (a stand-in for ComputeChecksInLogic, which needs the
+ *    region graph this tier lacks), computed once per refresh rather than per
+ *    row, only while Enable Available Checks is on and MM plays a file. STALE:
+ *    both panes read the set captured at the departure freeze, never a live
+ *    computation; a context with no capture (a .redsave written before #1129)
+ *    reads "not known". See CtvAvailMM and CtvAvailOoT.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -99,6 +110,8 @@
 #include <cstring>
 #include <string>
 #include <vector>
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 // The OoT-side authoring seam (games/oot/soh/Enhancements/randomizer/
 // TrackerAdapterSingleExe.cpp): places three checks — collected, untouched,
@@ -668,6 +681,293 @@ static int CtvOoTListLegs(const uint16_t ootIds[3]) {
     return TEST_PASS;
 }
 
+// ---- #1129: reachability -------------------------------------------------------
+
+// The reachability seams: MM's (TrackerAdapterSingleExe.cpp in 2s2h/Rando) stand in
+// for MM's play state and for ComputeChecksInLogic and count its computations;
+// OoT's answer "is SoH's available set current" and author IsAvailable.
+extern "C" void MM_TrackerAdapter_TestLiveSeam(int live);
+extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* ids, int count);
+extern "C" void OoT_TrackerAdapter_TestAvailableSeam(int current);
+extern "C" int OoT_TrackerAdapter_TestSetAvailable(uint16_t rc, int available);
+
+// SoH's Enable Available Checks, which both panes' availability follows (one set
+// of settings, ruling D3).
+static const char* const kCtvAvailableKey = "gTrackers.CheckTracker.EnableAvailableChecks";
+
+static int sCtvAvailFailures = 0;
+
+/** `game`'s row `id` as one comparable value: -1 not known, else its available bit (-2: no row). */
+static int CtvAvail(uint8_t game, uint16_t id) {
+    ComboTrackerCheckRow row;
+    if (!Combo_TrackerCheckAt(game, (int)id, &row)) {
+        return -2;
+    }
+    return row.availabilityKnown ? (row.available ? 1 : 0) : -1;
+}
+
+/**
+ * MM's half (#1129), over a test descriptor (the production one, liveSave pointed at
+ * an authored live world: checks 11, 13, 17 shuffled, 13 obtained, 17 hosting a
+ * crossing) with the PRODUCTION liveAvailable.
+ *
+ *   A. LIVE: the rows follow the in-logic set; the summary counts it; the
+ *      computation runs once for the summary and every row (a cached set, MM's
+ *      20-frame cadence), and again only when the set is dropped; the crossing
+ *      row carries its host's bit. Enable Available Checks off, or no MM play
+ *      state: not known, and nothing computed.
+ *   B. STALE: the departure capture (MM_TrackerAdapter_CaptureAvailability) is
+ *      what the snapshot pane shows once OoT is played, with no computation at
+ *      all; a departure with no file played leaves it, one with the option off
+ *      clears it; a context with no capture (pre-#1129) reads not known.
+ */
+static int CtvAvailMMBody(std::vector<uint8_t>& live) {
+    const uint16_t kA = 11, kObtained = 13, kC = 17;
+    ComboTrackerGameSummary summary;
+    ComboTrackerForeignRow foreignRow;
+
+    // ---- A. LIVE -------------------------------------------------------------------
+    Context_SetCurrentGame(GAME_MM);
+    sCtvLive = live.data();
+    CVarSetInteger(kCtvAvailableKey, 1);
+    MM_TrackerAdapter_TestLiveSeam(1);
+    const uint16_t inLogicA[1] = { kA };
+    (void)MM_TrackerAdapter_TestInLogicSeam(1, inLogicA, 1);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    const int a = CtvAvail((uint8_t)GAME_MM, kA);
+    const int c = CtvAvail((uint8_t)GAME_MM, kC);
+    const int obtained = CtvAvail((uint8_t)GAME_MM, kObtained);
+    const int calls = MM_TrackerAdapter_TestInLogicSeam(1, inLogicA, 1);
+    printf("[TEST] combo-tracker-view #1129 MM A (LIVE, in logic {11}): freshness=%u known=%d available=%d; rows 11=%d "
+           "17=%d 13=%d; computations %d\n",
+           (unsigned)summary.freshness, summary.availabilityKnown ? 1 : 0, summary.available, a, c, obtained, calls);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 1);
+    CTV_ASSERT(a == 1 && c == 0 && obtained == 0);
+    CTV_ASSERT(calls == 1); // one computation for the summary and the three rows
+    // The rows follow the set: dropped by the seam, recomputed with 17 in logic.
+    const uint16_t inLogicC[1] = { kC };
+    (void)MM_TrackerAdapter_TestInLogicSeam(1, inLogicC, 1);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kA) == 0 && CtvAvail((uint8_t)GAME_MM, kC) == 1);
+    CTV_ASSERT(Combo_TrackerForeignRowAt((uint8_t)GAME_MM, 0, &foreignRow));
+    CTV_ASSERT(foreignRow.hostCheckId == kC && foreignRow.availabilityKnown && foreignRow.available);
+    // Enable Available Checks off: not known, nothing computed.
+    (void)MM_TrackerAdapter_TestInLogicSeam(1, inLogicC, 1);
+    CVarClear(kCtvAvailableKey);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && !summary.availabilityKnown && summary.available == 0);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kC) == -1);
+    CTV_ASSERT(MM_TrackerAdapter_TestInLogicSeam(1, inLogicC, 1) == 0);
+    // No MM play state (the seam's 0): not known, nothing computed.
+    CVarSetInteger(kCtvAvailableKey, 1);
+    MM_TrackerAdapter_TestLiveSeam(0);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kC) == -1);
+    CTV_ASSERT(MM_TrackerAdapter_TestInLogicSeam(1, inLogicC, 1) == 0);
+
+    // ---- B. STALE: the departure capture --------------------------------------------
+    MM_TrackerAdapter_TestLiveSeam(1);
+    const uint16_t inLogicAC[2] = { kA, kC };
+    (void)MM_TrackerAdapter_TestInLogicSeam(1, inLogicAC, 2);
+    MM_TrackerAdapter_CaptureAvailability();
+    const int captureCalls = MM_TrackerAdapter_TestInLogicSeam(1, nullptr, 0); // the live set is empty from here
+    // The freeze copies the live save into the shadow; OoT is played next.
+    Context_UpdateShadowCopy(GAME_MM, live.data(), live.size());
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    const int sa = CtvAvail((uint8_t)GAME_MM, kA);
+    const int sc = CtvAvail((uint8_t)GAME_MM, kC);
+    const int so = CtvAvail((uint8_t)GAME_MM, kObtained);
+    const int staleCalls = MM_TrackerAdapter_TestInLogicSeam(1, nullptr, 0);
+    printf("[TEST] combo-tracker-view #1129 MM B (STALE after a capture of {11, 17}): freshness=%u known=%d "
+           "available=%d; rows 11=%d 17=%d 13=%d; computations at the capture %d, while stale %d\n",
+           (unsigned)summary.freshness, summary.availabilityKnown ? 1 : 0, summary.available, sa, sc, so, captureCalls,
+           staleCalls);
+    CTV_ASSERT(captureCalls == 1); // the capture computes afresh
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 2);
+    CTV_ASSERT(sa == 1 && sc == 1 && so == 0);
+    CTV_ASSERT(staleCalls == 0); // the stale pane never crawls
+    // No file played at the departure (the seam's 0): the capture stands.
+    Context_SetCurrentGame(GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(0);
+    MM_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_OOT);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kA) == 1);
+    // A departure with Enable Available Checks off clears it.
+    Context_SetCurrentGame(GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(1);
+    CVarClear(kCtvAvailableKey);
+    MM_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(!summary.availabilityKnown && CtvAvail((uint8_t)GAME_MM, kA) == -1);
+    // A context with no capture at all: a .redsave written before #1129.
+    CVarSetInteger(kCtvAvailableKey, 1);
+    Context_SetCurrentGame(GAME_MM);
+    MM_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_OOT);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kA) == 0); // captured from the empty live set
+    ComboContext_Init();
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && !summary.availabilityKnown);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kA) == -1 && CtvAvail((uint8_t)GAME_MM, kC) == -1);
+
+    // The record itself: an id past the capture is not known, and a capture past
+    // the record's capacity is refused (cleared), never truncated.
+    const uint8_t bits[2] = { 0x02, 0x00 }; // id 1
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, bits, 9);
+    CTV_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 1) == 1);
+    CTV_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 2) == 0);
+    CTV_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 9) == -1);
+    CTV_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, 1) == -1);
+    std::vector<uint8_t> huge(8192, 0xFF);
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, huge.data(), 65535);
+    CTV_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 1) == -1);
+    return TEST_PASS;
+}
+
+static int CtvAvailMM(const ComboMMTrackerDesc* real, std::vector<uint8_t>& shadowWorld) {
+    const ComboMMTrackerDesc production = *real; // `real` points into the registry, which the legs re-register
+    ComboMMTrackerDesc testDesc = production;
+    testDesc.liveSave = CtvLiveSave;
+    Combo_Tracker_RegisterMM(&testDesc);
+    const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    const GameId prevGame = Context_GetCurrentGame();
+
+    int result = TEST_FAIL;
+    if (desc != NULL && desc->liveAvailable != NULL) { // the MM TU installs the op
+        std::vector<uint8_t> live((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+        const uint32_t kSeed = 0x11290001u;
+        memcpy(live.data() + desc->newfOffset, desc->newf, desc->newfLen);
+        memcpy(live.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
+        memcpy(live.data() + desc->finalSeedOffset, &kSeed, sizeof(uint32_t));
+        for (uint16_t check : { (uint16_t)11, (uint16_t)13, (uint16_t)17 }) {
+            live[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
+        }
+        CtvSetObtained(live, desc, 13, true);
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = kSeed;
+        gComboCtx.sharedRandoSettingsHash = 0x5EED1129u;
+        SharedItem ootItem;
+        if (TestNamedItem((uint8_t)GAME_OOT, "Lens of Truth", &ootItem) &&
+            Combo_SetForeignPlacement(17, ootItem) >= 0) {
+            result = CtvAvailMMBody(live);
+        }
+    } else {
+        printf("[TEST] FAIL: combo-tracker-view #1129: the MM descriptor carries no liveAvailable op\n");
+    }
+
+    // Production again, whatever the legs did.
+    CVarClear(kCtvAvailableKey);
+    MM_TrackerAdapter_TestLiveSeam(-1);
+    (void)MM_TrackerAdapter_TestInLogicSeam(0, nullptr, 0);
+    sCtvLive = NULL;
+    Combo_Tracker_RegisterMM(&production);
+    ComboContext_Init();
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
+/**
+ * OoT's half (#1129), over the seam's authored heap world (ootIds: saved,
+ * untouched, skipped; all three listed through the list seam).
+ *
+ *   A. LIVE: the rows' bits are the heap's IsAvailable and the summary counts
+ *      the listed ones, while OoT plays a randomizer file and SoH's set is
+ *      current; not known when the set is not current (Enable Available Checks
+ *      off, or no recalculation yet) or no randomizer file is loaded.
+ *   B. STALE: MM played, the pane shows the departure capture
+ *      (OoT_TrackerAdapter_CaptureAvailability), not the heap's later bits; a
+ *      departure with no randomizer file played leaves it, one with the set not
+ *      current clears it; no capture reads not known.
+ */
+static int CtvAvailOoTBody(const uint16_t ootIds[3]) {
+    ComboTrackerGameSummary summary;
+    const uint16_t saved = ootIds[0], untouched = ootIds[1], skipped = ootIds[2];
+    (void)OoT_TrackerAdapter_TestListSeam(1, ootIds, 3);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    OoT_TrackerAdapter_TestAvailableSeam(1);
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(saved, 0) >= 0);
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(untouched, 1) >= 0);
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 1) >= 0);
+
+    // ---- A. LIVE -------------------------------------------------------------------
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    printf("[TEST] combo-tracker-view #1129 OoT A (LIVE): known=%d available=%d; rows saved=%d untouched=%d "
+           "skipped=%d\n",
+           summary.availabilityKnown ? 1 : 0, summary.available, CtvAvail((uint8_t)GAME_OOT, saved),
+           CtvAvail((uint8_t)GAME_OOT, untouched), CtvAvail((uint8_t)GAME_OOT, skipped));
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.availabilityKnown && summary.available == 2);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, saved) == 0);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 1);
+    // The bit follows the heap.
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 0) == 1);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.available == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 0);
+    // SoH's set not current: not known.
+    OoT_TrackerAdapter_TestAvailableSeam(0);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(!summary.availabilityKnown && summary.available == 0 && CtvAvail((uint8_t)GAME_OOT, untouched) == -1);
+    // No randomizer file loaded (the list's live gate): not known.
+    OoT_TrackerAdapter_TestAvailableSeam(1);
+    (void)OoT_TrackerAdapter_TestSkipSeam(0);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(!summary.availabilityKnown && CtvAvail((uint8_t)GAME_OOT, untouched) == -1);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+
+    // ---- B. STALE: the departure capture --------------------------------------------
+    OoT_TrackerAdapter_CaptureAvailability(); // untouched available, the other two not
+    Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 1) == 0); // the heap moves on; the pane must not
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    printf("[TEST] combo-tracker-view #1129 OoT B (STALE after a capture): freshness=%u known=%d available=%d; rows "
+           "untouched=%d skipped=%d\n",
+           (unsigned)summary.freshness, summary.availabilityKnown ? 1 : 0, summary.available,
+           CtvAvail((uint8_t)GAME_OOT, untouched), CtvAvail((uint8_t)GAME_OOT, skipped));
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && summary.availabilityKnown && summary.available == 1);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 0);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, saved) == 0);
+    // A departure with no randomizer file played leaves the capture...
+    Context_SetCurrentGame(GAME_OOT);
+    (void)OoT_TrackerAdapter_TestSkipSeam(0);
+    OoT_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1);
+    // ...one with SoH's set not current clears it.
+    Context_SetCurrentGame(GAME_OOT);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    OoT_TrackerAdapter_TestAvailableSeam(0);
+    OoT_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_MM);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(!summary.availabilityKnown && CtvAvail((uint8_t)GAME_OOT, untouched) == -1);
+    // No capture at all (a .redsave written before #1129).
+    Context_SetCurrentGame(GAME_OOT);
+    OoT_TrackerAdapter_TestAvailableSeam(1);
+    OoT_TrackerAdapter_CaptureAvailability();
+    Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1);
+    ComboContext_Init();
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == -1);
+    return TEST_PASS;
+}
+
+static int CtvAvailOoT(const uint16_t ootIds[3]) {
+    const GameId prevGame = Context_GetCurrentGame();
+    const int result = CtvAvailOoTBody(ootIds);
+    (void)OoT_TrackerAdapter_TestListSeam(-1, NULL, 0);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    OoT_TrackerAdapter_TestAvailableSeam(-1);
+    for (int i = 0; i < 3; i++) {
+        (void)OoT_TrackerAdapter_TestSetAvailable(ootIds[i], 0);
+    }
+    ComboContext_Init();
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
 static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
@@ -821,6 +1121,14 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         return TEST_FAIL;
     }
 
+    // ---- 4c. #1129: MM's reachability, live and captured -------------------
+    // Recorded rather than returned on, so the OoT half (5d) still runs.
+    sCtvAvailFailures = 0;
+    if (CtvAvailMM(desc, blob) != TEST_PASS) {
+        sCtvAvailFailures++;
+    }
+    desc = Combo_Tracker_GetMMDesc(); // re-registered by the legs
+
     // ---- 5. OoT adapter: never-booted, authored, suspend labelling --------
     OoT_TrackerAdapter_Register();
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
@@ -879,6 +1187,11 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     (void)OoT_TrackerAdapter_TestSkipSeam(-1); // production again, whatever the legs did
     if (ootSkip != TEST_PASS) {
         sCtvU5Failures++;
+    }
+
+    // ---- 5d. #1129: OoT's reachability, live and captured --------------------
+    if (CtvAvailOoT(ootIds) != TEST_PASS) {
+        sCtvAvailFailures++;
     }
 
     // Releasing the world must return the adapter to UNAVAILABLE — liveness
@@ -984,6 +1297,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
 
     if (u4Failures != 0) {
         printf("[TEST] FAIL: %d of the two #458 U4 row sections (MM 2b, OoT 5b) failed\n", u4Failures);
+        return TEST_FAIL;
+    }
+    if (sCtvAvailFailures != 0) {
+        printf("[TEST] FAIL: %d of the two #1129 reachability halves (MM 4c, OoT 5d) failed\n", sCtvAvailFailures);
         return TEST_FAIL;
     }
     if (sCtvU5Failures != 0) {

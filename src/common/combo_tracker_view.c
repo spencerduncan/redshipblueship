@@ -288,6 +288,22 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
 }
 
 // ============================================================================
+// Reachability of the inactive game (#1129)
+// ============================================================================
+
+void Combo_TrackerFreezeAvailability(uint8_t game, const uint8_t* bits, uint32_t checkCount) {
+    (void)game;
+    (void)bits;
+    (void)checkCount;
+}
+
+int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId) {
+    (void)game;
+    (void)checkId;
+    return -1;
+}
+
+// ============================================================================
 // The skip toggle (#458 U5)
 // ============================================================================
 

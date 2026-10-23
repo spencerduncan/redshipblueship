@@ -292,6 +292,25 @@ bool MMTrackerSetLiveSkipped(uint16_t checkId, bool skipped) {
 
 } // namespace
 
+// ---- #1129: reachability ----------------------------------------------------
+
+namespace {
+
+// The reachability lock's stand-ins (MM_TrackerAdapter_TestLiveSeam and
+// MM_TrackerAdapter_TestInLogicSeam below). sLiveTest: -1 is production; 0 or 1
+// answers "does MM play a randomizer file now" in place of MM's play state.
+// sInLogicAuthored: the computation is replaced by the authored set
+// sInLogicAuthoredIds. sInLogicCalls counts the computations made.
+int sLiveTest = -1;
+bool sInLogicAuthored = false;
+std::vector<uint16_t> sInLogicAuthoredIds;
+int sInLogicCalls = 0;
+
+} // namespace
+
+extern "C" void MM_TrackerAdapter_CaptureAvailability(void) {
+}
+
 extern "C" void MM_TrackerAdapter_Register(void) {
     // Pure overwrite over StaticData::Checks, idempotent, needs no archive —
     // the #457/#489 re-homing precedent. Called here (not from a file-scope
@@ -353,6 +372,34 @@ extern "C" int MM_TrackerAdapter_TestSetStoredItem(void* save, uint16_t checkId,
  */
 extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, int skipped) {
     return MMTrackerSetSkippedIn(static_cast<SaveContext*>(save), checkId, skipped != 0) ? 1 : 0;
+}
+
+/**
+ * TEST BRIDGE (#1129): @p live -1 restores production; 0 or 1 answers "does MM
+ * play a randomizer file now" for the reachability op and the departure capture,
+ * in place of MM's play state, which no ROM-free or rando tier has (1 also hands
+ * the view &gSaveContext as the live save, as the play state would).
+ */
+extern "C" void MM_TrackerAdapter_TestLiveSeam(int live) {
+    sLiveTest = live < 0 ? -1 : (live != 0 ? 1 : 0);
+}
+
+/**
+ * TEST BRIDGE (#1129): with @p authored nonzero, MM's in-logic computation is
+ * replaced by the @p count ids at @p ids (the ROM-free tier has no region graph
+ * to crawl); with 0 the real Rando::CheckTracker::ComputeChecksInLogic runs.
+ * Every call drops the cached set, so the next read computes again. @return the
+ * computations made since the previous call, which resets the count.
+ */
+extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* ids, int count) {
+    sInLogicAuthored = authored != 0;
+    sInLogicAuthoredIds.clear();
+    if (ids != nullptr && count > 0) {
+        sInLogicAuthoredIds.assign(ids, ids + count);
+    }
+    const int calls = sInLogicCalls;
+    sInLogicCalls = 0;
+    return calls;
 }
 
 // ---- #1101 lane R3: Randomizer > MM Locations' check table ------------------

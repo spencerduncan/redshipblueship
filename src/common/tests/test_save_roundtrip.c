@@ -15,6 +15,7 @@
  * TU's gTests[] table.
  */
 
+#include "../combo_tracker_view.h" // #1129: the departure captures Tier-1 carries
 #include "../context.h"
 #include "../crossing_store.h" // Combo_Crossings_SerializedSize: the v3 Tier-4 length
 #include "../game.h"
@@ -143,6 +144,18 @@ TestResult Test_SaveRoundtripTiers(void) {
 
     const uint32_t tag = 0x1234ABCDu;
     SaveTestSeed(tag);
+    // #1129: both games' departure captures ride Tier-1. Patterned bits over
+    // counts that end mid-byte, read back through the view.
+    std::vector<uint8_t> ootBits(2000 / 8 + 1, 0);
+    std::vector<uint8_t> mmBits(1500 / 8 + 1, 0);
+    for (uint32_t i = 0; i < 2000; i++) {
+        ootBits[i >> 3] |= (uint8_t)((i % 3 == 0 ? 1u : 0u) << (i & 7));
+    }
+    for (uint32_t i = 0; i < 1500; i++) {
+        mmBits[i >> 3] |= (uint8_t)((i % 5 == 1 ? 1u : 0u) << (i & 7));
+    }
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_OOT, ootBits.data(), 2000);
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, mmBits.data(), 1500);
     mgr.DeleteSave(0);
 
     SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
@@ -161,6 +174,21 @@ TestResult Test_SaveRoundtripTiers(void) {
     SAVE_ASSERT(gComboCtx.sourceGame == GAME_OOT, "ComboContext.sourceGame not restored");
     SAVE_ASSERT(SaveTestOoTShadowMatchesPattern(), "OoT SaveContext blob not byte-identical after round-trip");
     SAVE_ASSERT(SaveTestMMShadowMatchesPattern(), "MM SaveContext blob not byte-identical after round-trip");
+    int ootWrong = 0;
+    int mmWrong = 0;
+    for (uint32_t i = 0; i < 2000; i++) {
+        ootWrong += Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, (uint16_t)i) != (i % 3 == 0 ? 1 : 0) ? 1 : 0;
+    }
+    for (uint32_t i = 0; i < 1500; i++) {
+        mmWrong += Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, (uint16_t)i) != (i % 5 == 1 ? 1 : 0) ? 1 : 0;
+    }
+    printf("[TEST] save-roundtrip-tiers #1129: departure captures after the round trip: OoT %d of 2000 ids wrong, MM "
+           "%d of 1500 wrong\n",
+           ootWrong, mmWrong);
+    SAVE_ASSERT(ootWrong == 0 && mmWrong == 0, "the tracker availability captures did not survive the round-trip");
+    SAVE_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, 2000) == -1 &&
+                    Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 1500) == -1,
+                "an id past a capture's count reads as captured after the round-trip");
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: three-tier round-trip is byte-exact\n");
@@ -479,8 +507,16 @@ TestResult Test_SaveComboLegacyRecord(void) {
     gComboCtx.saveSlot = 0x7FFFFFFF;
     std::memset(gComboCtx.sharedItemsTagged, 0x5A, sizeof(gComboCtx.sharedItemsTagged));
     std::memset(gComboCtx.reserved, 0x5A, sizeof(gComboCtx.reserved));
+    // #1129: a capture in the live context must not survive a load of a record
+    // written before the captures existed.
+    const uint8_t liveCapture[1] = { 0xFF };
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_OOT, liveCapture, 8);
+    Combo_TrackerFreezeAvailability((uint8_t)GAME_MM, liveCapture, 8);
 
     SAVE_ASSERT(mgr.Load(0), "Load refused a pre-headroom .redsave — the migration path is broken");
+    SAVE_ASSERT(Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, 1) == -1 &&
+                    Combo_TrackerFrozenAvailability((uint8_t)GAME_MM, 1) == -1,
+                "a pre-#1129 record must read as no tracker availability capture");
 
     SAVE_ASSERT(gComboCtx.saveSlot == static_cast<int32_t>(tag), "legacy saveSlot not restored");
     SAVE_ASSERT(gComboCtx.sharedFlags[5] == tag, "legacy sharedFlags not restored");
