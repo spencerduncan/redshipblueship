@@ -413,6 +413,38 @@ const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
+// The current area kept per game (#1131): each game's last live answer.
+static bool sAreaKnown[2];
+static uint16_t sAreaKey[2];
+
+bool Combo_TrackerCurrentArea(uint8_t game, uint16_t* outKey) {
+    if (game != (uint8_t)GAME_OOT && game != (uint8_t)GAME_MM) {
+        return false;
+    }
+    const int slot = game == (uint8_t)GAME_OOT ? 0 : 1;
+    if (Context_GetCurrentGame() == (GameId)game) {
+        // Only the active game's adapter is asked: the other's state belongs to
+        // the game being played (MM's play state is gone, OoT's gSaveContext is
+        // MM's), so its pane keeps the answer of its last frame of play.
+        bool (*op)(uint16_t*) = NULL;
+        if (game == (uint8_t)GAME_MM) {
+            op = sMMRegistered ? sMMDesc.currentArea : NULL;
+        } else {
+            op = sOoTOps != NULL ? sOoTOps->currentArea : NULL;
+        }
+        uint16_t key = 0;
+        sAreaKnown[slot] = op != NULL && op(&key);
+        sAreaKey[slot] = sAreaKnown[slot] ? key : 0;
+    }
+    if (!sAreaKnown[slot]) {
+        return false;
+    }
+    if (outKey != NULL) {
+        *outKey = sAreaKey[slot];
+    }
+    return true;
+}
+
 /** `name`, or NULL for NULL or "". */
 static const char* NonEmpty(const char* name) {
     return (name != NULL && name[0] != '\0') ? name : NULL;

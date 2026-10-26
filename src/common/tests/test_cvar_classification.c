@@ -1141,6 +1141,27 @@ TestResult Test_CVarClassification(void) {
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);
+
+            // #1131 (lane L4): the Combo Tracker's first keys of its own, which
+            // SoH has no twin for, are classified, and as preferences: whether
+            // the window scrolls to, or shows only, the current area says
+            // nothing about a world.
+            const char* const kTrackerNavKeys[] = {
+                "gCombo.Tracker.Checks.AutoScrollToCurrentArea",
+                "gCombo.Tracker.Checks.OnlyShowCurrentArea",
+            };
+            for (const char* navKey : kTrackerNavKeys) {
+                bool preference = false;
+                for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                    if (strcmp(RSBS::kComboKeys[k].key, navKey) == 0) {
+                        preference = RSBS::kComboKeys[k].cls == RSBS::ComboKeyClass::Preference;
+                    }
+                }
+                if (!preference) {
+                    printf("[TEST] FAIL: #1131: \"%s\" is not classified a preference in RSBS::kComboKeys.\n", navKey);
+                    return TEST_FAIL;
+                }
+            }
         }
 
         printf("[TEST]   scanned %zu MM + %zu OoT source files\n", mmTree.size(), ootTree.size());

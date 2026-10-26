@@ -332,6 +332,14 @@ typedef struct ComboMMTrackerDesc {
     // accessLogicFuncs, the Regions' CHECK macro stringified), or NULL where it
     // draws none. The string is static storage. May itself be NULL: no logic.
     const char* (*logicText)(uint16_t checkId);
+    // The area the player is in (#1131), as the area key MM's rows carry
+    // (areaName's *outKey): the scene MM is played in, the one MM's own check
+    // tracker scrolls to on OnSceneInit and filters by under Only Show Current
+    // Scene (CheckTracker.cpp), through Play_GetOriginalSceneId; in a grotto,
+    // the scene it was entered from, since a grotto's checks are listed there.
+    // False with no MM play state. The view calls it only while MM is the
+    // active game (Combo_TrackerCurrentArea). May itself be NULL: no area.
+    bool (*currentArea)(uint16_t* outKey);
 } ComboMMTrackerDesc;
 
 /**
@@ -411,6 +419,13 @@ typedef struct ComboOoTTrackerOps {
     // LocationAccess::GetConditionStr of the check in its parent region), or
     // NULL for none. Valid until the next call. May itself be NULL: no logic.
     const char* (*logicText)(uint16_t checkId);
+    // The area the player is in (#1131), as the area key OoT's rows carry
+    // (RandomizerCheckArea): SoH's Check Tracker's currentArea, the area its
+    // window scrolls to on a transition (randomizer_check_tracker.cpp,
+    // CheckTrackerTransition / GetCheckArea). False while OoT plays no
+    // randomizer file or before the first transition. The view calls it only
+    // while OoT is the active game. May itself be NULL: no area.
+    bool (*currentArea)(uint16_t* outKey);
 } ComboOoTTrackerOps;
 
 /**
@@ -461,6 +476,18 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
 /** The logic `game`'s own check tracker shows on hovering check `checkId` (#1161;
  *  the adapters' logicText), or NULL for none or no adapter. Valid until the next call. */
 const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId);
+
+/**
+ * The area `game`'s player is in (#1131), as that game's area key (the
+ * ComboTrackerCheckRow.areaKey space, never compared across games), in
+ * `*outKey` (which may be NULL); false when no area is known. The ACTIVE game's
+ * adapter answers (its currentArea op) and the view keeps the answer; the
+ * inactive game answers the area kept from its last live answer (its last
+ * frame of play, since the window asks every frame), never its adapter, whose
+ * state belongs to the other game then. A game never asked while active, or
+ * whose last live answer was "none", answers false.
+ */
+bool Combo_TrackerCurrentArea(uint8_t game, uint16_t* outKey);
 
 // ============================================================================
 // Reachability of the INACTIVE game (#1129, ruling D6: captured at the freeze)

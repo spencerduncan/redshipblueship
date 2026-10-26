@@ -72,6 +72,10 @@ namespace CheckTracker {
 // randomizer_check_tracker.cpp (#1166): whether a shop slot holds a randomized item,
 // the Mysterious Shuffle half of DrawLocation's reveal rule. External, not in its header.
 bool IsMysteryShopItem(RandomizerCheck rc);
+// randomizer_check_tracker.cpp (#1131): the area SoH's Check Tracker scrolls to,
+// set on each transition (CheckTrackerTransition: GetCheckArea). External, not in
+// its header.
+extern RandomizerCheckArea currentArea;
 } // namespace CheckTracker
 
 // The departure capture's record holds every OoT check id (#1129).
@@ -590,6 +594,24 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
     return true;
 }
 
+// ---- #1131: the current area ---------------------------------------------
+
+/**
+ * The area the player is in: SoH's Check Tracker's currentArea, the area its
+ * window scrolls to on a transition (CheckTrackerTransition sets it from
+ * GetCheckArea, which already files a grotto under the area it opens from), in
+ * the RandomizerCheckArea space the rows' areaKey uses. Only while OoT plays a
+ * randomizer file (OoTRandoFileLoaded, which reads gSaveContext, so OoT is asked
+ * first): the variable outlives a file, and a vanilla file's panel lists nothing.
+ */
+bool OoTTrackerCurrentArea(uint16_t* outKey) {
+    if (Context_GetCurrentGame() != GAME_OOT || !OoTRandoFileLoaded() || CheckTracker::currentArea == RCAREA_INVALID) {
+        return false;
+    }
+    *outKey = (uint16_t)CheckTracker::currentArea;
+    return true;
+}
+
 } // namespace
 
 /**
@@ -621,7 +643,7 @@ extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
         OoTTrackerSummary,      OoTTrackerCheckCount, OoTTrackerCheckAt,    OoTTrackerCheckName,
-        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic,
+        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic, OoTTrackerCurrentArea,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }
@@ -790,6 +812,18 @@ extern "C" int OoT_TrackerAdapter_TestSetAvailable(uint16_t rc, int available) {
     Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)rc);
     const int was = loc->IsAvailable() ? 1 : 0;
     loc->SetAvailable(available != 0);
+    return was;
+}
+
+/**
+ * The navigation lock's authoring (#1131): set SoH's Check Tracker's currentArea,
+ * the variable a transition sets (CheckTrackerTransition), to @p area, or to
+ * RCAREA_INVALID for a negative @p area. @return the previous value, -1 for
+ * RCAREA_INVALID.
+ */
+extern "C" int OoT_TrackerAdapter_TestSetCurrentArea(int area) {
+    const int was = CheckTracker::currentArea == RCAREA_INVALID ? -1 : (int)CheckTracker::currentArea;
+    CheckTracker::currentArea = area < 0 ? RCAREA_INVALID : (RandomizerCheckArea)area;
     return was;
 }
 
