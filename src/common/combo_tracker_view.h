@@ -327,6 +327,11 @@ typedef struct ComboMMTrackerDesc {
     // view calls it only when its source pick reads LIVE; a STALE panel reads
     // the departure capture instead. May itself be NULL: no availability.
     int (*liveAvailable)(uint16_t checkId);
+    // The logic a check's row shows on hover (#1161): the condition MM's own
+    // check tracker draws as that row's tooltip (CheckTracker.cpp's
+    // accessLogicFuncs, the Regions' CHECK macro stringified), or NULL where it
+    // draws none. The string is static storage. May itself be NULL: no logic.
+    const char* (*logicText)(uint16_t checkId);
 } ComboMMTrackerDesc;
 
 /**
@@ -401,6 +406,11 @@ typedef struct ComboOoTTrackerOps {
     // False, with nothing written, for a check its button is not drawn on (not
     // part of the seed, or found) or when skipWritable answers false.
     bool (*setSkipped)(uint16_t checkId, bool skipped);
+    // The logic a check's row shows on hover (#1161): the condition SoH's Check
+    // Tracker draws as that row's tooltip under Show Logic (DrawLocation:
+    // LocationAccess::GetConditionStr of the check in its parent region), or
+    // NULL for none. Valid until the next call. May itself be NULL: no logic.
+    const char* (*logicText)(uint16_t checkId);
 } ComboOoTTrackerOps;
 
 /**
@@ -447,6 +457,10 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
+
+/** The logic `game`'s own check tracker shows on hovering check `checkId` (#1161;
+ *  the adapters' logicText), or NULL for none or no adapter. Valid until the next call. */
+const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId);
 
 // ============================================================================
 // Reachability of the INACTIVE game (#1129, ruling D6: captured at the freeze)

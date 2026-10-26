@@ -193,6 +193,15 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
 const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row);
 
 /**
+ * The tooltip a Checks-list row shows on hover (#1161): the check's logic as its
+ * game's own check tracker shows it (Combo_TrackerCheckLogic), while `showLogic`
+ * (SoH's Show Logic, gTrackers.CheckTracker.ShowLogic, one key for both panes) is
+ * on. "" when it is off, when the game has no condition for the check, or when
+ * the condition is "true" (SoH draws no tooltip then).
+ */
+std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic);
+
+/**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
  * and name, its shuffled-check count and how many of them are done (collected
  * or skipped: SoH's and MM's trackers both count a skipped check as checked),
@@ -286,6 +295,8 @@ struct ComboCheckHeaderOptions {
     // the pane's Only Show Available Checks checkbox.
     bool availableChecks = false;
     bool availableChecksToggle = true;
+    // #1161: SoH's Show Logic ("ShowLogic", off): each row's logic tooltip.
+    bool showLogic = false;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();

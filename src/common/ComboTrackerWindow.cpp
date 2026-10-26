@@ -587,6 +587,14 @@ const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row) {
     return row.available ? ICON_FA_UNLOCK : ICON_FA_LOCK;
 }
 
+std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic) {
+    // Lock seam (#1161): no tooltip yet, as before.
+    (void)game;
+    (void)row;
+    (void)showLogic;
+    return std::string();
+}
+
 namespace {
 
 /**

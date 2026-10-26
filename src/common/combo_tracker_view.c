@@ -403,6 +403,13 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
+const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
+    // Lock seam (#1161): no logic yet, as before.
+    (void)game;
+    (void)checkId;
+    return NULL;
+}
+
 void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerCheckRow* row) {
     // Lock seam (#1166): a seen check names nothing yet, as before.
     (void)seen;
