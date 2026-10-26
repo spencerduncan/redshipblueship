@@ -178,10 +178,18 @@ typedef struct {
     ComboModelPart parts[COMBO_MODEL_MAX_PARTS];
     /** The SETUPDL index each layer is prepared with (25 in most draws; OoT's
      *  medallions and masks use 26, compasses and "sold out" 5, MM's bombchu
-     *  23). Both ports inherit the same setup-list table. 0 when the layer has
-     *  no part. */
+     *  23). 0 when the layer has no part. The index names an entry of the
+     *  ORIGIN's table, and the two tables are not the same: OoT's 26 is 1-cycle
+     *  G_CC_MODULATEI_PRIM, MM's 26 is 2-cycle (#1171), and the alpha dither
+     *  differs throughout. A host therefore never looks the index up in its own
+     *  table: it emits the list below. */
     uint8_t opaSetupDl;
     uint8_t xluSetupDl;
+    /** The ORIGIN's own setup list for each layer (its table's entry at
+     *  opaSetupDl / xluSetupDl; static storage), which the host emits as is.
+     *  NULL exactly when the index is 0. */
+    const void* opaSetupList;
+    const void* xluSetupList;
     ComboModelScroll scrolls[COMBO_MODEL_MAX_SCROLLS];
     ComboModelColor opaColor;
     ComboModelColor xluColor;
@@ -241,7 +249,8 @@ typedef int (*ComboHostNativeModelFn)(const ComboModel* foreign, uint16_t* hostK
  * identify a model: both games' heart container and heart piece start with the
  * same border list, and their magic arrows with the same shaft. Nor does the
  * part list alone: OoT's seven tinted song notes are one list drawn under seven
- * grayscale tints (#830), so a row keys the tint too.
+ * grayscale tints (#830), and MM's twelve songs the same list under twelve XLU
+ * env colours (#1167), so a row keys the tint and the env colour too.
  */
 typedef struct {
     /** The foreign parts; unused slots are NULL, and a key has at least one. */
@@ -256,10 +265,15 @@ typedef struct {
      *  exactly `tintRgb`; 0 (a row that leaves them out) keys an untinted one. */
     uint8_t keyTinted;
     uint8_t tintRgb[3];
+    /** The env-colour half of the key (#1167): 1 keys a model whose XLU layer
+     *  sets its colours (`xluColor.set` 1) with exactly env `envRgb`; 0 (a row
+     *  that leaves them out) keys one whose XLU layer sets none. */
+    uint8_t keyXluEnv;
+    uint8_t envRgb[3];
 } ComboHostNativeRow;
 
-/** The index of the row of `rows` whose key is exactly `foreign`'s part list
- *  and tint, or -1 (no row, or a NULL / empty argument). */
+/** The index of the row of `rows` whose key is exactly `foreign`'s part list,
+ *  tint and XLU env colour, or -1 (no row, or a NULL / empty argument). */
 int Combo_HostNativeFind(const ComboHostNativeRow* rows, int count, const ComboModel* foreign);
 
 /** Register (or, with NULL, un-register) `game`'s source. A non-game is ignored. */
@@ -280,7 +294,8 @@ int Combo_ModelAddPart(ComboModel* model, const char* dl, uint8_t layer, uint8_t
 
 /** 1 when every field is something a host can draw: at least one part, every
  *  part a known layer with an "__OTR__objects/<dir>/<name>" path, a setup list
- *  for exactly the layers in use, well-formed scrolls, a finite positive scale;
+ *  (index and the origin's list) for exactly the layers in use, well-formed
+ *  scrolls, a finite positive scale;
  *  and (#964) joints whose parents come first and that some part uses, parts
  *  naming only existing joints, and segment colours and a joint segment in the
  *  actor segments (8-0xD) that no scroll or other binding already fills. */

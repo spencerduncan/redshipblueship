@@ -236,7 +236,8 @@ bool FmScrollEqual(const ComboModelScroll& a, const ComboModelScroll& b) {
  *  pointer: a round-trip hands the host the origin's own static string. */
 bool FmModelEqual(const ComboModel& a, const ComboModel& b) {
     if (a.partCount != b.partCount || a.opaSetupDl != b.opaSetupDl || a.xluSetupDl != b.xluSetupDl ||
-        !FmColorEqual(a.opaColor, b.opaColor) || !FmColorEqual(a.xluColor, b.xluColor) || a.grayscale != b.grayscale ||
+        a.opaSetupList != b.opaSetupList || a.xluSetupList != b.xluSetupList || !FmColorEqual(a.opaColor, b.opaColor) ||
+        !FmColorEqual(a.xluColor, b.xluColor) || a.grayscale != b.grayscale ||
         std::memcmp(a.grayscaleRgb, b.grayscaleRgb, 3) != 0 || a.scale != b.scale) {
         return false;
     }
@@ -771,11 +772,14 @@ int sFmSyntheticMode = 0;
 int FmSyntheticSource(uint16_t id, ComboModel* out) {
     (void)id;
     static const char kHammer[] = "__OTR__objects/object_gi_hammer/gGiHammerDL";
+    // Stands in for the origin's setup list (#1171): a whole answer names one.
+    static const uint64_t kSetupList[2] = {};
     Combo_ModelInit(out);
     out->partCount = 1;
     out->parts[0].dl = kHammer;
     out->parts[0].layer = COMBO_MODEL_LAYER_OPA;
     out->opaSetupDl = 25;
+    out->opaSetupList = kSetupList;
     switch (sFmSyntheticMode) {
         case 0: // no parts
             out->partCount = 0;
@@ -825,13 +829,19 @@ int FmSyntheticSource(uint16_t id, ComboModel* out) {
         case 13: // colours for a layer nothing draws into
             out->xluColor.set = 1;
             return 1;
-        case 14: // says no but leaves a whole model behind
+        case 14: // a setup index without the origin's list (#1171: the host would guess)
+            out->opaSetupList = nullptr;
+            return 1;
+        case 15: // the origin's list for a layer nothing draws into
+            out->xluSetupList = kSetupList;
+            return 1;
+        case 16: // says no but leaves a whole model behind
             return 0;
         default: // a whole answer
             return 1;
     }
 }
-constexpr int kFmHalfAnswerModes = 15;
+constexpr int kFmHalfAnswerModes = 17;
 
 int sFmMapperCalls = 0;
 int sFmMapperAnswer = 1;

@@ -21,7 +21,8 @@
  * (OoT_ComboModel_DrawRowModel; #832), under the same mount check. In every
  * "no model" case the caller keeps its stand-in.
  *
- * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list,
+ * HOW. Each layer, in the order both games' z_draw.c emit it: the setup list
+ * (the ORIGIN's own, which the descriptor carries: the two tables differ, #1171),
  * the layer's scrolling segments, its segment colour lists (#964), its colours
  * (and the grayscale tint), the matrix, the plain parts, then the camera-facing
  * parts under their offset and the billboard rotation. A part that names a
@@ -213,7 +214,8 @@ static void OoTHostModel_EmitParts(GraphicsContext* gfxCtx, const ComboModel& mo
 /** One layer of the descriptor (see the file header for the order). */
 static void OoTHostModel_DrawLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
     const uint8_t setup = layer == kHostOpa ? model.opaSetupDl : model.xluSetupDl;
-    if (setup == 0) {
+    const void* setupList = layer == kHostOpa ? model.opaSetupList : model.xluSetupList;
+    if (setup == 0 || setupList == nullptr) {
         return; // no part on this layer (Combo_ModelIsWellFormed)
     }
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -223,7 +225,9 @@ static void OoTHostModel_DrawLayer(PlayState* play, const ComboModel& model, uin
     OPEN_DISPS(gfxCtx);
     Gfx*& disp = layer == kHostOpa ? POLY_OPA_DISP : POLY_XLU_DISP;
 
-    disp = OoT_Gfx_SetupDL(disp, setup);
+    // The ORIGIN's setup list, never OoT's own entry at the same index: the two
+    // tables differ (OoT's 26 is 1-cycle, MM's 2-cycle; #1171).
+    __gSPDisplayList(disp++, reinterpret_cast<Gfx*>(const_cast<void*>(setupList)));
     for (const ComboModelScroll& s : model.scrolls) {
         if (s.segment == 0 || s.layer != layer) {
             continue;

@@ -68,6 +68,7 @@
 extern "C" {
 #include <z64.h>
 #include "objects/object_toki_objects/object_toki_objects.h" // the Master Sword's list
+#include "objects/object_gi_melody/object_gi_melody.h"       // gGiSongNoteDL (#1167)
 }
 
 typedef void (*OoTGetItemDrawFn)(PlayState*, s16);
@@ -170,7 +171,19 @@ int AddSteps(ComboModel* out, Gfx* const* dlists, std::initializer_list<Step> st
     return 1;
 }
 
-/** Setup lists for the layers the parts use: 25 unless the draw says otherwise. */
+/** OoT's OWN setup list `index` (z_rcp.c's table, static storage), or NULL for
+ *  0: what the descriptor hands the host to emit (#1171). */
+const void* OwnSetupList(uint8_t index) {
+    if (index == 0 || index >= SETUPDL_MAX) {
+        return nullptr;
+    }
+    Gfx ref[2] = {};
+    OoT_Gfx_SetupDL(ref, index);
+    return reinterpret_cast<const void*>(ref[0].words.w1);
+}
+
+/** Setup lists for the layers the parts use: 25 unless the draw says otherwise,
+ *  each with OoT's own list for it. */
 void DefaultSetups(ComboModel* out) {
     for (uint8_t i = 0; i < out->partCount; i++) {
         if (out->parts[i].layer == kOpa && out->opaSetupDl == 0) {
@@ -180,6 +193,8 @@ void DefaultSetups(ComboModel* out) {
             out->xluSetupDl = 25;
         }
     }
+    out->opaSetupList = OwnSetupList(out->opaSetupDl);
+    out->xluSetupList = OwnSetupList(out->xluSetupDl);
 }
 
 void JewelColors(OoTGetItemDrawFn fn, ComboModel* out) {
@@ -442,6 +457,83 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     return ModelForDrawId((int)entry->gid, out, reason);
 }
 
+// ---- Host-side song notes (#1167) ---------------------------------------------
+//
+// The mirror of MM's #830 notes. MM draws each of its songs as one note list in
+// one env colour (DrawSong, DrawItem.cpp), and MM's source answers exactly that
+// (ForeignModelSingleExe.cpp, ModelForSong). gGiSongNoteDL lives in
+// object_gi_melody, which both archives carry, so OoT draws its OWN note: where
+// OoT has the song (Sun's Song, Song of Time, Song of Storms, Epona's Song) OoT's
+// own row, in OoT's colour; for the eight songs only MM has, these recipes, the
+// note in DrawSong's env colour (the note list sets its own prim colour, 255 at
+// LOD 0x80, so the env colour is the whole tint, as OoT's Minuet and Bolero
+// colour lists use it). They are numbered in OoT's own draw space from
+// kNoteKeyFirst up, far past OoT_GetItem_DrawTableCount, so a note key never
+// names a draw row.
+enum : int16_t {
+    kNoteKeyFirst = 0x4000,
+    kNoteHealing = kNoteKeyFirst,
+    kNoteSoaring,
+    kNoteSonata,
+    kNoteElegy,
+    kNoteGoronLullabyIntro,
+    kNoteGoronLullaby,
+    kNoteOath,
+    kNoteBossaNova,
+    kNoteKeyEnd,
+};
+
+struct OoTNoteRecipe {
+    int16_t key;
+    uint8_t env[3];
+};
+
+// DrawSong's gDPSetEnvColor for each MM-only song.
+const OoTNoteRecipe kNoteRecipes[] = {
+    { kNoteHealing, { 255, 150, 230 } },           // RI_SONG_HEALING
+    { kNoteSoaring, { 200, 160, 255 } },           // RI_SONG_SOARING
+    { kNoteSonata, { 98, 255, 98 } },              // RI_SONG_SONATA
+    { kNoteElegy, { 255, 98, 0 } },                // RI_SONG_ELEGY
+    { kNoteGoronLullabyIntro, { 255, 100, 100 } }, // RI_SONG_LULLABY_INTRO
+    { kNoteGoronLullaby, { 255, 20, 20 } },        // RI_SONG_LULLABY
+    { kNoteOath, { 98, 0, 98 } },                  // RI_SONG_OATH
+    { kNoteBossaNova, { 20, 20, 255 } },           // RI_SONG_NOVA
+};
+static_assert(sizeof(kNoteRecipes) / sizeof(kNoteRecipes[0]) == (size_t)(kNoteKeyEnd - kNoteKeyFirst),
+              "one recipe per note key");
+
+/** A note key's note: 1 and *out, or 0 and *reason. */
+int ModelForNoteKey(int key, ComboModel* out, const char** reason) {
+    Combo_ModelInit(out);
+    *reason = nullptr;
+    if (key < kNoteKeyFirst || key >= kNoteKeyEnd || kNoteRecipes[key - kNoteKeyFirst].key != key) {
+        *reason = "no such note recipe";
+        return 0;
+    }
+    const OoTNoteRecipe& recipe = kNoteRecipes[key - kNoteKeyFirst];
+    if (Combo_ModelAddPart(out, gGiSongNoteDL, kXlu, 0) != 1) {
+        *reason = "note list path malformed";
+        return 0;
+    }
+    out->xluSetupDl = 25;
+    SetColor(&out->xluColor, 0x80, 255, 255, 255, recipe.env[0], recipe.env[1], recipe.env[2]);
+    DefaultSetups(out);
+    if (!Combo_ModelIsWellFormed(out)) {
+        Combo_ModelInit(out);
+        *reason = "recipe produced a malformed model";
+        return 0;
+    }
+    return 1;
+}
+
+/** Any key of OoT's draw space: a draw row, or a host-side note recipe. */
+int ModelForHostKey(int key, ComboModel* out, const char** reason) {
+    if (key >= kNoteKeyFirst) {
+        return ModelForNoteKey(key, out, reason);
+    }
+    return ModelForDrawId(key, out, reason);
+}
+
 // ---- Host-native mapping (#577 M7) --------------------------------------------
 //
 // When MM hands OoT a model whose paths live in a directory both archives carry,
@@ -451,7 +543,8 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
 // Each MM get-item model whose lists live in a colliding directory has a row:
 // OoT's own model for the same item (MM's hookshot draws OoT's hookshot, MM's
 // Hero's Shield OoT's Hylian Shield, MM's huge rupee OoT's gold rupee), or
-// "no model" with its reason where OoT has no such item. The ForeignModel row
+// "no model" with its reason where OoT has no such item, or, for one of MM's
+// songs, OoT's own note (#1167, keyed by its env colour as well). The ForeignModel row
 // (M11) walks every MM draw row and item against this table, so a colliding MM
 // model without a row, and a row no MM model reaches, both fail.
 const ComboHostNativeRow kHostNativeRows[] = {
@@ -673,6 +766,21 @@ const ComboHostNativeRow kHostNativeRows[] = {
       nullptr },
     // MM GID_SKULL_TOKEN_2
     { { "object_st/gSkulltulaTokenDL", "object_st/gSkulltulaTokenFlameDL" }, GID_SKULL_TOKEN_2, nullptr },
+    // MM's songs (#1167): one note list under twelve XLU env colours (DrawSong),
+    // so these rows key the env colour. A song OoT has draws OoT's own row in
+    // OoT's colour (#830's rule); the others OoT's note in DrawSong's colour.
+    { { "object_gi_melody/gGiSongNoteDL" }, GID_SONG_SUN, nullptr, 0, {}, 1, { 237, 231, 62 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, GID_SONG_TIME, nullptr, 0, {}, 1, { 98, 177, 211 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, GID_SONG_STORM, nullptr, 0, {}, 1, { 146, 146, 146 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, GID_SONG_EPONA, nullptr, 0, {}, 1, { 146, 87, 49 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteHealing, nullptr, 0, {}, 1, { 255, 150, 230 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteSoaring, nullptr, 0, {}, 1, { 200, 160, 255 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteSonata, nullptr, 0, {}, 1, { 98, 255, 98 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteElegy, nullptr, 0, {}, 1, { 255, 98, 0 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteGoronLullabyIntro, nullptr, 0, {}, 1, { 255, 100, 100 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteGoronLullaby, nullptr, 0, {}, 1, { 255, 20, 20 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteOath, nullptr, 0, {}, 1, { 98, 0, 98 } },
+    { { "object_gi_melody/gGiSongNoteDL" }, kNoteBossaNova, nullptr, 0, {}, 1, { 20, 20, 255 } },
 };
 constexpr int kHostNativeRowCount = (int)(sizeof(kHostNativeRows) / sizeof(kHostNativeRows[0]));
 
@@ -684,7 +792,9 @@ int MapHostNative(const ComboModel* foreign, uint16_t* hostKey, const char** rea
         return 0;
     }
     const ComboHostNativeRow& row = kHostNativeRows[*tableRow];
-    if (row.hostDrawId < 0 || row.hostDrawId >= OoT_GetItem_DrawTableCount()) {
+    const bool drawRow = row.hostDrawId >= 0 && row.hostDrawId < OoT_GetItem_DrawTableCount();
+    const bool noteRecipe = row.hostDrawId >= kNoteKeyFirst && row.hostDrawId < kNoteKeyEnd;
+    if (!drawRow && !noteRecipe) {
         *reason = row.noModelReason;
         return 0;
     }
@@ -720,13 +830,14 @@ extern "C" int OoT_ComboModelHostNative(const ComboModel* foreign, uint16_t* hos
     return MapHostNative(foreign, hostKey, &reason, &tableRow);
 }
 
-/** OoT's own draw row `drawId` (a HOST_NATIVE answer's key) as the descriptor of
- *  the lists OoT's own recipe draws for it: 1 and *out, or 0 (#577 M4: the
- *  get-item cutscene draws it, ForeignModelHostOoT.cpp). */
+/** OoT's own model for host key `drawId` (a HOST_NATIVE answer's key: a draw
+ *  row, or a host-side note recipe, #1167) as the descriptor of the lists OoT's
+ *  own recipe draws for it: 1 and *out, or 0 (#577 M4: the get-item cutscene and
+ *  the shelf draw it, ForeignModelHostOoT.cpp). */
 extern "C" int OoT_ComboModel_DrawRowModel(int drawId, ComboModel* out) {
     ComboModel model;
     const char* reason = nullptr;
-    if (out == nullptr || ModelForDrawId(drawId, &model, &reason) != 1) {
+    if (out == nullptr || ModelForHostKey(drawId, &model, &reason) != 1) {
         return 0;
     }
     *out = model;
@@ -788,7 +899,7 @@ extern "C" const char* OoT_ComboModel_TestItemReason(uint16_t id) {
  *  answer's key): 1 and *out, or 0 and *reason. */
 extern "C" int OoT_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason) {
     const char* why = nullptr;
-    const int answered = ModelForDrawId(hostKey, out, &why);
+    const int answered = ModelForHostKey(hostKey, out, &why);
     if (reason != nullptr) {
         *reason = why;
     }

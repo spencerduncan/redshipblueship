@@ -30,9 +30,12 @@
  *    ConvertItem reads live inventory, which belongs to a suspended game here);
  *  - the five stray fairies (DrawStrayFairy, a posed flex skeleton) answer a
  *    still model of that draw (#964, ModelForStrayFairy below);
- *  - every other special case (songs, owl statues, clocks, souls, frogs, the
- *    swim ability, the Triforce piece, traps, ocarina buttons) is a 2S2H custom
- *    draw and answers no model.
+ *  - the twelve songs (DrawSong: the note in one env colour per song) answer
+ *    that note as a descriptor (#1167, ModelForSong below), and the progressive
+ *    Goron Lullaby its first tier's;
+ *  - every other special case (owl statues, clocks, souls, frogs, the swim
+ *    ability, the Triforce piece, traps, ocarina buttons) is a 2S2H custom draw
+ *    and answers no model.
  *
  * WHAT IT NEVER DOES: read the save, a CVar or any live state. The answer is a
  * pure function of static tables (ForeignModel row).
@@ -172,7 +175,19 @@ int AddSteps(ComboModel* out, void* const* res, std::initializer_list<MMModelSte
     return 1;
 }
 
-/** Setup lists for the layers the parts use: 25 unless the draw says otherwise. */
+/** MM's OWN setup list `index` (z_rcp.c's table, static storage), or NULL for
+ *  0: what the descriptor hands the host to emit (#1171). */
+const void* OwnSetupList(uint8_t index) {
+    if (index == 0 || index >= SETUPDL_MAX) {
+        return nullptr;
+    }
+    Gfx ref[2] = {};
+    MM_Gfx_SetupDL(ref, index);
+    return reinterpret_cast<const void*>(ref[0].words.w1);
+}
+
+/** Setup lists for the layers the parts use: 25 unless the draw says otherwise,
+ *  each with MM's own list for it. */
 void DefaultSetups(ComboModel* out) {
     for (uint8_t i = 0; i < out->partCount; i++) {
         if (out->parts[i].layer == kOpa && out->opaSetupDl == 0) {
@@ -182,6 +197,8 @@ void DefaultSetups(ComboModel* out) {
             out->xluSetupDl = 25;
         }
     }
+    out->opaSetupList = OwnSetupList(out->opaSetupDl);
+    out->xluSetupList = OwnSetupList(out->xluSetupDl);
 }
 
 /**
@@ -329,18 +346,6 @@ bool IsCustomDrawn(RandoItemId ri) {
         return true;
     }
     switch (ri) {
-        case RI_SONG_TIME:
-        case RI_SONG_STORMS:
-        case RI_SONG_SUN:
-        case RI_SONG_HEALING:
-        case RI_SONG_SOARING:
-        case RI_SONG_SONATA:
-        case RI_SONG_ELEGY:
-        case RI_SONG_LULLABY_INTRO:
-        case RI_SONG_LULLABY:
-        case RI_SONG_OATH:
-        case RI_SONG_EPONA:
-        case RI_SONG_NOVA:
         case RI_OWL_CLOCK_TOWN_SOUTH:
         case RI_OWL_GREAT_BAY_COAST:
         case RI_OWL_IKANA_CANYON:
@@ -492,12 +497,75 @@ int ModelForStrayFairy(RandoItemId ri, ComboModel* out, const char** reason) {
     out->jointSegment = 0x0D;
     out->segmentColors[0] = StrayFairySegmentColor(8, colors->bodyPrim, colors->bodyEnv);
     out->segmentColors[1] = StrayFairySegmentColor(9, colors->glowPrim, colors->glowEnv);
+    DefaultSetups(out);
     if (!Combo_ModelIsWellFormed(out)) {
         Combo_ModelInit(out);
         *reason = "recipe produced a malformed model";
         return 0;
     }
     return 1;
+}
+
+// ---- Songs (#1167) -------------------------------------------------------------
+//
+// Rando::DrawItem draws every song with DrawSong (DrawItem.cpp): setup list 25
+// on XLU, the matrix, one env colour per song, then gGiSongNoteDL, which sets
+// its own prim colour (255,255,255, LOD 0x80) before any triangle, so the env
+// colour is the whole tint. The descriptor is exactly that draw. The colours
+// below are DrawSong's; the ForeignModel row (M19) reads DrawSong's off
+// DrawItem.cpp and fails on any drift. gGiSongNoteDL lives in object_gi_melody,
+// which both games' archives carry, so OoT draws its OWN note for these
+// (host-native, keyed by the env colour: ForeignModelOoT.cpp).
+
+/** The note DrawSong draws, in env colour `env`: 1 and *out, or 0. MM's own
+ *  host-side notes for OoT's songs (#830, below) are the same draw. */
+int TintedNote(const uint8_t env[3], ComboModel* out) {
+    Combo_ModelInit(out);
+    if (Combo_ModelAddPart(out, gGiSongNoteDL, kXlu, 0) != 1) {
+        return 0;
+    }
+    out->xluSetupDl = 25;
+    out->xluColor.set = 1;
+    out->xluColor.primLodFrac = 0x80; // what gGiSongNoteDL sets itself
+    out->xluColor.prim[0] = out->xluColor.prim[1] = out->xluColor.prim[2] = 255;
+    std::memcpy(out->xluColor.env, env, 3);
+    DefaultSetups(out);
+    return Combo_ModelIsWellFormed(out) ? 1 : 0;
+}
+
+struct MMSongNote {
+    RandoItemId ri;
+    uint8_t env[3];
+};
+
+// DrawSong's gDPSetEnvColor, case by case (DrawItem.cpp).
+const MMSongNote kSongNotes[] = {
+    { RI_SONG_SUN, { 237, 231, 62 } },      { RI_SONG_TIME, { 98, 177, 211 } },
+    { RI_SONG_HEALING, { 255, 150, 230 } }, { RI_SONG_STORMS, { 146, 146, 146 } },
+    { RI_SONG_SONATA, { 98, 255, 98 } },    { RI_SONG_SOARING, { 200, 160, 255 } },
+    { RI_SONG_ELEGY, { 255, 98, 0 } },      { RI_SONG_LULLABY_INTRO, { 255, 100, 100 } },
+    { RI_SONG_LULLABY, { 255, 20, 20 } },   { RI_SONG_OATH, { 98, 0, 98 } },
+    { RI_SONG_EPONA, { 146, 87, 49 } },     { RI_SONG_NOVA, { 20, 20, 255 } },
+};
+
+/** A song's note: 1 and *out; 0 and *reason (NULL: not a song). The progressive
+ *  Goron Lullaby, the item MM's two lullaby checks place, shows its first tier
+ *  (the intro), as every progressive item answers its first tier here. */
+int ModelForSong(RandoItemId ri, ComboModel* out, const char** reason) {
+    *reason = nullptr;
+    const RandoItemId song = ri == RI_PROGRESSIVE_LULLABY ? RI_SONG_LULLABY_INTRO : ri;
+    for (const MMSongNote& note : kSongNotes) {
+        if (note.ri != song) {
+            continue;
+        }
+        if (TintedNote(note.env, out) != 1) {
+            Combo_ModelInit(out);
+            *reason = "song note recipe produced a malformed model";
+            return 0;
+        }
+        return 1;
+    }
+    return 0;
 }
 
 int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
@@ -509,6 +577,12 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
         return 0;
     }
     if (ModelForStrayFairy(ri, out, reason) == 1) {
+        return 1;
+    }
+    if (*reason != nullptr) {
+        return 0;
+    }
+    if (ModelForSong(ri, out, reason) == 1) {
         return 1;
     }
     if (*reason != nullptr) {
@@ -588,16 +662,8 @@ int ModelForNoteKey(int key, ComboModel* out, const char** reason) {
         return 0;
     }
     const MMNoteRecipe& recipe = kNoteRecipes[key - kNoteKeyFirst];
-    if (Combo_ModelAddPart(out, gGiSongNoteDL, kXlu, 0) != 1) {
-        *reason = "note list path malformed";
-        return 0;
-    }
-    out->xluSetupDl = 25;
-    out->xluColor.set = 1;
-    out->xluColor.primLodFrac = 0x80; // what gGiSongNoteDL sets itself
-    out->xluColor.prim[0] = out->xluColor.prim[1] = out->xluColor.prim[2] = 255;
-    std::memcpy(out->xluColor.env, recipe.env, sizeof(recipe.env));
-    if (!Combo_ModelIsWellFormed(out)) {
+    if (TintedNote(recipe.env, out) != 1) {
+        Combo_ModelInit(out);
         *reason = "recipe produced a malformed model";
         return 0;
     }
@@ -1036,13 +1102,15 @@ void EmitPart(Gfx* pkt, const char* dl) {
 
 /**
  * One layer of the descriptor, in the order both games' z_draw.c emit it: the
- * setup list, the layer's scrolling segments, its colours (and the grayscale
+ * setup list (the ORIGIN's own, which the descriptor carries, #1171), the
+ * layer's scrolling segments, its colours (and the grayscale
  * tint), the matrix, the plain parts, then the camera-facing parts under their
  * offset and the billboard rotation.
  */
 static void ForeignModel_DrawLayer(PlayState* play, const ComboModel& model, uint8_t layer) {
     const uint8_t setup = layer == kOpa ? model.opaSetupDl : model.xluSetupDl;
-    if (setup == 0) {
+    const void* setupList = layer == kOpa ? model.opaSetupList : model.xluSetupList;
+    if (setup == 0 || setupList == nullptr) {
         return; // no part on this layer (Combo_ModelIsWellFormed)
     }
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -1052,7 +1120,9 @@ static void ForeignModel_DrawLayer(PlayState* play, const ComboModel& model, uin
     OPEN_DISPS(gfxCtx);
     Gfx*& disp = layer == kOpa ? POLY_OPA_DISP : POLY_XLU_DISP;
 
-    disp = MM_Gfx_SetupDL(disp, setup);
+    // The ORIGIN's setup list, never MM's own entry at the same index: the two
+    // tables differ (OoT's 26 is 1-cycle, MM's 2-cycle; #1171).
+    __gSPDisplayList(disp++, reinterpret_cast<Gfx*>(const_cast<void*>(setupList)));
     for (const ComboModelScroll& s : model.scrolls) {
         if (s.segment == 0 || s.layer != layer) {
             continue;
@@ -1270,14 +1340,11 @@ struct LayerRead {
     std::vector<uint32_t> envRgba;  // G_SETENVCOLOR colour words
 };
 
-LayerRead ReadLayer(const Gfx* begin, const Gfx* end, uint8_t setupDl) {
+/** `setupList`: the setup list the layer must call (the model's own, the
+ *  origin's: #1171), or NULL for none. */
+LayerRead ReadLayer(const Gfx* begin, const Gfx* end, const void* setupList) {
     LayerRead read;
-    uintptr_t setupTarget = 0;
-    if (setupDl != 0) {
-        Gfx ref[8] = {};
-        MM_Gfx_SetupDL(ref, setupDl);
-        setupTarget = (uintptr_t)ref[0].words.w1;
-    }
+    const uintptr_t setupTarget = (uintptr_t)setupList;
     bool matrixSeen = false;
     for (const Gfx* g = begin; g < end; g++) {
         const uint32_t w0 = (uint32_t)g->words.w0;
@@ -1415,8 +1482,10 @@ bool RunCheckQueueDraw(uint16_t mmCheckId, const ComboModel* want) {
     sModelEmitUnresolved = false;
 
     FMD_EXPECT(MM_sCurrentMatrix == fake.stack, "Q2 the draw left the matrix stack unbalanced");
-    const LayerRead opa = ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupDl : 0);
-    const LayerRead xlu = ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupDl : 0);
+    const LayerRead opa =
+        ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupList : nullptr);
+    const LayerRead xlu =
+        ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupList : nullptr);
     if (!LayerMatches("OPA", opa, want, kOpa) || !LayerMatches("XLU", xlu, want, kXlu)) {
         return false;
     }
@@ -1463,8 +1532,10 @@ bool RunShopDraw(uint16_t mmCheckId, bool hand, const ComboModel* want) {
     sModelEmitUnresolved = false;
     std::free(shelf);
 
-    const LayerRead opa = ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupDl : 0);
-    const LayerRead xlu = ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupDl : 0);
+    const LayerRead opa =
+        ReadLayer(fake.opa.data(), fake.gfxCtx->polyOpa.p, want != nullptr ? want->opaSetupList : nullptr);
+    const LayerRead xlu =
+        ReadLayer(fake.xlu.data(), fake.gfxCtx->polyXlu.p, want != nullptr ? want->xluSetupList : nullptr);
     return LayerMatches("OPA", opa, want, kOpa) && LayerMatches("XLU", xlu, want, kXlu);
 }
 
