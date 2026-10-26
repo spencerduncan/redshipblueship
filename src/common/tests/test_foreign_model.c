@@ -110,6 +110,18 @@
  *     the lists, sets the area's colours, and puts each list at its joint's
  *     posed position; the get-item cutscene shows the fairy. MM as a host is
  *     never handed a model with segment colours or joints.
+ *  M18 THE ORIGIN'S SETUP LIST (#1171): every draw row and item each game's
+ *     source answers is drawn by the other game's REAL host draw, and the setup
+ *     list it emits on each layer is read back word by word against the
+ *     ORIGIN's own table entry (alpha dither aside). The tables differ at 26:
+ *     a host that emitted its own entry there drew OoT's masks and medallions
+ *     2-cycle in MM. Named: the Gerudo Mask and two medallions.
+ *  M19 MM'S SONGS IN OoT (#1167, the mirror of #830): each of MM's twelve songs
+ *     and the progressive Goron Lullaby answers DrawSong as a descriptor (its
+ *     colours read off DrawItem.cpp, so a copy that drifts fails), OoT maps it
+ *     HOST_NATIVE, and the shelf's real draw emits the note: OoT's own tinted
+ *     note where OoT has the song, otherwise in DrawSong's env colour. The
+ *     get-item cutscene shows the same note.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -123,6 +135,7 @@
 #include "../test_runner.h"
 #include "test_named_items.h"
 
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -177,6 +190,16 @@ const char* OoT_Rando_Foreign_TestChestCategoryName(int category);
 int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId);
 int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId);
 const char* MM_Rando_Foreign_TestChestTypeName(int type);
+// #1171: each game's own setup lists, and the list each host emits for a model.
+int OoT_ComboModel_TestOwnSetupList(int index, uint64_t words[][2], int max);
+int MM_ComboModel_TestOwnSetupList(int index, uint64_t words[][2], int max);
+int OoT_ForeignModel_TestHostSetupList(const ComboModel* model, uint8_t layer, uint64_t words[][2], int max);
+int MM_ForeignModel_TestHostSetupList(const ComboModel* model, uint8_t layer, uint64_t words[][2], int max);
+// #1167: MM's songs, OoT's host keys, and the shelf's XLU note read back.
+int MM_ComboModel_TestSongItem(int i, uint16_t* id, const char** label, const char** drawCase);
+int OoT_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason);
+int OoT_ForeignModel_TestShelfXluNote(uint16_t rc, const char** xluParts, int maxParts, int* opaParts, int* envSet,
+                                      uint8_t env[3], int* graySet, uint8_t gray[3], int* grayOn);
 }
 
 #define FM_ASSERT(cond, msg)                                                \
@@ -581,7 +604,7 @@ TestResult FmCheckPin(const FmPin& pin) {
         ComboModel hostModel;
         const char* reason = nullptr;
         const int drawn = host == (uint8_t)GAME_MM ? MM_ComboModel_TestForHostKey(answer.hostKey, &hostModel, &reason)
-                                                   : OoT_ComboModel_TestForDrawRow(answer.hostKey, &hostModel, &reason);
+                                                   : OoT_ComboModel_TestForHostKey(answer.hostKey, &hostModel, &reason);
         hostFirst = drawn == 1 ? hostModel.parts[0].dl : "(host row not drawable)";
         bool hasList = false;
         for (int i = 0; drawn == 1 && pin.hostListTail != nullptr && i < hostModel.partCount; i++) {
@@ -899,6 +922,27 @@ int FmFileContains(const char* rel, const char* needle) {
     (void)rel;
     (void)needle;
     return -1;
+#endif
+}
+
+/** M19: the whole text of the checkout file `rel`; false when unreadable. */
+bool FmFileText(const char* rel, std::string* out) {
+#ifdef RSBS_SOURCE_DIR
+    FILE* f = fopen((std::string(RSBS_SOURCE_DIR) + "/" + rel).c_str(), "rb");
+    if (f == nullptr) {
+        return false;
+    }
+    char buf[4096];
+    size_t n = 0;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        out->append(buf, n);
+    }
+    fclose(f);
+    return true;
+#else
+    (void)rel;
+    (void)out;
+    return false;
 #endif
 }
 
@@ -1242,6 +1286,257 @@ TestResult FmCustomDrawModels(void) {
     return TEST_PASS;
 }
 
+// ---- M18: the ORIGIN's setup list (#1171) --------------------------------------
+
+typedef int (*FmOwnSetupFn)(int, uint64_t (*)[2], int);
+typedef int (*FmHostSetupFn)(const ComboModel*, uint8_t, uint64_t (*)[2], int);
+constexpr int kFmSetupWords = 16;
+
+/** M18: the setup list the host's real draw emits first on `model`'s `layer`,
+ *  word for word against the ORIGIN's own table entry at the index the model
+ *  names (alpha dither aside: the bridges clear it). 1 the same (or no such
+ *  layer), 0 not; `print` names the first difference. */
+int FmSetupLayerSame(FmOwnSetupFn originOwn, FmHostSetupFn hostEmit, const ComboModel& model, uint8_t layer,
+                     const char* what, bool print) {
+    const uint8_t index = layer == COMBO_MODEL_LAYER_OPA ? model.opaSetupDl : model.xluSetupDl;
+    if (index == 0) {
+        return 1;
+    }
+    uint64_t own[kFmSetupWords][2] = {};
+    uint64_t emitted[kFmSetupWords][2] = {};
+    const int ownN = originOwn(index, own, kFmSetupWords);
+    const int gotN = hostEmit(&model, layer, emitted, kFmSetupWords);
+    if (ownN > 0 && gotN == ownN && std::memcmp(own, emitted, sizeof(own[0]) * (size_t)ownN) == 0) {
+        return 1;
+    }
+    if (print) {
+        int at = 0;
+        while (at < ownN && at < gotN && std::memcmp(own[at], emitted[at], sizeof(own[0])) == 0) {
+            at++;
+        }
+        const bool inOwn = at < ownN && at < kFmSetupWords;
+        const bool inGot = at < gotN && at < kFmSetupWords;
+        printf("[TEST]   M18 %s %s: setup list %d, the host emits %d word(s) and the origin's has %d; first "
+               "difference at word %d (origin %016llx %016llx, host %016llx %016llx)\n",
+               what, layer == COMBO_MODEL_LAYER_OPA ? "OPA" : "XLU", (int)index, gotN, ownN, at,
+               inOwn ? (unsigned long long)own[at][0] : 0ULL, inOwn ? (unsigned long long)own[at][1] : 0ULL,
+               inGot ? (unsigned long long)emitted[at][0] : 0ULL, inGot ? (unsigned long long)emitted[at][1] : 0ULL);
+    }
+    return 0;
+}
+
+/** M18 for one direction: every draw row and every item `origin`'s source
+ *  answers, drawn by the other game's host. `byIndex` counts the layers
+ *  compared per setup index. */
+TestResult FmWalkSetupLists(const FmGame& origin, FmOwnSetupFn originOwn, FmHostSetupFn hostEmit,
+                            std::map<int, int>* byIndex) {
+    int layers = 0;
+    int mismatches = 0;
+    std::map<int, int> badByIndex;
+    auto one = [&](const char* what, int n, const ComboModel& m) {
+        for (uint8_t layer : { (uint8_t)COMBO_MODEL_LAYER_OPA, (uint8_t)COMBO_MODEL_LAYER_XLU }) {
+            const uint8_t index = layer == COMBO_MODEL_LAYER_OPA ? m.opaSetupDl : m.xluSetupDl;
+            if (index == 0) {
+                continue;
+            }
+            layers++;
+            (*byIndex)[index]++;
+            char name[64];
+            std::snprintf(name, sizeof(name), "%s %s %d", origin.name, what, n);
+            if (FmSetupLayerSame(originOwn, hostEmit, m, layer, name, mismatches < 12) != 1) {
+                mismatches++;
+                badByIndex[index]++;
+            }
+        }
+    };
+    const int rows = origin.rowCount();
+    for (int row = 0; row < rows; row++) {
+        ComboModel model;
+        const char* reason = nullptr;
+        if (origin.forRow(row, &model, &reason) == 1) {
+            one("row", row, model);
+        }
+    }
+    const int idSpace = origin.idSpace();
+    for (int id = 1; id < idSpace; id++) {
+        ComboModel model;
+        if (Combo_GetModelSource(origin.game)((uint16_t)id, &model) == 1) {
+            one("item", id, model);
+        }
+    }
+    std::string line;
+    for (const auto& kv : *byIndex) {
+        line += " " + std::to_string(kv.first) + ":" + std::to_string(kv.second);
+        if (badByIndex.count(kv.first) != 0) {
+            line += "(" + std::to_string(badByIndex[kv.first]) + " differ)";
+        }
+    }
+    printf("[TEST]   M18 %s models in the other game: %d layers compared by setup index:%s; %d differ\n", origin.name,
+           layers, line.c_str(), mismatches);
+    FM_ASSERT(layers > 100, "M18 the walk compared the origin's rows and items");
+    FM_ASSERT(mismatches == 0, "M18 #1171: a host emits the ORIGIN's setup list for a foreign model, not its own "
+                               "entry at the same index (see the M18 lines above)");
+    return TEST_PASS;
+}
+
+// ---- M19: MM's songs in OoT (#1167) -------------------------------------------
+
+/** M19: DrawSong's env colour (2s2h/Rando/DrawItem.cpp) for each of its `case`
+ *  labels, read off the checkout: the colour MM draws each song's note in. */
+bool FmDrawSongColours(std::map<std::string, std::array<int, 3>>* out) {
+    std::string text;
+    if (!FmFileText("games/mm/2s2h/Rando/DrawItem.cpp", &text)) {
+        return false;
+    }
+    const size_t begin = text.find("void DrawSong(");
+    const size_t end = begin == std::string::npos ? begin : text.find("gGiSongNoteDL", begin);
+    if (end == std::string::npos) {
+        return false;
+    }
+    static const char kCall[] = "gDPSetEnvColor(POLY_XLU_DISP++,";
+    size_t at = begin;
+    while ((at = text.find("case ", at)) != std::string::npos && at < end) {
+        const size_t colon = text.find(':', at);
+        const size_t call = text.find(kCall, colon);
+        const size_t next = text.find("case ", colon);
+        if (colon == std::string::npos || call == std::string::npos || call > end ||
+            (next != std::string::npos && next < call)) {
+            return false;
+        }
+        int r = -1;
+        int g = -1;
+        int b = -1;
+        if (std::sscanf(text.c_str() + call + sizeof(kCall) - 1, " %d , %d , %d", &r, &g, &b) != 3) {
+            return false;
+        }
+        (*out)[text.substr(at + 5, colon - at - 5)] = { r, g, b };
+        at = colon;
+    }
+    return !out->empty();
+}
+
+/**
+ * M19 (#1167, the mirror of #830): every MM song answers DrawSong as a
+ * descriptor (the note on XLU under setup 25, its env colour), which OoT maps
+ * HOST_NATIVE, and OoT's shop shelf draws a note for it, not the mystery item:
+ * where OoT has the song (Sun, Time, Storms, Epona) OoT's own tinted note in
+ * OoT's colour, otherwise OoT's note in DrawSong's colour. The progressive Goron
+ * Lullaby (what MM's checks place) draws its first tier's. OoT's get-item
+ * cutscene shows the same note.
+ */
+TestResult FmMMSongsInOoT(void) {
+    std::map<std::string, std::array<int, 3>> drawSong;
+    FM_ASSERT(FmDrawSongColours(&drawSong) && drawSong.size() == 12,
+              "M19 DrawSong's twelve env colours read off games/mm/2s2h/Rando/DrawItem.cpp");
+    struct OoTHas {
+        const char* drawCase;
+        uint8_t tint[3]; // GetItem_DrawGenericMusicNote's colour for OoT's own row
+    };
+    static const OoTHas kOoTHas[] = {
+        { "RI_SONG_SUN", { 237, 231, 62 } },
+        { "RI_SONG_TIME", { 98, 177, 211 } },
+        { "RI_SONG_STORMS", { 146, 146, 146 } },
+        { "RI_SONG_EPONA", { 217, 110, 48 } },
+    };
+    ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+    std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+    const uint16_t shelf = 0x0126; // opaque to the table; the host draw keys on the placement alone
+    int songs = 0;
+    int failures = 0;
+    for (int i = 0;; i++) {
+        uint16_t id = 0;
+        const char* label = nullptr;
+        const char* drawCase = nullptr;
+        if (MM_ComboModel_TestSongItem(i, &id, &label, &drawCase) != 1) {
+            break;
+        }
+        songs++;
+        const auto colour = drawSong.find(drawCase);
+        if (colour == drawSong.end()) {
+            printf("[TEST]   M19 %s: DrawSong has no case %s\n", label, drawCase);
+            failures++;
+            continue;
+        }
+        const uint8_t env[3] = { (uint8_t)colour->second[0], (uint8_t)colour->second[1], (uint8_t)colour->second[2] };
+        const OoTHas* ootHas = nullptr;
+        for (const OoTHas& h : kOoTHas) {
+            ootHas = std::strcmp(h.drawCase, drawCase) == 0 ? &h : ootHas;
+        }
+        // MM's source: DrawSong, re-expressed.
+        ComboModel source;
+        const bool sourceOk = MM_ComboModel(id, &source) == 1 && FmIsTintedNote(source, env);
+        // OoT's answer, and the shelf's real draw.
+        const SharedItem item = FmItem((uint8_t)GAME_MM, id);
+        ComboModelAnswer a;
+        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &a);
+        Combo_ClearForeignPlacementsOoT();
+        const int placed = Combo_SetForeignPlacementOoT(shelf, item);
+        const char* parts[4] = {};
+        int opaParts = 0;
+        int envSet = 0;
+        int graySet = 0;
+        int grayOn = 0;
+        uint8_t gotEnv[3] = {};
+        uint8_t gray[3] = {};
+        const int xlu =
+            OoT_ForeignModel_TestShelfXluNote(shelf, parts, 4, &opaParts, &envSet, gotEnv, &graySet, gray, &grayOn);
+        bool drawOk = placed >= 0 && xlu == 1 && opaParts == 0 && FmTailIs(parts[0], kFmNoteTail);
+        if (ootHas != nullptr) {
+            drawOk = drawOk && graySet && grayOn && std::memcmp(gray, ootHas->tint, 3) == 0;
+        } else {
+            drawOk = drawOk && envSet && !grayOn && std::memcmp(gotEnv, env, 3) == 0;
+        }
+        const bool ok = sourceOk && kind == COMBO_MODEL_ANSWER_HOST_NATIVE && drawOk;
+        printf(
+            "[TEST]   M19 %-22s source %s, OoT answer %u (key %u), shelf: %d XLU list(s)%s%s, %d OPA, env %s%d,%d,%d, "
+            "gray %s%d,%d,%d%s%s\n",
+            label, sourceOk ? "DrawSong's note" : "NOT DrawSong's note", (unsigned)kind, (unsigned)a.hostKey, xlu,
+            xlu > 0 ? " first " : "", xlu > 0 && parts[0] != nullptr ? parts[0] : "", opaParts,
+            envSet ? "" : "(unset) ", gotEnv[0], gotEnv[1], gotEnv[2], grayOn ? "(on) " : "(off) ", gray[0], gray[1],
+            gray[2], ok ? "" : "  <- want ",
+            ok ? "" : (ootHas != nullptr ? "OoT's own note in OoT's colour" : "DrawSong's colour"));
+        failures += ok ? 0 : 1;
+    }
+    Combo_ClearForeignPlacementsOoT();
+    std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+    FM_ASSERT(songs == 13, "M19 MM's twelve songs and the progressive Goron Lullaby");
+    FM_ASSERT(failures == 0, "M19 #1167: every MM song draws as a note on an OoT shelf, in DrawSong's colour or, where "
+                             "OoT has the song, OoT's own (see the M19 lines above)");
+
+    // The get-item cutscene shows the same note as the shelf.
+    {
+        uint16_t id = 0;
+        const char* label = nullptr;
+        const char* drawCase = nullptr;
+        bool found = false;
+        for (int i = 0; !found && MM_ComboModel_TestSongItem(i, &id, &label, &drawCase) == 1; i++) {
+            found = std::strcmp(label, "RI_SONG_HEALING") == 0;
+        }
+        FM_ASSERT(found, "M19 the Song of Healing is one of MM's song items");
+        const SharedItem healing = FmItem((uint8_t)GAME_MM, id);
+        const char* name = Combo_GetForeignItemName(healing);
+        FM_ASSERT(name != nullptr, "M19 MM names the Song of Healing");
+        const uint16_t host = 0x0127;
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        Combo_ClearForeignPlacementsOoT();
+        const int placed = Combo_SetForeignPlacementOoT(host, healing);
+        OoT_ForeignModel_TestSetMountOverride(1);
+        ComboModel want;
+        const int modelled = OoT_ForeignModel_ModelForOoTCheck(host, &want);
+        printf("[TEST]   M19 %s on an OoT check, the get-item cutscene:\n", name);
+        const int shown = modelled == 1 ? OoT_ForeignModel_TestShowOnlyGetItem(host, 1, &want, name) : 1;
+        OoT_ForeignModel_TestSetMountOverride(-1);
+        Combo_ClearForeignPlacementsOoT();
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placed >= 0, "M19 placement accepted");
+        FM_ASSERT(modelled == 1 && want.partCount == 1 && FmTailIs(want.parts[0].dl, kFmNoteTail),
+                  "M19 #1167: OoT's model for MM's Song of Healing is a note, not the mystery item");
+        FM_ASSERT(shown == 0, "M19 #1167: OoT's get-item cutscene shows MM's Song of Healing as a note (see the M13 "
+                              "lines above)");
+    }
+    return TEST_PASS;
+}
+
 } // namespace
 
 TestResult Test_ForeignModel(void) {
@@ -1274,7 +1569,7 @@ TestResult Test_ForeignModel(void) {
                          2,
                          OoT_ComboModelHostNative_TestAnswer,
                          OoT_ComboModelHostNative_TestRowCount,
-                         OoT_ComboModel_TestForDrawRow };
+                         OoT_ComboModel_TestForHostKey };
     const FmGame mm = { "MM",
                         (uint8_t)GAME_MM,
                         (uint8_t)GAME_OOT,
@@ -1943,6 +2238,54 @@ TestResult Test_ForeignModel(void) {
 
     // ---- M17 (#964) -------------------------------------------------------------
     if (FmCustomDrawModels() != TEST_PASS) {
+        return TEST_FAIL;
+    }
+
+    // ---- M18 (#1171) ------------------------------------------------------------
+    // A host draws a foreign model under the ORIGIN's setup list. The two games'
+    // tables differ at 26 (OoT 1-cycle G_CC_MODULATEI_PRIM, MM 2-cycle), which
+    // OoT's masks and medallions use: MM emitting its own entry 26 left the
+    // second cycle sampling a tile the lists never load (the Gerudo Mask).
+    {
+        uint64_t oot26[kFmSetupWords][2] = {};
+        uint64_t mm26[kFmSetupWords][2] = {};
+        uint64_t oot25[kFmSetupWords][2] = {};
+        uint64_t mm25[kFmSetupWords][2] = {};
+        const int oot26N = OoT_ComboModel_TestOwnSetupList(26, oot26, kFmSetupWords);
+        const int mm26N = MM_ComboModel_TestOwnSetupList(26, mm26, kFmSetupWords);
+        const int oot25N = OoT_ComboModel_TestOwnSetupList(25, oot25, kFmSetupWords);
+        const int mm25N = MM_ComboModel_TestOwnSetupList(25, mm25, kFmSetupWords);
+        FM_ASSERT(oot26N > 0 && mm26N > 0 && oot25N > 0 && mm25N > 0, "M18 both games' setup lists read to their end");
+        FM_ASSERT(oot26N != mm26N || std::memcmp(oot26, mm26, sizeof(oot26[0]) * (size_t)oot26N) != 0,
+                  "M18 the premise: OoT's and MM's setup list 26 differ");
+        FM_ASSERT(oot25N == mm25N && std::memcmp(oot25, mm25, sizeof(oot25[0]) * (size_t)oot25N) == 0,
+                  "M18 the two games' setup list 25 differ only in alpha dither (the comparison is not too strict)");
+        std::map<int, int> ootIndices;
+        std::map<int, int> mmIndices;
+        if (FmWalkSetupLists(oot, OoT_ComboModel_TestOwnSetupList, MM_ForeignModel_TestHostSetupList, &ootIndices) !=
+                TEST_PASS ||
+            FmWalkSetupLists(mm, MM_ComboModel_TestOwnSetupList, OoT_ForeignModel_TestHostSetupList, &mmIndices) !=
+                TEST_PASS) {
+            return TEST_FAIL;
+        }
+        FM_ASSERT(ootIndices[26] > 0, "M18 the walk compared OoT's setup list 26 (its masks and medallions)");
+        static const char* const kSetup26[] = { "Gerudo Mask", "Forest Medallion", "Light Medallion" };
+        for (const char* name : kSetup26) {
+            SharedItem item;
+            FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, name, &item), "M18 named item");
+            ComboModel m;
+            FM_ASSERT(OoT_ComboModel(item.id, &m) == 1 && m.opaSetupDl == 26,
+                      "M18 OoT draws its masks and medallions under setup list 26");
+            const int same = FmSetupLayerSame(OoT_ComboModel_TestOwnSetupList, MM_ForeignModel_TestHostSetupList, m,
+                                              COMBO_MODEL_LAYER_OPA, name, true);
+            printf("[TEST]   M18 %s in MM: OPA setup list %s\n", name, same == 1 ? "OoT's own 26" : "NOT OoT's 26");
+            FM_ASSERT(same == 1, "M18 #1171: MM draws OoT's Gerudo Mask and medallions under OoT's setup list 26 "
+                                 "(1-cycle), not its own 2-cycle entry (see the M18 lines above)");
+        }
+    }
+
+    // ---- M19 (#1167) ------------------------------------------------------------
+    if (FmMMSongsInOoT() != TEST_PASS) {
         return TEST_FAIL;
     }
 

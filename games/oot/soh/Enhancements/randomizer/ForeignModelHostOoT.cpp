@@ -671,6 +671,106 @@ extern "C" int OoT_ForeignModel_TestShelfXlu(uint16_t rc, uint8_t bound[16], uin
     return parts;
 }
 
+// ForeignModelOoT.cpp: a setup list's words, alpha dither cleared.
+extern "C" int OoT_ComboModel_TestCopySetupList(const void* list, uint64_t words[][2], int max);
+
+/**
+ * TEST BRIDGE (ForeignModel row M18, #1171): `model` drawn by OoT's REAL host
+ * draw (what the shelf and the get-item cutscene call) into a real OoT
+ * GraphicsContext, and the setup list it emits first on `layer` read back word
+ * by word (OoT_ComboModel_TestCopySetupList). The count, or -1 when the layer
+ * emits no setup list or the draw left OoT's matrix stack unbalanced.
+ */
+extern "C" int OoT_ForeignModel_TestHostSetupList(const ComboModel* model, uint8_t layer, uint64_t words[][2],
+                                                  int max) {
+    if (model == nullptr) {
+        return -1;
+    }
+    OoTFakeDrawPlay fake;
+    sHostEmitUnresolved = true;
+    OoTHostModel_Draw(fake.play, *model);
+    sHostEmitUnresolved = false;
+    if (OoT_sCurrentMatrix != fake.stack) {
+        return -1;
+    }
+    const Gfx* begin = layer == kHostOpa ? fake.opa.data() : fake.xlu.data();
+    const Gfx* end = layer == kHostOpa ? fake.gfxCtx->polyOpa.p : fake.gfxCtx->polyXlu.p;
+    for (const Gfx* g = begin; g < end; g++) {
+        const uint32_t op = ((uint32_t)g->words.w0 >> 24) & 0xFF;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        if (op == (uint32_t)(uint8_t)G_DL && w1 != 0) {
+            // The first list the layer calls: a model part is an "__OTR__" path.
+            if (std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+                return -1;
+            }
+            return OoT_ComboModel_TestCopySetupList((const void*)w1, words, max);
+        }
+    }
+    return -1;
+}
+
+/**
+ * TEST BRIDGE (ForeignModel row M19, #1167): the shelf's REAL draw call for OoT
+ * check `rc`, every path mounted (test override), read back. `xluParts` gets
+ * the XLU layer's "__OTR__" lists (up to `maxParts`), `opaParts` the OPA layer's
+ * count; `env` the last env colour and `gray` the last grayscale colour the XLU
+ * layer sets before its first list (RGB), `envSet` / `graySet` whether it set
+ * them, and `grayOn` whether grayscale is on at that list. Returns the XLU list
+ * count, or -1 when the draw left OoT's matrix stack unbalanced.
+ */
+extern "C" int OoT_ForeignModel_TestShelfXluNote(uint16_t rc, const char** xluParts, int maxParts, int* opaParts,
+                                                 int* envSet, uint8_t env[3], int* graySet, uint8_t gray[3],
+                                                 int* grayOn) {
+    OoTFakeDrawPlay fake;
+    const int savedMount = sHostMountOverride;
+    sHostMountOverride = 1;
+    sHostEmitUnresolved = true;
+    OoT_ForeignModel_DrawForOoTCheck(fake.play, rc);
+    sHostEmitUnresolved = false;
+    sHostMountOverride = savedMount;
+    *envSet = 0;
+    *graySet = 0;
+    *grayOn = 0;
+    std::memset(env, 0, 3);
+    std::memset(gray, 0, 3);
+    if (OoT_sCurrentMatrix != fake.stack) {
+        return -1;
+    }
+    bool matrixFirst = false;
+    *opaParts = (int)OoTHostReadParts(fake.opa.data(), fake.gfxCtx->polyOpa.p, &matrixFirst).size();
+    int parts = 0;
+    for (const Gfx* g = fake.xlu.data(); g < fake.gfxCtx->polyXlu.p; g++) {
+        const uint32_t w0 = (uint32_t)g->words.w0;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        const uint32_t op = (w0 >> 24) & 0xFF;
+        if (op == (uint32_t)(uint8_t)G_DL && w1 != 0 && std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+            if (parts < maxParts) {
+                xluParts[parts] = (const char*)w1;
+            }
+            parts++;
+            continue;
+        }
+        if (parts != 0) {
+            continue; // only what is in force at the first list
+        }
+        const uint32_t rgba = (uint32_t)w1;
+        if (op == (uint32_t)(uint8_t)G_SETENVCOLOR) {
+            *envSet = 1;
+            env[0] = (uint8_t)(rgba >> 24);
+            env[1] = (uint8_t)(rgba >> 16);
+            env[2] = (uint8_t)(rgba >> 8);
+        } else if (op == (uint32_t)(uint8_t)G_SETINTENSITY) {
+            *graySet = 1;
+            gray[0] = (uint8_t)(rgba >> 24);
+            gray[1] = (uint8_t)(rgba >> 16);
+            gray[2] = (uint8_t)(rgba >> 8);
+        } else if (op == (uint32_t)(uint8_t)G_SETGRAYSCALE) {
+            *grayOn = w1 != 0 ? 1 : 0;
+        }
+    }
+    return parts;
+}
+
 // hook_handlers.cpp: the treasure chest game's prize display, seen through the
 // Lens of Truth (the drawFunc the actor-init hook gives it).
 void ItemEtcetera_DrawRandomizedItemThroughLens(ItemEtcetera* itemEtcetera, PlayState* play);

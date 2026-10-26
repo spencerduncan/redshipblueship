@@ -109,6 +109,8 @@ void GetItem_DrawJewelZora(PlayState* play, s16 drawId);
 void GetItem_DrawGenericMusicNote(PlayState* play, s16 drawId);
 void GetItem_DrawTriforcePiece(PlayState* play, s16 drawId);
 void GetItem_DrawFishingPole(PlayState* play, s16 drawId);
+// games/oot/src/code/z_rcp.c: OoT's own SETUPDL table, one entry per call.
+Gfx* OoT_Gfx_SetupDL(Gfx* gfx, u32 i);
 }
 
 // GetItem_DrawGenericMusicNote picks its tint as colors[drawId - 120].
@@ -780,6 +782,52 @@ extern "C" const char* OoT_ComboModel_TestItemReason(uint16_t id) {
     ComboModel model;
     const char* reason = nullptr;
     return ModelForItem(id, &model, &reason) == 1 ? nullptr : reason;
+}
+
+/** The model OoT draws, as a host, for one of its own host keys (a HOST_NATIVE
+ *  answer's key): 1 and *out, or 0 and *reason. */
+extern "C" int OoT_ComboModel_TestForHostKey(int hostKey, ComboModel* out, const char** reason) {
+    const char* why = nullptr;
+    const int answered = ModelForDrawId(hostKey, out, &why);
+    if (reason != nullptr) {
+        *reason = why;
+    }
+    return answered;
+}
+
+/** A setup list's commands up to and including its G_ENDDL, as (w0, w1) pairs,
+ *  each G_RDPSETOTHERMODE with its alpha-dither bits cleared (OoT's table says
+ *  G_AD_NOTPATTERN where MM's says G_AD_PATTERN, the one difference the
+ *  ForeignModel row M18 does not count). The count, or -1 (no list, or no
+ *  G_ENDDL within `max`). Both games' test bridges read lists through it. */
+extern "C" int OoT_ComboModel_TestCopySetupList(const void* list, uint64_t words[][2], int max) {
+    const Gfx* g = static_cast<const Gfx*>(list);
+    if (g == nullptr || words == nullptr) {
+        return -1;
+    }
+    for (int i = 0; i < max; i++) {
+        uint64_t w0 = (uint64_t)g[i].words.w0;
+        const uint32_t op = (uint32_t)(w0 >> 24) & 0xFF;
+        if (op == (uint32_t)(uint8_t)G_RDPSETOTHERMODE) {
+            w0 &= ~(uint64_t)(3u << G_MDSFT_ALPHADITHER);
+        }
+        words[i][0] = w0;
+        words[i][1] = (uint64_t)g[i].words.w1;
+        if (op == (uint32_t)(uint8_t)G_ENDDL) {
+            return i + 1;
+        }
+    }
+    return -1;
+}
+
+/** OoT's OWN setup list `index` (z_rcp.c's table), as OoT_ComboModel_TestCopySetupList reads it. */
+extern "C" int OoT_ComboModel_TestOwnSetupList(int index, uint64_t words[][2], int max) {
+    if (index <= 0 || index >= SETUPDL_MAX) {
+        return -1;
+    }
+    Gfx ref[2] = {};
+    OoT_Gfx_SetupDL(ref, (u32)index);
+    return OoT_ComboModel_TestCopySetupList(reinterpret_cast<const void*>(ref[0].words.w1), words, max);
 }
 
 namespace {

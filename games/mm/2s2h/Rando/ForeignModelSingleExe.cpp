@@ -1620,6 +1620,112 @@ extern "C" uint16_t MM_ForeignModel_TestBombShopHandCheck(void) {
     return (uint16_t)RC_BOMB_SHOP_ITEM_01;
 }
 
+/** A setup list's commands up to and including its G_ENDDL, as (w0, w1) pairs,
+ *  each G_RDPSETOTHERMODE with its alpha-dither bits cleared (MM's table says
+ *  G_AD_PATTERN where OoT's says G_AD_NOTPATTERN, the one difference the
+ *  ForeignModel row M18 does not count). The count, or -1 (no list, or no
+ *  G_ENDDL within `max`). */
+static int MMCopySetupList(const void* list, uint64_t words[][2], int max) {
+    const Gfx* g = static_cast<const Gfx*>(list);
+    if (g == nullptr || words == nullptr) {
+        return -1;
+    }
+    for (int i = 0; i < max; i++) {
+        uint64_t w0 = (uint64_t)g[i].words.w0;
+        const uint32_t op = (uint32_t)(w0 >> 24) & 0xFF;
+        if (op == (uint32_t)(uint8_t)G_RDPSETOTHERMODE) {
+            w0 &= ~(uint64_t)(3u << G_MDSFT_ALPHADITHER);
+        }
+        words[i][0] = w0;
+        words[i][1] = (uint64_t)g[i].words.w1;
+        if (op == (uint32_t)(uint8_t)G_ENDDL) {
+            return i + 1;
+        }
+    }
+    return -1;
+}
+
+/** TEST BRIDGE (ForeignModel row M18, #1171): MM's OWN setup list `index`
+ *  (z_rcp.c's table), as MMCopySetupList reads it. */
+extern "C" int MM_ComboModel_TestOwnSetupList(int index, uint64_t words[][2], int max) {
+    if (index <= 0 || index >= SETUPDL_MAX) {
+        return -1;
+    }
+    Gfx ref[2] = {};
+    MM_Gfx_SetupDL(ref, (u32)index);
+    return MMCopySetupList(reinterpret_cast<const void*>(ref[0].words.w1), words, max);
+}
+
+/**
+ * TEST BRIDGE (ForeignModel row M18, #1171): `model` drawn by MM's REAL host
+ * draw (ForeignModel_Draw, what CheckQueue and the shelves call) into a real MM
+ * GraphicsContext, and the setup list it emits first on `layer` read back word
+ * by word. The count, or -1 when the layer emits no setup list or the draw left
+ * the matrix stack unbalanced.
+ */
+extern "C" int MM_ForeignModel_TestHostSetupList(const ComboModel* model, uint8_t layer, uint64_t words[][2], int max) {
+    if (model == nullptr) {
+        return -1;
+    }
+    FakeDrawPlay fake;
+    sModelEmitUnresolved = true;
+    ForeignModel_Draw(fake.play, *model);
+    sModelEmitUnresolved = false;
+    if (MM_sCurrentMatrix != fake.stack) {
+        return -1;
+    }
+    const Gfx* begin = layer == kOpa ? fake.opa.data() : fake.xlu.data();
+    const Gfx* end = layer == kOpa ? fake.gfxCtx->polyOpa.p : fake.gfxCtx->polyXlu.p;
+    for (const Gfx* g = begin; g < end; g++) {
+        const uint32_t op = ((uint32_t)g->words.w0 >> 24) & 0xFF;
+        const uintptr_t w1 = (uintptr_t)g->words.w1;
+        if (op == (uint32_t)(uint8_t)G_DL && w1 != 0) {
+            // The first list the layer calls: a model part is an "__OTR__" path.
+            if (std::memcmp((const void*)w1, "__OTR__", 7) == 0) {
+                return -1;
+            }
+            return MMCopySetupList((const void*)w1, words, max);
+        }
+    }
+    return -1;
+}
+
+/**
+ * TEST BRIDGE (ForeignModel row M19, #1167): MM's song items, `i` from 0 until it
+ * answers 0. *id the item, *label its enumerator, *drawCase the `case` label of
+ * DrawSong (DrawItem.cpp) whose colour MM draws it in: its own, or for the
+ * progressive Goron Lullaby (the item MM's checks place) its first tier's.
+ */
+extern "C" int MM_ComboModel_TestSongItem(int i, uint16_t* id, const char** label, const char** drawCase) {
+    struct Song {
+        RandoItemId ri;
+        const char* label;
+        const char* drawCase;
+    };
+    static const Song kSongs[] = {
+        { RI_SONG_TIME, "RI_SONG_TIME", "RI_SONG_TIME" },
+        { RI_SONG_STORMS, "RI_SONG_STORMS", "RI_SONG_STORMS" },
+        { RI_SONG_SUN, "RI_SONG_SUN", "RI_SONG_SUN" },
+        { RI_SONG_HEALING, "RI_SONG_HEALING", "RI_SONG_HEALING" },
+        { RI_SONG_SOARING, "RI_SONG_SOARING", "RI_SONG_SOARING" },
+        { RI_SONG_SONATA, "RI_SONG_SONATA", "RI_SONG_SONATA" },
+        { RI_SONG_ELEGY, "RI_SONG_ELEGY", "RI_SONG_ELEGY" },
+        { RI_SONG_LULLABY_INTRO, "RI_SONG_LULLABY_INTRO", "RI_SONG_LULLABY_INTRO" },
+        { RI_SONG_LULLABY, "RI_SONG_LULLABY", "RI_SONG_LULLABY" },
+        { RI_SONG_OATH, "RI_SONG_OATH", "RI_SONG_OATH" },
+        { RI_SONG_EPONA, "RI_SONG_EPONA", "RI_SONG_EPONA" },
+        { RI_SONG_NOVA, "RI_SONG_NOVA", "RI_SONG_NOVA" },
+        { RI_PROGRESSIVE_LULLABY, "RI_PROGRESSIVE_LULLABY", "RI_SONG_LULLABY_INTRO" },
+    };
+    if (i < 0 || i >= (int)(sizeof(kSongs) / sizeof(kSongs[0]))) {
+        return 0;
+    }
+    *id = (uint16_t)kSongs[i].ri;
+    *label = kSongs[i].label;
+    *drawCase = kSongs[i].drawCase;
+    return 1;
+}
+
 namespace {
 struct MMModelRegistrar {
     MMModelRegistrar() {
