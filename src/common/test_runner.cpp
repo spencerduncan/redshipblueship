@@ -439,6 +439,10 @@ int OoT_SceneFlagFreeze_RunHeadless(void);
 // half that was loaded, not the .sav's tracker section. Drives OoT's OnLoadFile
 // seam over a real .redsave; games/oot/soh/oot_check_state_load_test.cpp.
 int OoT_CheckStateLoad_RunHeadless(void);
+// #1163 / #1159: loading a paired file reconciles OoT's live save with the
+// shared pool before anything is earned or spent. Drives OoT's OnLoadFile seam
+// over a real .redsave; games/oot/soh/oot_load_reconcile_test.cpp.
+int OoT_LoadReconcile_RunHeadless(void);
 // #661: the Happy Mask Shop interior pair is the OoT<->MM crossing and must
 // never enter OoT's own entrance-shuffle pools. Both bodies live in
 // games/oot/soh/oot_entrance_pin_test.cpp. The pool probe is ROM-free and
@@ -5865,6 +5869,21 @@ TestResult Test_OoTCheckStateLoad(void) {
     return OoT_CheckStateLoad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The load reconciles OoT with the shared pool (#1163, #1159). The same
+// display-free bring-up as the row above: the seam it drives is the same one.
+TestResult Test_SharedPoolLoadReconcile(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_LoadReconcile_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Combo tracker window (#458, ADR 0008). Same bring-up as the Gui bridges
 // above and for the same reason (GuiWindow ctors read ConsoleVariables off
 // the Ship::Context singleton).
@@ -7185,6 +7204,12 @@ const TestDescriptor gTests[] = {
       "A wallet found in Termina is the pair's wallet: the apply sets OoT's flag, and a wallet-less arrival never "
       "debits the rupee pool (#991, #992)",
       Test_SharedWallet },
+    // #1163 / #1159: a load reconciles OoT's live save with the pool. ROM-free:
+    // a real .redsave, OoT's real load seam, harvest and give.
+    { "shared-pool-load-reconcile",
+      "Loading a paired file puts the shared pool into OoT before anything is earned or spent: rupees, hearts and "
+      "magic gained after a load are no longer dropped, and a file saved from Termina shows the pool (#1163, #1159)",
+      Test_SharedPoolLoadReconcile },
     // #1061: a bombchu pack found in the other game credits the one shared count
     // at its pickup. ROM-free: gComboCtx, the RAM watermark table, both games'
     // real shims, pickup cores and MM's arrival consumer.

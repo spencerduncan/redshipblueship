@@ -245,15 +245,44 @@ TestResult Test_SharedResources(void) {
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 300);
     Combo_ResetSharedResourceWatermarks(); // <- the load
 
-    // The first harvest after that load must contribute NOTHING. Getting this
-    // wrong doubles the player's money on the first switch after every load.
+    // Then the load RECONCILES (#1163): OoT's load seam applies the pool before
+    // anything in the file can be earned or spent (OoT_Combo_OnLoadFileSeam;
+    // every MM entry is an arrival that applies). The apply is what sets the
+    // watermark, at the balance it materialized.
+    {
+        uint16_t live = 300;
+        SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 999, &live));
+        SR_ASSERT(live == 300);
+    }
+
+    // Money earned after the load and BEFORE any harvest still counts: this is
+    // the order play produces (the first harvest is the first save or
+    // crossing), and the one the first-harvest seed alone got wrong (#1163: it
+    // seeded at the earned balance and dropped the earning).
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 450);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 450);
+
+    // ...and the load never doubles the balance: a harvest at an unchanged
+    // value after the reconcile contributes NOTHING. Getting this wrong doubles
+    // the player's money on the first switch after every load.
+    SR_FreshWorld();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 300);
+    Combo_ResetSharedResourceWatermarks(); // <- the load
+    {
+        uint16_t live = 300;
+        SR_ASSERT(Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 999, &live));
+    }
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 300);
     SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 300);
 
-    // ...and money earned AFTER the load still counts. The seed must set a
-    // baseline, not disable harvesting.
+    // Without a reconcile the seed rule alone (an occupied slot seeds at live,
+    // delta zero) cannot tell an earning from the stored balance: the 150 below
+    // is not counted. That is why the load must apply, not just reset.
+    SR_FreshWorld();
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 300);
+    Combo_ResetSharedResourceWatermarks(); // <- a load with no reconcile
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 450);
-    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 450);
+    SR_ASSERT(SR_Pool(RSBS_SHARED_RES_RUPEES) == 300);
 
     // ------------------------------------------------------------------
     // Applying a resource nobody has ever shared reports "nothing to apply" and

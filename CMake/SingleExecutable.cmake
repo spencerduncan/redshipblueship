@@ -686,6 +686,13 @@ if(BUILD_TESTING)
     # and a wallet-less arrival leaves the shared rupee pool whole. OoT's real
     # shims, ROM-free.
     redship_add_test(NAME SharedWallet COMMAND redship --test shared-wallet)
+    # #1163 / #1159: nothing reconciled OoT's live save with the pool when a file
+    # was loaded, so the first harvest after the load seeded at OoT's live count
+    # and dropped every gain (and refunded every spend) made before it, and a
+    # file saved from Termina showed OoT's stale half. The load seam now applies
+    # the pool. Drives the real OnLoadFile seam over a real .redsave, OoT's real
+    # harvest and give; ROM-free. games/oot/soh/oot_load_reconcile_test.cpp.
+    redship_add_test(NAME SharedPoolLoadReconcile COMMAND redship --test shared-pool-load-reconcile)
     # #1061: MM caps bombchus at its bomb bag (0 with none), and an MM bombchu pack
     # found in Hyrule crossed into that capped give and was lost. A counted pack
     # now credits the shared count at its pickup in either game (harvest, credit,
