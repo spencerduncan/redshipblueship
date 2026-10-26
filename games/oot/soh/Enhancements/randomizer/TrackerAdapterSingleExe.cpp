@@ -67,6 +67,11 @@ extern "C" int OoT_CheckTracker_SettingsLoaded(void);
 // current answer (Enable Available Checks on and a recalculation run for this file),
 // running the recalculation SoH's window would run at its next draw when one is due.
 extern "C" int OoT_CheckTracker_AvailabilityCurrent(void);
+namespace CheckTracker {
+// randomizer_check_tracker.cpp (#1166): whether a shop slot holds a randomized item,
+// the Mysterious Shuffle half of DrawLocation's reveal rule. External, not in its header.
+bool IsMysteryShopItem(RandomizerCheck rc);
+} // namespace CheckTracker
 
 // The departure capture's record holds every OoT check id (#1129).
 static_assert((unsigned)RC_MAX <= RSBS_TRACKER_AVAIL_OOT_CAP,
@@ -381,6 +386,76 @@ const char* OoTPlacedItemName(Rando::ItemLocation* loc, RandomizerCheck rc, uint
     return name.c_str();
 }
 
+/** Which of DrawLocation's sale rules a check type falls under (#1166). */
+uint8_t OoTSaleKind(RandomizerCheckType type) {
+    switch (type) {
+        case RCTYPE_SHOP:
+            return COMBO_TRACKER_SALE_SHOP;
+        case RCTYPE_SCRUB:
+            return COMBO_TRACKER_SALE_SCRUB;
+        case RCTYPE_MERCHANT:
+            return COMBO_TRACKER_SALE_MERCHANT;
+        default:
+            return COMBO_TRACKER_SALE_NONE;
+    }
+}
+
+/**
+ * SoH's IsMysteryShopItem, asked only while OoT is the active game: it identifies
+ * the slot through Randomizer::IdentifyShopItem, which reads gSaveContext's
+ * entrance for the Market Bazaar, and gSaveContext is MM's while MM runs. On the
+ * stale panel a shop slot under Mysterious Shuffle stays unnamed, so the panel
+ * never shows more than SoH's tracker would.
+ */
+bool OoTMysteryShopItem(RandomizerCheck rc) {
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        return true;
+    }
+    return CheckTracker::IsMysteryShopItem(rc);
+}
+
+/**
+ * A seen or identified check's item and price (#1166), as SoH's DrawLocation
+ * prints them: the facts read here in OoT's terms, the rule applied by the view
+ * (Combo_TrackerNameSeenItem). The hint-text settings are the seed's options, the
+ * values SoH reads through gRandomizer->GetRandoSettingValue (which returns
+ * Rando::Context's GetOption); Mysterious Shuffle is the CVar SoH's tracker
+ * loads into `mystery`. The names point into static storage: the item table's
+ * Text and the override in the context's map.
+ */
+void OoTNameSeenItem(Rando::Context* ctx, Rando::ItemLocation* loc, RandomizerCheck rc, bool identified,
+                     ComboTrackerCheckRow* out) {
+    const uint8_t language = OoTTrackerLanguage();
+    ComboTrackerSeenItem seen = {};
+    seen.game = (uint8_t)GAME_OOT;
+    seen.saleKind = OoTSaleKind(Rando::StaticData::GetLocation(rc)->GetRCType());
+    seen.identified = identified;
+    seen.listed = out->shuffled; // OoTCheckListed: SoH's IsVisibleInCheckTracker once its tracker has loaded
+    seen.canBePurchased = loc->CanBePurchased();
+    seen.merchantTextHint = ctx->GetOption(RSK_MERCHANT_TEXT_HINT).Get() != 0;
+    seen.scrubTextHint = ctx->GetOption(RSK_SCRUB_TEXT_HINT).Get() != 0;
+    seen.mystery = CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0) != 0;
+    if (seen.saleKind == COMBO_TRACKER_SALE_SHOP && seen.mystery) {
+        seen.mysteryShopItem = OoTMysteryShopItem(rc);
+    }
+    seen.iceTrap = loc->GetPlacedRandomizerGet() == RG_ICE_TRAP;
+    if (seen.iceTrap) {
+        // SoH reads overrides[rc]; find() names nothing for a trap with no override
+        // rather than inserting one from a draw.
+        auto it = ctx->overrides.find(rc);
+        if (it != ctx->overrides.end()) {
+            seen.looksLikeName =
+                Rando::StaticData::RetrieveItem(it->second.LooksLike()).GetName().GetForLanguage(language).c_str();
+            seen.trickName = it->second.GetTrickName().GetForLanguage(language).c_str();
+        }
+    } else {
+        seen.itemGame = (uint8_t)GAME_NONE;
+        seen.itemName = OoTPlacedItemName(loc, rc, &seen.itemGame);
+    }
+    seen.price = loc->GetPrice();
+    Combo_TrackerNameSeenItem(&seen, out);
+}
+
 bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     auto ctx = Rando::Context::GetInstance();
     if (ctx == nullptr || out == nullptr || index < 0 || index >= (int)RC_MAX) {
@@ -407,9 +482,9 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     }
     // The name shows once the check is found: SoH prints the placed item for a
     // collected, saved or scummed check, whatever its skip flag. A seen or
-    // identified check's item SoH reveals only under hint settings this window
-    // does not read, so it stays unnamed here: the window never shows more than
-    // SoH's tracker.
+    // identified check's item (a shop slot looked at, #1166) shows where SoH's
+    // DrawLocation reveals it, with its price once identified (OoTNameSeenItem):
+    // the window never shows more than SoH's tracker.
     out->placedItemName = nullptr;
     out->placedItemGame = (uint8_t)GAME_NONE;
     const RandomizerCheckStatus status = loc->GetCheckStatus();
@@ -417,6 +492,8 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
         uint8_t game = (uint8_t)GAME_NONE;
         out->placedItemName = OoTPlacedItemName(loc, (RandomizerCheck)index, &game);
         out->placedItemGame = out->placedItemName != nullptr ? game : (uint8_t)GAME_NONE;
+    } else if (status == RCSHOW_SEEN || status == RCSHOW_IDENTIFIED) {
+        OoTNameSeenItem(ctx.get(), loc, (RandomizerCheck)index, status == RCSHOW_IDENTIFIED, out);
     }
     // #1129: SoH's lock glyph's answer, live only (see OoTAvailabilityCurrent).
     out->availabilityKnown = OoTAvailabilityLive();

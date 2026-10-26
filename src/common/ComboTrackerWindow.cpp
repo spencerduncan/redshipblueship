@@ -246,7 +246,8 @@ CheckListColours ReadCheckListColours() {
 
 /**
  * One check: its status glyph and name in the status's main colour, then, in its
- * extra colour, what SoH's tracker prints after a name: the found item, with the
+ * extra colour, what SoH's tracker prints after a name: the found item, or a seen
+ * one SoH reveals with its price once identified (#1166), with the
  * other game's item marked " (MM)" / " (OoT)" as both native trackers mark a
  * crossing (#796), or "Skipped" for a skipped check that names none. The item
  * follows the name on its line when it fits there, and starts the next line under
@@ -569,12 +570,19 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row) {
 }
 
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row) {
-    if (row.placedItemName == nullptr) {
-        return std::string();
+    std::string text;
+    if (row.placedItemName != nullptr) {
+        text = row.placedItemName;
+        if (row.placedItemGame != game) {
+            text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+        }
     }
-    std::string text = row.placedItemName;
-    if (row.placedItemGame != game) {
-        text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+    if (row.hasPrice) {
+        // SoH's DrawLocation: "{} - {}" after a named item, the price alone otherwise (#1166).
+        if (!text.empty()) {
+            text += " - ";
+        }
+        text += std::to_string((unsigned)row.price);
     }
     return text;
 }

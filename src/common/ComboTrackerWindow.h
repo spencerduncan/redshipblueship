@@ -179,7 +179,9 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row);
  * spells it (#796): the placed item's name, with " (MM)" / " (OoT)" when the
  * item is the other game's (a crossing host). "" when the row names no item.
  * The row draws it in parentheses, and the search matches it, as SoH's
- * ShouldShowCheck matches PlacedItemTrackerName.
+ * ShouldShowCheck matches PlacedItemTrackerName. A row with a price (#1166)
+ * follows the name with " - <price>", or prints the price alone when it names
+ * no item, as SoH's DrawLocation does.
  */
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
