@@ -955,6 +955,218 @@ int LockLogic(void) {
     return result;
 }
 
+// ---- #1131 (lane L4): navigation, the current area ---------------------------
+
+// The grouping world with a current area: sCtwAreaKnown false answers none.
+bool sCtwAreaKnown = true;
+uint16_t sCtwArea = 3;
+
+bool CtwCurrentArea(uint16_t* outKey) {
+    if (!sCtwAreaKnown) {
+        return false;
+    }
+    if (outKey != nullptr) {
+        *outKey = sCtwArea;
+    }
+    return true;
+}
+const ComboOoTTrackerOps kCtwNavOps = {
+    CtwSummary, CtwCount, CtwCheckAt, CtwCheckName, nullptr, nullptr, nullptr, CtwCurrentArea,
+};
+
+// The two navigation keys (#1131), spelled whole so a search for a key finds its reader.
+const char* const kCtwNavKeys[] = {
+    "gCombo.Tracker.Checks.AutoScrollToCurrentArea",
+    "gCombo.Tracker.Checks.OnlyShowCurrentArea",
+};
+
+int LockNavBody(void) {
+    using namespace ComboGui;
+    std::vector<ComboTrackerAreaRows> areas;
+
+    // The row and area decisions: outside the current area goes, whatever Show
+    // Hidden Items says, only with the toggle on and an area known.
+    ComboCheckHideOptions opts;
+    opts.onlyCurrentArea = true;
+    opts.currentAreaKnown = true;
+    opts.currentArea = 3;
+    ComboTrackerCheckRow row = {};
+    row.shuffled = true;
+    row.areaKey = 7;
+    CTW_ASSERT(ComboCheckRowHidden(row, opts));
+    opts.showHidden = true;
+    CTW_ASSERT(ComboCheckRowHidden(row, opts));
+    row.areaKey = 3;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts));
+    row.areaKey = 7;
+    opts.currentAreaKnown = false;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts)); // no area known: nothing goes
+    opts.currentAreaKnown = true;
+    opts.onlyCurrentArea = false;
+    CTW_ASSERT(!ComboCheckRowHidden(row, opts)); // the toggle off: nothing goes
+    ComboTrackerAreaRows area;
+    area.key = 7;
+    area.total = 2;
+    opts.onlyCurrentArea = true;
+    CTW_ASSERT(ComboCheckAreaHidden(area, opts));
+    area.key = 3;
+    CTW_ASSERT(!ComboCheckAreaHidden(area, opts));
+
+    // The list, through the pane's filter: OoT is played in area 3.
+    sCtwAreaKnown = true;
+    sCtwArea = 3;
+    Combo_Tracker_RegisterOoT(&kCtwNavOps);
+    opts = ComboCheckHideOptions();
+    ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    printf("[TEST] combo-tracker-window #1131: Only Show Current Area in area 3 draws \"%s\"\n",
+           CtwDrawn(areas).c_str());
+    CTW_ASSERT(opts.onlyCurrentArea && opts.currentAreaKnown && opts.currentArea == 3);
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13");
+    CTW_ASSERT(areas[0].total == 2); // the area's totals stay whole
+    sCtwArea = 7;
+    opts = ComboCheckHideOptions();
+    ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
+    // The toggle off, or no area known: the whole list.
+    opts = ComboCheckHideOptions();
+    ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, false);
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(!opts.onlyCurrentArea && CtwDrawn(areas) == "3:11,13 7:10,12");
+    sCtwAreaKnown = false;
+    opts = ComboCheckHideOptions();
+    ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(!opts.currentAreaKnown && CtwDrawn(areas) == "3:11,13 7:10,12");
+
+    // Per pane (ruling D12): each pane's toggle is its own, seeded from the one
+    // key whenever the key changes, and a pane's checkbox moves that pane alone.
+    ComboPaneAreaToggle ootToggle;
+    ComboPaneAreaToggle mmToggle;
+    ComboPaneAreaToggleSeed(ootToggle, false);
+    ComboPaneAreaToggleSeed(mmToggle, false);
+    CTW_ASSERT(!ootToggle.onlyCurrentArea && !mmToggle.onlyCurrentArea);
+    ootToggle.onlyCurrentArea = true; // the OoT pane's checkbox
+    ComboPaneAreaToggleSeed(ootToggle, false);
+    ComboPaneAreaToggleSeed(mmToggle, false);
+    CTW_ASSERT(ootToggle.onlyCurrentArea && !mmToggle.onlyCurrentArea);
+    ComboPaneAreaToggleSeed(ootToggle, true); // the settings row turns the key on
+    ComboPaneAreaToggleSeed(mmToggle, true);
+    CTW_ASSERT(ootToggle.onlyCurrentArea && mmToggle.onlyCurrentArea);
+    mmToggle.onlyCurrentArea = false; // the MM pane's checkbox
+    ComboPaneAreaToggleSeed(mmToggle, true);
+    CTW_ASSERT(!mmToggle.onlyCurrentArea && ootToggle.onlyCurrentArea);
+    ComboPaneAreaToggleSeed(ootToggle, false); // the key off again
+    ComboPaneAreaToggleSeed(mmToggle, false);
+    CTW_ASSERT(!ootToggle.onlyCurrentArea && !mmToggle.onlyCurrentArea);
+    // ...and a pane whose toggle is off leaves its list whole while the other
+    // pane's is on: the filter reads the pane's own toggle.
+    sCtwAreaKnown = true;
+    sCtwArea = 3;
+    ComboCheckHideOptions ootOpts;
+    ComboCheckHideOptions mmOpts;
+    ComboApplyCurrentAreaFilter(ootOpts, (uint8_t)GAME_OOT, true);
+    ComboApplyCurrentAreaFilter(mmOpts, (uint8_t)GAME_MM, false);
+    CTW_ASSERT(ootOpts.onlyCurrentArea && !mmOpts.onlyCurrentArea);
+
+    // The scroll: once per area change, on the active pane only.
+    ComboAreaScroll scroll;
+    CTW_ASSERT(!ComboAreaScrollNote(scroll, true, true, false, 0)); // no area known: nothing owed
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 0));
+    CTW_ASSERT(ComboAreaScrollNote(scroll, true, true, true, 3)); // the first area owes one
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 7));                  // paid at its own header only
+    CTW_ASSERT(ComboAreaScrollTake(scroll, 3));
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 3));                   // once
+    CTW_ASSERT(!ComboAreaScrollNote(scroll, true, true, true, 3)); // the same area again: none
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 3));
+    CTW_ASSERT(!ComboAreaScrollNote(scroll, true, true, false, 0)); // a transition's gap is no change
+    CTW_ASSERT(!ComboAreaScrollNote(scroll, true, true, true, 3));
+    CTW_ASSERT(ComboAreaScrollNote(scroll, true, true, true, 7)); // a new area owes one
+    CTW_ASSERT(ComboAreaScrollTake(scroll, 7));
+    // The inactive pane never scrolls: its change owes nothing, and drops an owed one.
+    ComboAreaScroll inactive;
+    CTW_ASSERT(!ComboAreaScrollNote(inactive, false, true, true, 3));
+    CTW_ASSERT(!ComboAreaScrollTake(inactive, 3));
+    CTW_ASSERT(ComboAreaScrollNote(inactive, true, true, true, 5));
+    CTW_ASSERT(!ComboAreaScrollNote(inactive, false, true, true, 6));
+    CTW_ASSERT(!ComboAreaScrollTake(inactive, 5) && !ComboAreaScrollTake(inactive, 6));
+    // Auto Scroll To Current Area off: nothing owed.
+    ComboAreaScroll off;
+    CTW_ASSERT(!ComboAreaScrollNote(off, true, false, true, 9));
+    CTW_ASSERT(!ComboAreaScrollTake(off, 9));
+
+    // The keys, with their defaults: auto scroll on, Only Show Current Area off.
+    {
+        bool existed[2];
+        int32_t values[2];
+        for (int i = 0; i < 2; i++) {
+            existed[i] = CVarExists(kCtwNavKeys[i]);
+            values[i] = CVarGetInteger(kCtwNavKeys[i], 0);
+            CVarClear(kCtwNavKeys[i]);
+        }
+        ComboTrackerNavKeys keys = ComboReadTrackerNavKeys();
+        const bool defaults = keys.autoScroll && !keys.onlyCurrentArea;
+        CVarSetInteger(kCtwNavKeys[0], 0);
+        CVarSetInteger(kCtwNavKeys[1], 1);
+        keys = ComboReadTrackerNavKeys();
+        const bool flipped = !keys.autoScroll && keys.onlyCurrentArea;
+        for (int i = 0; i < 2; i++) {
+            if (existed[i]) {
+                CVarSetInteger(kCtwNavKeys[i], values[i]);
+            } else {
+                CVarClear(kCtwNavKeys[i]);
+            }
+        }
+        printf("[TEST] combo-tracker-window #1131: navigation keys read their defaults %d, flipped %d\n", (int)defaults,
+               (int)flipped);
+        CTW_ASSERT(defaults && flipped);
+    }
+
+#ifdef RSBS_SOURCE_DIR
+    // The draw: each pane notes its own area, active pane only, pays the scroll
+    // at the area's header as SoH does, offers its own checkbox and filters by
+    // it; the window asks the active game's area every frame, open or not, so
+    // the inactive pane keeps the area of its last frame of play.
+    {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboTrackerWindow.cpp", std::ios::binary);
+        CTW_ASSERT(in.good());
+        const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const char* const kDraws[] = {
+            "ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame()",
+            "if (ComboAreaScrollTake(pane.scroll, area.key)) {\n            ImGui::SetScrollHereY(0.0f);",
+            "Ui().Checkbox(\"Only Show Current Area\", &pane.area.onlyCurrentArea",
+            "ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);",
+            "ComboPaneAreaToggleSeed(pane.area, ComboReadTrackerNavKeys().onlyCurrentArea);",
+            "(void)Combo_TrackerCurrentArea((uint8_t)Context_GetCurrentGame(), nullptr);",
+        };
+        for (const char* draw : kDraws) {
+            if (win.find(draw) == std::string::npos) {
+                printf("[TEST] FAIL: combo-tracker-window #1131: ComboTrackerWindow.cpp does not draw \"%s\"\n", draw);
+                return TEST_FAIL;
+            }
+        }
+        // The poll comes before the visibility early-out, or a shut window would
+        // leave the inactive pane's area wherever it was last opened.
+        const size_t poll = win.find("(void)Combo_TrackerCurrentArea((uint8_t)Context_GetCurrentGame(), nullptr);");
+        const size_t gate = win.find("if (!CVarGetInteger(kComboTrackerVisibilityCVar, 0)) {");
+        CTW_ASSERT(gate != std::string::npos && poll < gate);
+    }
+#endif
+    return TEST_PASS;
+}
+
+int LockNav(void) {
+    const GameId prevGame = Context_GetCurrentGame();
+    Context_SetCurrentGame(GAME_OOT);
+    const int result = LockNavBody();
+    Context_SetCurrentGame(prevGame);
+    sCtwAreaKnown = true;
+    sCtwArea = 3;
+    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
+    return result;
+}
+
 // ---- #1130 (lane L1b): the window's chrome ----------------------------------------
 
 // SoH's chrome keys (randomizer_check_tracker.cpp, DrawElement and the Check
@@ -1153,16 +1365,18 @@ int TrackerLayoutLocks(void) {
     const int rSeen = LockSeen();
     const int rIce = LockIceTrap();
     const int rLogic = LockLogic();
+    const int rNav = LockNav();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
-           "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s\n",
+           "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s, "
+           "#1131 navigation %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
            rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
            rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
-           rLogic == TEST_PASS ? "PASS" : "FAIL");
+           rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
             rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
-            rLogic == TEST_PASS)
+            rLogic == TEST_PASS && rNav == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }

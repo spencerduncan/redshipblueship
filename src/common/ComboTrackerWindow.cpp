@@ -771,6 +771,36 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     return header;
 }
 
+// #1131 lock seams: today's behaviour, no navigation.
+ComboTrackerNavKeys ComboReadTrackerNavKeys() {
+    return ComboTrackerNavKeys();
+}
+
+bool ComboAreaScrollNote(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area) {
+    (void)activePane;
+    (void)autoScroll;
+    (void)areaKnown;
+    (void)area;
+    return scroll.pending;
+}
+
+bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey) {
+    (void)scroll;
+    (void)areaKey;
+    return false;
+}
+
+void ComboPaneAreaToggleSeed(ComboPaneAreaToggle& toggle, bool keyValue) {
+    (void)toggle;
+    (void)keyValue;
+}
+
+void ComboApplyCurrentAreaFilter(ComboCheckHideOptions& opts, uint8_t game, bool onlyCurrentArea) {
+    (void)opts;
+    (void)game;
+    (void)onlyCurrentArea;
+}
+
 std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
     // Checked is collected or skipped (the view counts them apart), as SoH's
     // "Checked", MM's collected count and this pane's area headers count it.

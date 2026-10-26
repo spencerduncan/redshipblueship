@@ -253,6 +253,13 @@ struct ComboCheckHideOptions {
     // every area with none available (SoH's DrawLocation and area loop); a row
     // whose availability is not known is never left out.
     bool onlyAvailable = false;
+    // #1131: the pane's own Only Show Current Area (ruling D12: per pane),
+    // with the area its game's player is in (Combo_TrackerCurrentArea). It
+    // leaves out every row and area outside `currentArea`, whatever Show Hidden
+    // Items says; with no area known (`currentAreaKnown` false) nothing goes.
+    bool onlyCurrentArea = false;
+    bool currentAreaKnown = false;
+    uint16_t currentArea = 0;
 };
 
 /** The hide keys' values now, with `showHidden` as the pane's toggle. */
@@ -302,6 +309,72 @@ struct ComboCheckHeaderOptions {
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
+
+// ---- Navigation (#1131, lane L4) --------------------------------------------
+//
+// The Combo Tracker's first keys of its own, since SoH has neither setting
+// (its window always scrolls, and has no current-area filter; MM's tracker has
+// both, gRando.CheckTracker.ScrollToCurrentScene and .ShowCurrentScene):
+// gCombo.Tracker.Checks.AutoScrollToCurrentArea (on) and
+// gCombo.Tracker.Checks.OnlyShowCurrentArea (off), one each for both panes
+// (ruling D3: one set of settings). The second only seeds each pane's own
+// toggle (ruling D12), as SoH's ShowHidden seeds Show Hidden Items.
+
+struct ComboTrackerNavKeys {
+    bool autoScroll = true;       // AutoScrollToCurrentArea: MM's Auto Scroll To Current Scene default
+    bool onlyCurrentArea = false; // OnlyShowCurrentArea: MM's Only Show Current Scene default
+};
+
+/** The two navigation keys' values now, their defaults for a key not set. */
+ComboTrackerNavKeys ComboReadTrackerNavKeys();
+
+/**
+ * One pane's scroll to its current area (SoH's doAreaScroll, MM's
+ * sScrollToTargetScene): a scroll is owed once per area change, only on the
+ * ACTIVE game's pane (the inactive pane's area is a snapshot and never
+ * scrolls it), and paid at that area's header the first frame it is drawn.
+ */
+struct ComboAreaScroll {
+    bool seen = false;    // an area has been noted
+    uint16_t area = 0;    // the last area noted
+    bool pending = false; // a scroll is owed
+    uint16_t target = 0;  // to this area
+};
+
+/**
+ * Note the pane's current area this frame: `areaKnown` false notes nothing (a
+ * transition's gap does not count as a change); the first area, or one that
+ * differs from the last noted, is a change, which owes a scroll when
+ * `activePane` and `autoScroll`, and otherwise drops any owed one. The same
+ * area again changes nothing. @return whether a scroll is now owed.
+ */
+bool ComboAreaScrollNote(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area);
+
+/**
+ * At an area's header: true exactly once for the owed scroll's area (the
+ * caller then scrolls there, SoH's ImGui::SetScrollHereY(0.0f)), clearing it;
+ * false for any other area and when nothing is owed.
+ */
+bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey);
+
+/**
+ * One pane's Only Show Current Area toggle (ruling D12), seeded from the key:
+ * whenever the key's value differs from the one it last seeded from, the
+ * toggle takes it (so the settings row reaches both panes); between changes,
+ * the pane's checkbox flips its own toggle alone and nothing is written back.
+ */
+struct ComboPaneAreaToggle {
+    bool onlyCurrentArea = false;
+    int seededFrom = -1; // the key's value at the last seed; -1 never seeded
+};
+
+void ComboPaneAreaToggleSeed(ComboPaneAreaToggle& toggle, bool keyValue);
+
+/**
+ * Put a pane's Only Show Current Area into `opts`: `onlyCurrentArea` (the
+ * pane's toggle) and `game`'s current area (Combo_TrackerCurrentArea).
+ */
+void ComboApplyCurrentAreaFilter(ComboCheckHideOptions& opts, uint8_t game, bool onlyCurrentArea);
 
 /**
  * A game panel's totals line (#1128): its checked count over its shuffled

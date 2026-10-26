@@ -413,6 +413,13 @@ const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
+bool Combo_TrackerCurrentArea(uint8_t game, uint16_t* outKey) {
+    // #1131 lock seam: no area is known yet.
+    (void)game;
+    (void)outKey;
+    return false;
+}
+
 /** `name`, or NULL for NULL or "". */
 static const char* NonEmpty(const char* name) {
     return (name != NULL && name[0] != '\0') ? name : NULL;

@@ -98,6 +98,14 @@
  *    price after an identified check that sells something (CanBePurchased, SoH
  *    2ba368e7e), never after a Skulltula House reward. See CtvOoTSeenRows.
  *
+ * 14. THE CURRENT AREA (#1131). Each game's adapter names the area its player is
+ *    in, as an area key of its own rows: OoT's is SoH's Check Tracker's
+ *    currentArea (authored through a seam) while OoT plays a randomizer file; MM's
+ *    is the scene MM is played in (a stand-in for MM's play state), and a grotto
+ *    keeps the scene it was entered from, where MM's tracker lists its checks.
+ *    The active game's answer is live; the inactive game answers the area kept
+ *    from its last live answer, never its adapter. See CtvNavOoT and CtvNavMM.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -1026,6 +1034,135 @@ static int CtvAvailOoT(const uint16_t ootIds[3]) {
     return result;
 }
 
+// ---- #1131: the current area (header point 14) -----------------------------
+
+extern "C" int OoT_TrackerAdapter_TestSetCurrentArea(int area);
+extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId);
+extern "C" int MM_TrackerAdapter_TestCheckScene(uint16_t checkId);
+extern "C" int MM_TrackerAdapter_TestGrottoScene(void);
+
+static int sCtvNavFailures = 0;
+
+/** `game`'s current area as one value: the key, or -1 for none. */
+static int CtvArea(uint8_t game) {
+    uint16_t key = 0xFFFF;
+    return Combo_TrackerCurrentArea(game, &key) ? (int)key : -1;
+}
+
+/**
+ * OoT over the authored world (ootIds: three Kokiri Forest chests): SoH's
+ * currentArea is the area, as the area key the rows carry, while OoT plays a
+ * randomizer file; while MM is played OoT answers the area kept from its last
+ * live answer, whatever SoH's variable holds.
+ */
+static int CtvNavOoTBody(const uint16_t ootIds[3]) {
+    ComboTrackerCheckRow row;
+    Context_SetCurrentGame(GAME_OOT);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row) && row.areaName != NULL);
+    const int kokiriForest = (int)row.areaKey;
+    (void)OoT_TrackerAdapter_TestSkipSeam(1); // a randomizer file is loaded
+    (void)OoT_TrackerAdapter_TestSetCurrentArea(-1);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == -1); // no transition yet: none
+    (void)OoT_TrackerAdapter_TestSetCurrentArea(kokiriForest);
+    printf("[TEST] combo-tracker-view #1131 OoT: currentArea %d (\"%s\") answers %d\n", kokiriForest, row.areaName,
+           CtvArea((uint8_t)GAME_OOT));
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == kokiriForest);
+    CTV_ASSERT(Combo_TrackerCurrentArea((uint8_t)GAME_OOT, NULL)); // a NULL key is allowed
+    (void)OoT_TrackerAdapter_TestSkipSeam(0);                      // no randomizer file: none
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == -1);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == kokiriForest);
+    // MM is played: OoT's pane keeps the area of its last frame of play.
+    Context_SetCurrentGame(GAME_MM);
+    (void)OoT_TrackerAdapter_TestSetCurrentArea(kokiriForest + 1);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == kokiriForest);
+    // OoT again: the live answer.
+    Context_SetCurrentGame(GAME_OOT);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == kokiriForest + 1);
+    // No game, or a game out of range: none.
+    CTV_ASSERT(CtvArea((uint8_t)GAME_NONE) == -1);
+    return TEST_PASS;
+}
+
+static int CtvNavOoT(const uint16_t ootIds[3]) {
+    const GameId prevGame = Context_GetCurrentGame();
+    const int prevArea = OoT_TrackerAdapter_TestSetCurrentArea(-1);
+    const int result = CtvNavOoTBody(ootIds);
+    (void)OoT_TrackerAdapter_TestSetCurrentArea(prevArea);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
+/**
+ * MM through the real descriptor: the area of the scene MM is played in is the
+ * area key MM's rows carry for a check of that scene; a grotto keeps the scene
+ * it was entered from; with no play state there is none; while OoT is played MM
+ * answers the area kept from its last live answer.
+ */
+static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
+    CTV_ASSERT(desc->areaName != NULL);
+    const int grotto = MM_TrackerAdapter_TestGrottoScene();
+    // Two checks of two scenes, each listed under its own scene (a grotto's or
+    // an enemy drop's row may be listed elsewhere, so they are skipped): the
+    // row key's low byte is its scene (MMTrackerAreaName).
+    int sceneA = -1;
+    int sceneB = -1;
+    int keyA = -1;
+    int keyB = -1;
+    for (uint32_t id = 1; id < desc->checkCount && sceneB < 0; id++) {
+        const int scene = MM_TrackerAdapter_TestCheckScene((uint16_t)id);
+        uint16_t key = 0;
+        if (scene < 0 || scene == grotto || desc->areaName((uint16_t)id, &key) == NULL ||
+            (key & 0xFFu) != ((unsigned)scene & 0xFFu)) {
+            continue;
+        }
+        if (sceneA < 0) {
+            sceneA = scene;
+            keyA = (int)key;
+        } else if (scene != sceneA) {
+            sceneB = scene;
+            keyB = (int)key;
+        }
+    }
+    printf("[TEST] combo-tracker-view #1131 MM: scene %d is area %d, scene %d is area %d\n", sceneA, keyA, sceneB,
+           keyB);
+    CTV_ASSERT(sceneA >= 0 && sceneB >= 0 && keyA != keyB);
+
+    Context_SetCurrentGame(GAME_MM);
+    MM_TrackerAdapter_TestSceneSeam(0, 0); // no MM play state
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
+    MM_TrackerAdapter_TestSceneSeam(1, sceneA);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestSceneSeam(1, grotto); // a grotto entered from scene A: still area A
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestSceneSeam(1, sceneB);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyB);
+    // OoT is played: MM's pane keeps the area of its last frame of play.
+    Context_SetCurrentGame(GAME_OOT);
+    MM_TrackerAdapter_TestSceneSeam(1, sceneA);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyB);
+    Context_SetCurrentGame(GAME_MM);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    // A grotto with no scene before it (a file loaded inside one): none.
+    MM_TrackerAdapter_TestSceneSeam(0, 0);
+    MM_TrackerAdapter_TestSceneSeam(1, grotto);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
+    // The production op with no play state in this tier: none.
+    MM_TrackerAdapter_TestSceneSeam(-1, 0);
+    CTV_ASSERT(desc->currentArea != NULL);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
+    return TEST_PASS;
+}
+
+static int CtvNavMM(const ComboMMTrackerDesc* desc) {
+    const GameId prevGame = Context_GetCurrentGame();
+    const int result = CtvNavMMBody(desc);
+    MM_TrackerAdapter_TestSceneSeam(-1, 0);
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
 static int CtvLiveLegs(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const ComboMMTrackerDesc real = *desc; // backup: the production descriptor
     ComboMMTrackerDesc testDesc = real;
@@ -1187,6 +1324,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     }
     desc = Combo_Tracker_GetMMDesc(); // re-registered by the legs
 
+    // ---- 4d. #1131: MM's current area ---------------------------------------
+    // Recorded rather than returned on, so the OoT half (5e) still runs.
+    sCtvNavFailures = 0;
+    if (CtvNavMM(desc) != TEST_PASS) {
+        sCtvNavFailures++;
+    }
+
     // ---- 5. OoT adapter: never-booted, authored, suspend labelling --------
     OoT_TrackerAdapter_Register();
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
@@ -1254,6 +1398,11 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // ---- 5d. #1129: OoT's reachability, live and captured --------------------
     if (CtvAvailOoT(ootIds) != TEST_PASS) {
         sCtvAvailFailures++;
+    }
+
+    // ---- 5e. #1131: OoT's current area --------------------------------------
+    if (CtvNavOoT(ootIds) != TEST_PASS) {
+        sCtvNavFailures++;
     }
 
     // Releasing the world must return the adapter to UNAVAILABLE — liveness
@@ -1364,6 +1513,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     }
     if (sCtvAvailFailures != 0) {
         printf("[TEST] FAIL: %d of the two #1129 reachability halves (MM 4c, OoT 5d) failed\n", sCtvAvailFailures);
+        return TEST_FAIL;
+    }
+    if (sCtvNavFailures != 0) {
+        printf("[TEST] FAIL: %d of the two #1131 current-area halves (MM 4d, OoT 5e) failed\n", sCtvNavFailures);
         return TEST_FAIL;
     }
     if (sCtvU5Failures != 0) {

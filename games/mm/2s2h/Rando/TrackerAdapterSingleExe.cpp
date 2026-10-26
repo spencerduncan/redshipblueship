@@ -533,6 +533,40 @@ extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* i
     return calls;
 }
 
+// ---- #1131: the navigation lock's stand-ins -------------------------------
+
+namespace {
+// MM_TrackerAdapter_TestSceneSeam below: -1 is production (MM's play state); 0
+// answers "no MM play state"; 1 answers "MM is played in sSceneTestId".
+int sSceneTest = -1;
+int sSceneTestId = 0;
+} // namespace
+
+/**
+ * TEST BRIDGE (#1131): @p mode -1 restores production; 0 stands in for "no MM
+ * play state" and 1 for "MM is played in scene @p sceneId" (the ROM-free tier
+ * has no play state), for the current-area op. Modes -1 and 0 also forget the
+ * scene a grotto was entered from.
+ */
+extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId) {
+    sSceneTest = mode < 0 ? -1 : (mode != 0 ? 1 : 0);
+    sSceneTestId = sceneId;
+}
+
+/** TEST BRIDGE (#1131): check @p checkId's own scene, through Play_GetOriginalSceneId; -1 for none. */
+extern "C" int MM_TrackerAdapter_TestCheckScene(uint16_t checkId) {
+    const auto check = Rando::StaticData::Checks.find((RandoCheckId)checkId);
+    if (check == Rando::StaticData::Checks.end()) {
+        return -1;
+    }
+    return Play_GetOriginalSceneId(check->second.sceneId);
+}
+
+/** TEST BRIDGE (#1131): MM's grotto scene, whose checks MM's tracker lists under the scene each opens from. */
+extern "C" int MM_TrackerAdapter_TestGrottoScene(void) {
+    return (int)SCENE_KAKUSIANA;
+}
+
 // ---- #1101 lane R3: Randomizer > MM Locations' check table ------------------
 
 namespace {
