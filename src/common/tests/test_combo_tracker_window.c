@@ -916,7 +916,10 @@ int LockLogicBody(void) {
     CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 0, &row));
     CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, true).empty());
 
-    // MM's panel, through its own descriptor's op, under the same key.
+    // MM's panel, through its own descriptor's op, under the same key. The state
+    // loop above ends with no adapter registered, so MM's production descriptor
+    // is registered first and copied.
+    MM_TrackerAdapter_Register();
     const ComboMMTrackerDesc* real = Combo_Tracker_GetMMDesc();
     CTW_ASSERT(real != nullptr);
     ComboMMTrackerDesc desc = *real;
