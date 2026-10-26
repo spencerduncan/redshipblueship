@@ -768,6 +768,193 @@ int LockAvail(void) {
     return result;
 }
 
+// ---- #1166 (lane T1): a seen check's item and price ---------------------------
+
+/** What a seen OoT row prints after its name (SoH's DrawLocation), from `seen`'s facts. */
+std::string CtwSeenText(const ComboTrackerSeenItem& seen) {
+    ComboTrackerCheckRow row = {};
+    row.status = COMBO_TRACKER_CHECK_SEEN;
+    Combo_TrackerNameSeenItem(&seen, &row);
+    return ComboGui::ComboCheckRowItemText(seen.game, row);
+}
+
+/** A listed Kokiri Shop slot holding a Hookshot at 40 rupees, seen and not identified. */
+ComboTrackerSeenItem CtwShopSlot(void) {
+    ComboTrackerSeenItem seen = {};
+    seen.game = (uint8_t)GAME_OOT;
+    seen.saleKind = COMBO_TRACKER_SALE_SHOP;
+    seen.listed = true;
+    seen.canBePurchased = true;
+    seen.itemName = "Hookshot";
+    seen.itemGame = (uint8_t)GAME_OOT;
+    seen.price = 40;
+    return seen;
+}
+
+int LockSeen(void) {
+    // A seen shop slot names its item (SoH's DrawLocation, RCSHOW_SEEN).
+    ComboTrackerSeenItem shop = CtwShopSlot();
+    const std::string seenText = CtwSeenText(shop);
+    printf("[TEST] combo-tracker-window #1166: a seen shop slot prints \"%s\"\n", seenText.c_str());
+    CTW_ASSERT(seenText == "Hookshot");
+    // Identified: the price follows, in SoH's "{} - {}" shape.
+    shop.identified = true;
+    const std::string identifiedText = CtwSeenText(shop);
+    printf("[TEST] combo-tracker-window #1166: an identified shop slot prints \"%s\"\n", identifiedText.c_str());
+    CTW_ASSERT(identifiedText == "Hookshot - 40");
+    // Mysterious Shuffle hides a randomized item, and the price prints alone.
+    shop.mystery = true;
+    shop.mysteryShopItem = true;
+    CTW_ASSERT(CtwSeenText(shop) == "40");
+    shop.identified = false;
+    CTW_ASSERT(CtwSeenText(shop).empty());
+    // ...but not a slot that sells its vanilla item.
+    shop.mysteryShopItem = false;
+    CTW_ASSERT(CtwSeenText(shop) == "Hookshot");
+    // A slot SoH does not list prints no price.
+    shop = CtwShopSlot();
+    shop.identified = true;
+    shop.listed = false;
+    CTW_ASSERT(CtwSeenText(shop) == "Hookshot");
+    // A crossing host's crossed item carries its game's suffix.
+    shop = CtwShopSlot();
+    shop.itemName = "Lens of Truth";
+    shop.itemGame = (uint8_t)GAME_MM;
+    CTW_ASSERT(CtwSeenText(shop) == "Lens of Truth (MM)");
+
+    // CanBePurchased false (SoH 2ba368e7e): an identified check that sells
+    // nothing, such as a Skulltula House reward, prints no price ("- 0" before).
+    ComboTrackerSeenItem reward = CtwShopSlot();
+    reward.saleKind = COMBO_TRACKER_SALE_NONE;
+    reward.canBePurchased = false;
+    reward.identified = true;
+    reward.price = 0;
+    const std::string rewardText = CtwSeenText(reward);
+    printf("[TEST] combo-tracker-window #1166: an identified Skulltula reward prints \"%s\"\n", rewardText.c_str());
+    CTW_ASSERT(rewardText == "Hookshot");
+    reward.itemName = nullptr;
+    CTW_ASSERT(CtwSeenText(reward).empty());
+
+    // A merchant's item shows only with Merchant Hint Text, a scrub's only with
+    // Scrub Hint Text, and neither under Mysterious Shuffle.
+    ComboTrackerSeenItem merchant = CtwShopSlot();
+    merchant.saleKind = COMBO_TRACKER_SALE_MERCHANT;
+    CTW_ASSERT(CtwSeenText(merchant).empty());
+    merchant.merchantTextHint = true;
+    CTW_ASSERT(CtwSeenText(merchant) == "Hookshot");
+    merchant.scrubTextHint = true;
+    merchant.mystery = true;
+    CTW_ASSERT(CtwSeenText(merchant).empty());
+    ComboTrackerSeenItem scrub = CtwShopSlot();
+    scrub.saleKind = COMBO_TRACKER_SALE_SCRUB;
+    scrub.merchantTextHint = true;
+    scrub.identified = true;
+    CTW_ASSERT(CtwSeenText(scrub) == "40");
+    scrub.scrubTextHint = true;
+    CTW_ASSERT(CtwSeenText(scrub) == "Hookshot - 40");
+    scrub.mystery = true;
+    CTW_ASSERT(CtwSeenText(scrub) == "40");
+    return TEST_PASS;
+}
+
+int LockIceTrap(void) {
+    // SoH's ice-trap naming: its disguise once seen, its trick name once
+    // identified, and only where the item would be named at all.
+    ComboTrackerSeenItem trap = CtwShopSlot();
+    trap.iceTrap = true;
+    trap.itemName = "Ice Trap"; // never printed for a trap
+    trap.looksLikeName = "Fairy Bow";
+    trap.trickName = "Fary Bow";
+    trap.price = 25;
+    const std::string seenText = CtwSeenText(trap);
+    trap.identified = true;
+    const std::string identifiedText = CtwSeenText(trap);
+    printf("[TEST] combo-tracker-window #1166: a seen ice trap prints \"%s\", identified \"%s\"\n", seenText.c_str(),
+           identifiedText.c_str());
+    CTW_ASSERT(seenText == "Fairy Bow");
+    CTW_ASSERT(identifiedText == "Fary Bow - 25");
+    trap.mystery = true;
+    trap.mysteryShopItem = true;
+    CTW_ASSERT(CtwSeenText(trap) == "25");
+    // A trap with no override names nothing.
+    trap = CtwShopSlot();
+    trap.iceTrap = true;
+    trap.itemName = "Ice Trap";
+    CTW_ASSERT(CtwSeenText(trap).empty());
+    return TEST_PASS;
+}
+
+// ---- #1161 (lane T1): a check's logic on hover --------------------------------
+
+// A registrant's logic op: a condition for 0x10, SoH's "true" for 0x11, none else.
+const char* CtwLogic(uint16_t id) {
+    if (id == 0x10) {
+        return "CanUse(RG_FAIRY_BOW) && IsAdult";
+    }
+    return id == 0x11 ? "true" : nullptr;
+}
+const ComboOoTTrackerOps kCtwLogicOps = { CtwSummary, CtwCount, CtwCheckAt, CtwCheckName, nullptr, nullptr, CtwLogic };
+
+int LockLogicBody(void) {
+    using namespace ComboGui;
+    Combo_Tracker_RegisterOoT(&kCtwLogicOps);
+    ComboTrackerCheckRow row;
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 0, &row) && row.checkId == 0x10);
+    const std::string on = ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, true);
+    const std::string off = ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, false);
+    printf("[TEST] combo-tracker-window #1161: OoT logic tooltip with Show Logic \"%s\", without \"%s\"\n", on.c_str(),
+           off.c_str());
+    CTW_ASSERT(on == "CanUse(RG_FAIRY_BOW) && IsAdult");
+    CTW_ASSERT(off.empty());
+    // SoH draws none for a condition of "true", nor where there is no condition.
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 1, &row) && row.checkId == 0x11);
+    CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, true).empty());
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 2, &row) && row.checkId == 0x12);
+    CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, true).empty());
+    // A registrant with no logic op shows none.
+    Combo_Tracker_RegisterOoT(&kCtwOps);
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, 0, &row));
+    CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_OOT, row, true).empty());
+
+    // MM's panel, through its own descriptor's op, under the same key. The state
+    // loop above ends with no adapter registered, so MM's production descriptor
+    // is registered first and copied.
+    MM_TrackerAdapter_Register();
+    const ComboMMTrackerDesc* real = Combo_Tracker_GetMMDesc();
+    CTW_ASSERT(real != nullptr);
+    ComboMMTrackerDesc desc = *real;
+    desc.logicText = CtwLogic;
+    Combo_Tracker_RegisterMM(&desc);
+    row = {};
+    row.checkId = 0x10;
+    const std::string mm = ComboCheckLogicTooltip((uint8_t)GAME_MM, row, true);
+    printf("[TEST] combo-tracker-window #1161: MM logic tooltip with Show Logic \"%s\"\n", mm.c_str());
+    CTW_ASSERT(mm == "CanUse(RG_FAIRY_BOW) && IsAdult");
+    CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_MM, row, false).empty());
+    desc.logicText = nullptr;
+    Combo_Tracker_RegisterMM(&desc);
+    CTW_ASSERT(ComboCheckLogicTooltip((uint8_t)GAME_MM, row, true).empty());
+
+    // The key: SoH's Show Logic, off by default, one key for both panes.
+    {
+        CtwKeyGuard guard;
+        guard.Keep("gTrackers.CheckTracker.ShowLogic");
+        CTW_ASSERT(!ComboReadCheckHeaderOptions().showLogic);
+        CVarSetInteger("gTrackers.CheckTracker.ShowLogic", 1);
+        const bool read = ComboReadCheckHeaderOptions().showLogic;
+        printf("[TEST] combo-tracker-window #1161: Show Logic set reads %d\n", (int)read);
+        CTW_ASSERT(read);
+    }
+    return TEST_PASS;
+}
+
+int LockLogic(void) {
+    const int result = LockLogicBody();
+    OoT_TrackerAdapter_Register(); // the production adapters, whatever the result
+    MM_TrackerAdapter_Register();
+    return result;
+}
+
 // ---- #1130 (lane L1b): the window's chrome ----------------------------------------
 
 // SoH's chrome keys (randomizer_check_tracker.cpp, DrawElement and the Check
@@ -963,13 +1150,19 @@ int TrackerLayoutLocks(void) {
     const int rHide = LockHide();
     const int rAvail = LockAvail();
     const int rChrome = LockChrome();
+    const int rSeen = LockSeen();
+    const int rIce = LockIceTrap();
+    const int rLogic = LockLogic();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
-           "#1129 reachability %s, #1130 chrome %s\n",
+           "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
-           rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL");
+           rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
+           rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
+           rLogic == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
-            rAvail == TEST_PASS && rChrome == TEST_PASS)
+            rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
+            rLogic == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }
@@ -1271,6 +1464,56 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             printf("[TEST] FAIL: ComboTrackerWindow::DrawElement still draws the Crossings section (ruling D10)\n");
             return TEST_FAIL;
         }
+    }
+    // #1166 (lane T1): OoT's adapter names a seen check's item through section
+    // 5's rule (Combo_TrackerNameSeenItem), from the facts SoH's DrawLocation
+    // reads: the seed's merchant and scrub hint settings, Mysterious Shuffle,
+    // SoH's own IsMysteryShopItem (not a copy), CanBePurchased (SoH 2ba368e7e)
+    // and the ice trap's override.
+    {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) +
+                             "/games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp",
+                         std::ios::binary);
+        CTW_ASSERT(in.good());
+        const std::string oot((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const char* const kSeenReads[] = {
+            "RSK_MERCHANT_TEXT_HINT", "RSK_SCRUB_TEXT_HINT",
+            "\"MysteriousShuffle\"",  "CheckTracker::IsMysteryShopItem(",
+            "->CanBePurchased()",     "overrides.find(",
+            "GetTrickName()",         "Combo_TrackerNameSeenItem(&seen, out)",
+        };
+        for (const char* read : kSeenReads) {
+            if (oot.find(read) == std::string::npos) {
+                printf("[TEST] FAIL: OoT's tracker adapter does not name a seen item through %s\n", read);
+                return TEST_FAIL;
+            }
+        }
+        // #1161 (lane T1): both adapters implement the logic op from their own
+        // tracker's source (OoT: SoH's GetConditionStr of the check in its parent
+        // region; MM: 2Ship's accessLogicFuncs, with its enemy-drop omission),
+        // and the window shows it as each row's tooltip behind SoH's Show Logic.
+        const size_t opsAt = oot.find("kOps = {");
+        const size_t opsEnd = opsAt == std::string::npos ? std::string::npos : oot.find("};", opsAt);
+        const bool ootOp = opsEnd != std::string::npos &&
+                           oot.substr(opsAt, opsEnd - opsAt).find("OoTTrackerCheckLogic") != std::string::npos &&
+                           oot.find("GetConditionStr()") != std::string::npos &&
+                           oot.find("GetParentRegionKey()") != std::string::npos;
+        std::ifstream mmIn(std::string(RSBS_SOURCE_DIR) + "/games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp",
+                           std::ios::binary);
+        CTW_ASSERT(mmIn.good());
+        const std::string mm((std::istreambuf_iterator<char>(mmIn)), std::istreambuf_iterator<char>());
+        const bool mmOp = mm.find("desc.logicText = MMTrackerCheckLogic;") != std::string::npos &&
+                          mm.find("accessLogicFuncs") != std::string::npos &&
+                          mm.find("RC_ENEMY_DROP_WOLFOS") != std::string::npos;
+        std::ifstream winIn(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboTrackerWindow.cpp", std::ios::binary);
+        CTW_ASSERT(winIn.good());
+        const std::string win((std::istreambuf_iterator<char>(winIn)), std::istreambuf_iterator<char>());
+        const bool winTip = win.find("CVarGetInteger(\"gTrackers.CheckTracker.ShowLogic\", 0)") != std::string::npos &&
+                            win.find("ComboCheckLogicTooltip(game, row, showLogic)") != std::string::npos &&
+                            win.find("Combo_TrackerCheckLogic(game, row.checkId)") != std::string::npos;
+        printf("[TEST] combo-tracker-window #1161: logic op in OoT's adapter %d, in MM's %d, drawn by the window %d\n",
+               (int)ootOp, (int)mmOp, (int)winTip);
+        CTW_ASSERT(ootOp && mmOp && winTip);
     }
 #endif
 

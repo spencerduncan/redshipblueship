@@ -403,6 +403,51 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
+const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
+    if (game == (uint8_t)GAME_MM) {
+        return (sMMRegistered && sMMDesc.logicText != NULL) ? sMMDesc.logicText(checkId) : NULL;
+    }
+    if (game == (uint8_t)GAME_OOT && sOoTOps != NULL && sOoTOps->logicText != NULL) {
+        return sOoTOps->logicText(checkId);
+    }
+    return NULL;
+}
+
+/** `name`, or NULL for NULL or "". */
+static const char* NonEmpty(const char* name) {
+    return (name != NULL && name[0] != '\0') ? name : NULL;
+}
+
+void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerCheckRow* row) {
+    if (seen == NULL || row == NULL) {
+        return;
+    }
+    // SoH's DrawLocation, RCSHOW_SEEN / RCSHOW_IDENTIFIED (randomizer_check_tracker.cpp).
+    const bool hideMerchant =
+        seen->saleKind == (uint8_t)COMBO_TRACKER_SALE_MERCHANT && (!seen->merchantTextHint || seen->mystery);
+    const bool hideScrub =
+        seen->saleKind == (uint8_t)COMBO_TRACKER_SALE_SCRUB && (!seen->scrubTextHint || seen->mystery);
+    const bool hideShop = seen->saleKind == (uint8_t)COMBO_TRACKER_SALE_SHOP && seen->mystery && seen->mysteryShopItem;
+    const bool reveal = !(hideMerchant || hideScrub || hideShop);
+
+    const char* name = NULL;
+    uint8_t game = (uint8_t)GAME_NONE;
+    if (reveal && seen->iceTrap) {
+        // The disguise once seen, the trick name once identified.
+        name = NonEmpty(seen->identified ? seen->trickName : seen->looksLikeName);
+        game = seen->game;
+    } else if (reveal) {
+        name = NonEmpty(seen->itemName);
+        game = seen->itemGame;
+    }
+    row->placedItemName = name;
+    row->placedItemGame = (name != NULL) ? game : (uint8_t)GAME_NONE;
+    // The price line: an identified check SoH lists and can sell (SoH 2ba368e7e),
+    // whether or not its item is named.
+    row->hasPrice = seen->identified && seen->canBePurchased && seen->listed;
+    row->price = row->hasPrice ? seen->price : 0;
+}
+
 // ============================================================================
 // The skip toggle (#458 U5)
 // ============================================================================
