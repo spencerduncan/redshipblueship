@@ -113,6 +113,17 @@ static_assert(sizeof(SaveContext) <= OOT_SAVE_CONTEXT_SIZE,
               "OOT_SAVE_CONTEXT_SIZE (src/common/game.h) is smaller than SoH's runtime SaveContext; "
               "raise the capacity or cross-game freeze/restore will truncate save state");
 
+// #1176: SoH appended skeletonHeader to OoT's SkelAnime; MM's has no such
+// field. The skeleton-patcher-mm-layout row checks this size is MM's
+// (MM_SkelAnime_SizeOf) plus that one trailing pointer, so the layouts cannot
+// drift apart silently; `skeleton` sits at the same offset in both.
+static_assert(offsetof(SkelAnime, skeletonHeader) == sizeof(SkelAnime) - sizeof(void*),
+              "OoT SkelAnime::skeletonHeader is no longer the trailing field");
+static_assert(offsetof(SkelAnime, skeleton) == sizeof(void*), "OoT SkelAnime::skeleton moved");
+extern "C" size_t OoT_SkelAnime_SizeOf(void) {
+    return sizeof(SkelAnime);
+}
+
 // Archive hot-swap cycle helpers (#263). Defined in
 // src/common/tests/test_archive_hotswap.c (compiled into redship_common via
 // test_runner.cpp); resolved at final link. Record this OoT arrival, query the

@@ -206,6 +206,16 @@ static_assert(sizeof(SaveContext) <= MM_SAVE_CONTEXT_SIZE,
               "MM_SAVE_CONTEXT_SIZE (src/common/game.h) is smaller than 2S2H's runtime SaveContext; "
               "raise the capacity or cross-game freeze/restore will truncate save state");
 
+// #1176: MM's SkelAnime has no skeletonHeader (SoH appended one to OoT's), and
+// OoT's skeleton patcher is the one both games register with. The
+// skeleton-patcher-mm-layout row reads this size against OoT's twin
+// (OoT_SkelAnime_SizeOf); `skeleton`, the field the patcher writes for both
+// games, must sit at the same offset in both layouts.
+static_assert(offsetof(SkelAnime, skeleton) == sizeof(void*), "MM SkelAnime::skeleton moved; OoT's patcher writes it");
+extern "C" size_t MM_SkelAnime_SizeOf(void) {
+    return sizeof(SkelAnime);
+}
+
 // Archive hot-swap cycle helpers (#263). Defined in
 // src/common/tests/test_archive_hotswap.c (compiled into redship_common via
 // test_runner.cpp); resolved at final link. Record this MM arrival, query the
