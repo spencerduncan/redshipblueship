@@ -2185,7 +2185,7 @@ void DrawLocation(RandomizerCheck rc) {
                         txt = itemLoc->GetPlacedItem().GetName().GetForLanguage(gSaveContext.language);
 #endif
                     }
-                    if (IsVisibleInCheckTracker(rc) && status == RCSHOW_IDENTIFIED) {
+                    if (itemLoc->CanBePurchased() && IsVisibleInCheckTracker(rc) && status == RCSHOW_IDENTIFIED) {
                         auto price = OTRGlobals::Instance->gRandoContext->GetItemLocation(rc)->GetPrice();
                         txt = !txt.empty() ? fmt::format("{} - {}", txt, price) : fmt::format("{}", price);
                     }
