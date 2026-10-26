@@ -250,9 +250,10 @@ void Hint::NamesChosen() {
     }
 
     if (hintType == HINT_TYPE_ITEM || hintType == HINT_TYPE_ITEM_AREA) {
+        namesTemp.clear();
+        saveNames = false;
+
         for (size_t c = 0; c < locations.size(); c++) {
-            namesTemp = {};
-            saveNames = false;
             uint8_t selection = GetRandomHintTextEntry(GetItemHintText(c));
             if (selection > 0) {
                 saveNames = true;
@@ -266,7 +267,7 @@ void Hint::NamesChosen() {
 
     if (hintType == HINT_TYPE_FOOLISH || hintType == HINT_TYPE_ITEM_AREA || hintType == HINT_TYPE_WOTH ||
         hintType == HINT_TYPE_ALTAR_CHILD || hintType == HINT_TYPE_ALTAR_ADULT) {
-        namesTemp = {};
+        namesTemp.clear();
         saveNames = false;
         for (uint8_t c = 0; c < areas.size(); c++) {
             uint8_t selection = GetRandomHintTextEntry(GetAreaHintText(c));

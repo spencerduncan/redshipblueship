@@ -877,7 +877,69 @@ static FoolishCheckResult CheckPairedFoolish(const std::shared_ptr<Rando::Contex
 }
 #endif
 
-static int ValidateGeneratedHints(bool pairedWorld) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+// hints.cpp (#1162): the junk weight of the distribution the context holds.
+uint8_t OoT_Rando_HintDistributionJunkWeight();
+#endif
+
+struct StoneCheckResult {
+    size_t failures = 0;
+    size_t stones = 0;     // enabled gossip-stone hints
+    size_t junkStones = 0; // hints whose distribution is "Junk"
+    size_t trialHints = 0; // HINT_TYPE_TRIAL hints
+};
+
+/**
+ * (5) #1162: a gossip stone never reads "No Hint", and a Junk hint is a gag line:
+ * exactly one hint key in [RHT_JUNK01, RHT_JUNK71] and no hinted location. The
+ * defect drew the Junk row through the location-hint path, which rendered a keyless
+ * Hint Key hint as hintTextTable[RHT_NONE].
+ * (6) a Trial hint names a trial the count says to hint: a required one under 1-3
+ * trials, a skipped one under 4-5.
+ */
+static void CheckStoneHint(const std::shared_ptr<Rando::Context>& ctx, RandomizerHint hintKey, const Rando::Hint& hint,
+                           const std::string& hintName, StoneCheckResult* r) {
+    const std::string noHint = Rando::StaticData::hintTextTable[RHT_NONE].GetClear().GetEnglish(MF_CLEAN);
+    if (hintKey < RH_GANONDORF_HINT) {
+        r->stones++;
+        for (size_t m = 0; m < hint.GetNumberOfMessages(); m++) {
+            const std::string english = hint.GetHintMessage(MF_CLEAN, m).GetEnglish(MF_CLEAN);
+            if (english == noHint) {
+                fprintf(stderr, "[rando-hints] FAIL %s: the stone reads \"%s\" (distribution \"%s\") (5)\n",
+                        hintName.c_str(), english.c_str(), hint.GetDistribution().c_str());
+                r->failures++;
+            }
+        }
+    }
+    if (hint.GetDistribution() == "Junk") {
+        r->junkStones++;
+        const std::vector<RandomizerHintTextKey> keys = hint.GetHintTextKeys();
+        const bool gag = keys.size() == 1 && keys[0] >= RHT_JUNK01 && keys[0] <= RHT_JUNK71;
+        if (!gag || !hint.GetHintedLocations().empty()) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL %s: a Junk hint carries %zu key(s) (first %d, gag lines are %d..%d) and %zu "
+                    "hinted location(s); it must be one gag line and no location (5)\n",
+                    hintName.c_str(), keys.size(), keys.empty() ? -1 : (int)keys[0], (int)RHT_JUNK01,
+                    (int)RHT_JUNK71, hint.GetHintedLocations().size());
+            r->failures++;
+        }
+    }
+    if (hint.GetHintType() == HINT_TYPE_TRIAL) {
+        r->trialHints++;
+        const uint8_t count = ctx->GetOption(RSK_TRIAL_COUNT).Get();
+        for (const TrialKey trial : hint.GetHintedTrials()) {
+            const bool required = ctx->GetTrial(trial)->IsRequired();
+            if ((count >= 1 && count <= 3 && !required) || (count >= 4 && count <= 5 && required)) {
+                fprintf(stderr,
+                        "[rando-hints] FAIL %s: with %u required trial(s) a Trial hint names a %s trial (%d) (6)\n",
+                        hintName.c_str(), (unsigned)count, required ? "required" : "skipped", (int)trial);
+                r->failures++;
+            }
+        }
+    }
+}
+
+static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut = nullptr) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
         fprintf(stderr, "[rando-hints] no Rando::Context after generation\n");
@@ -895,6 +957,7 @@ static int ValidateGeneratedHints(bool pairedWorld) {
     size_t hintsChecked = 0;
     size_t failures = 0;
     size_t terminaHints = 0;
+    StoneCheckResult stoneCheck;
 #ifdef RSBS_SINGLE_EXECUTABLE
     size_t terminaSlots = 0;
     size_t hostHints = 0;
@@ -1023,6 +1086,13 @@ static int ValidateGeneratedHints(bool pairedWorld) {
                 failures++;
             }
         }
+
+        // (5)/(6) #1162: the stone's text and the Junk and Trial rows.
+        CheckStoneHint(ctx, hintKey, *hint, hintName, &stoneCheck);
+    }
+    failures += stoneCheck.failures;
+    if (stonesOut != nullptr) {
+        *stonesOut = stoneCheck;
     }
 
     if (hintsChecked == 0) {
@@ -1130,8 +1200,20 @@ static int ValidateGeneratedHints(bool pairedWorld) {
     }
 #endif
 
+    fprintf(stderr, "[rando-hints] %zu gossip stone(s), %zu Junk (gag) hint(s), %zu Trial hint(s) (5)/(6)\n",
+            stoneCheck.stones, stoneCheck.junkStones, stoneCheck.trialHints);
     fprintf(stderr, "[rando-hints] checked %zu enabled hints, %zu failures\n", hintsChecked, failures);
-    return failures == 0 ? 0 : 1;
+    if (failures != 0) {
+        return 1;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (OoT_Rando_HintDistributionJunkWeight() > 0 && stoneCheck.stones > 0 && stoneCheck.junkStones == 0) {
+        fprintf(stderr, "[rando-hints] the distribution weighs Junk but the seed drew no Junk stone; check (5)'s "
+                        "Junk half is vacuous\n");
+        return 10;
+    }
+#endif
+    return 0;
 }
 
 extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
@@ -1145,6 +1227,54 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr) {
         return rc;
     }
     return ValidateGeneratedHints(false);
+}
+
+/** One more native generation of `seedStr` with one setting CVar overridden, then
+ *  the hint checks over it; the CVar is cleared again before returning (never
+ *  stored: a stored rando CVar poisons later rows). */
+static int HintValidityUnder(const char* seedStr, const char* cvar, int value, StoneCheckResult* stones) {
+    CVarSetInteger(cvar, value);
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+    const int gen = Rando_HeadlessSeedTest(seedStr);
+    CVarClear(cvar);
+    if (gen != 0) {
+        fprintf(stderr, "[rando-hints] generation with %s=%d failed rc=%d\n", cvar, value, gen);
+        return gen;
+    }
+    fprintf(stderr, "[rando-hints] --- %s=%d ---\n", cvar, value);
+    return ValidateGeneratedHints(false, stones);
+}
+
+/**
+ * #1162, the seed-independent half of the hint-validity lock:
+ *   U. Hint Distribution = Useless: every one of the 40 gossip stones is a Junk
+ *      stone reading a gag line (the defect made all 40 read "No Hint").
+ *   T. Ganon's Trials count = 2: the Trial hints name exactly the 2 required
+ *      trials (the defect discarded the filter and hinted all six).
+ * @return 0 when both hold.
+ */
+extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr) {
+    const size_t kStones = (size_t)RH_GANONDORF_HINT - 1;
+    StoneCheckResult useless;
+    int rc = HintValidityUnder(seedStr, CVAR_RANDOMIZER_SETTING("HintDistribution"), RO_HINT_DIST_USELESS, &useless);
+    if (rc == 0 && (useless.stones != kStones || useless.junkStones != kStones)) {
+        fprintf(stderr, "[rando-hints] FAIL Useless: %zu of %zu stones enabled, %zu of them Junk; every stone must be "
+                        "a gag line (5)\n",
+                useless.stones, kStones, useless.junkStones);
+        rc = 1;
+    }
+    if (rc != 0) {
+        return rc;
+    }
+    StoneCheckResult trials;
+    rc = HintValidityUnder(seedStr, CVAR_RANDOMIZER_SETTING("GanonTrialCount"), 2, &trials);
+    if (rc == 0 && trials.trialHints != 2) {
+        fprintf(stderr, "[rando-hints] FAIL two trials: %zu Trial hint(s); Balanced hints the 2 required trials "
+                        "once each (6)\n",
+                trials.trialHints);
+        rc = 1;
+    }
+    return rc;
 }
 
 /**

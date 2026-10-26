@@ -450,6 +450,11 @@ int Combo_ModelIsWellFormed(const ComboModel* model) {
     if ((hasOpa != (model->opaSetupDl != 0)) || (hasXlu != (model->xluSetupDl != 0))) {
         return 0;
     }
+    // ... and the origin's own list for it (#1171): the two games' setup tables
+    // differ, so a host never resolves the index in its own.
+    if ((hasOpa != (model->opaSetupList != NULL)) || (hasXlu != (model->xluSetupList != NULL))) {
+        return 0;
+    }
     if (model->opaColor.set > 1 || model->xluColor.set > 1 || model->grayscale > 1) {
         return 0;
     }
@@ -487,6 +492,12 @@ static int HostNativeRowMatches(const ComboHostNativeRow* row, const ComboModel*
     // tinted row only the one tint it names.
     if ((row->keyTinted != 0) != (foreign->grayscale != 0) ||
         (row->keyTinted != 0 && memcmp(row->tintRgb, foreign->grayscaleRgb, sizeof(row->tintRgb)) != 0)) {
+        return 0;
+    }
+    // The env-colour half (#1167): likewise for a model whose XLU layer sets its
+    // colours (MM's songs: one note list, one env colour per song).
+    if ((row->keyXluEnv != 0) != (foreign->xluColor.set != 0) ||
+        (row->keyXluEnv != 0 && memcmp(row->envRgb, foreign->xluColor.env, sizeof(row->envRgb)) != 0)) {
         return 0;
     }
     for (int i = 0; i < keyParts; i++) {

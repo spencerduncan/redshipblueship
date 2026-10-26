@@ -915,6 +915,11 @@ if(BUILD_TESTING)
     # unloads that owner's entry and leaves the default owner's alone (the fork's
     # UnloadResourcesProcess once took mDefaultCacheOwner instead). ROM-free.
     redship_add_test(NAME ResourceCacheOwnerUnloadFilter COMMAND redship --test resource-cache-owner-unload-filter)
+    # #1176: Majora's Mask registers its SkelAnimes with OoT's skeleton patcher,
+    # whose Alt Assets update must not write skeletonHeader (OoT-only, trailing)
+    # past an MM SkelAnime. Guard word after an MM-sized SkelAnime, plus the
+    # registration's game tag. ROM-free.
+    redship_add_test(NAME SkeletonPatcherMMLayout COMMAND redship --test skeleton-patcher-mm-layout)
     # #1040 R1: OoT's Cosmetics Editor patches display lists only while OoT
     # runs (under MM it would write MM's owner's copies); a change made under MM
     # is owed to OoT and paid once on OoT's next frame. ROM-free.

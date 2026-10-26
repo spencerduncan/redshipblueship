@@ -152,8 +152,9 @@ typedef enum {
  * game's own tracker order). It is never compared across games.
  *
  * PLACED ITEM (#458 U4). `placedItemName` is the item the game's own check
- * tracker names beside a found check, or NULL while the status does not reveal
- * it (the panel never shows more than that tracker does). `placedItemGame` is
+ * tracker names beside a found check, or beside a seen one where that tracker
+ * reveals it (#1166, Combo_TrackerNameSeenItem below), or NULL while the status
+ * does not reveal it (the panel never shows more than that tracker does). `placedItemGame` is
  * that item's game: the row's own game, or the other game when the check hosts
  * a crossing, and then the name is the crossed item's real name (#796), not the
  * cover item the host physically holds. The renderer marks the other game's
@@ -182,6 +183,11 @@ typedef enum {
  *     .redsave written before #1129): not known. The window then draws no
  *     glyph and never filters the row out.
  * A found check is never available (both trackers drop it from the set).
+ *
+ * PRICE (#1166). `hasPrice` is whether the row prints a price after its item,
+ * as SoH's DrawLocation prints " - <price>" (or the price alone) beside an
+ * identified check it can sell (ItemLocation::CanBePurchased, SoH 2ba368e7e);
+ * `price` is that price, 0 otherwise. OoT only: MM's tracker prints none.
  */
 typedef struct {
     uint16_t checkId;
@@ -197,7 +203,57 @@ typedef struct {
     const char* shortName;      // name under the area header, or NULL for `name`; see SHORT NAME above
     bool availabilityKnown;     // see AVAILABILITY above
     bool available;             // reachable now; meaningful only when availabilityKnown
+    bool hasPrice;              // see PRICE above
+    uint16_t price;
 } ComboTrackerCheckRow;
+
+/**
+ * A SEEN check's item (#1166): what SoH's DrawLocation prints beside a check it
+ * has seen (RCSHOW_SEEN, a shop slot looked at) or identified (RCSHOW_IDENTIFIED,
+ * its price read too), as facts the OoT TU reads in its own terms. The rule is
+ * here, free of OoT's enums, so the ROM-free lock holds it:
+ *   - The item is named unless SoH hides it: a merchant's without Merchant Hint
+ *     Text or under Mysterious Shuffle, a scrub's without Scrub Hint Text or
+ *     under Mysterious Shuffle, a shop slot's under Mysterious Shuffle when it
+ *     holds a randomized item (IsMysteryShopItem).
+ *   - A named ice trap goes by its disguise once seen and by its trick name once
+ *     identified, as SoH names it; any other item by the name SoH's tracker
+ *     gives it (PlacedItemTrackerName: a crossing host's crossed item).
+ *   - The price follows an identified check SoH lists and can sell
+ *     (CanBePurchased: a shop, scrub or merchant), whether or not the item is
+ *     named.
+ */
+typedef enum {
+    COMBO_TRACKER_SALE_NONE = 0,     // not sold: no price, never hidden by the sale rules
+    COMBO_TRACKER_SALE_SHOP = 1,     // RCTYPE_SHOP
+    COMBO_TRACKER_SALE_SCRUB = 2,    // RCTYPE_SCRUB
+    COMBO_TRACKER_SALE_MERCHANT = 3, // RCTYPE_MERCHANT
+} ComboTrackerSaleKind;
+
+typedef struct {
+    uint8_t game;              // the row's game: an ice trap's disguise and trick name are its items
+    uint8_t saleKind;          // ComboTrackerSaleKind
+    bool identified;           // RCSHOW_IDENTIFIED (else RCSHOW_SEEN)
+    bool listed;               // on the game's tracker list (SoH's IsVisibleInCheckTracker)
+    bool canBePurchased;       // ItemLocation::CanBePurchased
+    bool merchantTextHint;     // the seed's Merchant Hint Text
+    bool scrubTextHint;        // the seed's Scrub Hint Text
+    bool mystery;              // Mysterious Shuffle
+    bool mysteryShopItem;      // IsMysteryShopItem; read only for a shop slot under Mysterious Shuffle
+    bool iceTrap;              // the check holds an ice trap
+    const char* itemName;      // the item's tracker name (not an ice trap); NULL or "" for none
+    uint8_t itemGame;          // GameId of itemName's item
+    const char* looksLikeName; // an ice trap's disguise; NULL or "" for none
+    const char* trickName;     // an ice trap's trick name; NULL or "" for none
+    uint16_t price;
+} ComboTrackerSeenItem;
+
+/**
+ * Name `seen`'s item on `row` by the rule above: `placedItemName` and
+ * `placedItemGame` (NULL and GAME_NONE when hidden or unnamed), `hasPrice` and
+ * `price`. Every other field is left alone. NULL arguments are ignored.
+ */
+void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerCheckRow* row);
 
 // ============================================================================
 // MM adapter: an offset descriptor over the frozen MM shadow blob
@@ -271,6 +327,11 @@ typedef struct ComboMMTrackerDesc {
     // view calls it only when its source pick reads LIVE; a STALE panel reads
     // the departure capture instead. May itself be NULL: no availability.
     int (*liveAvailable)(uint16_t checkId);
+    // The logic a check's row shows on hover (#1161): the condition MM's own
+    // check tracker draws as that row's tooltip (CheckTracker.cpp's
+    // accessLogicFuncs, the Regions' CHECK macro stringified), or NULL where it
+    // draws none. The string is static storage. May itself be NULL: no logic.
+    const char* (*logicText)(uint16_t checkId);
 } ComboMMTrackerDesc;
 
 /**
@@ -345,6 +406,11 @@ typedef struct ComboOoTTrackerOps {
     // False, with nothing written, for a check its button is not drawn on (not
     // part of the seed, or found) or when skipWritable answers false.
     bool (*setSkipped)(uint16_t checkId, bool skipped);
+    // The logic a check's row shows on hover (#1161): the condition SoH's Check
+    // Tracker draws as that row's tooltip under Show Logic (DrawLocation:
+    // LocationAccess::GetConditionStr of the check in its parent region), or
+    // NULL for none. Valid until the next call. May itself be NULL: no logic.
+    const char* (*logicText)(uint16_t checkId);
 } ComboOoTTrackerOps;
 
 /**
@@ -391,6 +457,10 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out);
 
 /** Display name for `game`'s check `checkId`, or NULL. */
 const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId);
+
+/** The logic `game`'s own check tracker shows on hovering check `checkId` (#1161;
+ *  the adapters' logicText), or NULL for none or no adapter. Valid until the next call. */
+const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId);
 
 // ============================================================================
 // Reachability of the INACTIVE game (#1129, ruling D6: captured at the freeze)

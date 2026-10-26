@@ -179,7 +179,9 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row);
  * spells it (#796): the placed item's name, with " (MM)" / " (OoT)" when the
  * item is the other game's (a crossing host). "" when the row names no item.
  * The row draws it in parentheses, and the search matches it, as SoH's
- * ShouldShowCheck matches PlacedItemTrackerName.
+ * ShouldShowCheck matches PlacedItemTrackerName. A row with a price (#1166)
+ * follows the name with " - <price>", or prints the price alone when it names
+ * no item, as SoH's DrawLocation does.
  */
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
@@ -191,6 +193,15 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
  * clear on a found check as SoH does, so the names stay in one column.
  */
 const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row);
+
+/**
+ * The tooltip a Checks-list row shows on hover (#1161): the check's logic as its
+ * game's own check tracker shows it (Combo_TrackerCheckLogic), while `showLogic`
+ * (SoH's Show Logic, gTrackers.CheckTracker.ShowLogic, one key for both panes) is
+ * on. "" when it is off, when the game has no condition for the check, or when
+ * the condition is "true" (SoH draws no tooltip then).
+ */
+std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic);
 
 /**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
@@ -286,6 +297,8 @@ struct ComboCheckHeaderOptions {
     // the pane's Only Show Available Checks checkbox.
     bool availableChecks = false;
     bool availableChecksToggle = true;
+    // #1161: SoH's Show Logic ("ShowLogic", off): each row's logic tooltip.
+    bool showLogic = false;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
