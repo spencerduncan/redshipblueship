@@ -1974,7 +1974,7 @@ extern "C" int Rando_TestStaticHintsThatDrew(void);
 extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
 extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
-static const uint32_t kStaticHintTextDigest = 0x69FCC6BBu;
+static const uint32_t kStaticHintTextDigest = 0x5FF229EFu;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
