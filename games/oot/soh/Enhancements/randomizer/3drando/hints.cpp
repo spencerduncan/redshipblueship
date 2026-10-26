@@ -230,6 +230,16 @@ const std::array<HintSetting, 4> hintSettingTable{{
   },
 }};
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#1162) test seam: the junk weight of the hint distribution the
+// context holds, so the hint-validity lock can tell a seed that drew no Junk stone
+// from a distribution that has none (hintSettingTable has internal linkage).
+uint8_t OoT_Rando_HintDistributionJunkWeight() {
+    auto ctx = Rando::Context::GetInstance();
+    return hintSettingTable[ctx->GetOption(RSK_HINT_DISTRIBUTION).Get()].junkWeight;
+}
+#endif
+
 struct BridgeReqConfig {
     RandomizerSettingKey bridgeDirectKey;
     RandomizerSettingKey lacsDirectKey;
@@ -467,8 +477,8 @@ static void CreateTrialHints(uint8_t copies) {
                 ctx->GetTrials()->GetTrialList();             // there's probably a way to remove this assignment
             if (ctx->GetOption(RSK_TRIAL_COUNT).Get() >= 4) { // 4 or 5 required trials, get skipped trials
                 trials = FilterFromPool(trials, [](TrialInfo* trial) { return trial->IsSkipped(); });
-            } else { // 1 to 3 trials, get requried trials
-                auto requiredTrials = FilterFromPool(trials, [](TrialInfo* trial) { return trial->IsRequired(); });
+            } else { // 1 to 3 trials, get required trials
+                trials = FilterFromPool(trials, [](TrialInfo* trial) { return trial->IsRequired(); });
             }
             for (auto& trial : trials) { // create a hint for each hinted trial
                 AddGossipStoneHintCopies(copies, HINT_TYPE_TRIAL, "Trial", {}, {}, {}, { trial->GetTrialKey() });
@@ -522,7 +532,7 @@ static int32_t getRandomWeight(uint32_t totalWeight) {
 
 static void DistributeAndPlaceHints(std::vector<HintDistributionSetting>& distTable, size_t totalStones) {
     auto ctx = Rando::Context::GetInstance();
-    const uint8_t junkIdx = distTable.size();
+    const uint8_t junkIdx = static_cast<uint8_t>(distTable.size() - 1);
 
     // Apply fixed hints upfront (they don't participate in weighted selection)
     for (size_t i = 0; i < distTable.size(); i++) {
