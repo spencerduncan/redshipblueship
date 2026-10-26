@@ -36,7 +36,7 @@ static std::string CrossedItemHintName(RandomizerCheck check, bool withArticle) 
     if (name == nullptr) {
         return "";
     }
-    const char* article = withArticle ? Combo_GetForeignItemArticle(*item) : nullptr;
+    const char* article = withArticle ? Combo_DescribeItemArticle(*item) : nullptr;
     return std::string(article != nullptr ? article : "") + name + " (MM)";
 }
 

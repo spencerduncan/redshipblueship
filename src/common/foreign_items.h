@@ -70,6 +70,13 @@ extern "C" {
  * Before increment 3 this answered only for the pinned pool's rows, which also
  * carried an article and an arrival-toast icon; both now come from the same
  * describer (Combo_GetForeignItemArticle / Combo_GetForeignItemIconName).
+ *
+ * One exception (#1160): an MM bombchu pack, which a pickup credits to the shared
+ * count, is named by the count it credits, "1 Bombchu", "5 Bombchus" or
+ * "10 Bombchus" (OoTMM's "1 Bombchu (MM)"), with no article: MM's own name for
+ * its 1-pack, "a Bombchu", read in Hyrule as a whole pack. Combo_DescribeItemName
+ * keeps MM's name for the hints and the spoiler-LOAD inverse, whose text
+ * generation fixes.
  */
 const char* Combo_GetForeignItemName(SharedItem item);
 
@@ -82,7 +89,8 @@ const char* Combo_GetForeignItemName(SharedItem item);
  * A cross-game item is presented as an ORDINARY pickup of whichever game the
  * player found it in (#510), and both games build that sentence as article +
  * name; the host cannot read the origin's item table (ADR 0002), so the article
- * travels through the describer exactly as the name does.
+ * travels through the describer exactly as the name does. "" for a pack
+ * Combo_GetForeignItemName names by its count (#1160).
  */
 const char* Combo_GetForeignItemArticle(SharedItem item);
 
@@ -1402,6 +1410,11 @@ void Combo_RegisterGameDescriber(uint8_t game, const ComboGameDescriber* describ
 /** The item's name through its origin game's describer. NULL for an
  *  unregistered game or an id the describer does not know. */
 const char* Combo_DescribeItemName(SharedItem item);
+
+/** The article in front of Combo_DescribeItemName's result, through the origin
+ *  game's describer: what Combo_GetForeignItemArticle gives every item but a pack
+ *  named by its count (#1160). NULL as Combo_DescribeItemName. */
+const char* Combo_DescribeItemArticle(SharedItem item);
 
 /** The name of `check` in `hostGame`'s check id-space through that game's
  *  describer, or NULL. */
