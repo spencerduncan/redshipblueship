@@ -687,4 +687,63 @@ extern "C" int OoT_TrackerAdapter_TestSetAvailable(uint16_t rc, int available) {
     return was;
 }
 
+/**
+ * The seen-item lock's authoring (#1166), in whichever heap Rando::Context is
+ * live. With @p author nonzero: five checks SoH's tracker has seen, their flat
+ * ids in @p outIds, in order: a Kokiri Shop slot identified, holding the Kokiri
+ * Sword at 40 rupees; a slot seen, holding the Kokiri Sword; a slot seen,
+ * holding an ice trap disguised as the Fairy Ocarina; a slot identified,
+ * holding an ice trap with the trick name "Kokiri Sord" at 15 rupees; and the
+ * 10 Gold Skulltula reward identified, holding the Kokiri Sword (SoH identifies
+ * it, and it sells nothing). With @p author 0: the same five back to empty and
+ * unchecked, their overrides dropped. @return 5, or -1 with no heap context.
+ */
+extern "C" int OoT_TrackerAdapter_TestAuthorSeen(int author, uint16_t outIds[5]) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
+    }
+    if (GameInteractor::Instance == nullptr) {
+        GameInteractor::Instance = new GameInteractor(); // SetCheckStatus dispatches a hook
+    }
+    struct {
+        RandomizerCheck rc;
+        RandomizerCheckStatus status;
+        RandomizerGet item;
+        RandomizerGet looksLike; // RG_NONE: no override
+        const char* trickName;
+        int price; // -1: none authored
+    } authored[5] = {
+        { RC_KF_SHOP_ITEM_1, RCSHOW_IDENTIFIED, RG_KOKIRI_SWORD, RG_NONE, nullptr, 40 },
+        { RC_KF_SHOP_ITEM_2, RCSHOW_SEEN, RG_KOKIRI_SWORD, RG_NONE, nullptr, -1 },
+        { RC_KF_SHOP_ITEM_3, RCSHOW_SEEN, RG_ICE_TRAP, RG_FAIRY_OCARINA, nullptr, -1 },
+        { RC_KF_SHOP_ITEM_4, RCSHOW_IDENTIFIED, RG_ICE_TRAP, RG_KOKIRI_SWORD, "Kokiri Sord", 15 },
+        { RC_KAK_10_GOLD_SKULLTULA_REWARD, RCSHOW_IDENTIFIED, RG_KOKIRI_SWORD, RG_NONE, nullptr, -1 },
+    };
+    for (int i = 0; i < 5; i++) {
+        Rando::ItemLocation* loc = ctx->GetItemLocation(authored[i].rc);
+        if (outIds != nullptr) {
+            outIds[i] = (uint16_t)authored[i].rc;
+        }
+        if (author == 0) {
+            loc->SetPlacedItem(RG_NONE);
+            loc->SetCheckStatus(RCSHOW_UNCHECKED);
+            ctx->overrides.erase(authored[i].rc);
+            continue;
+        }
+        loc->SetPlacedItem(authored[i].item);
+        loc->SetCheckStatus(authored[i].status);
+        if (authored[i].price >= 0) {
+            loc->SetCustomPrice((uint16_t)authored[i].price);
+        }
+        if (authored[i].looksLike != RG_NONE) {
+            ctx->overrides[authored[i].rc] = Rando::ItemOverride(authored[i].rc, authored[i].looksLike);
+            if (authored[i].trickName != nullptr) {
+                ctx->overrides[authored[i].rc].SetTrickName(Text(std::string(authored[i].trickName)));
+            }
+        }
+    }
+    return 5;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

@@ -92,6 +92,12 @@
  *    computation; a context with no capture (a .redsave written before #1129)
  *    reads "not known". See CtvAvailMM and CtvAvailOoT.
  *
+ * 13. A SEEN CHECK'S ITEM AND PRICE (#1166). OoT rows name what SoH's
+ *    DrawLocation names beside a seen or identified check: a shop slot's item,
+ *    an ice trap's disguise once seen and its trick name once identified, and the
+ *    price after an identified check that sells something (CanBePurchased, SoH
+ *    2ba368e7e), never after a Skulltula House reward. See CtvOoTSeenRows.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
  * shared bring-up (the OoT-side authoring seam constructs Rando::Context),
@@ -390,6 +396,52 @@ static int CtvOoTRowsU4(const uint16_t ootIds[3]) {
     CTV_ASSERT(saved.placedItemGame == (uint8_t)GAME_MM);
     CTV_ASSERT(OoT_CheckTracker_TestItemName(ootIds[0], native, (int)sizeof(native)) == 1);
     CTV_ASSERT(CtvNativeSpelling(saved, (uint8_t)GAME_OOT) == native);
+    return TEST_PASS;
+}
+
+// ---- #1166: a seen check's item and price --------------------------------------
+
+// The OoT-side authoring seam (TrackerAdapterSingleExe.cpp): five seen checks, or
+// (author 0) the same five back to empty.
+extern "C" int OoT_TrackerAdapter_TestAuthorSeen(int author, uint16_t outIds[5]);
+
+/** One OoT row's item and price as the window prints them, "(none)" for no item. */
+static std::string CtvSeenSpelling(uint16_t id) {
+    ComboTrackerCheckRow row;
+    if (!Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)id, &row)) {
+        return "(no row)";
+    }
+    std::string s = row.placedItemName != NULL ? row.placedItemName : "(none)";
+    if (row.hasPrice) {
+        s += " - " + std::to_string((unsigned)row.price);
+    }
+    if (row.status != COMBO_TRACKER_CHECK_SEEN || !row.shuffled) {
+        s += " [not a listed seen row]";
+    }
+    return s;
+}
+
+/**
+ * OoT rows SoH's tracker has seen (the seam's five), read from the suspended
+ * heap with Mysterious Shuffle off: what SoH's DrawLocation prints beside each.
+ */
+static int CtvOoTSeenRows(void) {
+    uint16_t ids[5] = {};
+    CTV_ASSERT(OoT_TrackerAdapter_TestAuthorSeen(1, ids) == 5);
+    const std::string shopIdentified = CtvSeenSpelling(ids[0]);
+    const std::string shopSeen = CtvSeenSpelling(ids[1]);
+    const std::string trapSeen = CtvSeenSpelling(ids[2]);
+    const std::string trapIdentified = CtvSeenSpelling(ids[3]);
+    const std::string reward = CtvSeenSpelling(ids[4]);
+    printf("[TEST] combo-tracker-view #1166 OoT seen rows: shop identified \"%s\", shop seen \"%s\", ice trap seen "
+           "\"%s\", ice trap identified \"%s\", Skulltula reward identified \"%s\"\n",
+           shopIdentified.c_str(), shopSeen.c_str(), trapSeen.c_str(), trapIdentified.c_str(), reward.c_str());
+    (void)OoT_TrackerAdapter_TestAuthorSeen(0, ids);
+    CTV_ASSERT(shopIdentified == "Kokiri Sword - 40");
+    CTV_ASSERT(shopSeen == "Kokiri Sword");
+    CTV_ASSERT(trapSeen == "Fairy Ocarina");
+    CTV_ASSERT(trapIdentified == "Kokiri Sord - 15");
+    CTV_ASSERT(reward == "Kokiri Sword"); // SoH 2ba368e7e: no "- 0"
     return TEST_PASS;
 }
 
@@ -1187,6 +1239,10 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         u4Failures++;
     }
     ComboContext_Init(); // unpaired again, as section 6 expects
+    // #1166: seen rows name their item and price (header point 13).
+    if (CtvOoTSeenRows() != TEST_PASS) {
+        u4Failures++;
+    }
 
     // ---- 5c. #458 U5: OoT's skip toggle, live panel only --------------------
     const int ootSkip = CtvSkipLegsOoT(ootIds);
@@ -1302,7 +1358,8 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     Context_SetCurrentGame(prevGame);
 
     if (u4Failures != 0) {
-        printf("[TEST] FAIL: %d of the two #458 U4 row sections (MM 2b, OoT 5b) failed\n", u4Failures);
+        printf("[TEST] FAIL: %d of the row sections (#458 U4: MM 2b, OoT 5b; #1166: OoT seen rows) failed\n",
+               u4Failures);
         return TEST_FAIL;
     }
     if (sCtvAvailFailures != 0) {

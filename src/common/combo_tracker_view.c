@@ -403,6 +403,12 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
+void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerCheckRow* row) {
+    // Lock seam (#1166): a seen check names nothing yet, as before.
+    (void)seen;
+    (void)row;
+}
+
 // ============================================================================
 // The skip toggle (#458 U5)
 // ============================================================================
