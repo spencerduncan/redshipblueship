@@ -230,6 +230,16 @@ const std::array<HintSetting, 4> hintSettingTable{{
   },
 }};
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#1162) test seam: the junk weight of the hint distribution the
+// context holds, so the hint-validity lock can tell a seed that drew no Junk stone
+// from a distribution that has none (hintSettingTable has internal linkage).
+uint8_t OoT_Rando_HintDistributionJunkWeight() {
+    auto ctx = Rando::Context::GetInstance();
+    return hintSettingTable[ctx->GetOption(RSK_HINT_DISTRIBUTION).Get()].junkWeight;
+}
+#endif
+
 struct BridgeReqConfig {
     RandomizerSettingKey bridgeDirectKey;
     RandomizerSettingKey lacsDirectKey;

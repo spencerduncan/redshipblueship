@@ -1502,6 +1502,9 @@ extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // must round-trip through locationNameToEnum (the transform the save file puts
 // hints through). Returns 0 only if every enabled hint passes all three.
 extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
+// #1162 (menu.cpp): the same checks under Hint Distribution = Useless (40 gag
+// stones, never "No Hint") and under two Ganon's Trials (only required ones hinted).
+extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr);
 // Hint-RELOAD lock (#441, body in menu.cpp): generates one seed, then drives the
 // REAL randomizer section through save -> Rando::Context reset -> reload (exactly
 // as loading a saved file does) and asserts every enabled item hint still renders
@@ -1628,6 +1631,12 @@ TestResult Test_RandoHintValidity(void) {
 
     int rc = Rando_HeadlessHintValidityTest("RSBSHINT1");
     printf("[TEST] %s: hint validity rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    if (rc != 0) {
+        return TEST_FAIL;
+    }
+    // #1162: seed-independent RED for the junk stones and the trial filter.
+    rc = Rando_HeadlessHintValidityVariantsTest("RSBSHINT1");
+    printf("[TEST] %s: hint validity under Useless / two trials rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
