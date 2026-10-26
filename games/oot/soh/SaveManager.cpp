@@ -209,6 +209,8 @@ extern "C" void OoT_SlotMeta_Register(void) {
 // CheckStateLoadSingleExe.cpp (#849): OoT's check statuses follow the loaded half.
 extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* described, const SaveContext* loaded,
                                                          int* outFound, int* outNotFound);
+// GameExports_SingleExe.cpp (#1163): the arrival's shared-pool apply, for a load.
+extern "C" void OoT_ApplySharedResourcesAtFileLoad(void);
 #endif
 
 /**
@@ -311,6 +313,37 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
         OoT_Combo_ReconcileCheckStateToLoadedHalf(savBase.get(), &gSaveContext, nullptr, nullptr);
 #endif
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // THE SHARED POOL, reconciled (#1163, #1159). The load above dropped every
+    // RAM watermark, and OoT applies the pool only on a cross-game arrival, so
+    // without this the first OoT harvest after a load (any save, or the
+    // crossing) found no watermark and an occupied slot, seeded at OoT's live
+    // count and dropped every gain and refunded every spend made since the
+    // load; and the half that loaded (the .sav, or an older OoT half a save
+    // from Termina stored beside a newer pool) kept stale rupees, hearts, magic,
+    // ammo and tiers until the first crossing. Applying here makes OoT start
+    // from the pool and sets every watermark to what it materialized.
+    //
+    // BEFORE OoT_Sram_OpenSave's health floor, deliberately: this seam runs
+    // inside its Save_LoadFile, ahead of the floor (3 hearts, or
+    // FullHealthSpawn). The apply assigns current health with only a one-heart
+    // floor, so placed after Sram_OpenSave it would undo the load floor; here
+    // the floor runs on the applied value as vanilla runs it on the .sav's, and
+    // the next harvest counts its lift as an ordinary gain. Current magic is
+    // left in `magic` for the file select to park
+    // (OoT_ApplySharedResourcesAtFileLoad).
+    //
+    // NO HARVEST follows: nothing a load brings is new. Every amount in the
+    // loaded half was harvested when its commit was written, and the pool holds
+    // what both games did since; a harvest now would count nothing, and the
+    // apply alone leaves the watermarks where the next harvest must measure
+    // from. A refused load has no pool to apply; with no .redsave the pool is
+    // empty and every kind stays as the file has it.
+    if (sRsbsRefusedLoadSlot != fileNum) {
+        OoT_ApplySharedResourcesAtFileLoad();
+    }
+#endif
 }
 
 void SaveManager::WriteSaveFile(const std::filesystem::path& savePath, const uintptr_t addr, void* dramAddr,

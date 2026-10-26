@@ -4429,6 +4429,12 @@ static void OoT_ApplySharedAmmoRow(const OoTSharedAmmo* row) {
  * to the ceiling the arriving game can actually display — and that ceiling is
  * what the lines above may have just raised.
  */
+// True only while OoT_ApplySharedResourcesAtFileLoad runs (#1163). A file load
+// parks current magic itself once the load is done (FileChoose_LoadGame copies
+// `magic` into magicFillTarget after OoT_Sram_OpenSave), so the load's apply
+// leaves the amount in `magic` for that idiom instead of parking it.
+static bool sOoTApplyAtFileLoad = false;
+
 static void OoT_ApplySharedKind(uint8_t kind) {
     switch (kind) {
         case RSBS_SHARED_RES_WALLET_TIER: {
@@ -4548,7 +4554,15 @@ static void OoT_ApplySharedKind(uint8_t kind) {
             const bool magicShared =
                 Combo_ApplySharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, magicCap, &magic);
 
-            if ((magicLevelShared || magicShared) && magicLevel != 0u) {
+            if ((magicLevelShared || magicShared) && magicLevel != 0u && sOoTApplyAtFileLoad) {
+                // A file load (#1163): the file select parks `magic` itself once
+                // the load is done, so the amount goes where that idiom reads it.
+                // Parked here it would be overwritten with the zero the idiom
+                // finds in `magic`, and the next harvest would debit the pool by
+                // the whole amount. The idiom then regrows the bar from the
+                // acquired flags set above, as for any file load.
+                gSaveContext.magic = (s16)(magic > magicCap ? magicCap : magic);
+            } else if ((magicLevelShared || magicShared) && magicLevel != 0u) {
                 // Re-author through the vanilla file-load idiom (z_file_choose):
                 // park the amount in magicFillTarget, zero
                 // magic/magicLevel/magicCapacity, idle the machine, and let
@@ -4821,6 +4835,19 @@ extern "C" void OoT_ApplySharedResources(void) {
     // Shared families (#976): OoT's own copy of every armed family found in
     // either game. Last, and still before the shared-item consumer (z_play.c).
     Combo_SharedFamiliesApplyLive(GAME_OOT);
+}
+
+/**
+ * APPLY AT A FILE LOAD (#1163, #1159): the arrival's apply, run by OoT's .redsave
+ * load seam (OoT_Combo_OnLoadFileSeam, SaveManager.cpp) so a loaded file starts
+ * from the pool and its watermarks are set before anything can be earned or
+ * spent. One difference from an arrival: current magic is written to `magic`,
+ * not parked (see sOoTApplyAtFileLoad).
+ */
+extern "C" void OoT_ApplySharedResourcesAtFileLoad(void) {
+    sOoTApplyAtFileLoad = true;
+    OoT_ApplySharedResources();
+    sOoTApplyAtFileLoad = false;
 }
 
 static bool sLastF10State = false;
