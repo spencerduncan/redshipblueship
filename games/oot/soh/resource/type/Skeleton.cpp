@@ -59,11 +59,18 @@ bool SkeletonPatcher::IsLocalPlayerSkelAnime(SkelAnime* skelAnime) {
            (skelAnime == &pauseCtx->playerSkelAnime);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+void SkeletonPatcher::RegisterSkeleton(std::string& path, SkelAnime* skelAnime, GameId game) {
+#else
 void SkeletonPatcher::RegisterSkeleton(std::string& path, SkelAnime* skelAnime) {
+#endif
     SkeletonPatchInfo info;
 
     info.skelAnime = skelAnime;
     info.isLocalPlayer = false;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    info.game = game;
+#endif
 
     if (path.starts_with(sOtr)) {
         path = path.substr(sOtr.length());
@@ -122,6 +129,13 @@ void SkeletonPatcher::UpdateSkeletons() {
 
 void SkeletonPatcher::ApplyEntry(SkeletonPatchInfo& skel, void** skeletonSegment, uintptr_t resourcePointer) {
     skel.skelAnime->skeleton = skeletonSegment;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1176: Majora's Mask's SkelAnime has no skeletonHeader; through this
+    // OoT-typed pointer that field is the 8 bytes after an MM actor's SkelAnime.
+    if (skel.game == GAME_MM) {
+        return;
+    }
+#endif
     memcpy(&skel.skelAnime->skeletonHeader, &resourcePointer,
            sizeof(uintptr_t)); // Dumb thing that needs to be done because cast is not cooperating
 }
@@ -221,10 +235,10 @@ void SkeletonPatcher::UpdateCustomSkeletonFromPath(const std::string& skeletonPa
 // Applies one patch entry tagged with `game` (a GameId) to the bytes at skelAnime.
 extern "C" void SkeletonPatcher_ApplyForTest(void* skelAnime, int game, void** skeletonSegment,
                                              uintptr_t resourcePointer) {
-    (void)game; // every entry is written with OoT's layout
     SOH::SkeletonPatchInfo info;
     info.skelAnime = (SkelAnime*)skelAnime;
     info.isLocalPlayer = false;
+    info.game = (GameId)game;
     SOH::SkeletonPatcher::ApplyEntry(info, skeletonSegment, resourcePointer);
 }
 
@@ -233,7 +247,7 @@ extern "C" void SkeletonPatcher_ApplyForTest(void* skelAnime, int game, void** s
 extern "C" int SkeletonPatcher_RegisteredGameForTest(const void* skelAnime) {
     for (const auto& skel : SOH::SkeletonPatcher::skeletons) {
         if ((const void*)skel.skelAnime == skelAnime) {
-            return 1; // GAME_OOT: every entry is written with OoT's layout
+            return (int)skel.game;
         }
     }
     return -1;

@@ -4,6 +4,9 @@
 #include <ship/resource/Resource.h>
 #include "SkeletonLimb.h"
 #include <z64animation.h>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "game.h" // src/common: GameId (#1176)
+#endif
 
 namespace SOH {
 
@@ -79,11 +82,20 @@ struct SkeletonPatchInfo {
     SkelAnime* skelAnime;
     std::string vanillaSkeletonPath;
     bool isLocalPlayer;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#1176): the game whose SkelAnime this is. Majora's Mask
+    // registers here too, and its SkelAnime ends before skeletonHeader.
+    GameId game = GAME_OOT;
+#endif
 };
 
 class SkeletonPatcher {
   public:
+#ifdef RSBS_SINGLE_EXECUTABLE
+    static void RegisterSkeleton(std::string& path, SkelAnime* skelAnime, GameId game);
+#else
     static void RegisterSkeleton(std::string& path, SkelAnime* skelAnime);
+#endif
     static void UnregisterSkeleton(SkelAnime* skelAnime);
     static void ClearSkeletons();
     static void UpdateSkeletons();
