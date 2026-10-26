@@ -265,7 +265,8 @@ struct ComboCheckHideOptions {
 /** The hide keys' values now, with `showHidden` as the pane's toggle. */
 ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden);
 
-/** Whether a Checks list leaves out `row` (SoH's DrawLocation: its status's Hide, unless Show Hidden Items). */
+/** Whether a Checks list leaves out `row` (SoH's DrawLocation: its status's Hide, unless Show Hidden Items;
+ *  #1129's Only Show Available and #1131's Only Show Current Area first, whatever Show Hidden Items says). */
 bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts);
 
 /**
@@ -273,7 +274,9 @@ bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOp
  * loop): an area the search emptied while Filter Empty Areas is on, or, unless
  * Show Hidden Items, a complete area under AreaComplete.Hide or an incomplete
  * one under AreaIncomplete.Hide. An area whose rows are all hidden by status
- * keeps its header, as SoH's does.
+ * keeps its header, as SoH's does. Under Only Show Available (#1129) an area with
+ * none available goes, and under Only Show Current Area (#1131) every area but
+ * the current one, whatever Show Hidden Items says.
  */
 bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHideOptions& opts);
 

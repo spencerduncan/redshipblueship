@@ -10,7 +10,9 @@
  * checkSearch does, and its Show Hidden Items and Only Show Available Checks
  * toggles (#1128, #1129, ruling D12: per pane), seeded from SoH's
  * gTrackers.CheckTracker.ShowHidden and .OnlyShowAvailable and never written
- * back, so the two panes toggle apart and no key is stored.
+ * back, so the two panes toggle apart and no key is stored; and (#1131) its Only
+ * Show Current Area toggle, seeded the same way from the Combo Tracker's own
+ * gCombo.Tracker.Checks.OnlyShowCurrentArea, and its scroll to the current area.
  *
  * It is drawn the way SoH draws its own tracker and editor panes
  * (docs/ui-style-guide.md section 10): SoH's Check Tracker chrome from its own
@@ -55,7 +57,8 @@
 #include "combo_item_view.h"        // {OoT,MM}_ItemAdapter_Register (#458 U1)
 #include "combo_tracker_view.h"
 #include "combo_ui.h"
-#include "context.h" // GameId
+#include "context.h"          // GameId
+#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_CHECKS_* (#1131)
 
 namespace ComboGui {
 
@@ -197,6 +200,8 @@ struct PaneState {
     bool showHidden = false;
     bool onlyAvailable = false;
     bool seeded = false;
+    ComboPaneAreaToggle area; // #1131: Only Show Current Area, seeded from its key whenever the key changes
+    ComboAreaScroll scroll;   // #1131: the scroll to the current area this pane owes
 };
 
 PaneState& Pane(uint8_t game) {
@@ -207,6 +212,7 @@ PaneState& Pane(uint8_t game) {
         pane.onlyAvailable = CVarGetInteger("gTrackers.CheckTracker.OnlyShowAvailable", 0) != 0;
         pane.seeded = true;
     }
+    ComboPaneAreaToggleSeed(pane.area, ComboReadTrackerNavKeys().onlyCurrentArea);
     return pane;
 }
 
@@ -351,13 +357,16 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
  * (`expandAll` 1 / -1), and a padded separator after an open area. Which areas
  * and rows it draws is ComboCollectVisibleCheckAreas' decision (#1128): SoH's
  * hide keys, with the pane's own Show Hidden Items and, while Enable Available
- * Checks is on (`availableChecks`), its own Only Show Available Checks (#1129).
- * Each row shows its logic on hover while `showLogic` (#1161).
+ * Checks is on (`availableChecks`), its own Only Show Available Checks (#1129),
+ * and its own Only Show Current Area (#1131). Each row shows its logic on hover
+ * while `showLogic` (#1161). The list pays the pane's owed scroll at its current
+ * area's header (#1131), as SoH's does.
  */
-void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
+void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
     const char* search = pane.search;
     ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
     hide.onlyAvailable = availableChecks && pane.onlyAvailable;
+    ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);
     std::vector<ComboTrackerAreaRows> areas;
     ComboCollectVisibleCheckAreas(game, search, hide, areas);
     if (areas.empty()) {
@@ -404,6 +413,11 @@ void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool avai
         ImGui::TextUnformatted(ComboAreaTotalsText(area, availableChecks).c_str());
         ImGui::PopStyleColor();
         Ui().Tooltip(availableChecks && area.availabilityKnown ? "Available / Checked / Total" : "Checked / Total");
+        // #1131: SoH's scroll to the current area (DrawElement: SetScrollHereY at
+        // the area's header, then doAreaScroll cleared), once per area change.
+        if (ComboAreaScrollTake(pane.scroll, area.key)) {
+            ImGui::SetScrollHereY(0.0f);
+        }
         if (open) {
             for (const ComboTrackerCheckRow& row : area.rows) {
                 DrawCheckRow(game, row, colours, skipColumn, availableChecks, showLogic);
@@ -462,6 +476,14 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     }
 
     PaneState& pane = Pane(game);
+    // #1131: the pane's area, noted each frame its list can draw. A change owes
+    // a scroll on the active game's pane only: the other pane's area is the one
+    // its game left, and nothing there moved.
+    uint16_t currentArea = 0;
+    const bool areaKnown = Combo_TrackerCurrentArea(game, &currentArea);
+    const ComboTrackerNavKeys nav = ComboReadTrackerNavKeys();
+    (void)ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame(), nav.autoScroll, areaKnown,
+                              currentArea);
     const ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
     if (header.hiddenItemsToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's checks show even where your Check Tracker Settings "
@@ -475,6 +497,13 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     if (availableToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's unavailable checks will be hidden.", false, nullptr };
         (void)Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip);
+    }
+    // #1131: Only Show Current Area, this pane's own (ruling D12), as MM's tracker
+    // offers Only Show Current Scene; SoH has no such toggle, so no visibility key.
+    {
+        const ComboUiWidgetOpts tip = { "When active, only this game's checks in the area you are in are shown.", false,
+                                        nullptr };
+        (void)Ui().Checkbox("Only Show Current Area", &pane.area.onlyCurrentArea, &tip);
     }
     int expandAll = 0;
     if (header.expandCollapseButtons) {
@@ -496,10 +525,8 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         Ui().Tooltip(header.availableChecks && summary.availabilityKnown ? "Available / Checked / Total"
                                                                          : "Checked / Total");
     }
-    if (header.hiddenItemsToggle || availableToggle || header.expandCollapseButtons || header.searchInput ||
-        header.checkTotals) {
-        ImGui::Separator();
-    }
+    // Only Show Current Area always draws, so the separator under the header does too.
+    ImGui::Separator();
 
     DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic);
 
@@ -709,6 +736,12 @@ ComboCheckHideOptions ComboReadCheckHideOptions(bool showHidden) {
 }
 
 bool ComboCheckRowHidden(const ComboTrackerCheckRow& row, const ComboCheckHideOptions& opts) {
+    // #1131: outside the current area, under the pane's Only Show Current Area,
+    // whatever Show Hidden Items says (MM's Only Show Current Scene skips the
+    // row before anything else); no area known leaves every row.
+    if (opts.onlyCurrentArea && opts.currentAreaKnown && row.areaKey != opts.currentArea) {
+        return true;
+    }
     // #1129, SoH's DrawLocation: Only Show Available returns first, so Show Hidden
     // Items does not bring an unavailable check back; a row with no answer stays.
     if (opts.onlyAvailable && row.availabilityKnown && !row.available) {
@@ -723,6 +756,11 @@ bool ComboCheckAreaHidden(const ComboTrackerAreaRows& area, const ComboCheckHide
     // SoH's area loop: a filtered area goes whatever Show Hidden Items says; the
     // complete / incomplete hides yield to it.
     if (opts.hideFilteredAreas && area.filtered) {
+        return true;
+    }
+    // #1131: every other area goes under Only Show Current Area, as MM's list
+    // keeps only the current scene's header.
+    if (opts.onlyCurrentArea && opts.currentAreaKnown && area.key != opts.currentArea) {
         return true;
     }
     // #1129: an area with nothing available goes under Only Show Available, as
@@ -771,34 +809,47 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     return header;
 }
 
-// #1131 lock seams: today's behaviour, no navigation.
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {
-    return ComboTrackerNavKeys();
+    // MM's tracker's defaults (CheckTracker.cpp): Auto Scroll To Current Scene on,
+    // Only Show Current Scene off. SoH's window always scrolls, as the default does.
+    ComboTrackerNavKeys keys;
+    keys.autoScroll = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL, 1) != 0;
+    keys.onlyCurrentArea = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA, 0) != 0;
+    return keys;
 }
 
 bool ComboAreaScrollNote(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area) {
-    (void)activePane;
-    (void)autoScroll;
-    (void)areaKnown;
-    (void)area;
+    if (!areaKnown || (scroll.seen && scroll.area == area)) {
+        return scroll.pending; // no answer, or the same area: nothing changed
+    }
+    scroll.seen = true;
+    scroll.area = area;
+    scroll.pending = activePane && autoScroll;
+    scroll.target = area;
     return scroll.pending;
 }
 
 bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey) {
-    (void)scroll;
-    (void)areaKey;
-    return false;
+    if (!scroll.pending || scroll.target != areaKey) {
+        return false;
+    }
+    scroll.pending = false;
+    return true;
 }
 
 void ComboPaneAreaToggleSeed(ComboPaneAreaToggle& toggle, bool keyValue) {
-    (void)toggle;
-    (void)keyValue;
+    const int value = keyValue ? 1 : 0;
+    if (toggle.seededFrom != value) {
+        toggle.onlyCurrentArea = keyValue;
+        toggle.seededFrom = value;
+    }
 }
 
 void ComboApplyCurrentAreaFilter(ComboCheckHideOptions& opts, uint8_t game, bool onlyCurrentArea) {
-    (void)opts;
-    (void)game;
-    (void)onlyCurrentArea;
+    opts.onlyCurrentArea = onlyCurrentArea;
+    uint16_t area = 0;
+    opts.currentAreaKnown = Combo_TrackerCurrentArea(game, &area);
+    opts.currentArea = opts.currentAreaKnown ? area : 0;
 }
 
 std::string ComboCheckTotalsText(const ComboTrackerGameSummary& summary) {
@@ -1003,6 +1054,11 @@ void EndComboPaneFit(ComboPaneFit& fit) {
 }
 
 void ComboTrackerWindow::Draw() {
+    // #1131: the active game's area, asked every frame, open or not, so the view
+    // keeps it current and the other pane shows the area of its game's last frame
+    // of play, never wherever the window was last open.
+    (void)Combo_TrackerCurrentArea((uint8_t)Context_GetCurrentGame(), nullptr);
+
     // Read the visibility CVar LIVE rather than trusting the ctor-latched
     // IsVisible() (#489 cause 1; same pattern as ComboSpoilerWindow).
     if (!CVarGetInteger(kComboTrackerVisibilityCVar, 0)) {

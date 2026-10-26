@@ -197,10 +197,19 @@ const std::vector<s16>& MMCheckScenes(void) {
 }
 
 /**
+ * A scene's area key: the order MM's tracker sorts its scene headers in (scene
+ * order in the high byte), keeping two scenes of one order apart (the scene id
+ * in the low byte; MM has fewer than 256 scenes).
+ */
+uint16_t MMSceneAreaKey(s16 scene) {
+    const auto order = kMMSceneOrder.find(scene);
+    const uint16_t rank = (order != kMMSceneOrder.end()) ? (uint16_t)(order->second & 0xFF) : 0xFF;
+    return (uint16_t)((rank << 8) | ((uint16_t)scene & 0xFF));
+}
+
+/**
  * The area a check's row is listed under: its scene's name, as MM's tracker
- * heads the scene (Ship_GetSceneName). The key orders scenes the way that
- * tracker does (scene order in the high byte) and keeps two scenes of one order
- * apart (the scene id in the low byte; MM has fewer than 256 scenes).
+ * heads the scene (Ship_GetSceneName), keyed by MMSceneAreaKey.
  */
 const char* MMTrackerAreaName(uint16_t checkId, uint16_t* outKey) {
     if (checkId >= (uint16_t)RC_MAX) {
@@ -210,10 +219,8 @@ const char* MMTrackerAreaName(uint16_t checkId, uint16_t* outKey) {
     if (scene < 0 || scene >= (s16)SCENE_MAX) {
         return nullptr; // not a check MM's static data knows
     }
-    const auto order = kMMSceneOrder.find(scene);
-    const uint16_t rank = (order != kMMSceneOrder.end()) ? (uint16_t)(order->second & 0xFF) : 0xFF;
     if (outKey != nullptr) {
-        *outKey = (uint16_t)((rank << 8) | ((uint16_t)scene & 0xFF));
+        *outKey = MMSceneAreaKey(scene);
     }
     return Ship_GetSceneName(scene);
 }
@@ -412,6 +419,52 @@ const char* MMTrackerCheckLogic(uint16_t checkId) {
     return it->second.c_str();
 }
 
+// ---- #1131: the current area ---------------------------------------------
+
+// The navigation lock's stand-in (MM_TrackerAdapter_TestSceneSeam below): -1 is
+// production (MM's play state); 0 answers "no MM play state"; 1 answers "MM is
+// played in sSceneTestId".
+int sSceneTest = -1;
+int sSceneTestId = 0;
+// The last scene the op saw that was not a grotto, or -1: the scene a grotto
+// was entered from.
+s16 sAreaLastScene = -1;
+
+/**
+ * The descriptor's currentArea: the area of the scene MM is played in, the scene
+ * MM's own check tracker scrolls to on OnSceneInit and filters by under Only
+ * Show Current Scene (CheckTracker.cpp: Play_GetOriginalSceneId of the play
+ * state's scene), keyed as the rows are (MMSceneAreaKey). A grotto
+ * (SCENE_KAKUSIANA) answers the scene it was entered from, the last other scene
+ * the op saw (the window asks every frame), because MM's tracker lists a
+ * grotto's checks under the scene its grotto opens from (MMCheckScenes); none if
+ * it saw none. False with no MM play state (MMTrackerLiveSave's rule).
+ */
+bool MMTrackerCurrentArea(uint16_t* outKey) {
+    s16 scene = -1;
+    if (sSceneTest >= 0) {
+        if (sSceneTest == 0) {
+            return false;
+        }
+        scene = (s16)sSceneTestId;
+    } else {
+        if (Context_GetCurrentGame() != GAME_MM || MM_gPlayState == nullptr) {
+            return false;
+        }
+        scene = Play_GetOriginalSceneId(MM_gPlayState->sceneId);
+    }
+    if (scene == (s16)SCENE_KAKUSIANA) {
+        scene = sAreaLastScene;
+    } else {
+        sAreaLastScene = scene;
+    }
+    if (scene < 0 || scene >= (s16)SCENE_MAX) {
+        return false;
+    }
+    *outKey = MMSceneAreaKey(scene);
+    return true;
+}
+
 } // namespace
 
 /**
@@ -468,6 +521,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.setLiveSkipped = MMTrackerSetLiveSkipped;
     desc.liveAvailable = MMTrackerLiveAvailable;
     desc.logicText = MMTrackerCheckLogic;
+    desc.currentArea = MMTrackerCurrentArea;
 
     Combo_Tracker_RegisterMM(&desc);
 }
@@ -535,13 +589,6 @@ extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* i
 
 // ---- #1131: the navigation lock's stand-ins -------------------------------
 
-namespace {
-// MM_TrackerAdapter_TestSceneSeam below: -1 is production (MM's play state); 0
-// answers "no MM play state"; 1 answers "MM is played in sSceneTestId".
-int sSceneTest = -1;
-int sSceneTestId = 0;
-} // namespace
-
 /**
  * TEST BRIDGE (#1131): @p mode -1 restores production; 0 stands in for "no MM
  * play state" and 1 for "MM is played in scene @p sceneId" (the ROM-free tier
@@ -551,6 +598,9 @@ int sSceneTestId = 0;
 extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId) {
     sSceneTest = mode < 0 ? -1 : (mode != 0 ? 1 : 0);
     sSceneTestId = sceneId;
+    if (sSceneTest != 1) {
+        sAreaLastScene = -1;
+    }
 }
 
 /** TEST BRIDGE (#1131): check @p checkId's own scene, through Play_GetOriginalSceneId; -1 for none. */

@@ -24,9 +24,14 @@
  * (ComboItemTrackerWindow.h), so the page never shows a value the overlay is not
  * drawing.
  *
- * THE CHECK TRACKER. The Combo Tracker window has no keys of its own: it reads
- * SoH's Check Tracker Settings (gTrackers.CheckTracker.*,
- * ComboTrackerWindow.cpp). So the page hosts SoH's own Check Tracker Settings
+ * THE CHECK TRACKER. The Combo Tracker window reads SoH's Check Tracker
+ * Settings (gTrackers.CheckTracker.*, ComboTrackerWindow.cpp), and has only two
+ * keys of its own (#1131), for the two settings SoH has none for: Auto Scroll To
+ * Current Area and Only Show Current Area (gCombo.Tracker.Checks.*,
+ * cvar_shared_keys.h; MM's tracker's Auto Scroll To Current Scene and Only Show
+ * Current Scene, with its defaults), the first rows under the Check Tracker
+ * Settings separator until lane L5 (#1132) moves the block onto SoH's Check
+ * Tracker page. Otherwise the page hosts SoH's own Check Tracker Settings
  * exactly as SoH's Randomizer > Check Tracker page does: embedded, under its
  * "Popout Check Tracker Settings" row. The Combo Tracker follows its colours
  * (each section's Main and Extra colour), its Hide toggles (each state's, Area
@@ -40,7 +45,8 @@
  * Locked by MenuComboSection leg 7 (every gCombo.Tracker.Items.* key written
  * exactly once with the overlay's widget, default and range, the floating-only
  * rows hidden for a window, the picker in the menu theme, the embedded Check
- * Tracker Settings row, and no other key) and drawn by UiSnapshot (Combo >
+ * Tracker Settings row, each gCombo.Tracker.Checks.* key once under it, and no
+ * other key) and drawn by UiSnapshot (Combo >
  * Tracker Settings beside SoH's Randomizer > Item Tracker, states "" and
  * "window").
  */
@@ -180,6 +186,20 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
             "switch or save."));
 
     menu.AddWidget(path, "Check Tracker Settings", WIDGET_SEPARATOR_TEXT);
+    // #1131: the Combo Tracker's two keys of its own, in SoH's checkbox shape with
+    // the window's defaults (ComboTrackerWindow.h, ComboTrackerNavKeys).
+    menu.AddWidget(path, "Auto Scroll To Current Area##ComboTracker", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL)
+        .RaceDisable(false)
+        .Options(CheckboxOptions().DefaultValue(true).Tooltip(
+            "Scrolls the Combo Tracker to the area you are in each time you enter a new one, in the game you are "
+            "playing."));
+    menu.AddWidget(path, "Only Show Current Area##ComboTracker", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA)
+        .RaceDisable(false)
+        .Options(CheckboxOptions().DefaultValue(false).Tooltip(
+            "Shows only the checks in the area you are in, in both games' lists of the Combo Tracker. Each list "
+            "also has its own Only Show Current Area toggle."));
     // No caption row (#927): the one thing SoH's window cannot say, which of its
     // settings the Combo Tracker follows (#1128), is the button's tooltip.
     menu.AddWidget(path, "Popout Check Tracker Settings", WIDGET_WINDOW_BUTTON)

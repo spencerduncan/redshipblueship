@@ -249,6 +249,17 @@
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_MM "gCombo.Tracker.Items.Section.MM"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED "gCombo.Tracker.Items.Section.Shared"
 #define RSBS_CVAR_COMBO_ITEMS_ICON_SIZE "gCombo.Tracker.Items.IconSize"
+/* #1131: the Combo Tracker's own keys, the two settings SoH's Check Tracker has
+ * no key for (MM's tracker has both: gRando.CheckTracker.ScrollToCurrentScene
+ * and .ShowCurrentScene), one each for both panes (ruling D3), written by the
+ * Combo > Tracker Settings page under its Check Tracker Settings separator.
+ * PREFERENCE keys.
+ *   AutoScrollToCurrentArea  0/1, default 1: the active game's pane scrolls to
+ *                            the player's area when it changes (SoH's behaviour)
+ *   OnlyShowCurrentArea      0/1, default 0: seeds each pane's own Only Show
+ *                            Current Area toggle (ruling D12) when it changes */
+#define RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL "gCombo.Tracker.Checks.AutoScrollToCurrentArea"
+#define RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA "gCombo.Tracker.Checks.OnlyShowCurrentArea"
 
 #ifdef __cplusplus
 
@@ -774,6 +785,13 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, ComboKeyClass::Preference,
       "item tracker overlay: draws the shared section" },
     { RSBS_CVAR_COMBO_ITEMS_ICON_SIZE, ComboKeyClass::Preference, "item tracker overlay: icon size (#458 U3)" },
+    // ---- gCombo.Tracker.Checks.*: the Combo Tracker's own navigation (#1131).
+    //      All PREFERENCE: where the window scrolls, or which area it shows,
+    //      says nothing about a world.
+    { RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL, ComboKeyClass::Preference,
+      "combo tracker: the active game's pane scrolls to the current area (#1131)" },
+    { RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA, ComboKeyClass::Preference,
+      "combo tracker: seeds each pane's Only Show Current Area toggle (#1131)" },
 };
 
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
@@ -1179,11 +1197,13 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
-// (#458 U2, the overlay's look; U3 added IconSize). Pinning the count makes a silently dropped
+// (#458 U2, the overlay's look; U3 added IconSize) + two gCombo.Tracker.Checks.*
+// preferences (#1131, the Combo Tracker's navigation). Pinning the count makes a silently dropped
 // row a compile error; the lock's tree scan makes a silently ADDED key a red
 // test.
-static_assert(kComboKeyCount == 31, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "nine gCombo.Tracker.Items.* preferences = 31");
+static_assert(kComboKeyCount == 33, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "nine gCombo.Tracker.Items.* preferences + two gCombo.Tracker.Checks.* "
+                                    "preferences = 33");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

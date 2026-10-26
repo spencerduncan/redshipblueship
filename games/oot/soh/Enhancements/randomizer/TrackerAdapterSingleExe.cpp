@@ -594,6 +594,24 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
     return true;
 }
 
+// ---- #1131: the current area ---------------------------------------------
+
+/**
+ * The area the player is in: SoH's Check Tracker's currentArea, the area its
+ * window scrolls to on a transition (CheckTrackerTransition sets it from
+ * GetCheckArea, which already files a grotto under the area it opens from), in
+ * the RandomizerCheckArea space the rows' areaKey uses. Only while OoT plays a
+ * randomizer file (OoTRandoFileLoaded, which reads gSaveContext, so OoT is asked
+ * first): the variable outlives a file, and a vanilla file's panel lists nothing.
+ */
+bool OoTTrackerCurrentArea(uint16_t* outKey) {
+    if (Context_GetCurrentGame() != GAME_OOT || !OoTRandoFileLoaded() || CheckTracker::currentArea == RCAREA_INVALID) {
+        return false;
+    }
+    *outKey = (uint16_t)CheckTracker::currentArea;
+    return true;
+}
+
 } // namespace
 
 /**
@@ -625,7 +643,7 @@ extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
         OoTTrackerSummary,      OoTTrackerCheckCount, OoTTrackerCheckAt,    OoTTrackerCheckName,
-        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic,
+        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic, OoTTrackerCurrentArea,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }
