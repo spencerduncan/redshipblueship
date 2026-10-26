@@ -52,6 +52,7 @@ extern "C" {
 // SeedContext.h only FORWARD-declares Rando::Logic, and the test seam below has
 // to call Logic::SetContext to cut the Context<->Logic ownership cycle.
 #include "soh/Enhancements/randomizer/logic.h"
+#include "soh/Enhancements/randomizer/location_access.h"          // areaTable: the logic tooltip's conditions (#1161)
 #include "soh/Enhancements/randomizer/randomizer_check_tracker.h" // the skip toggle's native-tracker refresh (#458 U5)
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/SaveManager.h" // the skip toggle's tracker-data save (#458 U5)
@@ -456,6 +457,34 @@ void OoTNameSeenItem(Rando::Context* ctx, Rando::ItemLocation* loc, RandomizerCh
     Combo_TrackerNameSeenItem(&seen, out);
 }
 
+/**
+ * The logic a check's row shows on hover (#1161): what SoH's DrawLocation draws as
+ * the row's tooltip under Show Logic, the condition string of the check's
+ * LocationAccess in its parent region (areaTable, static; the LOCATION macro's
+ * stringified condition). NULL with no heap context, an id or region out of
+ * range, or no entry. GetConditionStr returns a copy, so it is kept in one static
+ * string, valid until the next call; "true" is passed through, and the window
+ * draws nothing for it, as SoH does.
+ */
+const char* OoTTrackerCheckLogic(uint16_t checkId) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || checkId == 0 || checkId >= (uint16_t)RC_MAX) {
+        return nullptr;
+    }
+    const RandomizerRegion region = ctx->GetItemLocation((size_t)checkId)->GetParentRegionKey();
+    if ((size_t)region >= areaTable.size()) {
+        return nullptr;
+    }
+    static std::string sCondition;
+    for (const LocationAccess& access : areaTable[region].locations) {
+        if (access.GetLocation() == (RandomizerCheck)checkId) {
+            sCondition = access.GetConditionStr();
+            return sCondition.empty() ? nullptr : sCondition.c_str();
+        }
+    }
+    return nullptr;
+}
+
 bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
     auto ctx = Rando::Context::GetInstance();
     if (ctx == nullptr || out == nullptr || index < 0 || index >= (int)RC_MAX) {
@@ -591,8 +620,8 @@ extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
 
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
-        OoTTrackerSummary,   OoTTrackerCheckCount,   OoTTrackerCheckAt,
-        OoTTrackerCheckName, OoTTrackerSkipWritable, OoTTrackerSetSkipped,
+        OoTTrackerSummary,      OoTTrackerCheckCount, OoTTrackerCheckAt,    OoTTrackerCheckName,
+        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }

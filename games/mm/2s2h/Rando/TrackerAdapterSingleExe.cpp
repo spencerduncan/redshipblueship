@@ -56,6 +56,10 @@ extern "C" {
 s16 Play_GetOriginalSceneId(s16 sceneId);
 }
 
+// CheckTracker.cpp (#1161): the logic MM's check tracker shows on a row's hover, by
+// check; global, not in its header.
+extern std::unordered_map<RandoCheckId, std::string> accessLogicFuncs;
+
 // src/common. Included OUTSIDE any extern "C" block: the header manages its
 // own linkage and pulls context.h, whose <type_traits> include must not be
 // wrapped in C linkage (matching Foreign.cpp).
@@ -386,6 +390,28 @@ int MMTrackerLiveAvailable(uint16_t checkId) {
     return sInLogic[checkId] != 0 ? 1 : 0;
 }
 
+/**
+ * The descriptor's logicText (#1161): the tooltip MM's own check tracker draws on
+ * a check's row (CheckTracker.cpp, DrawCheckTracker), from the table it draws it
+ * from, accessLogicFuncs, which CheckTracker::Init fills from Rando::Logic::Regions
+ * (each region's CHECK macro, stringified) at MM's rando init; that TU is linked in
+ * the single exe (redship.map: 2ship_rando_ui:CheckTracker.cpp.obj, pulled in by
+ * Rando::Init's CheckTracker::Init call). Its rule: none for an empty string, and
+ * none for an enemy drop (RC_ENEMY_DROP_ALIEN .. RC_ENEMY_DROP_WOLFOS), whose
+ * conditions differ per instance. NULL before MM's rando init has filled it.
+ */
+const char* MMTrackerCheckLogic(uint16_t checkId) {
+    if (checkId >= (uint16_t)RC_MAX ||
+        (checkId >= (uint16_t)RC_ENEMY_DROP_ALIEN && checkId <= (uint16_t)RC_ENEMY_DROP_WOLFOS)) {
+        return nullptr;
+    }
+    auto it = accessLogicFuncs.find((RandoCheckId)checkId);
+    if (it == accessLogicFuncs.end() || it->second.empty()) {
+        return nullptr;
+    }
+    return it->second.c_str();
+}
+
 } // namespace
 
 /**
@@ -441,6 +467,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.liveSave = MMTrackerLiveSave;
     desc.setLiveSkipped = MMTrackerSetLiveSkipped;
     desc.liveAvailable = MMTrackerLiveAvailable;
+    desc.logicText = MMTrackerCheckLogic;
 
     Combo_Tracker_RegisterMM(&desc);
 }

@@ -404,9 +404,12 @@ const char* Combo_TrackerCheckName(uint8_t game, uint16_t checkId) {
 }
 
 const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
-    // Lock seam (#1161): no logic yet, as before.
-    (void)game;
-    (void)checkId;
+    if (game == (uint8_t)GAME_MM) {
+        return (sMMRegistered && sMMDesc.logicText != NULL) ? sMMDesc.logicText(checkId) : NULL;
+    }
+    if (game == (uint8_t)GAME_OOT && sOoTOps != NULL && sOoTOps->logicText != NULL) {
+        return sOoTOps->logicText(checkId);
+    }
     return NULL;
 }
 
