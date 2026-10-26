@@ -118,6 +118,29 @@ int sFailures = 0;
         }                                                          \
     } while (0)
 
+/** A hook type's registry set aside for a scope. OoT_Item_Give dispatches
+ *  OnItemReceive and OnTimestamp; inside AllTests an earlier row can leave
+ *  gameplay hooks registered that read a play state this row does not have. */
+template <typename H> struct HooksAside {
+    decltype(GameInteractor::RegisteredGameHooks<H>::functions) functions;
+    decltype(GameInteractor::RegisteredGameHooks<H>::functionsForFilter) filters;
+    HooksAside() {
+        functions.swap(GameInteractor::RegisteredGameHooks<H>::functions);
+        filters.swap(GameInteractor::RegisteredGameHooks<H>::functionsForFilter);
+    }
+    ~HooksAside() {
+        functions.swap(GameInteractor::RegisteredGameHooks<H>::functions);
+        filters.swap(GameInteractor::RegisteredGameHooks<H>::functionsForFilter);
+    }
+};
+
+/** One heart piece through OoT's own give, with no other hook listening. */
+void GiveHeartPiece(void) {
+    HooksAside<GameInteractor::OnItemReceive> receive;
+    HooksAside<GameInteractor::OnTimestamp> timestamp;
+    OoT_Item_Give(nullptr, ITEM_HEART_PIECE_2);
+}
+
 /** The pool's value for @p kind, or -1 when it has never been shared. */
 int Pool(uint8_t kind) {
     uint16_t value = 0;
@@ -309,7 +332,7 @@ int RunLegs(void) {
         const int nibble = Nibble(&gSaveContext);
         const int capacity = (int)gSaveContext.healthCapacity;
         for (int i = 0; i < 3; i++) {
-            OoT_Item_Give(nullptr, ITEM_HEART_PIECE_2);
+            GiveHeartPiece();
         }
         const int quartersHeld =
             (int)Combo_MakeHealthQuarters((uint16_t)gSaveContext.healthCapacity, (uint16_t)Nibble(&gSaveContext));
