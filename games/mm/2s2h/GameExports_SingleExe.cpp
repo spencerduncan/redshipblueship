@@ -5834,6 +5834,13 @@ extern "C" int MM_CreditSharedPickup(const SharedItem* item) {
     return 0;
 }
 
+/**
+ * MM's bomb-bag give hook (#1160). Registered once from MM_Rando_InitCore; the
+ * ROM-free row's seam calls it too.
+ */
+extern "C" void MM_RegisterSharedBombchuBagHook(void) {
+}
+
 // ============================================================================
 // Pre-freeze discipline (#638, #626) -- MM's halves of
 // Combo_FlushLiveStateForFreeze (src/common/switch.cpp). Both freeze drivers

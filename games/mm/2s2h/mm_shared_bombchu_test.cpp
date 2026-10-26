@@ -40,6 +40,12 @@ extern "C" int MM_SharedBombchuTest_PackId(void) {
 extern "C" int MM_SharedBombchuTest_HostCheck(void) {
     return -1;
 }
+extern "C" void MM_SharedBombchuTest_GiveBombBag20(void) {
+}
+extern "C" int MM_SharedBombchuTest_PackIdOf(int units) {
+    (void)units;
+    return -1;
+}
 #else
 
 extern "C" {
@@ -48,6 +54,10 @@ extern SaveContext gSaveContext;
 }
 
 #include "2s2h/Rando/Rando.h"
+
+// GameExports_SingleExe.cpp: registers MM's bomb-bag give hook (#1160), once per
+// registry; production registers it from MM_Rando_InitCore.
+extern "C" void MM_RegisterSharedBombchuBagHook(void);
 
 /** MM's live save as a cross-game MM session runs it: the 0xFF "no flash slot"
  *  sentinel and GAMEMODE_NORMAL, which Combo_SaveIsLiveFile requires before the
@@ -103,6 +113,31 @@ extern "C" int MM_SharedBombchuTest_PackId(void) {
 /** A real MM check id to host a foreign pack on (the first after RC_UNKNOWN). */
 extern "C" int MM_SharedBombchuTest_HostCheck(void) {
     return (int)RC_UNKNOWN + 1;
+}
+
+/** The Bomb Shop's bag bought mid-visit (#1160): MM's REAL give, MM_Item_Give,
+ *  which dispatches OnItemGive after Item_GiveImpl raises the tier and fills the
+ *  bombs. The registry gets the production hook first, as MM_Rando_InitCore
+ *  registers it (a ROM-free row never runs that bring-up). Item_GiveImpl's bomb
+ *  bag branch reads no play state, so no PlayState is passed. */
+extern "C" void MM_SharedBombchuTest_GiveBombBag20(void) {
+    MM_RegisterSharedBombchuBagHook();
+    MM_Item_Give(nullptr, ITEM_BOMB_BAG_20);
+}
+
+/** MM's own id for its @p units-bombchu pack (RI_BOMBCHU, RI_BOMBCHU_5,
+ *  RI_BOMBCHU_10), or -1 for a size MM has no pack of. */
+extern "C" int MM_SharedBombchuTest_PackIdOf(int units) {
+    switch (units) {
+        case 1:
+            return (int)RI_BOMBCHU;
+        case 5:
+            return (int)RI_BOMBCHU_5;
+        case 10:
+            return (int)RI_BOMBCHU_10;
+        default:
+            return -1;
+    }
 }
 
 #endif
