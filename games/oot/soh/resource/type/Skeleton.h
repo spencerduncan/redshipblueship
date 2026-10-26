@@ -88,6 +88,9 @@ class SkeletonPatcher {
     static void ClearSkeletons();
     static void UpdateSkeletons();
     static void UpdateCustomSkeletons();
+    // RedShipBlueShip (#1176): the per-entry write both updates share, pure
+    // so a ROM-free row can drive it without a resource manager.
+    static void ApplyEntry(SkeletonPatchInfo& skel, void** skeletonSegment, uintptr_t resourcePointer);
 
     static std::vector<SkeletonPatchInfo> skeletons;
 

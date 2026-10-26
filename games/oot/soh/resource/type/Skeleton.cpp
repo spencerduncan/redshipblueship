@@ -115,12 +115,15 @@ void SkeletonPatcher::UpdateSkeletons() {
                 .get();
 
         if (newSkel != nullptr) {
-            skel.skelAnime->skeleton = newSkel->skeletonData.skeletonHeader.segment;
-            uintptr_t skelPtr = (uintptr_t)newSkel->GetPointer();
-            memcpy(&skel.skelAnime->skeletonHeader, &skelPtr,
-                   sizeof(uintptr_t)); // Dumb thing that needs to be done because cast is not cooperating
+            ApplyEntry(skel, newSkel->skeletonData.skeletonHeader.segment, (uintptr_t)newSkel->GetPointer());
         }
     }
+}
+
+void SkeletonPatcher::ApplyEntry(SkeletonPatchInfo& skel, void** skeletonSegment, uintptr_t resourcePointer) {
+    skel.skelAnime->skeleton = skeletonSegment;
+    memcpy(&skel.skelAnime->skeletonHeader, &resourcePointer,
+           sizeof(uintptr_t)); // Dumb thing that needs to be done because cast is not cooperating
 }
 
 void SkeletonPatcher::UpdateCustomSkeletons() {
@@ -205,9 +208,34 @@ void SkeletonPatcher::UpdateCustomSkeletonFromPath(const std::string& skeletonPa
     }
 
     if (newSkel != nullptr) {
-        skel.skelAnime->skeleton = newSkel->skeletonData.skeletonHeader.segment;
-        uintptr_t skelPtr = (uintptr_t)newSkel->GetPointer();
-        memcpy(&skel.skelAnime->skeletonHeader, &skelPtr, sizeof(uintptr_t));
+        ApplyEntry(skel, newSkel->skeletonData.skeletonHeader.segment, (uintptr_t)newSkel->GetPointer());
     }
 }
 } // namespace SOH
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#1176) test seams, C linkage so the ROM-free
+// skeleton-patcher-mm-layout row (src/common/tests/test_skeleton_patcher_layout.c)
+// can reach them without OoT's headers.
+
+// Applies one patch entry tagged with `game` (a GameId) to the bytes at skelAnime.
+extern "C" void SkeletonPatcher_ApplyForTest(void* skelAnime, int game, void** skeletonSegment,
+                                             uintptr_t resourcePointer) {
+    (void)game; // every entry is written with OoT's layout
+    SOH::SkeletonPatchInfo info;
+    info.skelAnime = (SkelAnime*)skelAnime;
+    info.isLocalPlayer = false;
+    SOH::SkeletonPatcher::ApplyEntry(info, skeletonSegment, resourcePointer);
+}
+
+// The GameId whose SkelAnime layout the registered entry for skelAnime is
+// written with, or -1 when nothing is registered for it.
+extern "C" int SkeletonPatcher_RegisteredGameForTest(const void* skelAnime) {
+    for (const auto& skel : SOH::SkeletonPatcher::skeletons) {
+        if ((const void*)skel.skelAnime == skelAnime) {
+            return 1; // GAME_OOT: every entry is written with OoT's layout
+        }
+    }
+    return -1;
+}
+#endif
