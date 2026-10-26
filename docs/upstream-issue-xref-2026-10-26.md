@@ -31,7 +31,7 @@ table, hook or subsystem, they are listed as the issue's fix family.
 |---|---|---|---|---|---|
 | #1162 gossip stones say "No Hint" | SoH `2f262f492` (#6824) junk stone hints not generated | fixes | absent | yes | S |
 | #1168 checks without the `RG_CAN_SPEAK` clause | SoH `c906c71f7` (#6357), `1413ceb33` (#7121), `0702b11b9` (#6285) | fixes, together | absent | yes | S each |
-| #1164 bombchu drops before the bomb bag | none (our drop code equals upstream); siblings SoH `2ba5c40da` (#7134), `483849b97` (#6717), `44909ab23` (#6949), `cc63cc4ab` (#7117) + `c42004bc4` (#7274) | same family (bombchu accounting) | absent | no; RSBS lead is the bag grant path | S each |
+| #1164 bombchu drops before the bomb bag | none (our drop code equals upstream and is correct; no defect found); siblings SoH `2ba5c40da` (#7134), `483849b97` (#6717), `44909ab23` (#6949), `cc63cc4ab` (#7117) + `c42004bc4` (#7274) | same family (bombchu accounting) | absent | no | S each |
 | #607 MM blue-textbox icon for foreign items | none needed | | | **already resolved on main** by PR #761 (`b85d62e1`, "Refs #607") | |
 | #1063 texture pack crash | LUS `62d22224`, `a93ee524` (half), `c5a5a934`, `2492cc35`; 2S2H `26146e975`, `f86e04b4d`, `d6ac2550b` | same family | absent / partial | cause unknown; hardening set | S each |
 | #1127 MM tracker grouping differs from native | 2S2H `f8bf9bb3b` (#1561), `cfd1116a4` (#1775) | same family / reference | absent | no (adapter is ours) | L / S |
@@ -91,7 +91,8 @@ tree: Song From Malon is the only location missing a speak item, but two more fi
 - `0702b11b9` (#6285 "fix carpet man logic"): `haunted_wasteland.cpp:26` reads
   `CanJumpslash() || CanUse(RG_HOVER_BOOTS) && HasItem(RG_SPEAK_HYLIAN) && price <= wallet`; `&&` binds tighter than
   `||`, so a jumpslash alone satisfies the check. Upstream adds the parentheses. This one also changes placements with
-  Shuffle Speak off (the price term is no longer bypassed).
+  Shuffle Speak off (the price term is no longer bypassed). The precedence came in with upstream's Shuffle Speak
+  `e2db315ff` (#5538), which our `de86df7b2` ported, so it is inherited; filed separately as #1182.
 
 Porting all three should close the issue; only `0702b11b9` moves goldens when Shuffle Speak is off (`logic.cpp:2946-2953`
 grants every speak flag when the shuffle is off).
@@ -123,11 +124,12 @@ No upstream fix. The OoT drop conversion is identical in our tree (`games/oot/sr
 upstream develop (`:1541-1545`), and so is `EnItem00_ConvertBombDropToBombchu` (ours `:1504-1511`). The rule: with
 Bombchu Drops on and any bombchu-bag mode, a bomb drop converts to a bombchu drop only while `INV_CONTENT(ITEM_BOMBCHU)`
 is set, and with no bomb bag it then always converts. No upstream commit since our base touches that path except the
-unrelated `bf7177256` (#7047 FixFlexDrops). The reported behaviour therefore means the bombchu bag did not set the
-`ITEM_BOMBCHU` inventory slot when it was obtained; the RSBS lead is a bag that reached the player through the combo's
-foreign-item or shared-pool path instead of SoH's own give path (`randomizer.cpp:3858`, `:4190`), next to #1160
-(bombchus not shared). On the MM side 2S2H's chu-drop enhancement (`Equipment/ChuDrops.cpp`) is not linked in single-exe
-(`games/mm/CMakeLists.txt:464-465`), so MM never converts a drop at all.
+unrelated `bf7177256` (#7047 FixFlexDrops). Correction (planning session's triage, 2026-10-26): the code is vendored
+and correct. Under Single Bag the drop needs only the Bombchu Bag, and the operator's bag came from the Kakariko
+skulltula tree through SoH's own give path, so the earlier lead that a foreign-item or shared-pool grant never set the
+`ITEM_BOMBCHU` slot does not fit that run. No defect was found; the report stays unconfirmed. On the MM side 2S2H's
+chu-drop enhancement (`Equipment/ChuDrops.cpp`) is not linked in single-exe (`games/mm/CMakeLists.txt:464-465`), so MM
+never converts a drop at all.
 
 Same family (bombchu accounting in logic and obtainability), all absent:
 
@@ -320,10 +322,13 @@ Checked and deliberately not matched, with the matcher's reason:
 - **#1165 stray fairies not animated in OoT**: MM's native `DrawStrayFairy` is already animated (`AnimatedMat`); the
   OoT-side draw is our curated-model code, and libultraship has nothing for it.
 - **#1167 MM songs in OoT shops show `?`, #1169 cross-game warp songs, #1171 Gerudo mask texture in MM**: foreign-model
-  and cross-game paths. For #1171 the curated `gLinkChildGerudoMaskDL` in `redship-mm.o2r` uses four RGBA16 textures
-  with no TLUT and a TEXEL0 combiner, so neither the CI4 palette fix (`709efa73`) nor the TEXEL1 fix (`f7600e02`)
-  applies; the same engine draws the same list correctly in OoT, which points at the head matrix or lighting on the
-  game side.
+  and cross-game paths. For #1171 neither the CI4 palette fix (`709efa73`) nor the TEXEL1 fix (`f7600e02`) applies.
+  Correction (planning session's triage, 2026-10-26): the broken model is the get-item model, not the worn
+  `gLinkChildGerudoMaskDL` this report first named; no rule key authors `RSBS_XITEM_GERUDO_MASK_MM`, so the worn path is
+  unreachable. The fault is MM's host emitting MM's own setup display list 26 (2-cycle, `games/mm/src/code/z_rcp.c:297-306`)
+  for OoT's 1-cycle recipe (`games/oot/src/code/z_rcp.c:296-305`); the six medallions share it. Game side, not
+  libultraship. #1169 is also a documentation defect: `known-issues.md` and `release-notes-next.md` describe cross-game
+  warp songs as existing (from #941 and #972) while no code implements them.
 - **#1070 Woodfall Temple does not rise**: `Dm_Char01` and `Rando/DmChar01.cpp` unchanged upstream.
 - **#824, #925 flaky test rows**: the rows are RSBS C tests exiting through `rsbs/src/main.cpp:556-561`; the slot-0
   `.redsave` writer already writes atomically (`src/common/save.cpp:507-529`). LUS `d4f9b849` (atomic `Config::Save`)

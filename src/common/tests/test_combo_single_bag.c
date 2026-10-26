@@ -1376,7 +1376,8 @@ TestResult ComboSingleBag_Run(void) {
         const int hintRc = Rando_ValidatePairedWorldHints();
         printf("[TEST] combo-single-bag: paired-world hint validity rc=%d\n", hintRc);
         CSB_ASSERT(hintRc == 0, "a paired world's hints leave a crossing host unhintable or name its cover, point at "
-                                "no OoT location without naming Termina, or fail a #441 check (see [rando-hints])");
+                                "no OoT location without naming Termina, fail a #441 check, or a gossip stone reads "
+                                "\"No Hint\" where a gag line belongs (#1162) (see [rando-hints])");
 
         // #575 H5a, MM's half: MM recomputes "a placement the coordinator made"
         // from the item-class owner and the crossing store at read time. Over

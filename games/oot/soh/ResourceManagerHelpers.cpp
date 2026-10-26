@@ -11,6 +11,9 @@
 #include "resource/type/SohResourceType.h"
 #include "resource/type/Array.h"
 #include "resource/type/Skeleton.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "context.h" // src/common: Context_GetCurrentGame (#1176)
+#endif
 #include "resource/type/PlayerAnimation.h"
 #include <fast/Fast3dWindow.h>
 #include <fast/resource/ResourceType.h>
@@ -723,7 +726,20 @@ extern "C" SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, Skel
     // Therefore we can take this oppurtunity to take note of the Skeleton that is created...
     if (skelAnime != nullptr) {
         auto stringPath = std::string(path);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1176: Majora's Mask's SkelAnime_Init calls this helper too (2Ship's
+        // copy is excluded), with an MM SkelAnime, which ends before OoT's
+        // skeletonHeader. Tag the entry with the running game so the patcher
+        // writes only the fields that game's SkelAnime has. No game running yet
+        // (GAME_NONE) counts as OoT: SkelAnime_Init runs only inside a game's
+        // frame loop, which main enters after publishing the game, so the only
+        // registrations before that are OoT's own bring-up, the game that
+        // creates the shared context.
+        const GameId game = Context_GetCurrentGame() == GAME_MM ? GAME_MM : GAME_OOT;
+        SOH::SkeletonPatcher::RegisterSkeleton(stringPath, skelAnime, game);
+#else
         SOH::SkeletonPatcher::RegisterSkeleton(stringPath, skelAnime);
+#endif
     }
 
     return skelHeader;

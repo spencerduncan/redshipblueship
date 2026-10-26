@@ -815,6 +815,11 @@ extern "C" {
 // games' integration hooks call.
 #include "tests/test_resource_cache_owner.c"
 
+// #1176 skeleton patcher layout lock. FILE SCOPE (compiled as C++): it drives
+// OoT's SkeletonPatcher through C-linkage seams and both games' SkelAnime size
+// exports, and registers through the production ResourceMgr_LoadSkeletonByName.
+#include "tests/test_skeleton_patcher_layout.c"
+
 // #987 ArchiveManager::AddArchive de-duplication lock. FILE SCOPE (compiled as
 // C++): the ROM-free row drives the C++-linkage ArchiveManager over two
 // temporary O2R zips.
@@ -1506,6 +1511,9 @@ extern "C" int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 // must round-trip through locationNameToEnum (the transform the save file puts
 // hints through). Returns 0 only if every enabled hint passes all three.
 extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
+// #1162 (menu.cpp): the same checks under Hint Distribution = Useless (40 gag
+// stones, never "No Hint") and under two Ganon's Trials (only required ones hinted).
+extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr);
 // Hint-RELOAD lock (#441, body in menu.cpp): generates one seed, then drives the
 // REAL randomizer section through save -> Rando::Context reset -> reload (exactly
 // as loading a saved file does) and asserts every enabled item hint still renders
@@ -1632,6 +1640,12 @@ TestResult Test_RandoHintValidity(void) {
 
     int rc = Rando_HeadlessHintValidityTest("RSBSHINT1");
     printf("[TEST] %s: hint validity rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    if (rc != 0) {
+        return TEST_FAIL;
+    }
+    // #1162: seed-independent RED for the junk stones and the trial filter.
+    rc = Rando_HeadlessHintValidityVariantsTest("RSBSHINT1");
+    printf("[TEST] %s: hint validity under Useless / two trials rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4435,6 +4449,33 @@ TestResult Test_ResourceCacheOwnerUnloadFilter(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1176: OoT's skeleton patcher must not write skeletonHeader into a Majora's
+// Mask SkelAnime, which ends before that field. Body in
+// src/common/tests/test_skeleton_patcher_layout.c; the registration leg needs
+// the shared bring-up (ResourceMgr_LoadSkeletonByName asks the resource manager).
+TestResult Test_SkeletonPatcherMMLayout(void) {
+    printf(
+        "[TEST] skeleton-patcher-mm-layout: the skeleton patcher writes only the fields MM's SkelAnime has (#1176)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    // Leg 4 serves its probe path from a scratch archive's Blob.
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
+
+    const int failures = SkeletonPatcherLayout_RunHeadless();
+    printf("[TEST] %s: skeleton patcher layout (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1040 R1: OoT's Cosmetics Editor patches display lists in whatever copy the
 // current resource cache owner holds (#981). While Majora's Mask runs that is
 // MM's owner, so a colour changed then would parse OoT-only display lists again
@@ -7102,6 +7143,8 @@ const TestDescriptor gTests[] = {
       Test_ResourceCacheOwner },
     { "resource-cache-owner-unload-filter", "A filtered unload honours the filter's cache owner (#1040)",
       Test_ResourceCacheOwnerUnloadFilter },
+    { "skeleton-patcher-mm-layout", "The skeleton patcher writes only the fields MM's SkelAnime has (#1176)",
+      Test_SkeletonPatcherMMLayout },
     { "cosmetics-patch-owner-gate", "The Cosmetics Editor patches only while OoT runs (#1040)",
       Test_CosmeticsPatchOwnerGate },
     { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },

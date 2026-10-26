@@ -246,7 +246,8 @@ CheckListColours ReadCheckListColours() {
 
 /**
  * One check: its status glyph and name in the status's main colour, then, in its
- * extra colour, what SoH's tracker prints after a name: the found item, with the
+ * extra colour, what SoH's tracker prints after a name: the found item, or a seen
+ * one SoH reveals with its price once identified (#1166), with the
  * other game's item marked " (MM)" / " (OoT)" as both native trackers mark a
  * crossing (#796), or "Skipped" for a skipped check that names none. The item
  * follows the name on its line when it fits there, and starts the next line under
@@ -263,9 +264,12 @@ CheckListColours ReadCheckListColours() {
  * closed one otherwise, in the status's colour, and drawn clear on a found check
  * so the names stay in one column. A row whose availability is not known draws
  * no glyph.
+ *
+ * With Show Logic on (`showLogic`, #1161) a hover on the check's text shows its
+ * logic as a tooltip, as SoH's DrawLocation does (ComboCheckLogicTooltip).
  */
 void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn,
-                  bool availableChecks) {
+                  bool availableChecks, bool showLogic) {
     if (skipColumn) {
         char buttonId[24];
         snprintf(buttonId, sizeof(buttonId), "##skip%u", (unsigned)row.checkId);
@@ -306,26 +310,37 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
         snprintf(extra, sizeof(extra), "(Skipped)");
     }
 
+    // One group from the glyph to the item, so the logic tooltip (#1161) answers a
+    // hover anywhere on the check's text, not on its last item only.
+    ImGui::BeginGroup();
     ImGui::PushStyleColor(ImGuiCol_Text, c.main);
     ImGui::TextUnformatted(CheckGlyph(row));
     ImGui::SameLine();
     const float nameX = ImGui::GetCursorPosX();
     TextBalanced(name);
     ImGui::PopStyleColor();
-    if (extra[0] == '\0') {
-        return;
+    if (extra[0] != '\0') {
+        const bool nameWrapped = ImGui::GetItemRectSize().y > ImGui::GetTextLineHeight() + 0.5f;
+        const float right = ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x;
+        const float limit = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+        if (!nameWrapped && right + ImGui::CalcTextSize(extra).x <= limit) {
+            ImGui::SameLine();
+        } else {
+            ImGui::SetCursorPosX(nameX);
+        }
+        ImGui::PushStyleColor(ImGuiCol_Text, c.extra);
+        TextBalanced(extra);
+        ImGui::PopStyleColor();
     }
-    const bool nameWrapped = ImGui::GetItemRectSize().y > ImGui::GetTextLineHeight() + 0.5f;
-    const float right = ImGui::GetItemRectMax().x + ImGui::GetStyle().ItemSpacing.x;
-    const float limit = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
-    if (!nameWrapped && right + ImGui::CalcTextSize(extra).x <= limit) {
-        ImGui::SameLine();
-    } else {
-        ImGui::SetCursorPosX(nameX);
+    ImGui::EndGroup();
+    // SoH's DrawLocation: the check's logic as a tooltip under Show Logic, read
+    // only for the hovered row.
+    if (showLogic && ImGui::IsItemHovered()) {
+        const std::string logic = ComboCheckLogicTooltip(game, row, showLogic);
+        if (!logic.empty()) {
+            Ui().Tooltip(logic.c_str());
+        }
     }
-    ImGui::PushStyleColor(ImGuiCol_Text, c.extra);
-    TextBalanced(extra);
-    ImGui::PopStyleColor();
 }
 
 /**
@@ -337,8 +352,9 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
  * and rows it draws is ComboCollectVisibleCheckAreas' decision (#1128): SoH's
  * hide keys, with the pane's own Show Hidden Items and, while Enable Available
  * Checks is on (`availableChecks`), its own Only Show Available Checks (#1129).
+ * Each row shows its logic on hover while `showLogic` (#1161).
  */
-void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool availableChecks) {
+void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
     const char* search = pane.search;
     ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
     hide.onlyAvailable = availableChecks && pane.onlyAvailable;
@@ -390,7 +406,7 @@ void DrawCheckList(uint8_t game, const PaneState& pane, int expandAll, bool avai
         Ui().Tooltip(availableChecks && area.availabilityKnown ? "Available / Checked / Total" : "Checked / Total");
         if (open) {
             for (const ComboTrackerCheckRow& row : area.rows) {
-                DrawCheckRow(game, row, colours, skipColumn, availableChecks);
+                DrawCheckRow(game, row, colours, skipColumn, availableChecks, showLogic);
             }
         }
         ImGui::PopID();
@@ -485,7 +501,7 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         ImGui::Separator();
     }
 
-    DrawCheckList(game, pane, expandAll, header.availableChecks);
+    DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic);
 
     ImGui::PopID();
 }
@@ -569,12 +585,19 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row) {
 }
 
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row) {
-    if (row.placedItemName == nullptr) {
-        return std::string();
+    std::string text;
+    if (row.placedItemName != nullptr) {
+        text = row.placedItemName;
+        if (row.placedItemGame != game) {
+            text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+        }
     }
-    std::string text = row.placedItemName;
-    if (row.placedItemGame != game) {
-        text += (row.placedItemGame == (uint8_t)GAME_MM) ? " (MM)" : " (OoT)";
+    if (row.hasPrice) {
+        // SoH's DrawLocation: "{} - {}" after a named item, the price alone otherwise (#1166).
+        if (!text.empty()) {
+            text += " - ";
+        }
+        text += std::to_string((unsigned)row.price);
     }
     return text;
 }
@@ -585,6 +608,18 @@ const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row) {
     }
     // SoH's DrawLocation: `available ? ICON_FA_UNLOCK : ICON_FA_LOCK`.
     return row.available ? ICON_FA_UNLOCK : ICON_FA_LOCK;
+}
+
+std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic) {
+    if (!showLogic) {
+        return std::string();
+    }
+    // SoH's DrawLocation draws no tooltip for a condition of "true".
+    const char* logic = Combo_TrackerCheckLogic(game, row.checkId);
+    if (logic == nullptr || logic[0] == '\0' || strcmp(logic, "true") == 0) {
+        return std::string();
+    }
+    return logic;
 }
 
 namespace {
@@ -731,6 +766,8 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     // #1129: SoH's reachability keys (randomizer_check_tracker.cpp, DrawElement).
     header.availableChecks = CVarGetInteger("gTrackers.CheckTracker.EnableAvailableChecks", 0) != 0;
     header.availableChecksToggle = CVarGetInteger("gTrackers.CheckTracker.AvailableChecksToggleVisible", 1) != 0;
+    // #1161: SoH's Show Logic (Check Tracker Settings), one key for both panes (ruling D3).
+    header.showLogic = CVarGetInteger("gTrackers.CheckTracker.ShowLogic", 0) != 0;
     return header;
 }
 
