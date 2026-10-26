@@ -21,18 +21,29 @@
  *   3. applying an OoT-tagged entry writes both `skeleton` and `skeletonHeader`;
  *   4. ResourceMgr_LoadSkeletonByName tags a registration with the game that is
  *      running: MM under MM, OoT under OoT, and OoT when no game runs yet.
- * Leg 4 needs the shared Ship::Context (the wrapper brings it up); the path it
- * loads does not exist, which still registers the SkelAnime, as a real
- * SkelAnime_Init does whether or not the skeleton resolved.
+ * Leg 4 needs the shared Ship::Context (the wrapper brings it up and registers
+ * the Blob factory). With no game archive mounted the resource pool stays
+ * paused, so a cache miss through ResourceGetDataByName would wait forever: the
+ * leg mounts a scratch archive with a Blob at its path and primes the cache
+ * through LoadResourceProcess, so the helper's load is a cache hit. The type of
+ * what it loads does not matter; the helper registers the SkelAnime either way.
  */
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
+#include <ship/Context.h>
+#include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/ArchiveManager.h>
+
+// RcoWriteZip and RcoBlobFile come from tests/test_resource_cache_owner.c, which
+// test_runner.cpp includes at file scope just before this file.
 #include "../context.h"
 #include "../game.h"
+#include "../test_scratch.h"
 
 extern "C" size_t MM_SkelAnime_SizeOf(void);
 extern "C" size_t OoT_SkelAnime_SizeOf(void);
@@ -49,6 +60,7 @@ constexpr unsigned char kSplPattern = 0xA5;
 constexpr uint64_t kSplGuard = 0x5A5A5A5A5A5A5A5AULL;
 // Both GameExports TUs static_assert `skeleton` sits right after the four u8 fields.
 constexpr size_t kSplSkeletonOffset = sizeof(void*);
+constexpr const char* kSplSkelPath = "rsbs_test/skeleton_patcher_layout/gProbeSkel";
 
 struct SplBuffer {
     alignas(16) unsigned char bytes[512];
@@ -122,6 +134,21 @@ int SkeletonPatcherLayout_RunHeadless(void) {
     }
 
     // 4. Registrations carry the running game.
+    auto rm = Ship::Context::GetInstance() ? Ship::Context::GetInstance()->GetResourceManager() : nullptr;
+    if (rm == nullptr || rm->GetArchiveManager() == nullptr) {
+        printf("[TEST] FAIL: no ResourceManager/ArchiveManager after the bring-up\n");
+        fflush(stdout);
+        return failures + 1;
+    }
+    const std::string zip = (rsbs::test::ScratchDir("skeleton-patcher-mm-layout") / "spl.o2r").string();
+    if (!RcoWriteZip(zip, kSplSkelPath, RcoBlobFile("skeleton-patcher-mm-layout probe")) ||
+        rm->GetArchiveManager()->AddArchive(zip) == nullptr) {
+        printf("[TEST] FAIL: could not mount the probe archive %s\n", zip.c_str());
+        fflush(stdout);
+        return failures + 1;
+    }
+    const bool savedAlt = rm->IsAltAssetsEnabled();
+    rm->SetAltAssetsEnabled(false); // the helper would otherwise miss on the alt/ path first
     {
         struct Leg {
             GameId running;
@@ -138,7 +165,15 @@ int SkeletonPatcherLayout_RunHeadless(void) {
             SplBuffer buf;
             memset(buf.bytes, 0, sizeof(buf.bytes));
             Context_SetCurrentGame(leg.running);
-            ResourceMgr_LoadSkeletonByName("rsbs_test/skeleton_patcher_layout/gMissingSkel", buf.bytes);
+            // Prime (or re-check) the cache under whatever owner is current, so
+            // the helper's load cannot reach the paused pool.
+            if (rm->LoadResourceProcess(kSplSkelPath) == nullptr || rm->GetCachedResource(kSplSkelPath) == nullptr) {
+                printf("[TEST] FAIL: the probe path is not served from the cache %s\n", leg.name);
+                fflush(stdout);
+                failures++;
+                continue;
+            }
+            ResourceMgr_LoadSkeletonByName(kSplSkelPath, buf.bytes);
             const int got = SkeletonPatcher_RegisteredGameForTest(buf.bytes);
             ResourceMgr_UnregisterSkeleton(buf.bytes);
             if (got != leg.expected) {
@@ -152,6 +187,8 @@ int SkeletonPatcherLayout_RunHeadless(void) {
         }
         Context_SetCurrentGame(savedGame);
     }
+    rm->SetAltAssetsEnabled(savedAlt);
+    fflush(stdout);
 
     return failures;
 }

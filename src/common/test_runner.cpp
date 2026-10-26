@@ -4453,6 +4453,10 @@ TestResult Test_SkeletonPatcherMMLayout(void) {
         printf("[TEST] FAIL: shared bring-up reported failure\n");
         return TEST_FAIL;
     }
+    // Leg 4 serves its probe path from a scratch archive's Blob.
+    ctx->GetResourceManager()->GetResourceLoader()->RegisterResourceFactory(
+        std::make_shared<Ship::ResourceFactoryBinaryBlobV0>(), RESOURCE_FORMAT_BINARY, "Blob",
+        static_cast<uint32_t>(Ship::ResourceType::Blob), 0);
 
     const int failures = SkeletonPatcherLayout_RunHeadless();
     printf("[TEST] %s: skeleton patcher layout (%d failure(s))\n", failures == 0 ? "PASS" : "FAIL", failures);
