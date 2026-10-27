@@ -471,6 +471,20 @@ struct DistinctPair {
 // W6-TIMESAVERS
 // W6-CYCLE-CHEATS
 // W6-PLAYER
+// W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
+// (SohGui/HostedMm/SohMenuHostedMmPlayer.cpp). Climb speed and Bombchu drops are held apart (kMustStayDistinct).
+#define RSBS_CVAR_MM_PLAYER_MANUAL_JUMP "gEnhancements.Player.ManualJump"
+#define RSBS_CVAR_MM_PLAYER_PREVENT_DIVE_OVER_WATER "gEnhancements.Player.PreventDiveOverWater"
+#define RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING "gEnhancements.Player.InfiniteDekuHopping"
+#define RSBS_CVAR_MM_PLAYER_CLIMB_SPEED "gEnhancements.Player.ClimbSpeed"
+#define RSBS_CVAR_MM_PLAYER_FASTER_PUSH_AND_PULL "gEnhancements.Player.FasterPushAndPull"
+#define RSBS_CVAR_MM_PLAYER_FAST_FLOWER_LAUNCH "gEnhancements.Player.FastFlowerLaunch"
+#define RSBS_CVAR_MM_PLAYER_FIERCE_DEITY_PUTAWAY "gEnhancements.Player.FierceDeityPutaway"
+#define RSBS_CVAR_MM_EQUIPMENT_TWO_HANDED_SWORD_SPIN_ATTACK "gEnhancements.Equipment.TwoHandedSwordSpinAttack"
+#define RSBS_CVAR_MM_EQUIPMENT_GREAT_FAIRY_SWORD_B_BUTTON "gEnhancements.Equipment.GreatFairySwordBButton"
+#define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
+#define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
+#define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
 // W6-MASKS-SONGS
 // W6-CAM-GYRO
 // W6-GFX
@@ -549,7 +563,7 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
-    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", "gEnhancements.Player.ClimbSpeed",
+    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", RSBS_CVAR_MM_PLAYER_CLIMB_SPEED,
       "gEnhancements.ClimbSpeed",
       "Listed in §5.3 group A as 'both numeric', but representation verification found INCOMPATIBLE UNITS: "
       "OoT reads it as an ADDITIVE offset (slider '+%d', 0-12, default 0; playSpeed += phi_f2 * value) while "
@@ -568,6 +582,14 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
       "OoT's, so each menu would show a blank for the other's value. Ruled: the keys stay distinct and MM's own "
       "row (its own value list) is hosted beside SoH's on Enhancements > Difficulty." },
+    { "Bombchu drops rule (W6-PLAYER, held apart and hosted)", RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS,
+      "gEnhancements.EnableBombchuDrops",
+      "Same bool and JSON shape, different RULE: SoH's EnItem00_ConvertBombDropToBombchu never drops Bombchus "
+      "Link does not have and favours whichever of Bombs and Bombchus runs lower, and an Ocarina of Time seed can "
+      "force SoH's row on; MM's ChuDrops.cpp gives every Bomb drop an even chance to be a Bombchu whatever Link "
+      "carries. One switch would mean two rules, and a seed-forced SoH row would show on while MM followed the "
+      "hidden value. Ruled: the keys stay distinct and MM's row is hosted beside SoH's on Enhancements > "
+      "Difficulty > Drops." },
     { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },

@@ -589,6 +589,100 @@ void ResetEnhKeys() {
     }
 }
 
+// ---- W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions TUs ---------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry
+// content: every bucket below is keyed on a VB id, an actor id or a text id, and the delta is measured with every
+// other key off, so only the TU behind the probed key can move it. ShouldActorInit[EN_ITEM00] also holds
+// CustomItem's unconditional registrant, JPGrottos' (forced off) and the rando EnItem00 leg: the harness configuration
+// forces ChuDrops off before MM_Rando_Init (kChuDropsCVar) and ZeroW6PhaseKeys does again, so the exactly-one probe
+// (FAIL 7) runs honest; this phase turns ChuDrops on, measures +1 and clears it.
+#define W6_PLAYER_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+
+constexpr const char* kW6PlayerClimbSpeedCVar = "gEnhancements.Player.ClimbSpeed";
+
+const std::vector<SkipKeyProbe>& W6PlayerProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Player.FastFlowerLaunch",
+          "Fast Deku Flower Launch",
+          { { "OnActorUpdate[ACTOR_PLAYER] (Player/FastFlowerLaunch.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_PLAYER); }, 1 } } },
+        { "gEnhancements.Player.InfiniteDekuHopping",
+          "Infinite Deku Hopping",
+          { { "VB_DEKU_LINK_SPIN_ON_LAST_HOP (Player/InfiniteDekuHopping.cpp)",
+              W6_PLAYER_VB_COUNT(VB_DEKU_LINK_SPIN_ON_LAST_HOP), 1 },
+            { "VB_APPLY_AIR_CONTROL (Player/InfiniteDekuHopping.cpp)", W6_PLAYER_VB_COUNT(VB_APPLY_AIR_CONTROL),
+              1 } } },
+        { "gEnhancements.Player.FierceDeityPutaway",
+          "Fierce Deity Putaway",
+          { { "VB_SHOULD_PUTAWAY (Player/FierceDeityPutaway.cpp)", W6_PLAYER_VB_COUNT(VB_SHOULD_PUTAWAY), 1 },
+            { "VB_FD_ALWAYS_WIELD_SWORD (Player/FierceDeityPutaway.cpp)", W6_PLAYER_VB_COUNT(VB_FD_ALWAYS_WIELD_SWORD),
+              1 } } },
+        // A slider: ClimbSpeed.cpp arms only past 1x (`CVAR > 1`), and the W6 drive turns a key "on" with 1. So this
+        // count, read while the drive holds the key at 1, first re-drives it at 2x (the slider's lowest armed value),
+        // and reads the bucket there; the drive's own "off" (0) then disarms it. Before the drive the key is 0 and the
+        // count is a plain read. Without the TU in the link the re-drive arms nothing and the probe is red.
+        { kW6PlayerClimbSpeedCVar,
+          "MM Vine/Ladder Climb Speed",
+          { { "VB_SET_CLIMB_SPEED at 2x (Player/ClimbSpeed.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6PlayerClimbSpeedCVar, 0) == 1) {
+                      CVarSetInteger(kW6PlayerClimbSpeedCVar, 2);
+                      ShipInit::Init(kW6PlayerClimbSpeedCVar);
+                      ShipInit::Init(kW6PlayerClimbSpeedCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_SET_CLIMB_SPEED);
+              },
+              1 } } },
+        { "gEnhancements.Player.FasterPushAndPull",
+          "Faster Push/Pull",
+          { { "VB_GREAT_BAY_GEAR_CLAMP_PUSH_SPEED (Player/FasterPushAndPull.cpp)",
+              W6_PLAYER_VB_COUNT(VB_GREAT_BAY_GEAR_CLAMP_PUSH_SPEED), 1 },
+            { "VB_PUSH_BLOCK_SET_SPEED (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_PUSH_BLOCK_SET_SPEED),
+              1 },
+            { "VB_PUSH_BLOCK_SET_TIMER (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_PUSH_BLOCK_SET_TIMER),
+              1 },
+            { "VB_SKATE_BLOCK_BEGIN_MOVE (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_SKATE_BLOCK_BEGIN_MOVE),
+              1 },
+            { "VB_BLOCK_BEGIN_MOVE (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_BLOCK_BEGIN_MOVE), 1 },
+            { "VB_BLOCK_BE_FINISHED_PULLING (Player/FasterPushAndPull.cpp)",
+              W6_PLAYER_VB_COUNT(VB_BLOCK_BE_FINISHED_PULLING), 1 } } },
+        { "gEnhancements.Player.PreventDiveOverWater",
+          "Prevent Diving Over Water",
+          { { "VB_LINK_DIVE_OVER_WATER (Player/PreventDiveOverWater.cpp)", W6_PLAYER_VB_COUNT(VB_LINK_DIVE_OVER_WATER),
+              1 } } },
+        { "gEnhancements.Player.ManualJump",
+          "Manual Jump",
+          { { "VB_START_JUMPSLASH (Player/ManualJump.cpp)", W6_PLAYER_VB_COUNT(VB_START_JUMPSLASH), 1 } } },
+        { "gEnhancements.PlayerActions.InstantRecall",
+          "Instant Fin Boomerangs Recall",
+          { { "OnActorUpdate[ACTOR_EN_BOOM] (Equipment/InstantRecall.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_EN_BOOM); }, 1 } } },
+        { "gEnhancements.Equipment.TwoHandedSwordSpinAttack",
+          "Two-Handed Sword Spin Attack",
+          { { "VB_CHECK_HELD_ITEM_BUTTON_PRESS (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_CHECK_HELD_ITEM_BUTTON_PRESS), 1 },
+            { "VB_MAGIC_SPIN_ATTACK_CHECK_FORM (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_MAGIC_SPIN_ATTACK_CHECK_FORM), 1 },
+            { "VB_TRANSFORM_THUNDER_MATRIX (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_TRANSFORM_THUNDER_MATRIX), 1 } } },
+        { "gEnhancements.Equipment.BetterPictoMessage",
+          "Better Picto Message",
+          { { "OnOpenText[0xF8] (Equipment/BetterPictoMessage.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnOpenText>(0xF8); }, 1 } } },
+        { kChuDropsCVar,
+          "MM Enable Bombchu Drops",
+          { { "ShouldActorInit[ACTOR_EN_ITEM00] (Equipment/ChuDrops.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EN_ITEM00); }, 1 } } },
+        { "gEnhancements.Equipment.GreatFairySwordBButton",
+          "Great Fairy Sword B-Button Attack",
+          { { "VB_GET_ITEM_ON_BUTTON (Equipment/GreatFairySwordBButton.cpp)", W6_PLAYER_VB_COUNT(VB_GET_ITEM_ON_BUTTON),
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6PlayerPhase{ "W6-PLAYER (#1236)", W6PlayerProbes };
+
 // ---- Phase 7 (#1024-#1026): the three Audio Editor TUs ---------------------
 // Same shape as Phase 5 (SkipKeyProbe).
 const std::vector<SkipKeyProbe>& AudioProbes() {
