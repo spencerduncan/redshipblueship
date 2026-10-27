@@ -563,6 +563,29 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipTurtleGoodbye.cpp"
         # #1033
         "2s2h/Enhancements/Songs/SkipScarecrowSong.cpp"
+        # W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
+        # Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each registers only through a
+        # file-scope RegisterShipInitFunc keyed on its own MM key (RSBS_CVAR_MM_*), and rides a hook the single exe
+        # dispatches: VB_* from z_player.c, z_parameter.c, z_collision_check.c, z_actor.c, z_message.c, the audio
+        # ocarina code, z_kaleido_mask.c / z_kaleido_item.c and the door, enemy and torch overlays via
+        # MM_GameHooks_ExecuteVBShould; ShouldActorInit / ShouldActorUpdate / OnActorUpdate / OnSceneInit /
+        # OnPlayerPostLimbDraw / BeforeKaleidoDrawPage via MM_GameHooks_Execute*. Every body that reads MM_gPlayState
+        # is guarded (RSBS_SINGLE_EXE_REQUIRE, or PersistentMasks.cpp's fenced #438 guards). No stub in mm_stubs.c;
+        # no twin of their definitions in games/oot. Songs/PauseOwlWarp.cpp was already linked (see above) and gets
+        # its row only.
+        "2s2h/Enhancements/Masks/EquipWhileSwimming.cpp"
+        "2s2h/Enhancements/Masks/BlastMaskKeg.cpp"
+        "2s2h/Enhancements/Masks/FastTransformation.cpp"
+        "2s2h/Enhancements/Masks/FierceDeityAnywhere.cpp"
+        "2s2h/Enhancements/Masks/PersistentMasks.cpp"
+        "2s2h/Enhancements/Masks/NoBlastMaskCooldown.cpp"
+        "2s2h/Enhancements/Masks/GoronRollingIgnoresMagic.cpp"
+        "2s2h/Enhancements/Masks/GoronRollingFastSpikes.cpp"
+        "2s2h/Enhancements/Songs/EnableSunsSong.cpp"
+        "2s2h/Enhancements/Songs/ZoraEggCount.cpp"
+        "2s2h/Enhancements/Songs/FasterSongPlayback.cpp"
+        "2s2h/Enhancements/Songs/SkipSoaringCutscene.cpp"
+        "2s2h/Enhancements/Player/UnderwaterOcarina.cpp"
         # #1034
         "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
         # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;

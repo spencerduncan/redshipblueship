@@ -58,6 +58,9 @@ void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
 void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
 void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
 void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
+// W6-MASKS-SONGS (#1236, #1240): MM's Ocarina and Masks rows (HostedMm/SohMenuHostedMmMasksSongs.cpp).
+void AddMmOcarinaRows(SohMenu& menu, WidgetPath& path);
+void AddMmMasksRows(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -883,6 +886,7 @@ void SohMenu::AddMenuEnhancements() {
                               " - Obtained the Master Sword (depends on selection)\n"
                               " - Not within range of a Time Block\n"
                               " - Not within range of Ocarina Playing spots"));
+    AddMmOcarinaRows(*this, path);
 
     AddWidget(path, "Masks", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Bunny Hood Effect", WIDGET_CVAR_COMBOBOX)
@@ -913,6 +917,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "After completing the mask trading sub-quest, press A and any direction on the mask "
             "slot to change masks."));
+    AddMmMasksRows(*this, path);
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Explosives", WIDGET_SEPARATOR_TEXT);

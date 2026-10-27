@@ -18,6 +18,9 @@ extern u8 MM_sPlaybackState;
 
 void RegisterFasterSongPlayback() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->msgCtx.msgMode >= MSGMODE_SONG_PLAYED && MM_gPlayState->msgCtx.msgMode <= MSGMODE_17 &&
             !MM_gPlayState->csCtx.state && NOT_OCARINA_ACTION_BALAD_WIND_FISH) {
             if (MM_gPlayState->msgCtx.stateTimer > 1) {
@@ -29,6 +32,9 @@ void RegisterFasterSongPlayback() {
     });
 
     COND_ID_HOOK(ShouldActorInit, ACTOR_EFF_CHANGE, CVAR, [](Actor* actor, bool* should) {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *should = false;
         Player* player = GET_PLAYER(MM_gPlayState);
 
