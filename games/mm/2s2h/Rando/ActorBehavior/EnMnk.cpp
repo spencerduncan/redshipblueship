@@ -8,4 +8,12 @@ void Rando::ActorBehavior::InitEnMnkBehavior() {
 
         RANDO_SAVE_CHECKS[RC_DEKU_KINGS_CHAMBER_MONKEY].eligible = true;
     });
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1203: unloading the tied-up monkey after its choice (the lesson skip's
+    // warp-out does) teaches the vanilla Sonata in EnMnk_Destroy. The check above
+    // is the seed's item for this spot, so the song is never given here. Answers
+    // only; it does not re-arm the check (a second arm at unload is the #1220 class).
+    COND_VB_SHOULD(VB_GIVE_ITEM_FROM_MNK_ON_DESTROY, IS_RANDO, { *should = false; });
+#endif
 }
