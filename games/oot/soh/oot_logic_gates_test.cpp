@@ -30,6 +30,18 @@
  *     the nut it must NOT be reached; with the nut and a price the wallet covers
  *     it must; with the nut and a price above the wallet it must NOT.
  *     (SoH 0702b11b9.)
+ *  E. The four carpenters' check rows (#1191, SoH 2bc50f605): each cell's Gerudo
+ *     guard (En_GeldB) drops its key as En_Item00 with params keyFlag | 0x11
+ *     (z_en_geldb.c), and the randomizer names the check that drop awards by
+ *     (actor, scene, params) through CheckFromActorMultimap and marks it
+ *     collected by the scene collectible flag. Each carpenter's row must carry
+ *     its OWN cell's guard key flag, and the location table must hold exactly
+ *     one En_Item00 row for that drop, the carpenter's. The flags are the guards'
+ *     params in the Thieves' Hideout rooms (gerudoway_room_N actor lists; rooms
+ *     per randomizer_entrance_tracker.cpp): room 2 1 Torch 0x0C, room 1 Dead End
+ *     0x0A, room 5 Double Cell 0x0F, room 4 Steep Slope 0x0E. The pots each row
+ *     of ShufflePots.cpp names for a cell stand in the same room as its guard.
+ *     A data leg: no search, no save.
  *
  * Every "must NOT" leg is paired with a "must" leg on the same save plus one
  * thing, so a location that is never reachable (a vacuous probe) fails too.
@@ -156,14 +168,63 @@ struct Carpenter {
     const char* name;
     RandomizerRegion region;
     RandomizerCheck check;
+    /** The cell guard's En_GeldB params >> 8 in the scene's actor list: the
+     *  collectible flag of the key it drops (leg E). */
+    uint8_t guardKeyFlag;
 };
 
 const Carpenter kCarpenters[] = {
-    { "1 Torch carpenter", RR_TH_1_TORCH_CELL, RC_TH_1_TORCH_CARPENTER },
-    { "Double Cell carpenter", RR_TH_DOUBLE_CELL, RC_TH_DOUBLE_CELL_CARPENTER },
-    { "Dead End carpenter", RR_TH_DEAD_END_CELL, RC_TH_DEAD_END_CARPENTER },
-    { "Steep Slope carpenter", RR_TH_STEEP_SLOPE_CELL, RC_TH_STEEP_SLOPE_CARPENTER },
+    { "1 Torch carpenter", RR_TH_1_TORCH_CELL, RC_TH_1_TORCH_CARPENTER, 0x0C },             // gerudoway_room_2
+    { "Double Cell carpenter", RR_TH_DOUBLE_CELL, RC_TH_DOUBLE_CELL_CARPENTER, 0x0F },      // gerudoway_room_5
+    { "Dead End carpenter", RR_TH_DEAD_END_CELL, RC_TH_DEAD_END_CARPENTER, 0x0A },          // gerudoway_room_1
+    { "Steep Slope carpenter", RR_TH_STEEP_SLOPE_CELL, RC_TH_STEEP_SLOPE_CARPENTER, 0x0E }, // gerudoway_room_4
 };
+
+/** Leg E for one carpenter: its row carries the guard's drop and flag, and no
+ *  other row answers that drop. */
+void ExpectCarpenterRow(const Carpenter& carpenter) {
+    const int32_t dropParams = ((int32_t)carpenter.guardKeyFlag << 8) | ITEM00_SMALL_KEY;
+    const Rando::Location* row = Rando::StaticData::GetLocation(carpenter.check);
+    const Rando::SpoilerCollectionCheck cc = row->GetCollectionCheck();
+    bool ok = true;
+    if (row->GetActorID() != ACTOR_EN_ITEM00 || row->GetScene() != SCENE_THIEVES_HIDEOUT) {
+        GateFail("E %s: the row is actor %d in scene %d, not the guard's En_Item00 drop in the hideout", carpenter.name,
+                 (int)row->GetActorID(), (int)row->GetScene());
+        ok = false;
+    }
+    if (row->GetActorParams() != dropParams) {
+        GateFail("E %s: the row's actor params are 0x%04X but the cell's guard drops 0x%04X (#1191): the "
+                 "carpenter's key awards another cell's check",
+                 carpenter.name, (unsigned)row->GetActorParams(), (unsigned)dropParams);
+        ok = false;
+    }
+    if (cc.type != SPOILER_CHK_COLLECTABLE || cc.scene != SCENE_THIEVES_HIDEOUT || cc.flag != carpenter.guardKeyFlag) {
+        GateFail("E %s: the row's collection check is type %d scene %d flag 0x%02X, not the cell guard's "
+                 "collectible flag 0x%02X (#1191): the tracker marks another cell's check",
+                 carpenter.name, (int)cc.type, (int)cc.scene, (unsigned)cc.flag, (unsigned)carpenter.guardKeyFlag);
+        ok = false;
+    }
+    // The runtime lookup (Randomizer::GetCheckFromActor over the multimap
+    // InitHashMaps builds from this table) must find this row and only it.
+    int matches = 0;
+    RandomizerCheck found = RC_UNKNOWN_CHECK;
+    for (const Rando::Location& loc : Rando::StaticData::GetLocationTable()) {
+        if (loc.GetActorID() == ACTOR_EN_ITEM00 && loc.GetScene() == SCENE_THIEVES_HIDEOUT &&
+            loc.GetActorParams() == dropParams) {
+            matches++;
+            found = loc.GetRandomizerCheck();
+        }
+    }
+    if (matches != 1 || found != carpenter.check) {
+        GateFail("E %s: %d row(s) answer the guard's drop 0x%04X (last %d), expected exactly the carpenter's (%d)",
+                 carpenter.name, matches, (unsigned)dropParams, (int)found, (int)carpenter.check);
+        ok = false;
+    }
+    if (ok) {
+        printf("[TEST]   ok: E %s: params 0x%04X, flag 0x%02X\n", carpenter.name, (unsigned)dropParams,
+               (unsigned)carpenter.guardKeyFlag);
+    }
+}
 
 } // namespace
 
@@ -264,6 +325,11 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
                    "the merchant is in logic for a price the wallet cannot hold: the price term is bypassed");
         }
         merchant->SetPrice(savedPrice);
+    }
+
+    // ---- E: each carpenter's row carries its own cell's key (SoH 2bc50f605)
+    for (const Carpenter& carpenter : kCarpenters) {
+        ExpectCarpenterRow(carpenter);
     }
 
     // ---- restore -------------------------------------------------------------
