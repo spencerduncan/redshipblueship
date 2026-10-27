@@ -212,24 +212,42 @@ void ParsePreset(nlohmann::json& json, std::string name) {
     } catch (...) {}
 }
 
+// The user presets folder's pass of LoadPresets().
+static void LoadUserPresets() {
+    if (fs::exists(presetFolder)) {
+        for (auto const& preset : fs::directory_iterator(presetFolder)) {
+            // Skip leftover temp files from an interrupted save
+            if (preset.path().extension() != ".json") {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #1210: and anything else that is not a preset (a stray index.html, Thumbs.db, .DS_Store), naming
+                // it once so a missing preset can be traced to its file.
+                spdlog::warn("Skipping {} in the presets folder: not a .json file",
+                             preset.path().filename().string());
+#endif
+                continue;
+            }
+            try {
+                std::ifstream ifs(preset.path());
+                if (auto json = nlohmann::json::parse(ifs); !json.contains("presetName")) {
+                    spdlog::error(fmt::format("Attempted to load file {} as a preset, but was not a preset file.",
+                                              preset.path().filename().string()));
+                } else {
+                    ParsePreset(json, preset.path().filename().stem().string());
+                }
+
+                ifs.close();
+            } catch (const std::exception& e) {
+                spdlog::error("Failed to load preset {}: {}", preset.path().filename().string(), e.what());
+            }
+        }
+    }
+}
+
 void LoadPresets() {
     if (!presets.empty()) {
         presets.clear();
     }
-    if (fs::exists(presetFolder)) {
-        for (auto const& preset : fs::directory_iterator(presetFolder)) {
-            std::ifstream ifs(preset.path());
-
-            auto json = nlohmann::json::parse(ifs);
-            if (!json.contains("presetName")) {
-                spdlog::error(fmt::format("Attempted to load file {} as a preset, but was not a preset file.",
-                                          preset.path().filename().string()));
-            } else {
-                ParsePreset(json, preset.path().filename().stem().string());
-            }
-            ifs.close();
-        }
-    }
+    LoadUserPresets();
     auto initData = std::make_shared<Ship::ResourceInitData>();
     initData->Format = RESOURCE_FORMAT_BINARY;
     initData->Type = static_cast<uint32_t>(Ship::ResourceType::Json);
@@ -246,6 +264,27 @@ void LoadPresets() {
         ParsePreset(json->Data, fileName);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+std::vector<std::string> Presets_LoadFolderForTest(const std::string& folder) {
+    struct PresetsFolderTestRestore {
+        std::map<std::string, PresetInfo> savedPresets = presets;
+        std::string savedFolder = presetFolder;
+        ~PresetsFolderTestRestore() {
+            presets = savedPresets;
+            presetFolder = savedFolder;
+        }
+    } restore;
+    presets.clear();
+    presetFolder = folder;
+    LoadUserPresets();
+    std::vector<std::string> listed;
+    for (const auto& [name, info] : presets) {
+        listed.push_back(name);
+    }
+    return listed;
+}
+#endif
 
 void SavePreset(std::string& presetName) {
     if (!fs::exists(presetFolder)) {

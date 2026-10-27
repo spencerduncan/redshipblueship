@@ -2211,6 +2211,80 @@ void Player_AdjustSingleLeg(PlayState* play, Player* player, SkelAnime* skelAnim
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #1173: SoH's "Targetable Hookshot Reticle" for Termina. One key and one rule for both games (SoH's row
+// writes it; SoH 6340ad3d5's rule): the reticle takes the target colour when the option is on, the probe hit a
+// hookshot surface and the hookshot is in hand. Nothing else colours it, enemies included. The colours are SoH's
+// Cosmetics Editor pair, whose defaults are green and the red gHookshotReticleDL sets. The colour choice is split
+// out of the draw below so a ROM-free row (MmHookshotReticleColour) can see it.
+#define RSBS_HOOKSHOT_RETICLE_CVAR "gEnhancements.HookshotableReticle"
+#define RSBS_HOOKSHOT_RETICLE_TARGET_COLOR_CVAR "gCosmetics.HookshotReticle.Target.Value"
+#define RSBS_HOOKSHOT_RETICLE_NON_TARGET_COLOR_CVAR "gCosmetics.HookshotReticle.NonTarget.Value"
+
+s32 MM_Player_HookshotReticleIsTarget(s32 heldItemAction, s32 isHookshotSurface) {
+    return isHookshotSurface && CVarGetInteger(RSBS_HOOKSHOT_RETICLE_CVAR, 0) && (heldItemAction == PLAYER_IA_HOOKSHOT);
+}
+
+Color_RGBA8 MM_Player_HookshotReticleColor(s32 isTarget) {
+    const Color_RGBA8 defaultTargetColor = { 0, 255, 0, 255 };
+    // The prim colour gHookshotReticleDL sets.
+    const Color_RGBA8 defaultNonTargetColor = { 255, 0, 0, 255 };
+
+    return isTarget ? CVarGetColor(RSBS_HOOKSHOT_RETICLE_TARGET_COLOR_CVAR, defaultTargetColor)
+                    : CVarGetColor(RSBS_HOOKSHOT_RETICLE_NON_TARGET_COLOR_CVAR, defaultNonTargetColor);
+}
+
+// gHookshotReticleDL with the colour replaced, the draw SoH's reticle hook makes. The triangle is the DL's own
+// (gameplay_keep Vtx_04F220, the same as OoT's gLinkAdultHookshotReticleVtx); static, so the coloured reticle
+// allocates nothing per frame. Returns false, drawing nothing, when the colour would be the DL's own, so the
+// vanilla DL (and any asset pack's replacement of it) keeps drawing whenever the option changes nothing.
+static s32 MM_Player_DrawColoredHookshotReticle(PlayState* play, Player* player, CollisionPoly* poly, s32 bgId) {
+    static Vtx sHookshotReticleVtx[] = {
+        VTX(-50, -30, 0, -683, 2048, 255, 0, 0, 255),
+        VTX(50, -30, 0, 2731, 2048, 255, 0, 0, 255),
+        VTX(0, 70, 0, 1024, -1365, 255, 0, 0, 255),
+    };
+    const s32 isTarget = MM_Player_HookshotReticleIsTarget(player->heldItemAction,
+                                                           MM_SurfaceType_IsHookshotSurface(&play->colCtx, poly, bgId));
+    const Color_RGBA8 color = MM_Player_HookshotReticleColor(isTarget);
+
+    if (!isTarget && color.r == 255 && color.g == 0 && color.b == 0 && color.a == 255) {
+        return false;
+    }
+
+    OPEN_DISPS(play->state.gfxCtx);
+
+    gSPMatrix(OVERLAY_DISP++, play->billboardMtx, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
+    gSPTexture(OVERLAY_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPLoadTextureBlock(OVERLAY_DISP++, gHookshotReticleTex, G_IM_FMT_I, G_IM_SIZ_8b, 64, 64, 0,
+                        G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
+    gDPSetPrimColor(OVERLAY_DISP++, 0, 0, color.r, color.g, color.b, color.a);
+    MM_gSPVertex(OVERLAY_DISP++, (uintptr_t)sHookshotReticleVtx, 3, 0);
+    gSP1Triangle(OVERLAY_DISP++, 0, 1, 2, 0);
+
+    CLOSE_DISPS(play->state.gfxCtx);
+    return true;
+}
+
+// Test export for MmHookshotReticleColour: sample 0 Hookshot, 1 Bow. Returns 1 for the target colour, 0 for the
+// non-target colour, -1 for an unknown sample.
+s32 MM_Player_HookshotReticle_TestIsTarget(s32 sample, s32 isHookshotSurface) {
+    static const s32 sSampleActions[] = { PLAYER_IA_HOOKSHOT, PLAYER_IA_BOW };
+
+    if (sample < 0 || sample >= (s32)ARRAY_COUNT(sSampleActions)) {
+        return -1;
+    }
+    return MM_Player_HookshotReticleIsTarget(sSampleActions[sample], isHookshotSurface) ? 1 : 0;
+}
+
+// Test export for MmHookshotReticleColour: the colour the reticle draws in, packed 0xRRGGBBAA.
+u32 MM_Player_HookshotReticle_TestColor(s32 isTarget) {
+    const Color_RGBA8 color = MM_Player_HookshotReticleColor(isTarget);
+
+    return ((u32)color.r << 24) | ((u32)color.g << 16) | ((u32)color.b << 8) | color.a;
+}
+#endif
+
 void MM_Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshotDistance) {
     static Vec3f D_801C094C = { -500.0f, -100.0f, 0.0f };
     CollisionPoly* poly;
@@ -2245,7 +2319,12 @@ void MM_Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshot
             MATRIX_FINALIZE_AND_LOAD(OVERLAY_DISP++, play->state.gfxCtx);
 
             MM_gSPSegment(OVERLAY_DISP++, 0x06, play->objectCtx.slots[player->actor.objectSlot].segment);
-            MM_gSPDisplayList(OVERLAY_DISP++, gHookshotReticleDL);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            if (!MM_Player_DrawColoredHookshotReticle(play, player, poly, bgId))
+#endif
+            {
+                MM_gSPDisplayList(OVERLAY_DISP++, gHookshotReticleDL);
+            }
 
             CLOSE_DISPS(play->state.gfxCtx);
         }

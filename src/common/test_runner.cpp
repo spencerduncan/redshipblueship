@@ -597,6 +597,7 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
+#include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
@@ -5463,6 +5464,16 @@ static TestResult Test_MenuComboSection(void) {
     return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/soh_presets_folder_test.cpp (#1210): a non-JSON file in the
+// presets folder is skipped with one log line instead of throwing out of
+// LoadPresets (a boot-time RegisterMenuInitFunc). No bring-up: the seam reads
+// only the folder it is handed.
+extern "C" int Soh_PresetsSkipNonJson_RunHeadless(void);
+
+static TestResult Test_PresetsSkipNonJson(void) {
+    return Soh_PresetsSkipNonJson_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's presentation half. Same display-free shared bring-up as the row above,
 // for the same reason: AddMenuCombo registers rows whose PreFuncs and option
 // defaults read the Ship::Context singleton's ConsoleVariables, and this row also
@@ -6546,6 +6557,26 @@ TestResult Test_MmGetItemPresentation(void) {
     return MmGetItemPresentation_Run();
 }
 
+// #1173: the reticle rows set the HookshotableReticle and cosmetics CVars,
+// which live on the Ship::Context singleton, so they need the same bring-up.
+TestResult Test_OotHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OotHookshotReticleColour_Run();
+}
+
+TestResult Test_MmHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmHookshotReticleColour_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -7413,6 +7444,11 @@ const TestDescriptor gTests[] = {
     // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
     { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
       Test_MmGetItemPresentation },
+    // #1173: the hookshot reticle turns green on a hookshot surface, in both games, and only for the hookshot.
+    { "oot-hookshot-reticle-colour", "Only the Hookshot and Longshot reticles turn green on a hookshot surface (#1173)",
+      Test_OotHookshotReticleColour },
+    { "mm-hookshot-reticle-colour", "Termina's hookshot reticle turns green on a hookshot surface (#1173)",
+      Test_MmHookshotReticleColour },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
@@ -7955,6 +7991,8 @@ const TestDescriptor gTests[] = {
     { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
       Test_MenuComboSection },
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
+    { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
+      Test_PresetsSkipNonJson },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
