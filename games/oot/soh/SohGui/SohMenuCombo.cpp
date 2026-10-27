@@ -1092,4 +1092,33 @@ std::vector<std::string> ComboRandomizerPageNames() {
     return names;
 }
 
+/**
+ * Our pages under SoH's Dev Tools header (#1133, ruling D4; declared in
+ * SohMenu.h): the DevTools-hosted contributed pages in registration order, after
+ * SoH's own Dev Tools pages (AddMenuDevTools calls this last). Each pins its
+ * own column.
+ */
+void AddComboDevToolsPages(SohMenu& menu, WidgetPath& path) {
+    path.sectionName = "Dev Tools";
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::DevTools) {
+            continue;
+        }
+        path.sidebarName = page.sidebarName;
+        path.column = SECTION_COLUMN_1;
+        menu.AddSidebarEntry("Dev Tools", path.sidebarName, page.columnCount);
+        page.registrar(menu, path);
+    }
+}
+
+std::vector<std::string> ComboDevToolsPageNames() {
+    std::vector<std::string> names;
+    for (const ComboSectionPage& page : GetComboSectionPages()) {
+        if (page.registrar != nullptr && !page.sidebarName.empty() && page.host == ComboPageHost::DevTools) {
+            names.push_back(page.sidebarName);
+        }
+    }
+    return names;
+}
+
 } // namespace SohGui

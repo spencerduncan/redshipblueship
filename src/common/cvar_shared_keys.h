@@ -491,6 +491,15 @@ struct DistinctPair {
  */
 #define RSBS_CVAR_MM_DAMAGE_MULTIPLIER "gEnhancements.DifficultyOptions.DamageMultiplier"
 
+// L7 (#1133, ruling D5): the curated MM enhancement rows' keys (kHostedMmEnhancements below), each bound by its row on
+// SoH's own Enhancements pages, beside the SoH row that holds its twin or in a "Majora's Mask" block
+// (SohMenuComboMmEnhancements.cpp). The Combo > Majora's Mask page that drew them from the manifest retired with the
+// Combo header; games/oot binds the define, never the literal.
+#define RSBS_CVAR_MM_KALEIDO_GAME_OVER "gEnhancements.Kaleido.GameOver"
+#define RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME "gEnhancements.Songs.BetterSongOfDoubleTime"
+#define RSBS_CVAR_MM_SKIP_SOT_CUTSCENES "gEnhancements.Songs.SkipSoTCutscenes"
+#define RSBS_CVAR_MM_AUTOSAVE_INTERVAL "gEnhancements.Saving.AutosaveInterval"
+
 // W6-CAM-AIM (#1236): MM's aiming and camera inversion / sensitivity keys and its shield Y inversion. Held apart from
 // SoH's (P3, P7 and the three first-person rows beside P3 in kMustStayDistinct), so each has an MM row beside its SoH
 // twin in SoH's Bindings window, Camera Controls panel (SohInputEditorWindow.cpp). MM reads the three *_INVERT_Y

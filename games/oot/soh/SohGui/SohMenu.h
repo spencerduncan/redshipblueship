@@ -204,6 +204,7 @@ using ComboPageRegistrar = void (*)(SohMenu& menu, WidgetPath& path);
 enum class ComboPageHost : uint8_t {
     Combo,
     Randomizer,
+    DevTools,
 };
 
 /** One contributed page: its sidebar label, how many columns it draws, the
@@ -266,6 +267,18 @@ void AddComboRandomizerPages(SohMenu& menu, WidgetPath& path);
 
 /** The sidebar names AddComboRandomizerPages() registers, in its order. */
 std::vector<std::string> ComboRandomizerPageNames();
+
+/**
+ * Registers this project's pages under SoH's Dev Tools header (#1133, ruling D4):
+ * every contributed page whose host is ComboPageHost::DevTools, in registration
+ * order, each with its sidebar created here and a pinned first column.
+ * AddMenuDevTools() calls it after its last page. Defined in SohMenuCombo.cpp;
+ * callable ROM-free, so the locks and the UI snapshot probe drive it directly.
+ */
+void AddComboDevToolsPages(SohMenu& menu, WidgetPath& path);
+
+/** The sidebar names AddComboDevToolsPages() registers, in its order. */
+std::vector<std::string> ComboDevToolsPageNames();
 
 /** Drop a contributed page again. Returns true if one was removed. Exists so a
  *  test can restore the registry rather than leave process-global state behind
