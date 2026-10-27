@@ -12,6 +12,9 @@ extern "C" {
 #include "include/z64audio.h"
 #include "variables.h"
 }
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "mm_volume_bridge.h" // src/common (#1235)
+#endif
 
 namespace SohGui {
 
@@ -21,6 +24,14 @@ using namespace UIWidgets;
 
 // #1235: MM's Ambience Volume (SohGui/HostedMm/SohMenuHostedMmAudio.cpp), drawn right after Sound Effects Volume.
 void AddMmAmbienceVolumeRow(SohMenu& menu, WidgetPath& path);
+
+// #1235: a moved volume slider also reaches MM's sequence players while MM's audio is up (src/common/
+// mm_volume_bridge.h); MM otherwise reads the keys only in MM_AudioMgr_Init, once per bring-up.
+static void ReapplyMmVolumes() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Volume_ReapplyPortScales();
+#endif
+}
 
 static std::map<int32_t, const char*> imguiScaleOptions = {
     { 0, "Small" },
@@ -283,6 +294,7 @@ void SohMenu::AddMenuSettings() {
         .Callback([](WidgetInfo& info) {
             Audio_SetGameVolume(SEQ_PLAYER_BGM_MAIN,
                                 ((float)CVarGetInteger(CVAR_SETTING("Volume.MainMusic"), 100) / 100.0f));
+            ReapplyMmVolumes();
         });
     AddWidget(path, "Sub Music Volume: %d %%", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_SETTING("Volume.SubMusic"))
@@ -291,6 +303,7 @@ void SohMenu::AddMenuSettings() {
         .Callback([](WidgetInfo& info) {
             Audio_SetGameVolume(SEQ_PLAYER_BGM_SUB,
                                 ((float)CVarGetInteger(CVAR_SETTING("Volume.SubMusic"), 100) / 100.0f));
+            ReapplyMmVolumes();
         });
     AddWidget(path, "Fanfare Volume: %d %%", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_SETTING("Volume.Fanfare"))
@@ -299,6 +312,7 @@ void SohMenu::AddMenuSettings() {
         .Callback([](WidgetInfo& info) {
             Audio_SetGameVolume(SEQ_PLAYER_FANFARE,
                                 ((float)CVarGetInteger(CVAR_SETTING("Volume.Fanfare"), 100) / 100.0f));
+            ReapplyMmVolumes();
         });
     AddWidget(path, "Sound Effects Volume: %d %%", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_SETTING("Volume.SFX"))
@@ -306,6 +320,7 @@ void SohMenu::AddMenuSettings() {
         .Options(IntSliderOptions().Min(0).Max(100).DefaultValue(100).ShowButtons(true).Format(""))
         .Callback([](WidgetInfo& info) {
             Audio_SetGameVolume(SEQ_PLAYER_SFX, ((float)CVarGetInteger(CVAR_SETTING("Volume.SFX"), 100) / 100.0f));
+            ReapplyMmVolumes();
         });
     AddMmAmbienceVolumeRow(*this, path);
     AddWidget(path, "Audio API (Needs reload)", WIDGET_AUDIO_BACKEND).RaceDisable(false);

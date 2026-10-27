@@ -344,6 +344,25 @@ row, with MM's own list, is hosted beside SoH's on Enhancements > Difficulty ("M
 (`DifficultyOptions/DamageMultiplier.cpp`) was elided from the single exe and is carved into `ship__Enh_registrars`.
 The #966 audit table's row for it reads: not mapped, hosted separately, fixed by #1037.
 
+**#1235 — Ambience Volume, hosted on Settings > Audio.** `gSettings.Volume.Ambience` is the fifth key of the volume
+family (ADR 0003 §5.1: one integer-percent slider per channel, spelled OoT-style, `RSBS_CVAR_VOLUME_*`). It is (O)
+MM-only in effect: OoT has no ambience sequence player, so only MM's `MM_AudioMgr_Init` reads it. It keeps the family
+spelling so OoT could adopt it, and was MISSING-ROW: nothing in the single exe wrote it (2Ship's own slider is in the
+excluded `BenMenu.cpp`). Its row, "Ambience Volume", now sits right after SoH's Sound Effects Volume, SoH's int slider
+(0-100, default 100), its tooltip ending "Majora's Mask only." The same change makes all five volume sliders reach
+MM live: MM read them only in `MM_AudioMgr_Init`, once per bring-up, so a slider moved after MM's first init applied
+in MM only after a restart; the slider callbacks now also call `MM_Volume_ReapplyPortScales`
+(`src/common/mm_volume_bridge.h`).
+
+**Hosted-row convention (#1133 ruling D5, #1233).** Every MM row goes on the SoH page holding its twin or nearest
+relative, directly after that row, through a project-added function SoH's page calls in one line; a row with no twin
+goes under a "Majora's Mask" block on the most applicable SoH page. Rows are added through the hosted-row seam
+(`games/oot/soh/SohGui/HostedMm/SohMenuHostedMm.h`), which records each one so the UI snapshot captures, hovers and
+lints it and the menu lock finds it under its section, bound to its key. A row beside its twin is labelled "MM ..." and
+every hosted row's tooltip ends "Majora's Mask only."; the "[Both Games]" labels stay. An MM-row key is an
+`RSBS_CVAR_MM_*` define bound by exactly one shared-menu row and read under `games/mm` (the classification lock's leg
+3f-2c).
+
 MM-only within free-look: `MinPitch`, `MaxPitch` → (O). OoT-only:
 `FreeLook.CameraSensitivity.{X,Y}` → see P3, do not merge.
 

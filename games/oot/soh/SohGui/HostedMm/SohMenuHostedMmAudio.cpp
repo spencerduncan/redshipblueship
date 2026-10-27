@@ -15,6 +15,9 @@
 #include "soh/SohGui/UIWidgets.hpp"
 
 #include "cvar_shared_keys.h" // src/common: RSBS_CVAR_VOLUME_AMBIENCE
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "mm_volume_bridge.h" // src/common: the live apply to MM's sequence players
+#endif
 
 namespace SohGui {
 
@@ -23,7 +26,13 @@ void AddMmAmbienceVolumeRow(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_VOLUME_AMBIENCE)
         .RaceDisable(false)
         .Options(UIWidgets::IntSliderOptions().Min(0).Max(100).DefaultValue(100).ShowButtons(true).Format("").Tooltip(
-            "Adjusts the volume of ambient sounds such as wind and birdsong. Majora's Mask only."));
+            "Adjusts the volume of ambient sounds such as wind and birdsong. Majora's Mask only."))
+        // MM reads the key in MM_AudioMgr_Init only; this reaches its players while MM's audio is up.
+        .Callback([](WidgetInfo& info) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            MM_Volume_ReapplyPortScales();
+#endif
+        });
 }
 
 } // namespace SohGui
