@@ -2940,6 +2940,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower
+    # collapse or Ganon's arena (Play_LoadToLastEntrance) does not give the
+    # unfound Master Sword, and still leaves through the collapse exterior.
+    # games/oot/soh/oot_master_sword_respawn_test.cpp.
+    redship_add_test(NAME MasterSwordRespawn COMMAND redship --test master-sword-respawn
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
