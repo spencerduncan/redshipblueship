@@ -10,6 +10,8 @@
  *  - MM_EnGirlA_TestForeignPurchase: the ForeignItemGiveShop row's purchase legs
  *    (src/common/tests/test_foreign_shop_mm.c);
  *  - MM_EnGirlA_TestHagsMushroomRearm: the same row's re-armed Hags leg;
+ *  - MM_EnGirlA_TestForeignPurchaseOutboxFull: the ForeignOutboxFullMM row's
+ *    shop leg (#1222, src/common/tests/test_foreign_outbox_full.c);
  *  - MM_EnBal_TestForeignPurchase: the same row's Tingle map legs (#800 pass 2),
  *    through the functions EnBal.cpp's hooks answer with;
  *  - MM_Shop_PlaytestWarp / MM_Shop_PlaytestShopFrame: the env-gated playtest
@@ -138,6 +140,84 @@ extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired)
         } else if (canBuyAgain != CANBUY_RESULT_CANNOT_GET_NOW) {
             code = 7;
         }
+    }
+
+    check = priorCheck;
+    gSaveContext.save.saveInfo.playerData.rupees = priorRupees;
+    gSaveContext.rupeeAccumulator = priorAccumulator;
+    MM_gPlayState = priorPlay;
+    free(shelf);
+    free(play);
+    return code;
+}
+
+// ============================================================================
+// TEST BRIDGE (ForeignOutboxFullMM row; #1222). The same shelf purchase when the
+// crossing would be REFUSED: the caller made `randoCheckId` a crossing host,
+// paired, and filled every shared slot with an item the other game has not
+// redeemed (src/common/shared_items.c refuses the record then). Drives, in a
+// shopkeeper's order:
+//   1. canBuyFunc, which must refuse the sale (CANBUY_RESULT_CANNOT_GET_NOW);
+//   2. buyFunc and boughtFunc anyway, as a shopkeeper whose canBuy had said yes
+//      would (the defense behind 1): nothing may be charged, nothing crossed, the
+//      slot must not read sold and the shelf must stay standing.
+// Prints the observation; returns 0 on success, a step code otherwise. Every
+// piece of state it touches is restored.
+// ============================================================================
+extern "C" int MM_EnGirlA_TestForeignPurchaseOutboxFull(uint16_t randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 90;
+    }
+    const RandoCheckId rc = (RandoCheckId)randoCheckId;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    const s16 priorRupees = gSaveContext.save.saveInfo.playerData.rupees;
+    const s16 priorAccumulator = gSaveContext.rupeeAccumulator;
+    PlayState* const priorPlay = MM_gPlayState;
+
+    PlayState* play = (PlayState*)calloc(1, sizeof(PlayState));
+    EnGirlA* shelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    const s16 kPrice = 37;
+    shelf->actor.world.rot.z = (s16)randoCheckId;
+    shelf->isOutOfStock = false;
+    shelf->actor.draw = EnGirlA_RandoDrawFunc; // standing, as EnGirlA_RandoInit leaves an unsold slot
+    play->msgCtx.unk1206C = kPrice;
+    MM_gPlayState = play;
+
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = false;
+    check.cycleObtained = false;
+    check.eligible = false;
+    check.price = kPrice;
+    gSaveContext.save.saveInfo.playerData.rupees = 100;
+    gSaveContext.rupeeAccumulator = 0;
+
+    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+    const s32 canBuy = EnGirlA_RandoCanBuyFunc(play, shelf);
+    EnGirlA_RandoBuyFunc(play, shelf);
+    EnGirlA_RandoBought(play, shelf);
+    const int crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
+    const int charged = -(int)gSaveContext.rupeeAccumulator;
+    const bool delivered = check.obtained || check.cycleObtained;
+    const bool sold = Rando::ActorBehavior::ShopShelfSlotSold(rc);
+    const bool standing = !shelf->isOutOfStock && shelf->actor.draw != NULL;
+    printf("[TEST]   F shop check %u, outbox full: canBuy=%d (CANNOT_GET_NOW=%d); after a buy anyway: charged=%d, "
+           "crossings authored=%d, delivered=%d, slot sold=%d, shelf %s\n",
+           (unsigned)randoCheckId, (int)canBuy, (int)CANBUY_RESULT_CANNOT_GET_NOW, charged, crossed, delivered ? 1 : 0,
+           sold ? 1 : 0, standing ? "standing" : "EMPTIED");
+
+    int code = 0;
+    if (canBuy != CANBUY_RESULT_CANNOT_GET_NOW) {
+        code = 1; // the counter sells a slot whose crossing the outbox will refuse
+    } else if (charged != 0) {
+        code = 2; // the price is charged for an item that cannot cross
+    } else if (crossed != 0) {
+        code = 3;
+    } else if (delivered || sold) {
+        code = 4; // the slot sells out while its OoT item is lost
+    } else if (!standing) {
+        code = 5; // the shelf is emptied for a sale that did not happen
     }
 
     check = priorCheck;

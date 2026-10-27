@@ -317,6 +317,15 @@ std::string ForeignPickupMessage(const char* article, const char* name);
  *  (#800), where a native slot restocks. */
 bool IsDeliveredForeignHost(RandoCheckId randoCheckId);
 
+/** THE FULL OUTBOX (#1222). True when the foreign host `randoCheckId` cannot
+ *  deliver now because every shared slot holds an item the other game has not
+ *  redeemed yet, so its crossing would be refused (src/common/shared_items.c,
+ *  Combo_SharedItemCrossingHasRoom): it hosts a foreign item, the pairing is
+ *  live, it has not delivered, and the outbox has no room. CheckQueue holds such
+ *  a host back (still `eligible`, delivered once a crossing frees a slot), a shop
+ *  refuses its sale, and GiveForeignCheck leaves it open. */
+bool ForeignOutboxFullFor(RandoCheckId randoCheckId);
+
 } // namespace Foreign
 } // namespace Rando
 

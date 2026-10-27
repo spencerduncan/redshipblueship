@@ -936,6 +936,11 @@ bool IsDeliveredForeignHost(RandoCheckId randoCheckId) {
     return IsForeignCheck(randoCheckId) && RANDO_SAVE_CHECKS[randoCheckId].obtained;
 }
 
+bool ForeignOutboxFullFor(RandoCheckId randoCheckId) {
+    (void)randoCheckId;
+    return false; // #1222 [lock]: today nothing holds a host back
+}
+
 } // namespace Foreign
 } // namespace Rando
 
@@ -2128,6 +2133,37 @@ extern "C" void MM_Rando_Foreign_TestSetObtained(uint16_t randoCheckId, int obta
     if (randoCheckId > RC_UNKNOWN && randoCheckId < RC_MAX) {
         RANDO_SAVE_CHECKS[randoCheckId].obtained = (obtained != 0);
     }
+}
+
+/** TEST BRIDGES (ForeignOutboxFullMM, #1222). A host's three delivery bits, set
+ *  as the caller needs them (a picked-up chest is `eligible`); the foreign give a
+ *  chest's pickup and a shop's purchase make (GiveForeignCheck), driven directly,
+ *  with the bits it leaves; and whether CheckQueue holds the host back. */
+extern "C" void MM_Rando_Foreign_TestSetCheckBits(uint16_t randoCheckId, int obtained, int cycleObtained,
+                                                  int eligible) {
+    if (randoCheckId > RC_UNKNOWN && randoCheckId < RC_MAX) {
+        RandoSaveCheck& check = RANDO_SAVE_CHECKS[randoCheckId];
+        check.obtained = (obtained != 0);
+        check.cycleObtained = (cycleObtained != 0);
+        check.eligible = (eligible != 0);
+    }
+}
+
+extern "C" int MM_Rando_Foreign_TestGiveForeignCheck(uint16_t randoCheckId, int* outObtained, int* outCycleObtained,
+                                                     int* outEligible) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return -1;
+    }
+    const int crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)randoCheckId) ? 1 : 0;
+    const RandoSaveCheck& check = RANDO_SAVE_CHECKS[randoCheckId];
+    *outObtained = check.obtained ? 1 : 0;
+    *outCycleObtained = check.cycleObtained ? 1 : 0;
+    *outEligible = check.eligible ? 1 : 0;
+    return crossed;
+}
+
+extern "C" int MM_Rando_Foreign_TestQueueHolds(uint16_t randoCheckId) {
+    return Rando::Foreign::ForeignOutboxFullFor((RandoCheckId)randoCheckId) ? 1 : 0;
 }
 
 // ---------------------------------------------------------------------------

@@ -644,6 +644,7 @@ extern "C" {
 #include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
+#include "tests/test_foreign_outbox_full.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
 #include "tests/test_tracker_arrival_recalc.c" // #990: an arrival schedules the tracker recalc
 
@@ -7811,6 +7812,9 @@ const TestDescriptor gTests[] = {
     // fprintf; this one drives the real one and the real give behind it.
     { "foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
       Test_ForeignAwardMM },
+    // #1222: a foreign pickup the full shared outbox would refuse is held, not lost.
+    { "foreign-outbox-full-mm", "MM: a full outbox holds a foreign pickup open and refuses its shop sale (#1222)",
+      Test_ForeignOutboxFullMM },
     // #878: both arrivals' real consumers redeem a crossing and toast nothing:
     // the item was announced at its pickup.
     { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
