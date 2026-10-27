@@ -58,6 +58,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Ge1/z_en_ge1.h"
 #include "src/overlays/actors/ovl_En_Ge2/z_en_ge2.h"
 #include "src/overlays/actors/ovl_En_Ds/z_en_ds.h"
+#include "src/overlays/actors/ovl_En_Dnt_Jiji/z_en_dnt_jiji.h"
 #include "src/overlays/actors/ovl_En_Gm/z_en_gm.h"
 #include "src/overlays/actors/ovl_En_Js/z_en_js.h"
 #include "src/overlays/actors/ovl_En_Okarina_Tag/z_en_okarina_tag.h"
@@ -89,6 +90,7 @@ int OoT_Rando_Foreign_HostsForeign(uint16_t rc);  // ForeignItemsSingleExe.cpp (
 int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc);
 #endif
 extern void func_80ABA778(EnNiwLady* enNiwLady, PlayState* play);
+extern void EnDntJiji_GivePrize(EnDntJiji* enDntJiji, PlayState* play);
 extern void EnGe1_Wait_Archery(EnGe1* enGe1, PlayState* play);
 extern void EnGe1_SetAnimationIdle(EnGe1* enGe1);
 extern void EnGe1_SetAnimationIdle(EnGe1* enGe1);
@@ -1579,6 +1581,16 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             *should = !OoT_Flags_GetEventChkInf(EVENTCHKINF_LEARNED_SARIAS_SONG);
             break;
         }
+        // #1217 (ports SoH c63f57850): the Deku Theater leader gives the seed's
+        // item through the prize's ItemGetInf, never his vanilla capacity
+        // upgrade. Reached when the timesaver hands over to the vanilla judge
+        // (Shuffle Jabber Nuts). EnDntJiji_GivePrize sets the flag at once.
+        case VB_GIVE_ITEM_FROM_DEKU_THEATER: {
+            EnDntJiji* enDntJiji = va_arg(args, EnDntJiji*);
+            enDntJiji->actionFunc = EnDntJiji_GivePrize;
+            *should = false;
+            break;
+        }
         case VB_GIVE_ITEM_FROM_GRANNYS_SHOP: {
             if (!EnDs_RandoCanGetGrannyItem()) {
                 break;
@@ -1708,6 +1720,9 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             }
             break;
         }
+        case VB_DEKU_THEATER_FINISH_GIVING_PRIZE:
+            *should = true;
+            break;
         case VB_FROGS_GO_TO_IDLE: {
             EnFr* enFr = va_arg(args, EnFr*);
 

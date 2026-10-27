@@ -414,6 +414,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) && OoT_Message_ShouldAdvance(play)
+    // ```
+    // #### `args`
+    // - None
+    VB_DEKU_THEATER_FINISH_GIVING_PRIZE,
+
+    // #### `result`
+    // ```c
     // CHECK_QUEST_ITEM(QUEST_MEDALLION_FOREST)
     // ```
     // #### `args`
@@ -790,6 +798,14 @@ typedef enum {
     // #### `args`
     // - `*EnCow`
     VB_GIVE_ITEM_FROM_COW,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnDntJiji`
+    VB_GIVE_ITEM_FROM_DEKU_THEATER,
 
     // #### `result`
     // ```c
