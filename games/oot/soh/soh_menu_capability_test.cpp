@@ -87,8 +87,21 @@
 #include "combo_settings_view.h"
 #include "cvar_shared_keys.h"
 #include "combo_logic.h"
+#include "context.h" // leg 5b: Context_Get/SetCurrentGame
 #include "foreign_items.h"
 #include "game.h"
+#include "mm_dev_tools_bridge.h" // leg 5b: MM's frameAdvCtx and a stand-in MM play state
+
+#include <stdexcept>
+
+extern "C" {
+#include "z64.h"
+extern PlayState* OoT_gPlayState; // leg 5b: a stand-in OoT play state
+}
+
+namespace SohGui {
+extern std::shared_ptr<SohMenu> mSohMenu; // leg 5b: the production menu the Dev Tools rows' PreFuncs may read
+} // namespace SohGui
 
 namespace {
 
@@ -542,6 +555,113 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
               "a FROZEN row kept a registered capability reason: '%s'", Tooltip(*stateRow));
     printf("[TEST] leg 5: all four §6 presentations keep the row's name and use SoH's disabled tooltip, every "
            "transition between them is idempotent, and the two disabled states cannot borrow each other's wording\n");
+
+    // ---- Leg 5b (#1238, W6-DEV): the frame-advance rows follow the RUNNING game
+    // SoH's Frame Advance, Advance 1 and Advance (Hold) bound OoT_gPlayState->frameAdvCtx and hid while it was NULL,
+    // which OoT's Play_Destroy leaves it for as long as Majora's Mask runs: the rows vanished exactly when a Termina
+    // report needed them. With MM running and a stand-in MM play state they must be shown and bound to MM's
+    // frameAdvCtx (src/common/mm_dev_tools_bridge.h); with OoT running, to OoT's; with neither play state, hidden.
+    // The probe stands in for the production menu (SohGui::mSohMenu) while the rows' PreFuncs run, and holds no
+    // disabledMap: a PreFunc that still reads the menu's OoT-only predicates throws here, which this leg reports.
+    {
+        const GameId savedGame = Context_GetCurrentGame();
+        PlayState* const savedOoTPlay = OoT_gPlayState;
+        const std::shared_ptr<SohGui::SohMenu> savedMenu = SohGui::mSohMenu;
+        static PlayState sOoTStandIn; // zeroed: frame advance off
+
+        CapabilityMenuProbe faProbe;
+        faProbe.AddMenuDevTools();
+        SohGui::mSohMenu = std::shared_ptr<SohGui::SohMenu>(&faProbe, [](SohGui::SohMenu*) {});
+        CVarSetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 1);
+
+        SidebarEntry& general = faProbe.Entries().at("Dev Tools").sidebars.at("General");
+        WidgetInfo* frameAdvance = FindRow(general, "Frame Advance");
+        WidgetInfo* advanceOne = FindRow(general, "Advance 1");
+        WidgetInfo* advanceHold = FindRow(general, "Advance (Hold)");
+        CAP_CHECK(frameAdvance != nullptr && advanceOne != nullptr && advanceHold != nullptr,
+                  "Dev Tools > General lost one of SoH's three frame-advance rows");
+
+        // Runs the row's PreFunc; false (and a FAIL) when it threw.
+        auto drive = [](WidgetInfo* row, const char* when) {
+            try {
+                RunPreFunc(*row);
+                return true;
+            } catch (const std::exception& e) {
+                CAP_CHECK(false,
+                          "%s: the \"%s\" row's PreFunc threw (%s). It reads the menu's OoT-only "
+                          "DISABLE_FOR_NULL_PLAY_STATE / DISABLE_FOR_FRAME_ADVANCE_OFF, which test OoT_gPlayState "
+                          "and so hide the row whenever Majora's Mask runs (#1238)",
+                          when, row->name.c_str(), e.what());
+                return false;
+            }
+        };
+        auto bound = [](WidgetInfo* row) -> void* {
+            bool* const* p = std::get_if<bool*>(&row->valuePointer);
+            return p != nullptr ? static_cast<void*>(*p) : nullptr;
+        };
+
+        if (frameAdvance != nullptr && advanceOne != nullptr && advanceHold != nullptr) {
+            // MM running, in gameplay (a stand-in MM play state); OoT's play state NULL, as Play_Destroy left it.
+            OoT_gPlayState = nullptr;
+            Context_SetCurrentGame(GAME_MM);
+            MM_DevTools_SetStandInPlayState(1);
+            int32_t* mmEnabled = MM_DevTools_FrameAdvanceEnabled();
+            CAP_CHECK(mmEnabled != nullptr,
+                      "MM_DevTools_FrameAdvanceEnabled() is NULL with MM running over a stand-in play state; the "
+                      "bridge cannot reach MM's frameAdvCtx");
+            if (mmEnabled != nullptr) {
+                *mmEnabled = 0;
+                if (drive(frameAdvance, "MM running")) {
+                    CAP_CHECK(!frameAdvance->isHidden,
+                              "Frame Advance is hidden while Majora's Mask runs with a play state and Debug Mode is "
+                              "on (#1238)");
+                    CAP_CHECK(bound(frameAdvance) == static_cast<void*>(mmEnabled),
+                              "Frame Advance is not bound to MM's frameAdvCtx.enabled while Majora's Mask runs");
+                }
+                if (drive(advanceOne, "MM running, frame advance off")) {
+                    CAP_CHECK(advanceOne->isHidden, "Advance 1 is shown while MM's frame advance is off");
+                }
+                *mmEnabled = 1;
+                if (drive(advanceOne, "MM running, frame advance on") &&
+                    drive(advanceHold, "MM running, frame advance on")) {
+                    CAP_CHECK(!advanceOne->isHidden && !advanceHold->isHidden,
+                              "Advance 1 / Advance (Hold) are hidden while MM's frame advance is on (#1238)");
+                }
+
+                // An OoT play state must not leak in while MM runs, and OoT's binds OoT's once OoT runs.
+                OoT_gPlayState = &sOoTStandIn;
+                if (drive(frameAdvance, "MM running, an OoT play state present")) {
+                    CAP_CHECK(bound(frameAdvance) == static_cast<void*>(mmEnabled),
+                              "Frame Advance bound OoT's frameAdvCtx while Majora's Mask is the running game");
+                }
+                Context_SetCurrentGame(GAME_OOT);
+                if (drive(frameAdvance, "OoT running") && drive(advanceOne, "OoT running")) {
+                    CAP_CHECK(!frameAdvance->isHidden &&
+                                  bound(frameAdvance) == static_cast<void*>(&sOoTStandIn.frameAdvCtx.enabled),
+                              "Frame Advance is not bound to OoT's frameAdvCtx while Ocarina of Time runs");
+                    CAP_CHECK(advanceOne->isHidden,
+                              "Advance 1 followed MM's frame advance (on) while OoT runs with its own off");
+                }
+                *mmEnabled = 0;
+            }
+
+            // MM running between play states (its title or file select): hidden, no dangling binding.
+            Context_SetCurrentGame(GAME_MM);
+            MM_DevTools_SetStandInPlayState(0);
+            OoT_gPlayState = nullptr;
+            if (MM_DevTools_FrameAdvanceEnabled() == nullptr && drive(frameAdvance, "MM running, no play state")) {
+                CAP_CHECK(frameAdvance->isHidden && bound(frameAdvance) == nullptr,
+                          "Frame Advance is shown, or still bound, while Majora's Mask has no play state");
+            }
+        }
+
+        MM_DevTools_SetStandInPlayState(0);
+        OoT_gPlayState = savedOoTPlay;
+        Context_SetCurrentGame(savedGame);
+        CVarClear(CVAR_DEVELOPER_TOOLS("DebugEnabled"));
+        SohGui::mSohMenu = savedMenu;
+        printf("[TEST] leg 5b: the frame-advance rows bind the running game's frameAdvCtx and hide without one\n");
+    }
 
     // ---- Leg 6: §4.2's marker, manifest-driven, over a PRODUCTION section ---
     CAP_CHECK(std::string(SohGui::SohMenu::SharedIntentMarker()) == std::string(Combo_ComboSettingSharedMarker()),
