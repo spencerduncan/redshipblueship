@@ -492,6 +492,10 @@ int RandoTest_MapCompassText(void);
 // #1164 green pin: SoH's bombchu drop rule under the Bombchu Bag setting. Body in
 // games/oot/soh/oot_shared_bombchu_test.cpp. Return 0 on pass.
 int OoT_BombchuDropRuleTest_Run(void);
+// #1218: a respawn out of the Ganon's Tower collapse keeps a shuffled, unfound
+// Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
+// Return 0 on pass.
+int OoT_MasterSwordRespawnTest_Run(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -596,6 +600,8 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
+#include "tests/test_mm_unique_key_models.c"    // #1172: MM's dungeon keys draw 2S2H's dungeon key models
+#include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
@@ -2901,6 +2907,26 @@ TestResult Test_BombchuDropRule(void) {
 
     int rc = OoT_BombchuDropRuleTest_Run();
     printf("[TEST] %s: bombchu drop rule rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower collapse
+// or Ganon's arena (Play_LoadToLastEntrance) no longer gives the unfound Master
+// Sword. Same bring-up as the row above (OTRGlobals' randomizer context).
+// Assertions in games/oot/soh/oot_master_sword_respawn_test.cpp.
+TestResult Test_MasterSwordRespawn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = OoT_MasterSwordRespawnTest_Run();
+    printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5455,6 +5481,16 @@ static TestResult Test_MenuComboSection(void) {
     return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/soh_presets_folder_test.cpp (#1210): a non-JSON file in the
+// presets folder is skipped with one log line instead of throwing out of
+// LoadPresets (a boot-time RegisterMenuInitFunc). No bring-up: the seam reads
+// only the folder it is handed.
+extern "C" int Soh_PresetsSkipNonJson_RunHeadless(void);
+
+static TestResult Test_PresetsSkipNonJson(void) {
+    return Soh_PresetsSkipNonJson_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's presentation half. Same display-free shared bring-up as the row above,
 // for the same reason: AddMenuCombo registers rows whose PreFuncs and option
 // defaults read the Ship::Context singleton's ConsoleVariables, and this row also
@@ -6538,6 +6574,26 @@ TestResult Test_MmGetItemPresentation(void) {
     return MmGetItemPresentation_Run();
 }
 
+// #1173: the reticle rows set the HookshotableReticle and cosmetics CVars,
+// which live on the Ship::Context singleton, so they need the same bring-up.
+TestResult Test_OotHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OotHookshotReticleColour_Run();
+}
+
+TestResult Test_MmHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmHookshotReticleColour_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -7405,6 +7461,13 @@ const TestDescriptor gTests[] = {
     // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
     { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
       Test_MmGetItemPresentation },
+    // #1172: MM's small and boss keys draw 2S2H's dungeon key models.
+    { "mm-unique-key-models", "MM's dungeon keys draw 2S2H's dungeon key models (#1172)", Test_MmUniqueKeyModels },
+    // #1173: the hookshot reticle turns green on a hookshot surface, in both games, and only for the hookshot.
+    { "oot-hookshot-reticle-colour", "Only the Hookshot and Longshot reticles turn green on a hookshot surface (#1173)",
+      Test_OotHookshotReticleColour },
+    { "mm-hookshot-reticle-colour", "Termina's hookshot reticle turns green on a hookshot surface (#1173)",
+      Test_MmHookshotReticleColour },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
@@ -7947,6 +8010,8 @@ const TestDescriptor gTests[] = {
     { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
       Test_MenuComboSection },
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
+    { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
+      Test_PresetsSkipNonJson },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
@@ -8386,6 +8451,10 @@ const TestDescriptor gTests[] = {
       "SoH's drop rule turns a bomb drop into a bombchu drop under Bombchu Bag Single with no bomb bag, and cancels "
       "it under None (#1164)",
       Test_BombchuDropRule },
+    { "master-sword-respawn",
+      "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
+      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
+      Test_MasterSwordRespawn },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -8702,6 +8771,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
+                strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

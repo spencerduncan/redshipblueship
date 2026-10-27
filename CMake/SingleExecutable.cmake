@@ -630,6 +630,16 @@ if(BUILD_TESTING)
     # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
     # and ignores MM's own key (whose widget and preset are not in the single exe).
     redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
+    # #1172: MM's small and boss keys draw 2S2H's dungeon key models (the shared
+    # body plus the dungeon's emblem, 2S2H 5d96fd84f/f56c7939e): the model choice
+    # for each named key, and every list it answers is in games/mm/assets/custom.
+    # Static tables and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
+    redship_add_test(NAME MmUniqueKeyModels COMMAND redship --test mm-unique-key-models)
+    # #1173: SoH's "Targetable Hookshot Reticle" turns the hookshot reticle green on
+    # a hookshot surface in both games, and only for the Hookshot/Longshot (SoH
+    # 6340ad3d5: the Bow, Slingshot and Boomerang reticles never turn green).
+    redship_add_test(NAME OoTHookshotReticleColour COMMAND redship --test oot-hookshot-reticle-colour)
+    redship_add_test(NAME MmHookshotReticleColour COMMAND redship --test mm-hookshot-reticle-colour)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
@@ -1459,6 +1469,13 @@ if(BUILD_TESTING)
     redship_add_test(NAME MenuCapabilityGating COMMAND redship --test menu-capability-gating)
     redship_add_test(NAME MenuComboSection COMMAND redship --test menu-combo-section)
     redship_add_test(NAME SetMenuCount COMMAND redship --test setmenu-count)
+    # #1210: SoH's LoadPresets (a boot-time RegisterMenuInitFunc) parsed every
+    # entry of presets/ as JSON with no filter and no catch, so a stray
+    # index.html ended the process at boot. A scratch folder holding a preset,
+    # an index.html and a truncated .json: the pass returns, lists the preset,
+    # and names each bad file in one log line. Display-free and ROM-free.
+    # games/oot/soh/soh_presets_folder_test.cpp.
+    redship_add_test(NAME PresetsSkipNonJson COMMAND redship --test presets-skip-non-json)
     # #658: MM_GOAL's "Majora defeated" conjunct (ADR 0010 D1). Three things in
     # one row, all display-free and ROM-free: the predicate answers from the save
     # at all (it used to fall through CanKillEnemy's default assert), its polarity
@@ -2937,6 +2954,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # Drives z_en_item00.c's func_8001F404 against OTRGlobals' randomizer
     # context. games/oot/soh/oot_shared_bombchu_test.cpp.
     redship_add_test(NAME BombchuDropRule COMMAND redship --test bombchu-drop-rule
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower
+    # collapse or Ganon's arena (Play_LoadToLastEntrance) does not give the
+    # unfound Master Sword, and still leaves through the collapse exterior.
+    # games/oot/soh/oot_master_sword_respawn_test.cpp.
+    redship_add_test(NAME MasterSwordRespawn COMMAND redship --test master-sword-respawn
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

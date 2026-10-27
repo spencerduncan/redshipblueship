@@ -129,6 +129,7 @@ games/oot/soh/oot_check_state_load_test.cpp
 games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
+games/oot/soh/oot_master_sword_respawn_test.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c
 games/oot/src/code/code_800F9280.c
@@ -143,6 +144,7 @@ games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
+games/oot/soh/soh_presets_folder_test.cpp
 games/oot/soh/oot_windows_gate_test.cpp
 games/oot/soh/SohGui/OoTActiveGated.h
 games/oot/soh/SohGui/SohRetiredWindow.h

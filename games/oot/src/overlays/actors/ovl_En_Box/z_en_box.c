@@ -12,6 +12,15 @@
 // #577 M5 (ForeignItemsSingleExe.cpp). games/oot/src has no src/common on its
 // include path, so the call is declared here, as z_en_girla.c does.
 s32 OoT_Rando_Foreign_ChestCategory(u16 rc, s32 coverCategory);
+
+// #1172: SoH ships fairy and mask chest models beside its other "Chest Size &
+// Texture Matches Contents" chests (games/oot/assets/custom/objects/object_box,
+// so soh.o2r carries them) but no OoT item uses them. A chest hosting MM's stray
+// fairy or mask presents those categories (ItemTableTypes.h) and wears them.
+static const ALIGN_ASSET(2) char sChestBodyFairyDL[] = "__OTR__objects/object_box/gChestBodyFairyDL";
+static const ALIGN_ASSET(2) char sChestLidFairyDL[] = "__OTR__objects/object_box/gChestLidFairyDL";
+static const ALIGN_ASSET(2) char sChestBodyMaskDL[] = "__OTR__objects/object_box/gChestBodyMaskDL";
+static const ALIGN_ASSET(2) char sChestLidMaskDL[] = "__OTR__objects/object_box/gChestLidMaskDL";
 #endif
 
 // movement flags
@@ -655,6 +664,16 @@ void EnBox_UpdateTexture(EnBox* this, PlayState* play) {
                 this->boxBodyDL = EnBox_LoadChestDL(gChestBodyMinorDL, gTreasureChestChestFrontDL);
                 this->boxLidDL = EnBox_LoadChestDL(gChestLidMinorDL, gTreasureChestChestSideAndLidDL);
                 break;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            case ITEM_CATEGORY_MM_STRAY_FAIRY: // #1172
+                this->boxBodyDL = EnBox_LoadChestDL(sChestBodyFairyDL, gTreasureChestChestFrontDL);
+                this->boxLidDL = EnBox_LoadChestDL(sChestLidFairyDL, gTreasureChestChestSideAndLidDL);
+                break;
+            case ITEM_CATEGORY_MM_MASK:
+                this->boxBodyDL = EnBox_LoadChestDL(sChestBodyMaskDL, gTreasureChestChestFrontDL);
+                this->boxLidDL = EnBox_LoadChestDL(sChestLidMaskDL, gTreasureChestChestSideAndLidDL);
+                break;
+#endif
             case ITEM_CATEGORY_JUNK:
             default:
                 this->boxBodyDL = EnBox_LoadChestDL(gChestBodyJunkDL, gTreasureChestChestFrontDL);
