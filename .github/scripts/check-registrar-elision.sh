@@ -595,6 +595,17 @@ main() {
         "RegisterHookshotAnywhere()"
         "MM_RegisterMoonJump()"
         "MM_RegisterEasyFrameAdvance()"
+        # W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle options in lib2ship_enh_registrars.a. OoT ships
+        # RegisterUnrestrictedItems, so MM's copy is MM_-prefixed in the source; no other name has an OoT twin.
+        "RegisterUnbreakableRazorSword()"
+        "RegisterLongerFlowerGlide()"
+        "MM_RegisterUnrestrictedItems()"
+        "RegisterElegyAnywhere()"
+        "RegisterTimeStopInTemples()"
+        "RegisterEndOfCycleSaveHooks()"
+        "RegisterKeepExpressMail()"
+        "RegisterOceansideSpiderHouseSquatter()"
+        "RegisterOceansideWalletAnyDay()"
         # #1018-#1022: the Skips & Speed-ups registrars in lib2ship_enh_registrars.a (Disable Title Card,
         # Skip Intro, Skip Entrance Cutscenes, Skip One Point Cutscenes and the Story set). No OoT twin
         # exists for any of the names (grep games/oot); the trailing "()" keeps one name from satisfying

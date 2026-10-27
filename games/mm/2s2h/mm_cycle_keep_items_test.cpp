@@ -34,17 +34,20 @@
  *   mm-cycle-razor-sword (redship tier, ROM-free; #1215). The rando's own
  *   cycle-save path keeps the seed's Razor Sword through the three-day reset.
  *   Rando is armed through the production path (saveType SAVETYPE_RANDO, then
- *   Rando::MiscBehavior::OnFileLoad, which OnSaveLoadHandler runs on every MM
- *   load), and the reset is the same headless Sram_SaveEndOfCycle as above.
+ *   what OnSaveLoadHandler runs on every MM load: Rando::MiscBehavior::OnFileLoad
+ *   and ShipInit::Init("IS_RANDO"), which arms EndOfCycle.cpp's Razor restore,
+ *   `CVAR || IS_RANDO`), and the reset is the same headless Sram_SaveEndOfCycle
+ *   as above.
  *     (a) Razor on B, swordHealth 60: still the Razor after the Song of Time
  *         (vanilla's wipe writes the Kokiri Sword over it).
  *     (b) No sword, Takkuri holding the Razor (STOLEN_ITEM_1): the Razor back.
  *     (c) No sword and nothing stolen: still no sword (the rando's existing
  *         no-sword override, kept).
  *     (d) Control: a vanilla save holding the Razor drops to the Kokiri Sword.
- *   It names nothing 2s2h/Enhancements/Cycle/EndOfCycle.cpp defines: that TU
- *   is kept out of the single exe on purpose (its other restores read live
- *   CVars), and a reference from here would link it by itself.
+ *   It names nothing 2s2h/Enhancements/Cycle/EndOfCycle.cpp defines (W6-
+ *   CYCLE-CHEATS links it whole and retired #1215's inline port in
+ *   OnCycleSave.cpp): a reference from here would link it by itself, so a
+ *   dropped link would read green.
  *
  * Every CVar a leg sets is cleared before the row returns (the gate-config
  * contamination class); the .redsave leg writes only the per-process scratch
@@ -76,6 +79,7 @@ extern "C" int MM_CycleRazorSword_Run(void) {
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h"
 #include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
+#include "2s2h/ShipInit.hpp"
 #include "combo_mm_options_view.h"
 #include "context.h"
 #include "save.h"
@@ -432,13 +436,16 @@ void PrintSword(const char* when) {
            (unsigned)gSaveContext.save.saveInfo.stolenItems);
 }
 
-/** Arms (or disarms) the rando behaviours the way a save load does:
- *  OnSaveLoadHandler's Rando::MiscBehavior::OnFileLoad, whose COND_HOOKs
- *  register the rando's Before/AfterEndOfCycleSave under IS_RANDO and
- *  unregister them otherwise. */
+/** Arms (or disarms) the rando behaviours the way a save load does, in
+ *  OnSaveLoadHandler's order (Rando/Rando.cpp): Rando::MiscBehavior::OnFileLoad,
+ *  whose COND_HOOKs register the rando's Before/AfterEndOfCycleSave under
+ *  IS_RANDO and unregister them otherwise, then ShipInit::Init("IS_RANDO"),
+ *  which re-drives every `CVAR || IS_RANDO` registrar (EndOfCycle.cpp's Razor
+ *  restore among them). */
 void DriveRandoLoad(bool rando) {
     gSaveContext.save.shipSaveInfo.saveType = rando ? SAVETYPE_RANDO : SAVETYPE_VANILLA;
     Rando::MiscBehavior::OnFileLoad();
+    ShipInit::Init("IS_RANDO");
 }
 
 /** A live save with `equipValue` as its sword and `bItem` on the human B. */

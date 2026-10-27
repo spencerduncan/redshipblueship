@@ -17,6 +17,9 @@ void RegisterKeepExpressMail() {
         Actor* actor = va_arg(args, Actor*);
         ItemId itemId = (ItemId)va_arg(args, int);
 
+        // W6-CYCLE-CHEATS (#1236): the scene check below reads MM_gPlayState with no upstream check (the #516
+        // class); expands to nothing outside the single exe.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId != SCENE_MILK_BAR && MM_gPlayState->sceneId != SCENE_POSTHOUSE) {
             return;
         }
