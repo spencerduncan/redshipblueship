@@ -20,6 +20,10 @@
  * UpdateElement bodies are empty or wait for a click, so the Update leg is locked by a counting spy base window instead
  * (GateSpy below): through OoTActiveGated<GateSpy>, each of the three bodies must run exactly once under OoT and never
  * under Majora's Mask or with no game running. Removing any one of the wrapper's three overrides fails that check.
+ * SoH's Time Splits window is built as OoTGatedHostingMm<TimeSplitWindow> (W6-TIMERS, #1237), which hosts 2Ship's
+ * Time Splits body while Majora's Mask runs: the eight-window tripwire holds it un-hosted, and a hosting spy
+ * (HostSpy) holds the hosted case: SoH's bodies only under OoT, MM's body only under Majora's Mask, nothing with no
+ * game.
  *
  * The windows are constructed without Gui::AddGuiWindow on purpose: AddGuiWindow calls Init(), and the check
  * tracker's InitElement dereferences a null SaveManager::Instance here. The Message Viewer is leaked on purpose: its
@@ -212,6 +216,81 @@ const ConsoleProbe kSaveWriters[] = {
 
 const char* GameName(GameId game) {
     return game == GAME_OOT ? "Ocarina of Time" : (game == GAME_MM ? "Majora's Mask" : "no game");
+}
+
+// ---- W6-TIMERS (#1237): OoTGatedHostingMm<>, the wrapper SoH's Time Splits window is built with -------------------
+
+// The hosting spy frames like the real window: TimeSplitWindow::Draw calls GuiWindow::Draw, which reaches the body
+// through a virtual DrawElement() call, so the wrapper's DrawElement override decides which body runs. A Draw path
+// that called BaseWindow::DrawElement directly would run SoH's body under Majora's Mask and fail the counts below.
+class HostSpy : public GateSpy {
+  public:
+    HostSpy(const std::string& consoleVariable, const std::string& name) : GateSpy(consoleVariable, name) {
+    }
+
+    void Draw() override {
+        draws++;
+        DrawElement();
+    }
+};
+
+int sHostedBodies = 0;
+
+// Stands in for MM_TimeSplits_HostedActive: MM's body is live only while Majora's Mask is the running game.
+bool HostSpyMmActive(void) {
+    return Context_GetCurrentGame() == GAME_MM;
+}
+
+void HostSpyMmDrawElement(void) {
+    sHostedBodies++;
+}
+
+// Drives DrawElement() (the menu embed), Update() and Draw() through OoTGatedHostingMm<HostSpy> under one game and
+// counts the failures against the expected body counts: SoH's DrawElement body, its UpdateElement body, the framing
+// Draw, and MM's hosted body. With @p hosted false HostMm is never called, so the wrapper must gate exactly as
+// OoTActiveGated<> does.
+int RunHostingSpy(GameId game, bool hosted, int wantBaseElements, int wantUpdates, int wantFrames, int wantHosted) {
+    auto spy = std::make_shared<OoTGatedHostingMm<HostSpy>>(OWG_SPY_CVAR, "OoTWindowsGate hosting spy");
+    if (hosted) {
+        spy->HostMm(HostSpyMmActive, HostSpyMmDrawElement);
+    }
+    std::shared_ptr<Ship::GuiWindow> asWindow = spy;
+    sHostedBodies = 0;
+    Context_SetCurrentGame(game);
+    asWindow->DrawElement();
+    asWindow->Update();
+    asWindow->Draw();
+    const char* label = hosted ? "hosting" : "not hosting";
+    printf("[TEST] oot-windows-gate: hosting spy (%s), %s running: SoH DrawElement body ran %d, UpdateElement body ran "
+           "%d, Draw frame ran %d, MM body ran %d\n",
+           label, GameName(game), spy->drawElements, spy->updateElements, spy->draws, sHostedBodies);
+    int failures = 0;
+    if (spy->drawElements != wantBaseElements) {
+        printf("[TEST] FAIL: oot-windows-gate: OoTGatedHostingMm (%s), %s running: SoH's DrawElement body ran %d "
+               "time(s), want %d\n",
+               label, GameName(game), spy->drawElements, wantBaseElements);
+        failures++;
+    }
+    if (spy->updateElements != wantUpdates) {
+        printf("[TEST] FAIL: oot-windows-gate: OoTGatedHostingMm (%s), %s running: SoH's UpdateElement body ran %d "
+               "time(s), want %d\n",
+               label, GameName(game), spy->updateElements, wantUpdates);
+        failures++;
+    }
+    if (spy->draws != wantFrames) {
+        printf("[TEST] FAIL: oot-windows-gate: OoTGatedHostingMm (%s), %s running: the Draw frame ran %d time(s), "
+               "want %d\n",
+               label, GameName(game), spy->draws, wantFrames);
+        failures++;
+    }
+    if (sHostedBodies != wantHosted) {
+        printf("[TEST] FAIL: oot-windows-gate: OoTGatedHostingMm (%s), %s running: MM's hosted body ran %d time(s), "
+               "want %d\n",
+               label, GameName(game), sHostedBodies, wantHosted);
+        failures++;
+    }
+    fflush(stdout);
+    return failures;
 }
 
 // Runs one console line through Ship::Console (the path the Console window, Ctrl+R and Sail use) with a non-OoT game
@@ -593,8 +672,9 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
         windows[5].visibilityCVar, windows[5].name, ImVec2(500, 750));
     windows[6].window = std::make_shared<OoTActiveGated<ItemTrackerWindow>>(windows[6].visibilityCVar, windows[6].name,
                                                                             ImVec2(350, 600));
-    windows[7].window =
-        std::make_shared<OoTActiveGated<TimeSplitWindow>>(windows[7].visibilityCVar, windows[7].name, ImVec2(450, 660));
+    // W6-TIMERS (#1237): SohGui builds Time Splits as OoTGatedHostingMm<>; un-hosted here, it must gate as the others.
+    windows[7].window = std::make_shared<OoTGatedHostingMm<TimeSplitWindow>>(windows[7].visibilityCVar, windows[7].name,
+                                                                             ImVec2(450, 660));
 
     for (const GatedWindow& w : windows) {
         if (!w.window->IsVisible()) {
@@ -628,6 +708,21 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
     CVarClear(OWG_SPY_CVAR);
     OWG_ASSERT(spyFailures == 0,
                "OoTActiveGated<> lets a body run under a non-OoT game or blocks one under OoT (above)");
+
+    // ---- 2b. OoTGatedHostingMm<> (W6-TIMERS, #1237): under OoT only SoH's bodies run (the Draw frame reaches SoH's
+    // DrawElement); under Majora's Mask the Draw frame runs and only MM's hosted body does, through the embed and the
+    // frame, and SoH's UpdateElement never; with no game, or with nothing hosted outside OoT, nothing runs.
+    int hostFailures = 0;
+    hostFailures += RunHostingSpy(GAME_OOT, true, 2, 1, 1, 0);
+    hostFailures += RunHostingSpy(GAME_MM, true, 0, 0, 1, 2);
+    hostFailures += RunHostingSpy(GAME_NONE, true, 0, 0, 0, 0);
+    hostFailures += RunHostingSpy(GAME_OOT, false, 2, 1, 1, 0);
+    hostFailures += RunHostingSpy(GAME_MM, false, 0, 0, 0, 0);
+    hostFailures += RunHostingSpy(GAME_NONE, false, 0, 0, 0, 0);
+    Context_SetCurrentGame(prevGame);
+    CVarClear(OWG_SPY_CVAR);
+    OWG_ASSERT(hostFailures == 0, "OoTGatedHostingMm<> runs SoH's body outside OoT, MM's body outside Majora's Mask, "
+                                  "or blocks a body it should pass through (above)");
 
     // ---- 3. The wired gate on the eight real windows: all three paths, every window ---------------------------------
     const GameId inactiveGames[] = { GAME_MM, GAME_NONE };

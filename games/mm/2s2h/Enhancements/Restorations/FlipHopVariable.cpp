@@ -11,6 +11,9 @@ extern "C" {
 
 void RegisterVariableFlipHop() {
     COND_VB_SHOULD(VB_APPLY_AIR_CONTROL, CVAR, {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
 
         // actionVar1 == 5 is frontflips when running off a ledge

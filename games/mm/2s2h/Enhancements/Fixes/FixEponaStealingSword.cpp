@@ -8,6 +8,9 @@
 
 void RegisterFixEponaStealingSword() {
     COND_VB_SHOULD(VB_CLEAR_B_BUTTON_FOR_NO_BOW, CVAR, {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         // Player riding epona
         if (player->stateFlags1 & PLAYER_STATE1_800000) {

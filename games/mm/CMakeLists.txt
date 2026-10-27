@@ -261,9 +261,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # soh/Enhancements/audio/AudioEditor.cpp, so it is dropped from 2ship_enh
     # in single-exe builds. Its extern "C" entry points
     # (MM_AudioEditor_Get{Replacement,Original}Seq after the
-    # include/mm_audio_prefix.h rename) are identity-stubbed in
-    # 2s2h/GameExports_SingleExe.cpp; AudioCollection.cpp stays compiled as
-    # MM's real (S2H-namespaced) collection.
+    # include/mm_audio_prefix.h rename) are defined in
+    # 2s2h/GameExports_SingleExe.cpp over AudioCollection.cpp, MM's real
+    # (S2H-namespaced) collection, and its write paths are ported to
+    # Enhancements/Audio/AudioEditorSingleExe.cpp (W6-AUDIO-SEQ, #1239).
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
 
     # #678 - the two Enhancements TUs that are the ONLY callers of
@@ -463,6 +464,14 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Graphics/BowReticle.cpp"
         # #1013
         "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # W6-GFX (#1237, #1240): MM's two clock styles, chosen by the Clock Type row on SoH's Enhancements > Graphics
+        # page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). Each registers only through a file-scope
+        # RegisterShipInitFunc keyed on gEnhancements.Graphics.ClockType (RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE) and rides
+        # VB_PREVENT_CLOCK_DISPLAY, which z_parameter.c dispatches through MM_GameHooks_ExecuteVBShould. Both draw
+        # bodies read MM_gPlayState and are guarded (RSBS_SINGLE_EXE_REQUIRE); both call the HUD-editor stand-ins in
+        # mm_hudeditor_stubs.c. No stub in mm_stubs.c; no twin of any name in games/oot.
+        "2s2h/Enhancements/Graphics/3DSClock.cpp"
+        "2s2h/Enhancements/Graphics/TextBasedClock.cpp"
         # #1014
         "2s2h/Enhancements/Player/InstantPutaway.cpp"
         # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
@@ -490,6 +499,26 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
         # #1017
         "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
+        # W6-MINIGAMES (#1236): MM's minigame options and Mark Shooting Gallery Octoroks, hosted on SoH's Enhancements >
+        # Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). Each registers only through a file-scope
+        # RegisterShipInitFunc keyed on its own MM key (RSBS_CVAR_MM_*), and rides a hook the single exe dispatches:
+        # ShouldActorUpdate / OnActorInit / OnActorUpdate / OnActorDraw (z_actor.c) and OnOpenText (z_message.c) via
+        # MM_GameHooks_Execute*; VB_* from z_demo.c and the En_Fu, En_Syateki_Man, En_Tru_Mt, En_Ma4, En_Racedog and
+        # En_Rg overlays via MM_GameHooks_ExecuteVBShould. The three bodies that read MM_gPlayState are guarded
+        # (RSBS_SINGLE_EXE_REQUIRE). No stub in mm_stubs.c; no twin of their definitions in games/oot. Each only moves a
+        # win condition; the reward stays the vanilla actor's, which the rando hooks take (mm_minigame_offer_hooks_test).
+        "2s2h/Enhancements/Timesavers/BombersHideAndSeek.cpp"
+        "2s2h/Enhancements/Minigames/SwordsmanSchool.cpp"
+        "2s2h/Enhancements/Minigames/HoneyAndDarling.cpp"
+        "2s2h/Enhancements/Minigames/Archery.cpp"
+        "2s2h/Enhancements/Minigames/RomaniTargetPractice.cpp"
+        "2s2h/Enhancements/Minigames/AlwaysWinDoggyRace.cpp"
+        "2s2h/Enhancements/Minigames/CuccoShackCuccoCount.cpp"
+        "2s2h/Enhancements/Minigames/SkipHorseRace.cpp"
+        "2s2h/Enhancements/Minigames/BeaverRace.cpp"
+        "2s2h/Enhancements/DifficultyOptions/GoronRace.cpp"
+        "2s2h/Enhancements/Minigames/TreasureChestShopFullMaze.cpp"
+        "2s2h/Enhancements/Minigames/MarkShootingGalleryOctoroks.cpp"
         # #1024-#1026: the three Audio Editor rows the SoH menu draws (kSharedIntentKeys: gAudioEditor.LowHpAlarm,
         # .EnemyBGMDisable, .SeqNameNotification and its Duration). Each registers only through a file-scope
         # RegisterShipInitFunc, and rides a hook the single exe dispatches: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c) and
@@ -600,6 +629,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Player/UnderwaterOcarina.cpp"
         # #1034
         "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
+        # W6-TIMERS (#1235, #1237, #1239): MM's In-Game Timer overlay and Time Splits. TimersGuiSingleExe.cpp constructs
+        # the windows of the first three; TimeSplitsActions.cpp registers only through RegisterShipInitFunc. Its six hooks
+        # are dispatched: OnItemGive, OnBottleContentsUpdate and OnBossDefeated through MM_GameHooks_Execute* (#438),
+        # OnSceneInit through MM_GameHooks_ExecuteOnSceneInit (z_play.c) and the two great-fairy VBs through
+        # GameInteractor_Should. No hook body reads MM_gPlayState, and none of the four has a stub or an OoT twin
+        "2s2h/Enhancements/Trackers/DisplayOverlay.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/Timesplits.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimesplitsSettings.cpp"
         # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;
         # the body touches only the kaleido equip-state globals and the pauseCtx the dispatcher passes)
         "2s2h/Enhancements/Equipment/SkipMagicArrowEquip.cpp"
@@ -610,6 +648,25 @@ if(SINGLE_EXECUTABLE_BUILD)
         # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
         "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
         "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
+        # W6-FIXES (#1237): MM's Fixes and Restorations, each drawn by an MM row on SoH's Enhancements > Fixes page
+        # (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Each registers only through a file-scope RegisterShipInitFunc on its
+        # own key. Hooks, all dispatched: VB_* via MM_GameHooks_ExecuteVBShould (z_player.c, z_parameter.c, z_demo.c);
+        # OnActorInit[PLAYER / BG_BREAKWALL] and ShouldActorInit[DOOR_ANA / OBJ_SYOKUDAI / OBJ_MURE3 / EN_ITEM00] via
+        # MM_GameHooks_Execute* (z_actor.c); AfterRoomSceneCommands[SCENE_22DEKUCITY] via ExecuteForID
+        # (GameExports_SingleExe.cpp). JPGrottos.cpp links whole: its spawning leg is the only writer of the flag its
+        # deleting legs wait on. Play-state guards in every body that reads MM_gPlayState. No stub in mm_stubs.c shadows
+        # them; no twin of their definitions in games/oot (OoTFasterSwim's Player_Action_57 is MM's z_player.c export).
+        "2s2h/Enhancements/Fixes/FixEponaStealingSword.cpp"
+        "2s2h/Enhancements/Fixes/FierceDeityZTargetMovement.cpp"
+        "2s2h/Enhancements/Fixes/CompletedHeartContainerAudio.cpp"
+        "2s2h/Enhancements/Restorations/FlipHopVariable.cpp"
+        "2s2h/Enhancements/Restorations/PowerCrouchStab.cpp"
+        "2s2h/Enhancements/Restorations/SideRoll.cpp"
+        "2s2h/Enhancements/Restorations/OoTFasterSwim.cpp"
+        "2s2h/Enhancements/Restorations/TatlISG.cpp"
+        "2s2h/Enhancements/Restorations/WoodfallMountainAppearance.cpp"
+        "2s2h/Enhancements/Restorations/JPGrottos.cpp"
+        "2s2h/Enhancements/Restorations/BonkCollision.cpp"
         # #1037 (Damage Multiplier, VB_MULTIPLY_INFLICTED_DMG from func_808339D4 in z_player.c; dispatched through
         # MM_GameHooks_ExecuteVBShould. The body only shifts the damage the hook is handed, so it needs no play-state
         # guard. Held APART from SoH's gEnhancements.DamageMult, whose value space differs: the row that writes MM's

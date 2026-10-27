@@ -379,6 +379,7 @@ ImVec2 GetItemImageSizeById(uint32_t itemId) {
 }
 
 void DrawOptions() {
+#ifndef RSBS_SINGLE_EXECUTABLE
     if (ImGui::BeginTable("Options", 3)) {
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthStretch);
@@ -433,8 +434,15 @@ void DrawOptions() {
                                 .color = UIWidgets::Colors(CVarGetInteger("gSettings.Menu.Theme", 5)),
                             });
     UIWidgets::Tooltip("Enables Split Comparisons between lists, this will integrate within the Split List.");
+#endif
 
     if (CVarGetInteger("gSettings.TimeSplits.Compare", 0)) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // W6-TIMERS (#1239): the six options above are rows on SoH's Enhancements > Time Splits page
+        // (SohMenuHostedMmTimers.cpp), so this tab keeps only the choice of list to compare against.
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Compare Against");
+#endif
         ImGui::SameLine();
         UIWidgets::PushStyleCombobox(UIWidgets::Colors(CVarGetInteger("gSettings.Menu.Theme", 5)));
         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x);

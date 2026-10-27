@@ -45,6 +45,9 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
 void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
 void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
 void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
+// W6-TIMERS (#1235, #1239): MM's In-Game Timer and Time Splits rows (HostedMm/SohMenuHostedMmTimers.cpp).
+void AddMmInGameTimerRows(SohMenu& menu, WidgetPath& path);
+void AddMmTimeSplitsRows(SohMenu& menu, WidgetPath& path);
 // W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
 // Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
@@ -58,6 +61,19 @@ void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
 void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
 void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
 void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
+// W6-GFX (#1237): MM's clock, motion blur and scene-geometry rows (HostedMm/SohMenuHostedMmGraphics.cpp), and the
+// reapply of MM's authentic patches that Fix Out of Bounds Textures also chooses.
+void AddMmClockRows(SohMenu& menu, WidgetPath& path);
+void AddMmGraphicsBlockRows(SohMenu& menu, WidgetPath& path);
+void ReapplyMmAuthenticGfxPatches();
+// W6-FIXES (#1237): MM's Fixes and Restorations rows on the Fixes page (HostedMm/SohMenuHostedMmFixes.cpp).
+void AddMmGameplayFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmPowerCrouchStabRow(SohMenu& menu, WidgetPath& path);
+void AddMmCameraFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmGraphicalFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmAudioFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmGlitchRestorationsRows(SohMenu& menu, WidgetPath& path);
+void AddMmMiscRestorationsRows(SohMenu& menu, WidgetPath& path);
 // W6-MASKS-SONGS (#1236, #1240): MM's Ocarina and Masks rows (HostedMm/SohMenuHostedMmMasksSongs.cpp).
 void AddMmOcarinaRows(SohMenu& menu, WidgetPath& path);
 void AddMmMasksRows(SohMenu& menu, WidgetPath& path);
@@ -191,6 +207,10 @@ void OnFixBrokenGiantsKnifeToggled() {
         func_800849EC(OoT_gPlayState);
     }
 }
+
+// W6-MINIGAMES (#1236): MM's minigame rows on Minigames (HostedMm/SohMenuHostedMmMinigames.cpp).
+void AddMmShootingGalleryRows(SohMenu& menu, WidgetPath& path);
+void AddMmMinigameRows(SohMenu& menu, WidgetPath& path);
 
 // W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle rows (HostedMm/SohMenuHostedMmCycleCheats.cpp).
 void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
@@ -758,6 +778,7 @@ void SohMenu::AddMenuEnhancements() {
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip("The skybox in the background of the File Select screen will go through the "
                                            "day and night cycle over time."));
+    AddMmClockRows(*this, path); // W6-GFX (#1237)
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Misc.", WIDGET_SEPARATOR_TEXT);
@@ -812,6 +833,7 @@ void SohMenu::AddMenuEnhancements() {
             " - Blue Warps\n"
             " - Darunia\n"
             " - Gold Skulltulas\n"));
+    AddMmGraphicsBlockRows(*this, path); // W6-GFX (#1237)
 
     path.sidebarName = "Items";
     AddSidebarEntry("Enhancements", path.sidebarName, 3);
@@ -1094,6 +1116,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Forces Goron City doors open if you somehow complete Fire Temple without talking to Goron Link "
             " and receiving the Goron Tunic."));
+    AddMmGameplayFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Item-related Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Deku Nut Upgrade", WIDGET_CVAR_CHECKBOX)
@@ -1114,6 +1137,7 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(
             [](WidgetInfo& info) { info.isHidden = CVarGetInteger(CVAR_ENHANCEMENT("CrouchStabHammerFix"), 0) == 0; })
         .Options(CheckboxOptions().Tooltip("Make crouch stabbing always do the same damage as a regular slash."));
+    AddMmPowerCrouchStabRow(*this, path); // W6-FIXES (#1237): MM's restoration, shown whatever SoH's gate holds
     AddWidget(path, "Fix Broken Giant's Knife Bug", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FixBrokenGiantsKnife"))
         .PreFunc([](WidgetInfo& info) {
@@ -1138,6 +1162,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("FixHangingLedgeSwingRate"))
         .Options(CheckboxOptions().Tooltip("Fixes camera swing rate when the player falls off a ledge and the camera "
                                            "swings around. May impact certain glitches."));
+    AddMmCameraFixesRows(*this, path); // W6-FIXES (#1237)
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Graphical Fixes", WIDGET_SEPARATOR_TEXT);
@@ -1169,7 +1194,10 @@ void SohMenu::AddMenuEnhancements() {
             "using bombs in front of her."));
     AddWidget(path, "Fix Out of Bounds Textures", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FixTexturesOOB"))
-        .Callback([](WidgetInfo& info) { ApplyAuthenticGfxPatches(); })
+        .Callback([](WidgetInfo& info) {
+            ApplyAuthenticGfxPatches();
+            ReapplyMmAuthenticGfxPatches(); // W6-GFX (#1237): the shared key chooses MM's patches too
+        })
         .Options(CheckboxOptions().Tooltip(
             "Fixes authentic out of bounds texture reads, instead loading textures with the correct size."));
     AddWidget(path, "Fix Link's Eyes Open while Sleeping", WIDGET_CVAR_CHECKBOX)
@@ -1193,6 +1221,7 @@ void SohMenu::AddMenuEnhancements() {
                          "Consistent: Certain paths vanish the same way in all resolutions.\n"
                          "No Vanish: Paths do not vanish, Link seems to sink in to some paths.\n"
                          "This might affect other decal effects.\n"));
+    AddMmGraphicalFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Audio Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Missing Jingle after 5 Silver Rupees", WIDGET_CVAR_CHECKBOX)
@@ -1201,6 +1230,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Adds 5 higher pitches for the Silver Rupee Jingle for the rooms with more than 5 Silver Rupees. "
             "Only relevant for playthroughs involving Master Quest Dungeons."));
+    AddMmAudioFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Desync Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Darunia Dancing too Fast", WIDGET_CVAR_CHECKBOX)
@@ -1258,6 +1288,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Restores a bug from NTSC 1.0/1.1 that allows you to obtain the eyeball frog from King Zora "
             "instead of the Zora Tunic by Holding Shield."));
+    AddMmGlitchRestorationsRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Misc Restorations", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix L&Z Page Switch in Pause Menu", WIDGET_CVAR_CHECKBOX)
@@ -1272,6 +1303,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("GraveHoles"))
         .Options(CheckboxOptions().Tooltip(
             "Restores NTSC 1.0 behavior where Link jumps over grave holes and grabs the ledges."));
+    AddMmMiscRestorationsRows(*this, path); // W6-FIXES (#1237)
 
     // Difficulty Options
     path.sidebarName = "Difficulty";
@@ -1454,6 +1486,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(15)
                      .Format("%d arrows")
                      .Tooltip("The ammunition at the start of the Shooting Gallery minigame as Adult."));
+    AddMmShootingGalleryRows(*this, path); // W6-MINIGAMES: MM's archery scores and gallery Octoroks
 
     AddWidget(path, "Bombchu Bowling", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Customize Behavior##Bowling", WIDGET_CVAR_CHECKBOX)
@@ -1618,6 +1651,7 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(fishingDisabledFunc)
         .Options(IntSliderOptions().Min(6).Max(13).DefaultValue(13).Format("%d lbs.").Tooltip(
             "The minimum weight for the unique fishing reward as an adult."));
+    AddMmMinigameRows(*this, path); // W6-MINIGAMES: MM's minigames, in a Majora's Mask block
 
     // Extra Modes
     path.sidebarName = "Extra Modes";
@@ -1972,6 +2006,8 @@ void SohMenu::AddMenuEnhancements() {
     // Time Splits
     path.sidebarName = "Time Splits";
     AddSidebarEntry("Enhancements", path.sidebarName, 1);
+    // W6-TIMERS: MM's switches, above the window row, whose embedded window fills the rest of the page.
+    AddMmTimeSplitsRows(*this, path);
     AddWidget(path, "Popout Time Splits Window", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("TimeSplits"))
         .RaceDisable(false)
@@ -2002,6 +2038,7 @@ void SohMenu::AddMenuEnhancements() {
             .CVar(timer.timeEnable)
             .Callback([](WidgetInfo& info) { TimeDisplayUpdateDisplayOptions(); });
     }
+    AddMmInGameTimerRows(*this, path);
 }
 
 } // namespace SohGui
