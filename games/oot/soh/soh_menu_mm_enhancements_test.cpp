@@ -513,13 +513,13 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     MainMenuEntry& enhancements = entries.at("Enhancements");
     std::vector<FlatRow> rows = FlattenHeader(enhancements);
 
-    struct Placement {
+    struct CuratedRowHost {
         const char* key;
         const char* sidebar;
         const char* section;
         const char* after; ///< the interactive row directly before it in its column, or NULL: first of its block
     };
-    const Placement kPlacements[] = {
+    const CuratedRowHost kPlacements[] = {
         { RSBS_CVAR_MM_AUTOSAVE_INTERVAL, "Quality of Life", "Saving", "Autosave" },
         { RSBS_CVAR_MM_KALEIDO_GAME_OVER, "Quality of Life", SohGui::kHostedMmBlockLabel, nullptr },
         { RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME, "Quality of Life", SohGui::kHostedMmBlockLabel, "Game Over Prompt" },
@@ -535,7 +535,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
               "the manifest has %zu own rows and the placement table %zu; a curated row with no placement has no "
               "host",
               ownRows, sizeof(kPlacements) / sizeof(kPlacements[0]));
-    for (const Placement& want : kPlacements) {
+    for (const CuratedRowHost& want : kPlacements) {
         int bound = 0;
         for (const FlatRow& r : rows) {
             bound += r.info->cVar != nullptr && std::string(r.info->cVar) == want.key ? 1 : 0;
