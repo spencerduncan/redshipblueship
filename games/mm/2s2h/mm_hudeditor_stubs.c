@@ -27,7 +27,9 @@
  * any override says, so no draw ever reads a key the shared menu does not write
  * (and the draw sites' own reads of hudEditorElements[active].modeCvar, which
  * all sit behind HudEditor_ShouldOverrideDraw, never see a null key). W6-HUD-B
- * adds the other ten elements as table rows.
+ * (#1239) added the other ten elements as table rows, so every element MM's
+ * HUD draws now has one: the clock (all three styles), hearts, magic, both
+ * timers, carrots and the minigame, rupee, key and skulltula counters.
  *
  * Two deliberate differences from 2Ship: hudEditorOverrideNextElemMode is
  * static (the ODR gate; nothing outside this file reads it), and an element

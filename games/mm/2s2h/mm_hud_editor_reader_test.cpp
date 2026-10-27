@@ -21,14 +21,14 @@
  *      not hidden, its scale is the key's, and HudEditor_ModifyDrawValues moves the rectangle to the key's position
  *      (the offset from the vanilla position scaled), scales its size and divides its texture steps.
  *   2. The same element at "Hidden": overridden and hidden. At "Original position" (the key cleared): not overridden.
- *   3. HudEditor_OverrideNextElementMode(Vanilla), which Better Song of Double Time uses while it draws the clock,
- *      wins over a non-vanilla key; and no element active draws vanilla.
- *   4. An element with no row in the shared table (W6-HUD-B's, until it lands) draws vanilla even under a non-vanilla
- *      override: the reader never reads a key the shared menu does not write.
- *   5. The presets: Hidden sets every table element Hidden, Widescreen gives each its widescreen mode, Vanilla clears
- *      every mode, and each clears every element's position and scale.
  *   2b. W6-HUD-B: the hearts at "No anchors" are moved and scaled the same way, and each of W6-HUD-B's ten elements
  *      (carrots, clock, hearts, magic, both timers, the minigame, rupee, key and skulltula counters) hides at "Hidden".
+ *   3. HudEditor_OverrideNextElementMode(Vanilla), which Better Song of Double Time uses while it draws the clock,
+ *      wins over a non-vanilla key; and no element active draws vanilla.
+ *   4. An element with no row in the shared table (none since W6-HUD-B; the leg then checks nothing) draws vanilla
+ *      even under a non-vanilla override: the reader never reads a key the shared menu does not write.
+ *   5. The presets: Hidden sets every table element Hidden, Widescreen gives each its widescreen mode, Vanilla clears
+ *      every mode, and each clears every element's position and scale.
  * RED without the fix: leg 1 (the stand-in answers "vanilla" and leaves the rectangle as it was).
  * RED without W6-HUD-B's table rows: leg 2b (an element with no row draws vanilla whatever its keys hold).
  *
