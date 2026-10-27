@@ -229,16 +229,19 @@
  * the single exe writes) and registers only through three file-scope RegisterShipInitFuncs on that key. Same table
  * as Phase 9; the key is read by this one TU alone in games/mm, so the delta is attributable.
  *
- * PHASE 12 (#1215, #1221) -- THE RANDO-FORCED GATES THE LINK DROPPED. Four 2s2h/Enhancements TUs register a
- * `CVAR || IS_RANDO` gate through a file-scope RegisterShipInitFunc only, in the plain `2ship_enh` archive, and none
- * is in redship.map: Cheats/UnbreakableRazorSword, Cycle/EndOfCycle, Cycle/OceansideWalletAnyDay and
- * Cycle/OceansideSpiderHouseSquatter. Upstream forces each on for every rando file; without them a rando file runs
- * the vanilla behaviour. EndOfCycle's Razor restore is MMCycleRazorSword's (mm_cycle_keep_items_test.cpp). This phase
- * probes the other three through the production arm drive (saveType SAVETYPE_RANDO, then ShipInit::Init("IS_RANDO"),
- * what OnSaveLoadHandler runs on every MM load): disarmed first (the vanilla control and the non-vacuity baseline),
- * then armed, where each bucket must rise by EXACTLY one and the answer must flip. The rando-only registrants armed
- * from OnFileLoad (the OfferGetItem catch-all, the OnFlagSet check hand-off) are not ShipInit registrars, so they
- * cannot move these deltas. Nothing those TUs define is named here (a reference would un-elide them).
+ * PHASE 12 (#1215, #1221) -- THE RANDO-FORCED GATES. Four 2s2h/Enhancements TUs register a `CVAR || IS_RANDO` gate
+ * through a file-scope RegisterShipInitFunc only: Cheats/UnbreakableRazorSword, Cycle/EndOfCycle,
+ * Cycle/OceansideWalletAnyDay and Cycle/OceansideSpiderHouseSquatter. Upstream forces each on for every rando file;
+ * without them a rando file runs the vanilla behaviour. #1224 ported their IS_RANDO halves while the TUs were
+ * unlinked; W6-CYCLE-CHEATS (#1236) links them whole, each CVar drawn by an MM row, and retires the port, so each gate
+ * must still register exactly once. A row-on leg sits between the two: with IS_RANDO off and a gate's own key on, the
+ * gate registers once and answers as under rando (the Razor restore's count only), and with both off it is gone.
+ * EndOfCycle's Razor restore is MMCycleRazorSword's (mm_cycle_keep_items_test.cpp). This phase probes the other three
+ * through the production arm drive (saveType SAVETYPE_RANDO, then ShipInit::Init("IS_RANDO"), what OnSaveLoadHandler
+ * runs on every MM load): disarmed first (the vanilla control and the non-vacuity baseline), then armed, where each
+ * bucket must rise by EXACTLY one and the answer must flip. The rando-only registrants armed from OnFileLoad (the
+ * OfferGetItem catch-all, the OnFlagSet check hand-off) are not ShipInit registrars, so they cannot move these deltas.
+ * Nothing those TUs define is named here (a reference would un-elide them).
  *   - ShouldVanillaBehavior[VB_LOWER_RAZOR_SWORD_DURABILITY] (#1215, the Razor's ~100-hit break, z_player.c
  *     func_8083FFEC): the verdict is "do not lower" under rando, "lower" on a vanilla file.
  *   - ShouldVanillaBehavior[VB_GIVE_ITEM_FROM_OFFER] (#1221 row 1, z_actor.c MM_Actor_OfferGetItem): a stand-in
@@ -301,6 +304,8 @@ extern "C" {
 // Phase 12 (#1215, #1221): the rando arm drive and the gates' flags.
 #include "variables.h"
 #include "overlays/actors/ovl_En_Sth/z_en_sth.h"
+// W6-CYCLE-CHEATS: z_player.c's Deku-glide distance pair, which Longer Deku Flower Glide rewrites.
+extern f32 D_8085D958[2];
 }
 
 extern "C" {
@@ -439,6 +444,65 @@ void ResetCheatKeys() {
         (void)probe.count();
     }
 }
+
+// ---- W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle options --------
+// One row per key the hosted rows write (SohGui/HostedMm/SohMenuHostedMmCycleCheats.cpp): the registry its TU puts a
+// hook in when the key turns on, with IS_RANDO off. The nine TUs are named only in the text; nothing they define is.
+//   - Longer Deku Flower Glide registers no hook: its registrar rewrites z_player.c's glide-distance pair
+//     (D_8085D958, 600/960 vanilla), so its "registry" is that pair being lifted past vanilla, 0 or 1.
+//   - Do Not Reset Rupees / Consumables expect +0: EndOfCycle.cpp holds both restores off in the single exe (the
+//     combo's cycle hooks and the frozen Keep Items on Cycle Reset decide them), so a hand-set key arms nothing.
+//   - Infinite Consumables rides Cheats/Infinite.cpp, linked since #1005-#1009; only its row is new.
+struct CycleCheatRow {
+    const char* key;
+    const char* row;
+    const char* what;
+    size_t (*count)();
+    size_t expected;
+};
+
+size_t CycleCheatGlideLifted() {
+    return D_8085D958[0] > 960.0f ? 1u : 0u;
+}
+
+#define CYCLE_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define CYCLE_UNKEYED_COUNT(hook) []() { return SettledUnkeyedCount<GameInteractor::hook>(); }
+
+const CycleCheatRow kCycleCheatRows[] = {
+    { "gCheats.InfiniteConsumables", "MM Consumables", "OnGameStateUpdate (Cheats/Infinite.cpp)",
+      CYCLE_UNKEYED_COUNT(OnGameStateUpdate), 1 },
+    { "gCheats.UnrestrictedItems", "MM Unrestricted Items", "VB_ITEM_BE_RESTRICTED (Cheats/UnrestrictedItems.cpp)",
+      CYCLE_VB_COUNT(VB_ITEM_BE_RESTRICTED), 1 },
+    { "gCheats.LongerFlowerGlide", "Longer Deku Flower Glide",
+      "z_player.c's glide distance lifted (Cheats/LongerFlowerGlide.cpp)", CycleCheatGlideLifted, 1 },
+    { "gCheats.ElegyAnywhere", "Elegy of Emptiness Anywhere", "VB_ELEGY_CHECK_SCENE (Cheats/ElegyAnywhere.cpp)",
+      CYCLE_VB_COUNT(VB_ELEGY_CHECK_SCENE), 1 },
+    { "gCheats.TempleTimeStop", "Stop Time in Dungeons", "AfterRoomSceneCommands, unkeyed (Cheats/TimeStop.cpp)",
+      CYCLE_UNKEYED_COUNT(AfterRoomSceneCommands), 1 },
+    { "gCheats.UnbreakableRazorSword", "Unbreakable Razor Sword",
+      "VB_LOWER_RAZOR_SWORD_DURABILITY (Cheats/UnbreakableRazorSword.cpp)",
+      CYCLE_VB_COUNT(VB_LOWER_RAZOR_SWORD_DURABILITY), 1 },
+    { "gEnhancements.Cycle.DoNotResetBottleContent", "Do Not Reset Bottle Contents",
+      "AfterEndOfCycleSave, unkeyed (Cycle/EndOfCycle.cpp)", CYCLE_UNKEYED_COUNT(AfterEndOfCycleSave), 1 },
+    { "gEnhancements.Cycle.DoNotResetRazorSword", "Do Not Reset Razor Sword",
+      "AfterEndOfCycleSave, unkeyed (Cycle/EndOfCycle.cpp)", CYCLE_UNKEYED_COUNT(AfterEndOfCycleSave), 1 },
+    { "gEnhancements.Cycle.DoNotResetTimeSpeed", "Do Not Reset Time Speed",
+      "AfterEndOfCycleSave, unkeyed (Cycle/EndOfCycle.cpp)", CYCLE_UNKEYED_COUNT(AfterEndOfCycleSave), 1 },
+    { "gEnhancements.Cycle.DoNotResetRupees", "(no row: the combo keeps the shared rupees)",
+      "AfterEndOfCycleSave, unkeyed (Cycle/EndOfCycle.cpp, held off)", CYCLE_UNKEYED_COUNT(AfterEndOfCycleSave), 0 },
+    { "gEnhancements.Cycle.DoNotResetConsumables", "(no row: the combo and Keep Items on Cycle Reset decide)",
+      "AfterEndOfCycleSave, unkeyed (Cycle/EndOfCycle.cpp, held off)", CYCLE_UNKEYED_COUNT(AfterEndOfCycleSave), 0 },
+    { "gEnhancements.Cycle.KeepExpressMail", "Keep Express Mail", "VB_MSG_SCRIPT_DEL_ITEM (Cycle/KeepExpressMail.cpp)",
+      CYCLE_VB_COUNT(VB_MSG_SCRIPT_DEL_ITEM), 1 },
+    { "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter", "Stop Oceanside Spider House Squatter",
+      "OnFlagSet, unkeyed (Cycle/OceansideSpiderHouseSquatter.cpp)", CYCLE_UNKEYED_COUNT(OnFlagSet), 1 },
+    { "gEnhancements.Cycle.OceansideWalletAnyDay", "Oceanside Wallet Any Day",
+      "VB_GIVE_ITEM_FROM_OFFER (Cycle/OceansideWalletAnyDay.cpp)", CYCLE_VB_COUNT(VB_GIVE_ITEM_FROM_OFFER), 1 },
+};
+
+// The rows above in Phase 5's probe shape. Defined after Phase 12 (SkipKeyProbe is complete there).
+const std::vector<SkipKeyProbe>& CycleCheatProbes();
+RegisterW6Phase sCycleCheatPhase{ "W6-CYCLE-CHEATS (#1236, #1240)", CycleCheatProbes };
 
 // ---- Phase 5 (#1018-#1022): the Skips & Speed-ups TUs ---------------------
 // One probe per SoH-written key. Each registry row names the TUs that put a
@@ -1002,6 +1066,53 @@ RandoGateVerdicts ProbeRandoGates() {
     return v;
 }
 
+// W6-CYCLE-CHEATS: the row-on leg (see the call in RunRandoGateLegs). @p disarmed is the vanilla baseline.
+int RunGateRowLegs(const RandoGateCounts& disarmed) {
+    struct GateRow {
+        const char* key;
+        size_t (*count)();
+        bool (*answered)(const RandoGateVerdicts&); // null: no verdict probe (the Razor restore, MMCycleRazorSword's)
+        size_t baseline;
+    };
+    const GateRow rows[] = {
+        { "gCheats.UnbreakableRazorSword",
+          []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_LOWER_RAZOR_SWORD_DURABILITY); },
+          [](const RandoGateVerdicts& v) { return !v.durabilityLowers; }, disarmed.durability },
+        { "gEnhancements.Cycle.OceansideWalletAnyDay",
+          []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_OFFER); },
+          [](const RandoGateVerdicts& v) { return v.walletFlagSet && v.offered == GI_WALLET_ADULT; }, disarmed.offer },
+        { "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter",
+          []() { return SettledUnkeyedCount<GameInteractor::OnFlagSet>(); },
+          [](const RandoGateVerdicts& v) { return !v.movedInStays && v.movedInWithReward; }, disarmed.flagSet },
+        { "gEnhancements.Cycle.DoNotResetRazorSword",
+          []() { return SettledUnkeyedCount<GameInteractor::AfterEndOfCycleSave>(); }, nullptr,
+          SettledUnkeyedCount<GameInteractor::AfterEndOfCycleSave>() },
+    };
+    for (const GateRow& row : rows) {
+        CVarSetInteger(row.key, 1);
+        ShipInit::Init(row.key);
+        const size_t on = row.count();
+        const bool answered = row.answered == nullptr || row.answered(ProbeRandoGates());
+        CVarSetInteger(row.key, 0);
+        ShipInit::Init(row.key);
+        const size_t off = row.count();
+        CVarClear(row.key);
+        printf("[TEST] mm-registrar-coverage: (12) row on, rando off: %s registrants %zu -> %zu, answered %d; "
+               "row off: %zu (expected +1, 1, back to %zu)\n",
+               row.key, row.baseline, on, answered ? 1 : 0, off, row.baseline);
+        RC_ASSERT(on == row.baseline + 1, 21,
+                  "a gate's own row, turned on outside rando, did not register its gate exactly once - its TU is not "
+                  "in the link, or the gate answers \"IS_RANDO\" alone, so the MM row SoH's menu draws does nothing "
+                  "(#1236, #1240)");
+        RC_ASSERT(answered, 21,
+                  "a gate's own row, turned on outside rando, registered but did not answer as it does under rando "
+                  "(#1236, #1240)");
+        RC_ASSERT(off == row.baseline, 21,
+                  "a gate stayed registered with its row off and rando off - nothing may arm it then (#1236, #1240)");
+    }
+    return 0;
+}
+
 int RunRandoGateLegs() {
     // ---- disarmed: the vanilla control and the baseline ----------------------
     DriveRandoArm(false);
@@ -1020,6 +1131,13 @@ int RunRandoGateLegs() {
     RC_ASSERT(vanilla.movedInStays && !vanilla.movedInWithReward, 18,
               "a vanilla file's spider-house squatter flag was rewritten - a rando-only gate leaked outside rando, "
               "and the leg-2 squatter probe would be vacuous (#1221)");
+
+    // ---- W6-CYCLE-CHEATS: each gate's own row, rando off --------------------------
+    // With IS_RANDO off and the key on, the gate registers exactly once and answers as under rando; with both off it
+    // is gone again. Red while the four TUs are unlinked (the port armed on "IS_RANDO" alone).
+    if (const int rc = RunGateRowLegs(before); rc != 0) {
+        return rc;
+    }
 
     // ---- armed through the production path -----------------------------------
     DriveRandoArm(true);
@@ -1054,6 +1172,18 @@ int RunRandoGateLegs() {
     RC_ASSERT(rando.movedInWithReward, 20,
               "a rando file did not move the squatter in once the reward was collected (#1221)");
     return 0;
+}
+
+// W6-CYCLE-CHEATS: kCycleCheatRows (registered with the W6 list after Phase 4) in Phase 5's probe shape.
+const std::vector<SkipKeyProbe>& CycleCheatProbes() {
+    static const std::vector<SkipKeyProbe> probes = []() {
+        std::vector<SkipKeyProbe> out;
+        for (const CycleCheatRow& r : kCycleCheatRows) {
+            out.push_back(SkipKeyProbe{ r.key, r.row, { SkipRegistry{ r.what, r.count, r.expected } } });
+        }
+        return out;
+    }();
+    return probes;
 }
 
 } // namespace
