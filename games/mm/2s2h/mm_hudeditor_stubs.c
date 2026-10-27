@@ -162,4 +162,35 @@ void HudEditor_OverrideNextElementMode(HudEditorElementMode mode) {
     (void)mode;
 }
 
+/* W6-HUD-A (#1239): the seams the shared menu and the locks reach the HUD editor through
+ * (src/common/mm_hud_editor_elements.h). */
+#include "mm_hud_editor_elements.h"
+
+#define RSBS_MM_HUD_ROW_ID(id, key, label, x, y, ws) id,
+static const HudEditorElementID sMmHudTableIds[] = { RSBS_MM_HUD_EDITOR_ELEMENTS(RSBS_MM_HUD_ROW_ID) };
+#undef RSBS_MM_HUD_ROW_ID
+
+const char* MM_HudEditor_TableKey(int row, int which) {
+    if (row < 0 || row >= (int)(sizeof(sMmHudTableIds) / sizeof(sMmHudTableIds[0]))) {
+        return NULL;
+    }
+    const HudEditorElement* e = &hudEditorElements[sMmHudTableIds[row]];
+    switch (which) {
+        case RSBS_MM_HUD_KEY_MODE:
+            return e->modeCvar;
+        case RSBS_MM_HUD_KEY_POSITION_X:
+            return e->xCvar;
+        case RSBS_MM_HUD_KEY_POSITION_Y:
+            return e->yCvar;
+        case RSBS_MM_HUD_KEY_SCALE:
+            return e->scaleCvar;
+        default:
+            return NULL;
+    }
+}
+
+void MM_HudEditor_ApplyPreset(int preset) {
+    (void)preset;
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE
