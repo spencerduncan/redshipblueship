@@ -31,6 +31,7 @@ PANES src/common/ComboTrackerWindow.cpp
 PANES src/common/ComboItemTrackerWindow.cpp
 PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
 PANES games/mm/2s2h/TrackersGuiSingleExe.cpp
+PANES games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMm.cpp
 
 TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
 TOASTS games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp

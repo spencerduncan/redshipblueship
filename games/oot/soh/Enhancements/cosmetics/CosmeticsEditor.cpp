@@ -17,6 +17,7 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "context.h" // src/common: Context_GetCurrentGame (#1040 R1)
+#include "CosmeticsEditorMm.h" // W6-COS-A (#1239): Majora's Mask's rows
 #endif
 
 extern "C" {
@@ -2634,6 +2635,9 @@ void CosmeticsEditorWindow::DrawElement() {
             UIWidgets::Separator(true, true, 2.0f, 2.0f);
 
             DrawCosmeticGroup(COSMETICS_GROUP_HUD);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            CosmeticsEditor_DrawMmHudRows(); // W6-COS-A (#1239): MM's HUD colours with no SoH twin
+#endif
             DrawCosmeticGroup(COSMETICS_GROUP_TITLE);
             ImGui::EndTabItem();
         }

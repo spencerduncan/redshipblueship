@@ -22,11 +22,21 @@
  * This TU is compiled against 2s2h/BenGui/CosmeticEditor.h so every
  * signature below is compiler-checked against the declarations the real
  * callers use — the failure mode being fixed (stub signature drift) becomes
- * a compile error instead of a runtime wild write. The color-override
- * lookup is a no-op here (the editor UI is excluded), so the wrappers
- * delegate straight to the base drawers in games/mm/src/code/z_parameter.c,
- * which ARE part of the single-exe link. HUD rendering is therefore
- * identical to 2ship-with-default-cosmetics.
+ * a compile error instead of a runtime wild write. The wrappers delegate
+ * to the base drawers in games/mm/src/code/z_parameter.c, which ARE part of
+ * the single-exe link.
+ *
+ * The colour lookup behind them, CosmeticEditor_GetChangedColor, is real
+ * since W6-COS-A (#1239), ported from 2Ship's reader (CosmeticEditor.cpp,
+ * whose editor window stays excluded): it returns the changed colour by
+ * element id from kMmCosmeticElements below. 2Ship's editor is not hosted;
+ * SoH's one Cosmetics Editor drives MM instead. An element with an SoH twin
+ * reads the twin's .Changed / .Value (one colour for both games, the
+ * one-game reading of #1239's hosting choice); an element with none reads
+ * MM's own gCosmetic.<element>.Color / .Changed, which an MM row in SoH's
+ * Cosmetics Editor writes. The lookup reads the CVars live: it does not wait
+ * for OoT's frame or for the #1040 resource-cache owner gate, which hold
+ * SoH's own GFX patches only.
  *
  * CosmeticGfxStub_RunHeadless() is the ROM-free lock (CTest "redship" label,
  * row cosmetic-gfx-stub in src/common/test_runner.cpp): it builds a display
@@ -69,6 +79,89 @@ Gfx* Gfx_DrawTexRectIA8_DropShadowOffset(Gfx* gfx, TexturePtr texture, s16 textu
                                          s16 rectLeft, s16 rectTop, s16 rectWidth, s16 rectHeight, u16 dsdx, u16 dtdy,
                                          s16 r, s16 g, s16 b, s16 a, s32 masks, s32 rects);
 
+} // extern "C"
+
+namespace {
+
+/**
+ * One MM colour element the lookup changes (W6-COS-A, #1239). MM's own keys are composed from
+ * RSBS_CVAR_MM_COSMETIC_PREFIX exactly as 2Ship's COSMETIC_EDITOR_ELEMENT composes them, so a 2Ship config's colours
+ * keep their spelling. A twinned element reads SoH's Cosmetics Editor row (sohValue / sohChanged) and, when that row
+ * is unchanged, an optional fallback row (SoH's C Buttons under its per-button rows); MM's own keys are then read by
+ * nothing, as for every kTranslatedKeys pair. An MM-only element (sohValue null) reads its own keys.
+ */
+struct MmCosmeticElement {
+    u8 id; ///< CosmeticEditorElementID
+    const char* mmColor;
+    const char* mmChanged;
+    const char* sohValue;
+    const char* sohChanged;
+    const char* sohFallbackValue;
+    const char* sohFallbackChanged;
+};
+
+#define MM_COSMETIC_OWN(id, name)                                                                              \
+    {                                                                                                          \
+        id, RSBS_CVAR_MM_COSMETIC_PREFIX name ".Color", RSBS_CVAR_MM_COSMETIC_PREFIX name ".Changed", nullptr, \
+            nullptr, nullptr, nullptr                                                                          \
+    }
+#define MM_COSMETIC_TWIN(id, name, soh)                                                                             \
+    {                                                                                                               \
+        id, RSBS_CVAR_MM_COSMETIC_PREFIX name ".Color", RSBS_CVAR_MM_COSMETIC_PREFIX name ".Changed", soh ".Value", \
+            soh ".Changed", nullptr, nullptr                                                                        \
+    }
+#define MM_COSMETIC_TWIN_OR(id, name, soh, fallback)                                                                \
+    {                                                                                                               \
+        id, RSBS_CVAR_MM_COSMETIC_PREFIX name ".Color", RSBS_CVAR_MM_COSMETIC_PREFIX name ".Changed", soh ".Value", \
+            soh ".Changed", fallback ".Value", fallback ".Changed"                                                  \
+    }
+
+// The one element table. Every pair it reads is a kTranslatedKeys row (src/common/cvar_shared_keys.h) and every
+// MM-only key an MM row's; the classification lock's colour-family leg (3c-3) holds both. Later lanes insert only at
+// their markers.
+// clang-format off
+const MmCosmeticElement kMmCosmeticElements[] = {
+    // Buttons and HUD: SoH's HUD tab. OoT's HUD reads a C button's own row over SoH's C Buttons row (z_parameter.c).
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_B_BUTTON,          "Buttons.B",      "gCosmetics.HUD.BButton"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_A_BUTTON,          "Buttons.A",      "gCosmetics.HUD.AButton"),
+    MM_COSMETIC_TWIN_OR(COSMETIC_ELEMENT_C_LEFT_BUTTON,  "Buttons.CLeft",  "gCosmetics.HUD.CLeftButton",  "gCosmetics.HUD.CButtons"),
+    MM_COSMETIC_TWIN_OR(COSMETIC_ELEMENT_C_DOWN_BUTTON,  "Buttons.CDown",  "gCosmetics.HUD.CDownButton",  "gCosmetics.HUD.CButtons"),
+    MM_COSMETIC_TWIN_OR(COSMETIC_ELEMENT_C_RIGHT_BUTTON, "Buttons.CRight", "gCosmetics.HUD.CRightButton", "gCosmetics.HUD.CButtons"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_D_PAD_BUTTON,      "Buttons.DPad",   "gCosmetics.HUD.Dpad"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_START_BUTTON,      "Buttons.Start",  "gCosmetics.HUD.StartButton"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_SMALL_KEY,         "HUD.SmallKey",   "gCosmetics.HUD.KeyCount"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MINIMAP,           "HUD.Minimap",    "gCosmetics.HUD.Minimap"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_RUPEE_ICON,         "HUD.RupeeIcon"),
+    // W6-COS-B
+    // Spin Attack: SoH's Effects tab. OoT draws a level's charge AND its burst from that level's Primary
+    // (z_en_m_thunder.c); its Secondary is the charge's env colour, which MM's draw does not route through the lookup.
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_SPIN_SLASH_CHARGE, "Effects.SpinSlashCharge", "gCosmetics.SpinAttack.Level1Primary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_SPIN_SLASH_BURST,  "Effects.SpinSlashBurst",  "gCosmetics.SpinAttack.Level1Primary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_CHARGE, "Effects.GreatSpinCharge", "gCosmetics.SpinAttack.Level2Primary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_BURST,  "Effects.GreatSpinBurst",  "gCosmetics.SpinAttack.Level2Primary"),
+    // W6-COS-C
+};
+// clang-format on
+
+#undef MM_COSMETIC_OWN
+#undef MM_COSMETIC_TWIN
+#undef MM_COSMETIC_TWIN_OR
+
+constexpr int kMmCosmeticElementCount = (int)(sizeof(kMmCosmeticElements) / sizeof(kMmCosmeticElements[0]));
+
+const MmCosmeticElement* FindMmCosmeticElement(u8 elementId) {
+    for (const MmCosmeticElement& element : kMmCosmeticElements) {
+        if (element.id == elementId) {
+            return &element;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+extern "C" {
+
 /**
  * W6-COS-A (#1239): the colour table's read-only view, for the classification lock's colour-family leg
  * (src/common/tests/test_cvar_classification.c). Element @p index's id, MM's own .Color / .Changed keys, and the SoH
@@ -76,67 +169,96 @@ Gfx* Gfx_DrawTexRectIA8_DropShadowOffset(Gfx* gfx, TexturePtr texture, s16 textu
  * Returns 0 when @p index is out of range.
  */
 int MM_CosmeticElement_Count(void) {
-    return 0;
+    return kMmCosmeticElementCount;
 }
 
 int MM_CosmeticElement_At(int index, int* id, const char** mmColor, const char** mmChanged, const char** sohValue,
                           const char** sohChanged, const char** sohFallbackValue, const char** sohFallbackChanged) {
-    (void)index;
-    (void)id;
-    (void)mmColor;
-    (void)mmChanged;
-    (void)sohValue;
-    (void)sohChanged;
-    (void)sohFallbackValue;
-    (void)sohFallbackChanged;
-    return 0;
+    if (index < 0 || index >= kMmCosmeticElementCount) {
+        return 0;
+    }
+    const MmCosmeticElement& element = kMmCosmeticElements[index];
+    *id = element.id;
+    *mmColor = element.mmColor;
+    *mmChanged = element.mmChanged;
+    *sohValue = element.sohValue;
+    *sohChanged = element.sohChanged;
+    *sohFallbackValue = element.sohFallbackValue;
+    *sohFallbackChanged = element.sohFallbackChanged;
+    return 1;
 }
 
+/**
+ * The changed colour of MM's element @p elementId, or the draw site's own colour when nothing changed it. Ported from
+ * 2Ship's reader (BenGui/CosmeticEditor.cpp, CosmeticEditor_GetChangedColor): a changed colour comes back opaque, and
+ * the wrappers below keep the draw site's alpha.
+ */
 Color_RGBA8 CosmeticEditor_GetChangedColor(u8 r, u8 g, u8 b, u8 a, u8 elementId) {
-    (void)elementId;
-    Color_RGBA8 c = { r, g, b, a };
-    return c;
+    Color_RGBA8 color = { r, g, b, a };
+    const MmCosmeticElement* element = FindMmCosmeticElement(elementId);
+    if (element == nullptr) {
+        return color;
+    }
+    const char* valueKey = nullptr;
+    if (element->sohValue == nullptr) {
+        if (CVarGetInteger(element->mmChanged, 0)) {
+            valueKey = element->mmColor;
+        }
+    } else if (CVarGetInteger(element->sohChanged, 0)) {
+        valueKey = element->sohValue;
+    } else if (element->sohFallbackValue != nullptr && CVarGetInteger(element->sohFallbackChanged, 0)) {
+        valueKey = element->sohFallbackValue;
+    }
+    if (valueKey != nullptr) {
+        const Color_RGBA8 changed = CVarGetColor(valueKey, color);
+        color.r = changed.r;
+        color.g = changed.g;
+        color.b = changed.b;
+        color.a = 255;
+    }
+    return color;
 }
 
 void gDPSetPrimColorOverride(Gfx* pkt, u8 m, u8 l, u8 r, u8 g, u8 b, u8 a, u8 elementId) {
-    (void)elementId;
-    gDPSetPrimColor(pkt, m, l, r, g, b, a);
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
+    gDPSetPrimColor(pkt, m, l, color.r, color.g, color.b, a);
 }
 
 void gDPSetEnvColorOverride(Gfx* pkt, u8 r, u8 g, u8 b, u8 a, u8 elementId) {
-    (void)elementId;
-    gDPSetEnvColor(pkt, r, g, b, a);
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
+    gDPSetEnvColor(pkt, color.r, color.g, color.b, a);
 }
 
 Gfx* Gfx_DrawTexRectIA8_DropShadowOverride(Gfx* pkt, TexturePtr texture, s16 textureWidth, s16 textureHeight,
                                            s16 rectLeft, s16 rectTop, s16 rectWidth, s16 rectHeight, u16 dsdx, u16 dtdy,
                                            s16 r, s16 g, s16 b, s16 a, u8 elementId) {
-    (void)elementId;
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
     return Gfx_DrawTexRectIA8_DropShadow(pkt, texture, textureWidth, textureHeight, rectLeft, rectTop, rectWidth,
-                                         rectHeight, dsdx, dtdy, r, g, b, a);
+                                         rectHeight, dsdx, dtdy, color.r, color.g, color.b, a);
 }
 
 Gfx* Gfx_DrawRect_DropShadowOverride(Gfx* pkt, s16 rectLeft, s16 rectTop, s16 rectWidth, s16 rectHeight, u16 dsdx,
                                      u16 dtdy, s16 r, s16 g, s16 b, s16 a, u8 elementId) {
-    (void)elementId;
-    return Gfx_DrawRect_DropShadow(pkt, rectLeft, rectTop, rectWidth, rectHeight, dsdx, dtdy, r, g, b, a);
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
+    return Gfx_DrawRect_DropShadow(pkt, rectLeft, rectTop, rectWidth, rectHeight, dsdx, dtdy, color.r, color.g, color.b,
+                                   a);
 }
 
 Gfx* Gfx_DrawTexRectIA16_DropShadowOverride(Gfx* pkt, TexturePtr texture, s16 textureWidth, s16 textureHeight,
                                             s16 rectLeft, s16 rectTop, s16 rectWidth, s16 rectHeight, u16 dsdx,
                                             u16 dtdy, s16 r, s16 g, s16 b, s16 a, u8 elementId) {
-    (void)elementId;
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
     return Gfx_DrawTexRectIA16_DropShadow(pkt, texture, textureWidth, textureHeight, rectLeft, rectTop, rectWidth,
-                                          rectHeight, dsdx, dtdy, r, g, b, a);
+                                          rectHeight, dsdx, dtdy, color.r, color.g, color.b, a);
 }
 
 Gfx* Gfx_DrawTexRectIA8_DropShadowOffsetOverride(Gfx* pkt, TexturePtr texture, s16 textureWidth, s16 textureHeight,
                                                  s16 rectLeft, s16 rectTop, s16 rectWidth, s16 rectHeight, u16 dsdx,
                                                  u16 dtdy, s16 r, s16 g, s16 b, s16 a, s32 masks, s32 rects,
                                                  u8 elementId) {
-    (void)elementId;
+    const Color_RGBA8 color = CosmeticEditor_GetChangedColor(r, g, b, a, elementId);
     return Gfx_DrawTexRectIA8_DropShadowOffset(pkt, texture, textureWidth, textureHeight, rectLeft, rectTop, rectWidth,
-                                               rectHeight, dsdx, dtdy, r, g, b, a, masks, rects);
+                                               rectHeight, dsdx, dtdy, color.r, color.g, color.b, a, masks, rects);
 }
 
 /**
