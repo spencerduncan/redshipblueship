@@ -40,9 +40,13 @@
  * mm_registrar_coverage_test.cpp and soh_menu_registrar_test.cpp follow. What
  * it reads instead is MM's own `S2H::ShipInit` map and the `S2H::GameHooks`
  * registries, which only those TUs' static initializers and registrars can
- * populate. The three ClockShuffle functions need no separate probe: their only
- * callers are inside these two objects, so "the objects linked" IS the evidence
- * that the calls exist to keep them.
+ * populate. The three ClockShuffle functions need no separate probe here: the
+ * Songs objects are their production callers, so "the objects linked" IS the
+ * evidence that the calls exist to keep them. (Since #1229 the always-linked
+ * mm_clock_shuffle_final_hours_test.cpp also calls IsTimeOwnedForClockShuffle
+ * and GetTimeDescriptionForMessage. That keeps those two functions in the
+ * binary by itself, but it pulls in neither Songs object: the functions live
+ * in ClockShuffle.cpp, so leg 2 below still proves the Songs objects linked.)
  *
  * ATTRIBUTION -- why each probe names exactly one registrar.
  *   - ShipInit path "gEnhancements.Songs.BetterSongOfDoubleTime": the only

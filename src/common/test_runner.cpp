@@ -309,6 +309,13 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// Shuffle Time's Final Hours (games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp,
+// #1229): with Shuffle Time on an unowned half-day is never playable, and when
+// none is left the moon falls at the end of the last owned one (OoTMM's rule);
+// 2Ship's terminal window handed out Night 3's 00:00-06:00. Drives the real
+// EnTest4 pre-update hook and the VB hooks over a stand-in play state, and
+// restores everything it touches. Returns 0 on pass, non-zero on fail.
+int MM_ClockShuffleFinalHours_RunHeadless(void);
 // The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
 // #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
 // file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
@@ -5933,6 +5940,23 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1229. Same display-free shared bring-up as mm-clock-shuffle-songs. It
+// restores the SaveContext image and MM_gPlayState and leaves the ClockShuffle
+// hooks disarmed, so it has no ordering constraints.
+static TestResult Test_MMClockShuffleFinalHours(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ClockShuffleFinalHours_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
 // registrars it arms read CVars through the Ship::Context singleton. It restores
 // the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
@@ -7928,6 +7952,12 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // Shuffle Time's Final Hours (#1229): no unowned half-day is handed out,
+    // and the moon falls at the end of the last owned one. Restores everything
+    // it touches, so it has no ordering constraints.
+    { "mm-clock-shuffle-final-hours",
+      "Shuffle Time hands out no unowned Final Hours; the moon falls at the last owned half-day (#1229)",
+      Test_MMClockShuffleFinalHours },
     // The same elided-registrar class again (#1071): the nine song-teacher
     // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
     // everything it touches, so it has no ordering constraints.
