@@ -2972,6 +2972,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # load the OnLoadFile seam refused to the file select instead of Play.
     # Display-free and ROM-free. games/oot/soh/oot_file_select_refusal_test.cpp.
     redship_add_test(NAME OoTFileSelectRefusal COMMAND redship --test oot-file-select-refusal)
+    # #1204: two per-frame log floods. The interval autosave probed SaveManager for
+    # the 0xFF sentinel slot every frame (113k "File[255] - does not exist" lines a
+    # session), and the item queue logged every offer of a give the player could
+    # not take yet. Display-free and ROM-free. games/oot/soh/oot_log_noise_test.cpp.
+    redship_add_test(NAME OoTLogNoise COMMAND redship --test oot-log-noise)
     # #837 (decision 16, ruled 2026-10-01): every cross-game crossing is a
     # whole-file commit, taken by GameRunner_SwitchTo between the departing
     # suspend and the target's resume/init (Switch_CommitCrossing). The real

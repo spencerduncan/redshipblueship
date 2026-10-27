@@ -117,6 +117,7 @@ games/oot/soh/ShipInit.hpp
 games/oot/soh/mixer.c
 games/oot/soh/oot_exit_harvest_gate_test.cpp
 games/oot/soh/oot_file_select_refusal_test.cpp
+games/oot/soh/oot_log_noise_test.cpp
 games/oot/soh/oot_file_select_identity_shot.cpp
 games/oot/soh/oot_combo_identity_display_test.cpp
 games/oot/soh/soh_menu_registrar_test.cpp

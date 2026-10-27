@@ -7114,6 +7114,14 @@ static TestResult Test_OoTFileSelectRefusal(void) {
     return OoT_FileSelectRefusal_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/oot_log_noise_test.cpp (#1204): the interval autosave's slot
+// probe and the item queue's give retries log once, not once per frame.
+extern "C" int OoT_LogNoise_RunHeadless(void);
+
+static TestResult Test_OoTLogNoise(void) {
+    return OoT_LogNoise_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_PairedLoadRestore(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -8356,6 +8364,10 @@ const TestDescriptor gTests[] = {
       "A file the open path would refuse is not opened at the OoT file select (A/START consumed, one toast, nothing "
       "written), and a load refused after the gate returns to the file select instead of Play (#836)",
       Test_OoTFileSelectRefusal },
+    { "oot-log-noise",
+      "The interval autosave's slot probe never asks for the 0xFF sentinel and logs a slot's existence once per "
+      "change; a give the player cannot take yet logs one attempt and one count, not one line per frame (#1204)",
+      Test_OoTLogNoise },
     { "crossing-commit",
       "Every cross-game crossing is a whole-file commit taken between the departing suspend and the target's "
       "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
