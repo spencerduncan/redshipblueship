@@ -12,6 +12,9 @@ extern Input* sPlayerControlInput;
 
 void RegisterGreatFairySwordBButton() {
     COND_VB_SHOULD(VB_GET_ITEM_ON_BUTTON, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         EquipSlot slot = (EquipSlot)va_arg(args, int);
         ItemId* item = va_arg(args, ItemId*);

@@ -75,6 +75,9 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
 
 void RegisterChuDrops() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_ITEM00, CVAR, [](Actor* actor, bool* should) {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and CustomItem::Spawn returns null without a play
+        // state, which the body would dereference; a missing play state leaves the Bomb drop untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (actor->params == ITEM00_BOMBS_0 || actor->params == ITEM00_BOMBS_A || actor->params == ITEM00_BOMBS_B) {
             if (Ship_Random(0, 100) < 50) {
                 *should = false;

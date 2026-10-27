@@ -296,7 +296,7 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 | Bow Reticle | `gEnhancements.BowReticle` | `gEnhancements.Graphics.BowReticle` | both bool |
 | Disable Black Bars | `gEnhancements.DisableBlackBars` | `gEnhancements.Graphics.DisableBlackBars` | both bool |
 | Instant Putaway | `gEnhancements.InstantPutaway` | `gEnhancements.Player.InstantPutaway` | both bool |
-| Climb Speed | `gEnhancements.ClimbSpeed` | `gEnhancements.Player.ClimbSpeed` | both numeric |
+| Climb Speed | `gEnhancements.ClimbSpeed` | `gEnhancements.Player.ClimbSpeed` | ~~both numeric~~ **held apart (P)**: OoT adds +0-12, MM multiplies 1-5x (`kMustStayDistinct`); MM row hosted, see §6.1 W6-PLAYER |
 | Item Unequip | `gEnhancements.ItemUnequip` | `gEnhancements.Equipment.ItemUnequip` | both bool |
 | Autosave | `gEnhancements.Autosave` | `gEnhancements.Saving.Autosave` | both bool — see caveat |
 | Remember Save Location | `gEnhancements.RememberSaveLocation` | `gEnhancements.Saving.RememberSaveLocation` | both bool ⚠️ see #442 |
@@ -438,6 +438,28 @@ default (off).
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
 | `gNotifications.*`, `gDisplayOverlay.*` | 7 | MM overlay/notification system |
 | `gRando.*` | 72 | MM randomizer — see ADR 0004 §3 |
+
+**W6-PLAYER (#1236) — MM's Player, Equipment and PlayerActions rows, linked and hosted.** MM read the twelve keys
+below, but each provider TU had been dropped from the link (a plain `2ship_enh` archive keeps no TU whose only anchor is
+a `RegisterShipInitFunc`) and the only widgets sat in the excluded `BenMenu.cpp`, so a key could be neither written nor
+acted on. Each provider is now carved into `ship__Enh_registrars` and each key has a row on an SoH Enhancements page,
+added through the hosted-row seam and bound through its `RSBS_CVAR_MM_*` define. The registrar-coverage lock's
+W6-PLAYER phase attributes each TU by registry content; the classification lock's leg 3f-2c holds each binding.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Player.ManualJump` | off | Manual Jump (Quality of Life > Controls, Majora's Mask block) | (O) MM-only |
+| `gEnhancements.Player.PreventDiveOverWater` | off | Prevent Diving Over Water (likewise) | (O) MM-only |
+| `gEnhancements.Player.InfiniteDekuHopping` | off | Infinite Deku Hopping (likewise) | (O) MM-only: Deku Link |
+| `gEnhancements.Player.ClimbSpeed` | 1x | MM Vine/Ladder Climb Speed (Skips & Speed-ups > Animations, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH adds +0-12, MM multiplies 1-5x; §5.3 group A's "both numeric" was wrong |
+| `gEnhancements.Player.FasterPushAndPull` | off | Faster Push/Pull (Animations, after SoH's Block Pushing Speed) | (O) nearest relative only: one switch over every pushed and pulled object (gear clamps, blocks, ice blocks), not SoH's push-speed step |
+| `gEnhancements.Player.FastFlowerLaunch` | off | Fast Deku Flower Launch (Animations, Majora's Mask block) | (O) MM-only: Deku Link |
+| `gEnhancements.Player.FierceDeityPutaway` | off | Fierce Deity Putaway (likewise) | (O) MM-only; acts on the held sword only, never on a mask the combo owns |
+| `gEnhancements.Equipment.TwoHandedSwordSpinAttack` | off | Two-Handed Sword Spin Attack (Items > Equipment, Majora's Mask block) | (O) MM-only |
+| `gEnhancements.Equipment.GreatFairySwordBButton` | off | Great Fairy Sword B-Button Attack (likewise) | (O) MM-only; acts on the B button's item only, never on a mask the combo owns |
+| `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
+| `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
+| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, the scarcer ammo first) and an OoT seed can force it on; MM gives every Bomb drop an even chance whatever Link carries. Same bool and JSON shape, different rule, so not converged. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031) |
 
 ### 6.2 OoT-only (category level)
 

@@ -21,6 +21,9 @@ void ReturnBoomerang(Actor* actor) {
 
 void RegisterInstantRecall() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BOOM, CVAR, [](Actor* actor) {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (CHECK_BTN_ALL(MM_gPlayState->state.input->press.button, BTN_B)) {
             ReturnBoomerang(actor);
         }

@@ -11,6 +11,9 @@ extern "C" {
 
 void RegisterFierceDeityPutaway() {
     COND_VB_SHOULD(VB_SHOULD_PUTAWAY, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {
             *should = true;
