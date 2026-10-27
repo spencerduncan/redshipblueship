@@ -197,6 +197,8 @@ void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
 void AddMmUnrestrictedItemsRow(SohMenu& menu, WidgetPath& path);
 void AddMmCheatsBlock(SohMenu& menu, WidgetPath& path);
 void AddMmTimeCycleBlock(SohMenu& menu, WidgetPath& path);
+// W6-CAM-GYRO (#1236, #1240): MM's Remote Bombchu Control row (HostedMm/SohMenuHostedMmCamGyro.cpp).
+void AddMmRemoteBombchuRow(SohMenu& menu, WidgetPath& path);
 
 void SohMenu::AddMenuEnhancements() {
     // Add Enhancements Menu
@@ -935,6 +937,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("DisableFirstPersonChus"))
         .Options(CheckboxOptions().Tooltip(
             "Prevent Bombchus from forcing the camera into first-person mode when released."));
+    AddMmRemoteBombchuRow(*this, path); // W6-CAM-GYRO: MM's Remote Bombchu Control
     AddWidget(path, "Better Bombchu Shopping", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("BetterBombchuShopping"))
         .PreFunc([](WidgetInfo& info) {

@@ -23,6 +23,9 @@ bool speedToggle2;
 void RegisterLinkSpeedModifier() {
 
     COND_VB_SHOULD(VB_SPEED_MODIFIER_WALK, CVAR_WALK && CVAR_SPEED, {
+        // W6-CAM-GYRO: the held-button leg reads the player's input, which z_player.c clears while Link surfaces with
+        // an underwater item (the swim leg below checks it the same way); without it the speed stays vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(sPlayerControlInput != NULL);
         f32* speedTarget = va_arg(args, f32*);
 
         if (CVAR_SPEED_TOGGLE) {
