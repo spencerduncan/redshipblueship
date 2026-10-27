@@ -4,12 +4,14 @@
 come with the release commit, not before.
 **Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
 this section.
-**Merged up to:** `main` at `79540720` (2026-10-27), 18 commits after the tag: pull requests #1174 to #1201 (#1174,
-#1179, #1183 and #1193 are docs; the numbers in that range that are not listed below are issues).
+**Merged up to:** `main` at `38a5138c` (2026-10-27), 22 commits after the tag: pull requests #1174 to #1209 (#1174,
+#1179, #1183, #1193 and #1208 are docs; the numbers in that range that are not listed below are issues or open pull
+requests).
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
-#N". Nobody has played any of it. Every change below is locked by test rows except Mido's, the boss door's and
-the warp-song prompt's hints (#1181), the Nearly No Logic cow rule (#1178) and the capital P's width (#1198, locked by
-a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
+#N". Nobody has played any of it. Every change below is locked by test rows except the warp-song prompt's hint
+(#1181; Mido's and the boss door's hints have generation coverage in a paired world since #1207, not a lock row), the
+Nearly No Logic cow rule (#1178), the capital P's width (#1198) and the debug-print font path (#1206), the last two
+locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #1208 are docs.
 
 ---
 
@@ -80,6 +82,13 @@ a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
   name (SoH `af485bf64`); Mido's Hint and Boss Door Hints now show their text when on (SoH `983d04d36`); and with
   warp songs shuffled and Warp Song Hints off, playing a warp song asks about "a mysterious place" instead of naming
   its vanilla destination (SoH `0dcd52e5c`; the prompt only, the warp is unchanged).
+- **A shuffled dungeon map's text box names its dungeon again, with the map icon, and the Great Deku Tree Compass
+  shows the compass text instead of the map's** (#1207, issue #1187): the halves of SoH `983d04d36` that #1181 left
+  out. With them, Ship of Harkinian's message text replacement no longer loops forever when a replacement contains
+  the text it replaces, so an item text that puts its icon on every page can no longer hang the game when it runs to
+  a second page (ported from SoH `983d04d36`, with the search resuming after the inserted text). Mido's hint and the
+  boss-door hints now have generation coverage in a paired world, including a boss key the single bag put in
+  Termina.
 
 ### Logic
 
@@ -135,6 +144,12 @@ a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
 - The spoiler's cross-game crossing rows (`combo.crossingStore`) give each item two names: `itemName`, the game's own
   name, and `displayName`, the name the tracker shows; a Majora's Mask single Bombchu reads "Bombchu" and
   "1 Bombchu" (#1201, issue #1200). A spoiler without `displayName` loads as before.
+- A texture pack's replacement debug-print font (`textures/font/sGfxPrintFontData`) is picked up in Ocarina of Time
+  again (#1206, issue #1195): the January namespacing had prefixed that resource path too. Nothing changes without
+  such a pack. It was the last lookup key the namespacing damaged (Mods under Known limitations).
+- The log no longer fills with "File[255] - does not exist" lines (about 113,000 in one session, one per frame with
+  Autosave on), and a foreign-item give that waits, for a scrub's text box for example, logs one attempt line and
+  then one line with its retry count instead of one line per frame (#1209, issue #1204). Items are given as before.
 
 ### For contributors
 
@@ -142,12 +157,14 @@ a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
   2Ship2Harkinian and libultraship fixes (#1174), with three corrections from the 2026-10-26 triage (#1183).
 - `docs/upstream-backport-audit-2026-10.md`: the bundled backport audit of the three upstreams since our import
   bases (#1179).
+- `tools/namespace_symbols.py` rewrites code only, never string literals, char literals or comments, and has a
+  read-only `--audit-literals` mode that lists the literals naming a game-prefixed symbol (#1206). A pytest invariant
+  fails on any key-shaped literal (no whitespace) that names one.
 
 ### Known limitations added since v0.3.1-prealpha
 
-- **Hints:** a file created before #1181 keeps its "No Hint" stones (above). Issue #1187 holds the hint follow-ups
-  the port left (a latent loop in message replacement, the dungeon map's name, coverage of Mido's and the boss-door
-  hints in paired worlds).
+- **Hints:** a file created before #1181 keeps its "No Hint" stones (above). The follow-ups of issue #1187 are in
+  (#1207, above); the map and compass boxes were checked through their text builder and item table, not on screen.
 - **Logic (#1178):** in the game the Double Cell and Steep Slope carpenters still award each other's checks
   (inherited data, issue #1191); logic now names the right cell. The game stays more permissive than logic in two
   places (the carpenter cutscene skip without the nut, Talon's game without the bracelet), so no seed becomes
@@ -171,12 +188,20 @@ a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
   #1141, #1143).
 - **Keep Items on Cycle Reset (#1194):** logic does not read it, as OoTMM's does not, and the spoiler does not name
   it. OoTMM's separate Keep Bottles on Cycle Reset is not built.
-- **Mods (#1197, #1198):** the January namespacing renamed string literals as well as symbols; the four known ones
-  are restored, and issue #1195 fixes the tool and sweeps for the rest. Issue #1063's crash with a texture pack that
+- **Mods (#1197, #1198, #1206):** the January namespacing renamed string literals as well as symbols. The class is
+  closed: the tool is fixed, its sweep found one more lookup key (the debug-print font path, above), and every
+  damaged key is restored and locked by the Python invariant; the prefixed literals left are console, crash-screen
+  and debug messages. Issue #1063's crash with a texture pack that
   "worked for a while" is still open: the skeleton crash was a different defect. Same-named archives in different mod
   folders never both mount (issue #1196, inherited from Ship of Harkinian).
 - **Majora's Mask randomizer:** leaving the Deku King's chamber after the monkey check still teaches the vanilla
   Sonata of Awakening, wherever the seed placed the real one (issue #1203).
+- **Woodfall Temple (issue #1070, open until retested):** with Dungeon Access at its default (Transformation &
+  Song), Majora's Mask's own trigger raises the temple only when Deku Link plays the Sonata standing on the Deku
+  Scrub symbol on the floor between the pink flower and the owl statue; played on the flower, or where the Song of
+  Soaring sets you down, the song gives its full announcement and nothing happens. A short chime as Deku Link takes
+  out the pipes confirms the spot. A Sonata that crossed from Hyrule works the same as one learned in Termina
+  (playtest guide, section U).
 
 ### Run record
 
@@ -187,7 +212,7 @@ itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integ
 #1199 and #1201), was the first to run the unit tiers on `main` as well: `redship` 244 of 244, `rando` 77 of 77,
 `integration` 21 of 21, `integration-soak` 1 of 1. The gate on `main` runs the unit tiers since issue #1200: `ComboCrossingViewsWorld` was
 red in `main`'s hosted CI from `d94ab061` (#1184's chu-pack names on #1178's placements) until #1201, and a gate of
-the ROM tiers alone did not see it. #1194 and #1198 came after cycle 29. The record is under "Gates, 2026-10-26/27"
+the ROM tiers alone did not see it. #1194, #1198, #1206, #1207 and #1209 came after cycle 29. The record is under "Gates, 2026-10-26/27"
 in [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
 ---
