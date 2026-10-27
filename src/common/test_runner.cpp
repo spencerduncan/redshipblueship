@@ -1992,7 +1992,7 @@ extern "C" int Rando_TestStaticHintsThatDrew(void);
 extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
 extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
-static const uint32_t kStaticHintTextDigest = 0x69FCC6BBu;
+static const uint32_t kStaticHintTextDigest = 0x5FF229EFu;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
@@ -6719,6 +6719,24 @@ TestResult Test_TrackerOoTPanelList(void) {
     }
     return OoT_TrackerOoTPanelList_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
+// #1168: the talking, grabbing and time gates ported from upstream, through each
+// game's real search (OoT's per-region event fixpoint and location question, MM's
+// reachability crawl). Same bring-up as the rows above; bodies in
+// games/oot/soh/oot_logic_gates_test.cpp and games/mm/2s2h/mm_logic_gates_test.cpp.
+extern "C" int OoT_LogicGates_RunHeadless(void);
+extern "C" int MM_LogicGates_RunHeadless(void);
+TestResult Test_OoTLogicGates(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_MMLogicGates(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return MM_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
@@ -8012,6 +8030,15 @@ const TestDescriptor gTests[] = {
       "shuffled chest, not an excluded location or an unshuffled shop slot, and the same list while MM is played "
       "(#1126)",
       Test_TrackerOoTPanelList },
+    // #1168. Each needs its game's real region graph; skipped by `--test all` below.
+    { "oot-logic-gates",
+      "Song from Malon and the Thieves' Hideout carpenters need the Hylian jabber nut, Talon's chickens the Power "
+      "Bracelet, and the carpet merchant both the nut and the price (#1168)",
+      Test_OoTLogicGates },
+    { "mm-logic-gates",
+      "Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder broken on Day 1, and the "
+      "Circus Leader's Mask needs Romani's Mask (#1168)",
+      Test_MMLogicGates },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -8426,6 +8453,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
+                strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
