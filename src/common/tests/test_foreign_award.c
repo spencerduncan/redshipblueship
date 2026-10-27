@@ -284,9 +284,11 @@ TestResult Test_ForeignAwardMM(void) {
             mmItem.id = (uint16_t)id;
             const int len = MM_ForeignItem_TestArrivalText((uint16_t)id, shown, (int)sizeof(shown));
             FA_ASSERT(len > 0);
-            const char* article = Combo_GetForeignItemArticle(mmItem);
+            // The describer's own article + name: an MM item arriving in MM keeps
+            // MM's name, where Hyrule names a counted pack by its count (#1160).
+            const char* article = Combo_DescribeItemArticle(mmItem);
             FA_ASSERT(article != NULL);
-            snprintf(expected, sizeof(expected), "You got %s%s", article, Combo_GetForeignItemName(mmItem));
+            snprintf(expected, sizeof(expected), "You got %s%s", article, Combo_DescribeItemName(mmItem));
             if (strcmp(shown, expected) != 0) {
                 printf("[TEST] FAIL: arrival toast for MM item %d shows '%s', expected '%s'\n", id, shown, expected);
                 return TEST_FAIL;

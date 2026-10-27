@@ -30,6 +30,21 @@
  *       in MM's give queue, and OoT's next arrival holds all 35;
  *   (5) the mirror: MM holds 30, spends 10, then picks up OoT's 10-pack on an
  *       MM check: pool 30, MM 30, and no crossing for OoT.
+ *
+ * THE STALE COUNT AFTER A BAG (#1160). MM holds bombchus only under a bomb bag
+ * (OoTMM's MM default; 0 with none, pinned in (2)), and nothing re-read the
+ * shared count when MM's bag arrived mid-visit: the vanilla Bomb Shop bag's give
+ * fills bombs only, and the #1122 step for OoT's bag found in Termina re-applied
+ * the bomb row alone, so MM showed 0 bombchus until the next arrival.
+ *
+ *   (6) pool 25, MM arrives with no bag (0, no item), then buys the Bomb Shop's
+ *       bag (MM_Item_Give(ITEM_BOMB_BAG_20)): MM holds 20 with the item at once,
+ *       and MM's harvest leaves the pool at 25;
+ *   (7) the same arrival, then OoT's Progressive Bomb Bag is found in Termina
+ *       (MM_CreditSharedPickup): MM holds 20 with the item at once, pool 25;
+ *   (8) Hyrule names MM's counted packs by their count, as OoTMM does: "1
+ *       Bombchu", "5 Bombchus", "10 Bombchus", with no article (MM's own text and
+ *       the hint describer keep MM's names).
  */
 
 #include <stdio.h>
@@ -59,6 +74,9 @@ int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
 int MM_ForeignItem_TestPendingCount(void);
 int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 void MM_ForeignItem_TestResetPending(void);
+void MM_SharedBombchuTest_GiveBombBag20(void);
+int MM_SharedBombchuTest_PackIdOf(int units);
+int OoT_SharedTierTest_BombBagId(void);
 #ifdef __cplusplus
 }
 #endif
@@ -235,6 +253,98 @@ TestResult Test_SharedBombchuPickup(void) {
         SB_CHECK(pool == 35, "the pool holds %d after MM's pickup, expected 35 (35 - 10 thrown + 10)", pool);
         SB_CHECK(mm == 30, "MM holds %d after the pickup, expected its cap of 30", mm);
         SB_CHECK(crossings == 0, "MM's pickup recorded %d OoT crossing(s): a counted pack must not cross", crossings);
+    }
+
+    MM_ForeignItem_TestResetPending();
+
+    // ---- (6) MM buys the Bomb Shop's bag mid-visit (#1160) --------------------
+    SbFreezeWorld();
+    OoT_SharedBombchuTest_ArmLive(25);
+    OoT_HarvestSharedResources(); // OoT departs holding 25: the pool learns them
+    MM_SharedBombchuTest_ArmLive(0, 0);
+    MM_ApplySharedResources(); // no bag: MM holds 0 and no item, by design (2)
+    SB_CHECK(MM_SharedBombchuTest_Count() == 0 && MM_SharedBombchuTest_HasItem() == 0,
+             "MM holds %d bombchus (item %d) before its bag, expected 0 and no item", MM_SharedBombchuTest_Count(),
+             MM_SharedBombchuTest_HasItem());
+    MM_SharedBombchuTest_GiveBombBag20();
+    {
+        const int mm = MM_SharedBombchuTest_Count();
+        const int item = MM_SharedBombchuTest_HasItem();
+        const int cap = MM_SharedBombchuTest_Capacity();
+        MM_HarvestSharedResources();
+        const int pool = SbPool();
+        printf("[TEST] (6) pool 25, MM buys the Bomb Shop's bag (cap %d): MM %d, item %d, pool after MM's harvest %d "
+               "(expected 20, 20, 1, 25)\n",
+               cap, mm, item, pool);
+        SB_CHECK(cap == 20, "MM's bombchu cap is %d after the bag, expected 20", cap);
+        SB_CHECK(mm == 20 && item == 1,
+                 "MM holds %d bombchus (item %d) right after its bag, expected 20 with the item: the bag must "
+                 "re-apply the shared count it now bounds",
+                 mm, item);
+        SB_CHECK(pool == 25, "the pool holds %d after MM's harvest, expected 25 (the 5 above MM's bag stay)", pool);
+    }
+
+    // ---- (7) OoT's bomb bag found in Termina (#1122 step) --------------------
+    SbFreezeWorld();
+    OoT_SharedBombchuTest_ArmLive(25);
+    OoT_HarvestSharedResources();
+    MM_SharedBombchuTest_ArmLive(0, 0);
+    MM_ApplySharedResources();
+    {
+        SharedItem ootBag;
+        ootBag.originGame = (uint8_t)GAME_OOT;
+        ootBag.flags = 0;
+        ootBag.id = (uint16_t)OoT_SharedTierTest_BombBagId();
+        const int credited = MM_CreditSharedPickup(&ootBag);
+        const int mm = MM_SharedBombchuTest_Count();
+        const int item = MM_SharedBombchuTest_HasItem();
+        const int cap = MM_SharedBombchuTest_Capacity();
+        MM_HarvestSharedResources();
+        const int pool = SbPool();
+        printf("[TEST] (7) pool 25, OoT's bomb bag found in Termina: credit %d, cap %d, MM %d, item %d, pool after "
+               "MM's harvest %d (expected 1, 20, 20, 1, 25)\n",
+               credited, cap, mm, item, pool);
+        SB_CHECK(credited == 1 && cap == 20, "the bag's pickup step answered %d with MM's cap at %d, expected 1 and 20",
+                 credited, cap);
+        SB_CHECK(mm == 20 && item == 1,
+                 "MM holds %d bombchus (item %d) right after the stepped bag, expected 20 with the item: the step "
+                 "must re-apply the bombchu count the bag bounds",
+                 mm, item);
+        SB_CHECK(pool == 25, "the pool holds %d after MM's harvest, expected 25", pool);
+    }
+
+    // ---- (8) Hyrule names MM's counted packs by their count ------------------
+    {
+        static const struct {
+            int units;
+            const char* name;
+        } kNames[] = { { 1, "1 Bombchu" }, { 5, "5 Bombchus" }, { 10, "10 Bombchus" } };
+        for (size_t i = 0; i < sizeof(kNames) / sizeof(kNames[0]); i++) {
+            SharedItem pack;
+            pack.originGame = (uint8_t)GAME_MM;
+            pack.flags = 0;
+            pack.id = (uint16_t)MM_SharedBombchuTest_PackIdOf(kNames[i].units);
+            const char* name = Combo_GetForeignItemName(pack);
+            const char* article = Combo_GetForeignItemArticle(pack);
+            printf("[TEST] (8) MM's %d-bombchu pack in Hyrule: \"%s%s (MM)\" (expected \"%s (MM)\")\n", kNames[i].units,
+                   article != NULL ? article : "", name != NULL ? name : "(null)", kNames[i].name);
+            SB_CHECK(name != NULL && strcmp(name, kNames[i].name) == 0,
+                     "Hyrule names MM's %d-bombchu pack \"%s\", expected \"%s\"", kNames[i].units,
+                     name != NULL ? name : "(null)", kNames[i].name);
+            SB_CHECK(article != NULL && article[0] == '\0',
+                     "Hyrule puts the article \"%s\" before MM's %d-bombchu pack", article != NULL ? article : "(null)",
+                     kNames[i].units);
+        }
+        // MM's own name for its 1-pack is untouched (its native text and the
+        // hint describer read it).
+        SharedItem one;
+        one.originGame = (uint8_t)GAME_MM;
+        one.flags = 0;
+        one.id = (uint16_t)MM_SharedBombchuTest_PackIdOf(1);
+        const char* described = Combo_DescribeItemName(one);
+        SB_CHECK(described != NULL && strcmp(described, "Bombchu") == 0,
+                 "MM's describer names its 1-pack \"%s\", expected its own \"Bombchu\"",
+                 described != NULL ? described : "(null)");
     }
 
     MM_ForeignItem_TestResetPending();

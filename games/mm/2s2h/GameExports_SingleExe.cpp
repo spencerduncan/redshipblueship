@@ -2791,6 +2791,8 @@ extern "C" void MM_TrackersGui_Init(void);
 // Cycle-safe shared rupees (#525) — defined further down THIS TU, beside the
 // rest of the MM shared-resource half.
 extern "C" void MM_RegisterSharedResourceCycleHooks(void);
+// #1160 bomb-bag give hook — defined further down THIS TU.
+extern "C" void MM_RegisterSharedBombchuBagHook(void);
 
 // Combo first-cycle VB overrides (#654) — defined further down THIS TU.
 extern "C" void MM_Combo_RegisterFirstCycleOverrides(void);
@@ -2922,6 +2924,9 @@ extern "C" void MM_Rando_InitCore(void) {
     // This TU is always linked, and the sRandoInitDone guard above is what
     // makes the registration once-only, as the block header requires.
     MM_RegisterSharedResourceCycleHooks();
+    // #1160: a bomb bag given in MM re-applies the shared bombchus it now bounds.
+    // From this always-linked TU for the same elided-provider reason.
+    MM_RegisterSharedBombchuBagHook();
 
     // The combo's first-cycle overrides (#654). Registered here, from this
     // always-linked TU, for the same elided-provider reason as the block above:
@@ -4412,7 +4417,9 @@ extern "C" void MM_GameHooks_ExecuteOnGameCompletion(void) {
  * of un-elision on purpose -- ADR 0004 section 5 condition 3, which imposes no
  * ordering between the three conditions -- so that the flip does not arm three
  * hook types at once with nothing behind them. games/mm/include/mm_game_hooks.h
- * carries the same note beside the blanket rule it refines.
+ * carries the same note beside the blanket rule it refines. Since #1160 OnItemGive
+ * has one live registrant, MM_RegisterSharedBombchuBagHook (this TU), which acts
+ * on the three bomb-bag items only and touches gSaveContext only.
  *
  * THE FOREIGN-AWARD SEAM, for whoever adds the first real registrant. MM's
  * cross-game arrival path DOES route through MM_Item_Give: MM_ConsumeSharedItems
@@ -4869,6 +4876,47 @@ static void MM_ApplySharedAmmoCount(const MMSharedAmmo* row) {
         }
         AMMO(row->item) = (s8)count;
     }
+}
+
+// The tier-less bombchu row: its ceiling is the bomb bag's (MM_AmmoCapacity), so
+// whatever moves the bag moves it too (#1160).
+static const MMSharedAmmo* MM_SharedBombchuRow(void) {
+    for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
+        if (kMMSharedAmmo[i].tierKind == RSBS_SHARED_RES_NONE &&
+            kMMSharedAmmo[i].countKind == RSBS_SHARED_RES_BOMBCHU_COUNT) {
+            return &kMMSharedAmmo[i];
+        }
+    }
+    return nullptr;
+}
+
+// Harvest MM's live bombchu count into the pool (a delta against MM's watermark).
+static void MM_HarvestSharedBombchus(void) {
+    const MMSharedAmmo* row = MM_SharedBombchuRow();
+    if (row != nullptr) {
+        Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
+    }
+}
+
+// Re-apply the bombchu count from the pool against the bag MM holds now.
+static void MM_ApplySharedBombchus(void) {
+    const MMSharedAmmo* row = MM_SharedBombchuRow();
+    if (row != nullptr) {
+        MM_ApplySharedAmmoCount(row);
+    }
+}
+
+/**
+ * MM's bombchus follow a bag that just arrived (#1160): harvest first, so what
+ * MM threw since the last sync leaves the pool and is not refunded, then apply,
+ * so MM holds min(pool, the new ceiling) with the item for a nonzero count. Run
+ * by the bomb-bag give hook (MM_RegisterSharedBombchuBagHook); the bomb-bag
+ * kind's own harvest and apply (MM_HarvestSharedKind / MM_ApplySharedKind) carry
+ * the same two steps.
+ */
+static void MM_SharedBombchusFollowBag(void) {
+    MM_HarvestSharedBombchus();
+    MM_ApplySharedBombchus();
 }
 
 // ---- Shared families (#976's OR discipline): MM's own copies ----------------
@@ -5431,6 +5479,12 @@ static void MM_HarvestSharedKind(uint8_t kind) {
                 Combo_HarvestSharedResource(GAME_MM, row->tierKind, (uint16_t)CUR_UPG_VALUE(row->upgrade));
                 Combo_HarvestSharedResource(GAME_MM, row->countKind, MM_ReadAmmo(row->item));
             }
+            if (kind == RSBS_SHARED_RES_BOMB_BAG_TIER) {
+                // The bag also bounds MM's bombchus (#1160): a pickup step for a
+                // bag re-applies them below, so it harvests them first. The
+                // harvest shim's own bombchu harvest after this is a zero delta.
+                MM_HarvestSharedBombchus();
+            }
             break;
         }
         case RSBS_SHARED_RES_HOOKSHOT_TIER:
@@ -5626,6 +5680,12 @@ static void MM_ApplySharedKind(uint8_t kind) {
             const MMSharedAmmo* row = MM_SharedAmmoRowForTier(kind);
             if (row != nullptr) {
                 MM_ApplySharedAmmoRow(row);
+            }
+            if (kind == RSBS_SHARED_RES_BOMB_BAG_TIER) {
+                // #1160: the bag just applied is MM's bombchu ceiling too, so the
+                // tier-less bombchu row re-applies against it now (OoT's bag found
+                // in Termina fills MM's bombchus at once, not at the next arrival).
+                MM_ApplySharedBombchus();
             }
             break;
         }
@@ -5842,6 +5902,45 @@ extern "C" int MM_CreditSharedPickup(const SharedItem* item) {
         return 1;
     }
     return 0;
+}
+
+/**
+ * MM's bomb-bag give hook (#1160). MM holds bombchus only under a bomb bag
+ * (MM_AmmoCapacity; OoTMM's MM default, kept), so a bag that arrives mid-visit
+ * raises MM's bombchu ceiling while the shared count waits in the pool. MM's own
+ * give does not re-read it: the vanilla Bomb Shop bag (Item_GiveImpl's
+ * ITEM_BOMB_BAG_20 branch) raises the tier and fills the bombs only, so MM showed
+ * 0 bombchus until the next arrival applied the pool. After every bomb-bag give
+ * this harvests MM's live bombchu count and re-applies the row against the new
+ * ceiling (MM_SharedBombchusFollowBag), so the count is right at once.
+ *
+ * Dispatched: MM_Item_Give (z_parameter.c) calls GameInteractor_ExecuteOnItemGive
+ * after Item_GiveImpl, which is MM_GameHooks_ExecuteOnItemGive above in this TU.
+ * Registered from MM_Rando_InitCore (once, under its init guard) and by the
+ * ROM-free row's seam; a registration a test reset dropped from the registry is
+ * made again, and one still there is not doubled. Touches gSaveContext only, so a
+ * give before MM_gPlayState is set is safe.
+ */
+static uint32_t sMMSharedBombchuBagHookId = 0;
+
+extern "C" void MM_RegisterSharedBombchuBagHook(void) {
+    if (sMMSharedBombchuBagHookId != 0 &&
+        S2H::GameHooks::Registry<GameInteractor::OnItemGive>::functions.count(sMMSharedBombchuBagHookId) != 0) {
+        return;
+    }
+    sMMSharedBombchuBagHookId = S2H::GameHooks::Register<GameInteractor::OnItemGive>([](u8 item) {
+        if (item != ITEM_BOMB_BAG_20 && item != ITEM_BOMB_BAG_30 && item != ITEM_BOMB_BAG_40) {
+            return;
+        }
+        if (!MM_SaveIsLiveFile()) {
+            return; // the same gate as the harvest and the pickup credit
+        }
+        MM_SharedBombchusFollowBag();
+        fprintf(stderr,
+                "[MM] bomb bag given (item %u): bombchus re-applied from the shared pool; MM now holds %d "
+                "(#1160)\n",
+                (unsigned)item, (int)AMMO(ITEM_BOMBCHU));
+    });
 }
 
 // ============================================================================

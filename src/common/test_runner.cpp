@@ -471,6 +471,9 @@ int RandoTest_ComboIdentityDisplayWorld(void);
 // #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
 // Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
 int RandoTest_ScrubTextHintSetting(void);
+// #1164 green pin: SoH's bombchu drop rule under the Bombchu Bag setting. Body in
+// games/oot/soh/oot_shared_bombchu_test.cpp. Return 0 on pass.
+int OoT_BombchuDropRuleTest_Run(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -2793,6 +2796,26 @@ TestResult Test_ScrubTextHintSetting(void) {
 
     int rc = RandoTest_ScrubTextHintSetting();
     printf("[TEST] %s: scrub text hint setting rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1164 green pin: a bomb drop becomes a bombchu drop under Bombchu Bag Single
+// with no bomb bag, and is cancelled under None. Same bring-up as the row above
+// (OTRGlobals' randomizer context). Assertions in
+// games/oot/soh/oot_shared_bombchu_test.cpp.
+TestResult Test_BombchuDropRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = OoT_BombchuDropRuleTest_Run();
+    printf("[TEST] %s: bombchu drop rule rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -8181,6 +8204,10 @@ const TestDescriptor gTests[] = {
       "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
       "(#855)",
       Test_ScrubTextHintSetting },
+    { "bombchu-drop-rule",
+      "SoH's drop rule turns a bomb drop into a bombchu drop under Bombchu Bag Single with no bomb bag, and cancels "
+      "it under None (#1164)",
+      Test_BombchuDropRule },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -8474,6 +8501,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
+                strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

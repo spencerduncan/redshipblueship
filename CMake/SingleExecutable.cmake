@@ -2911,6 +2911,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1164 (green pin, not a fix): SoH's own drop rule makes bombchu drops under
+    # Bombchu Bag Single with no bomb bag, and cancels a bomb drop under None.
+    # Drives z_en_item00.c's func_8001F404 against OTRGlobals' randomizer
+    # context. games/oot/soh/oot_shared_bombchu_test.cpp.
+    redship_add_test(NAME BombchuDropRule COMMAND redship --test bombchu-drop-rule
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
