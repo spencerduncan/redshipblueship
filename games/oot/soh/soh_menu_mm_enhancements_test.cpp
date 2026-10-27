@@ -1185,6 +1185,25 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "green over the registry would prove nothing");
         }
 
+        // The operator's ruling of 2026-10-27: MM's mod rows are a Settings page of their own, MM Mods, after SoH's
+        // OoT Mods, and the page's name says whose they are, so Rescan Mods Folder sits under no heading.
+        const SohGui::HostedMmRow* rescan = nullptr;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.name == "Rescan Mods Folder") {
+                MME_CHECK(rescan == nullptr, "the hosted-row registry holds Rescan Mods Folder twice (%s > %s too)",
+                          h.header.c_str(), h.sidebar.c_str());
+                rescan = &h;
+            }
+        }
+        MME_CHECK(rescan != nullptr && rescan->header == "Settings" && rescan->sidebar == "MM Mods" &&
+                      rescan->section.empty() && rescan->accessor != nullptr &&
+                      std::string(rescan->accessor) == "Combo_MMModSet_Scan",
+                  "the hosted-row registry holds no Rescan Mods Folder on Settings > MM Mods under no heading bound to "
+                  "Combo_MMModSet_Scan (it reads %s > %s under \"%s\")",
+                  rescan != nullptr ? rescan->header.c_str() : "(none)",
+                  rescan != nullptr ? rescan->sidebar.c_str() : "(none)",
+                  rescan != nullptr ? rescan->section.c_str() : "");
+
         std::size_t checked = 0;
         for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
             const std::string why = HostedRowVerdict(hostEntries, h);

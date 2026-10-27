@@ -198,15 +198,19 @@ using ComboPageRegistrar = void (*)(SohMenu& menu, WidgetPath& path);
  * Which of SoH's headers a contributed page is drawn under. There is no header of
  * ours: the tier-4 Combo header retired with #1133 (operator rulings D4 and D5,
  * 2026-10-22), its Majora's Mask rows hosted on the SoH pages that hold their
- * twins, its MM Mods rows in Settings > Mod Menu and Save Files under Dev Tools.
+ * twins, MM Mods a Settings page beside SoH's (renamed OoT Mods) and Save Files
+ * under Dev Tools.
  * Randomizer: AddComboRandomizerPages() walks it under SoH's Randomizer header,
  * after Tricks/Glitches and before Cross-Game, the one randomizer menu for both
  * games (#1101). DevTools: AddComboDevToolsPages() walks it after SoH's own Dev
- * Tools pages (ruling D4: Save Files).
+ * Tools pages (ruling D4: Save Files). Settings: AddComboSettingsPages() walks it
+ * after SoH's own Settings pages (the operator's ruling of 2026-10-27: MM Mods,
+ * directly after OoT Mods).
  */
 enum class ComboPageHost : uint8_t {
     Randomizer,
     DevTools,
+    Settings,
 };
 
 /** One contributed page: its sidebar label, how many columns it draws, the
@@ -223,7 +227,8 @@ struct ComboSectionPage {
  * headers registers one here instead of editing SohMenuCombo.cpp, naming the
  * header with @p host: ComboPageHost::Randomizer pages are drawn by
  * AddComboRandomizerPages() (#1101), ComboPageHost::DevTools pages by
- * AddComboDevToolsPages() (#1133), each creating the sidebar, so a contributor
+ * AddComboDevToolsPages() (#1133) and ComboPageHost::Settings pages by
+ * AddComboSettingsPages() (MM Mods), each creating the sidebar, so a contributor
  * touches no file this lane owns. A ROW that belongs on one of SoH's own pages is
  * not a page: it goes beside its SoH twin through the hosted-row seam
  * (HostedMm/SohMenuHostedMm.h) or after SoH's rows through RegisterSohPageRows
@@ -284,6 +289,21 @@ void AddComboDevToolsPages(SohMenu& menu, WidgetPath& path);
 
 /** The sidebar names AddComboDevToolsPages() registers, in its order. */
 std::vector<std::string> ComboDevToolsPageNames();
+
+/**
+ * Registers this project's pages under SoH's Settings header (the operator's
+ * ruling of 2026-10-27, "Have two rows, OoT Mods and MM Mods instead of just
+ * Mods"): every contributed page whose host is ComboPageHost::Settings, in
+ * registration order, each with its sidebar created here and a pinned first
+ * column. AddMenuSettings() calls it after its last page, OoT Mods (SoH's Mod
+ * Menu page, renamed), so MM Mods sits directly after it. Defined in
+ * SohMenuCombo.cpp; callable ROM-free, so the locks and the UI snapshot probe
+ * drive it directly.
+ */
+void AddComboSettingsPages(SohMenu& menu, WidgetPath& path);
+
+/** The sidebar names AddComboSettingsPages() registers, in its order. */
+std::vector<std::string> ComboSettingsPageNames();
 
 /** Drop a contributed page again. Returns true if one was removed. Exists so a
  *  test can restore the registry rather than leave process-global state behind

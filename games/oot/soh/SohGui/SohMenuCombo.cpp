@@ -1066,27 +1066,51 @@ std::vector<std::string> ComboRandomizerPageNames() {
  * SoH's own Dev Tools pages (AddMenuDevTools calls this last). Each pins its
  * own column.
  */
-void AddComboDevToolsPages(SohMenu& menu, WidgetPath& path) {
-    path.sectionName = "Dev Tools";
+/** The contributed pages hosted under @p header (@p host), each after the pages
+ *  already there, in registration order, each pinning its own column. */
+static void AddHostedComboPages(SohMenu& menu, WidgetPath& path, ComboPageHost host, const char* header) {
+    path.sectionName = header;
     for (const ComboSectionPage& page : GetComboSectionPages()) {
-        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::DevTools) {
+        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != host) {
             continue;
         }
         path.sidebarName = page.sidebarName;
         path.column = SECTION_COLUMN_1;
-        menu.AddSidebarEntry("Dev Tools", path.sidebarName, page.columnCount);
+        menu.AddSidebarEntry(header, path.sidebarName, page.columnCount);
         page.registrar(menu, path);
     }
 }
 
-std::vector<std::string> ComboDevToolsPageNames() {
+static std::vector<std::string> HostedComboPageNames(ComboPageHost host) {
     std::vector<std::string> names;
     for (const ComboSectionPage& page : GetComboSectionPages()) {
-        if (page.registrar != nullptr && !page.sidebarName.empty() && page.host == ComboPageHost::DevTools) {
+        if (page.registrar != nullptr && !page.sidebarName.empty() && page.host == host) {
             names.push_back(page.sidebarName);
         }
     }
     return names;
+}
+
+void AddComboDevToolsPages(SohMenu& menu, WidgetPath& path) {
+    AddHostedComboPages(menu, path, ComboPageHost::DevTools, "Dev Tools");
+}
+
+std::vector<std::string> ComboDevToolsPageNames() {
+    return HostedComboPageNames(ComboPageHost::DevTools);
+}
+
+/**
+ * Our pages under SoH's Settings header (the operator's ruling of 2026-10-27;
+ * declared in SohMenu.h): the Settings-hosted contributed pages in registration
+ * order, after SoH's own Settings pages (AddMenuSettings calls this last, right
+ * after OoT Mods). Each pins its own column.
+ */
+void AddComboSettingsPages(SohMenu& menu, WidgetPath& path) {
+    AddHostedComboPages(menu, path, ComboPageHost::Settings, "Settings");
+}
+
+std::vector<std::string> ComboSettingsPageNames() {
+    return HostedComboPageNames(ComboPageHost::Settings);
 }
 
 } // namespace SohGui
