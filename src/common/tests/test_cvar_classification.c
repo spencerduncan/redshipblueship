@@ -35,6 +35,7 @@
  * files in this directory.
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -488,6 +489,11 @@ constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
     { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Scale", "gAudioEditor.LinkVoiceFreqMultiplier",
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
+    // W6-AUDIO-SEQ (#1239): SoH's five-way randomize-audio combobox drives MM's two randomize-all bools.
+    { 1239, "gAudioEditor.RandomizeAllOnNewScene", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp" },
+    { 1239, "gAudioEditor.RandomizeAllOnRandoGen", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp" },
 };
 
 /// #1060's linked read sites: each must call the translator's tier.
@@ -975,6 +981,139 @@ TestResult Test_CVarClassification(void) {
                        canonical, probe);
                 return TEST_FAIL;
             }
+        }
+
+        // (3f-1b) W6-AUDIO-SEQ (#1239): MM's sequence-editor key families never land on SoH's. Both editors compose a
+        // replacement as <family><sfxKey>.value / .locked and a shuffle-pool exclusion as <family><sfxKey>, and eleven
+        // sfxKeys name a sequence in both games (NA_BGM_BOSS, NA_BGM_MINI_BOSS, NA_BGM_ENEMY, ...), so one spelling
+        // would let either game's tab set the other game's music. The colliding set is derived from the two sequence
+        // tables, so a key either game adds is covered with no edit here. For each, MM's composed keys must differ
+        // from SoH's and neither may nest under the other (LUS stores CVars as dot-nested JSON). MM's collection must
+        // compose every key from the two _PREFIX defines (a CVAR_AUDIO("ReplacedSequences.") or CVAR_AUDIO("Excluded.")
+        // spelling survives only on a #define line, the upstream branch), and games/oot never spells MM's namespace.
+        {
+            const std::string sohReplaced = "gAudioEditor.ReplacedSequences.";
+            const std::string sohExcluded = "gAudioEditor.Excluded.";
+            const std::string mmReplaced = RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX;
+            const std::string mmExcluded = RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX;
+            auto readFile = [](const std::filesystem::path& file) {
+                std::ifstream in(file, std::ios::binary);
+                return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            };
+            // The second string literal of every SEQUENCE_MAP_ENTRY(...) row (the macro's own #define is skipped).
+            auto sfxKeysOf = [](const std::string& text) {
+                std::vector<std::string> keys;
+                const std::string token = "SEQUENCE_MAP_ENTRY(";
+                for (std::size_t pos = text.find(token); pos != std::string::npos; pos = text.find(token, pos + 1)) {
+                    const std::size_t nl = text.rfind('\n', pos);
+                    const std::size_t lineStart = nl == std::string::npos ? 0 : nl + 1;
+                    if (text.substr(lineStart, pos - lineStart).find("#define") != std::string::npos) {
+                        continue;
+                    }
+                    std::vector<std::string> literals;
+                    std::size_t i = pos + token.size();
+                    int depth = 1;
+                    while (i < text.size() && depth > 0 && literals.size() < 2) {
+                        const char c = text[i];
+                        if (c == '(') {
+                            depth++;
+                        } else if (c == ')') {
+                            depth--;
+                        } else if (c == '"') {
+                            std::string lit;
+                            for (i++; i < text.size() && text[i] != '"'; i++) {
+                                if (text[i] == '\\' && i + 1 < text.size()) {
+                                    i++;
+                                }
+                                lit += text[i];
+                            }
+                            literals.push_back(lit);
+                        }
+                        i++;
+                    }
+                    if (literals.size() == 2) {
+                        keys.push_back(literals[1]);
+                    }
+                }
+                return keys;
+            };
+            // Is @p inner the same key as @p outer, or a JSON child of it?
+            auto nests = [](const std::string& outer, const std::string& inner) {
+                return inner == outer || (inner.size() > outer.size() && inner.compare(0, outer.size(), outer) == 0 &&
+                                          inner[outer.size()] == '.');
+            };
+
+            CVARCLASS_CHECK(mmReplaced != sohReplaced && mmExcluded != sohExcluded && mmReplaced != mmExcluded &&
+                                mmReplaced.back() == '.' && mmExcluded.back() == '.',
+                            "W6-AUDIO-SEQ: MM's two sequence-editor _PREFIX defines must be distinct dotted families, "
+                            "neither of them SoH's gAudioEditor.ReplacedSequences. / gAudioEditor.Excluded.");
+            const std::string sohTable =
+                readFile(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "audio" / "AudioCollection.cpp");
+            const std::string mmCollection =
+                readFile(sourceRoot / "games" / "mm" / "2s2h" / "Enhancements" / "Audio" / "AudioCollection.cpp");
+            const std::vector<std::string> sohKeys = sfxKeysOf(sohTable);
+            const std::vector<std::string> mmKeys = sfxKeysOf(mmCollection);
+            std::vector<std::string> colliding;
+            for (const std::string& k : mmKeys) {
+                if (std::find(sohKeys.begin(), sohKeys.end(), k) != sohKeys.end()) {
+                    colliding.push_back(k);
+                }
+            }
+            // The control: the parse must find the three the issue names, so a parse that sees nothing is red.
+            for (const char* named : { "NA_BGM_BOSS", "NA_BGM_MINI_BOSS", "NA_BGM_ENEMY" }) {
+                if (std::find(colliding.begin(), colliding.end(), named) == colliding.end()) {
+                    printf("[TEST] FAIL: W6-AUDIO-SEQ: %s is not in the sfxKey set both sequence tables share (%zu "
+                           "found, SoH %zu rows, MM %zu rows): the table parse is broken, so this leg checks nothing\n",
+                           named, colliding.size(), sohKeys.size(), mmKeys.size());
+                    return TEST_FAIL;
+                }
+            }
+            for (const std::string& k : colliding) {
+                const std::pair<std::string, std::string> pairs[] = {
+                    { sohReplaced + k + ".value", mmReplaced + k + ".value" },
+                    { sohReplaced + k + ".locked", mmReplaced + k + ".locked" },
+                    { sohExcluded + k, mmExcluded + k },
+                };
+                for (const auto& [soh, mm] : pairs) {
+                    if (nests(soh, mm) || nests(mm, soh)) {
+                        printf("[TEST] FAIL: W6-AUDIO-SEQ: MM's \"%s\" and SoH's \"%s\" are one stored key (or one "
+                               "nests under the other), so one game's Audio Editor tab sets the other's music\n",
+                               mm.c_str(), soh.c_str());
+                        return TEST_FAIL;
+                    }
+                }
+            }
+            printf("[TEST] W6-AUDIO-SEQ: %zu sfxKeys name a sequence in both games; MM composes each under its own "
+                   "families\n",
+                   colliding.size());
+
+            // MM's collection composes every key through the defines.
+            CVARCLASS_CHECK(
+                mmCollection.find("RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX") != std::string::npos &&
+                    mmCollection.find("RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX") != std::string::npos,
+                "W6-AUDIO-SEQ: MM's S2H::AudioCollection does not compose its replacement and exclusion "
+                "keys from RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX / RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX, "
+                "so MM's sequence tabs read and write SoH's keys");
+            std::size_t lineStart = 0;
+            while (lineStart < mmCollection.size()) {
+                std::size_t lineEnd = mmCollection.find('\n', lineStart);
+                if (lineEnd == std::string::npos) {
+                    lineEnd = mmCollection.size();
+                }
+                const std::string line = mmCollection.substr(lineStart, lineEnd - lineStart);
+                const bool shared = line.find("CVAR_AUDIO(\"ReplacedSequences.") != std::string::npos ||
+                                    line.find("CVAR_AUDIO(\"Excluded.") != std::string::npos;
+                if (shared && line.find("#define") == std::string::npos) {
+                    printf("[TEST] FAIL: W6-AUDIO-SEQ: MM's AudioCollection.cpp still composes a key from SoH's "
+                           "family: %s\n",
+                           line.c_str());
+                    return TEST_FAIL;
+                }
+                lineStart = lineEnd + 1;
+            }
+            CVARCLASS_CHECK(!CvarClassTreeContainsLiteral(ootTree, "gAudioEditor.MM."),
+                            "W6-AUDIO-SEQ: games/oot spells MM's sequence-editor namespace as a literal; it reaches "
+                            "MM's keys only through MM's editor seam");
         }
 
         // (3f-2) The #966 key-name gaps, in the tree. The manifest row alone proves

@@ -906,6 +906,24 @@ void ResetAudioKeys() {
     }
 }
 
+// ---- W6-AUDIO-SEQ (#1239): SoH's randomize-audio combobox, translated onto MM's two randomize-all hooks -------
+// Enhancements/Audio/AudioEditorSingleExe.cpp registers both through one file-scope RegisterShipInitFunc keyed on
+// SoH's gAudioEditor.RandomizeAudioGenModes. The drive turns the key "on" with 1, SoH's On New Scene: that arms the
+// new-scene hook (VB_PLAY_TRANSITION_CS, z_play.c via func_800EDDB0) and must not arm the randomizer-generation one
+// (OnRandoSeedGeneration, Rando/MiscBehavior/OnFileCreate.cpp), which waits for On Rando Gen Only.
+const std::vector<SkipKeyProbe>& AudioSeqProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gAudioEditor.RandomizeAudioGenModes",
+          "Automatically Randomize All Music and Sound Effects (On New Scene)",
+          { { "VB_PLAY_TRANSITION_CS (Audio/AudioEditorSingleExe.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_TRANSITION_CS); }, 1 },
+            { "OnRandoSeedGeneration, unkeyed: not armed by On New Scene (Audio/AudioEditorSingleExe.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnRandoSeedGeneration>(); }, 0 } } },
+    };
+    return probes;
+}
+RegisterW6Phase sAudioSeqPhase{ "W6-AUDIO-SEQ (#1239)", AudioSeqProbes };
+
 // ---- Phase 8 (#1023): Free Look ---------------------------------------------
 // Same shape as Phase 5 (SkipKeyProbe).
 const std::vector<SkipKeyProbe>& FreeLookProbes() {

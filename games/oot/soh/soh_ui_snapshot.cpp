@@ -157,6 +157,7 @@
 #include "curated_archives.h" // Combo_EnsureCuratedArchives: the boot's curated halves (#963)
 #include "cvar_shared_keys.h"
 #include "game.h"                  // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
+#include "mm_audio_editor.h"       // W6-AUDIO-SEQ: the Audio Editor's Majora's Mask tab, brought to the front
 #include "mm_mod_set.h"            // #706: the MM Mods page's model, authored for its three states
 #include "mod_archives.h"          // Combo_MountCuratedArchive (#963)
 #include "combo_save_files_view.h" // lane W5: the Save Files page's model, authored for its two states
@@ -2212,15 +2213,20 @@ void Session::BuildPageList() {
         // (DrawMmAudioOptionsRows, right after SoH's mute rows). Audio Options is the editor's first tab, so it is the
         // one showing when the window opens. One MM row is hovered through the combo_ui seam's rect report: its
         // tooltip must show, ending "Majora's Mask only.". W6-AUDIO-SEQ adds the MM pane's state to this block.
+        // W6-AUDIO-SEQ (#1239): "mm-pane" brings the editor's Majora's Mask tab to the front (DrawMmSequencePane, after
+        // SoH's sequence tabs): MM's bulk buttons over MM's own sequence tabs, Background Music first. One bulk button
+        // is hovered the same way. Each state picks its tab through SohAudioEditor_ShowMmPaneForTest (EnterState).
         PageSpec p;
         p.id = "window/Audio Editor";
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::WINDOW;
         p.window = "Audio Editor";
-        p.states = { "" };
-        p.expectText = { "Audio Options", "Disable Navi Call Audio", "MM Mute Carpenter Sounds",
-                         "MM Mute Crying Goron Child" };
+        p.states = { "", "mm-pane" };
+        p.expectText = { "Audio Options" };
+        p.stateText[""] = { "Disable Navi Call Audio", "MM Mute Carpenter Sounds", "MM Mute Crying Goron Child" };
+        p.stateText["mm-pane"] = { "MM Randomize All Groups", "Termina Field" };
         p.paneHovers.push_back({ "mm-carpenter", "", "MM Mute Carpenter Sounds", false });
+        p.paneHovers.push_back({ "mm-randomize-all", "mm-pane", "MM Randomize All Groups", false });
         p.needsRom = true;
         pages.push_back(p);
     }
@@ -3197,6 +3203,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             PumpFrame(
                 nullptr, false, []() { SetSohBindingsHeaderOpen("Camera Controls", true); }, why);
         }
+    } else if (p.id == "window/Audio Editor") {
+        // W6-AUDIO-SEQ: the tab each state shows (the request is kept until the window next draws).
+        SohAudioEditor_ShowMmPaneForTest(state == "mm-pane");
     } else if (p.rowStateProbe || p.mmNoteProbe) {
         if (p.mmNoteProbe && state == "heading-on") {
             CVarSetInteger(kMmNoteLiveKey, 1);

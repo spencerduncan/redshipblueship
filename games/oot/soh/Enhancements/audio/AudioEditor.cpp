@@ -20,6 +20,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "cvar_shared_keys.h"
 #include "combo_ui.h"
+#include "mm_audio_editor.h"
 #endif
 
 extern "C" {
@@ -563,6 +564,13 @@ static void DrawMmAudioOptionsRows() {
                             UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(kGoronChildTooltip));
     ComboUi_NotifyRect(kGoronChildLabel, kGoronChildTooltip, ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y,
                        ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y);
+}
+#endif
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-AUDIO-SEQ (#1239): the UI snapshot harness's tab request. No Majora's Mask tab is drawn yet, so it does nothing.
+void SohAudioEditor_ShowMmPaneForTest(bool show) {
+    (void)show;
 }
 #endif
 
