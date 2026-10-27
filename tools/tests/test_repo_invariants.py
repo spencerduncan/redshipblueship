@@ -621,3 +621,43 @@ def test_mm_2s2h_glob_is_configure_depends():
             assert "CONFIGURE_DEPENDS" in line, "the 2s2h/ source glob lost CONFIGURE_DEPENDS"
             return
     pytest.fail("could not find the `file(GLOB_RECURSE ship__ ...)` call in games/mm/CMakeLists.txt")
+
+
+# #1190: Fast64 (the exporter custom skeleton mods are made with) marks a
+# mesh-less limb DisplayList1="gEmptyDL". The January symbol-namespacing pass
+# (#53, tools/namespace_symbols.py) rewrote that string literal along with the C
+# symbols, so the XML limb factory stopped recognising the marker and every such
+# custom skeleton faulted at its first draw. The literal is the exporter's
+# spelling, never a namespaced one: no producer writes "OoT_gEmptyDL".
+SKELETON_LIMB_FACTORIES = (
+    REPO_ROOT / "games" / "oot" / "soh" / "resource" / "importer" / "SkeletonLimbFactory.cpp",
+    REPO_ROOT / "games" / "mm" / "2s2h" / "resource" / "importer" / "SkeletonLimbFactory.cpp",
+)
+PORT_SOURCE_ROOTS = (REPO_ROOT / "games" / "oot" / "soh", REPO_ROOT / "games" / "mm" / "2s2h")
+NAMESPACED_EMPTY_DL = ("OoT_gEmptyDL", "MM_gEmptyDL")
+
+
+def test_xml_limb_factories_compare_the_exporters_empty_dl_marker():
+    for path in SKELETON_LIMB_FACTORIES:
+        text = path.read_text(encoding="utf-8")
+        assert '"gEmptyDL"' in text, (
+            f"{path.relative_to(REPO_ROOT).as_posix()} no longer compares DisplayList1 against the exact "
+            'literal "gEmptyDL" Fast64 writes (#1190)')
+
+
+def test_no_port_source_names_a_namespaced_empty_dl():
+    offenders = []
+    scanned = 0
+    for root in PORT_SOURCE_ROOTS:
+        for path in root.rglob("*"):
+            if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
+                continue
+            scanned += 1
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for lineno, line in enumerate(text.splitlines(), start=1):
+                if any(name in line for name in NAMESPACED_EMPTY_DL):
+                    offenders.append(f"{path.relative_to(REPO_ROOT).as_posix()}:{lineno}: {line.strip()}")
+    assert scanned > 500, f"the scan saw only {scanned} source files under soh/ and 2s2h/"
+    assert not offenders, (
+        "a port source names a namespaced gEmptyDL; mod data spells the marker \"gEmptyDL\" (#1190):\n  "
+        + "\n  ".join(offenders))

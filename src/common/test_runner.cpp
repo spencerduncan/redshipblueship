@@ -62,6 +62,10 @@ int MM_RegisterResourceFactoriesHeadless(void);
 // vertex data needs). Defined in games/oot/soh/OTRGlobals.cpp — OoT's own TU,
 // so the row runs against the factory surface a real OoT session has.
 int OoT_RegisterModelResourceFactoriesHeadless(void);
+// #1190: an XML skeleton limb marked with Fast64's "gEmptyDL" has no display
+// list, through the factory and the loader. Body in
+// games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp. Return 0 on pass.
+int OoT_XmlSkeletonEmptyLimb_RunHeadless(void);
 // MM scene-command EXECUTE regression (#344). Body lives in an MM TU
 // (games/mm/2s2h/mm_scene_execute_test.cpp) so MM's global.h / PlayState never
 // enters this translation unit; called through this C entry point, mirroring
@@ -6960,6 +6964,22 @@ TestResult Test_ArrayReaderDispatch(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1190 without a ROM: Fast64's "gEmptyDL" limb marker through SoH's XML limb
+// factory alone, then a synthetic loose-folder skeleton through the shared
+// loader (the display-free shared bring-up). Never skips.
+TestResult Test_XmlSkeletonEmptyLimb(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_XmlSkeletonEmptyLimb_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The cross-game refusal toasts fit the screen (games/oot/soh/soh_notification_fit_test.cpp).
 // Display-free: SoH's notification overlay draws into a private ImGui context. The
 // shared bring-up for the CVar store the overlay and Notification::Emit read.
@@ -8324,6 +8344,11 @@ const TestDescriptor gTests[] = {
       "ROM-free: the per-archive 'Array' slot hands an MM-recorded archive's file to MM's reader and an unowned "
       "archive's to OoT's, over two staged loose-folder archives (#604)",
       Test_ArrayReaderDispatch },
+    { "xml-skeleton-empty-limb",
+      "ROM-free: an XML skeleton limb whose DisplayList1 is Fast64's \"gEmptyDL\" has no display list, through the "
+      "XML limb factory and through the loader over a staged loose-folder skeleton, whose limbs with a display list "
+      "then number DisplayListCount (#1190)",
+      Test_XmlSkeletonEmptyLimb },
     { "combo-save-files-view",
       "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
       "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "

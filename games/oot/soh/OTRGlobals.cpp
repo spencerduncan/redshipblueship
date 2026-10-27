@@ -2301,6 +2301,31 @@ extern "C" int OoT_RegisterModelResourceFactoriesHeadless(void) {
                                     "Matrix", static_cast<uint32_t>(Fast::ResourceType::Matrix), 0);
     return 0;
 }
+
+/**
+ * Headless registration of the SKELETON factories, binary and XML (#1190), as
+ * OTRGlobals::Initialize registers them, for the ROM-free row that loads a
+ * custom (XML) skeleton through the shared loader without the display-bound
+ * Initialize path. Idempotent.
+ */
+extern "C" int OoT_RegisterSkeletonResourceFactoriesHeadless(void) {
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetResourceLoader() == nullptr) {
+        return -1;
+    }
+    auto loader = ctx->GetResourceManager()->GetResourceLoader();
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonV0>(), RESOURCE_FORMAT_BINARY,
+                                    "Skeleton", static_cast<uint32_t>(SOH::ResourceType::SOH_Skeleton), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLSkeletonV0>(), RESOURCE_FORMAT_XML,
+                                    "Skeleton", static_cast<uint32_t>(SOH::ResourceType::SOH_Skeleton), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryBinarySkeletonLimbV0>(),
+                                    RESOURCE_FORMAT_BINARY, "SkeletonLimb",
+                                    static_cast<uint32_t>(SOH::ResourceType::SOH_SkeletonLimb), 0);
+    loader->RegisterResourceFactory(std::make_shared<SOH::ResourceFactoryXMLSkeletonLimbV0>(), RESOURCE_FORMAT_XML,
+                                    "SkeletonLimb", static_cast<uint32_t>(SOH::ResourceType::SOH_SkeletonLimb), 0);
+    return 0;
+}
 #endif
 
 extern "C" void SaveManager_ThreadPoolWait() {
