@@ -30,6 +30,15 @@ static bool Autosave_CanSave() {
     // Don't save the first 60 frames to not save the magic meter when it's still in the animation of filling it.
     // Don't save in Chamber of Sages and the Cutscene map because of remember save location and cutscene item gives.
     // Don't save between obtaining Ocarina of Time and Song of Time because the latter would become unobtainable.
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1204: no loaded file, no slot probe. IsSaveLoaded rejects the 0xFF
+    // sentinel a cross-game session and the title screen run with, in RAM, so the
+    // interval save's per-frame re-check never asks SaveManager for slot 255 (it
+    // did, 113,123 times in one session's log).
+    if (!GameInteractor::IsSaveLoaded(false)) {
+        return false;
+    }
+#endif
     if (!SaveManager::Instance->SaveFile_Exist(gSaveContext.fileNum) || !GameInteractor::IsSaveLoaded(false) ||
         OoT_gPlayState->gameplayFrames < 60 || OoT_gPlayState->sceneNum == SCENE_CHAMBER_OF_THE_SAGES ||
         OoT_gPlayState->sceneNum == SCENE_CUTSCENE_MAP ||

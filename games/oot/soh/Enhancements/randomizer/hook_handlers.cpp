@@ -243,6 +243,29 @@ static std::queue<RandomizerCheck> randomizerQueuedChecks;
 static RandomizerCheck randomizerQueuedCheck = RC_UNKNOWN_CHECK;
 static GetItemEntry randomizerQueuedItemEntry = GET_ITEM_NONE;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1204: the item queue handler offers the queued give on every player update
+// until the player takes it. Waiting is intended: Link may be in a textbox, a
+// cutscene or another item's hold-up (a business scrub's sale sets its check's
+// flag inside the sale textbox, so RC 721, Ganon's Castle's right scrub, waited
+// 120 frames for that conversation to end). Logging every offer was not: the
+// first offer is logged, the rest are counted, and the slot's release logs the
+// count once when there was more than one.
+static RandomizerCheck sGiveAttemptsCheck = RC_UNKNOWN_CHECK;
+static uint32_t sGiveAttempts = 0;
+
+// Called where the give slot is released, before it is cleared.
+static void RandomizerLogGiveAttemptsDone() {
+    if (sGiveAttempts > 1 && sGiveAttemptsCheck == randomizerQueuedCheck) {
+        SPDLOG_INFO("Give of Item mod {} item {} from RC {} completed after {} attempts",
+                    randomizerQueuedItemEntry.modIndex, randomizerQueuedItemEntry.itemId,
+                    static_cast<uint32_t>(randomizerQueuedCheck), sGiveAttempts);
+    }
+    sGiveAttemptsCheck = RC_UNKNOWN_CHECK;
+    sGiveAttempts = 0;
+}
+#endif
+
 void RandomizerOnFlagSetHandler(int16_t flagType, int16_t flag) {
     // Consume adult trade items
     if (RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE) && flagType == FLAG_RANDOMIZER_INF) {
@@ -394,6 +417,7 @@ static bool RandomizerQueueForeignShowOnly(RandomizerCheck rc) {
 // its take (ForeignModelHostOoT.cpp).
 void Randomizer_ReleaseQueuedShowOnly(uint16_t rc) {
     if (randomizerQueuedCheck == (RandomizerCheck)rc) {
+        RandomizerLogGiveAttemptsDone();
         randomizerQueuedCheck = RC_UNKNOWN_CHECK;
         randomizerQueuedItemEntry = GET_ITEM_NONE;
     }
@@ -598,8 +622,20 @@ void RandomizerOnPlayerUpdateForItemQueueHandler() {
         return;
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1204: one line per queued give, not one per frame it waits.
+    if (sGiveAttemptsCheck != randomizerQueuedCheck) {
+        sGiveAttemptsCheck = randomizerQueuedCheck;
+        sGiveAttempts = 0;
+    }
+    if (sGiveAttempts++ == 0) {
+        SPDLOG_INFO("Attempting to give Item mod {} item {} from RC {}", randomizerQueuedItemEntry.modIndex,
+                    randomizerQueuedItemEntry.itemId, static_cast<uint32_t>(randomizerQueuedCheck));
+    }
+#else
     SPDLOG_INFO("Attempting to give Item mod {} item {} from RC {}", randomizerQueuedItemEntry.modIndex,
                 randomizerQueuedItemEntry.itemId, static_cast<uint32_t>(randomizerQueuedCheck));
+#endif
     GiveItemEntryWithoutActor(OoT_gPlayState, randomizerQueuedItemEntry);
     if (player->stateFlags1 & PLAYER_STATE1_IN_WATER) {
         // Allow the player to receive the item while swimming
@@ -622,6 +658,9 @@ void RandomizerOnItemReceiveHandler(GetItemEntry receivedItemEntry) {
         CheckTracker::RecalculateAllAreaTotals();
         CheckTracker::RecalculateAvailableChecks();
         SaveManager::Instance->SaveSection(gSaveContext.fileNum, SECTION_ID_TRACKER_DATA, true);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        RandomizerLogGiveAttemptsDone();
+#endif
         randomizerQueuedCheck = RC_UNKNOWN_CHECK;
         randomizerQueuedItemEntry = GET_ITEM_NONE;
     }
@@ -3121,6 +3160,10 @@ static void RandomizerRegisterHooks() {
         randomizerQueuedChecks = std::queue<RandomizerCheck>();
         randomizerQueuedCheck = RC_UNKNOWN_CHECK;
         randomizerQueuedItemEntry = GET_ITEM_NONE;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        sGiveAttemptsCheck = RC_UNKNOWN_CHECK; // #1204: a new file starts its own count
+        sGiveAttempts = 0;
+#endif
 
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnFlagSet>(onFlagSetHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnSceneFlagSet>(onSceneFlagSetHook);

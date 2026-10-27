@@ -36,6 +36,7 @@
 #include <filesystem>
 #include <array>
 #include <mutex>
+#include <unordered_map>
 
 extern "C" SaveContext gSaveContext;
 // Shared cross-game resources (#525), defined in soh/GameExports_SingleExe.cpp.
@@ -2204,10 +2205,35 @@ void SaveManager::ThreadPoolWait() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1204: SaveFile_Exist logs a file's answer when it differs from the last one
+// logged for that file, not on every call. A per-frame caller (the interval
+// autosave's re-check) wrote 113,123 lines in one session. The first answer for a
+// file is always logged, so a real miss is never silenced, and so is every
+// change. Keyed by the file's path, so another save directory is another file.
+static bool SaveFile_ExistShouldLog(const std::filesystem::path& file, bool exists) {
+    static std::mutex sMutex;
+    static std::unordered_map<std::string, bool> sLogged;
+    std::lock_guard<std::mutex> lock(sMutex);
+    auto [it, inserted] = sLogged.try_emplace(file.string(), exists);
+    if (!inserted && it->second == exists) {
+        return false;
+    }
+    it->second = exists;
+    return true;
+}
+#endif
+
 bool SaveManager::SaveFile_Exist(int fileNum) {
     try {
-        bool exists = std::filesystem::exists(GetFileName(fileNum));
-        SPDLOG_INFO("File[{}] - {}", fileNum, exists ? "exists" : "does not exist");
+        const std::filesystem::path file = GetFileName(fileNum);
+        bool exists = std::filesystem::exists(file);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if (SaveFile_ExistShouldLog(file, exists))
+#endif
+        {
+            SPDLOG_INFO("File[{}] - {}", fileNum, exists ? "exists" : "does not exist");
+        }
         return exists;
     } catch (std::filesystem::filesystem_error const& ex) {
         SPDLOG_ERROR("Filesystem error");
