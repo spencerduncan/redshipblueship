@@ -1378,6 +1378,111 @@ static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reached
     return RSBS_COMBO_LOGIC_OK;
 }
 
+/** DEBUG SEEDS: the bag index each forced row claimed in the current fill. */
+static int sForcedBagIdx[RSBS_COMBO_LOGIC_FORCED_CAP];
+
+/**
+ * DEBUG SEEDS (Combo_Logic_TestSetForcedPlacements): claim each forced row's bag
+ * row, the first unclaimed one with its origin and id, and take the claimed rows
+ * out of the required and surplus lists (stable), so no attempt places them twice
+ * and no round assumes them. Runs once per fill, after ComboLogicPartitionBag.
+ */
+static int ComboLogicClaimForced(const ComboLogicFillRequest* req) {
+    for (int f = 0; f < sForcedCount; ++f) {
+        int claimed = -1;
+        for (int i = 0; i < req->bagCount && claimed < 0; ++i) {
+            if (req->bag[i].item.originGame != sForced[f].item.originGame ||
+                req->bag[i].item.id != sForced[f].item.id) {
+                continue;
+            }
+            bool taken = false;
+            for (int g = 0; g < f; ++g) {
+                taken = taken || sForcedBagIdx[g] == i;
+            }
+            if (!taken) {
+                claimed = i;
+            }
+        }
+        if (claimed < 0) {
+            fprintf(stderr, "[ComboLogic] fill refused: forced row %d (%s item %u) is not in the bag\n", f,
+                    Game_ToString((GameId)sForced[f].item.originGame), (unsigned)sForced[f].item.id);
+            return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        }
+        sForcedBagIdx[f] = claimed;
+    }
+    int* lists[2] = { sRequiredIdx, sSurplusIdx };
+    int* counts[2] = { &sRequiredCount, &sSurplusCount };
+    for (int l = 0; l < 2; ++l) {
+        int kept = 0;
+        for (int i = 0; i < *counts[l]; ++i) {
+            bool forced = false;
+            for (int f = 0; f < sForcedCount; ++f) {
+                forced = forced || sForcedBagIdx[f] == lists[l][i];
+            }
+            if (!forced) {
+                lists[l][kept++] = lists[l][i];
+            }
+        }
+        *counts[l] = kept;
+    }
+    return RSBS_COMBO_LOGIC_OK;
+}
+
+/**
+ * DEBUG SEEDS: put every claimed row on its host, right after an attempt's reset.
+ * The host must be one of its engine's EMPTY hosts (`allEmptyHosts`, legal outside
+ * a round) and the row must be allowed there (its own side, or a crossing its
+ * flags, the crossing budget and the host engine admit). Placed exactly as
+ * ComboLogicDrawAndPlace places, shared pairs included.
+ */
+static int ComboLogicPlaceForced(const ComboLogicFillRequest* req) {
+    for (int f = 0; f < sForcedCount; ++f) {
+        const ComboLogicBagItem* row = &req->bag[sForcedBagIdx[f]];
+        const uint8_t hostGame = sForced[f].hostGame;
+        const uint16_t host = sForced[f].hostCheck;
+        const ComboLogicEngine* e = ComboLogicIsGame(hostGame) ? ComboLogicEngineFor(hostGame) : NULL;
+        if (e == NULL) {
+            fprintf(stderr, "[ComboLogic] fill refused: forced row %d names host game %u\n", f, (unsigned)hostGame);
+            return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        }
+        ComboLogicRefreshCrossingBudget();
+        if (!ComboLogicRowMayUseHost(row, hostGame, host)) {
+            fprintf(stderr, "[ComboLogic] fill refused: forced row %d may not be placed on %s check %u\n", f,
+                    Game_ToString((GameId)hostGame), (unsigned)host);
+            return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        }
+        const int total = e->allEmptyHosts(e->self, sHostScratch, RSBS_COMBO_LOGIC_HOST_CAP);
+        bool empty = false;
+        for (int i = 0; i < total && i < RSBS_COMBO_LOGIC_HOST_CAP && !empty; ++i) {
+            empty = sHostScratch[i] == host;
+        }
+        if (!empty || ComboLogicBitGet(sOccupied[hostGame], (int)host)) {
+            fprintf(stderr, "[ComboLogic] fill refused: forced row %d names %s check %u, which is not an empty host\n",
+                    f, Game_ToString((GameId)hostGame), (unsigned)host);
+            return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+        }
+        SharedItem placed = row->item;
+        SharedItem pair = ComboLogicNoPair();
+        if (ComboLogicRowIsPair(row)) {
+            const uint8_t far = (hostGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+            placed = ComboLogicHalfFor(row, hostGame);
+            pair = ComboLogicHalfFor(row, far);
+        }
+        if (!ComboLogicAddPlacement(hostGame, host, placed, row->itemClass, pair)) {
+            return RSBS_COMBO_LOGIC_ERR_CAPACITY;
+        }
+        if (!e->place(e->self, host, placed)) {
+            ComboLogicUndoLastPlacement(hostGame, host);
+            fprintf(stderr, "[ComboLogic] %s engine refused forced row %d on check %u\n",
+                    Game_ToString((GameId)hostGame), f, (unsigned)host);
+            return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
+        }
+        fprintf(stderr, "[ComboLogic] forced: %s item %u on %s check %u\n", Game_ToString((GameId)placed.originGame),
+                (unsigned)placed.id, Game_ToString((GameId)hostGame), (unsigned)host);
+    }
+    return RSBS_COMBO_LOGIC_OK;
+}
+
 /**
  * RSBS_COMBO_RUNG_NONE: the operator's "bag, then randomly distribute" base
  * mode, which audit §4.3 states as "the round is skipped and hosts are drawn
@@ -1407,6 +1512,12 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
     res->goalProven = false;
     res->allHostsReached = false; // nothing was evaluated, so nothing is claimed
     Combo_Logic_ResetPlacements();
+    if (sForcedCount > 0) {
+        const int forced = ComboLogicPlaceForced(req);
+        if (forced != RSBS_COMBO_LOGIC_OK) {
+            return forced;
+        }
+    }
 
     // REQUIRED rows first, in the per-attempt shuffle of the required list. With
     // no surplus row in the bag the required list IS the bag in bag order, so
@@ -1538,6 +1649,12 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
     }
 
     ComboLogicPartitionBag(req);
+    if (sForcedCount > 0) {
+        status = ComboLogicClaimForced(req);
+        if (status != RSBS_COMBO_LOGIC_OK) {
+            goto finish;
+        }
+    }
     res.droppedDigest = 2166136261u; // FNV-1a offset basis: "nothing dropped"
     sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
 
@@ -1561,6 +1678,12 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
         res.surplusDropped = 0;
         res.droppedDigest = 2166136261u;
         Combo_Logic_ResetPlacements();
+        if (sForcedCount > 0) {
+            status = ComboLogicPlaceForced(req);
+            if (status != RSBS_COMBO_LOGIC_OK) {
+                goto finish;
+            }
+        }
 
         for (int i = 0; i < sRequiredCount; ++i) {
             sBagOrder[i] = sRequiredIdx[i];
