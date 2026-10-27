@@ -1415,6 +1415,12 @@ if(BUILD_TESTING)
     # check), a repeat win with the check spent keeps the vanilla Red Rupee and
     # does not re-arm it, and an unshuffled check keeps its heart piece.
     redship_add_test(NAME MMDoggyRaceReward COMMAND redship --test mm-doggy-race-reward)
+    # MMMinigameRepeatGuards (#1220): the Deku Playground's any-day check, the
+    # Marine Research Lab fish and Flat's tomb (Song of Storms, a ShipInit
+    # IS_RANDO registrar) arm their check only while it is still open this
+    # cycle; a repeat keeps the vanilla Purple Rupee, nothing, and a skipped
+    # cutscene respectively.
+    redship_add_test(NAME MMMinigameRepeatGuards COMMAND redship --test mm-minigame-repeat-guards)
     # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
     # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
     # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in

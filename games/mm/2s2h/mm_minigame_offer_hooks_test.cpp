@@ -6,6 +6,7 @@
  *
  *   MMGalleryRupeeStandIn  (--test mm-gallery-rupee-stand-in, #1216)
  *   MMDoggyRaceReward      (--test mm-doggy-race-reward, #1219)
+ *   MMMinigameRepeatGuards (--test mm-minigame-repeat-guards, #1220)
  *
  * HOW THE HOOKS ARE DRIVEN. Through the production arm path: saveType set to
  * SAVETYPE_RANDO and Rando::ActorBehavior::OnFileLoad(), what Rando.cpp's
@@ -65,6 +66,38 @@
  * check spent keeps the vanilla Red Rupee and leaves the check unarmed; an
  * unshuffled check keeps its vanilla heart piece (OnFlagSet would not arm it).
  *
+ * ---- MMMinigameRepeatGuards (#1220) ------------------------------------------
+ * Three hooks armed their check on every trigger with no cycleObtained guard,
+ * and CheckQueue gives any eligible check without consulting it, so a repeat in
+ * the same cycle gave the check's item again (renewables farmable, traps
+ * re-fired, one-time items turned to junk).
+ *   - Deku Scrub Playground (EnLiftNuts.cpp, RC_DEKU_PLAYGROUND_ANY_DAY): a
+ *     second win in the cycle. Legs: the first win arms the check (control); a
+ *     win with the check spent leaves it unarmed and keeps the vanilla Purple
+ *     Rupee (OoTMM gives the vanilla junk on repeats); the day-3 all-days heart
+ *     piece is still hijacked (its flag set arms RC_DEKU_PLAYGROUND_ALL_DAYS)
+ *     and its repeat keeps the vanilla Purple Rupee.
+ *   - Marine Research Lab fish (EnFish2.cpp,
+ *     RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART): a re-fed fish after a
+ *     lab re-entry. The hook spawns its pickup through MM_Actor_Spawn, which is
+ *     not ROM-free, so the legs read its own gate
+ *     (Rando::ActorBehavior::Fish2ShouldOfferCheck) and then dispatch
+ *     VB_FISH2_SPAWN_HEART_PIECE only with the check spent, where the fixed hook
+ *     spawns nothing: the vanilla Col_Man must stay blocked too, because the
+ *     rando never sets WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE
+ *     and Col_Man would offer a vanilla heart piece, so a repeat gives nothing.
+ *   - Song of Storms (StoryCutscenes/SkipLearningSongOfStorms.cpp,
+ *     RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS): Bg_Haka_Tomb starts csId 13
+ *     each time its room loads and the tomb is targeted while the room is clear,
+ *     so a room re-entry re-triggers it. This hook is a ShipInit "IS_RANDO"
+ *     registrar, so this leg arms it the way Rando.cpp's OnSaveLoadHandler does
+ *     (saveType + ShipInit::Init("IS_RANDO"), Story CVar held at 0). The
+ *     cutscene stays skipped on a repeat; only the re-arm is guarded.
+ *   Not reproducing, so not changed: EnKnight.cpp (Igos du Ikana: the room's
+ *   clear flag keeps him from being fought again in the cycle) and EnMnk.cpp
+ *   (the Sonata hand-off sets WEEKEVENTREG_09_80 on the same trigger, which
+ *   kills the tied-up monkey on every later load in the cycle).
+ *
  * WHAT THIS DOES NOT COVER. That the gallery owner and the beavers then carry
  * on talking normally after the hand-off, and that CheckQueue gives the seed's
  * item, need a real play state; they are the operator playtest in the PR.
@@ -87,6 +120,10 @@ extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
     printf("[TEST] mm-doggy-race-reward: PASS (not applicable outside RSBS_SINGLE_EXECUTABLE)\n");
     return 0;
 }
+extern "C" int MM_MinigameRepeatGuards_RunHeadless(void) {
+    printf("[TEST] mm-minigame-repeat-guards: PASS (not applicable outside RSBS_SINGLE_EXECUTABLE)\n");
+    return 0;
+}
 #else
 
 #include <cstdarg>
@@ -100,11 +137,13 @@ extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Rando/ActorBehavior/ActorBehavior.h"
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/ShipInit.hpp"
 #include "mm_game_hooks.h"
 
 extern "C" {
 #include "variables.h"
 #include "functions.h"
+#include "src/overlays/actors/ovl_En_Fish2/z_en_fish2.h"
 }
 
 namespace {
@@ -364,6 +403,155 @@ int RunDoggyLegs(HookFixture& fx) {
     return 0;
 }
 
+// ---- #1220 -------------------------------------------------------------------
+
+// The feeding flags EnFish2.cpp clears once a feeding completes.
+const u16 kFishFeedingFlags[] = {
+    WEEKEVENTREG_81_10, WEEKEVENTREG_81_20, WEEKEVENTREG_81_40,
+    WEEKEVENTREG_81_80, WEEKEVENTREG_82_01, WEEKEVENTREG_82_02,
+};
+
+void SetPlaygroundDay(s32 day, bool wonDay1, bool wonDay2, bool heartPieceFlag) {
+    gSaveContext.save.day = day;
+    SetWeekEventReg(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_1, wonDay1);
+    SetWeekEventReg(WEEKEVENTREG_WON_DEKU_PLAYGROUND_DAY_2, wonDay2);
+    SetWeekEventReg(WEEKEVENTREG_RECEIVED_DEKU_PLAYGROUND_HEART_PIECE, heartPieceFlag);
+}
+
+int RunPlaygroundLegs(HookFixture& fx) {
+    RandoSaveCheck& anyDay = RANDO_SAVE_CHECKS[RC_DEKU_PLAYGROUND_ANY_DAY];
+    fx.play->sceneId = SCENE_DEKUTES;
+
+    // Rando disarmed (non-vacuity).
+    fx.Arm(false);
+    SetPlaygroundDay(1, false, false, false);
+    SetCheck(RC_DEKU_PLAYGROUND_ANY_DAY, true, false);
+    if (!fx.OfferVerdict(ACTOR_EN_LIFT_NUTS, GI_RUPEE_PURPLE) || anyDay.eligible) {
+        return Fail(2, "the playground offer is already hijacked with rando disarmed - the armed probes would be "
+                       "vacuous");
+    }
+
+    fx.Arm(true);
+
+    // First win of the cycle (control).
+    SetCheck(RC_DEKU_PLAYGROUND_ANY_DAY, true, false);
+    if (fx.OfferVerdict(ACTOR_EN_LIFT_NUTS, GI_RUPEE_PURPLE) || !anyDay.eligible) {
+        return Fail(3, "first playground win: RC_DEKU_PLAYGROUND_ANY_DAY was not armed in place of the vanilla Purple "
+                       "Rupee");
+    }
+
+    // A second win with the check spent this cycle.
+    SetCheck(RC_DEKU_PLAYGROUND_ANY_DAY, true, true);
+    const bool vanilla = fx.OfferVerdict(ACTOR_EN_LIFT_NUTS, GI_RUPEE_PURPLE);
+    if (anyDay.eligible) {
+        return Fail(10, "repeat playground win: RC_DEKU_PLAYGROUND_ANY_DAY was armed again although it was already "
+                        "obtained this cycle - the check's item would be given a second time (#1220)");
+    }
+    if (!vanilla) {
+        return Fail(11, "repeat playground win: the vanilla Purple Rupee was blocked; a repeat with the check spent "
+                        "gives the vanilla junk, as OoTMM does (#1220)");
+    }
+
+    // Day 3 with both earlier days won: the all-days heart piece stands in for
+    // RC_DEKU_PLAYGROUND_ALL_DAYS (the HasParent flag set arms it).
+    SetPlaygroundDay(3, true, true, false);
+    if (fx.OfferVerdict(ACTOR_EN_LIFT_NUTS, GI_HEART_PIECE) || anyDay.eligible) {
+        return Fail(12, "day-3 all-days win: the vanilla heart piece was let through, or the any-day check was armed "
+                        "(#1220)");
+    }
+    SetPlaygroundDay(3, true, true, true);
+    if (!fx.OfferVerdict(ACTOR_EN_LIFT_NUTS, GI_RUPEE_PURPLE) || anyDay.eligible) {
+        return Fail(13, "repeat day-3 all-days win: the vanilla Purple Rupee was blocked or a check was armed (#1220)");
+    }
+    return 0;
+}
+
+int RunFishLegs(HookFixture& fx) {
+    RandoSaveCheck& fish = RANDO_SAVE_CHECKS[RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART];
+    fx.play->sceneId = SCENE_LABO;
+
+    SetCheck(RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART, true, false);
+    if (!Rando::ActorBehavior::Fish2ShouldOfferCheck()) {
+        return Fail(4, "lab fish: the open check is not offered on a completed feeding");
+    }
+    SetCheck(RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART, true, true);
+    if (Rando::ActorBehavior::Fish2ShouldOfferCheck()) {
+        return Fail(20, "lab fish: a completed feeding offers RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART "
+                        "again although it was already obtained this cycle - a re-fed fish gives the check's item "
+                        "a second time (#1220)");
+    }
+
+    // The armed dispatch with the check spent: no pickup, no vanilla Col_Man
+    // (it would offer a vanilla heart piece), the feeding flags still cleared.
+    EnFish2* fishActor = static_cast<EnFish2*>(calloc(1, sizeof(EnFish2)));
+    if (fishActor == nullptr) {
+        return Fail(1, "could not allocate the fish");
+    }
+    fishActor->actor.id = ACTOR_EN_FISH2;
+    for (u16 flag : kFishFeedingFlags) {
+        SET_WEEKEVENTREG(flag);
+    }
+    const bool vanilla = GameInteractor_Should(VB_FISH2_SPAWN_HEART_PIECE, true, fishActor);
+    free(fishActor);
+    if (vanilla) {
+        return Fail(21, "lab fish: with the check spent the vanilla Col_Man was let through; the rando never sets "
+                        "WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE, so it would offer a vanilla heart "
+                        "piece (#1220)");
+    }
+    if (fish.eligible) {
+        return Fail(22, "lab fish: the spent check was armed again (#1220)");
+    }
+    for (u16 flag : kFishFeedingFlags) {
+        if (CHECK_WEEKEVENTREG(flag)) {
+            return Fail(23, "lab fish: the feeding flags were not cleared after a completed feeding");
+        }
+    }
+    return 0;
+}
+
+constexpr const char* kStoryCVar = "gEnhancements.TimeSavers.SkipCutscene.Story";
+
+// The production arm path for the ShipInit "IS_RANDO" registrars.
+void ArmShipInit(bool rando) {
+    gSaveContext.save.shipSaveInfo.saveType = rando ? SAVETYPE_RANDO : SAVETYPE_VANILLA;
+    ShipInit::Init("IS_RANDO");
+}
+
+// VB_START_CUTSCENE as CutsceneManager_Start dispatches it, for Flat's tomb.
+bool StormsCutsceneVerdict(HookFixture& fx) {
+    fx.play->sceneId = SCENE_HAKASHITA;
+    s16 csId = 13;
+    return GameInteractor_Should(VB_START_CUTSCENE, true, &csId, (Actor*)nullptr);
+}
+
+int RunStormsLegs(HookFixture& fx) {
+    RandoSaveCheck& storms = RANDO_SAVE_CHECKS[RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS];
+
+    ArmShipInit(false);
+    SetCheck(RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS, true, false);
+    if (!StormsCutsceneVerdict(fx) || storms.eligible) {
+        return Fail(2, "the Song of Storms cutscene is already skipped with rando disarmed - the armed probes would be "
+                       "vacuous");
+    }
+
+    ArmShipInit(true);
+    SetCheck(RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS, true, false);
+    if (StormsCutsceneVerdict(fx) || !storms.eligible) {
+        return Fail(5, "first Song of Storms trigger: the cutscene was not skipped or the check not armed");
+    }
+    SetCheck(RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS, true, true);
+    const bool played = StormsCutsceneVerdict(fx);
+    if (storms.eligible) {
+        return Fail(30, "Song of Storms re-trigger (tomb room re-entered): RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS was "
+                        "armed again although it was already obtained this cycle (#1220)");
+    }
+    if (played) {
+        return Fail(31, "Song of Storms re-trigger: the vanilla song cutscene played; it must stay skipped under "
+                        "rando (#1220)");
+    }
+    return 0;
+}
+
 bool BringUpOk(const char* name) {
     auto ctx = Ship::Context::GetInstance();
     if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
@@ -416,6 +604,45 @@ extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
     }
     printf("[TEST] mm-doggy-race-reward: PASS (first win hijacked with no extra rupee, a spent check keeps the "
            "vanilla Red Rupee and is not re-armed, an unshuffled check keeps its heart piece)\n");
+    return 0;
+}
+
+extern "C" int MM_MinigameRepeatGuards_RunHeadless(void) {
+    printf("[TEST] mm-minigame-repeat-guards: the Deku Playground, the lab fish and Flat's tomb arm their check once "
+           "per cycle (#1220)\n");
+    if (!BringUpOk("mm-minigame-repeat-guards")) {
+        return 1;
+    }
+    const int32_t savedStory = CVarGetInteger(kStoryCVar, 0);
+    if (savedStory != 0) {
+        CVarSetInteger(kStoryCVar, 0);
+    }
+    int rc;
+    {
+        HookFixture fx;
+        if (!fx.Ok()) {
+            rc = Fail(1, "could not allocate the fixtures");
+        } else {
+            rc = RunPlaygroundLegs(fx);
+            if (rc == 0) {
+                rc = RunFishLegs(fx);
+            }
+            if (rc == 0) {
+                rc = RunStormsLegs(fx);
+            }
+        }
+    }
+    // The fixture put the SaveContext image back; re-run the ShipInit drive
+    // under the restored saveType, as mm-song-teacher-hooks does.
+    ShipInit::Init("IS_RANDO");
+    if (savedStory != 0) {
+        CVarSetInteger(kStoryCVar, savedStory);
+    }
+    if (rc != 0) {
+        return rc;
+    }
+    printf("[TEST] mm-minigame-repeat-guards: PASS (playground, lab fish and Song of Storms arm their check only "
+           "while it is open this cycle; repeats keep the vanilla Purple Rupee, nothing, and a skipped cutscene)\n");
     return 0;
 }
 
