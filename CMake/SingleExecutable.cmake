@@ -1773,6 +1773,11 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # W6-MODES-DIFF (#1236, #1240): SoH's Mirrored World row sets gModes.MirroredWorld.State, the key MM acts on,
+    # through its translator (games/mm/2s2h/mm_mirrored_world_test.cpp): Off and Always exactly, the Dungeons modes
+    # per MM scene. Display-free and ROM-free.
+    redship_add_test(NAME MMMirroredWorld COMMAND redship --test mm-mirrored-world
+        LABEL rando)
 
     # #575 H1: the one shared hint AREA vocabulary (src/common/combo_area.c).
     # Unlike the two rows above it is display-free and ROM-free, so it sits in

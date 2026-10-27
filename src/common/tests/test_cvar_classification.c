@@ -520,6 +520,34 @@ constexpr const char* kCvarClassTranslatedElidedWriters[] = {
     "2s2h/BenGui/BenMenu.cpp",
 };
 
+/// (3f-3b) W6-MODES-DIFF: does comment-stripped @p code WRITE @p key, i.e. pass it as a literal straight to a CVarSet*
+/// or CVarClear call? A read (CVarGetInteger) is not a write.
+bool CvarClassWritesKey(const std::string& code, const char* key) {
+    const std::string literal = std::string("\"") + key + "\"";
+    for (std::size_t p = code.find(literal); p != std::string::npos; p = code.find(literal, p + 1)) {
+        std::size_t q = p;
+        while (q > 0 && (code[q - 1] == ' ' || code[q - 1] == '\t' || code[q - 1] == '\n' || code[q - 1] == '\r')) {
+            q--;
+        }
+        if (q == 0 || code[q - 1] != '(') {
+            continue;
+        }
+        q--;
+        while (q > 0 && (code[q - 1] == ' ' || code[q - 1] == '\t')) {
+            q--;
+        }
+        std::size_t begin = q;
+        while (begin > 0 && CvarClassIsIdentChar(code[begin - 1])) {
+            begin--;
+        }
+        const std::string callee = code.substr(begin, q - begin);
+        if (callee.rfind("CVarSet", 0) == 0 || callee == "CVarClear") {
+            return true;
+        }
+    }
+    return false;
+}
+
 } // namespace
 
 TestResult Test_CVarClassification(void) {
@@ -1196,6 +1224,110 @@ TestResult Test_CVarClassification(void) {
                         return TEST_FAIL;
                     }
                 }
+            }
+        }
+
+        // (3f-3b) W6-MODES-DIFF (#1236, #1240): Mirrored World's translation. MM acts on gModes.MirroredWorld.State
+        // (z_view.c, the GameInteractor's X inversion, z_kankyo.c, z_map_disp.c, synthesis.c and some twenty more read
+        // sites), which only 2Ship's elided BenMenu callback ever wrote. SoH's gEnhancements.MirroredWorldMode is the
+        // one control: the row is pinned in RSBS::kTranslatedKeys, SoH's menu writes the mode, the translator reads it,
+        // is carved into the registrars list and is the ONLY MM writer of .State, and nothing names 2Ship's .Mode.
+        // Unlike (3f-4)'s rows, MM's readers keep reading .State (the translator writes it on each MM scene change
+        // instead of being called at each read), so this row is not in kCvarClassTranslatedRows.
+        {
+            constexpr const char* kStateKey = "gModes.MirroredWorld.State";
+            constexpr const char* kModeKey = "gModes.MirroredWorld.Mode";
+            constexpr const char* kSohModeKey = "gEnhancements.MirroredWorldMode";
+            constexpr const char* kTranslatorTu = "2s2h/Enhancements/Modes/MirroredWorld.cpp";
+
+            // The control: the writer scan must see a set and a clear, and must not take a read for a write.
+            CVARCLASS_CHECK(CvarClassWritesKey("CVarSetInteger(\"gModes.MirroredWorld.State\", 1);", kStateKey) &&
+                                CvarClassWritesKey("CVarClear( \"gModes.MirroredWorld.State\" );", kStateKey) &&
+                                !CvarClassWritesKey("CVarGetInteger(\"gModes.MirroredWorld.State\", 0)", kStateKey),
+                            "(3f-3b) control: the .State writer scan missed a set or a clear, or took a read for a "
+                            "write, so its green would prove nothing");
+
+            bool pinned = false;
+            for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+                const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+                pinned = pinned || (key.issue == 1236 && strcmp(key.mmKey, kStateKey) == 0 &&
+                                    strcmp(key.ootKey, kSohModeKey) == 0 && strcmp(key.translator, kTranslatorTu) == 0);
+            }
+            if (!pinned) {
+                printf("[TEST] FAIL: (3f-3b) #1236: RSBS::kTranslatedKeys has no row translating SoH's \"%s\" onto\n"
+                       "[TEST]       MM's \"%s\" in games/mm/%s. Without it nothing records that SoH's Mirrored\n"
+                       "[TEST]       World row drives Majora's Mask.\n",
+                       kSohModeKey, kStateKey, kTranslatorTu);
+                return TEST_FAIL;
+            }
+            for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+                const RSBS::ConvergedKey& key = RSBS::kConvergedKeys[i];
+                CVARCLASS_CHECK(strcmp(key.legacy, kStateKey) != 0 && strcmp(key.legacy, kModeKey) != 0 &&
+                                    strcmp(key.canonical, kSohModeKey) != 0,
+                                "(3f-3b) #1236: Mirrored World is also a rename row; SoH's nine-mode index is not "
+                                "MM's bool");
+            }
+            for (std::size_t i = 0; i < RSBS::kMustStayDistinctCount; i++) {
+                CVARCLASS_CHECK(strcmp(RSBS::kMustStayDistinct[i].mmKey, kStateKey) != 0 &&
+                                    strcmp(RSBS::kMustStayDistinct[i].mmKey, kModeKey) != 0,
+                                "(3f-3b) #1236: Mirrored World is also held apart; SoH's row is the one control");
+            }
+
+            bool menuOk = false;
+            const std::vector<std::string> sohMenuTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
+            CVARCLASS_CHECK(menuOk && CvarClassOotTreeNamesKey(sohMenuTree, kSohModeKey),
+                            "(3f-3b) #1236: no SoH menu row writes gEnhancements.MirroredWorldMode, the one control");
+
+            std::ifstream cmakeFile(sourceRoot / "games" / "mm" / "CMakeLists.txt", std::ios::binary);
+            const std::string cmake((std::istreambuf_iterator<char>(cmakeFile)), std::istreambuf_iterator<char>());
+            const std::size_t listBegin = cmake.find("set(ship__Enh_registrars");
+            const std::size_t listEnd = cmake.find("list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})");
+            const bool carved =
+                listBegin != std::string::npos && listEnd != std::string::npos &&
+                cmake.substr(listBegin, listEnd - listBegin).find(std::string("\"") + kTranslatorTu + "\"") !=
+                    std::string::npos;
+
+            bool mmPathsOk = false;
+            const std::vector<CvarClassSourceFile> mmFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", mmPathsOk);
+            CVARCLASS_CHECK(mmPathsOk && !mmFiles.empty(), "(3f-3b) could not re-scan games/mm for Mirrored World");
+            bool translatorReads = false;
+            bool translatorWrites = false;
+            for (const CvarClassSourceFile& f : mmFiles) {
+                // The elided BenMenu, and the ROM-free rows, which set and clear .State only to drive and observe.
+                bool elided = f.relPath.find("_test.") != std::string::npos;
+                for (const char* ok : kCvarClassTranslatedElidedWriters) {
+                    elided = elided || f.relPath == ok;
+                }
+                if (elided) {
+                    continue;
+                }
+                const std::string code = CvarClassStripComments(f.text);
+                if (f.relPath == kTranslatorTu) {
+                    translatorReads = code.find(std::string("\"") + kSohModeKey + "\"") != std::string::npos;
+                    translatorWrites = CvarClassWritesKey(code, kStateKey);
+                    continue;
+                }
+                if (CvarClassWritesKey(code, kStateKey) ||
+                    code.find(std::string("\"") + kModeKey + "\"") != std::string::npos) {
+                    printf("[TEST] FAIL: (3f-3b) #1236: games/mm/%s writes \"%s\" or names \"%s\".\n"
+                           "[TEST]       SoH's Mirrored World row is the one control: only games/mm/%s sets\n"
+                           "[TEST]       .State, and nothing writes 2Ship's .Mode.\n",
+                           f.relPath.c_str(), kStateKey, kModeKey, kTranslatorTu);
+                    return TEST_FAIL;
+                }
+            }
+            if (!translatorReads || !translatorWrites || !carved) {
+                printf("[TEST] FAIL: (3f-3b) #1236: games/mm/%s %s.\n"
+                       "[TEST]       MM acts on \"%s\", and nothing else in the single exe writes it, so SoH's\n"
+                       "[TEST]       Mirrored World row would do nothing in Majora's Mask.\n",
+                       kTranslatorTu,
+                       !translatorReads    ? "does not read SoH's gEnhancements.MirroredWorldMode"
+                       : !translatorWrites ? "does not set gModes.MirroredWorld.State"
+                                           : "is not in games/mm/CMakeLists.txt's ship__Enh_registrars list",
+                       kStateKey);
+                return TEST_FAIL;
             }
         }
 

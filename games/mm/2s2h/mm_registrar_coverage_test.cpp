@@ -1069,6 +1069,103 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
     return probes;
 }
 
+// ---- W6-MODES-DIFF (#1236, #1240): MM's Modes, Difficulty and 'Other' TUs, and the Mirrored World translator ------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id, a limb or a text id, or is an unkeyed registry no other W6 key arms
+// while this key is the only one on. Mirrored World's key is SoH's gEnhancements.MirroredWorldMode (1 = Always): the
+// translator (Modes/MirroredWorld.cpp) arms one unkeyed OnSceneInit hook for any mode but Off. DeleteFileOnDeath.cpp
+// is not linked (INTENTIONAL: MM's SaveManager is not in the single exe, and a paired file may only be deleted whole),
+// so it has no probe.
+#define W6_MODES_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_MODES_ID_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+
+constexpr const char* kW6JinxedTimerCVar = "gEnhancements.DifficultyOptions.JinxedTimer";
+
+const std::vector<SkipKeyProbe>& W6ModesDifficultyProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gModes.PlayAsKafei",
+          "Play as Kafei",
+          { { "OnPlayDestroy, unkeyed (Modes/PlayAsKafei.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnPlayDestroy>(); }, 1 } } },
+        { "gModes.HyruleWarriorsStyledLink",
+          "Hyrule Warriors Styled Link",
+          { { "OnPlayerPostLimbDraw[PLAYER_LIMB_HEAD] (Modes/HyruleWarriorsStyledLink.cpp)",
+              W6_MODES_ID_COUNT(OnPlayerPostLimbDraw, PLAYER_LIMB_HEAD), 1 },
+            { "OnPlayerPostLimbDraw[PLAYER_LIMB_WAIST] (Modes/HyruleWarriorsStyledLink.cpp)",
+              W6_MODES_ID_COUNT(OnPlayerPostLimbDraw, PLAYER_LIMB_WAIST), 1 } } },
+        { "gModes.TimeMovesWhenYouMove",
+          "Time Moves when you Move",
+          { { "OnActorUpdate[ACTOR_PLAYER] (Modes/TimeMovesWhenYouMove.cpp)",
+              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        { "gEnhancements.MirroredWorldMode",
+          "Mirrored World (SoH's row, translated)",
+          { { "OnSceneInit, unkeyed (Modes/MirroredWorld.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSceneInit>(); }, 1 } } },
+        // A slider that arms BELOW its default (`CVAR < 60`), so the drive's 0 and 1 both arm it. This count, read
+        // while the key is 0 (before the drive turns it on, and after it turns it off), first re-drives it at 60
+        // (the default, unarmed), so the drive's 1 measures exactly the TU's one registration. Without the TU in the
+        // link nothing arms and the probe is red. It leaves the key at its default, 60.
+        { kW6JinxedTimerCVar,
+          "Jinxed Timer",
+          { { "ShouldActorUpdate[ACTOR_PLAYER] (DifficultyOptions/JinxedTimer.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6JinxedTimerCVar, 60) == 0) {
+                      CVarSetInteger(kW6JinxedTimerCVar, 60);
+                      ShipInit::Init(kW6JinxedTimerCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldActorUpdate>(ACTOR_PLAYER);
+              },
+              1 } } },
+        { "gEnhancements.DifficultyOptions.LowerBankRewardThresholds",
+          "Lower Bank Reward Thresholds",
+          { { "VB_PASS_FIRST_BANK_THRESHOLD (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_VB_COUNT(VB_PASS_FIRST_BANK_THRESHOLD), 1 },
+            { "VB_PASS_SECOND_BANK_THRESHOLD_ALT (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_VB_COUNT(VB_PASS_SECOND_BANK_THRESHOLD_ALT), 1 },
+            { "OnOpenText[0x045B] (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_ID_COUNT(OnOpenText, 0x045B), 1 } } },
+        { "gEnhancements.DifficultyOptions.DisableTakkuriSteal",
+          "Disable Takkuri Steal",
+          { { "VB_THIEF_BIRD_STEAL (DifficultyOptions/DisableTakkuriSteal.cpp)", W6_MODES_VB_COUNT(VB_THIEF_BIRD_STEAL),
+              1 } } },
+        { "gEnhancements.DifficultyOptions.DekuGuardSearchBalls",
+          "Deku Guard Search Balls",
+          { { "VB_DEKU_GUARD_SHOW_SEARCH_BALLS (DifficultyOptions/DekuGuardSearchBalls.cpp)",
+              W6_MODES_VB_COUNT(VB_DEKU_GUARD_SHOW_SEARCH_BALLS), 1 } } },
+        { "gEnhancements.DifficultyOptions.GibdoTradeSequence",
+          "Gibdo Trade Sequence Options",
+          { { "VB_GIBDO_TRADE_SEQUENCE_SUFFICIENT_QUANTITY_PRESENTED (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_SUFFICIENT_QUANTITY_PRESENTED), 1 },
+            { "VB_GIBDO_TRADE_SEQUENCE_ACCEPT_RED_POTION (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_ACCEPT_RED_POTION), 1 },
+            { "VB_GIBDO_TRADE_SEQUENCE_TAKE_MORE_THAN_ONE_ITEM (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_TAKE_MORE_THAN_ONE_ITEM), 1 } } },
+        { "gEnhancements.DifficultyOptions.HiddenGrottosVisibility",
+          "Hidden Grottos Visibility",
+          { { "OnActorDraw[ACTOR_DOOR_ANA] (DifficultyOptions/HiddenGrottosVisibility.cpp)",
+              W6_MODES_ID_COUNT(OnActorDraw, ACTOR_DOOR_ANA), 1 } } },
+        { "gEnhancements.DifficultyOptions.FrogChoirCount",
+          "Frog Choir Count",
+          { { "OnActorUpdate[ACTOR_EN_MINIFROG] (Minigames/FrogChoirCount.cpp)",
+              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_EN_MINIFROG), 1 } } },
+        { "gEnhancements.Minigames.CremiaHugs",
+          "Milk Run Reward Options",
+          { { "VB_PLAY_CREMIA_HUG_CUTSCENE (Minigames/CremiaHugs.cpp)", W6_MODES_VB_COUNT(VB_PLAY_CREMIA_HUG_CUTSCENE),
+              1 } } },
+        { "gEnhancements.Items.AmmoBuyback",
+          "Ammo Buyback Options",
+          { { "OnActorUpdate[ACTOR_EN_FSN] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_EN_FSN),
+              1 },
+            { "OnActorDestroy[ACTOR_EN_FSN] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnActorDestroy, ACTOR_EN_FSN),
+              1 },
+            { "OnOpenText[0x29EF] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnOpenText, 0x29EF), 1 },
+            { "VB_MSG_LOAD_RUPEES_TEXT (Items/AmmoBuyback.cpp)", W6_MODES_VB_COUNT(VB_MSG_LOAD_RUPEES_TEXT), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6ModesDifficultyPhase{ "W6-MODES-DIFF (#1236, #1240)", W6ModesDifficultyProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetKeyGapKeys() {
