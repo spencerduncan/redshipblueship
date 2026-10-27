@@ -40,6 +40,11 @@ using namespace UIWidgets;
 
 // #1037: MM's own damage multiplier row (SohMenuComboMmEnhancements.cpp), drawn right after SoH's.
 void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
+// W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
+// Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
+void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
+void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
+void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -201,7 +206,6 @@ void SohMenu::AddMenuEnhancements() {
             "When loading a save, places Link at the last entrance he went through.\n"
             "This doesn't work if the save was made in grottos, fairy fountains, or dungeons."));
     // W6-TIMESAVERS (#1236): a Majora's Mask block with Pause Menu Save (HostedMm/SohMenuHostedMmTimesavers.cpp).
-    void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
     AddMmSavingRows(*this, path);
 
     AddWidget(path, "Containers Match Contents", WIDGET_SEPARATOR_TEXT);
@@ -466,7 +470,6 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("TextSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx"));
     // W6-TIMESAVERS (#1236): MM Fast Text, held apart from Text Speed (P1), right after it.
-    void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
     AddMmFastTextRow(*this, path);
     AddWidget(path, "Slow Text Speed: %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("SlowTextSpeed"))
@@ -564,7 +567,6 @@ void SohMenu::AddMenuEnhancements() {
             "Allows you to change the number of days it takes for "
             "Biggoron to forge the Biggoron's Sword."));
     // W6-TIMESAVERS (#1236): MM's dialogue rows and time savers, no SoH twin, in a Majora's Mask block ending Misc.
-    void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
     AddMmTimesaverRows(*this, path);
 
     // Graphics
