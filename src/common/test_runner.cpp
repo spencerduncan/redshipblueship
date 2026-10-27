@@ -3183,7 +3183,7 @@ TestResult Test_SeedPackageGoldenCreate(void) {
 // #1231: DEBUG SEEDS WITH FORCED PLACEMENTS. RSBS_FORCE_PLACEMENTS names the rows,
 // comma-separated, each `<host game>:<check>=<origin game>:<item>`, where a game is
 // `oot` or `mm` and a check or item is its describer name (the spoiler's) or `#<id>`:
-//   oot:Mido Top Left Chest=mm:Sonata of Awakening,oot:Mido Top Right Chest=mm:Deku Mask
+//   oot:KF Mido Top Left Chest=mm:Sonata of Awakening,oot:KF Mido Top Right Chest=mm:Deku Mask
 // The seed is RSBS_DEBUG_SEED (default RSBSMIDOSDEBUG); the package goes to
 // RSBS_SEED_PACKAGE_PATH when set (that is how a debug seed is made: see
 // docs/playtest-fixtures/midos-house-sonata-deku/README.md), else to a scratch dir.
@@ -3218,6 +3218,16 @@ static bool DebugSeedParseCheck(uint8_t game, const std::string& text, uint16_t*
     if (found > 1) {
         printf("[TEST] FAIL: check name '%s' names %d checks; use #<id>\n", text.c_str(), found);
     }
+    if (found == 0) {
+        printf("[TEST] FAIL: no %s check is named '%s'; checks whose name contains it:\n", Game_ToString((GameId)game),
+               text.c_str());
+        for (uint32_t c = 1; c < 0x10000u; ++c) {
+            const char* name = Combo_DescribeCheckName(game, (uint16_t)c);
+            if (name != nullptr && strstr(name, text.c_str()) != nullptr) {
+                printf("[TEST]   #%u '%s'\n", (unsigned)c, name);
+            }
+        }
+    }
     return found == 1;
 }
 
@@ -3228,7 +3238,11 @@ static bool DebugSeedParseItem(uint8_t game, const std::string& text, SharedItem
         out->id = (uint16_t)strtoul(text.c_str() + 1, nullptr, 10);
         return out->id != 0;
     }
-    return Combo_GetForeignItemByNameFor(game, text.c_str(), out);
+    if (!Combo_GetForeignItemByNameFor(game, text.c_str(), out)) {
+        printf("[TEST] FAIL: no %s item is named '%s'\n", Game_ToString((GameId)game), text.c_str());
+        return false;
+    }
+    return true;
 }
 
 static int DebugSeedParseSpec(const char* spec, ComboLogicForcedPlacement* out, int cap) {

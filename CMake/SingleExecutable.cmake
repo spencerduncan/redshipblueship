@@ -2304,7 +2304,7 @@ if(BUILD_TESTING)
     redship_add_test(NAME DebugSeedForcedPlacements COMMAND redship --test debug-seed-forced-placements
         LABEL rando
         TIMEOUT 300
-        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=oot:Mido Top Left Chest=mm:Sonata of Awakening,oot:Mido Top Right Chest=mm:Deku Mask")
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=oot:KF Mido Top Left Chest=mm:Sonata of Awakening,oot:KF Mido Top Right Chest=mm:Deku Mask")
     # The rows above generate the default seed with the default settings and
     # read Randomizer/<icons>.json in the build tree (the round trip twice, around
     # its package write): one at a time under ctest -j, so none reads another's
