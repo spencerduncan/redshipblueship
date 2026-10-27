@@ -593,6 +593,7 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
+#include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
@@ -6522,6 +6523,26 @@ TestResult Test_MmGetItemPresentation(void) {
     return MmGetItemPresentation_Run();
 }
 
+// #1173: the reticle rows set the HookshotableReticle and cosmetics CVars,
+// which live on the Ship::Context singleton, so they need the same bring-up.
+TestResult Test_OotHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OotHookshotReticleColour_Run();
+}
+
+TestResult Test_MmHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmHookshotReticleColour_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -7389,6 +7410,11 @@ const TestDescriptor gTests[] = {
     // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
     { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
       Test_MmGetItemPresentation },
+    // #1173: the hookshot reticle turns green on a hookshot surface, in both games, and only for the hookshot.
+    { "oot-hookshot-reticle-colour", "Only the Hookshot and Longshot reticles turn green on a hookshot surface (#1173)",
+      Test_OotHookshotReticleColour },
+    { "mm-hookshot-reticle-colour", "Termina's hookshot reticle turns green on a hookshot surface (#1173)",
+      Test_MmHookshotReticleColour },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.

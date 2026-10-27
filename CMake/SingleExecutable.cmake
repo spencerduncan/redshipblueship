@@ -630,6 +630,11 @@ if(BUILD_TESTING)
     # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
     # and ignores MM's own key (whose widget and preset are not in the single exe).
     redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
+    # #1173: SoH's "Targetable Hookshot Reticle" turns the hookshot reticle green on
+    # a hookshot surface in both games, and only for the Hookshot/Longshot (SoH
+    # 6340ad3d5: the Bow, Slingshot and Boomerang reticles never turn green).
+    redship_add_test(NAME OoTHookshotReticleColour COMMAND redship --test oot-hookshot-reticle-colour)
+    redship_add_test(NAME MmHookshotReticleColour COMMAND redship --test mm-hookshot-reticle-colour)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check

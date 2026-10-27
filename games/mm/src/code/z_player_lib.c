@@ -2211,6 +2211,39 @@ void Player_AdjustSingleLeg(PlayState* play, Player* player, SkelAnime* skelAnim
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #1173: SoH's "Targetable Hookshot Reticle" for Termina. The colour choice is split out of the draw below so a
+// ROM-free row (MmHookshotReticleColour) can see it.
+s32 MM_Player_HookshotReticleIsTarget(s32 heldItemAction, s32 isHookshotSurface) {
+    return false;
+}
+
+Color_RGBA8 MM_Player_HookshotReticleColor(s32 isTarget) {
+    // The prim colour gHookshotReticleDL sets.
+    const Color_RGBA8 vanillaColor = { 255, 0, 0, 255 };
+
+    return vanillaColor;
+}
+
+// Test export for MmHookshotReticleColour: sample 0 Hookshot, 1 Bow. Returns 1 for the target colour, 0 for the
+// non-target colour, -1 for an unknown sample.
+s32 MM_Player_HookshotReticle_TestIsTarget(s32 sample, s32 isHookshotSurface) {
+    static const s32 sSampleActions[] = { PLAYER_IA_HOOKSHOT, PLAYER_IA_BOW };
+
+    if (sample < 0 || sample >= (s32)ARRAY_COUNT(sSampleActions)) {
+        return -1;
+    }
+    return MM_Player_HookshotReticleIsTarget(sSampleActions[sample], isHookshotSurface) ? 1 : 0;
+}
+
+// Test export for MmHookshotReticleColour: the colour the reticle draws in, packed 0xRRGGBBAA.
+u32 MM_Player_HookshotReticle_TestColor(s32 isTarget) {
+    const Color_RGBA8 color = MM_Player_HookshotReticleColor(isTarget);
+
+    return ((u32)color.r << 24) | ((u32)color.g << 16) | ((u32)color.b << 8) | color.a;
+}
+#endif
+
 void MM_Player_DrawHookshotReticle(PlayState* play, Player* player, f32 hookshotDistance) {
     static Vec3f D_801C094C = { -500.0f, -100.0f, 0.0f };
     CollisionPoly* poly;
