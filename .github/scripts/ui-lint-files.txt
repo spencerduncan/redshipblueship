@@ -29,6 +29,7 @@ PTR games/oot/soh/Enhancements/controls/SohInputEditorWindow.cpp::DrawMmCameraRo
 PANES src/common/ComboSpoilerWindow.cpp
 PANES src/common/ComboTrackerWindow.cpp
 PANES src/common/ComboItemTrackerWindow.cpp
+PANES games/mm/2s2h/TimersGuiSingleExe.cpp
 PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
 PANES games/mm/2s2h/TrackersGuiSingleExe.cpp
 

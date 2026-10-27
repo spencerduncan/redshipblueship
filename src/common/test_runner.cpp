@@ -5809,6 +5809,9 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
 
     static const std::string kOpen = "std::make_shared<";
     static const std::string kWrap = "OoTActiveGated<";
+    // W6-TIMERS (#1237): the gate that also hosts MM's Time Splits body under MM; only SoH's Time Splits window uses
+    // it.
+    static const std::string kHostingWrap = "OoTGatedHostingMm<";
     for (size_t at = body.find(kOpen); at != std::string::npos; at = body.find(kOpen, at + kOpen.size())) {
         const size_t typeBegin = at + kOpen.size();
         const size_t typeEnd = body.find(">(", typeBegin);
@@ -5823,9 +5826,17 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
             }
         }
         sites++;
-        if (type.rfind(kWrap, 0) == 0) {
+        const bool hosting = type.rfind(kHostingWrap, 0) == 0;
+        if (type.rfind(kWrap, 0) == 0 || hosting) {
             wrapped++;
-            std::string inner = type.substr(kWrap.size(), type.size() - kWrap.size() - 1);
+            const size_t wrapLen = hosting ? kHostingWrap.size() : kWrap.size();
+            std::string inner = type.substr(wrapLen, type.size() - wrapLen - 1);
+            if (hosting && inner != "TimeSplitWindow") {
+                printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements hosts MM in %s; only SoH's Time Splits window "
+                       "hosts an MM body (W6-TIMERS)\n",
+                       inner.c_str());
+                ok = false;
+            }
             // #1132 (ruling D1): SoH's Check Tracker and Item Tracker are retired,
             // registered for their hooks and never drawn (SohRetiredWindow.h).
             if (inner.rfind(kRetiredWrap, 0) == 0 && inner.back() == '>') {

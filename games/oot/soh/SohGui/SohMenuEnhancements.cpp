@@ -45,6 +45,9 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
 void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
 void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
 void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
+// W6-TIMERS (#1235, #1239): MM's In-Game Timer and Time Splits rows (HostedMm/SohMenuHostedMmTimers.cpp).
+void AddMmInGameTimerRows(SohMenu& menu, WidgetPath& path);
+void AddMmTimeSplitsRows(SohMenu& menu, WidgetPath& path);
 // W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
 // Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
@@ -1964,6 +1967,8 @@ void SohMenu::AddMenuEnhancements() {
     // Time Splits
     path.sidebarName = "Time Splits";
     AddSidebarEntry("Enhancements", path.sidebarName, 1);
+    // W6-TIMERS: MM's switches, above the window row, whose embedded window fills the rest of the page.
+    AddMmTimeSplitsRows(*this, path);
     AddWidget(path, "Popout Time Splits Window", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("TimeSplits"))
         .RaceDisable(false)
@@ -1994,6 +1999,7 @@ void SohMenu::AddMenuEnhancements() {
             .CVar(timer.timeEnable)
             .Callback([](WidgetInfo& info) { TimeDisplayUpdateDisplayOptions(); });
     }
+    AddMmInGameTimerRows(*this, path);
 }
 
 } // namespace SohGui

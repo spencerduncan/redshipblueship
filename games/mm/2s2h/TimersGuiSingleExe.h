@@ -15,6 +15,13 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #ifdef __cplusplus
 
+#include <memory>
+#include <string>
+
+namespace Ship {
+class Gui;
+}
+
 namespace S2H {
 namespace TimersGui {
 
@@ -26,8 +33,19 @@ inline constexpr const char* kTimeSplitsWindowName = "MM Time Splits";
 inline constexpr const char* kInGameTimerImGuiName = "Overlay";
 inline constexpr const char* kTimeSplitsImGuiName = "Timesplits";
 
+/**
+ * Register the In-Game Timer and the Time Splits list on @p gui, each drawn only while MM is the running game
+ * (MM_TrackersGui_ShouldDraw). Idempotent. S2H::TrackersGui::RegisterWindows calls it, so MM_TrackersGui_Init (at
+ * startup and at MM's init) registers these with the trackers.
+ */
+void RegisterWindows(std::shared_ptr<Ship::Gui> gui);
+
 } // namespace TimersGui
 } // namespace S2H
+
+/** The splits file: the app directory's 2S2HTimeSplitData.json, or a test's path (MM_TimeSplits_SetDataPathForTest).
+ *  TimeSplitsActions.cpp reads and writes it through this. */
+std::string MM_TimeSplits_DataPath();
 
 #endif // __cplusplus
 #endif // RSBS_SINGLE_EXECUTABLE
