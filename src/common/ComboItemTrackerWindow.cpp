@@ -124,36 +124,59 @@ float LocalX(float screenX) {
 }
 
 /**
- * A cell's count. SoH's DrawItemCount draws it in the Item Tracker's own font
- * (the seam's PushCountFont: SoH's 16 px mono face, at TextSize 13's scale 1),
- * centred on the icon's bottom edge (its text starts 14 px above the line
- * under the icon); without that font it is the window's font at
- * kComboItemTrackerCountPx (`countScale`). MM's DrawItemCounts draws it in the
- * window's font at the tracker's scale, in the cell's bottom-right corner, 2 px
- * in. `cellMin` and `cell` are the cell's screen position and edge.
+ * A cell's count, under SoH's count settings (#1143: ComboItemCountFor). SoH's
+ * DrawItemCount draws it in the Item Tracker's own font (the seam's
+ * PushCountFont: SoH's 16 px mono face) at its Text size's scale
+ * (ComboItemCountTextScale, 1 at 13); without that font it is the window's
+ * font at kComboItemTrackerCountPx (`countScale`). MM's DrawItemCounts draws it
+ * in the window's font at the tracker's scale, at the same Text size. Where it
+ * sits is its game's (ComboItemCountPos). `cellMin` and `cell` are the cell's
+ * screen position and edge.
  */
-void DrawCount(const ComboItemRow& row, uint8_t countStyle, ImVec2 cellMin, float cell, float scale, float countScale) {
+void DrawCount(const ComboItemRow& row, const ComboItemTrackerKeys& keys, uint8_t countStyle, ImVec2 cellMin,
+               float cell, float scale, float countScale) {
     ComboItemCount count;
-    if (!ComboItemCountFor(row, countStyle, count)) {
+    if (!ComboItemCountFor(row, keys, count)) {
         return;
     }
     const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();
-    ImGui::SetWindowFontScale((sohFont || countStyle == COMBO_ITEM_COUNT_MM) ? scale : countScale);
+    const float textScale = ComboItemCountTextScale(keys.textSize);
+    ImGui::SetWindowFontScale(((sohFont || countStyle == COMBO_ITEM_COUNT_MM) ? scale : countScale) * textScale);
     const float amountWidth = ImGui::CalcTextSize(count.amount.c_str()).x;
     const float width = amountWidth + ImGui::CalcTextSize(count.ceiling.c_str()).x;
     const float height = ImGui::GetFontSize();
     ImVec2 at;
-    if (countStyle == COMBO_ITEM_COUNT_MM) {
-        at = ImVec2(cellMin.x + cell - width - 2.0f * scale, cellMin.y + cell - height - 2.0f * scale);
-    } else {
-        at = ImVec2(cellMin.x + (cell - width) * 0.5f, cellMin.y + cell - height * 0.6f);
-    }
+    ComboItemCountPos(countStyle, count.alignLeft, cellMin.x, cellMin.y, cell, width, height, scale, &at.x, &at.y);
     ImGui::SetCursorScreenPos(at);
     Ui().ToneText(count.amount.c_str(), count.amountTone);
     if (!count.ceiling.empty()) {
         ImGui::SetCursorScreenPos(ImVec2(at.x + amountWidth, at.y));
         Ui().ToneText(count.ceiling.c_str(), count.ceilingTone);
     }
+    if (sohFont) {
+        Ui().PopCountFont();
+    }
+    ImGui::SetWindowFontScale(scale);
+}
+
+/**
+ * SoH's Hookshot Identifier (#1143): the hookshot's "H" or "L" on its icon, in
+ * the count's font at the icon's size over 36 (DrawItemCount's
+ * textScalingFactor), placed by ComboItemIdentifierPos. `unit` is that scale
+ * times the overlay's.
+ */
+void DrawIdentifier(const ComboItemRow& row, const ComboItemTrackerKeys& keys, uint8_t countStyle, ImVec2 cellMin,
+                    float cell, float unit, float scale) {
+    const char* letter = ComboItemIdentifierFor(row, keys);
+    if (letter == nullptr) {
+        return;
+    }
+    const bool sohFont = countStyle != COMBO_ITEM_COUNT_MM && Ui().PushCountFont();
+    ImGui::SetWindowFontScale(unit);
+    ImVec2 at;
+    ComboItemIdentifierPos(cellMin.x, cellMin.y, cell, ImGui::CalcTextSize(letter).x, unit, &at.x, &at.y);
+    ImGui::SetCursorScreenPos(at);
+    Ui().ToneText(letter, COMBO_UI_TONE_WHITE);
     if (sohFont) {
         Ui().PopCountFont();
     }
@@ -173,14 +196,20 @@ void DrawCellText(const ComboItemRow& row, ImVec2 cellMin, float cell) {
     ImGui::PopClipRect();
 }
 
-/** An icon section's grid at `origin`, as its game's own tracker draws it. */
-void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& plan, ImVec2 origin, float iconSize,
-                  float scale, float countScale) {
+/**
+ * An icon section's grid at `origin`, as its game's own tracker draws it, at
+ * SoH's Icon size and Icon margins (#1143: ComboItemGridMetricsFor).
+ */
+void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& plan, ImVec2 origin,
+                  const ComboItemTrackerKeys& keys, float scale, float countScale) {
     const ComboItemGridStyle& grid = *section.grid;
+    const float iconSize = (float)keys.iconSize;
+    const float iconSpacing = (float)keys.iconSpacing;
+    const ComboItemGridMetrics metrics = ComboItemGridMetricsFor(grid, iconSize, iconSpacing);
     const float unit = ComboItemIconUnit(iconSize) * scale;
-    const float cell = grid.cellPx * unit;
-    const float pitch = (grid.cellPx + grid.gapPx) * unit;
-    const float linePitch = (grid.cellPx + ComboItemGridLineGap(grid)) * unit;
+    const float cell = metrics.cell * scale;
+    const float pitch = metrics.pitch * scale;
+    const float linePitch = metrics.linePitch * scale;
     const float baseAlpha = ImGui::GetStyle().Alpha;
     for (size_t i = 0; i < section.rows.size() && i < plan.cells.size(); i++) {
         const ComboItemRow& row = section.rows[i];
@@ -202,13 +231,16 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
         // The item's name on hover, as both native trackers do (SoH's
         // Tooltip(SohUtils::GetItemName(item.id)); MM's GetItemTrackerItemName).
         Ui().Tooltip(row.name);
-        DrawCount(row, grid.countStyle, cellMin, cell, scale, countScale);
+        DrawCount(row, keys, grid.countStyle, cellMin, cell, scale, countScale);
+        DrawIdentifier(row, keys, grid.countStyle, cellMin, cell, unit, scale);
         if (row.label != nullptr) {
-            // SoH's short name over the icon (DrawItem), in white.
+            // SoH's short name over the icon (DrawItem), in white, at the Text size DrawItemCount left set.
+            ImGui::SetWindowFontScale(scale * ComboItemCountTextScale(keys.textSize));
             ImVec2 at;
             ComboItemLabelPos(cellMin.x, cellMin.y, cell, ImGui::CalcTextSize(row.label).x, scale, &at.x, &at.y);
             ImGui::SetCursorScreenPos(at);
             Ui().ToneText(row.label, COMBO_UI_TONE_WHITE);
+            ImGui::SetWindowFontScale(scale);
         }
     }
 }
@@ -296,8 +328,15 @@ ComboItemTrackerKeys ComboReadItemTrackerKeys() {
     keys.iconSize = iconSize < kComboItemTrackerIconSizeMin   ? kComboItemTrackerIconSizeMin
                     : iconSize > kComboItemTrackerIconSizeMax ? kComboItemTrackerIconSizeMax
                                                               : iconSize;
-    keys.iconSpacing = CVarGetInteger("gTrackers.ItemTracker.IconSpacing", kComboItemTrackerIconSpacing);
-    keys.textSize = CVarGetInteger("gTrackers.ItemTracker.TextSize", kComboItemTrackerTextSize);
+    // SoH's Icon margins (-5..50) and Text size (1..30) slider bounds (#1143).
+    const int iconSpacing = CVarGetInteger("gTrackers.ItemTracker.IconSpacing", kComboItemTrackerIconSpacing);
+    keys.iconSpacing = iconSpacing < kComboItemTrackerIconSpacingMin   ? kComboItemTrackerIconSpacingMin
+                       : iconSpacing > kComboItemTrackerIconSpacingMax ? kComboItemTrackerIconSpacingMax
+                                                                       : iconSpacing;
+    const int textSize = CVarGetInteger("gTrackers.ItemTracker.TextSize", kComboItemTrackerTextSize);
+    keys.textSize = textSize < kComboItemTrackerTextSizeMin   ? kComboItemTrackerTextSizeMin
+                    : textSize > kComboItemTrackerTextSizeMax ? kComboItemTrackerTextSizeMax
+                                                              : textSize;
     keys.itemCountType = CVarGetInteger("gTrackers.ItemTracker.ItemCountType", kComboItemTrackerCountCapacityOnly);
     keys.itemCountAlignLeft = CVarGetInteger("gTrackers.ItemTracker.ItemCountAlignLeft", 0) != 0;
     keys.keyCounts = CVarGetInteger("gTrackers.ItemTracker.KeyCounts", kComboItemTrackerKeysCollectedMax);
@@ -566,7 +605,7 @@ ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row) {
     return pick;
 }
 
-bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out) {
+bool ComboItemCountFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys, ComboItemCount& out) {
     out = ComboItemCount();
     if (row.pad) {
         return false; // a blank cell (#1141)
@@ -574,35 +613,156 @@ bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCou
     if (row.iconNumber < 0) {
         return false; // the icon itself shows the tier
     }
-    if (row.iconNumber > 0) {
-        out.amount = std::to_string(row.iconNumber); // a wallet's capacity, faded or not
-        return true;
-    }
-    if (!row.have && row.count == 0) {
-        return false; // a faded icon carries no number
-    }
-    if (countStyle == COMBO_ITEM_COUNT_MM) {
-        if (row.count <= 0) {
-            return false;
+    // DrawItemCount's branches, in its order. A dungeon's small keys first: in
+    // every count mode, No Numbers included, and with none collected yet.
+    if (row.countKind == COMBO_ITEM_COUNT_KIND_KEYS && row.max > 0) {
+        if (keys.keyCounts == kComboItemTrackerKeysCurrentCollectedMax ||
+            keys.keyCounts == kComboItemTrackerKeysCurrentMax) {
+            out.amount += std::to_string(row.held) + "/";
         }
-        out.amount = std::to_string(row.count);
-        return true;
-    }
-    if (row.max > 0) {
-        // DrawItemCount's ammo display: the slash belongs to the amount and
-        // takes its tone; the ceiling and a full amount take the row's accent.
-        const ComboUiTone accent = row.countAccent == COMBO_ITEM_ACCENT_RED ? COMBO_UI_TONE_RED : COMBO_UI_TONE_GREEN;
-        out.amount = std::to_string(row.count) + "/";
+        if (keys.keyCounts == kComboItemTrackerKeysCollectedMax ||
+            keys.keyCounts == kComboItemTrackerKeysCurrentCollectedMax) {
+            out.amount += std::to_string(row.count) + "/";
+        }
         out.ceiling = std::to_string(row.max);
-        out.amountTone = row.count <= 0 ? COMBO_UI_TONE_GRAY : row.count >= row.max ? accent : COMBO_UI_TONE_WHITE;
-        out.ceilingTone = accent;
         return true;
     }
-    if (row.count > 0) {
-        out.amount = std::to_string(row.count);
+    const int mode = keys.itemCountType;
+    if (row.countKind != COMBO_ITEM_COUNT_KIND_TRIFORCE && mode != kComboItemTrackerCountNone) {
+        // shouldAlignToLeft: the two single-number modes offer it.
+        const bool alignLeft =
+            keys.itemCountAlignLeft && mode != kComboItemTrackerCountCapacity && mode != kComboItemTrackerCountAmmo;
+        if (row.iconNumber > 0) {
+            // A printed capacity (the pool's wallet, whose row counts its tier): that number alone.
+            out.amount = std::to_string(row.iconNumber);
+            out.alignLeft = alignLeft;
+            return true;
+        }
+        if (!row.have && row.count == 0) {
+            return false; // a faded icon carries no number
+        }
+        if (row.max <= 0) {
+            // No capacity to read (the pool's rupees and bombchus): the amount alone.
+            if (row.count <= 0) {
+                return false;
+            }
+            out.amount = std::to_string(row.count);
+            out.alignLeft = alignLeft;
+            return true;
+        }
+        // The amount and its slash take the amount's tone; the ceiling, and a
+        // full amount, the row's accent (red for the skulltula tokens).
+        const ComboUiTone accent = row.countAccent == COMBO_ITEM_ACCENT_RED ? COMBO_UI_TONE_RED : COMBO_UI_TONE_GREEN;
+        // A capacity that never grows (capacityMax 0: SoH's bombchus, beans,
+        // tokens and hearts) shows the amount in every mode.
+        const bool showAmmo =
+            mode == kComboItemTrackerCountAmmo || mode == kComboItemTrackerCountAmmoOnly || row.capacityMax <= 0;
+        const bool showMax = mode != kComboItemTrackerCountCapacityOnly && mode != kComboItemTrackerCountAmmoOnly;
+        out.alignLeft = alignLeft;
+        out.ceilingTone = accent;
+        if (showAmmo) {
+            out.amount = std::to_string(row.count);
+            out.amountTone = row.count >= row.max ? accent : COMBO_UI_TONE_WHITE;
+            if (showMax) {
+                out.amount += "/";
+                out.ceiling = std::to_string(row.max);
+            }
+            if (row.count <= 0) {
+                out.amountTone = COMBO_UI_TONE_GRAY;
+            }
+        } else {
+            out.amount = std::to_string(row.max);
+            if (row.max >= row.capacityMax) {
+                out.amountTone = COMBO_UI_TONE_GREEN; // full: the capacity alone
+            } else if (showMax) {
+                out.amount += "/";
+                out.ceiling = std::to_string(row.capacityMax);
+            }
+        }
+        return true;
+    }
+    // The triforce pieces under a hunt: collected of required (of the total), in every count mode.
+    if (row.countKind == COMBO_ITEM_COUNT_KIND_TRIFORCE && row.max > 0) {
+        out.amount = std::to_string(row.count) + "/";
+        if (keys.triforcePieceCounts == kComboItemTrackerTriforceRequiredMax) {
+            out.amount += std::to_string(row.max) + "/";
+            out.ceiling = std::to_string(row.capacityMax);
+        } else if (keys.triforcePieceCounts == kComboItemTrackerTriforceRequired) {
+            out.ceiling = std::to_string(row.max);
+        }
+        out.amountTone = row.count >= row.max ? COMBO_UI_TONE_GREEN : COMBO_UI_TONE_WHITE;
+        return true;
+    }
+    if (row.countKind == COMBO_ITEM_COUNT_KIND_TRIFORCE && mode != kComboItemTrackerCountNone && row.count > 0) {
+        out.amount = std::to_string(row.count); // pieces with no hunt armed: the count alone
         return true;
     }
     return false;
+}
+
+float ComboItemCountTextScale(int textSize) {
+    return (float)textSize / (float)kComboItemTrackerTextSize;
+}
+
+namespace {
+// SoH draws a count's top 14 px above the line under the icon, which sits 4 px
+// (the item spacing) below the icon: 10 px up from the icon's bottom at its
+// 16 px font, whatever the text size. The overlay draws it 0.6 of that font's
+// height up (9.6), as it did before Text size was honoured.
+constexpr float kCountRise = 0.6f * kComboItemTrackerCountPx;
+} // namespace
+
+void ComboItemCountPos(uint8_t countStyle, bool alignLeft, float cellX, float cellY, float cell, float width,
+                       float height, float scale, float* outX, float* outY) {
+    if (countStyle == COMBO_ITEM_COUNT_MM) {
+        // MM's DrawItemCounts: the cell's bottom-right corner, 2 px in; aligned left, the bottom-left one.
+        *outX = alignLeft ? cellX + 2.0f * scale : cellX + cell - width - 2.0f * scale;
+        *outY = cellY + cell - height - 2.0f * scale;
+    } else {
+        // SoH's DrawItemCount: centred under the icon; aligned left, at its left edge.
+        *outX = alignLeft ? cellX : cellX + (cell - width) * 0.5f;
+        *outY = cellY + cell - kCountRise * scale;
+    }
+}
+
+const char* ComboItemIdentifierFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys) {
+    if (!keys.hookshotIdentifier || !row.have || row.pad) {
+        return nullptr;
+    }
+    switch (row.identifier) {
+        case 'H':
+            return "H";
+        case 'L':
+            return "L";
+        default:
+            return nullptr;
+    }
+}
+
+void ComboItemIdentifierPos(float cellX, float cellY, float cell, float textWidth, float unit, float* outX,
+                            float* outY) {
+    // DrawItemCount: p.x + iconSize / 2 - width / 2 + 8, p.y - 22, at iconSize / 36, where p is the line
+    // under the icon, 4 px of item spacing below it.
+    *outX = cellX + cell * 0.5f - textWidth * 0.5f + 8.0f * unit;
+    *outY = cellY + cell + 4.0f * unit - 22.0f * unit;
+}
+
+ComboItemGridMetrics ComboItemGridMetricsFor(const ComboItemGridStyle& grid, float iconSize, float iconSpacing) {
+    const float unit = ComboItemIconUnit(iconSize);
+    ComboItemGridMetrics m;
+    m.cell = grid.cellPx * unit;
+    if (grid.countStyle == COMBO_ITEM_COUNT_MM) {
+        // MM's table: its own cell padding at the icon's size, in proportion to the margin (12, SoH's
+        // default, keeps MM's own look).
+        const float margin = iconSpacing / (float)kComboItemTrackerIconSpacing;
+        m.pitch = m.cell + grid.gapPx * unit * margin;
+        m.linePitch = m.cell + ComboItemGridLineGap(grid) * unit * margin;
+    } else {
+        // SoH's DrawItemsInRows: column * (iconSize + iconSpacing), the margin in pixels at any icon size.
+        m.pitch = m.cell + iconSpacing;
+        m.linePitch = m.cell + iconSpacing;
+    }
+    return m;
 }
 
 bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*)) {
@@ -705,10 +865,10 @@ ComboItemSectionBox ComboItemIconBox(const std::vector<ComboItemGridCell>& cells
     for (const ComboItemGridCell& c : cells) {
         columns = c.column + 1 > columns ? c.column + 1 : columns;
     }
-    const float unit = ComboItemIconUnit(metrics.iconSize);
-    const float pitch = (grid.cellPx + grid.gapPx) * unit;
-    box.width = (float)(columns - 1) * pitch + grid.cellPx * unit;
-    box.height = (float)(cells.back().line + 1) * (grid.cellPx + ComboItemGridLineGap(grid)) * unit;
+    // SoH's Icon size and Icon margins (#1143), as DrawIconGrid lays the cells out.
+    const ComboItemGridMetrics m = ComboItemGridMetricsFor(grid, metrics.iconSize, metrics.iconSpacing);
+    box.width = (float)(columns - 1) * m.pitch + m.cell;
+    box.height = (float)(cells.back().line + 1) * m.linePitch;
     return box;
 }
 
@@ -809,6 +969,7 @@ void ComboItemTrackerWindow::DrawElement() {
     ImGuiStorage* storage = ImGui::GetStateStorage();
     ComboItemTrackerMetrics metrics;
     metrics.iconSize = (float)keys.iconSize;
+    metrics.iconSpacing = (float)keys.iconSpacing;
     metrics.textHeight = ImGui::GetFontSize();
     metrics.linePadding = style.ItemSpacing.y;
     metrics.columnGap = style.ItemSpacing.x * 2.0f;
@@ -914,7 +1075,7 @@ void ComboItemTrackerWindow::DrawElement() {
             continue;
         }
         if (plans[s].icons) {
-            DrawIconGrid(section, plans[s], origin, metrics.iconSize, fit.scale, countScale * fit.scale);
+            DrawIconGrid(section, plans[s], origin, keys, fit.scale, countScale * fit.scale);
         } else {
             DrawTextGrid(section, plans[s], origin, fit.scale, metrics);
         }
