@@ -5572,6 +5572,19 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
              " measurable row(s) registered, none drawn)");
         return;
     }
+    // #1133: on a hosted-MM page the column is SoH's, sized by SoH's own count, and at the contract profile SoH's own
+    // rows overrun it (a 174 px third of Quality of Life). A hosted row there is held to its SoH column: it fails R9
+    // when it overruns by more than the widest SoH row drawn in the same column, so it never reads worse than its
+    // neighbours, and it is reported either way.
+    std::map<int, float> sohColumnOver;
+    if (!p.hostedRows.empty()) {
+        for (const Drawn& d : *drawn) {
+            if (!p.hostedRows.contains(d.name)) {
+                float& widest = sohColumnOver[(int)std::lround(d.limitX)];
+                widest = std::max(widest, d.needX - d.limitX);
+            }
+        }
+    }
     for (const Drawn& d : *drawn) {
         labelFitMeasured++;
         const float over = d.needX - d.limitX;
@@ -5580,13 +5593,18 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
         }
         // On a hosted-MM page (#1233) only the hosted rows are ours; SoH's own rows there are reported, as on any
         // SoH page.
-        const bool rowOurs = ours && (p.hostedRows.empty() || p.hostedRows.contains(d.name));
+        const bool hosted = !p.hostedRows.empty() && p.hostedRows.contains(d.name);
+        const auto sohOver = sohColumnOver.find((int)std::lround(d.limitX));
+        const bool withinSohColumn = hosted && sohOver != sohColumnOver.end() && over <= sohOver->second + 0.5f;
+        const bool rowOurs = ours && (p.hostedRows.empty() || hosted) && !withinSohColumn;
         std::string name = d.name;
         std::replace(name.begin(), name.end(), '\n', ' ');
         char detail[96];
         snprintf(detail, sizeof(detail), "over by %.0f px in a %.0f px column", over, d.columnW);
-        labelFitReport.push_back(std::string(rowOurs ? "ours | " : "soh  | ") + where +
-                                 (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
+        labelFitReport.push_back(std::string(rowOurs           ? "ours | "
+                                             : withinSohColumn ? "host | "
+                                                               : "soh  | ") +
+                                 where + (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
         if (rowOurs) {
             dynamicHits.insert("R9 | " + where + " | " + name + " :: does not fit its column at " + profile.name);
         }
