@@ -267,10 +267,10 @@ void LoadPresets() {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 std::vector<std::string> Presets_LoadFolderForTest(const std::string& folder) {
-    struct Restore {
+    struct PresetsFolderTestRestore {
         std::map<std::string, PresetInfo> savedPresets = presets;
         std::string savedFolder = presetFolder;
-        ~Restore() {
+        ~PresetsFolderTestRestore() {
             presets = savedPresets;
             presetFolder = savedFolder;
         }
