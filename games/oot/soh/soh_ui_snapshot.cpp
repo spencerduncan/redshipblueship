@@ -2021,7 +2021,7 @@ void Session::BuildPageList() {
         p.kind = Kind::WINDOW;
         p.window = "Time Splits";
         p.states = { "mm" };
-        p.expectText = { "Time Splits", "List Options", "Split Entries", "Current Splits" };
+        p.expectText = { "Time Splits", "List Options", "Split Entries" };
         p.needsRom = true;
         pages.push_back(p);
     }
