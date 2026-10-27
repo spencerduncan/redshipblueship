@@ -1966,6 +1966,23 @@ void Session::BuildPageList() {
         pages.push_back(p);
     }
     {
+        // W6-AUDIO-SFX (#1239): SoH's Audio Editor window, which holds MM's two Audio Options rows
+        // (DrawMmAudioOptionsRows, right after SoH's mute rows). Audio Options is the editor's first tab, so it is the
+        // one showing when the window opens. One MM row is hovered through the combo_ui seam's rect report: its
+        // tooltip must show, ending "Majora's Mask only.". W6-AUDIO-SEQ adds the MM pane's state to this block.
+        PageSpec p;
+        p.id = "window/Audio Editor";
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = "Audio Editor";
+        p.states = { "" };
+        p.expectText = { "Audio Options", "Disable Navi Call Audio", "MM Mute Carpenter Sounds",
+                         "MM Mute Crying Goron Child" };
+        p.paneHovers.push_back({ "mm-carpenter", "", "MM Mute Carpenter Sounds", false });
+        p.needsRom = true;
+        pages.push_back(p);
+    }
+    {
         // SoH's one progress dialog: the ROM-extraction modal (OTRGlobals.cpp,
         // RunExtract), drawn by PushExtractionFrameStyle + DrawExtractionReference
         // below at a fixed half-way state. The creation overlay is a progress

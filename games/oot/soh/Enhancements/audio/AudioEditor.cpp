@@ -17,6 +17,10 @@
 #include "soh/ShipUtils.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "cvar_shared_keys.h"
+#include "combo_ui.h"
+#endif
 
 extern "C" {
 #include "z64save.h"
@@ -534,6 +538,34 @@ void AudioEditor::InitElement() {
     AudioEditorRegisterOnLoadGameHook();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * W6-AUDIO-SFX (#1239): Majora's Mask's two sound mutes with no SoH twin, drawn right after SoH's mute rows in the
+ * Audio Options block. This is the project-added function: DrawElement calls it in one line, and nothing else of
+ * SoH's block changes. The keys come from the src/common constants because games/oot may not spell an MM key.
+ * UIWidgets::CVarCheckbox's ShipInit::Init re-arms MM's registrar on a click (#539). Each row also reports where it
+ * drew to the combo_ui seam, which records nothing unless the UI snapshot harness is hovering it.
+ */
+static void DrawMmAudioOptionsRows() {
+    static constexpr const char* kCarpenterLabel = "MM Mute Carpenter Sounds";
+    static constexpr const char* kCarpenterTooltip =
+        "Mutes the carpenter sounds coming from the tower in South Clock Town. Takes effect on the next scene load. "
+        "Majora's Mask only.";
+    UIWidgets::CVarCheckbox(kCarpenterLabel, RSBS_CVAR_MM_MUTE_CARPENTER_SFX,
+                            UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(kCarpenterTooltip));
+    ComboUi_NotifyRect(kCarpenterLabel, kCarpenterTooltip, ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y,
+                       ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y);
+
+    static constexpr const char* kGoronChildLabel = "MM Mute Crying Goron Child";
+    static constexpr const char* kGoronChildTooltip = "Mutes the crying Goron child inside Goron Shrine. "
+                                                      "Majora's Mask only.";
+    UIWidgets::CVarCheckbox(kGoronChildLabel, RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY,
+                            UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(kGoronChildTooltip));
+    ComboUi_NotifyRect(kGoronChildLabel, kGoronChildTooltip, ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y,
+                       ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y);
+}
+#endif
+
 void AudioEditor::DrawElement() {
     AudioCollection::Instance->InitializeShufflePool();
 
@@ -582,6 +614,9 @@ void AudioEditor::DrawElement() {
             if (ImGui::BeginChild("SfxOptions", ImVec2(0, -8))) {
                 SohGui::mSohMenu->MenuDrawItem(lowHpAlarm, ImGui::GetContentRegionAvail().x, THEME_COLOR);
                 SohGui::mSohMenu->MenuDrawItem(naviCall, ImGui::GetContentRegionAvail().x, THEME_COLOR);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                DrawMmAudioOptionsRows(); // #1239: MM's two sound mutes, after SoH's mute rows
+#endif
                 SohGui::mSohMenu->MenuDrawItem(enemyProx, ImGui::GetContentRegionAvail().x, THEME_COLOR);
                 if (!CVarGetInteger(CVAR_AUDIO("EnemyBGMDisable"), 0)) {
                     SohGui::mSohMenu->MenuDrawItem(leeverProx, ImGui::GetContentRegionAvail().x, THEME_COLOR);
