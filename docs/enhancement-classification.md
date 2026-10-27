@@ -237,9 +237,9 @@ are INTENTIONAL: they cannot act in the paired game. The Timesavers family keeps
 | MM key | Row (page > section) | Call |
 |---|---|---|
 | `gEnhancements.Dialogue.FastText` | MM Fast Text (Skips & Speed-ups > Text, after Text Speed) | (P) P1: MM's own row beside SoH's Text Speed |
-| `gEnhancements.Dialogue.FastBankSelection` | Fast Bank Selection (Skips & Speed-ups > Text) | (O) |
-| `gEnhancements.Dialogue.AutoBombersCode` | Auto Bombers' Code (Skips & Speed-ups > Text) | (O) |
-| `gEnhancements.Timesavers.SwampBoatSpeed` | Swamp Boat Timesaver (Skips & Speed-ups > Majora's Mask) | (O) |
+| `gEnhancements.Dialogue.FastBankSelection` | Fast Bank Selection (Skips & Speed-ups > Majora's Mask) | (O) |
+| `gEnhancements.Dialogue.AutoBombersCode` | Auto Bombers' Code (likewise) | (O) |
+| `gEnhancements.Timesavers.SwampBoatSpeed` | Swamp Boat Timesaver (likewise) | (O) |
 | `gEnhancements.Timesavers.GalleryTwofer` | Shooting Gallery Both Rewards (likewise) | (O); in a randomizer file the second reward is the Perfect Score check's item, given once |
 | `gEnhancements.Timesavers.MarineLabHP` | Fast Marine Lab Fish (likewise) | (O); in a randomizer file the fish still gives its check's item once |
 | `gEnhancements.Timesavers.DampeDiggingSkip` | Fast Dampe Flame Digging (likewise) | (O) |
@@ -247,7 +247,7 @@ are INTENTIONAL: they cannot act in the paired game. The Timesavers family keeps
 | `gEnhancements.Timesavers.PowderKegCertification` | Skip Powder Keg Certification (likewise) | (O) |
 | `gEnhancements.Timesavers.SkipBalladOfWindfish` | Skip Ballad of Windfish (likewise) | (O) |
 | `gEnhancements.Timesavers.AutoBankDeposit` | Auto Bank Deposit (likewise) | (O) |
-| `gEnhancements.Saving.PauseSave` | Pause Menu Save (Quality of Life > Saving, after SoH's rows) | (O); the save is a paired `.redsave` commit, not a flash write |
+| `gEnhancements.Saving.PauseSave` | Pause Menu Save (Quality of Life > Saving, in a Majora's Mask block after SoH's rows) | (O); the save is a paired `.redsave` commit, not a flash write |
 | `gEnhancements.Saving.FileSlot3` | none | INTENTIONAL: it shapes MM's file select, which paired play never shows (the file select is OoT's) |
 | `gEnhancements.Saving.PersistentOwlSaves` | none | INTENTIONAL: it only stops the owl save's flash delete on continue, and a paired MM session has no flash slot (`func_80147314` returns at the 0xFF fileNum), so the owl save already persists |
 | `gEnhancements.Saving.DisableSaveDelay` | none | INTENTIONAL: it only shortens the wait on a flash write, and a paired MM session never starts one |

@@ -9,11 +9,12 @@
  * SoH's pages call these functions in one line each (SohMenuEnhancements.cpp):
  *  - Skips & Speed-ups > Text: MM Fast Text right after SoH's Text Speed, its twin. The pair stays apart (P1 in
  *    kMustStayDistinct: SoH's 1-5x multiplier against MM's on/off, which also bundles hold-B-to-advance), so the row
- *    is MM's own. Fast Bank Selection and Auto Bombers' Code, MM's other dialogue rows, close the section.
- *  - Skips & Speed-ups > Misc: a "Majora's Mask" block at the end of the column for the eight time savers, which have
- *    no SoH twin.
- *  - Quality of Life > Saving: Pause Menu Save, after SoH's own saving rows. Its save reaches disk through the paired
- *    .redsave commit (func_8014546C -> Sram_ComboCommitUnifiedSave), not MM's flash.
+ *    is MM's own.
+ *  - Skips & Speed-ups > Misc: a "Majora's Mask" block at the end of the column for the rows with no SoH twin, MM's
+ *    two other dialogue rows (Fast Bank Selection, Auto Bombers' Code) and its eight time savers.
+ *  - Quality of Life > Saving: a "Majora's Mask" block after SoH's own saving rows, holding Pause Menu Save (no SoH
+ *    twin). Its save reaches disk through the paired .redsave commit (func_8014546C -> Sram_ComboCommitUnifiedSave),
+ *    not MM's flash. #1133 L7's MM Autosave rows join this block.
  * MM's other saving options get no row, because none can act in the paired game. A paired MM session runs at the 0xFF
  * fileNum with no flash slot: Persistent Owl Saves gates only the owl save's flash delete on continue
  * (func_80147314 returns at once), and Disable Save Delay only the timer of a flash write that is never started. 3rd
@@ -39,19 +40,16 @@ void AddMmFastTextRow(SohMenu& menu, WidgetPath& path) {
             "Speeds up text rendering, and holding B advances to the next message. Majora's Mask only."));
 }
 
-void AddMmDialogueRows(SohMenu& menu, WidgetPath& path) {
-    AddHostedMmWidget(menu, path, "Text", "Fast Bank Selection", WIDGET_CVAR_CHECKBOX)
+void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path) {
+    AddHostedMmBlock(menu, path);
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Fast Bank Selection", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION)
         .Options(CheckboxOptions().Tooltip("Sets the amount to all of Link's Rupees with Z, or to 0 with R, while the "
                                            "bank's deposit or withdrawal amount is open. Majora's Mask only."));
-    AddHostedMmWidget(menu, path, "Text", "Auto Bombers' Code", WIDGET_CVAR_CHECKBOX)
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Auto Bombers' Code", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_DIALOGUE_AUTO_BOMBERS_CODE)
         .Options(CheckboxOptions().Tooltip(
             "Fills in the Bombers' secret code once you have the Bombers' Notebook. Majora's Mask only."));
-}
-
-void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path) {
-    AddHostedMmBlock(menu, path);
     AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Swamp Boat Timesaver", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_TIMESAVERS_SWAMP_BOAT_SPEED)
         .Options(CheckboxOptions().Tooltip("Speeds up the boat ride through the swamp while Z is held. Majora's Mask "
@@ -88,7 +86,8 @@ void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path) {
 }
 
 void AddMmSavingRows(SohMenu& menu, WidgetPath& path) {
-    AddHostedMmWidget(menu, path, "Saving", "Pause Menu Save", WIDGET_CVAR_CHECKBOX)
+    AddHostedMmBlock(menu, path);
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Pause Menu Save", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_SAVING_PAUSE_SAVE)
         .Options(CheckboxOptions().Tooltip("Offers a save from the current location when B is pressed in the pause "
                                            "menu. Majora's Mask only."));
