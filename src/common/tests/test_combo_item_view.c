@@ -1402,6 +1402,12 @@ static const unsigned kCivOptSpeak = 1u << 3;
 static const unsigned kCivOptButtons = 1u << 4;
 static const unsigned kCivOptOverworldDoors = 1u << 5;
 static const unsigned kCivOptFishingPole = 1u << 6;
+// RSK_GERUDO_FORTRESS in bits 7-8 (0 Normal, 1 Fast, 2 Free carpenters), and a Master Quest dungeon per scene id
+// in bits 16 and up (scene_table.h: the Water Temple is 0x05, Ganon's Castle 0x0D).
+static const unsigned kCivOptGerudoFast = 1u << 7;
+static const unsigned kCivOptGerudoFree = 2u << 7;
+static const unsigned kCivOptMqWater = 1u << (16 + 0x05);
+static const unsigned kCivOptMqGanonsCastle = 1u << (16 + 0x0D);
 static const unsigned kCivOptAll =
     kCivOptBeanSouls | kCivOptBossSouls | kCivOptSpeak | kCivOptButtons | kCivOptOverworldDoors | kCivOptFishingPole;
 
@@ -1540,6 +1546,27 @@ static int CivOoTTrackerGroupLegs(const ComboItemOps* ops) {
         CIV_ASSERT(!keysOnly[i].pad && strcmp(keysOnly[i].name, kKeysOnly[i]) == 0);
     }
     CIV_ASSERT(CivKeyRowIs(keysOnly, "Forest Temple Small Key", true, 3, 2, 5, "FRST"));
+
+    // The key maxes follow the seed in a randomizer file (SoH GetItemCurrentAndMax: each *_SMALL_KEY_MAX asks
+    // ResourceMgr_IsSceneMasterQuest, which reads the seed's per-dungeon Master Quest; Thieves' Hideout follows
+    // RSK_GERUDO_FORTRESS: Normal 4, Fast 1, Free 0). RED while the adapter read the file's quest id alone.
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFast | kCivOptMqWater | kCivOptMqGanonsCastle);
+    dungeon = CivOoTGroup("Dungeon Items");
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Thieves' Hideout Small Key", true, 2, 1, 1, "HIDE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Water Temple Small Key", false, 0, 0, 2, "WATR"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Ganon's Castle Small Key", false, 0, 0, 3, "GANON"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Forest Temple Small Key", true, 3, 2, 5, "FRST")); // vanilla in the same seed
+    CIV_ASSERT(CivKeyRowIs(CivOoTGroup("Dungeon Keys"), "Water Temple Small Key", false, 0, 0, 2, "WATR"));
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFree);
+    CIV_ASSERT(CivKeyRowIs(CivOoTGroup("Dungeon Keys"), "Thieves' Hideout Small Key", true, 2, 1, 0, "HIDE"));
+    // A vanilla file never reads the seed: SoH's vanilla counts, Thieves' Hideout's 4.
+    Context_UpdateShadowCopy(GAME_OOT, vanilla.data(), vanilla.size());
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFast | kCivOptMqWater);
+    dungeon = CivOoTGroup("Dungeon Items");
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Thieves' Hideout Small Key", true, 2, 1, 4, "HIDE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Water Temple Small Key", false, 0, 0, 6, "WATR"));
+    Context_UpdateShadowCopy(GAME_OOT, world.data(), world.size());
+    OoT_ItemAdapter_TestOverrideOptions(1, 0u);
 
     // ---- B. the shuffle-gated groups: none while every option is off (Greg: any randomizer file) --------
     static const struct {

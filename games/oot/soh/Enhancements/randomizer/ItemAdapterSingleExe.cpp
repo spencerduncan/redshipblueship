@@ -1304,7 +1304,9 @@ extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, in
  * never in the save buffer. `enabled` 0 puts the production read back. `bits`:
  * 0 RSK_SHUFFLE_BEAN_SOULS, 1 RSK_SHUFFLE_BOSS_SOULS on, 2 RSK_SHUFFLE_BOSS_SOULS
  * on plus Ganon (with bit 1), 3 RSK_SHUFFLE_SPEAK, 4 RSK_SHUFFLE_OCARINA_BUTTONS,
- * 5 RSK_LOCK_OVERWORLD_DOORS, 6 RSK_SHUFFLE_FISHING_POLE.
+ * 5 RSK_LOCK_OVERWORLD_DOORS, 6 RSK_SHUFFLE_FISHING_POLE, 7-8 RSK_GERUDO_FORTRESS
+ * (RO_GF_CARPENTERS_*), and from bit 16 the seed's Master Quest dungeons, bit
+ * (16 + scene) per dungeon scene (the small-key maxes, #1263).
  */
 extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits) {
     sOoTItemTestOptionsOn = enabled != 0;
