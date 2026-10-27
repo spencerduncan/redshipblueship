@@ -8,6 +8,7 @@
 #include "soh/cvar_prefixes.h"
 #include "cvar_shared_keys.h" // RSBS: MM's camera keys, for DrawMmCameraRows
 #include "combo_ui.h"         // RSBS: ComboUi_NotifyRect, so the UI snapshot can hover an MM row
+#include <functional>         // RSBS (W6-CAM-GYRO): DrawMmCameraRows' group-panel callbacks
 #ifndef __WIIU__
 #include <ship/controller/controldevice/controller/mapping/sdl/SDLAxisDirectionToButtonMapping.h>
 #endif
@@ -1378,7 +1379,13 @@ void SohInputEditorWindow::DrawOcarinaControlPanel() {
 // walking and swimming separately), so every row is MM-labelled and says "Majora's Mask only.".
 enum class MmCameraRows { Aiming, Shield, ThirdPerson, Gyro, FreeLookPitch, DebugCamera, SpeedModifiers };
 
-static void DrawMmCameraRows(MmCameraRows block) {
+// The speed modifier block draws SoH's group panels through @p beginPanel / @p endPanel, the window's own (protected)
+// BeginGroupPanel / EndGroupPanel, which DrawLinkTab hands in; the other blocks draw none.
+using MmBeginGroupPanel = std::function<void(const char*)>;
+using MmEndGroupPanel = std::function<void()>;
+
+static void DrawMmCameraRows(MmCameraRows block, const MmBeginGroupPanel& beginPanel = nullptr,
+                             const MmEndGroupPanel& endPanel = nullptr) {
     // MM's right-stick rows hide while its right-stick aiming is off, as SoH's move-while-aiming row does.
     static constexpr const char* kMmRightStickAim = RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED;
     auto report = [](const char* label, const char* tooltip) {
@@ -1670,15 +1677,15 @@ static void DrawMmCameraRows(MmCameraRows block) {
             UIWidgets::CVarCheckbox("MM Enable speed modifiers", RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE,
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
             report("MM Enable speed modifiers", tip);
-            if (CVarGetInteger(RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE, 0)) {
+            if (CVarGetInteger(RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE, 0) && beginPanel && endPanel) {
                 UIWidgets::Spacer(5);
-                Ship::GuiWindow::BeginGroupPanel("MM Speed Modifier", ImGui::GetContentRegionAvail());
+                beginPanel("MM Speed Modifier");
                 tip = "Switches a modifier on and off with a press instead of holding its button. Majora's Mask only.";
                 ImGui::BeginGroup();
                 UIWidgets::CVarCheckbox("MM Toggle modifier instead of holding", RSBS_CVAR_MM_SPEED_MODIFIER_TOGGLE,
                                         UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
                 report("MM Toggle modifier instead of holding", tip);
-                Ship::GuiWindow::BeginGroupPanel("MM Walk Modifier", ImGui::GetContentRegionAvail());
+                beginPanel("MM Walk Modifier");
                 tip = "Applies the modifiers to Link's walking and running speed. Majora's Mask only.";
                 ImGui::BeginGroup();
                 UIWidgets::CVarCheckbox("MM Enable Walk Speed Modifier", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_ENABLE,
@@ -1708,8 +1715,8 @@ static void DrawMmCameraRows(MmCameraRows block) {
                                                .ShowButtons(true)
                                                .Tooltip(tip));
                 report("MM Walk Modifier 2: %.0f %%", tip);
-                Ship::GuiWindow::EndGroupPanel(0);
-                Ship::GuiWindow::BeginGroupPanel("MM Swim Modifier", ImGui::GetContentRegionAvail());
+                endPanel();
+                beginPanel("MM Swim Modifier");
                 tip = "Applies the modifiers to Link's swimming speed. Majora's Mask only.";
                 ImGui::BeginGroup();
                 UIWidgets::CVarCheckbox("MM Enable Swim Speed Modifier", RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_ENABLE,
@@ -1739,8 +1746,8 @@ static void DrawMmCameraRows(MmCameraRows block) {
                                                .ShowButtons(true)
                                                .Tooltip(tip));
                 report("MM Swim Modifier 2: %.0f %%", tip);
-                Ship::GuiWindow::EndGroupPanel(0);
-                Ship::GuiWindow::EndGroupPanel(0);
+                endPanel();
+                endPanel();
             }
             break;
     }
@@ -2041,7 +2048,10 @@ void SohInputEditorWindow::DrawLinkTab() {
                 Ship::GuiWindow::EndGroupPanel(0);
                 Ship::GuiWindow::EndGroupPanel(0);
             }
-            DrawMmCameraRows(MmCameraRows::SpeedModifiers); // RSBS (W6-CAM-GYRO): MM's speed modifiers
+            DrawMmCameraRows( // RSBS (W6-CAM-GYRO): MM's speed modifiers
+                MmCameraRows::SpeedModifiers,
+                [this](const char* name) { BeginGroupPanel(name, ImGui::GetContentRegionAvail()); },
+                [this]() { EndGroupPanel(0); });
             ImGui::EndDisabled();
         }
 
