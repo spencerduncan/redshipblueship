@@ -1398,6 +1398,14 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # Shuffle Time's Final Hours (#1229, games/mm/2s2h/
+    # mm_clock_shuffle_final_hours_test.cpp): with Shuffle Time on, a half-day
+    # the file does not own is never playable, and when none is left the moon
+    # falls at the end of the last owned one (OoTMM's rule). Drives the real
+    # ClockShuffle EnTest4 pre-update hook, the Scarecrow and time-left VB hooks
+    # and the ownership query; pins the retired Final Hours Start Time row.
+    # Pure (no display, no ROM); restores everything it touches.
+    redship_add_test(NAME MMClockShuffleFinalHours COMMAND redship --test mm-clock-shuffle-final-hours)
     # The same class a third time (#1071): the nine song-teacher hooks under
     # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
     # forced on under IS_RANDO because they ARE the rando hand-off for those

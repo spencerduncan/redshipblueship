@@ -551,8 +551,17 @@ const OptionUi kOptionUi[] = {
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_CLOCK_TERMINAL_TIME, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_TIME,
       "Final Hours Start Time",
-      "When the Final Hours begin, 00:00 to 05:59. Baked into the seed and fixed once generated.",
-      0, 359, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+      "This option was retired and has no effect.",
+      0, 359, nullptr, 0,
+      // RETIRED (#1229) under the follow-OoTMM rule: with Shuffle Time on, a
+      // half-day the file does not own is never playable, and when no owned
+      // half-day is left the moon falls at the end of the last owned one
+      // (Rando/MiscBehavior/ClockShuffle.cpp). 2Ship's "Final Hours" window this
+      // row timed handed out Night 3 without Time (Night 3). The StaticData row
+      // and the stored option byte stay (id-space totality, seed and digest
+      // stability); nothing reads the value. mm-clock-shuffle-final-hours pins
+      // this row dormant.
+      COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
     // ---- Starting Items ----------------------------------------------------
     { RO_STARTING_HEALTH, COMBO_MM_GROUP_STARTING, COMBO_MM_WIDGET_SLIDER,

@@ -73,10 +73,12 @@
  *   Sram_InitSave writes the .redsave after the creation event arms the half),
  *   which is vanilla's new-file flash write, so the crash restores the half as
  *   created (day 0, 05:59: Dawn of the First Day). A commit at 05:55 on the
- *   final day restores pulled back to 05:49 (OoTMM's grace period). Then a
- *   session with nothing durable at all (no active slot; a latched slot):
- *   nothing to reload, the clock alone restarts at dawn and the half keeps its
- *   bytes.
+ *   final day restores pulled back to 05:49 (OoTMM's grace period); under
+ *   Shuffle Time without Night 3 the moon falls at 18:00 on day 3, so a commit
+ *   at 17:55 there comes back at 17:49 (OoTMM's Time_LinearMoonCrash, #1229).
+ *   Then a session with nothing durable at all (no active slot; a latched
+ *   slot): nothing to reload, the clock alone restarts at dawn and the half
+ *   keeps its bytes.
  *
  *   mm-moon-crash-pool-applied (redship tier, ROM-free). The commit's pool and
  *   its MM half need not agree: an OoT-side commit writes MM's half from the
@@ -838,6 +840,36 @@ extern "C" int MM_MoonCrashNeverSaved_Run(void) {
     CNF_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.eventDayCount == 3 &&
                    gSaveContext.save.time == (u16)(0x3E20),
                "a commit within the grace period is pulled back to 05:49 on day 3 (OoTMM gracePeriod)");
+
+    // ---- #1229: under Shuffle Time the crash is the end of the last owned half-day
+    // OoTMM's Time_LinearMoonCrash: 0x10000 + (last owned half-day + 1) * 0x8000.
+    // Days 1-3 owned and Night 3 not: the moon falls at 18:00 on day 3, so a
+    // commit at 17:55 on day 3 is within the grace period and comes back at
+    // 17:49 (0xBE20), not at 17:55 where the moon would fall again at once.
+    auto setClockBits = [](bool day1to3) {
+        for (int i = 0; i < 6; i++) {
+            const int flag = RANDO_INF_OBTAINED_CLOCK_DAY_1 + i;
+            u16& word = gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4];
+            const u16 bit = (u16)(1u << (flag & 0xF));
+            word = (day1to3 && (i % 2) == 0) ? (u16)(word | bit) : (u16)(word & ~bit);
+        }
+    };
+    gSaveContext.save.shipSaveInfo.rando.randoSaveOptions[RO_CLOCK_SHUFFLE] = RO_GENERIC_ON;
+    setClockBits(true);
+    gSaveContext.save.day = 3;
+    gSaveContext.save.eventDayCount = 3;
+    gSaveContext.save.time = (u16)CLOCK_TIME(17, 55);
+    CNF_ASSERT(MM_Combo_CaptureSaveToUnifiedSlot() == 1, "a Shuffle Time commit minutes before 18:00 on day 3 lands");
+    if (CrashTheMoon() != 0) {
+        return 1;
+    }
+    PrintClock("after the moon crash (Shuffle Time, Night 3 unowned, commit at 17:55 on day 3)");
+    CNF_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.eventDayCount == 3 &&
+                   gSaveContext.save.time == (u16)(0xBE20),
+               "under Shuffle Time without Night 3 the moon falls at 18:00 on day 3, so a commit at 17:55 is pulled "
+               "back to 17:49 (OoTMM Time_LinearMoonCrash + gracePeriod, #1229)");
+    gSaveContext.save.shipSaveInfo.rando.randoSaveOptions[RO_CLOCK_SHUFFLE] = RO_GENERIC_OFF;
+    setClockBits(false);
 
     // ---- a session with nothing durable: no active slot, then a latched one --
     for (int leg = 0; leg < 2; leg++) {
