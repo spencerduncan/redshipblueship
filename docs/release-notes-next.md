@@ -4,11 +4,12 @@
 come with the release commit, not before.
 **Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
 this section.
-**Merged up to:** `main` at `d94ab061` (2026-10-27), 11 commits after the tag: pull requests #1174 to #1188 (#1174,
-#1179 and #1183 are docs; #1175, #1176, #1182 and #1187 are issues).
+**Merged up to:** `main` at `79540720` (2026-10-27), 18 commits after the tag: pull requests #1174 to #1201 (#1174,
+#1179, #1183 and #1193 are docs; the numbers in that range that are not listed below are issues).
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
 #N". Nobody has played any of it. Every change below is locked by test rows except Mido's, the boss door's and
-the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #1174, #1179 and #1183 are docs.
+the warp-song prompt's hints (#1181), the Nearly No Logic cow rule (#1178) and the capital P's width (#1198, locked by
+a source check in the Python tests); #1174, #1179, #1183 and #1193 are docs.
 
 ---
 
@@ -32,6 +33,14 @@ the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #
   `comboSettings`) did not move. A file keeps the world it was created with.
 - **Files created before #1181 keep their "No Hint" stones**, because hints are saved with the file. Create a new
   file to get gag lines.
+- **Custom player models no longer crash the game at the first draw** (#1197, issue #1190). Since the January symbol
+  namespacing, a skeleton mod whose limbs use Fast64's `gEmptyDL` marker for a limb with no mesh (the Heroine of
+  Time Malon pack, for example) crashed where Link is first drawn: on the title screen with Alt Assets on, or when
+  child Link first appears. Such a limb has no display list again. On an older build, disable the pack or turn Alt
+  Assets off.
+- **The Combo Tracker is now the Check Tracker, and the Combo Item Tracker the Item Tracker; SoH's own windows of
+  those names are retired** (#1192, Trackers below). Open them from Randomizer > Check Tracker and Randomizer > Item
+  Tracker; Combo > Windows is gone.
 
 ### Shared items
 
@@ -50,6 +59,17 @@ the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #
 - **Ocarina of Time's Gerudo Mask and the six medallions draw correctly in Termina**: each host now draws another
   game's model under that game's own setup list, where Majora's Mask used its own, different entry and smeared the
   texture (#1185, issue #1171).
+
+### Majora's Mask options
+
+- **Keep Items on Cycle Reset** (OoTMM's option, off by default; #1194, issue #1175): a checkbox on Randomizer > MM
+  Randomizer, right after Moon Crash Behavior. With it on, the Song of Time, the new day after the credits and a New
+  Cycle moon crash keep your Powder Keg and Magic Beans; with it off the Song of Time takes them, as in vanilla
+  Majora's Mask and in OoTMM. Rupees and the shared ammo are kept in every world, and the pictograph is still lost.
+  It is frozen when the file is created, and loading the file puts its value back on the page. Like Moon Crash
+  Behavior it is part of the world's identity, so turning it on changes the placements a seed makes; left off, no
+  seed moves. Issue #1175's keg "with its slot but no keg" was this reset: a keg found in Hyrule arrives as one keg,
+  and the three-day reset emptied it.
 
 ### Hints
 
@@ -84,14 +104,37 @@ the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #
   House rewards) no longer prints "- 0", and with Shuffle Merchants on All But Beans the bean salesman is no longer
   listed (#1180; SoH `2ba368e7e`, `6bf5ec514`).
 - **The Combo Tracker scrolls to the area you are in** each time you enter a new one, in the game you are playing,
-  and each game's list has its own Only Show Current Area toggle. Two new settings under Combo > Tracker Settings >
-  Check Tracker Settings set them: Auto Scroll To Current Area (on by default) and Only Show Current Area (off by
-  default) (#1188, issue #1131).
+  and each game's list has its own Only Show Current Area toggle. Two new settings set them: Auto Scroll To Current
+  Area (on by default) and Only Show Current Area (off by default) (#1188, issue #1131); since #1192 they are on
+  Randomizer > Check Tracker.
+- **The Check Tracker and Item Tracker replace Ship of Harkinian's** (#1192, issue #1132). The Combo Tracker is now
+  named the Check Tracker and the Combo Item Tracker the Item Tracker, and SoH's own Toggle Check Tracker and Toggle
+  Item Tracker buttons, on Randomizer > Check Tracker and Randomizer > Item Tracker, open them; SoH's single-game
+  windows no longer draw. Randomizer > Check Tracker also carries Auto Scroll To Current Area, Only Show Current Area
+  and the Cross-Game Spoiler's toggle. Combo > Windows is gone, and a menu last left on it opens on Randomizer >
+  Check Tracker. Combo > Tracker Settings keeps only the Item Tracker overlay's rows until the Item Tracker's settings
+  move (issue #1141). Searching the menu for one of SoH's six Check Tracker settings (Background Color, Window Type,
+  Vanilla/MQ Dungeon Spoilers, Hide Unshuffled Shop Item Checks, Always Show Gold Skulltulas, Show Logic) still lands
+  on SoH's Randomizer > Check Tracker page, which is now the unified tracker's page.
+- **The Check Tracker draws its rows as SoH's does** (#1192): no status square before a check's name (the name's
+  colour shows the status), the line under a pane's header only while a header control shows, and a search box that
+  matches item names but no longer prices.
 
 ### Fixes
 
 - Toggling Alt Assets while in Termina no longer writes past Majora's Mask actors' animation state (#1177, issue
   #1176); this may have been the cause of issue #1063's delayed crash with an Ocarina of Time texture overhaul pack.
+- Custom skeleton mods made with Fast64 draw again (#1197, issue #1190; Read this first).
+- A capital P has its pixel width in the text auto-wrap of Ship of Harkinian's own messages (hints, shop and item
+  texts) again, so a line with names such as "Pocket Egg" or "Prelude of Light" no longer runs past the text box's
+  edge; the January namespacing had renamed the width table's "P" key (#1198, issue #1190).
+- A re-added `.otr` mod no longer leaks its file handle (#1199, issue #1190; libultraship fork): every mod archive is
+  mounted again after the curated archives, at boot and on every game switch, and each re-add of an `.otr` kept the
+  replaced copy's file open. A release build's crash trace now prints each frame's module offset, which resolves
+  against `redship.map`, where it printed meaningless symbol names.
+- The spoiler's cross-game crossing rows (`combo.crossingStore`) give each item two names: `itemName`, the game's own
+  name, and `displayName`, the name the tracker shows; a Majora's Mask single Bombchu reads "Bombchu" and
+  "1 Bombchu" (#1201, issue #1200). A spoiler without `displayName` loads as before.
 
 ### For contributors
 
@@ -118,14 +161,34 @@ the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #
   session. The current area the tracker keeps for the game you are not playing outlives the file: load another file
   in Hyrule and Majora's Mask's pane, with Only Show Current Area on, filters to the old file's last scene until you
   play Termina again (issue #1189).
+- **Check Tracker and Item Tracker (#1192):** window positions saved for the old Combo Tracker and Combo Item Tracker
+  are not carried (the windows take SoH's own windows' saved positions, if any), nor whether they were open: a
+  tracker opened through Combo > Windows starts closed, and one opened through SoH's own toggle opens as the unified
+  window. An SoH preset's Check Tracker position is applied to SoH's retired window, not the unified one. Some of
+  SoH's Check Tracker settings govern nothing yet (Vanilla/MQ Dungeon Spoilers, for example), SoH's Item Tracker
+  Settings on Randomizer > Item Tracker still set only SoH's retired overlay, and SoH's Item Tracker extras (notes,
+  separate section windows, the combo-button display) are unreachable until the Item Tracker lanes land (issues
+  #1141, #1143).
+- **Keep Items on Cycle Reset (#1194):** logic does not read it, as OoTMM's does not, and the spoiler does not name
+  it. OoTMM's separate Keep Bottles on Cycle Reset is not built.
+- **Mods (#1197, #1198):** the January namespacing renamed string literals as well as symbols; the four known ones
+  are restored, and issue #1195 fixes the tool and sweeps for the rest. Issue #1063's crash with a texture pack that
+  "worked for a while" is still open: the skeleton crash was a different defect. Same-named archives in different mod
+  folders never both mount (issue #1196, inherited from Ship of Harkinian).
+- **Majora's Mask randomizer:** leaving the Deku King's chamber after the monkey check still teaches the vanilla
+  Sonata of Awakening, wherever the seed placed the real one (issue #1203).
 
 ### Run record
 
 The pull requests were merged once their hosted CI was green, and the pyramid driver runs the ROM tiers on `main`
-itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integration-soak` 1 of 1) and 21 of 21 at
-`095c8b83` (cycle 27, with #1177 to #1183; `integration-soak` 1 of 1). The next cycle covers
-`e2280b8a` to the tip. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md). Nobody
-has played any of it.
+itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integration-soak` 1 of 1), 21 of 21 at
+`095c8b83` (cycle 27, with #1177 to #1183; `integration-soak` 1 of 1) and 21 of 21 at `51bcfa4c` (cycle 28, with
+#1178, #1184, #1185, #1186, #1188 and #1193; `integration-soak` 1 of 1). Cycle 29, at `0be75d87` (with #1192, #1197,
+#1199 and #1201), was the first to run the unit tiers on `main` as well: `redship` 244 of 244, `rando` 77 of 77,
+`integration` 21 of 21, `integration-soak` 1 of 1. The gate on `main` runs the unit tiers since issue #1200: `ComboCrossingViewsWorld` was
+red in `main`'s hosted CI from `d94ab061` (#1184's chu-pack names on #1178's placements) until #1201, and a gate of
+the ROM tiers alone did not see it. #1194 and #1198 came after cycle 29. The record is under "Gates, 2026-10-26/27"
+in [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
 ---
 
