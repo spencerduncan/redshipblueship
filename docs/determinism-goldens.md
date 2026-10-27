@@ -362,6 +362,12 @@ Re-pinning version 1 moved `comboSettingsHash` in the eight goldens above and
 nothing else. The four profiles #982 added were pinned at version 0 and re-pinned
 after #982 merged, in the same PR as the bump.
 
+Version 2 (2026-10-27): the per-side crossing bound lifted (the shared-item outbox's
+Tier-5 overflow; a side no longer fills at 64 crossings). `seed-digest-shopsanity`
+was the one pinned world that reached 64 crossings on a side: its `mmPlacementHash`,
+`coordinatorDigest`, `mmHintDigest` and `mmFreeStoneDigest` moved, its crossings did
+not. Every other golden moved `comboSettingsHash` only.
+
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
 The golden rows answer one question: does *this* binary still produce the pinned

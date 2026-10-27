@@ -328,13 +328,13 @@ static const uint8_t kRoomB[RSBS_RELAY_UUID_LEN] = { 0xFE, 0xED, 0xFA, 0xCE, 0x0
 
 typedef struct {
     int count;
-    uint16_t ids[RSBS_SHARED_ITEM_CAP];
-    uint8_t origins[RSBS_SHARED_ITEM_CAP];
+    uint16_t ids[RSBS_SHARED_ITEM_LOGICAL_CAP];
+    uint8_t origins[RSBS_SHARED_ITEM_LOGICAL_CAP];
 } RelayAwardLog;
 
 static void RelayAward(const SharedItem* item, void* ctx) {
     RelayAwardLog* log = (RelayAwardLog*)ctx;
-    if (log->count < RSBS_SHARED_ITEM_CAP) {
+    if (log->count < (int)RSBS_SHARED_ITEM_LOGICAL_CAP) {
         log->ids[log->count] = item->id;
         log->origins[log->count] = (uint8_t)item->originGame;
         log->count++;
@@ -343,8 +343,8 @@ static void RelayAward(const SharedItem* item, void* ctx) {
 
 static int RelayOccupied(void) {
     int n = 0;
-    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_CAP; ++i) {
-        if (gComboCtx.sharedItemsTagged[i].originGame != GAME_NONE) {
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; ++i) { // both segments of the outbox
+        if (Combo_SharedItemSlot(i)->originGame != GAME_NONE) {
             n++;
         }
     }
@@ -660,10 +660,10 @@ TestResult Test_RelayBackpressure(void) {
 
     // Fill the durable array with UN-REDEEMED in-process entries so the seam
     // has nothing to reclaim and must refuse.
-    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_CAP; ++i) {
+    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_LOGICAL_CAP; ++i) {
         NR_ASSERT(Combo_RecordSharedItem(GAME_OOT, (uint16_t)(1000 + i)) >= 0);
     }
-    NR_ASSERT(RelayOccupied() == (int)RSBS_SHARED_ITEM_CAP);
+    NR_ASSERT(RelayOccupied() == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
     NR_ASSERT(Combo_GetSharedItemOverflowCount() == 0);
 
     MockClient* mcA = MockAttach(&gMockServer, 0);
@@ -699,7 +699,7 @@ TestResult Test_RelayBackpressure(void) {
     // RETRY_FULL backpressure instead of loss. ---
     RelayAwardLog drain;
     memset(&drain, 0, sizeof(drain));
-    NR_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, RelayAward, &drain) == (int)RSBS_SHARED_ITEM_CAP);
+    NR_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, RelayAward, &drain) == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
 
     const int accepted = Relay_Tick(&a);
     NR_ASSERT(accepted == 1);

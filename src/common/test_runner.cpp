@@ -8178,6 +8178,15 @@ const TestDescriptor gTests[] = {
     { "save-combo-oversize", "Load rejects an oversized Tier-1 record, no clobber", Test_SaveComboOversize },
     { "save-tagged-items", "Origin-tagged shared items round-trip; empty slots stay unset (ADR 0002)",
       Test_SaveTaggedItems },
+    // The shared-item overflow (Tier-5, format v5): one logical outbox past the fixed 64 slots (Refs #1222).
+    { "save-shared-item-overflow-roundtrip", "Crossings past the fixed 64 shared-item slots save and load in order",
+      Test_SaveSharedItemOverflowRoundtrip },
+    { "save-shared-item-overflow-legacy", "A v4 .redsave loads with an empty overflow and re-saves as v5",
+      Test_SaveSharedItemOverflowLegacy },
+    { "shared-item-overflow-order", "Both shared-item segments are one array: pickup order, compaction across them",
+      Test_SharedItemOverflowOrder },
+    { "shared-item-overflow-has-room", "The outbox has room at 64 un-redeemed crossings, refuses only at its cap",
+      Test_SharedItemOverflowHasRoom },
     // The commit choke point (#537/#531): one game-thread-marshalled snapshot,
     // a monotonic generation in both artifacts, and load-time skew detection.
     { "commit-generation-monotonic", "Choke-point commits stamp a monotonic Tier-1 generation (#537)",

@@ -893,6 +893,7 @@ Publishing the allocation once beats five sequential re-versions:
 | 12 (2026-10-18) | `comboItemRules` (`ComboItemRulesRecord`, #976, ADR 0011's 2026-10-18 amendment) | 8 B | **carved** — offset **900** |
 | 13 (2026-10-18) | `sharedFamilyOwned` (#976, the shared-family bitset) | 4 B | **carved** — offset **908** |
 | 14 (2026-10-27) | `mmKeepItemsReset` (#1175, PR #1194: Majora's Mask's frozen Keep Items on Cycle Reset) | 1 B | **carved** — offset **912**; `reserved[91]` now begins at 913, 27 bytes above the floor; `sizeof(ComboContext)` stays 1712 |
+| 15 (2026-10-27) | the shared-item outbox's overflow segment (operator ruling "do the variable length block"; ADR 0002's 2026-10-27 amendment) | 0 B | **outside the record** — the `.redsave` Tier-5 block (format version 5), up to 1984 rows of 4 bytes; `reserved[91]` is untouched |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
@@ -1063,7 +1064,14 @@ Two constraints on anyone spending from this:
   above re-opens the wider-record question and this bullet reads as though it
   were still unanswered.
 
-Nothing here raises `RSBS_SAVE_VERSION`, `RSBS_COMBO_CONTEXT_RECORD_SIZE`, or
+**Row 15 (2026-10-27) spends nothing.** The outbox's overflow segment needed up
+to 7936 bytes, more than the whole record's headroom, so it lives outside Tier-1
+as the self-sized `.redsave` Tier-5 block, the precedent ADR 0010 O7 set for the
+crossing store. `reserved[91]`, `sizeof(ComboContext)` and
+`RSBS_COMBO_CONTEXT_RECORD_SIZE` do not move; `RSBS_SAVE_VERSION` goes 4 -> 5 for
+the appended block alone.
+
+Nothing in claims 1-14 raises `RSBS_SAVE_VERSION`, `RSBS_COMBO_CONTEXT_RECORD_SIZE`, or
 `RSBS_COMBO_CONTEXT_PRECARVE_SIZE`. Every claim is a front-of-`reserved[]` carve
 under the ADR 0002 growth contract: prior offsets fixed, zero means unset, a
 zero-extended legacy record reads every new field as absent.

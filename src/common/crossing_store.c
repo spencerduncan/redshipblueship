@@ -19,6 +19,12 @@
 #include <stdio.h>
 #include <string.h>
 
+// The shared-item outbox holds every crossing one host game can carry
+// (context.h, RSBS_SHARED_ITEM_LOGICAL_CAP): that is what lets the single bag
+// place any number of crossings on a side with no pickup ever refused.
+RSBS_CTX_STATIC_ASSERT(RSBS_SHARED_ITEM_LOGICAL_CAP >= RSBS_CROSSING_STORE_CAP,
+                       "the shared-item outbox must hold every crossing one host game can carry");
+
 // Index 0 = OoT hosts (MM-origin items), 1 = MM hosts (OoT-origin items).
 static ComboCrossing sRows[2][RSBS_CROSSING_STORE_CAP];
 static int sCount[2];

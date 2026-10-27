@@ -54,7 +54,7 @@ void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_TIMESAVERS_SWAMP_BOAT_SPEED)
         .Options(CheckboxOptions().Tooltip("Speeds up the boat ride through the swamp while Z is held. Majora's Mask "
                                            "only."));
-    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Shooting Gallery Both Rewards", WIDGET_CVAR_CHECKBOX)
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Both Gallery Rewards", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_TIMESAVERS_GALLERY_TWOFER)
         .Options(CheckboxOptions().Tooltip("Gives both of a Shooting Gallery's rewards for one perfect score, back to "
                                            "back, instead of one per game. Majora's Mask only."));

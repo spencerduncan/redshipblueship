@@ -20,6 +20,7 @@
 #include "../crossing_store.h" // Combo_Crossings_SerializedSize: the v3 Tier-4 length
 #include "../game.h"
 #include "../save.h"
+#include "../shared_items.h" // Combo_SharedItemSlot: the logical outbox across both segments
 #include "../test_runner.h"
 
 #include <cstddef>
@@ -28,6 +29,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -224,11 +226,13 @@ TestResult Test_SaveHeader(void) {
 
     // Read the payload and confirm the stored CRC actually verifies. From
     // format v3 the payload is Tiers 1-3 plus the self-sized Tier-4 crossing
-    // block (ADR 0010 O7), so the CRC covers everything after the header.
-    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize());
+    // block (ADR 0010 O7), and from v5 the self-sized Tier-5 shared-item
+    // overflow block, so the CRC covers everything after the header.
+    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize() +
+                                 Combo_SharedItemOverflow_SerializedSize());
     in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
     SAVE_ASSERT(in.gcount() == static_cast<std::streamsize>(payload.size()), "short payload read");
-    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-4 crossing block");
+    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-5 shared-item overflow block");
     SAVE_ASSERT(h.crc32 != 0u, "CRC unexpectedly zero");
     SAVE_ASSERT(rsbs::SaveManager::Crc32(payload.data(), payload.size()) == h.crc32, "CRC does not verify");
 
@@ -723,10 +727,12 @@ TestResult Test_SaveComboRecordFixed(void) {
     // The written Tier-1 length must be the budget, NOT sizeof(ComboContext) —
     // that decoupling is what keeps the on-disk size stable when the struct
     // grows. Total file length proves the padding is actually on disk.
-    // Plus the v3 Tier-4 crossing block (ADR 0010 O7), which is variable
-    // length: exactly what the resident store serializes to.
+    // Plus the v3 Tier-4 crossing block (ADR 0010 O7) and the v5 Tier-5
+    // shared-item overflow block, both variable length: exactly what the
+    // resident stores serialize to.
     const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE +
-                               MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize();
+                               MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize() +
+                               Combo_SharedItemOverflow_SerializedSize();
     SAVE_ASSERT(std::filesystem::file_size(mgr.SlotPath(0)) == expected,
                 "slot file length does not match a fixed-size padded Tier-1");
     SAVE_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,
@@ -824,5 +830,379 @@ TestResult Test_SaveTaggedItems(void) {
 
     mgr.DeleteSave(0);
     printf("[TEST] PASS: tagged shared items survive Save/Load; empty slots stay unset\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// THE SHARED-ITEM OVERFLOW (operator ruling 2026-10-27, "do the variable length
+// block"; Refs #1222). The cross-game outbox is ONE logical array of
+// RSBS_SHARED_ITEM_LOGICAL_CAP slots: Tier-1's fixed sharedItemsTagged[64]
+// first, then an overflow segment the .redsave carries as the Tier-5 block
+// (format version 5). Before it, the 65th un-redeemed crossing was refused and
+// the fill bounded each side at 64 crossings to keep that refusal unreachable.
+// ============================================================================
+
+namespace {
+
+uint8_t SaveTestOverflowOrigin(int i) {
+    return static_cast<uint8_t>((i % 3 == 0) ? GAME_MM : GAME_OOT);
+}
+uint16_t SaveTestOverflowId(int i) {
+    return static_cast<uint16_t>(0x0200u + static_cast<unsigned>(i) * 7u);
+}
+
+bool SaveTestSlotIs(int i, uint8_t origin, uint8_t flags, uint16_t id) {
+    const SharedItem* s = Combo_SharedItemSlot(i);
+    return s != nullptr && s->originGame == origin && s->flags == flags && s->id == id;
+}
+
+bool SaveTestSlotEmpty(int i) {
+    const SharedItem* s = Combo_SharedItemSlot(i);
+    return s != nullptr && s->originGame == GAME_NONE && s->flags == 0 && s->id == 0;
+}
+
+// Record `n` un-redeemed crossings with the pattern above; returns how many the
+// outbox accepted.
+int SaveTestRecordCrossings(int n) {
+    int recorded = 0;
+    for (int i = 0; i < n; i++) {
+        if (Combo_RecordSharedItemCrossing(static_cast<GameId>(SaveTestOverflowOrigin(i)), SaveTestOverflowId(i)) >=
+            0) {
+            recorded++;
+        }
+    }
+    return recorded;
+}
+
+// The first `n` logical slots hold exactly the pattern, in order.
+int SaveTestPatternMismatches(int n) {
+    int wrong = 0;
+    for (int i = 0; i < n; i++) {
+        wrong += SaveTestSlotIs(i, SaveTestOverflowOrigin(i), RSBS_SHARED_ITEM_CROSSING, SaveTestOverflowId(i)) ? 0 : 1;
+    }
+    return wrong;
+}
+
+std::vector<uint8_t> SaveTestReadAll(const std::string& path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+bool SaveTestWriteAll(const std::string& path, const std::vector<uint8_t>& bytes) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    return static_cast<bool>(out);
+}
+
+// Re-stamp the header CRC over everything after the header (every writer's payload).
+void SaveTestRestampCrc(std::vector<uint8_t>& file) {
+    rsbs::RsbsSaveHeader h;
+    std::memcpy(&h, file.data(), sizeof(h));
+    h.crc32 = rsbs::SaveManager::Crc32(file.data() + sizeof(h), file.size() - sizeof(h));
+    std::memcpy(file.data(), &h, sizeof(h));
+}
+
+// Where Tier-4 starts in a file this build wrote.
+size_t SaveTestTier4Offset() {
+    return sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE + MM_SAVE_CONTEXT_SIZE;
+}
+
+uint32_t SaveTestGetU32(const std::vector<uint8_t>& b, size_t at) {
+    return static_cast<uint32_t>(b[at]) | (static_cast<uint32_t>(b[at + 1]) << 8) |
+           (static_cast<uint32_t>(b[at + 2]) << 16) | (static_cast<uint32_t>(b[at + 3]) << 24);
+}
+
+// A v4 file as a v4 build wrote it: the fixed Tier-1 record (the live gComboCtx,
+// zero padded), both game tiers, and the Tier-4 crossing block, and nothing after.
+bool SaveTestWriteV4Slot(const std::string& path) {
+    std::vector<uint8_t> payload;
+    const uint8_t* comboBytes = reinterpret_cast<const uint8_t*>(&gComboCtx);
+    payload.insert(payload.end(), comboBytes, comboBytes + sizeof(ComboContext));
+    payload.insert(payload.end(), RSBS_COMBO_CONTEXT_RECORD_SIZE - sizeof(ComboContext), uint8_t{ 0 });
+    for (size_t i = 0; i < OOT_SAVE_CONTEXT_SIZE; i++) {
+        payload.push_back(SaveTestOoTByte(i));
+    }
+    for (size_t i = 0; i < MM_SAVE_CONTEXT_SIZE; i++) {
+        payload.push_back(SaveTestMMByte(i));
+    }
+    std::vector<uint8_t> crossings(Combo_Crossings_SerializedSize());
+    if (Combo_Crossings_Serialize(crossings.data(), crossings.size()) != crossings.size()) {
+        return false;
+    }
+    payload.insert(payload.end(), crossings.begin(), crossings.end());
+
+    rsbs::RsbsSaveHeader h;
+    std::memset(&h, 0, sizeof(h));
+    std::memcpy(h.magic, RSBS_SAVE_MAGIC, sizeof(h.magic));
+    h.version = RSBS_SAVE_VERSION_SHARED_OVERFLOW - 1u; // 4: the last version without Tier-5
+    h.endian = RSBS_SAVE_ENDIAN_LE;
+    h.slot = 0;
+    h.headerSize = sizeof(rsbs::RsbsSaveHeader);
+    h.comboSize = RSBS_COMBO_CONTEXT_RECORD_SIZE;
+    h.ootSize = static_cast<uint32_t>(OOT_SAVE_CONTEXT_SIZE);
+    h.mmSize = static_cast<uint32_t>(MM_SAVE_CONTEXT_SIZE);
+    h.crc32 = rsbs::SaveManager::Crc32(payload.data(), payload.size());
+
+    std::filesystem::create_directories(kSaveTestDir());
+    std::vector<uint8_t> file(sizeof(h));
+    std::memcpy(file.data(), &h, sizeof(h));
+    file.insert(file.end(), payload.begin(), payload.end());
+    return SaveTestWriteAll(path, file);
+}
+
+struct SaveTestAwardLog {
+    std::vector<SharedItem> items;
+};
+
+void SaveTestAward(const SharedItem* item, void* ctx) {
+    static_cast<SaveTestAwardLog*>(ctx)->items.push_back(*item);
+}
+
+} // namespace
+
+TestResult Test_SaveSharedItemOverflowRoundtrip(void) {
+    printf("[TEST] save-shared-item-overflow-roundtrip: un-redeemed crossings past the fixed 64 slots record, save "
+           "and load in order (Tier-5)\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir());
+    SaveTestSeed(0x0F10F10Fu);
+    Combo_ClearSharedItemOutbox();
+    mgr.DeleteSave(0);
+
+    // ---- 65: one past the fixed segment ------------------------------------
+    const int n = static_cast<int>(RSBS_SHARED_ITEM_CAP) + 1;
+    const int recorded = SaveTestRecordCrossings(n);
+    printf("[TEST]   %d of %d un-redeemed crossings recorded, refusal count %u\n", recorded, n,
+           (unsigned)Combo_GetSharedItemOverflowCount());
+    SAVE_ASSERT(recorded == n && Combo_GetSharedItemOverflowCount() == 0,
+                "the 65th un-redeemed crossing was refused: the outbox stops at the fixed 64 slots");
+    SAVE_ASSERT(mgr.Save(0), "Save(0) failed");
+
+    ComboContext_Init(); // clears the fixed slots and the overflow alike
+    SAVE_ASSERT(SaveTestSlotEmpty(0) && SaveTestSlotEmpty(n - 1), "ComboContext_Init left a shared-item slot set");
+    SAVE_ASSERT(mgr.Load(0), "Load(0) failed");
+    const int wrong = SaveTestPatternMismatches(n);
+    printf("[TEST]   after the round trip: %d of %d slots wrong; slot %d empty=%d; refusal count %u\n", wrong, n, n,
+           SaveTestSlotEmpty(n) ? 1 : 0, (unsigned)Combo_GetSharedItemOverflowCount());
+    SAVE_ASSERT(wrong == 0, "the 65 crossings did not come back in pickup order");
+    SAVE_ASSERT(SaveTestSlotEmpty(n), "a slot past the last crossing came back set");
+    SAVE_ASSERT(Combo_GetSharedItemOverflowCount() == 0, "the refusal count moved");
+    SAVE_ASSERT(Combo_CountSharedItems(GAME_OOT, false) + Combo_CountSharedItems(GAME_MM, false) == n,
+                "the counts do not span both segments");
+
+    // ---- the whole logical array: the largest Tier-5 block ------------------
+    SaveTestSeed(0x0F10F110u);
+    const int all = static_cast<int>(RSBS_SHARED_ITEM_LOGICAL_CAP);
+    SAVE_ASSERT(SaveTestRecordCrossings(all) == all, "the logical array did not take its full capacity");
+    SAVE_ASSERT(!Combo_SharedItemCrossingHasRoom(), "a full logical array still reports room");
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(mgr.Save(0), "Save(0) of a full outbox failed");
+    ComboContext_Init();
+    SAVE_ASSERT(mgr.Load(0), "Load(0) of a full outbox failed");
+    const int wrongAll = SaveTestPatternMismatches(all);
+    printf("[TEST]   full outbox (%d slots) after the round trip: %d wrong\n", all, wrongAll);
+    SAVE_ASSERT(wrongAll == 0, "a full outbox did not round-trip in order");
+    SAVE_ASSERT(Combo_SharedItemSlot(all) == nullptr, "a slot past the logical capacity exists");
+
+    mgr.DeleteSave(0);
+    ComboContext_Init();
+    printf("[TEST] PASS: crossings past the fixed segment record and round-trip in pickup order\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SaveSharedItemOverflowLegacy(void) {
+    printf("[TEST] save-shared-item-overflow-legacy: a v4 .redsave loads its 64 slots with an empty overflow and "
+           "re-saves as v5; a malformed Tier-5 is refused\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir());
+    SaveTestSeed(0x0F10F111u);
+    Combo_ClearSharedItemOutbox();
+    for (int i = 0; i < static_cast<int>(RSBS_SHARED_ITEM_CAP); i++) {
+        gComboCtx.sharedItemsTagged[i].originGame = SaveTestOverflowOrigin(i);
+        gComboCtx.sharedItemsTagged[i].flags = RSBS_SHARED_ITEM_CROSSING;
+        gComboCtx.sharedItemsTagged[i].id = SaveTestOverflowId(i);
+    }
+    Combo_Crossings_Clear();
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(SaveTestWriteV4Slot(mgr.SlotPath(0)), "could not write the v4 slot file");
+
+    // Live state that a load must replace: an outbox past the fixed segment.
+    ComboContext_Init();
+    for (int i = 0; i < static_cast<int>(RSBS_SHARED_ITEM_CAP) + 6; i++) {
+        Combo_RecordSharedItemCrossing(GAME_OOT, 0x7777);
+    }
+
+    SAVE_ASSERT(mgr.LoadSlot(0) == RSBS_LOAD_OK, "a v4 .redsave was refused");
+    const int wrong = SaveTestPatternMismatches(static_cast<int>(RSBS_SHARED_ITEM_CAP));
+    const bool overflowEmpty = SaveTestSlotEmpty(static_cast<int>(RSBS_SHARED_ITEM_CAP));
+    printf("[TEST]   v4 load: %d of 64 fixed slots wrong; first overflow slot empty=%d\n", wrong,
+           overflowEmpty ? 1 : 0);
+    SAVE_ASSERT(wrong == 0, "a v4 file's 64 fixed slots did not load intact");
+    SAVE_ASSERT(overflowEmpty, "a v4 file must load with an EMPTY overflow, not the live session's");
+    SAVE_ASSERT(Combo_CountSharedItems(GAME_OOT, true) + Combo_CountSharedItems(GAME_MM, true) ==
+                    static_cast<int>(RSBS_SHARED_ITEM_CAP),
+                "a v4 load holds other than its 64 entries");
+
+    // It re-saves as v5, with an empty Tier-5 block after Tier-4.
+    SAVE_ASSERT(mgr.Save(0), "re-save of the loaded v4 file failed");
+    std::vector<uint8_t> file = SaveTestReadAll(mgr.SlotPath(0));
+    rsbs::RsbsSaveHeader h;
+    SAVE_ASSERT(file.size() >= sizeof(h), "short re-saved file");
+    std::memcpy(&h, file.data(), sizeof(h));
+    const size_t t5 = SaveTestTier4Offset() + Combo_Crossings_SerializedSize();
+    printf("[TEST]   re-saved: version %u, %zu bytes (Tier-5 at %zu)\n", (unsigned)h.version, file.size(), t5);
+    SAVE_ASSERT(h.version == RSBS_SAVE_VERSION_SHARED_OVERFLOW, "the re-save is not format version 5");
+    SAVE_ASSERT(file.size() == t5 + RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE,
+                "the re-save does not end in an empty Tier-5 block");
+    SAVE_ASSERT(std::memcmp(file.data() + t5, RSBS_SHARED_OVERFLOW_BLOCK_MAGIC, 4) == 0 &&
+                    SaveTestGetU32(file, t5 + 8) == 0u,
+                "Tier-5 is not an empty RSSO block");
+
+    // ---- malformed v5 files are refused, never truncated -------------------
+    struct Bad {
+        const char* what;
+        RsbsRefuseReason reason;
+    };
+    const Bad cases[4] = {
+        { "a v5 file without its Tier-5 block", RSBS_REFUSE_TRUNCATED },
+        { "a Tier-5 count past the overflow capacity", RSBS_REFUSE_TIER_SIZE },
+        { "a Tier-5 block with a bad magic", RSBS_REFUSE_TIER_SIZE },
+        { "a Tier-5 count with no rows behind it", RSBS_REFUSE_TRUNCATED },
+    };
+    for (int c = 0; c < 4; c++) {
+        std::vector<uint8_t> bad = file;
+        if (c == 0) {
+            bad.resize(t5);
+        } else if (c == 1) {
+            const uint32_t over = RSBS_SHARED_ITEM_OVERFLOW_CAP + 1u;
+            std::memcpy(bad.data() + t5 + 8, &over, sizeof(over));
+        } else if (c == 2) {
+            bad[t5] = 'X';
+        } else {
+            const uint32_t one = 1u;
+            std::memcpy(bad.data() + t5 + 8, &one, sizeof(one));
+        }
+        SaveTestRestampCrc(bad);
+        mgr.DeleteSave(0);
+        SAVE_ASSERT(SaveTestWriteAll(mgr.SlotPath(0), bad), "could not write a malformed slot file");
+        const RsbsLoadOutcome outcome = mgr.LoadSlot(0);
+        const RsbsRefuseReason reason = mgr.GetSlotRefuseReason(0);
+        printf("[TEST]   %s: outcome %d, reason %s\n", cases[c].what, (int)outcome,
+               rsbs::SaveManager::RefuseReasonLabel(reason));
+        SAVE_ASSERT(outcome == RSBS_LOAD_REFUSED && reason == cases[c].reason, cases[c].what);
+    }
+
+    mgr.DeleteSave(0);
+    Combo_Crossings_Clear();
+    ComboContext_Init();
+    printf("[TEST] PASS: v4 loads with an empty overflow and re-saves as v5; a malformed Tier-5 is refused\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SharedItemOverflowOrder(void) {
+    printf("[TEST] shared-item-overflow-order: one logical array across both segments: pickup order is redemption "
+           "order, and compaction pulls the overflow head into the fixed segment\n");
+
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    const int fixed = static_cast<int>(RSBS_SHARED_ITEM_CAP);
+    int recorded = 0;
+    for (int i = 0; i < fixed; i++) {
+        recorded += Combo_RecordSharedItemCrossing(GAME_OOT, static_cast<uint16_t>(100 + i)) >= 0 ? 1 : 0;
+    }
+    for (int j = 0; j < 6; j++) {
+        recorded += Combo_RecordSharedItemCrossing(GAME_MM, static_cast<uint16_t>(500 + j)) >= 0 ? 1 : 0;
+    }
+    printf("[TEST]   %d of %d crossings recorded\n", recorded, fixed + 6);
+    SAVE_ASSERT(recorded == fixed + 6, "crossings past the fixed 64 slots were refused");
+    for (int j = 0; j < 6; j++) {
+        SAVE_ASSERT(SaveTestSlotIs(fixed + j, GAME_MM, RSBS_SHARED_ITEM_CROSSING, static_cast<uint16_t>(500 + j)),
+                    "the overflow segment does not continue the fixed one in pickup order");
+    }
+
+    // The in-process producer's content de-dup spans the overflow too.
+    const int first = Combo_RecordSharedItem(GAME_MM, 777);
+    const int again = Combo_RecordSharedItem(GAME_MM, 777);
+    SAVE_ASSERT(first == fixed + 6 && again == first, "the in-process de-dup did not find its own overflow entry");
+    Combo_SharedItemSlot(first)->flags |= RSBS_SHARED_ITEM_REDEEMED; // retired: the walks below see crossings only
+
+    // Redeem the fixed segment's 64 OoT crossings, in order.
+    SaveTestAwardLog oot;
+    SAVE_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, SaveTestAward, &oot) == fixed, "OoT redemption count");
+    for (int i = 0; i < fixed; i++) {
+        SAVE_ASSERT(oot.items[i].id == static_cast<uint16_t>(100 + i), "OoT redemption out of pickup order");
+    }
+
+    // One more crossing reclaims the OLDEST redeemed entry (slot 0). Everything
+    // after it moves down one, so the overflow head (MM 500) becomes the fixed
+    // segment's last slot and the fixed segment stays the dense prefix.
+    SAVE_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, 506) >= 0, "the reclaiming record was refused");
+    const uint8_t redeemedCrossing = RSBS_SHARED_ITEM_CROSSING | RSBS_SHARED_ITEM_REDEEMED;
+    printf("[TEST]   after the reclaim: slot 0 id %u, slot 63 origin %u id %u, slot 70 id %u\n",
+           Combo_SharedItemSlot(0)->id, Combo_SharedItemSlot(fixed - 1)->originGame,
+           Combo_SharedItemSlot(fixed - 1)->id, Combo_SharedItemSlot(fixed + 6)->id);
+    SAVE_ASSERT(SaveTestSlotIs(0, GAME_OOT, redeemedCrossing, 101) &&
+                    SaveTestSlotIs(fixed - 2, GAME_OOT, redeemedCrossing, static_cast<uint16_t>(100 + fixed - 1)),
+                "the redeemed OoT entries did not shift down one");
+    SAVE_ASSERT(SaveTestSlotIs(fixed - 1, GAME_MM, RSBS_SHARED_ITEM_CROSSING, 500),
+                "the overflow head did not move into the fixed segment's freed tail");
+    SAVE_ASSERT(SaveTestSlotIs(fixed + 4, GAME_MM, RSBS_SHARED_ITEM_CROSSING, 505) &&
+                    SaveTestSlotIs(fixed + 5, GAME_MM, RSBS_SHARED_ITEM_REDEEMED, 777) &&
+                    SaveTestSlotIs(fixed + 6, GAME_MM, RSBS_SHARED_ITEM_CROSSING, 506) && SaveTestSlotEmpty(fixed + 7),
+                "the overflow did not compact by one with the new crossing last");
+
+    SaveTestAwardLog mm;
+    SAVE_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, SaveTestAward, &mm) == 7, "MM redemption count");
+    for (int j = 0; j < 7; j++) {
+        SAVE_ASSERT(mm.items[j].id == static_cast<uint16_t>(500 + j), "MM redemption out of pickup order");
+    }
+    SAVE_ASSERT(Combo_GetSharedItemOverflowCount() == 0, "the refusal count moved");
+
+    ComboContext_Init();
+    printf("[TEST] PASS: both segments are one array in pickup order; compaction crosses the boundary\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SharedItemOverflowHasRoom(void) {
+    printf("[TEST] shared-item-overflow-has-room: a give has room at 64 un-redeemed crossings and loses it only at "
+           "the logical capacity\n");
+
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    const int fixed = static_cast<int>(RSBS_SHARED_ITEM_CAP);
+    const int all = static_cast<int>(RSBS_SHARED_ITEM_LOGICAL_CAP);
+    int recorded = 0;
+    for (int i = 0; i < fixed; i++) {
+        recorded += Combo_RecordSharedItemCrossing(GAME_OOT, static_cast<uint16_t>(100 + i)) >= 0 ? 1 : 0;
+    }
+    const bool roomAt64 = Combo_SharedItemCrossingHasRoom();
+    printf("[TEST]   %d un-redeemed crossings: room=%d\n", recorded, roomAt64 ? 1 : 0);
+    SAVE_ASSERT(recorded == fixed && roomAt64, "the outbox reports no room at 64 un-redeemed crossings");
+
+    for (int i = fixed; i < all; i++) {
+        recorded += Combo_RecordSharedItemCrossing(GAME_OOT, static_cast<uint16_t>(100 + i)) >= 0 ? 1 : 0;
+    }
+    const bool roomAtCap = Combo_SharedItemCrossingHasRoom();
+    printf("[TEST]   %d un-redeemed crossings (capacity %d): room=%d\n", recorded, all, roomAtCap ? 1 : 0);
+    SAVE_ASSERT(recorded == all, "the outbox refused before its logical capacity");
+    SAVE_ASSERT(!roomAtCap, "a full logical array still reports room");
+    SAVE_ASSERT(Combo_GetSharedItemOverflowCount() == 0, "a record below the capacity was counted as refused");
+    SAVE_ASSERT(Combo_RecordSharedItemCrossing(GAME_OOT, 9) == -1 && Combo_GetSharedItemOverflowCount() == 1,
+                "the record past the capacity was not refused and counted once");
+
+    // An entry redeemed in the overflow segment is reclaimable.
+    Combo_SharedItemSlot(100)->flags |= RSBS_SHARED_ITEM_REDEEMED;
+    SAVE_ASSERT(Combo_SharedItemCrossingHasRoom(), "a redeemed overflow entry does not give room");
+    SAVE_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, 9) >= 0, "the record into the reclaimed slot was refused");
+    SAVE_ASSERT(SaveTestSlotIs(100, GAME_OOT, RSBS_SHARED_ITEM_CROSSING, 201) &&
+                    SaveTestSlotIs(all - 1, GAME_MM, RSBS_SHARED_ITEM_CROSSING, 9),
+                "reclaiming an overflow entry did not compact the tail and append the new crossing last");
+    SAVE_ASSERT(!Combo_SharedItemCrossingHasRoom() && Combo_GetSharedItemOverflowCount() == 1,
+                "after the reclaim the array is full again with no further refusal");
+
+    ComboContext_Init();
+    printf("[TEST] PASS: room until the logical capacity, refusal and reclaim at it\n");
     return TEST_PASS;
 }

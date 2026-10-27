@@ -3,13 +3,15 @@
  * @brief Unified cross-game save file (.redsave) for the single executable
  *        (Phase 2 T6, issue #35).
  *
- * A `.redsave` file holds, in one slot, three tiers:
+ * A `.redsave` file holds, in one slot, these tiers:
  *   Tier 0  RsbsSaveHeader   (fixed 32 bytes: magic, version, slot, sizes, crc)
  *   Tier 1  ComboContext     (cross-game flags / shared items / last game)
  *   Tier 2  OoT SaveContext  (header.ootSize bytes; OOT_SAVE_CONTEXT_SIZE when written by this build)
  *   Tier 3  MM  SaveContext  (header.mmSize bytes; MM_SAVE_CONTEXT_SIZE when written by this build)
  *   Tier 4  crossing block   (format version 3+ only; self-sized, see crossing_store.h: which
  *                            hosts of each game hold an item of the other, ADR 0010 O7)
+ *   Tier 5  shared-item overflow (format version 5+ only; self-sized, see shared_items.h: the
+ *                            cross-game outbox's slots past the fixed 64 of Tier-1)
  *
  * This is the HEADLESS CORE: the format, the SaveManager, and round-trip /
  * validation unit tests. It serializes the cross-game shadow copies that the
@@ -45,6 +47,14 @@
  *   file must carry one. The payload CRC covers Tiers 1..4 for v3. An
  *   oversized count is refused from the block header before the body is read
  *   (RSBS_REFUSE_CROSSINGS), never truncated.
+ * - Tier-5 (format version 5) is the shared-item OVERFLOW block: a 16-byte
+ *   header with its own row count, then 4 bytes per outbox slot past the fixed
+ *   64 that Tier-1 holds (shared_items.h has the layout). Same shape and rules
+ *   as Tier-4: a v1-v4 file has none and loads with an EMPTY overflow (no older
+ *   build could hold more than 64 entries), a v5 file must carry one (16 bytes
+ *   when empty), the payload CRC covers Tiers 1..5, and a count past
+ *   RSBS_SHARED_ITEM_OVERFLOW_CAP is refused from the block header
+ *   (RSBS_REFUSE_TIER_SIZE), never truncated.
  */
 
 #ifndef RSBS_COMMON_SAVE_H
@@ -58,7 +68,11 @@
 
 // On-disk constants (visible to both C and C++).
 #define RSBS_SAVE_MAGIC "REDSHIP1" // 8 bytes, NOT NUL-terminated on disk
-#define RSBS_SAVE_VERSION 4u       // version THIS build writes
+#define RSBS_SAVE_VERSION 5u       // version THIS build writes
+// v5 (operator ruling 2026-10-27) APPENDS the Tier-5 shared-item overflow block
+// after Tier-4 and changes nothing about Tiers 0-4, so v1-v4 stay inside the read
+// window below and load with an empty overflow. A v5 file is refused by a v4 (or
+// older) build: its version is outside that build's window.
 // v4 (#1129) changes no layout a v3 reader knows: Tier-1 grows from 1024 to
 // RSBS_COMBO_CONTEXT_RECORD_SIZE 2048 bytes, the tracker availability captures
 // appended after reserved[] (context.h). A v1-v3 file's shorter Tier-1 is a
@@ -70,6 +84,9 @@
 // file is refused by a pre-v3 build (version outside its window), the ordinary
 // forward-compatibility refusal.
 #define RSBS_SAVE_VERSION_CROSSINGS 3u
+// The first version that carries the Tier-5 shared-item overflow block (the
+// outbox's slots past the fixed 64, shared_items.h).
+#define RSBS_SAVE_VERSION_SHARED_OVERFLOW 5u
 // Oldest version this build can still read. v1 files predate the fixed-size
 // Tier-1 record: their comboSize is the raw sizeof(ComboContext) of the build
 // that wrote them, which is a prefix of the current layout and therefore
@@ -331,7 +348,7 @@ struct RsbsSaveHeader {
     uint32_t comboSize;  // Tier-1 bytes as stored (RSBS_COMBO_CONTEXT_RECORD_SIZE at write time)
     uint32_t ootSize;    // Tier-2 bytes as stored (== OOT_SAVE_CONTEXT_SIZE at write time)
     uint32_t mmSize;     // Tier-3 bytes as stored (== MM_SAVE_CONTEXT_SIZE at write time)
-    uint32_t crc32;      // CRC32 over the payload after the header: Tiers 1..3, and Tier-4 from v3
+    uint32_t crc32;      // CRC32 over the payload after the header: Tiers 1..3, Tier-4 from v3, Tier-5 from v5
 };
 #pragma pack(pop)
 
@@ -791,7 +808,7 @@ class SaveManager {
     // than the one it is writing (#851), unless mSlotStartsOver says the file
     // belongs to another world's sequence.
     bool WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
-                       const std::vector<uint8_t>& crossings);
+                       const std::vector<uint8_t>& crossings, const std::vector<uint8_t>& sharedOverflow);
 
     // The Tier-1 commit generation of the slot's file, when the file is a
     // whole .redsave of this slot (header, CRC, ComboContext magic). False for
@@ -828,6 +845,9 @@ class SaveManager {
         // stage time with the rest of the snapshot, so the crossings and the
         // world they describe are one commit (#569).
         std::vector<uint8_t> crossings;
+        // The shared-item overflow (Tier-5), serialized with Tier-1 for the same
+        // reason: the outbox's two segments are one array and one commit.
+        std::vector<uint8_t> sharedOverflow;
         uint32_t generation = 0;
         bool valid = false;
     };

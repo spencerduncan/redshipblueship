@@ -1002,8 +1002,11 @@ int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, co
  * fingerprint mismatch, as a newer record format already reads as unreadable.
  *
  * History: 1 = #1003 (the first stamped generator; the worlds of #974).
+ * 2 = the per-side crossing bound lifted (operator ruling 2026-10-27: the
+ *     shared-item outbox's Tier-5 overflow; a side no longer fills at 64
+ *     crossings, which moved seed-digest-shopsanity's MM placements).
  */
-#define RSBS_GENERATOR_VERSION 1u
+#define RSBS_GENERATOR_VERSION 2u
 
 /**
  * The fingerprint formula at an explicit generator version:

@@ -109,7 +109,7 @@ extern "C" {
 // src/common. Included OUTSIDE any extern "C" block: the header manages its
 // own linkage and pulls in <stdbool.h>/<stdint.h> (matching Foreign.cpp).
 #include "foreign_items.h"
-#include "shared_items.h" // RSBS_SHARED_ITEM_CAP (via context.h)
+#include "shared_items.h" // RSBS_SHARED_ITEM_LOGICAL_CAP (via context.h)
 
 // ============================================================================
 // kForeignPoolMMV1 and its attributed exclusions — RETIRED (ADR 0010 increment
@@ -135,12 +135,13 @@ extern "C" {
 
 namespace {
 
-// The pending-give queue. Capacity matches the durable array's, so a full
-// gComboCtx redeeming entirely into MM in one arrival can never overflow it —
-// the queue is not allowed to be the thing that loses an item.
-uint16_t sPendingGives[RSBS_SHARED_ITEM_CAP];
+// The pending-give queue. Capacity matches the durable outbox's LOGICAL
+// capacity (both segments, shared_items.h), so a full outbox redeeming entirely
+// into MM in one arrival can never overflow it — the queue is not allowed to be
+// the thing that loses an item.
+uint16_t sPendingGives[RSBS_SHARED_ITEM_LOGICAL_CAP];
 // Per queued give: whether its give toasts (#878: only a sourced grant does).
-bool sPendingAnnounce[RSBS_SHARED_ITEM_CAP];
+bool sPendingAnnounce[RSBS_SHARED_ITEM_LOGICAL_CAP];
 int sPendingCount = 0;
 
 /**
@@ -273,7 +274,7 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce) {
         return 1;
     }
 
-    if (sPendingCount >= (int)RSBS_SHARED_ITEM_CAP) {
+    if (sPendingCount >= (int)RSBS_SHARED_ITEM_LOGICAL_CAP) {
         // Unreachable while the queue is sized to the durable array (one
         // arrival cannot redeem more entries than the array holds), so this is
         // a guard against a future resize, not an expected path.
@@ -309,8 +310,8 @@ extern "C" int MM_ForeignItem_FlushPending(void) {
     // whose give path spins the frame loop) must not see the same entries
     // again; re-entrancy that re-gave would be a duplicate the redeemed bit
     // cannot catch, because the crossing was already consumed.
-    uint16_t drained[RSBS_SHARED_ITEM_CAP];
-    bool drainedAnnounce[RSBS_SHARED_ITEM_CAP];
+    uint16_t drained[RSBS_SHARED_ITEM_LOGICAL_CAP]; // 6 KB with the flags: on the stack, so a re-entry gets its own
+    bool drainedAnnounce[RSBS_SHARED_ITEM_LOGICAL_CAP];
     for (int i = 0; i < count; i++) {
         drained[i] = sPendingGives[i];
         drainedAnnounce[i] = sPendingAnnounce[i];

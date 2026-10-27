@@ -805,7 +805,7 @@ const std::vector<SkipKeyProbe>& TimesaverProbes() {
           { { "OnActorUpdate[BG_INGATE] (Timesavers/SwampBoatSkip.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_BG_INGATE),
               1 } } },
         { "gEnhancements.Timesavers.GalleryTwofer",
-          "Shooting Gallery Both Rewards",
+          "Both Gallery Rewards",
           { { "OnFlagSet, unkeyed (Timesavers/GalleryTwofer.cpp)",
               []() { return SettledUnkeyedCount<GameInteractor::OnFlagSet>(); }, 1 } } },
         { "gEnhancements.Timesavers.MarineLabHP",

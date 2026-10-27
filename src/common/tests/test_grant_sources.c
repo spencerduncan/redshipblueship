@@ -64,13 +64,13 @@ const uint32_t kGrantSrcB = 0xB0B00002u;
 // received-order redemption is one of the contracts under test.
 struct GrantAwardLog {
     int count;
-    uint16_t ids[RSBS_SHARED_ITEM_CAP];
-    uint8_t origins[RSBS_SHARED_ITEM_CAP];
+    uint16_t ids[RSBS_SHARED_ITEM_LOGICAL_CAP];
+    uint8_t origins[RSBS_SHARED_ITEM_LOGICAL_CAP];
 };
 
 void GrantTestAward(const SharedItem* item, void* ctx) {
     GrantAwardLog* log = (GrantAwardLog*)ctx;
-    if (log->count < (int)RSBS_SHARED_ITEM_CAP) {
+    if (log->count < (int)RSBS_SHARED_ITEM_LOGICAL_CAP) {
         log->ids[log->count] = item->id;
         log->origins[log->count] = item->originGame;
     }
@@ -277,18 +277,21 @@ TestResult Test_GrantOverflow(void) {
     GrantTestReset();
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 0);
 
-    // Fill the array: 62 OoT-bound grants, then 2 MM-bound, all one source.
-    for (uint32_t i = 1; i <= RSBS_SHARED_ITEM_CAP - 2u; i++) {
+    // Fill the array (both segments of the logical outbox): all but two OoT-bound
+    // grants, then 2 MM-bound, all one source.
+    for (uint32_t i = 1; i <= RSBS_SHARED_ITEM_LOGICAL_CAP - 2u; i++) {
         GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, i, GAME_OOT, (uint16_t)(1000u + i)) == RSBS_GRANT_ACCEPTED);
     }
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP - 1u, GAME_MM, 501) == RSBS_GRANT_ACCEPTED);
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP, GAME_MM, 502) == RSBS_GRANT_ACCEPTED);
-    GS_ASSERT(GrantTestOccupiedTotal() == (int)RSBS_SHARED_ITEM_CAP);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP - 1u, GAME_MM, 501) ==
+              RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP, GAME_MM, 502) == RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(GrantTestOccupiedTotal() == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
 
     // Every entry is un-redeemed: the next sourced grant is BACKPRESSURED —
     // refused loudly, cursor unmoved, durable overflow count up.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_RETRY_FULL);
-    GS_ASSERT(Combo_GetGrantCursor(kGrantSrcA) == RSBS_SHARED_ITEM_CAP);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP + 1u, GAME_OOT, 1065) ==
+              RSBS_GRANT_RETRY_FULL);
+    GS_ASSERT(Combo_GetGrantCursor(kGrantSrcA) == RSBS_SHARED_ITEM_LOGICAL_CAP);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 1);
 
     // In-process refusals are counted too (a genuine loss, made diagnosable).
@@ -307,35 +310,40 @@ TestResult Test_GrantOverflow(void) {
     // THE NO-SILENT-LOSS PROPERTY: the refused seq, retried after capacity
     // returned, is ACCEPTED — the cursor never advanced past it, so the retry
     // is not mistaken for a duplicate and the grant is not lost.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_ACCEPTED);
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 2u, GAME_OOT, 1066) == RSBS_GRANT_ACCEPTED);
-    GS_ASSERT(GrantTestOccupiedTotal() == (int)RSBS_SHARED_ITEM_CAP);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP + 1u, GAME_OOT, 1065) ==
+              RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP + 2u, GAME_OOT, 1066) ==
+              RSBS_GRANT_ACCEPTED);
+    GS_ASSERT(GrantTestOccupiedTotal() == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 3); // reclaim is not a refusal
 
     // Both redeemed entries are gone; a third grant is backpressured again.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 3u, GAME_OOT, 1067) == RSBS_GRANT_RETRY_FULL);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP + 3u, GAME_OOT, 1067) ==
+              RSBS_GRANT_RETRY_FULL);
     GS_ASSERT(Combo_GetSharedItemOverflowCount() == 4);
 
-    // Reclamation preserved received order: the 62 originals award before the
+    // Reclamation preserved received order: the originals award before the
     // two late arrivals, all in acceptance order.
     std::memset(&log, 0, sizeof(log));
-    GS_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, GrantTestAward, &log) == (int)RSBS_SHARED_ITEM_CAP);
-    GS_ASSERT(log.count == (int)RSBS_SHARED_ITEM_CAP);
-    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_CAP - 2u; i++) {
+    GS_ASSERT(Combo_RedeemSharedItemsForGame(GAME_OOT, GrantTestAward, &log) == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
+    GS_ASSERT(log.count == (int)RSBS_SHARED_ITEM_LOGICAL_CAP);
+    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_LOGICAL_CAP - 2u; i++) {
         GS_ASSERT(log.ids[i] == (uint16_t)(1000u + i + 1u));
     }
-    GS_ASSERT(log.ids[RSBS_SHARED_ITEM_CAP - 2u] == 1065 && log.ids[RSBS_SHARED_ITEM_CAP - 1u] == 1066);
+    GS_ASSERT(log.ids[RSBS_SHARED_ITEM_LOGICAL_CAP - 2u] == 1065 && log.ids[RSBS_SHARED_ITEM_LOGICAL_CAP - 1u] == 1066);
 
     // The once-refused-then-accepted seq is now firmly a duplicate.
-    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_CAP + 1u, GAME_OOT, 1065) == RSBS_GRANT_DUPLICATE);
+    GS_ASSERT(Combo_SubmitSourcedGrant(kGrantSrcA, RSBS_SHARED_ITEM_LOGICAL_CAP + 1u, GAME_OOT, 1065) ==
+              RSBS_GRANT_DUPLICATE);
 
     // ---- A SIDE'S WORTH OF CROSSINGS FITS (PR #743 review) ---------------------
     // The single-bag fill bounds each side's crossings by RSBS_CROSSINGS_PER_SIDE_MAX
     // (combo_logic.h `maxCrossingsPerSide`) because every crossing pickup takes one
     // un-merged slot and a refused one loses the item. So the most a player can
     // collect before the other game redeems — every crossing one game hosts, two
-    // copies of one id included — must record, and that bound must be the array.
-    static_assert(RSBS_CROSSINGS_PER_SIDE_MAX <= RSBS_SHARED_ITEM_CAP,
+    // copies of one id included — must record, and that bound must be the
+    // outbox's logical capacity (both segments).
+    static_assert(RSBS_CROSSINGS_PER_SIDE_MAX <= RSBS_SHARED_ITEM_LOGICAL_CAP,
                   "the per-side crossing bound outgrew the shared-item array its pickups are delivered through");
     GrantTestReset();
     for (uint32_t i = 0; i < RSBS_CROSSINGS_PER_SIDE_MAX; i++) {

@@ -406,7 +406,8 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         freq.seed = sReport.seed;
         freq.maxAttempts = 0; // RSBS_COMBO_LOGIC_FILL_RETRIES batch roll-backs
         // Every crossing is delivered through one shared-item slot; bound each
-        // side by the array, so no pickup can find it full (context.h).
+        // side by the outbox's logical capacity, so no pickup can find it full
+        // (context.h). It equals a side's placement cap, so it never binds.
         freq.maxCrossingsPerSide = (uint16_t)RSBS_CROSSINGS_PER_SIDE_MAX;
         freq.observer = SingleBagObserve;
         freq.observerCtx = &watch;
