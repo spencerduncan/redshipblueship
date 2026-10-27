@@ -7815,6 +7815,9 @@ const TestDescriptor gTests[] = {
     // #1222: a foreign pickup the full shared outbox would refuse is held, not lost.
     { "foreign-outbox-full-mm", "MM: a full outbox holds a foreign pickup open and refuses its shop sale (#1222)",
       Test_ForeignOutboxFullMM },
+    { "foreign-outbox-full-oot",
+      "OoT: the drain holds a pickup the full outbox would refuse, until a row frees (#1222)",
+      Test_ForeignOutboxFullOoT },
     // #878: both arrivals' real consumers redeem a crossing and toast nothing:
     // the item was announced at its pickup.
     { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",

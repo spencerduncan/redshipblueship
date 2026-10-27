@@ -237,6 +237,18 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
     return OoT_Foreign_RecordPickupImpl(rc) ? 1 : 0;
 }
 
+// THE FULL OUTBOX (#1222; declared in src/common/foreign_items.h).
+extern "C" int OoT_Rando_Foreign_HoldPickup(uint16_t rc) {
+    (void)rc;
+    return 0; // #1222 [lock]: today the drain records (and a refusal falls through to the junk give)
+}
+
+extern "C" int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap) {
+    (void)out;
+    (void)cap;
+    return 0;
+}
+
 /**
  * #800 S1, the shop shelf (z_en_girla.c): 1 when OoT check `rc` hosts an MM item
  * (the placement table, and behind it the crossing store), the fact the shelf

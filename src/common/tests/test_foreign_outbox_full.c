@@ -27,6 +27,17 @@
  *  R ROOM AGAIN: with one row redeemed (reclaimable), the same host is no longer
  *    held and its give delivers.
  *
+ * OoT (Test_ForeignOutboxFullOoT), the same hole in the other direction: the
+ * RC-queue drain (hook_handlers.cpp) recorded through OoT_Rando_Foreign_
+ * RecordPickup and, on a refusal, fell through to the ordinary give of the junk
+ * cover, which marks the check collected; the MM item was lost. With the 64 rows
+ * full:
+ *  H THE DRAIN HOLDS the check (OoT_Rando_Foreign_HoldPickup): nothing recorded,
+ *    nothing counted, asked twice still one hold;
+ *  W while the rows stay full nothing is handed back;
+ *  R with one row redeemed the held check is handed back once
+ *    (OoT_Rando_Foreign_TakeReleasedHolds) and its record then succeeds.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++),
  * beside test_foreign_award.c; every symbol it drives is C-linkage.
  */
@@ -204,5 +215,65 @@ TestResult Test_ForeignOutboxFullMM(void) {
 
     printf("[TEST] PASS: a full outbox holds a foreign pickup back instead of losing it, and its shop slot stays "
            "unsold\n");
+    return TEST_PASS;
+}
+
+TestResult Test_ForeignOutboxFullOoT(void) {
+    printf("[TEST] foreign-outbox-full-oot: OoT's drain holds a pickup the full outbox would refuse and hands it back "
+           "once a row is free (#1222)\n");
+
+    SharedItem mmLens;
+    SharedItem boots;
+    FO_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Lens of Truth", &mmLens), "named item Lens of Truth (MM)");
+    FO_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots), "named item Hover Boots");
+    // An OoT check id the placement table stores opaquely (test_foreign_items.c's
+    // reverse legs use the same one).
+    const uint16_t kOoTHost = 0x0123;
+    uint16_t released[4] = { 0, 0, 0, 0 };
+
+    ComboContext_Init();
+    Combo_ClearSharedItemOutbox();
+    OutboxTestPair();
+    FO_ASSERT(Combo_ForeignPairingActive(), "pairing live");
+    FO_ASSERT(Combo_SetForeignPlacementOoT(kOoTHost, mmLens) >= 0, "OoT host placement accepted");
+    FO_ASSERT(FillOutbox(boots) == (int)RSBS_SHARED_ITEM_CAP, "every shared row recorded");
+    const uint32_t overflowBefore = Combo_GetSharedItemOverflowCount();
+
+    // ---- H: the drain holds it ---------------------------------------------------
+    const int held = OoT_Rando_Foreign_HoldPickup(kOoTHost);
+    const int heldAgain = OoT_Rando_Foreign_HoldPickup(kOoTHost);
+    const int lensRows = RowsHolding(mmLens);
+    const uint32_t overflowHeld = Combo_GetSharedItemOverflowCount();
+    // ---- W: still full -----------------------------------------------------------
+    const int releasedWhileFull = OoT_Rando_Foreign_TakeReleasedHolds(released, 4);
+    printf("[TEST]   H drain on the full outbox: held=%d, asked again=%d; rows holding the lens=%d; overflow %u -> "
+           "%u; W handed back while full=%d\n",
+           held, heldAgain, lensRows, (unsigned)overflowBefore, (unsigned)overflowHeld, releasedWhileFull);
+
+    // ---- R: room again -----------------------------------------------------------
+    gComboCtx.sharedItemsTagged[0].flags |= RSBS_SHARED_ITEM_REDEEMED;
+    std::memset(released, 0, sizeof(released));
+    const int releasedWithRoom = OoT_Rando_Foreign_TakeReleasedHolds(released, 4);
+    const uint16_t releasedCheck = released[0];
+    const int releasedTwice = OoT_Rando_Foreign_TakeReleasedHolds(released, 4);
+    const int heldWithRoom = OoT_Rando_Foreign_HoldPickup(kOoTHost);
+    const int recorded = OoT_Rando_Foreign_RecordPickup(kOoTHost);
+    const int lensRowsR = RowsHolding(mmLens);
+    printf("[TEST]   R one row redeemed: handed back=%d (check %u), again=%d; held=%d; record=%d; rows holding the "
+           "lens=%d\n",
+           releasedWithRoom, (unsigned)releasedCheck, releasedTwice, heldWithRoom, recorded, lensRowsR);
+
+    Combo_ClearSharedItemOutbox();
+    ComboContext_Init();
+
+    FO_ASSERT(held == 1 && heldAgain == 1,
+              "H OoT's drain holds an MM item whose crossing the full outbox would refuse (see the H line)");
+    FO_ASSERT(lensRows == 0 && overflowHeld == overflowBefore, "H a hold records nothing and counts nothing");
+    FO_ASSERT(releasedWhileFull == 0, "W nothing is handed back while every row is still full");
+    FO_ASSERT(releasedWithRoom == 1 && releasedCheck == kOoTHost && releasedTwice == 0,
+              "R once a row is free the held check is handed back to the drain, once (see the R line)");
+    FO_ASSERT(heldWithRoom == 0 && recorded == 1 && lensRowsR == 1, "R with room the check is recorded as before");
+
+    printf("[TEST] PASS: OoT's drain holds a pickup the full outbox would refuse and hands it back with room\n");
     return TEST_PASS;
 }
