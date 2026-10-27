@@ -630,6 +630,11 @@ if(BUILD_TESTING)
     # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
     # and ignores MM's own key (whose widget and preset are not in the single exe).
     redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
+    # #1172: MM's small and boss keys draw 2S2H's dungeon key models (the shared
+    # body plus the dungeon's emblem, 2S2H 5d96fd84f/f56c7939e): the model choice
+    # for each named key, and every list it answers is in games/mm/assets/custom.
+    # Static tables and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
+    redship_add_test(NAME MmUniqueKeyModels COMMAND redship --test mm-unique-key-models)
     # #1173: SoH's "Targetable Hookshot Reticle" turns the hookshot reticle green on
     # a hookshot surface in both games, and only for the Hookshot/Longshot (SoH
     # 6340ad3d5: the Bow, Slingshot and Boomerang reticles never turn green).
