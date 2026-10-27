@@ -1477,6 +1477,26 @@ constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
 // The SoH pane our tracker and spoiler panes are read against (compareWith).
 constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
 constexpr const char* kSohItemTrackerReference = "window/SoH Item Tracker";
+// W6-CAM-AIM: SoH's Bindings window, where MM's aiming and camera rows sit beside their SoH twins, and the MM switch
+// that shows MM's right-stick rows there.
+constexpr const char* kSohBindingsWindow = "Configure Controller";
+constexpr const char* kSohBindingsReference = "window/Configure Controller";
+constexpr const char* kSohBindingsMmRightStickAim = RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED;
+
+/**
+ * Opens (or closes) one of the Bindings window's Link (P1) CollapsingHeaders, which SoH draws closed. Its open state
+ * lives in the window's storage under the ID the header gets inside DrawElement's tab bar and DrawLinkTab's tab item
+ * (BeginTabItem pushes the tab's ID). Needs the window to have been drawn once.
+ */
+void SetSohBindingsHeaderOpen(const char* header, bool open) {
+    ImGuiWindow* w = ImGui::FindWindowByName(kSohBindingsWindow);
+    if (w == nullptr) {
+        return;
+    }
+    const ImGuiID tabBar = ImHashStr("##ControllerConfigPortTabs", 0, w->ID);
+    const ImGuiID linkTab = ImHashStr("Link (P1)###port0", 0, tabBar);
+    w->StateStorage.SetInt(ImHashStr(header, 0, linkTab), open ? 1 : 0);
+}
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
 // MM checks hosting the OoT items; the first is collected in the authored MM save.
 constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
@@ -1949,6 +1969,23 @@ void Session::BuildPageList() {
         p.states = { "match-refresh-rate" };
         p.hovers = { "current-fps" };
         p.hoverRows = { { "current-fps", "Current FPS" } };
+        pages.push_back(p);
+    }
+    {
+        // W6-CAM-AIM: SoH's Bindings window (Settings > Controls > Popout Bindings Window) with its Camera Controls
+        // header open, where Majora's Mask's own aiming, shield and camera rows sit beside their SoH twins
+        // (SohInputEditorWindow.cpp, DrawMmCameraRows). "mm-right-stick" turns MM's right-stick aiming on, which shows
+        // MM's right-stick rows. Each state hovers one MM row, found through the combo_ui rect recorder.
+        PageSpec p;
+        p.id = kSohBindingsReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = kSohBindingsWindow;
+        p.states = { "", "mm-right-stick" };
+        p.expectText = { kSohBindingsWindow };
+        p.paneHovers = { { "mm-invert-aiming-y", "", "MM Invert Aiming Y Axis" },
+                         { "mm-right-stick-invert-y", "mm-right-stick", "MM Invert Right Stick Aiming Y Axis" } };
+        p.needsRom = true;
         pages.push_back(p);
     }
     {
@@ -2970,6 +3007,18 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
         }
+    } else if (p.id == kSohBindingsReference) {
+        if (state == "mm-right-stick") {
+            CVarSetInteger(kSohBindingsMmRightStickAim, 1);
+        }
+        // The window exists once it has been drawn: show it for one frame, then open Camera Controls in it.
+        auto bindings = gui->GetGuiWindow(kSohBindingsWindow);
+        if (bindings != nullptr) {
+            bindings->Show();
+            std::string why;
+            PumpFrame(
+                nullptr, false, []() { SetSohBindingsHeaderOpen("Camera Controls", true); }, why);
+        }
     } else if (p.rowStateProbe || p.mmNoteProbe) {
         if (p.mmNoteProbe && state == "heading-on") {
             CVarSetInteger(kMmNoteLiveKey, 1);
@@ -3051,6 +3100,10 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
         CVarClear(CVAR_SETTING("MatchRefreshRate"));
+    }
+    if (p.id == kSohBindingsReference) {
+        CVarClear(kSohBindingsMmRightStickAim);
+        SetSohBindingsHeaderOpen("Camera Controls", false);
     }
     if (p.rowStateProbe && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));

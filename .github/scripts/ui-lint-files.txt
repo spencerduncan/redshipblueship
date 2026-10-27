@@ -21,6 +21,7 @@ MENU games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 MENU games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 MENU games/oot/soh/SohGui/SohMenuComboTrackerSettings.cpp
 PTR games/oot/soh/SohGui/SohMenuRandomizer.cpp::DrawSeedPackageRows
+PTR games/oot/soh/Enhancements/controls/SohInputEditorWindow.cpp::DrawMmCameraRows
 
 PANES src/common/ComboSpoilerWindow.cpp
 PANES src/common/ComboTrackerWindow.cpp
