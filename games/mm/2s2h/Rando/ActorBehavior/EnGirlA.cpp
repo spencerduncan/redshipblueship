@@ -84,6 +84,27 @@ bool Rando::ActorBehavior::HagsMushroomSlotArmable() {
     return true;
 }
 
+bool Rando::ActorBehavior::HagsMushroomLineArms() {
+    if (HagsMushroomSlotArmable()) {
+        return true;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1228: the line does not re-arm a shuffled slot that is already armed (a
+    // crossing the full outbox holds stays `eligible` across the reset, #1222) or
+    // whose OoT item already crossed (#800), but the free blue potion the arming
+    // path settles below must be settled here too. Left clear, the next visit's
+    // blue-potion shelf answers EnTrt's free-potion line 0x881 (z_en_trt.c
+    // EnTrt_GetItemChoiceTextId), whose branch offers the shelf's getItemId and
+    // waits on HasParent: a rando shelf has none (GI_NONE, EnGirlA_RandoInit skips
+    // the InitialUpdate that sets it), so the offer never completes. Settled, the
+    // shelf offers its own line.
+    if (RANDO_SAVE_CHECKS[RC_HAGS_POTION_SHOP_ITEM_01].shuffled) {
+        SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
+    }
+#endif
+    return false;
+}
+
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
 static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
@@ -115,6 +136,15 @@ void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
 }
 
 void EnGirlA_RandoBought(PlayState* play, EnGirlA* enGirlA) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1222: a purchase the full outbox held did not happen; the shelf stays. Asked
+    // of the outbox, not of the slot: the Curiosity Shop (z_en_fsn.c) calls this
+    // BEFORE the shelf's buyFunc gives the item, so a successful sale's slot is not
+    // obtained yet here and its shelf must still empty.
+    if (Rando::Foreign::ForeignOutboxFullFor((RandoCheckId)enGirlA->actor.world.rot.z)) {
+        return;
+    }
+#endif
     enGirlA->isOutOfStock = true;
     enGirlA->actor.draw = NULL;
 }
@@ -149,10 +179,17 @@ s32 EnGirlA_RandoCanBuyFunc(PlayState* play, EnGirlA* enGirlA) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #800: the cover is always "obtainable"; the foreign item is not, once it
     // crossed.
+    // #1222: nor while the full outbox would refuse its crossing; the shelf stays
+    // stocked and a toast says why.
     if (Rando::Foreign::IsForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z)) {
-        return Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)
-                   ? CANBUY_RESULT_CANNOT_GET_NOW
-                   : CANBUY_RESULT_SUCCESS_2;
+        if (Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)) {
+            return CANBUY_RESULT_CANNOT_GET_NOW;
+        }
+        if (Rando::Foreign::ForeignOutboxFullFor((RandoCheckId)enGirlA->actor.world.rot.z)) {
+            Rando::Foreign::NotifyForeignOutboxFull();
+            return CANBUY_RESULT_CANNOT_GET_NOW;
+        }
+        return CANBUY_RESULT_SUCCESS_2;
     }
 #endif
 
@@ -171,9 +208,18 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     // marks the slot delivered. The shop keeps its own purchase dialogue, as for
     // a native purchase. With no live pairing (#610) nothing crosses, and the
     // slot degrades to the MM cover it holds, given below exactly as natively.
+    //
+    // #1222: the give (the record) comes BEFORE the charge. A crossing the full
+    // outbox refuses leaves the slot open, so nothing is charged and nothing is
+    // sold (canBuy refuses the sale first; this is the defense behind it).
     if (Rando::Foreign::IsForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z)) {
+        const bool crossed = Rando::Foreign::GiveForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z);
+        if (!randoSaveCheck.obtained) {
+            Rando::Foreign::NotifyForeignOutboxFull();
+            return;
+        }
         MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
-        if (Rando::Foreign::GiveForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z)) {
+        if (crossed) {
             return;
         }
         Rando::GiveItem(Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)enGirlA->actor.world.rot.z));
@@ -468,7 +514,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         RandoCheckId randoCheckId = RC_HAGS_POTION_SHOP_ITEM_01;
         auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
-        if (!Rando::ActorBehavior::HagsMushroomSlotArmable()) {
+        if (!Rando::ActorBehavior::HagsMushroomLineArms()) {
             return;
         }
 

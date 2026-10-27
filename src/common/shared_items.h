@@ -147,6 +147,15 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id);
 int Combo_RecordSharedItemCrossing(GameId originGame, uint16_t id);
 
 /**
+ * Would a record be accepted now (#1222)? true when a slot is free or a redeemed
+ * entry can be reclaimed; false when every slot holds an un-redeemed item, the
+ * state in which Combo_RecordSharedItem / Combo_RecordSharedItemCrossing refuse
+ * and count the overflow. Side-effect free, so a give can ask BEFORE it records:
+ * a crossing pickup the outbox would refuse is held open instead of lost.
+ */
+bool Combo_SharedItemCrossingHasRoom(void);
+
+/**
  * PRODUCER (deferred stage). Enqueue an item into a process-global RAM outbox,
  * to be flushed into gComboCtx by Combo_CommitStagedSharedItems at the next
  * Game_Suspend. A caller that would rather hand off at the switch boundary than
