@@ -12,7 +12,9 @@
  * RetiredInSingleExe<B> is that "registered, never drawn" wrapper. Init() reaches B's InitElement as before, so every
  * hook is registered. Draw() and the menu's embed path, DrawElement(), return at once, except while the UI snapshot
  * harness captures SoH's own window as a reference (gSohRetiredWindowReferenceDraw). The window is constructed with
- * no visibility CVar, so SoH's window key, which opens the unified window now, can never show it either.
+ * no visibility CVar (SOH_RETIRED_*_KEY), so SoH's window key, which opens the unified window now, can never show it
+ * either. Update() still reaches UpdateElement every frame: the Check Tracker loads the settings statics the unified
+ * OoT pane reads there (randomizer_check_tracker.cpp, LoadVisibilitySettings).
  *
  * Locked by MenuComboSection (the wrapper on a spy, and the two real windows on a bare Gui with their hooks counted)
  * and by OoTWindowsGate's source scan (SetupGuiElements constructs both through it).
@@ -30,6 +32,11 @@
  *  "Item Tracker" belong to the unified windows, which SoH's own toggle rows open by name. */
 inline constexpr const char* kSohRetiredCheckTrackerWindowName = "SoH Check Tracker";
 inline constexpr const char* kSohRetiredItemTrackerWindowName = "SoH Item Tracker";
+
+/** The visibility keys SetupGuiElements constructs them with: none, since SoH's own keys (gOpenWindows.CheckTracker,
+ *  gOpenWindows.ItemTracker) open the unified windows. Macros, so CVAR_WINDOW is expanded at the use site. */
+#define SOH_RETIRED_CHECK_TRACKER_KEY ""
+#define SOH_RETIRED_ITEM_TRACKER_KEY ""
 
 /** True only while the UI snapshot harness captures one of SoH's retired windows as a reference
  *  (soh_ui_snapshot.cpp); defined in SohGui.cpp. Nothing else sets it. */
@@ -62,6 +69,8 @@ template <typename BaseWindow> class RetiredInSingleExe : public BaseWindow {
 // Outside the single executable there is no replacement, so the window is SoH's own.
 inline constexpr const char* kSohRetiredCheckTrackerWindowName = "Check Tracker";
 inline constexpr const char* kSohRetiredItemTrackerWindowName = "Item Tracker";
+#define SOH_RETIRED_CHECK_TRACKER_KEY CVAR_WINDOW("CheckTracker")
+#define SOH_RETIRED_ITEM_TRACKER_KEY CVAR_WINDOW("ItemTracker")
 template <typename BaseWindow> using RetiredInSingleExe = BaseWindow;
 
 #endif // RSBS_SINGLE_EXECUTABLE

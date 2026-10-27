@@ -2021,6 +2021,9 @@ void Session::BuildPageList() {
         // OoT-gated, #797). Since #1132 the unified overlay is "Item Tracker"
         // and SoH's is retired, registered under kSohRetiredItemTrackerWindowName
         // and drawn only while gSohRetiredWindowReferenceDraw is set (EnterState).
+        // Its floating main window gates on the window's own visibility
+        // (CaptureWindowPage's Show()), not on gOpenWindows.ItemTracker, which opens the unified
+        // overlay under the same ImGui name and stays off for this capture.
         PageSpec p;
         p.id = kSohItemTrackerReference;
         p.origin = Origin::SOH_REFERENCE;

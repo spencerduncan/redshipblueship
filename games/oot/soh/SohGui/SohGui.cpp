@@ -190,9 +190,10 @@ void SetupGuiElements() {
                                                                                  "Gameplay Stats", ImVec2(480, 550));
     gui->AddGuiWindow(mGameplayStatsWindow);
     // RSBS (#1132, ruling D1): the unified Check Tracker replaces this window, so it is retired: registered for the
-    // hooks and save section its InitElement adds, never drawn, and bound to no key (SohRetiredWindow.h).
+    // hooks and save section its InitElement adds, never drawn, and bound to no key in the single exe
+    // (SohRetiredWindow.h).
     mCheckTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>(
-        "", kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));
+        SOH_RETIRED_CHECK_TRACKER_KEY, kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));
     gui->AddGuiWindow(mCheckTrackerWindow);
     mCheckTrackerSettingsWindow = std::make_shared<CheckTracker::CheckTrackerSettingsWindow>(
         CVAR_WINDOW("CheckTrackerSettings"), "Check Tracker Settings", ImVec2(600, 375));
@@ -205,7 +206,7 @@ void SetupGuiElements() {
     gui->AddGuiWindow(mEntranceTrackerSettingsWindow);
     // RSBS (#1132, ruling D1): retired as the Check Tracker is; the unified Item Tracker replaces it.
     mItemTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(
-        "", kSohRetiredItemTrackerWindowName, ImVec2(350, 600));
+        SOH_RETIRED_ITEM_TRACKER_KEY, kSohRetiredItemTrackerWindowName, ImVec2(350, 600));
     gui->AddGuiWindow(mItemTrackerWindow);
     mItemTrackerSettingsWindow = std::make_shared<ItemTrackerSettingsWindow>(CVAR_WINDOW("ItemTrackerSettings"),
                                                                              "Item Tracker Settings", ImVec2(733, 472));
