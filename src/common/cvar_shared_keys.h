@@ -521,6 +521,28 @@ struct DistinctPair {
 // W6-FIXES
 // W6-MODES-DIFF
 // W6-MINIGAMES
+// #1236: MM's minigame options and its Mark Shooting Gallery Octoroks row, each bound by one hosted row on SoH's
+// Enhancements > Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). No SoH twin shares a key. The three
+// archery scores keep MM's vanilla defaults (2180, 50, 20): GalleryTwofer.cpp and SwampBoatSkip.cpp read them too.
+#define RSBS_CVAR_MM_MINIGAMES_BOMBERS_HIDE_AND_SEEK "gEnhancements.Minigames.BombersHideAndSeek"
+#define RSBS_CVAR_MM_MINIGAMES_SWORDSMAN_SCHOOL_SCORE "gEnhancements.Minigames.SwordsmanSchoolScore"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY1 "gEnhancements.Minigames.HoneyAndDarlingDay1"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY2 "gEnhancements.Minigames.HoneyAndDarlingDay2"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY3 "gEnhancements.Minigames.HoneyAndDarlingDay3"
+#define RSBS_CVAR_MM_MINIGAMES_TOWN_ARCHERY_SCORE "gEnhancements.Minigames.TownArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_SWAMP_ARCHERY_SCORE "gEnhancements.Minigames.SwampArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_ROMANI_TARGET_PRACTICE "gEnhancements.Minigames.RomaniTargetPractice"
+#define RSBS_CVAR_MM_MINIGAMES_ALWAYS_WIN_DOGGY_RACE "gEnhancements.Minigames.AlwaysWinDoggyRace"
+#define RSBS_CVAR_MM_MINIGAMES_CUCCO_SHACK_CUCCO_COUNT "gEnhancements.Minigames.CuccoShackCuccoCount"
+#define RSBS_CVAR_MM_MINIGAMES_SKIP_HORSE_RACE "gEnhancements.Minigames.SkipHorseRace"
+#define RSBS_CVAR_MM_MINIGAMES_BEAVER_RACE_RINGS_COLLECTED "gEnhancements.Minigames.BeaverRaceRingsCollected"
+#define RSBS_CVAR_MM_MINIGAMES_SKIP_LITTLE_BEAVER "gEnhancements.Minigames.SkipLittleBeaver"
+#define RSBS_CVAR_MM_DIFFICULTY_GORON_RACE "gEnhancements.DifficultyOptions.GoronRace"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_SCORE "gEnhancements.Minigames.BoatArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_HEALTH "gEnhancements.Minigames.BoatArcheryHealth"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_INVINCIBLE "gEnhancements.Minigames.BoatArcheryInvincible"
+#define RSBS_CVAR_MM_MINIGAMES_TREASURE_CHEST_SHOP_FULL_MAZE "gEnhancements.Minigames.TreasureChestShopShowFullMaze"
+#define RSBS_CVAR_MM_MINIGAMES_MARK_SHOOTING_GALLERY_OCTOROKS "gEnhancements.Minigames.MarkShootingGalleryOctoroks"
 // W6-TIMERS
 // W6-HUD-A
 // W6-COS-A
