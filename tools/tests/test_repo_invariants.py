@@ -612,6 +612,39 @@ def test_refusal_toasts_use_one_prefix():
         "a refusal toast uses a retired prefix; use RSBS_REFUSAL_TOAST_PREFIX (#836):\n  " + "\n  ".join(offenders))
 
 
+# #1190 (the same #53 namespacing damage, found on the way): the pass also
+# rewrote two string literals that happen to equal the single-letter symbol
+# `P`. CustomMessageManager's pixelWidthTable keyed capital P as "OoT_P", so a
+# capital P measured 0 px in the hint/message auto-wrap, and a debug-camera
+# label read "OoT_P TIME  MAX".
+CUSTOM_MESSAGE_MANAGER = (
+    REPO_ROOT / "games" / "oot" / "soh" / "Enhancements" / "custom-message" / "CustomMessageManager.cpp")
+OOT_OTRGLOBALS = REPO_ROOT / "games" / "oot" / "soh" / "OTRGlobals.cpp"
+
+
+def _pixel_width_table_keys():
+    text = CUSTOM_MESSAGE_MANAGER.read_text(encoding="utf-8")
+    start = text.find("pixelWidthTable = {")
+    assert start >= 0, "could not find pixelWidthTable in CustomMessageManager.cpp"
+    end = text.find("};", start)
+    body = text[start:end]
+    return re.findall(r'\{\s*"((?:[^"\\]|\\.)*)"\s*,\s*\d+\s*\}', body)
+
+
+def test_custom_message_width_table_measures_capital_p():
+    keys = _pixel_width_table_keys()
+    assert len(keys) > 90, f"parsed only {len(keys)} pixelWidthTable entries"
+    assert "P" in keys, 'pixelWidthTable has no "P" entry: a capital P measures 0 px in the auto-wrap (#1190)'
+    namespaced = [k for k in keys if k.startswith(("OoT_", "MM_"))]
+    assert not namespaced, f"pixelWidthTable keys carry a namespacing prefix: {namespaced} (#1190)"
+
+
+def test_debug_camera_label_is_not_namespaced():
+    text = OOT_OTRGLOBALS.read_text(encoding="utf-8")
+    assert '"OoT_P TIME  MAX"' not in text, 'OTRGlobals.cpp still spells the label "OoT_P TIME  MAX" (#1190)'
+    assert '"P TIME  MAX"' in text, 'OTRGlobals.cpp lost the "P TIME  MAX" label (#1190)'
+
+
 def test_mm_2s2h_glob_is_configure_depends():
     """Without CONFIGURE_DEPENDS an existing build dir never re-globs, so a pull
     that adds a 2s2h/ TU links the stale file list and fails with an
