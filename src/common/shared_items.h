@@ -284,6 +284,20 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed);
  */
 void Combo_ClearSharedItemOutbox(void);
 
+/**
+ * The slot at @p logicalIndex of the ONE logical shared-item array: the fixed
+ * gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP] first, then the overflow
+ * segment, up to RSBS_SHARED_ITEM_LOGICAL_CAP. NULL out of range. Slot order
+ * is pickup order is redemption order. Game thread only.
+ */
+SharedItem* Combo_SharedItemSlot(int logicalIndex);
+
+/* The .redsave Tier-5 block (format version 5) that carries the overflow segment. */
+#define RSBS_SHARED_OVERFLOW_BLOCK_MAGIC "RSSO"
+#define RSBS_SHARED_OVERFLOW_BLOCK_FORMAT 1u
+#define RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE 16u
+#define RSBS_SHARED_OVERFLOW_RECORD_SIZE 4u
+
 // ============================================================================
 // THE SINGLE-OWNER ITEM CLASSIFICATION TABLE (ADR 0010 answer O8; #645, #500)
 // ============================================================================

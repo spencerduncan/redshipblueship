@@ -70,6 +70,9 @@
 // file is refused by a pre-v3 build (version outside its window), the ordinary
 // forward-compatibility refusal.
 #define RSBS_SAVE_VERSION_CROSSINGS 3u
+// The first version that carries the Tier-5 shared-item overflow block (the
+// outbox's slots past the fixed 64, shared_items.h).
+#define RSBS_SAVE_VERSION_SHARED_OVERFLOW 5u
 // Oldest version this build can still read. v1 files predate the fixed-size
 // Tier-1 record: their comboSize is the raw sizeof(ComboContext) of the build
 // that wrote them, which is a prefix of the current layout and therefore

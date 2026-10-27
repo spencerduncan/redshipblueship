@@ -190,6 +190,14 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_SHARED_ITEM_CAP 64u
 
 /**
+ * The shared-item OVERFLOW segment (the .redsave Tier-5 block, format version 5)
+ * and the logical capacity it gives the outbox: the fixed 64 slots above, then
+ * up to this many more held beside gComboCtx in RAM. See shared_items.h.
+ */
+#define RSBS_SHARED_ITEM_OVERFLOW_CAP 1984u
+#define RSBS_SHARED_ITEM_LOGICAL_CAP (RSBS_SHARED_ITEM_CAP + RSBS_SHARED_ITEM_OVERFLOW_CAP)
+
+/**
  * THE PER-SIDE CROSSING BOUND the single-bag fill places under (PR #743 review):
  * at most this many of ONE game's hosts may hold the other game's items.
  *

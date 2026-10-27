@@ -1035,6 +1035,14 @@ if(BUILD_TESTING)
     # length is pinned to the pre-carve prefix (RSBS_COMBO_CONTEXT_PRECARVE_SIZE)
     # so the carve cannot silently widen what that test calls legacy.
     redship_add_test(NAME SaveTaggedItems COMMAND redship --test save-tagged-items)
+    # The shared-item overflow (operator ruling 2026-10-27; Refs #1222): the outbox is one
+    # logical array, the fixed 64 slots then an overflow segment carried as the .redsave
+    # Tier-5 block (format v5). Crossings past 64 record and round-trip in order, a v4
+    # file loads with an empty overflow, and room runs out only at the logical capacity.
+    redship_add_test(NAME SaveSharedItemOverflowRoundtrip COMMAND redship --test save-shared-item-overflow-roundtrip)
+    redship_add_test(NAME SaveSharedItemOverflowLegacy COMMAND redship --test save-shared-item-overflow-legacy)
+    redship_add_test(NAME SharedItemOverflowOrder COMMAND redship --test shared-item-overflow-order)
+    redship_add_test(NAME SharedItemOverflowHasRoom COMMAND redship --test shared-item-overflow-has-room)
     # The .redsave commit choke point (#537/#531): every commit is a
     # game-thread-marshalled snapshot with a monotonic generation stamped into
     # both durable artifacts; the write phase reads no live state (the torn

@@ -344,6 +344,13 @@ void Combo_ClearSharedItemOutbox(void) {
     sOutboxCount = 0;
 }
 
+SharedItem* Combo_SharedItemSlot(int logicalIndex) {
+    if (logicalIndex < 0 || logicalIndex >= (int)RSBS_SHARED_ITEM_CAP) {
+        return NULL;
+    }
+    return &gComboCtx.sharedItemsTagged[logicalIndex];
+}
+
 // ============================================================================
 // The single-owner item classification table (ADR 0010 answer O8)
 //
