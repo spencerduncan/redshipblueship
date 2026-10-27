@@ -90,6 +90,10 @@
  *      sentence), and a table that lists a pointer FIRST draws no note under the
  *      then-empty heading (7d).
  *
+ *  11. (#1235) MM's AMBIENCE VOLUME HAS NO CONTROL. Leg 8 builds SoH's own
+ *      Settings page and requires the ambience slider right after Sound Effects
+ *      Volume, in SoH's slider shape, bound to the shared key.
+ *
  * WHAT IT DOES NOT COVER. Whether an enabled toggle changes the game. That needs
  * a ROM, a play state and an operator; the ROM-free half of it is
  * MMEnhancementToggles' registry-content evidence, and the rest is a playtest.
@@ -99,6 +103,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 
 #include "cvar_shared_keys.h"
 
@@ -250,6 +255,54 @@ bool PrintsIssueNumber(const char* text) {
 /** SoH's disabled tooltip around @p reason, exactly as MenuDrawItem builds one. */
 std::string SohDisabledShape(const char* reason) {
     return std::string("This setting is disabled because: \n\n- ") + reason;
+}
+
+// ---- Leg 9 (#1233): one hosted-row registry entry against a built menu -------
+/**
+ * Where @p h says its row is, is it there? On its header and sidebar, under its section (the nearest SEPARATOR_TEXT
+ * above it in its column, "" when none), and bound to its key (the row's .CVar) or to its accessor (no CVar at all).
+ * Returns "" when it is, else the reason. Shared by the registry walk and its control, so the control exercises the
+ * very check the walk relies on.
+ */
+std::string HostedRowVerdict(std::unordered_map<std::string, MainMenuEntry>& entries, const SohGui::HostedMmRow& h) {
+    const std::string where = h.header + " > " + h.sidebar;
+    if (!entries.contains(h.header) || !entries.at(h.header).sidebars.contains(h.sidebar)) {
+        return where + " was not built by this leg's probe (Settings, Enhancements and Dev Tools, SoH's builders that "
+                       "run ROM-free); a row hosted under another header needs that header's builder added to leg 9";
+    }
+    SidebarEntry& page = entries.at(h.header).sidebars.at(h.sidebar);
+    for (std::vector<WidgetInfo>& column : page.columnWidgets) {
+        std::string section;
+        for (WidgetInfo& row : column) {
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                section = row.name;
+            }
+            if (row.name != h.name || row.type == WIDGET_SEPARATOR_TEXT) {
+                continue;
+            }
+            if (section != h.section) {
+                return "\"" + h.name + "\" on " + where + " sits under \"" + section + "\", registered under \"" +
+                       h.section + "\"";
+            }
+            if (h.key != nullptr) {
+                if (row.cVar == nullptr || std::string(row.cVar) != h.key) {
+                    return "\"" + h.name + "\" on " + where + " is bound to \"" +
+                           std::string(row.cVar != nullptr ? row.cVar : "(no CVar)") + "\", registered to \"" + h.key +
+                           "\"";
+                }
+            } else if (h.accessor != nullptr) {
+                if (row.cVar != nullptr) {
+                    return "\"" + h.name + "\" on " + where + " binds the accessor " + h.accessor +
+                           " but also writes the CVar \"" + row.cVar + "\"";
+                }
+            } else {
+                return "\"" + h.name + "\" on " + where +
+                       " was registered with no binding: chain .CVar(key) or .Accessor(name) on the seam's handle";
+            }
+            return std::string();
+        }
+    }
+    return "no row named \"" + h.name + "\" on " + where;
 }
 
 // ---- Leg 7 (#747): a synthetic manifest with non-live rows -----------------
@@ -985,6 +1038,103 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                    "note, none under the empty heading)\n",
                    first.notesShown);
         }
+    }
+
+    // ---- Leg 8 (#1235): Settings > Audio holds MM's ambience slider -----------
+    // MM's fifth sequence player (wind, birds, night sounds) has no OoT twin, so nothing in the single exe wrote its
+    // key: MM_AudioMgr_Init reads RSBS_CVAR_VOLUME_AMBIENCE and only shipofharkinian.json could set it. The row is
+    // SoH's slider in SoH's shape (0-100 percent, default 100, the family's spelling), right after SoH's Sound Effects
+    // Volume and in its column, built here through SoH's own AddMenuSettings so the page is SoH's page.
+    {
+        MmEnhancementMenuProbe settingsProbe;
+        settingsProbe.AddMenuSettings();
+        auto& settingsEntries = settingsProbe.Entries();
+        if (!settingsEntries.contains("Settings") || !settingsEntries.at("Settings").sidebars.contains("Audio")) {
+            printf("[TEST] FAIL(8): AddMenuSettings registered no Settings > Audio page\n");
+            gFailures++;
+        } else {
+            std::vector<FlatRow> audioRows = FlattenRows(settingsEntries.at("Settings").sidebars.at("Audio"));
+            const long sfx = IndexOfRow(audioRows, RSBS_CVAR_VOLUME_SFX, nullptr);
+            const long ambience = IndexOfRow(audioRows, RSBS_CVAR_VOLUME_AMBIENCE, nullptr);
+            MME_CHECK(sfx >= 0, "Settings > Audio has no Sound Effects Volume row bound to %s", RSBS_CVAR_VOLUME_SFX);
+            MME_CHECK(ambience >= 0,
+                      "Settings > Audio has no row bound to %s: MM's ambience volume has no control in the single "
+                      "exe, so only a hand-edited config can set it",
+                      RSBS_CVAR_VOLUME_AMBIENCE);
+            if (sfx >= 0 && ambience >= 0) {
+                WidgetInfo& row = *audioRows[(size_t)ambience].info;
+                MME_CHECK(ambience == sfx + 1 && audioRows[(size_t)ambience].column == audioRows[(size_t)sfx].column,
+                          "the ambience row is row %ld (column %u); it belongs right after Sound Effects Volume (row "
+                          "%ld, column %u)",
+                          ambience, audioRows[(size_t)ambience].column, sfx, audioRows[(size_t)sfx].column);
+                MME_CHECK(row.type == WIDGET_CVAR_SLIDER_INT,
+                          "the ambience row is widget type %d, not SoH's int slider", (int)row.type);
+                if (row.type == WIDGET_CVAR_SLIDER_INT && row.options != nullptr) {
+                    const auto opts = std::static_pointer_cast<UIWidgets::IntSliderOptions>(row.options);
+                    MME_CHECK(opts->min == 0 && opts->max == 100 && opts->defaultValue == 100,
+                              "the ambience slider is %d-%d with default %d; the volume family is 0-100 percent with "
+                              "default 100 (MM_AudioMgr_Init's read default)",
+                              opts->min, opts->max, opts->defaultValue);
+                }
+                const std::string tip = row.options != nullptr && row.options->tooltip != nullptr
+                                            ? std::string(row.options->tooltip)
+                                            : std::string();
+                const std::string caveat = " Majora's Mask only.";
+                MME_CHECK(tip.size() > caveat.size() &&
+                              tip.compare(tip.size() - caveat.size(), caveat.size(), caveat) == 0,
+                          "the ambience row's tooltip \"%s\" does not end with the \"Majora's Mask only.\" caveat",
+                          tip.c_str());
+            }
+            printf("[TEST] leg 8: Settings > Audio holds MM's ambience slider right after Sound Effects Volume (row "
+                   "%ld after row %ld)\n",
+                   ambience, sfx);
+        }
+    }
+
+    // ---- Leg 9 (#1233): every hosted MM row is where the registry says --------
+    // The hosted-row seam (SohGui/HostedMm/SohMenuHostedMm.h) records each MM row it adds to one of SoH's pages. This
+    // probe builds SoH's own Settings, Enhancements and Dev Tools pages, and every registered row must be found on its
+    // page, under its section, bound to its key or accessor. A page lane adds registry entries, never a leg here. The
+    // control first: the same verdict must refuse the damage row with a wrong section and with a wrong key.
+    {
+        MmEnhancementMenuProbe hostProbe;
+        hostProbe.AddMenuSettings();
+        hostProbe.AddMenuEnhancements();
+        hostProbe.AddMenuDevTools();
+        auto& hostEntries = hostProbe.Entries();
+
+        const SohGui::HostedMmRow* damage = nullptr;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.key != nullptr && std::string(h.key) == RSBS_CVAR_MM_DAMAGE_MULTIPLIER) {
+                damage = &h;
+            }
+        }
+        MME_CHECK(damage != nullptr && damage->header == "Enhancements" && damage->sidebar == "Difficulty" &&
+                      damage->section == "Health",
+                  "the hosted-row registry holds no Enhancements > Difficulty > Health row bound to %s after SoH's "
+                  "Enhancements page was built: #1037's row no longer goes through the seam, so nothing captures, "
+                  "hovers or lints it",
+                  RSBS_CVAR_MM_DAMAGE_MULTIPLIER);
+        if (damage != nullptr) {
+            SohGui::HostedMmRow wrongSection = *damage;
+            wrongSection.section = "Not The Health Section";
+            SohGui::HostedMmRow wrongKey = *damage;
+            wrongKey.key = RSBS_CVAR_VOLUME_SFX;
+            MME_CHECK(!HostedRowVerdict(hostEntries, wrongSection).empty() &&
+                          !HostedRowVerdict(hostEntries, wrongKey).empty(),
+                      "leg 9's verdict accepts the damage row under a wrong section or bound to a wrong key, so its "
+                      "green over the registry would prove nothing");
+        }
+
+        std::size_t checked = 0;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            const std::string why = HostedRowVerdict(hostEntries, h);
+            MME_CHECK(why.empty(), "hosted MM row: %s", why.c_str());
+            checked++;
+        }
+        printf("[TEST] leg 9: %zu hosted MM row(s) found on their SoH pages, under their sections, bound as "
+               "registered (the verdict refuses a wrong section and a wrong key)\n",
+               checked);
     }
 
     if (gFailures == 0) {

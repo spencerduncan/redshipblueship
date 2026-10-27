@@ -60,6 +60,8 @@
 // OoT_Notification_Emit — the shared toast overlay (#427 bridge): the arrival
 // refusal must be player-visible in-game, not only on the Combo > Save Files page.
 #include "notification_bridge.h"
+// #1235: MM's audio is up from MM_AudioMgr_Init to MM_Game_Shutdown, so SoH's volume sliders may reapply.
+#include "mm_volume_bridge.h"
 // The refusal toasts' copy, and MM's half of the bridge that queues them with
 // Notification::Options' defaults.
 #include "pairing_refusal_toast.h"
@@ -2753,6 +2755,9 @@ int MM_Game_Init(int argc, char** argv) {
     fprintf(stderr, "[MM] Calling MM_AudioMgr_Init()...\n");
     fflush(stderr);
     MM_AudioMgr_Init(&sAudioMgr, NULL, Z_PRIORITY_AUDIOMGR, Z_THREAD_ID_AUDIOMGR, &MM_gSchedContext, &MM_gIrqMgr);
+    // #1235: from here a moved volume slider reaches MM's players (mm_volume_bridge.h); MM_AudioMgr_Init has just
+    // read all five keys itself.
+    MM_Volume_SetAudioLive(1);
 
     sMMInitialized = true;
 
@@ -4051,6 +4056,8 @@ void MM_Game_Shutdown(void) {
     // Don't call DeinitOTR() - the shared context stays alive
     // Reset audio state so re-init works after game switch (issue #157)
     gAudioCtxInitalized = false;
+    // #1235: the next MM_Game_Init's MM_AudioMgr_Init reads the volume keys itself.
+    MM_Volume_SetAudioLive(0);
     MM_Heaps_Free();
     sMMInitialized = false;
     sMMArchivesLoaded = false;

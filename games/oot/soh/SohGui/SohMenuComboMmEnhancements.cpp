@@ -68,6 +68,8 @@
 #include "SohMenu.h"
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
+// The hosted-row seam (#1233): MM's damage multiplier row goes through it.
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 
 // The manifest. ADR 0008 rule 5's restatement for an OoT-hosted row: the row
 // reads src/common, never MM's headers and never either game's gSaveContext.
@@ -435,7 +437,8 @@ static RegisterComboSectionPage_t sMmTricksPage(COMBO_MM_TRICKS_PAGE_NAME, 1, Ad
  * has its own control. This is the project-added function: SohMenuEnhancements.cpp calls it right after SoH's row
  * and nothing else of SoH's page changes. The key comes from the src/common constant because games/oot may not
  * spell MM's key (the classification lock's 3c-2). The widget is its own writer, and the ShipInit::Init it makes
- * re-arms MM's registrar (#539).
+ * re-arms MM's registrar (#539). Added through the hosted-row seam (HostedMm/SohMenuHostedMm.h), so the UI snapshot
+ * captures, hovers and lints it on SoH's page, and the menu lock's leg 9 holds it under "Health".
  */
 void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path) {
     // MM's value list, in SoH's voice (allPowers): the left-shift of the damage MM applies, 0-4, and 10 = 1 Hit KO.
@@ -444,7 +447,7 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path) {
         { 0, "Vanilla (1x)" }, { 1, "Double (2x)" },   { 2, "Quadruple (4x)" },
         { 3, "Octuple (8x)" }, { 4, "Foolish (16x)" }, { 10, "1 Hit KO" },
     };
-    menu.AddWidget(path, "MM Damage Multiplier", WIDGET_CVAR_COMBOBOX)
+    AddHostedMmWidget(menu, path, "Health", "MM Damage Multiplier", WIDGET_CVAR_COMBOBOX)
         .CVar(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)
         .Options(
             ComboboxOptions()

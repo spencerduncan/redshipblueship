@@ -835,6 +835,11 @@ extern "C" {
 // FILE SCOPE; declares its C-linkage symbols itself. No audio heap, no archives.
 #include "tests/test_oot_audio_init_guard.c"
 
+// MM live volume apply (#1235): SoH's Settings > Audio sliders reach MM's sequence players while MM's audio is up,
+// through src/common/mm_volume_bridge.h. games/mm/2s2h/mm_volume_live_apply_test.cpp; returns 0 on pass. It reads
+// the shared volume keys, so its wrapper (Test_MMVolumeLiveApply) runs the display-free shared bring-up first.
+extern "C" int MM_VolumeLiveApply_RunHeadless(void);
+
 // Gameplay round-trip phase watchdog (#376 item 4). FILE SCOPE: it exercises
 // the pure watchdog helpers declared in integration_test_hooks.h (already
 // included above), proving the budget is wall-clock and can fire before the
@@ -6242,6 +6247,17 @@ static TestResult Test_MMOcarinaDpadNotes(void) {
     return MM_OcarinaDpad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1235's live volume apply (see the extern decl beside oot-audio-init-guard). The display-free shared bring-up,
+// because the row writes the five shared volume keys.
+static TestResult Test_MMVolumeLiveApply(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_VolumeLiveApply_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMWoodfallSonataTrigger(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
@@ -8115,6 +8131,9 @@ const TestDescriptor gTests[] = {
     { "active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue },
     { "oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)",
       Test_OoTAudioInitGuard },
+    { "mm-volume-live-apply",
+      "SoH's volume sliders reach MM's sequence players while MM's audio is up, a no-op while it is down (#1235)",
+      Test_MMVolumeLiveApply },
     { "gp-watchdog", "Gameplay round-trip watchdog is wall-clock budgeted, can fire before the timeout (#376)",
       Test_GpWatchdog },
     { "stderr-capture-sync", "A stderr-capture query sees the line its caller just wrote (#901)",

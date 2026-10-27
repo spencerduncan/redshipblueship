@@ -104,7 +104,8 @@
 #include "soh/SohGui/SohMenu.h"
 #include "soh/SohGui/UIWidgets.hpp"
 #include "soh/SohGui/CreationProgressOverlay.h"
-#include "soh/SohGui/SohRetiredWindow.h" // #1132: SoH's own Item Tracker, captured as a reference
+#include "soh/SohGui/SohRetiredWindow.h"         // #1132: SoH's own Item Tracker, captured as a reference
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h" // #1233: MM rows hosted on SoH's own pages
 #include "soh/Notification/Notification.h"
 
 #include <imgui.h>
@@ -864,6 +865,9 @@ struct PageSpec {
     bool checksResetPosition = false;
     bool scroll = true;
     bool needsRom = false;
+    // #1233: an SoH page holding MM rows the hosted-row seam added (their registered names). Only those rows are
+    // ours on it: R9 and the runtime lint hold them, SoH's own rows on the page stay the reference.
+    std::set<std::string> hostedRows;
     // When non-empty, hover variants are taken in these states only. A race
     // lockout rebuilds the tooltip from `activeDisables` plus "- Race Lockout
     // Active": it REPLACES a directly written disabled tooltip (ours) and only
@@ -1092,6 +1096,7 @@ class Session {
     void LeaveState(const PageSpec& p, const std::string& state);
     void CheckStateText();
     void CheckBodyText();
+    void CheckHostedMmCaptures();
     void CloseAbandonedFrame();
     bool sabotageThrowArmed = false;
 
@@ -1477,6 +1482,8 @@ constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
 // The SoH pane our tracker and spoiler panes are read against (compareWith).
 constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
 constexpr const char* kSohItemTrackerReference = "window/SoH Item Tracker";
+// #1233: the id prefix of an SoH page captured as ours for the MM rows hosted on it (BuildPageList).
+constexpr const char* kHostedMmPagePrefix = "MM rows/";
 // W6-CAM-AIM: SoH's Bindings window, where MM's aiming and camera rows sit beside their SoH twins, and the MM switch
 // that shows MM's right-stick rows there.
 constexpr const char* kSohBindingsWindow = "Configure Controller";
@@ -1972,6 +1979,52 @@ void Session::BuildPageList() {
             p.expectText.push_back("Item Tracker Sections");
         }
         pages.push_back(p);
+    }
+    // #1233: every SoH page holding an MM row the hosted-row seam added (SohGui/HostedMm/SohMenuHostedMm.h), from the
+    // seam's registry, so a page lane adds no block here. Each is captured as OURS under its own id ("MM rows/" + the
+    // page), with only its hosted rows counted as ours (hostedRows: R9 and the runtime lint), every hosted row hovered,
+    // and its body string the first hosted row's label. It reads against that SoH page's own reference capture when
+    // the page is one, else against the first SoH reference under the same header. The live menu fills the registry
+    // only when SoH's menu is built (ROM-rich), so ROM-free the list is empty; CheckHostedMmCaptures holds every
+    // registered row to a capture of its page.
+    {
+        std::vector<std::pair<std::string, std::string>> hostedPages;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (std::find(hostedPages.begin(), hostedPages.end(), std::make_pair(h.header, h.sidebar)) ==
+                hostedPages.end()) {
+                hostedPages.emplace_back(h.header, h.sidebar);
+            }
+        }
+        for (const auto& [h, s] : hostedPages) {
+            PageSpec p = menuPage(h, s, Origin::RSBS);
+            p.id = std::string(kHostedMmPagePrefix) + h + "/" + s;
+            p.needsRom = true;
+            p.bodyText.clear();
+            for (const SohGui::HostedMmRow& row : SohGui::HostedMmRows()) {
+                if (row.header != h || row.sidebar != s) {
+                    continue;
+                }
+                p.hostedRows.insert(row.name);
+                const std::string hover = "mm-row-" + std::to_string(p.hovers.size() + 1);
+                p.hovers.push_back(hover);
+                p.hoverRows[hover] = row.name;
+                if (p.bodyText.empty()) {
+                    p.bodyText = WordPrefix(VisibleLabel(row.name), 40);
+                }
+            }
+            p.expectText = { p.bodyText };
+            for (const PageSpec& ref : pages) {
+                if (ref.origin == Origin::SOH_REFERENCE && ref.kind == Kind::MENU_PAGE && ref.header == h &&
+                    (ref.sidebar == s || p.compareWith.empty())) {
+                    p.compareWith = ref.id;
+                }
+            }
+            if (p.compareWith.empty()) {
+                p.compareWith = "Settings/General";
+                p.compareDefaulted = true;
+            }
+            pages.push_back(p);
+        }
     }
     {
         // SoH's own disabled row, the reference for every unavailable or locked
@@ -3513,7 +3566,8 @@ void Session::CaptureMenuPage(const PageSpec& p) {
         // the shape of the Settings > General std::map::at this harness met.
         WidgetInfo* throwRow = nullptr;
         WidgetFunc throwSaved;
-        if (opt.Sabotaged("throw") && !sabotageThrowArmed && p.origin == Origin::RSBS) {
+        // A hosted-MM page (#1233) is SoH's page; its first row is SoH's, so the sabotage stays on our own pages.
+        if (opt.Sabotaged("throw") && !sabotageThrowArmed && p.origin == Origin::RSBS && p.hostedRows.empty()) {
             throwRow = FindRow(*menu, p.header, p.sidebar, [](const WidgetInfo&) { return true; });
             if (throwRow != nullptr) {
                 sabotageThrowArmed = true;
@@ -5057,6 +5111,11 @@ void Session::CheckBodyText() {
                 other.id == p.id || other.image.rgba == nullptr) {
                 continue;
             }
+            // #1233: a capture of the same page is no contrast (a hosted-MM capture is SoH's page again), and a
+            // hosted-MM capture is no other page's contrast, so every other page keeps the sibling it had before.
+            if (other.spec->sidebar == p.sidebar || (!other.spec->hostedRows.empty() && p.hostedRows.empty())) {
+                continue;
+            }
             if (other.text.find(p.bodyText) != std::string::npos) {
                 mine->status = "fail";
                 mine->reason = "its body string \"" + p.bodyText + "\" is also in " + other.id +
@@ -5065,6 +5124,45 @@ void Session::CheckBodyText() {
                 Fail(p.id + ": " + mine->reason);
             }
             break; // one sibling is the contrast
+        }
+    }
+}
+
+void Session::CheckHostedMmCaptures() {
+    // #1233's self-check. ROM-rich, the live menu is SoH's whole menu, and #1037's MM Damage Multiplier on
+    // Enhancements > Difficulty goes through the hosted-row seam, so an empty registry means the seam was bypassed
+    // and nothing below would be held.
+    if (!romFree && SohGui::HostedMmRows().empty()) {
+        Fail("the hosted-row registry is empty in a ROM-rich run: the MM rows on SoH's pages (Enhancements > "
+             "Difficulty's MM Damage Multiplier first) no longer go through SohGui/HostedMm, so none is captured, "
+             "hovered or linted");
+    }
+    // Every registered row's page has a capture of ours that passed (or was skipped ROM-free, as needsRom pages
+    // are), holding that row.
+    for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+        const PageSpec* spec = nullptr;
+        for (const PageSpec& p : pages) {
+            if (!p.hostedRows.empty() && p.header == h.header && p.sidebar == h.sidebar) {
+                spec = &p;
+            }
+        }
+        const std::string row = h.header + " > " + h.sidebar + " > " + h.name;
+        if (spec == nullptr || !spec->hostedRows.contains(h.name)) {
+            Fail("hosted MM row " + row + " is registered but its page is not in the capture list");
+            continue;
+        }
+        const std::string& state = spec->states.front();
+        if (!Selected(*spec, VariantName(state, "")) && !Selected(*spec, VariantName(state, "scroll0"))) {
+            continue;
+        }
+        bool captured = false;
+        for (const Capture& c : captures) {
+            if (c.spec == spec && c.hover.empty() && (c.status == "pass" || (romFree && c.status == "skip"))) {
+                captured = true;
+            }
+        }
+        if (!captured) {
+            Fail("hosted MM row " + row + ": its page " + spec->id + " was not captured");
         }
     }
 }
@@ -5424,13 +5522,16 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
         if (over <= 0.5f) {
             continue;
         }
+        // On a hosted-MM page (#1233) only the hosted rows are ours; SoH's own rows there are reported, as on any
+        // SoH page.
+        const bool rowOurs = ours && (p.hostedRows.empty() || p.hostedRows.contains(d.name));
         std::string name = d.name;
         std::replace(name.begin(), name.end(), '\n', ' ');
         char detail[96];
         snprintf(detail, sizeof(detail), "over by %.0f px in a %.0f px column", over, d.columnW);
-        labelFitReport.push_back(std::string(ours ? "ours | " : "soh  | ") + where +
+        labelFitReport.push_back(std::string(rowOurs ? "ours | " : "soh  | ") + where +
                                  (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
-        if (ours) {
+        if (rowOurs) {
             dynamicHits.insert("R9 | " + where + " | " + name + " :: does not fit its column at " + profile.name);
         }
     }
@@ -5550,11 +5651,28 @@ int Session::RuntimeLint() {
                                                                            : std::string();
     };
 
-    auto lintPage = [&](const std::string& header, const std::string& sidebar, const SidebarEntry& page) {
+    // onlyHosted (#1233): an SoH page holding MM rows the hosted-row seam added; only those rows are linted, SoH's own
+    // rows there are the reference, and a hosted row's name is a duplicate if any other row on the page carries it.
+    auto lintPage = [&](const std::string& header, const std::string& sidebar, const SidebarEntry& page,
+                        bool onlyHosted) {
         const std::string where = header + "/" + sidebar;
         std::set<std::string> names;
+        std::map<std::string, int> pageNames;
         for (const auto& column : page.columnWidgets) {
             for (const WidgetInfo& row : column) {
+                if (row.type != WIDGET_SEPARATOR && row.type != WIDGET_TEXT) {
+                    pageNames[row.name]++;
+                }
+            }
+        }
+        for (const auto& column : page.columnWidgets) {
+            for (const WidgetInfo& row : column) {
+                if (onlyHosted && !SohGui::IsHostedMmRow(header, sidebar, row.name)) {
+                    continue;
+                }
+                if (onlyHosted && pageNames[row.name] > 1) {
+                    hit("R7", where, row.name + " :: duplicate name");
+                }
                 const std::string tip = tooltipOf(row);
                 const bool interactive = IsInteractive(row.type);
                 if (interactive && tip.empty()) {
@@ -5599,13 +5717,25 @@ int Session::RuntimeLint() {
     auto& entries = MenuEntries(*menu);
     if (entries.contains("Combo")) {
         for (const auto& [sidebar, page] : entries.at("Combo").sidebars) {
-            lintPage("Combo", sidebar, page);
+            lintPage("Combo", sidebar, page, false);
         }
     }
     if (entries.contains("Randomizer")) {
         for (const std::string& sidebar : SohGui::ComboRandomizerPageNames()) {
             if (entries.at("Randomizer").sidebars.contains(sidebar)) {
-                lintPage("Randomizer", sidebar, entries.at("Randomizer").sidebars.at(sidebar));
+                lintPage("Randomizer", sidebar, entries.at("Randomizer").sidebars.at(sidebar), false);
+            }
+        }
+    }
+    // #1233: the MM rows the hosted-row seam put on SoH's own pages, those rows only.
+    {
+        std::set<std::pair<std::string, std::string>> hostedPages;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            hostedPages.emplace(h.header, h.sidebar);
+        }
+        for (const auto& [header, sidebar] : hostedPages) {
+            if (entries.contains(header) && entries.at(header).sidebars.contains(sidebar)) {
+                lintPage(header, sidebar, entries.at(header).sidebars.at(sidebar), true);
             }
         }
     }
@@ -5757,6 +5887,12 @@ void Session::DumpSohNames() {
             }
             for (const auto& column : e.sidebars.at(sidebar).columnWidgets) {
                 for (const WidgetInfo& row : column) {
+                    // #1233: the MM rows the hosted-row seam added, and their "Majora's Mask" block headings, are
+                    // ours, not SoH's.
+                    if (SohGui::IsHostedMmRow(header, sidebar, row.name) ||
+                        (row.type == WIDGET_SEPARATOR_TEXT && row.name == SohGui::kHostedMmBlockLabel)) {
+                        continue;
+                    }
                     std::string tip = (row.options != nullptr && row.options->tooltip != nullptr)
                                           ? std::string(row.options->tooltip)
                                           : std::string();
@@ -5859,6 +5995,21 @@ int Session::Run() {
             }
         }
     }
+    // #1233: the MM rows the hosted-row seam put on SoH's other pages are ours too, those rows only.
+    for (auto& [header, entry] : MenuEntries(*menu)) {
+        if (header == "Combo" || header == "Randomizer") {
+            continue;
+        }
+        for (auto& [sidebar, page] : entry.sidebars) {
+            for (auto& column : page.columnWidgets) {
+                for (WidgetInfo& row : column) {
+                    if (IsInteractive(row.type) && SohGui::IsHostedMmRow(header, sidebar, row.name)) {
+                        registeredNames[&row] = { header + "/" + sidebar, row.name };
+                    }
+                }
+            }
+        }
+    }
 
     // Warm up: the first frames build fonts and dock nodes.
     menu->Show();
@@ -5915,6 +6066,7 @@ int Session::Run() {
 
     CheckStateText();
     CheckBodyText();
+    CheckHostedMmCaptures();
     WriteComposites();
     WriteIterComposites();
     RuntimeLint();

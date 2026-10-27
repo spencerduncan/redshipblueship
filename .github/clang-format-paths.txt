@@ -62,6 +62,8 @@ games/mm/2s2h/TrackersGuiSingleExe.cpp
 games/mm/2s2h/TrackersGuiSingleExe.h
 games/mm/2s2h/mm_capture_harvest_gate_test.cpp
 games/mm/2s2h/mm_combo_settings_test.cpp
+games/mm/2s2h/MmVolumeSingleExe.cpp
+games/mm/2s2h/mm_volume_live_apply_test.cpp
 games/mm/2s2h/mm_culling_test.cpp
 games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_flash_filenum_test.cpp
@@ -149,6 +151,7 @@ games/oot/soh/soh_combo_settings_rows_test.cpp
 games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
 games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
+games/oot/soh/SohGui/HostedMm/
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
 games/oot/soh/soh_presets_folder_test.cpp

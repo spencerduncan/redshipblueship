@@ -12,10 +12,12 @@
 #
 # Every ImGui-drawing TU under src/common and every *SingleExe*.cpp must appear
 # here in SOME set (rule S0), so a new surface cannot escape the lint. A listed
-# path that does not exist is an error, not a skip.
+# path that does not exist is an error, not a skip. A path ending in "/" lints
+# every tracked .cpp file under that directory (a new file there needs no line).
 
 MENU games/oot/soh/SohGui/SohMenuCombo.cpp
 MENU games/oot/soh/SohGui/SohMenuComboMmEnhancements.cpp
+MENU games/oot/soh/SohGui/HostedMm/
 MENU games/oot/soh/SohGui/SohMenuComboMmMods.cpp
 MENU games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 PTR games/oot/soh/Enhancements/audio/AudioEditor.cpp::DrawMmAudioOptionsRows

@@ -56,6 +56,8 @@ Slices in ui-lint-files.txt: `path::Function` lints one function's body;
 `path::@from=TOKEN` lints from the line holding TOKEN's first occurrence to the
 end of the file -- for an SoH-shipped file whose project-added code is one
 trailing region (SohMenu.cpp), so SoH's own literals above it are never linted.
+An entry ending in `/` lints every tracked .cpp file under that directory, so a
+file added there is linted with no list edit (games/oot/soh/SohGui/HostedMm/).
 
 Usage:
   check-ui-parity-lint.py                  check against the baseline
@@ -268,10 +270,41 @@ def read_file_sets(root):
     return sets
 
 
+def tree_cpp_files(root, directory):
+    """The tracked .cpp files under `directory` (an entry ending in '/'), sorted. Outside a git checkout (the
+    self-test's scratch tree) every .cpp file on disk under it."""
+    rel = directory.rstrip("/")
+    try:
+        listed = subprocess.run(["git", "-C", root, "ls-files", "--", rel], capture_output=True, text=True,
+                                check=True).stdout.split("\n")
+        files = [f for f in listed if f.endswith(".cpp")]
+    except (OSError, subprocess.CalledProcessError):
+        files = []
+        for d, _, names in os.walk(os.path.join(root, rel)):
+            for n in names:
+                if n.endswith(".cpp"):
+                    files.append(os.path.relpath(os.path.join(d, n), root).replace(os.sep, "/"))
+    return sorted(files)
+
+
 def load_units(root, entries):
     units = []
     for entry in entries:
         path, _, func = entry.partition("::")
+        if path.endswith("/"):
+            # A directory enrols every tracked .cpp file under it (#1233: games/oot/soh/SohGui/HostedMm/, where each
+            # page lane drops its row TU), so a new file there is linted with no list edit.
+            if func:
+                raise SystemExit(f"{FILES_LIST}: a directory entry takes no '::' slice: {entry}")
+            if not os.path.isdir(os.path.join(root, path)):
+                raise SystemExit(f"{FILES_LIST} lists '{path}', which does not exist (a stale entry is an error, "
+                                 "or the lint silently loses coverage)")
+            files = tree_cpp_files(root, path)
+            if not files:
+                raise SystemExit(f"{FILES_LIST} lists '{path}', which holds no tracked .cpp file")
+            for f in files:
+                units.append(Unit(f, open(os.path.join(root, f), encoding="utf-8", errors="replace").read()))
+            continue
         full = os.path.join(root, path)
         if not os.path.isfile(full):
             raise SystemExit(f"{FILES_LIST} lists '{path}', which does not exist (a stale entry is an error, "
@@ -331,8 +364,9 @@ def run_rules(root, sets):
     for entries in sets.values():
         for e in entries:
             listed.add(e.partition("::")[0])
+    listed_dirs = [p for p in listed if p.endswith("/")]
     for f in tracked_imgui_files(root):
-        if f not in listed:
+        if f not in listed and not any(f.startswith(d) for d in listed_dirs):
             hits.append(("S0", f, 1, "draws ImGui but is not listed in " + FILES_LIST))
 
     for u in menu + panes:
@@ -751,6 +785,28 @@ def self_test_body(failures, expect):
         with open(os.path.join(root, "copy.cpp"), "w", encoding="utf-8") as f:
             f.write(FIX_COPY)
 
+        # A directory entry lints every .cpp file under it (a header beside them is not a unit), and a directory
+        # that holds none is an error, as a stale file entry is.
+        os.makedirs(os.path.join(root, "hosted", "deeper"))
+        os.makedirs(os.path.join(root, "emptydir"))
+        for name, body in (("hosted/Row.cpp", 'void f() { ImGui::SetTooltip("x"); }\n'),
+                           ("hosted/deeper/Row2.cpp", 'void g() { ImGui::SetTooltip("y"); }\n'),
+                           ("hosted/Row.h", 'void h() { ImGui::SetTooltip("z"); }\n')):
+            with open(os.path.join(root, name), "w", encoding="utf-8") as f:
+                f.write(body)
+        dir_units = load_units(root, ["hosted/"])
+        expect(sorted(u.path for u in dir_units) == ["hosted/Row.cpp", "hosted/deeper/Row2.cpp"],
+               f"a directory entry loaded {[u.path for u in dir_units]}")
+        dir_hits = []
+        for u in dir_units:
+            line_rule(u, "S6", SET_TOOLTIP, dir_hits)
+        expect(len(dir_hits) == 2, f"a directory entry's files were not linted: {dir_hits}")
+        try:
+            load_units(root, ["emptydir/"])
+            failures.append("a directory entry holding no .cpp file was accepted")
+        except SystemExit:
+            pass
+
         # A stale ui-lint-files.txt entry is an error, not a silent skip.
         with open(os.path.join(root, FILES_LIST), "a", encoding="utf-8") as f:
             f.write("MENU does/not/exist.cpp\n")
@@ -765,7 +821,7 @@ def self_test_body(failures, expect):
             print("SELF-TEST FAIL:", f)
         return 1
     print("self-test: OK (S0-S11 red and green halves, C1 reference copies, baseline gate, @from= slice, "
-          "baseline growth, stale-list refusal)")
+          "baseline growth, directory entries, stale-list refusal)")
     return 0
 
 
