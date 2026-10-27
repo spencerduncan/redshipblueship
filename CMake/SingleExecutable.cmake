@@ -668,6 +668,12 @@ if(BUILD_TESTING)
     # and free play's playable mask (MM_Message_BuildOcarinaAvailableSongs)
     # includes them; with the bits clear it does not.
     redship_add_test(NAME MMCrossingSongPlayable COMMAND redship --test mm-crossing-song-playable)
+    # #1062/#1099 guard (#1070's D-pad report): with gSettings.CustomOcarina.Dpad
+    # on, each D-pad direction plays its C-button twin's note through MM's real
+    # AudioOcarina_Update (one fenced input seam), Sonata, Elegy, Song of Time and
+    # Soaring play on the D-pad in free play, the key is the gate, and the L rule
+    # restarts the staff on L+D-pad only.
+    redship_add_test(NAME MMOcarinaDpadNotes COMMAND redship --test mm-ocarina-dpad-notes)
     # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
     # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
     # origin pools under one bag, so there is no pool to register or draw.
