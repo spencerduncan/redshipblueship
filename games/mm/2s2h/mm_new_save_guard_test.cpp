@@ -52,6 +52,17 @@
  *      MM_Sram_InitNewSave is refused again. RED with the bracket removed from
  *      the seam (the creation is refused) and with only its closing call
  *      removed (the scope stays open).
+ *   7. W6-DEV (#1238): Debug Mode's debug save (DeveloperTools.cpp
+ *      RegisterDebugSaveCreate, an OnSaveInit hook) stands down while a paired
+ *      identity is stamped. MM_Rando_AuthorHalfAtCreation dispatches OnSaveInit
+ *      while it authors the paired half, and a debug save there would reset the
+ *      generated world (the MM-plays-vanilla class). The leg invokes the one
+ *      registrant Debug Mode arms, with Debug Save File Mode unset (1, Vanilla):
+ *      with no pairing it authors the debug save (the control), with the
+ *      identity stamped it leaves the live half byte-identical. RED while the
+ *      TU is unlinked (Debug Mode arms no OnSaveInit registrant) and RED with
+ *      the stand-down removed from the hook body (the live half is reset to
+ *      the debug save at South Clock Town).
  */
 
 #include "global.h"
@@ -64,6 +75,13 @@
 
 #include <cstdio>
 #include <cstring>
+#include <set>
+
+#include <libultraship/bridge/consolevariablebridge.h>
+
+#include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/ShipInit.hpp"
+#include "mm_game_hooks.h"
 
 extern "C" {
 #include "overlays/gamestates/ovl_file_choose/z_file_select.h"
@@ -154,6 +172,16 @@ bool LooksLikeNewSave() {
 bool BootstrapAuthoredOverZero() {
     return LooksLikeNewSave() && gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1) &&
            gSaveContext.save.saveInfo.playerData.healthCapacity == 0x30;
+}
+
+// W6-DEV (#1238): the OnSaveInit registrant ids currently live, pending unregistrations settled first.
+std::set<uint32_t> LiveSaveInitIds() {
+    S2H::GameHooks::FlushPendingUnregistrations<GameInteractor::OnSaveInit>();
+    std::set<uint32_t> ids;
+    for (const auto& entry : S2H::GameHooks::Registry<GameInteractor::OnSaveInit>::functions) {
+        ids.insert(entry.first);
+    }
+    return ids;
 }
 
 void RunTitleSetup() {
@@ -282,6 +310,60 @@ extern "C" int MM_NewSaveSessionGuard_RunHeadless(void) {
                "leg 6: the creation scope stayed open after MM_Creation_AuthorBootstrap returned; a later "
                "MM_Sram_InitNewSave authored over the open paired file");
     printf("[TEST]   leg 6 PASS: the creation event's bootstrap authors inside its scope, and the scope closes\n");
+
+    // ---- 7. W6-DEV (#1238): Debug Mode's debug save stands down on a pairing
+    // Debug Save File Mode stays unset: it reads 1 (Vanilla debug), the shared default. The registrant Debug Mode
+    // arms is invoked directly, so no other OnSaveInit hook (MM's generation among them) runs here.
+    constexpr const char* kDebugModeCVar = "gDeveloperTools.DebugEnabled";
+    ClearSession();
+    CVarClear("gDeveloperTools.DebugSaveFileMode");
+    const std::set<uint32_t> idsBefore = LiveSaveInitIds();
+    CVarSetInteger(kDebugModeCVar, 1);
+    ShipInit::Init(kDebugModeCVar);
+    GameInteractor::OnSaveInit::fn debugSave;
+    size_t armed = 0;
+    for (const auto& entry : S2H::GameHooks::Registry<GameInteractor::OnSaveInit>::functions) {
+        if (idsBefore.count(entry.first) == 0) {
+            debugSave = entry.second;
+            armed++;
+        }
+    }
+    const bool armedOne = armed == 1 && debugSave;
+    bool controlAuthored = false;
+    bool pairedIntact = false;
+    if (armedOne) {
+        // 7a. The control: no identity stamped, MM's own new save. The debug save authors.
+        AuthorLiveHalf();
+        debugSave(0);
+        controlAuthored = gSaveContext.save.entrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0) &&
+                          gSaveContext.save.shipSaveInfo.saveType == SAVETYPE_VANILLA &&
+                          gSaveContext.save.saveInfo.playerData.rupees != 123;
+        // 7b. The paired creation event's state: the identity is stamped (MM_Rando_AuthorHalfAtCreation authors
+        // only then).
+        gComboCtx.sourceIsRando = 1;
+        gComboCtx.sharedRandoSeed = kSeed;
+        gComboCtx.sharedRandoSettingsHash = kSettingsHash;
+        AuthorLiveHalf();
+        sBefore = gSaveContext;
+        debugSave(0);
+        pairedIntact = LiveHalfIntact();
+    }
+    CVarClear(kDebugModeCVar);
+    ShipInit::Init(kDebugModeCVar);
+    S2H::GameHooks::FlushPendingUnregistrations<GameInteractor::OnSaveInit>();
+    ClearSession();
+    NSG_ASSERT(armedOne,
+               "leg 7: Debug Mode armed %zu OnSaveInit registrant(s), expected exactly the debug save's one "
+               "(DeveloperTools.cpp RegisterDebugSaveCreate is not in the link, so MM's Debug Save File Mode row does "
+               "nothing)",
+               armed);
+    NSG_ASSERT(controlAuthored,
+               "leg 7a: with no paired identity, Debug Mode's debug save did not author over MM's new save; the "
+               "control must see it run");
+    NSG_ASSERT(pairedIntact,
+               "leg 7b: Debug Mode's debug save rewrote the MM half while a paired identity was stamped (the paired "
+               "creation event's OnSaveInit), resetting the generated world to a vanilla debug save");
+    printf("[TEST]   leg 7 PASS: Debug Mode's debug save authors MM's own new save and stands down on a pairing\n");
 
     ClearSession();
     printf("[TEST] mm-new-save-session-guard: PASS\n");
