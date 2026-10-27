@@ -4,14 +4,14 @@
 come with the release commit, not before.
 **Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
 this section.
-**Merged up to:** `main` at `38a5138c` (2026-10-27), 22 commits after the tag: pull requests #1174 to #1209 (#1174,
-#1179, #1183, #1193 and #1208 are docs; the numbers in that range that are not listed below are issues or open pull
-requests).
+**Merged up to:** `main` at `3772e70d` (2026-10-27), 32 commits after the tag: pull requests #1174 to #1230 (#1174,
+#1179, #1183, #1193, #1208 and #1214 are docs; the numbers in that range that are not listed below are issues or open
+pull requests).
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
 #N". Nobody has played any of it. Every change below is locked by test rows except the warp-song prompt's hint
 (#1181; Mido's and the boss door's hints have generation coverage in a paired world since #1207, not a lock row), the
 Nearly No Logic cow rule (#1178), the capital P's width (#1198) and the debug-print font path (#1206), the last two
-locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #1208 are docs.
+locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 and #1214 are docs.
 
 ---
 
@@ -35,6 +35,14 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
   `comboSettings`) did not move. A file keeps the world it was created with.
 - **Files created before #1181 keep their "No Hint" stones**, because hints are saved with the file. Create a new
   file to get gag lines.
+- **A file in progress that has freed exactly one of the Double Cell and Steep Slope carpenters in the Thieves'
+  Hideout loses an item after updating** (#1205, issue #1191). The two carpenters' keys now award their own cells'
+  checks (Ocarina of Time randomizer, below); before, each awarded the other's. A save made before this fix that freed
+  exactly one of the two cells shows that cell collected without its item, and gets the other cell's item twice:
+  the remaining guard gives again the item you already received, and the freed cell's own item is lost for that file.
+  Free the second cell before updating, or start a new file. Saves that freed neither or both cells are unaffected.
+  A save does not record which build resolved the key, so no migration can repair it; breaking saves this way is
+  accepted in the pre-alpha period.
 - **Custom player models no longer crash the game at the first draw** (#1197, issue #1190). Since the January symbol
   namespacing, a skeleton mod whose limbs use Fast64's `gEmptyDL` marker for a limb with no mesh (the Heroine of
   Time Malon pack, for example) crashed where Link is first drawn: on the title screen with Alt Assets on, or when
@@ -61,6 +69,26 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
 - **Ocarina of Time's Gerudo Mask and the six medallions draw correctly in Termina**: each host now draws another
   game's model under that game's own setup list, where Majora's Mask used its own, different entry and smeared the
   texture (#1185, issue #1171).
+- **Majora's Mask's masks and stray fairies in Hyrule's chests draw Ship of Harkinian's mask and fairy chests** when
+  Containers Match Contents is on, where they drew the gold major chest (#1213, issue #1172). Ocarina of Time's own
+  masks keep the major chest, as OoTMM grades them.
+- **Ocarina of Time's Piece of Heart, Heart Container and Double Defense get the heart chest again** (#1213; SoH
+  `614ec084f`); the Treasure Chest Game's heart stays a lesser chest. A Majora's Mask chest holding one of them shows
+  Majora's Mask's heart chest.
+
+### Keys and reticles
+
+- **Termina's dungeon keys draw 2Ship2Harkinian's dungeon key models**: a small-key and a boss-key body shared by the
+  four temples, each with its temple's emblem in the temple's colours (#1213, issue #1172; 2S2H `5d96fd84f`,
+  `f56c7939e`). The boss key no longer draws its translucent gem, as in 2Ship2Harkinian. The models are in
+  `2ship.o2r`: the GitHub Actions builds generate it and carry them; a locally staged tree needs the
+  `Generate2ShipOtr` target run again, and until then the keys keep their tinted vanilla model. A Majora's Mask key
+  drawn in Hyrule keeps its current look.
+- **The Hookshot reticle turns green on a hookshot surface in Termina too** when Enhancements > Items > Hookshot >
+  Targetable Hookshot Reticle is on, in the Cosmetics Editor's Hookshotable Reticle and Non-Hookshotable Reticle
+  colours, as in Hyrule: the one option drives both games (#1212, issue #1173). It never turns green on an enemy.
+- In Hyrule the **Bow, Slingshot and Boomerang reticles no longer turn green on hookshot targets** with that option
+  on; only the Hookshot and Longshot reticles do (#1212; SoH `6340ad3d5`).
 
 ### Majora's Mask options
 
@@ -72,6 +100,14 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
   Behavior it is part of the world's identity, so turning it on changes the placements a seed makes; left off, no
   seed moves. Issue #1175's keg "with its slot but no keg" was this reset: a keg found in Hyrule arrives as one keg,
   and the three-day reset emptied it.
+- **Shuffle Time no longer hands out hours the file does not own** (#1230, issue #1229). When no owned half-day is
+  left, the moon falls at the end of the last owned one, as in OoTMM: a file without Time (Night 3) no longer jumps
+  from 6:00 PM on Day 3 to 12:00 AM and gets six "Final Hours" with the Clock Tower open. The **Final Hours Start
+  Time** row is retired: it is drawn disabled with "Option is Retired" and has no effect. Under Moon Crash Behavior
+  "Last Save", a save taken shortly before the last owned half-day ends no longer crashes the moon again right after
+  the restore. The Song of Double Time's prompt names "the Moon's Fall" when nothing owned is ahead, and the
+  Scarecrow's dance then leaves the clock where it was: the scene fades and reloads with no message, which is
+  intended. Logic never counted those hours, so placements do not move.
 
 ### Hints
 
@@ -102,6 +138,34 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
   Nearly No Logic never leaves Epona's Song on a cow (an unpaired Majora's Mask file only) (#1178; 2S2H `9b699dee1`,
   `cc5d87143`, `b754231c3`).
 
+### Ocarina of Time randomizer
+
+- **The Double Cell and Steep Slope carpenters' keys award their own cells' checks**; each awarded the other's
+  (#1205, issue #1191; SoH `2bc50f605`). A file in progress that freed only one of the two: Read this first.
+- **Under Shuffle Master Sword, a respawn out of the Ganon's Tower collapse or Ganon's arena no longer gives the
+  Master Sword the seed placed elsewhere** (#1223, issue #1218): dying and picking Continue, letting the escape timer
+  run out, or voiding out. A sword you already found is still put back on B, and with Shuffle Master Sword off, or on
+  a vanilla file, the respawn gives the sword as before. Inherited from Ship of Harkinian.
+
+### Majora's Mask randomizer
+
+- **The seed's Razor Sword stays the Razor Sword** (#1224, issue #1215): the Song of Time and breaking after about
+  100 hits no longer turn it back into the Kokiri Sword. Four 2Ship2Harkinian gates that the randomizer forces on
+  were left out of the single executable's link; their randomizer halves are in now.
+- **The Oceanside Spider House reward can be collected on any day, and passing Mikau's grave first no longer moves
+  its owner away from the entrance** (#1224, issue #1221).
+- **Leaving the Deku King's chamber after the monkey check no longer teaches the vanilla Sonata of Awakening**
+  (#1225, issue #1203), so Woodfall Temple rises only once you have the Sonata the seed placed. The monkey still
+  resets your instrument as you leave. The shared-item redeem lines (`[SharedItem] redeemed`, `[MM] shared-item
+  redeem`, `[MM] foreign give (deferred to gameplay)`) now reach the log file.
+- **Minigame rewards no longer give a second item for one check** (#1227, issues #1216, #1219, #1220). With the
+  quiver maxed, a new Town gallery record or a Swamp "Perfect!" no longer adds a Purple or Red Rupee to the
+  high-score check, nor does the first beaver race from the second cycle on. The Doggy Racetrack no longer adds an
+  unplaced Red Rupee to its first win, and a later win in the same cycle gives the vanilla Red Rupee instead of the
+  check again, as in OoTMM. A second Deku Playground win gives the vanilla Purple Rupee. A lab fish fed again after
+  re-entering the Marine Research Lab gives nothing (its vanilla reward would be a heart piece), and targeting Flat's
+  tomb again after re-entering the room no longer gives the Song of Storms check a second time.
+
 ### Trackers
 
 - **The Combo Tracker names a shop item once you have seen it, and adds its price once you have checked it**, as
@@ -131,6 +195,11 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
 
 ### Fixes
 
+- A file in `presets/` that is not a preset (a stray `index.html` from a recursive download, `Thumbs.db`,
+  `.DS_Store`, a `.json.tmp` from an interrupted save) no longer closes the game about 110 ms after launch: it is
+  skipped with one log line, and a `.json` that fails to parse is logged and skipped (#1211, issue #1210; SoH
+  `5875ed880`, `7cdf69b20`). A preset renamed with an upper-case extension (`Foo.JSON`) is skipped too: rename it to
+  `.json`.
 - Toggling Alt Assets while in Termina no longer writes past Majora's Mask actors' animation state (#1177, issue
   #1176); this may have been the cause of issue #1063's delayed crash with an Ocarina of Time texture overhaul pack.
 - Custom skeleton mods made with Fast64 draw again (#1197, issue #1190; Read this first).
@@ -165,8 +234,8 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
 
 - **Hints:** a file created before #1181 keeps its "No Hint" stones (above). The follow-ups of issue #1187 are in
   (#1207, above); the map and compass boxes were checked through their text builder and item table, not on screen.
-- **Logic (#1178):** in the game the Double Cell and Steep Slope carpenters still award each other's checks
-  (inherited data, issue #1191); logic now names the right cell. The game stays more permissive than logic in two
+- **Logic (#1178):** logic names the right cell for the Double Cell and Steep Slope carpenters, and since #1205 the
+  game does too (Read this first for a file in progress). The game stays more permissive than logic in two
   places (the carpenter cutscene skip without the nut, Talon's game without the bracelet), so no seed becomes
   unbeatable. Link's House Cow shows available once everything needed to win Malon's race is held, as SoH's own
   tracker shows it: its logic assumes the race can be won (issue #1170, by design).
@@ -194,14 +263,30 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
   and debug messages. Issue #1063's crash with a texture pack that
   "worked for a while" is still open: the skeleton crash was a different defect. Same-named archives in different mod
   folders never both mount (issue #1196, inherited from Ship of Harkinian).
-- **Majora's Mask randomizer:** leaving the Deku King's chamber after the monkey check still teaches the vanilla
-  Sonata of Awakening, wherever the seed placed the real one (issue #1203).
+- **Majora's Mask randomizer:** the monkey's vanilla Sonata (issue #1203) is fixed (#1225, above). The Hags potion
+  shop may wait forever on its free blue potion when its slot hosts an Ocarina of Time item already delivered (issue
+  #1228, a candidate split from issue #1221, not traced). Under Shuffle Time the time-left text still counts every
+  owned half-day from the start of the cycle (cosmetic, no issue).
+- **Cross-game:** a check in Termina that holds a Hyrule item is marked delivered, and a shop slot sold, even when
+  the crossing record is refused because all 64 shared slots hold unredeemed items, so that Hyrule item is lost
+  (issue #1222). It needs 64 unredeemed crossings in one direction before the next arrival.
+- **Ocarina of Time randomizer:** under Shuffle Jabber Nuts the Deku Theater leader gives a vanilla Deku Stick or
+  Deku Nut capacity upgrade on top of the theater check (issue #1217; its fix, PR #1226, is not merged).
+- **Majora's Mask settings:** the 2026-10-27 audit of 2Ship2Harkinian's menu rows (issue #1233) found 267 rows a
+  player cannot reach or that do nothing in the single executable, in sections #1235 to #1240. Three camera Y-axis
+  settings (first person, right-stick aiming, the free camera) default to inverted in Termina with no row to change
+  them. Fix lanes are being planned.
+- **Keys and reticles (#1212, #1213):** a customised Non-Hookshotable Reticle colour applies to Hyrule's Bow reticle
+  but not to Termina's, which stays red (a follow-up). Nobody has seen the Termina reticle, the mask and fairy chests
+  or the key models on screen.
 - **Woodfall Temple (issue #1070, open until retested):** with Dungeon Access at its default (Transformation &
   Song), Majora's Mask's own trigger raises the temple only when Deku Link plays the Sonata standing on the Deku
   Scrub symbol on the floor between the pink flower and the owl statue; played on the flower, or where the Song of
   Soaring sets you down, the song gives its full announcement and nothing happens. A short chime as Deku Link takes
   out the pipes confirms the spot. A Sonata that crossed from Hyrule works the same as one learned in Termina
-  (playtest guide, section U).
+  (playtest guide, section U). The 2026-10-21 report, where no song with C-up was recognized, came from the D-pad
+  ocarina on `v0.2.0-prealpha`, which played no note in Termina until `v0.3.0-prealpha` (issue #1062, #1099); a
+  retest on the latest build is what closes the issue (playtest guide, V9).
 
 ### Run record
 
@@ -212,8 +297,11 @@ itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integ
 #1199 and #1201), was the first to run the unit tiers on `main` as well: `redship` 244 of 244, `rando` 77 of 77,
 `integration` 21 of 21, `integration-soak` 1 of 1. The gate on `main` runs the unit tiers since issue #1200: `ComboCrossingViewsWorld` was
 red in `main`'s hosted CI from `d94ab061` (#1184's chu-pack names on #1178's placements) until #1201, and a gate of
-the ROM tiers alone did not see it. #1194, #1198, #1206, #1207 and #1209 came after cycle 29. The record is under "Gates, 2026-10-26/27"
-in [`known-issues.md`](known-issues.md). Nobody has played any of it.
+the ROM tiers alone did not see it. Cycle 30, at `38a5138c` (with #1194, #1198, #1206, #1207 and #1209), and cycle
+31, at `722da4f8` (with #1211, #1212, #1213 and #1223), passed every tier: `redship` 248 of 248 and 252 of 252, `rando`
+78 of 78 and 79 of 79, `integration` 21 of 21 and `integration-soak` 1 of 1 both times. Cycle 32, at `3772e70d`
+(with #1205, #1224, #1225, #1227 and #1230), was running when this was written. The record is under "Gates,
+2026-10-26/27" in [`known-issues.md`](known-issues.md). Nobody has played any of it.
 
 ---
 

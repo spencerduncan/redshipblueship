@@ -311,6 +311,13 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// Shuffle Time's Final Hours (games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp,
+// #1229): with Shuffle Time on an unowned half-day is never playable, and when
+// none is left the moon falls at the end of the last owned one (OoTMM's rule);
+// 2Ship's terminal window handed out Night 3's 00:00-06:00. Drives the real
+// EnTest4 pre-update hook and the VB hooks over a stand-in play state, and
+// restores everything it touches. Returns 0 on pass, non-zero on fail.
+int MM_ClockShuffleFinalHours_RunHeadless(void);
 // The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
 // #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
 // file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
@@ -319,6 +326,17 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
+// a rupee that stands in for an open check is not given on top of it (#1216).
+// Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
+// play state. Needs the display-free shared bring-up first. Return 0 on pass.
+int MM_GalleryRupeeStandIn_RunHeadless(void);
+// Same TU: the Doggy Racetrack reward follows the vanilla selector and is
+// given once per cycle (#1219).
+int MM_DoggyRaceReward_RunHeadless(void);
+// Same TU: the Deku Playground, the lab fish and Flat's tomb arm their check
+// once per cycle (#1220).
+int MM_MinigameRepeatGuards_RunHeadless(void);
 // The monkey's destroy-time Sonata (games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp,
 // #1203): unloading the tied-up monkey after its choice teaches the Sonata in a
 // vanilla save only; a rando save gets the seed's item through the check and
@@ -331,6 +349,11 @@ int MM_MonkeyDestroySonata_RunHeadless(void);
 // need the display-free shared bring-up first. Return 0 on pass.
 int MM_CrossingSongPlayable_RunHeadless(void);
 int MM_WoodfallSonataTrigger_RunHeadless(void);
+// #1062/#1099 guard (games/mm/2s2h/mm_ocarina_dpad_test.cpp): with
+// gSettings.CustomOcarina.Dpad on, each D-pad direction plays its C-button
+// twin's note through MM's real AudioOcarina_Update and four songs play on the
+// D-pad in free play. Needs the display-free shared bring-up. Returns 0 on pass.
+int MM_OcarinaDpad_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -466,6 +489,9 @@ int OoT_SceneFlagFreeze_RunHeadless(void);
 // half that was loaded, not the .sav's tracker section. Drives OoT's OnLoadFile
 // seam over a real .redsave; games/oot/soh/oot_check_state_load_test.cpp.
 int OoT_CheckStateLoad_RunHeadless(void);
+// #1217: under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item
+// and no vanilla capacity upgrade; games/oot/soh/oot_deku_theater_prize_test.cpp.
+int OoT_DekuTheaterPrize_RunHeadless(void);
 // #1163 / #1159: loading a paired file reconciles OoT's live save with the
 // shared pool before anything is earned or spent. Drives OoT's OnLoadFile seam
 // over a real .redsave; games/oot/soh/oot_load_reconcile_test.cpp.
@@ -6093,6 +6119,23 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1229. Same display-free shared bring-up as mm-clock-shuffle-songs. It
+// restores the SaveContext image and MM_gPlayState and leaves the ClockShuffle
+// hooks disarmed, so it has no ordering constraints.
+static TestResult Test_MMClockShuffleFinalHours(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ClockShuffleFinalHours_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
 // registrars it arms read CVars through the Ship::Context singleton. It restores
 // the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
@@ -6109,6 +6152,55 @@ static TestResult Test_MMSongTeacherHooks(void) {
     }
 
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
+// the SaveContext image and MM_gPlayState and re-runs OnFileLoad on the way
+// out, so it has no ordering constraints.
+static TestResult Test_MMGalleryRupeeStandIn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_GalleryRupeeStandIn_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1219. Same bring-up and cleanup as mm-gallery-rupee-stand-in.
+static TestResult Test_MMDoggyRaceReward(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_DoggyRaceReward_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1220. Same bring-up and cleanup as mm-gallery-rupee-stand-in, plus the
+// ShipInit "IS_RANDO" drive and the Story CVar, restored like
+// mm-song-teacher-hooks does.
+static TestResult Test_MMMinigameRepeatGuards(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MinigameRepeatGuards_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #1203. Same bring-up as mm-song-teacher-hooks (the behaviour registrars read
@@ -6137,6 +6229,17 @@ static TestResult Test_MMCrossingSongPlayable(void) {
         return TEST_FAIL;
     }
     return MM_CrossingSongPlayable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1062/#1099 guard. Same bring-up (CVars); restores every CVar it touches and
+// the ocarina state, so it has no ordering constraints.
+static TestResult Test_MMOcarinaDpadNotes(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_OcarinaDpad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMWoodfallSonataTrigger(void) {
@@ -6308,6 +6411,21 @@ TestResult Test_OoTCheckStateLoad(void) {
     }
 
     return OoT_CheckStateLoad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// The Deku Theater leader's prize under the randomizer (#1217). The same
+// display-free bring-up as the row above: the row authors a real Rando::Context.
+TestResult Test_OoTDekuTheaterPrize(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_DekuTheaterPrize_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The load reconciles OoT with the shared pool (#1163, #1159). The same
@@ -7685,6 +7803,9 @@ const TestDescriptor gTests[] = {
     // and free play accepts it. Restores what it touches.
     { "mm-crossing-song-playable", "An MM song crossed from Hyrule is owned and playable in Termina (#1203 guard)",
       Test_MMCrossingSongPlayable },
+    // #1062/#1099 guard: the D-pad plays MM's ocarina notes and songs.
+    { "mm-ocarina-dpad-notes", "The D-pad plays Termina's ocarina notes and songs with the D-pad key on (#1062 guard)",
+      Test_MMOcarinaDpadNotes },
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
@@ -8131,11 +8252,25 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // Shuffle Time's Final Hours (#1229): no unowned half-day is handed out,
+    // and the moon falls at the end of the last owned one. Restores everything
+    // it touches, so it has no ordering constraints.
+    { "mm-clock-shuffle-final-hours",
+      "Shuffle Time hands out no unowned Final Hours; the moon falls at the last owned half-day (#1229)",
+      Test_MMClockShuffleFinalHours },
     // The same elided-registrar class again (#1071): the nine song-teacher
     // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // The MM rando minigame reward hooks (#1216). Restores everything it touches.
+    { "mm-gallery-rupee-stand-in",
+      "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
+      Test_MMGalleryRupeeStandIn },
+    { "mm-doggy-race-reward", "The Doggy Racetrack reward follows the vanilla selector, once per cycle (#1219)",
+      Test_MMDoggyRaceReward },
+    { "mm-minigame-repeat-guards", "The Deku Playground, lab fish and Song of Storms checks arm once per cycle (#1220)",
+      Test_MMMinigameRepeatGuards },
     // #1203: the monkey's destroy-time Sonata is a vanilla-only give. Restores
     // what it touches, so it has no ordering constraints.
     { "mm-monkey-destroy-sonata", "Unloading the tied-up monkey teaches no Sonata in a rando save (#1203)",
@@ -8716,6 +8851,10 @@ const TestDescriptor gTests[] = {
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
       "halves agree on keeps its status (#849, #803)",
       Test_OoTCheckStateLoad },
+    { "oot-deku-theater-prize",
+      "Under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item for the Skull Mask and Mask of Truth "
+      "checks and no vanilla Deku Stick or Nut capacity upgrade; a vanilla file still gets the upgrade (#1217)",
+      Test_OoTDekuTheaterPrize },
     { "combo-player-name",
       "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
       "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "

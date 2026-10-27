@@ -69,7 +69,9 @@ games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
+games/mm/2s2h/mm_minigame_offer_hooks_test.cpp
 games/mm/2s2h/mm_crossing_song_playable_test.cpp
+games/mm/2s2h/mm_ocarina_dpad_test.cpp
 games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp
 games/mm/2s2h/mm_woodfall_sonata_trigger_test.cpp
 games/mm/2s2h/mm_song_teacher_hooks_test.cpp
@@ -129,6 +131,7 @@ games/oot/soh/soh_shipinit_driver_test.cpp
 games/oot/soh/z_scene_otr.cpp
 games/oot/soh/oot_scene_flag_freeze_test.cpp
 games/oot/soh/oot_check_state_load_test.cpp
+games/oot/soh/oot_deku_theater_prize_test.cpp
 games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
@@ -144,6 +147,7 @@ games/oot/src/code/z_scene.c
 games/oot/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/soh_combo_settings_rows_test.cpp
 games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
+games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp

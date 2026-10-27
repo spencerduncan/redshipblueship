@@ -668,6 +668,12 @@ if(BUILD_TESTING)
     # and free play's playable mask (MM_Message_BuildOcarinaAvailableSongs)
     # includes them; with the bits clear it does not.
     redship_add_test(NAME MMCrossingSongPlayable COMMAND redship --test mm-crossing-song-playable)
+    # #1062/#1099 guard (#1070's D-pad report): with gSettings.CustomOcarina.Dpad
+    # on, each D-pad direction plays its C-button twin's note through MM's real
+    # AudioOcarina_Update (one fenced input seam), Sonata, Elegy, Song of Time and
+    # Soaring play on the D-pad in free play, the key is the gate, and the L rule
+    # restarts the staff on L+D-pad only.
+    redship_add_test(NAME MMOcarinaDpadNotes COMMAND redship --test mm-ocarina-dpad-notes)
     # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
     # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
     # origin pools under one bag, so there is no pool to register or draw.
@@ -1398,6 +1404,14 @@ if(BUILD_TESTING)
     # reference would un-elide them by itself). Pure (no display, no ROM);
     # needs the shared bring-up only for CVarSetInteger.
     redship_add_test(NAME MMClockShuffleSongs COMMAND redship --test mm-clock-shuffle-songs)
+    # Shuffle Time's Final Hours (#1229, games/mm/2s2h/
+    # mm_clock_shuffle_final_hours_test.cpp): with Shuffle Time on, a half-day
+    # the file does not own is never playable, and when none is left the moon
+    # falls at the end of the last owned one (OoTMM's rule). Drives the real
+    # ClockShuffle EnTest4 pre-update hook, the Scarecrow and time-left VB hooks
+    # and the ownership query; pins the retired Final Hours Start Time row.
+    # Pure (no display, no ROM); restores everything it touches.
+    redship_add_test(NAME MMClockShuffleFinalHours COMMAND redship --test mm-clock-shuffle-final-hours)
     # The same class a third time (#1071): the nine song-teacher hooks under
     # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
     # forced on under IS_RANDO because they ARE the rando hand-off for those
@@ -1413,6 +1427,25 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
+    # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
+    # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's
+    # quiver flag (its high-score check's own flag) is clear, the rupee a maxed
+    # quiver falls through to stands in for that check and is not given on top
+    # of it; repeats keep their rupee; the beavers' race-1 Red Rupee likewise.
+    # Pure (no display, no ROM).
+    redship_add_test(NAME MMGalleryRupeeStandIn COMMAND redship --test mm-gallery-rupee-stand-in)
+    # MMDoggyRaceReward (#1219): the Doggy Racetrack's first win of a cycle is
+    # hijacked with no rupee of the hook's own (the HasParent flag set arms the
+    # check), a repeat win with the check spent keeps the vanilla Red Rupee and
+    # does not re-arm it, and an unshuffled check keeps its heart piece.
+    redship_add_test(NAME MMDoggyRaceReward COMMAND redship --test mm-doggy-race-reward)
+    # MMMinigameRepeatGuards (#1220): the Deku Playground's any-day check, the
+    # Marine Research Lab fish and Flat's tomb (Song of Storms, a ShipInit
+    # IS_RANDO registrar) arm their check only while it is still open this
+    # cycle; a repeat keeps the vanilla Purple Rupee, nothing, and a skipped
+    # cutscene respectively.
+    redship_add_test(NAME MMMinigameRepeatGuards COMMAND redship --test mm-minigame-repeat-guards)
     # #1203: EnMnk_Destroy taught the vanilla Sonata whenever a tied-up monkey
     # whose choice was answered unloaded, which the rando lesson skip's warp-out
     # does, so every rando file learned a song the seed placed elsewhere. The
@@ -3061,6 +3094,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # answer). Drives the real OnLoadFile seam over a real .redsave and an
     # authored Rando::Context; ROM-free. games/oot/soh/oot_check_state_load_test.cpp.
     redship_add_test(NAME OoTCheckStateLoad COMMAND redship --test oot-check-state-load)
+    # #1217: under Shuffle Jabber Nuts the Deku Theater falls back to the vanilla
+    # judge, and the leader (ovl_En_Dnt_Jiji) offered a vanilla Deku Stick or Nut
+    # capacity upgrade on top of the theater check. Drives the leader's real talk
+    # and give frames through the randomizer's real handlers; a vanilla file is
+    # the control. ROM-free. games/oot/soh/oot_deku_theater_prize_test.cpp.
+    redship_add_test(NAME OoTDekuTheaterPrize COMMAND redship --test oot-deku-theater-prize)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),
