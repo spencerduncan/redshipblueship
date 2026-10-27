@@ -13,6 +13,9 @@ extern "C" {
 
 void RegisterPowderKegCertification() {
     COND_VB_SHOULD(VB_EXEC_MSG_EVENT, CVAR, {
+        // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         u32 cmdId = va_arg(args, u32);
         Actor* actor = va_arg(args, Actor*);
         Player* player = GET_PLAYER(MM_gPlayState);

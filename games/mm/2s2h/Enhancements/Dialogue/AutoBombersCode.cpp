@@ -12,6 +12,9 @@ extern "C" {
 
 void RegisterAutoBombersCode() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BOMBERS2, CVAR, [](Actor* actor) {
+        // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->msgCtx.currentTextId == 0x0729 && CHECK_QUEST_ITEM(QUEST_BOMBERS_NOTEBOOK)) {
             for (int i = 0; i < 5; i++) {
                 u8 digit = gSaveContext.save.saveInfo.bomberCode[i];

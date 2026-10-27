@@ -13,6 +13,9 @@ extern "C" {
 
 void RegisterSwampBoatSpeed() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_BG_INGATE, CVAR, [](Actor* actor) {
+        // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         BgIngate* boat = (BgIngate*)actor;
         if (MM_DynaPolyActor_IsPlayerOnTop(&boat->dyna)) {
             if (!CHECK_EVENTINF(EVENTINF_35)) {

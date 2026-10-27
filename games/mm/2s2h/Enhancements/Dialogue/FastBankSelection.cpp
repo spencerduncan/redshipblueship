@@ -22,6 +22,9 @@ void FastBankSelection_UpdateMessage(const char rupeeValue[3]) {
 }
 
 void OnEnGinkoManUpdate(Actor* actor) {
+    // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+    // leaves the vanilla behavior untouched.
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
     EnGinkoMan* enGinko = (EnGinkoMan*)actor;
     if (MM_gPlayState->msgCtx.currentTextId == 0x450) {
         if (CHECK_BTN_ALL(MM_gPlayState->state.input[0].cur.button, BTN_Z) &&

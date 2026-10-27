@@ -31,6 +31,9 @@ void RegisterDampeDiggingSkip() {
 
     // Sets the summoned Big Poe to appear after one fire is revealed
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_BIGPO, CVAR, [](Actor* actor) {
+        // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnBigpo* bigPo = (EnBigpo*)actor;
         // Look for the real big poe when it is counting the fires
         if (bigPo->actor.params != BIG_POE_TYPE_SUMMONED || bigPo->actionFunc != EnBigpo_FireCounting) {

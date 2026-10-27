@@ -43,6 +43,9 @@ static void SetupFasterSceneTransition() {
 
 void RegisterFasterSceneTransitions() {
     COND_VB_SHOULD(VB_SETUP_TRANSITION, CVAR, {
+        // W6-TIMESAVERS (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         switch (MM_gPlayState->sceneId) {
             case SCENE_SPOT00:    // Prevent glitch going into the save file select
             case SCENE_KAKUSIANA: // Falling into grottos causes fall damage with fast transitions
