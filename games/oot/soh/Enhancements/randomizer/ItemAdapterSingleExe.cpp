@@ -40,7 +40,8 @@
  * "Ocarina Buttons", "Overworld Keys", each on a line of its own (OoTItemGrid).
  * OoT's options are not in the save buffer: they are the loaded seed's
  * (Rando::Context, frozen into the file at creation and loaded with it), read
- * through OoTItemOption. Ownership is the buffer's own: the dungeon fields and
+ * through OoTItemSeed, as are the small-key maxes of a randomizer file (its
+ * Master Quest dungeons, its Gerudo Fortress option). Ownership is the buffer's own: the dungeon fields and
  * the randomizer-inf flags SoH's DrawItem / DrawDungeonItem test.
  *
  * Lives in soh/Enhancements/randomizer/ (soh_rando, WHOLE_ARCHIVE) and is
@@ -66,6 +67,7 @@ extern PlayState* OoT_gPlayState;
 
 #include "soh/GameVersions.h"
 #include "soh/Enhancements/randomizer/SeedContext.h" // Rando::Context: the loaded seed's frozen options (#1142)
+#include "soh/Enhancements/randomizer/dungeon.h"     // Rando::DungeonInfo::IsMQ: the seed's Master Quest dungeons
 #include "soh/SaveManager.h"                         // SaveManager::Instance, for the new-file lock's seam (#873)
 // Declared only in SaveManager.h's C branch (#ifndef __cplusplus).
 extern "C" void Save_InitFile(int isDebug);
@@ -116,12 +118,39 @@ bool sOoTItemTestOptionsOn = false;
 unsigned sOoTItemTestOptions = 0u;
 
 /**
- * The file's frozen randomizer option `key` (#1142): OoT keeps its options in
- * the seed's context, frozen into the file at its creation and loaded with it,
- * never in the SaveContext the view hands over. 0 (off) with no context. The
+ * The file's frozen seed (#1142): OoT keeps its options and its per-dungeon
+ * Master Quest choice in the seed's context, frozen into the file at its
+ * creation and loaded with it, never in the SaveContext the view hands over.
+ * One adapter call reads the context once through this (the view walks every
+ * row for each row it hands out, so a read per group would multiply). The
  * ROM-free lock stands in for it (OoT_ItemAdapter_TestOverrideOptions).
  */
-uint8_t OoTItemOption(RandomizerSettingKey key) {
+struct OoTItemSeed {
+    std::shared_ptr<Rando::Context> ctx; // null under the test override, or with no seed loaded
+
+    /** Option `key`; 0 (off) with no context. */
+    uint8_t Option(RandomizerSettingKey key) const;
+    /** Did the seed make dungeon `scene` Master Quest (ResourceMgr_IsSceneMasterQuest's randomizer leg)? */
+    bool DungeonMQ(uint8_t scene) const;
+};
+
+OoTItemSeed OoTItemSeedRead(void) {
+    return OoTItemSeed{ sOoTItemTestOptionsOn ? nullptr : Rando::Context::GetInstance() };
+}
+
+bool OoTItemSeed::DungeonMQ(uint8_t scene) const {
+    if (sOoTItemTestOptionsOn) {
+        return scene < 16 && (sOoTItemTestOptions & (1u << (16 + scene))) != 0;
+    }
+    if (ctx == nullptr) {
+        return false;
+    }
+    const std::shared_ptr<Rando::Dungeons> dungeons = ctx->GetDungeons();
+    const Rando::DungeonInfo* dungeon = dungeons != nullptr ? dungeons->GetDungeonFromScene(scene) : nullptr;
+    return dungeon != nullptr && dungeon->IsMQ();
+}
+
+uint8_t OoTItemSeed::Option(RandomizerSettingKey key) const {
     if (sOoTItemTestOptionsOn) {
         const unsigned b = sOoTItemTestOptions;
         switch (key) {
@@ -140,11 +169,12 @@ uint8_t OoTItemOption(RandomizerSettingKey key) {
                 return (b & (1u << 5)) != 0 ? 1 : 0;
             case RSK_SHUFFLE_FISHING_POLE:
                 return (b & (1u << 6)) != 0 ? 1 : 0;
+            case RSK_GERUDO_FORTRESS:
+                return (uint8_t)((b >> 7) & 3u);
             default:
                 return 0;
         }
     }
-    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
     return ctx != nullptr ? (uint8_t)ctx->GetOption(key).Get() : 0u;
 }
 
@@ -644,8 +674,7 @@ constexpr int kDungeonKeysOnlyCount = (int)(sizeof(kDungeonKeysOnly) / sizeof(kD
 static_assert(kDungeonWithMapsCount == 36 && kDungeonKeysOnlyCount == 15, "SoH's two compact dungeon tables");
 constexpr int kFixedRowCount = kRowCount + kDungeonWithMapsCount + kDungeonKeysOnlyCount;
 
-/** A dungeon's small keys as plain numbers (macros.h *_SMALL_KEY_MAX): per-dungeon Master Quest lives in the
- *  seed's context, so only an all-Master-Quest file reads the Master Quest counts. */
+/** A dungeon's small keys as plain numbers (macros.h *_SMALL_KEY_MAX), vanilla or Master Quest. */
 int DungeonKeyMax(uint8_t scene, bool mq) {
     switch (scene) {
         case SCENE_FOREST_TEMPLE:
@@ -671,6 +700,30 @@ int DungeonKeyMax(uint8_t scene, bool mq) {
     }
 }
 
+/**
+ * GetItemCurrentAndMax's small-key max over `src`: a randomizer file follows its
+ * seed (each *_SMALL_KEY_MAX asks ResourceMgr_IsSceneMasterQuest, whose
+ * randomizer leg is the seed's per-dungeon choice; Thieves' Hideout follows
+ * RSK_GERUDO_FORTRESS: Normal 4, Fast 1, Free 0), any other file its quest.
+ */
+int OoTItemKeyMax(const SaveContext* src, uint8_t scene) {
+    if (!IS_RANDO) {
+        return DungeonKeyMax(scene, gSaveContext.ship.quest.id == QUEST_MASTER);
+    }
+    const OoTItemSeed seed = OoTItemSeedRead();
+    if (scene == SCENE_THIEVES_HIDEOUT) {
+        switch (seed.Option(RSK_GERUDO_FORTRESS)) {
+            case RO_GF_CARPENTERS_NORMAL:
+                return DungeonKeyMax(scene, false);
+            case RO_GF_CARPENTERS_FAST:
+                return 1;
+            default: // RO_GF_CARPENTERS_FREE (SoH answers 0 for any other value too)
+                return 0;
+        }
+    }
+    return DungeonKeyMax(scene, seed.DungeonMQ(scene));
+}
+
 /** DrawDungeonItem over `src`: a small key is lit while its count is not -1 (SoH: dungeonKeys >= 0), drawn as
  *  collected (ship.stats.dungeonKeys) of the dungeon's keys with the keys in hand (GetItemCurrentAndMax);
  *  the boss key, map and compass are bit (item - ITEM_KEY_BOSS) of dungeonItems. */
@@ -690,7 +743,7 @@ void DeriveDungeonCell(const SaveContext* src, const DungeonCell& cell, const ch
             out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_KEYS;
             out->held = held < 0 ? 0 : (int)held;
             out->count = (int)gSaveContext.ship.stats.dungeonKeys[cell.scene];
-            out->max = DungeonKeyMax(cell.scene, gSaveContext.ship.quest.id == QUEST_MASTER);
+            out->max = OoTItemKeyMax(src, cell.scene);
             return;
         }
         case DC_BOSS_KEY:
@@ -834,14 +887,14 @@ const GatedGroup kGatedGroups[] = {
 #undef GATED
 
 /** Does the buffer's file show gated group `g`? A randomizer file whose frozen option is on. */
-bool OoTItemGroupShown(const SaveContext* src, const GatedGroup& g) {
-    return IS_RANDO && (g.option == RSK_NONE || OoTItemOption(g.option) != 0);
+bool OoTItemGroupShown(const SaveContext* src, const OoTItemSeed& seed, const GatedGroup& g) {
+    return IS_RANDO && (g.option == RSK_NONE || seed.Option(g.option) != 0);
 }
 
 /** DrawItem's held test for a flag row: its randomizer-inf flag, except Ganon's soul, which SoH draws held
  *  unless the file shuffles it (RO_BOSS_SOULS_ON_PLUS_GANON). */
-bool OoTItemFlagHeld(const SaveContext* src, const FlagRow& row) {
-    if (row.flag == RAND_INF_GANON_SOUL && OoTItemOption(RSK_SHUFFLE_BOSS_SOULS) != RO_BOSS_SOULS_ON_PLUS_GANON) {
+bool OoTItemFlagHeld(const SaveContext* src, const OoTItemSeed& seed, const FlagRow& row) {
+    if (row.flag == RAND_INF_GANON_SOUL && seed.Option(RSK_SHUFFLE_BOSS_SOULS) != RO_BOSS_SOULS_ON_PLUS_GANON) {
         return true;
     }
     return RandInfOf(src, row.flag);
@@ -849,17 +902,25 @@ bool OoTItemFlagHeld(const SaveContext* src, const FlagRow& row) {
 
 /** The gated rows this buffer shows. */
 int OoTItemGatedRows(const SaveContext* src) {
+    if (!IS_RANDO) {
+        return 0; // a vanilla file shows none: no seed to read
+    }
+    const OoTItemSeed seed = OoTItemSeedRead();
     int n = 0;
     for (const GatedGroup& g : kGatedGroups) {
-        n += OoTItemGroupShown(src, g) ? g.count : 0;
+        n += OoTItemGroupShown(src, seed, g) ? g.count : 0;
     }
     return n;
 }
 
 /** Gated row `index` (0-based over the groups shown), or false past the last. */
 bool OoTItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
+    if (!IS_RANDO) {
+        return false;
+    }
+    const OoTItemSeed seed = OoTItemSeedRead();
     for (const GatedGroup& g : kGatedGroups) {
-        if (!OoTItemGroupShown(src, g)) {
+        if (!OoTItemGroupShown(src, seed, g)) {
             continue;
         }
         if (index < g.count) {
@@ -869,7 +930,7 @@ bool OoTItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
             out->label = row.label;
             out->iconKey = row.key;
             out->iconKeyFaded = row.faded;
-            out->have = OoTItemFlagHeld(src, row);
+            out->have = OoTItemFlagHeld(src, seed, row);
             out->sharedFamily = row.family;
             return true;
         }
@@ -1306,7 +1367,8 @@ extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, in
  * on plus Ganon (with bit 1), 3 RSK_SHUFFLE_SPEAK, 4 RSK_SHUFFLE_OCARINA_BUTTONS,
  * 5 RSK_LOCK_OVERWORLD_DOORS, 6 RSK_SHUFFLE_FISHING_POLE, 7-8 RSK_GERUDO_FORTRESS
  * (RO_GF_CARPENTERS_*), and from bit 16 the seed's Master Quest dungeons, bit
- * (16 + scene) per dungeon scene (the small-key maxes, #1263).
+ * (16 + scene) per dungeon scene (the small-key maxes, #1263). Every read of the
+ * seed goes through it while `enabled`, so the context is never consulted then.
  */
 extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits) {
     sOoTItemTestOptionsOn = enabled != 0;
