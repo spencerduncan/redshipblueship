@@ -38,6 +38,10 @@
  *  R with one row redeemed the held check is handed back once
  *    (OoT_Rando_Foreign_TakeReleasedHolds) and its record then succeeds.
  *
+ * The MM row is wrapped in test_runner.cpp (Test_ForeignOutboxFullMM): the shop
+ * leg's toast reaches the overlay's Emit, which reads the CVar store, so the row
+ * needs the display-free shared Context bring-up and mutes the overlay.
+ *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++),
  * beside test_foreign_award.c; every symbol it drives is C-linkage.
  */
@@ -117,7 +121,7 @@ int RowsHolding(SharedItem item) {
 
 } // namespace
 
-TestResult Test_ForeignOutboxFullMM(void) {
+static TestResult ForeignOutboxFullMM_Run(void) {
     printf("[TEST] foreign-outbox-full-mm: a foreign host whose crossing the full outbox would refuse stays open, "
            "and its shop slot stays unsold (#1222)\n");
 

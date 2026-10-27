@@ -1584,6 +1584,20 @@ static TestResult Test_CrossingArrivalToasts(void) {
     return result;
 }
 
+// #1222 foreign-outbox-full-mm (body: tests/test_foreign_outbox_full.c): the
+// refused sale's toast reaches the overlay's Emit, so the same bring-up and mute.
+static TestResult Test_ForeignOutboxFullMM(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = ForeignOutboxFullMM_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
+}
+
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 // Full-bring-up generation lock (#560 "Why CI never saw it"; body in
 // games/oot/soh/Enhancements/randomizer/randomizer.cpp). Driven by the ONE rando
