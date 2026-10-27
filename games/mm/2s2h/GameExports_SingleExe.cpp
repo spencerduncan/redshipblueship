@@ -3486,8 +3486,10 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
  * drives it without a Ship::Context (CVar reads and writes need one).
  */
 extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
-    // Today's behaviour: the paired leg leaves the pair as the prompt set it.
-    (void)pauseSaveOn;
+    if (pauseSaveOn) {
+        gSaveContext.save.isOwlSave = false;
+        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    }
 }
 
 /**
@@ -3505,10 +3507,7 @@ extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
  * check 14.
  */
 extern "C" void MM_Combo_EndPauseSaveCommit(void) {
-    if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
-        gSaveContext.save.isOwlSave = false;
-        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
-    }
+    MM_Combo_EndPauseSaveCommitFor(CVarGetInteger("gEnhancements.Saving.PauseSave", 0));
 }
 
 namespace {
