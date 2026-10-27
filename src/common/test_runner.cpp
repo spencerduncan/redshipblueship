@@ -1154,7 +1154,6 @@ static TestResult Test_MMMoonCrashCycleReset(void) {
     return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-
 static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
     const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
