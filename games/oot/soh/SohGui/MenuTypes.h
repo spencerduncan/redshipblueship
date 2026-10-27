@@ -19,6 +19,10 @@ typedef enum {
     DISABLE_FOR_FRAME_ADVANCE_OFF,
     DISABLE_FOR_ADVANCED_RESOLUTION_OFF,
     DISABLE_FOR_VERTICAL_RESOLUTION_OFF,
+    // RSBS (#1238, W6-DEV): Majora's Mask's developer rows and viewers on SoH's Dev Tools pages (SohMenu.cpp).
+    DISABLE_FOR_MM_NOT_IN_GAMEPLAY,
+    DISABLE_FOR_NO_MM_WARP_POINT,
+    DISABLE_FOR_MM_NOT_RUNNING,
 } DisableOption;
 
 struct WidgetInfo;

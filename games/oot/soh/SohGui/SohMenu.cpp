@@ -17,6 +17,10 @@
 #include "foreign_items.h"
 #include "combo_logic.h" // Combo_Logic_GetEngine: MM_HOSTED observes the MM engine registrar
 #include "game.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "context.h"             // Context_GetCurrentGame: the running game's frame advance (#1238)
+#include "mm_dev_tools_bridge.h" // MM's frameAdvCtx and warp point (#1238)
+#endif
 
 extern "C" {
 extern PlayState* OoT_gPlayState;
@@ -122,6 +126,31 @@ void SohMenu::AddMenuElements() {
     mMenuElementsInitialized = true;
 }
 
+// RSBS (#1238, W6-DEV): the RUNNING game's FrameAdvanceContext::enabled, for SoH's three frame-advance rows on Dev
+// Tools > General, or NULL when that game has no play state. DISABLE_FOR_NULL_PLAY_STATE and
+// DISABLE_FOR_FRAME_ADVANCE_OFF test OoT_gPlayState, which OoT's Play_Destroy leaves NULL for as long as Majora's Mask
+// runs; every other row that uses them keeps that OoT meaning. MM's is reached through src/common/mm_dev_tools_bridge.h
+// (games/oot may not include MM's headers, ADR 0008).
+int32_t* RunningFrameAdvanceEnabled() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (Context_GetCurrentGame() == GAME_MM) {
+        return MM_DevTools_FrameAdvanceEnabled();
+    }
+#endif
+    return OoT_gPlayState != nullptr ? &OoT_gPlayState->frameAdvCtx.enabled : nullptr;
+}
+
+/** No running game has a play state: the frame-advance rows hide (DISABLE_FOR_NULL_PLAY_STATE, game-aware). */
+bool RunningPlayStateAbsent() {
+    return RunningFrameAdvanceEnabled() == nullptr;
+}
+
+/** The running game's frame advance is off: Advance 1 and Advance (Hold) hide (DISABLE_FOR_FRAME_ADVANCE_OFF). */
+bool RunningFrameAdvanceOff() {
+    const int32_t* enabled = RunningFrameAdvanceEnabled();
+    return !(enabled != nullptr && *enabled);
+}
+
 void SohMenu::InitElement() {
     Ship::Menu::InitElement();
 
@@ -182,6 +211,17 @@ void SohMenu::InitElement() {
                return !CVarGetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
            },
             "Vertical Resolution Toggle is Off" } },
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#1238, W6-DEV): Majora's Mask's developer rows and viewers on SoH's Dev Tools pages.
+        { DISABLE_FOR_MM_NOT_IN_GAMEPLAY,
+          { [](disabledInfo& info) -> bool { return !MM_DevTools_WarpPointAvailable(); },
+            "Majora's Mask Save Not Loaded" } },
+        { DISABLE_FOR_NO_MM_WARP_POINT,
+          { [](disabledInfo& info) -> bool { return !MM_DevTools_WarpPointSaved(); }, "No Warp Point Saved" } },
+        { DISABLE_FOR_MM_NOT_RUNNING,
+          { [](disabledInfo& info) -> bool { return Context_GetCurrentGame() != GAME_MM; },
+            "Majora's Mask Not Running" } },
+#endif
     };
 }
 

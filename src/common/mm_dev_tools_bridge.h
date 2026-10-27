@@ -18,6 +18,7 @@
 #ifndef RSBS_COMMON_MM_DEV_TOOLS_BRIDGE_H
 #define RSBS_COMMON_MM_DEV_TOOLS_BRIDGE_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -35,6 +36,27 @@ int32_t* MM_DevTools_FrameAdvanceEnabled(void);
  * ROM-free row drive the accessors above as if Majora's Mask were in gameplay.
  */
 void MM_DevTools_SetStandInPlayState(int on);
+
+/*
+ * MM's warp point (2Ship's DeveloperTools/WarpPoint.cpp), drawn by SoH's Dev Tools > General rows beside SoH's own Warp
+ * Points. SoH's widget stores OoT entrances in its own config block and warps OoT's play state, so MM keeps 2Ship's
+ * single point in 2Ship's keys (gDeveloperTools.WarpPoint.*), which only these functions read or write. Setting and
+ * warping need MM in gameplay (MM_DevTools_FrameAdvanceEnabled's condition); 2Ship's Boot to Warp Point is out of the
+ * single exe (WarpPoint.cpp says why).
+ */
+
+/** 1 while Majora's Mask is the running game in gameplay with Link spawned: a warp point can be set or warped to. */
+int MM_DevTools_WarpPointAvailable(void);
+/** Save where Link stands as MM's warp point. Returns 1 when it did, 0 when MM is not in gameplay. */
+int MM_DevTools_SetWarpPoint(void);
+/** 1 when a warp point is saved. */
+int MM_DevTools_WarpPointSaved(void);
+/** Write "<scene>, room <n>" for the saved warp point into @p out; returns 0 (and an empty string) when none is. */
+int MM_DevTools_DescribeWarpPoint(char* out, size_t size);
+/** Warp Link to the saved warp point. Returns 1 when it did, 0 when none is saved or MM is not in gameplay. */
+int MM_DevTools_WarpToWarpPoint(void);
+/** Forget the saved warp point. */
+void MM_DevTools_ClearWarpPoint(void);
 
 #ifdef __cplusplus
 }
