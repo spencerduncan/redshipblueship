@@ -6,6 +6,8 @@
 #include "soh/SohGui/SohGui.hpp"
 #include "z64.h"
 #include "soh/cvar_prefixes.h"
+#include "cvar_shared_keys.h" // RSBS: MM's camera keys, for DrawMmCameraRows
+#include "combo_ui.h"         // RSBS: ComboUi_NotifyRect, so the UI snapshot can hover an MM row
 #ifndef __WIIU__
 #include <ship/controller/controldevice/controller/mapping/sdl/SDLAxisDirectionToButtonMapping.h>
 #endif
@@ -1364,6 +1366,175 @@ void SohInputEditorWindow::DrawOcarinaControlPanel() {
     }
 }
 
+// RSBS (W6-CAM-AIM): Majora's Mask's own aiming, shield and camera rows, beside their SoH twins in Camera Controls.
+// MM splits its inversion and sensitivity by input device where SoH splits by context, so the keys stay apart
+// (RSBS::kMustStayDistinct) and each MM key gets an MM-labelled row, bound through its src/common define because
+// games/oot never spells an MM key. Each row shows the default MM reads: MM inverts its aiming, right-stick aiming and
+// camera Y axes by default. Slider ranges are 2Ship's. Each row reports its rectangle to the combo_ui recorder, so the
+// UI snapshot can hover it. DrawCameraControlPanel calls this once per block.
+enum class MmCameraRows { Aiming, Shield, ThirdPerson };
+
+static void DrawMmCameraRows(MmCameraRows block) {
+    // MM's right-stick rows hide while its right-stick aiming is off, as SoH's move-while-aiming row does.
+    static constexpr const char* kMmRightStickAim = RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED;
+    auto report = [](const char* label, const char* tooltip) {
+        ImGui::EndGroup();
+        const ImVec2 min = ImGui::GetItemRectMin();
+        const ImVec2 max = ImGui::GetItemRectMax();
+        ComboUi_NotifyRect(label, tooltip, min.x, min.y, max.x, max.y);
+    };
+    const char* tip = nullptr;
+    switch (block) {
+        case MmCameraRows::Aiming:
+            tip = "Allows for aiming with the right stick in first-person view and weapon aiming, with its own axes "
+                  "and sensitivity. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Right Stick Aiming", RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Right Stick Aiming", tip);
+            if (CVarGetInteger(kMmRightStickAim, 0)) {
+                tip = "Changes the left stick to move the player while in first-person mode. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Allow moving while in first-person mode",
+                                        RSBS_CVAR_MM_CAMERA_FP_MOVE_IN_FIRST_PERSON,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Allow moving while in first-person mode", tip);
+            }
+            tip = "Inverts the Camera X Axis in first-person view and weapon aiming. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Invert Aiming X Axis", RSBS_CVAR_MM_CAMERA_FP_INVERT_X,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Invert Aiming X Axis", tip);
+            tip = "Inverts the Camera Y Axis in first-person view and weapon aiming. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Invert Aiming Y Axis", RSBS_CVAR_MM_CAMERA_FP_INVERT_Y,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(tip));
+            report("MM Invert Aiming Y Axis", tip);
+            tip = "Prevents the first-person view from auto-centering. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Disable Auto-Centering in First-Person View",
+                                    RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Disable Auto-Centering in First-Person View", tip);
+            tip = "Adjusts how fast the left stick turns the first-person view and weapon aiming sideways. Majora's "
+                  "Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarSliderFloat("MM Aiming/First-Person Horizontal Sensitivity: %.0f %%",
+                                       RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X,
+                                       UIWidgets::FloatSliderOptions()
+                                           .Color(THEME_COLOR)
+                                           .IsPercentage()
+                                           .Min(0.01f)
+                                           .Max(2.0f)
+                                           .DefaultValue(1.0f)
+                                           .ShowButtons(true)
+                                           .Tooltip(tip));
+            report("MM Aiming/First-Person Horizontal Sensitivity: %.0f %%", tip);
+            tip = "Adjusts how fast the left stick tilts the first-person view and weapon aiming up and down. "
+                  "Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarSliderFloat("MM Aiming/First-Person Vertical Sensitivity: %.0f %%",
+                                       RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_Y,
+                                       UIWidgets::FloatSliderOptions()
+                                           .Color(THEME_COLOR)
+                                           .IsPercentage()
+                                           .Min(0.01f)
+                                           .Max(2.0f)
+                                           .DefaultValue(1.0f)
+                                           .ShowButtons(true)
+                                           .Tooltip(tip));
+            report("MM Aiming/First-Person Vertical Sensitivity: %.0f %%", tip);
+            if (CVarGetInteger(kMmRightStickAim, 0)) {
+                tip = "Inverts the right stick's X Axis in first-person view and weapon aiming. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Invert Right Stick Aiming X Axis",
+                                        RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_X,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Invert Right Stick Aiming X Axis", tip);
+                tip = "Inverts the right stick's Y Axis in first-person view and weapon aiming. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox(
+                    "MM Invert Right Stick Aiming Y Axis", RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_Y,
+                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(tip));
+                report("MM Invert Right Stick Aiming Y Axis", tip);
+                tip = "Adjusts how fast the right stick turns the first-person view and weapon aiming sideways. "
+                      "Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Right Stick Aiming Horizontal Sensitivity: %.0f %%",
+                                           RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_X,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.01f)
+                                               .Max(2.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Right Stick Aiming Horizontal Sensitivity: %.0f %%", tip);
+                tip = "Adjusts how fast the right stick tilts the first-person view and weapon aiming up and down. "
+                      "Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Right Stick Aiming Vertical Sensitivity: %.0f %%",
+                                           RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_Y,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.01f)
+                                               .Max(2.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Right Stick Aiming Vertical Sensitivity: %.0f %%", tip);
+            }
+            break;
+        case MmCameraRows::Shield:
+            tip = "Inverts the Shield Aiming Y Axis. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Invert Shield Aiming Y Axis", RSBS_CVAR_MM_EQUIPMENT_INVERT_SHIELD_Y,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Invert Shield Aiming Y Axis", tip);
+            break;
+        case MmCameraRows::ThirdPerson:
+            tip = "Inverts the Camera X Axis in free look. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Invert Camera X Axis", RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_X,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Invert Camera X Axis", tip);
+            tip = "Inverts the Camera Y Axis in free look. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Invert Camera Y Axis", RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_Y,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(tip));
+            report("MM Invert Camera Y Axis", tip);
+            tip = "Adjusts how fast the camera turns sideways in free look. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarSliderFloat("MM Third-Person Horizontal Sensitivity: %.0f %%",
+                                       RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_X,
+                                       UIWidgets::FloatSliderOptions()
+                                           .Color(THEME_COLOR)
+                                           .IsPercentage()
+                                           .Min(0.01f)
+                                           .Max(5.0f)
+                                           .DefaultValue(1.0f)
+                                           .ShowButtons(true)
+                                           .Tooltip(tip));
+            report("MM Third-Person Horizontal Sensitivity: %.0f %%", tip);
+            tip = "Adjusts how fast the camera tilts up and down in free look. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarSliderFloat("MM Third-Person Vertical Sensitivity: %.0f %%",
+                                       RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_Y,
+                                       UIWidgets::FloatSliderOptions()
+                                           .Color(THEME_COLOR)
+                                           .IsPercentage()
+                                           .Min(0.01f)
+                                           .Max(5.0f)
+                                           .DefaultValue(1.0f)
+                                           .ShowButtons(true)
+                                           .Tooltip(tip));
+            report("MM Third-Person Vertical Sensitivity: %.0f %%", tip);
+            break;
+    }
+}
+
 void SohInputEditorWindow::DrawCameraControlPanel() {
     ImVec2 cursor = ImGui::GetCursorPos();
     ImGui::SetCursorPos(ImVec2(cursor.x + 5, cursor.y + 5));
@@ -1396,6 +1567,7 @@ void SohInputEditorWindow::DrawCameraControlPanel() {
                  CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip("Inverts the Shield Aiming X Axis"));
     CVarCheckbox("Invert Shield Aiming Y Axis", CVAR_SETTING("Controls.InvertShieldAimingYAxis"),
                  CheckboxOptions().Color(THEME_COLOR).Tooltip("Inverts the Shield Aiming Y Axis"));
+    DrawMmCameraRows(MmCameraRows::Shield); // RSBS (W6-CAM-AIM): MM's shield row
     CVarCheckbox("Invert Z-Weapon Aiming Y Axis", CVAR_SETTING("Controls.InvertZAimingYAxis"),
                  CheckboxOptions()
                      .Color(THEME_COLOR)
@@ -1433,6 +1605,7 @@ void SohInputEditorWindow::DrawCameraControlPanel() {
                             .DefaultValue(1.0f)
                             .ShowButtons(true));
     }
+    DrawMmCameraRows(MmCameraRows::Aiming); // RSBS (W6-CAM-AIM): MM's aiming rows
     Ship::GuiWindow::EndGroupPanel(0);
 
     cursor = ImGui::GetCursorPos();
@@ -1461,6 +1634,7 @@ void SohInputEditorWindow::DrawCameraControlPanel() {
                         .Max(5.0f)
                         .DefaultValue(1.0f)
                         .ShowButtons(true));
+    DrawMmCameraRows(MmCameraRows::ThirdPerson); // RSBS (W6-CAM-AIM): MM's camera rows
     CVarSliderInt("Camera Distance: %d", CVAR_SETTING("FreeLook.MaxCameraDistance"),
                   IntSliderOptions().Color(THEME_COLOR).Min(100).Max(900).DefaultValue(185).ShowButtons(true));
     CVarSliderInt("Camera Transition Speed: %d", CVAR_SETTING("FreeLook.TransitionSpeed"),

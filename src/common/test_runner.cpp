@@ -8,6 +8,8 @@
 #include "entrance.h"
 #include "foreign_items.h"        // ADR 0010 inc. 2: the frozen record + the O8 give-caps surface
 #include "combo_logic.h"          // ADR 0010 inc. 3: the armed-caps bag pin (lane K11)
+#include "combo_single_bag.h"     // #1231: the debug seed's proof
+#include "crossing_store.h"       // #1231: the debug seed's crossings
 #include "shared_items.h"         // ADR 0010 inc. 3: the O8 arming rows the armed-caps pin reads
 #include "gen_budget.h"           // ADR 0010 inc. 2: the #582 fill budget + progress surface
 #include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
@@ -3207,6 +3209,152 @@ TestResult Test_SeedPackageGoldenCreate(void) {
     Rando_HeadlessFullInitTeardown();
     printf("[TEST] %s: seed package golden create rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1231: DEBUG SEEDS WITH FORCED PLACEMENTS. RSBS_FORCE_PLACEMENTS names the rows,
+// comma-separated, each `<host game>:<check>=<origin game>:<item>`, where a game is
+// `oot` or `mm` and a check or item is its describer name (the spoiler's) or `#<id>`:
+//   oot:KF Mido Top Left Chest=mm:Sonata of Awakening,oot:KF Mido Top Right Chest=mm:Deku Mask
+// The seed is RSBS_DEBUG_SEED (default RSBSMIDOSDEBUG); the package goes to
+// RSBS_SEED_PACKAGE_PATH when set (that is how a debug seed is made: see
+// docs/playtest-fixtures/midos-house-sonata-deku/README.md), else to a scratch dir.
+// The world is the headless Generate's (seed-package-write's) with the rows pinned
+// by Combo_Logic_TestSetForcedPlacements; the row asserts the fill PROVED the GOAL
+// and that every cross-game row is in the crossing store on its host.
+static bool DebugSeedParseGame(const std::string& text, uint8_t* out) {
+    if (text == "oot" || text == "OoT" || text == "OOT") {
+        *out = (uint8_t)GAME_OOT;
+        return true;
+    }
+    if (text == "mm" || text == "MM") {
+        *out = (uint8_t)GAME_MM;
+        return true;
+    }
+    return false;
+}
+
+static bool DebugSeedParseCheck(uint8_t game, const std::string& text, uint16_t* out) {
+    if (!text.empty() && text[0] == '#') {
+        *out = (uint16_t)strtoul(text.c_str() + 1, nullptr, 10);
+        return *out != 0;
+    }
+    int found = 0;
+    for (uint32_t c = 1; c < 0x10000u; ++c) {
+        const char* name = Combo_DescribeCheckName(game, (uint16_t)c);
+        if (name != nullptr && text == name) {
+            *out = (uint16_t)c;
+            ++found;
+        }
+    }
+    if (found > 1) {
+        printf("[TEST] FAIL: check name '%s' names %d checks; use #<id>\n", text.c_str(), found);
+    }
+    if (found == 0) {
+        printf("[TEST] FAIL: no %s check is named '%s'; checks whose name contains it:\n", Game_ToString((GameId)game),
+               text.c_str());
+        for (uint32_t c = 1; c < 0x10000u; ++c) {
+            const char* name = Combo_DescribeCheckName(game, (uint16_t)c);
+            if (name != nullptr && strstr(name, text.c_str()) != nullptr) {
+                printf("[TEST]   #%u '%s'\n", (unsigned)c, name);
+            }
+        }
+    }
+    return found == 1;
+}
+
+static bool DebugSeedParseItem(uint8_t game, const std::string& text, SharedItem* out) {
+    memset(out, 0, sizeof(*out));
+    if (!text.empty() && text[0] == '#') {
+        out->originGame = game;
+        out->id = (uint16_t)strtoul(text.c_str() + 1, nullptr, 10);
+        return out->id != 0;
+    }
+    if (!Combo_GetForeignItemByNameFor(game, text.c_str(), out)) {
+        printf("[TEST] FAIL: no %s item is named '%s'\n", Game_ToString((GameId)game), text.c_str());
+        return false;
+    }
+    return true;
+}
+
+static int DebugSeedParseSpec(const char* spec, ComboLogicForcedPlacement* out, int cap) {
+    int n = 0;
+    std::string rest(spec);
+    while (!rest.empty()) {
+        const size_t comma = rest.find(',');
+        const std::string row = rest.substr(0, comma);
+        rest = (comma == std::string::npos) ? std::string() : rest.substr(comma + 1);
+        const size_t eq = row.find('=');
+        const size_t c1 = row.find(':');
+        const size_t c2 = (eq == std::string::npos) ? std::string::npos : row.find(':', eq);
+        if (eq == std::string::npos || c1 == std::string::npos || c1 > eq || c2 == std::string::npos || n >= cap) {
+            printf("[TEST] FAIL: RSBS_FORCE_PLACEMENTS row '%s' is not <game>:<check>=<game>:<item> (or > %d rows)\n",
+                   row.c_str(), cap);
+            return -1;
+        }
+        ComboLogicForcedPlacement p;
+        memset(&p, 0, sizeof(p));
+        uint8_t itemGame = 0;
+        if (!DebugSeedParseGame(row.substr(0, c1), &p.hostGame) ||
+            !DebugSeedParseCheck(p.hostGame, row.substr(c1 + 1, eq - c1 - 1), &p.hostCheck) ||
+            !DebugSeedParseGame(row.substr(eq + 1, c2 - eq - 1), &itemGame) ||
+            !DebugSeedParseItem(itemGame, row.substr(c2 + 1), &p.item)) {
+            printf("[TEST] FAIL: RSBS_FORCE_PLACEMENTS row '%s' names an unknown game, check or item\n", row.c_str());
+            return -1;
+        }
+        printf("[TEST] forced: %s check %u ('%s') <- %s item %u ('%s')\n", Game_ToString((GameId)p.hostGame),
+               (unsigned)p.hostCheck, Combo_DescribeCheckName(p.hostGame, p.hostCheck),
+               Game_ToString((GameId)p.item.originGame), (unsigned)p.item.id, Combo_DescribeItemName(p.item));
+        out[n++] = p;
+    }
+    return n;
+}
+
+TestResult Test_DebugSeedForcedPlacements(void) {
+    printf("[TEST] debug-seed-forced-placements: a paired seed with pinned placements, proved and packaged (#1231)\n");
+    const char* spec = SeedPackageEnv("RSBS_FORCE_PLACEMENTS");
+    const char* seedEnv = std::getenv("RSBS_DEBUG_SEED");
+    const std::string seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : "RSBSMIDOSDEBUG";
+    const std::filesystem::path dir = rsbs::test::ScratchDir("rsbs-debug-seed");
+    const char* pkgEnv = std::getenv("RSBS_SEED_PACKAGE_PATH");
+    const std::string pkg =
+        (pkgEnv != nullptr && pkgEnv[0] != '\0') ? std::string(pkgEnv) : (dir / "debug-seed.rsbs-seed.zip").string();
+    const std::string report = (dir / "debug-seed-report.txt").string();
+    if (spec == nullptr || !SeedPackageHeadlessBringUp()) {
+        return TEST_FAIL;
+    }
+    ComboLogicForcedPlacement rows[RSBS_COMBO_LOGIC_FORCED_CAP];
+    const int count = DebugSeedParseSpec(spec, rows, RSBS_COMBO_LOGIC_FORCED_CAP);
+    if (count <= 0 || Combo_Logic_TestSetForcedPlacements(rows, count) != count) {
+        return TEST_FAIL;
+    }
+    const int rc = MM_SeedPackage_TestWrite(seed.c_str(), pkg.c_str(), report.c_str());
+    Combo_Logic_TestSetForcedPlacements(nullptr, 0);
+    if (rc != 0) {
+        printf("[TEST] FAIL: generating and packaging seed '%s' returned %d\n", seed.c_str(), rc);
+        return TEST_FAIL;
+    }
+    int failures = 0;
+    const ComboSingleBagReport* bag = Combo_SingleBag_LastReport();
+    if (bag->status != RSBS_COMBO_LOGIC_OK || !bag->fill.goalProven) {
+        printf("[TEST] FAIL: the single-bag fill did not prove the GOAL (status %s, goalProven %d)\n",
+               Combo_Logic_StatusName(bag->status), bag->fill.goalProven ? 1 : 0);
+        failures++;
+    }
+    for (int i = 0; i < count; ++i) {
+        if (rows[i].hostGame == rows[i].item.originGame) {
+            continue; // an own-game row is the engine's placement, not a crossing
+        }
+        const SharedItem* held = Combo_Crossings_Lookup((GameId)rows[i].hostGame, rows[i].hostCheck);
+        if (held == nullptr || held->originGame != rows[i].item.originGame || held->id != rows[i].item.id) {
+            printf("[TEST] FAIL: %s check %u holds %s, not %s item %u\n", Game_ToString((GameId)rows[i].hostGame),
+                   (unsigned)rows[i].hostCheck, held == nullptr ? "no crossing" : Combo_DescribeItemName(*held),
+                   Game_ToString((GameId)rows[i].item.originGame), (unsigned)rows[i].item.id);
+            failures++;
+        }
+    }
+    printf("[TEST] %s: debug seed '%s' -> %s (%d forced row(s), %d failure(s))\n", failures == 0 ? "PASS" : "FAIL",
+           seed.c_str(), pkg.c_str(), count, failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #681 review, re-aimed by ADR 0010 increment 3 (lane K11): THE ARMED CAPABILITY
@@ -7511,6 +7659,8 @@ const TestDescriptor gTests[] = {
       Test_SeedPackageGoldenWrite },
     { "seed-package-golden-create", "A file created from a loaded seed package, digested against the golden (#1044)",
       Test_SeedPackageGoldenCreate },
+    { "debug-seed-forced-placements", "A debug seed with RSBS_FORCE_PLACEMENTS pinned, proved and packaged (#1231)",
+      Test_DebugSeedForcedPlacements },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
     { "mm-rando-gen", "MM rando generation runs headlessly + writes tagged spoiler (Lane C0)", Test_MMRandoGen },
@@ -8941,6 +9091,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "seed-package-cvars-frozen") == 0 ||
                 strcmp(gTests[i].name, "seed-package-golden-write") == 0 ||
                 strcmp(gTests[i].name, "seed-package-golden-create") == 0 ||
+                strcmp(gTests[i].name, "debug-seed-forced-placements") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-validity") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-reload") == 0 ||
                 strcmp(gTests[i].name, "rando-hint-crossgame") == 0 ||

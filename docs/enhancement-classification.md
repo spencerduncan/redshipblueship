@@ -79,7 +79,7 @@ brief, plus everything in the collision set:
 | `Saving` | 7 | ✅ all |
 | `Player` | 9 | ✅ all |
 | `Equipment` | 7 | ✅ all |
-| `Camera` | 31 | ✅ all |
+| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4) |
 | `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
 | **Subtotal** | **130** | |
 
@@ -215,6 +215,31 @@ rename pass.**
 | P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 1 since #454) | **RESOLVED (#454): now (S).** See §3.3 BUG 2 — MM's clobbering write retired and read default aligned to OoT's 1. |
 | P6 | **Ocarina D-pad input** | `gSettings.CustomOcarina.Dpad`, `gSettings.CustomOcarina.RightStick` (Settings > Controls > Ocarina Controls), `gEnhancements.DpadNoDropOcarinaInput`; OoT-only: `gSettings.CustomOcarina.Enabled` (the button-mapping layer) | `gEnhancements.Playback.DpadOcarina`, `gEnhancements.Playback.RightStickOcarina`, `gEnhancements.Playback.NoDropOcarinaInput` | **RESOLVED (#1062): now (S).** This row was first written from key names alone: it listed a `gSettings.OcarinaControl.Dpad` that no OoT code reads. Read at the call sites, the three switches mean the same thing on both sides (bool, default off; the D-pad or the right stick also plays the ocarina notes; a second note is no longer dropped in the frame after the first). MM therefore moved onto SoH's keys (three `kConvergedKeys` rows, three version-9 migration rows) and the held-apart entry left `kMustStayDistinct`. MM's readers were never elided (`GameInteractor_Dpad` and `GameInteractor_RightStickOcarina` are real definitions in `GameExports_SingleExe.cpp`; `code_8019AF00.c` and `z_player.c` read the other key directly); what was missing was a writer, because MM's only widgets sat in the excluded `BenMenu.cpp`. Still OoT-only: the custom button-mapping layer (`CustomOcarina.Enabled` and its per-note bindings), which MM has no equivalent of. `gSettings.DpadInText`, `gSettings.DpadHoldChange` and `gSettings.DPadOnPause` (D-pad navigation of text boxes, shops, file select and the pause screen) have no MM reader at all, so they stay (O) until MM grows the behaviour. |
 | P7 | **Shield aim inversion** | `gSettings.Controls.InvertShieldAimingYAxis` (+ X axis) | `gEnhancements.Equipment.InvertShieldY` (Y only) | Different namespace *and* different axis coverage (OoT X+Y, MM Y only). Merging loses OoT's X axis. |
+
+**W6-CAM-AIM (#1236) — P3 and P7 per key, held apart and given rows.** MM read all sixteen keys below
+(`GameInteractor_InvertControl` in `GameExports_SingleExe.cpp`, `z_player.c`, `FreeLook.cpp`) but its only widgets sat
+in the excluded `BenMenu.cpp`, so nothing in the single exe wrote them, and three of them MM reads inverted by
+default. Each key now has an MM-labelled row beside its SoH twin in SoH's Bindings window, Camera Controls panel
+(`SohInputEditorWindow.cpp`, `DrawMmCameraRows`), bound through its `RSBS_CVAR_MM_*` define; each row declares the
+default MM reads, and the sliders take 2Ship's ranges. The three first-person switches the §2 Camera claim covered only
+at category level were checked for convergence and each failed on gating, so they are held apart too (three
+`kMustStayDistinct` rows beside P3). The classification lock's (3f-5) holds every row.
+
+| MM key | MM default | Row (after its SoH twin) | Call |
+|---|---|---|---|
+| `gEnhancements.Camera.FirstPerson.RightStickEnabled` | off | MM Right Stick Aiming (Aiming/First-Person Camera) | (P) gating: SoH's `gSettings.Controls.RightStickAim` also feeds Z-target weapon aiming and uses SoH's aiming axes; MM's gates its own right-stick axes and move-while-aiming |
+| `gEnhancements.Camera.FirstPerson.MoveInFirstPerson` | off | MM Allow moving while in first-person mode (shown while MM Right Stick Aiming is on) | (P) gating: SoH's `gSettings.MoveInFirstPerson` is read on its own; MM's needs its right-stick switch and never moves Link on Epona, the swamp boat or in the archery games |
+| `gEnhancements.Camera.FirstPerson.InvertX` | off | MM Invert Aiming X Axis | (P) P3 |
+| `gEnhancements.Camera.FirstPerson.InvertY` | **on (inverted)** | MM Invert Aiming Y Axis | (P) P3 |
+| `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | off | MM Disable Auto-Centering in First-Person View | (P) gating: MM never auto-centers while its Gyro Aiming is on (and 2Ship disables the row then); SoH's `gSettings.DisableFirstPersonAutoCenterView` has no such gate |
+| `gEnhancements.Camera.FirstPerson.Sensitivity{X,Y}` | 100% | MM Aiming/First-Person Horizontal / Vertical Sensitivity (1-200%) | (P) P3: MM's applies to the left stick only, SoH's to every aiming input behind its own enable |
+| `gEnhancements.Camera.FirstPerson.RightStickInvertX` | off | MM Invert Right Stick Aiming X Axis (shown while MM Right Stick Aiming is on) | (P) P3: SoH has no separate right-stick axis |
+| `gEnhancements.Camera.FirstPerson.RightStickInvertY` | **on (inverted)** | MM Invert Right Stick Aiming Y Axis (likewise) | (P) P3 |
+| `gEnhancements.Camera.FirstPerson.RightStickSensitivity{X,Y}` | 100% | MM Right Stick Aiming Horizontal / Vertical Sensitivity (1-200%, likewise) | (P) P3 |
+| `gEnhancements.Equipment.InvertShieldY` | off | MM Invert Shield Aiming Y Axis | (P) P7 |
+| `gEnhancements.Camera.RightStick.InvertXAxis` | off | MM Invert Camera X Axis (Third-Person Camera) | (P) P3 |
+| `gEnhancements.Camera.RightStick.InvertYAxis` | **on (inverted)** | MM Invert Camera Y Axis | (P) P3 |
+| `gEnhancements.Camera.RightStick.CameraSensitivity.{X,Y}` | 100% | MM Third-Person Horizontal / Vertical Sensitivity (1-500%) | (P) P3 |
 
 ## 5. (S) CONVERGE — the rename list for the settings-namespace ADR
 

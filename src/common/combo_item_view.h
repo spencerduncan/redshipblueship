@@ -110,6 +110,11 @@ typedef struct {
     // view draws it ONCE, in the Shared group, and leaves this game's row out
     // (#1065's Lens of Truth and #1067's ocarina buttons the first).
     uint32_t sharedFamily;
+    // How SoH's main window lays a row out (#1141, lane IT-3; the row lanes IT-2/IT-4 set them):
+    const char* label; // a short name drawn over the icon (SoH's DrawItem: the boss-soul, jabber-nut, ocarina-
+                       // button and overworld-key short names, ComboItemLabelPos); NULL: none
+    bool pad;          // a blank cell: it takes its place in the grid and draws nothing (SoH's ITEM_NONE, the
+                       // blanks of its column-major dungeon items and of a section padded to its line's end)
 } ComboItemRow;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
@@ -138,6 +143,10 @@ typedef struct ComboItemGridStyle {
     int (*groupColumns)(const char* group);
     uint8_t countStyle; // ComboItemCountStyle
     float lineGapPx;    // between two lines; 0: gapPx (SoH's grid is square; MM's table rows: two CellPadding.y, 4)
+    // Optional (#1141): true for a group that takes lines of its own in a flowing grid: it starts a fresh
+    // line, and the group after it does too (SoH pads each of its optional sections onto a fresh line of
+    // its main window). NULL, or false for a group: it flows on, as SoH's main sections do.
+    bool (*groupOwnLine)(const char* group);
 } ComboItemGridStyle;
 
 /** SoH's main Item Tracker grid (randomizer_item_tracker.cpp DrawItemsInRows: six 36 px icons a line,
@@ -244,6 +253,22 @@ bool Combo_ItemActiveGamePaused(void);
 
 /** `game`'s grid (its adapter's, else kComboItemSohGrid). Never NULL. */
 const ComboItemGridStyle* Combo_ItemGridStyle(uint8_t game);
+
+/**
+ * Majora's Mask's per-group visibility (#1141, lane IT-3): the Preference key
+ * that shows or hides `game`'s group `group` in the overlay, or NULL for a
+ * group no key governs. MM's Tokens, Stray Fairies, Dungeon, Boss Souls, Enemy
+ * Souls, Owl Statues, Time and Misc groups each have one,
+ * gCombo.Tracker.Items.MM.<the group name without spaces> (the group strings
+ * are the MM adapter's, ItemAdapterSingleExe.cpp). OoT's groups are governed by
+ * SoH's own DisplayType keys, which the overlay reads
+ * (ComboItemTrackerWindow.h), never by these.
+ */
+const char* Combo_ItemGroupVisibilityKey(uint8_t game, const char* group);
+
+/** Whether the player shows `game`'s group `group`: its key's value, default
+ *  shown; true for a group no key governs. */
+bool Combo_ItemGroupShown(uint8_t game, const char* group);
 
 /** The caption a game's section draws under its header for a freshness: none,
  *  "" for every game and freshness (#927: a section is labelled by its header

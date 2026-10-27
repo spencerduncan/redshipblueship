@@ -463,6 +463,10 @@ ComboTrackerChromeKeys ComboReadTrackerChromeKeys();
  */
 uint32_t ComboTrackerComboButtonMask(int button);
 
+/** The first pad's held buttons, where SoH's trackers read them for their combo-button hold; 0 with no pad
+ *  (#1141: the Item Tracker's hold reads the same). */
+uint32_t ComboTrackerHeldPadButtons();
+
 /**
  * What the window does this frame. `draws` false: it draws nothing (and keeps
  * its visibility). `flags` are the ImGuiWindowFlags it begins with;
