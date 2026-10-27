@@ -465,14 +465,15 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
     msg.LoadIntoFont();
 }
 
-void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    GetItemEntry itemEntry = GET_PLAYER(OoT_gPlayState)->getItemEntry;
+// Dungeon map `getItemId`'s get-item text, ready to load. Split out of
+// BuildMapMessage so a ROM-free row can read it (OoT_Rando_MapMessageText, #1187).
+static CustomMessage BuildMapMessageText(uint16_t getItemId) {
     auto ctx = OTRGlobals::Instance->gRandoContext;
     CustomMessage msg =
         CustomMessage("You found the %g[[name]]%w! [[typeHint]]", "Du erhältst das %g[[name]]%w! [[typeHint]]",
                       "Vous ebtenez %g[[name]]%w! [[typeHint]]", TEXTBOX_TYPE_BLUE);
     int sceneNum = -1;
-    switch (itemEntry.getItemId) {
+    switch (getItemId) {
         case RG_DEKU_TREE_MAP:
             sceneNum = SCENE_DEKU_TREE;
             break;
@@ -513,6 +514,25 @@ void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
     } else {
         msg.Replace("[[typeHint]]", Rando::StaticData::hintTextTable[RHT_DUNGEON_ORDINARY].GetHintMessage());
     }
+    return msg;
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Test seam (row MapCompassText, #1187): the raw English get-item text of dungeon
+// map `getItemId`. Returns its length (cut to `cap` - 1 characters when longer), or
+// -1 for a bad argument.
+extern "C" int OoT_Rando_MapMessageText(uint16_t getItemId, char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return -1;
+    }
+    const std::string text = BuildMapMessageText(getItemId).GetEnglish(MF_RAW);
+    snprintf(out, cap, "%s", text.c_str());
+    return static_cast<int>(text.size());
+}
+#endif
+
+void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
+    CustomMessage msg = BuildMapMessageText(GET_PLAYER(OoT_gPlayState)->getItemEntry.getItemId);
     *loadFromMessageTable = false;
     msg.LoadIntoFont();
 }

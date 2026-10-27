@@ -481,6 +481,11 @@ int RandoTest_ComboIdentityDisplayWorld(void);
 // #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
 // Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
 int RandoTest_ScrubTextHintSetting(void);
+// #1187: CustomMessage::Replace returns when the replacement contains the search
+// string; a map's text names the map; every compass opens the compass text. Bodies
+// in games/oot/soh/oot_custom_message_text_test.cpp. Return 0 on pass.
+int OoT_CustomMessageReplaceTest_Run(void);
+int RandoTest_MapCompassText(void);
 // #1164 green pin: SoH's bombchu drop rule under the Bombchu Bag setting. Body in
 // games/oot/soh/oot_shared_bombchu_test.cpp. Return 0 on pass.
 int OoT_BombchuDropRuleTest_Run(void);
@@ -2836,6 +2841,30 @@ TestResult Test_ScrubTextHintSetting(void) {
 
     int rc = RandoTest_ScrubTextHintSetting();
     printf("[TEST] %s: scrub text hint setting rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1187: CustomMessage is plain strings, so no bring-up. Assertions in
+// games/oot/soh/oot_custom_message_text_test.cpp.
+TestResult Test_CustomMessageReplace(void) {
+    return OoT_CustomMessageReplaceTest_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1187: a map's get-item text and the compass rows' text ids. Same bring-up as
+// the row above it (BuildMapMessage reads the generated context's options).
+TestResult Test_MapCompassText(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_MapCompassText();
+    printf("[TEST] %s: map and compass text rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -8265,6 +8294,10 @@ const TestDescriptor gTests[] = {
       "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
       "the real load, header decode and draw carry it (#607)",
       Test_ForeignTextboxIcon },
+    { "custom-message-replace",
+      "CustomMessage::Replace returns when the replacement contains the search string, in both overloads and through "
+      "AutoFormat(ItemID) (#1187)",
+      Test_CustomMessageReplace },
     { "foreign-model",
       "A foreign item's get-item model is answered by its origin game: every draw row and progression item of both "
       "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
@@ -8321,6 +8354,10 @@ const TestDescriptor gTests[] = {
       "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
       "(#855)",
       Test_ScrubTextHintSetting },
+    { "map-compass-text",
+      "A dungeon map's get-item text names the map and opens with its icon; every compass opens the compass text "
+      "(#1187)",
+      Test_MapCompassText },
     { "bombchu-drop-rule",
       "SoH's drop rule turns a bomb drop into a bombchu drop under Bombchu Bag Single with no bomb bag, and cancels "
       "it under None (#1164)",
@@ -8632,7 +8669,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
-                strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
+                strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
