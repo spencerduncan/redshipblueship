@@ -460,6 +460,27 @@ struct DistinctPair {
  */
 #define RSBS_CVAR_MM_DAMAGE_MULTIPLIER "gEnhancements.DifficultyOptions.DamageMultiplier"
 
+// W6-CAM-AIM (#1236): MM's aiming and camera inversion / sensitivity keys and its shield Y inversion. Held apart from
+// SoH's (P3, P7 and the three first-person rows beside P3 in kMustStayDistinct), so each has an MM row beside its SoH
+// twin in SoH's Bindings window, Camera Controls panel (SohInputEditorWindow.cpp). MM reads the three *_INVERT_Y
+// aiming and camera keys with default 1 (inverted), and their rows declare that default.
+#define RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView"
+#define RSBS_CVAR_MM_CAMERA_FP_INVERT_X "gEnhancements.Camera.FirstPerson.InvertX"
+#define RSBS_CVAR_MM_CAMERA_FP_INVERT_Y "gEnhancements.Camera.FirstPerson.InvertY"
+#define RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X "gEnhancements.Camera.FirstPerson.SensitivityX"
+#define RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_Y "gEnhancements.Camera.FirstPerson.SensitivityY"
+#define RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED "gEnhancements.Camera.FirstPerson.RightStickEnabled"
+#define RSBS_CVAR_MM_CAMERA_FP_MOVE_IN_FIRST_PERSON "gEnhancements.Camera.FirstPerson.MoveInFirstPerson"
+#define RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_X "gEnhancements.Camera.FirstPerson.RightStickInvertX"
+#define RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_Y "gEnhancements.Camera.FirstPerson.RightStickInvertY"
+#define RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_X "gEnhancements.Camera.FirstPerson.RightStickSensitivityX"
+#define RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_Y "gEnhancements.Camera.FirstPerson.RightStickSensitivityY"
+#define RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_X "gEnhancements.Camera.RightStick.InvertXAxis"
+#define RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_Y "gEnhancements.Camera.RightStick.InvertYAxis"
+#define RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_X "gEnhancements.Camera.RightStick.CameraSensitivity.X"
+#define RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_Y "gEnhancements.Camera.RightStick.CameraSensitivity.Y"
+#define RSBS_CVAR_MM_EQUIPMENT_INVERT_SHIELD_Y "gEnhancements.Equipment.InvertShieldY"
+
 /**
  * Inventory §4 rows (P1-P7, minus the ones with no single representative key and
  * minus P6, which #1062 converged: the D-pad and right-stick ocarina switches)
@@ -480,6 +501,20 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "
       "input device (right stick / gyro / first-person). No 1:1 mapping — OoT has no gyro axis, MM has no "
       "shield-aim axis. Merging drops settings on both sides." },
+    // W6-CAM-AIM: the three first-person switches the inventory covered only by its Camera category claim. Each
+    // matches SoH's twin in value space (bool, default off) and JSON shape (int), but not in gating.
+    { "P3 first-person auto-centering", RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
+      "gSettings.DisableFirstPersonAutoCenterView",
+      "Same bool, different gating: MM's view never auto-centers while its own Gyro Aiming is on (z_player.c "
+      "reads it OR GyroEnabled, and 2Ship's row is disabled then), while SoH reads its key alone and clamps the "
+      "pitch itself. Each game keeps its own row in the Bindings window." },
+    { "P3 right-stick aiming switch", RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED, "gSettings.Controls.RightStickAim",
+      "Same bool, different gating: SoH's switch also feeds the right stick into Z-target weapon aiming and uses "
+      "SoH's own aiming inversion and sensitivity; MM's switch gates a separate right-stick inversion and "
+      "sensitivity set (P3) and MM's move-while-aiming. Merging would make one switch mean two things." },
+    { "P3 move while aiming", RSBS_CVAR_MM_CAMERA_FP_MOVE_IN_FIRST_PERSON, "gSettings.MoveInFirstPerson",
+      "Same bool, different gating: SoH reads its key on its own, while MM moves Link only while its right-stick "
+      "aiming switch is also on, and never on Epona, the swamp boat or in the archery games." },
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },

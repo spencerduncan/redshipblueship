@@ -1021,6 +1021,176 @@ TestResult Test_CVarClassification(void) {
             }
         }
 
+        // (3f-5) W6-CAM-AIM (#1236): MM's aiming, camera and shield inversion / sensitivity keys are held apart from
+        // SoH's (P3, P7), and MM reads every one of them, so each needs a control of its own. Each is bound by exactly
+        // one row in SoH's Bindings window (SohInputEditorWindow.cpp, Camera Controls), its RSBS_CVAR_MM_* define
+        // passed straight to a UIWidgets::CVar* call as its key; games/oot never spells the key; MM still reads it,
+        // with the default the row declares. Three of them MM reads inverted by default (1), so an unset key must
+        // draw ticked, the way Majora's Mask plays it. The table is the lock's own copy, like the key-gap rows.
+        {
+            struct CamAimRow {
+                const char* define;      // the define's name, as the row must spell it
+                const char* defineValue; // what the define expands to
+                const char* key;         // MM's key
+                const char* mmRead;      // how MM reads it: the literal, then this default
+                const char* rowDefault;  // the option the row's chain must carry (nullptr: a checkbox left off)
+            };
+#define CAM_AIM_ROW(def, key, mmRead, rowDefault) \
+    { #def, def, key, mmRead, rowDefault }
+            static const CamAimRow kCamAimRows[] = {
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
+                            "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", ", 0)", nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_INVERT_X, "gEnhancements.Camera.FirstPerson.InvertX", ", 0)",
+                            nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_INVERT_Y, "gEnhancements.Camera.FirstPerson.InvertY", ", 1)",
+                            ".DefaultValue(true)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X, "gEnhancements.Camera.FirstPerson.SensitivityX",
+                            ", 1.0f)", ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_Y, "gEnhancements.Camera.FirstPerson.SensitivityY",
+                            ", 1.0f)", ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED,
+                            "gEnhancements.Camera.FirstPerson.RightStickEnabled", ", 0)", nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_MOVE_IN_FIRST_PERSON,
+                            "gEnhancements.Camera.FirstPerson.MoveInFirstPerson", ", 0)", nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_X,
+                            "gEnhancements.Camera.FirstPerson.RightStickInvertX", ", 0)", nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_Y,
+                            "gEnhancements.Camera.FirstPerson.RightStickInvertY", ", 1)", ".DefaultValue(true)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_X,
+                            "gEnhancements.Camera.FirstPerson.RightStickSensitivityX", ", 1.0f)",
+                            ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_Y,
+                            "gEnhancements.Camera.FirstPerson.RightStickSensitivityY", ", 1.0f)",
+                            ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_X, "gEnhancements.Camera.RightStick.InvertXAxis",
+                            ", 0)", nullptr),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_Y, "gEnhancements.Camera.RightStick.InvertYAxis",
+                            ", 1)", ".DefaultValue(true)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_X,
+                            "gEnhancements.Camera.RightStick.CameraSensitivity.X", ", 1.0f)", ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_Y,
+                            "gEnhancements.Camera.RightStick.CameraSensitivity.Y", ", 1.0f)", ".DefaultValue(1.0f)"),
+                CAM_AIM_ROW(RSBS_CVAR_MM_EQUIPMENT_INVERT_SHIELD_Y, "gEnhancements.Equipment.InvertShieldY", ", 0)",
+                            nullptr),
+            };
+#undef CAM_AIM_ROW
+            const char* const kWindowFile = "games/oot/soh/Enhancements/controls/SohInputEditorWindow.cpp";
+            std::ifstream windowFile(sourceRoot / kWindowFile, std::ios::binary);
+            const std::string window((std::istreambuf_iterator<char>(windowFile)), std::istreambuf_iterator<char>());
+            CVARCLASS_CHECK(!window.empty(), "W6-CAM-AIM: could not read SoH's Bindings window source "
+                                             "(games/oot/soh/Enhancements/controls/SohInputEditorWindow.cpp)");
+
+            // Every UIWidgets::CVar*("label" ..., DEFINE, ...) call in the window: the define it binds and the
+            // call's own text (balanced parentheses, string literals skipped), so the default it declares is
+            // read from that row's chain and no other.
+            struct Binding {
+                std::string define;
+                std::string call;
+            };
+            std::vector<Binding> bindings;
+            auto isIdent = [](char ch) {
+                return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_';
+            };
+            auto skipSpace = [&window](std::size_t at) {
+                while (at < window.size() &&
+                       (window[at] == ' ' || window[at] == '\t' || window[at] == '\r' || window[at] == '\n')) {
+                    at++;
+                }
+                return at;
+            };
+            auto skipLiteral = [&window](std::size_t at) { // at is on the opening quote
+                for (at++; at < window.size() && window[at] != '"'; at++) {
+                    if (window[at] == '\\') {
+                        at++;
+                    }
+                }
+                return at + 1;
+            };
+            for (std::size_t at = window.find("UIWidgets::CVar"); at != std::string::npos;
+                 at = window.find("UIWidgets::CVar", at + 1)) {
+                std::size_t open = at + std::strlen("UIWidgets::CVar");
+                while (open < window.size() && isIdent(window[open])) {
+                    open++;
+                }
+                if (open >= window.size() || window[open] != '(') {
+                    continue;
+                }
+                std::size_t end = open;
+                for (int depth = 0; end < window.size(); end++) {
+                    if (window[end] == '"') {
+                        end = skipLiteral(end) - 1;
+                    } else if (window[end] == '(') {
+                        depth++;
+                    } else if (window[end] == ')' && --depth == 0) {
+                        break;
+                    }
+                }
+                std::size_t arg = skipSpace(open + 1);
+                if (arg >= window.size() || window[arg] != '"') {
+                    continue;
+                }
+                while (arg < window.size() && window[arg] == '"') {
+                    arg = skipSpace(skipLiteral(arg));
+                }
+                if (arg >= window.size() || window[arg] != ',') {
+                    continue;
+                }
+                const std::size_t nameBegin = skipSpace(arg + 1);
+                std::size_t nameEnd = nameBegin;
+                while (nameEnd < window.size() && isIdent(window[nameEnd])) {
+                    nameEnd++;
+                }
+                bindings.push_back({ window.substr(nameBegin, nameEnd - nameBegin), window.substr(at, end - at + 1) });
+            }
+
+            for (const CamAimRow& row : kCamAimRows) {
+                if (std::strcmp(row.defineValue, row.key) != 0) {
+                    printf("[TEST] FAIL: W6-CAM-AIM: %s expands to \"%s\", not MM's \"%s\".\n", row.define,
+                           row.defineValue, row.key);
+                    return TEST_FAIL;
+                }
+                const std::string mmRead = std::string("\"") + row.key + "\"" + row.mmRead;
+                if (!CvarClassTreeContainsLiteral(mmTree, mmRead.c_str() + 1)) {
+                    printf(
+                        "[TEST] FAIL: W6-CAM-AIM: games/mm no longer reads %s.\n"
+                        "[TEST]       The row in SoH's Bindings window declares that default; if MM's reader moved\n"
+                        "[TEST]       or changed its default, move the row's default with it and update this table.\n",
+                        mmRead.c_str());
+                    return TEST_FAIL;
+                }
+                if (CvarClassOotTreeNamesKey(ootTree, row.key)) {
+                    printf("[TEST] FAIL: W6-CAM-AIM: games/oot spells MM's \"%s\" as a literal.\n"
+                           "[TEST]       Bind it through %s (src/common/cvar_shared_keys.h), as the #1037 row does.\n",
+                           row.key, row.define);
+                    return TEST_FAIL;
+                }
+                const Binding* bound = nullptr;
+                int count = 0;
+                for (const Binding& b : bindings) {
+                    if (b.define == row.define) {
+                        bound = &b;
+                        count++;
+                    }
+                }
+                if (count != 1) {
+                    printf("[TEST] FAIL: W6-CAM-AIM: %d rows in %s bind %s (want exactly one).\n"
+                           "[TEST]       MM reads \"%s\" and nothing in the single exe writes it without that row:\n"
+                           "[TEST]       pass the define straight to a UIWidgets::CVar* call beside its SoH twin.\n",
+                           count, kWindowFile, row.define, row.key);
+                    return TEST_FAIL;
+                }
+                const bool declares = row.rowDefault != nullptr
+                                          ? bound->call.find(row.rowDefault) != std::string::npos
+                                          : bound->call.find(".DefaultValue(true)") == std::string::npos;
+                if (!declares) {
+                    printf("[TEST] FAIL: W6-CAM-AIM: the row binding %s does not declare MM's default (%s).\n"
+                           "[TEST]       MM reads %s; an unset key must draw the way Majora's Mask plays it.\n",
+                           row.define, row.rowDefault != nullptr ? row.rowDefault : "off", mmRead.c_str());
+                    return TEST_FAIL;
+                }
+            }
+        }
+
         // (3g) The tier-4 namespace is CLASSIFIED (ADR 0004 §6's scope note;
         // ADR 0011 increment 2).
         //
