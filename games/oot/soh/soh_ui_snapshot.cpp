@@ -5572,16 +5572,15 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
              " measurable row(s) registered, none drawn)");
         return;
     }
-    // #1133: on a hosted-MM page the column is SoH's, sized by SoH's own count, and at the contract profile SoH's own
-    // rows overrun it (a 174 px third of Quality of Life). A hosted row there is held to its SoH column: it fails R9
-    // when it overruns by more than the widest SoH row drawn in the same column, so it never reads worse than its
-    // neighbours, and it is reported either way.
-    std::map<int, float> sohColumnOver;
+    // #1133: on a hosted-MM page the columns are SoH's, sized by SoH's own count, and at the contract profile SoH's
+    // own rows overrun them (a 174 px third of Quality of Life, overrun by up to 146 px). A hosted row there is held
+    // to SoH's page: it fails R9 when it overruns by more than the widest SoH row drawn on the same page (its columns
+    // share one width), so it never reads worse than SoH's own rows, and it is reported either way.
+    float sohPageOver = -1.0f;
     if (!p.hostedRows.empty()) {
         for (const Drawn& d : *drawn) {
             if (!p.hostedRows.contains(d.name)) {
-                float& widest = sohColumnOver[(int)std::lround(d.limitX)];
-                widest = std::max(widest, d.needX - d.limitX);
+                sohPageOver = std::max(sohPageOver, d.needX - d.limitX);
             }
         }
     }
@@ -5594,8 +5593,7 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
         // On a hosted-MM page (#1233) only the hosted rows are ours; SoH's own rows there are reported, as on any
         // SoH page.
         const bool hosted = !p.hostedRows.empty() && p.hostedRows.contains(d.name);
-        const auto sohOver = sohColumnOver.find((int)std::lround(d.limitX));
-        const bool withinSohColumn = hosted && sohOver != sohColumnOver.end() && over <= sohOver->second + 0.5f;
+        const bool withinSohColumn = hosted && over <= sohPageOver + 0.5f;
         const bool rowOurs = ours && (p.hostedRows.empty() || hosted) && !withinSohColumn;
         std::string name = d.name;
         std::replace(name.begin(), name.end(), '\n', ' ');
