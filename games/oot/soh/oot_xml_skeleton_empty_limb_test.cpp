@@ -149,6 +149,23 @@ int XselLegFactory() {
             failures++;
         }
     }
+
+    // Neither DisplayList1 nor Type: a limb with no display list (both reads
+    // once built a std::string from a null pointer).
+    auto bare = XselReadLimb("<SkeletonLimb Version=\"0\" LegTransX=\"0\" LegTransY=\"0\" LegTransZ=\"0\" "
+                             "ChildIndex=\"255\" SiblingIndex=\"255\"/>",
+                             "objects/rsbs_test/limb_bare");
+    if (bare == nullptr) {
+        printf("[xml-skeleton-empty-limb] FAIL: the factory refused the limb without DisplayList1\n");
+        failures++;
+    } else {
+        const Gfx* dl = bare->limbData.lodLimb.dLists[0];
+        printf("[xml-skeleton-empty-limb] no DisplayList1, no Type -> dLists[0] = %s\n", XselDescribe(dl));
+        if (dl != nullptr) {
+            printf("[xml-skeleton-empty-limb] FAIL: a limb without DisplayList1 carries a display list\n");
+            failures++;
+        }
+    }
     return failures;
 }
 

@@ -1,6 +1,7 @@
 #include "2s2h/resource/importer/SkeletonLimbFactory.h"
 #include "2s2h/resource/type/SkeletonLimb.h"
 #include <tinyxml2.h>
+#include <cstring>
 
 namespace S2H {
 std::shared_ptr<Ship::IResource>
@@ -199,8 +200,7 @@ ResourceFactoryXMLSkeletonLimbV0::ReadResource(std::shared_ptr<Ship::File> file,
     auto skelLimb = std::make_shared<SkeletonLimb>(initData);
     auto reader = std::get<std::shared_ptr<tinyxml2::XMLDocument>>(file->Reader)->FirstChildElement();
 
-    std::string limbType = reader->Attribute("Type");
-
+    // The limb's own "Type" is not read: every XML limb is built as LOD.
     // OTRTODO
     skelLimb->limbType = LimbType::LOD;
 
@@ -224,10 +224,15 @@ ResourceFactoryXMLSkeletonLimbV0::ReadResource(std::shared_ptr<Ship::File> file,
 
     // skelLimb->childPtr = reader->Attribute("ChildLimb");
     // skelLimb->siblingPtr = reader->Attribute("SiblingLimb");
-    skelLimb->dListPtr = reader->Attribute("DisplayList1");
-
-    if (std::string(reader->Attribute("DisplayList1")) == "MM_gEmptyDL") {
+    // "gEmptyDL" is the exporter's (Fast64's) marker for a limb with no mesh, so
+    // it is compared as mod data spells it, never as a namespaced C symbol
+    // (#1190: the January namespacing pass had prefixed it). A missing
+    // attribute is a limb with no display list too.
+    const char* dl1 = reader->Attribute("DisplayList1");
+    if (dl1 == nullptr || std::strcmp(dl1, "gEmptyDL") == 0) {
         skelLimb->dListPtr = "";
+    } else {
+        skelLimb->dListPtr = dl1;
     }
 
     auto& limbData = skelLimb->limbData;
