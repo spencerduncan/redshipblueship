@@ -906,6 +906,72 @@ void ResetAudioKeys() {
     }
 }
 
+// ---- W6-DEV (#1238): MM's developer switches and debug save ------------------
+// DeveloperTools/DeveloperTools.cpp and DeveloperTools/ObjectDependency.cpp, each registering only through file-scope
+// RegisterShipInitFuncs. Attributed by registry content, each bucket measured with every other key off:
+//  - Debug Mode on arms the debug-save OnSaveInit registrant (RegisterDebugSaveCreate), because Debug Save File Mode
+//    is left unset and reads 1 (Vanilla), the shared default both games agree on;
+//  - the three Prevent switches arm only UNDER Debug Mode, so their counts hold Debug Mode on while the probed key is
+//    on (and drop it again once the drive has turned the key off), re-driving only the probed key: Debug Mode's own
+//    registrars are never driven by them;
+//  - Disable Object Dependency arms its VB_ENABLE_OBJECT_DEPENDENCY rewrite with no Debug Mode gate.
+constexpr const char* kW6DevDebugModeCVar = "gDeveloperTools.DebugEnabled";
+
+/** Hold Debug Mode on while @p key is on; clear it once @p key is off again, if this armed it. */
+void W6DevHoldDebugModeFor(const char* key) {
+    static bool sArmedDebugMode = false;
+    if (CVarGetInteger(key, 0) != 0 && CVarGetInteger(kW6DevDebugModeCVar, 0) == 0) {
+        CVarSetInteger(kW6DevDebugModeCVar, 1);
+        sArmedDebugMode = true;
+        ShipInit::Init(key);
+        ShipInit::Init(key);
+    } else if (CVarGetInteger(key, 0) == 0 && sArmedDebugMode) {
+        CVarClear(kW6DevDebugModeCVar);
+        sArmedDebugMode = false;
+    }
+}
+
+const std::vector<SkipKeyProbe>& W6DevProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { kW6DevDebugModeCVar,
+          "Debug Save File Mode (under Debug Mode)",
+          { { "OnSaveInit, unkeyed (DeveloperTools.cpp RegisterDebugSaveCreate)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSaveInit>(); }, 1 } } },
+        { "gDeveloperTools.PreventActorUpdate",
+          "Prevent Actor Update",
+          { { "ShouldActorUpdate, unkeyed (DeveloperTools.cpp)",
+              []() {
+                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorUpdate");
+                  return SettledUnkeyedCount<GameInteractor::ShouldActorUpdate>();
+              },
+              1 } } },
+        { "gDeveloperTools.PreventActorDraw",
+          "Prevent Actor Draw",
+          { { "ShouldActorDraw, unkeyed (DeveloperTools.cpp)",
+              []() {
+                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorDraw");
+                  return SettledUnkeyedCount<GameInteractor::ShouldActorDraw>();
+              },
+              1 } } },
+        { "gDeveloperTools.PreventActorInit",
+          "Prevent Actor Init",
+          { { "ShouldActorInit, unkeyed (DeveloperTools.cpp)",
+              []() {
+                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorInit");
+                  return SettledUnkeyedCount<GameInteractor::ShouldActorInit>();
+              },
+              1 } } },
+        { "gDeveloperTools.DisableObjectDependency",
+          "Disable Object Dependency",
+          { { "VB_ENABLE_OBJECT_DEPENDENCY (ObjectDependency.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_ENABLE_OBJECT_DEPENDENCY); },
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6DevPhase{ "W6-DEV (#1238)", W6DevProbes };
+
 // ---- Phase 8 (#1023): Free Look ---------------------------------------------
 // Same shape as Phase 5 (SkipKeyProbe).
 const std::vector<SkipKeyProbe>& FreeLookProbes() {
