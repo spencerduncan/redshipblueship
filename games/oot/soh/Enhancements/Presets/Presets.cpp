@@ -212,10 +212,8 @@ void ParsePreset(nlohmann::json& json, std::string name) {
     } catch (...) {}
 }
 
-void LoadPresets() {
-    if (!presets.empty()) {
-        presets.clear();
-    }
+// The user presets folder's pass of LoadPresets().
+static void LoadUserPresets() {
     if (fs::exists(presetFolder)) {
         for (auto const& preset : fs::directory_iterator(presetFolder)) {
             std::ifstream ifs(preset.path());
@@ -230,6 +228,13 @@ void LoadPresets() {
             ifs.close();
         }
     }
+}
+
+void LoadPresets() {
+    if (!presets.empty()) {
+        presets.clear();
+    }
+    LoadUserPresets();
     auto initData = std::make_shared<Ship::ResourceInitData>();
     initData->Format = RESOURCE_FORMAT_BINARY;
     initData->Type = static_cast<uint32_t>(Ship::ResourceType::Json);
@@ -246,6 +251,27 @@ void LoadPresets() {
         ParsePreset(json->Data, fileName);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+std::vector<std::string> Presets_LoadFolderForTest(const std::string& folder) {
+    struct Restore {
+        std::map<std::string, PresetInfo> savedPresets = presets;
+        std::string savedFolder = presetFolder;
+        ~Restore() {
+            presets = savedPresets;
+            presetFolder = savedFolder;
+        }
+    } restore;
+    presets.clear();
+    presetFolder = folder;
+    LoadUserPresets();
+    std::vector<std::string> listed;
+    for (const auto& [name, info] : presets) {
+        listed.push_back(name);
+    }
+    return listed;
+}
+#endif
 
 void SavePreset(std::string& presetName) {
     if (!fs::exists(presetFolder)) {

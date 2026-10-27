@@ -5439,6 +5439,16 @@ static TestResult Test_MenuComboSection(void) {
     return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/soh_presets_folder_test.cpp (#1210): a non-JSON file in the
+// presets folder is skipped with one log line instead of throwing out of
+// LoadPresets (a boot-time RegisterMenuInitFunc). No bring-up: the seam reads
+// only the folder it is handed.
+extern "C" int Soh_PresetsSkipNonJson_RunHeadless(void);
+
+static TestResult Test_PresetsSkipNonJson(void) {
+    return Soh_PresetsSkipNonJson_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's presentation half. Same display-free shared bring-up as the row above,
 // for the same reason: AddMenuCombo registers rows whose PreFuncs and option
 // defaults read the Ship::Context singleton's ConsoleVariables, and this row also
@@ -7931,6 +7941,8 @@ const TestDescriptor gTests[] = {
     { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
       Test_MenuComboSection },
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
+    { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
+      Test_PresetsSkipNonJson },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
