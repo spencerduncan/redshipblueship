@@ -5,10 +5,10 @@
 #include "soh/ResourceManagerHelpers.h"
 
 // #region SOH [HD Textures]
-#define drGfxPrintFontData "__OTR__textures/font/OoT_sGfxPrintFontData"
+#define drGfxPrintFontData "__OTR__textures/font/sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontData[] = drGfxPrintFontData;
 
-#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/OoT_sGfxPrintFontData"
+#define drGfxPrintFontDataAlt "__OTR__alt/textures/font/sGfxPrintFontData"
 static const ALIGN_ASSET(2) char rGfxPrintFontDataAlt[] = drGfxPrintFontDataAlt;
 
 bool OoT_sHasArchiveTexture = false;
