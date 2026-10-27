@@ -58,6 +58,14 @@ void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
 void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
 void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
 void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
+// W6-FIXES (#1237): MM's Fixes and Restorations rows on the Fixes page (HostedMm/SohMenuHostedMmFixes.cpp).
+void AddMmGameplayFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmPowerCrouchStabRow(SohMenu& menu, WidgetPath& path);
+void AddMmCameraFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmGraphicalFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmAudioFixesRows(SohMenu& menu, WidgetPath& path);
+void AddMmGlitchRestorationsRows(SohMenu& menu, WidgetPath& path);
+void AddMmMiscRestorationsRows(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -1086,6 +1094,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Forces Goron City doors open if you somehow complete Fire Temple without talking to Goron Link "
             " and receiving the Goron Tunic."));
+    AddMmGameplayFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Item-related Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Deku Nut Upgrade", WIDGET_CVAR_CHECKBOX)
@@ -1106,6 +1115,7 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(
             [](WidgetInfo& info) { info.isHidden = CVarGetInteger(CVAR_ENHANCEMENT("CrouchStabHammerFix"), 0) == 0; })
         .Options(CheckboxOptions().Tooltip("Make crouch stabbing always do the same damage as a regular slash."));
+    AddMmPowerCrouchStabRow(*this, path); // W6-FIXES (#1237): MM's restoration, shown whatever SoH's gate holds
     AddWidget(path, "Fix Broken Giant's Knife Bug", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FixBrokenGiantsKnife"))
         .PreFunc([](WidgetInfo& info) {
@@ -1130,6 +1140,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("FixHangingLedgeSwingRate"))
         .Options(CheckboxOptions().Tooltip("Fixes camera swing rate when the player falls off a ledge and the camera "
                                            "swings around. May impact certain glitches."));
+    AddMmCameraFixesRows(*this, path); // W6-FIXES (#1237)
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Graphical Fixes", WIDGET_SEPARATOR_TEXT);
@@ -1185,6 +1196,7 @@ void SohMenu::AddMenuEnhancements() {
                          "Consistent: Certain paths vanish the same way in all resolutions.\n"
                          "No Vanish: Paths do not vanish, Link seems to sink in to some paths.\n"
                          "This might affect other decal effects.\n"));
+    AddMmGraphicalFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Audio Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Missing Jingle after 5 Silver Rupees", WIDGET_CVAR_CHECKBOX)
@@ -1193,6 +1205,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Adds 5 higher pitches for the Silver Rupee Jingle for the rooms with more than 5 Silver Rupees. "
             "Only relevant for playthroughs involving Master Quest Dungeons."));
+    AddMmAudioFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Desync Fixes", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix Darunia Dancing too Fast", WIDGET_CVAR_CHECKBOX)
@@ -1250,6 +1263,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Restores a bug from NTSC 1.0/1.1 that allows you to obtain the eyeball frog from King Zora "
             "instead of the Zora Tunic by Holding Shield."));
+    AddMmGlitchRestorationsRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Misc Restorations", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Fix L&Z Page Switch in Pause Menu", WIDGET_CVAR_CHECKBOX)
@@ -1264,6 +1278,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("GraveHoles"))
         .Options(CheckboxOptions().Tooltip(
             "Restores NTSC 1.0 behavior where Link jumps over grave holes and grabs the ledges."));
+    AddMmMiscRestorationsRows(*this, path); // W6-FIXES (#1237)
 
     // Difficulty Options
     path.sidebarName = "Difficulty";
