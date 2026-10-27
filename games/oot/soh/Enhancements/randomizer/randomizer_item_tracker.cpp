@@ -1903,11 +1903,19 @@ void ItemTrackerWindow::DrawElement() {
                             buttonsPressed[0].button & comboButton2Mask;
     bool isPaused = CVarGetInteger(CVAR_TRACKER_ITEM("ShowOnlyPaused"), 0) == 0 ||
                     OoT_gPlayState != nullptr && OoT_gPlayState->pauseCtx.state > 0;
+    // RSBS (#1132): retired in the single exe (SohRetiredWindow.h), this window has no key: gOpenWindows.ItemTracker
+    // opens the unified Item Tracker, which draws under the same ImGui name. Its own visibility is what the key
+    // mirrored, and is set only by the UI snapshot harness's reference capture.
+#ifdef RSBS_SINGLE_EXECUTABLE
+    const bool mainWindowOpen = IsVisible();
+#else
+    const bool mainWindowOpen = CVarGetInteger(CVAR_WINDOW("ItemTracker"), 0);
+#endif
 
     if (CVarGetInteger(CVAR_TRACKER_ITEM("WindowType"), TRACKER_WINDOW_FLOATING) == TRACKER_WINDOW_WINDOW ||
         isPaused &&
             (CVarGetInteger(CVAR_TRACKER_ITEM("DisplayType.Main"), TRACKER_DISPLAY_ALWAYS) == TRACKER_DISPLAY_ALWAYS
-                 ? CVarGetInteger(CVAR_WINDOW("ItemTracker"), 0)
+                 ? mainWindowOpen
                  : comboButtonsHeld)) {
         if ((CVarGetInteger(CVAR_TRACKER_ITEM("DisplayType.Inventory"), SECTION_DISPLAY_MAIN_WINDOW) ==
              SECTION_DISPLAY_MAIN_WINDOW) ||

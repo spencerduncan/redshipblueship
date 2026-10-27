@@ -275,6 +275,30 @@ bool UnregisterComboSectionPage(const char* sidebarName);
 /** The contributed pages, in registration order. */
 const std::vector<ComboSectionPage>& GetComboSectionPages();
 
+// ============================================================================
+// Rows contributed to one of SoH's own sidebar pages (#1132, ruling D1)
+// ============================================================================
+/**
+ * The unified Check Tracker and Item Tracker replace SoH's in the single exe, so
+ * their pages are SoH's own Randomizer > Check Tracker and Item Tracker. A TU
+ * that has rows for such a page appends them here instead of editing the SoH
+ * page's registrar, which calls AddContributedSohPageRows once after its last
+ * row (SohMenuRandomizer.cpp: the Item Tracker and Check Tracker pages). Each
+ * registrar is handed the page's own path with the first column pinned, and
+ * contributions run in registration order. Registration must happen before
+ * AddMenuElements(), as for RegisterComboSectionPage, from a WHOLE_ARCHIVE'd
+ * TU; a null registrar or an empty name is refused.
+ */
+void RegisterSohPageRows(const char* sectionName, const char* sidebarName, ComboPageRegistrar registrar);
+
+/** Drop every contribution made with @p registrar. Returns how many were removed.
+ *  Exists so a test can restore the registry. */
+int UnregisterSohPageRows(ComboPageRegistrar registrar);
+
+/** Run the contributions for the page @p path names (its sectionName and
+ *  sidebarName), each with path.column pinned to the first column. */
+void AddContributedSohPageRows(SohMenu& menu, WidgetPath& path);
+
 class SohMenu : public Ship::Menu {
   public:
     SohMenu(const std::string& consoleVariable, const std::string& name);
@@ -479,6 +503,13 @@ struct RegisterComboSectionPage_t {
     RegisterComboSectionPage_t(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
                                ComboPageHost host = ComboPageHost::Combo) {
         RegisterComboSectionPage(sidebarName, columnCount, registrar, host);
+    }
+};
+
+/** File-scope helper for RegisterSohPageRows; see its doc comment. */
+struct RegisterSohPageRows_t {
+    RegisterSohPageRows_t(const char* sectionName, const char* sidebarName, ComboPageRegistrar registrar) {
+        RegisterSohPageRows(sectionName, sidebarName, registrar);
     }
 };
 } // namespace SohGui

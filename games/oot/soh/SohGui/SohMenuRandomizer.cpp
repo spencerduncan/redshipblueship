@@ -855,6 +855,8 @@ void SohMenu::AddMenuRandomizer() {
         .WindowName("Item Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Item Tracker Settings Window."));
+    // RSBS (#1132, ruling D1): the unified Item Tracker's rows, appended to its page.
+    AddContributedSohPageRows(*this, path);
 
     // Entrance Tracker
     path.sidebarName = "Entrance Tracker";
@@ -895,6 +897,8 @@ void SohMenu::AddMenuRandomizer() {
         .WindowName("Check Tracker Settings")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Check Tracker Settings Window."));
+    // RSBS (#1132, ruling D1): the unified Check Tracker's rows, appended to its page.
+    AddContributedSohPageRows(*this, path);
 }
 
 } // namespace SohGui

@@ -48,15 +48,24 @@ class Gui;
 
 namespace ComboGui {
 
-// Registration name on the shared Gui. Distinct from SoH's unprefixed tracker
-// names, MM's "MM "-prefixed ones, and the other common-owned windows:
-// Gui::AddGuiWindow rejects duplicates SILENTLY from the caller's side, so a
-// collision here would present as a window that simply never appears.
-inline constexpr const char* kComboTrackerWindowName = "Combo Tracker";
+// Registration name on the shared Gui, and the title (operator ruling D7 of
+// 2026-10-22: "just drop the combo"). It is SoH's own window's name: the unified
+// window replaces SoH's in the single exe (ruling D1, #1132), so SoH's
+// Randomizer > Check Tracker > Toggle Check Tracker, a WINDOW_BUTTON that looks
+// its window up BY NAME, opens this one. SoH's own window stays registered under
+// "SoH Check Tracker" (games/oot/soh/SohGui/SohRetiredWindow.h), never drawn;
+// MM's are "MM "-prefixed. Gui::AddGuiWindow rejects duplicates SILENTLY from
+// the caller's side, so a collision here would present as a window that simply
+// never appears. Until #1132 the window was "Combo Tracker"; ImGui keys a
+// window's saved position by its title, so it takes SoH's own Check Tracker's
+// saved place, if the player ever moved that one.
+inline constexpr const char* kComboTrackerWindowName = "Check Tracker";
 
-// Visibility CVar in the "gCombo.*" namespace (neither OoT's "gOpenWindows.*"
-// nor MM's "gWindows.*", so no store collision).
-inline constexpr const char* kComboTrackerVisibilityCVar = "gCombo.Windows.Tracker";
+// Visibility CVar: SoH's own Check Tracker key, CVAR_WINDOW("CheckTracker")
+// (CMake/soh-cvars.cmake's prefix), which SoH's toggle row reads for its label
+// (#1132). Never MM's "gWindows.CheckTracker", which opens MM's own tracker.
+// gCombo.Windows.Tracker (cvar_shared_keys.h) held it until #1132.
+inline constexpr const char* kComboTrackerVisibilityCVar = "gOpenWindows.CheckTracker";
 
 /**
  * Both panes' size (#755 follow-up): first use opens them at kComboPaneWidth x
@@ -186,6 +195,14 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row);
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
 /**
+ * What the search box matches a Checks-list row against (#1132): what SoH's
+ * ShouldShowCheck matches, the check's short and full names and its area's
+ * name, then the item the row reveals (ComboCheckRowItemText's name and game
+ * suffix) when it reveals one.
+ */
+std::string ComboCheckRowSearchText(uint8_t game, const ComboTrackerCheckRow& row);
+
+/**
  * The reachability glyph a row draws before its check (#1129): SoH's
  * DrawLocation glyph, ICON_FA_UNLOCK for an available check and ICON_FA_LOCK
  * for one that is not, or NULL when the row's availability is not known (no
@@ -312,6 +329,13 @@ struct ComboCheckHeaderOptions {
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
+
+/**
+ * Whether a pane draws its header at all, and so the separator under it (#1132):
+ * SoH's DrawElement draws that separator only while one of its header controls
+ * is visible ("headerPresent").
+ */
+bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header);
 
 // ---- Navigation (#1131, lane L4) --------------------------------------------
 //

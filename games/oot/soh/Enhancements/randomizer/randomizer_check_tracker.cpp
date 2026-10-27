@@ -545,6 +545,29 @@ void SetShopSeen(uint32_t sceneNum, bool prices) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1132: the unified Check Tracker's OoT pane lists what IsVisibleInCheckTracker
+// lists, which reads these two statics. SoH's DrawElement loads them from their
+// keys every frame; retired in the single exe (SohRetiredWindow.h), it never
+// runs, so the window's per-frame UpdateElement and the file load load them
+// here. DrawElement's other reads feed only SoH's own draw, and Enable Available
+// Checks has its own owners (OoT_CheckTracker_AvailabilityCurrent,
+// SetEnableAvailableChecks). A change re-runs the search filter, as the two
+// rows' callbacks do, once a file's checks are listed.
+static void LoadVisibilitySettings(bool refilter) {
+    const bool gs = CVarGetInteger(CVAR_TRACKER_CHECK("AlwaysShowGSLocs"), 0) != 0;
+    const bool shops = CVarGetInteger(CVAR_TRACKER_CHECK("HideUnshuffledShopChecks"), 0) != 0;
+    if (gs == alwaysShowGS && shops == hideShopUnshuffledChecks) {
+        return;
+    }
+    alwaysShowGS = gs;
+    hideShopUnshuffledChecks = shops;
+    if (refilter && initialized) {
+        UpdateFilters();
+    }
+}
+#endif
+
 void CheckTrackerLoadGame(int32_t fileNum) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     availableComputed = false; // #1129: the bits belong to the file this load replaces
@@ -553,6 +576,9 @@ void CheckTrackerLoadGame(int32_t fileNum) {
         return;
     }
     LoadSettings();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    LoadVisibilitySettings(false); // #1132: before the totals below count what IsVisibleInCheckTracker lists
+#endif
     TrySetAreas();
     for (auto& entry : Rando::StaticData::GetLocationTable()) {
         RandomizerCheck rc = entry.GetRandomizerCheck();
@@ -2353,6 +2379,24 @@ extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
     SetEnableAvailableChecks(enabled != 0);
 }
 
+// TEST BRIDGES (#1132): the two settings statics IsVisibleInCheckTracker reads
+// (Always Show Gold Skulltulas, Hide Unshuffled Shop Item Checks), read and set
+// directly, so a ROM-free row can tell whether the window's per-frame path
+// loaded them from their keys.
+extern "C" void RandoTest_CheckTrackerVisibilityStatics(int* alwaysShowGsOut, int* hideUnshuffledShopsOut) {
+    if (alwaysShowGsOut != nullptr) {
+        *alwaysShowGsOut = alwaysShowGS ? 1 : 0;
+    }
+    if (hideUnshuffledShopsOut != nullptr) {
+        *hideUnshuffledShopsOut = hideShopUnshuffledChecks ? 1 : 0;
+    }
+}
+
+extern "C" void RandoTest_CheckTrackerSetVisibilityStatics(int alwaysShowGs, int hideUnshuffledShops) {
+    alwaysShowGS = alwaysShowGs != 0;
+    hideShopUnshuffledChecks = hideUnshuffledShops != 0;
+}
+
 // The combo tracker's OoT pane (#1129, TrackerAdapterSingleExe.cpp): whether
 // ItemLocation::IsAvailable is this tracker's current answer. It does for a closed
 // window what DrawElement does each frame: the option is read from its key (the
@@ -2622,6 +2666,9 @@ void CheckTrackerWindow::InitElement() {
 }
 
 void CheckTrackerWindow::UpdateElement() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    LoadVisibilitySettings(true); // #1132: every frame, shown or not, as DrawElement did while it drew
+#endif
 }
 
 void RegisterCheckTrackerWidgets() {
@@ -2668,7 +2715,13 @@ void RegisterCheckTrackerWidgets() {
                      .Color(THEME_COLOR)
                      .Tooltip("If enabled, will show GS locations in the tracker regardless of tokensanity settings."))
         .Callback([&](WidgetInfo& info) {
+            // RSBS (#1132): read the key, as the Hide Unshuffled row does; a flip drifts from the key once the
+            // per-frame load (LoadVisibilitySettings) has set the static.
+#ifdef RSBS_SINGLE_EXECUTABLE
+            alwaysShowGS = CVarGetInteger(CVAR_TRACKER_CHECK("AlwaysShowGSLocs"), 0);
+#else
             alwaysShowGS = !alwaysShowGS;
+#endif
             UpdateFilters();
         });
     SohGui::mSohMenu->AddSearchWidget({ showGSWidget, "Randomizer", "Check Tracker", "General Settings" });

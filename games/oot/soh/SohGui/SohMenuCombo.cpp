@@ -25,15 +25,16 @@
  * pointer page became the rules page again, under its "Cross-Game" name, after
  * MM Randomizer and MM Tricks, all three between SoH's Tricks/Glitches and
  * Plandomizer (AddComboRandomizerPages below, called by AddMenuRandomizer). The
- * Combo header keeps Windows and the contributed non-randomizer pages; a
- * persisted Combo selection on a moved page is carried across headers
+ * Combo header keeps the contributed non-randomizer pages; a persisted Combo
+ * selection on a moved page is carried across headers
  * (ComboSidebarCarryMovedSelection). Nothing about the rows, the model or the
  * freeze changed: only the registration moved.
  *
  * WHAT IS NOT BUILT HERE, named rather than implied. ADR 0004 section 4's table
  * lists four Combo sidebars - pairing status, save slots, entrance links,
- * hot-swap. One page ships here, `Windows` (`Cross-Game Rules` did until
- * #1101 moved it under the Randomizer header); save slots
+ * hot-swap. No page ships here any more: `Cross-Game Rules` did until #1101
+ * moved it under the Randomizer header, and `Windows` until #1132 (ruling D1:
+ * the unified trackers open from SoH's own tracker pages); save slots
  * are the contributed `Save Files` page (SohMenuComboSaveFiles.cpp, 2026-09-28,
  * which absorbed the never-constructed ComboMenuBar's `.redsave` panel; that
  * file is deleted). Pairing status, entrance links and hot-swap would be EMPTY
@@ -42,14 +43,15 @@
  * undocks libultraship's "Main Game" window), so they are left unregistered
  * until they have content.
  *
- * THE EXTENSION POINT. Other TUs contribute pages through
- * SohGui::RegisterComboSectionPage (declared in SohMenu.h, implemented below)
- * rather than by editing this file. See that declaration for the two things that
+ * THE EXTENSION POINTS. Other TUs contribute pages through
+ * SohGui::RegisterComboSectionPage, and rows on one of SoH's own pages through
+ * SohGui::RegisterSohPageRows (#1132), both declared in SohMenu.h and
+ * implemented below, rather than by editing this file. See that declaration for the two things that
  * bite: a file-scope registrar in a plain archive is dropped by the linker, and
  * an empty page is #640.
  *
  * Locked ROM-free by MenuComboSection (both headers' pages of ours, their order,
- * the carried selections and the extension point) and by ComboSettingsRows (the
+ * the carried selections, SoH's tracker pages and both extension points) and by ComboSettingsRows (the
  * rules' own behaviour, which followed them).
  */
 
@@ -65,11 +67,6 @@
 #include "foreign_items.h"
 // The status sentences every randomizer page of ours shares (#1101 decision 7).
 #include "combo_mm_options_page.h"
-// The windows the Windows page opens: their registered names and visibility
-// CVars, from the constants the windows themselves are built with.
-#include "ComboSpoilerWindow.h"
-#include "ComboTrackerWindow.h"
-#include "ComboItemTrackerWindow.h"
 
 #include <cctype>  // toupper, for the disabled reason's Title Case
 #include <cstdio>  // snprintf, for the combo-rule status line and fingerprint
@@ -468,6 +465,55 @@ bool UnregisterComboSectionPage(const char* sidebarName) {
 
 const std::vector<ComboSectionPage>& GetComboSectionPages() {
     return MutableComboSectionPages();
+}
+
+// ============================================================================
+// Rows contributed to SoH's own pages (#1132, ruling D1; declared in SohMenu.h)
+// ============================================================================
+
+namespace {
+
+struct SohPageRows {
+    std::string sectionName;
+    std::string sidebarName;
+    ComboPageRegistrar registrar;
+};
+
+/** A function-local static, like the page registry above: contributors register
+ *  from file-scope initializers. */
+std::vector<SohPageRows>& MutableSohPageRows() {
+    static std::vector<SohPageRows> rows;
+    return rows;
+}
+
+} // namespace
+
+void RegisterSohPageRows(const char* sectionName, const char* sidebarName, ComboPageRegistrar registrar) {
+    if (sectionName == nullptr || sectionName[0] == '\0' || sidebarName == nullptr || sidebarName[0] == '\0' ||
+        registrar == nullptr) {
+        SPDLOG_ERROR("RegisterSohPageRows: refused - a contribution needs a header, a page and a registrar");
+        return;
+    }
+    MutableSohPageRows().push_back(SohPageRows{ sectionName, sidebarName, registrar });
+}
+
+int UnregisterSohPageRows(ComboPageRegistrar registrar) {
+    auto& rows = MutableSohPageRows();
+    const std::size_t before = rows.size();
+    std::erase_if(rows, [registrar](const SohPageRows& r) { return r.registrar == registrar; });
+    return (int)(before - rows.size());
+}
+
+void AddContributedSohPageRows(SohMenu& menu, WidgetPath& path) {
+    for (const SohPageRows& rows : MutableSohPageRows()) {
+        if (rows.sectionName != path.sectionName || rows.sidebarName != path.sidebarName) {
+            continue;
+        }
+        // Pinned, as every contributed page's is: a row parked past the page's
+        // column count is registered and never drawn.
+        path.column = SECTION_COLUMN_1;
+        rows.registrar(menu, path);
+    }
 }
 
 // ============================================================================
@@ -875,123 +921,28 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
 }
 
 /**
- * The Windows page: the common-owned cross-game windows, moved here with the
- * rules (#497 step 6). Same registrar shape and same reason for being
- * externally linked. It holds exactly the LIVE-PLAY tools, SoH's rule for a
- * window (docs/ui-style-guide.md section 10): the MM randomizer options that
- * used to open from here are pages since 2026-09-27.
- *
- * SHAPED LIKE SoH's OWN TRACKER PAGES (UI parity M5; docs/ui-style-guide.md
- * R-N7). Randomizer > Item Tracker gives each window its own SEPARATOR_TEXT over
- * a "Toggle <Window>" row whose tooltip reads "Toggles the <Window>.", and each
- * settings window its own separator over a "Popout <Window> Settings" row
- * ("Enables the separate <Window> Settings Window."). Every window here follows
- * that shape, so the page reads as one more SoH tracker page.
- *
- * WINDOW_BUTTON reads .CVar only for the open/close label and calls the window's
- * own ToggleVisibility (UIWidgets.cpp:198), so .CVar MUST equal the window's ctor
- * visibility CVar and .WindowName its registered name. Both come from the
- * constants the windows are built with: ComboGui::kComboSpoiler* /
- * kComboTracker* / kComboItemTracker* (src/common/ComboSpoilerWindow.h,
- * ComboTrackerWindow.h, ComboItemTrackerWindow.h). MenuComboSection restates
- * every pair as literals on purpose, so the menu and the window still have to
- * agree with a third spelling.
- *
- * NO MM TRACKER ROWS (#458 U6, ADR 0004's 2026-09-30 amendment). MM's four
- * tracker windows had rows here, the only menu writer of their gWindows.* keys
- * (#489). The Combo Tracker (checks, enriched by #458 U4) and the Combo Item
- * Tracker (items, #458 U2) cover both games, live for the running game and the
- * snapshot for the other, so they supersede those rows. MM's native windows
- * stay registered on the shared Gui as fallbacks (MM_TrackersGui_Init, called
- * from rsbs/src/main.cpp), still MMActiveGated, and their gWindows.* keys still
- * open them (the MMTrackersGui lock): only the rows went.
- *
- * WHY THESE ROWS ARE UNGATED, now that #497 step 3 gives them a gate to use.
- * The common-owned windows name no game layout and read no gSaveContext (ADR
- * 0008 rule 5), so they are safe under every GameId - there is no capability
- * to be absent.
- */
-void AddComboWindowWidgets(SohMenu& menu, WidgetPath& path) {
-    // ---- The common-owned cross-game windows --------------------------------
-    // NO "Toggle MM Randomizer Options" ROW (2026-09-27, ADR 0004's host
-    // amendment). MM's randomizer options and tricks are settings chosen before
-    // the paired world is created, so they are pages now (Combo > MM Randomizer
-    // and Combo > MM Tricks, SohMenuComboMmRandomizer.cpp), the way SoH keeps its
-    // own randomizer settings on pages. This page keeps only the tools a player
-    // uses DURING play, as SoH's Item Tracker and Check Tracker pages do.
-    //
-    // NO "Toggle Combo Settings" ROW (#655). PR #652 put one here, opening the
-    // common-owned ComboSettingsWindow pane. The five settings it rendered are
-    // the rows of Cross-Game Rules now, so a button that opens a second surface
-    // over the same five keys would be the only way for the two to disagree. The
-    // window stays REGISTERED (Combo_MMOptionsPages_Init and rsbs/src/main.cpp
-    // both call Combo_ComboSettingsWindow_Init, and its headless lock still
-    // drives it) but nothing in the menu writes gCombo.Windows.ComboSettings any
-    // more, so it does not appear. See src/common/ComboSettingsWindow.h for why
-    // it was kept rather than deleted.
-    //
-    // Spoiler - reveals paired-seed placements, so race-disabled like a spoiler tool.
-    menu.AddWidget(path, "Cross-Game Spoiler", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Toggle Cross-Game Spoiler", WIDGET_WINDOW_BUTTON)
-        .CVar(ComboGui::kComboSpoilerVisibilityCVar)
-        .RaceDisable(true)
-        .WindowName(ComboGui::kComboSpoilerWindowName)
-        .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
-    // Combo tracker (#458) - both games' progress at once, the inactive game's
-    // included (from its snapshot). Not race-disabled, as SoH's own Toggle
-    // Check Tracker row is not: ruling D10 (#1128) cut its Crossings section,
-    // the only part that named items on uncollected checks.
-    menu.AddWidget(path, "Combo Tracker", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Toggle Combo Tracker", WIDGET_WINDOW_BUTTON)
-        .CVar(ComboGui::kComboTrackerVisibilityCVar)
-        .RaceDisable(false)
-        .WindowName(ComboGui::kComboTrackerWindowName)
-        .HideInSearch(true)
-        .Options(WindowButtonOptions().Tooltip("Toggles the Combo Tracker.").EmbedWindow(false));
-    // The unified Item Tracker overlay (#458 U2): both games' items, the
-    // inactive game's from its snapshot. Not race-disabled, as SoH's own Toggle
-    // Item Tracker row is not: it shows only what the player holds.
-    menu.AddWidget(path, "Combo Item Tracker", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Toggle Combo Item Tracker", WIDGET_WINDOW_BUTTON)
-        .CVar(ComboGui::kComboItemTrackerVisibilityCVar)
-        .RaceDisable(false)
-        .WindowName(ComboGui::kComboItemTrackerWindowName)
-        .HideInSearch(true)
-        .Options(WindowButtonOptions()
-                     .Tooltip("Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging.")
-                     .EmbedWindow(false));
-}
-
-/**
- * The Windows page's sidebar name, and the name it shipped under.
- *
- * RENAMED 2026-09-27 (UI parity, lane U3). "Cross-Game Windows" is wider than
- * the 200 px sidebar in Montserrat 24: ModernMenuSidebarEntry centres a label
- * on the child's work rect, so an over-wide one is cut on BOTH sides, and the
- * snapshot harness showed it as "ross-Game Window" at 1280x800. SoH's own
- * sidebar names are one or two short words ("Item Tracker", "Entrance
- * Tracker"); under the Combo header the page needs no qualifier.
+ * The Combo sidebar names that changed, and the name each carries to.
  *
  * Selection persists BY DISPLAY NAME in gSettings.Menu.ComboSidebarSection, so
- * a config that last had the page open under its old name would otherwise fall
+ * a config that last had a page open under an old name would otherwise fall
  * back to the section's first page. ComboSidebarCarryRenamedSelection moves it
  * to the new name, once, before the menu's first draw reads the key.
  *
- * The same day the contributed "MM Enhancements" page became "Majora's Mask"
- * (SohMenuComboMmEnhancements.cpp says why). Its new name is spelled a second
- * time in the table below because that TU's constant is file-local on purpose;
- * MenuComboSection leg 6 requires every carried-to name to be a registered
- * page, so the two spellings cannot drift apart without a red row.
+ * RENAMED 2026-09-27 (UI parity, lane U3). "Cross-Game Windows" was wider than
+ * the 200 px sidebar in Montserrat 24 (the snapshot harness showed it as
+ * "ross-Game Window"), so it became "Windows"; the same day the contributed "MM
+ * Enhancements" page became "Majora's Mask" (SohMenuComboMmEnhancements.cpp says
+ * why). Windows then left the header (#1132), so the moves table below carries
+ * both of its names across headers, the old one through the new.
+ * MenuComboSection leg 6 requires every carried-to name to be a registered page,
+ * so the spellings here cannot drift from the pages without a red row.
  */
-static constexpr const char* kComboWindowsPage = "Windows";
-
 struct ComboSidebarRename {
     const char* formerName;
     const char* currentName;
 };
 static constexpr ComboSidebarRename kComboSidebarRenames[] = {
-    { "Cross-Game Windows", kComboWindowsPage },
+    { "Cross-Game Windows", "Windows" },
     { "MM Enhancements", "Majora's Mask" },
 };
 
@@ -1009,15 +960,19 @@ static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
 }
 
 /**
- * The pages #1101 moved from the Combo header to the Randomizer header, and the
- * Randomizer sidebar name each one has there. Spelled here as literals for the
- * same reason the rename table above is: MenuComboSection leg 6 requires every
- * carried-to name to be a page AddComboRandomizerPages registers.
+ * The pages that left the Combo header for the Randomizer header, and the
+ * Randomizer sidebar name each one lands on: the three #1101 moved, and Windows
+ * (#1132, ruling D1), whose trackers open from SoH's own Randomizer > Check
+ * Tracker and Item Tracker pages now (it lands on the Check Tracker's, which
+ * also carries the Cross-Game Spoiler's toggle). Spelled here as literals for
+ * the same reason the rename table above is: MenuComboSection leg 6 requires
+ * every carried-to name to be a Randomizer page.
  */
 static constexpr ComboSidebarRename kComboSidebarMoves[] = {
     { "Cross-Game Rules", "Cross-Game" },
     { "MM Randomizer", "MM Randomizer" },
     { "MM Tricks", "MM Tricks" },
+    { "Windows", "Check Tracker" },
 };
 
 /**
@@ -1025,7 +980,7 @@ static constexpr ComboSidebarRename kComboSidebarMoves[] = {
  * DrawElement reads gSettings.Menu.ActiveHeader, then that header's sidebar
  * key, and falls back to the header's first page when the name is not one of
  * its pages. So a config last open on Combo > MM Randomizer would reopen on
- * Combo > Windows. Instead: when Combo was the open header, the menu reopens on
+ * the Combo header's first page. Instead: when Combo was the open header, the menu reopens on
  * the moved page under Randomizer; when another header was open, the player's
  * own Randomizer selection is left alone. Either way the Combo key is cleared,
  * so it never names a page the header no longer has. Runs once, before the
@@ -1073,20 +1028,19 @@ void SohMenu::AddMenuCombo() {
 
     ComboSidebarCarryMovedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
 
-    // PIN THE COLUMN on every page. A row parked in a column past the page's
-    // count is registered and never drawn - Menu::DrawElement iterates
-    // columnCount columns, not every column a caller left behind. The shipped
-    // page is one column. Cross-Game Rules, the first page here until #1101
-    // moved it under the Randomizer header, is registered by
-    // AddComboRandomizerPages below.
-    WidgetPath path = { "Combo", kComboWindowsPage, SECTION_COLUMN_1 };
-    AddSidebarEntry("Combo", path.sidebarName, 1);
-    AddComboWindowWidgets(*this, path);
-
-    // The extension point (#497 step 6). Contributed pages come LAST so a
-    // contributor cannot reorder the shipped ones, and each gets its sidebar
+    // NO SHIPPED PAGE since #1132. Windows held the unified trackers' toggles
+    // and the Cross-Game Spoiler's; ruling D1 makes SoH's own Randomizer >
+    // Check Tracker and Item Tracker pages theirs (the Check Tracker page also
+    // carries the Spoiler's toggle, SohMenuComboTrackerSettings.cpp). Cross-Game
+    // Rules, the first page here until #1101 moved it under the Randomizer
+    // header, is registered by AddComboRandomizerPages below.
+    //
+    // The extension point (#497 step 6). Each contributed page gets its sidebar
     // created here rather than in its own registrar - a registrar that had to
-    // call AddSidebarEntry itself could name a section it does not belong to.
+    // call AddSidebarEntry itself could name a section it does not belong to -
+    // and a pinned first column: a row parked in a column past the page's count
+    // is registered and never drawn.
+    WidgetPath path = { "Combo", "", SECTION_COLUMN_1 };
     for (const ComboSectionPage& page : GetComboSectionPages()) {
         if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Combo) {
             continue;

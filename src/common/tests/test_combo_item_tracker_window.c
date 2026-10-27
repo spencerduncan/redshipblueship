@@ -141,9 +141,9 @@ class ItemTrackerStandinWindow final : public Ship::GuiWindow {
 };
 
 const char* const kItemTrackerNeighbourNames[] = {
-    "Item Tracker",    // SoH-owned
-    "MM Item Tracker", // MM-owned
-    "Combo Tracker",   // the sibling common-owned window
+    "SoH Item Tracker", // SoH's own, registered and never drawn since #1132 (SohRetiredWindow.h)
+    "MM Item Tracker",  // MM-owned
+    "Check Tracker",    // the sibling common-owned window
 };
 constexpr int kItemTrackerNeighbourCount = 3;
 
@@ -1313,6 +1313,13 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         CITW_ASSERT(neighbours[i] != window);
     }
     ComboGui::RegisterComboItemTrackerWindow(nullptr); // a null Gui is a no-op
+    // #1132, rulings D1 and D7: the overlay is "Item Tracker" and answers SoH's
+    // own window key (CVAR_WINDOW("ItemTracker"), never MM's gWindows.*), so
+    // SoH's Randomizer > Item Tracker > Toggle Item Tracker opens it by name.
+    printf("[TEST] combo-item-tracker-window #1132: the overlay is \"%s\" over \"%s\"\n",
+           ComboGui::kComboItemTrackerWindowName, ComboGui::kComboItemTrackerVisibilityCVar);
+    CITW_ASSERT(std::string(ComboGui::kComboItemTrackerWindowName) == "Item Tracker");
+    CITW_ASSERT(std::string(ComboGui::kComboItemTrackerVisibilityCVar) == "gOpenWindows.ItemTracker");
 
     // ---- 2-4 ---------------------------------------------------------------
     const int overlay = CitwLockOverlay(window, oot, mm);

@@ -5463,6 +5463,14 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
     int wrapped = 0;
     bool ok = true;
 
+    // #1132: the two SoH windows the unified Check Tracker and Item Tracker replace.
+    static const char* const kRetired[] = {
+        "CheckTracker::CheckTrackerWindow",
+        "ItemTrackerWindow",
+    };
+    int retiredSeen[sizeof(kRetired) / sizeof(kRetired[0])] = {};
+    static const std::string kRetiredWrap = "RetiredInSingleExe<";
+
     static const std::string kOpen = "std::make_shared<";
     static const std::string kWrap = "OoTActiveGated<";
     for (size_t at = body.find(kOpen); at != std::string::npos; at = body.find(kOpen, at + kOpen.size())) {
@@ -5481,7 +5489,25 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         sites++;
         if (type.rfind(kWrap, 0) == 0) {
             wrapped++;
-            const std::string inner = type.substr(kWrap.size(), type.size() - kWrap.size() - 1);
+            std::string inner = type.substr(kWrap.size(), type.size() - kWrap.size() - 1);
+            // #1132 (ruling D1): SoH's Check Tracker and Item Tracker are retired,
+            // registered for their hooks and never drawn (SohRetiredWindow.h).
+            if (inner.rfind(kRetiredWrap, 0) == 0 && inner.back() == '>') {
+                inner = inner.substr(kRetiredWrap.size(), inner.size() - kRetiredWrap.size() - 1);
+                bool retiredKnown = false;
+                for (size_t i = 0; i < sizeof(kRetired) / sizeof(kRetired[0]); i++) {
+                    if (inner == kRetired[i]) {
+                        retiredSeen[i]++;
+                        retiredKnown = true;
+                    }
+                }
+                if (!retiredKnown) {
+                    printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements retires %s, which the unified windows do "
+                           "not replace (#1132)\n",
+                           inner.c_str());
+                    ok = false;
+                }
+            }
             bool known = false;
             for (size_t i = 0; i < sizeof(kGated) / sizeof(kGated[0]); i++) {
                 if (inner == kGated[i]) {
@@ -5521,6 +5547,15 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
             printf("[TEST] FAIL: oot-windows-gate: %s is wrapped in OoTActiveGated<> %d times in SetupGuiElements, "
                    "want exactly 1\n",
                    kGated[i], gatedSeen[i]);
+            ok = false;
+        }
+    }
+    for (size_t i = 0; i < sizeof(kRetired) / sizeof(kRetired[0]); i++) {
+        if (retiredSeen[i] != 1) {
+            printf("[TEST] FAIL: oot-windows-gate: %s is constructed through RetiredInSingleExe<> %d times in "
+                   "SetupGuiElements, want exactly 1: the unified window replaces it (#1132, ruling D1), and it must "
+                   "stay registered, never drawn\n",
+                   kRetired[i], retiredSeen[i]);
             ok = false;
         }
     }

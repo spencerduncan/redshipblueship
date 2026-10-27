@@ -330,15 +330,17 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
-    // "Windows" was "Cross-Game Windows" until 2026-09-27 (UI parity: the old
-    // name was wider than the sidebar); MenuComboSection pins the rename.
-    if (sidebars.contains("Windows")) {
-        for (PageRow& windowRow : FlattenPage(sidebars.at("Windows").columnWidgets)) {
-            sectionRows.push_back(windowRow);
+    // Every Combo page as well: the window rows lived on Combo > Windows until
+    // #1132 retired it (the windows open from SoH's tracker pages now), and no
+    // Combo page may grow a pop-out for the rules' keys either.
+    for (auto& [sidebarName, sidebar] : sidebars) {
+        for (PageRow& comboRow : FlattenPage(sidebar.columnWidgets)) {
+            sectionRows.push_back(comboRow);
         }
-    } else {
-        printf("[TEST] FAIL: the \"Combo\" menu has no \"Windows\" sidebar page; leg 2's no-pop-out "
-               "assertion would be vacuous\n");
+    }
+    if (sectionRows.size() <= rows.size()) {
+        printf("[TEST] FAIL: the \"Combo\" menu has no page with rows; leg 2's no-pop-out assertion would cover "
+               "only the rules page\n");
         gFailures++;
     }
 

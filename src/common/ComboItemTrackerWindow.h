@@ -58,7 +58,7 @@
  * name de-collision, Draw()/Update() under all three GameIds with no ImGui
  * context, the ShowOnlyPaused gate, the model reads the draw makes, the chrome
  * and layout decisions below, and a source scan). Its appearance is judged from
- * the UiSnapshot captures (window/Combo Item Tracker beside SoH's Item Tracker).
+ * the UiSnapshot captures (window/Item Tracker beside SoH's own, window/SoH Item Tracker).
  */
 
 #ifndef RSBS_COMMON_COMBO_ITEM_TRACKER_WINDOW_H
@@ -83,14 +83,17 @@ class Gui;
 
 namespace ComboGui {
 
-// Registration name on the shared Gui, and the ImGui window's name. Distinct
-// from SoH's "Item Tracker", MM's "MM Item Tracker" (ImGui id "Item Tracker
-// (MM)") and the other common-owned windows: Gui::AddGuiWindow rejects
+// Registration name on the shared Gui, and the ImGui window's name: SoH's own
+// window's (rulings D1 and D7, #1132), so SoH's Randomizer > Item Tracker >
+// Toggle Item Tracker opens this overlay by name. SoH's own overlay stays
+// registered as "SoH Item Tracker", never drawn (SohRetiredWindow.h); MM's is
+// "MM Item Tracker" (ImGui id "Item Tracker (MM)"). Gui::AddGuiWindow rejects
 // duplicates silently, and a shared ImGui id would merge two overlays.
-inline constexpr const char* kComboItemTrackerWindowName = "Combo Item Tracker";
+inline constexpr const char* kComboItemTrackerWindowName = "Item Tracker";
 
-// Visibility key, classified by #458 U0 (cvar_shared_keys.h).
-inline constexpr const char* kComboItemTrackerVisibilityCVar = RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER;
+// Visibility key: SoH's own CVAR_WINDOW("ItemTracker") (#1132), never MM's
+// gWindows.ItemTracker. RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER held it until then.
+inline constexpr const char* kComboItemTrackerVisibilityCVar = "gOpenWindows.ItemTracker";
 
 /** RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE's values: SoH's TRACKER_WINDOW_FLOATING / _WINDOW. */
 enum ComboItemTrackerWindowType : int {
