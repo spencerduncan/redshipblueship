@@ -115,7 +115,21 @@ typedef struct {
                        // button and overworld-key short names, ComboItemLabelPos); NULL: none
     bool pad;          // a blank cell: it takes its place in the grid and draws nothing (SoH's ITEM_NONE, the
                        // blanks of its column-major dungeon items and of a section padded to its line's end)
+    // What SoH's count settings read (#1143, lane IT-4; DrawItemCount's ItemTrackerNumbers), set by the adapter:
+    uint8_t countKind; // ComboItemCountKind: what `count` and `max` are
+    int capacityMax;   // AMMO: the most `max` can grow to (SoH's maxCapacity: a quiver's 50, a wallet's 500); 0:
+                       // `max` never grows, so the amount is shown (SoH's bombchus, beans, tokens and hearts).
+                       // TRIFORCE: the hunt's total pieces
+    int held;          // KEYS: the keys in hand (SoH's currentAmmo); `count` is the keys collected
+    char identifier;   // the letter SoH's Hookshot Identifier draws on the icon ('H', 'L'); 0: none
 } ComboItemRow;
+
+/** What a row's `count` and `max` are, for SoH's count settings (#1143). */
+typedef enum {
+    COMBO_ITEM_COUNT_KIND_AMMO = 0,     // the amount and the capacity it is held to (every row but these)
+    COMBO_ITEM_COUNT_KIND_KEYS = 1,     // a dungeon's small keys: collected, of the dungeon's keys (Key Counts)
+    COMBO_ITEM_COUNT_KIND_TRIFORCE = 2, // the triforce pieces: collected, of the required (Triforce Piece Count)
+} ComboItemCountKind;
 
 /** The tone SoH's DrawItemCount gives a row's ceiling and its full amount (#458 U3). */
 typedef enum {

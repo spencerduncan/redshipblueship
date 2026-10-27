@@ -188,6 +188,8 @@ extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 // each game's own layout, variant 0 the "shadow" world and 1 the "live" one.
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// MM's tracker-rows world (#1140): the shadow world plus small keys found 1 / 3 / 0 / 2 and held 0 / 1 / none / 2.
+extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando, unsigned options);
 
 namespace SohGui {
 // Combo > Majora's Mask's body over a manifest table, and its group note's
@@ -1615,7 +1617,7 @@ void AuthorCrossings() {
  */
 std::vector<uint8_t> gSnapshotMMShadowBackup;
 
-void AuthorMMShadow(bool withItems = false) {
+void AuthorMMShadow(bool withItems = false, bool withKeys = false) {
     const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
     // The shadow storage exists only once the frozen-state manager is
     // initialized (idempotent); before that GetMMSaveContext answers NULL.
@@ -1626,11 +1628,15 @@ void AuthorMMShadow(bool withItems = false) {
     }
     gSnapshotMMShadowBackup.assign((const uint8_t*)resident, (const uint8_t*)resident + MM_SAVE_CONTEXT_SIZE);
     std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
-    if (withItems) {
+    if (withItems && !withKeys) {
         // The Item Tracker overlay's states (#458 U2): MM's item adapter's own
         // "shadow" world (a bow with 25 arrows, beans, masks, a song, remains),
         // written through MM's layout; the tracker fields below go on top.
         MM_ItemAdapter_TestAuthorSave(blob.data(), blob.size(), 0);
+    }
+    if (withKeys) {
+        // #1143's key-counts state: that world plus MM's small keys (#1140's tracker world).
+        MM_ItemAdapter_TestAuthorTrackerWorld(blob.data(), blob.size(), 1, 0u);
     }
     // A paired file's MM final seed is a hash of the paired seed and the options
     // (Rando::Foreign::MixPairedFinalSeedForAttempt), never the paired seed itself
@@ -1686,6 +1692,22 @@ const void* SnapshotItemMMLive(void) {
 // page's "window" state set.
 constexpr const char* kSohItemTrackerWindowTypeKey = "gTrackers.ItemTracker.WindowType";
 
+// #1143: SoH's count settings the overlay honours, one capture per non-default
+// setting, each over the "live" world: Ammo/Capacity Tracking at "Current
+// Capacity / Max Capacity", Align count to left side (under SoH's default
+// "Current Capacity"), and Key Count Tracking at "Current / Collected / Max".
+const struct {
+    const char* state;
+    const char* key;
+    int value;
+} kItemTrackerCountStates[] = {
+    { "counts-capacity", "gTrackers.ItemTracker.ItemCountType", ComboGui::kComboItemTrackerCountCapacity },
+    { "align-left", "gTrackers.ItemTracker.ItemCountAlignLeft", 1 },
+    { "key-counts", "gTrackers.ItemTracker.KeyCounts", ComboGui::kComboItemTrackerKeysCurrentCollectedMax },
+};
+
+bool gSnapshotItemSetMMDungeon = false; // the key-counts state turned MM's Dungeon group on
+
 void AuthorItemTrackerState(const std::string& state) {
     Context_InitFrozenStates();
     gSnapshotItemOoTOps = Combo_Item_GetOps((uint8_t)GAME_OOT);
@@ -1706,7 +1728,14 @@ void AuthorItemTrackerState(const std::string& state) {
         CVarSetInteger(kSohItemTrackerWindowTypeKey, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
         return;
     }
-    AuthorMMShadow(true);
+    // key-counts: MM's small keys in the snapshot and MM's Dungeon group shown, so the
+    // capture carries Key Count Tracking's "held/collected/max" on MM's key rows.
+    const bool keyCounts = state == "key-counts";
+    AuthorMMShadow(true, keyCounts);
+    if (keyCounts) {
+        CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON, 1);
+        gSnapshotItemSetMMDungeon = true;
+    }
     OoT_ItemAdapter_TestAuthorSave(ootShadow.data(), ootShadow.size(), 0);
     Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
     // The pool a departing game leaves: 250 rupees, a tier-2 quiver holding 33
@@ -1716,7 +1745,14 @@ void AuthorItemTrackerState(const std::string& state) {
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 2);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 33);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 2));
-    const bool ootLive = state == "live";
+    bool countState = false;
+    for (const auto& c : kItemTrackerCountStates) {
+        if (state == c.state) {
+            CVarSetInteger(c.key, c.value);
+            countState = true;
+        }
+    }
+    const bool ootLive = state == "live" || countState;
     std::vector<uint8_t>& live = ootLive ? gSnapshotItemOoTLive : gSnapshotItemMMLive;
     live.assign(ootLive ? (size_t)OOT_SAVE_CONTEXT_SIZE : (size_t)MM_SAVE_CONTEXT_SIZE, 0);
     if (ootLive && gSnapshotItemOoTOps != nullptr) {
@@ -1745,6 +1781,13 @@ void RestoreItemTrackerState() {
     RestoreMMShadow();
     Combo_ResetSharedResourceWatermarks();
     CVarClear(kSohItemTrackerWindowTypeKey);
+    for (const auto& c : kItemTrackerCountStates) {
+        CVarClear(c.key);
+    }
+    if (gSnapshotItemSetMMDungeon) {
+        CVarClear(RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON);
+        gSnapshotItemSetMMDungeon = false;
+    }
 }
 
 /**
@@ -2645,7 +2688,8 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboItemTrackerWindowName;
-        p.states = { "no-data", "live", "snapshot" };
+        // #1143: one more state per non-default count setting (kItemTrackerCountStates), each the "live" world.
+        p.states = { "no-data", "live", "snapshot", "counts-capacity", "align-left", "key-counts" };
         p.compareWith = kSohItemTrackerReference;
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
@@ -2669,6 +2713,14 @@ void Session::BuildPageList() {
         }
         p.stateImages["live"] = 100;
         p.stateImages["snapshot"] = 100;
+        for (const auto& c : kItemTrackerCountStates) {
+            p.stateImages[c.state] = 100;
+            // ROM-free, the cells fall back to their rows' text (ComboItemRowText), which
+            // does not read SoH's count settings: this text only proves the state drew.
+            if (romFree) {
+                p.stateText[c.state] = { "Arrows 33/40" };
+            }
+        }
         p.avoidHudBand = true; // #962: the floating states sit below the hearts
         p.checksResetPosition = true;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
