@@ -471,6 +471,55 @@ const std::vector<ComboSectionPage>& GetComboSectionPages() {
 }
 
 // ============================================================================
+// Rows contributed to SoH's own pages (#1132, ruling D1; declared in SohMenu.h)
+// ============================================================================
+
+namespace {
+
+struct SohPageRows {
+    std::string sectionName;
+    std::string sidebarName;
+    ComboPageRegistrar registrar;
+};
+
+/** A function-local static, like the page registry above: contributors register
+ *  from file-scope initializers. */
+std::vector<SohPageRows>& MutableSohPageRows() {
+    static std::vector<SohPageRows> rows;
+    return rows;
+}
+
+} // namespace
+
+void RegisterSohPageRows(const char* sectionName, const char* sidebarName, ComboPageRegistrar registrar) {
+    if (sectionName == nullptr || sectionName[0] == '\0' || sidebarName == nullptr || sidebarName[0] == '\0' ||
+        registrar == nullptr) {
+        SPDLOG_ERROR("RegisterSohPageRows: refused - a contribution needs a header, a page and a registrar");
+        return;
+    }
+    MutableSohPageRows().push_back(SohPageRows{ sectionName, sidebarName, registrar });
+}
+
+int UnregisterSohPageRows(ComboPageRegistrar registrar) {
+    auto& rows = MutableSohPageRows();
+    const std::size_t before = rows.size();
+    std::erase_if(rows, [registrar](const SohPageRows& r) { return r.registrar == registrar; });
+    return (int)(before - rows.size());
+}
+
+void AddContributedSohPageRows(SohMenu& menu, WidgetPath& path) {
+    for (const SohPageRows& rows : MutableSohPageRows()) {
+        if (rows.sectionName != path.sectionName || rows.sidebarName != path.sidebarName) {
+            continue;
+        }
+        // Pinned, as every contributed page's is: a row parked past the page's
+        // column count is registered and never drawn.
+        path.column = SECTION_COLUMN_1;
+        rows.registrar(menu, path);
+    }
+}
+
+// ============================================================================
 // The two shipped pages
 // ============================================================================
 

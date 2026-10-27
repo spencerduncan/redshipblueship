@@ -525,8 +525,9 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         Ui().Tooltip(header.availableChecks && summary.availabilityKnown ? "Available / Checked / Total"
                                                                          : "Checked / Total");
     }
-    // Only Show Current Area always draws, so the separator under the header does too.
-    ImGui::Separator();
+    if (ComboCheckHeaderPresent(header)) {
+        ImGui::Separator();
+    }
 
     DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic);
 
@@ -629,6 +630,20 @@ std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row)
     return text;
 }
 
+std::string ComboCheckRowSearchText(uint8_t game, const ComboTrackerCheckRow& row) {
+    std::string haystack = row.shortName != nullptr ? row.shortName : "";
+    haystack += ' ';
+    haystack += row.name != nullptr ? row.name : "";
+    haystack += ' ';
+    haystack += row.areaName != nullptr ? row.areaName : "";
+    const std::string item = ComboCheckRowItemText(game, row);
+    if (!item.empty()) {
+        haystack += ' ';
+        haystack += item;
+    }
+    return haystack;
+}
+
 const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row) {
     if (!row.availabilityKnown) {
         return nullptr;
@@ -685,19 +700,8 @@ void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std:
             area.available += row.available ? 1 : 0;
         }
         if (filter.IsActive()) {
-            // What SoH's ShouldShowCheck searches: the check's short and full
-            // names, its area, and the item only once the row reveals it, spelled
-            // as the row prints it (PlacedItemTrackerName's " (MM)" included).
-            haystack = row.shortName != nullptr ? row.shortName : "";
-            haystack += ' ';
-            haystack += row.name != nullptr ? row.name : "";
-            haystack += ' ';
-            haystack += row.areaName != nullptr ? row.areaName : "";
-            const std::string item = ComboCheckRowItemText(game, row);
-            if (!item.empty()) {
-                haystack += ' ';
-                haystack += item;
-            }
+            // What SoH's ShouldShowCheck searches (ComboCheckRowSearchText).
+            haystack = ComboCheckRowSearchText(game, row);
             if (!filter.PassFilter(haystack.c_str())) {
                 continue;
             }
@@ -807,6 +811,11 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     // #1161: SoH's Show Logic (Check Tracker Settings), one key for both panes (ruling D3).
     header.showLogic = CVarGetInteger("gTrackers.CheckTracker.ShowLogic", 0) != 0;
     return header;
+}
+
+bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header) {
+    (void)header;
+    return true; // Only Show Current Area always draws (#1131), so the header always does
 }
 
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {

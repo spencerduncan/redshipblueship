@@ -186,6 +186,14 @@ const char* ComboCheckListName(const ComboTrackerCheckRow& row);
 std::string ComboCheckRowItemText(uint8_t game, const ComboTrackerCheckRow& row);
 
 /**
+ * What the search box matches a Checks-list row against (#1132): what SoH's
+ * ShouldShowCheck matches, the check's short and full names and its area's
+ * name, then the item the row reveals (ComboCheckRowItemText's name and game
+ * suffix) when it reveals one.
+ */
+std::string ComboCheckRowSearchText(uint8_t game, const ComboTrackerCheckRow& row);
+
+/**
  * The reachability glyph a row draws before its check (#1129): SoH's
  * DrawLocation glyph, ICON_FA_UNLOCK for an available check and ICON_FA_LOCK
  * for one that is not, or NULL when the row's availability is not known (no
@@ -312,6 +320,13 @@ struct ComboCheckHeaderOptions {
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
+
+/**
+ * Whether a pane draws its header at all, and so the separator under it (#1132):
+ * SoH's DrawElement draws that separator only while one of its header controls
+ * is visible ("headerPresent").
+ */
+bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header);
 
 // ---- Navigation (#1131, lane L4) --------------------------------------------
 //

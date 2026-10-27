@@ -125,7 +125,7 @@ class TrackerStandinWindow final : public Ship::GuiWindow {
 };
 
 const char* const kTrackerNeighbourNames[] = {
-    "Check Tracker",     // SoH-owned
+    "SoH Check Tracker", // SoH's own, registered and never drawn since #1132 (SohRetiredWindow.h)
     "MM Check Tracker",  // MM-owned
     "Cross-Game Spoiler" // the other common-owned window (ADR 0008)
 };
@@ -1167,6 +1167,140 @@ int LockNav(void) {
     return result;
 }
 
+// ---- #1132 (lane L5): the Check Tracker replaces SoH's ------------------------------
+
+#ifdef RSBS_SOURCE_DIR
+/** A checkout file's text, or "" when it cannot be read. */
+std::string CtwSource(const char* relPath) {
+    std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/" + relPath, std::ios::binary);
+    if (!in.good()) {
+        return std::string();
+    }
+    return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+/** The text of @p src from @p from up to (not including) @p to, or "" when either is missing. */
+std::string CtwSlice(const std::string& src, const char* from, const char* to) {
+    const size_t begin = src.find(from);
+    const size_t end = begin == std::string::npos ? std::string::npos : src.find(to, begin);
+    return end == std::string::npos ? std::string() : src.substr(begin, end - begin);
+}
+#endif
+
+int LockL5(void) {
+    using namespace ComboGui;
+    // Ruling D7: the window is "Check Tracker", and ruling D1: it answers SoH's
+    // own window key, so SoH's Randomizer > Check Tracker > Toggle Check Tracker
+    // (WINDOW_BUTTON: ToggleVisibility looked up BY NAME, .CVar for its label)
+    // opens it. CVAR_WINDOW("CheckTracker") is "gOpenWindows.CheckTracker"
+    // (CMake/soh-cvars.cmake), never MM's "gWindows.CheckTracker".
+    printf("[TEST] combo-tracker-window #1132: the window is \"%s\" over \"%s\"\n", kComboTrackerWindowName,
+           kComboTrackerVisibilityCVar);
+    CTW_ASSERT(std::string(kComboTrackerWindowName) == "Check Tracker");
+    CTW_ASSERT(std::string(kComboTrackerVisibilityCVar) == "gOpenWindows.CheckTracker");
+
+    // SoH's ShouldShowCheck matches names, the area and the revealed item, never
+    // the price DrawLocation prints after it.
+    ComboTrackerCheckRow row = {};
+    row.shortName = "Shop Item 1";
+    row.name = "KF Shop Item 1";
+    row.areaName = "Kokiri Forest";
+    row.placedItemName = "Hookshot";
+    row.placedItemGame = (uint8_t)GAME_OOT;
+    row.hasPrice = true;
+    row.price = 40;
+    const std::string shown = ComboCheckRowItemText((uint8_t)GAME_OOT, row);
+    const std::string searched = ComboCheckRowSearchText((uint8_t)GAME_OOT, row);
+    printf("[TEST] combo-tracker-window #1132: a priced row prints \"%s\" and is searched as \"%s\"\n", shown.c_str(),
+           searched.c_str());
+    CTW_ASSERT(shown == "Hookshot - 40");
+    CTW_ASSERT(searched == "Shop Item 1 KF Shop Item 1 Kokiri Forest Hookshot");
+    row.placedItemName = "Lens of Truth";
+    row.placedItemGame = (uint8_t)GAME_MM;
+    CTW_ASSERT(ComboCheckRowSearchText((uint8_t)GAME_OOT, row) ==
+               "Shop Item 1 KF Shop Item 1 Kokiri Forest Lens of Truth (MM)");
+    row.placedItemName = nullptr; // the price alone: nothing to search but the names
+    CTW_ASSERT(ComboCheckRowSearchText((uint8_t)GAME_OOT, row) == "Shop Item 1 KF Shop Item 1 Kokiri Forest");
+
+    // SoH's headerPresent: the separator under the header (and the pane's own
+    // Only Show Current Area toggle with it) only while a header control shows.
+    ComboCheckHeaderOptions header;
+    const bool byDefault = ComboCheckHeaderPresent(header);
+    header.hiddenItemsToggle = false;
+    header.expandCollapseButtons = false;
+    header.searchInput = false;
+    header.checkTotals = false;
+    header.availableChecks = false;
+    header.availableChecksToggle = true; // shown only with Enable Available Checks
+    const bool noneShown = ComboCheckHeaderPresent(header);
+    header.availableChecks = true;
+    const bool availableShown = ComboCheckHeaderPresent(header);
+    header.availableChecks = false;
+    header.checkTotals = true;
+    const bool totalsShown = ComboCheckHeaderPresent(header);
+    printf("[TEST] combo-tracker-window #1132: header present by default %d, with none %d, with the available "
+           "toggle %d, with the totals %d\n",
+           (int)byDefault, (int)noneShown, (int)availableShown, (int)totalsShown);
+    CTW_ASSERT(byDefault && !noneShown && availableShown && totalsShown);
+
+#ifdef RSBS_SOURCE_DIR
+    // The draw: a row leads with its name in its status colour, as SoH's
+    // DrawLocation draws it, with no status square in front; the header's
+    // separator follows SoH's gate; the search goes through the search text.
+    const std::string win = CtwSource("src/common/ComboTrackerWindow.cpp");
+    const std::string drawRow = CtwSlice(win, "void DrawCheckRow(", "void DrawCheckList(");
+    CTW_ASSERT(!drawRow.empty());
+    CTW_ASSERT(drawRow.find("CheckGlyph(") == std::string::npos);
+    CTW_ASSERT(drawRow.find("ICON_FA_SQUARE_O") == std::string::npos);
+    CTW_ASSERT(win.find("if (headerPresent) {\n        ImGui::Separator();") != std::string::npos);
+    CTW_ASSERT(win.find("haystack = ComboCheckRowSearchText(game, row);") != std::string::npos);
+
+    // SoH's two toggle rows are the ones that open the unified windows: their
+    // .CVar and .WindowName are SoH's own literals, unchanged, which the
+    // constants above must equal. CVAR_WINDOW's prefix is gOpenWindows.
+    const std::string cvars = CtwSource("CMake/soh-cvars.cmake");
+    CTW_ASSERT(cvars.find("set(CVAR_PREFIX_WINDOW \"gOpenWindows\")") != std::string::npos);
+    const std::string rando = CtwSource("games/oot/soh/SohGui/SohMenuRandomizer.cpp");
+    const std::string checkPage = CtwSlice(rando, "// Check Tracker\n", "\n}\n");
+    const std::string itemPage = CtwSlice(rando, "// Item Tracker\n", "// Entrance Tracker\n");
+    CTW_ASSERT(!checkPage.empty() && !itemPage.empty());
+    CTW_ASSERT(checkPage.find("AddWidget(path, \"Toggle Check Tracker\", WIDGET_WINDOW_BUTTON)\n        "
+                              ".CVar(CVAR_WINDOW(\"CheckTracker\"))\n        .RaceDisable(false)\n        "
+                              ".WindowName(\"Check Tracker\")") != std::string::npos);
+    CTW_ASSERT(itemPage.find("AddWidget(path, \"Toggle Item Tracker\", WIDGET_WINDOW_BUTTON)\n        "
+                             ".CVar(CVAR_WINDOW(\"ItemTracker\"))\n        .RaceDisable(false)\n        "
+                             ".WindowName(\"Item Tracker\")") != std::string::npos);
+    // Each page hands its path to the contributed rows once, after its last row.
+    for (const std::string* page : { &checkPage, &itemPage }) {
+        const size_t hook = page->find("AddContributedSohPageRows(*this, path);");
+        CTW_ASSERT(hook != std::string::npos);
+        CTW_ASSERT(page->find("AddContributedSohPageRows", hook + 1) == std::string::npos);
+        CTW_ASSERT(page->find("AddWidget(", hook) == std::string::npos);
+    }
+
+    // SoH's own two windows are constructed retired, under their retired names
+    // and with no visibility key (MenuComboSection leg 8 holds what that does;
+    // OoTWindowsGate's scan holds the wrapper's type), whitespace aside.
+    auto squash = [](const std::string& text) {
+        std::string out;
+        for (char c : text) {
+            if (c != ' ' && c != '\n' && c != '\r' && c != '\t') {
+                out += c;
+            }
+        }
+        return out;
+    };
+    const std::string gui = squash(CtwSource("games/oot/soh/SohGui/SohGui.cpp"));
+    CTW_ASSERT(gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>("
+                               "\"\", kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));")) != std::string::npos);
+    CTW_ASSERT(gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(\"\", "
+                               "kSohRetiredItemTrackerWindowName, ImVec2(350, 600));")) != std::string::npos);
+    CTW_ASSERT(gui.find(squash("gui->AddGuiWindow(mCheckTrackerWindow);")) != std::string::npos);
+    CTW_ASSERT(gui.find(squash("gui->AddGuiWindow(mItemTrackerWindow);")) != std::string::npos);
+#endif
+    return TEST_PASS;
+}
+
 // ---- #1130 (lane L1b): the window's chrome ----------------------------------------
 
 // SoH's chrome keys (randomizer_check_tracker.cpp, DrawElement and the Check
@@ -1366,17 +1500,19 @@ int TrackerLayoutLocks(void) {
     const int rIce = LockIceTrap();
     const int rLogic = LockLogic();
     const int rNav = LockNav();
+    const int rL5 = LockL5();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
            "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s, "
-           "#1131 navigation %s\n",
+           "#1131 navigation %s, #1132 replaces SoH's %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
            rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
            rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
-           rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL");
+           rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL",
+           rL5 == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
             rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
-            rLogic == TEST_PASS && rNav == TEST_PASS)
+            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }

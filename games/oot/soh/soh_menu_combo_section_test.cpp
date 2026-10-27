@@ -29,19 +29,17 @@
  *     by `columnCount`, so a declared column with no rows draws as an empty
  *     half and narrows the rows beside it.
  *
- *  4. A WINDOW BUTTON'S CVar OR NAME DRIFTS. `WIDGET_WINDOW_BUTTON` reads `.CVar`
- *     only for its open/close label and calls the window's own
- *     `ToggleVisibility` by `.WindowName` — so a mismatched pair produces a
- *     button that looks right and opens nothing. Leg 3 pins all three pairs,
- *     and `EmbedWindow(false)` with them, as SoH's own tracker toggles are. It
- *     also pins the page's SoH shape (UI parity M5, the shape of Randomizer >
- *     Item Tracker): each button sits directly under its own separator and
- *     carries SoH's "Toggles the <Window>." tooltip. And it pins what LEFT the
- *     page (#458 U6, ADR 0004's 2026-09-30 amendment): the unified Combo Tracker
- *     and Combo Item Tracker supersede MM's four tracker rows, so no button on
- *     the page names an MM tracker window or binds an MM `gWindows.*` key. The
- *     native MM windows stay registered as fallbacks; that their keys still
- *     open them is MMTrackersGui's lock, not this row's.
+ *  4. SoH'S TRACKER TOGGLES OPEN SoH's WINDOWS (#1132, operator rulings D1 and
+ *     D7 of 2026-10-22). `WIDGET_WINDOW_BUTTON` reads `.CVar` only for its
+ *     open/close label and calls the window's own `ToggleVisibility` by
+ *     `.WindowName`, so SoH's Randomizer > Check Tracker and Item Tracker
+ *     toggles open the unified windows only because those ARE "Check Tracker"
+ *     and "Item Tracker" over SoH's own window keys. Leg 3 drives SoH's two
+ *     pages row for row through the contributed-rows registry and pins that,
+ *     the Check Tracker page's rows of ours (#1131's two navigation keys and
+ *     the Cross-Game Spoiler's toggle, which Combo > Windows held until this
+ *     lane retired it) and their order, and that neither page opens an MM
+ *     tracker window or binds an MM `gWindows.*` key (#458 U6).
  *
  *  5. THE RANDOMIZER PAGES ARE NOT UNDER THE RANDOMIZER HEADER (#1101, operator
  *     ruling 2026-10-21, option C). MM Randomizer, MM Tricks and the cross-game
@@ -68,29 +66,33 @@
  *     return to the baseline it started from; the production page's own shape is
  *     MenuMmEnhancementRows' invariant, not this row's.
  *
- *  7. A RENAMED OR MOVED PAGE STRANDS THE SELECTION. The Windows page shipped as "Cross-Game
- *     Windows" and was renamed on 2026-09-27 because the old name was wider than
- *     the 200 px sidebar (the snapshot harness drew it as "ross-Game Window");
- *     the same day "MM Enhancements" became "Majora's Mask", because its 192 px
- *     label left the selected highlight no padding. Selection persists by
- *     display name in gSettings.Menu.ComboSidebarSection, so leg 6 drives
- *     AddMenuCombo over a config holding each old name and requires the new one
- *     afterwards (a registered page, so the carry table cannot name a page that
- *     does not exist), and leaves every other value alone. The three pages #1101
- *     moved to the Randomizer header are carried ACROSS headers: a config that
- *     had Combo open on one of them opens on the moved page under Randomizer,
- *     and no Combo selection is left naming a page the header no longer has.
+ *  7. A RENAMED OR MOVED PAGE STRANDS THE SELECTION. "MM Enhancements" became
+ *     "Majora's Mask" on 2026-09-27, because its 192 px label left the selected
+ *     highlight no padding. Selection persists by display name in
+ *     gSettings.Menu.ComboSidebarSection, so leg 6 drives AddMenuCombo over a
+ *     config holding the old name and requires the new one afterwards (a
+ *     registered page, so the carry table cannot name a page that does not
+ *     exist), and leaves every other value alone. The pages that left the
+ *     header are carried ACROSS headers: the three #1101 moved to Randomizer,
+ *     and Windows (#1132; "Cross-Game Windows" until 2026-09-27), whose
+ *     trackers open from Randomizer > Check Tracker. A config that had Combo
+ *     open on one of them opens on that page under Randomizer, and no Combo
+ *     selection is left naming a page the header no longer has.
  *
- *  8. THE UNIFIED TRACKERS' SETTINGS HAVE NO MENU WRITER. ADR 0004's 2026-09-30
- *     amendment puts the unified trackers in Combo > Windows and their settings
- *     on a Combo page. Leg 7 requires Combo > Tracker Settings to write every
- *     gCombo.Tracker.Items.* key in the manifest exactly once, with the
- *     overlay's own widget, default and range, to hide the floating-only rows
- *     for a windowed overlay, to draw its colour picker in the menu theme, and
- *     to embed SoH's Check Tracker Settings (whose colours the Combo Tracker
- *     draws with), and (#1131) to write each of the Combo Tracker's own
- *     gCombo.Tracker.Checks.* keys exactly once, a checkbox with the window's
- *     default, under the Check Tracker Settings separator.
+ *  8. THE ITEM TRACKER OVERLAY'S SETTINGS HAVE NO MENU WRITER. Leg 7 requires
+ *     Combo > Tracker Settings to write every gCombo.Tracker.Items.* key in the
+ *     manifest exactly once, with the overlay's own widget, default and range,
+ *     to hide the floating-only rows for a windowed overlay and to draw its
+ *     colour picker in the menu theme, and (#1132) to hold nothing of the Check
+ *     Tracker's any more: a transitional page until lane IT-3 (#1141) moves the
+ *     overlay's rows onto SoH's Item Tracker page.
+ *
+ *  9. SoH's OWN TRACKER WINDOWS ARE UNREGISTERED, OR DRAWN (#1132). Their
+ *     InitElement registers the hooks and save sections the unified panes read,
+ *     so they must stay on the Gui, never drawn and never opened by SoH's key.
+ *     Leg 8 holds RetiredInSingleExe<> on a spy, then the two real windows on a
+ *     bare Gui beside the unified ones: every hook registered once, no key
+ *     latched, and "Check Tracker" / "Item Tracker" naming the unified windows.
  *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
@@ -101,15 +103,29 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+// Leg 8: SoH's two tracker windows as SetupGuiElements constructs them, and the
+// hooks and save sections their InitElement registers.
+#include "soh/SohGui/OoTActiveGated.h"
+#include "soh/SohGui/SohRetiredWindow.h"
+#include "soh/Enhancements/randomizer/randomizer_check_tracker.h"
+#include "soh/Enhancements/randomizer/randomizer_item_tracker.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
+#include "soh/SaveManager.h"
 
-#include "ComboItemTrackerWindow.h" // leg 7: the overlay's window types and Icon Size range
-#include "cvar_shared_keys.h"       // leg 7: RSBS::kComboKeys and the gCombo.Tracker.Items.* keys
+#include "ComboItemTrackerWindow.h" // legs 3, 7, 8: the overlay's name, key, window types and Icon Size range
+#include "ComboTrackerWindow.h"     // legs 3 and 8: the Check Tracker's name and key
+#include "context.h"                // leg 8: the running game OoTActiveGated<> reads
+#include "cvar_shared_keys.h"       // legs 3 and 7: RSBS::kComboKeys and the gCombo.Tracker.* keys
 
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <ship/window/gui/Gui.h>
+#include <ship/window/gui/GuiWindow.h>
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
+#include <initializer_list>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -230,6 +246,163 @@ const struct {
     { "gCombo.Tracker.Checks.OnlyShowCurrentArea", false },
 };
 
+// ---- Leg 3: SoH's own tracker pages, as AddMenuRandomizer registers them ----
+// AddMenuRandomizer() as a whole cannot run ROM-free, so these are its two
+// tracker pages row for row (SohMenuRandomizer.cpp: the Item Tracker and Check
+// Tracker pages, whose literals ComboTrackerWindow's #1132 leg pins in source),
+// each ending in the same AddContributedSohPageRows call. CVAR_WINDOW(x) is
+// "gOpenWindows." x (CMake/soh-cvars.cmake, pinned there too).
+void AddSohTrackerPage(SohGui::SohMenu& menu, const char* window, const char* windowKey, const char* settingsWindow,
+                       const char* settingsKey) {
+    const std::string w = window;
+    WidgetPath path = { "Randomizer", w, SECTION_COLUMN_1 };
+    menu.AddSidebarEntry("Randomizer", path.sidebarName, 1);
+    menu.AddWidget(path, w, WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, "Toggle " + w, WIDGET_WINDOW_BUTTON)
+        .CVar(windowKey)
+        .RaceDisable(false)
+        .WindowName(window)
+        .HideInSearch(true)
+        .Options(UIWidgets::WindowButtonOptions().Tooltip("Toggles the tracker.").EmbedWindow(false));
+    menu.AddWidget(path, w + " Settings", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, "Popout " + w + " Settings", WIDGET_WINDOW_BUTTON)
+        .CVar(settingsKey)
+        .RaceDisable(false)
+        .WindowName(settingsWindow)
+        .HideInSearch(true)
+        .Options(UIWidgets::WindowButtonOptions().Tooltip("Enables the separate settings window."));
+    // A deliberately WRONG column: the contributions pin their own.
+    path.column = SECTION_COLUMN_3;
+    SohGui::AddContributedSohPageRows(menu, path);
+}
+
+void AddSohTrackerPages(SohGui::SohMenu& menu) {
+    menu.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
+    AddSohTrackerPage(menu, "Item Tracker", "gOpenWindows.ItemTracker", "Item Tracker Settings",
+                      "gOpenWindows.ItemTrackerSettings");
+    AddSohTrackerPage(menu, "Check Tracker", "gOpenWindows.CheckTracker", "Check Tracker Settings",
+                      "gOpenWindows.CheckTrackerSettings");
+}
+
+/** The page's rows in registration order, by name. */
+std::vector<std::string> RowNames(SidebarEntry& page) {
+    std::vector<std::string> names;
+    for (auto& column : page.columnWidgets) {
+        for (WidgetInfo& row : column) {
+            names.push_back(row.name);
+        }
+    }
+    return names;
+}
+
+std::string Joined(const std::vector<std::string>& names) {
+    std::string out;
+    for (const std::string& name : names) {
+        out += (out.empty() ? "" : ", ") + name;
+    }
+    return out;
+}
+
+// The SoH-page extension point's observer (leg 3), as leg 5's is the Combo one's.
+int gSohRowsRan = 0;
+std::string gSohRowsSection;
+std::string gSohRowsSidebar;
+int gSohRowsColumn = -1;
+const char* kSohRowsRowName = "Contributed SoH Page Row";
+
+void SohRowsRegistrar(SohGui::SohMenu& menu, WidgetPath& path) {
+    gSohRowsRan++;
+    gSohRowsSection = path.sectionName;
+    gSohRowsSidebar = path.sidebarName;
+    gSohRowsColumn = (int)path.column;
+    menu.AddWidget(path, kSohRowsRowName, WIDGET_SEPARATOR_TEXT);
+}
+
+// ---- Leg 8: SoH's two tracker windows, registered and never drawn -----------
+
+/** A window that counts what reaches it, under RetiredInSingleExe<>. */
+class RetireSpyWindow : public Ship::GuiWindow {
+  public:
+    using Ship::GuiWindow::GuiWindow;
+    int inits = 0;
+    int draws = 0;
+    int elements = 0;
+
+    void Draw() override {
+        draws++;
+    }
+    void DrawElement() override {
+        elements++;
+    }
+
+  protected:
+    void InitElement() override {
+        inits++;
+    }
+    void UpdateElement() override {
+    }
+};
+
+template <typename H> std::vector<HOOK_ID> HookIds() {
+    std::vector<HOOK_ID> ids;
+    for (auto& [id, fn] : GameInteractor::RegisteredGameHooks<H>::functions) {
+        ids.push_back(id);
+    }
+    return ids;
+}
+
+template <typename H> std::vector<HOOK_ID> NewHookIds(const std::vector<HOOK_ID>& before) {
+    std::vector<HOOK_ID> added;
+    for (HOOK_ID id : HookIds<H>()) {
+        if (std::find(before.begin(), before.end(), id) == before.end()) {
+            added.push_back(id);
+        }
+    }
+    return added;
+}
+
+/** One hook type's ids at construction (the base), at Mark(), and what was added since. */
+struct HookWatchBase {
+    virtual ~HookWatchBase() = default;
+    virtual void Mark() = 0;
+    virtual void Drop() = 0;
+};
+
+template <typename H> struct HookWatch final : HookWatchBase {
+    std::vector<HOOK_ID> base = HookIds<H>();
+    std::vector<HOOK_ID> mark = base;
+    void Mark() override {
+        mark = HookIds<H>();
+    }
+    /** How many hooks of this type were registered after Mark(). */
+    std::size_t Added() const {
+        return NewHookIds<H>(mark).size();
+    }
+    /** Removes every hook of this type registered since construction. */
+    void Drop() override {
+        for (HOOK_ID id : NewHookIds<H>(base)) {
+            GameInteractor::RegisteredGameHooks<H>::functions.erase(id);
+            GameInteractor::RegisteredGameHooks<H>::hookData.erase(id);
+        }
+    }
+};
+
+/** An integer CVar's value, put back when the guard leaves scope. */
+struct IntKeyGuard {
+    const char* key;
+    bool existed;
+    int32_t value;
+    explicit IntKeyGuard(const char* k) : key(k), existed(CVarExists(k)), value(CVarGetInteger(k, 0)) {
+    }
+    ~IntKeyGuard() {
+        if (existed) {
+            CVarSetInteger(key, value);
+        } else {
+            CVarClear(key);
+        }
+    }
+};
+
 } // namespace
 
 extern "C" int OoT_MenuComboSection_RunHeadless(void) {
@@ -243,7 +416,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     while (SohGui::UnregisterComboSectionPage(kExtPageName)) {}
     while (SohGui::UnregisterComboSectionPage(kExtRandoPageName)) {}
 
-    // ---- Leg 1: the section, its header CVar, and its two shipped pages -----
+    // ---- Leg 1: the section, its header CVar, and its pages -----------------
     ComboSectionMenuProbe probe;
     probe.AddMenuCombo();
 
@@ -269,36 +442,35 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(inOrder, "\"Combo\" is in menuEntries but not in menuOrder, so it would never be drawn");
     }
 
-    // "Windows" shipped as "Cross-Game Windows" until 2026-09-27; leg 6 pins the
-    // rename's carried selection. Cross-Game Rules is no longer a Combo page
-    // (#1101): it is Randomizer > Cross-Game, leg 4.
-    const char* kShippedPages[] = { "Windows" };
-    for (const char* pageName : kShippedPages) {
+    // Every Combo page is a contributed one since #1132 retired Windows (the
+    // unified trackers open from SoH's own tracker pages, leg 3). Each holds
+    // widgets in every column it declares and draws every row it registers.
+    for (const std::string& pageName : combo.sidebarOrder) {
         if (!combo.sidebars.contains(pageName)) {
-            printf("[TEST] FAIL(1): the Combo section has no \"%s\" sidebar page\n", pageName);
+            printf("[TEST] FAIL(1): \"%s\" is in the Combo header's sidebarOrder but not in its sidebars\n",
+                   pageName.c_str());
             gFailures++;
             continue;
         }
         SidebarEntry& page = combo.sidebars.at(pageName);
-        COMBO_CHECK(page.columnCount >= 1, "Combo / %s declares %u columns", pageName, page.columnCount);
+        COMBO_CHECK(page.columnCount >= 1, "Combo / %s declares %u columns", pageName.c_str(), page.columnCount);
         // #640, verbatim: an empty multi-column page leaves Menu::DrawElement's
         // SetNextWindowPos unconsumed and undocks the "Main Game" window.
         COMBO_CHECK(RowCount(page) > 0,
                     "Combo / %s is registered with no widgets at all -- #640's failure mode, which "
                     "undocks libultraship's \"Main Game\" window rather than merely looking empty",
-                    pageName);
+                    pageName.c_str());
         // #844: every column the page declares holds rows. Menu::DrawElement
         // divides the section by columnCount whether or not a column has rows,
         // so a declared column with none leaves an empty half beside the page
-        // and squeezes every row into the other (Cross-Game Rules kept one
-        // after #834 retired its item-class groups).
+        // and squeezes every row into the other.
         for (uint32_t column = 0; column < page.columnCount; column++) {
             const std::size_t rowsInColumn =
                 column < page.columnWidgets.size() ? page.columnWidgets.at(column).size() : 0;
             COMBO_CHECK(rowsInColumn > 0,
                         "Combo / %s declares %u columns but column %u holds no rows -- the page draws an empty "
                         "column and its rows take only part of the width (#844)",
-                        pageName, page.columnCount, column + 1);
+                        pageName.c_str(), page.columnCount, column + 1);
         }
         // Every row must be in a column the page actually draws.
         for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
@@ -306,30 +478,31 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                 COMBO_CHECK(column < page.columnCount,
                             "Combo / %s row '%s' landed in column %u of a page that draws %u -- registered and never "
                             "drawn",
-                            pageName, row.name.c_str(), column, page.columnCount);
+                            pageName.c_str(), row.name.c_str(), column, page.columnCount);
             }
         }
-        // Shipped pages come FIRST, before any contributed one.
-        bool found = false;
-        for (const std::string& name : combo.sidebarOrder) {
-            if (name == pageName) {
-                found = true;
-            }
-        }
-        COMBO_CHECK(found, "Combo / %s is in `sidebars` but not in `sidebarOrder`", pageName);
     }
-    // The Combo header after #1101: exactly five pages, Windows first, and none
-    // of the three that moved to the Randomizer header.
+    // The Combo header after #1132: exactly its four contributed pages, in
+    // whatever order their file-scope registrars ran; no Windows page (ruling D1:
+    // SoH's Randomizer > Check Tracker and Item Tracker open the unified
+    // windows), and none of the three pages #1101 moved to the Randomizer header.
     {
-        const std::vector<std::string> kComboPages = { "Windows", "Majora's Mask", "MM Mods", "Save Files",
-                                                       "Tracker Settings" };
+        const std::vector<std::string> kComboPages = { "Majora's Mask", "MM Mods", "Save Files", "Tracker Settings" };
         const auto& order = combo.sidebarOrder;
-        COMBO_CHECK(order.size() == kComboPages.size(), "the Combo header holds %zu pages, expected the %zu below",
-                    order.size(), kComboPages.size());
-        COMBO_CHECK(!order.empty() && order.front() == "Windows", "the Combo header's first page is '%s', not Windows",
-                    order.empty() ? "(none)" : order.front().c_str());
+        std::string got;
+        for (const std::string& name : order) {
+            got += (got.empty() ? "" : ", ") + name;
+        }
+        COMBO_CHECK(order.size() == kComboPages.size(), "the Combo header holds [%s], expected the %zu pages below",
+                    got.c_str(), kComboPages.size());
         for (const std::string& name : kComboPages) {
             COMBO_CHECK(combo.sidebars.contains(name), "the Combo header has no \"%s\" page", name.c_str());
+        }
+        for (const char* gone : { "Windows", "Cross-Game Windows" }) {
+            COMBO_CHECK(!combo.sidebars.contains(gone),
+                        "the Combo header still holds \"%s\"; the unified trackers open from SoH's Randomizer > "
+                        "Check Tracker and Item Tracker pages (#1132, ruling D1)",
+                        gone);
         }
         for (const char* moved : { "Cross-Game Rules", "Cross-Game", "MM Randomizer", "MM Tricks" }) {
             COMBO_CHECK(!combo.sidebars.contains(moved),
@@ -338,8 +511,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         moved);
         }
     }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its five pages, Windows "
-           "first, each holding widgets in every column it declares\n");
+    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its four contributed pages, "
+           "no Windows page, each holding widgets in every column it declares\n");
 
     // ---- Leg 2: no Combo page hosts the tier-4 rows ------------------------
     // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
@@ -354,148 +527,206 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "Combo / %s still hosts the cross-game rules", name.c_str());
     }
 
-    // ---- Leg 3: the windows page's CVar/name pairs and their embed flag ----
-    struct WindowRow {
-        const char* rowName;
-        const char* cVar;
-        const char* windowName;
-        const char* separator; // the SEPARATOR_TEXT directly above the button
-        const char* tooltip;
-        bool raceDisable; // SoH's own toggle's flag: a spoiler tool is race-disabled, a tracker is not
-    };
-    // The authoritative constants are ComboGui::kComboSpoiler*/kComboTracker*/
-    // kComboItemTracker* (src/common/ComboSpoilerWindow.h, ComboTrackerWindow.h,
-    // ComboItemTrackerWindow.h). Restated as literals here on
-    // purpose: the point is that the menu's spelling and the window's agree, and
-    // sharing a constant would make them agree by construction instead.
-    // The separators and tooltips are SoH's own tracker-page copy
-    // (SohMenuRandomizer.cpp's Item Tracker page), restated here so a rewording
-    // is a deliberate lock edit.
-    const WindowRow kWindowRows[] = {
-        { "Toggle Cross-Game Spoiler", "gCombo.Windows.Spoiler", "Cross-Game Spoiler", "Cross-Game Spoiler",
-          "Toggles the Cross-Game Spoiler.", true },
-        // Not race-disabled, as SoH's Toggle Check Tracker is not
-        // (SohMenuRandomizer.cpp): ruling D10 cut the Crossings section, the
-        // window's only part that named items on uncollected checks (#1128).
-        { "Toggle Combo Tracker", "gCombo.Windows.Tracker", "Combo Tracker", "Combo Tracker",
-          "Toggles the Combo Tracker.", false },
-        // The unified Item Tracker overlay (#458 U2; ADR 0004's 2026-09-30
-        // amendment: U2 added this row, U6 removed MM's four tracker rows).
-        { "Toggle Combo Item Tracker", "gCombo.Windows.ItemTracker", "Combo Item Tracker", "Combo Item Tracker",
-          "Toggles the Combo Item Tracker. Drag it via Tracker Settings > Enable Dragging.", false },
-    };
-    // MM's four tracker rows, retired by #458 U6: the Combo Tracker and the
-    // Combo Item Tracker above cover both games. Their windows stay registered
-    // and their gWindows.* keys still open them (MMTrackersGui), but no menu row
-    // writes those keys any more. Restated as literals, like the rows above.
-    struct RetiredRow {
-        const char* rowName;
-        const char* cVar;
-        const char* windowName;
-    };
-    const RetiredRow kRetiredRows[] = {
-        { "Toggle MM Item Tracker", "gWindows.ItemTracker", "MM Item Tracker" },
-        { "Popout MM Item Tracker Settings", "gWindows.ItemTrackerSettings", "MM Item Tracker Settings" },
-        { "Toggle MM Check Tracker", "gWindows.CheckTracker", "MM Check Tracker" },
-        { "Popout MM Check Tracker Settings", "gWindows.CheckTrackerSettings", "MM Check Tracker Settings" },
-    };
-    if (!combo.sidebars.contains("Windows")) {
-        printf("[TEST] FAIL(3): the Combo section has no \"Windows\" page, so none of its three window rows can be "
-               "checked\n");
-        gFailures++;
-    } else {
-        SidebarEntry& windows = combo.sidebars.at("Windows");
-        for (const WindowRow& expected : kWindowRows) {
-            WidgetInfo* row = FindRow(windows, expected.rowName);
-            COMBO_CHECK(row != nullptr,
-                        "the Windows page has no \"%s\" row -- that window is reachable "
-                        "only from the console again",
-                        expected.rowName);
+    // ---- Leg 3: SoH's tracker pages are the unified windows' pages (#1132) ---
+    // Ruling D1: SoH's Randomizer > Check Tracker and Item Tracker pages open the
+    // unified windows, because those windows ARE "Check Tracker" and "Item
+    // Tracker" over SoH's own window keys (ruling D7): WINDOW_BUTTON calls the
+    // window it finds BY NAME, and reads .CVar for its label. The Check Tracker
+    // rows that lived on Combo > Tracker Settings (#1131's two navigation keys)
+    // and the Cross-Game Spoiler's toggle that lived on Combo > Windows follow
+    // SoH's own rows on its Check Tracker page, through the contributed-rows
+    // registry; the Item Tracker page takes none yet (lane IT-3, #1141, appends
+    // the overlay's rows there).
+    {
+        struct Toggle {
+            const char* page;
+            const char* rowName;
+            const char* comboWindow;
+            const char* comboKey;
+        };
+        const Toggle kToggles[] = {
+            { "Check Tracker", "Toggle Check Tracker", ComboGui::kComboTrackerWindowName,
+              ComboGui::kComboTrackerVisibilityCVar },
+            { "Item Tracker", "Toggle Item Tracker", ComboGui::kComboItemTrackerWindowName,
+              ComboGui::kComboItemTrackerVisibilityCVar },
+        };
+        ComboSectionMenuProbe soh;
+        AddSohTrackerPages(soh);
+        auto& randoPages = soh.Entries().at("Randomizer").sidebars;
+        for (const Toggle& t : kToggles) {
+            WidgetInfo* row = randoPages.contains(t.page) ? FindRow(randoPages.at(t.page), t.rowName) : nullptr;
+            COMBO_CHECK(row != nullptr, "the Randomizer / %s stand-in has no \"%s\" row", t.page, t.rowName);
             if (row == nullptr) {
                 continue;
             }
-            COMBO_CHECK(row->type == WIDGET_WINDOW_BUTTON, "row '%s' has widget type %d, expected WIDGET_WINDOW_BUTTON",
-                        expected.rowName, (int)row->type);
-            COMBO_CHECK(
-                row->cVar != nullptr && std::string(row->cVar) == expected.cVar,
-                "row '%s' binds CVar '%s', expected '%s' -- WINDOW_BUTTON reads .CVar for its open/close label, "
-                "so a mismatch is a button that reads wrong while working",
-                expected.rowName, row->cVar != nullptr ? row->cVar : "(null)", expected.cVar);
-            COMBO_CHECK(row->windowName != nullptr && std::string(row->windowName) == expected.windowName,
-                        "row '%s' names window '%s', expected '%s' -- ToggleVisibility is looked up BY THIS NAME, so a "
-                        "mismatch is a button that opens nothing",
-                        expected.rowName, row->windowName != nullptr ? row->windowName : "(null)", expected.windowName);
-            COMBO_CHECK(row->raceDisable == expected.raceDisable,
-                        "row '%s' has RaceDisable(%s), expected RaceDisable(%s)", expected.rowName,
-                        row->raceDisable ? "true" : "false", expected.raceDisable ? "true" : "false");
-            auto options = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options);
-            COMBO_CHECK(options != nullptr && !options->embedWindow,
-                        "row '%s' embeds its window; SoH's own tracker toggles pop their windows out, and the embed "
-                        "path calls DrawElement() directly, past the window's own Draw",
-                        expected.rowName);
-            // The SoH tracker-page shape: this button's own separator directly
-            // above it, and SoH's tooltip voice.
-            const WidgetInfo* above = RowBefore(windows, row);
-            COMBO_CHECK(above != nullptr && above->type == WIDGET_SEPARATOR_TEXT && above->name == expected.separator,
-                        "row '%s' sits under '%s', expected its own separator '%s' -- SoH's tracker pages give every "
-                        "window a separator of its own (Randomizer > Item Tracker)",
-                        expected.rowName, above != nullptr ? above->name.c_str() : "(nothing)", expected.separator);
-            const char* tip = options != nullptr ? options->tooltip : nullptr;
-            COMBO_CHECK(tip != nullptr && std::string(tip) == expected.tooltip,
-                        "row '%s' has tooltip \"%s\", expected \"%s\"", expected.rowName,
-                        tip != nullptr ? tip : "(null)", expected.tooltip);
-            // One line, as SoH's own tracker tooltips are: UIWidgets::WrappedText
-            // breaks at 80 characters, and the longer MM caveat this replaced
-            // wrapped a lone "running." onto a second line.
-            COMBO_CHECK(tip == nullptr || std::string(tip).size() <= 80,
-                        "row '%s' has a %zu-character tooltip; UIWidgets::WrappedText wraps past 80, and SoH's tracker "
-                        "tooltips are one line",
-                        expected.rowName, tip != nullptr ? std::string(tip).size() : (std::size_t)0);
+            COMBO_CHECK(row->windowName != nullptr && std::string(row->windowName) == t.comboWindow,
+                        "SoH's \"%s\" opens the window \"%s\", but the unified one is \"%s\": the button would open "
+                        "SoH's own window, not ours (#1132, ruling D1)",
+                        t.rowName, row->windowName != nullptr ? row->windowName : "(null)", t.comboWindow);
+            COMBO_CHECK(row->cVar != nullptr && std::string(row->cVar) == t.comboKey,
+                        "SoH's \"%s\" labels itself from \"%s\", but the unified window's key is \"%s\": the button "
+                        "would read Open while the window is shut",
+                        t.rowName, row->cVar != nullptr ? row->cVar : "(null)", t.comboKey);
         }
-        // Exactly the live-play tools (ADR 0004's 2026-09-27 host amendment):
-        // MM's randomizer options are pages now, and a button opening a second
-        // surface over the same keys would be a way for the two to disagree.
-        // Every window button on the page must be one of the rows above.
-        COMBO_CHECK(FindRow(windows, "Toggle MM Randomizer Options") == nullptr,
-                    "the Windows page still offers \"Toggle MM Randomizer Options\"; MM's randomizer options are "
-                    "the Combo > MM Randomizer and Combo > MM Tricks pages, not a window");
-        // MM's tracker rows are gone by name, by window and by key: a renamed
-        // row that still opens an MM tracker window is the same row.
-        for (const RetiredRow& retired : kRetiredRows) {
-            COMBO_CHECK(FindRow(windows, retired.rowName) == nullptr,
-                        "the Windows page still offers \"%s\"; the unified Combo Tracker and Combo Item Tracker "
-                        "supersede MM's tracker rows (#458 U6)",
-                        retired.rowName);
-            for (auto& column : windows.columnWidgets) {
+
+        // The Check Tracker page: SoH's four rows, then ours, in this order.
+        const std::vector<std::string> kCheckPage = {
+            "Check Tracker",
+            "Toggle Check Tracker",
+            "Check Tracker Settings",
+            "Popout Check Tracker Settings",
+            "Auto Scroll To Current Area##CheckTracker",
+            "Only Show Current Area##CheckTracker",
+            "Cross-Game Spoiler",
+            "Toggle Cross-Game Spoiler",
+        };
+        // The Item Tracker page: SoH's four rows, nothing of ours yet (IT-3).
+        const std::vector<std::string> kItemPage = {
+            "Item Tracker",
+            "Toggle Item Tracker",
+            "Item Tracker Settings",
+            "Popout Item Tracker Settings",
+        };
+        const std::vector<std::string> checkRows = RowNames(randoPages.at("Check Tracker"));
+        const std::vector<std::string> itemRows = RowNames(randoPages.at("Item Tracker"));
+        COMBO_CHECK(checkRows == kCheckPage, "Randomizer / Check Tracker reads [%s], expected [%s]",
+                    Joined(checkRows).c_str(), Joined(kCheckPage).c_str());
+        COMBO_CHECK(itemRows == kItemPage, "Randomizer / Item Tracker reads [%s], expected [%s]",
+                    Joined(itemRows).c_str(), Joined(kItemPage).c_str());
+        SidebarEntry& checkPage = randoPages.at("Check Tracker");
+        for (uint32_t column = 1; column < checkPage.columnWidgets.size(); column++) {
+            COMBO_CHECK(checkPage.columnWidgets.at(column).empty(),
+                        "Randomizer / Check Tracker holds rows in column %u of a one-column page -- registered and "
+                        "never drawn",
+                        column + 1);
+        }
+
+        // #1131's two keys: each written once on the Check Tracker page, a
+        // checkbox with the window's default and a tooltip, under SoH's Check
+        // Tracker Settings separator, and not race-disabled.
+        std::size_t checkKeys = 0;
+        for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+            const char* key = RSBS::kComboKeys[k].key;
+            if (!RSBS::ComboKeyHasPrefix(key, kCheckTrackerKeyPrefix)) {
+                continue;
+            }
+            checkKeys++;
+            int rows = 0;
+            for (auto& column : checkPage.columnWidgets) {
+                const char* section = "";
+                for (WidgetInfo& row : column) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        section = row.name.c_str();
+                        continue;
+                    }
+                    if (row.cVar == nullptr || std::string(row.cVar) != key) {
+                        continue;
+                    }
+                    rows++;
+                    bool known = false;
+                    bool defaultValue = false;
+                    for (const auto& d : kCheckTrackerKeyDefaults) {
+                        if (std::string(d.key) == key) {
+                            known = true;
+                            defaultValue = d.defaultValue;
+                        }
+                    }
+                    auto o = std::static_pointer_cast<UIWidgets::CheckboxOptions>(row.options);
+                    COMBO_CHECK(known && row.type == WIDGET_CVAR_CHECKBOX && o != nullptr &&
+                                    o->defaultValue == defaultValue,
+                                "the %s row is not a checkbox defaulting to the Check Tracker's default", key);
+                    COMBO_CHECK(o != nullptr && o->tooltip != nullptr && o->tooltip[0] != '\0' &&
+                                    std::string(o->tooltip).find("Combo") == std::string::npos,
+                                "row '%s' (%s) has no tooltip, or one that still says Combo (ruling D7)",
+                                row.name.c_str(), key);
+                    COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the tracker's navigation is cosmetic",
+                                row.name.c_str());
+                    COMBO_CHECK(std::string(section) == "Check Tracker Settings",
+                                "the %s row is under \"%s\", not SoH's Check Tracker Settings separator", key, section);
+                }
+            }
+            COMBO_CHECK(rows == 1, "Randomizer / Check Tracker holds %d rows writing %s, expected exactly one", rows,
+                        key);
+        }
+        COMBO_CHECK(checkKeys == 2, "the manifest holds %zu %s* keys, expected two (#1131)", checkKeys,
+                    kCheckTrackerKeyPrefix);
+
+        // The Cross-Game Spoiler's toggle, moved from Combo > Windows: under its
+        // own separator, race-disabled as a spoiler tool is, popped out, with
+        // SoH's tracker-toggle tooltip and the window's constants restated.
+        WidgetInfo* spoiler = FindRow(checkPage, "Toggle Cross-Game Spoiler");
+        COMBO_CHECK(spoiler != nullptr, "Randomizer / Check Tracker has no \"Toggle Cross-Game Spoiler\" row");
+        if (spoiler != nullptr) {
+            auto o = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(spoiler->options);
+            const WidgetInfo* above = RowBefore(checkPage, spoiler);
+            COMBO_CHECK(spoiler->type == WIDGET_WINDOW_BUTTON && spoiler->cVar != nullptr &&
+                            std::string(spoiler->cVar) == "gCombo.Windows.Spoiler" && spoiler->windowName != nullptr &&
+                            std::string(spoiler->windowName) == "Cross-Game Spoiler" && spoiler->raceDisable &&
+                            o != nullptr && !o->embedWindow && o->tooltip != nullptr &&
+                            std::string(o->tooltip) == "Toggles the Cross-Game Spoiler.",
+                        "the Toggle Cross-Game Spoiler row is not a race-disabled pop-out over gCombo.Windows.Spoiler "
+                        "/ \"Cross-Game Spoiler\" with SoH's tooltip");
+            COMBO_CHECK(above != nullptr && above->type == WIDGET_SEPARATOR_TEXT && above->name == "Cross-Game Spoiler",
+                        "the Toggle Cross-Game Spoiler row does not sit under its own separator");
+        }
+
+        // MM's four tracker rows stay retired (#458 U6): neither page opens an
+        // MM tracker window or binds an MM gWindows.* key.
+        const char* const kMmWindows[] = { "MM Item Tracker", "MM Item Tracker Settings", "MM Check Tracker",
+                                           "MM Check Tracker Settings" };
+        for (const char* pageName : { "Check Tracker", "Item Tracker" }) {
+            for (auto& column : randoPages.at(pageName).columnWidgets) {
                 for (WidgetInfo& row : column) {
                     if (row.type != WIDGET_WINDOW_BUTTON) {
                         continue;
                     }
-                    COMBO_CHECK(row.windowName == nullptr || std::string(row.windowName) != retired.windowName,
-                                "row '%s' still opens MM's \"%s\" window from the Windows page (#458 U6)",
-                                row.name.c_str(), retired.windowName);
-                    COMBO_CHECK(row.cVar == nullptr || std::string(row.cVar) != retired.cVar,
-                                "row '%s' still binds MM's '%s' key on the Windows page (#458 U6)", row.name.c_str(),
-                                retired.cVar);
+                    for (const char* mm : kMmWindows) {
+                        COMBO_CHECK(row.windowName == nullptr || std::string(row.windowName) != mm,
+                                    "row '%s' on Randomizer / %s opens MM's \"%s\" window (#458 U6)", row.name.c_str(),
+                                    pageName, mm);
+                    }
+                    COMBO_CHECK(row.cVar == nullptr || std::string(row.cVar).rfind("gWindows.", 0) != 0,
+                                "row '%s' on Randomizer / %s binds MM's '%s' key (#458 U6)", row.name.c_str(), pageName,
+                                row.cVar);
                 }
             }
         }
-        int windowButtons = 0;
-        for (auto& column : windows.columnWidgets) {
-            for (WidgetInfo& row : column) {
-                if (row.type == WIDGET_WINDOW_BUTTON) {
-                    windowButtons++;
-                }
-            }
+
+        // The registry itself: a contribution reaches only the page it names,
+        // with that page's path and the first column pinned, after SoH's rows;
+        // an invalid one is refused; unregistering puts the registry back.
+        SohGui::RegisterSohPageRows("Randomizer", "Item Tracker", SohRowsRegistrar);
+        SohGui::RegisterSohPageRows(nullptr, "Item Tracker", SohRowsRegistrar);
+        SohGui::RegisterSohPageRows("Randomizer", "", SohRowsRegistrar);
+        SohGui::RegisterSohPageRows("Randomizer", "Item Tracker", nullptr);
+        gSohRowsRan = 0;
+        gSohRowsColumn = -1;
+        {
+            ComboSectionMenuProbe ext;
+            AddSohTrackerPages(ext);
+            auto& extPages = ext.Entries().at("Randomizer").sidebars;
+            const std::vector<std::string> itemNow = RowNames(extPages.at("Item Tracker"));
+            COMBO_CHECK(gSohRowsRan == 1, "the contributed SoH-page registrar ran %d times, expected once",
+                        gSohRowsRan);
+            COMBO_CHECK(gSohRowsSection == "Randomizer" && gSohRowsSidebar == "Item Tracker" &&
+                            gSohRowsColumn == (int)SECTION_COLUMN_1,
+                        "the contributed registrar was handed %s / %s column %d, expected Randomizer / Item Tracker "
+                        "and the pinned first column",
+                        gSohRowsSection.c_str(), gSohRowsSidebar.c_str(), gSohRowsColumn);
+            COMBO_CHECK(!itemNow.empty() && itemNow.back() == kSohRowsRowName,
+                        "the contributed row is not the last row of Randomizer / Item Tracker: [%s]",
+                        Joined(itemNow).c_str());
+            COMBO_CHECK(FindRow(extPages.at("Check Tracker"), kSohRowsRowName) == nullptr,
+                        "a row contributed to the Item Tracker page landed on the Check Tracker page");
         }
-        COMBO_CHECK(windowButtons == (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])),
-                    "the Windows page holds %d window buttons, expected exactly the %d live-play tools above",
-                    windowButtons, (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])));
-        printf("[TEST] leg 3: all %d cross-game window rows carry a matching CVar/WindowName pair, stay pop-out, and "
-               "sit under their own separator with SoH's tooltip, and the page holds no other window button and none "
-               "of MM's %d retired tracker rows\n",
-               (int)(sizeof(kWindowRows) / sizeof(kWindowRows[0])),
-               (int)(sizeof(kRetiredRows) / sizeof(kRetiredRows[0])));
+        COMBO_CHECK(SohGui::UnregisterSohPageRows(SohRowsRegistrar) == 1,
+                    "UnregisterSohPageRows did not remove exactly the one valid contribution, so an invalid one was "
+                    "accepted or the valid one was lost");
+        COMBO_CHECK(SohGui::UnregisterSohPageRows(SohRowsRegistrar) == 0,
+                    "UnregisterSohPageRows removed a contribution twice");
+        printf("[TEST] leg 3: SoH's Toggle Check Tracker and Toggle Item Tracker open the unified windows by name and "
+               "key, the Check Tracker page carries #1131's two rows and the Cross-Game Spoiler after SoH's own, the "
+               "Item Tracker page nothing yet, and a contribution reaches only its own page\n");
     }
 
     // ---- Leg 4: our pages under SoH's Randomizer header (#1101) ------------
@@ -640,18 +871,18 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         extPage.columnCount);
             COMBO_CHECK(FindRow(extPage, kExtRowName) != nullptr, "the contributed page holds no row");
         }
-        // Contributed pages come LAST, so a contributor cannot reorder the
-        // shipped one out from under a player's persisted selection; a page
-        // hosted under Randomizer is not created here at all.
+        // Contributed pages come in registration order, so a later contributor
+        // cannot reorder the earlier ones out from under a player's persisted
+        // selection; a page hosted under Randomizer is not created here at all.
+        // The Combo header ships no page of its own since #1132 retired Windows.
         auto& order = extProbe.Entries().at("Combo").sidebarOrder;
-        COMBO_CHECK(order.size() == baselineComboPages + 2,
-                    "the Combo section has %zu sidebars in order, expected the shipped Windows plus the %zu "
-                    "Combo-hosted pages already registered plus the one this leg added",
+        COMBO_CHECK(order.size() == baselineComboPages + 1,
+                    "the Combo section has %zu sidebars in order, expected the %zu Combo-hosted pages already "
+                    "registered plus the one this leg added",
                     order.size(), baselineComboPages);
         if (!order.empty()) {
-            COMBO_CHECK(order.front() == "Windows" && order.back() == kExtPageName,
-                        "sidebar order is [%s, ..., %s]; the shipped page must come first and contributed ones last",
-                        order.front().c_str(), order.back().c_str());
+            COMBO_CHECK(order.back() == kExtPageName, "sidebar order ends with '%s'; a contributed page comes last",
+                        order.back().c_str());
         }
     }
 
@@ -720,16 +951,16 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         COMBO_CHECK(!cleanProbe.Entries().at("Combo").sidebars.contains(kExtPageName),
                     "an unregistered contributed page is still created");
     }
-    printf("[TEST] leg 5: a contributed page is created after the shipped one with a pinned column, replaces on "
+    printf("[TEST] leg 5: a contributed page is created after the earlier ones with a pinned column, replaces on "
            "re-registration, is refused when invalid, is drawn only under the header it names, and unregisters "
            "cleanly\n");
 
-    // ---- Leg 6: the renamed Windows page carries a persisted selection ------
+    // ---- Leg 6: a renamed or moved page carries a persisted selection -------
     // Menu::DrawElement reads gSettings.Menu.ComboSidebarSection as a display
     // name and falls back to the first page when no sidebar has it, so without
-    // the carry a config saved on the old name would silently land on Cross-Game
-    // Rules. The key is restored to whatever it held, so AllTests order cannot
-    // leak a selection into a later row.
+    // the carry a config saved on an old name would silently land elsewhere.
+    // The key is restored to whatever it held, so AllTests order cannot leak a
+    // selection into a later row.
     {
         const char* kSidebarKey = "gSettings.Menu.ComboSidebarSection";
         const std::string saved = CVarGetString(kSidebarKey, "");
@@ -738,11 +969,12 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             const char* after;
         };
         const Carry kCarries[] = {
-            { "Cross-Game Windows", "Windows" },    // the old name moves to the new one
-            { "Windows", "Windows" },               // the new name stays
-            { "MM Enhancements", "Majora's Mask" }, // the second rename, the same day
+            { "MM Enhancements", "Majora's Mask" }, // the rename of 2026-09-27
             { "Majora's Mask", "Majora's Mask" },
             { "Save Files", "Save Files" }, // a page never renamed is left alone
+            // Combo > Tracker Settings keeps the Item Tracker overlay's rows until
+            // lane IT-3 (#1141) retires it, so its selection stays put.
+            { "Tracker Settings", "Tracker Settings" },
         };
         for (const Carry& carry : kCarries) {
             CVarSetString(kSidebarKey, carry.before);
@@ -760,15 +992,18 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         } else {
             CVarSetString(kSidebarKey, saved.c_str());
         }
-        printf("[TEST] leg 6: selections saved on \"Cross-Game Windows\" and \"MM Enhancements\" are carried to "
-               "\"Windows\" and \"Majora's Mask\"; every other value is left alone\n");
+        printf("[TEST] leg 6: a selection saved on \"MM Enhancements\" is carried to \"Majora's Mask\"; every other "
+               "Combo page's value is left alone\n");
     }
-    // The pages #1101 moved to the Randomizer header, carried ACROSS headers. A
-    // config that had Combo open on one of them opens on the moved page under
-    // Randomizer (Menu::DrawElement reads gSettings.Menu.ActiveHeader, then that
-    // header's sidebar key); one whose open header was another leaves the
-    // Randomizer selection alone. Either way no Combo selection is left naming
-    // a page Combo no longer has. All three keys are restored afterwards.
+    // The pages that left the Combo header, carried ACROSS headers: the three
+    // #1101 moved to the Randomizer header, and Windows (#1132, which shipped as
+    // "Cross-Game Windows" until 2026-09-27), whose trackers open from SoH's
+    // Randomizer > Check Tracker now. A config that had Combo open on one of them
+    // opens on that page under Randomizer (Menu::DrawElement reads
+    // gSettings.Menu.ActiveHeader, then that header's sidebar key); one whose
+    // open header was another leaves the Randomizer selection alone. Either way
+    // no Combo selection is left naming a page Combo no longer has. All three
+    // keys are restored afterwards.
     {
         const char* kComboKey = "gSettings.Menu.ComboSidebarSection";
         const char* kRandoKey = "gSettings.Menu.RandomizerSidebarSection";
@@ -786,10 +1021,17 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             { "Combo", "MM Randomizer", "Randomizer", "MM Randomizer" },
             { "Combo", "MM Tricks", "Randomizer", "MM Tricks" },
             { "Combo", "Cross-Game Rules", "Randomizer", "Cross-Game" },
+            { "Combo", "Windows", "Randomizer", "Check Tracker" },
+            { "Combo", "Cross-Game Windows", "Randomizer", "Check Tracker" },
             // Another header open: the Randomizer selection is the player's own.
             { "Settings", "MM Randomizer", "Settings", "Shuffles" },
+            { "Settings", "Windows", "Settings", "Shuffles" },
         };
-        const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
+        // Where a carry may land: a page AddComboRandomizerPages registers, or
+        // one of SoH's own tracker pages (AddMenuRandomizer registers them).
+        std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
+        randoPages.push_back("Check Tracker");
+        randoPages.push_back("Item Tracker");
         for (const Move& move : kMoves) {
             CVarSetString(kHeaderKey, move.header);
             CVarSetString(kComboKey, move.comboBefore);
@@ -804,8 +1046,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         move.comboBefore, header.c_str(), rando.c_str(), move.headerAfter, move.randoAfter);
             COMBO_CHECK(std::string(move.randoAfter) == "Shuffles" ||
                             std::find(randoPages.begin(), randoPages.end(), rando) != randoPages.end(),
-                        "the carried Randomizer selection \"%s\" is not a page AddComboRandomizerPages registers",
-                        rando.c_str());
+                        "the carried Randomizer selection \"%s\" is not a Randomizer page", rando.c_str());
             COMBO_CHECK(comboNow.empty() || moveProbe.Entries().at("Combo").sidebars.contains(comboNow),
                         "the Combo selection still reads \"%s\", a page the Combo header no longer has",
                         comboNow.c_str());
@@ -820,20 +1061,19 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         restore(kComboKey, savedCombo);
         restore(kRandoKey, savedRando);
         restore(kHeaderKey, savedHeader);
-        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks or Cross-Game Rules opens on the "
-               "moved page under Randomizer, and no Combo selection is left stranded\n");
+        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks, Cross-Game Rules or Windows opens on "
+               "the moved page under Randomizer, and no Combo selection is left stranded\n");
     }
 
-    // ---- Leg 7: Combo > Tracker Settings writes the unified trackers' keys ----
-    // ADR 0004's 2026-09-30 amendment: the unified trackers are live-play windows
-    // (Combo > Windows) and their settings are a Combo page. Every
-    // gCombo.Tracker.Items.* key in the manifest must have exactly one row here,
-    // with the overlay's own default and range, or the console is a player's only
-    // writer for it. The Combo Tracker draws its checks in SoH's Check Tracker
-    // colours, so the page embeds SoH's own Check Tracker Settings.
+    // ---- Leg 7: Combo > Tracker Settings writes the Item Tracker overlay's keys
+    // ADR 0004's 2026-09-30 amendment put the unified trackers' settings on a
+    // Combo page; since #1132 only the Item Tracker overlay's are left there, a
+    // transitional state until lane IT-3 (#1141). Every gCombo.Tracker.Items.*
+    // key in the manifest must have exactly one row here, with the overlay's own
+    // default and range, or the console is a player's only writer for it.
     if (!combo.sidebars.contains(kTrackerSettingsPage)) {
-        printf("[TEST] FAIL(7): the Combo section has no \"%s\" page, so the Combo Item Tracker's settings "
-               "(gCombo.Tracker.Items.*) have no menu writer and the Combo Tracker's colours no Combo host\n",
+        printf("[TEST] FAIL(7): the Combo section has no \"%s\" page, so the Item Tracker overlay's settings "
+               "(gCombo.Tracker.Items.*) have no menu writer\n",
                kTrackerSettingsPage);
         gFailures++;
     } else {
@@ -983,29 +1223,16 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedType);
         }
 
-        // The Combo Tracker draws its checks in SoH's Check Tracker colours
-        // (ComboTrackerWindow.cpp reads gTrackers.CheckTracker.*), so the page
-        // hosts SoH's own Check Tracker Settings as SoH's Check Tracker page does:
-        // embedded, under its pop-out row.
-        WidgetInfo* check = FindRow(page, "Popout Check Tracker Settings");
-        COMBO_CHECK(check != nullptr, "Combo / %s has no \"Popout Check Tracker Settings\" row", kTrackerSettingsPage);
-        if (check != nullptr) {
-            auto o = std::static_pointer_cast<UIWidgets::WindowButtonOptions>(check->options);
-            COMBO_CHECK(check->type == WIDGET_WINDOW_BUTTON && check->cVar != nullptr &&
-                            std::string(check->cVar) == "gOpenWindows.CheckTrackerSettings" &&
-                            check->windowName != nullptr &&
-                            std::string(check->windowName) == "Check Tracker Settings" && o->embedWindow,
-                        "the Check Tracker Settings row is not SoH's embedded pop-out over "
-                        "gOpenWindows.CheckTrackerSettings / \"Check Tracker Settings\"");
-            // #1128: the Combo Tracker follows that window's hide options and
-            // header toggles now, not its colors alone, and the tooltip says so.
-            const std::string tip = (o != nullptr && o->tooltip != nullptr) ? o->tooltip : "";
-            COMBO_CHECK(tip.find("no other setting") == std::string::npos &&
-                            tip.find("Hide options") != std::string::npos,
-                        "the Check Tracker Settings row's tooltip \"%s\" does not say the Combo Tracker follows its "
-                        "Hide options",
-                        tip.c_str());
-        }
+        // The Check Tracker's rows left with #1132 (ruling D1): SoH's own Check
+        // Tracker page hosts its settings and #1131's two rows (leg 3), so this
+        // page neither embeds SoH's Check Tracker Settings nor writes a
+        // gCombo.Tracker.Checks.* key. It keeps only the Item Tracker overlay's
+        // rows until lane IT-3 (#1141) moves them onto SoH's Item Tracker page.
+        COMBO_CHECK(FindRow(page, "Popout Check Tracker Settings") == nullptr &&
+                        FindRow(page, "Check Tracker Settings") == nullptr,
+                    "Combo / %s still hosts the Check Tracker Settings block; it lives on SoH's Randomizer > Check "
+                    "Tracker page since #1132",
+                    kTrackerSettingsPage);
 
         // Move to Default Position (#962) is the one row that writes no key: it asks the
         // floating overlay to return to its default place (under the hearts),
@@ -1034,71 +1261,145 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             COMBO_CHECK(false, "the Move to Default Position row has no PreFunc, so it shows for a windowed overlay");
         }
 
-        // #1131: the Combo Tracker's own keys (gCombo.Tracker.Checks.*, which SoH
-        // has no twin for) each have exactly one row, a checkbox with the window's
-        // default, under the Check Tracker Settings separator (until L5 #1132 moves
-        // the block onto SoH's Check Tracker page).
-        std::size_t checkKeys = 0;
-        for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
-            const char* key = RSBS::kComboKeys[k].key;
-            if (!RSBS::ComboKeyHasPrefix(key, kCheckTrackerKeyPrefix)) {
-                continue;
-            }
-            checkKeys++;
-            int rows = 0;
-            for (auto& column : page.columnWidgets) {
-                const char* section = "";
-                for (WidgetInfo& row : column) {
-                    if (row.type == WIDGET_SEPARATOR_TEXT) {
-                        section = row.name.c_str();
-                        continue;
-                    }
-                    if (row.cVar == nullptr || std::string(row.cVar) != key) {
-                        continue;
-                    }
-                    rows++;
-                    bool known = false;
-                    bool defaultValue = false;
-                    for (const auto& d : kCheckTrackerKeyDefaults) {
-                        if (std::string(d.key) == key) {
-                            known = true;
-                            defaultValue = d.defaultValue;
-                        }
-                    }
-                    auto o = std::static_pointer_cast<UIWidgets::CheckboxOptions>(row.options);
-                    COMBO_CHECK(known && row.type == WIDGET_CVAR_CHECKBOX && o != nullptr &&
-                                    o->defaultValue == defaultValue,
-                                "the %s row is not a checkbox defaulting to the Combo Tracker's default", key);
-                    COMBO_CHECK(o != nullptr && o->tooltip != nullptr && o->tooltip[0] != '\0',
-                                "row '%s' (%s) has no tooltip", row.name.c_str(), key);
-                    COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the tracker's navigation is cosmetic",
-                                row.name.c_str());
-                    COMBO_CHECK(std::string(section) == "Check Tracker Settings",
-                                "the %s row is under \"%s\", not the Check Tracker Settings separator", key, section);
-                }
-            }
-            COMBO_CHECK(rows == 1, "Combo / %s holds %d rows writing %s, expected exactly one", kTrackerSettingsPage,
-                        rows, key);
-        }
-        COMBO_CHECK(checkKeys == 2, "the manifest holds %zu %s* keys, expected two (#1131)", checkKeys,
-                    kCheckTrackerKeyPrefix);
-
         // No other writer: every other interactive row writes one of the keys above.
         for (auto& column : page.columnWidgets) {
             for (WidgetInfo& row : column) {
-                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == check || &row == resetPos) {
+                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == resetPos) {
                     continue;
                 }
-                COMBO_CHECK(row.cVar != nullptr && (RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix) ||
-                                                    RSBS::ComboKeyHasPrefix(row.cVar, kCheckTrackerKeyPrefix)),
-                            "row '%s' on Combo / %s writes '%s', which is not one of the unified trackers' keys",
+                COMBO_CHECK(row.cVar != nullptr && RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix),
+                            "row '%s' on Combo / %s writes '%s', which is not one of the Item Tracker overlay's keys",
                             row.name.c_str(), kTrackerSettingsPage, row.cVar != nullptr ? row.cVar : "(null)");
             }
         }
         printf("[TEST] leg 7: Combo / %s writes each of the nine %s* keys once with the overlay's defaults and "
-               "ranges, hides the floating-only rows for a windowed overlay, themes its colour picker, embeds "
-               "SoH's Check Tracker Settings, and writes the two %s* keys under it (#1131)\n",
-               kTrackerSettingsPage, kItemTrackerKeyPrefix, kCheckTrackerKeyPrefix);
+               "ranges, hides the floating-only rows for a windowed overlay, themes its colour picker, and holds "
+               "nothing of the Check Tracker's (#1132)\n",
+               kTrackerSettingsPage, kItemTrackerKeyPrefix);
+    }
+
+    // ---- Leg 8: SoH's two tracker windows stay registered, never drawn -------
+    // Ruling D1 replaces them; it must not unregister them, because their
+    // InitElement registers the hooks and save sections the unified panes read
+    // (randomizer_check_tracker.cpp CheckTrackerWindow::InitElement,
+    // randomizer_item_tracker.cpp ItemTrackerWindow::InitElement).
+    // SetupGuiElements constructs both through RetiredInSingleExe<> (the
+    // OoTWindowsGate row's source scan); this leg holds what that does.
+    {
+        const GameId prevGame = Context_GetCurrentGame();
+        Context_SetCurrentGame(GAME_OOT); // OoTActiveGated<> passes everything through under OoT
+
+        // a. The wrapper, on a spy: Init still reaches InitElement; Draw and the
+        //    menu's embed path (DrawElement) never reach the window, even shown.
+        auto spy = std::make_shared<OoTActiveGated<RetiredInSingleExe<RetireSpyWindow>>>("", "Retire Spy");
+        spy->Init();
+        spy->Show();
+        spy->Draw();
+        spy->DrawElement();
+        printf("[TEST] leg 8: a retired spy saw %d init(s), %d draw(s), %d embed draw(s)\n", spy->inits, spy->draws,
+               spy->elements);
+        COMBO_CHECK(spy->inits == 1, "Init() did not reach the retired window's InitElement, so its hooks would not "
+                                     "be registered");
+        COMBO_CHECK(spy->draws == 0 && spy->elements == 0,
+                    "a retired window was drawn (%d Draw, %d DrawElement): SoH's own tracker would open beside the "
+                    "unified one",
+                    spy->draws, spy->elements);
+
+        // b. The two real windows, constructed as SetupGuiElements constructs
+        //    them, on a bare Gui beside the unified ones. Their SoH keys are on,
+        //    so a window that latched them would be shown.
+        IntKeyGuard checkKey("gOpenWindows.CheckTracker");
+        IntKeyGuard itemKey("gOpenWindows.ItemTracker");
+        CVarSetInteger("gOpenWindows.CheckTracker", 1);
+        CVarSetInteger("gOpenWindows.ItemTracker", 1);
+        if (GameInteractor::Instance == nullptr) {
+            GameInteractor::Instance = new GameInteractor(); // kept alive, like every other *::Instance singleton
+        }
+        // Every hook from here on is dropped at the end, the fresh SaveManager's
+        // and the windows', so no later row dispatches into a tracker or a save
+        // path with no play state.
+        HookWatch<GameInteractor::OnLoadGame> loadGame;
+        HookWatch<GameInteractor::OnExitGame> exitGame;
+        HookWatch<GameInteractor::OnItemReceive> itemReceive;
+        HookWatch<GameInteractor::OnTransitionEnd> transitionEnd;
+        HookWatch<GameInteractor::OnShopSlotChange> shopSlot;
+        HookWatch<GameInteractor::OnSceneFlagSet> sceneFlag;
+        HookWatch<GameInteractor::OnFlagSet> flagSet;
+        HookWatch<GameInteractor::OnDialogMessage> dialog;
+        HookWatch<GameInteractor::OnGameFrameUpdate> frame;
+        HookWatch<GameInteractor::OnDeleteFile> deleteFile;
+        HookWatch<GameInteractor::OnFileChooseMain> fileChoose;
+        HookWatch<GameInteractor::OnLoadFile> loadFile;
+        HookWatch<GameInteractor::OnSaveFile> saveFile;
+        // A fresh SaveManager takes the windows' save sections (leaked on
+        // purpose, as oot_file_select_refusal_test.cpp's is).
+        SaveManager* const saveManagerBefore = SaveManager::Instance;
+        SaveManager::Instance = new SaveManager();
+        for (HookWatchBase* w :
+             std::initializer_list<HookWatchBase*>{ &loadGame, &exitGame, &itemReceive, &transitionEnd, &shopSlot,
+                                                    &sceneFlag, &flagSet, &dialog, &frame }) {
+            w->Mark();
+        }
+
+        auto gui = std::make_shared<Ship::Gui>();
+        std::shared_ptr<Ship::GuiWindow> check =
+            std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>(
+                "", kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));
+        std::shared_ptr<Ship::GuiWindow> item = std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(
+            "", kSohRetiredItemTrackerWindowName, ImVec2(350, 600));
+        gui->AddGuiWindow(check); // AddGuiWindow runs Init(), as SetupGuiElements' does
+        gui->AddGuiWindow(item);
+        ComboGui::RegisterComboTrackerWindow(gui);
+        ComboGui::RegisterComboItemTrackerWindow(gui);
+
+        printf("[TEST] leg 8: the retired windows registered OnLoadGame %zu, OnExitGame %zu, OnItemReceive %zu, "
+               "OnTransitionEnd %zu, OnShopSlotChange %zu, OnSceneFlagSet %zu, OnFlagSet %zu, OnDialogMessage %zu, "
+               "OnGameFrameUpdate %zu\n",
+               loadGame.Added(), exitGame.Added(), itemReceive.Added(), transitionEnd.Added(), shopSlot.Added(),
+               sceneFlag.Added(), flagSet.Added(), dialog.Added(), frame.Added());
+        COMBO_CHECK(loadGame.Added() == 1 && exitGame.Added() == 1 && itemReceive.Added() == 1 &&
+                        transitionEnd.Added() == 1 && shopSlot.Added() == 1 && sceneFlag.Added() == 1 &&
+                        flagSet.Added() == 1 && dialog.Added() == 1,
+                    "the retired Check Tracker did not register each of its eight hooks once: shop SEEN/IDENTIFIED, "
+                    "collected and dialogue identification would stop reaching the unified pane");
+        COMBO_CHECK(frame.Added() == 1, "the retired Item Tracker did not register its frame hook once");
+
+        COMBO_CHECK(!check->IsVisible() && !item->IsVisible(),
+                    "a retired SoH tracker window is visible because its SoH key is on: it latched the key that "
+                    "opens the unified window");
+        COMBO_CHECK(gui->GetGuiWindow(kSohRetiredCheckTrackerWindowName) == check &&
+                        gui->GetGuiWindow(kSohRetiredItemTrackerWindowName) == item,
+                    "a retired SoH tracker window is not registered under its retired name");
+        // What SoH's toggle rows find by name (leg 3 holds the names).
+        COMBO_CHECK(std::dynamic_pointer_cast<ComboGui::ComboTrackerWindow>(gui->GetGuiWindow("Check Tracker")) !=
+                        nullptr,
+                    "the window named \"Check Tracker\" is not the unified Check Tracker, so SoH's Toggle Check "
+                    "Tracker opens SoH's own");
+        COMBO_CHECK(std::dynamic_pointer_cast<ComboGui::ComboItemTrackerWindow>(gui->GetGuiWindow("Item Tracker")) !=
+                        nullptr,
+                    "the window named \"Item Tracker\" is not the unified Item Tracker, so SoH's Toggle Item Tracker "
+                    "opens SoH's own");
+        // Shown anyway, neither draws (nor touches ImGui, which this process has
+        // no frame for). Only once they are retired: SoH's own Draw would.
+        if (std::string(kSohRetiredCheckTrackerWindowName) != "Check Tracker") {
+            for (const auto& retired : { check, item }) {
+                retired->Show();
+                retired->Draw();
+                retired->DrawElement();
+                retired->Hide();
+            }
+        }
+
+        for (HookWatchBase* w : std::initializer_list<HookWatchBase*>{
+                 &loadGame, &exitGame, &itemReceive, &transitionEnd, &shopSlot, &sceneFlag, &flagSet, &dialog, &frame,
+                 &deleteFile, &fileChoose, &loadFile, &saveFile }) {
+            w->Drop();
+        }
+        SaveManager::Instance = saveManagerBefore;
+        Context_SetCurrentGame(prevGame);
+        printf("[TEST] leg 8: SoH's Check Tracker and Item Tracker stay registered under their retired names with "
+               "their hooks, never latch their keys and never draw; \"Check Tracker\" and \"Item Tracker\" are the "
+               "unified windows\n");
     }
 
     if (gFailures == 0) {
