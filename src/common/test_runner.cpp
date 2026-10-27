@@ -328,6 +328,18 @@ int MM_DoggyRaceReward_RunHeadless(void);
 // Same TU: the Deku Playground, the lab fish and Flat's tomb arm their check
 // once per cycle (#1220).
 int MM_MinigameRepeatGuards_RunHeadless(void);
+// The monkey's destroy-time Sonata (games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp,
+// #1203): unloading the tied-up monkey after its choice teaches the Sonata in a
+// vanilla save only; a rando save gets the seed's item through the check and
+// no song. Needs the display-free shared bring-up first. Returns 0 on pass.
+int MM_MonkeyDestroySonata_RunHeadless(void);
+// #1203 guards from the Woodfall forensics, green before and after the fix:
+// an MM song crossed from Hyrule lands as its quest bit and free play accepts it
+// (games/mm/2s2h/mm_crossing_song_playable_test.cpp), and the Woodfall platform's
+// Sonata trigger box (games/mm/2s2h/mm_woodfall_sonata_trigger_test.cpp). Both
+// need the display-free shared bring-up first. Return 0 on pass.
+int MM_CrossingSongPlayable_RunHeadless(void);
+int MM_WoodfallSonataTrigger_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -6011,6 +6023,43 @@ static TestResult Test_MMMinigameRepeatGuards(void) {
     return MM_MinigameRepeatGuards_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1203. Same bring-up as mm-song-teacher-hooks (the behaviour registrars read
+// CVars). Restores the SaveContext image and MM_gPlayState and re-runs
+// ActorBehavior::OnFileLoad on the way out, so it has no ordering constraints.
+static TestResult Test_MMMonkeyDestroySonata(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MonkeyDestroySonata_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1203 guards. Same bring-up as mm-monkey-destroy-sonata; each restores what it
+// writes, so neither has ordering constraints.
+static TestResult Test_MMCrossingSongPlayable(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_CrossingSongPlayable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMWoodfallSonataTrigger(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_WoodfallSonataTrigger_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Tree shuffle (#1121). Same display-free bring-up as mm-song-teacher-hooks: the
 // option table, the page view model and the hook registries are all in the
 // link, and the CVar store must exist.
@@ -7542,6 +7591,10 @@ const TestDescriptor gTests[] = {
     // the item was announced at its pickup.
     { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
       Test_CrossingArrivalToasts },
+    // #1203 guard (Woodfall forensics): a crossed MM song lands as its quest bit
+    // and free play accepts it. Restores what it touches.
+    { "mm-crossing-song-playable", "An MM song crossed from Hyrule is owned and playable in Termina (#1203 guard)",
+      Test_MMCrossingSongPlayable },
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
@@ -8001,6 +8054,14 @@ const TestDescriptor gTests[] = {
       Test_MMDoggyRaceReward },
     { "mm-minigame-repeat-guards", "The Deku Playground, lab fish and Song of Storms checks arm once per cycle (#1220)",
       Test_MMMinigameRepeatGuards },
+    // #1203: the monkey's destroy-time Sonata is a vanilla-only give. Restores
+    // what it touches, so it has no ordering constraints.
+    { "mm-monkey-destroy-sonata", "Unloading the tied-up monkey teaches no Sonata in a rando save (#1203)",
+      Test_MMMonkeyDestroySonata },
+    // #1203 guard (Woodfall forensics): the platform's Sonata trigger box.
+    // Restores what it touches.
+    { "mm-woodfall-sonata-trigger", "Deku Link's Sonata raises Woodfall Temple inside the platform box only (#1203)",
+      Test_MMWoodfallSonataTrigger },
     // Tree shuffle (#1121). After mm-registrar-coverage: mm-tree-shuffle runs the
     // irreversible MM_Rando_Init to fill the region graph. Both restore what
     // they write.

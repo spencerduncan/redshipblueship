@@ -14,6 +14,7 @@
 #include "shared_items.h"
 #include "foreign_items.h"    // Combo_ForeignGiveCaps, RSBS_GIVECAP_* (src/common; game-header-free like this TU)
 #include "shared_resources.h" // Combo_SharedResourceKindArmed, RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (pool policy)
+#include <libultraship/log/luslog.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -300,7 +301,8 @@ int Combo_RedeemSharedItemsForGame(GameId arrivingGame, ComboSharedItemAward awa
         redeemed++;
     }
     if (redeemed > 0) {
-        fprintf(stderr, "[SharedItem] redeemed %d item(s) for %s\n", redeemed, Game_ToString(arrivingGame));
+        // Through spdlog (#1203 forensics): an uploaded log has to show redemptions.
+        LUSLOG_INFO("[SharedItem] redeemed %d item(s) for %s", redeemed, Game_ToString(arrivingGame));
     }
     return redeemed;
 }

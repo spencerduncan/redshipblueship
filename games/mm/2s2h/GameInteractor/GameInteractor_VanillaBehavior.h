@@ -795,6 +795,18 @@ typedef enum {
     // true
     // ```
     // #### `args`
+    // - `*EnMnk`
+    // #### Notes
+    // RedShipBlueShip (#1203): the Sonata EnMnk_Destroy teaches when a tied-up
+    // monkey whose choice was answered is unloaded. Distinct from
+    // VB_GIVE_ITEM_FROM_MNK, whose rando registrant arms the monkey's check.
+    VB_GIVE_ITEM_FROM_MNK_ON_DESTROY,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
     // - `*ObjMoonStone`
     VB_GIVE_ITEM_FROM_MOONS_TEAR,
 
