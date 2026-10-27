@@ -86,6 +86,10 @@ int OoT_ShipInitMMDriver_RunHeadless(void);
 // at 0xA7 in MM_Interface_DrawItemButtons, first HUD-visible MM frame).
 // Returns 0 on pass, non-zero on fail.
 int CosmeticGfxStub_RunHeadless(void);
+// MM HUD placement reader (W6-HUD-A, #1239; games/mm/2s2h/mm_hud_editor_reader_test.cpp): MM's HUD draws honour the
+// shared menu's gHudEditor.* keys and its presets write them. It reads and writes CVars, so its wrapper
+// (Test_MMHudEditorReader, after CreateHarnessStyleContext) runs the display-free shared bring-up first. 0 on pass.
+int MM_HudEditorReader_RunHeadless(void);
 // MM resume-path cold-boot contracts (games/mm/2s2h/mm_resume_state_test.cpp):
 // (a) mm-resume-arena — MM_ResumeColdBootPrep must make an exhausted system
 //     arena allocatable again (the cycle-2 re-entry crash class: the retired
@@ -1392,6 +1396,17 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
     }
 
     return ctx;
+}
+
+// MM HUD placement reader (W6-HUD-A, see the extern decl beside cosmetic-gfx-stub). The display-free shared
+// bring-up, because the row writes and clears MM's gHudEditor.* keys.
+static TestResult Test_MMHudEditorReader(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_HudEditorReader_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
@@ -7774,6 +7789,8 @@ const TestDescriptor gTests[] = {
     { "startup-entrance", "Test startup entrance flow", Test_StartupEntrance },
     { "vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity },
     { "cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub },
+    { "mm-hud-editor-reader", "MM's HUD draws honour the shared menu's HUD placement keys and presets (#1239)",
+      Test_MMHudEditorReader },
     { "roundtrip", "Full round-trip with state verification", Test_Roundtrip },
     { "roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)",
       Test_RoundtripIntegrity },

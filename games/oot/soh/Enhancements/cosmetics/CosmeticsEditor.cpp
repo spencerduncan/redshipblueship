@@ -16,6 +16,9 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "CosmeticsEditorMmHud.h" // #1239: the HUD Placement tab's Majora's Mask section
+#endif
+#ifdef RSBS_SINGLE_EXECUTABLE
 #include "context.h" // src/common: Context_GetCurrentGame (#1040 R1)
 #endif
 
@@ -2640,6 +2643,9 @@ void CosmeticsEditorWindow::DrawElement() {
 
         if (ImGui::BeginTabItem("HUD Placement")) {
             Draw_Placements();
+#ifdef RSBS_SINGLE_EXECUTABLE
+            SohGui::DrawMmHudPlacementSection(); // #1239: Majora's Mask's HUD placements, after SoH's
+#endif
             ImGui::EndTabItem();
         }
 

@@ -1558,6 +1558,10 @@ void SetSohBindingsHeaderOpen(const char* header, bool open) {
     const ImGuiID linkTab = ImHashStr("Link (P1)###port0", 0, tabBar);
     w->StateStorage.SetInt(ImHashStr(header, 0, linkTab), open ? 1 : 0);
 }
+// W6-HUD-A (#1239): SoH's Cosmetics Editor, whose HUD Placement tab holds MM's HUD placement section, and the tab.
+constexpr const char* kSohCosmeticsEditorWindow = "Cosmetics Editor";
+constexpr const char* kMmHudPlacementPage = "window/Cosmetics Editor HUD Placement";
+constexpr const char* kMmHudPlacementTab = "HUD Placement";
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
 // MM checks hosting the OoT items; the first is collected in the authored MM save.
 constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
@@ -2251,6 +2255,23 @@ void Session::BuildPageList() {
         p.states = { "" };
         p.expectText = { "ROM Extraction", "Extracting" };
         p.scroll = false;
+        pages.push_back(p);
+    }
+    {
+        // W6-HUD-A (#1239): SoH's Cosmetics Editor on its HUD Placement tab (EnterState selects it), whose Majora's
+        // Mask section after SoH's placements moves MM's HUD (CosmeticsEditorMmHud.cpp). The tab scrolls as a whole,
+        // so only the window title is expected in every view; the MM "HUD Preset" row is found through the combo_ui
+        // seam's rect report, scrolled into view and hovered: its tooltip must show, ending "Majora's Mask only.".
+        // W6-HUD-B extends this block.
+        PageSpec p;
+        p.id = kMmHudPlacementPage;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = kSohCosmeticsEditorWindow;
+        p.states = { "" };
+        p.expectText = { kSohCosmeticsEditorWindow };
+        p.paneHovers.push_back({ "mm-hud-preset", "", "HUD Preset", false });
+        p.needsRom = true;
         pages.push_back(p);
     }
     {
@@ -3221,6 +3242,21 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                     SetSohBindingsHeaderOpen("Modifier Buttons", modifiers);
                 },
                 why);
+        }
+    } else if (p.id == kMmHudPlacementPage) {
+        // W6-HUD-A (#1239): the Cosmetics Editor's tab bar exists once the window has drawn, so show it for one frame,
+        // then queue its HUD Placement tab (a tab's ID is its label hashed inside the tab bar's, BeginTabItem's own).
+        auto cosmetics = gui->GetGuiWindow(kSohCosmeticsEditorWindow);
+        if (cosmetics != nullptr) {
+            cosmetics->Show();
+            std::string why;
+            PumpFrame(nullptr, false, nullptr, why);
+            if (ImGuiWindow* w = ImGui::FindWindowByName(kSohCosmeticsEditorWindow)) {
+                const ImGuiID barId = ImHashStr("CosmeticsContextTabBar", 0, w->ID);
+                if (ImGuiTabBar* bar = ImGui::GetCurrentContext()->TabBars.GetByKey(barId)) {
+                    bar->NextSelectedTabId = ImHashStr(kMmHudPlacementTab, 0, barId);
+                }
+            }
         }
     } else if (p.rowStateProbe || p.mmNoteProbe) {
         if (p.mmNoteProbe && state == "heading-on") {

@@ -565,6 +565,10 @@ struct DistinctPair {
 // W6-MINIGAMES
 // W6-TIMERS
 // W6-HUD-A
+// #1239: MM's HUD placement keys, one family composed per element as PREFIX + "<Element>" + ".Mode" / ".Position.X" /
+// ".Position.Y" / ".Scale" (src/common/mm_hud_editor_elements.h, MM's HUD_EDITOR_ELEMENT). Written by the Majora's
+// Mask section of SoH's Cosmetics Editor, HUD Placement tab; locked by the classification lock's HUD-editor leg.
+#define RSBS_CVAR_MM_HUD_EDITOR_PREFIX "gHudEditor."
 // W6-COS-A
 // W6-AUDIO-SEQ
 // W6-DEV
