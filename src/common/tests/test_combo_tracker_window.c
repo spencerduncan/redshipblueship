@@ -1251,7 +1251,8 @@ int LockL5(void) {
     const std::string drawRow = CtwSlice(win, "void DrawCheckRow(", "void DrawCheckList(");
     CTW_ASSERT(!drawRow.empty());
     CTW_ASSERT(drawRow.find("CheckGlyph(") == std::string::npos);
-    CTW_ASSERT(drawRow.find("ICON_FA_SQUARE_O") == std::string::npos);
+    // None of the three status squares (empty, ticked, skipped) in the row draw.
+    CTW_ASSERT(drawRow.find("SQUARE_O") == std::string::npos);
     CTW_ASSERT(win.find("if (headerPresent) {\n        ImGui::Separator();") != std::string::npos);
     CTW_ASSERT(win.find("haystack = ComboCheckRowSearchText(game, row);") != std::string::npos);
 
@@ -1682,8 +1683,14 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         CTW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
         CTW_ASSERT(text.find("Ui().PushTheme()") != std::string::npos);
         CTW_ASSERT(text.find("Ui().Spacer(") != std::string::npos);
-        // Every status as a glyph, and none of the three ASCII marks it replaced.
-        // Whole tokens: ICON_FA_SQUARE_O is also a substring of the other two.
+        // A crossing's found state as a glyph (FoundGlyph: a ticked box or an
+        // empty one), and none of the three ASCII marks the glyphs replaced.
+        // #1132: a Checks list row no longer leads with a status square; its
+        // status is its colour, as SoH's DrawLocation draws it (neither SoH's
+        // nor 2Ship's tracker draws a square before a check's name). So the
+        // CheckGlyph helper is gone, and with it the skipped box, the one
+        // square FoundGlyph never draws. The #1132 leg of section 5 locks the
+        // row draw itself. Whole tokens, so a longer name does not stand in.
         auto hasToken = [&text](const char* tok) {
             const size_t n = strlen(tok);
             for (size_t at = text.find(tok); at != std::string::npos; at = text.find(tok, at + 1)) {
@@ -1697,8 +1704,9 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             return false;
         };
         CTW_ASSERT(hasToken("ICON_FA_CHECK_SQUARE_O"));
-        CTW_ASSERT(hasToken("ICON_FA_MINUS_SQUARE_O"));
         CTW_ASSERT(hasToken("ICON_FA_SQUARE_O"));
+        CTW_ASSERT(!hasToken("ICON_FA_MINUS_SQUARE_O"));
+        CTW_ASSERT(text.find("CheckGlyph(") == std::string::npos);
         // One notation for a found state (#766 review): a crossing row leads its
         // check name with the same glyph, with no Yes/No "Collected" column, and
         // the section says "Crossings" as the notes and the spoiler JSON do.
