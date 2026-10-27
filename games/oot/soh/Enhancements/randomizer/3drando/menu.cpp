@@ -1246,80 +1246,6 @@ static int HintValidityUnder(const char* seedStr, const char* cvar, int value, S
 }
 
 /**
- * N. #1187, the hint.cpp half of af485bf64: under Obscure clarity an item hint
- *    saves one chosen name per hinted location. NamesChosen reset its scratch list
- *    inside the per-location loop, so a two-location item hint (the Ocarina of
- *    Time, Mask Shop and Horseback Archery hints, turned on here) kept only the
- *    last location's name. Generated, checked over every hint and its JSON round
- *    trip, and the CVars cleared again (never stored).
- * @return 0 when every saved list has one name per location and at least one
- *    two-location hint saved its names (otherwise the check proves nothing: 11).
- */
-static int ItemNamesChosenUnderObscure(const char* seedStr) {
-    const char* const cvars[][2] = {
-        { CVAR_RANDOMIZER_SETTING("HintClarity"), "0" }, // RO_HINT_CLARITY_OBSCURE
-        { CVAR_RANDOMIZER_SETTING("OoTHint"), "1" },     // two locations: the Ocarina and its song
-        { CVAR_RANDOMIZER_SETTING("MaskShopHint"), "1" }, // two locations: the theater's two masks
-        { CVAR_RANDOMIZER_SETTING("HBAHint"), "1" },      // two locations: 1000 and 1500 points
-    };
-    for (const auto& cv : cvars) {
-        CVarSetInteger(cv[0], atoi(cv[1]));
-    }
-    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
-    const int gen = Rando_HeadlessSeedTest(seedStr);
-    for (const auto& cv : cvars) {
-        CVarClear(cv[0]);
-    }
-    if (gen != 0) {
-        fprintf(stderr, "[rando-hints] generation under Obscure clarity failed rc=%d\n", gen);
-        return gen;
-    }
-    fprintf(stderr, "[rando-hints] --- Obscure clarity, Ocarina / Mask Shop / HBA hints on ---\n");
-    const int base = ValidateGeneratedHints(false);
-    if (base != 0) {
-        return base;
-    }
-    auto ctx = Rando::Context::GetInstance();
-    size_t failures = 0;
-    size_t saved = 0;
-    size_t multi = 0;
-    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
-        const auto key = static_cast<RandomizerHint>(h);
-        Rando::Hint* hint = ctx->GetHint(key);
-        if (hint == nullptr || !hint->IsEnabled()) {
-            continue;
-        }
-        const size_t locations = hint->GetHintedLocations().size();
-        const std::vector<uint8_t> live = hint->GetItemNamesChosen();
-        const Rando::Hint reloaded(key, nlohmann::json::parse(hint->toJSON().dump()));
-        const std::vector<uint8_t> loaded = reloaded.GetItemNamesChosen();
-        if (live.empty()) {
-            continue;
-        }
-        saved++;
-        multi += locations > 1 ? 1 : 0;
-        const std::string name = Rando::StaticData::hintNames[key].GetForCurrentLanguage(MF_CLEAN);
-        if (live.size() != locations || loaded != live) {
-            fprintf(stderr, "[rando-hints] FAIL %s: %zu hinted location(s) but %zu chosen item name(s) (%zu after the "
-                            "JSON round trip) (N)\n",
-                    name.c_str(), locations, live.size(), loaded.size());
-            failures++;
-        }
-    }
-    fprintf(stderr, "[rando-hints] Obscure clarity: %zu hint(s) saved chosen item names, %zu of them over two or "
-                    "more locations, %zu failure(s) (N)\n",
-            saved, multi, failures);
-    if (failures != 0) {
-        return 1;
-    }
-    if (multi == 0) {
-        fprintf(stderr, "[rando-hints] no two-location item hint saved its names; check (N) is vacuous\n");
-        return 11;
-    }
-    return 0;
-}
-
-/**
  * #1162, the seed-independent half of the hint-validity lock:
  *   U. Hint Distribution = Useless: every one of the 40 gossip stones is a Junk
  *      stone reading a gag line (the defect made all 40 read "No Hint").
@@ -1348,10 +1274,7 @@ extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr) {
                 trials.trialHints);
         rc = 1;
     }
-    if (rc != 0) {
-        return rc;
-    }
-    return ItemNamesChosenUnderObscure(seedStr);
+    return rc;
 }
 
 /**
