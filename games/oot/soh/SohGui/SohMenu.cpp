@@ -99,8 +99,8 @@ void SohMenu::AddMenuElements() {
     AddMenuSettings();
     AddMenuEnhancements();
     AddMenuRandomizer();
-    // Tier 4 (#497 step 6). Placed where ADR 0004 section 4's table puts it:
-    // after Randomizer, before Network.
+    // The retired tier-4 Combo header's place (#497 step 6, #1133): no header,
+    // only the carry of a selection left on it, before the first draw.
     AddMenuCombo();
     AddMenuNetwork();
     AddMenuDevTools();

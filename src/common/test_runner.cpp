@@ -1071,7 +1071,7 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // test_curated_archive_order.c: it reuses CaoResolveArchive / CaoMakeManager /
 // CaoLoadThroughWinner.
 #include "tests/test_array_reader_agreement.c"
-// Lane W5: the Combo > Save Files page's model (src/common/combo_save_files_view.cpp):
+// Lane W5: the Dev Tools > Save Files page's model (src/common/combo_save_files_view.cpp):
 // every refusal reason's words, the toast's words where one was posted, one row
 // per slot state, the cached view's read count, the seam and the note.
 // ROM-free, display-free and disk-free. FILE SCOPE (compiled as C++).
@@ -8372,7 +8372,9 @@ const TestDescriptor gTests[] = {
     // setmenu-count is a pure source scan (RSBS_SOURCE_DIR) and touches nothing.
     { "menu-capability-gating", "SohMenu rows gate on capabilities and render ADR 0004 §6's four states (#497)",
       Test_MenuCapabilityGating },
-    { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
+    { "menu-combo-section",
+      "No Combo header: its former rows sit on their SoH hosts and a persisted Combo selection is carried "
+      "(#497, #1133)",
       Test_MenuComboSection },
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
     { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
@@ -8441,8 +8443,8 @@ const TestDescriptor gTests[] = {
       "(#682)",
       Test_MMEnhancementToggles },
     { "menu-mm-randomizer-pages",
-      "MM's randomizer options and tricks are Combo pages whose rows equal the descriptor table and keep its gates "
-      "(#497)",
+      "MM's randomizer options and tricks are Randomizer pages whose rows equal the descriptor table and keep its "
+      "gates (#497)",
       Test_MenuMmRandomizerPages },
     { "rando-entrance-pin", "A generated seed with interior shuffle ON keeps the mask-shop door vanilla (#661)",
       Test_RandoEntrancePin },
@@ -8963,7 +8965,7 @@ const TestDescriptor gTests[] = {
       "then number DisplayListCount (#1190)",
       Test_XmlSkeletonEmptyLimb },
     { "combo-save-files-view",
-      "The Combo > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
+      "The Dev Tools > Save Files page's model: every .redsave refusal reason has short player words, a refusal that "
       "posted a toast shows that toast's words, each slot state yields its row, one cached read serves every frame "
       "until the page opens or the save state moves, and the note names each case (lane W5)",
       Test_ComboSaveFilesView },

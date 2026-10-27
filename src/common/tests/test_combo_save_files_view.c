@@ -1,6 +1,6 @@
 /**
  * @file test_combo_save_files_view.c
- * @brief ROM-free lock for the Combo > Save Files page's model
+ * @brief ROM-free lock for the Dev Tools > Save Files page's model
  *        (src/common/combo_save_files_view.cpp).
  *
  * CTest row ComboSaveFilesView ("combo-save-files-view", label "redship").
@@ -120,7 +120,8 @@ bool CsfHasDigitOrHash(const char* s) {
 } // namespace
 
 TestResult Test_ComboSaveFilesView(void) {
-    printf("[TEST] combo-save-files-view: the Combo > Save Files page's rows and note, from synthetic slot metadata\n");
+    printf("[TEST] combo-save-files-view: the Dev Tools > Save Files page's rows and note, from synthetic slot "
+           "metadata\n");
     int failures = 0;
 
     // ---- A. Every refusal reason has the page's own words ----------------------

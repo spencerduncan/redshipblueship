@@ -1,7 +1,9 @@
 /**
  * @file SohMenuComboSaveFiles.cpp
- * @brief Combo > Save Files: each save file's cross-game state, read-only, as a
- *        CONTRIBUTED page in the tier-4 Combo section.
+ * @brief Dev Tools > Save Files: each save file's cross-game state, read-only, as
+ *        a CONTRIBUTED page under SoH's Dev Tools header (Combo > Save Files
+ *        until #1133; ruling D4 of 2026-10-22 moved it when the Combo header
+ *        retired).
  *
  * WHAT IT REPLACES. ADR 0004 section 4 gave the Combo section a save-slots page
  * that "absorbs ComboMenuBar's .redsave file-select panel". ComboMenuBar was
@@ -21,16 +23,17 @@
  * THE LOOK is SoH's bordered table (SohMenuRandomizer.cpp's DrawLocationsMenu:
  * 8x8 cell padding, BordersH | BordersV, TableSetupColumn + TableHeadersRow with
  * the header row's items disabled), under a gray note and a separator, one
- * column, like Combo > MM Mods. UiSnapshot compares it with Randomizer >
- * Tricks/Glitches, SoH's captured table page.
+ * column. UiSnapshot compares it with Randomizer > Tricks/Glitches, SoH's
+ * captured table page.
  *
  * NOT PER FRAME: the note and the table draw one cached read
  * (Combo_SaveFiles_View), taken when the page is opened and again only when the
  * save state moves, never while a save is being written.
  *
  * Locked by ComboSaveFilesView (the model's words for every state and reason, and
- * its read count) and drawn by UiSnapshot (Combo > Save Files, states "",
- * "listed" and "backup", authored through Combo_SaveFiles_SetMetaForTest).
+ * its read count), MenuComboSection leg 9 (its host and its rows) and drawn by
+ * UiSnapshot (Dev Tools > Save Files, states "", "listed" and "backup",
+ * authored through Combo_SaveFiles_SetMetaForTest).
  */
 
 #include "SohMenu.h"
@@ -48,9 +51,11 @@ using namespace UIWidgets;
 
 namespace {
 
-/** The sidebar label. Selection persists by display name, so this is the one
- *  spelling; UiSnapshot's reference table (soh_ui_snapshot.cpp, kCompare) repeats
- *  it and fails when no registered Combo page carries it. */
+/** The sidebar label. Selection persists by display name (since #1133 in
+ *  gSettings.Menu.DevToolsSidebarSection; SohMenuCombo.cpp's carry moves a
+ *  Combo selection on it here), so this is the one spelling; UiSnapshot's
+ *  reference table (soh_ui_snapshot.cpp, kCompare) repeats it and fails when no
+ *  registered page of ours carries it. */
 constexpr const char* kSaveFilesPage = "Save Files";
 
 /** The last ImGui frame the page drew, so a gap of more than one frame reads as
@@ -129,7 +134,8 @@ void AddSaveFilesWidgets(SohMenu& menu, WidgetPath& path) {
 /** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract); this
  *  TU is under games/oot/soh, whose archives are WHOLE_ARCHIVE'd, so the
  *  registrar is not elided. The page always holds its note, section and table,
- *  so it is never #640's empty page. */
-static RegisterComboSectionPage_t sSaveFilesPage(kSaveFilesPage, 1, AddSaveFilesWidgets);
+ *  so it is never #640's empty page. Hosted under Dev Tools (ruling D4):
+ *  AddMenuDevTools draws it after SoH's own pages. */
+static RegisterComboSectionPage_t sSaveFilesPage(kSaveFilesPage, 1, AddSaveFilesWidgets, ComboPageHost::DevTools);
 
 } // namespace SohGui

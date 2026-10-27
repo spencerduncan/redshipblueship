@@ -941,6 +941,11 @@ struct Profile {
     int posY = 100;
 };
 
+// The header the harness-only probe pages are installed under (InstallRowStateProbe, InstallMmNoteProbe). The tier-4
+// Combo header retired with #1133, so they hang off SoH's Dev Tools, which both the ROM-free probe and the live menu
+// build; each is installed for its own captures and removed after them.
+constexpr const char* kProbeHeader = "Dev Tools";
+
 // The row-state probe's sidebar and rows (InstallRowStateProbe).
 constexpr const char* kRowStatesSidebar = "Row States";
 constexpr const char* kProbeLiveRow = "Live Setting";
@@ -953,18 +958,17 @@ bool gProbeGated = false;
 bool gProbeDecided = false;
 
 // The MM note probe's sidebar and synthetic manifest (InstallMmNoteProbe, #747).
-// Combo > Majora's Mask's own builder over rows that are NOT all Live, because
-// every shipped row is, so its disabled rows and group notes never reach a pixel
-// on the shipped page. The shipped page's shape, with a non-live row in EACH
-// group so both note placements are drawn: the heading group holds a Live
-// checkbox and a Dormant one gated on it (the note sits right under the
-// heading); then a pointer row opens a second group holding a Dormant checkbox
-// and a Partial slider gated on the pointer's key (the note sits under the
-// pointer's sentence, directly above those rows). Every non-live row is gated,
-// so each note depends on authored state: hidden with its rows in "", drawn over
-// them once "heading-on" / "gate-on" writes its key -- which also makes the
-// harness's own `no-state` sabotage turn both notes' checks red. Static storage:
-// the page's PreFuncs keep pointers into the table.
+// The curated rows' block builder (SohMenuComboMmEnhancements.cpp, the one the
+// shipped Majora's Mask block on Quality of Life shares its row and note code
+// with) over rows that are NOT all Live, because every shipped row is, so the
+// disabled rows and the block's note never reach a pixel otherwise. The block
+// holds a Live checkbox and a Dormant one gated on it, a pointer row (which
+// draws nothing: SoH's own row is its key's control) and a Dormant checkbox and
+// a Partial slider gated on the pointer's key. Every non-live row is gated, so
+// the note depends on authored state: hidden with its rows in "", drawn over
+// them once "heading-on" / "gate-on" writes a key -- which also makes the
+// harness's own `no-state` sabotage turn the note's checks red. Static storage:
+// the block's PreFuncs keep pointers into the table.
 constexpr const char* kMmNoteSidebar = "MM Row States";
 constexpr const char* kMmNoteLiveRow = "Live Enhancement";
 constexpr const char* kMmNoteLiveKey = "gRsbsUiSnapshot.MmNote.Live";
@@ -993,6 +997,48 @@ constexpr RSBS::HostedMmEnhancement kMmNoteManifest[] = {
 static_assert(RSBS::HostedMmEnhancementRowsAreHonest(kMmNoteManifest,
                                                      sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0])),
               "the MM note probe's synthetic manifest must itself pass the manifest's honesty rule");
+
+/** Is @p sidebar under Dev Tools a page of ours: one AddComboDevToolsPages registers (#1133: Save Files), or a
+ *  harness probe page while it is installed? SoH's own Dev Tools pages are references. */
+bool IsOurDevToolsPage(const std::string& sidebar) {
+    const std::vector<std::string> ours = SohGui::ComboDevToolsPageNames();
+    return sidebar == kRowStatesSidebar || sidebar == kMmNoteSidebar ||
+           std::find(ours.begin(), ours.end(), sidebar) != ours.end();
+}
+
+/** Is @p sidebar under Settings a page of ours: one AddComboSettingsPages registers (the operator's ruling of
+ *  2026-10-27: MM Mods, after SoH's Mod Menu page, labelled OoT Mods)? SoH's own Settings pages are references. */
+bool IsOurSettingsPage(const std::string& sidebar) {
+    const std::vector<std::string> ours = SohGui::ComboSettingsPageNames();
+    return std::find(ours.begin(), ours.end(), sidebar) != ours.end();
+}
+
+/** #1133: the state a hosted page is captured in to show a row gated on @p gateKey (its key written to 1, cleared
+ *  after), and the prefix that names such a state. */
+constexpr const char* kHostedGateStatePrefix = "gate:";
+std::string HostedGateState(const char* gateKey) {
+    return std::string(kHostedGateStatePrefix) + gateKey;
+}
+
+/** The key a hosted row is hidden behind while it reads 0: the curated manifest's shownWhileKey for the row's key, or
+ *  NULL when the row is shown by default. */
+const char* HostedRowGate(const SohGui::HostedMmRow& row) {
+    if (row.key == nullptr) {
+        return nullptr;
+    }
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+        const RSBS::HostedMmEnhancement& e = RSBS::kHostedMmEnhancements[i];
+        if (std::strcmp(e.key, row.key) == 0) {
+            return e.shownWhileKey;
+        }
+    }
+    return nullptr;
+}
+
+/** #1133: SoH's Settings > OoT Mods row (SoH's Mod Menu page, renamed on 2026-10-27) embeds OoT's mod menu window
+ *  when that window is not popped out; the harness turns the embed off for its captures of the page (BuildPageList
+ *  says why) and back on after. */
+void SetSohModMenuEmbed(Ship::Menu& m, bool embed);
 
 class Session {
   public:
@@ -1376,7 +1422,9 @@ void Session::MirrorProductionWindows() {
 
 void Session::BuildRomFreeMenu() {
     // The ROM-free probe: exactly the sections proven to register without an OoT
-    // archive, in production's relative order (Randomizer, Combo, Dev Tools).
+    // archive, in production's relative order (Randomizer, Dev Tools). AddMenuCombo
+    // registers no header since #1133; it runs here because production runs it
+    // (the persisted-selection carry) before the first draw.
     probe = std::make_shared<UiSnapshotMenu>();
     // What Gui::SetMenu would do for a menu, minus taking the slot: Init() runs
     // InitElement (the window-backend tables and SoH's disabledMap).
@@ -1965,6 +2013,11 @@ void Session::BuildPageList() {
              { "Randomizer", "Logic/Access" },
              { "Enhancements", "Quality of Life" },
              { "Settings", "General" },
+             // SoH's Mod Menu page, labelled OoT Mods since the operator's ruling of 2026-10-27 (its rows are SoH's).
+             // Its Popout Mod Menu Window embeds OoT's mod menu while that window is not popped out, and the embedded
+             // menu throws in the harness's fresh config (GetEnabledModsFromCVar yields one empty name and DrawMods's
+             // filePaths.at("") throws), so EnterState draws SoH's row as its button only, never embedding that window.
+             { "Settings", "OoT Mods" },
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);
         p.needsRom = true;
@@ -2008,9 +2061,50 @@ void Session::BuildPageList() {
                 const std::string hover = "mm-row-" + std::to_string(p.hovers.size() + 1);
                 p.hovers.push_back(hover);
                 p.hoverRows[hover] = row.name;
+                // #1133: a curated row the manifest gates on another key (the MM autosave interval, on Autosave)
+                // is hidden in the page's default state: it is hovered, and named, in a state that shows it.
+                const char* gate = HostedRowGate(row);
+                if (gate != nullptr) {
+                    const std::string state = HostedGateState(gate);
+                    if (std::find(p.states.begin(), p.states.end(), state) == p.states.end()) {
+                        p.states.push_back(state);
+                        p.stateContrast[state] = p.states.front();
+                    }
+                    p.stateText[state].push_back(WordPrefix(VisibleLabel(row.name), 40));
+                    p.hoverRowState[hover] = state;
+                    continue;
+                }
                 if (p.bodyText.empty()) {
                     p.bodyText = WordPrefix(VisibleLabel(row.name), 40);
                 }
+            }
+            if (h == "Settings" && IsOurSettingsPage(s) && MenuEntries(*menu).contains(h) &&
+                MenuEntries(*menu).at(h).sidebars.contains(s)) {
+                // A Settings page of ours (MM Mods, the operator's ruling of 2026-10-27) holds no SoH row: every row
+                // on it is ours for R9, held to its column with no SoH row to be measured against.
+                for (const auto& column : MenuEntries(*menu).at(h).sidebars.at(s).columnWidgets) {
+                    for (const WidgetInfo& row : column) {
+                        if (row.type != WIDGET_SEPARATOR && row.type != WIDGET_SEPARATOR_TEXT) {
+                            p.hostedRows.insert(row.name);
+                        }
+                    }
+                }
+            }
+            if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
+                // Majora's Mask's mod list: Combo > MM Mods until #1133, a block on Settings > Mod Menu until the
+                // operator's ruling of 2026-10-27, a Settings page of its own since. "": an empty model, so the
+                // empty-folder note. "listed": a synthetic list with one disabled mod, so both columns and every
+                // arrow draw. "unfinished": the same list from a walk that ended early, which is read-only
+                // (mm_mod_set.h rule 4): its note, and every arrow disabled. All three are authored through the
+                // model's test seam, so the harness's own mods folder cannot change them.
+                p.states = { "", "listed", "unfinished" };
+                p.stateText[""] = { "No Majora's Mask mods found" };
+                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
+                                          "Changes apply when Majora's Mask starts" };
+                // Only the note: the list itself is the same as "listed" (the contrast), so a file name here could
+                // not prove this state was authored.
+                p.stateText["unfinished"] = { "did not finish" };
+                p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
             }
             p.expectText = { p.bodyText };
             for (const PageSpec& ref : pages) {
@@ -2163,14 +2257,9 @@ void Session::BuildPageList() {
     // default and says so in the manifest. Keyed by page id.
     static const std::map<std::string, std::string> kCompare = {
         { "Randomizer/Cross-Game", "Randomizer/General" },
-        { "Combo/Majora's Mask", "Enhancements/Quality of Life" },
-        // OoT's own mod menu (Settings/Mod Menu, which embeds ModMenuWindow)
-        // cannot be the reference: with the harness's fresh config and no mods
-        // folder, its GetEnabledModsFromCVar yields one empty name, UpdateModFiles
-        // leaves it in place when the folder is absent, and DrawMods's
-        // filePaths.at("") throws. Tricks/Glitches is SoH's other two-column
-        // Disabled/Enabled table page, the layout this page shares.
-        { "Combo/MM Mods", "Randomizer/Tricks/Glitches" },
+        // (Combo/Majora's Mask and Combo/MM Mods retired with the Combo header,
+        // #1133: their rows are captured on the SoH pages that host them, the
+        // "MM rows/" pages below.)
         // MM's randomizer options and tricks, pages since 2026-09-27 (they were
         // a pop-out pane), under the Randomizer header since #1101: read against
         // the SoH pages whose shape they take.
@@ -2180,14 +2269,16 @@ void Session::BuildPageList() {
         // Randomizer > Locations, whose own page is not captured: SoH's other
         // bordered two-column table page.
         { std::string("Randomizer/") + COMBO_MM_LOCATIONS_PAGE_NAME, "Randomizer/Tricks/Glitches" },
-        // Each save file's cross-game state (lane W5): SoH's captured bordered
-        // table page (DrawLocationsMenu's table, whose own page is not captured).
-        { "Combo/Save Files", "Randomizer/Tricks/Glitches" },
+        // Each save file's cross-game state (lane W5; a Dev Tools page since
+        // #1133, ruling D4): SoH's captured bordered table page
+        // (DrawLocationsMenu's table, whose own page is not captured).
+        { "Dev Tools/Save Files", "Randomizer/Tricks/Glitches" },
     };
     auto& entries = MenuEntries(*menu);
     // Our pages, header by header: under Randomizer only the ones
-    // AddComboRandomizerPages registers (SoH's own are references, never ours),
-    // under Combo every sidebar.
+    // AddComboRandomizerPages registers and under Dev Tools only the ones
+    // AddComboDevToolsPages registers (SoH's own are references, never ours).
+    // There is no header of ours since #1133.
     std::vector<std::pair<std::string, std::string>> ours;
     if (entries.contains("Randomizer")) {
         const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
@@ -2197,12 +2288,19 @@ void Session::BuildPageList() {
             }
         }
     }
-    if (entries.contains("Combo")) {
-        for (const std::string& sidebar : entries.at("Combo").sidebarOrder) {
-            ours.emplace_back("Combo", sidebar);
+    if (entries.contains("Dev Tools")) {
+        const std::vector<std::string> devToolsPages = SohGui::ComboDevToolsPageNames();
+        for (const std::string& sidebar : entries.at("Dev Tools").sidebarOrder) {
+            if (std::find(devToolsPages.begin(), devToolsPages.end(), sidebar) != devToolsPages.end()) {
+                ours.emplace_back("Dev Tools", sidebar);
+            }
         }
     }
     if (entries.contains("Combo")) {
+        Fail("the live menu has a \"Combo\" header; it retired with #1133 (rulings D4 and D5), so a page of ours "
+             "is registered under it again");
+    }
+    if (!ours.empty()) {
         // Every page named in kCompare must be registered under the header its
         // id names. The loop below captures what IS registered, so without this
         // a contributed page whose registrar was elided, renamed or moved would
@@ -2256,46 +2354,7 @@ void Session::BuildPageList() {
                                     { "paired-legacy", "unpaired" },
                                     { "frozen", "unpaired" },
                                     { "corrupt", "unpaired" } };
-            } else if (p.id == "Combo/Majora's Mask") {
-                p.states = { "", "autosave" };
-                // The row gated on gEnhancements.Autosave (the table's
-                // shownWhileKey), which hides while Autosave is off.
-                for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
-                    const RSBS::HostedMmEnhancement& e = RSBS::kHostedMmEnhancements[i];
-                    if (e.shownWhileKey != nullptr && std::strcmp(e.shownWhileKey, "gEnhancements.Autosave") == 0 &&
-                        e.label != nullptr) {
-                        p.stateText["autosave"] = { VisibleLabel(e.label) };
-                    }
-                }
-                if (p.stateText["autosave"].empty()) {
-                    Fail("Combo/Majora's Mask: no hosted row is gated on gEnhancements.Autosave, so the autosave "
-                         "state has nothing to show");
-                }
-                p.stateContrast = { { "autosave", "" } };
-                // The first row's tooltip: the page's tooltip voice, with its
-                // trailing "Majora's Mask only." caveat (guide R-TT6).
-                if (RSBS::kHostedMmEnhancementCount > 0 && RSBS::kHostedMmEnhancements[0].label != nullptr) {
-                    p.hovers = { "first-row" };
-                    p.hoverRows["first-row"] = RSBS::kHostedMmEnhancements[0].label;
-                }
-            } else if (p.id == "Combo/MM Mods") {
-                // "": an empty model, so the empty-folder note. "listed": a
-                // synthetic list with one disabled mod, so both columns and every
-                // arrow draw. "unfinished": the same list from a walk that ended
-                // early, which is read-only (mm_mod_set.h rule 4): its note, and
-                // every arrow disabled. All three are authored through the model's
-                // test seam, so the harness's own mods folder cannot change them.
-                p.states = { "", "listed", "unfinished" };
-                p.stateText[""] = { "No Majora's Mask mods found" };
-                p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
-                                          "Changes apply when Majora's Mask starts" };
-                // Only the note: the list itself is the same as "listed" (the contrast),
-                // so a file name here could not prove this state was authored.
-                p.stateText["unfinished"] = { "did not finish" };
-                p.stateContrast = { { "", "listed" }, { "listed", "" }, { "unfinished", "listed" } };
-                p.hovers = { "rescan" };
-                p.hoverRows["rescan"] = "Rescan Mods Folder";
-            } else if (p.id == "Combo/Save Files") {
+            } else if (p.id == "Dev Tools/Save Files") {
                 // "": no cross-game record at any slot, so its note and three
                 // record-less rows. "listed": a ready file, a load refused for its
                 // rules (the toast's words) and a CRC-refused one with a backup
@@ -2428,14 +2487,15 @@ void Session::BuildPageList() {
             pages.push_back(p);
         }
     } else {
-        Fail("the live menu has no \"Combo\" header, so none of this project's menu pages can be captured");
+        Fail("no page of ours is registered under SoH's Randomizer or Dev Tools header, so none of this project's "
+             "menu pages can be captured");
     }
-    if (entries.contains("Combo")) {
+    if (entries.contains(kProbeHeader)) {
         // ADR 0004 section 6's four presentations on synthetic rows (see
         // InstallRowStateProbe), compared with SoH's own disabled row.
         PageSpec p;
-        p.id = std::string("Combo/") + kRowStatesSidebar;
-        p.header = "Combo";
+        p.id = std::string(kProbeHeader) + "/" + kRowStatesSidebar;
+        p.header = kProbeHeader;
         p.sidebar = kRowStatesSidebar;
         p.origin = Origin::RSBS;
         p.kind = Kind::MENU_PAGE;
@@ -2458,24 +2518,24 @@ void Session::BuildPageList() {
         p.expectText = { p.bodyText };
         pages.push_back(p);
     }
-    if (entries.contains("Combo")) {
-        // #747: Combo > Majora's Mask's group note and disabled rows, drawn by
-        // the page's own builder over a synthetic non-live manifest (see
-        // InstallMmNoteProbe), compared with the shipped page's reference.
+    if (entries.contains(kProbeHeader)) {
+        // #747: the curated rows' block note and disabled rows, drawn by the
+        // block builder over a synthetic non-live manifest (see
+        // InstallMmNoteProbe), compared with the page the shipped block is on.
         PageSpec p;
-        p.id = std::string("Combo/") + kMmNoteSidebar;
-        p.header = "Combo";
+        p.id = std::string(kProbeHeader) + "/" + kMmNoteSidebar;
+        p.header = kProbeHeader;
         p.sidebar = kMmNoteSidebar;
         p.origin = Origin::RSBS;
         p.kind = Kind::MENU_PAGE;
         p.mmNoteProbe = true;
         p.compareWith = "Enhancements/Quality of Life";
-        // "": both gates are off, so every non-live row and both notes are
-        // hidden and the page shows only its Live row and the pointer.
-        // "heading-on": the Live row's key is on, so the heading group's
-        // Dormant row draws disabled under the heading group's note.
-        // "gate-on": the pointer's key is on, so the second group's two rows
-        // draw disabled under that group's note, below the pointer sentence.
+        // "": both gates are off, so every non-live row and the note are
+        // hidden and the block shows only its Live row (the pointer draws
+        // nothing). "heading-on": the Live row's key is on, so its gated
+        // Dormant row draws disabled under the block's note. "gate-on": the
+        // pointer's key is on, so the two rows gated on it draw disabled under
+        // the note.
         // No race-lockout state: every row this builder registers is
         // .RaceDisable(false) and Menu.cpp's TEXT draw never reads `disabled`,
         // so a lockout changes nothing on this page by construction, and a
@@ -3026,13 +3086,13 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 gComboCtx.sharedRandoSettingsHash = 0;
             }
         }
-    } else if (p.id == "Combo/Majora's Mask") {
-        if (state == "autosave") {
-            CVarSetInteger("gEnhancements.Autosave", 1);
-        }
-    } else if (p.id == "Combo/MM Mods") {
+    } else if (p.id == "Settings/OoT Mods") {
+        // SoH's Popout Mod Menu Window would embed OoT's mod menu, which throws in this fresh config (see
+        // BuildPageList): its button only, for this page's captures.
+        SetSohModMenuEmbed(*menu, false);
+    } else if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
         // Every state loads its model through the test seam, which persists
-        // nothing and reads no disk, so the page never scans the harness's own
+        // nothing and reads no disk, so the block never scans the harness's own
         // mods root (it scans lazily only when the model is empty).
         Combo_MMModSet_Reset();
         if (state == "listed" || state == "unfinished") {
@@ -3046,7 +3106,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "window") {
             CVarSetInteger(kSohItemTrackerWindowTypeKey, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
         }
-    } else if (p.id == "Combo/Save Files") {
+    } else if (p.id == "Dev Tools/Save Files") {
         // Every state reads the seam's table, never the disk.
         if (state == "listed") {
             rsbs::SlotMeta metas[RSBS_SAVE_MAX_SLOTS];
@@ -3066,6 +3126,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             static const rsbs::SlotMeta kNoFile{};
             Combo_SaveFiles_SetMetaForTest(&kNoFile, 0);
         }
+    } else if (p.id.rfind(kHostedMmPagePrefix, 0) == 0 && state.rfind(kHostedGateStatePrefix, 0) == 0) {
+        // #1133: the gate a hosted row is shown under (BuildPageList), on.
+        CVarSetInteger(state.substr(std::strlen(kHostedGateStatePrefix)).c_str(), 1);
     } else if (p.id == "Settings/Graphics") {
         if (state == "match-refresh-rate") {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);
@@ -3147,16 +3210,20 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
 }
 
 void Session::LeaveState(const PageSpec& p, const std::string& state) {
-    if (p.id == "Combo/Save Files") {
+    if (p.id == "Dev Tools/Save Files") {
         Combo_SaveFiles_SetMetaForTest(nullptr, 0);
     }
-    if (p.id == "Combo/MM Mods") {
+    if (p.id == "Settings/OoT Mods") {
+        SetSohModMenuEmbed(*menu, true);
+    }
+    if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
         CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
         CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
         Combo_MMModSet_Reset();
     }
-    if (p.id == "Combo/Majora's Mask" && state == "autosave") {
-        CVarClear("gEnhancements.Autosave");
+    // #1133: a hosted page's gate state (BuildPageList), cleared, never stored.
+    if (p.id.rfind(kHostedMmPagePrefix, 0) == 0 && state.rfind(kHostedGateStatePrefix, 0) == 0) {
+        CVarClear(state.substr(std::strlen(kHostedGateStatePrefix)).c_str());
     }
     if (p.id == "Randomizer/Item Tracker" && state == "window") {
         CVarClear(kSohItemTrackerWindowTypeKey);
@@ -3226,11 +3293,12 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
 void Session::InstallRowStateProbe() {
     auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
     auto& entries = MenuEntries(*menu);
-    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kRowStatesSidebar)) {
+    if (soh == nullptr || !entries.contains(kProbeHeader) ||
+        entries.at(kProbeHeader).sidebars.contains(kRowStatesSidebar)) {
         return;
     }
-    soh->AddSidebarEntry("Combo", kRowStatesSidebar, 2);
-    WidgetPath path = { "Combo", kRowStatesSidebar, SECTION_COLUMN_1 };
+    soh->AddSidebarEntry(kProbeHeader, kRowStatesSidebar, 2);
+    WidgetPath path = { kProbeHeader, kRowStatesSidebar, SECTION_COLUMN_1 };
     soh->AddWidget(path, "Applies Now", WIDGET_SEPARATOR_TEXT);
     soh->AddWidget(path, kProbeLiveRow, WIDGET_CHECKBOX)
         .ValuePointer(&gProbeLive)
@@ -3276,8 +3344,8 @@ void Session::InstallRowStateProbe() {
         .Options(UIWidgets::CheckboxOptions().Tooltip("Toggles a setting that was fixed when the world was created."));
 
     // Resolved after every AddWidget (a push_back can reallocate a column).
-    const std::string where = std::string("Combo/") + kRowStatesSidebar;
-    for (auto& column : entries.at("Combo").sidebars.at(kRowStatesSidebar).columnWidgets) {
+    const std::string where = std::string(kProbeHeader) + "/" + kRowStatesSidebar;
+    for (auto& column : entries.at(kProbeHeader).sidebars.at(kRowStatesSidebar).columnWidgets) {
         for (WidgetInfo& row : column) {
             probeRows.push_back(&row);
             if (IsInteractive(row.type)) {
@@ -3290,27 +3358,27 @@ void Session::InstallRowStateProbe() {
 }
 
 /**
- * #747: Combo > Majora's Mask's group note, on a harness-only page built by the
- * shipped page's own builder (SohGui::AddMmEnhancementRows) over a synthetic
- * manifest that holds two Dormant rows and a Partial one, a non-live row in each
- * of its two groups. Every shipped row is Live, so
- * without this page neither the page's disabled rows nor its gray notes would
- * ever reach a pixel. Installed and removed around its own captures, like the
- * row-state probe, and its rows join R5/R6 the same way.
+ * #747: the curated rows' block note, on a harness-only page built by the block
+ * builder (SohGui::AddMmEnhancementRows) over a synthetic manifest that holds
+ * two Dormant rows and a Partial one. Every shipped row is Live, so without this
+ * page neither the disabled rows nor the block's gray note would ever reach a
+ * pixel. Installed and removed around its own captures, like the row-state
+ * probe, and its rows join R5/R6 the same way.
  */
 void Session::InstallMmNoteProbe() {
     auto soh = std::dynamic_pointer_cast<SohGui::SohMenu>(menu);
     auto& entries = MenuEntries(*menu);
-    if (soh == nullptr || !entries.contains("Combo") || entries.at("Combo").sidebars.contains(kMmNoteSidebar)) {
+    if (soh == nullptr || !entries.contains(kProbeHeader) ||
+        entries.at(kProbeHeader).sidebars.contains(kMmNoteSidebar)) {
         return;
     }
-    // Two columns, the shipped page's count.
-    soh->AddSidebarEntry("Combo", kMmNoteSidebar, 2);
-    WidgetPath path = { "Combo", kMmNoteSidebar, SECTION_COLUMN_1 };
+    // One column, the shipped block's: it sits in one column of Quality of Life.
+    soh->AddSidebarEntry(kProbeHeader, kMmNoteSidebar, 1);
+    WidgetPath path = { kProbeHeader, kMmNoteSidebar, SECTION_COLUMN_1 };
     SohGui::AddMmEnhancementRows(*soh, path, kMmNoteManifest, sizeof(kMmNoteManifest) / sizeof(kMmNoteManifest[0]));
 
-    const std::string where = std::string("Combo/") + kMmNoteSidebar;
-    for (auto& column : entries.at("Combo").sidebars.at(kMmNoteSidebar).columnWidgets) {
+    const std::string where = std::string(kProbeHeader) + "/" + kMmNoteSidebar;
+    for (auto& column : entries.at(kProbeHeader).sidebars.at(kMmNoteSidebar).columnWidgets) {
         for (WidgetInfo& row : column) {
             probeRows.push_back(&row);
             if (IsInteractive(row.type)) {
@@ -3329,13 +3397,13 @@ void Session::RemoveMmNoteProbe() {
     }
     probeRows.clear();
     auto& entries = MenuEntries(*menu);
-    if (!entries.contains("Combo")) {
+    if (!entries.contains(kProbeHeader)) {
         return;
     }
-    MainMenuEntry& combo = entries.at("Combo");
-    combo.sidebars.erase(kMmNoteSidebar);
-    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kMmNoteSidebar),
-                             combo.sidebarOrder.end());
+    MainMenuEntry& host = entries.at(kProbeHeader);
+    host.sidebars.erase(kMmNoteSidebar);
+    host.sidebarOrder.erase(std::remove(host.sidebarOrder.begin(), host.sidebarOrder.end(), kMmNoteSidebar),
+                            host.sidebarOrder.end());
 }
 
 void Session::RemoveRowStateProbe() {
@@ -3347,13 +3415,13 @@ void Session::RemoveRowStateProbe() {
     }
     probeRows.clear();
     auto& entries = MenuEntries(*menu);
-    if (!entries.contains("Combo")) {
+    if (!entries.contains(kProbeHeader)) {
         return;
     }
-    MainMenuEntry& combo = entries.at("Combo");
-    combo.sidebars.erase(kRowStatesSidebar);
-    combo.sidebarOrder.erase(std::remove(combo.sidebarOrder.begin(), combo.sidebarOrder.end(), kRowStatesSidebar),
-                             combo.sidebarOrder.end());
+    MainMenuEntry& host = entries.at(kProbeHeader);
+    host.sidebars.erase(kRowStatesSidebar);
+    host.sidebarOrder.erase(std::remove(host.sidebarOrder.begin(), host.sidebarOrder.end(), kRowStatesSidebar),
+                            host.sidebarOrder.end());
 }
 
 // ---- recording ---------------------------------------------------------------------------
@@ -3524,6 +3592,14 @@ WidgetInfo* FindRow(Ship::Menu& m, const std::string& header, const std::string&
         }
     }
     return nullptr;
+}
+
+void SetSohModMenuEmbed(Ship::Menu& m, bool embed) {
+    WidgetInfo* row =
+        FindRow(m, "Settings", "OoT Mods", [](const WidgetInfo& w) { return w.type == WIDGET_WINDOW_BUTTON; });
+    if (row != nullptr && row->options != nullptr) {
+        std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options)->embedWindow = embed;
+    }
 }
 
 /** How many extra views of one page the scroll variants take at most. */
@@ -5516,6 +5592,18 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
              " measurable row(s) registered, none drawn)");
         return;
     }
+    // #1133: on a hosted-MM page the columns are SoH's, sized by SoH's own count, and at the contract profile SoH's
+    // own rows overrun them (a 174 px third of Quality of Life, overrun by up to 146 px). A hosted row there is held
+    // to SoH's page: it fails R9 when it overruns by more than the widest SoH row drawn on the same page (its columns
+    // share one width), so it never reads worse than SoH's own rows, and it is reported either way.
+    float sohPageOver = -1.0f;
+    if (!p.hostedRows.empty()) {
+        for (const Drawn& d : *drawn) {
+            if (!p.hostedRows.contains(d.name)) {
+                sohPageOver = std::max(sohPageOver, d.needX - d.limitX);
+            }
+        }
+    }
     for (const Drawn& d : *drawn) {
         labelFitMeasured++;
         const float over = d.needX - d.limitX;
@@ -5524,13 +5612,17 @@ void Session::MeasureLabelFit(const PageSpec& p, const std::string& state) {
         }
         // On a hosted-MM page (#1233) only the hosted rows are ours; SoH's own rows there are reported, as on any
         // SoH page.
-        const bool rowOurs = ours && (p.hostedRows.empty() || p.hostedRows.contains(d.name));
+        const bool hosted = !p.hostedRows.empty() && p.hostedRows.contains(d.name);
+        const bool withinSohColumn = hosted && over <= sohPageOver + 0.5f;
+        const bool rowOurs = ours && (p.hostedRows.empty() || hosted) && !withinSohColumn;
         std::string name = d.name;
         std::replace(name.begin(), name.end(), '\n', ' ');
         char detail[96];
         snprintf(detail, sizeof(detail), "over by %.0f px in a %.0f px column", over, d.columnW);
-        labelFitReport.push_back(std::string(rowOurs ? "ours | " : "soh  | ") + where +
-                                 (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
+        labelFitReport.push_back(std::string(rowOurs           ? "ours | "
+                                             : withinSohColumn ? "host | "
+                                                               : "soh  | ") +
+                                 where + (state.empty() ? "" : "@" + state) + " | " + name + " | " + detail);
         if (rowOurs) {
             dynamicHits.insert("R9 | " + where + " | " + name + " :: does not fit its column at " + profile.name);
         }
@@ -5715,15 +5807,26 @@ int Session::RuntimeLint() {
     };
 
     auto& entries = MenuEntries(*menu);
-    if (entries.contains("Combo")) {
-        for (const auto& [sidebar, page] : entries.at("Combo").sidebars) {
-            lintPage("Combo", sidebar, page, false);
+    // Our pages under SoH's Dev Tools header (#1133: Save Files) and any probe page installed there.
+    if (entries.contains("Dev Tools")) {
+        for (const auto& [sidebar, page] : entries.at("Dev Tools").sidebars) {
+            if (IsOurDevToolsPage(sidebar)) {
+                lintPage("Dev Tools", sidebar, page, false);
+            }
         }
     }
     if (entries.contains("Randomizer")) {
         for (const std::string& sidebar : SohGui::ComboRandomizerPageNames()) {
             if (entries.at("Randomizer").sidebars.contains(sidebar)) {
                 lintPage("Randomizer", sidebar, entries.at("Randomizer").sidebars.at(sidebar), false);
+            }
+        }
+    }
+    // Our pages under SoH's Settings header (the operator's ruling of 2026-10-27: MM Mods), whole.
+    if (entries.contains("Settings")) {
+        for (const std::string& sidebar : SohGui::ComboSettingsPageNames()) {
+            if (entries.at("Settings").sidebars.contains(sidebar)) {
+                lintPage("Settings", sidebar, entries.at("Settings").sidebars.at(sidebar), false);
             }
         }
     }
@@ -5872,14 +5975,17 @@ void Session::DumpSohNames() {
     auto& entries = MenuEntries(*menu);
     const std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
     for (const std::string& header : MenuOrder(*menu)) {
-        if (header == "Combo" || !entries.contains(header)) {
+        if (!entries.contains(header)) {
             continue;
         }
         const MainMenuEntry& e = entries.at(header);
         for (const std::string& sidebar : e.sidebarOrder) {
-            // Our pages under SoH's Randomizer header (#1101) are not SoH's rows.
-            if (header == "Randomizer" &&
-                std::find(randoPages.begin(), randoPages.end(), sidebar) != randoPages.end()) {
+            // Our pages under SoH's Randomizer header (#1101), Dev Tools header (#1133) and Settings header (MM
+            // Mods, 2026-10-27) are not SoH's rows.
+            if ((header == "Randomizer" &&
+                 std::find(randoPages.begin(), randoPages.end(), sidebar) != randoPages.end()) ||
+                (header == "Dev Tools" && IsOurDevToolsPage(sidebar)) ||
+                (header == "Settings" && IsOurSettingsPage(sidebar))) {
                 continue;
             }
             if (!e.sidebars.contains(sidebar)) {
@@ -5980,10 +6086,14 @@ int Session::Run() {
     BuildPageList();
     // R5 needs every interactive row's registered name before anything draws it.
     for (auto& [header, entry] : MenuEntries(*menu)) {
-        if (header != "Combo" && header != "Randomizer") {
+        if (header != "Randomizer" && header != "Dev Tools" && header != "Settings") {
             continue;
         }
         for (auto& [sidebar, page] : entry.sidebars) {
+            if ((header == "Dev Tools" && !IsOurDevToolsPage(sidebar)) ||
+                (header == "Settings" && !IsOurSettingsPage(sidebar))) {
+                continue;
+            }
             for (auto& column : page.columnWidgets) {
                 for (WidgetInfo& row : column) {
                     if (IsInteractive(row.type)) {
@@ -5997,7 +6107,7 @@ int Session::Run() {
     }
     // #1233: the MM rows the hosted-row seam put on SoH's other pages are ours too, those rows only.
     for (auto& [header, entry] : MenuEntries(*menu)) {
-        if (header == "Combo" || header == "Randomizer") {
+        if (header == "Randomizer") {
             continue;
         }
         for (auto& [sidebar, page] : entry.sidebars) {

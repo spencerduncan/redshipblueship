@@ -1,19 +1,23 @@
 /**
  * @file soh_menu_combo_section_test.cpp
- * @brief ROM-free, display-free lock for #497 step 6: the tier-4 **Combo**
- *        section of the one live menu (ADR 0004 §4's ninth top-level header),
- *        the pointer row left behind on the interim host, and the extension
- *        point lane G's MM enhancement rows hang off (#682).
+ * @brief ROM-free, display-free lock for the pages this project adds to the one
+ *        live menu: the tier-4 **Combo** header #497 step 6 built and #1133
+ *        retired (operator rulings D4 and D5, 2026-10-22), the hosts its pages
+ *        moved to, the persisted-selection carry, and the extension points.
  *
  * CTest row MenuComboSection in CMake/SingleExecutable.cmake, dispatch
  * "menu-combo-section" in src/common/test_runner.cpp.
  *
- * WHAT IT IS FOR. Registration is container work, so every way step 6 can be
+ * WHAT IT IS FOR. Registration is container work, so every way a page can be
  * wrong is silent — nothing here is a compile error and nothing is a crash:
  *
- *  1. THE SECTION IS NOT THERE, or a page is not. #497's own verification
- *     comments tracked step 6's absence by counting `AddMenuEntry` call sites,
- *     which is a source grep; this asserts the registered structure instead.
+ *  1. THE COMBO HEADER IS STILL THERE (#1133). Rulings D4 and D5 retire it:
+ *     its Majora's Mask rows are hosted on the SoH pages that hold their twins
+ *     (MenuMmEnhancementRows locks where), MM Mods is a Settings page beside
+ *     SoH's, renamed OoT Mods (the operator's ruling of 2026-10-27), and Save
+ *     Files a page of Dev Tools (leg 9 here). Leg 1 builds the
+ *     ROM-free headers and AddMenuCombo, which now only carries a persisted
+ *     selection, and requires no "Combo" entry anywhere.
  *
  *  2. A ROW IS REGISTERED PAST THE COLUMN COUNT. `Menu::DrawElement` iterates
  *     `columnCount` columns, so a row in a higher one is registered and never
@@ -51,33 +55,34 @@
  *     stand-ins for Tricks/Glitches and Plandomizer and requires that order, the
  *     rules page's rows and no pointer row left behind.
  *
- *  6. THE EXTENSION POINT DOES NOT WORK, or works only by accident. Lane G adds
- *     MM enhancement toggles here after this merges, so leg 5 drives
- *     `RegisterComboSectionPage` end to end: the page appears AFTER the shipped
- *     ones, its registrar is handed `sectionName == "Combo"` and a PINNED
- *     `path.column`, its `columnCount` is honoured, a duplicate name replaces
- *     rather than duplicates, an invalid registration is refused, and
- *     `UnregisterComboSectionPage` puts the registry back.
+ *  6. THE EXTENSION POINT DOES NOT WORK, or works only by accident. Leg 5
+ *     drives `RegisterComboSectionPage` end to end under the three hosts SoH's
+ *     headers give it (Randomizer, #1101; Dev Tools, #1133; Settings, the
+ *     ruling of 2026-10-27): the page appears
+ *     AFTER the ones already there, its registrar is handed the header's name
+ *     and a PINNED `path.column`, its `columnCount` is honoured, a duplicate
+ *     name replaces rather than duplicates, an invalid registration is refused,
+ *     `UnregisterComboSectionPage` puts the registry back, and AddMenuCombo
+ *     creates no page at all. Its counts are BASELINE-RELATIVE: production pages
+ *     register from file-scope initializers before any test runs.
  *
- *     #682 LANDED and leg 5's counts are now BASELINE-RELATIVE. A production page
- *     ("MM Enhancements", SohGui/SohMenuComboMmEnhancements.cpp) registers from a
- *     file-scope initializer, so the registry is no longer empty when any test
- *     runs. Leg 5 measures the delta its own registration makes and asserts the
- *     return to the baseline it started from; the production page's own shape is
- *     MenuMmEnhancementRows' invariant, not this row's.
- *
- *  7. A RENAMED OR MOVED PAGE STRANDS THE SELECTION. "MM Enhancements" became
- *     "Majora's Mask" on 2026-09-27, because its 192 px label left the selected
- *     highlight no padding. Selection persists by display name in
- *     gSettings.Menu.ComboSidebarSection, so leg 6 drives AddMenuCombo over a
- *     config holding the old name and requires the new one afterwards (a
- *     registered page, so the carry table cannot name a page that does not
- *     exist), and leaves every other value alone. The pages that left the
- *     header are carried ACROSS headers: the three #1101 moved to Randomizer,
- *     and Windows (#1132; "Cross-Game Windows" until 2026-09-27), whose
- *     trackers open from Randomizer > Check Tracker. A config that had Combo
- *     open on one of them opens on that page under Randomizer, and no Combo
- *     selection is left naming a page the header no longer has.
+ *  7. A RETIRED HEADER STRANDS THE SELECTION, or crashes the menu. Menu's
+ *     DrawElement reads gSettings.Menu.ActiveHeader and calls
+ *     menuEntries.at(headerIndex), and its only catch is bad_variant_access, so
+ *     a config left on "Combo" would be an uncaught std::out_of_range. Leg 6
+ *     drives AddMenuCombo, the carry's call site, over every page the header
+ *     ever had, by every name it had: each reopens on its new host (Randomizer
+ *     > Cross-Game, MM Randomizer, MM Tricks, Check Tracker, Item Tracker;
+ *     Enhancements > Quality of Life, the page that got the Majora's Mask page's
+ *     first rows; Settings > MM Mods; Dev Tools > Save Files), a page that each
+ *     host's ROM-free builder really registers; an empty or unknown selection
+ *     CLEARS the header key (clear-never-store) so the menu opens on its default;
+ *     the Combo sidebar key is cleared in every case; and a config whose open
+ *     header was another keeps every selection but loses the stale Combo key.
+ *     SoH's Settings > Mod Menu is OoT Mods since 2026-10-27, and selection
+ *     persists by display name, so a saved Mod Menu reopens on OoT Mods under
+ *     any open header, writing nothing else. Every probe puts back each key it
+ *     set.
  *
  *  8. THE ITEM TRACKER OVERLAY'S SETTINGS HAVE NO MENU WRITER, OR TWO. Operator
  *     ruling IT-D6 (#1141): one set of settings, SoH's. SoH's own Item Tracker
@@ -96,6 +101,16 @@
  *     bare Gui beside the unified ones: every hook registered once, no key
  *     latched, and "Check Tracker" / "Item Tracker" naming the unified windows.
  *
+ * 10. A FORMER COMBO PAGE HAS NO HOST, or the wrong one (#1133, rulings D4 and
+ *     D5, and the operator's ruling of 2026-10-27: "Have two rows, OoT Mods and
+ *     MM Mods instead of just Mods"). Leg 9 builds SoH's own Settings and Dev
+ *     Tools headers: Settings > OoT Mods reads SoH's Popout Mod Menu Window
+ *     alone, and Settings > MM Mods, directly after it, the MM Mods page's rows
+ *     (its state note, Rescan Mods Folder, MM Mod List) in their order with no
+ *     heading, Rescan Mods Folder recorded by the hosted-row seam; Dev Tools
+ *     ends with Save Files, after SoH's last page, its note, section and table
+ *     in their order.
+ *
  * WHAT IS NOT COVERED. The six tier-4 rules' own behaviour — the staging buffers,
  * the freeze gate, the values-from-the-save rule — is `ComboSettingsRows`, which
  * followed the rows here. This row owns the section's SHAPE. Appearance is
@@ -105,6 +120,8 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+// Leg 9: the hosted-row seam's registry and block heading (#1233).
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 // Leg 8: SoH's two tracker windows as SetupGuiElements constructs them, and the
 // hooks and save sections their InitElement registers.
 #include "soh/SohGui/OoTActiveGated.h"
@@ -206,8 +223,8 @@ std::size_t RowCount(const SidebarEntry& page) {
 }
 
 // ---- The extension point's observer ----------------------------------------
-// A registrar records what AddMenuCombo handed it, so the contract lane G will
-// rely on is OBSERVED rather than read off the source.
+// A registrar records what the host's builder handed it, so the contract a
+// contributor relies on is OBSERVED rather than read off the source.
 int gExtRan = 0;
 std::string gExtSectionName;
 std::string gExtSidebarName;
@@ -231,8 +248,12 @@ void ExtReplacementRegistrar(SohGui::SohMenu& menu, WidgetPath& path) {
 
 const char* kExtPageName = "Contributed Test Page";
 // The same seam with ComboPageHost::Randomizer (#1101): drawn under SoH's
-// Randomizer header by AddComboRandomizerPages, never under Combo.
+// Randomizer header by AddComboRandomizerPages, never under Dev Tools.
 const char* kExtRandoPageName = "Contributed Randomizer Test Page";
+// The same seam with ComboPageHost::Settings (the operator's ruling of
+// 2026-10-27, MM Mods): drawn under SoH's Settings header by
+// AddComboSettingsPages, after SoH's own pages.
+const char* kExtSettingsPageName = "Contributed Settings Test Page";
 
 // Leg 7. Restated as literals on purpose, as leg 3's are: the point is that the
 // page and this lock agree on the spelling.
@@ -406,11 +427,33 @@ struct IntKeyGuard {
     }
 };
 
+/** A string CVar's state (absent, or its value), put back when the guard leaves scope. */
+struct StringKeyGuard {
+    const char* key;
+    bool existed;
+    std::string value;
+    explicit StringKeyGuard(const char* k) : key(k), existed(CVarExists(k)), value(CVarGetString(k, "")) {
+    }
+    ~StringKeyGuard() {
+        if (existed) {
+            CVarSetString(key, value.c_str());
+        } else {
+            CVarClear(key);
+        }
+    }
+};
+
+/** A string CVar's value, or "(absent)" when the key does not exist (a carry
+ *  must CLEAR, never store an empty or placeholder value). */
+std::string KeyState(const char* key) {
+    return CVarExists(key) ? std::string(CVarGetString(key, "")) : std::string("(absent)");
+}
+
 } // namespace
 
 extern "C" int OoT_MenuComboSection_RunHeadless(void) {
-    printf("[TEST] menu-combo-section: the tier-4 Combo section, its pages, the interim host's pointer row and the "
-           "contributed-page extension point (#497 step 6, #682)\n");
+    printf("[TEST] menu-combo-section: no Combo header, the hosts its pages moved to, the persisted-selection carry, "
+           "SoH's tracker pages and the extension points (#497 step 6, #1101, #1132, #1133)\n");
 
     gFailures = 0;
 
@@ -418,118 +461,59 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // from whatever ran before in AllTests.
     while (SohGui::UnregisterComboSectionPage(kExtPageName)) {}
     while (SohGui::UnregisterComboSectionPage(kExtRandoPageName)) {}
+    while (SohGui::UnregisterComboSectionPage(kExtSettingsPageName)) {}
 
-    // ---- Leg 1: the section, its header CVar, and its pages -----------------
-    ComboSectionMenuProbe probe;
-    probe.AddMenuCombo();
-
-    auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" menu entry -- ADR 0004 §4's tier-4 section does "
-               "not exist, which is the state #497 step 6 was filed against\n");
-        return 1;
-    }
-    MainMenuEntry& combo = entries.at("Combo");
-    COMBO_CHECK(combo.label == "Combo", "the tier-4 header is labelled '%s'", combo.label.c_str());
-    COMBO_CHECK(combo.sidebarCvar != nullptr && std::string(combo.sidebarCvar) == "gSettings.Menu.ComboSidebarSection",
-                "the Combo header's sidebar CVar is '%s'; MainMenuEntry::sidebarCvar is where the last-viewed sidebar "
-                "persists, and a header sharing another's key would move both",
-                combo.sidebarCvar != nullptr ? combo.sidebarCvar : "(null)");
+    // ---- Leg 1: there is no Combo header (#1133) ------------------------------
+    // Rulings D4 and D5 retire it. AddMenuCombo is still called from
+    // AddMenuElements as the carry's call site (leg 6) and registers nothing.
+    // Built here among SoH's ROM-free headers in AddMenuElements' order, no
+    // header named "Combo" exists, none of its former pages is a page anywhere
+    // (Save Files is Dev Tools' own, leg 9), and the page registry holds no
+    // Majora's Mask or MM Mods page.
     {
-        bool inOrder = false;
-        for (const std::string& name : probe.Order()) {
-            if (name == "Combo") {
-                inOrder = true;
+        ComboSectionMenuProbe probe;
+        probe.AddMenuSettings();
+        probe.AddMenuEnhancements();
+        probe.AddMenuCombo();
+        probe.AddMenuDevTools();
+        auto& entries = probe.Entries();
+        COMBO_CHECK(!entries.contains("Combo"),
+                    "a \"Combo\" header is still registered; rulings D4 and D5 (#1133) fold its pages into SoH's "
+                    "headers, and a config left on it would select a header the menu no longer needs");
+        COMBO_CHECK(std::find(probe.Order().begin(), probe.Order().end(), std::string("Combo")) == probe.Order().end(),
+                    "\"Combo\" is still in menuOrder, so a header would be drawn for it");
+        for (const auto& [header, entry] : entries) {
+            for (const char* gone :
+                 { "Majora's Mask", "MM Enhancements", "Windows", "Cross-Game Windows", "Tracker Settings" }) {
+                COMBO_CHECK(!entry.sidebars.contains(gone),
+                            "%s still holds a \"%s\" page; the former Combo pages' rows live on SoH's pages now",
+                            header.c_str(), gone);
+            }
+            // The operator's ruling of 2026-10-27: MM Mods is a Settings page (leg 9), and only there.
+            COMBO_CHECK(header == "Settings" || !entry.sidebars.contains("MM Mods"),
+                        "%s holds an \"MM Mods\" page; it is a Settings page, beside OoT Mods", header.c_str());
+        }
+        COMBO_CHECK(entries.contains("Settings") && entries.at("Settings").sidebars.contains("MM Mods"),
+                    "Settings holds no \"MM Mods\" page (the operator's ruling of 2026-10-27: \"Have two rows, OoT "
+                    "Mods and MM Mods instead of just Mods\")");
+        bool mmModsRegistered = false;
+        for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
+            COMBO_CHECK(page.sidebarName != "Majora's Mask",
+                        "the page registry still holds \"%s\"; its rows are hosted on SoH's own pages (#1133)",
+                        page.sidebarName.c_str());
+            if (page.sidebarName == "MM Mods") {
+                mmModsRegistered = true;
+                COMBO_CHECK(page.host == SohGui::ComboPageHost::Settings,
+                            "MM Mods is registered for another header than Settings (the ruling of 2026-10-27)");
+            }
+            if (page.sidebarName == "Save Files") {
+                COMBO_CHECK(page.host == SohGui::ComboPageHost::DevTools,
+                            "Save Files is registered for another header than Dev Tools (ruling D4)");
             }
         }
-        COMBO_CHECK(inOrder, "\"Combo\" is in menuEntries but not in menuOrder, so it would never be drawn");
-    }
-
-    // Every Combo page is a contributed one since #1132 retired Windows (the
-    // unified trackers open from SoH's own tracker pages, leg 3). Each holds
-    // widgets in every column it declares and draws every row it registers.
-    for (const std::string& pageName : combo.sidebarOrder) {
-        if (!combo.sidebars.contains(pageName)) {
-            printf("[TEST] FAIL(1): \"%s\" is in the Combo header's sidebarOrder but not in its sidebars\n",
-                   pageName.c_str());
-            gFailures++;
-            continue;
-        }
-        SidebarEntry& page = combo.sidebars.at(pageName);
-        COMBO_CHECK(page.columnCount >= 1, "Combo / %s declares %u columns", pageName.c_str(), page.columnCount);
-        // #640, verbatim: an empty multi-column page leaves Menu::DrawElement's
-        // SetNextWindowPos unconsumed and undocks the "Main Game" window.
-        COMBO_CHECK(RowCount(page) > 0,
-                    "Combo / %s is registered with no widgets at all -- #640's failure mode, which "
-                    "undocks libultraship's \"Main Game\" window rather than merely looking empty",
-                    pageName.c_str());
-        // #844: every column the page declares holds rows. Menu::DrawElement
-        // divides the section by columnCount whether or not a column has rows,
-        // so a declared column with none leaves an empty half beside the page
-        // and squeezes every row into the other.
-        for (uint32_t column = 0; column < page.columnCount; column++) {
-            const std::size_t rowsInColumn =
-                column < page.columnWidgets.size() ? page.columnWidgets.at(column).size() : 0;
-            COMBO_CHECK(rowsInColumn > 0,
-                        "Combo / %s declares %u columns but column %u holds no rows -- the page draws an empty "
-                        "column and its rows take only part of the width (#844)",
-                        pageName.c_str(), page.columnCount, column + 1);
-        }
-        // Every row must be in a column the page actually draws.
-        for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
-            for (WidgetInfo& row : page.columnWidgets.at(column)) {
-                COMBO_CHECK(column < page.columnCount,
-                            "Combo / %s row '%s' landed in column %u of a page that draws %u -- registered and never "
-                            "drawn",
-                            pageName.c_str(), row.name.c_str(), column, page.columnCount);
-            }
-        }
-    }
-    // The Combo header after #1132: exactly its four contributed pages, in
-    // whatever order their file-scope registrars ran; no Windows page (ruling D1:
-    // SoH's Randomizer > Check Tracker and Item Tracker open the unified
-    // windows), and none of the three pages #1101 moved to the Randomizer header.
-    {
-        // Tracker Settings retired with #1141 (ruling IT-D6): the Item Tracker's
-        // settings are SoH's page's, leg 7.
-        const std::vector<std::string> kComboPages = { "Majora's Mask", "MM Mods", "Save Files" };
-        const auto& order = combo.sidebarOrder;
-        std::string got;
-        for (const std::string& name : order) {
-            got += (got.empty() ? "" : ", ") + name;
-        }
-        COMBO_CHECK(order.size() == kComboPages.size(), "the Combo header holds [%s], expected the %zu pages below",
-                    got.c_str(), kComboPages.size());
-        for (const std::string& name : kComboPages) {
-            COMBO_CHECK(combo.sidebars.contains(name), "the Combo header has no \"%s\" page", name.c_str());
-        }
-        for (const char* gone : { "Windows", "Cross-Game Windows", "Tracker Settings" }) {
-            COMBO_CHECK(!combo.sidebars.contains(gone),
-                        "the Combo header still holds \"%s\"; the unified trackers open from SoH's Randomizer > "
-                        "Check Tracker and Item Tracker pages (#1132, ruling D1)",
-                        gone);
-        }
-        for (const char* moved : { "Cross-Game Rules", "Cross-Game", "MM Randomizer", "MM Tricks" }) {
-            COMBO_CHECK(!combo.sidebars.contains(moved),
-                        "the Combo header still holds \"%s\"; the randomizer pages are under the Randomizer header "
-                        "(operator ruling 2026-10-21)",
-                        moved);
-        }
-    }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its three contributed pages, "
-           "no Windows or Tracker Settings page, each holding widgets in every column it declares\n");
-
-    // ---- Leg 2: no Combo page hosts the tier-4 rows ------------------------
-    // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
-    // that they are NOT under Combo any more (#1101): leg 4 finds them under
-    // Randomizer > Cross-Game, so two hosts cannot both write the keys.
-    for (const std::string& name : combo.sidebarOrder) {
-        if (!combo.sidebars.contains(name)) {
-            continue;
-        }
-        SidebarEntry& page = combo.sidebars.at(name);
-        COMBO_CHECK(FindRow(page, "Combo Rules Status") == nullptr && FindRow(page, "Reset Combo Rules") == nullptr,
-                    "Combo / %s still hosts the cross-game rules", name.c_str());
+        COMBO_CHECK(mmModsRegistered, "the page registry holds no \"MM Mods\" page for the Settings header");
+        printf("[TEST] leg 1: no Combo header, no former Combo page anywhere but MM Mods (Settings) and Save Files "
+               "(Dev Tools), and AddMenuCombo registers nothing\n");
     }
 
     // ---- Leg 3: SoH's tracker pages are the unified windows' pages (#1132) ---
@@ -829,51 +813,45 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                "Plandomizer under the Randomizer header, every row in a drawn column\n");
     }
 
-    // ---- Leg 5: the extension point (#682's seam) --------------------------
-    // BASELINE, not zero, as of #682. When this row was written the registry was
-    // empty in every process, so the assertions below could be absolute. It is no
-    // longer: SohGui/SohMenuComboMmEnhancements.cpp registers the production "MM
-    // Enhancements" page from a file-scope initializer, which by design runs
-    // before any test does. So this leg measures the DELTA its own registration
-    // makes instead. The baseline is still checked for the thing the original
-    // assertion was really guarding against — a page LEAKED by an earlier row in
-    // the shared AllTests process — by the unregister-loop above plus the
-    // return-to-baseline check at the end of the leg. That the production page
-    // itself is registered, with the right rows, is MenuMmEnhancementRows' job,
-    // not this row's.
+    // ---- Leg 5: the extension point, under both of SoH's headers it serves --
+    // BASELINE-RELATIVE: production pages (MM Randomizer, MM Locations, MM
+    // Tricks; Save Files) register from file-scope initializers before any test
+    // runs, so this leg measures the delta its own registration makes and
+    // asserts the return to the baseline it started from.
     const std::size_t baselinePages = SohGui::GetComboSectionPages().size();
-    std::size_t baselineComboPages = 0;
-    for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
-        if (page.host == SohGui::ComboPageHost::Combo) {
-            baselineComboPages++;
-        }
-    }
+    const std::size_t baselineDevToolsPages = SohGui::ComboDevToolsPageNames().size();
 
     gExtRan = 0;
     gExtColumn = -1;
     gExtSectionName.clear();
     gExtSidebarName.clear();
-    SohGui::RegisterComboSectionPage(kExtPageName, 2, ExtRegistrar);
+    SohGui::RegisterComboSectionPage(kExtPageName, 2, ExtRegistrar, SohGui::ComboPageHost::DevTools);
     COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
                 "registering one page left %zu in the registry, expected the baseline %zu plus one",
                 SohGui::GetComboSectionPages().size(), baselinePages);
 
     // Refusals: a page with no name, no registrar or no column would either
     // never draw or be #640 by construction.
-    SohGui::RegisterComboSectionPage(nullptr, 1, ExtRegistrar);
-    SohGui::RegisterComboSectionPage("", 1, ExtRegistrar);
-    SohGui::RegisterComboSectionPage("No Registrar", 1, nullptr);
-    SohGui::RegisterComboSectionPage("No Columns", 0, ExtRegistrar);
+    SohGui::RegisterComboSectionPage(nullptr, 1, ExtRegistrar, SohGui::ComboPageHost::DevTools);
+    SohGui::RegisterComboSectionPage("", 1, ExtRegistrar, SohGui::ComboPageHost::DevTools);
+    SohGui::RegisterComboSectionPage("No Registrar", 1, nullptr, SohGui::ComboPageHost::DevTools);
+    SohGui::RegisterComboSectionPage("No Columns", 0, ExtRegistrar, SohGui::ComboPageHost::DevTools);
     COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
                 "RegisterComboSectionPage accepted an invalid page: the registry holds %zu, expected the baseline %zu "
                 "plus one",
                 SohGui::GetComboSectionPages().size(), baselinePages);
 
     {
+        // SoH's own Dev Tools builder draws the DevTools-hosted pages after its
+        // last page (AddMenuDevTools calls AddComboDevToolsPages).
         ComboSectionMenuProbe extProbe;
-        extProbe.AddMenuCombo();
-        COMBO_CHECK(gExtRan == 1, "the contributed registrar ran %d times, expected once per AddMenuCombo", gExtRan);
-        COMBO_CHECK(gExtSectionName == "Combo", "the contributed registrar was handed section '%s', expected 'Combo'",
+        extProbe.AddMenuDevTools();
+        COMBO_CHECK(gExtRan == 1,
+                    "the DevTools-hosted registrar ran %d times under AddMenuDevTools, expected once: SoH's Dev Tools "
+                    "builder does not draw the pages registered for it",
+                    gExtRan);
+        COMBO_CHECK(gExtSectionName == "Dev Tools",
+                    "the DevTools-hosted registrar was handed section '%s', expected 'Dev Tools'",
                     gExtSectionName.c_str());
         COMBO_CHECK(gExtSidebarName == kExtPageName, "the contributed registrar was handed sidebar '%s', expected '%s'",
                     gExtSidebarName.c_str(), kExtPageName);
@@ -881,60 +859,74 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "the contributed registrar was handed column %d, not the pinned first one. A contributor that "
                     "inherited a stale column would register rows that are never drawn, and no compile catches it",
                     gExtColumn);
-
-        auto& extSidebars = extProbe.Entries().at("Combo").sidebars;
-        if (!extSidebars.contains(kExtPageName)) {
-            printf("[TEST] FAIL(5): AddMenuCombo created no sidebar for the contributed page '%s'\n", kExtPageName);
+        auto& devTools = extProbe.Entries().at("Dev Tools");
+        if (!devTools.sidebars.contains(kExtPageName)) {
+            printf("[TEST] FAIL(5): AddMenuDevTools created no sidebar for the contributed page '%s'\n", kExtPageName);
             gFailures++;
         } else {
-            SidebarEntry& extPage = extSidebars.at(kExtPageName);
+            SidebarEntry& extPage = devTools.sidebars.at(kExtPageName);
             COMBO_CHECK(extPage.columnCount == 2, "the contributed page declares %u columns, expected the registered 2",
                         extPage.columnCount);
             COMBO_CHECK(FindRow(extPage, kExtRowName) != nullptr, "the contributed page holds no row");
         }
-        // Contributed pages come in registration order, so a later contributor
-        // cannot reorder the earlier ones out from under a player's persisted
-        // selection; a page hosted under Randomizer is not created here at all.
-        // The Combo header ships no page of its own since #1132 retired Windows.
-        auto& order = extProbe.Entries().at("Combo").sidebarOrder;
-        COMBO_CHECK(order.size() == baselineComboPages + 1,
-                    "the Combo section has %zu sidebars in order, expected the %zu Combo-hosted pages already "
-                    "registered plus the one this leg added",
-                    order.size(), baselineComboPages);
-        if (!order.empty()) {
-            COMBO_CHECK(order.back() == kExtPageName, "sidebar order ends with '%s'; a contributed page comes last",
-                        order.back().c_str());
-        }
+        // Contributed pages come after SoH's own and in registration order, so
+        // a later contributor cannot reorder the earlier ones out from under a
+        // player's persisted selection.
+        const auto& order = devTools.sidebarOrder;
+        COMBO_CHECK(!order.empty() && order.back() == kExtPageName,
+                    "the Dev Tools sidebar ends with '%s'; a contributed page comes last",
+                    order.empty() ? "(nothing)" : order.back().c_str());
+        const std::vector<std::string> devToolsNames = SohGui::ComboDevToolsPageNames();
+        COMBO_CHECK(devToolsNames.size() == baselineDevToolsPages + 1 && devToolsNames.back() == kExtPageName,
+                    "ComboDevToolsPageNames() does not list the contributed page last");
     }
 
     // A second registration under the same name REPLACES rather than duplicating:
     // two registrars claiming one page is an ambiguity in which the loser simply
-    // never draws.
+    // never draws. Driven through AddComboDevToolsPages directly, the slice
+    // AddMenuDevTools calls, with a deliberately wrong incoming path.
     gExtReplacementRan = 0;
-    SohGui::RegisterComboSectionPage(kExtPageName, 1, ExtReplacementRegistrar);
+    SohGui::RegisterComboSectionPage(kExtPageName, 1, ExtReplacementRegistrar, SohGui::ComboPageHost::DevTools);
     COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages + 1,
                 "a same-name re-registration duplicated the page (%zu entries, baseline %zu)",
                 SohGui::GetComboSectionPages().size(), baselinePages);
     {
         ComboSectionMenuProbe replaceProbe;
+        replaceProbe.AddMenuEntry("Dev Tools", "gSettings.Menu.DevToolsSidebarSection");
+        WidgetPath replacePath = { "Ignored", "Ignored", SECTION_COLUMN_3 };
         gExtRan = 0;
-        replaceProbe.AddMenuCombo();
+        SohGui::AddComboDevToolsPages(replaceProbe, replacePath);
         COMBO_CHECK(gExtReplacementRan == 1, "the replacement registrar ran %d times, expected once",
                     gExtReplacementRan);
         COMBO_CHECK(gExtRan == 0, "the replaced registrar ran anyway");
+        COMBO_CHECK(replaceProbe.Entries().at("Dev Tools").sidebars.contains(kExtPageName),
+                    "AddComboDevToolsPages registered the page under the stale incoming header");
+    }
+
+    // AddMenuCombo is the carry's call site only: it creates no header and runs
+    // no page registrar, whatever is registered.
+    {
+        ComboSectionMenuProbe comboProbe;
+        gExtRan = 0;
+        gExtReplacementRan = 0;
+        comboProbe.AddMenuCombo();
+        COMBO_CHECK(comboProbe.Entries().empty() && comboProbe.Order().empty(),
+                    "AddMenuCombo registered %zu header(s); since #1133 it only carries a persisted selection",
+                    comboProbe.Entries().size());
+        COMBO_CHECK(gExtRan == 0 && gExtReplacementRan == 0, "AddMenuCombo ran a contributed page's registrar");
     }
 
     // The Randomizer host (#1101): the same registry, drawn by
     // AddComboRandomizerPages after the pages already registered there and
-    // before Cross-Game, and never by AddMenuCombo.
+    // before Cross-Game, and never by AddMenuDevTools.
     SohGui::RegisterComboSectionPage(kExtRandoPageName, 1, ExtRegistrar, SohGui::ComboPageHost::Randomizer);
     {
         ComboSectionMenuProbe hostProbe;
         gExtRan = 0;
-        hostProbe.AddMenuCombo();
-        COMBO_CHECK(!hostProbe.Entries().at("Combo").sidebars.contains(kExtRandoPageName),
-                    "a page registered for the Randomizer header was created under Combo");
-        COMBO_CHECK(gExtRan == 0, "AddMenuCombo ran a Randomizer-hosted registrar");
+        hostProbe.AddMenuDevTools();
+        COMBO_CHECK(!hostProbe.Entries().at("Dev Tools").sidebars.contains(kExtRandoPageName),
+                    "a page registered for the Randomizer header was created under Dev Tools");
+        COMBO_CHECK(gExtRan == 0, "AddMenuDevTools ran a Randomizer-hosted registrar");
 
         hostProbe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
         WidgetPath hostPath = { "Randomizer", "Ignored", SECTION_COLUMN_2 };
@@ -957,134 +949,284 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtRandoPageName),
                 "UnregisterComboSectionPage did not remove the Randomizer-hosted page");
 
+    // The Settings host (the operator's ruling of 2026-10-27, MM Mods): the same
+    // registry, drawn by SoH's own AddMenuSettings after its last page, and never
+    // by AddMenuDevTools.
+    const std::size_t baselineSettingsPages = SohGui::ComboSettingsPageNames().size();
+    SohGui::RegisterComboSectionPage(kExtSettingsPageName, 1, ExtRegistrar, SohGui::ComboPageHost::Settings);
+    {
+        ComboSectionMenuProbe settingsProbe;
+        gExtRan = 0;
+        settingsProbe.AddMenuDevTools();
+        COMBO_CHECK(!settingsProbe.Entries().at("Dev Tools").sidebars.contains(kExtSettingsPageName),
+                    "a page registered for the Settings header was created under Dev Tools");
+        COMBO_CHECK(gExtRan == 0, "AddMenuDevTools ran a Settings-hosted registrar");
+
+        gExtSectionName.clear();
+        gExtSidebarName.clear();
+        gExtColumn = -1;
+        settingsProbe.AddMenuSettings();
+        COMBO_CHECK(gExtRan == 1,
+                    "the Settings-hosted registrar ran %d times under AddMenuSettings, expected once: SoH's Settings "
+                    "builder does not draw the pages registered for it",
+                    gExtRan);
+        COMBO_CHECK(gExtSectionName == "Settings" && gExtSidebarName == kExtSettingsPageName &&
+                        gExtColumn == (int)SECTION_COLUMN_1,
+                    "the Settings-hosted registrar was handed section '%s' sidebar '%s' column %d, expected "
+                    "'Settings', '%s' and the pinned first column",
+                    gExtSectionName.c_str(), gExtSidebarName.c_str(), gExtColumn, kExtSettingsPageName);
+        const auto& order = settingsProbe.Entries().at("Settings").sidebarOrder;
+        COMBO_CHECK(!order.empty() && order.back() == kExtSettingsPageName,
+                    "the Settings sidebar ends with '%s'; a contributed page comes after SoH's own pages",
+                    order.empty() ? "(nothing)" : order.back().c_str());
+        const std::vector<std::string> settingsNames = SohGui::ComboSettingsPageNames();
+        COMBO_CHECK(settingsNames.size() == baselineSettingsPages + 1 && settingsNames.back() == kExtSettingsPageName,
+                    "ComboSettingsPageNames() does not list the contributed page last");
+    }
+    COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtSettingsPageName),
+                "UnregisterComboSectionPage did not remove the Settings-hosted page");
+
     COMBO_CHECK(SohGui::UnregisterComboSectionPage(kExtPageName), "UnregisterComboSectionPage did not remove the page");
     COMBO_CHECK(!SohGui::UnregisterComboSectionPage(kExtPageName),
                 "UnregisterComboSectionPage removed a page twice, so the registry held a duplicate");
     // Back to the baseline, not to empty: this leg must leave the registry
-    // exactly as it found it, which is the leak check the opening assertion used
-    // to be.
+    // exactly as it found it.
     COMBO_CHECK(SohGui::GetComboSectionPages().size() == baselinePages,
                 "the registry holds %zu contributed pages, expected the baseline %zu it started from",
                 SohGui::GetComboSectionPages().size(), baselinePages);
     {
         ComboSectionMenuProbe cleanProbe;
-        cleanProbe.AddMenuCombo();
-        COMBO_CHECK(!cleanProbe.Entries().at("Combo").sidebars.contains(kExtPageName),
+        cleanProbe.AddMenuDevTools();
+        COMBO_CHECK(!cleanProbe.Entries().at("Dev Tools").sidebars.contains(kExtPageName),
                     "an unregistered contributed page is still created");
     }
-    printf("[TEST] leg 5: a contributed page is created after the earlier ones with a pinned column, replaces on "
-           "re-registration, is refused when invalid, is drawn only under the header it names, and unregisters "
-           "cleanly\n");
+    printf("[TEST] leg 5: a contributed page is created after SoH's own pages with a pinned column under the header "
+           "it names (Dev Tools, Randomizer, Settings), replaces on re-registration, is refused when invalid, is never "
+           "created by AddMenuCombo, and unregisters cleanly\n");
 
-    // ---- Leg 6: a renamed or moved page carries a persisted selection -------
-    // Menu::DrawElement reads gSettings.Menu.ComboSidebarSection as a display
-    // name and falls back to the first page when no sidebar has it, so without
-    // the carry a config saved on an old name would silently land elsewhere.
-    // The key is restored to whatever it held, so AllTests order cannot leak a
-    // selection into a later row.
+    // ---- Leg 6: a selection on the retired header is carried, or cleared -----
+    // Menu::DrawElement reads gSettings.Menu.ActiveHeader and then
+    // menuEntries.at(header): with no Combo header, a config left on it is an
+    // uncaught std::out_of_range (its only catch is bad_variant_access). The
+    // carry runs from AddMenuCombo, before the first draw. Every page the header
+    // ever had, under every name it had, reopens on its new host, a page that
+    // host's own builder registers; an empty or unknown selection CLEARS the
+    // header key (clear-never-store: the menu then opens on its default); the
+    // Combo sidebar key is cleared in every case; no other key is written; and
+    // every key this leg sets is put back.
     {
-        const char* kSidebarKey = "gSettings.Menu.ComboSidebarSection";
-        const std::string saved = CVarGetString(kSidebarKey, "");
-        struct Carry {
-            const char* before;
-            const char* after;
-        };
-        const Carry kCarries[] = {
-            { "MM Enhancements", "Majora's Mask" }, // the rename of 2026-09-27
-            { "Majora's Mask", "Majora's Mask" },
-            { "Save Files", "Save Files" }, // a page never renamed is left alone
-        };
-        for (const Carry& carry : kCarries) {
-            CVarSetString(kSidebarKey, carry.before);
-            ComboSectionMenuProbe carryProbe;
-            carryProbe.AddMenuCombo();
-            const std::string now = CVarGetString(kSidebarKey, "");
-            COMBO_CHECK(now == carry.after, "a config holding \"%s\" reads \"%s\" after AddMenuCombo, expected \"%s\"",
-                        carry.before, now.c_str(), carry.after);
-            COMBO_CHECK(carryProbe.Entries().at("Combo").sidebars.contains(now),
-                        "the carried selection \"%s\" names no Combo page, so the menu would fall back to the first",
-                        now.c_str());
-        }
-        if (saved.empty()) {
-            CVarClear(kSidebarKey);
-        } else {
-            CVarSetString(kSidebarKey, saved.c_str());
-        }
-        printf("[TEST] leg 6: a selection saved on \"MM Enhancements\" is carried to \"Majora's Mask\"; every other "
-               "Combo page's value is left alone\n");
-    }
-    // The pages that left the Combo header, carried ACROSS headers: the three
-    // #1101 moved to the Randomizer header, and Windows (#1132, which shipped as
-    // "Cross-Game Windows" until 2026-09-27), whose trackers open from SoH's
-    // Randomizer > Check Tracker now. A config that had Combo open on one of them
-    // opens on that page under Randomizer (Menu::DrawElement reads
-    // gSettings.Menu.ActiveHeader, then that header's sidebar key); one whose
-    // open header was another leaves the Randomizer selection alone. Either way
-    // no Combo selection is left naming a page Combo no longer has. All three
-    // keys are restored afterwards.
-    {
+        const char* kHeaderKey = "gSettings.Menu.ActiveHeader";
         const char* kComboKey = "gSettings.Menu.ComboSidebarSection";
         const char* kRandoKey = "gSettings.Menu.RandomizerSidebarSection";
-        const char* kHeaderKey = "gSettings.Menu.ActiveHeader";
-        const std::string savedCombo = CVarGetString(kComboKey, "");
-        const std::string savedRando = CVarGetString(kRandoKey, "");
-        const std::string savedHeader = CVarGetString(kHeaderKey, "");
-        struct Move {
-            const char* header;
-            const char* comboBefore;
-            const char* headerAfter;
-            const char* randoAfter;
-        };
-        const Move kMoves[] = {
-            { "Combo", "MM Randomizer", "Randomizer", "MM Randomizer" },
-            { "Combo", "MM Tricks", "Randomizer", "MM Tricks" },
-            { "Combo", "Cross-Game Rules", "Randomizer", "Cross-Game" },
-            { "Combo", "Windows", "Randomizer", "Check Tracker" },
-            { "Combo", "Cross-Game Windows", "Randomizer", "Check Tracker" },
-            // #1141: Tracker Settings retired; its rows are on SoH's Item Tracker page.
-            { "Combo", "Tracker Settings", "Randomizer", "Item Tracker" },
-            // Another header open: the Randomizer selection is the player's own.
-            { "Settings", "MM Randomizer", "Settings", "Shuffles" },
-            { "Settings", "Windows", "Settings", "Shuffles" },
-            { "Settings", "Tracker Settings", "Settings", "Shuffles" },
-        };
-        // Where a carry may land: a page AddComboRandomizerPages registers, or
-        // one of SoH's own tracker pages (AddMenuRandomizer registers them).
-        std::vector<std::string> randoPages = SohGui::ComboRandomizerPageNames();
-        randoPages.push_back("Check Tracker");
-        randoPages.push_back("Item Tracker");
-        for (const Move& move : kMoves) {
-            CVarSetString(kHeaderKey, move.header);
-            CVarSetString(kComboKey, move.comboBefore);
-            CVarSetString(kRandoKey, "Shuffles");
-            ComboSectionMenuProbe moveProbe;
-            moveProbe.AddMenuCombo();
-            const std::string header = CVarGetString(kHeaderKey, "");
-            const std::string rando = CVarGetString(kRandoKey, "");
-            const std::string comboNow = CVarGetString(kComboKey, "");
-            COMBO_CHECK(header == move.headerAfter && rando == move.randoAfter,
-                        "a config on %s > %s opens on %s > %s after AddMenuCombo, expected %s > %s", move.header,
-                        move.comboBefore, header.c_str(), rando.c_str(), move.headerAfter, move.randoAfter);
-            COMBO_CHECK(std::string(move.randoAfter) == "Shuffles" ||
-                            std::find(randoPages.begin(), randoPages.end(), rando) != randoPages.end(),
-                        "the carried Randomizer selection \"%s\" is not a Randomizer page", rando.c_str());
-            COMBO_CHECK(comboNow.empty() || moveProbe.Entries().at("Combo").sidebars.contains(comboNow),
-                        "the Combo selection still reads \"%s\", a page the Combo header no longer has",
-                        comboNow.c_str());
-        }
-        auto restore = [](const char* key, const std::string& value) {
-            if (value.empty()) {
+        const char* kEnhKey = "gSettings.Menu.EnhancementsSidebarSection";
+        const char* kSettingsKey = "gSettings.Menu.SettingsSidebarSection";
+        const char* kDevToolsKey = "gSettings.Menu.DevToolsSidebarSection";
+        const char* const kKeys[] = { kHeaderKey, kComboKey, kRandoKey, kEnhKey, kSettingsKey, kDevToolsKey };
+        StringKeyGuard headerGuard(kHeaderKey);
+        StringKeyGuard comboGuard(kComboKey);
+        StringKeyGuard randoGuard(kRandoKey);
+        StringKeyGuard enhGuard(kEnhKey);
+        StringKeyGuard settingsGuard(kSettingsKey);
+        StringKeyGuard devToolsGuard(kDevToolsKey);
+        auto clearAll = [&]() {
+            for (const char* key : kKeys) {
                 CVarClear(key);
-            } else {
-                CVarSetString(key, value.c_str());
             }
         };
-        restore(kComboKey, savedCombo);
-        restore(kRandoKey, savedRando);
-        restore(kHeaderKey, savedHeader);
-        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks, Cross-Game Rules, Windows or "
-               "Tracker Settings opens on the moved page under Randomizer, and no Combo selection is left "
-               "stranded\n");
+
+        // Where a carry may land: the pages each host's ROM-free builder (or,
+        // for Randomizer, the slices of it that run ROM-free) registers.
+        ComboSectionMenuProbe hosts;
+        hosts.AddMenuSettings();
+        hosts.AddMenuEnhancements();
+        hosts.AddMenuDevTools();
+        AddSohTrackerPages(hosts);
+        WidgetPath hostsRandoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
+        SohGui::AddComboRandomizerPages(hosts, hostsRandoPath);
+        auto& hostEntries = hosts.Entries();
+
+        struct Carry {
+            const char* comboBefore;
+            const char* headerAfter;
+            const char* sidebarKey;
+            const char* sidebarAfter;
+        };
+        const Carry kCarries[] = {
+            // #1101: the randomizer pages.
+            { "Cross-Game Rules", "Randomizer", kRandoKey, "Cross-Game" },
+            { "MM Randomizer", "Randomizer", kRandoKey, "MM Randomizer" },
+            { "MM Tricks", "Randomizer", kRandoKey, "MM Tricks" },
+            // #1132: Windows (Cross-Game Windows until 2026-09-27).
+            { "Windows", "Randomizer", kRandoKey, "Check Tracker" },
+            { "Cross-Game Windows", "Randomizer", kRandoKey, "Check Tracker" },
+            // #1141: Tracker Settings.
+            { "Tracker Settings", "Randomizer", kRandoKey, "Item Tracker" },
+            // #1133: the Majora's Mask page (MM Enhancements until 2026-09-27),
+            // to the page that got its first rows; MM Mods (a Settings page of
+            // its own since the operator's ruling of 2026-10-27); Save Files.
+            { "Majora's Mask", "Enhancements", kEnhKey, "Quality of Life" },
+            { "MM Enhancements", "Enhancements", kEnhKey, "Quality of Life" },
+            { "MM Mods", "Settings", kSettingsKey, "MM Mods" },
+            { "Save Files", "Dev Tools", kDevToolsKey, "Save Files" },
+        };
+        for (const Carry& c : kCarries) {
+            clearAll();
+            CVarSetString(kHeaderKey, "Combo");
+            CVarSetString(kComboKey, c.comboBefore);
+            ComboSectionMenuProbe carryProbe;
+            carryProbe.AddMenuCombo();
+            COMBO_CHECK(KeyState(kHeaderKey) == c.headerAfter && KeyState(c.sidebarKey) == c.sidebarAfter,
+                        "a config on Combo > %s opens on %s > %s after AddMenuCombo, expected %s > %s", c.comboBefore,
+                        KeyState(kHeaderKey).c_str(), KeyState(c.sidebarKey).c_str(), c.headerAfter, c.sidebarAfter);
+            COMBO_CHECK(!CVarExists(kComboKey), "after carrying Combo > %s the Combo sidebar key still reads \"%s\"",
+                        c.comboBefore, KeyState(kComboKey).c_str());
+            for (const char* key : kKeys) {
+                if (key != kHeaderKey && key != c.sidebarKey && key != kComboKey) {
+                    COMBO_CHECK(!CVarExists(key), "carrying Combo > %s also wrote %s = \"%s\"", c.comboBefore, key,
+                                KeyState(key).c_str());
+                }
+            }
+            COMBO_CHECK(hostEntries.contains(c.headerAfter) &&
+                            hostEntries.at(c.headerAfter).sidebars.contains(c.sidebarAfter),
+                        "Combo > %s carries to %s > %s, which that header's builder does not register, so the menu "
+                        "would fall back to the header's first page",
+                        c.comboBefore, c.headerAfter, c.sidebarAfter);
+        }
+
+        // Absent, empty or unknown on the Combo header: clear, never store.
+        const char* const kUnknown[] = { nullptr, "", "Pairing Status", "Not A Page" };
+        for (const char* before : kUnknown) {
+            clearAll();
+            CVarSetString(kHeaderKey, "Combo");
+            if (before != nullptr) {
+                CVarSetString(kComboKey, before);
+            }
+            ComboSectionMenuProbe carryProbe;
+            carryProbe.AddMenuCombo();
+            for (const char* key : kKeys) {
+                COMBO_CHECK(!CVarExists(key),
+                            "a config on Combo with the selection \"%s\" leaves %s = \"%s\"; the header key must be "
+                            "cleared so the menu opens on its default, and no key stored",
+                            before == nullptr ? "(absent)" : before, key, KeyState(key).c_str());
+            }
+        }
+
+        // Another header open: every selection stays the player's own; only the
+        // stale Combo key goes. With no Combo key at all, nothing is minted.
+        struct Other {
+            const char* header;
+            const char* comboBefore;
+            const char* sidebarKey;
+            const char* sidebar;
+        };
+        const Other kOthers[] = {
+            { "Settings", "MM Mods", kSettingsKey, "General" },
+            { "Enhancements", "Majora's Mask", kEnhKey, "Difficulty" },
+            { "Randomizer", "Windows", kRandoKey, "Shuffles" },
+            { "Dev Tools", "Save Files", kDevToolsKey, "General" },
+            { "Settings", nullptr, kSettingsKey, "Audio" },
+        };
+        for (const Other& o : kOthers) {
+            clearAll();
+            CVarSetString(kHeaderKey, o.header);
+            CVarSetString(o.sidebarKey, o.sidebar);
+            if (o.comboBefore != nullptr) {
+                CVarSetString(kComboKey, o.comboBefore);
+            }
+            ComboSectionMenuProbe otherProbe;
+            otherProbe.AddMenuCombo();
+            COMBO_CHECK(KeyState(kHeaderKey) == o.header && KeyState(o.sidebarKey) == o.sidebar,
+                        "with %s > %s open and Combo's key on %s, AddMenuCombo moved the menu to %s > %s", o.header,
+                        o.sidebar, o.comboBefore != nullptr ? o.comboBefore : "(absent)", KeyState(kHeaderKey).c_str(),
+                        KeyState(o.sidebarKey).c_str());
+            for (const char* key : kKeys) {
+                if (key != kHeaderKey && key != o.sidebarKey) {
+                    COMBO_CHECK(!CVarExists(key), "with %s open, AddMenuCombo left %s = \"%s\"", o.header, key,
+                                KeyState(key).c_str());
+                }
+            }
+        }
+        // SoH's Settings > Mod Menu is OoT Mods since the operator's ruling of
+        // 2026-10-27 ("Have two rows, OoT Mods and MM Mods instead of just
+        // Mods"). Selection persists by display name, and Menu::DrawElement opens
+        // a Settings selection it has no page for on the header's first page
+        // (General), so a config saved on Mod Menu is renamed to OoT Mods,
+        // whichever header is open and with no other key written or minted. MM
+        // Mods is inserted after it, and every other Settings page keeps its
+        // name (Presets, which SoH's menu-init adds after them, included), so no
+        // other saved Settings selection moves. OoT Mods and MM Mods themselves
+        // stay as they are.
+        struct Rename {
+            const char* headerBefore; // nullptr: the key is absent
+            const char* otherKey;     // another header's sidebar key this case sets, or nullptr
+            const char* otherValue;
+            const char* comboBefore; // the Combo key, or nullptr
+            const char* settingsBefore;
+            const char* headerAfter; // nullptr: still absent
+            const char* settingsAfter;
+        };
+        const Rename kRenames[] = {
+            { nullptr, nullptr, nullptr, nullptr, "Mod Menu", nullptr, "OoT Mods" },
+            { "Settings", nullptr, nullptr, nullptr, "Mod Menu", "Settings", "OoT Mods" },
+            { "Enhancements", kEnhKey, "Difficulty", nullptr, "Mod Menu", "Enhancements", "OoT Mods" },
+            { "Combo", kEnhKey, nullptr, "Majora's Mask", "Mod Menu", "Enhancements", "OoT Mods" },
+            { "Combo", nullptr, nullptr, "MM Mods", "Mod Menu", "Settings", "MM Mods" },
+            { "Settings", nullptr, nullptr, nullptr, "OoT Mods", "Settings", "OoT Mods" },
+            { "Settings", nullptr, nullptr, nullptr, "MM Mods", "Settings", "MM Mods" },
+            { "Randomizer", kRandoKey, "Shuffles", nullptr, "MM Mods", "Randomizer", "MM Mods" },
+        };
+        for (const Rename& r : kRenames) {
+            clearAll();
+            if (r.headerBefore != nullptr) {
+                CVarSetString(kHeaderKey, r.headerBefore);
+            }
+            if (r.otherKey != nullptr && r.otherValue != nullptr) {
+                CVarSetString(r.otherKey, r.otherValue);
+            }
+            if (r.comboBefore != nullptr) {
+                CVarSetString(kComboKey, r.comboBefore);
+            }
+            CVarSetString(kSettingsKey, r.settingsBefore);
+            ComboSectionMenuProbe renameProbe;
+            renameProbe.AddMenuCombo();
+            const std::string headerAfter = r.headerAfter != nullptr ? r.headerAfter : "(absent)";
+            COMBO_CHECK(KeyState(kHeaderKey) == headerAfter && KeyState(kSettingsKey) == r.settingsAfter,
+                        "a config on %s with Settings > %s opens on header %s with Settings > %s after AddMenuCombo, "
+                        "expected %s with Settings > %s",
+                        r.headerBefore != nullptr ? r.headerBefore : "(absent)", r.settingsBefore,
+                        KeyState(kHeaderKey).c_str(), KeyState(kSettingsKey).c_str(), headerAfter.c_str(),
+                        r.settingsAfter);
+            for (const char* key : kKeys) {
+                if (key == kHeaderKey || key == kSettingsKey) {
+                    continue;
+                }
+                if (key == r.otherKey) {
+                    const std::string expected = r.otherValue != nullptr
+                                                     ? r.otherValue
+                                                     : (r.comboBefore != nullptr ? "Quality of Life" : "(absent)");
+                    COMBO_CHECK(KeyState(key) == expected,
+                                "with Settings > %s saved, AddMenuCombo left %s = \"%s\", expected \"%s\"",
+                                r.settingsBefore, key, KeyState(key).c_str(), expected.c_str());
+                    continue;
+                }
+                COMBO_CHECK(!CVarExists(key), "with Settings > %s saved, AddMenuCombo left %s = \"%s\"",
+                            r.settingsBefore, key, KeyState(key).c_str());
+            }
+            COMBO_CHECK(hostEntries.at("Settings").sidebars.contains(r.settingsAfter),
+                        "Settings > %s carries to Settings > %s, which AddMenuSettings does not register, so the menu "
+                        "would open on General",
+                        r.settingsBefore, r.settingsAfter);
+        }
+        COMBO_CHECK(!hostEntries.at("Settings").sidebars.contains("Mod Menu"),
+                    "AddMenuSettings still registers a \"Mod Menu\" page; SoH's page is OoT Mods (the ruling of "
+                    "2026-10-27)");
+
+        clearAll(); // the guards then put back what was there before this leg
+        printf("[TEST] leg 6: a config on any former Combo page reopens on its new host's page (%zu carries), an "
+               "absent, empty or unknown one opens on the default with no key stored, another open header keeps its "
+               "selection, the Combo key is cleared every time, and a saved Settings > Mod Menu reopens on OoT Mods "
+               "(%zu cases)\n",
+               sizeof(kCarries) / sizeof(kCarries[0]), sizeof(kRenames) / sizeof(kRenames[0]));
     }
 
     // ---- Leg 7: SoH's Randomizer > Item Tracker page writes the overlay's keys
@@ -1095,11 +1237,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // on that page, through the contributed-rows registry, and Combo > Tracker
     // Settings is gone. Every gCombo.Tracker.Items.* key in the manifest has
     // exactly one row there, with the overlay's own default and range, or the
-    // console is a player's only writer for it.
-    COMBO_CHECK(!combo.sidebars.contains(kTrackerSettingsPage),
-                "the Combo header still holds \"%s\"; the Item Tracker's settings are on SoH's Randomizer > Item "
-                "Tracker page (#1141, ruling IT-D6)",
-                kTrackerSettingsPage);
+    // console is a player's only writer for it. (No header holds a Tracker
+    // Settings page: leg 1.)
     {
         ComboSectionMenuProbe itemProbe;
         AddSohTrackerPages(itemProbe);
@@ -1416,6 +1555,134 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         printf("[TEST] leg 8: SoH's Check Tracker and Item Tracker stay registered under their retired names with "
                "their hooks, never latch their keys and never draw; \"Check Tracker\" and \"Item Tracker\" are the "
                "unified windows\n");
+    }
+
+    // ---- Leg 9: OoT Mods, MM Mods and Save Files under SoH's headers (#1133) ----
+    // The operator's ruling of 2026-10-27 ("Have two rows, OoT Mods and MM Mods
+    // instead of just Mods"): Settings has two mod pages where it had one. OoT
+    // Mods is SoH's Mod Menu page with only its sidebar label changed: its one
+    // row, SoH's Popout Mod Menu Window, opening SoH's "Mod Menu" window over
+    // SoH's key. MM Mods is a page of its own directly after it, holding the
+    // MM Mods page's rows in their order and with their behaviour (the note's
+    // PreFunc, Rescan's Callback, the list's CustomFunction) and no "Majora's
+    // Mask" heading (the page's name says it); Rescan Mods Folder goes through
+    // the hosted-row seam, bound to the src/common accessor it calls. Ruling D4:
+    // Save Files is a Dev Tools page, after every page of SoH's, its rows in
+    // their order.
+    {
+        ComboSectionMenuProbe hostProbe;
+        hostProbe.AddMenuSettings();
+        hostProbe.AddMenuDevTools();
+        auto& hostEntries = hostProbe.Entries();
+        auto& settingsPages = hostEntries.at("Settings").sidebars;
+        const auto& settingsOrder = hostEntries.at("Settings").sidebarOrder;
+
+        COMBO_CHECK(!settingsPages.contains("Mod Menu"),
+                    "Settings still holds a \"Mod Menu\" page; SoH's page is labelled OoT Mods (the ruling of "
+                    "2026-10-27)");
+        const auto ootPos = std::find(settingsOrder.begin(), settingsOrder.end(), std::string("OoT Mods"));
+        const auto mmPos = std::find(settingsOrder.begin(), settingsOrder.end(), std::string("MM Mods"));
+        COMBO_CHECK(ootPos != settingsOrder.end() && mmPos != settingsOrder.end() && mmPos == ootPos + 1,
+                    "Settings reads [%s]; MM Mods belongs directly after OoT Mods", Joined(settingsOrder).c_str());
+
+        if (!settingsPages.contains("OoT Mods")) {
+            printf("[TEST] FAIL(9): AddMenuSettings registered no Settings > OoT Mods page\n");
+            gFailures++;
+        } else {
+            SidebarEntry& ootMods = settingsPages.at("OoT Mods");
+            const std::vector<std::string> kOoTMods = { "Popout Mod Menu Window" };
+            COMBO_CHECK(RowNames(ootMods) == kOoTMods && ootMods.columnCount == 1,
+                        "Settings / OoT Mods reads [%s] in %u column(s), expected SoH's own [%s] in one",
+                        Joined(RowNames(ootMods)).c_str(), ootMods.columnCount, Joined(kOoTMods).c_str());
+            WidgetInfo* popout = FindRow(ootMods, "Popout Mod Menu Window");
+            if (popout != nullptr) {
+                COMBO_CHECK(popout->type == WIDGET_WINDOW_BUTTON && popout->cVar != nullptr &&
+                                std::string(popout->cVar) == CVAR_WINDOW("ModMenu") &&
+                                std::string(popout->windowName) == "Mod Menu" && popout->hideInSearch,
+                            "Settings / OoT Mods' Popout Mod Menu Window is not SoH's row (a window button over %s "
+                            "opening the \"Mod Menu\" window, hidden from search)",
+                            CVAR_WINDOW("ModMenu"));
+            }
+        }
+
+        if (!settingsPages.contains("MM Mods")) {
+            printf("[TEST] FAIL(9): AddMenuSettings registered no Settings > MM Mods page\n");
+            gFailures++;
+        } else {
+            SidebarEntry& mmMods = settingsPages.at("MM Mods");
+            const std::vector<std::string> kMmMods = {
+                "MM Mods Status",
+                "Rescan Mods Folder",
+                "MM Mod List",
+            };
+            const std::vector<std::string> modRows = RowNames(mmMods);
+            COMBO_CHECK(modRows == kMmMods, "Settings / MM Mods reads [%s], expected [%s]", Joined(modRows).c_str(),
+                        Joined(kMmMods).c_str());
+            COMBO_CHECK(mmMods.columnCount == 1 && mmMods.columnWidgets.size() >= 1 &&
+                            mmMods.columnWidgets.at(0).size() == RowCount(mmMods),
+                        "Settings / MM Mods is not one column holding every row");
+            for (const auto& column : mmMods.columnWidgets) {
+                for (const WidgetInfo& row : column) {
+                    COMBO_CHECK(row.type != WIDGET_SEPARATOR_TEXT,
+                                "Settings / MM Mods carries the heading \"%s\"; a page named MM Mods needs no "
+                                "\"Majora's Mask\" heading",
+                                row.name.c_str());
+                }
+            }
+            WidgetInfo* note = FindRow(mmMods, "MM Mods Status");
+            if (note != nullptr) {
+                auto text = std::static_pointer_cast<UIWidgets::TextOptions>(note->options);
+                COMBO_CHECK(note->type == WIDGET_TEXT && note->preFunc != nullptr && note->hideInSearch &&
+                                !note->raceDisable && text != nullptr && text->color == UIWidgets::Colors::Gray,
+                            "the MM Mods state note is not the gray, unsearched, PreFunc-written text row it was");
+            }
+            WidgetInfo* rescan = FindRow(mmMods, "Rescan Mods Folder");
+            if (rescan != nullptr) {
+                COMBO_CHECK(rescan->type == WIDGET_BUTTON && rescan->callback != nullptr && rescan->cVar == nullptr &&
+                                !rescan->raceDisable && rescan->options != nullptr &&
+                                rescan->options->tooltip != nullptr && rescan->options->tooltip[0] != '\0',
+                            "Rescan Mods Folder is not the race-free button with a Callback and a tooltip it was");
+            }
+            WidgetInfo* list = FindRow(mmMods, "MM Mod List");
+            if (list != nullptr) {
+                COMBO_CHECK(list->type == WIDGET_CUSTOM && list->customFunction != nullptr && !list->raceDisable,
+                            "MM Mod List is not the race-free custom row that draws the list");
+            }
+            for (const char* hosted : { "Rescan Mods Folder" }) {
+                const SohGui::HostedMmRow* entry = nullptr;
+                for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+                    if (h.header == "Settings" && h.sidebar == "MM Mods" && h.name == hosted) {
+                        entry = &h;
+                    }
+                }
+                COMBO_CHECK(entry != nullptr && entry->section.empty() && entry->key == nullptr &&
+                                entry->accessor != nullptr,
+                            "\"%s\" on Settings / MM Mods is not recorded by the hosted-row seam, under no heading, "
+                            "with its accessor, so the UI snapshot neither captures nor lints it",
+                            hosted);
+            }
+        }
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            COMBO_CHECK(!(h.header == "Settings" && (h.sidebar == "OoT Mods" || h.sidebar == "Mod Menu")),
+                        "the hosted-row seam records \"%s\" on Settings / %s; SoH's mod page holds SoH's row only",
+                        h.name.c_str(), h.sidebar.c_str());
+        }
+
+        const auto& devOrder = hostEntries.at("Dev Tools").sidebarOrder;
+        const auto savePos = std::find(devOrder.begin(), devOrder.end(), std::string("Save Files"));
+        const auto gfxPos = std::find(devOrder.begin(), devOrder.end(), std::string("Gfx Debugger"));
+        COMBO_CHECK(savePos != devOrder.end() && gfxPos != devOrder.end() && savePos > gfxPos,
+                    "Dev Tools reads [%s]; Save Files belongs after SoH's last page, Gfx Debugger (ruling D4)",
+                    Joined(devOrder).c_str());
+        if (hostEntries.at("Dev Tools").sidebars.contains("Save Files")) {
+            SidebarEntry& saveFiles = hostEntries.at("Dev Tools").sidebars.at("Save Files");
+            const std::vector<std::string> kSaveFiles = { "Save Files Status", "File Status", "Save File List" };
+            COMBO_CHECK(RowNames(saveFiles) == kSaveFiles && saveFiles.columnCount == 1,
+                        "Dev Tools / Save Files reads [%s] in %u column(s), expected [%s] in one",
+                        Joined(RowNames(saveFiles)).c_str(), saveFiles.columnCount, Joined(kSaveFiles).c_str());
+        }
+        printf("[TEST] leg 9: Settings holds OoT Mods (SoH's row only) and then MM Mods (MM's mod list rows, no "
+               "heading), and Dev Tools ends with Save Files\n");
     }
 
     if (gFailures == 0) {

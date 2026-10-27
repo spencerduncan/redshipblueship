@@ -40,6 +40,11 @@ using namespace UIWidgets;
 
 // #1037: MM's own damage multiplier row (SohMenuComboMmEnhancements.cpp), drawn right after SoH's.
 void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
+// L7 (#1133, ruling D5): the former Combo > Majora's Mask rows (SohMenuComboMmEnhancements.cpp), each drawn beside
+// SoH's twin or nearest relative, or in a Majora's Mask block.
+void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
+void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
+void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
 // W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
 // Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
@@ -199,7 +204,9 @@ void SohMenu::AddMenuEnhancements() {
             "Save the game automatically on a 3 minute interval and when soft-resetting the game. The interval "
             "autosave will wait if the game is paused in any way (dialogue, pause screen up, cutscenes, "
             "etc.).\n\n"
-            "The soft-reset save will *not* trigger in cutscene maps like the Chamber of Sages!"));
+            "The soft-reset save will *not* trigger in cutscene maps like the Chamber of Sages!\n\n"
+            "Applies to both games. Majora's Mask autosaves on its own interval, set by the row below."));
+    AddMmAutosaveIntervalRow(*this, path); // L7 (#1133): MM's interval, beside the Autosave both games share
     AddWidget(path, "Notification on Autosave", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("AutosaveNotification"))
         .PreFunc([](WidgetInfo& info) { info.isHidden = !CVarGetInteger(CVAR_ENHANCEMENT("Autosave"), 0); })
@@ -259,6 +266,7 @@ void SohMenu::AddMenuEnhancements() {
                 .Tooltip("Shops and Minigames are open both day and night. Requires a scene reload to take effect.")
                 .DisabledTooltip("This is not compatible with the Locked Overworld Doors Randomizer option."));
     AddMmTimeCycleBlock(*this, path);
+    AddMmQualityOfLifeBlockRows(*this, path); // L7 (#1133): Game Over Prompt and Better Double Time, in the same block
 
     AddWidget(path, "Pause Menu", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Allow the Cursor to be on Any Slot", WIDGET_CVAR_COMBOBOX)
@@ -431,6 +439,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Skip Song Cutscenes", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
+    AddMmSkipTimeSongCutscenesRow(*this, path); // L7 (#1133): MM's Song of Time cutscenes, beside the song skips
     AddWidget(path, "Skip Boss Introductions", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
