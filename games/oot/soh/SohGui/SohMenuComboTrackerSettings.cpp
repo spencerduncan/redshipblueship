@@ -16,7 +16,7 @@
  * overlay's own default and range. Combo > Tracker Settings, which held these
  * and the five twins of SoH's keys (retired into RSBS::kComboRetiredKeys and
  * carried into SoH's keys once), is gone; a selection persisted on it is
- * carried to this page (SohMenuCombo.cpp, kComboSidebarMoves).
+ * carried to this page (SohMenuCombo.cpp, kComboHeaderCarries).
  *
  * THE CHECK TRACKER'S ROWS (#1132, operator ruling D1: "replace the soh
  * tracker"). The unified Check Tracker is SoH's Check Tracker in the single exe,

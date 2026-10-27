@@ -905,7 +905,7 @@ SoH's rows, widgets and wording there are unchanged, and ours are appended after
    Tracker Settings group), then a Cross-Game Spoiler separator and its toggle (race-disabled, as before).
    **Combo > Windows is retired**: its three toggles went to SoH's two pages and the Check Tracker page. A config that
    had Combo open on Windows (or its old name, Cross-Game Windows) reopens on Randomizer > Check Tracker
-   (`ComboSidebarCarryMovedSelection`).
+   (`ComboSidebarCarryMovedSelection` then; `ComboHeaderCarrySelection` since #1133 retired the header).
 3. **Transitional state.** Combo > Tracker Settings keeps only the Item Tracker overlay's nine `gCombo.Tracker.Items.*`
    rows. Per ruling IT-D6, lane IT-3 (#1141) retires the five with SoH twins and appends the rest to SoH's Item Tracker
    page, which takes no rows of ours until then; SoH's own Item Tracker Settings window there still sets only SoH's

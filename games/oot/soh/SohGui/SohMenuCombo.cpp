@@ -36,10 +36,10 @@
  * pointer page became the rules page again, under its "Cross-Game" name, after
  * MM Randomizer and MM Tricks, all three between SoH's Tricks/Glitches and
  * Plandomizer (AddComboRandomizerPages below, called by AddMenuRandomizer). The
- * Combo header keeps the contributed non-randomizer pages; a persisted Combo
- * selection on a moved page is carried across headers
- * (ComboSidebarCarryMovedSelection). Nothing about the rows, the model or the
- * freeze changed: only the registration moved.
+ * Combo header kept the contributed non-randomizer pages until #1133 retired it;
+ * a persisted Combo selection is carried to its page's new host
+ * (ComboHeaderCarrySelection). Nothing about the rows, the model or the freeze
+ * changed: only the registration moved.
  *
  * WHAT IS NOT BUILT HERE, named rather than implied. ADR 0004 section 4's table
  * lists four Combo sidebars - pairing status, save slots, entrance links,
