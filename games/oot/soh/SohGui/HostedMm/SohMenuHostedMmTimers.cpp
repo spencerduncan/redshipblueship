@@ -55,8 +55,9 @@ void AddMmInGameTimerRows(SohMenu& menu, WidgetPath& path) {
         .Options(ComboboxOptions()
                      .ComboMap(kMmInGameTimerModes)
                      .DefaultIndex(0)
-                     .Tooltip("Shows a timer over the game: Real-Time counts from the file's start whether or not "
-                              "you play, In-Game Time counts only time spent playing. Majora's Mask only."));
+                     .Tooltip("Shows a timer over the game: Real-Time counts from the moment you first entered "
+                              "Majora's Mask on this file whether or not you play, In-Game Time counts only time spent "
+                              "playing Majora's Mask. Majora's Mask only."));
     AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Hide In-Game Timer Background", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_DISPLAY_OVERLAY_BACKGROUND)
         .RaceDisable(false)
