@@ -192,7 +192,7 @@
  * Nothing the TU defines is named here (a reference would un-elide it).
  *   - ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (z_camera.c, Camera_Update): the
  *     free-look camera itself. DebugCam.cpp also registers there but keys on
- *     gEnhancements.Camera.DebugCam.Enable and is not linked.
+ *     gEnhancements.Camera.DebugCam.Enable (linked since W6-CAM-GYRO, which drives it beside Free Look).
  *   - OnCameraChangeModeFlags, unkeyed (z_camera.c, Camera_ChangeMode): the
  *     per-mode "may free-look" reset.
  *
@@ -539,6 +539,11 @@ struct SkipKeyProbe {
     // #1239: 0 = an integer toggle, driven to 1 and back to 0. Otherwise a float key (SoH's voice-pitch slider),
     // driven to this value and cleared afterwards, since an integer write would leave a key its reader ignores.
     float onFloat = 0.0f;
+    // W6-CAM-GYRO: keys the W6 drive holds on (1) around this probe, for a TU whose registrar ANDs two keys (the speed
+    // modifiers' master and walk / swim enables) or a probe that measures one TU beside another (the debug camera
+    // beside Free Look). Set and driven before the baseline is read, put back to 0 and driven after. Empty for every
+    // other table, which the drive then treats exactly as before.
+    std::vector<const char*> alsoOn = {};
 };
 
 #define SKIP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
@@ -934,6 +939,73 @@ void ResetFreeLookKeys() {
     }
 }
 
+// ---- W6-CAM-GYRO (#1235, #1236, #1240): the debug camera, Remote Bombchu Control and the speed modifiers -----------
+// Camera/DebugCam.cpp, Equipment/RemoteBombchu.cpp and Player/LinkSpeedModifier.cpp each register only through a
+// file-scope RegisterShipInitFunc. The debug camera is driven with Free Look held on: both answer
+// VB_USE_CUSTOM_CAMERA, and the debug camera must add its own registrant beside Free Look's, leaving Free Look's
+// legs in place (Phase 8 drives Free Look alone). LinkSpeedModifier ANDs the master enable with the walk or swim
+// one, so each of those is driven with the master held on; the toggle re-runs the registrar and must stack nothing.
+// Hooks: VB_USE_CUSTOM_CAMERA (z_camera.c), VB_SPEED_MODIFIER_WALK / _SWIM (z_player.c) via
+// MM_GameHooks_ExecuteVBShould; OnPassPlayerInputs (z_player.c via GameInteractor_ExecuteOnPassPlayerInputs);
+// OnConsoleLogoUpdate (z_title.c); OnActorInit / OnActorUpdate / OnActorDestroy keyed on ACTOR_EN_BOM_CHU (z_actor.c
+// via the MM_GameHooks_Execute* ForID legs). Each key is read by its TU alone, so the deltas are attributable.
+#define CAMGYRO_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define CAMGYRO_ID_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+#define CAMGYRO_UNKEYED_COUNT(hook) []() { return SettledUnkeyedCount<GameInteractor::hook>(); }
+
+const std::vector<SkipKeyProbe>& CamGyroProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Camera.DebugCam.Enable",
+          "MM Debug Camera (beside Free Look)",
+          { { "VB_USE_CUSTOM_CAMERA (Camera/DebugCam.cpp, Free Look's own held)",
+              CAMGYRO_VB_COUNT(VB_USE_CUSTOM_CAMERA), 1 },
+            { "OnPassPlayerInputs, unkeyed (Camera/DebugCam.cpp)", CAMGYRO_UNKEYED_COUNT(OnPassPlayerInputs), 1 },
+            { "OnCameraChangeModeFlags, unkeyed (Camera/FreeLook.cpp, untouched)",
+              CAMGYRO_UNKEYED_COUNT(OnCameraChangeModeFlags), 0 } },
+          0.0f,
+          { "gSettings.FreeLook.Enabled" } },
+        { "gEnhancements.PlayerActions.RemoteBombchu",
+          "Remote Bombchu Control",
+          { { "OnActorInit[EN_BOM_CHU] (Equipment/RemoteBombchu.cpp)", CAMGYRO_ID_COUNT(OnActorInit, ACTOR_EN_BOM_CHU),
+              1 },
+            { "OnActorUpdate[EN_BOM_CHU] (Equipment/RemoteBombchu.cpp)",
+              CAMGYRO_ID_COUNT(OnActorUpdate, ACTOR_EN_BOM_CHU), 1 },
+            { "OnActorDestroy[EN_BOM_CHU] (Equipment/RemoteBombchu.cpp)",
+              CAMGYRO_ID_COUNT(OnActorDestroy, ACTOR_EN_BOM_CHU), 1 } } },
+        { "gSettings.SpeedModifier.WalkEnable",
+          "MM Enable Walk Speed Modifier (master enable held on)",
+          { { "VB_SPEED_MODIFIER_WALK (Player/LinkSpeedModifier.cpp)", CAMGYRO_VB_COUNT(VB_SPEED_MODIFIER_WALK), 1 },
+            { "VB_SPEED_MODIFIER_SWIM (Player/LinkSpeedModifier.cpp, swim off)",
+              CAMGYRO_VB_COUNT(VB_SPEED_MODIFIER_SWIM), 0 },
+            { "OnPassPlayerInputs, unkeyed (Player/LinkSpeedModifier.cpp)", CAMGYRO_UNKEYED_COUNT(OnPassPlayerInputs),
+              1 },
+            { "OnConsoleLogoUpdate, unkeyed (Player/LinkSpeedModifier.cpp)", CAMGYRO_UNKEYED_COUNT(OnConsoleLogoUpdate),
+              1 } },
+          0.0f,
+          { "gSettings.SpeedModifier.Enable" } },
+        { "gSettings.SpeedModifier.SwimEnable",
+          "MM Enable Swim Speed Modifier (master enable held on)",
+          { { "VB_SPEED_MODIFIER_SWIM (Player/LinkSpeedModifier.cpp)", CAMGYRO_VB_COUNT(VB_SPEED_MODIFIER_SWIM), 1 },
+            { "VB_SPEED_MODIFIER_WALK (Player/LinkSpeedModifier.cpp, walk off)",
+              CAMGYRO_VB_COUNT(VB_SPEED_MODIFIER_WALK), 0 },
+            { "OnPassPlayerInputs, unkeyed (Player/LinkSpeedModifier.cpp)", CAMGYRO_UNKEYED_COUNT(OnPassPlayerInputs),
+              1 } },
+          0.0f,
+          { "gSettings.SpeedModifier.Enable" } },
+        { "gSettings.SpeedModifier.Toggle",
+          "MM Toggle modifier instead of holding (master and walk held on)",
+          { { "VB_SPEED_MODIFIER_WALK (Player/LinkSpeedModifier.cpp, re-run, no stacking)",
+              CAMGYRO_VB_COUNT(VB_SPEED_MODIFIER_WALK), 0 },
+            { "OnPassPlayerInputs, unkeyed (Player/LinkSpeedModifier.cpp, re-run, no stacking)",
+              CAMGYRO_UNKEYED_COUNT(OnPassPlayerInputs), 0 } },
+          0.0f,
+          { "gSettings.SpeedModifier.Enable", "gSettings.SpeedModifier.WalkEnable" } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sCamGyroPhase{ "W6-CAM-GYRO (#1235, #1236, #1240)", CamGyroProbes };
+
 // ---- Phase 9 (#1030-#1034): the five key-gap TUs ---------------------------
 // Same shape as Phase 5 (SkipKeyProbe).
 #define GAP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
@@ -1183,10 +1255,21 @@ RegisterW6Phase sW6FixesPhase{ "W6-FIXES (#1237)", W6FixesProbes };
 // The list itself is above Phase 4 (W6Phases). Both helpers take the list, so the control below can drive a synthetic
 // phase through the very code the registered ones go through.
 
+// W6-CAM-GYRO: sets each of @p probe's held keys (SkipKeyProbe::alsoOn) to @p value and drives it.
+void DriveW6HeldKeys(const SkipKeyProbe& probe, int32_t value) {
+    for (const char* key : probe.alsoOn) {
+        CVarSetInteger(key, value);
+        ShipInit::Init(key);
+    }
+}
+
 void ZeroW6PhaseKeys(const std::vector<W6Phase>& phases) {
     for (const W6Phase& phase : phases) {
         for (const auto& probe : phase.probes()) {
             CVarSetInteger(probe.key, 0);
+            for (const char* key : probe.alsoOn) {
+                CVarSetInteger(key, 0);
+            }
         }
     }
 }
@@ -1196,6 +1279,7 @@ void ResetW6PhaseKeys(const std::vector<W6Phase>& phases) {
         for (const auto& probe : phase.probes()) {
             CVarSetInteger(probe.key, 0);
             ShipInit::Init(probe.key);
+            DriveW6HeldKeys(probe, 0);
         }
     }
     for (const W6Phase& phase : phases) {
@@ -1212,6 +1296,7 @@ void ResetW6PhaseKeys(const std::vector<W6Phase>& phases) {
 int RunW6Phases(const std::vector<W6Phase>& phases, bool report) {
     for (const W6Phase& phase : phases) {
         for (const auto& probe : phase.probes()) {
+            DriveW6HeldKeys(probe, 1);
             std::vector<size_t> before;
             for (const auto& reg : probe.registries) {
                 before.push_back(reg.count());
@@ -1237,6 +1322,7 @@ int RunW6Phases(const std::vector<W6Phase>& phases, bool report) {
             }
             CVarSetInteger(probe.key, 0);
             ShipInit::Init(probe.key);
+            DriveW6HeldKeys(probe, 0);
             for (const auto& reg : probe.registries) {
                 (void)reg.count();
             }
