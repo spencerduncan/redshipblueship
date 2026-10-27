@@ -203,6 +203,18 @@ inline constexpr int kComboItemTrackerTextSize = 13;           // TextSize's def
 inline constexpr int kComboItemTrackerCountCapacityOnly = 1;   // ITEM_TRACKER_NUMBER_CURRENT_CAPACITY_ONLY
 inline constexpr int kComboItemTrackerKeysCollectedMax = 0;    // KEYS_COLLECTED_MAX
 inline constexpr int kComboItemTrackerTriforceRequiredMax = 1; // TRIFORCE_PIECE_COLLECTED_REQUIRED_MAX
+// The rest of SoH's count modes and its Icon margins / Text size slider bounds (#1143, lane IT-4).
+inline constexpr int kComboItemTrackerCountNone = 0;               // ITEM_TRACKER_NUMBER_NONE
+inline constexpr int kComboItemTrackerCountAmmoOnly = 2;           // ITEM_TRACKER_NUMBER_CURRENT_AMMO_ONLY
+inline constexpr int kComboItemTrackerCountCapacity = 3;           // ITEM_TRACKER_NUMBER_CAPACITY
+inline constexpr int kComboItemTrackerCountAmmo = 4;               // ITEM_TRACKER_NUMBER_AMMO
+inline constexpr int kComboItemTrackerKeysCurrentCollectedMax = 1; // KEYS_CURRENT_COLLECTED_MAX
+inline constexpr int kComboItemTrackerKeysCurrentMax = 2;          // KEYS_CURRENT_MAX
+inline constexpr int kComboItemTrackerTriforceRequired = 0;        // TRIFORCE_PIECE_COLLECTED_REQUIRED
+inline constexpr int kComboItemTrackerIconSpacingMin = -5;         // Icon margins' slider bounds
+inline constexpr int kComboItemTrackerIconSpacingMax = 50;
+inline constexpr int kComboItemTrackerTextSizeMin = 1; // Text size's slider bounds
+inline constexpr int kComboItemTrackerTextSizeMax = 30;
 
 /** SoH's main-window sections the OoT section's groups are, in SoH's order; each has a
  *  DisplayType.<Section> key (Hidden, Main Window, Separate), default Main Window. */
@@ -425,6 +437,7 @@ struct ComboItemCount {
     std::string ceiling;
     ComboUiTone amountTone = COMBO_UI_TONE_WHITE;
     ComboUiTone ceilingTone = COMBO_UI_TONE_GREEN;
+    bool alignLeft = false; // SoH's Align count to left side, in a mode that offers it (#1143)
 };
 
 /**
@@ -440,6 +453,44 @@ struct ComboItemCount {
  * while it is above 0.
  */
 bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out);
+
+/**
+ * The count drawn on a row's icon under SoH's count settings in `keys` (#1143,
+ * lane IT-4): SoH's DrawItemCount, for both games' rows (MM's section keeps
+ * MM's place for the number, ComboItemCountPos).
+ */
+bool ComboItemCountFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys, ComboItemCount& out);
+
+/** The scale SoH's Text size gives a count (DrawItemCount: SetWindowFontScale(textSize / 13)). */
+float ComboItemCountTextScale(int textSize);
+
+/**
+ * Where a count `width` x `height` wide starts in a cell at (`cellX`, `cellY`)
+ * of edge `cell`, drawn at `scale` (#1143).
+ */
+void ComboItemCountPos(uint8_t countStyle, bool alignLeft, float cellX, float cellY, float cell, float width,
+                       float height, float scale, float* outX, float* outY);
+
+/** The letter SoH's Hookshot Identifier draws on a row's icon, or nullptr (#1143). */
+const char* ComboItemIdentifierFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys);
+
+/**
+ * Where the identifier letter, `textWidth` wide, starts in a cell at (`cellX`,
+ * `cellY`) of edge `cell`; `unit` is the icon's size over 36 at the draw's
+ * scale, the letter's own scale (#1143).
+ */
+void ComboItemIdentifierPos(float cellX, float cellY, float cell, float textWidth, float unit, float* outX,
+                            float* outY);
+
+/** A grid's cell edge, column pitch and line pitch at scale 1. */
+struct ComboItemGridMetrics {
+    float cell = 0.0f;
+    float pitch = 0.0f;
+    float linePitch = 0.0f;
+};
+
+/** Grid style `grid`'s metrics at SoH's Icon size `iconSize` and Icon margins `iconSpacing` (#1143). */
+ComboItemGridMetrics ComboItemGridMetricsFor(const ComboItemGridStyle& grid, float iconSize, float iconSpacing);
 
 /**
  * Whether a section draws icons: some row's picked texture is loaded
@@ -504,11 +555,12 @@ struct ComboItemSectionBox {
 
 /** What a box is measured with: the icon size and, for text, the font's metrics, at scale 1. */
 struct ComboItemTrackerMetrics {
-    float iconSize = (float)kComboItemTrackerIconSize; // the IconSize key
-    float textHeight = 0.0f;                           // a line of text (ImGui::GetFontSize at scale 1)
-    float linePadding = 0.0f;                          // a text grid line's height beyond its text (ItemSpacing.y)
-    float columnGap = 0.0f;                            // between two text columns
-    float cellPadding = 0.0f;                          // a table column's padding, both sides together
+    float iconSize = (float)kComboItemTrackerIconSize;       // the IconSize key
+    float iconSpacing = (float)kComboItemTrackerIconSpacing; // the IconSpacing key (#1143)
+    float textHeight = 0.0f;                                 // a line of text (ImGui::GetFontSize at scale 1)
+    float linePadding = 0.0f; // a text grid line's height beyond its text (ItemSpacing.y)
+    float columnGap = 0.0f;   // between two text columns
+    float cellPadding = 0.0f; // a table column's padding, both sides together
 };
 
 /** The gap between two lines of a grid style's cells: its lineGapPx, or its gapPx when it names none. */

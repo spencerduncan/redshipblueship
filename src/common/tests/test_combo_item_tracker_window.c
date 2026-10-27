@@ -656,7 +656,15 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     CITW_ASSERT(mmSong->iconAspect > 0.69f && mmSong->iconAspect < 0.70f);                  // 32 / 46
 
     // ---- counts ---------------------------------------------------------------
+    // Since #1143 the count follows SoH's Ammo/Capacity Tracking: these legs
+    // read SoH's "Current Ammo / Current Capacity" (and MM's "Current Ammo")
+    // mode, the form the overlay drew before it honoured the setting.
     ComboItemCount count;
+    ComboItemTrackerKeys ammo;
+    ammo.itemCountType = kComboItemTrackerCountAmmo;
+    ComboItemTrackerKeys ammoOnly;
+    ammoOnly.itemCountType = kComboItemTrackerCountAmmoOnly;
+    const ComboItemTrackerKeys defaults;
     const ComboItemRow* ootSnapBow = CitwFindRow(ootSnap, "Fairy Bow");
     // OoT's snapshot Bow is the pair's quiver too: dimmed, no second count (#967).
     CITW_ASSERT(ootSnapBow != nullptr && !ootSnapBow->have && ootSnapBow->count == 0 && ootSnapBow->max == 0);
@@ -667,39 +675,38 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     ootBowHeld.have = true;
     ootBowHeld.count = 35;
     ootBowHeld.max = 40;
-    CITW_ASSERT(ComboItemCountFor(ootBowHeld, COMBO_ITEM_COUNT_SOH, count));
+    CITW_ASSERT(ComboItemCountFor(ootBowHeld, ammo, count));
     CITW_ASSERT(count.amount == "35/" && count.ceiling == "40" && count.amountTone == COMBO_UI_TONE_WHITE &&
                 count.ceilingTone == COMBO_UI_TONE_GREEN);
     ComboItemRow full = ootBowHeld;
     full.count = 40;
-    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
+    CITW_ASSERT(ComboItemCountFor(full, ammo, count) && count.amountTone == COMBO_UI_TONE_GREEN &&
                 count.amount == "40/");
     full.count = 0;
-    CITW_ASSERT(ComboItemCountFor(full, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_GRAY);
-    CITW_ASSERT(!ComboItemCountFor(*bow, COMBO_ITEM_COUNT_SOH, count));      // faded, uncounted: no number
-    CITW_ASSERT(!ComboItemCountFor(*hookshot, COMBO_ITEM_COUNT_SOH, count)); // held, uncounted
+    CITW_ASSERT(ComboItemCountFor(full, ammo, count) && count.amountTone == COMBO_UI_TONE_GRAY);
+    CITW_ASSERT(!ComboItemCountFor(*bow, ammo, count));      // faded, uncounted: no number
+    CITW_ASSERT(!ComboItemCountFor(*hookshot, ammo, count)); // held, uncounted
     // QUEST_SKULL_TOKEN: the ceiling red (maxColor IM_COL_RED), the amount red once full.
     const ComboItemRow* tokens = CitwFindRow(ootSnap, "Gold Skulltula Tokens");
     CITW_ASSERT(tokens != nullptr && tokens->countAccent == COMBO_ITEM_ACCENT_RED);
-    CITW_ASSERT(ComboItemCountFor(*tokens, COMBO_ITEM_COUNT_SOH, count) && count.amount == "17/" &&
-                count.ceiling == "100" && count.amountTone == COMBO_UI_TONE_WHITE &&
-                count.ceilingTone == COMBO_UI_TONE_RED);
+    CITW_ASSERT(ComboItemCountFor(*tokens, ammo, count) && count.amount == "17/" && count.ceiling == "100" &&
+                count.amountTone == COMBO_UI_TONE_WHITE && count.ceilingTone == COMBO_UI_TONE_RED);
     ComboItemRow allTokens = *tokens;
     allTokens.count = 100;
-    CITW_ASSERT(ComboItemCountFor(allTokens, COMBO_ITEM_COUNT_SOH, count) && count.amountTone == COMBO_UI_TONE_RED);
+    CITW_ASSERT(ComboItemCountFor(allTokens, ammo, count) && count.amountTone == COMBO_UI_TONE_RED);
     CITW_ASSERT(ootSnapBow->countAccent == COMBO_ITEM_ACCENT_GREEN);
     ComboItemRow mmBowHeld = *mmBow;
     mmBowHeld.have = true;
     mmBowHeld.count = 25;
     mmBowHeld.max = 40;
-    CITW_ASSERT(ComboItemCountFor(mmBowHeld, COMBO_ITEM_COUNT_MM, count) && count.amount == "25" &&
-                count.ceiling.empty()); // MM prints the ammo alone
+    CITW_ASSERT(ComboItemCountFor(mmBowHeld, ammoOnly, count) && count.amount == "25" &&
+                count.ceiling.empty()); // MM's own form: the ammo alone
     const ComboItemRow* rupees = CitwFindRow(shared, "Rupees");
     const ComboItemRow* arrows = CitwFindRow(shared, "Arrows");
-    CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, COMBO_ITEM_COUNT_SOH, count) && count.amount == "33/" &&
+    CITW_ASSERT(arrows != nullptr && ComboItemCountFor(*arrows, ammo, count) && count.amount == "33/" &&
                 count.ceiling == "40");
     if (rupees != nullptr && rupees->count > 0) {
-        CITW_ASSERT(ComboItemCountFor(*rupees, COMBO_ITEM_COUNT_SOH, count) && count.ceiling.empty());
+        CITW_ASSERT(ComboItemCountFor(*rupees, ammo, count) && count.ceiling.empty());
     }
     // The pool's tier rows print no tier counter on the icon (the icon shows
     // the tier), and the wallet prints its capacity, as both native trackers
@@ -707,14 +714,21 @@ int CitwLockIcons(const ComboGui::ComboItemTrackerSection& oot, const ComboGui::
     for (const char* tierRow : { "Magic", "Hookshot" }) {
         const ComboItemRow* row = CitwFindRow(shared, tierRow);
         CITW_ASSERT(row != nullptr && row->iconNumber < 0);
-        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_SOH, count));
-        CITW_ASSERT(!ComboItemCountFor(*row, COMBO_ITEM_COUNT_MM, count));
+        CITW_ASSERT(!ComboItemCountFor(*row, ammo, count));
+        CITW_ASSERT(!ComboItemCountFor(*row, defaults, count));
     }
     const ComboItemRow* wallet = CitwFindRow(shared, "Wallet");
     CITW_ASSERT(wallet != nullptr && wallet->iconNumber == 99); // tier 0 under OoT's icons: the child's 99
-    CITW_ASSERT(ComboItemCountFor(*wallet, COMBO_ITEM_COUNT_SOH, count) && count.amount == "99" &&
-                count.ceiling.empty() && count.amountTone == COMBO_UI_TONE_WHITE);
+    CITW_ASSERT(ComboItemCountFor(*wallet, ammo, count) && count.amount == "99" && count.ceiling.empty() &&
+                count.amountTone == COMBO_UI_TONE_WHITE);
     CITW_ASSERT(ComboItemRowText(*wallet) == "Wallet 0/3");
+    // #1143: the pool's Hookshot carries SoH's Hookshot Identifier letter for
+    // its tier (the live world's Hookshot: "H"), and its tiered ammo rows the
+    // capacity they grow to (the quiver's 50).
+    const ComboItemRow* sharedHook = CitwFindRow(shared, "Hookshot");
+    CITW_ASSERT(sharedHook != nullptr && sharedHook->count >= 1 &&
+                sharedHook->identifier == (sharedHook->count >= 2 ? 'L' : 'H'));
+    CITW_ASSERT(arrows->countKind == COMBO_ITEM_COUNT_KIND_AMMO && arrows->capacityMax == 50);
 
     // ---- icons or text, per section --------------------------------------------
     CITW_ASSERT(ComboItemSectionDrawsIcons(oot.rows, CitwOoTLoaded));
@@ -1425,7 +1439,7 @@ int CitwLockViewFields(void) {
     ComboItemCount count;
     padOnly[0].count = 3;
     padOnly[0].have = true;
-    CITW_ASSERT(!ComboItemCountFor(padOnly[0], COMBO_ITEM_COUNT_SOH, count));
+    CITW_ASSERT(!ComboItemCountFor(padOnly[0], ComboItemTrackerKeys(), count));
     CITW_ASSERT(ComboItemRowText(padOnly[0]).empty());
     ComboItemIconLoadMemo memo;
     padOnly[0].iconKey = "__OTR__pad";
@@ -1510,6 +1524,315 @@ int CitwLockGroupFilter(void) {
     CitwClearOverlayKeys();
     printf("[TEST] combo-item-tracker-window #1141: every MM group hides under its key, every OoT section under "
            "SoH's, each shown by default\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// Point 13, #1143 (lane IT-4): SoH's count and metric settings
+// ============================================================================
+
+/** One synthetic row: held, counted `count` of `max`, growing to `capacityMax`. */
+ComboItemRow CitwCountRow(int count, int max, int capacityMax) {
+    ComboItemRow r = {};
+    r.group = "Inventory";
+    r.name = "Counted";
+    r.have = true;
+    r.count = count;
+    r.max = max;
+    r.capacityMax = capacityMax;
+    return r;
+}
+
+/** `row`'s count under `keys` is `amount` then `ceiling`, in those tones, aligned left or not. */
+bool CitwCountIs(const ComboItemRow& row, const ComboGui::ComboItemTrackerKeys& keys, const char* amount,
+                 const char* ceiling, ComboUiTone amountTone, ComboUiTone ceilingTone, bool alignLeft) {
+    ComboGui::ComboItemCount c;
+    if (!ComboGui::ComboItemCountFor(row, keys, c)) {
+        printf("[TEST] FAIL: #1143: mode %d keys %d triforce %d: no count, expected \"%s\" \"%s\"\n",
+               keys.itemCountType, keys.keyCounts, keys.triforcePieceCounts, amount, ceiling);
+        return false;
+    }
+    if (c.amount != amount || c.ceiling != ceiling || c.amountTone != amountTone ||
+        (!c.ceiling.empty() && c.ceilingTone != ceilingTone) || c.alignLeft != alignLeft) {
+        printf("[TEST] FAIL: #1143: mode %d keys %d triforce %d left %d: \"%s\" \"%s\" tones %d/%d left %d, expected "
+               "\"%s\" \"%s\" tones %d/%d left %d\n",
+               keys.itemCountType, keys.keyCounts, keys.triforcePieceCounts, (int)keys.itemCountAlignLeft,
+               c.amount.c_str(), c.ceiling.c_str(), (int)c.amountTone, (int)c.ceilingTone, (int)c.alignLeft, amount,
+               ceiling, (int)amountTone, (int)ceilingTone, (int)alignLeft);
+        return false;
+    }
+    return true;
+}
+
+bool CitwNear(float a, float b) {
+    return a > b - 0.01f && a < b + 0.01f;
+}
+
+/**
+ * SoH's DrawItemCount over synthetic rows, one leg per setting: Ammo/Capacity
+ * Tracking's five modes (a bow that grows, a full one, an empty one, the static
+ * tokens, a row with no capacity, a wallet's printed capacity), Align count to
+ * left side in the modes that offer it, Key Count Tracking's three forms,
+ * Triforce Piece Count's two, the Hookshot Identifier, Text size, and Icon
+ * size / Icon margins through the grid's metrics and the section box.
+ */
+int CitwLockCountMetrics(void) {
+    using namespace ComboGui;
+    const ComboUiTone W = COMBO_UI_TONE_WHITE;
+    const ComboUiTone G = COMBO_UI_TONE_GREEN;
+    const ComboUiTone R = COMBO_UI_TONE_RED;
+    const ComboUiTone Gy = COMBO_UI_TONE_GRAY;
+    ComboItemTrackerKeys k;
+    ComboItemCount c;
+
+    // ---- Ammo/Capacity Tracking (ItemCountType) --------------------------------
+    // 35 arrows in a 40 quiver that grows to 50.
+    const ComboItemRow bow = CitwCountRow(35, 40, 50);
+    k.itemCountType = kComboItemTrackerCountNone;
+    CITW_ASSERT(!ComboItemCountFor(bow, k, c)); // No Numbers
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(bow, k, "40", "", W, G, false)); // Current Capacity (SoH's default)
+    k.itemCountType = kComboItemTrackerCountAmmoOnly;
+    CITW_ASSERT(CitwCountIs(bow, k, "35", "", W, G, false)); // Current Ammo
+    k.itemCountType = kComboItemTrackerCountCapacity;
+    CITW_ASSERT(CitwCountIs(bow, k, "40/", "50", W, G, false)); // Current Capacity / Max Capacity
+    k.itemCountType = kComboItemTrackerCountAmmo;
+    CITW_ASSERT(CitwCountIs(bow, k, "35/", "40", W, G, false)); // Current Ammo / Current Capacity
+    // A full quiver is the capacity alone, in green; an empty one's ammo is gray.
+    const ComboItemRow fullBow = CitwCountRow(12, 50, 50);
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(fullBow, k, "50", "", G, G, false));
+    k.itemCountType = kComboItemTrackerCountCapacity;
+    CITW_ASSERT(CitwCountIs(fullBow, k, "50", "", G, G, false));
+    const ComboItemRow emptyBow = CitwCountRow(0, 40, 50);
+    k.itemCountType = kComboItemTrackerCountAmmoOnly;
+    CITW_ASSERT(CitwCountIs(emptyBow, k, "0", "", Gy, G, false));
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(emptyBow, k, "40", "", W, G, false));
+    // A static capacity (SoH's bombchus, beans, tokens, hearts) shows the amount in every mode.
+    ComboItemRow tokens = CitwCountRow(17, 100, 0);
+    tokens.countAccent = COMBO_ITEM_ACCENT_RED;
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(tokens, k, "17", "", W, R, false));
+    k.itemCountType = kComboItemTrackerCountCapacity;
+    CITW_ASSERT(CitwCountIs(tokens, k, "17/", "100", W, R, false));
+    tokens.count = 100;
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(tokens, k, "100", "", R, R, false));
+    // No capacity at all (the pool's rupees): the amount alone, unless No Numbers.
+    const ComboItemRow rupees = CitwCountRow(250, 0, 0);
+    CITW_ASSERT(CitwCountIs(rupees, k, "250", "", W, G, false));
+    k.itemCountType = kComboItemTrackerCountNone;
+    CITW_ASSERT(!ComboItemCountFor(rupees, k, c));
+    // A printed capacity (the pool's wallet) is a number like any other: none under No Numbers.
+    ComboItemRow wallet = CitwCountRow(0, 0, 0);
+    wallet.iconNumber = 200;
+    CITW_ASSERT(!ComboItemCountFor(wallet, k, c));
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(wallet, k, "200", "", W, G, false));
+
+    // ---- Align count to left side (ItemCountAlignLeft) -------------------------
+    // Only the two single-number modes offer it (SoH's shouldAlignToLeft).
+    k.itemCountAlignLeft = true;
+    k.itemCountType = kComboItemTrackerCountCapacityOnly;
+    CITW_ASSERT(CitwCountIs(bow, k, "40", "", W, G, true));
+    CITW_ASSERT(CitwCountIs(wallet, k, "200", "", W, G, true));
+    k.itemCountType = kComboItemTrackerCountAmmoOnly;
+    CITW_ASSERT(CitwCountIs(bow, k, "35", "", W, G, true));
+    k.itemCountType = kComboItemTrackerCountCapacity;
+    CITW_ASSERT(CitwCountIs(bow, k, "40/", "50", W, G, false));
+    k.itemCountType = kComboItemTrackerCountAmmo;
+    CITW_ASSERT(CitwCountIs(bow, k, "35/", "40", W, G, false));
+    k = ComboItemTrackerKeys();
+
+    // ---- Key Count Tracking (KeyCounts) -----------------------------------------
+    // Two of a dungeon's four keys collected, one in hand; drawn in every
+    // count mode, No Numbers included, and with none collected yet.
+    ComboItemRow keyRow = CitwCountRow(2, 4, 0);
+    keyRow.countKind = COMBO_ITEM_COUNT_KIND_KEYS;
+    keyRow.held = 1;
+    k.keyCounts = kComboItemTrackerKeysCollectedMax;
+    CITW_ASSERT(CitwCountIs(keyRow, k, "2/", "4", W, G, false)); // Collected / Max (SoH's default)
+    k.keyCounts = kComboItemTrackerKeysCurrentCollectedMax;
+    CITW_ASSERT(CitwCountIs(keyRow, k, "1/2/", "4", W, G, false)); // Current / Collected / Max
+    k.keyCounts = kComboItemTrackerKeysCurrentMax;
+    CITW_ASSERT(CitwCountIs(keyRow, k, "1/", "4", W, G, false)); // Current / Max
+    k.itemCountType = kComboItemTrackerCountNone;
+    CITW_ASSERT(CitwCountIs(keyRow, k, "1/", "4", W, G, false));
+    ComboItemRow noKeys = keyRow;
+    noKeys.have = false;
+    noKeys.count = 0;
+    noKeys.held = 0;
+    k.keyCounts = kComboItemTrackerKeysCollectedMax;
+    CITW_ASSERT(CitwCountIs(noKeys, k, "0/", "4", W, G, false));
+    k = ComboItemTrackerKeys();
+
+    // ---- Triforce Piece Count (TriforcePieceCounts) -----------------------------
+    // 3 pieces of the 20 required, 30 in the world.
+    ComboItemRow pieces = CitwCountRow(3, 20, 30);
+    pieces.countKind = COMBO_ITEM_COUNT_KIND_TRIFORCE;
+    k.triforcePieceCounts = kComboItemTrackerTriforceRequiredMax;
+    CITW_ASSERT(CitwCountIs(pieces, k, "3/20/", "30", W, G, false)); // Collected / Required / Max (default)
+    k.triforcePieceCounts = kComboItemTrackerTriforceRequired;
+    CITW_ASSERT(CitwCountIs(pieces, k, "3/", "20", W, G, false)); // Collected / Required
+    pieces.count = 20;
+    CITW_ASSERT(CitwCountIs(pieces, k, "20/", "20", G, G, false)); // the requirement met: green
+    k = ComboItemTrackerKeys();
+
+    // ---- Hookshot Identifier ------------------------------------------------------
+    ComboItemRow hook = CitwCountRow(0, 0, 0);
+    hook.identifier = 'H';
+    CITW_ASSERT(ComboItemIdentifierFor(hook, k) == nullptr); // off by default
+    k.hookshotIdentifier = true;
+    const char* letter = ComboItemIdentifierFor(hook, k);
+    CITW_ASSERT(letter != nullptr && strcmp(letter, "H") == 0);
+    hook.identifier = 'L';
+    letter = ComboItemIdentifierFor(hook, k);
+    CITW_ASSERT(letter != nullptr && strcmp(letter, "L") == 0);
+    hook.have = false; // SoH draws it on a held hookshot only
+    CITW_ASSERT(ComboItemIdentifierFor(hook, k) == nullptr);
+    CITW_ASSERT(ComboItemIdentifierFor(bow, k) == nullptr); // a row with no letter
+    // DrawItemCount's place for it: half the icon across less half the letter, 8 px right, 22 px up from the
+    // line under the icon (4 px of item spacing below it), all at the icon's size over 36.
+    float x = 0.0f;
+    float y = 0.0f;
+    ComboItemIdentifierPos(100.0f, 200.0f, 36.0f, 8.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 122.0f) && CitwNear(y, 218.0f));
+    ComboItemIdentifierPos(100.0f, 200.0f, 72.0f, 16.0f, 2.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 144.0f) && CitwNear(y, 236.0f));
+    k = ComboItemTrackerKeys();
+
+    // ---- Text size and where the count sits ----------------------------------------
+    CITW_ASSERT(CitwNear(ComboItemCountTextScale(13), 1.0f) && CitwNear(ComboItemCountTextScale(26), 2.0f));
+    CITW_ASSERT(CitwNear(ComboItemCountTextScale(1), 1.0f / 13.0f));
+    // SoH's: centred under the icon, its top a fixed rise above the icon's bottom whatever the text size;
+    // aligned left, at the icon's left edge.
+    ComboItemCountPos(COMBO_ITEM_COUNT_SOH, false, 100.0f, 200.0f, 36.0f, 10.0f, 16.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 113.0f) && CitwNear(y, 226.4f));
+    ComboItemCountPos(COMBO_ITEM_COUNT_SOH, false, 100.0f, 200.0f, 36.0f, 10.0f, 32.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 113.0f) && CitwNear(y, 226.4f));
+    ComboItemCountPos(COMBO_ITEM_COUNT_SOH, true, 100.0f, 200.0f, 36.0f, 10.0f, 16.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 100.0f) && CitwNear(y, 226.4f));
+    // MM's: in the cell's bottom-right corner, 2 px in; aligned left, the bottom-left one.
+    ComboItemCountPos(COMBO_ITEM_COUNT_MM, false, 100.0f, 200.0f, 36.0f, 10.0f, 16.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 124.0f) && CitwNear(y, 218.0f));
+    ComboItemCountPos(COMBO_ITEM_COUNT_MM, true, 100.0f, 200.0f, 36.0f, 10.0f, 16.0f, 1.0f, &x, &y);
+    CITW_ASSERT(CitwNear(x, 102.0f) && CitwNear(y, 218.0f));
+
+    // ---- Icon size and Icon margins ----------------------------------------------
+    // SoH's grid: column * (iconSize + iconSpacing), the margin in pixels at any icon size.
+    ComboItemGridMetrics m = ComboItemGridMetricsFor(kComboItemSohGrid, 36.0f, 12.0f);
+    CITW_ASSERT(CitwNear(m.cell, 36.0f) && CitwNear(m.pitch, 48.0f) && CitwNear(m.linePitch, 48.0f));
+    m = ComboItemGridMetricsFor(kComboItemSohGrid, 36.0f, 20.0f);
+    CITW_ASSERT(CitwNear(m.pitch, 56.0f) && CitwNear(m.linePitch, 56.0f));
+    m = ComboItemGridMetricsFor(kComboItemSohGrid, 72.0f, 12.0f);
+    CITW_ASSERT(CitwNear(m.cell, 72.0f) && CitwNear(m.pitch, 84.0f) && CitwNear(m.linePitch, 84.0f));
+    m = ComboItemGridMetricsFor(kComboItemSharedGrid, 36.0f, -5.0f);
+    CITW_ASSERT(CitwNear(m.pitch, 31.0f) && CitwNear(m.linePitch, 31.0f));
+    // MM's table: its cell padding, scaled by the icon size and in proportion to the margin (12 is MM's own).
+    ComboItemGridStyle mmGrid = kComboItemSohGrid;
+    mmGrid.cellPx = 46.0f;
+    mmGrid.gapPx = 8.0f;
+    mmGrid.lineGapPx = 4.0f;
+    mmGrid.countStyle = COMBO_ITEM_COUNT_MM;
+    m = ComboItemGridMetricsFor(mmGrid, 36.0f, 12.0f);
+    CITW_ASSERT(CitwNear(m.cell, 46.0f) && CitwNear(m.pitch, 54.0f) && CitwNear(m.linePitch, 50.0f));
+    m = ComboItemGridMetricsFor(mmGrid, 36.0f, 24.0f);
+    CITW_ASSERT(CitwNear(m.pitch, 62.0f) && CitwNear(m.linePitch, 54.0f));
+    m = ComboItemGridMetricsFor(mmGrid, 72.0f, 12.0f);
+    CITW_ASSERT(CitwNear(m.cell, 92.0f) && CitwNear(m.pitch, 108.0f) && CitwNear(m.linePitch, 100.0f));
+    // The section box measures the same grid: two lines of six at margin 20.
+    std::vector<ComboItemGridCell> cells;
+    for (int i = 0; i < 12; i++) {
+        cells.push_back({ i / 6, i % 6 });
+    }
+    ComboItemTrackerMetrics metrics;
+    metrics.iconSpacing = 20.0f;
+    const ComboItemSectionBox box = ComboItemIconBox(cells, kComboItemSohGrid, metrics, 0.0f);
+    printf("[TEST] combo-item-tracker-window #1143: two lines of six at margin 20: %.1f x %.1f\n", box.width,
+           box.height);
+    CITW_ASSERT(CitwNear(box.width, 5.0f * 56.0f + 36.0f) && CitwNear(box.height, 2.0f * 56.0f));
+
+    // ---- the keys' bounds: SoH's Icon margins (-5..50) and Text size (1..30) sliders ----
+    CitwClearOverlayKeys();
+    CVarSetInteger("gTrackers.ItemTracker.IconSpacing", 99);
+    CVarSetInteger("gTrackers.ItemTracker.TextSize", 0);
+    k = ComboReadItemTrackerKeys();
+    CITW_ASSERT(k.iconSpacing == kComboItemTrackerIconSpacingMax && k.textSize == kComboItemTrackerTextSizeMin);
+    CVarSetInteger("gTrackers.ItemTracker.IconSpacing", -20);
+    CVarSetInteger("gTrackers.ItemTracker.TextSize", 40);
+    k = ComboReadItemTrackerKeys();
+    CITW_ASSERT(k.iconSpacing == kComboItemTrackerIconSpacingMin && k.textSize == kComboItemTrackerTextSizeMax);
+    CitwClearOverlayKeys();
+    printf("[TEST] combo-item-tracker-window #1143: SoH's count modes, alignment, key and triforce counts, hookshot "
+           "identifier, text size and icon margins PASS\n");
+    return TEST_PASS;
+}
+
+/** Row `name` of `ops`' rows over `buf`, read straight from the adapter. */
+bool CitwAdapterRow(const ComboItemOps* ops, const void* buf, const char* name, ComboItemRow& out) {
+    const int rows = ops->countFor != nullptr ? ops->countFor(buf) : ops->count();
+    for (int i = 0; i < rows; i++) {
+        ComboItemRow r = {};
+        if (ops->rowAt(buf, i, &r) && r.name != nullptr && strcmp(r.name, name) == 0) {
+            out = r;
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * The numbers SoH's count settings read, as both adapters fill them (#1143):
+ * each growable row's capacity ceiling, the static rows none, MM's small keys
+ * as keys (collected, in hand, of the temple's), the hookshot's letter.
+ */
+int CitwLockCountRows(const ComboItemOps* oot, const ComboItemOps* mm) {
+    std::vector<uint8_t> buf((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    ComboItemRow r = {};
+    // OoT's shadow world: the Longshot, 35 arrows in a tier-2 quiver, an Adult's Wallet, 17 tokens.
+    CITW_ASSERT(OoT_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 0) == 1);
+    CITW_ASSERT(CitwAdapterRow(oot, buf.data(), "Fairy Bow", r));
+    printf("[TEST] combo-item-tracker-window #1143: OoT Fairy Bow %d/%d of %d kind %d\n", r.count, r.max, r.capacityMax,
+           (int)r.countKind);
+    CITW_ASSERT(r.count == 35 && r.max == 40 && r.capacityMax == 50 && r.countKind == COMBO_ITEM_COUNT_KIND_AMMO);
+    CITW_ASSERT(CitwAdapterRow(oot, buf.data(), "Longshot", r) && r.have && r.identifier == 'L');
+    CITW_ASSERT(CitwAdapterRow(oot, buf.data(), "Adult's Wallet", r) && r.max == 200 && r.capacityMax == 500);
+    CITW_ASSERT(CitwAdapterRow(oot, buf.data(), "Gold Skulltula Tokens", r) && r.count == 17 && r.capacityMax == 0);
+    // OoT's live world: the Hookshot.
+    CITW_ASSERT(OoT_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 1) == 1);
+    CITW_ASSERT(CitwAdapterRow(oot, buf.data(), "Hookshot", r) && r.have && r.identifier == 'H');
+
+    // MM's shadow world: 25 arrows in a tier-2 quiver, 7 Magic Beans.
+    buf.assign((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 0) == 1);
+    CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Bow", r));
+    printf("[TEST] combo-item-tracker-window #1143: MM Bow %d/%d of %d kind %d\n", r.count, r.max, r.capacityMax,
+           (int)r.countKind);
+    CITW_ASSERT(r.count == 25 && r.max == 40 && r.capacityMax == 50 && r.countKind == COMBO_ITEM_COUNT_KIND_AMMO);
+    CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Magic Bean", r) && r.count == 7 && r.capacityMax == 0);
+    // MM's live world: the Hookshot (MM has no Longshot: "H").
+    CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 1) == 1);
+    CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Hookshot", r) && r.have && r.identifier == 'H');
+    // #1140's world: keys found 1 / 3 / 0 / 2 and held 0 / 1 / none / 2, of 1 / 3 / 1 / 4 (ruling IT-D7).
+    CITW_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0u) == 1);
+    const int want[4][3] = { { 1, 0, 1 }, { 3, 1, 3 }, { 0, 0, 1 }, { 2, 2, 4 } };
+    int keys = 0;
+    const int rows = mm->countFor != nullptr ? mm->countFor(buf.data()) : mm->count();
+    for (int i = 0; i < rows; i++) {
+        ComboItemRow row = {};
+        if (!mm->rowAt(buf.data(), i, &row) || row.countKind != COMBO_ITEM_COUNT_KIND_KEYS) {
+            continue;
+        }
+        CITW_ASSERT(keys < 4);
+        printf("[TEST] combo-item-tracker-window #1143: MM %s: collected %d, in hand %d, of %d\n", row.name, row.count,
+               row.held, row.max);
+        CITW_ASSERT(row.count == want[keys][0] && row.held == want[keys][1] && row.max == want[keys][2]);
+        keys++;
+    }
+    CITW_ASSERT(keys == 4);
+    printf("[TEST] combo-item-tracker-window #1143: both adapters fill the capacity ceilings, the keys and the "
+           "hookshot's letter\n");
     return TEST_PASS;
 }
 
@@ -1776,6 +2099,13 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     if (overlay == TEST_PASS) {
         overlay = CitwLockGroupFilter();
     }
+    // ---- 13. SoH's count and metric settings (#1143) ---------------------------
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockCountMetrics();
+    }
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockCountRows(oot, mm);
+    }
 
     // ---- 2-4 ---------------------------------------------------------------
     if (overlay == TEST_PASS) {
@@ -1878,7 +2208,14 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         // #1141: the icon is fitted to its cell (MM's wide owl face held to it).
         CITW_ASSERT(text.find("const ComboItemIconRect icon = ComboItemIconFit(cell, row.iconAspect);") !=
                     std::string::npos);
-        CITW_ASSERT(text.find("ComboItemCountFor(row, countStyle, count)") != std::string::npos);
+        // #1143: the count reads SoH's count settings and is placed by its game's rule at SoH's text size,
+        // the grid is SoH's Icon size and Icon margins, the hookshot carries its identifier.
+        CITW_ASSERT(text.find("ComboItemCountFor(row, keys, count)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemCountPos(countStyle, count.alignLeft,") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemCountTextScale(keys.textSize)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemIdentifierFor(row, keys)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemGridMetricsFor(grid, iconSize, iconSpacing)") != std::string::npos);
+        CITW_ASSERT(text.find("metrics.iconSpacing = (float)keys.iconSpacing;") != std::string::npos);
         CITW_ASSERT(text.find("Ui().Tooltip(row.name)") != std::string::npos); // the item's name alone, as SoH's
         CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText") == std::string::npos);
         CITW_ASSERT(text.find("ComboItemGridLayout(section.rows, kComboItemTrackerColumns, cells)") !=

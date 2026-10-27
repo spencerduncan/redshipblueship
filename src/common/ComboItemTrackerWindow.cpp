@@ -605,6 +605,54 @@ bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCou
     return false;
 }
 
+// #1143's seams, today's behaviour: the settings are not read yet.
+bool ComboItemCountFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys, ComboItemCount& out) {
+    (void)keys;
+    return ComboItemCountFor(row, (uint8_t)COMBO_ITEM_COUNT_SOH, out);
+}
+
+float ComboItemCountTextScale(int textSize) {
+    (void)textSize;
+    return 1.0f;
+}
+
+void ComboItemCountPos(uint8_t countStyle, bool alignLeft, float cellX, float cellY, float cell, float width,
+                       float height, float scale, float* outX, float* outY) {
+    (void)alignLeft;
+    if (countStyle == COMBO_ITEM_COUNT_MM) {
+        *outX = cellX + cell - width - 2.0f * scale;
+        *outY = cellY + cell - height - 2.0f * scale;
+    } else {
+        *outX = cellX + (cell - width) * 0.5f;
+        *outY = cellY + cell - height * 0.6f;
+    }
+}
+
+const char* ComboItemIdentifierFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys) {
+    (void)row;
+    (void)keys;
+    return nullptr;
+}
+
+void ComboItemIdentifierPos(float cellX, float cellY, float cell, float textWidth, float unit, float* outX,
+                            float* outY) {
+    (void)cell;
+    (void)textWidth;
+    (void)unit;
+    *outX = cellX;
+    *outY = cellY;
+}
+
+ComboItemGridMetrics ComboItemGridMetricsFor(const ComboItemGridStyle& grid, float iconSize, float iconSpacing) {
+    (void)iconSpacing;
+    const float unit = ComboItemIconUnit(iconSize);
+    ComboItemGridMetrics m;
+    m.cell = grid.cellPx * unit;
+    m.pitch = (grid.cellPx + grid.gapPx) * unit;
+    m.linePitch = (grid.cellPx + ComboItemGridLineGap(grid)) * unit;
+    return m;
+}
+
 bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*hasImage)(const char*)) {
     if (hasImage == nullptr) {
         return false;
