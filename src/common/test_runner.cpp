@@ -593,7 +593,7 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
-#include "tests/test_mm_unique_key_models.c" // #1172: MM's dungeon keys draw 2S2H's dungeon key models
+#include "tests/test_mm_unique_key_models.c"    // #1172: MM's dungeon keys draw 2S2H's dungeon key models
 #include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
