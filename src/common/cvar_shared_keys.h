@@ -624,6 +624,13 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_HUD_EDITOR_PREFIX "gHudEditor."
 // W6-COS-A
 // W6-AUDIO-SEQ
+// W6-AUDIO-SEQ (#1239): the two key families MM's sequence editor composes by concatenation, a replacement
+// (<prefix><sfxKey>.value / .locked) and a shuffle-pool exclusion (<prefix><sfxKey>), held under MM's own namespace.
+// Eleven sfxKeys name a sequence in both games (NA_BGM_BOSS, NA_BGM_MINI_BOSS, NA_BGM_ENEMY, ...), and SoH's tabs
+// write gAudioEditor.ReplacedSequences.<sfxKey>, so under one spelling either game's tab would set the other game's
+// music. Composed by MM's S2H::AudioCollection only; locked by the classification test's W6-AUDIO-SEQ leg.
+#define RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX "gAudioEditor.MM.ReplacedSequences."
+#define RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX "gAudioEditor.MM.Excluded."
 // W6-DEV
 
 /**
@@ -785,6 +792,15 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
       "The other half of the same pair: MM's .Scale is SoH's value itself (both games use 0.4-2.5), read through "
       "the same translator, so nothing writes MM's two keys." },
+    { 1239, "gAudioEditor.RandomizeAllOnNewScene", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "SoH writes one five-way combobox (Manual / On New Scene / On Rando Gen Only / On File Load / On File Load "
+      "(Seeded)); MM reads two bools. A rename would put SoH's mode number in MM's bool, so any mode would arm MM's "
+      "new-scene randomize. The translator arms it for On New Scene only." },
+    { 1239, "gAudioEditor.RandomizeAllOnRandoGen", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "The other bool of the same combobox: the same translator arms MM's randomize on randomizer generation for On "
+      "Rando Gen Only, so nothing writes MM's two keys." },
 };
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 

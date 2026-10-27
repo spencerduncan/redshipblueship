@@ -261,9 +261,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # soh/Enhancements/audio/AudioEditor.cpp, so it is dropped from 2ship_enh
     # in single-exe builds. Its extern "C" entry points
     # (MM_AudioEditor_Get{Replacement,Original}Seq after the
-    # include/mm_audio_prefix.h rename) are identity-stubbed in
-    # 2s2h/GameExports_SingleExe.cpp; AudioCollection.cpp stays compiled as
-    # MM's real (S2H-namespaced) collection.
+    # include/mm_audio_prefix.h rename) are defined in
+    # 2s2h/GameExports_SingleExe.cpp over AudioCollection.cpp, MM's real
+    # (S2H-namespaced) collection, and its write paths are ported to
+    # Enhancements/Audio/AudioEditorSingleExe.cpp (W6-AUDIO-SEQ, #1239).
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
 
     # #678 - the two Enhancements TUs that are the ONLY callers of
