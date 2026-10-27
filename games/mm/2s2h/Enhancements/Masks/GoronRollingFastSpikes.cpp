@@ -12,6 +12,9 @@ extern PlayState* MM_gPlayState;
 
 void RegisterGoronRollingFastSpikes() {
     COND_VB_SHOULD(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
 
         // This is what the game keeps track of the state of how far you're off to spikes.

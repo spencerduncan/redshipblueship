@@ -21,6 +21,9 @@ void RegisterGoronRollingIgnoresMagic() {
 
     // Mimicking the vanilla condition minus the magic check
     COND_VB_SHOULD(VB_GORON_ROLL_DISABLE_SPIKE_MODE, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         bool disableSpikes = (player->stateFlags3 & PLAYER_STATE3_80000) &&
                              (!CHECK_BTN_ALL(sPlayerControlInput->cur.button, BTN_A) ||

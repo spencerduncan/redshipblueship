@@ -91,6 +91,9 @@ void RegisterFierceDeityAnywhere() {
      * VB_DRAW_DAMAGE_EFFECT hook.
      */
     COND_VB_SHOULD(VB_USE_NULL_FOR_DRAW_DAMAGE_EFFECTS, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Actor* actor = va_arg(args, Actor*);
         // Only change the call if there is a sword beam collision
         if (GetActorHitBySwordBeam(actor)) {
@@ -166,6 +169,9 @@ void RegisterFierceDeityAnywhere() {
      * from most enemies. We cannot easily piggyback off of the light arrows effect like we do for everybody else.
      */
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_BIGOKUTA, CVAR, [](Actor* actor, bool* result) {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnBigokuta* enBigOkuta = (EnBigokuta*)actor;
         if (enBigOkuta->bodyCollider.base.acFlags & AC_HIT &&
             enBigOkuta->bodyCollider.elem.acHitElem->atDmgInfo.dmgFlags & DMG_SWORD_BEAM) {
@@ -184,6 +190,9 @@ void RegisterFierceDeityAnywhere() {
      * actually supposed to be the blue light ray effect.
      */
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_CLEAR_TAG, CVAR, [](Actor* actor, bool* result) {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if ((actor->params == CLEAR_TAG_SMALL_LIGHT_RAYS || actor->params == CLEAR_TAG_LARGE_LIGHT_RAYS) &&
             actor->world.rot.z == 0 && GET_PLAYER(MM_gPlayState)->transformation == PLAYER_FORM_FIERCE_DEITY) {
             actor->world.rot.z = 3;
@@ -212,6 +221,9 @@ void RegisterFierceDeityAnywhere() {
     });
 
     COND_VB_SHOULD(VB_DISABLE_ITEM_UNDERWATER, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         s32 item = va_arg(args, s32);
         if (item == ITEM_MASK_FIERCE_DEITY &&
             MM_Player_GetEnvironmentalHazard(MM_gPlayState) > PLAYER_ENV_HAZARD_UNDERWATER_FLOOR) {
