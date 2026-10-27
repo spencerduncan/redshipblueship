@@ -19,6 +19,9 @@ extern std::shared_ptr<SohMenu> mSohMenu;
 extern std::shared_ptr<SohModalWindow> mModalWindow;
 using namespace UIWidgets;
 
+// #1235: MM's Ambience Volume (SohGui/HostedMm/SohMenuHostedMmAudio.cpp), drawn right after Sound Effects Volume.
+void AddMmAmbienceVolumeRow(SohMenu& menu, WidgetPath& path);
+
 static std::map<int32_t, const char*> imguiScaleOptions = {
     { 0, "Small" },
     { 1, "Normal" },
@@ -304,6 +307,7 @@ void SohMenu::AddMenuSettings() {
         .Callback([](WidgetInfo& info) {
             Audio_SetGameVolume(SEQ_PLAYER_SFX, ((float)CVarGetInteger(CVAR_SETTING("Volume.SFX"), 100) / 100.0f));
         });
+    AddMmAmbienceVolumeRow(*this, path);
     AddWidget(path, "Audio API (Needs reload)", WIDGET_AUDIO_BACKEND).RaceDisable(false);
 
     // Graphics Settings
