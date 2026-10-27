@@ -113,8 +113,8 @@ extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired)
     } else {
         EnGirlA_RandoBuyFunc(play, shelf);
         crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
-        for (uint32_t i = 0; crossed > 0 && i < RSBS_SHARED_ITEM_CAP; i++) {
-            const SharedItem& row = gComboCtx.sharedItemsTagged[i];
+        for (int i = 0; crossed > 0 && i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
+            const SharedItem& row = *Combo_SharedItemSlot(i); // both segments of the outbox
             if (row.originGame != (uint8_t)GAME_NONE) {
                 lastOrigin = row.originGame; // the last written row
                 lastFlags = row.flags;

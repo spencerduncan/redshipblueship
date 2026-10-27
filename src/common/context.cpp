@@ -302,12 +302,16 @@ FrozenStateManager gFrozenStates;
 #define COMBO_CONTEXT_VERSION 1
 
 ComboContext gComboCtx;
+SharedItem gComboSharedItemOverflow[RSBS_SHARED_ITEM_OVERFLOW_CAP];
 GameId gCurrentGame = GAME_NONE;
 
 extern "C" {
 
 void ComboContext_Init(void) {
     memset(&gComboCtx, 0, sizeof(ComboContext));
+    // The outbox's overflow segment is the rest of sharedItemsTagged (context.h):
+    // whatever clears the fixed slots clears it too, in the same call.
+    memset(gComboSharedItemOverflow, 0, sizeof(gComboSharedItemOverflow));
     memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, 8);
     gComboCtx.version = COMBO_CONTEXT_VERSION;
     gComboCtx.switchRequested = false;

@@ -226,11 +226,13 @@ TestResult Test_SaveHeader(void) {
 
     // Read the payload and confirm the stored CRC actually verifies. From
     // format v3 the payload is Tiers 1-3 plus the self-sized Tier-4 crossing
-    // block (ADR 0010 O7), so the CRC covers everything after the header.
-    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize());
+    // block (ADR 0010 O7), and from v5 the self-sized Tier-5 shared-item
+    // overflow block, so the CRC covers everything after the header.
+    std::vector<uint8_t> payload(h.comboSize + h.ootSize + h.mmSize + Combo_Crossings_SerializedSize() +
+                                 Combo_SharedItemOverflow_SerializedSize());
     in.read(reinterpret_cast<char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
     SAVE_ASSERT(in.gcount() == static_cast<std::streamsize>(payload.size()), "short payload read");
-    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-4 crossing block");
+    SAVE_ASSERT(in.peek() == std::char_traits<char>::eof(), "bytes after the Tier-5 shared-item overflow block");
     SAVE_ASSERT(h.crc32 != 0u, "CRC unexpectedly zero");
     SAVE_ASSERT(rsbs::SaveManager::Crc32(payload.data(), payload.size()) == h.crc32, "CRC does not verify");
 
@@ -725,10 +727,12 @@ TestResult Test_SaveComboRecordFixed(void) {
     // The written Tier-1 length must be the budget, NOT sizeof(ComboContext) —
     // that decoupling is what keeps the on-disk size stable when the struct
     // grows. Total file length proves the padding is actually on disk.
-    // Plus the v3 Tier-4 crossing block (ADR 0010 O7), which is variable
-    // length: exactly what the resident store serializes to.
+    // Plus the v3 Tier-4 crossing block (ADR 0010 O7) and the v5 Tier-5
+    // shared-item overflow block, both variable length: exactly what the
+    // resident stores serialize to.
     const uintmax_t expected = sizeof(rsbs::RsbsSaveHeader) + RSBS_COMBO_CONTEXT_RECORD_SIZE + OOT_SAVE_CONTEXT_SIZE +
-                               MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize();
+                               MM_SAVE_CONTEXT_SIZE + Combo_Crossings_SerializedSize() +
+                               Combo_SharedItemOverflow_SerializedSize();
     SAVE_ASSERT(std::filesystem::file_size(mgr.SlotPath(0)) == expected,
                 "slot file length does not match a fixed-size padded Tier-1");
     SAVE_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE,

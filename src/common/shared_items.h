@@ -71,13 +71,22 @@
  * valid once the game has reached gameplay — exactly what every safe point
  * above guarantees.
  *
- * CAPACITY (ADR 0005). The durable array holds RSBS_SHARED_ITEM_CAP entries.
- * When it is full, recording first RECLAIMS the oldest REDEEMED entry (the
- * array compacts, preserving relative order, and the freed tail slot takes
- * the new record) — a redeemed entry is an informational record of a done
- * crossing, an un-redeemed entry is an undelivered item; only the former may
- * be evicted, and ADR 0005 amends A1's "entries are never cleared" note
- * accordingly. If every entry is un-redeemed, the record is REFUSED — loudly:
+ * CAPACITY (ADR 0005; ADR 0002 as amended 2026-10-27). The durable array is
+ * ONE LOGICAL ARRAY of RSBS_SHARED_ITEM_LOGICAL_CAP entries in two segments: the
+ * fixed gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP] (Tier-1), then the
+ * overflow segment gComboSharedItemOverflow (context.h), which the .redsave
+ * carries as the variable-length Tier-5 block (format version 5). Every accessor
+ * spans both in slot order (Combo_SharedItemSlot). While the overflow is empty a
+ * record takes the first free fixed slot, exactly as before the overflow
+ * existed. When the fixed segment is full, recording first RECLAIMS the oldest
+ * REDEEMED entry anywhere in the logical array (it compacts, preserving
+ * relative order — the overflow's head moves into the fixed segment's last slot
+ * — and the freed tail slot takes the new record); only when nothing is
+ * reclaimable does the record spill into the overflow. A redeemed entry is an
+ * informational record of a done crossing, an un-redeemed entry is an
+ * undelivered item; only the former may be evicted, and ADR 0005 amends A1's
+ * "entries are never cleared" note accordingly. If all
+ * RSBS_SHARED_ITEM_LOGICAL_CAP entries are un-redeemed, the record is REFUSED — loudly:
  * the durable gComboCtx.sharedItemOverflowCount increments (serialized, so
  * the signal survives save/load) and the refusal is logged. For a sourced
  * grant a refusal is backpressure, not loss: the cursor does not advance, so
@@ -147,8 +156,9 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id);
 int Combo_RecordSharedItemCrossing(GameId originGame, uint16_t id);
 
 /**
- * Would a record be accepted now (#1222)? true when a slot is free or a redeemed
- * entry can be reclaimed; false when every slot holds an un-redeemed item, the
+ * Would a record be accepted now (#1222)? true when a slot of the logical array
+ * is free (the overflow included) or a redeemed entry can be reclaimed; false
+ * when all RSBS_SHARED_ITEM_LOGICAL_CAP slots hold un-redeemed items, the
  * state in which Combo_RecordSharedItem / Combo_RecordSharedItemCrossing refuse
  * and count the overflow. Side-effect free, so a give can ask BEFORE it records:
  * a crossing pickup the outbox would refuse is held open instead of lost.
@@ -279,8 +289,10 @@ uint32_t Combo_GetSharedItemOverflowCount(void);
 int Combo_CountSharedItems(GameId game, bool includeRedeemed);
 
 /**
- * Clear the process-global outbox WITHOUT touching gComboCtx.sharedItemsTagged.
- * For test isolation and as a defensive reset alongside a fresh combo init.
+ * Clear the process-global RAM staging outbox WITHOUT touching the durable
+ * array (gComboCtx.sharedItemsTagged or its overflow segment, which
+ * ComboContext_Init clears together). For test isolation and as a defensive
+ * reset alongside a fresh combo init.
  */
 void Combo_ClearSharedItemOutbox(void);
 
@@ -292,11 +304,66 @@ void Combo_ClearSharedItemOutbox(void);
  */
 SharedItem* Combo_SharedItemSlot(int logicalIndex);
 
-/* The .redsave Tier-5 block (format version 5) that carries the overflow segment. */
+/** Occupied rows of the overflow segment, trailing empties trimmed: the Tier-5 row count. */
+int Combo_SharedItemOverflowUsed(void);
+
+/*
+ * THE .redsave TIER-5 BLOCK (format version 5): the overflow segment on disk,
+ * appended after the Tier-4 crossing block and covered by the payload CRC, the
+ * same self-sized shape as Tier-4 (ADR 0010 O7). Little-endian, written a byte
+ * at a time:
+ *
+ *   header, 16 bytes:
+ *     [0..3]   magic "RSSO"
+ *     [4..5]   u16 blockFormat == RSBS_SHARED_OVERFLOW_BLOCK_FORMAT (1)
+ *     [6..7]   u16 recordSize  == RSBS_SHARED_OVERFLOW_RECORD_SIZE (4)
+ *     [8..11]  u32 count of rows, at most RSBS_SHARED_ITEM_OVERFLOW_CAP
+ *     [12..15] u32 reserved, must be 0
+ *   then `count` rows, overflow slot 0 first, 4 bytes each, the SharedItem layout:
+ *     [0] originGame  [1] flags  [2..3] u16 id
+ *
+ * It lives OUTSIDE Tier-1 because Tier-1 cannot grow (ADR 0009: reserved[] is at
+ * its 64-byte floor), and it is variable length because the overflow is empty
+ * in nearly every world: an empty block is 16 bytes, a full one 16 + 4 x 1984.
+ * A v1-v4 file has no Tier-5 and loads with an EMPTY overflow (no older build
+ * could hold more than the fixed 64); a v5 file must carry one. A count past
+ * the capacity is refused from the block header, before the body is read.
+ */
 #define RSBS_SHARED_OVERFLOW_BLOCK_MAGIC "RSSO"
 #define RSBS_SHARED_OVERFLOW_BLOCK_FORMAT 1u
 #define RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE 16u
 #define RSBS_SHARED_OVERFLOW_RECORD_SIZE 4u
+/** Largest block this build writes or accepts. */
+#define RSBS_SHARED_OVERFLOW_BLOCK_MAX_SIZE           \
+    ((size_t)RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE + \
+     (size_t)RSBS_SHARED_ITEM_OVERFLOW_CAP * RSBS_SHARED_OVERFLOW_RECORD_SIZE)
+
+/* Tier-5 status codes. 0 is success; every refusal is negative. */
+#define RSBS_SHARED_OVERFLOW_OK 0
+#define RSBS_SHARED_OVERFLOW_ERR_SHORT (-1)  /* fewer bytes than the header or its count needs */
+#define RSBS_SHARED_OVERFLOW_ERR_MAGIC (-2)  /* not an "RSSO" block */
+#define RSBS_SHARED_OVERFLOW_ERR_FORMAT (-3) /* unknown block format, record size, or a nonzero reserved word */
+#define RSBS_SHARED_OVERFLOW_ERR_COUNT (-4)  /* more rows than RSBS_SHARED_ITEM_OVERFLOW_CAP */
+#define RSBS_SHARED_OVERFLOW_ERR_ROW (-5)    /* a row that is neither empty nor tagged with a real game */
+
+/** Bytes Combo_SharedItemOverflow_Serialize writes for the resident overflow. */
+size_t Combo_SharedItemOverflow_SerializedSize(void);
+/** Write the resident overflow as a Tier-5 block; returns the bytes written, 0 when @p cap is short. */
+size_t Combo_SharedItemOverflow_Serialize(uint8_t* out, size_t cap);
+/** From a block's 16-byte header alone: the whole block's size, or a refusal (the count is checked first). */
+int Combo_SharedItemOverflow_BlockSize(const uint8_t* header, size_t headerLen, size_t* outTotal);
+/** Validate a whole block (header, exact length, every row) without changing anything. */
+int Combo_SharedItemOverflow_ValidateBlock(const uint8_t* block, size_t len);
+/**
+ * THE .redsave LOAD of Tier-5: validate, then OVERWRITE the overflow segment
+ * (the slot's own record is authoritative, as for Tier-1). NULL / 0 is a pre-v5
+ * file and clears it. A refusal changes nothing.
+ */
+int Combo_SharedItemOverflow_LoadBlock(const uint8_t* block, size_t len);
+/** Empty the overflow segment (ComboContext_Init does this with the fixed slots). */
+void Combo_SharedItemOverflow_Clear(void);
+/** Developer label for a Tier-5 status code. */
+const char* Combo_SharedItemOverflow_StatusName(int status);
 
 // ============================================================================
 // THE SINGLE-OWNER ITEM CLASSIFICATION TABLE (ADR 0010 answer O8; #645, #500)

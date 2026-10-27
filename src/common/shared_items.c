@@ -2,9 +2,10 @@
  * @file shared_items.c
  * @brief Cross-game shared-item producers and consumers (ADR 0002, Lane A1).
  *
- * See shared_items.h for the model. Everything here operates on the
- * process-global gComboCtx.sharedItemsTagged array (the durable, serialized
- * store) plus a small RAM-only outbox that the producer hook drains at suspend.
+ * See shared_items.h for the model. Everything here operates on the durable,
+ * serialized logical array (gComboCtx.sharedItemsTagged, then the overflow
+ * segment gComboSharedItemOverflow, context.h) plus a small RAM-only staging
+ * outbox that the producer hook drains at suspend.
  *
  * This TU is intentionally free of game headers: it manipulates the ADR-0002
  * SharedItem type and gComboCtx only, so it compiles into the shared
@@ -36,48 +37,118 @@ static bool IsRealGame(GameId game) {
 }
 
 // ============================================================================
-// Slot management (ADR 0005)
+// Slot management (ADR 0005), over ONE LOGICAL ARRAY (operator ruling 2026-10-27)
 //
-// The occupied entries always form a PREFIX of the array: records append at
-// the first free slot, entries are never cleared individually, and
-// reclamation compacts. Slot order is therefore acceptance order, which is
-// what makes Combo_RedeemSharedItemsForGame's slot-order walk a received-order
-// guarantee.
+// The outbox is RSBS_SHARED_ITEM_LOGICAL_CAP slots in two segments: the fixed
+// gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP] (Tier-1, its layout and
+// offsets unchanged), then gComboSharedItemOverflow (context.h; the .redsave
+// Tier-5 block). Every walk below spans both as one array, in slot order.
+//
+// The occupied entries form a PREFIX of the logical array: records append, no
+// production path clears a single entry, and reclamation compacts. Slot order is
+// therefore acceptance order, which is what makes Combo_RedeemSharedItemsForGame's
+// slot-order walk a received-order guarantee across the segment boundary too.
+//
+// WHERE A RECORD GOES, in this order:
+//   1. while the overflow is EMPTY, the first free fixed slot: exactly the pre-v5
+//      rule, so a world that never needs more than 64 slots writes the bytes it
+//      always did;
+//   2. otherwise reclaim the OLDEST redeemed entry anywhere in the logical array:
+//      every entry after it moves down one slot, so when the evicted entry is in
+//      the fixed segment the overflow's head moves into the fixed segment's last
+//      slot and the fixed segment stays the dense prefix; the freed slot is the
+//      last occupied one, and the new record takes it;
+//   3. otherwise spill: the slot after the last occupied one, which is the
+//      overflow's next free row;
+//   4. otherwise (all RSBS_SHARED_ITEM_LOGICAL_CAP slots hold un-redeemed items)
+//      REFUSE, loudly (the durable overflow count).
+// Reclaiming before spilling keeps the overflow empty for as long as a redeemed
+// record can make room: the overflow only ever holds what a pre-v5 build would
+// have REFUSED.
 // ============================================================================
 
-static int FindFirstFreeSlot(void) {
+static SharedItem* SlotAt(int i) {
+    return (i < (int)RSBS_SHARED_ITEM_CAP) ? &gComboCtx.sharedItemsTagged[i]
+                                           : &gComboSharedItemOverflow[i - (int)RSBS_SHARED_ITEM_CAP];
+}
+
+static bool SlotOccupied(const SharedItem* slot) {
+    return slot->originGame != (uint8_t)GAME_NONE;
+}
+
+// One past the last occupied overflow row (the Tier-5 row count).
+static int OverflowUsed(void) {
+    for (int i = (int)RSBS_SHARED_ITEM_OVERFLOW_CAP - 1; i >= 0; i--) {
+        if (SlotOccupied(&gComboSharedItemOverflow[i])) {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+// One past the last occupied logical slot.
+static int LogicalUsed(void) {
+    const int overflow = OverflowUsed();
+    if (overflow > 0) {
+        return (int)RSBS_SHARED_ITEM_CAP + overflow;
+    }
+    for (int i = (int)RSBS_SHARED_ITEM_CAP - 1; i >= 0; i--) {
+        if (SlotOccupied(&gComboCtx.sharedItemsTagged[i])) {
+            return i + 1;
+        }
+    }
+    return 0;
+}
+
+// Rule 1 above: a free fixed slot, only while the overflow is empty.
+static int FindFirstFreeFixedSlot(void) {
+    if (OverflowUsed() > 0) {
+        return -1;
+    }
     for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        if (gComboCtx.sharedItemsTagged[i].originGame == (uint8_t)GAME_NONE) {
+        if (!SlotOccupied(&gComboCtx.sharedItemsTagged[i])) {
             return i;
         }
     }
     return -1;
 }
 
-// Evict the OLDEST redeemed entry by compacting everything after it down one
-// slot, freeing the tail slot for the caller. Relative order of the surviving
+// Rule 2 above: evict the OLDEST redeemed entry by compacting everything after
+// it down one slot, across the segment boundary. Relative order of the surviving
 // entries is preserved, so received-order redemption is unaffected. Only
 // redeemed entries are evictable: they are informational records of completed
-// crossings, while an un-redeemed entry is an undelivered item and must never
-// be dropped. Returns the freed tail slot, or -1 if nothing is redeemed.
+// crossings, while an un-redeemed entry is an undelivered item and must never be
+// dropped. Returns the freed slot (the last occupied one), or -1.
 static int ReclaimOldestRedeemedSlot(void) {
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
-        if (slot->originGame != (uint8_t)GAME_NONE && (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
-            memmove(&gComboCtx.sharedItemsTagged[i], &gComboCtx.sharedItemsTagged[i + 1],
-                    ((size_t)RSBS_SHARED_ITEM_CAP - 1u - (size_t)i) * sizeof(SharedItem));
-            memset(&gComboCtx.sharedItemsTagged[RSBS_SHARED_ITEM_CAP - 1], 0, sizeof(SharedItem));
-            return (int)RSBS_SHARED_ITEM_CAP - 1;
+    const int used = LogicalUsed();
+    for (int i = 0; i < used; i++) {
+        const SharedItem* slot = SlotAt(i);
+        if (SlotOccupied(slot) && (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
+            for (int j = i; j + 1 < used; j++) {
+                *SlotAt(j) = *SlotAt(j + 1);
+            }
+            memset(SlotAt(used - 1), 0, sizeof(SharedItem));
+            return used - 1;
         }
     }
     return -1;
 }
 
+// Rule 3 above.
+static int FindSpillSlot(void) {
+    const int used = LogicalUsed();
+    return (used < (int)RSBS_SHARED_ITEM_LOGICAL_CAP) ? used : -1;
+}
+
 bool Combo_SharedItemCrossingHasRoom(void) {
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        const SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
-        // A free slot (FindFirstFreeSlot) or a reclaimable one (ReclaimOldestRedeemedSlot).
-        if (slot->originGame == (uint8_t)GAME_NONE || (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
+    // The rules AppendSharedItem applies, without applying them.
+    if (FindFirstFreeFixedSlot() >= 0 || FindSpillSlot() >= 0) {
+        return true;
+    }
+    const int used = LogicalUsed();
+    for (int i = 0; i < used; i++) {
+        const SharedItem* slot = SlotAt(i);
+        if (SlotOccupied(slot) && (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
             return true;
         }
     }
@@ -87,12 +158,12 @@ bool Combo_SharedItemCrossingHasRoom(void) {
 // Append an entry with NO content de-dup (the sourced-grant path depends on
 // that: a second grant of the same item is a real second item). `flags` is 0
 // for an in-process record or RSBS_SHARED_ITEM_SOURCED for a sourced grant —
-// never RSBS_SHARED_ITEM_REDEEMED (only the consumer sets that). On a full
-// array, reclaim the oldest redeemed entry; if every entry is un-redeemed,
-// refuse LOUDLY — increment the durable overflow count and log — rather than
-// drop silently. Returns the slot written, or -1 on refusal.
+// never RSBS_SHARED_ITEM_REDEEMED (only the consumer sets that). The slot comes
+// from the rules above; if every logical slot is un-redeemed, refuse LOUDLY —
+// increment the durable overflow count and log — rather than drop silently.
+// Returns the logical slot written, or -1 on refusal.
 static int AppendSharedItem(GameId originGame, uint16_t id, uint8_t flags) {
-    int slot = FindFirstFreeSlot();
+    int slot = FindFirstFreeFixedSlot();
     if (slot < 0) {
         slot = ReclaimOldestRedeemedSlot();
         if (slot >= 0) {
@@ -101,15 +172,23 @@ static int AppendSharedItem(GameId originGame, uint16_t id, uint8_t flags) {
         }
     }
     if (slot < 0) {
+        slot = FindSpillSlot();
+        if (slot == (int)RSBS_SHARED_ITEM_CAP) {
+            fprintf(stderr, "[SharedItem] the fixed %u slots hold un-redeemed items: the overflow segment opens\n",
+                    RSBS_SHARED_ITEM_CAP);
+        }
+    }
+    if (slot < 0) {
         gComboCtx.sharedItemOverflowCount++;
         fprintf(stderr,
                 "[SharedItem] record REFUSED: all %u slots hold un-redeemed items (overflow count now %u), "
                 "origin=%s id=%u\n",
-                RSBS_SHARED_ITEM_CAP, gComboCtx.sharedItemOverflowCount, Game_ToString(originGame), (unsigned)id);
+                RSBS_SHARED_ITEM_LOGICAL_CAP, gComboCtx.sharedItemOverflowCount, Game_ToString(originGame),
+                (unsigned)id);
         return -1;
     }
 
-    SharedItem* dst = &gComboCtx.sharedItemsTagged[slot];
+    SharedItem* dst = SlotAt(slot);
     dst->originGame = (uint8_t)originGame;
     dst->flags = flags;
     dst->id = id;
@@ -132,8 +211,8 @@ int Combo_RecordSharedItem(GameId originGame, uint16_t id) {
     // skipped (RSBS_SHARED_ITEM_SOURCED): a peer's pending gift of the same
     // item must not swallow a genuine local pickup — the two producer classes'
     // idempotency domains are disjoint by design (ADR 0005).
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
+        SharedItem* slot = SlotAt(i);
         if (slot->originGame == (uint8_t)originGame && slot->id == id &&
             (slot->flags & (RSBS_SHARED_ITEM_REDEEMED | RSBS_SHARED_ITEM_SOURCED | RSBS_SHARED_ITEM_CROSSING)) == 0) {
             return i; // already pending — leave it exactly as-is
@@ -297,8 +376,9 @@ int Combo_RedeemSharedItemsForGame(GameId arrivingGame, ComboSharedItemAward awa
     }
 
     int redeemed = 0;
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
+    // Both segments, in slot order: the fixed 64 first, then the overflow.
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
+        SharedItem* slot = SlotAt(i);
         if (slot->originGame != (uint8_t)arrivingGame) {
             continue; // empty slot or an item bound for the other game
         }
@@ -327,8 +407,8 @@ int Combo_CountSharedItems(GameId game, bool includeRedeemed) {
         return 0;
     }
     int count = 0;
-    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
-        const SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
+        const SharedItem* slot = SlotAt(i);
         if (slot->originGame != (uint8_t)game) {
             continue;
         }
@@ -345,10 +425,151 @@ void Combo_ClearSharedItemOutbox(void) {
 }
 
 SharedItem* Combo_SharedItemSlot(int logicalIndex) {
-    if (logicalIndex < 0 || logicalIndex >= (int)RSBS_SHARED_ITEM_CAP) {
+    if (logicalIndex < 0 || logicalIndex >= (int)RSBS_SHARED_ITEM_LOGICAL_CAP) {
         return NULL;
     }
-    return &gComboCtx.sharedItemsTagged[logicalIndex];
+    return SlotAt(logicalIndex);
+}
+
+int Combo_SharedItemOverflowUsed(void) {
+    return OverflowUsed();
+}
+
+// ============================================================================
+// The .redsave Tier-5 block (format version 5): the overflow segment on disk.
+// Written a byte at a time, little-endian, never a struct memcpy (the same
+// discipline as the Tier-4 crossing block, crossing_store.c).
+// ============================================================================
+
+static void OverflowPutU16(uint8_t* p, uint16_t v) {
+    p[0] = (uint8_t)(v & 0xFFu);
+    p[1] = (uint8_t)(v >> 8);
+}
+
+static void OverflowPutU32(uint8_t* p, uint32_t v) {
+    OverflowPutU16(p, (uint16_t)(v & 0xFFFFu));
+    OverflowPutU16(p + 2, (uint16_t)(v >> 16));
+}
+
+static uint16_t OverflowGetU16(const uint8_t* p) {
+    return (uint16_t)(p[0] | (p[1] << 8));
+}
+
+static uint32_t OverflowGetU32(const uint8_t* p) {
+    return (uint32_t)OverflowGetU16(p) | ((uint32_t)OverflowGetU16(p + 2) << 16);
+}
+
+static const uint8_t* OverflowRow(const uint8_t* block, uint32_t i) {
+    return block + RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE + (size_t)i * RSBS_SHARED_OVERFLOW_RECORD_SIZE;
+}
+
+size_t Combo_SharedItemOverflow_SerializedSize(void) {
+    return (size_t)RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE + (size_t)OverflowUsed() * RSBS_SHARED_OVERFLOW_RECORD_SIZE;
+}
+
+size_t Combo_SharedItemOverflow_Serialize(uint8_t* out, size_t cap) {
+    const int used = OverflowUsed();
+    const size_t need = Combo_SharedItemOverflow_SerializedSize();
+    if (out == NULL || cap < need) {
+        return 0;
+    }
+    memcpy(out, RSBS_SHARED_OVERFLOW_BLOCK_MAGIC, 4);
+    OverflowPutU16(out + 4, (uint16_t)RSBS_SHARED_OVERFLOW_BLOCK_FORMAT);
+    OverflowPutU16(out + 6, (uint16_t)RSBS_SHARED_OVERFLOW_RECORD_SIZE);
+    OverflowPutU32(out + 8, (uint32_t)used);
+    OverflowPutU32(out + 12, 0u);
+    for (int i = 0; i < used; i++) {
+        uint8_t* row = out + RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE + (size_t)i * RSBS_SHARED_OVERFLOW_RECORD_SIZE;
+        row[0] = gComboSharedItemOverflow[i].originGame;
+        row[1] = gComboSharedItemOverflow[i].flags;
+        OverflowPutU16(row + 2, gComboSharedItemOverflow[i].id);
+    }
+    return need;
+}
+
+int Combo_SharedItemOverflow_BlockSize(const uint8_t* header, size_t headerLen, size_t* outTotal) {
+    if (header == NULL || headerLen < RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE) {
+        return RSBS_SHARED_OVERFLOW_ERR_SHORT;
+    }
+    if (memcmp(header, RSBS_SHARED_OVERFLOW_BLOCK_MAGIC, 4) != 0) {
+        return RSBS_SHARED_OVERFLOW_ERR_MAGIC;
+    }
+    if (OverflowGetU16(header + 4) != RSBS_SHARED_OVERFLOW_BLOCK_FORMAT ||
+        OverflowGetU16(header + 6) != RSBS_SHARED_OVERFLOW_RECORD_SIZE || OverflowGetU32(header + 12) != 0u) {
+        return RSBS_SHARED_OVERFLOW_ERR_FORMAT;
+    }
+    const uint32_t count = OverflowGetU32(header + 8);
+    if (count > RSBS_SHARED_ITEM_OVERFLOW_CAP) {
+        return RSBS_SHARED_OVERFLOW_ERR_COUNT; // refused from the header, before any body is read
+    }
+    if (outTotal != NULL) {
+        *outTotal = (size_t)RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE + (size_t)count * RSBS_SHARED_OVERFLOW_RECORD_SIZE;
+    }
+    return RSBS_SHARED_OVERFLOW_OK;
+}
+
+int Combo_SharedItemOverflow_ValidateBlock(const uint8_t* block, size_t len) {
+    size_t total = 0;
+    const int rc = Combo_SharedItemOverflow_BlockSize(block, len, &total);
+    if (rc != RSBS_SHARED_OVERFLOW_OK) {
+        return rc;
+    }
+    if (len != total) {
+        return RSBS_SHARED_OVERFLOW_ERR_SHORT;
+    }
+    const uint32_t count = OverflowGetU32(block + 8);
+    for (uint32_t i = 0; i < count; i++) {
+        const uint8_t* row = OverflowRow(block, i);
+        // A row names a real origin game, or is wholly empty (an unset slot reads all-zero).
+        const bool empty = row[0] == 0u && row[1] == 0u && OverflowGetU16(row + 2) == 0u;
+        if (!empty && row[0] != (uint8_t)GAME_OOT && row[0] != (uint8_t)GAME_MM) {
+            return RSBS_SHARED_OVERFLOW_ERR_ROW;
+        }
+    }
+    return RSBS_SHARED_OVERFLOW_OK;
+}
+
+int Combo_SharedItemOverflow_LoadBlock(const uint8_t* block, size_t len) {
+    if (block == NULL && len == 0) {
+        Combo_SharedItemOverflow_Clear(); // a pre-v5 file: no overflow, the truth for every world it could hold
+        return RSBS_SHARED_OVERFLOW_OK;
+    }
+    const int rc = Combo_SharedItemOverflow_ValidateBlock(block, len);
+    if (rc != RSBS_SHARED_OVERFLOW_OK) {
+        return rc; // nothing changed
+    }
+    Combo_SharedItemOverflow_Clear();
+    const uint32_t count = OverflowGetU32(block + 8);
+    for (uint32_t i = 0; i < count; i++) {
+        const uint8_t* row = OverflowRow(block, i);
+        gComboSharedItemOverflow[i].originGame = row[0];
+        gComboSharedItemOverflow[i].flags = row[1];
+        gComboSharedItemOverflow[i].id = OverflowGetU16(row + 2);
+    }
+    return RSBS_SHARED_OVERFLOW_OK;
+}
+
+void Combo_SharedItemOverflow_Clear(void) {
+    memset(gComboSharedItemOverflow, 0, sizeof(gComboSharedItemOverflow));
+}
+
+const char* Combo_SharedItemOverflow_StatusName(int status) {
+    switch (status) {
+        case RSBS_SHARED_OVERFLOW_OK:
+            return "ok";
+        case RSBS_SHARED_OVERFLOW_ERR_SHORT:
+            return "short block";
+        case RSBS_SHARED_OVERFLOW_ERR_MAGIC:
+            return "bad magic";
+        case RSBS_SHARED_OVERFLOW_ERR_FORMAT:
+            return "unknown format, record size or reserved word";
+        case RSBS_SHARED_OVERFLOW_ERR_COUNT:
+            return "row count past this build's overflow capacity";
+        case RSBS_SHARED_OVERFLOW_ERR_ROW:
+            return "a row names no game";
+        default:
+            return "(unknown)";
+    }
 }
 
 // ============================================================================
