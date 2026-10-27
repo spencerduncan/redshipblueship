@@ -154,6 +154,7 @@ bool CvarClassOotTreeNamesKey(const std::vector<std::string>& tree, const char* 
         { "gCheats.", "CVAR_CHEAT(\"" },
         { "gSettings.", "CVAR_SETTING(\"" },
         { "gRandoEnhancements.", "CVAR_RANDOMIZER_ENHANCEMENT(\"" }, // #1060's translated row
+        { "gAudioEditor.", "CVAR_AUDIO(\"" },                        // #1239: SoH's Audio Editor rows
     };
     const std::string k(key);
     for (const PrefixMacro& m : kMacros) {
@@ -263,6 +264,10 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // #1123: SoH's "Skip Boss Introductions". MM's boss/miniboss intro skips (Cutscenes/SkipEnemyCutscenes.cpp) read
     // gEnhancements.Cutscenes.SkipEnemyCutscenes, which nothing in the single exe writes. Both bool, default off in MM.
     { 1123, "gEnhancements.Cutscenes.SkipEnemyCutscenes", "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
+    // #1239: SoH's "Disable Navi Call Audio" (Audio Editor > Audio Options). MM's Tatl call mute
+    // (Audio/Sfx/DisableTatlCallAudio.cpp) read gAudioEditor.DisableTatlCallAudio, which nothing writes. Both bool,
+    // default off.
+    { 1239, "gAudioEditor.DisableTatlCallAudio", "gAudioEditor.DisableNaviCallAudio" },
 };
 
 /// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
@@ -291,6 +296,11 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     // provider registers only through a file-scope RegisterShipInitFunc in the plain 2ship_enh archive.
     { 1037, "gEnhancements.DifficultyOptions.DamageMultiplier", "DifficultyOptions/DamageMultiplier.cpp" },
     { 1123, "gEnhancements.TimeSavers.SkipCutscene.BossIntro", "Cutscenes/SkipEnemyCutscenes.cpp" },
+    // #1239: the Audio Editor's four other Sfx providers, each keyed on the key SoH's Audio Options block writes.
+    { 1239, "gAudioEditor.DisableNaviCallAudio", "Audio/Sfx/DisableTatlCallAudio.cpp" },
+    { 1239, "gAudioEditor.LinkVoiceFreqMultiplier", "Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
+    { 1239, "gAudioEditor.MuteCarpenterSfx", "Audio/Sfx/MuteCarpenterSfx.cpp" },
+    { 1239, "gAudioEditor.ChildGoronCry", "Audio/Sfx/MuteCryingGoronChild.cpp" },
 };
 
 /// #1037: held APART, not mapped, and HOSTED: OoT's DamageMult list runs 0-8, MM's 0-4 plus 10, so each game keeps its
@@ -311,6 +321,11 @@ struct CvarClassTranslatedRow {
 constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
     { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
       "2s2h/Rando/StaticData/Items.cpp" },
+    // #1239: SoH's one voice-pitch float drives MM's .Enable/.Scale pair through one translator.
+    { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Enable", "gAudioEditor.LinkVoiceFreqMultiplier",
+      "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
+    { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Scale", "gAudioEditor.LinkVoiceFreqMultiplier",
+      "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
 };
 
 /// #1060's linked read sites: each must call the translator's tier.
@@ -817,6 +832,13 @@ TestResult Test_CVarClassification(void) {
             CVARCLASS_CHECK(controlsOk && !sohControlsTree.empty(),
                             "could not scan games/oot/soh/Enhancements/controls for the input editor rows");
             sohMenuTree.insert(sohMenuTree.end(), sohControlsTree.begin(), sohControlsTree.end());
+            // #1239: SoH's Audio Editor window draws its Audio Options rows from its own TU.
+            bool audioOk = false;
+            const std::vector<std::string> sohAudioTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "audio", audioOk);
+            CVARCLASS_CHECK(audioOk && !sohAudioTree.empty(),
+                            "could not scan games/oot/soh/Enhancements/audio for the Audio Editor rows");
+            sohMenuTree.insert(sohMenuTree.end(), sohAudioTree.begin(), sohAudioTree.end());
 
             std::ifstream migratorFile(sourceRoot / "games" / "oot" / "soh" / "config" / "ConfigMigrators.h",
                                        std::ios::binary);
@@ -835,7 +857,8 @@ TestResult Test_CVarClassification(void) {
                     return TEST_FAIL;
                 }
                 if (!CvarClassOotTreeNamesKey(sohMenuTree, row.canonical)) {
-                    printf("[TEST] FAIL: #%d: no SoH menu row (SohGui or the input editor) writes \"%s\".\n"
+                    printf("[TEST] FAIL: #%d: no SoH menu row (SohGui, the input editor or the Audio Editor) writes "
+                           "\"%s\".\n"
                            "[TEST]       The manifest maps MM onto a key no widget sets; check the spelling.\n",
                            row.issue, row.canonical);
                     return TEST_FAIL;
@@ -953,9 +976,16 @@ TestResult Test_CVarClassification(void) {
                 CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", mmPathsOk);
             CVARCLASS_CHECK(mmPathsOk && !mmFiles.empty(), "could not re-scan games/mm for the translated rows");
             bool menuOk = false;
-            const std::vector<std::string> sohMenuTree =
+            std::vector<std::string> sohMenuTree =
                 CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "SohGui", menuOk);
             CVARCLASS_CHECK(menuOk && !sohMenuTree.empty(), "could not scan games/oot/soh/SohGui for the menu rows");
+            // #1239: the voice-pitch slider is an Audio Editor row, drawn from the editor's own TU.
+            bool audioOk = false;
+            const std::vector<std::string> sohAudioTree =
+                CvarClassSlurpTree(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "audio", audioOk);
+            CVARCLASS_CHECK(audioOk && !sohAudioTree.empty(),
+                            "could not scan games/oot/soh/Enhancements/audio for the Audio Editor rows");
+            sohMenuTree.insert(sohMenuTree.end(), sohAudioTree.begin(), sohAudioTree.end());
 
             auto fileText = [&mmFiles](const char* relPath) -> const std::string* {
                 for (const CvarClassSourceFile& f : mmFiles) {
@@ -978,7 +1008,7 @@ TestResult Test_CVarClassification(void) {
                     return TEST_FAIL;
                 }
                 if (!CvarClassOotTreeNamesKey(sohMenuTree, row.ootKey)) {
-                    printf("[TEST] FAIL: #%d: no SoH menu row under games/oot/soh/SohGui writes \"%s\".\n", row.issue,
+                    printf("[TEST] FAIL: #%d: no SoH menu row (SohGui or the Audio Editor) writes \"%s\".\n", row.issue,
                            row.ootKey);
                     return TEST_FAIL;
                 }

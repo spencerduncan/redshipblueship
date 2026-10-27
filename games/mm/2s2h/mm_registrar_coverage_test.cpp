@@ -170,6 +170,16 @@
  *   - gAudioEditor.SeqNameNotification: OnSeqPlayerInit, unkeyed (audio/lib/load.c).
  *     The duration row, gAudioEditor.SeqNameNotificationDuration, is READ by that
  *     same TU's handler at emit time, so it has no registration of its own.
+ * #1239 (W6-AUDIO-SFX) adds the Audio Editor's four other Sfx TUs, same drive:
+ *   - gAudioEditor.MuteCarpenterSfx: ShouldActorInit keyed on ACTOR_OBJ_SOUND
+ *     (Audio/Sfx/MuteCarpenterSfx.cpp; MM row in SoH's Audio Options block).
+ *   - gAudioEditor.ChildGoronCry: VB_PLAY_GORON_CHILD_CRY (ovl_En_Gk; MM row).
+ *   - gAudioEditor.DisableNaviCallAudio: VB_PLAY_TATL_CALL_AUDIO (z_parameter.c).
+ *     SoH's Navi call row: MM's Tatl call converged onto it (kConvergedKeys).
+ *   - gAudioEditor.LinkVoiceFreqMultiplier: VB_LINK_VOICE_PITCH_MULTIPLIER
+ *     (z_actor.c). SoH's float slider, translated onto MM's pitch hook
+ *     (kTranslatedKeys): any value but 1.0 arms it, so this probe drives the
+ *     float (onFloat) instead of an integer 1, and clears the key afterwards.
  *
  * PHASE 8 (#1023) -- FREE LOOK. Camera/FreeLook.cpp registers only through a
  * file-scope RegisterShipInitFunc keyed on gSettings.FreeLook.Enabled (the
@@ -408,6 +418,9 @@ struct SkipKeyProbe {
     const char* key;
     const char* row;
     std::vector<SkipRegistry> registries;
+    // #1239: 0 = an integer toggle, driven to 1 and back to 0. Otherwise a float key (SoH's voice-pitch slider),
+    // driven to this value and cleared afterwards, since an integer write would leave a key its reader ignores.
+    float onFloat = 0.0f;
 };
 
 #define SKIP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
@@ -558,15 +571,52 @@ const std::vector<SkipKeyProbe>& AudioProbes() {
           "Display Sequence Name in Notifications",
           { { "OnSeqPlayerInit, unkeyed (Audio/AudioHook.cpp)",
               []() { return SettledUnkeyedCount<GameInteractor::OnSeqPlayerInit>(); }, 1 } } },
+        // #1239 (W6-AUDIO-SFX): the Audio Editor's four other Sfx TUs.
+        { "gAudioEditor.MuteCarpenterSfx",
+          "MM Mute Carpenter Sounds",
+          { { "ShouldActorInit[ACTOR_OBJ_SOUND] (Audio/Sfx/MuteCarpenterSfx.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_OBJ_SOUND); }, 1 } } },
+        { "gAudioEditor.ChildGoronCry",
+          "MM Mute Crying Goron Child",
+          { { "VB_PLAY_GORON_CHILD_CRY (Audio/Sfx/MuteCryingGoronChild.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_GORON_CHILD_CRY); },
+              1 } } },
+        { "gAudioEditor.DisableNaviCallAudio",
+          "Disable Navi Call Audio",
+          { { "VB_PLAY_TATL_CALL_AUDIO (Audio/Sfx/DisableTatlCallAudio.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_TATL_CALL_AUDIO); },
+              1 } } },
+        { "gAudioEditor.LinkVoiceFreqMultiplier",
+          "Link's Voice Pitch Multiplier",
+          { { "VB_LINK_VOICE_PITCH_MULTIPLIER (Audio/Sfx/LinksVoicePitchMultiplier.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_LINK_VOICE_PITCH_MULTIPLIER); },
+              1 } },
+          1.5f },
     };
     return probes;
+}
+
+// #1239: turn a probed key on (an integer 1, or its float) and off (0, or cleared).
+void AudioProbeKeyOn(const SkipKeyProbe& probe) {
+    if (probe.onFloat != 0.0f) {
+        CVarSetFloat(probe.key, probe.onFloat);
+    } else {
+        CVarSetInteger(probe.key, 1);
+    }
+}
+void AudioProbeKeyOff(const SkipKeyProbe& probe) {
+    if (probe.onFloat != 0.0f) {
+        CVarClear(probe.key);
+    } else {
+        CVarSetInteger(probe.key, 0);
+    }
 }
 
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetAudioKeys() {
     for (const auto& probe : AudioProbes()) {
-        CVarSetInteger(probe.key, 0);
+        AudioProbeKeyOff(probe);
         ShipInit::Init(probe.key);
     }
     for (const auto& probe : AudioProbes()) {
@@ -907,7 +957,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     // Phase 7: the same for the Audio Editor keys.
     for (const auto& probe : AudioProbes()) {
-        CVarSetInteger(probe.key, 0);
+        AudioProbeKeyOff(probe);
     }
     // Phase 8: the same for Free Look.
     for (const auto& probe : FreeLookProbes()) {
@@ -1134,7 +1184,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetEnhKeys();
 
-    // ---- #1024-#1026: the three Audio Editor TUs -----------------------------
+    // ---- #1024-#1026, #1239: the Audio Editor TUs ------------------------------
     // Same drive as the enhancement loop above: ONE key on, ShipInit::Init(key)
     // twice, every registry the key's TU writes to must move by exactly the
     // table's count.
@@ -1143,7 +1193,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
         for (const auto& reg : probe.registries) {
             before.push_back(reg.count());
         }
-        CVarSetInteger(probe.key, 1);
+        AudioProbeKeyOn(probe);
         ShipInit::Init(probe.key);
         ShipInit::Init(probe.key);
         for (size_t i = 0; i < probe.registries.size(); ++i) {
@@ -1163,7 +1213,7 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
                 return 15;
             }
         }
-        CVarSetInteger(probe.key, 0);
+        AudioProbeKeyOff(probe);
         ShipInit::Init(probe.key);
         for (const auto& reg : probe.registries) {
             (void)reg.count();
