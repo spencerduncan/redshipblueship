@@ -3023,6 +3023,12 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # answer). Drives the real OnLoadFile seam over a real .redsave and an
     # authored Rando::Context; ROM-free. games/oot/soh/oot_check_state_load_test.cpp.
     redship_add_test(NAME OoTCheckStateLoad COMMAND redship --test oot-check-state-load)
+    # #1217: under Shuffle Jabber Nuts the Deku Theater falls back to the vanilla
+    # judge, and the leader (ovl_En_Dnt_Jiji) offered a vanilla Deku Stick or Nut
+    # capacity upgrade on top of the theater check. Drives the leader's real talk
+    # and give frames through the randomizer's real handlers; a vanilla file is
+    # the control. ROM-free. games/oot/soh/oot_deku_theater_prize_test.cpp.
+    redship_add_test(NAME OoTDekuTheaterPrize COMMAND redship --test oot-deku-theater-prize)
     # Lane F1 (wave 7g, #310): test windows never take keyboard focus from the
     # person at the workstation. main.cpp arms SDL's no-activation hint in code for
     # every --test / --integration-test process (src/common/test_window_focus.h),
