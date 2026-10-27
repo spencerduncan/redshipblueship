@@ -1,3 +1,133 @@
+# Release notes: next release (draft)
+
+**Status:** draft. The next release is planned as the first alpha, `v0.4.0-alpha`; its codename, version bump and tag
+come with the release commit, not before.
+**Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
+this section.
+**Merged up to:** `main` at `d94ab061` (2026-10-27), 11 commits after the tag: pull requests #1174 to #1188 (#1174,
+#1179 and #1183 are docs; #1175, #1176, #1182 and #1187 are issues).
+**Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
+#N". Nobody has played any of it: every change below is locked by test rows.
+
+---
+
+## Since v0.3.1-prealpha
+
+### Read this first
+
+- **Rupees, hearts, magic and ammo earned or spent between loading a paired file and the first save or crossing are
+  no longer lost or refunded, and a file saved from Termina shows the right wallet, bags and hearts in Hyrule at
+  once** (#1186, issue #1163). On `v0.3.1-prealpha` nothing reconciled Ocarina of Time with the shared pool at a
+  load: what you earned in Hyrule before your first save or crossing was dropped at that crossing or save (and what
+  you spent came back), and a file saved in Termina showed Ocarina of Time's older wallet, bags and hearts until the
+  first crossing. Loading a paired file now applies the shared pool to Ocarina of Time as the file loads. It
+  also fixes the load half of issue #1159: a Piece of Heart found in Termina counts toward Hyrule's next heart
+  straight after a load. Files from `v0.3.1-prealpha` load as before; the save format did not change.
+- **Seeds.** The same seed and settings no longer make the same world as `v0.3.1-prealpha`. Two Majora's Mask logic
+  gates (#1178) put Epona's Song and the Circus Leader's Mask, checks in every paired world, in a later sphere, so
+  the single bag's crossings move; and gossip stones that read "No Hint" now read gag lines (#1181), which changes
+  the hint text after the first such stone. Eight golden digests re-pinned (#1178: placement, crossing and hint
+  fields; #1181: `ootHintDigest` only); `seed-digest-armed-caps` and the settings fingerprint (`settingsHash`,
+  `comboSettings`) did not move. A file keeps the world it was created with.
+- **Files created before #1181 keep their "No Hint" stones**, because hints are saved with the file. Create a new
+  file to get gag lines.
+
+### Shared items
+
+- **Buying a bomb bag in Termina fills your shared bombchus at once**, and so does Ocarina of Time's bomb bag found
+  on a Majora's Mask check; before, Termina showed no bombchus until the next arrival (nothing was lost). Hyrule
+  names Majora's Mask's chu packs by count: "You found 1 Bombchu (MM)!", and "5 Bombchus" or "10 Bombchus". Termina
+  holds bombchus only under a bomb bag, by design (OoTMM's Majora's Mask default); the count waits in the shared pool
+  until then (#1184, issue #1160).
+
+### Cross-game items
+
+- **Majora's Mask's songs draw as notes on Hyrule's shelves and in its get-item cutscene**, in 2Ship2Harkinian's
+  colour for each song (pink for the Song of Healing, red for the Goron Lullaby, purple for the Oath to Order),
+  instead of the "?" stand-in; the Sun's Song, Song of Time, Song of Storms and Epona's Song show Ocarina of Time's
+  own note in Ocarina of Time's colour (#1185, issue #1167).
+- **Ocarina of Time's Gerudo Mask and the six medallions draw correctly in Termina**: each host now draws another
+  game's model under that game's own setup list, where Majora's Mask used its own, different entry and smeared the
+  texture (#1185, issue #1171).
+
+### Hints
+
+- **Gossip stones' junk hints read gag lines again.** Under Balanced (the default) about one stone in eight read
+  "No Hint", and under Useless all of them (#1181, issue #1162; SoH `2f262f492`).
+- Three more Ship of Harkinian hint fixes came with it (#1181): under 1 to 3 Ganon's Trials the trial hints name
+  required trials (all six were hinted, taking four stones), and an item hint naming several places keeps every
+  name (SoH `af485bf64`); Mido's Hint and Boss Door Hints now show their text when on (SoH `983d04d36`); and with
+  warp songs shuffled and Warp Song Hints off, playing a warp song asks about "a mysterious place" instead of naming
+  its vanilla destination (SoH `0dcd52e5c`; the prompt only, the warp is unchanged).
+
+### Logic
+
+- **Ocarina of Time** (Ship of Harkinian's location logic): under Shuffle Jabber Nuts, Song from Malon and the four
+  Thieves' Hideout carpenters need the Hylian jabber nut; under Shuffle Grab, Talon's chickens need the Power
+  Bracelet; and the Haunted Wasteland carpet salesman needs both the nut and his price, where a missing pair of
+  brackets let any jumpslash reach him (#1178, issues #1168, #1182; SoH `c906c71f7`, `63597ec63`, `1413ceb33`,
+  `0702b11b9`).
+- **Majora's Mask** (2Ship2Harkinian's region logic): Romani Ranch's six cows, Epona's Song and the alien drop need
+  the Milk Road boulder broken (the Goron Mask and a Powder Keg), and the Circus Leader's Mask needs Romani's Mask.
+  Nearly No Logic never leaves Epona's Song on a cow (an unpaired Majora's Mask file only) (#1178; 2S2H `9b699dee1`,
+  `cc5d87143`, `b754231c3`).
+
+### Trackers
+
+- **The Combo Tracker names a shop item once you have seen it, and adds its price once you have checked it**, as
+  SoH's Check Tracker does: "(item - price)"; under Mysterious Shuffle a seen shuffled slot stays unnamed (#1180,
+  issue #1166).
+- **With Show Logic on** (Check Tracker Settings), hovering a check in either game's pane of the Combo Tracker shows
+  its logic as a tooltip (#1180, issue #1161).
+- Two Ship of Harkinian Check Tracker fixes came with it: an identified check that sells nothing (the Skulltula
+  House rewards) no longer prints "- 0", and with Shuffle Merchants on All But Beans the bean salesman is no longer
+  listed (#1180; SoH `2ba368e7e`, `6bf5ec514`).
+- **The Combo Tracker scrolls to the area you are in** each time you enter a new one, in the game you are playing,
+  and each game's list has its own Only Show Current Area toggle. Two new settings under Combo > Tracker Settings >
+  Check Tracker Settings set them: Auto Scroll To Current Area (on by default) and Only Show Current Area (off by
+  default) (#1188, issue #1131).
+
+### Fixes
+
+- Toggling Alt Assets while in Termina no longer writes past Majora's Mask actors' animation state (#1177, issue
+  #1176); this may have been the cause of issue #1063's delayed crash with an Ocarina of Time texture overhaul pack.
+
+### For contributors
+
+- `docs/upstream-issue-xref-2026-10-26.md`: the open issues cross-referenced against upstream Ship of Harkinian,
+  2Ship2Harkinian and libultraship fixes (#1174), with three corrections from the 2026-10-26 triage (#1183).
+- `docs/upstream-backport-audit-2026-10.md`: the bundled backport audit of the three upstreams since our import
+  bases (#1179).
+
+### Known limitations added since v0.3.1-prealpha
+
+- **Hints:** a file created before #1181 keeps its "No Hint" stones (above). Issue #1187 holds the hint follow-ups
+  the port left (a latent loop in message replacement, the dungeon map's name, coverage of Mido's and the boss-door
+  hints in paired worlds).
+- **Logic (#1178):** in the game the Double Cell and Steep Slope carpenters still award each other's checks
+  (inherited data, issue #1191); logic now names the right cell. The game stays more permissive than logic in two
+  places (the carpenter cutscene skip without the nut, Talon's game without the bracelet), so no seed becomes
+  unbeatable. Link's House Cow shows available once Epona can be freed, as SoH's own tracker shows it: its logic
+  assumes Malon's race can be won (issue #1170, by design).
+- **Bombchus (#1184):** Termina holds none without a bomb bag (by design, above). A Majora's Mask chu pack found in
+  Termina with no Majora's Mask bag still becomes junk, and 2Ship2Harkinian's own Majora's Mask bomb-bag give can
+  add chus to the shared count; both are follow-ups (issue #1061's root-cause comment).
+- **Combo Tracker (#1180, #1188):** Majora's Mask's pane names only obtained checks (2Ship2Harkinian's tracker has no
+  seen state or prices to mirror). A game's pane shows no logic tooltip until that game has booted once in the
+  session. The current area the tracker keeps for the game you are not playing outlives the file: load another file
+  in Hyrule and Majora's Mask's pane, with Only Show Current Area on, filters to the old file's last scene until you
+  play Termina again (issue #1189).
+
+### Run record
+
+The pull requests were merged once their hosted CI was green, and the pyramid driver runs the ROM tiers on `main`
+itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integration-soak` 1 of 1) and 21 of 21 at
+`095c8b83` (cycle 27, with #1177 to #1183; `integration-soak` 1 of 1). The next cycle covers
+`e2280b8a` to the tip. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md). Nobody
+has played any of it.
+
+---
+
 # Release notes: v0.3.1-prealpha ("Ripley Bravo")
 
 **Status:** released. The release is cut as the tag `v0.3.1-prealpha` on the commit that merges this text (the version
@@ -513,9 +643,11 @@ Numbers in parentheses are pull requests. The full list of open problems is
   games selling crossed items, the Happy Mask Shop crossing both ways, play in Termina and the Combo Item Tracker
   overlay in both games. The first-launch extraction was checked on 2026-10-16 (#945). The findings are filed
   (issues #962 to #971), none is a crash, and the ones a player sees are under Known limitations. Not played yet:
-  a crossing after quitting and relaunching the game or after a save made during play, the cross-game warp songs,
+  a crossing after quitting and relaunching the game or after a save made during play,
   "[Both Games] Shared Kokiri Sword" on, MM's game-over prompt, OoT's icon in MM's get-item textbox, and OpenGL
-  compared with DirectX 11. An earlier build's two findings (2026-10-09) are fixed (#887, #889, #895). Of the
+  compared with DirectX 11. (Corrected 2026-10-27: this list also named "the cross-game warp songs", which no code
+  implements; issue #1169 scopes them.) An earlier build's two findings (2026-10-09) are fixed (#887, #889, #895).
+  Of the
   2026-10-17 findings, the overlay's position and its Majora's Mask icons are fixed
   ([#962](https://github.com/spencerduncan/redshipblueship/issues/962),
   [#963](https://github.com/spencerduncan/redshipblueship/issues/963)), the boss remains and the Moon's Tear show
@@ -815,8 +947,9 @@ Numbers in parentheses are pull requests. The full list of open problems is
   Move or delete the older spoiler with the same seed name before you create the file
   ([#1055](https://github.com/spencerduncan/redshipblueship/issues/1055)).
 - The Item Tracker overlay's Shared column updates at a save or a crossing, not live (issue #971).
-- Not tested by anyone: cross-game warp songs, networking, OpenGL compared with DirectX 11, and a crossing after
-  quitting and relaunching the game or after a save made during play.
+- Not tested by anyone: networking, OpenGL compared with DirectX 11, and a crossing after
+  quitting and relaunching the game or after a save made during play. (Corrected 2026-10-27: this line also named
+  "cross-game warp songs", which no code implements; issue #1169 scopes them.)
 
 ## Open decisions (operator)
 
