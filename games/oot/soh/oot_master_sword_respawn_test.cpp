@@ -79,7 +79,7 @@ constexpr s16 kLastEntrance = ENTR_KOKIRI_FOREST_0;
 
 /** An adult Link on a fresh save of the given quest, holding no Master Sword
  *  (B empty) unless @p swordFound, standing in @p scene. */
-void Arm(bool rando, bool swordFound, s16 scene) {
+void MasterSwordRespawn_Arm(bool rando, bool swordFound, s16 scene) {
     std::memset(&gSaveContext, 0, sizeof(SaveContext));
     std::memset(gSaveContext.inventory.items, ITEM_NONE, sizeof(gSaveContext.inventory.items));
     gSaveContext.ship.quest.id = rando ? QUEST_RANDOMIZER : QUEST_NORMAL;
@@ -132,7 +132,7 @@ void RunLegs(Rando::Context& ctx) {
     // 1. #1218: Shuffle Master Sword on, the sword not found.
     ctx.GetOption(RSK_SHUFFLE_MASTER_SWORD).Set(RO_GENERIC_ON);
     for (const auto& s : kCollapseScenes) {
-        Arm(true, false, s.scene);
+        MasterSwordRespawn_Arm(true, false, s.scene);
         Play_LoadToLastEntrance(&sPlay);
         std::printf("[TEST] master-sword-respawn: shuffled and unfound, respawn from %s: owned=%d onB=%d next=0x%X\n",
                     s.name, SwordOwned() ? 1 : 0, SwordOnB() ? 1 : 0, (unsigned)(u16)sPlay.nextEntranceIndex);
@@ -147,7 +147,7 @@ void RunLegs(Rando::Context& ctx) {
     }
 
     // 2. Shuffle Master Sword on, the sword already found: vanilla's re-equip stays.
-    Arm(true, true, SCENE_GANON_BOSS);
+    MasterSwordRespawn_Arm(true, true, SCENE_GANON_BOSS);
     Play_LoadToLastEntrance(&sPlay);
     MSR_CHECK(SwordOwned() && SwordOnB(),
               "with the shuffled Master Sword already found, the respawn must put it back on B (owned=%d onB=%d)\n",
@@ -155,7 +155,7 @@ void RunLegs(Rando::Context& ctx) {
 
     // 3a. Randomizer save with Shuffle Master Sword off: unchanged vanilla give.
     ctx.GetOption(RSK_SHUFFLE_MASTER_SWORD).Set(RO_GENERIC_OFF);
-    Arm(true, false, SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR);
+    MasterSwordRespawn_Arm(true, false, SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR);
     Play_LoadToLastEntrance(&sPlay);
     MSR_CHECK(SwordOwned() && SwordOnB(),
               "with Shuffle Master Sword off the respawn must give the Master Sword (owned=%d onB=%d)\n",
@@ -163,13 +163,13 @@ void RunLegs(Rando::Context& ctx) {
 
     // 3b. A vanilla save, the option left on to prove it is not read there.
     ctx.GetOption(RSK_SHUFFLE_MASTER_SWORD).Set(RO_GENERIC_ON);
-    Arm(false, false, SCENE_GANONS_TOWER_COLLAPSE_INTERIOR);
+    MasterSwordRespawn_Arm(false, false, SCENE_GANONS_TOWER_COLLAPSE_INTERIOR);
     Play_LoadToLastEntrance(&sPlay);
     MSR_CHECK(SwordOwned() && SwordOnB(), "a vanilla save's respawn must give the Master Sword (owned=%d onB=%d)\n",
               SwordOwned() ? 1 : 0, SwordOnB() ? 1 : 0);
 
     // 4. Outside the collapse: no give, back to the last entrance.
-    Arm(false, false, SCENE_HYRULE_FIELD);
+    MasterSwordRespawn_Arm(false, false, SCENE_HYRULE_FIELD);
     Play_LoadToLastEntrance(&sPlay);
     MSR_CHECK(!SwordOwned() && !SwordOnB(), "a respawn outside the collapse must give nothing\n");
     MSR_CHECK(sPlay.nextEntranceIndex == kLastEntrance,
