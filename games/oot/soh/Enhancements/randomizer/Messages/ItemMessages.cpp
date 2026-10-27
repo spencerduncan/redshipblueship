@@ -505,6 +505,9 @@ static CustomMessage BuildMapMessageText(uint16_t getItemId) {
             sceneNum = SCENE_ICE_CAVERN;
             break;
     }
+    CustomMessage name =
+        CustomMessage(Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(getItemId)).GetName());
+    msg.Replace("[[name]]", name);
     if (ctx->GetOption(RSK_MQ_DUNGEON_RANDOM).Is(RO_MQ_DUNGEONS_NONE) ||
         (ctx->GetOption(RSK_MQ_DUNGEON_RANDOM).Is(RO_MQ_DUNGEONS_SET_NUMBER) &&
          ctx->GetOption(RSK_MQ_DUNGEON_COUNT).Is(12))) {
@@ -514,6 +517,7 @@ static CustomMessage BuildMapMessageText(uint16_t getItemId) {
     } else {
         msg.Replace("[[typeHint]]", Rando::StaticData::hintTextTable[RHT_DUNGEON_ORDINARY].GetHintMessage());
     }
+    msg.AutoFormat(ITEM_DUNGEON_MAP);
     return msg;
 }
 
