@@ -220,6 +220,168 @@ std::vector<CvarClassSourceFile> CvarClassSlurpTreeWithPaths(const std::filesyst
     return files;
 }
 
+// ---- (3f-2c) helpers: every scalar MM-row define is bound and read (#1233) ----
+
+/// @p text with every comment blanked (string and character literals kept, newlines kept), so a binding or a define
+/// spelled in prose is never counted as code.
+std::string CvarClassStripComments(const std::string& text) {
+    std::string out = text;
+    std::size_t i = 0;
+    while (i < out.size()) {
+        const char c = out[i];
+        if (c == '"' || c == '\'') {
+            for (i++; i < out.size() && out[i] != c && out[i] != '\n'; i++) {
+                if (out[i] == '\\') {
+                    i++;
+                }
+            }
+            i++;
+        } else if (c == '/' && i + 1 < out.size() && out[i + 1] == '/') {
+            for (; i < out.size() && out[i] != '\n'; i++) {
+                out[i] = ' ';
+            }
+        } else if (c == '/' && i + 1 < out.size() && out[i + 1] == '*') {
+            const std::size_t end = out.find("*/", i + 2);
+            const std::size_t stop = end == std::string::npos ? out.size() : end + 2;
+            for (; i < stop; i++) {
+                if (out[i] != '\n') {
+                    out[i] = ' ';
+                }
+            }
+        } else {
+            i++;
+        }
+    }
+    return out;
+}
+
+bool CvarClassIsIdentChar(char c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_';
+}
+
+/// Does @p text hold @p ident as a whole identifier anywhere in [begin, end)?
+bool CvarClassHasIdentIn(const std::string& text, const std::string& ident, std::size_t begin, std::size_t end) {
+    for (std::size_t p = text.find(ident, begin); p != std::string::npos && p + ident.size() <= end;
+         p = text.find(ident, p + 1)) {
+        const bool leftOk = p == 0 || !CvarClassIsIdentChar(text[p - 1]);
+        const bool rightOk = p + ident.size() >= text.size() || !CvarClassIsIdentChar(text[p + ident.size()]);
+        if (leftOk && rightOk) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// How many shared-menu rows in @p code (comment-stripped) bind @p define: `.CVar(DEFINE)`, a SohMenu page row's
+/// form, plus every `UIWidgets::CVar*(...)` call that passes DEFINE as an argument, a window row's form.
+int CvarClassCountMenuBindings(const std::string& code, const std::string& define) {
+    int count = 0;
+    const std::string pageForm = ".CVar(" + define + ")";
+    for (std::size_t p = code.find(pageForm); p != std::string::npos; p = code.find(pageForm, p + 1)) {
+        count++;
+    }
+    const std::string windowCall = "UIWidgets::CVar";
+    for (std::size_t p = code.find(windowCall); p != std::string::npos; p = code.find(windowCall, p + 1)) {
+        std::size_t q = p + windowCall.size();
+        while (q < code.size() && CvarClassIsIdentChar(code[q])) {
+            q++;
+        }
+        if (q >= code.size() || code[q] != '(') {
+            continue;
+        }
+        // The call's argument list, to its matching parenthesis (string literals skipped).
+        int depth = 0;
+        std::size_t close = std::string::npos;
+        for (std::size_t r = q; r < code.size(); r++) {
+            const char c = code[r];
+            if (c == '"') {
+                for (r++; r < code.size() && code[r] != '"'; r++) {
+                    if (code[r] == '\\') {
+                        r++;
+                    }
+                }
+            } else if (c == '(') {
+                depth++;
+            } else if (c == ')' && --depth == 0) {
+                close = r;
+                break;
+            }
+        }
+        if (close != std::string::npos && CvarClassHasIdentIn(code, define, q, close)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/// One `#define RSBS_CVAR_MM_<NAME> "<key>"`. @c key is empty when the define is not one string literal.
+struct CvarClassMmDefine {
+    std::string name;
+    std::string key;
+};
+
+/// Every RSBS_CVAR_MM_* define in @p keysText (comments ignored) whose name does not end in _PREFIX: the scalar MM-row
+/// keys. The _PREFIX family defines have their own legs (W6-HUD-A, W6-COS-A, W6-AUDIO-SEQ).
+std::vector<CvarClassMmDefine> CvarClassScalarMmDefines(const std::string& keysText) {
+    std::vector<CvarClassMmDefine> defines;
+    const std::string code = CvarClassStripComments(keysText);
+    const std::string marker = "#define RSBS_CVAR_MM_";
+    for (std::size_t p = code.find(marker); p != std::string::npos; p = code.find(marker, p + 1)) {
+        std::size_t nameEnd = p + std::strlen("#define ");
+        while (nameEnd < code.size() && CvarClassIsIdentChar(code[nameEnd])) {
+            nameEnd++;
+        }
+        CvarClassMmDefine d;
+        d.name = code.substr(p + std::strlen("#define "), nameEnd - p - std::strlen("#define "));
+        const std::string suffix = "_PREFIX";
+        if (d.name.size() >= suffix.size() &&
+            d.name.compare(d.name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            continue;
+        }
+        const std::size_t lineEnd = code.find('\n', nameEnd);
+        std::string value = code.substr(nameEnd, lineEnd == std::string::npos ? std::string::npos : lineEnd - nameEnd);
+        const std::size_t first = value.find_first_not_of(" \t\r");
+        const std::size_t last = value.find_last_not_of(" \t\r");
+        value = first == std::string::npos ? std::string() : value.substr(first, last - first + 1);
+        if (value.size() >= 2 && value.front() == '"' && value.back() == '"' &&
+            value.find('"', 1) == value.size() - 1) {
+            d.key = value.substr(1, value.size() - 2);
+        }
+        defines.push_back(d);
+    }
+    return defines;
+}
+
+/// The leg's verdicts, one line per breach: a scalar MM-row define that is not one literal, that is bound by no
+/// shared-menu row or by more than one under games/oot/soh (@p ootMenuCode, comment-stripped production sources), or
+/// whose key no file under games/mm spells as a literal (@p mmTree).
+std::vector<std::string> CvarClassScalarMmDefineBreaches(const std::vector<CvarClassMmDefine>& defines,
+                                                         const std::vector<std::string>& ootMenuCode,
+                                                         const std::vector<std::string>& mmTree) {
+    std::vector<std::string> breaches;
+    for (const CvarClassMmDefine& d : defines) {
+        if (d.key.empty()) {
+            breaches.push_back(d.name + " is not one string literal, so no lock can follow it");
+            continue;
+        }
+        int bindings = 0;
+        for (const std::string& code : ootMenuCode) {
+            bindings += CvarClassCountMenuBindings(code, d.name);
+        }
+        if (bindings != 1) {
+            breaches.push_back(d.name + " (\"" + d.key + "\") is bound by " + std::to_string(bindings) +
+                               " shared-menu rows under games/oot/soh, expected exactly one: .CVar(" + d.name +
+                               ") on a page row, or a UIWidgets::CVar* call passing it in a window");
+        }
+        if (!CvarClassTreeContainsExactKey(mmTree, d.key.c_str())) {
+            breaches.push_back(d.name + " (\"" + d.key +
+                               "\"): no file under games/mm reads the key as a literal, so "
+                               "its row would write a key nothing in Majora's Mask reads");
+        }
+    }
+    return breaches;
+}
+
 } // namespace
 #endif // RSBS_SOURCE_DIR
 
@@ -878,6 +1040,76 @@ TestResult Test_CVarClassification(void) {
                                     "(.CVar(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)), so the MM reader has no control");
             CVARCLASS_CHECK(CvarClassOotTreeNamesKey(sohGuiTree, kCvarClassDamageMultOot),
                             "#1037: SoH's own Damage Multiplier row no longer writes gEnhancements.DamageMult");
+        }
+
+        // (3f-2c) #1233, (3f-2b) made generic: EVERY scalar RSBS_CVAR_MM_* define in cvar_shared_keys.h (one whose
+        // name does not end in _PREFIX; the family defines have their own legs) is bound by exactly one shared-menu
+        // row under games/oot/soh, passed straight to .CVar(...) (a page row, the hosted-row seam's form) or to a
+        // UIWidgets::CVar* call (a window row), and its key is read under games/mm as a literal. A W6 lane commits its
+        // define before its row, so this leg is that lane's RED lock; a second row on one key, or a define whose MM
+        // reader is gone, is red here too. Tests and the UI snapshot harness are not menu rows and are not scanned.
+        {
+            bool sohOk = false;
+            const std::vector<CvarClassSourceFile> sohFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "oot" / "soh", sohOk);
+            CVARCLASS_CHECK(sohOk && !sohFiles.empty(), "could not scan games/oot/soh for the MM-row bindings");
+            std::vector<std::string> ootMenuCode;
+            for (const CvarClassSourceFile& f : sohFiles) {
+                const std::string& p = f.relPath;
+                const bool isTest =
+                    p.find("_test.") != std::string::npos || p.find("soh_ui_snapshot.cpp") != std::string::npos;
+                if (!isTest) {
+                    ootMenuCode.push_back(CvarClassStripComments(f.text));
+                }
+            }
+            std::ifstream keysFile(sourceRoot / "src" / "common" / "cvar_shared_keys.h", std::ios::binary);
+            const std::string keysText((std::istreambuf_iterator<char>(keysFile)), std::istreambuf_iterator<char>());
+
+            // The control, observed on every run: a synthetic define no row binds and no MM file reads must be
+            // reported (twice: no row, no reader), a define in a comment and a _PREFIX family define must not, and
+            // a define a window row binds the UIWidgets way must count as bound. Without it a green leg could be a
+            // scan that sees nothing.
+            {
+                const std::string controlKeys =
+                    "#define RSBS_CVAR_MM_RSBS_CLASS_CONTROL \"gEnhancements.RsbsClassificationControl\"\n"
+                    "#define RSBS_CVAR_MM_RSBS_CLASS_WINDOW \"gEnhancements.DifficultyOptions.DamageMultiplier\"\n"
+                    "#define RSBS_CVAR_MM_RSBS_CLASS_FAMILY_PREFIX \"gEnhancements.RsbsFamily.\"\n"
+                    "// #define RSBS_CVAR_MM_RSBS_CLASS_COMMENTED \"gEnhancements.RsbsCommented\"\n";
+                const std::vector<std::string> controlMenu = { CvarClassStripComments(
+                    "void Draw() {\n"
+                    "    UIWidgets::CVarCheckbox(\"Window Row\", RSBS_CVAR_MM_RSBS_CLASS_WINDOW,\n"
+                    "                            UIWidgets::CheckboxOptions().Tooltip(\"x (y).\"));\n"
+                    "    // menu.AddWidget(path, \"Prose\", "
+                    "WIDGET_CVAR_CHECKBOX).CVar(RSBS_CVAR_MM_RSBS_CLASS_CONTROL);\n"
+                    "}\n") };
+                const std::vector<CvarClassMmDefine> controlDefines = CvarClassScalarMmDefines(controlKeys);
+                CVARCLASS_CHECK(controlDefines.size() == 2,
+                                "(3f-2c) control: the define scan did not find exactly the two scalar synthetic "
+                                "defines (a _PREFIX family or a commented define was counted, or a real one missed)");
+                const std::vector<std::string> controlBreaches =
+                    CvarClassScalarMmDefineBreaches(controlDefines, controlMenu, mmTree);
+                bool namesControl = controlBreaches.size() == 2;
+                for (const std::string& b : controlBreaches) {
+                    namesControl = namesControl && b.find("RSBS_CVAR_MM_RSBS_CLASS_CONTROL") != std::string::npos;
+                }
+                CVARCLASS_CHECK(namesControl, "(3f-2c) control: the synthetic define with no row and no MM reader was "
+                                              "not reported exactly twice (or the window-bound one was reported), so "
+                                              "this leg's green would prove nothing");
+            }
+
+            const std::vector<CvarClassMmDefine> defines = CvarClassScalarMmDefines(keysText);
+            CVARCLASS_CHECK(!defines.empty(), "(3f-2c) found no scalar RSBS_CVAR_MM_* define in cvar_shared_keys.h "
+                                              "(RSBS_CVAR_MM_DAMAGE_MULTIPLIER is one), so the scan would be vacuous");
+            const std::vector<std::string> breaches = CvarClassScalarMmDefineBreaches(defines, ootMenuCode, mmTree);
+            for (const std::string& b : breaches) {
+                printf("[TEST] FAIL: (3f-2c) %s.\n"
+                       "[TEST]       An MM-row define is committed with its row (W6 rule 7a): bind it once, through\n"
+                       "[TEST]       the hosted-row seam or a UIWidgets::CVar* window call, in the same change.\n",
+                       b.c_str());
+            }
+            if (!breaches.empty()) {
+                return TEST_FAIL;
+            }
         }
 
         // (3f-3) Mapped is not live: the #966 key-gap rows whose provider is a RegisterShipInitFunc-only TU

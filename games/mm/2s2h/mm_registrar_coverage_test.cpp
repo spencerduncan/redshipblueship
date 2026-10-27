@@ -240,6 +240,13 @@
  * The whole SaveContext is saved first and copied back, and the "IS_RANDO" drive re-runs under the restored saveType,
  * so the phase is order-free.
  *
+ * THE W6 PHASES (#1233) -- ONE LIST, ONE CODE. The Majora's Mask enhancement settings lanes each link a batch of
+ * RegisterShipInitFunc-only TUs, the Phase 5-11 shape. Instead of a phase and a failure code each, a lane registers
+ * one SkipKeyProbe table in the self-registering W6 list (W6Phases, above Phase 4); ZeroW6PhaseKeys holds every key
+ * off before MM_Rando_Init, and RunW6PhaseList drives each table as Phases 5-9 do, failing with 18 and naming the
+ * phase and key. A synthetic phase whose key arms nothing is driven through the same code first, on every run, and
+ * must come back 18. Each table attributes its TUs by registry content, never by a symbol they define.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -333,6 +340,34 @@ template <typename H> size_t SettledCountForId(int32_t forId) {
     auto it = buckets.find(forId);
     return it == buckets.end() ? 0u : it->second.size();
 }
+
+// ---- W6 phases (#1233): the self-registering phase list -------------------
+// Each W6 lane that links MM enhancement TUs adds ONE probe table (Phase 5's SkipKeyProbe shape: a key, its row, and
+// per registry the TUs' summed registration count) and ONE static registration, at the anchor its brief names:
+//
+//     const std::vector<SkipKeyProbe>& TimesaverProbes() { static const std::vector<SkipKeyProbe> p = { ... }; ... }
+//     RegisterW6Phase sTimesaverPhase{ "W6-TIMESAVERS (#1236)", TimesaverProbes };
+//
+// and never edits the runner: ZeroW6PhaseKeys holds every registered key off before MM_Rando_Init, and RunW6Phases
+// drives each table exactly as Phases 5-9 do (key on, ShipInit::Init twice, exact deltas, key off), failing with one
+// code, 18, that names the phase and the key. A table registered before its TUs link is red, which is the lane's lock.
+struct SkipKeyProbe; // Phase 5's probe shape, defined below.
+
+struct W6Phase {
+    const char* name;
+    const std::vector<SkipKeyProbe>& (*probes)();
+};
+
+std::vector<W6Phase>& W6Phases() {
+    static std::vector<W6Phase> phases;
+    return phases;
+}
+
+struct RegisterW6Phase {
+    RegisterW6Phase(const char* name, const std::vector<SkipKeyProbe>& (*probes)()) {
+        W6Phases().push_back(W6Phase{ name, probes });
+    }
+};
 
 // The two CVar-gated OTHER ShouldActorInit[ACTOR_EN_ITEM00] registrants, forced
 // off so the probe can only be satisfied by CustomItem's unconditional one.
@@ -753,6 +788,107 @@ void ResetKeyGapKeys() {
     }
 }
 
+// ---- W6 phases (#1233): the zero and run helpers ---------------------------
+// The list itself is above Phase 4 (W6Phases). Both helpers take the list, so the control below can drive a synthetic
+// phase through the very code the registered ones go through.
+
+void ZeroW6PhaseKeys(const std::vector<W6Phase>& phases) {
+    for (const W6Phase& phase : phases) {
+        for (const auto& probe : phase.probes()) {
+            CVarSetInteger(probe.key, 0);
+        }
+    }
+}
+
+void ResetW6PhaseKeys(const std::vector<W6Phase>& phases) {
+    for (const W6Phase& phase : phases) {
+        for (const auto& probe : phase.probes()) {
+            CVarSetInteger(probe.key, 0);
+            ShipInit::Init(probe.key);
+        }
+    }
+    for (const W6Phase& phase : phases) {
+        for (const auto& probe : phase.probes()) {
+            for (const auto& reg : probe.registries) {
+                (void)reg.count();
+            }
+        }
+    }
+}
+
+/** Drive every probe of every phase as Phases 5-9 do. Returns 0, or 18 naming the phase and key (printed only when
+ *  @p report: the control expects its 18 and must not print a FAIL line). Leaves every key off and re-driven. */
+int RunW6Phases(const std::vector<W6Phase>& phases, bool report) {
+    for (const W6Phase& phase : phases) {
+        for (const auto& probe : phase.probes()) {
+            std::vector<size_t> before;
+            for (const auto& reg : probe.registries) {
+                before.push_back(reg.count());
+            }
+            CVarSetInteger(probe.key, 1);
+            ShipInit::Init(probe.key);
+            ShipInit::Init(probe.key);
+            for (size_t i = 0; i < probe.registries.size(); ++i) {
+                const auto& reg = probe.registries[i];
+                const size_t after = reg.count();
+                if (after != before[i] + reg.expected) {
+                    if (report) {
+                        printf("[TEST] FAIL(18): %s: %s went %zu -> %zu when %s was turned on and driven twice, "
+                               "expected exactly +%zu - the TU(s) behind the \"%s\" row are not in the link (a plain "
+                               "2ship_enh archive drops a TU whose only anchor is a RegisterShipInitFunc), or one "
+                               "stacks a registration per toggle, so the row SoH's menu draws does nothing or "
+                               "misbehaves in Majora's Mask (#1233)\n",
+                               phase.name, reg.what, before[i], after, probe.key, reg.expected, probe.row);
+                    }
+                    ResetW6PhaseKeys(phases);
+                    return 18;
+                }
+            }
+            CVarSetInteger(probe.key, 0);
+            ShipInit::Init(probe.key);
+            for (const auto& reg : probe.registries) {
+                (void)reg.count();
+            }
+        }
+    }
+    ResetW6PhaseKeys(phases);
+    return 0;
+}
+
+// The control's synthetic phase: a key no registrar is keyed on, claimed to arm one OnGameStateUpdate hook. The run
+// helper must refuse it with 18, or its green over the registered phases proves nothing.
+constexpr const char* kW6ControlKey = "gEnhancements.RsbsW6PhaseControl";
+
+const std::vector<SkipKeyProbe>& W6ControlProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { kW6ControlKey,
+          "Synthetic W6 Control",
+          { { "OnGameStateUpdate (no TU: the control)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnGameStateUpdate>(); }, 1 } } },
+    };
+    return probes;
+}
+
+/** The runner's one W6 call: the control first (a synthetic phase whose key arms nothing must come back 18, quietly),
+ *  then every registered phase. Returns 0 or 18. */
+int RunW6PhaseList() {
+    const std::vector<W6Phase> control = { W6Phase{ "W6 control (synthetic)", W6ControlProbes } };
+    const int controlRc = RunW6Phases(control, false);
+    CVarClear(kW6ControlKey);
+    if (controlRc != 18) {
+        printf("[TEST] FAIL(18): the W6 phase drive passed a synthetic phase whose key arms nothing (rc %d), so its "
+               "pass over the registered phases would prove nothing (#1233)\n",
+               controlRc);
+        return 18;
+    }
+    const int rc = RunW6Phases(W6Phases(), true);
+    if (rc == 0) {
+        printf("[TEST] W6 phases: the control was refused with 18; %zu registered phase(s) armed exactly their TUs\n",
+               W6Phases().size());
+    }
+    return rc;
+}
+
 // ---- Phase 12 (#1215, #1221): the rando-forced gates the link dropped ------
 // See PHASE 12 in the file header for the attribution of each bucket.
 struct RandoGateCounts {
@@ -917,6 +1053,8 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     for (const auto& probe : KeyGapProbes()) {
         CVarSetInteger(probe.key, 0);
     }
+    // The W6 phases (#1233): the same for every registered lane table.
+    ZeroW6PhaseKeys(W6Phases());
 
     // ---- Non-vacuity: every probed registry starts empty -------------------
     // If any of these is already populated, the "non-empty after" assertions
@@ -1243,6 +1381,11 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
         }
     }
     ResetKeyGapKeys();
+
+    // ---- #1233: the W6 phases, every registered lane table ------------------------
+    if (const int rc = RunW6PhaseList(); rc != 0) {
+        return rc;
+    }
 
     // ---- #1215, #1221: the rando-forced gates the link dropped -------------------
     // The whole SaveContext is saved and copied back, and the "IS_RANDO" drive

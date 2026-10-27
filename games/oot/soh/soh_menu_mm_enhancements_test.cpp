@@ -103,6 +103,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 
 #include "cvar_shared_keys.h"
 
@@ -254,6 +255,54 @@ bool PrintsIssueNumber(const char* text) {
 /** SoH's disabled tooltip around @p reason, exactly as MenuDrawItem builds one. */
 std::string SohDisabledShape(const char* reason) {
     return std::string("This setting is disabled because: \n\n- ") + reason;
+}
+
+// ---- Leg 9 (#1233): one hosted-row registry entry against a built menu -------
+/**
+ * Where @p h says its row is, is it there? On its header and sidebar, under its section (the nearest SEPARATOR_TEXT
+ * above it in its column, "" when none), and bound to its key (the row's .CVar) or to its accessor (no CVar at all).
+ * Returns "" when it is, else the reason. Shared by the registry walk and its control, so the control exercises the
+ * very check the walk relies on.
+ */
+std::string HostedRowVerdict(std::unordered_map<std::string, MainMenuEntry>& entries, const SohGui::HostedMmRow& h) {
+    const std::string where = h.header + " > " + h.sidebar;
+    if (!entries.contains(h.header) || !entries.at(h.header).sidebars.contains(h.sidebar)) {
+        return where + " was not built by this leg's probe (Settings, Enhancements and Dev Tools, SoH's builders that "
+                       "run ROM-free); a row hosted under another header needs that header's builder added to leg 9";
+    }
+    SidebarEntry& page = entries.at(h.header).sidebars.at(h.sidebar);
+    for (std::vector<WidgetInfo>& column : page.columnWidgets) {
+        std::string section;
+        for (WidgetInfo& row : column) {
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                section = row.name;
+            }
+            if (row.name != h.name || row.type == WIDGET_SEPARATOR_TEXT) {
+                continue;
+            }
+            if (section != h.section) {
+                return "\"" + h.name + "\" on " + where + " sits under \"" + section + "\", registered under \"" +
+                       h.section + "\"";
+            }
+            if (h.key != nullptr) {
+                if (row.cVar == nullptr || std::string(row.cVar) != h.key) {
+                    return "\"" + h.name + "\" on " + where + " is bound to \"" +
+                           std::string(row.cVar != nullptr ? row.cVar : "(no CVar)") + "\", registered to \"" + h.key +
+                           "\"";
+                }
+            } else if (h.accessor != nullptr) {
+                if (row.cVar != nullptr) {
+                    return "\"" + h.name + "\" on " + where + " binds the accessor " + h.accessor +
+                           " but also writes the CVar \"" + row.cVar + "\"";
+                }
+            } else {
+                return "\"" + h.name + "\" on " + where +
+                       " was registered with no binding: chain .CVar(key) or .Accessor(name) on the seam's handle";
+            }
+            return std::string();
+        }
+    }
+    return "no row named \"" + h.name + "\" on " + where;
 }
 
 // ---- Leg 7 (#747): a synthetic manifest with non-live rows -----------------
@@ -1040,6 +1089,52 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                    "%ld after row %ld)\n",
                    ambience, sfx);
         }
+    }
+
+    // ---- Leg 9 (#1233): every hosted MM row is where the registry says --------
+    // The hosted-row seam (SohGui/HostedMm/SohMenuHostedMm.h) records each MM row it adds to one of SoH's pages. This
+    // probe builds SoH's own Settings, Enhancements and Dev Tools pages, and every registered row must be found on its
+    // page, under its section, bound to its key or accessor. A page lane adds registry entries, never a leg here. The
+    // control first: the same verdict must refuse the damage row with a wrong section and with a wrong key.
+    {
+        MmEnhancementMenuProbe hostProbe;
+        hostProbe.AddMenuSettings();
+        hostProbe.AddMenuEnhancements();
+        hostProbe.AddMenuDevTools();
+        auto& hostEntries = hostProbe.Entries();
+
+        const SohGui::HostedMmRow* damage = nullptr;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.key != nullptr && std::string(h.key) == RSBS_CVAR_MM_DAMAGE_MULTIPLIER) {
+                damage = &h;
+            }
+        }
+        MME_CHECK(damage != nullptr && damage->header == "Enhancements" && damage->sidebar == "Difficulty" &&
+                      damage->section == "Health",
+                  "the hosted-row registry holds no Enhancements > Difficulty > Health row bound to %s after SoH's "
+                  "Enhancements page was built: #1037's row no longer goes through the seam, so nothing captures, "
+                  "hovers or lints it",
+                  RSBS_CVAR_MM_DAMAGE_MULTIPLIER);
+        if (damage != nullptr) {
+            SohGui::HostedMmRow wrongSection = *damage;
+            wrongSection.section = "Not The Health Section";
+            SohGui::HostedMmRow wrongKey = *damage;
+            wrongKey.key = RSBS_CVAR_VOLUME_SFX;
+            MME_CHECK(!HostedRowVerdict(hostEntries, wrongSection).empty() &&
+                          !HostedRowVerdict(hostEntries, wrongKey).empty(),
+                      "leg 9's verdict accepts the damage row under a wrong section or bound to a wrong key, so its "
+                      "green over the registry would prove nothing");
+        }
+
+        std::size_t checked = 0;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            const std::string why = HostedRowVerdict(hostEntries, h);
+            MME_CHECK(why.empty(), "hosted MM row: %s", why.c_str());
+            checked++;
+        }
+        printf("[TEST] leg 9: %zu hosted MM row(s) found on their SoH pages, under their sections, bound as "
+               "registered (the verdict refuses a wrong section and a wrong key)\n",
+               checked);
     }
 
     if (gFailures == 0) {

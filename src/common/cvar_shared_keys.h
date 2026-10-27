@@ -452,6 +452,27 @@ struct DistinctPair {
     const char* why;    ///< Why merging is wrong. Printed on failure.
 };
 
+/*
+ * W6 define slots (#1233). Each later W6 lane puts its RSBS_CVAR_MM_* defines on the lines directly after its own
+ * slot comment and nowhere else, so lanes that run side by side never edit the same lines. A scalar key gets a plain
+ * define, bound by exactly one shared-menu row and read under games/mm (the classification lock's leg 3f-2c); a key
+ * family MM composes by concatenation gets one define whose name ends in _PREFIX, locked by its lane's own leg.
+ */
+// W6-TIMESAVERS
+// W6-CYCLE-CHEATS
+// W6-PLAYER
+// W6-MASKS-SONGS
+// W6-CAM-GYRO
+// W6-GFX
+// W6-FIXES
+// W6-MODES-DIFF
+// W6-MINIGAMES
+// W6-TIMERS
+// W6-HUD-A
+// W6-COS-A
+// W6-AUDIO-SEQ
+// W6-DEV
+
 /**
  * MM's damage multiplier key (#1037). Held apart from SoH's gEnhancements.DamageMult (kMustStayDistinct below), so MM's
  * own row is hosted beside SoH's on Enhancements > Difficulty. games/oot may not spell the key as a literal (the
