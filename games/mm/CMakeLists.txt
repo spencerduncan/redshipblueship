@@ -571,6 +571,25 @@ if(SINGLE_EXECUTABLE_BUILD)
         # #1036 (Permanent Heart Loss, OnActorUpdate[PLAYER]; MM_RegisterPermanentHeartLoss is MM_-prefixed because OoT's
         # PermanentLosses.cpp has a same-named static registrar the CI symbol probe could not tell apart)
         "2s2h/Enhancements/DifficultyOptions/PermanentHeartLoss.cpp"
+        # W6-MODES-DIFF (#1236, #1240): MM's Modes, Difficulty and 'Other' TUs, each CVar drawn by an MM row on SoH's
+        # Enhancements pages (Extra Modes, Difficulty), and MirroredWorld.cpp, the translator that sets the key MM
+        # mirrors on from SoH's own Mirrored World row (kTranslatedKeys). Every hook they register is dispatched in
+        # the single exe; the bodies that read MM_gPlayState are guarded. DeleteFileOnDeath.cpp stays out
+        # (INTENTIONAL): it calls MM's SaveManager, which the single exe does not compile, and could delete only MM's
+        # half of a paired file.
+        "2s2h/Enhancements/Modes/MirroredWorld.cpp"
+        "2s2h/Enhancements/Modes/PlayAsKafei.cpp"
+        "2s2h/Enhancements/Modes/HyruleWarriorsStyledLink.cpp"
+        "2s2h/Enhancements/Modes/TimeMovesWhenYouMove.cpp"
+        "2s2h/Enhancements/DifficultyOptions/JinxedTimer.cpp"
+        "2s2h/Enhancements/DifficultyOptions/CustomBankRewardThresholds.cpp"
+        "2s2h/Enhancements/DifficultyOptions/DisableTakkuriSteal.cpp"
+        "2s2h/Enhancements/DifficultyOptions/DekuGuardSearchBalls.cpp"
+        "2s2h/Enhancements/DifficultyOptions/GibdoTradeSequenceOptions.cpp"
+        "2s2h/Enhancements/DifficultyOptions/HiddenGrottosVisibility.cpp"
+        "2s2h/Enhancements/Minigames/FrogChoirCount.cpp"
+        "2s2h/Enhancements/Minigames/CremiaHugs.cpp"
+        "2s2h/Enhancements/Items/AmmoBuyback.cpp"
         # #1038 (N64 Weird Frames, VB_LOAD_PLAYER_ANIMATION_FRAME from z_skelanime; OoT ships an identically named
         # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
         "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"

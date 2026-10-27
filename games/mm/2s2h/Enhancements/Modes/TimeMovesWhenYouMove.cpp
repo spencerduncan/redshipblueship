@@ -61,6 +61,8 @@ void RegisterTimeMovesWhenYouMove() {
     // });
 
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
+        // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         bool timeShouldMove = (player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) || player->speedXZ != 0.0f;
 

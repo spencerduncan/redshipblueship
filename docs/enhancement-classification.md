@@ -492,10 +492,10 @@ default (off).
 | `Masks` | 10 | Transformation masks, Bunny Hood persistence, Blast Mask |
 | `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
-| `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
+| `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…). Eight classified per key since W6-MODES-DIFF (#1236, below): seven rows and Delete File on Death (INTENTIONAL, no row) |
 | `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
-| `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
+| `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions**, but not a clean MM-only block: since W6-MODES-DIFF (#1236, below) three are (O) rows and Mirrored World's `.State` is translated from SoH's `gEnhancements.MirroredWorldMode` (`kTranslatedKeys`), with `.Mode` retired |
 | `gFixes.*` | 4 | MM-specific colour/Epona fixes |
 | `gWindows.*` | 23 | MM's own window-open namespace (OoT uses `gOpenWindows.*`) |
 | `gCollisionViewer.*` | 18 | MM collision viewer |
@@ -525,12 +525,39 @@ holds each binding.
 | `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
 | `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
 
+**W6-MODES-DIFF (#1236, #1240) — MM's Modes, Difficulty and 'Other' keys, linked and given rows or a ruling.** None of
+2Ship's Modes reached MM: Mirrored World was read (`gModes.MirroredWorld.State`, some thirty read sites) but only the
+excluded `BenMenu.cpp` wrote it, and the other three Modes TUs were not linked. The same held for 2Ship's Difficulty
+'Combat' and 'Other' rows. Twelve provider TUs and one new translator (`Modes/MirroredWorld.cpp`) are carved into
+`ship__Enh_registrars`, each hook body that reads the play state is guarded, and each key has one row below or a
+ruling. The registrar-coverage lock's W6-MODES-DIFF phase attributes each TU by registry content; the classification
+lock's leg 3f-2c holds each binding and leg 3f-3b the Mirrored World translation; the `MMMirroredWorld` row drives it.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gModes.MirroredWorld.State` | off | none: SoH's Mirrored World (Extra Modes) | translated (`kTranslatedKeys`). SoH's nine-mode `gEnhancements.MirroredWorldMode` is the one control; `Modes/MirroredWorld.cpp` sets `.State` when it changes and on each MM scene change. Off and Always map exactly; Random and Random (Seeded) per MM scene (seeded by the MM scene and the file: rando seed, else creation stamp); Dungeons and Dungeons (Vanilla) mirror MM's four temples and their lairs; Dungeons (MQ) never mirrors in MM (no Master Quest: the one mode with no MM meaning); the Dungeons Random modes add the coin. It is the only MM writer of `.State` |
+| `gModes.MirroredWorld.Mode` | off | none | RETIRED. 2Ship's on/off checkbox; nothing in the single exe reads or writes it (leg 3f-3b), and SoH's row replaces it |
+| `gModes.PlayAsKafei` | off | Play as Kafei (Extra Modes, Majora's Mask block) | (O) MM-only. Swaps MM's cached `gLinkHumanSkel` for Kafei's only from MM's own scene-destroy hook, or at MM's boot with no scene, so it edits MM's cache owner's copy (#981) and never a copy drawn by Ocarina of Time; it takes effect at the next MM scene change, and turning it off puts Link back at the next one |
+| `gModes.HyruleWarriorsStyledLink` | off | Hyrule Warriors Styled Link (likewise) | (O) MM-only. Draws MM's own mask display lists from MM's player-limb hook, under MM's cache owner |
+| `gModes.TimeMovesWhenYouMove` | off | Time Moves When You Move (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.JinxedTimer` | 60 | Jinxed Timer (Difficulty, Majora's Mask block after Enemies) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.LowerBankRewardThresholds` | off | Lower Bank Reward Thresholds (likewise) | (O) MM-only. This row owns the key; W6-TIMESAVERS' `AutoBankDeposit.cpp` also reads it (default off) |
+| `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | off | Disable Takkuri Steal (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.DekuGuardSearchBalls` | Night Only | Deku Guard Search Balls (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.GibdoTradeSequence` | Vanilla | Gibdo Trade Sequence Options (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.HiddenGrottosVisibility` | Off | Hidden Grottos Visibility (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.FrogChoirCount` | 5 | Frog Choir Count (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.DeleteFileOnDeath` | off | none | INTENTIONAL, no row. A paired file is one game, so a death may delete only the whole paired save; 2Ship's `DeleteFileOnDeath.cpp` deletes MM's own slot through MM's SaveManager, which the single exe does not compile, so the TU stays unlinked. SoH's own Delete File on Death acts on Ocarina of Time deaths only |
+| `gEnhancements.Minigames.CremiaHugs` | Vanilla | Milk Run Reward Options (Difficulty, Majora's Mask block) | (O) MM-only; from 2Ship's 'Other' block, no nearer SoH relative |
+| `gEnhancements.Items.AmmoBuyback` | Vanilla | Ammo Buyback Options (likewise) | (O) MM-only; from 2Ship's 'Other' block. The ammo sold is the shared count, so a sale in Termina spends Hyrule's too: one pool, one game |
+
 ### 6.2 OoT-only (category level)
 
 Dungeon/trade/age machinery with no MM counterpart: `gRandoSettings.*` (232),
 `gTrackers.*` (78), `gGeneral.*` (21), `gGameplayStats.*`, `gTimeDisplay.*`,
 `gRemote.*` (Crowd Control / Sail / Anchor), plus within `gEnhancements.*`:
-`RandomizedEnemyList` (62), `ExtraTraps` (11), `OcarinaGame` (5), `MirroredWorld*`,
+`RandomizedEnemyList` (62), `ExtraTraps` (11), `OcarinaGame` (5), `MirroredWorld` (the per-scene state OoT acts on;
+`MirroredWorldMode` drives both games since W6-MODES-DIFF, §6.1),
 `TimeTravel`, `BetaQuest*`, and within `gCheats.*`: `SaveStates*`, `EasyPauseBuffer`,
 `EasyInputBuffer`, `EasyQPA`, `SpeedModifier.*`, `SuperTunic`, `TimelessEquipment`,
 `InfiniteEponaBoost`, `InfiniteNayru`, `NoRedeadFreeze`, `FireproofDekuShield`, and ~20 more.

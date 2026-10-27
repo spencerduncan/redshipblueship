@@ -265,6 +265,8 @@ static void HandleInput(EnFsn* enFsn, PlayState* play) {
 }
 
 static void Resolve(EnFsn* enFsn, bool* shouldGiveItem) {
+    // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
     if (enFsn->actionFunc == EnFsn_GiveItem) {
         *shouldGiveItem = false;
 
@@ -369,6 +371,8 @@ static void GenerateBuybackDialogue(u16* textId, bool* loadFromMessageTable) {
 static void UpdateBuybackInteraction(Actor* actor) {
     EnFsn* enFsn = (EnFsn*)actor;
     PlayState* play = MM_gPlayState;
+    // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+    RSBS_SINGLE_EXE_REQUIRE(play != NULL);
 
     if (enFsn->actionFunc == EnFsn_StartBuying) {
         HandleStart(enFsn, play);
