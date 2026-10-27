@@ -526,6 +526,14 @@ struct DistinctPair {
 // W6-COS-A
 // W6-AUDIO-SEQ
 // W6-DEV
+// W6-DEV (#1238, #1240): MM's developer switches, each written by one hosted row on SoH's Dev Tools > General
+// (SohGui/HostedMm/SohMenuHostedMmDevTools.cpp). Better Map Select sits beside SoH's Better Debug Warp Screen (MM's
+// map select is its own screen, default off); the Prevent switches and Disable Object Dependency have no OoT twin.
+#define RSBS_CVAR_MM_BETTER_MAP_SELECT "gDeveloperTools.BetterMapSelect.Enabled"
+#define RSBS_CVAR_MM_PREVENT_ACTOR_UPDATE "gDeveloperTools.PreventActorUpdate"
+#define RSBS_CVAR_MM_PREVENT_ACTOR_DRAW "gDeveloperTools.PreventActorDraw"
+#define RSBS_CVAR_MM_PREVENT_ACTOR_INIT "gDeveloperTools.PreventActorInit"
+#define RSBS_CVAR_MM_DISABLE_OBJECT_DEPENDENCY "gDeveloperTools.DisableObjectDependency"
 
 /**
  * MM's damage multiplier key (#1037). Held apart from SoH's gEnhancements.DamageMult (kMustStayDistinct below), so MM's
