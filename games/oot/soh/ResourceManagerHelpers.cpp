@@ -7,6 +7,7 @@
 #include "Enhancements/randomizer/dungeon.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include <libultraship/libultraship.h>
+#include <spdlog/spdlog.h>
 #include <soh/GameVersions.h>
 #include "resource/type/SohResourceType.h"
 #include "resource/type/Array.h"
@@ -459,6 +460,15 @@ extern "C" Gfx* ResourceMgr_LoadGfxByName(const char* path) {
     ResourceMgr_UnloadOriginalWhenAltExists(path);
 
     auto res = std::static_pointer_cast<Fast::DisplayList>(ResourceMgr_GetResourceByNameHandlingMQ(path));
+    if (res == nullptr) {
+        // Diagnostic only (#1190): the dereference below still faults, but a
+        // release crash now names the display list that did not load. The
+        // return is not softened on purpose: a caller's skeleton limb still
+        // takes a matrix slot in SkelAnime_DrawFlexLod, so a silent empty list
+        // would turn a clean fault into per-frame corruption.
+        SPDLOG_ERROR("ResourceMgr_LoadGfxByName: display list '{}' did not load", path != nullptr ? path : "(null)");
+        spdlog::default_logger()->flush();
+    }
     return (Gfx*)&res->Instructions[0];
 }
 

@@ -3111,6 +3111,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # asserts the per-archive 'Array' slot routes each to the right reader. A
     # removed Array dispatcher turns it red in CI. Never skips.
     redship_add_test(NAME ArrayReaderDispatch COMMAND redship --test array-reader-dispatch)
+    # #1190: Fast64 marks a mesh-less limb DisplayList1="gEmptyDL"; SoH's XML
+    # limb factory must leave its display list null (the #53 namespacing pass
+    # had rewritten the compared literal, and every such custom skeleton faulted
+    # at its first draw). The factory alone, then a staged loose-folder skeleton
+    # through the loader: the root has no display list and the limbs with one
+    # number DisplayListCount. ROM-free, never skips;
+    # games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp.
+    redship_add_test(NAME XmlSkeletonEmptyLimb COMMAND redship --test xml-skeleton-empty-limb)
     # Lane W5: the Combo > Save Files page's model (each .redsave slot's state in
     # the player's words, which replaces the never-constructed ComboMenuBar
     # panel): every refusal reason's words, a toast's words where one was posted,
