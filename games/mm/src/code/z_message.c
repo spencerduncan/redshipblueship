@@ -3698,36 +3698,44 @@ u16 D_801D028C[] = {
 
 u16 sOcarinaSongFlagsMap[] = { 1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80, 0x100, 0x200, 0x400, 0x800 };
 
+// #region RSBS: the playable-song mask, factored out of Message_DisplayOcarinaStaffImpl unchanged (same
+// order, same s32 arithmetic) so a ROM-free row can read what free play accepts from the quest bits.
+u32 MM_Message_BuildOcarinaAvailableSongs(void) {
+    s32 availableSongs = 0;
+    u32 i;
+
+    for (i = 0; i <= (QUEST_SONG_SUN - QUEST_SONG_SONATA); i++) {
+        if (CHECK_QUEST_ITEM(QUEST_SONG_SONATA + i)) {
+            availableSongs = availableSongs | sOcarinaSongFlagsMap[i];
+        }
+    }
+
+    if (CHECK_QUEST_ITEM(QUEST_SONG_TIME)) {
+        availableSongs |= 0x3000;
+    }
+    if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY_INTRO)) {
+        availableSongs |= 0x4000;
+    }
+    if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY)) {
+        availableSongs &= (u16)~0x4000;
+    }
+    if (gSaveContext.save.saveInfo.scarecrowSpawnSongSet) {
+        availableSongs |= 0x400000;
+    }
+    if (CHECK_EVENTINF(EVENTINF_31)) {
+        availableSongs |= 0x800000;
+    }
+    return (u32)availableSongs;
+}
+// #endregion
+
 void Message_DisplayOcarinaStaffImpl(PlayState* play, u16 ocarinaAction) {
     MessageContext* msgCtx = &play->msgCtx;
     s16 j;
     s16 noStop;
     s32 k;
-    u32 i;
 
-    msgCtx->ocarinaAvailableSongs = 0;
-
-    for (i = msgCtx->ocarinaAvailableSongs; i <= (QUEST_SONG_SUN - QUEST_SONG_SONATA); i++) {
-        if (CHECK_QUEST_ITEM(QUEST_SONG_SONATA + i)) {
-            msgCtx->ocarinaAvailableSongs = msgCtx->ocarinaAvailableSongs | sOcarinaSongFlagsMap[i];
-        }
-    }
-
-    if (CHECK_QUEST_ITEM(QUEST_SONG_TIME)) {
-        msgCtx->ocarinaAvailableSongs |= 0x3000;
-    }
-    if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY_INTRO)) {
-        msgCtx->ocarinaAvailableSongs |= 0x4000;
-    }
-    if (CHECK_QUEST_ITEM(QUEST_SONG_LULLABY)) {
-        msgCtx->ocarinaAvailableSongs &= (u16)~0x4000;
-    }
-    if (gSaveContext.save.saveInfo.scarecrowSpawnSongSet) {
-        msgCtx->ocarinaAvailableSongs |= 0x400000;
-    }
-    if (CHECK_EVENTINF(EVENTINF_31)) {
-        msgCtx->ocarinaAvailableSongs |= 0x800000;
-    }
+    msgCtx->ocarinaAvailableSongs = (s32)MM_Message_BuildOcarinaAvailableSongs();
 
     msgCtx->ocarinaStaff = AudioOcarina_GetRecordingStaff();
 

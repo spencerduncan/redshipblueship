@@ -494,7 +494,15 @@ void EnMnk_Destroy(Actor* thisx, PlayState* play) {
 
     MM_Collider_DestroyCylinder(play, &this->collider);
     if ((MONKEY_GET_TYPE(&this->picto.actor) == MONKEY_TIED_UP) && (this->flags & MONKEY_FLAGS_2000)) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1203: the give alone asks; rando answers false (Rando/ActorBehavior/EnMnk.cpp),
+        // and the instrument reset below stays unconditional.
+        if (GameInteractor_Should(VB_GIVE_ITEM_FROM_MNK_ON_DESTROY, true, this)) {
+            MM_Item_Give(play, ITEM_SONG_SONATA);
+        }
+#else
         MM_Item_Give(play, ITEM_SONG_SONATA);
+#endif
         CLEAR_EVENTINF(EVENTINF_24);
     }
 }
