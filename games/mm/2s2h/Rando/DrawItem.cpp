@@ -195,6 +195,15 @@ void DrawOwlStatue() {
     MM_Gfx_DrawDListOpa(MM_gPlayState, (Gfx*)gOwlStatueOpenedDL);
 }
 
+// #1172: the dungeon key model for `randoItemId`: the body and emblem display
+// lists (resource paths), or 0 when the key draws its vanilla tinted model.
+extern "C" int MM_Rando_UniqueKeyModel(uint16_t randoItemId, const char** body, const char** emblem) {
+    (void)randoItemId;
+    *body = NULL;
+    *emblem = NULL;
+    return 0;
+}
+
 static Gfx gGiSmallKeyCopyDL[75];
 
 void DrawSmallKey(RandoItemId randoItemId) {
