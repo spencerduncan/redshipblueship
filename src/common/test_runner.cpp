@@ -8710,6 +8710,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
+                strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
