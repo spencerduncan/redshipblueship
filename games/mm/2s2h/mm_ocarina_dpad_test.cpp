@@ -141,9 +141,18 @@ PressResult Press(u16 buttons) {
     return r;
 }
 
+/** Starts free play the way the message layer does, then idles with nothing
+ *  held, as the game does while the staff opens. The idle frames matter: a
+ *  matched song disables input on its last note, so the reader, the held note
+ *  and sPrevOcarinaPitch are still that note's; without a fresh read a song
+ *  whose first note repeats the last song's last note loses that note (it is
+ *  not a "new" pitch). */
 void StartFreePlay(u32 songMask) {
     MM_sOcarinaDropInputTimer = 0;
     AudioOcarina_StartDefault(songMask | kFreePlay);
+    for (int i = 0; i < kReleaseFrames; i++) {
+        Frame(0);
+    }
 }
 
 int Fail(int code, const char* msg) {
