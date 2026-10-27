@@ -1590,7 +1590,11 @@ nlohmann::json CrossingStoreSpoilerSection() {
                 continue;
             }
             const char* hostName = Combo_DescribeCheckName(list.host, c.hostCheck);
+            // itemName is the origin's describer name (MM's 1-bombchu pack is
+            // "Bombchu"); displayName is what the panes print (#1160: "1 Bombchu").
+            // The load below reads neither (#1200).
             const char* itemName = Combo_DescribeItemName(c.item);
+            const char* displayName = Combo_GetForeignItemName(c.item);
             rows.push_back({
                 { "host", CrossingGameKey(list.host) },
                 { "hostCheck", c.hostCheck },
@@ -1598,6 +1602,7 @@ nlohmann::json CrossingStoreSpoilerSection() {
                 { "origin", CrossingGameKey(c.item.originGame) },
                 { "itemId", c.item.id },
                 { "itemName", itemName != nullptr ? nlohmann::json(itemName) : nlohmann::json(nullptr) },
+                { "displayName", displayName != nullptr ? nlohmann::json(displayName) : nlohmann::json(nullptr) },
                 { "itemClass", c.itemClass },
                 { "flags", c.item.flags },
             });
