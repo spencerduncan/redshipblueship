@@ -804,11 +804,8 @@ extern "C" {
 
 // MM sequence replacement (W6-AUDIO-SEQ, #1239): the lookup MM's audio core calls answers from MM's own namespaced
 // replacement keys, never SoH's, and SoH's randomize combobox reaches MM. C entry point in
-// games/mm/2s2h/mm_audio_editor_test.cpp; returns 0 on pass, non-zero on fail.
+// games/mm/2s2h/mm_audio_editor_test.cpp; returns 0 on pass, non-zero on fail. Wrapper: beside mm-hud-editor-reader.
 extern "C" int MM_AudioEditorReplacement_RunHeadless(void);
-static TestResult Test_MMAudioEditorReplacement(void) {
-    return MM_AudioEditorReplacement_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
-}
 
 // OoT pause-menu item age table bounds (#983). Included at FILE SCOPE: it reads
 // the entry count z_kaleido_scope_PAL.c exports for it, declared in its own
@@ -1415,6 +1412,17 @@ static TestResult Test_MMHudEditorReader(void) {
         return TEST_FAIL;
     }
     return MM_HudEditorReader_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM sequence replacement (W6-AUDIO-SEQ, see the extern decl beside seq-map-bounds). The display-free shared
+// bring-up, because the row writes and clears MM's and SoH's gAudioEditor.* keys.
+static TestResult Test_MMAudioEditorReplacement(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_AudioEditorReplacement_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
