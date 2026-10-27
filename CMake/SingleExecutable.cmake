@@ -571,6 +571,11 @@ if(BUILD_TESTING)
     # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
     # int-gameplay-roundtrip on the OoT->MM leg).
     redship_add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
+    # MM HUD placement reader (W6-HUD-A, #1239). 2Ship's HUD editor is excluded, and the
+    # linked stand-ins answered "vanilla" to every MM HUD draw. Drives the ported reader
+    # with the B button's keys (overridden, moved, scaled, hidden), the next-element
+    # override, an element with no row, and the three presets. ROM-free, display-free.
+    redship_add_test(NAME MMHudEditorReader COMMAND redship --test mm-hud-editor-reader)
     # Cross-game CVar classification lock (#34). Keeps ADR 0003 and
     # docs/enhancement-classification.md from decaying into prose: fails when a
     # converged key diverges again, OR when a key the inventory marks per-game
@@ -1111,6 +1116,9 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # MM sequence replacement (W6-AUDIO-SEQ, #1239): MM's lookup answers from MM's namespaced replacement keys, a
+    # colliding sfxKey under SoH's spelling leaves MM alone, and SoH's randomize combobox reaches MM's hooks. ROM-free.
+    redship_add_test(NAME MMAudioEditorReplacement COMMAND redship --test mm-audio-editor-replacement)
     # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
     # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
     # the table held the 86 vanilla entries. Asserts the count the defining TU

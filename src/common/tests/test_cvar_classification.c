@@ -35,6 +35,7 @@
  * files in this directory.
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -43,6 +44,7 @@
 #include <vector>
 
 #include "cvar_shared_keys.h"
+#include "mm_hud_editor_elements.h" // W6-HUD-A: the HUD-editor family leg (3d-3)
 
 // Defined in games/oot/soh/config/ConfigUpdaters.cpp. Declared here rather than
 // included so redship_common does not take a header dependency on OoT's config
@@ -488,6 +490,11 @@ constexpr CvarClassTranslatedRow kCvarClassTranslatedRows[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
     { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Scale", "gAudioEditor.LinkVoiceFreqMultiplier",
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
+    // W6-AUDIO-SEQ (#1239): SoH's five-way randomize-audio combobox drives MM's two randomize-all bools.
+    { 1239, "gAudioEditor.RandomizeAllOnNewScene", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp" },
+    { 1239, "gAudioEditor.RandomizeAllOnRandoGen", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp" },
 };
 
 /// #1060's linked read sites: each must call the translator's tier.
@@ -929,6 +936,133 @@ TestResult Test_CVarClassification(void) {
                                           "with them rather than leaving a check that examines nothing");
         }
 
+        // (3d-3) W6-HUD-A (#1239): MM's HUD placement family. One define, RSBS_CVAR_MM_HUD_EDITOR_PREFIX, and one
+        // table, RSBS_MM_HUD_EDITOR_ELEMENTS (src/common/mm_hud_editor_elements.h), from which the Majora's Mask
+        // section of SoH's Cosmetics Editor composes every key it writes. (3f-2c) skips _PREFIX families; this holds
+        // this one:
+        //   - every table element's Mode, Position.X, Position.Y and Scale key, composed from the prefix, is exactly
+        //     the key MM's reader reads for it (hudEditorElements, through MM_HudEditor_TableKey), so a row never
+        //     writes a key the reader does not read;
+        //   - every element MM's HUD draws name (a HUD_EDITOR_ELEMENT_* token outside BenGui, which owns the enum and
+        //     2Ship's unlinked window) is in the table or on W6-HUD-B's pending list, and never on both;
+        //   - games/oot composes the keys from the prefix and never spells "gHudEditor." itself.
+        {
+            struct CvarClassHudRow {
+                const char* id;
+                const char* key;
+            };
+#define CVARCLASS_HUD_ROW(id, key, label, x, y, ws) { #id, key },
+            static const CvarClassHudRow kHudRows[] = { RSBS_MM_HUD_EDITOR_ELEMENTS(CVARCLASS_HUD_ROW) };
+#undef CVARCLASS_HUD_ROW
+            // W6-HUD-B (#1239): the elements MM's draws name that have no row yet. Each leaves this list in the
+            // change that adds its table row.
+            static const char* const kHudPendingIds[] = {
+                "HUD_EDITOR_ELEMENT_CARROT",           "HUD_EDITOR_ELEMENT_CLOCK",
+                "HUD_EDITOR_ELEMENT_HEARTS",           "HUD_EDITOR_ELEMENT_MAGIC_METER",
+                "HUD_EDITOR_ELEMENT_TIMERS",           "HUD_EDITOR_ELEMENT_TIMERS_MOON_CRASH",
+                "HUD_EDITOR_ELEMENT_MINIGAME_COUNTER", "HUD_EDITOR_ELEMENT_RUPEE_COUNTER",
+                "HUD_EDITOR_ELEMENT_KEY_COUNTER",      "HUD_EDITOR_ELEMENT_SKULLTULA_COUNTER",
+            };
+            struct CvarClassHudField {
+                int which;
+                const char* suffix;
+            };
+            static const CvarClassHudField kHudFields[] = {
+                { RSBS_MM_HUD_KEY_MODE, ".Mode" },
+                { RSBS_MM_HUD_KEY_POSITION_X, ".Position.X" },
+                { RSBS_MM_HUD_KEY_POSITION_Y, ".Position.Y" },
+                { RSBS_MM_HUD_KEY_SCALE, ".Scale" },
+            };
+            CVARCLASS_CHECK(std::strcmp(RSBS_CVAR_MM_HUD_EDITOR_PREFIX, "gHudEditor.") == 0,
+                            "(3d-3) RSBS_CVAR_MM_HUD_EDITOR_PREFIX is not \"gHudEditor.\", the prefix MM's "
+                            "HUD_EDITOR_ELEMENT composes (2s2h/BenGui/HudEditor.h)");
+            const int hudRowCount = (int)(sizeof(kHudRows) / sizeof(kHudRows[0]));
+            for (int r = 0; r < hudRowCount; r++) {
+                for (const CvarClassHudField& field : kHudFields) {
+                    const std::string composed =
+                        std::string(RSBS_CVAR_MM_HUD_EDITOR_PREFIX) + kHudRows[r].key + field.suffix;
+                    const char* reader = MM_HudEditor_TableKey(r, field.which);
+                    if (reader == nullptr || composed != reader) {
+                        printf("[TEST] FAIL: (3d-3) %s: the shared menu writes \"%s\", MM's reader reads %s%s%s.\n"
+                               "[TEST]       The Majora's Mask HUD Placement row would move a key nothing in MM "
+                               "reads. hudEditorElements must be\n"
+                               "[TEST]       built from RSBS_MM_HUD_EDITOR_ELEMENTS (games/mm/2s2h/"
+                               "mm_hudeditor_stubs.c).\n",
+                               kHudRows[r].id, composed.c_str(), reader == nullptr ? "" : "\"",
+                               reader == nullptr ? "nothing" : reader, reader == nullptr ? "" : "\"");
+                        return TEST_FAIL;
+                    }
+                }
+                for (const char* pending : kHudPendingIds) {
+                    if (std::strcmp(pending, kHudRows[r].id) == 0) {
+                        printf("[TEST] FAIL: (3d-3) %s has a table row and is still on W6-HUD-B's pending list; take "
+                               "it off the list.\n",
+                               pending);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+
+            bool hudPathsOk = false;
+            const std::vector<CvarClassSourceFile> hudFiles =
+                CvarClassSlurpTreeWithPaths(sourceRoot / "games" / "mm", hudPathsOk);
+            CVARCLASS_CHECK(hudPathsOk && !hudFiles.empty(), "(3d-3) could not re-scan games/mm with paths");
+            const std::string token = "HUD_EDITOR_ELEMENT_";
+            int drawSiteTokens = 0;
+            for (const CvarClassSourceFile& f : hudFiles) {
+                if (f.relPath.rfind("2s2h/BenGui/", 0) == 0) {
+                    continue;
+                }
+                const std::string code = CvarClassStripComments(f.text);
+                for (std::size_t p = code.find(token); p != std::string::npos; p = code.find(token, p + 1)) {
+                    if (p > 0 && CvarClassIsIdentChar(code[p - 1])) {
+                        continue;
+                    }
+                    std::size_t end = p + token.size();
+                    while (end < code.size() && CvarClassIsIdentChar(code[end])) {
+                        end++;
+                    }
+                    const std::string name = code.substr(p, end - p);
+                    if (name.rfind("HUD_EDITOR_ELEMENT_MODE_", 0) == 0 || name == "HUD_EDITOR_ELEMENT_NONE" ||
+                        name == "HUD_EDITOR_ELEMENT_MAX") {
+                        continue;
+                    }
+                    bool known = false;
+                    for (const CvarClassHudRow& row : kHudRows) {
+                        known = known || name == row.id;
+                    }
+                    for (const char* pending : kHudPendingIds) {
+                        known = known || name == pending;
+                    }
+                    if (!known) {
+                        printf("[TEST] FAIL: (3d-3) games/mm/%s draws the HUD element %s, which is neither in "
+                               "RSBS_MM_HUD_EDITOR_ELEMENTS nor on W6-HUD-B's pending list: its draw would ignore\n"
+                               "[TEST]       the HUD Placement section. Add its row to "
+                               "src/common/mm_hud_editor_elements.h.\n",
+                               f.relPath.c_str(), name.c_str());
+                        return TEST_FAIL;
+                    }
+                    drawSiteTokens++;
+                }
+            }
+            CVARCLASS_CHECK(drawSiteTokens > 0, "(3d-3) found no HUD_EDITOR_ELEMENT_* draw site under games/mm: the "
+                                                "draw-site check passed vacuously");
+
+            CVARCLASS_CHECK(!CvarClassTreeContainsLiteral(ootTree, RSBS_CVAR_MM_HUD_EDITOR_PREFIX),
+                            "(3d-3) games/oot spells \"gHudEditor.\" as a literal; compose MM's HUD placement keys "
+                            "from RSBS_CVAR_MM_HUD_EDITOR_PREFIX");
+            bool ootComposes = false;
+            for (const std::string& text : ootTree) {
+                ootComposes = ootComposes || text.find("RSBS_CVAR_MM_HUD_EDITOR_PREFIX") != std::string::npos;
+            }
+            CVARCLASS_CHECK(ootComposes, "(3d-3) nothing under games/oot composes a key from "
+                                         "RSBS_CVAR_MM_HUD_EDITOR_PREFIX: the Majora's Mask HUD Placement section in "
+                                         "SoH's Cosmetics Editor is missing, so no row writes MM's HUD placement keys");
+            printf("[TEST] (3d-3) %d HUD-editor elements: each key composed from the prefix is the key MM's reader "
+                   "reads, and all %d draw-site element names are in the table or pending\n",
+                   hudRowCount, drawSiteTokens);
+        }
+
         // (3e) The deliberate cheat sharing survives. Both documents warn
         // against "fixing" this; here the warning is enforced.
         for (std::size_t i = 0; i < RSBS::kDeliberateSharedCheatKeyCount; i++) {
@@ -975,6 +1109,139 @@ TestResult Test_CVarClassification(void) {
                        canonical, probe);
                 return TEST_FAIL;
             }
+        }
+
+        // (3f-1b) W6-AUDIO-SEQ (#1239): MM's sequence-editor key families never land on SoH's. Both editors compose a
+        // replacement as <family><sfxKey>.value / .locked and a shuffle-pool exclusion as <family><sfxKey>, and eleven
+        // sfxKeys name a sequence in both games (NA_BGM_BOSS, NA_BGM_MINI_BOSS, NA_BGM_ENEMY, ...), so one spelling
+        // would let either game's tab set the other game's music. The colliding set is derived from the two sequence
+        // tables, so a key either game adds is covered with no edit here. For each, MM's composed keys must differ
+        // from SoH's and neither may nest under the other (LUS stores CVars as dot-nested JSON). MM's collection must
+        // compose every key from the two _PREFIX defines (a CVAR_AUDIO("ReplacedSequences.") or CVAR_AUDIO("Excluded.")
+        // spelling survives only on a #define line, the upstream branch), and games/oot never spells MM's namespace.
+        {
+            const std::string sohReplaced = "gAudioEditor.ReplacedSequences.";
+            const std::string sohExcluded = "gAudioEditor.Excluded.";
+            const std::string mmReplaced = RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX;
+            const std::string mmExcluded = RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX;
+            auto readFile = [](const std::filesystem::path& file) {
+                std::ifstream in(file, std::ios::binary);
+                return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            };
+            // The second string literal of every SEQUENCE_MAP_ENTRY(...) row (the macro's own #define is skipped).
+            auto sfxKeysOf = [](const std::string& text) {
+                std::vector<std::string> keys;
+                const std::string token = "SEQUENCE_MAP_ENTRY(";
+                for (std::size_t pos = text.find(token); pos != std::string::npos; pos = text.find(token, pos + 1)) {
+                    const std::size_t nl = text.rfind('\n', pos);
+                    const std::size_t lineStart = nl == std::string::npos ? 0 : nl + 1;
+                    if (text.substr(lineStart, pos - lineStart).find("#define") != std::string::npos) {
+                        continue;
+                    }
+                    std::vector<std::string> literals;
+                    std::size_t i = pos + token.size();
+                    int depth = 1;
+                    while (i < text.size() && depth > 0 && literals.size() < 2) {
+                        const char c = text[i];
+                        if (c == '(') {
+                            depth++;
+                        } else if (c == ')') {
+                            depth--;
+                        } else if (c == '"') {
+                            std::string lit;
+                            for (i++; i < text.size() && text[i] != '"'; i++) {
+                                if (text[i] == '\\' && i + 1 < text.size()) {
+                                    i++;
+                                }
+                                lit += text[i];
+                            }
+                            literals.push_back(lit);
+                        }
+                        i++;
+                    }
+                    if (literals.size() == 2) {
+                        keys.push_back(literals[1]);
+                    }
+                }
+                return keys;
+            };
+            // Is @p inner the same key as @p outer, or a JSON child of it?
+            auto nests = [](const std::string& outer, const std::string& inner) {
+                return inner == outer || (inner.size() > outer.size() && inner.compare(0, outer.size(), outer) == 0 &&
+                                          inner[outer.size()] == '.');
+            };
+
+            CVARCLASS_CHECK(mmReplaced != sohReplaced && mmExcluded != sohExcluded && mmReplaced != mmExcluded &&
+                                mmReplaced.back() == '.' && mmExcluded.back() == '.',
+                            "W6-AUDIO-SEQ: MM's two sequence-editor _PREFIX defines must be distinct dotted families, "
+                            "neither of them SoH's gAudioEditor.ReplacedSequences. / gAudioEditor.Excluded.");
+            const std::string sohTable =
+                readFile(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "audio" / "AudioCollection.cpp");
+            const std::string mmCollection =
+                readFile(sourceRoot / "games" / "mm" / "2s2h" / "Enhancements" / "Audio" / "AudioCollection.cpp");
+            const std::vector<std::string> sohKeys = sfxKeysOf(sohTable);
+            const std::vector<std::string> mmKeys = sfxKeysOf(mmCollection);
+            std::vector<std::string> colliding;
+            for (const std::string& k : mmKeys) {
+                if (std::find(sohKeys.begin(), sohKeys.end(), k) != sohKeys.end()) {
+                    colliding.push_back(k);
+                }
+            }
+            // The control: the parse must find the three the issue names, so a parse that sees nothing is red.
+            for (const char* named : { "NA_BGM_BOSS", "NA_BGM_MINI_BOSS", "NA_BGM_ENEMY" }) {
+                if (std::find(colliding.begin(), colliding.end(), named) == colliding.end()) {
+                    printf("[TEST] FAIL: W6-AUDIO-SEQ: %s is not in the sfxKey set both sequence tables share (%zu "
+                           "found, SoH %zu rows, MM %zu rows): the table parse is broken, so this leg checks nothing\n",
+                           named, colliding.size(), sohKeys.size(), mmKeys.size());
+                    return TEST_FAIL;
+                }
+            }
+            for (const std::string& k : colliding) {
+                const std::pair<std::string, std::string> pairs[] = {
+                    { sohReplaced + k + ".value", mmReplaced + k + ".value" },
+                    { sohReplaced + k + ".locked", mmReplaced + k + ".locked" },
+                    { sohExcluded + k, mmExcluded + k },
+                };
+                for (const auto& [soh, mm] : pairs) {
+                    if (nests(soh, mm) || nests(mm, soh)) {
+                        printf("[TEST] FAIL: W6-AUDIO-SEQ: MM's \"%s\" and SoH's \"%s\" are one stored key (or one "
+                               "nests under the other), so one game's Audio Editor tab sets the other's music\n",
+                               mm.c_str(), soh.c_str());
+                        return TEST_FAIL;
+                    }
+                }
+            }
+            printf("[TEST] W6-AUDIO-SEQ: %zu sfxKeys name a sequence in both games; MM composes each under its own "
+                   "families\n",
+                   colliding.size());
+
+            // MM's collection composes every key through the defines.
+            CVARCLASS_CHECK(
+                mmCollection.find("RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX") != std::string::npos &&
+                    mmCollection.find("RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX") != std::string::npos,
+                "W6-AUDIO-SEQ: MM's S2H::AudioCollection does not compose its replacement and exclusion "
+                "keys from RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX / RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX, "
+                "so MM's sequence tabs read and write SoH's keys");
+            std::size_t lineStart = 0;
+            while (lineStart < mmCollection.size()) {
+                std::size_t lineEnd = mmCollection.find('\n', lineStart);
+                if (lineEnd == std::string::npos) {
+                    lineEnd = mmCollection.size();
+                }
+                const std::string line = mmCollection.substr(lineStart, lineEnd - lineStart);
+                const bool shared = line.find("CVAR_AUDIO(\"ReplacedSequences.") != std::string::npos ||
+                                    line.find("CVAR_AUDIO(\"Excluded.") != std::string::npos;
+                if (shared && line.find("#define") == std::string::npos) {
+                    printf("[TEST] FAIL: W6-AUDIO-SEQ: MM's AudioCollection.cpp still composes a key from SoH's "
+                           "family: %s\n",
+                           line.c_str());
+                    return TEST_FAIL;
+                }
+                lineStart = lineEnd + 1;
+            }
+            CVARCLASS_CHECK(!CvarClassTreeContainsLiteral(ootTree, "gAudioEditor.MM."),
+                            "W6-AUDIO-SEQ: games/oot spells MM's sequence-editor namespace as a literal; it reaches "
+                            "MM's keys only through MM's editor seam");
         }
 
         // (3f-2) The #966 key-name gaps, in the tree. The manifest row alone proves

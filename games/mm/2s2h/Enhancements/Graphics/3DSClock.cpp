@@ -341,6 +341,9 @@ void Draw3DSClock() {
 
 void Register3DSClock() {
     COND_VB_SHOULD(VB_PREVENT_CLOCK_DISPLAY, CVAR == CLOCK_TYPE_3DS, {
+        // W6-GFX (#1237): this TU is in the single-exe link now and Draw3DSClock reads MM_gPlayState; a missing
+        // play state leaves the original clock to draw.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *should = true;
         Draw3DSClock();
     });

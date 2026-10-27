@@ -642,6 +642,10 @@ main() {
         "GetActorMaxHealth(Actor\*)"
         "RegisterBowReticle()"
         "RegisterDisableBlackBars()"
+        # W6-GFX (#1237, #1240): the two clock-style registrars in lib2ship_enh_registrars.a. No OoT twin of either
+        # name (grep games/oot); the archive gate above covers the same files by member.
+        "Register3DSClock()"
+        "RegisterTextBasedClock()"
         "RegisterInstantPutaway()"
         # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions registrars in lib2ship_enh_registrars.a. No OoT
         # twin of any of the names (grep games/oot); the archive gate above covers the same files by member.

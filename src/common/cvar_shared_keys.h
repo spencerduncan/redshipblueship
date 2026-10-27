@@ -560,13 +560,87 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1 "gSettings.SpeedModifier.SwimMapping1"
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2 "gSettings.SpeedModifier.SwimMapping2"
 // W6-GFX
+// W6-GFX (#1237): MM's clock style, 24-hour clock, motion blur and scene-geometry keys, each written by one hosted row
+// on SoH's Enhancements > Graphics page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). None has an SoH twin. The two
+// dynamic motion blur rows bind MM registers, not keys (src/common/mm_graphics_bridge.h), so they have no define.
+#define RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE "gEnhancements.Graphics.ClockType"
+#define RSBS_CVAR_MM_GRAPHICS_24_HOURS_CLOCK "gEnhancements.Graphics.24HoursClock"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE "gEnhancements.Graphics.MotionBlur.Mode"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_INTERPOLATE "gEnhancements.Graphics.MotionBlur.Interpolate"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_STRENGTH "gEnhancements.Graphics.MotionBlur.Strength"
+#define RSBS_CVAR_MM_GRAPHICS_FIX_GEOMETRY_SEAMS "gEnhancements.Graphics.FixSceneGeometrySeams"
+#define RSBS_CVAR_MM_GRAPHICS_NO_GEOMETRY_DISTANCE_CHECK "gEnhancements.Graphics.DisableSceneGeometryDistanceCheck"
 // W6-FIXES
+// W6-FIXES (#1237, #1236): MM's Fixes and Restorations keys, each written by one hosted row on SoH's Enhancements >
+// Fixes page (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Tatl ISG stays held apart from SoH's Easy ISG (P2 below). The
+// ammo key keeps the spelling z_parameter.c reads, never 2Ship's v1 rename to gFixes.FixButtonEnvColor. Fix Console
+// Crashes has no row on purpose (the single exe always keeps the crash fixes on), so it has no define either.
+#define RSBS_CVAR_MM_CAMERA_FIX_TARGETTING_CAMERA_SNAP "gEnhancements.Camera.FixTargettingCameraSnap"
+#define RSBS_CVAR_MM_FIXES_EPONA_STEALING_SWORD "gFixes.FixEponaStealingSword"
+#define RSBS_CVAR_MM_FIXES_FIERCE_DEITY_Z_TARGET_MOVEMENT "gEnhancements.Fixes.FierceDeityZTargetMovement"
+#define RSBS_CVAR_MM_FIXES_AMMO_COUNT_ENV_COLOR "gFixes.FixAmmoCountEnvColor"
+#define RSBS_CVAR_MM_FIXES_IKANA_GREAT_FAIRY_FOUNTAIN_COLOR "gFixes.FixIkanaGreatFairyFountainColor"
+#define RSBS_CVAR_MM_FIXES_CONTROL_CHARACTERS "gEnhancements.Fixes.ControlCharacters"
+#define RSBS_CVAR_MM_FIXES_COMPLETED_HEART_CONTAINER_AUDIO "gEnhancements.Fixes.CompletedHeartContainerAudio"
+#define RSBS_CVAR_MM_RESTORATIONS_POWER_CROUCH_STAB "gEnhancements.Restorations.PowerCrouchStab"
+#define RSBS_CVAR_MM_RESTORATIONS_TATL_ISG "gEnhancements.Restorations.TatlISG"
+#define RSBS_CVAR_MM_RESTORATIONS_CONSTANT_FLIPS_HOPS "gEnhancements.Restorations.ConstantFlipsHops"
+#define RSBS_CVAR_MM_RESTORATIONS_SIDE_ROLL "gEnhancements.Restorations.SideRoll"
+#define RSBS_CVAR_MM_RESTORATIONS_OOT_FASTER_SWIM "gEnhancements.Restorations.OoTFasterSwim"
+#define RSBS_CVAR_MM_RESTORATIONS_WOODFALL_MOUNTAIN_APPEARANCE "gEnhancements.Restorations.WoodfallMountainAppearance"
+#define RSBS_CVAR_MM_RESTORATIONS_JP_GROTTOS "gEnhancements.Restorations.JPGrottos"
+#define RSBS_CVAR_MM_RESTORATIONS_BONK_COLLISION "gEnhancements.Restorations.BonkCollision"
 // W6-MODES-DIFF
 // W6-MINIGAMES
+// #1236: MM's minigame options and its Mark Shooting Gallery Octoroks row, each bound by one hosted row on SoH's
+// Enhancements > Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). No SoH twin shares a key. The three
+// archery scores keep MM's vanilla defaults (2180, 50, 20): GalleryTwofer.cpp and SwampBoatSkip.cpp read them too.
+#define RSBS_CVAR_MM_MINIGAMES_BOMBERS_HIDE_AND_SEEK "gEnhancements.Minigames.BombersHideAndSeek"
+#define RSBS_CVAR_MM_MINIGAMES_SWORDSMAN_SCHOOL_SCORE "gEnhancements.Minigames.SwordsmanSchoolScore"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY1 "gEnhancements.Minigames.HoneyAndDarlingDay1"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY2 "gEnhancements.Minigames.HoneyAndDarlingDay2"
+#define RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY3 "gEnhancements.Minigames.HoneyAndDarlingDay3"
+#define RSBS_CVAR_MM_MINIGAMES_TOWN_ARCHERY_SCORE "gEnhancements.Minigames.TownArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_SWAMP_ARCHERY_SCORE "gEnhancements.Minigames.SwampArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_ROMANI_TARGET_PRACTICE "gEnhancements.Minigames.RomaniTargetPractice"
+#define RSBS_CVAR_MM_MINIGAMES_ALWAYS_WIN_DOGGY_RACE "gEnhancements.Minigames.AlwaysWinDoggyRace"
+#define RSBS_CVAR_MM_MINIGAMES_CUCCO_SHACK_CUCCO_COUNT "gEnhancements.Minigames.CuccoShackCuccoCount"
+#define RSBS_CVAR_MM_MINIGAMES_SKIP_HORSE_RACE "gEnhancements.Minigames.SkipHorseRace"
+#define RSBS_CVAR_MM_MINIGAMES_BEAVER_RACE_RINGS_COLLECTED "gEnhancements.Minigames.BeaverRaceRingsCollected"
+#define RSBS_CVAR_MM_MINIGAMES_SKIP_LITTLE_BEAVER "gEnhancements.Minigames.SkipLittleBeaver"
+#define RSBS_CVAR_MM_DIFFICULTY_GORON_RACE "gEnhancements.DifficultyOptions.GoronRace"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_SCORE "gEnhancements.Minigames.BoatArcheryScore"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_HEALTH "gEnhancements.Minigames.BoatArcheryHealth"
+#define RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_INVINCIBLE "gEnhancements.Minigames.BoatArcheryInvincible"
+#define RSBS_CVAR_MM_MINIGAMES_TREASURE_CHEST_SHOP_FULL_MAZE "gEnhancements.Minigames.TreasureChestShopShowFullMaze"
+#define RSBS_CVAR_MM_MINIGAMES_MARK_SHOOTING_GALLERY_OCTOROKS "gEnhancements.Minigames.MarkShootingGalleryOctoroks"
 // W6-TIMERS
+// #1235, #1239: MM's In-Game Timer overlay and its Time Splits list options, each bound by one hosted row on SoH's
+// Enhancements > Timers or Time Splits page (SohGui/HostedMm/SohMenuHostedMmTimers.cpp). No OoT twin: SoH's Additional
+// Timers and Time Splits read OoT's save only. Read by Trackers/DisplayOverlay.cpp and Trackers/TimeSplits/.
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_MODE "gDisplayOverlay.Mode"
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_BACKGROUND "gDisplayOverlay.Background"
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_SCALE "gDisplayOverlay.Scale"
+#define RSBS_CVAR_MM_TIME_SPLITS_ENABLE "gSettings.TimeSplits.Enable"
+#define RSBS_CVAR_MM_TIME_SPLITS_SHOW_HEADERS "gSettings.TimeSplits.ShowHeaders"
+#define RSBS_CVAR_MM_TIME_SPLITS_HIDE_BACKGROUND "gSettings.TimeSplits.Opacity"
+#define RSBS_CVAR_MM_TIME_SPLITS_HIGHLIGHT "gSettings.TimeSplits.Highlight"
+#define RSBS_CVAR_MM_TIME_SPLITS_FOLLOW "gSettings.TimeSplits.Follow"
+#define RSBS_CVAR_MM_TIME_SPLITS_COMPARE "gSettings.TimeSplits.Compare"
 // W6-HUD-A
+// #1239: MM's HUD placement keys, one family composed per element as PREFIX + "<Element>" + ".Mode" / ".Position.X" /
+// ".Position.Y" / ".Scale" (src/common/mm_hud_editor_elements.h, MM's HUD_EDITOR_ELEMENT). Written by the Majora's
+// Mask section of SoH's Cosmetics Editor, HUD Placement tab; locked by the classification lock's HUD-editor leg.
+#define RSBS_CVAR_MM_HUD_EDITOR_PREFIX "gHudEditor."
 // W6-COS-A
 // W6-AUDIO-SEQ
+// W6-AUDIO-SEQ (#1239): the two key families MM's sequence editor composes by concatenation, a replacement
+// (<prefix><sfxKey>.value / .locked) and a shuffle-pool exclusion (<prefix><sfxKey>), held under MM's own namespace.
+// Eleven sfxKeys name a sequence in both games (NA_BGM_BOSS, NA_BGM_MINI_BOSS, NA_BGM_ENEMY, ...), and SoH's tabs
+// write gAudioEditor.ReplacedSequences.<sfxKey>, so under one spelling either game's tab would set the other game's
+// music. Composed by MM's S2H::AudioCollection only; locked by the classification test's W6-AUDIO-SEQ leg.
+#define RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX "gAudioEditor.MM.ReplacedSequences."
+#define RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX "gAudioEditor.MM.Excluded."
 // W6-DEV
 
 /**
@@ -619,9 +693,11 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "'no speedup', so the control silently does nothing. MM's FastText also bundles hold-B-to-advance, "
       "which OoT exposes as the SEPARATE key gEnhancements.SkipText — one control cannot express both "
       "decompositions." },
-    { "P2 infinite sword glitch", "gEnhancements.Restorations.TatlISG", "gCheats.EasyISG",
+    { "P2 infinite sword glitch", RSBS_CVAR_MM_RESTORATIONS_TATL_ISG, "gCheats.EasyISG",
       "Taxonomy conflict: OoT treats ISG as a cheat to grant, MM treats restoring Navi-ISG via Tatl as "
-      "authenticity. Different menu sections, different framing. Needs a maintainer call." },
+      "authenticity, and the gate differs (OoT's is an unconditional passive grant, MM's restores a behaviour the "
+      "N64 game had). Ruled (ADR 0004): the keys stay distinct, and MM's own row, \"Tatl ISG (restoration)\", is "
+      "hosted on Enhancements > Fixes > Glitch Restorations (W6-FIXES)." },
     { "P3 camera axis decomposition", "gEnhancements.Camera.FirstPerson.InvertX",
       "gSettings.Controls.InvertAimingXAxis",
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "
@@ -726,6 +802,15 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
       "The other half of the same pair: MM's .Scale is SoH's value itself (both games use 0.4-2.5), read through "
       "the same translator, so nothing writes MM's two keys." },
+    { 1239, "gAudioEditor.RandomizeAllOnNewScene", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "SoH writes one five-way combobox (Manual / On New Scene / On Rando Gen Only / On File Load / On File Load "
+      "(Seeded)); MM reads two bools. A rename would put SoH's mode number in MM's bool, so any mode would arm MM's "
+      "new-scene randomize. The translator arms it for On New Scene only." },
+    { 1239, "gAudioEditor.RandomizeAllOnRandoGen", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "The other bool of the same combobox: the same translator arms MM's randomize on randomizer generation for On "
+      "Rando Gen Only, so nothing writes MM's two keys." },
 };
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
