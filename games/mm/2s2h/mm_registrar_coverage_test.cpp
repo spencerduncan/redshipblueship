@@ -1026,25 +1026,10 @@ void ResetAudioKeys() {
 // RegisterShipInitFuncs. Attributed by registry content, each bucket measured with every other key off:
 //  - Debug Mode on arms the debug-save OnSaveInit registrant (RegisterDebugSaveCreate), because Debug Save File Mode
 //    is left unset and reads 1 (Vanilla), the shared default both games agree on;
-//  - the three Prevent switches arm only UNDER Debug Mode, so their counts hold Debug Mode on while the probed key is
-//    on (and drop it again once the drive has turned the key off), re-driving only the probed key: Debug Mode's own
-//    registrars are never driven by them;
+//  - the three Prevent switches arm only UNDER Debug Mode, so their probes hold Debug Mode on (alsoOn: set and driven
+//    before the baseline, put back to 0 and driven after, so RegisterDebugMode clears the switches again);
 //  - Disable Object Dependency arms its VB_ENABLE_OBJECT_DEPENDENCY rewrite with no Debug Mode gate.
 constexpr const char* kW6DevDebugModeCVar = "gDeveloperTools.DebugEnabled";
-
-/** Hold Debug Mode on while @p key is on; clear it once @p key is off again, if this armed it. */
-void W6DevHoldDebugModeFor(const char* key) {
-    static bool sArmedDebugMode = false;
-    if (CVarGetInteger(key, 0) != 0 && CVarGetInteger(kW6DevDebugModeCVar, 0) == 0) {
-        CVarSetInteger(kW6DevDebugModeCVar, 1);
-        sArmedDebugMode = true;
-        ShipInit::Init(key);
-        ShipInit::Init(key);
-    } else if (CVarGetInteger(key, 0) == 0 && sArmedDebugMode) {
-        CVarClear(kW6DevDebugModeCVar);
-        sArmedDebugMode = false;
-    }
-}
 
 const std::vector<SkipKeyProbe>& W6DevProbes() {
     static const std::vector<SkipKeyProbe> probes = {
@@ -1055,27 +1040,21 @@ const std::vector<SkipKeyProbe>& W6DevProbes() {
         { "gDeveloperTools.PreventActorUpdate",
           "Prevent Actor Update",
           { { "ShouldActorUpdate, unkeyed (DeveloperTools.cpp)",
-              []() {
-                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorUpdate");
-                  return SettledUnkeyedCount<GameInteractor::ShouldActorUpdate>();
-              },
-              1 } } },
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorUpdate>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
         { "gDeveloperTools.PreventActorDraw",
           "Prevent Actor Draw",
           { { "ShouldActorDraw, unkeyed (DeveloperTools.cpp)",
-              []() {
-                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorDraw");
-                  return SettledUnkeyedCount<GameInteractor::ShouldActorDraw>();
-              },
-              1 } } },
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorDraw>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
         { "gDeveloperTools.PreventActorInit",
           "Prevent Actor Init",
           { { "ShouldActorInit, unkeyed (DeveloperTools.cpp)",
-              []() {
-                  W6DevHoldDebugModeFor("gDeveloperTools.PreventActorInit");
-                  return SettledUnkeyedCount<GameInteractor::ShouldActorInit>();
-              },
-              1 } } },
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorInit>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
         { "gDeveloperTools.DisableObjectDependency",
           "Disable Object Dependency",
           { { "VB_ENABLE_OBJECT_DEPENDENCY (ObjectDependency.cpp)",
