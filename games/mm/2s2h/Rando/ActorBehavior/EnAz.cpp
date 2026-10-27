@@ -6,11 +6,15 @@ extern "C" {
 void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
+bool Rando::ActorBehavior::EnAzOfferStandsInForCheck(GetItemId getItemId) {
+    return getItemId > GI_RUPEE_PURPLE; // Beaver Bro non-repeat reward
+}
+
 void Rando::ActorBehavior::InitEnAzBehavior() {
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_OFFER, IS_RANDO, {
         GetItemId* getItemId = va_arg(args, GetItemId*);
         Actor* actor = va_arg(args, Actor*);
-        if (actor->id == ACTOR_EN_AZ && *getItemId > GI_RUPEE_PURPLE) { // Beaver Bro non-repeat reward
+        if (actor->id == ACTOR_EN_AZ && Rando::ActorBehavior::EnAzOfferStandsInForCheck(*getItemId)) {
             Player* player = GET_PLAYER(MM_gPlayState);
             *should = false;
             // Force advance textbox

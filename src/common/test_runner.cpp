@@ -314,6 +314,11 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
+// a rupee that stands in for an open check is not given on top of it (#1216).
+// Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
+// play state. Needs the display-free shared bring-up first. Return 0 on pass.
+int MM_GalleryRupeeStandIn_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -5910,6 +5915,23 @@ static TestResult Test_MMSongTeacherHooks(void) {
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
+// the SaveContext image and MM_gPlayState and re-runs OnFileLoad on the way
+// out, so it has no ordering constraints.
+static TestResult Test_MMGalleryRupeeStandIn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_GalleryRupeeStandIn_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Tree shuffle (#1121). Same display-free bring-up as mm-song-teacher-hooks: the
 // option table, the page view model and the hook registries are all in the
 // link, and the CVar store must exist.
@@ -7890,6 +7912,10 @@ const TestDescriptor gTests[] = {
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // The MM rando minigame reward hooks (#1216). Restores everything it touches.
+    { "mm-gallery-rupee-stand-in",
+      "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
+      Test_MMGalleryRupeeStandIn },
     // Tree shuffle (#1121). After mm-registrar-coverage: mm-tree-shuffle runs the
     // irreversible MM_Rando_Init to fill the region graph. Both restore what
     // they write.

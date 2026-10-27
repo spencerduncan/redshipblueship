@@ -1402,6 +1402,14 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
+    # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
+    # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's
+    # quiver flag (its high-score check's own flag) is clear, the rupee a maxed
+    # quiver falls through to stands in for that check and is not given on top
+    # of it; repeats keep their rupee; the beavers' race-1 Red Rupee likewise.
+    # Pure (no display, no ROM).
+    redship_add_test(NAME MMGalleryRupeeStandIn COMMAND redship --test mm-gallery-rupee-stand-in)
     # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
     # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
     # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in
