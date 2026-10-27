@@ -107,6 +107,7 @@
 #include "soh/SohGui/SohRetiredWindow.h"         // #1132: SoH's own Item Tracker, captured as a reference
 #include "soh/SohGui/HostedMm/SohMenuHostedMm.h" // #1233: MM rows hosted on SoH's own pages
 #include "soh/Notification/Notification.h"
+#include "soh/Enhancements/cosmetics/CosmeticsEditorMmHud.h"
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -166,6 +167,7 @@
 #include "foreign_items.h"
 #include "gen_progress_overlay.h"
 #include "headless_crash.h"
+#include "mm_hud_editor_elements.h"
 #include "notification_bridge.h"
 #include "rsbs_version.h"
 #include "save.h" // RsbsSave_EmitLoadToast: the paired-file load's toasts (#781)
@@ -2290,15 +2292,18 @@ void Session::BuildPageList() {
         // Mask section after SoH's placements moves MM's HUD (CosmeticsEditorMmHud.cpp). The tab scrolls as a whole,
         // so only the window title is expected in every view; the MM "HUD Preset" row is found through the combo_ui
         // seam's rect report, scrolled into view and hovered: its tooltip must show, ending "Majora's Mask only.".
-        // W6-HUD-B extends this block.
+        // W6-HUD-B (#1239): state "mm-hearts" opens the MM Hearts count header (MmHudPlacement_OpenElementForTest)
+        // with its Mode at "No anchors", so its mode radios, position sliders and scale show, and hovers its "No
+        // anchors" radio (reported as "<header>: <label>"); state "" opens no MM header.
         PageSpec p;
         p.id = kMmHudPlacementPage;
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::WINDOW;
         p.window = kSohCosmeticsEditorWindow;
-        p.states = { "" };
+        p.states = { "", "mm-hearts" };
         p.expectText = { kSohCosmeticsEditorWindow };
         p.paneHovers.push_back({ "mm-hud-preset", "", "HUD Preset", false });
+        p.paneHovers.push_back({ "mm-hearts-no-anchors", "mm-hearts", "MM Hearts count position: No anchors", false });
         p.needsRom = true;
         pages.push_back(p);
     }
@@ -3277,6 +3282,12 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
     } else if (p.id == kMmHudPlacementPage) {
         // W6-HUD-A (#1239): the Cosmetics Editor's tab bar exists once the window has drawn, so show it for one frame,
         // then queue its HUD Placement tab (a tab's ID is its label hashed inside the tab bar's, BeginTabItem's own).
+        // W6-HUD-B: "mm-hearts" opens the MM Hearts count header at "No anchors"; "" opens no MM header.
+        SohGui::MmHudPlacement_OpenElementForTest(state == "mm-hearts" ? "Hearts" : "");
+        if (state == "mm-hearts") {
+            CVarSetInteger((std::string(RSBS_CVAR_MM_HUD_EDITOR_PREFIX) + "Hearts.Mode").c_str(),
+                           RSBS_MM_HUD_MODE_MOVABLE_43);
+        }
         auto cosmetics = gui->GetGuiWindow(kSohCosmeticsEditorWindow);
         if (cosmetics != nullptr) {
             cosmetics->Show();
@@ -3387,6 +3398,11 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
         CVarClear(kSohBindingsMmSpeedModifiers); // W6-CAM-GYRO
         SetSohBindingsHeaderOpen("Camera Controls", false);
         SetSohBindingsHeaderOpen("Modifier Buttons", false);
+    }
+    if (p.id == kMmHudPlacementPage) {
+        // W6-HUD-B: cleared, never stored; the headers go back to the player.
+        CVarClear((std::string(RSBS_CVAR_MM_HUD_EDITOR_PREFIX) + "Hearts.Mode").c_str());
+        SohGui::MmHudPlacement_OpenElementForTest(nullptr);
     }
     if (p.rowStateProbe && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));

@@ -972,7 +972,7 @@ TestResult Test_CVarClassification(void) {
         //     the key MM's reader reads for it (hudEditorElements, through MM_HudEditor_TableKey), so a row never
         //     writes a key the reader does not read;
         //   - every element MM's HUD draws name (a HUD_EDITOR_ELEMENT_* token outside BenGui, which owns the enum and
-        //     2Ship's unlinked window) is in the table or on W6-HUD-B's pending list, and never on both;
+        //     2Ship's unlinked window) is in the table (W6-HUD-B, #1239, retired the pending list: every element is);
         //   - games/oot composes the keys from the prefix and never spells "gHudEditor." itself.
         {
             struct CvarClassHudRow {
@@ -982,15 +982,6 @@ TestResult Test_CVarClassification(void) {
 #define CVARCLASS_HUD_ROW(id, key, label, x, y, ws) { #id, key },
             static const CvarClassHudRow kHudRows[] = { RSBS_MM_HUD_EDITOR_ELEMENTS(CVARCLASS_HUD_ROW) };
 #undef CVARCLASS_HUD_ROW
-            // W6-HUD-B (#1239): the elements MM's draws name that have no row yet. Each leaves this list in the
-            // change that adds its table row.
-            static const char* const kHudPendingIds[] = {
-                "HUD_EDITOR_ELEMENT_CARROT",           "HUD_EDITOR_ELEMENT_CLOCK",
-                "HUD_EDITOR_ELEMENT_HEARTS",           "HUD_EDITOR_ELEMENT_MAGIC_METER",
-                "HUD_EDITOR_ELEMENT_TIMERS",           "HUD_EDITOR_ELEMENT_TIMERS_MOON_CRASH",
-                "HUD_EDITOR_ELEMENT_MINIGAME_COUNTER", "HUD_EDITOR_ELEMENT_RUPEE_COUNTER",
-                "HUD_EDITOR_ELEMENT_KEY_COUNTER",      "HUD_EDITOR_ELEMENT_SKULLTULA_COUNTER",
-            };
             struct CvarClassHudField {
                 int which;
                 const char* suffix;
@@ -1018,14 +1009,6 @@ TestResult Test_CVarClassification(void) {
                                "mm_hudeditor_stubs.c).\n",
                                kHudRows[r].id, composed.c_str(), reader == nullptr ? "" : "\"",
                                reader == nullptr ? "nothing" : reader, reader == nullptr ? "" : "\"");
-                        return TEST_FAIL;
-                    }
-                }
-                for (const char* pending : kHudPendingIds) {
-                    if (std::strcmp(pending, kHudRows[r].id) == 0) {
-                        printf("[TEST] FAIL: (3d-3) %s has a table row and is still on W6-HUD-B's pending list; take "
-                               "it off the list.\n",
-                               pending);
                         return TEST_FAIL;
                     }
                 }
@@ -1059,12 +1042,9 @@ TestResult Test_CVarClassification(void) {
                     for (const CvarClassHudRow& row : kHudRows) {
                         known = known || name == row.id;
                     }
-                    for (const char* pending : kHudPendingIds) {
-                        known = known || name == pending;
-                    }
                     if (!known) {
                         printf("[TEST] FAIL: (3d-3) games/mm/%s draws the HUD element %s, which is neither in "
-                               "RSBS_MM_HUD_EDITOR_ELEMENTS nor on W6-HUD-B's pending list: its draw would ignore\n"
+                               "RSBS_MM_HUD_EDITOR_ELEMENTS: its draw would ignore\n"
                                "[TEST]       the HUD Placement section. Add its row to "
                                "src/common/mm_hud_editor_elements.h.\n",
                                f.relPath.c_str(), name.c_str());
@@ -1087,7 +1067,7 @@ TestResult Test_CVarClassification(void) {
                                          "RSBS_CVAR_MM_HUD_EDITOR_PREFIX: the Majora's Mask HUD Placement section in "
                                          "SoH's Cosmetics Editor is missing, so no row writes MM's HUD placement keys");
             printf("[TEST] (3d-3) %d HUD-editor elements: each key composed from the prefix is the key MM's reader "
-                   "reads, and all %d draw-site element names are in the table or pending\n",
+                   "reads, and all %d draw-site element names are in the table\n",
                    hudRowCount, drawSiteTokens);
         }
 

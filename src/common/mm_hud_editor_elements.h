@@ -24,10 +24,13 @@
  *  - widescreenMode: the mode the Widescreen preset gives the element (HudEditor.cpp:197-235).
  * The order is the section's draw order, SoH's own button order.
  *
- * W6-HUD-B adds the other ten elements as rows at the marker that ends the list, and nothing else: the reader, the
- * presets, the section and both locks follow the table. The HUD editor's colour keys (gColors.<E>.Color / .Changed)
- * are deliberately not here: in 2Ship only the editor's window reads them, never a draw, so a colour row would write
- * a key nothing in Majora's Mask reads.
+ * W6-HUD-B (#1239) added the other ten elements (hearts, magic, the key, rupee and skulltula counters, carrots, both
+ * timers, the minigame counter and the three-day clock) as rows, and nothing else: the reader, the presets, the
+ * section and both locks follow the table. The three-day clock row covers all three clock styles: the original clock
+ * (z_parameter.c), the MM3D clock (3DSClock.cpp) and the text clock (TextBasedClock.cpp) each draw as
+ * HUD_EDITOR_ELEMENT_CLOCK. The HUD editor's colour keys (gColors.<E>.Color / .Changed) are deliberately not here: in
+ * 2Ship only the editor's window reads them, never a draw, so a colour row would write a key nothing in Majora's Mask
+ * reads.
  *
  * C-compatible on purpose: MM's reader is a C TU.
  */
@@ -53,7 +56,17 @@
     X(HUD_EDITOR_ELEMENT_C_RIGHT, "CRight", "C Button Right", 271, 18, RSBS_MM_HUD_MODE_MOVABLE_RIGHT)              \
     X(HUD_EDITOR_ELEMENT_D_PAD, "DPad", "DPad items", 271, 55, RSBS_MM_HUD_MODE_MOVABLE_RIGHT)                      \
     X(HUD_EDITOR_ELEMENT_MINIMAP, "Minimap", "Minimaps", 295, 220, RSBS_MM_HUD_MODE_MOVABLE_RIGHT)                  \
-    /* W6-HUD-B: the remaining elements go on the lines above this marker, one row each */
+    X(HUD_EDITOR_ELEMENT_HEARTS, "Hearts", "Hearts count", 30, 26, RSBS_MM_HUD_MODE_MOVABLE_LEFT)                   \
+    X(HUD_EDITOR_ELEMENT_MAGIC_METER, "Magic", "Magic Meter", 18, 34, RSBS_MM_HUD_MODE_MOVABLE_LEFT)                \
+    X(HUD_EDITOR_ELEMENT_KEY_COUNTER, "Keys", "Small Keys counter", 26, 190, RSBS_MM_HUD_MODE_MOVABLE_LEFT)         \
+    X(HUD_EDITOR_ELEMENT_RUPEE_COUNTER, "Rupees", "Rupee counter", 26, 206, RSBS_MM_HUD_MODE_MOVABLE_LEFT)          \
+    X(HUD_EDITOR_ELEMENT_SKULLTULA_COUNTER, "Skulltulas", "Skulltula counter", 26, 190, RSBS_MM_HUD_MODE_MOVABLE_LEFT) \
+    X(HUD_EDITOR_ELEMENT_CARROT, "Carrots", "Carrots", 160, 64, RSBS_MM_HUD_MODE_MOVABLE_43)                        \
+    X(HUD_EDITOR_ELEMENT_TIMERS, "Timers", "Timers", 26, 46, RSBS_MM_HUD_MODE_MOVABLE_LEFT)                         \
+    X(HUD_EDITOR_ELEMENT_TIMERS_MOON_CRASH, "SkullKidTimer", "Skull Kid Timer", 115, 200, RSBS_MM_HUD_MODE_MOVABLE_43) \
+    X(HUD_EDITOR_ELEMENT_MINIGAME_COUNTER, "Minigames", "Minigame counter", 20, 67, RSBS_MM_HUD_MODE_MOVABLE_LEFT)  \
+    X(HUD_EDITOR_ELEMENT_CLOCK, "Clock", "Three Day Clock", 160, 206, RSBS_MM_HUD_MODE_MOVABLE_43)                  \
+    /* W6-HUD-B (#1239) added the last ten rows: every element MM's HUD draws has one */
 /* clang-format on */
 
 /* The presets of the section's HUD Preset row, in its order (2Ship's presetNames, HudEditor.cpp:165-169). */
