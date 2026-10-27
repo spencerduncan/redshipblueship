@@ -17,6 +17,9 @@ void MM_TransitionFade_SetColor(void* thisx, u32 color);
 
 void RegisterFastTransformation() {
     COND_VB_SHOULD(VB_PREVENT_MASK_TRANSFORMATION_CS, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *should = true;
         Player* player = GET_PLAYER(MM_gPlayState);
 

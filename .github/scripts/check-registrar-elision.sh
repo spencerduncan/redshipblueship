@@ -683,6 +683,20 @@ main() {
         # exported name to probe; the archive gate above covers every file by member.
         "Register3DItemDrops()"
         "RegisterSkipScarecrowSong()"
+        # W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina registrars in lib2ship_enh_registrars.a. No OoT twin
+        # of any of the names (grep games/oot). EquipWhileSwimming.cpp and SkipSoaringCutscene.cpp register through
+        # file-scope statics with no exported name; the archive gate above covers every file by member.
+        "RegisterBlastMaskKeg()"
+        "RegisterFastTransformation()"
+        "RegisterFierceDeityAnywhere()"
+        "RegisterPersistentMasks()"
+        "RegisterNoBlastMaskCooldown()"
+        "RegisterGoronRollingIgnoresMagic()"
+        "RegisterGoronRollingFastSpikes()"
+        "RegisterEnableSunsSong()"
+        "RegisterZoraEggCount()"
+        "RegisterFasterSongPlayback()"
+        "RegisterUnderwaterOcarina()"
         "MM_RegisterArrowCycle()"
         "RegisterSkipAlienStartAndFail()"
         "RegisterSkipAlienWarning()"
