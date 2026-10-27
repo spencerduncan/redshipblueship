@@ -43,11 +43,19 @@
  * its own key (Combo_ItemGroupVisibilityKey), OoT's under SoH's
  * DisplayType.<Section>.
  *
- * NOT HONOURED YET (#1141 reads them; their lanes consume them): SoH's Icon
- * margins and Text size, its Ammo/Capacity, Align count to left side, Key
- * Count and Triforce Piece count modes and Hookshot identifier (lane IT-4,
- * #1143), its Maps and compasses (lane IT-2, #1142), and the Separate display
- * type (the overlay is one window: Separate shows a section in it).
+ * COUNTS AND METRICS (#1143, lane IT-4). SoH's Ammo/Capacity Tracking, Align
+ * count to left side, Key Count Tracking, Triforce Piece Count and Hookshot
+ * Identifier decide what each icon's number says (ComboItemCountFor,
+ * ComboItemIdentifierFor) for both games' rows, through the view's count
+ * fields (ComboItemRow countKind, capacityMax, held, identifier); MM's section
+ * keeps MM's place for it, bottom right (ComboItemCountPos). Its Text size
+ * scales every count and label, and the identifier's letter rides the icon
+ * size, as SoH's do; its Icon size and Icon margins lay out every grid
+ * (ComboItemGridMetricsFor).
+ *
+ * NOT HONOURED YET (#1141 reads them; their lanes consume them): SoH's Maps and
+ * compasses (lane IT-2, #1142), and the Separate display type (the overlay is
+ * one window: Separate shows a section in it).
  *
  * TEXT FALLBACK. A section none of whose icons is loaded (MM's load only once
  * MM has booted) is U2's text grid: each item's name, with its count and
@@ -203,6 +211,18 @@ inline constexpr int kComboItemTrackerTextSize = 13;           // TextSize's def
 inline constexpr int kComboItemTrackerCountCapacityOnly = 1;   // ITEM_TRACKER_NUMBER_CURRENT_CAPACITY_ONLY
 inline constexpr int kComboItemTrackerKeysCollectedMax = 0;    // KEYS_COLLECTED_MAX
 inline constexpr int kComboItemTrackerTriforceRequiredMax = 1; // TRIFORCE_PIECE_COLLECTED_REQUIRED_MAX
+// The rest of SoH's count modes and its Icon margins / Text size slider bounds (#1143, lane IT-4).
+inline constexpr int kComboItemTrackerCountNone = 0;               // ITEM_TRACKER_NUMBER_NONE
+inline constexpr int kComboItemTrackerCountAmmoOnly = 2;           // ITEM_TRACKER_NUMBER_CURRENT_AMMO_ONLY
+inline constexpr int kComboItemTrackerCountCapacity = 3;           // ITEM_TRACKER_NUMBER_CAPACITY
+inline constexpr int kComboItemTrackerCountAmmo = 4;               // ITEM_TRACKER_NUMBER_AMMO
+inline constexpr int kComboItemTrackerKeysCurrentCollectedMax = 1; // KEYS_CURRENT_COLLECTED_MAX
+inline constexpr int kComboItemTrackerKeysCurrentMax = 2;          // KEYS_CURRENT_MAX
+inline constexpr int kComboItemTrackerTriforceRequired = 0;        // TRIFORCE_PIECE_COLLECTED_REQUIRED
+inline constexpr int kComboItemTrackerIconSpacingMin = -5;         // Icon margins' slider bounds
+inline constexpr int kComboItemTrackerIconSpacingMax = 50;
+inline constexpr int kComboItemTrackerTextSizeMin = 1; // Text size's slider bounds
+inline constexpr int kComboItemTrackerTextSizeMax = 30;
 
 /** SoH's main-window sections the OoT section's groups are, in SoH's order; each has a
  *  DisplayType.<Section> key (Hidden, Main Window, Separate), default Main Window. */
@@ -220,13 +240,13 @@ struct ComboItemTrackerKeys {
     int comboButton2 = kComboItemTrackerComboButtonR;               // ComboButton2
     uint8_t bg[4] = { 0, 0, 0, 0 };                                 // BgColor.Value, RGBA: SoH's clear black
     int iconSize = kComboItemTrackerIconSize;                       // IconSize, held to 25..128
-    int iconSpacing = kComboItemTrackerIconSpacing;                 // IconSpacing: not honoured yet
-    int textSize = kComboItemTrackerTextSize;                       // TextSize: not honoured yet
-    int itemCountType = kComboItemTrackerCountCapacityOnly;         // ItemCountType: lane IT-4 (#1143)
-    bool itemCountAlignLeft = false;                                // ItemCountAlignLeft: lane IT-4
-    int keyCounts = kComboItemTrackerKeysCollectedMax;              // KeyCounts: lane IT-4
-    int triforcePieceCounts = kComboItemTrackerTriforceRequiredMax; // TriforcePieceCounts: lane IT-4
-    bool hookshotIdentifier = false;                                // HookshotIdentifier: lane IT-4
+    int iconSpacing = kComboItemTrackerIconSpacing;                 // IconSpacing (Icon margins), held to -5..50
+    int textSize = kComboItemTrackerTextSize;                       // TextSize, held to 1..30
+    int itemCountType = kComboItemTrackerCountCapacityOnly;         // ItemCountType (Ammo/Capacity Tracking)
+    bool itemCountAlignLeft = false;                                // ItemCountAlignLeft (Align count to left side)
+    int keyCounts = kComboItemTrackerKeysCollectedMax;              // KeyCounts (Key Count Tracking)
+    int triforcePieceCounts = kComboItemTrackerTriforceRequiredMax; // TriforcePieceCounts (Triforce Piece Count)
+    bool hookshotIdentifier = false;                                // HookshotIdentifier
     bool dungeonItemsDisplayMaps = true;                            // DungeonItems.DisplayMaps: lane IT-2 (#1142)
     int sectionDisplay[kComboItemTrackerSohSectionCount] = { 1, 1, 1, 1, 1 }; // DisplayType.<Section>
     // The overlay's own (gCombo.Tracker.Items.*), which SoH's overlay has no row for.
@@ -425,21 +445,89 @@ struct ComboItemCount {
     std::string ceiling;
     ComboUiTone amountTone = COMBO_UI_TONE_WHITE;
     ComboUiTone ceilingTone = COMBO_UI_TONE_GREEN;
+    bool alignLeft = false; // SoH's Align count to left side, in a mode that offers it (#1143)
 };
 
 /**
- * The count drawn on a row's icon, or false for none. A row whose iconNumber
- * is below 0 has none (its icon shows the tier); one above 0 shows that number
- * alone, in white (a wallet's capacity). Otherwise a row neither held nor
- * counted has none (a faded icon carries no number). COMBO_ITEM_COUNT_SOH is
- * SoH's DrawItemCount with the ammo shown ("35/" then "40"): the amount and
- * its slash in the row's accent once the amount reaches the ceiling, gray at
- * 0, white otherwise, the ceiling in the accent (green, or red for the
- * skulltula tokens); a row with no ceiling shows its amount alone in white.
- * COMBO_ITEM_COUNT_MM is MM's DrawItemCounts: the amount alone, in white,
- * while it is above 0.
+ * The count drawn on a row's icon under SoH's count settings in `keys`, or
+ * false for none: SoH's DrawItemCount (randomizer_item_tracker.cpp), for both
+ * games' rows (#1143, lane IT-4), branch for branch:
+ *
+ *   - a pad, or a row whose iconNumber is below 0 (its icon shows the tier),
+ *     has none;
+ *   - a dungeon's small keys (COMBO_ITEM_COUNT_KIND_KEYS) under Key Count
+ *     Tracking, in every count mode and with none collected yet: "collected/"
+ *     then "max", "held/collected/" then "max", or "held/" then "max";
+ *   - every other row under Ammo/Capacity Tracking: none under No Numbers. A
+ *     printed capacity (iconNumber above 0, the pool's wallet) is that number
+ *     alone. A row neither held nor counted has none (a faded icon carries no
+ *     number). A row with no capacity (`max` 0: the pool's rupees and
+ *     bombchus, which SoH's rule cannot read) degrades to its amount alone.
+ *     Otherwise the amount ("35") in the ammo modes and for a capacity that
+ *     never grows (capacityMax 0: tokens, hearts, beans, MM's fairies and
+ *     souls), else the capacity ("40", green once it is capacityMax); the
+ *     two-number modes add the slash and the ceiling ("35/" then "40", "40/"
+ *     then "50"). The amount turns the row's accent once full and gray at 0,
+ *     the ceiling is the accent (green, or red for the skulltula tokens), and
+ *     the single-number modes honour Align count to left side (`alignLeft`);
+ *   - the triforce pieces under a hunt (COMBO_ITEM_COUNT_KIND_TRIFORCE, `max`
+ *     the requirement): "collected/required/" then "total", or "collected/"
+ *     then "required", green once the requirement is met; with no hunt armed,
+ *     the count alone.
+ *
+ * MM's section keeps MM's place for the number (ComboItemCountPos); what it
+ * says follows SoH's settings like every other row's.
  */
-bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out);
+bool ComboItemCountFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys, ComboItemCount& out);
+
+/** The scale SoH's Text size gives a count (DrawItemCount: SetWindowFontScale(textSize / 13)): 1 at 13. */
+float ComboItemCountTextScale(int textSize);
+
+/**
+ * Where a count `width` x `height` big starts in a cell at (`cellX`, `cellY`)
+ * of edge `cell`, drawn at `scale`. COMBO_ITEM_COUNT_SOH: SoH's DrawItemCount,
+ * centred on the icon, or at its left edge when aligned left, its top a fixed
+ * 9.6 px (at `scale`) above the icon's bottom whatever the text size, so a
+ * larger Text size grows downward as SoH's does. COMBO_ITEM_COUNT_MM: MM's
+ * DrawItemCounts, in the cell's bottom-right corner 2 px in, or the bottom-left
+ * one when aligned left.
+ */
+void ComboItemCountPos(uint8_t countStyle, bool alignLeft, float cellX, float cellY, float cell, float width,
+                       float height, float scale, float* outX, float* outY);
+
+/**
+ * The letter SoH's Hookshot Identifier draws on a row's icon ("H" the
+ * Hookshot, "L" the Longshot; MM's only hookshot is "H"), or nullptr: off, not
+ * held, or a row with no letter (ComboItemRow.identifier).
+ */
+const char* ComboItemIdentifierFor(const ComboItemRow& row, const ComboItemTrackerKeys& keys);
+
+/**
+ * Where the identifier letter, `textWidth` wide, starts in a cell at (`cellX`,
+ * `cellY`) of edge `cell`; `unit` is the icon's size over 36 at the draw's
+ * scale, the letter's own scale: DrawItemCount's half the icon across less half
+ * the letter and 8 px right, 22 px up from the line under the icon (4 px of
+ * item spacing below it).
+ */
+void ComboItemIdentifierPos(float cellX, float cellY, float cell, float textWidth, float unit, float* outX,
+                            float* outY);
+
+/** A grid's cell edge, column pitch and line pitch at scale 1. */
+struct ComboItemGridMetrics {
+    float cell = 0.0f;
+    float pitch = 0.0f;
+    float linePitch = 0.0f;
+};
+
+/**
+ * Grid style `grid`'s metrics at SoH's Icon size `iconSize` and Icon margins
+ * `iconSpacing` (#1143). SoH's grids (OoT's section, the Shared column):
+ * DrawItemsInRows' column * (iconSize + iconSpacing), the margin in pixels at
+ * any icon size. MM's table: its own cell padding (8 across, 4 down at
+ * IconSize 36) at the icon's size, in proportion to the margin, so SoH's
+ * default 12 keeps MM's own look and a wider margin widens it alike.
+ */
+ComboItemGridMetrics ComboItemGridMetricsFor(const ComboItemGridStyle& grid, float iconSize, float iconSpacing);
 
 /**
  * Whether a section draws icons: some row's picked texture is loaded
@@ -504,11 +592,12 @@ struct ComboItemSectionBox {
 
 /** What a box is measured with: the icon size and, for text, the font's metrics, at scale 1. */
 struct ComboItemTrackerMetrics {
-    float iconSize = (float)kComboItemTrackerIconSize; // the IconSize key
-    float textHeight = 0.0f;                           // a line of text (ImGui::GetFontSize at scale 1)
-    float linePadding = 0.0f;                          // a text grid line's height beyond its text (ItemSpacing.y)
-    float columnGap = 0.0f;                            // between two text columns
-    float cellPadding = 0.0f;                          // a table column's padding, both sides together
+    float iconSize = (float)kComboItemTrackerIconSize;       // the IconSize key
+    float iconSpacing = (float)kComboItemTrackerIconSpacing; // the IconSpacing key (#1143)
+    float textHeight = 0.0f;                                 // a line of text (ImGui::GetFontSize at scale 1)
+    float linePadding = 0.0f; // a text grid line's height beyond its text (ItemSpacing.y)
+    float columnGap = 0.0f;   // between two text columns
+    float cellPadding = 0.0f; // a table column's padding, both sides together
 };
 
 /** The gap between two lines of a grid style's cells: its lineGapPx, or its gapPx when it names none. */
