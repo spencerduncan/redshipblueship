@@ -10,10 +10,14 @@ The test is pixels. Render the SoH reference and ours with `redship --test ui-sn
 
 **Scope (ours):**
 - `SohGui/SohMenuCombo.cpp`, `SohGui/SohMenuComboMmEnhancements.cpp`, `SohGui/SohMenuComboMmMods.cpp`,
-  `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp` and
-  `SohGui/SohMenuComboTrackerSettings.cpp`
+  `SohGui/SohMenuComboMmRandomizer.cpp`, `SohGui/SohMenuComboSaveFiles.cpp`,
+  `SohGui/SohMenuComboTrackerSettings.cpp` and the files in `SohGui/HostedMm/`
 - our pages under SoH's Randomizer header (#1101): MM Randomizer, MM Locations, MM Tricks and Cross-Game, registered by
   `AddComboRandomizerPages` (`SohMenuCombo.cpp`), which `AddMenuRandomizer` calls after Tricks/Glitches
+- our page under SoH's Dev Tools header (#1133): Save Files, registered by `AddComboDevToolsPages`, which
+  `AddMenuDevTools` calls after its last page
+- our rows on SoH's own pages, and only those rows there: the Majora's Mask rows the hosted-row seam adds
+  (`SohGui/HostedMm/SohMenuHostedMm.h`) and the rows appended through `RegisterSohPageRows`
 - the capability and presentation code in `SohMenu.cpp:199-600`
 - `SohGui/CreationProgressOverlay.cpp`
 - `src/common/Combo{Spoiler,Tracker}Window.cpp`
@@ -36,7 +40,8 @@ and on ours (R-N4).
 ## 1. Structure
 
 - **Header.** Added with `Menu::AddMenuEntry` (`Menu.cpp:270-273`). SoH's headers are one or two words. Ours is
-  "Combo", placed after Randomizer (`SohMenu.cpp:94-104`). A new header needs operator approval.
+  none: its tier-4 "Combo" header retired with #1133 (operator rulings D4 and D5, 2026-10-22), its pages folded
+  into SoH's own. A new header needs operator approval.
 - **Page.** Added with `SohMenu::AddSidebarEntry(header, name, columns)` (`SohMenu.cpp:29-34`). A page has 1-3
   columns (`MenuTypes.h:55-59`):
   - 3 for dense toggle pages (`SohMenuEnhancements.cpp:152`)
@@ -67,8 +72,9 @@ and on ours (R-N4).
 - **The contract is armed in CI by its own row.** The runtime lint's R9 (section 13) fails the `ui` tier on a row of
   ours that overruns at the run's profile. `UiSnapshot` takes the largest profile the desktop allows (desk-1280x800 on
   the Linux runner), where no row of ours overran even before this rule, so `UiSnapshotMin` runs the same harness
-  pinned to `min-832x600` (`RSBS_UI_SNAPSHOT_PROFILE`), with its output in `ui-snapshots/min-832x600/`. Our Combo
-  pages draw without ROM archives, so R9 measures them in CI as well.
+  pinned to `min-832x600` (`RSBS_UI_SNAPSHOT_PROFILE`), with its output in `ui-snapshots/min-832x600/`. Our
+  Randomizer and Dev Tools pages draw without ROM archives, so R9 measures them in CI as well; the rows we host on
+  SoH's other pages draw only with oot.o2r staged (ROM-rich runs).
 - **Sidebar names.** Sidebar names are Title Case, 1-3 words, and fit the
   200 px sidebar in Montserrat 24: about 16 characters, but measure it in the snapshot PNG, because the budget is
   pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px; a selected entry's highlight
@@ -76,17 +82,20 @@ and on ours (R-N4).
   both sides ("ross-Game Window"), and our "MM Enhancements" (15) measured 192 px, the whole child width, so its selected
   highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" (retired by #1132) and "Majora's Mask". The selection
   persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
-  with a carry of the persisted value (`ComboSidebarCarryRenamedSelection`, `SohMenuCombo.cpp`) and a lock leg that
-  drives it (MenuComboSection leg 6). A page that moves to another header carries the selection across headers
-  (`ComboSidebarCarryMovedSelection`, the same leg). A page must hold at least one widget (#640, `Menu.cpp:896-904`).
-  Our pages register through `RegisterComboSectionPage` (`SohMenu.h`), under Combo by default or under SoH's
-  Randomizer header with `ComboPageHost::Randomizer` (#1101), where they sit after Tricks/Glitches and before
-  Plandomizer. Rows of ours on one of SoH's own pages are appended after SoH's last row through
-  `RegisterSohPageRows` (`SohMenu.h`, #1132): SoH's Randomizer > Check Tracker and Item Tracker pages are the unified
-  trackers' pages, so no tracker page of ours is added beside them. The Randomizer sidebar holds 16 entries since
-  #1101 and lane R3 (#1132 added none); the sidebar child scrolls past `columnHeight` (`Menu.cpp:855-857`), so at
-  `min-832x600` it scrolls, as SoH's own 12 already did there. The Combo header holds 4 pages since #1132 retired
-  Windows.
+  with a carry of the persisted value and a lock leg that drives it (MenuComboSection leg 6). A page that moves to
+  another header carries the selection across headers (`ComboHeaderCarrySelection`, `SohMenuCombo.cpp`, the same
+  leg: since #1133 every page the retired Combo header had, under every name it had). A page must hold at least one
+  widget (#640, `Menu.cpp:896-904`). Our pages register through `RegisterComboSectionPage` (`SohMenu.h`), naming
+  SoH's header: `ComboPageHost::Randomizer` (#1101), where they sit after Tricks/Glitches and before Plandomizer, or
+  `ComboPageHost::DevTools` (#1133), after SoH's last Dev Tools page. Rows of ours on one of SoH's own pages are not
+  pages: a Majora's Mask row goes directly after the SoH row that holds its twin or nearest relative, or in a
+  "Majora's Mask" block on the most applicable page, through the hosted-row seam (`SohGui/HostedMm/SohMenuHostedMm.h`,
+  a one-line call in SoH's builder); other rows are appended after SoH's last row through `RegisterSohPageRows`
+  (`SohMenu.h`, #1132): SoH's Randomizer > Check Tracker and Item Tracker pages are the unified trackers' pages, so no
+  tracker page of ours is added beside them. The Randomizer sidebar holds 16 entries since #1101 and lane R3 (#1132
+  and #1133 added none); the sidebar child scrolls past `columnHeight` (`Menu.cpp:855-857`), so at `min-832x600` it
+  scrolls, as SoH's own 12 already did there. The Dev Tools sidebar holds 12 entries since #1133 (SoH's 11 and Save
+  Files). There is no Combo header since #1133.
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
   (`SohMenuEnhancements.cpp:155`, `SohMenuSettings.cpp:132`). Some open with a row or a gray note instead
@@ -224,14 +233,14 @@ and on ours (R-N4).
   one. The editable-but-not-active state is the note alone ("Majora's Mask is suspended; these take effect when you
   return."; that default is Majora's-Mask-specific, so an Ocarina of Time group passes its own sentence). A
   capability's tracking issue is a separate field of its record (`RegisterCapability(key, predicate, text, issue)`),
-  never part of the text a player reads. The Majora's Mask page's manifest rows follow the same split: `reason` is the
-  player text and prints no number, and `HostedMmEnhancement::issue` records the tracker, nonzero exactly on a non-live
-  row (`HostedMmEnhancementsAreHonest()`, `MenuMmEnhancementRows`). A group on that page holding a non-live row gets
-  one gray note directly above its rows (under its separator; in a pointer row's group, under the pointer's
-  sentence), shown while any of its rows is drawn disabled ("Some of these settings are not available in this build.
-  Hover one to see why.", `COMBO_MM_GROUP_NOTE_UNAVAILABLE`, the MM Randomizer page's group note and this project's
-  own wording: SoH's menus have no gray capability note to copy); every shipped row is Live, so the shipped page draws
-  none, and the harness-only `Combo/MM Row States` page draws both placements from a synthetic table.
+  never part of the text a player reads. The curated Majora's Mask rows' manifest follows the same split: `reason` is
+  the player text and prints no number, and `HostedMmEnhancement::issue` records the tracker, nonzero exactly on a
+  non-live row (`HostedMmEnhancementsAreHonest()`, `MenuMmEnhancementRows`). A "Majora's Mask" block holding a
+  non-live row gets one gray note directly under its heading, above its rows, shown while any of its rows is drawn
+  disabled ("Some of these settings are not available in this build. Hover one to see why.",
+  `COMBO_MM_GROUP_NOTE_UNAVAILABLE`, the MM Randomizer page's group note and this project's own wording: SoH's menus
+  have no gray capability note to copy); every shipped row is Live, so the shipped block draws none, and the
+  harness-only `Dev Tools/MM Row States` page draws it from a synthetic table.
 - **R-S4.** `RaceDisable` defaults to true (`MenuTypes.h:113`). Mark cosmetic and QoL rows `.RaceDisable(false)`.
 - **R-S5.** Destructive buttons confirm through `SohGui::RegisterPopup(title, message, "Reset", "Cancel", cb, nullptr)`
   (`SohMenuSettings.cpp:419-432`).
@@ -263,7 +272,8 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
 Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Randomizer > MM
 Randomizer and Randomizer > MM Tricks, `SohMenuComboMmRandomizer.cpp`; pages since 2026-09-27, ADR 0004's host
 amendment of that date, and under the Randomizer header since #1101, its 2026-10-21 amendment).
-Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
+The live-play tools open from SoH's own pages: the Check Tracker and Item Tracker from Randomizer > Check Tracker and
+Item Tracker, the Cross-Game Spoiler from the Check Tracker page (Combo > Windows held them until #1132).
 MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
 fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are SoH's own Randomizer > Check
 Tracker and Item Tracker pages (#1132, #1141): SoH's embedded settings windows write the keys the unified windows read,
@@ -399,15 +409,13 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Ours | SoH reference |
 |---|---|
 | Randomizer > Cross-Game (Combo > Cross-Game Rules until #1101) | Randomizer > General (its gray note, groups, comboboxes and 250 px button; ours is one column since #844, nothing being left for a second) |
-| Combo > Windows | Randomizer > Item Tracker |
-| Combo > Majora's Mask (was MM Enhancements) | Enhancements > Quality of Life (its rows; ours is two columns, section 1's width rule) |
-| Combo > MM Row States (harness-only: the Majora's Mask page's builder over a synthetic non-live table, so its disabled rows and group notes are drawn) | Enhancements > Quality of Life |
-| Combo > MM Mods | Randomizer > Tricks/Glitches (the two-column Disabled/Enabled table; OoT's Settings > Mod Menu throws in the harness's fresh config) |
+| The Majora's Mask rows hosted on SoH's pages (`MM rows/<header>/<page>`: Enhancements > Quality of Life, Skips & Speed-ups and Difficulty, Settings > Audio and Mod Menu; only those rows are ours there, each hovered) | the same SoH page's own capture, or the first SoH capture under its header (ROM-rich runs only) |
+| Dev Tools > MM Row States (harness-only: the curated rows' block builder over a synthetic non-live table, so its disabled rows and note are drawn) | Enhancements > Quality of Life |
+| Settings > Mod Menu's Majora's Mask block (`MM rows/Settings/Mod Menu`, states "", "listed" and "unfinished"; SoH's embedded mod menu is drawn as its button only, because it throws in the harness's fresh config) | Settings > General |
 | Randomizer > MM Randomizer | Randomizer > General (the two-column option page) |
 | Randomizer > MM Locations | Randomizer > Tricks/Glitches (SoH's captured bordered two-column table; SoH's own Locations page, whose shape it takes, is not captured) |
 | Randomizer > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |
-| Combo > Tracker Settings | Randomizer > Item Tracker (SoH's tracker page; its states "" and "window" show and hide the two floating-only rows) |
-| Combo > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
+| Dev Tools > Save Files | Randomizer > Tricks/Glitches (SoH's captured bordered table; its states "", "listed" and "backup" are authored through `Combo_SaveFiles_SetMetaForTest`, so the harness never reads a Save folder) |
 | Combo Tracker pane, Cross-Game Spoiler pane | SoH's Check Tracker Settings pane ("window/Check Tracker Settings": pane chrome, its themed section headers and its table), and Randomizer > Item Tracker. The Check Tracker itself shows only "Waiting for file load..." without a save, so it is not captured |
 | Combo Item Tracker overlay | SoH's Item Tracker overlay ("window/Item Tracker": floating, as SoH ships it, with no save loaded, so every icon is drawn faded; Ocarina of Time is made the running game for it, because #797 gates that window on it) |
 | Creation overlay | SoH's progress modal ("ROM Extraction", a harness copy of `RunExtract`'s modal and frame pushes, held to `RunExtract` by lint rule C1) |
@@ -439,10 +447,11 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 
 **Variants:**
 - STATE: the four Cross-Game Rules states (unpaired, paired-legacy, frozen and corrupt; the fifth, empty-oot-classes,
-  went with the item-class rows in #834), Majora's Mask's autosave,
-  Combo > MM Row States' default (every gated row and both notes hidden), heading-on (the heading group's Dormant row
-  drawn disabled under the note right under the heading) and gate-on (the pointer group's Dormant and Partial rows
-  drawn disabled under the note below the pointer's sentence; no race-lockout state, because every row that page
+  went with the item-class rows in #834), a hosted page's `gate:<key>` state for a row its manifest gates on another
+  key (Quality of Life's `gate:gEnhancements.Autosave` shows the MM autosave interval),
+  Dev Tools > MM Row States' default (every gated row and the note hidden), heading-on (the Dormant row gated on the
+  Live row drawn disabled under the block's note) and gate-on (the Dormant and Partial rows gated on the pointer's key
+  drawn disabled under the note; the pointer itself draws nothing; no race-lockout state, because every row that page
   registers is `.RaceDisable(false)`, so a lockout changes nothing there), Randomizer > MM Randomizer's unpaired,
   frozen and mm-suspended (each shows its own note), Randomizer > MM Tricks'
   unpaired and frozen (the trick headline, then the freeze sentence), and Randomizer > MM Locations' unpaired (the
@@ -465,8 +474,8 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 - SCROLL: `@scrollN`, stepping each column (a menu page) or the pane itself (a window) by one view minus 48 px until
   it reaches its end, at most 9 views.
 - HOVER: a pointer injected before ImGui reads input, so the tooltip is captured. Cross-Game Rules hovers its
-  direction and goal comboboxes and (frozen) its first slider and its goal row; Majora's Mask hovers its first row and
-  Windows its Combo Item Tracker toggle and Tracker Settings its Window Type row (`PageSpec::hoverRows`, a named row,
+  direction and goal comboboxes and (frozen) its first slider and its goal row; each hosted Majora's Mask row is
+  hovered on its SoH page (`PageSpec::hoverRows`, a named row,
   captured in the page's first state unless `PageSpec::hoverRowState` names another). Randomizer > MM Randomizer hovers its
   first row unpaired and frozen, its first capability-blocked row and its Freeze Traps row unpaired (named rows; the
   frozen and blocked ones are in `PageSpec::disabledHovers`). Randomizer > MM Tricks hovers a live, an unbound and a reserved trick unpaired and the live
@@ -508,7 +517,7 @@ MAX_PATH through the extended-length namespace, so a long output directory no lo
 **Two modes:**
 - **ROM-rich** (oot.o2r staged; the workstation) draws every SoH reference page and runs R8.
 - **ROM-free** (hosted CI) draws a probe menu holding only the sections that register without oot.o2r: our pages
-  under the Randomizer header (`AddComboRandomizerPages`), the whole Combo section and Dev Tools. The rest is recorded as `skip: needs oot.o2r`.
+  under the Randomizer header (`AddComboRandomizerPages`) and Dev Tools, with our Save Files page. The rest is recorded as `skip: needs oot.o2r`.
 
 soh.o2r is required in both modes, because the menu fonts live only there. The harness writes its own config
 (`rsbs-ui-snapshot.json`) to the path the Context reads it from, `GetPathRelativeToAppDirectory`, so `SHIP_HOME`

@@ -312,8 +312,9 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 > therefore **(O) MM-only** and must NOT be swept into the rename. One shared checkbox
 > driving a 3-minute OoT save and a 5-minute MM save is the accepted behaviour; the interval
 > slider stays in the MM subsection.
-> Since #693 that slider is hosted on the unified menu's **Combo → Majora's Mask** page (MM Enhancements until 2026-09-27)
-> (manifest row in `RSBS::kHostedMmEnhancements`), labelled Majora's-Mask-only; the key stays
+> Since #693 that slider is hosted in the unified menu (manifest row in `RSBS::kHostedMmEnhancements`); since #1133
+> it sits on Enhancements > Quality of Life directly after SoH's Autosave (the **Combo → Majora's Mask** page that held
+> it retired with the Combo header), labelled "MM Autosave Interval" and Majora's-Mask-only; the key stays
 > in `RSBS::kMustStayDistinct`. A `static_assert` in `src/common/cvar_shared_keys.h` fails
 > the build if the key is dropped from that table, and the `CvarClassification` source scan
 > (step 3c-2) fails if `games/oot` ever names it, spelled out or as
@@ -389,6 +390,24 @@ excluded `BenMenu.cpp`). Its row, "Ambience Volume", now sits right after SoH's 
 MM live: MM read them only in `MM_AudioMgr_Init`, once per bring-up, so a slider moved after MM's first init applied
 in MM only after a restart; the slider callbacks now also call `MM_Volume_ReapplyPortScales`
 (`src/common/mm_volume_bridge.h`).
+
+**#1133 — the curated rows (#682, #693) hosted beside their twins.** The Combo header's Majora's Mask page retired
+(ruling D5). Each row it held now sits on SoH's own Enhancements pages through the hosted-row seam, binds an
+`RSBS_CVAR_MM_*` define (classification leg 3f-2c) and takes its label, tooltip, widget and liveness from its
+`RSBS::kHostedMmEnhancements` entry. No key is renamed.
+
+| Row | Key | Host | Placement | Form |
+|---|---|---|---|---|
+| MM Autosave Interval | `gEnhancements.Saving.AutosaveInterval` (`RSBS_CVAR_MM_AUTOSAVE_INTERVAL`) | Enhancements > Quality of Life > Saving | directly after SoH's Autosave, hidden while Autosave is off | MM's own row beside the twin (the #1037 form): OoT's interval is a fixed 3 minutes, the key stays in `kMustStayDistinct` |
+| Autosave | `gEnhancements.Autosave` (converged) | Enhancements > Quality of Life > Saving | SoH's own row | one row for both games (#1119's form); its tooltip says so; the page's pointer to it is gone |
+| Skip Time Song Cutscenes | `gEnhancements.Songs.SkipSoTCutscenes` (`RSBS_CVAR_MM_SKIP_SOT_CUTSCENES`) | Enhancements > Skips & Speed-ups > Cutscenes | directly after SoH's Skip Song Cutscenes, its nearest relative | (O) MM-only row, plain label |
+| Game Over Prompt | `gEnhancements.Kaleido.GameOver` (`RSBS_CVAR_MM_KALEIDO_GAME_OVER`) | Enhancements > Quality of Life | a "Majora's Mask" block after Time of Day | (O) MM-only, no twin |
+| Better Double Time | `gEnhancements.Songs.BetterSongOfDoubleTime` (`RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME`) | Enhancements > Quality of Life | the same block, after Game Over Prompt | (O) MM-only, no twin |
+
+The two rows with no twin share one block on Quality of Life, the page where SoH keeps how play flows around saving
+and the time of day: the Game Over Prompt is a save prompt on death, and Better Double Time picks the hour the Song of
+Double Time skips to. MM Mods (Rescan Mods Folder and the MM mod list) is a "Majora's Mask" block on Settings > Mod
+Menu; it binds no key (`Combo_MMModSet_*`, `RSBS_CVAR_MM_ENABLED_MODS` / `_DISABLED_MODS` are written by the model).
 
 **Hosted-row convention (#1133 ruling D5, #1233).** Every MM row goes on the SoH page holding its twin or nearest
 relative, directly after that row, through a project-added function SoH's page calls in one line; a row with no twin
