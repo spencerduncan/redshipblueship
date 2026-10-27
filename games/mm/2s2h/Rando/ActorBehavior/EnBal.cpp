@@ -35,10 +35,27 @@ std::string Rando::ActorBehavior::TingleOfferedItemName(RandoCheckId rc) {
 bool Rando::ActorBehavior::TingleMapSlotSold(RandoCheckId rc) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     if (Rando::Foreign::IsForeignCheck(rc)) {
-        return Rando::Foreign::IsDeliveredForeignHost(rc);
+        // #1222: also while the slot's purchase waits on a full outbox (`eligible`:
+        // bought and charged, held by CheckQueue until a crossing frees a row), and
+        // while a new purchase would only be held: his price is charged after this
+        // answer, so a sale the outbox cannot send is refused before it is paid.
+        return Rando::Foreign::IsDeliveredForeignHost(rc) || RANDO_SAVE_CHECKS[rc].eligible ||
+               Rando::Foreign::ForeignOutboxFullFor(rc);
     }
 #endif
     return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc);
+}
+
+// VB_ALREADY_HAVE_TINGLE_MAP's answer: TingleMapSlotSold, and the toast that says
+// why when the refusal is the full outbox's (#1222), not a sale already made.
+static bool TingleRefusesMapSale(RandoCheckId rc) {
+    const bool refused = Rando::ActorBehavior::TingleMapSlotSold(rc);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (Rando::Foreign::ForeignOutboxFullFor(rc) && !RANDO_SAVE_CHECKS[rc].eligible) {
+        Rando::Foreign::NotifyForeignOutboxFull();
+    }
+#endif
+    return refused;
 }
 
 void OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
@@ -86,7 +103,7 @@ void Rando::ActorBehavior::InitEnBalBehavior() {
 
         auto randoCheckId = tingleMap[MM_gPlayState->sceneId][MM_gPlayState->msgCtx.choiceIndex];
 
-        *should = Rando::ActorBehavior::TingleMapSlotSold(randoCheckId);
+        *should = TingleRefusesMapSale(randoCheckId);
     });
 
     COND_VB_SHOULD(VB_TINGLE_GIVE_MAP_UNLOCK, shouldRegister, {

@@ -11,6 +11,8 @@
 #include "2s2h/Rando/Foreign.h" // Lane C1 (#392): foreign-check lookup + shared-structure recording
 #include "2s2h/Rando/ForeignTextboxIcon.h" // #607: the origin game's icon inside the blue textbox
 #include "2s2h/Rando/ForeignModel.h"       // #577 M3: the origin game's get-item model
+#include "shared_items.h"                  // #1222: Combo_SharedItemCrossingHasRoom
+#include <set>
 // Lane 6 (#502): drain of the deferred cross-game give (ForeignItemsSingleExe.cpp).
 extern "C" int MM_ForeignItem_FlushPending(void);
 #endif
@@ -28,10 +30,26 @@ static bool queued = false;
 // THE FOREIGN GIVE (#800 pass 1; declared in Rando/Foreign.h). Factored out of
 // the foreign branch's giveItem lambda below so a shop's purchase
 // (ActorBehavior/EnGirlA.cpp) delivers through the same code: the record, with
-// its #610 refusal and once-per-host gate, then the host's delivered bits, set
-// whatever the record answered, as the lambda always set them.
+// its #610 refusal and once-per-host gate, then the host's delivered bits.
+//
+// #1222: EXCEPT when the record is refused for want of room (every shared row
+// holds an item the other game has not redeemed). The bits used to be set
+// whatever the record answered, so the host read delivered and its OoT item was
+// lost for the file. A refused host is left exactly as it was: not delivered and
+// still `eligible`, so CheckQueue holds it (ForeignOutboxFullFor) and delivers it
+// once a crossing frees a row. The refusal itself stays loud: the record counts
+// it in the durable overflow count and logs it.
 bool Rando::Foreign::GiveForeignCheck(RandoCheckId randoCheckId) {
+    const bool outboxFull = Rando::Foreign::ForeignOutboxFullFor(randoCheckId);
     const bool crossed = Rando::Foreign::RecordForeignPickup(randoCheckId);
+    if (outboxFull && !crossed) {
+        fprintf(stderr,
+                "[MM] foreign pickup HELD: MM check %u stays open, the shared outbox is full; it delivers after the "
+                "next crossing frees a row (#1222)\n",
+                (unsigned)randoCheckId);
+        fflush(stderr);
+        return false;
+    }
     auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
     randoSaveCheck.cycleObtained = true;
     randoSaveCheck.obtained = true;
@@ -51,6 +69,20 @@ std::string Rando::Foreign::ForeignPickupMessage(const char* article, const char
     return std::string("You found ") + (article != nullptr ? article : "") +
            (name != nullptr ? name : "a foreign item") + " (OoT)!";
 }
+
+// THE FULL-OUTBOX TOAST (#1222; declared in Rando/Foreign.h): what the player is
+// shown when a pickup or a purchase is held for want of a shared row. Short, to
+// fit the shared overlay's one line (docs/ui-style-guide.md section 10).
+void Rando::Foreign::NotifyForeignOutboxFull() {
+    Notification::MM_Notify_Emit({
+        .prefix = "Outbox full:",
+        .message = "cross to Hyrule to send it",
+    });
+}
+
+// The held hosts CheckQueue has already told the player about, so a held host
+// toasts once, not every frame; forgotten once the outbox has room again.
+static std::set<RandoCheckId> sOutboxHeldNoticed;
 #endif
 
 // This function handles queuing up item gives that the player has been marked as eligible for. If you are looking for
@@ -81,10 +113,32 @@ void Rando::MiscBehavior::CheckQueue() {
         return;
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!sOutboxHeldNoticed.empty() && Combo_SharedItemCrossingHasRoom()) {
+        sOutboxHeldNoticed.clear();
+    }
+#endif
+
     for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
         auto randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
         if (randoSaveCheck.eligible) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1222: a foreign host whose crossing the full outbox would refuse is
+            // HELD, still eligible (durable in the save), and given on the first
+            // frame a row is free again: after the next crossing redeems the rows
+            // the other game was waiting on. Not queued, so no get-item cutscene
+            // announces an item that is not delivered; one toast says why.
+            if (Rando::Foreign::ForeignOutboxFullFor(randoCheckId)) {
+                if (sOutboxHeldNoticed.insert(randoCheckId).second) {
+                    fprintf(stderr, "[MM] foreign pickup HELD: MM check %u waits for a free shared row (#1222)\n",
+                            (unsigned)randoCheckId);
+                    fflush(stderr);
+                    Rando::Foreign::NotifyForeignOutboxFull();
+                }
+                continue;
+            }
+#endif
             queued = true;
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -137,6 +191,13 @@ void Rando::MiscBehavior::CheckQueue() {
                             // arrival there. The same give a shop's purchase makes
                             // (#800), factored below.
                             Rando::Foreign::GiveForeignCheck(checkId);
+                            // #1222: held (a row filled between the queue and this
+                            // give): the host stays open and eligible, and the
+                            // textbox says why instead of announcing the item.
+                            const bool held = !RANDO_SAVE_CHECKS[checkId].obtained;
+                            if (held) {
+                                sOutboxHeldNoticed.insert(checkId);
+                            }
 
                             // The native branch's sentence shape, with the
                             // item's game marked (#865): "You found " + article
@@ -155,8 +216,10 @@ void Rando::MiscBehavior::CheckQueue() {
                             CustomMessage::Entry entry = {
                                 .textboxType = 2,
                                 .icon = Rando::StaticData::GetIconForZMessage(RI_NONE),
-                                .msg = Rando::Foreign::ForeignPickupMessage(
-                                    Rando::Foreign::ForeignArticleForCheck(checkId), foreignName),
+                                .msg = held ? std::string("The cross-game outbox is full. Cross to Hyrule, and "
+                                                          "this item will be sent.")
+                                            : Rando::Foreign::ForeignPickupMessage(
+                                                  Rando::Foreign::ForeignArticleForCheck(checkId), foreignName),
                                 .foreignIconTexture = iconTexture,
                                 .foreignIconItemId = iconItemId,
                             };

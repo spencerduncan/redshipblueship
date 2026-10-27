@@ -31,6 +31,11 @@ bool ShopShelfSlotSold(RandoCheckId rc);
 // CheckQueue's give: shuffled, not armed yet, and not a foreign host whose
 // crossing was already delivered on an earlier cycle.
 bool HagsMushroomSlotArmable();
+// The 0x884 line's decision (#1228): true when it arms the slot (the hook then
+// arms it and settles the cycle's free blue potion). When it does not arm a slot
+// whose foreign item already crossed, the cycle's free blue potion must still be
+// settled, or the next visit offers it through the shelf, which has no item.
+bool HagsMushroomLineArms();
 // Tingle's map slots (EnBal.cpp): the name his offer gives slot `rc`'s item, and
 // whether a purchase of it is refused as "already have".
 std::string TingleOfferedItemName(RandoCheckId rc);
