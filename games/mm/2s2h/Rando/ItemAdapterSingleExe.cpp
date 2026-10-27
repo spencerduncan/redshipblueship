@@ -437,6 +437,9 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
     switch (def.kind) {
         case MMRK_SLOT:
             MMItemFillSlot(src, def, out);
+            if (def.item == (uint8_t)ITEM_HOOKSHOT && out->have) {
+                out->identifier = 'H'; // #1143: SoH's Hookshot Identifier; MM has no Longshot
+            }
             return true;
         case MMRK_SLOT_AMMO:
         case MMRK_SLOT_BOMBCHU:
@@ -453,6 +456,10 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
                            : (def.kind == MMRK_SLOT_BOMBCHU) ? (int)CUR_CAPACITY(UPG_BOMB_BAG)
                                                              : (int)CUR_CAPACITY(def.data);
             }
+            // #1143: SoH's maxCapacity, the largest bag; a fixed cap never grows (0).
+            out->capacityMax = (def.kind == MMRK_SLOT_FIXED)     ? 0
+                               : (def.kind == MMRK_SLOT_BOMBCHU) ? (int)CAPACITY(UPG_BOMB_BAG, 3)
+                                                                 : (int)CAPACITY(def.data, 3);
             return true;
         case MMRK_BOTTLES: {
             MMItemFillRando(out, def.rando);
@@ -518,6 +525,7 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             out->have = tier >= 1;
             out->count = gSaveContext.save.saveInfo.playerData.rupees;
             out->max = (int)CUR_CAPACITY(UPG_WALLET);
+            out->capacityMax = (int)CAPACITY(UPG_WALLET, 3); // #1143: the Giant's 500
             return true;
         }
         case MMRK_HEART_PIECES: {
@@ -571,6 +579,8 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             const s8 foundRaw = gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[def.data];
             out->count = IS_RANDO ? (foundRaw < 0 ? 0 : (int)foundRaw) : held;
             out->max = (int)def.item;
+            out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_KEYS; // #1143: SoH's Key Count Tracking reads these
+            out->held = held;
             out->have = held > 0;
             return true;
         }

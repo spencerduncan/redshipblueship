@@ -81,9 +81,17 @@
  *    loaded stays a text cell and is tried once per game switch, and OoT's
  *    texture names are never handed to the path loader.
  *
+ * 13. SOH'S COUNT AND METRIC SETTINGS (#1143, lane IT-4). SoH's DrawItemCount
+ *    over synthetic rows, one leg per setting (Ammo/Capacity Tracking's five
+ *    modes, Align count to left side, Key Count Tracking, Triforce Piece
+ *    Count, the Hookshot Identifier, Text size, Icon size and Icon margins
+ *    through the grid's metrics and the section box, the keys' slider bounds),
+ *    and the count fields both adapters and the pool fill for them.
+ *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
- * @no-data, @live and @snapshot beside SoH's window/Item Tracker); ImageOracle
- * there holds that the live and snapshot states draw icons.
+ * @no-data, @live and @snapshot beside SoH's window/Item Tracker, and #1143's
+ * @counts-capacity, @align-left and @key-counts); ImageOracle there holds that
+ * the live and snapshot states draw icons.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * it drives the C++-linkage ComboGui functions.

@@ -16,6 +16,7 @@
 #include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_ITEMS_MM_*: MM's group visibility keys (#1141)
 #include "foreign_items.h"    // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families the Shared group draws
 #include "shared_resources.h" // Combo_GetSharedResource, Combo_SharedResourceKindArmed
+#include "triforce_hunt.h"    // Combo_TriforceHuntRequired / _Total: the pieces' count (#1143)
 
 #include <stdio.h>
 #include <string.h>
@@ -694,6 +695,7 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
         }
         out->have = tier > 0;
         out->max = (int)def->tierCaps[tier];
+        out->capacityMax = (int)def->tierCaps[3]; // #1143: the most the tier grows to
         iconTier = tier;
     } else {
         if (def->countKind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
@@ -702,6 +704,16 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
         }
         out->have = def->heldAtZero || out->count > 0;
         out->max = (int)def->fixedMax;
+        // #1143: SoH's Hookshot Identifier names the tier ("H", "L"); the pieces count against the frozen
+        // hunt's requirement and total (0 with no hunt armed).
+        if (def->countKind == (uint8_t)RSBS_SHARED_RES_HOOKSHOT_TIER && out->count > 0) {
+            out->identifier = out->count >= 2 ? 'L' : 'H';
+        }
+        if (def->countKind == (uint8_t)RSBS_SHARED_RES_TRIFORCE_PIECES) {
+            out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_TRIFORCE;
+            out->max = (int)Combo_TriforceHuntRequired();
+            out->capacityMax = (int)Combo_TriforceHuntTotal();
+        }
     }
     out->iconNumber = def->tierIcon ? -1 : 0;
     const ComboItemOps* ops = Combo_Item_GetOps(iconGame);

@@ -1682,6 +1682,20 @@ const void* SnapshotItemMMLive(void) {
 // page's "window" state set.
 constexpr const char* kSohItemTrackerWindowTypeKey = "gTrackers.ItemTracker.WindowType";
 
+// #1143: SoH's count settings the overlay honours, one capture per non-default
+// setting, each over the "live" world: Ammo/Capacity Tracking at "Current
+// Capacity / Max Capacity", Align count to left side (under SoH's default
+// "Current Capacity"), and Key Count Tracking at "Current / Collected / Max".
+const struct {
+    const char* state;
+    const char* key;
+    int value;
+} kItemTrackerCountStates[] = {
+    { "counts-capacity", "gTrackers.ItemTracker.ItemCountType", ComboGui::kComboItemTrackerCountCapacity },
+    { "align-left", "gTrackers.ItemTracker.ItemCountAlignLeft", 1 },
+    { "key-counts", "gTrackers.ItemTracker.KeyCounts", ComboGui::kComboItemTrackerKeysCurrentCollectedMax },
+};
+
 void AuthorItemTrackerState(const std::string& state) {
     Context_InitFrozenStates();
     gSnapshotItemOoTOps = Combo_Item_GetOps((uint8_t)GAME_OOT);
@@ -1712,7 +1726,14 @@ void AuthorItemTrackerState(const std::string& state) {
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_QUIVER_TIER, 2);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_ARROW_COUNT, 33);
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 2));
-    const bool ootLive = state == "live";
+    bool countState = false;
+    for (const auto& c : kItemTrackerCountStates) {
+        if (state == c.state) {
+            CVarSetInteger(c.key, c.value);
+            countState = true;
+        }
+    }
+    const bool ootLive = state == "live" || countState;
     std::vector<uint8_t>& live = ootLive ? gSnapshotItemOoTLive : gSnapshotItemMMLive;
     live.assign(ootLive ? (size_t)OOT_SAVE_CONTEXT_SIZE : (size_t)MM_SAVE_CONTEXT_SIZE, 0);
     if (ootLive && gSnapshotItemOoTOps != nullptr) {
@@ -1741,6 +1762,9 @@ void RestoreItemTrackerState() {
     RestoreMMShadow();
     Combo_ResetSharedResourceWatermarks();
     CVarClear(kSohItemTrackerWindowTypeKey);
+    for (const auto& c : kItemTrackerCountStates) {
+        CVarClear(c.key);
+    }
 }
 
 /**
@@ -2624,7 +2648,8 @@ void Session::BuildPageList() {
         p.id = std::string("window/") + ComboGui::kComboItemTrackerWindowName;
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboItemTrackerWindowName;
-        p.states = { "no-data", "live", "snapshot" };
+        // #1143: one more state per non-default count setting (kItemTrackerCountStates), each the "live" world.
+        p.states = { "no-data", "live", "snapshot", "counts-capacity", "align-left", "key-counts" };
         p.compareWith = kSohItemTrackerReference;
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
@@ -2648,6 +2673,12 @@ void Session::BuildPageList() {
         }
         p.stateImages["live"] = 100;
         p.stateImages["snapshot"] = 100;
+        for (const auto& c : kItemTrackerCountStates) {
+            p.stateImages[c.state] = 100;
+            if (romFree) {
+                p.stateText[c.state] = { "Arrows 33/40" };
+            }
+        }
         p.avoidHudBand = true; // #962: the floating states sit below the hearts
         p.checksResetPosition = true;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };

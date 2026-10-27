@@ -383,9 +383,14 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     switch (def.kind) {
         case RK_INV:
             FillSlot(out, INV_CONTENT(def.item), def);
+            if (def.item == (uint8_t)ITEM_HOOKSHOT && out->have) {
+                // #1143: SoH's Hookshot Identifier letter for the tier held.
+                out->identifier = INV_CONTENT(def.item) == ITEM_LONGSHOT ? 'L' : 'H';
+            }
             return true;
         case RK_INV_AMMO:
             FillSlot(out, INV_CONTENT(def.item), def);
+            out->capacityMax = (int)CAPACITY(def.data, 3); // #1143: SoH's maxCapacity, the largest bag
             // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
             out->sharedKind = SharedTierKindOf(def.data);
             out->sharedTier = (uint8_t)CUR_UPG_VALUE(def.data);
@@ -458,6 +463,9 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             out->have = !IS_RANDO || RandInfOf(src, RAND_INF_HAS_WALLET);
             out->count = gSaveContext.rupees;
             out->max = out->have ? CUR_CAPACITY(UPG_WALLET) : 0;
+            // #1143: SoH's maxCapacity, 500, or 999 with the Tycoon's Wallet in the pool; a snapshot cannot read
+            // the frozen option, so the tycoon's tier is the sign of it.
+            out->capacityMax = (int)CAPACITY(UPG_WALLET, tier >= 3 ? 3 : 2);
             return true;
         }
         case RK_HEART_CONT:
