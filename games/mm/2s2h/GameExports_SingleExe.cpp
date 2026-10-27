@@ -2451,35 +2451,31 @@ static bool VerifySharedContext(void) {
 extern "C" {
 
 /**
- * Audio-editor sequence queries, MM side. The real implementations live in
- * 2s2h/Enhancements/Audio/AudioEditor.cpp, which is excluded from single-exe
- * builds (its UI needs BenGui/BenMenu, not yet ported), so MM's audio core
- * gets identity mappings here: no sequence replacement or randomization for
- * MM until that UI ports. Identity, NOT 0 — the untyped mm_stubs.c stub this
- * replaces returned 0 for every seqId, funneling every
- * MM_AudioLoad_SetSeqLoadStatus write into slot 0. The header declarations
- * (renamed to MM_AudioEditor_* by include/mm_audio_prefix.h) keep these
- * signature-checked.
- *
- * NOTE for whoever ports the MM audio editor: both games' editors persist
- * replacements under the same "gAudioEditor.*" CVar keys, so wiring this to
- * S2H::AudioCollection::GetReplacementSequence for real also needs a per-game
- * CVar prefix split.
+ * Audio-editor sequence queries, MM side (W6-AUDIO-SEQ, #1239). 2Ship's AudioEditor.cpp stays excluded from single-exe
+ * builds (its window is BenGui's); its write paths are ported to 2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp and
+ * its tabs drawn in SoH's Audio Editor. These are its two extern "C" entry points, which MM's audio core calls for
+ * every sequence it loads or plays (audio/lib/load.c, seqplayer.c, sequence.c, code_8019AF00.c), answered by MM's own
+ * S2H::AudioCollection: its replacement keys live under RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX, so a replacement
+ * SoH's tabs store for a sfxKey both games use never reaches MM. The header declarations (renamed to MM_AudioEditor_*
+ * by include/mm_audio_prefix.h) keep these signature-checked. Before MM_Game_Init creates the collection they keep the
+ * identity / clamped answers the stub gave.
  */
 u16 AudioEditor_GetReplacementSeq(u16 seqId) {
-    return seqId;
+    if (AudioCollection::Instance == nullptr) {
+        return seqId;
+    }
+    return AudioCollection::Instance->GetReplacementSequence(seqId);
 }
 
 u16 AudioEditor_GetOriginalSeq(u16 seqId) {
-    // NOT the identity: callers index the 128-entry MM_sSeqFlags[] with the
-    // result, and two call sites (code_8019AF00.c Audio_PlayBgm_StorePrevBgm
-    // and Audio_UpdateEnemyBgmVolume) reach here with NA_BGM_DISABLED
-    // (0xFFFF) while the main BGM player is stopped — identity would read
-    // ~64KB past the array. Clamping ids past GetMaxOriginalSeqId() (0x7F)
-    // to 0 reproduces upstream AudioCollection::GetOriginalSequence with no
-    // replacement CVars set: original ids map to themselves, everything
-    // else (custom ids, NA_BGM_DISABLED) resolves to 0.
-    return seqId <= 0x7F ? seqId : 0;
+    // Callers index the 128-entry MM_sSeqFlags[] with the result, and two call sites (code_8019AF00.c
+    // Audio_PlayBgm_StorePrevBgm and Audio_UpdateEnemyBgmVolume) reach here with NA_BGM_DISABLED (0xFFFF) while the
+    // main BGM player is stopped. The collection maps an original id to itself and a custom id to the original it
+    // replaces, else 0; the clamp keeps a hand-edited replacement key from ever answering past
+    // GetMaxOriginalSeqId() (0x7F).
+    const u16 original =
+        AudioCollection::Instance != nullptr ? AudioCollection::Instance->GetOriginalSequence(seqId) : seqId;
+    return original <= 0x7F ? original : 0;
 }
 
 /**

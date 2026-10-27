@@ -148,15 +148,24 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
 
 **The Audio Editor's other MM keys (#1239).** Not shared spellings, so not rows of the table above; each is now driven
-from SoH's Audio Editor > Audio Options block, and its provider (`Audio/Sfx/`) is carved into `ship__Enh_registrars`:
+from SoH's Audio Editor, by its Audio Options block (providers in `Audio/Sfx/`, carved into `ship__Enh_registrars`) or
+by its Majora's Mask tab (W6-AUDIO-SEQ: the port of 2Ship's editor write paths, `Audio/AudioEditorSingleExe.cpp`):
 
-| MM key | Category | How SoH's Audio Options block drives it |
+| MM key | Category | How SoH's Audio Editor drives it |
 |---|---|---|
 | `gAudioEditor.DisableTatlCallAudio` | converged (§5.3 group E) | retired onto SoH's `gAudioEditor.DisableNaviCallAudio` ("Disable Navi Call Audio"): one row mutes the companion fairy's call in both games |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Enable` | translated (`kTranslatedKeys`) | SoH's one float slider `gAudioEditor.LinkVoiceFreqMultiplier` (0.4-2.5); MM's pitch hook is armed when it is not 1.0. LUS stores CVars as dot-nested JSON, so SoH's leaf cannot also be the parent of MM's pair, and a rename is impossible |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Scale` | translated (`kTranslatedKeys`) | the same slider's value, read by the same translator (`LinksVoicePitchMultiplier.cpp`); nothing writes MM's two keys |
 | `gAudioEditor.MuteCarpenterSfx` | (O) MM-only | its own MM row, "MM Mute Carpenter Sounds", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_CARPENTER_SFX`) |
 | `gAudioEditor.ChildGoronCry` | (O) MM-only | its own MM row, "MM Mute Crying Goron Child", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY`) |
+| `gAudioEditor.ReplacedSequences.<sfxKey>.value` / `.locked` | (O) MM-only family, **moved** to `gAudioEditor.MM.ReplacedSequences.` (`RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX`) | the Majora's Mask tab's seven sequence tabs (Background Music, Fanfares, Events, Battle Music, Ocarina, Instrument, Songs), laid out like SoH's. Not shared: 11 sfxKeys name a sequence in both games (`NA_BGM_BOSS`, `NA_BGM_ENEMY`, `NA_BGM_FILE_SELECT`, `NA_BGM_GAME_OVER`, `NA_BGM_HORSE`, `NA_BGM_HORSE_GOAL`, `NA_BGM_INGO`, `NA_BGM_MINI_BOSS`, `NA_BGM_OWL`, `NA_BGM_SHOP`, `NA_BGM_TIMED_MINI_GAME`), so under SoH's spelling either game's tab would set the other's music. MM's collection composes the family; MM's audio core reads it through `MM_AudioEditor_GetReplacementSeq`. MM's Instrument tab lists nothing: 2Ship's sequence table has no instrument rows |
+| `gAudioEditor.Excluded.<sfxKey>` | (O) MM-only family, **moved** to `gAudioEditor.MM.Excluded.` (`RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX`) | the Majora's Mask tab's Audio Shuffle Pool Management, with a Songs filter 2Ship lacked |
+| `gAudioEditor.RandomizeAllOnNewScene` | translated (`kTranslatedKeys`) | SoH's combobox `gAudioEditor.RandomizeAudioGenModes` ("Automatically Randomize All Music and Sound Effects"): On New Scene arms MM's randomize on each new scene (`VB_PLAY_TRANSITION_CS`). Nothing writes MM's bool |
+| `gAudioEditor.RandomizeAllOnRandoGen` | translated (`kTranslatedKeys`) | the same combobox: On Rando Gen Only arms MM's randomize when MM's randomizer file is created (`OnRandoSeedGeneration`). Nothing writes MM's bool |
+| MM's Randomize / Reset / Lock / Unlock All Groups | no key | four MM rows at the top of the Majora's Mask tab ("MM Randomize All Groups", ...). "All Groups" is the seven tabbed groups: 2Ship's own list left out Songs (its Songs tab worked, its "All Groups" skipped it), so Songs is in; it listed Sound Effects and Voices, which have no replaceable MM row, so they are out |
+| MM's Sound Effects and Voices tabs | **not ported** | compiled out in 2Ship itself (`#if 0`, `AudioEditor.cpp:533-541`); nothing to drive |
+| `gAudioEditor.Playing` (MM's preview) | not used | MM's preview state is kept in memory by the port, so SoH's preview key stays SoH's; MM's previews play only while Majora's Mask runs |
+| `gWindows.AudioEditor` (#1237) | resolved, no key | 2Ship's popout opens no window in the single exe: SoH's one Audio Editor (Enhancements > Audio Editor) holds the Majora's Mask tab (ADR 0003 §5.2, tier 2 `gWindows.*` -> `gOpenWindows.*`) |
 
 ### 3.3 ❌ Accidental divergence — the actual bug list (2 rows, 4 keys)
 
