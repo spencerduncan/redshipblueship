@@ -463,6 +463,14 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Graphics/BowReticle.cpp"
         # #1013
         "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # W6-GFX (#1237, #1240): MM's two clock styles, chosen by the Clock Type row on SoH's Enhancements > Graphics
+        # page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). Each registers only through a file-scope
+        # RegisterShipInitFunc keyed on gEnhancements.Graphics.ClockType (RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE) and rides
+        # VB_PREVENT_CLOCK_DISPLAY, which z_parameter.c dispatches through MM_GameHooks_ExecuteVBShould. Both draw
+        # bodies read MM_gPlayState and are guarded (RSBS_SINGLE_EXE_REQUIRE); both call the HUD-editor stand-ins in
+        # mm_hudeditor_stubs.c. No stub in mm_stubs.c; no twin of any name in games/oot.
+        "2s2h/Enhancements/Graphics/3DSClock.cpp"
+        "2s2h/Enhancements/Graphics/TextBasedClock.cpp"
         # #1014
         "2s2h/Enhancements/Player/InstantPutaway.cpp"
         # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
