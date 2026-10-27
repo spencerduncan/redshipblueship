@@ -73,14 +73,14 @@ brief, plus everything in the collision set:
 |---|---:|---|
 | `gCheats.` | 14 | ✅ all |
 | `Graphics` | 16 | ✅ all |
-| `Restorations` | 10 | ✅ all |
+| `Restorations` | 10 | ✅ all; the eight behaviour restorations per key since W6-FIXES (#1237, §6.1 W6-FIXES), N64 Weird Frames and Pause Buffer Window in §5.3 |
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
 | `Player` | 9 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
 | `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
-| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
+| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim |
 | **Subtotal** | **130** | |
 
 **NOT classified at individual-setting level** — 55 MM keys across 6 categories:
@@ -220,7 +220,7 @@ rename pass.**
 | # | Setting | OoT key | MM key | Why (P) |
 |---|---|---|---|---|
 | P1 | **Text speed** | `gEnhancements.TextSpeed` (int slider, Min 1 Max 5, `%dx`) | `gEnhancements.Dialogue.FastText` (bool) | **Units are incompatible.** OoT is a 1–5× multiplier; MM is on/off. Writing MM's `1` into OoT's key means "1× = no speedup" — the toggle would silently do nothing. MM's FastText *also bundles* hold-B-to-advance, which OoT exposes as a **separate** CVar `gEnhancements.SkipText`. One control cannot express both decompositions. |
-| P2 | **Infinite Sword Glitch** | `gCheats.EasyISG` (a **Cheat**) | `gEnhancements.Restorations.TatlISG` (a **Restoration**) | Taxonomy conflict *and* semantics: OoT treats ISG as a cheat to grant; MM treats restoring the Navi-ISG behaviour (via Tatl) as authenticity. Different menu sections, different framing. Needs a maintainer call before any merge. |
+| P2 | **Infinite Sword Glitch** | `gCheats.EasyISG` (a **Cheat**) | `gEnhancements.Restorations.TatlISG` (a **Restoration**) | Taxonomy conflict *and* semantics: OoT treats ISG as a cheat to grant; MM treats restoring the Navi-ISG behaviour (via Tatl) as authenticity. Different menu sections, different framing. **Ruled (ADR 0004): keep both keys distinct** (`kMustStayDistinct`, bound through `RSBS_CVAR_MM_RESTORATIONS_TATL_ISG`); MM's own row, "Tatl ISG (restoration)", is hosted on Enhancements > Fixes > Glitch Restorations and `Restorations/TatlISG.cpp` is linked (W6-FIXES, #1237). |
 | P3 | **Camera invert / sensitivity** | `gSettings.FreeLook.Invert{X,Y}Axis`, `gSettings.Controls.InvertAiming{X,Y}Axis`, `…InvertShieldAiming{X,Y}Axis`, `…InvertZAimingYAxis`, `gSettings.FirstPersonCameraSensitivity.{Enabled,X,Y}` | `gEnhancements.Camera.RightStick.Invert{X,Y}Axis`, `gEnhancements.Camera.FirstPerson.Invert{X,Y}`, `…RightStickInvert{X,Y}`, `…GyroInvert{X,Y}`, `…Sensitivity{X,Y}` | **Different axis decomposition.** OoT splits by *context* (free-look vs aiming vs shield-aiming vs Z-aiming); MM splits by *input device* (right stick vs gyro vs first-person). There is no 1:1 mapping — OoT has no gyro axis, MM has no shield-aim axis. Merging would drop settings on both sides. |
 | P4 | **Tunic / transformation colours** | `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value` | `gCosmetics.Link_{Kokiri,Goron,Zora}Tunic.Value` | See §3.3 BUG 1. Intent is shared; the *current keys* are desynced by an OoT migration MM never followed. Converge, but as a fix, not a plain rename. |
 | P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 1 since #454) | **RESOLVED (#454): now (S).** See §3.3 BUG 2 — MM's clobbering write retired and read default aligned to OoT's 1. |
@@ -533,9 +533,9 @@ default (off).
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
 | `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
 | `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
-| `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
+| `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` and `N64WeirdFrames` → (S), minus `TatlISG` → (P); the other seven are MM/OoT-behaviour restorations, classified per key in W6-FIXES below |
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
-| `gFixes.*` | 4 | MM-specific colour/Epona fixes |
+| `gFixes.*` | 3 | MM-specific colour/Epona fixes, classified per key in W6-FIXES below. 2Ship v1's `gFixes.FixButtonEnvColor` is a rename MM's code never followed (`z_parameter.c` reads `gFixes.FixAmmoCountEnvColor`), so it is not counted |
 | `gWindows.*` | 23 | MM's own window-open namespace (OoT uses `gOpenWindows.*`) |
 | `gWindows.HudEditor` | 1 | (G), no row and no second window (W6-HUD-A, #1237). 2Ship's HUD Editor popout resolves to SoH's "Popout Cosmetics Editor Window": MM's HUD placements are in the Cosmetics Editor's HUD Placement tab, and `BenGui/HudEditor.cpp` stays unlinked |
 | `gHudEditor.B.{Mode, Position.X, Position.Y, Scale}` | 4 | (O) MM-only (W6-HUD-A, #1239). Header "MM B Button position" in the Majora's Mask section of SoH's Cosmetics Editor, HUD Placement tab, after SoH's placements: SoH's position radio buttons (Original position = Vanilla, Anchor to the left / right = Movable left / right, No anchors = Movable center, Hidden), its Up/Down and Left/Right sliders and MM's scale. Read by `mm_hudeditor_stubs.c`, 2Ship's reader ported. Composed from `RSBS_CVAR_MM_HUD_EDITOR_PREFIX` (leg 3d-3); not SoH's `gCosmetics.HUD.*` placements, whose positions and anchors mean OoT's HUD layout |
@@ -575,6 +575,35 @@ holds each binding.
 | `gEnhancements.Equipment.GreatFairySwordBButton` | off | Great Fairy Sword B-Button Attack (likewise) | (O) MM-only; acts on the B button's item only, never on a mask the combo owns |
 | `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
 | `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
+
+**W6-FIXES (#1237, #1236) — MM's Fixes and Restorations, linked and hosted.** MM read fifteen Fixes, `gFixes.*` and
+Restorations keys and one Camera key (Fix Targeting Camera Snap), but its only widgets sat in the excluded `BenMenu.cpp`,
+so nothing in the single exe wrote them, and eleven of their TUs were dropped from the link (a plain `2ship_enh`
+archive keeps no TU whose only anchor is a `RegisterShipInitFunc`). The eleven are now carved into
+`ship__Enh_registrars`, and fifteen keys have a row on Enhancements > Fixes, at the end of the SoH section holding
+their nearest relatives, added through the hosted-row seam (`SohMenuHostedMmFixes.cpp`) and bound through its
+`RSBS_CVAR_MM_*` define. The registrar-coverage lock's W6-FIXES phase attributes each TU by registry content (JP
+Grottos with every leg under its one key); the classification lock's leg 3f-2c holds each binding. None has an SoH twin
+that could share its key.
+
+| MM key | MM default | Row (Fixes > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Camera.FixTargettingCameraSnap` | off | Fix Targeting Camera Snap (Camera Fixes) | (O) MM-only; row only, `z_player.c` reads it |
+| `gFixes.FixEponaStealingSword` | off | Fix Epona Stealing Sword (Gameplay Fixes) | (O) MM-only; `Fixes/FixEponaStealingSword.cpp` linked (play-state guard added) |
+| `gEnhancements.Fixes.FierceDeityZTargetMovement` | off | Fix Fierce Deity Z-Target Movement (Gameplay Fixes) | (O) MM-only; `Fixes/FierceDeityZTargetMovement.cpp` linked (guard added) |
+| `gEnhancements.Fixes.ConsoleCrashes` | on | none | INTENTIONAL: the single exe always keeps the crash fixes on. `src/common/mm_stubs.c`'s handler returns "not reset" and every call site takes its safe fallback; 2Ship's off mode is a soft reset through the console's "reset" command, which in the single exe is SoH's and resets Ocarina of Time, not the Majora's Mask state the crash came from |
+| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key |
+| `gFixes.FixIkanaGreatFairyFountainColor` | off | Fix Ikana Great Fairy Fountain Color (Graphical Fixes) | (O) MM-only; row only, `z_kankyo.c` reads it |
+| `gEnhancements.Fixes.ControlCharacters` | off | Fix Text Control Characters (Graphical Fixes) | (O) MM-only; row only, `z_message_nes.c` reads it |
+| `gEnhancements.Fixes.CompletedHeartContainerAudio` | off | Fix Completed Heart Container Audio (Audio Fixes) | (O) MM-only; `Fixes/CompletedHeartContainerAudio.cpp` linked |
+| `gEnhancements.Restorations.PowerCrouchStab` | 0 (Patched) | MM Power Crouch Stab (Item-related Fixes, after SoH's Remove Power Crouch Stab, always shown) | (O) never mapped: SoH's `gEnhancements.CrouchStabFix` REMOVES the glitch and is a bool behind Fix Megaton Hammer Crouch Stab; MM's RESTORES it, with three values (Patched, Unpatched JP, Unpatched OoT). `Restorations/PowerCrouchStab.cpp` linked |
+| `gEnhancements.Restorations.TatlISG` | off | Tatl ISG (restoration) (Glitch Restorations) | (P) P2, held apart from SoH's `gCheats.EasyISG` (§4); `Restorations/TatlISG.cpp` linked |
+| `gEnhancements.Restorations.ConstantFlipsHops` | off | Constant Distance Backflips and Sidehops (Misc Restorations) | (O) restores OoT behaviour in MM; `Restorations/FlipHopVariable.cpp` linked (guard added) |
+| `gEnhancements.Restorations.SideRoll` | off | Side Rolls (Misc Restorations) | (O) likewise; `Restorations/SideRoll.cpp` linked |
+| `gEnhancements.Restorations.OoTFasterSwim` | off | Faster Swim (Misc Restorations) | (O) likewise; `Restorations/OoTFasterSwim.cpp` linked (guard added) |
+| `gEnhancements.Restorations.WoodfallMountainAppearance` | off | Woodfall Mountain Appearance (Misc Restorations) | (O) MM-only; `Restorations/WoodfallMountainAppearance.cpp` linked |
+| `gEnhancements.Restorations.JPGrottos` | off | JP Deku Palace Grottos (Misc Restorations) | (O) MM-only; `Restorations/JPGrottos.cpp` linked whole: its AfterRoomSceneCommands leg is the only writer of the flag its four ShouldActorInit legs wait on, so linking the deleting legs alone would leave Deku Palace with no grottos (guards added to the four legs) |
+| `gEnhancements.Restorations.BonkCollision` | off | Bonk Collision (Misc Restorations) | (O) restores OoT behaviour in MM; `Restorations/BonkCollision.cpp` linked |
 
 ### 6.2 OoT-only (category level)
 

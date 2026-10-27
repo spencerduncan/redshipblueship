@@ -1265,6 +1265,102 @@ void ResetKeyGapKeys() {
     }
 }
 
+// ---- W6-FIXES (#1237): MM's Fixes and Restorations TUs ------------------------------------------------------------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc on its own key. Per key, the TU:
+// Fixes/FixEponaStealingSword.cpp, Fixes/FierceDeityZTargetMovement.cpp, Fixes/CompletedHeartContainerAudio.cpp,
+// Restorations/FlipHopVariable.cpp (ConstantFlipsHops), PowerCrouchStab.cpp, SideRoll.cpp, OoTFasterSwim.cpp,
+// TatlISG.cpp, WoodfallMountainAppearance.cpp, JPGrottos.cpp and BonkCollision.cpp. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id or a scene id, and the delta is measured with every other key off.
+// The four row-only Fixes keys (Targeting Camera Snap, Ammo Count Color, Ikana Great Fairy Fountain Color, Text Control
+// Characters) have no TU (z_player.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
+//
+// JP GROTTOS: BOTH LEGS TOGETHER. JPGrottos.cpp's four ShouldActorInit legs delete Deku Palace's vanilla grottos and
+// torches unless isSpawningJPGrottos is set, and its AfterRoomSceneCommands[SCENE_22DEKUCITY] leg is the flag's only
+// writer (GameExports_SingleExe.cpp's ExecuteForID leg dispatches it). A link that armed the deleting legs without the
+// spawning one would leave Deku Palace with no grottos at all, so the probe asserts every leg, the spawning one
+// included, under the one key. The harness configuration still forces the key off before MM_Rando_Init
+// (kJPGrottosCVar) and ZeroW6PhaseKeys does again, so the EN_ITEM00 exactly-one probe (FAIL 7) runs honest; this phase
+// turns it on, measures it and clears it.
+#define W6_FIXES_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_FIXES_SHOULD_INIT_COUNT(id) []() { return SettledCountForId<GameInteractor::ShouldActorInit>(id); }
+
+constexpr const char* kW6FixesPowerCrouchStabCVar = "gEnhancements.Restorations.PowerCrouchStab";
+
+const std::vector<SkipKeyProbe>& W6FixesProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gFixes.FixEponaStealingSword",
+          "Fix Epona Stealing Sword",
+          { { "VB_CLEAR_B_BUTTON_FOR_NO_BOW (Fixes/FixEponaStealingSword.cpp)",
+              W6_FIXES_VB_COUNT(VB_CLEAR_B_BUTTON_FOR_NO_BOW), 1 } } },
+        { "gEnhancements.Fixes.FierceDeityZTargetMovement",
+          "Fix Fierce Deity Z-Target Movement",
+          { { "VB_ZTARGET_SPEED_CHECK (Fixes/FierceDeityZTargetMovement.cpp)",
+              W6_FIXES_VB_COUNT(VB_ZTARGET_SPEED_CHECK), 1 } } },
+        { "gEnhancements.Fixes.CompletedHeartContainerAudio",
+          "Fix Completed Heart Container Audio",
+          { { "VB_PLAY_HEART_CONTAINER_GET_FANFARE (Fixes/CompletedHeartContainerAudio.cpp)",
+              W6_FIXES_VB_COUNT(VB_PLAY_HEART_CONTAINER_GET_FANFARE), 1 } } },
+        { "gEnhancements.Restorations.ConstantFlipsHops",
+          "Constant Distance Backflips and Sidehops",
+          { { "VB_APPLY_AIR_CONTROL (Restorations/FlipHopVariable.cpp)", W6_FIXES_VB_COUNT(VB_APPLY_AIR_CONTROL),
+              1 } } },
+        // A combobox: 1 = Unpatched (JP) arms the VB leg alone, 2 = Unpatched (OoT) also arms OnActorInit[PLAYER] (the
+        // Kokiri Sword damage flags). The drive turns the key "on" with 1, so the VB bucket is read there; the second
+        // count, read while the drive holds the key at 1, re-drives it at 2 first and reads the actor bucket there.
+        // Before the drive the key is 0 and both counts are plain reads; the drive's own "off" (0) disarms both.
+        { kW6FixesPowerCrouchStabCVar,
+          "MM Power Crouch Stab",
+          { { "VB_PATCH_POWER_CROUCH_STAB at Unpatched (JP) (Restorations/PowerCrouchStab.cpp)",
+              W6_FIXES_VB_COUNT(VB_PATCH_POWER_CROUCH_STAB), 1 },
+            { "OnActorInit[ACTOR_PLAYER] at Unpatched (OoT) (Restorations/PowerCrouchStab.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6FixesPowerCrouchStabCVar, 0) == 1) {
+                      CVarSetInteger(kW6FixesPowerCrouchStabCVar, 2);
+                      ShipInit::Init(kW6FixesPowerCrouchStabCVar);
+                      ShipInit::Init(kW6FixesPowerCrouchStabCVar);
+                  }
+                  return SettledCountForId<GameInteractor::OnActorInit>(ACTOR_PLAYER);
+              },
+              1 } } },
+        { "gEnhancements.Restorations.SideRoll",
+          "Side Rolls",
+          { { "VB_PATCH_SIDEROLL (Restorations/SideRoll.cpp)", W6_FIXES_VB_COUNT(VB_PATCH_SIDEROLL), 1 } } },
+        { "gEnhancements.Restorations.OoTFasterSwim",
+          "Faster Swim",
+          { { "VB_CLAMP_ANIMATION_SPEED (Restorations/OoTFasterSwim.cpp)", W6_FIXES_VB_COUNT(VB_CLAMP_ANIMATION_SPEED),
+              1 } } },
+        { "gEnhancements.Restorations.TatlISG",
+          "Tatl ISG (restoration)",
+          { { "VB_TATL_CONVERSATION_AVAILABLE (Restorations/TatlISG.cpp)",
+              W6_FIXES_VB_COUNT(VB_TATL_CONVERSATION_AVAILABLE), 1 } } },
+        { "gEnhancements.Restorations.WoodfallMountainAppearance",
+          "Woodfall Mountain Appearance",
+          { { "OnActorInit[ACTOR_BG_BREAKWALL] (Restorations/WoodfallMountainAppearance.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorInit>(ACTOR_BG_BREAKWALL); }, 1 } } },
+        { kJPGrottosCVar,
+          "JP Deku Palace Grottos",
+          { { "ShouldActorInit[ACTOR_DOOR_ANA] (Restorations/JPGrottos.cpp, deletes the vanilla grottos)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_DOOR_ANA), 1 },
+            { "ShouldActorInit[ACTOR_OBJ_SYOKUDAI] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_OBJ_SYOKUDAI), 1 },
+            { "ShouldActorInit[ACTOR_OBJ_MURE3] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_OBJ_MURE3), 1 },
+            { "ShouldActorInit[ACTOR_EN_ITEM00] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_EN_ITEM00), 1 },
+            { "VB_PLAY_TRANSITION_CS (Restorations/JPGrottos.cpp)", W6_FIXES_VB_COUNT(VB_PLAY_TRANSITION_CS), 1 },
+            { "AfterRoomSceneCommands[SCENE_22DEKUCITY] (Restorations/JPGrottos.cpp, spawns the JP grottos and is the "
+              "only writer of the flag the deleting legs wait on)",
+              []() { return SettledCountForId<GameInteractor::AfterRoomSceneCommands>(SCENE_22DEKUCITY); }, 1 } } },
+        { "gEnhancements.Restorations.BonkCollision",
+          "Bonk Collision",
+          { { "VB_SET_PLAYER_CYLINDER_OC_FLAGS (Restorations/BonkCollision.cpp)",
+              W6_FIXES_VB_COUNT(VB_SET_PLAYER_CYLINDER_OC_FLAGS), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6FixesPhase{ "W6-FIXES (#1237)", W6FixesProbes };
+
 // ---- W6 phases (#1233): the zero and run helpers ---------------------------
 // The list itself is above Phase 4 (W6Phases). Both helpers take the list, so the control below can drive a synthetic
 // phase through the very code the registered ones go through.
