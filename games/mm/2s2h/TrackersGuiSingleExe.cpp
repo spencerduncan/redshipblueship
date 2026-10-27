@@ -46,6 +46,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "TrackersGuiSingleExe.h"
+#include "TimersGuiSingleExe.h" // W6-TIMERS: the In-Game Timer and Time Splits list register with the trackers
 
 #include <memory>
 
@@ -369,6 +370,10 @@ void RegisterWindows(std::shared_ptr<Ship::Gui> gui) {
     // Display-only — GetCheckIdFromName compares RandoStaticCheck.name, so
     // spoiler read/write does not depend on this.
     Rando::StaticData::PopulateCheckNames();
+
+    // W6-TIMERS (#1235, #1239): MM's In-Game Timer and Time Splits list, from
+    // the same excluded BenGui.cpp, ride this registration (idempotent).
+    S2H::TimersGui::RegisterWindows(gui);
 
     // Idempotence: MM_Rando_Init is once-only guarded, but the headless
     // harness may drive registration directly more than once.

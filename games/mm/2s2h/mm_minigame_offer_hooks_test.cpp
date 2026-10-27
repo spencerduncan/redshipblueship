@@ -98,6 +98,15 @@
  *   (the Sonata hand-off sets WEEKEVENTREG_09_80 on the same trigger, which
  *   kills the tied-up monkey on every later load in the cycle).
  *
+ * ---- Every row, again with every minigame row on (W6-MINIGAMES, #1236) ------
+ * The single exe links 2Ship's minigame TUs (archery scores, Honey & Darling,
+ * the beaver and Doggy races, Swordsman School, Cucco Shack, Romani, the
+ * Gorman and Goron races, ...). Each row then runs its legs a second time with
+ * every minigame key at its most generous value (RunWithMinigameRowsOn): the
+ * TUs' own hooks must arm exactly once each, no reward-path registry may grow,
+ * the verdicts must not change, and clearing the keys must take every hook
+ * back out. Red (40) while a minigame TU is out of the link.
+ *
  * WHAT THIS DOES NOT COVER. That the gallery owner and the beavers then carry
  * on talking normally after the hand-off, and that CheckQueue gives the seed's
  * item, need a real play state; they are the operator playtest in the PR.
@@ -129,7 +138,9 @@ extern "C" int MM_MinigameRepeatGuards_RunHeadless(void) {
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
+#include <iterator>
 #include <memory>
+#include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <ship/Context.h>
@@ -561,6 +572,151 @@ bool BringUpOk(const char* name) {
     return true;
 }
 
+// ---- W6-MINIGAMES (#1236): every leg again with every minigame row on -------
+// The single exe links 2Ship's minigame TUs and SoH's Enhancements > Minigames page writes their keys. Each one only
+// moves a win condition (a lower target score, an instant win, a skipped race) and lets the vanilla actor run its own
+// reward branch, so a rando check's item must still come from the hooks above, once, and never a vanilla reward in its
+// place. This pass proves the part of that a ROM-free row can reach:
+//   1. arming every minigame key (a one-point target, Always, Skip) arms each TU's own hook exactly once (non-vacuity:
+//      a pass over unlinked TUs would prove nothing);
+//   2. it adds no hook on a reward path: VB_GIVE_ITEM_FROM_OFFER, which every hook above rides, and the unkeyed
+//      ShouldVanillaBehavior and OnFlagSet registries (CheckQueue arms a check on its flag) do not grow;
+//   3. every leg of the row gives the same verdicts with the rows on;
+//   4. clearing the keys takes every hook they armed back out.
+// That the shortcut win then reaches the hooked offer in a real scene is the operator playtest in the PR.
+template <typename H> size_t MinigameSettledForId(int32_t forId) {
+    S2H::GameHooks::FlushPendingUnregistrations<H>();
+    auto& buckets = S2H::GameHooks::Registry<H>::functionsForID;
+    auto it = buckets.find(forId);
+    return it == buckets.end() ? 0u : it->second.size();
+}
+
+template <typename H> size_t MinigameSettledUnkeyed() {
+    S2H::GameHooks::FlushPendingUnregistrations<H>();
+    return S2H::GameHooks::Registry<H>::functions.size();
+}
+
+struct MinigameRowOn {
+    const char* key;
+    int32_t on;
+};
+
+// The most generous value of each key: the lowest target, Always (2) for the Doggy Race, Skip (2) for the Goron Race.
+const MinigameRowOn kMinigameRowsOn[] = {
+    { "gEnhancements.Minigames.BombersHideAndSeek", 1 },
+    { "gEnhancements.Minigames.SwordsmanSchoolScore", 1 },
+    { "gEnhancements.Minigames.HoneyAndDarlingDay1", 1 },
+    { "gEnhancements.Minigames.HoneyAndDarlingDay2", 1 },
+    { "gEnhancements.Minigames.HoneyAndDarlingDay3", 1 },
+    { "gEnhancements.Minigames.TownArcheryScore", 1 },
+    { "gEnhancements.Minigames.SwampArcheryScore", 1000 },
+    { "gEnhancements.Minigames.RomaniTargetPractice", 1 },
+    { "gEnhancements.Minigames.AlwaysWinDoggyRace", 2 },
+    { "gEnhancements.Minigames.CuccoShackCuccoCount", 1 },
+    { "gEnhancements.Minigames.SkipHorseRace", 1 },
+    { "gEnhancements.Minigames.BeaverRaceRingsCollected", 1 },
+    { "gEnhancements.Minigames.SkipLittleBeaver", 1 },
+    { "gEnhancements.DifficultyOptions.GoronRace", 2 },
+    { "gEnhancements.Minigames.BoatArcheryScore", 1 },
+    { "gEnhancements.Minigames.BoatArcheryHealth", 1 },
+    { "gEnhancements.Minigames.BoatArcheryInvincible", 1 },
+    { "gEnhancements.Minigames.TreasureChestShopShowFullMaze", 1 },
+    { "gEnhancements.Minigames.MarkShootingGalleryOctoroks", 1 },
+};
+
+struct MinigameBucket {
+    const char* what;
+    size_t (*count)();
+    size_t armed; // the exact growth with every row on
+};
+
+// One bucket per TU (attributed by registry content), and the reward-path registries, which must not move.
+const MinigameBucket kMinigameBuckets[] = {
+    { "ShouldActorUpdate[EN_BOMJIMB] (Timesavers/BombersHideAndSeek.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_BOMJIMB); }, 1 },
+    { "ShouldActorUpdate[EN_KENDO_JS] (Minigames/SwordsmanSchool.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_KENDO_JS); }, 1 },
+    { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+      []() {
+          return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_HONEY_AND_DARLING_MINIGAME_FINISH);
+      },
+      1 },
+    { "ShouldActorUpdate[EN_SYATEKI_MAN] (Minigames/Archery.cpp, Town and Swamp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_SYATEKI_MAN); }, 2 },
+    { "VB_KOUME_TAKE_DAMAGE (Minigames/Archery.cpp, Invincible)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_KOUME_TAKE_DAMAGE); }, 1 },
+    { "VB_WIN_ROMANI_PRACTICE (Minigames/RomaniTargetPractice.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_WIN_ROMANI_PRACTICE); }, 1 },
+    { "VB_DOGGY_RACE_SET_MAX_SPEED (Minigames/AlwaysWinDoggyRace.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_DOGGY_RACE_SET_MAX_SPEED); }, 1 },
+    { "ShouldActorUpdate[EN_HS] (Minigames/CuccoShackCuccoCount.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_HS); }, 1 },
+    { "VB_PLAY_TRANSITION_CS (Minigames/SkipHorseRace.cpp, DifficultyOptions/GoronRace.cpp at Skip)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_TRANSITION_CS); }, 2 },
+    { "ShouldActorUpdate[EN_AZ] (Minigames/BeaverRace.cpp, rings and speed-up)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_AZ); }, 2 },
+    { "OnActorUpdate[OBJ_TAKARAYA_WALL] (Minigames/TreasureChestShopFullMaze.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::OnActorUpdate>(ACTOR_OBJ_TAKARAYA_WALL); }, 1 },
+    { "OnActorDraw[EN_SYATEKI_OKUTA] (Minigames/MarkShootingGalleryOctoroks.cpp)",
+      []() { return MinigameSettledForId<GameInteractor::OnActorDraw>(ACTOR_EN_SYATEKI_OKUTA); }, 1 },
+    { "VB_GIVE_ITEM_FROM_OFFER (the reward path: must not move)",
+      []() { return MinigameSettledForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_OFFER); }, 0 },
+    { "ShouldVanillaBehavior, unkeyed (must not move)",
+      []() { return MinigameSettledUnkeyed<GameInteractor::ShouldVanillaBehavior>(); }, 0 },
+    { "OnFlagSet, unkeyed (must not move)", []() { return MinigameSettledUnkeyed<GameInteractor::OnFlagSet>(); }, 0 },
+};
+
+void SetMinigameRows(bool on) {
+    for (const auto& row : kMinigameRowsOn) {
+        if (on) {
+            CVarSetInteger(row.key, row.on);
+        } else {
+            CVarClear(row.key);
+        }
+        ShipInit::Init(row.key);
+    }
+}
+
+/** Runs @p legs on a fresh fixture with every minigame row on (see above). Returns 0, 40 (a TU's hook did not arm
+ *  exactly once, or a reward-path registry moved), 41 (a key left a hook behind), or the legs' own code. Leaves every
+ *  key cleared. */
+template <typename Legs> int RunWithMinigameRowsOn(const char* name, Legs legs) {
+    SetMinigameRows(false); // from MM's defaults, whatever an earlier row of a shared process left
+    std::vector<size_t> before;
+    for (const auto& bucket : kMinigameBuckets) {
+        before.push_back(bucket.count());
+    }
+    SetMinigameRows(true);
+    int rc = 0;
+    for (size_t i = 0; i < std::size(kMinigameBuckets) && rc == 0; i++) {
+        const size_t now = kMinigameBuckets[i].count();
+        if (now != before[i] + kMinigameBuckets[i].armed) {
+            rc = Fail(40,
+                      "%s, minigame rows on: %s went %zu -> %zu, expected +%zu. Either a minigame TU is not in the "
+                      "link (its row on SoH's Minigames page would do nothing) or turning a minigame row on adds a "
+                      "hook on the reward path, where a shortcut win could hand a vanilla reward in place of the "
+                      "check's item (#1236)",
+                      name, kMinigameBuckets[i].what, before[i], now, kMinigameBuckets[i].armed);
+        }
+    }
+    if (rc == 0) {
+        HookFixture fx;
+        rc = fx.Ok() ? legs(fx) : Fail(1, "could not allocate the fixtures");
+        if (rc != 0) {
+            printf("[TEST]       (with every minigame row on, #1236)\n");
+        }
+    }
+    SetMinigameRows(false);
+    for (size_t i = 0; i < std::size(kMinigameBuckets) && rc == 0; i++) {
+        const size_t now = kMinigameBuckets[i].count();
+        if (now != before[i]) {
+            rc = Fail(41, "%s: %s went %zu -> %zu after every minigame row was cleared; a key left its hook behind",
+                      name, kMinigameBuckets[i].what, before[i], now);
+        }
+    }
+    return rc;
+}
+
 } // namespace
 
 extern "C" int MM_GalleryRupeeStandIn_RunHeadless(void) {
@@ -576,6 +732,9 @@ extern "C" int MM_GalleryRupeeStandIn_RunHeadless(void) {
             return Fail(1, "could not allocate the fixtures");
         }
         rc = RunGalleryLegs(fx);
+    }
+    if (rc == 0) {
+        rc = RunWithMinigameRowsOn("mm-gallery-rupee-stand-in", [](HookFixture& fx) { return RunGalleryLegs(fx); });
     }
     if (rc != 0) {
         return rc;
@@ -598,6 +757,9 @@ extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
             return Fail(1, "could not allocate the fixtures");
         }
         rc = RunDoggyLegs(fx);
+    }
+    if (rc == 0) {
+        rc = RunWithMinigameRowsOn("mm-doggy-race-reward", [](HookFixture& fx) { return RunDoggyLegs(fx); });
     }
     if (rc != 0) {
         return rc;
@@ -631,6 +793,18 @@ extern "C" int MM_MinigameRepeatGuards_RunHeadless(void) {
                 rc = RunStormsLegs(fx);
             }
         }
+    }
+    if (rc == 0) {
+        rc = RunWithMinigameRowsOn("mm-minigame-repeat-guards", [](HookFixture& fx) {
+            int legsRc = RunPlaygroundLegs(fx);
+            if (legsRc == 0) {
+                legsRc = RunFishLegs(fx);
+            }
+            if (legsRc == 0) {
+                legsRc = RunStormsLegs(fx);
+            }
+            return legsRc;
+        });
     }
     // The fixture put the SaveContext image back; re-run the ShipInit drive
     // under the restored saveType, as mm-song-teacher-hooks does.

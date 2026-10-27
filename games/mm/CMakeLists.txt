@@ -490,6 +490,26 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Restorations/PauseBufferInputs.cpp"
         # #1017
         "2s2h/Enhancements/DifficultyOptions/HyperEnemies.cpp"
+        # W6-MINIGAMES (#1236): MM's minigame options and Mark Shooting Gallery Octoroks, hosted on SoH's Enhancements >
+        # Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). Each registers only through a file-scope
+        # RegisterShipInitFunc keyed on its own MM key (RSBS_CVAR_MM_*), and rides a hook the single exe dispatches:
+        # ShouldActorUpdate / OnActorInit / OnActorUpdate / OnActorDraw (z_actor.c) and OnOpenText (z_message.c) via
+        # MM_GameHooks_Execute*; VB_* from z_demo.c and the En_Fu, En_Syateki_Man, En_Tru_Mt, En_Ma4, En_Racedog and
+        # En_Rg overlays via MM_GameHooks_ExecuteVBShould. The three bodies that read MM_gPlayState are guarded
+        # (RSBS_SINGLE_EXE_REQUIRE). No stub in mm_stubs.c; no twin of their definitions in games/oot. Each only moves a
+        # win condition; the reward stays the vanilla actor's, which the rando hooks take (mm_minigame_offer_hooks_test).
+        "2s2h/Enhancements/Timesavers/BombersHideAndSeek.cpp"
+        "2s2h/Enhancements/Minigames/SwordsmanSchool.cpp"
+        "2s2h/Enhancements/Minigames/HoneyAndDarling.cpp"
+        "2s2h/Enhancements/Minigames/Archery.cpp"
+        "2s2h/Enhancements/Minigames/RomaniTargetPractice.cpp"
+        "2s2h/Enhancements/Minigames/AlwaysWinDoggyRace.cpp"
+        "2s2h/Enhancements/Minigames/CuccoShackCuccoCount.cpp"
+        "2s2h/Enhancements/Minigames/SkipHorseRace.cpp"
+        "2s2h/Enhancements/Minigames/BeaverRace.cpp"
+        "2s2h/Enhancements/DifficultyOptions/GoronRace.cpp"
+        "2s2h/Enhancements/Minigames/TreasureChestShopFullMaze.cpp"
+        "2s2h/Enhancements/Minigames/MarkShootingGalleryOctoroks.cpp"
         # #1024-#1026: the three Audio Editor rows the SoH menu draws (kSharedIntentKeys: gAudioEditor.LowHpAlarm,
         # .EnemyBGMDisable, .SeqNameNotification and its Duration). Each registers only through a file-scope
         # RegisterShipInitFunc, and rides a hook the single exe dispatches: VB_PLAY_LOW_HP_ALARM (z_lifemeter.c) and
@@ -600,6 +620,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Player/UnderwaterOcarina.cpp"
         # #1034
         "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
+        # W6-TIMERS (#1235, #1237, #1239): MM's In-Game Timer overlay and Time Splits. TimersGuiSingleExe.cpp constructs
+        # the windows of the first three; TimeSplitsActions.cpp registers only through RegisterShipInitFunc. Its six hooks
+        # are dispatched: OnItemGive, OnBottleContentsUpdate and OnBossDefeated through MM_GameHooks_Execute* (#438),
+        # OnSceneInit through MM_GameHooks_ExecuteOnSceneInit (z_play.c) and the two great-fairy VBs through
+        # GameInteractor_Should. No hook body reads MM_gPlayState, and none of the four has a stub or an OoT twin
+        "2s2h/Enhancements/Trackers/DisplayOverlay.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/Timesplits.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimesplitsSettings.cpp"
         # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;
         # the body touches only the kaleido equip-state globals and the pauseCtx the dispatcher passes)
         "2s2h/Enhancements/Equipment/SkipMagicArrowEquip.cpp"

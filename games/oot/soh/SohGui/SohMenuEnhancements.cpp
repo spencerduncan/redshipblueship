@@ -45,6 +45,9 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
 void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
 void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
 void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
+// W6-TIMERS (#1235, #1239): MM's In-Game Timer and Time Splits rows (HostedMm/SohMenuHostedMmTimers.cpp).
+void AddMmInGameTimerRows(SohMenu& menu, WidgetPath& path);
+void AddMmTimeSplitsRows(SohMenu& menu, WidgetPath& path);
 // W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
 // Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
@@ -202,6 +205,10 @@ void OnFixBrokenGiantsKnifeToggled() {
         func_800849EC(OoT_gPlayState);
     }
 }
+
+// W6-MINIGAMES (#1236): MM's minigame rows on Minigames (HostedMm/SohMenuHostedMmMinigames.cpp).
+void AddMmShootingGalleryRows(SohMenu& menu, WidgetPath& path);
+void AddMmMinigameRows(SohMenu& menu, WidgetPath& path);
 
 // W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle rows (HostedMm/SohMenuHostedMmCycleCheats.cpp).
 void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
@@ -1473,6 +1480,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(15)
                      .Format("%d arrows")
                      .Tooltip("The ammunition at the start of the Shooting Gallery minigame as Adult."));
+    AddMmShootingGalleryRows(*this, path); // W6-MINIGAMES: MM's archery scores and gallery Octoroks
 
     AddWidget(path, "Bombchu Bowling", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Customize Behavior##Bowling", WIDGET_CVAR_CHECKBOX)
@@ -1637,6 +1645,7 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(fishingDisabledFunc)
         .Options(IntSliderOptions().Min(6).Max(13).DefaultValue(13).Format("%d lbs.").Tooltip(
             "The minimum weight for the unique fishing reward as an adult."));
+    AddMmMinigameRows(*this, path); // W6-MINIGAMES: MM's minigames, in a Majora's Mask block
 
     // Extra Modes
     path.sidebarName = "Extra Modes";
@@ -1992,6 +2001,8 @@ void SohMenu::AddMenuEnhancements() {
     // Time Splits
     path.sidebarName = "Time Splits";
     AddSidebarEntry("Enhancements", path.sidebarName, 1);
+    // W6-TIMERS: MM's switches, above the window row, whose embedded window fills the rest of the page.
+    AddMmTimeSplitsRows(*this, path);
     AddWidget(path, "Popout Time Splits Window", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("TimeSplits"))
         .RaceDisable(false)
@@ -2022,6 +2033,7 @@ void SohMenu::AddMenuEnhancements() {
             .CVar(timer.timeEnable)
             .Callback([](WidgetInfo& info) { TimeDisplayUpdateDisplayOptions(); });
     }
+    AddMmInGameTimerRows(*this, path);
 }
 
 } // namespace SohGui

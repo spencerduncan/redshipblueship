@@ -72,11 +72,28 @@ void DisplayOverlayWindow::Draw() {
     if (gSaveContext.save.shipSaveInfo.fileCompletedAt == 0) { // Player has not beaten the game
         switch (displayOverlay) {
             case TIMER_DISPLAY_RTA:
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // W6-TIMERS (#1235): a paired file is stamped at MM's first OnSaveLoad, not at creation, so before
+                // that there is no start to count from (the subtraction would show the whole Unix epoch).
+                if (gSaveContext.save.shipSaveInfo.fileCreatedAt == 0) {
+                    break;
+                }
+#endif
                 timeToDisplay = (GetUnixTimestamp() - gSaveContext.save.shipSaveInfo.fileCreatedAt);
                 break;
             case TIMER_DISPLAY_IGT:
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // W6-TIMERS (#1235): lastTimeLog is RAM-only (ShipSaveContext) and 0 until OnSaveLoad seeds it, which
+                // every arrival in MM re-dispatches (z_play.c, MM_Play_ConsumeStartupEntrance). Unseeded, nothing has
+                // accrued since the persisted filePlaytime: the rule SavingEnhancements_AdvancePlaytime follows (#513).
+                timeToDisplay = gSaveContext.save.shipSaveInfo.filePlaytime;
+                if (gSaveContext.shipSaveContext.lastTimeLog != 0) {
+                    timeToDisplay += GetUnixTimestamp() - gSaveContext.shipSaveContext.lastTimeLog;
+                }
+#else
                 timeToDisplay = ((GetUnixTimestamp() - gSaveContext.shipSaveContext.lastTimeLog) +
                                  gSaveContext.save.shipSaveInfo.filePlaytime);
+#endif
                 break;
             default:
                 break;
