@@ -29,8 +29,9 @@
  *
  * MM's AudioEditor.cpp itself is excluded from single-exe builds (its UI
  * needs BenGui/BenMenu, which have not been ported); the two extern "C"
- * entry points below that MM's audio core calls are identity-stubbed in
- * 2s2h/GameExports_SingleExe.cpp instead.
+ * entry points below that MM's audio core calls are defined in
+ * 2s2h/GameExports_SingleExe.cpp over MM's collection, and the C++ helpers
+ * by 2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp (W6-AUDIO-SEQ, #1239).
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -42,9 +43,9 @@
 #define AudioEditor_GetReplacementSeq MM_AudioEditor_GetReplacementSeq
 #define AudioEditor_GetOriginalSeq MM_AudioEditor_GetOriginalSeq
 
-/* C++ helpers declared in AudioEditor.h. Dormant in single-exe builds while
- * AudioEditor.cpp is excluded, but renamed now so re-enabling that file can
- * never resurrect a silent collision with SoH's identically-named set. */
+/* C++ helpers declared in AudioEditor.h, defined in single-exe builds by
+ * Enhancements/Audio/AudioEditorSingleExe.cpp; renamed so they can never
+ * resolve to SoH's identically-named set. */
 #define AudioEditor_RandomizeAll MM_AudioEditor_RandomizeAll
 #define AudioEditor_RandomizeGroup MM_AudioEditor_RandomizeGroup
 #define AudioEditor_ResetAll MM_AudioEditor_ResetAll

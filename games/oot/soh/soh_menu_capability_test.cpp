@@ -79,6 +79,9 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include "soh/SohGui/SohMenu.h"
+#include "soh/SohGui/HostedMm/SohMenuHostedMm.h" // leg 8 (W6-GFX): the hosted-row registry
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include <cstdio>
 #include <string>
@@ -815,6 +818,65 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
     }
     printf("[TEST] leg 7: the gray note hides for a live group, says each other state in one or two sentences with no "
            "tracker number, and follows its capability\n");
+
+    // ---- Leg 8 (W6-GFX, #1237): MM's dynamic motion blur rows, with no MM play state ----
+    // Two rows on Enhancements > Graphics bind MM's motion blur registers (R_MOTION_BLUR_ENABLED and
+    // R_MOTION_BLUR_ALPHA), not CVars, through the accessor each names. Those registers exist only while Majora's Mask
+    // runs a play state, and this process never runs MM. So each row must be there, found through the hosted-row
+    // registry by its accessor on the page SoH's own builder adds, and must draw as §6's CAPABILITY state: disabled,
+    // its own name, SoH's tooltip shape with a reason that says why. A row that drew live here would write registers
+    // nothing reads; a missing row is the defect the leg was written for. Motion Blur Mode is held at Dynamic, the
+    // only mode these rows act in, and cleared afterwards.
+    {
+        CVarSetInteger(RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE, 0);
+        CapabilityMenuProbe gfxProbe;
+        gfxProbe.AddMenuEnhancements();
+        auto& gfxEntries = gfxProbe.Entries();
+        const bool havePage =
+            gfxEntries.contains("Enhancements") && gfxEntries.at("Enhancements").sidebars.contains("Graphics");
+        CAP_CHECK(havePage, "AddMenuEnhancements registered no Enhancements > Graphics page%s", "");
+        const char* const kRegisterAccessors[] = { "MM_MotionBlur_SetDynamicEnabled", "MM_MotionBlur_SetDynamicAlpha" };
+        const std::string wantTip = SohShape("Majora's Mask Not Running");
+        int found = 0;
+        for (const char* accessor : kRegisterAccessors) {
+            const SohGui::HostedMmRow* hosted = nullptr;
+            for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+                if (h.accessor != nullptr && std::string(h.accessor) == accessor && h.header == "Enhancements" &&
+                    h.sidebar == "Graphics") {
+                    hosted = &h;
+                }
+            }
+            CAP_CHECK(hosted != nullptr,
+                      "no hosted row on Enhancements > Graphics binds %s: MM's dynamic motion blur register has no "
+                      "control in the single exe",
+                      accessor);
+            if (hosted == nullptr || !havePage) {
+                continue;
+            }
+            WidgetInfo* row = FindRow(gfxEntries.at("Enhancements").sidebars.at("Graphics"), hosted->name);
+            CAP_CHECK(row != nullptr, "the registry names \"%s\" but Enhancements > Graphics has no row by that name",
+                      hosted->name.c_str());
+            if (row == nullptr || row->options == nullptr) {
+                continue;
+            }
+            found++;
+            for (int frame = 0; frame < 3; frame++) {
+                RunPreFunc(*row);
+            }
+            CAP_CHECK(row->options->disabled,
+                      "\"%s\" draws enabled with no MM play state: it would write a register nothing reads",
+                      row->name.c_str());
+            CAP_CHECK(std::string(Tooltip(*row)) == wantTip,
+                      "\"%s\" carries the disabled tooltip '%s', expected SoH's shape with the reason, '%s'",
+                      row->name.c_str(), Tooltip(*row), wantTip.c_str());
+            CAP_CHECK(row->name == hosted->name, "\"%s\" was renamed to '%s' by its presentation", hosted->name.c_str(),
+                      row->name.c_str());
+        }
+        CVarClear(RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE);
+        printf("[TEST] leg 8: %d of MM's two dynamic motion blur rows found on Enhancements > Graphics, each disabled "
+               "with SoH's tooltip and its reason while MM has no play state\n",
+               found);
+    }
 
     // Leave the process clean: the capability registry is process-global and
     // AllTests runs every dispatch entry in ONE process.

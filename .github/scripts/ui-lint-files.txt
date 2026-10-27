@@ -21,6 +21,7 @@ MENU games/oot/soh/SohGui/HostedMm/
 MENU games/oot/soh/SohGui/SohMenuComboMmMods.cpp
 MENU games/oot/soh/SohGui/SohMenuComboMmRandomizer.cpp
 PTR games/oot/soh/Enhancements/audio/AudioEditor.cpp::DrawMmAudioOptionsRows
+PTR games/oot/soh/Enhancements/audio/AudioEditor.cpp::DrawMmSequencePane
 MENU games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 MENU games/oot/soh/SohGui/SohMenuComboTrackerSettings.cpp
 PTR games/oot/soh/SohGui/SohMenuRandomizer.cpp::DrawSeedPackageRows
@@ -29,7 +30,9 @@ PTR games/oot/soh/Enhancements/controls/SohInputEditorWindow.cpp::DrawMmCameraRo
 PANES src/common/ComboSpoilerWindow.cpp
 PANES src/common/ComboTrackerWindow.cpp
 PANES src/common/ComboItemTrackerWindow.cpp
+PANES games/mm/2s2h/TimersGuiSingleExe.cpp
 PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
+PANES games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.cpp
 PANES games/mm/2s2h/TrackersGuiSingleExe.cpp
 
 TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp

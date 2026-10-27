@@ -21,7 +21,59 @@ static SkeletonHeader gKafeiSkelBackup;
 #define CVAR_NAME "gModes.PlayAsKafei"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-MODES-DIFF (#1236): see the registrar below for why the single exe swaps lazily.
+extern "C" bool MM_Rando_AssetsReady(void);
+#include "context.h" // src/common: Context_GetCurrentGame
+
+// Is Kafei's skeleton in the cached gLinkHumanSkel now? Keeps the scene-destroy hook armed after the switch turns off,
+// so the next scene change puts Link back.
+static bool sKafeiApplied = false;
+// The two cached resources the swap edits and reads, held so the objects (and the limb tables the swapped header
+// points into) outlive any unload of the cache, and so a reload is noticed: the backup is taken again from the fresh,
+// unswapped copy. Heap-held and never freed: no static destructor runs at process exit.
+struct KafeiSwapResources {
+    std::shared_ptr<Ship::IResource> linkSkel;
+    std::shared_ptr<Ship::IResource> kafeiSkel;
+};
+static KafeiSwapResources* sKafeiSwap = nullptr;
+
+// Load both skeletons and take the backups the first time, or again after the cached copy changed. False when they
+// cannot be loaded (no mm.o2r: the ROM-free rows, or the creation seam running MM's registrars before MM ever booted).
+static bool PlayAsKafei_LoadBackups() {
+    auto resourceManager = Ship::Context::GetInstance()->GetResourceManager();
+    auto linkSkel = resourceManager->LoadResource(gLinkHumanSkel);
+    auto kafeiSkel = resourceManager->LoadResource(gKafeiSkel);
+    if (linkSkel == nullptr || kafeiSkel == nullptr || linkSkel->GetRawPointer() == nullptr ||
+        kafeiSkel->GetRawPointer() == nullptr) {
+        return false;
+    }
+    if (sKafeiSwap == nullptr) {
+        sKafeiSwap = new KafeiSwapResources();
+    }
+    if (sKafeiSwap->linkSkel != linkSkel) {
+        memcpy(&gLinkHumanSkelBackup, linkSkel->GetRawPointer(), sizeof(SkeletonHeader));
+        sKafeiSwap->linkSkel = linkSkel;
+        sKafeiApplied = false;
+    }
+    if (sKafeiSwap->kafeiSkel != kafeiSkel) {
+        memcpy(&gKafeiSkelBackup, kafeiSkel->GetRawPointer(), sizeof(SkeletonHeader));
+        sKafeiSwap->kafeiSkel = kafeiSkel;
+    }
+    return true;
+}
+#endif
+
 void UpdatePlayAsKafei() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!MM_Rando_AssetsReady() || !PlayAsKafei_LoadBackups()) {
+        return;
+    }
+    if (!CVAR && !sKafeiApplied) {
+        return; // nothing swapped, nothing to put back
+    }
+    sKafeiApplied = CVAR != 0;
+#endif
     if (CVAR) {
         auto gLinkHumanSkelResource = Ship::Context::GetInstance()->GetResourceManager()->LoadResource(gLinkHumanSkel);
         SkeletonHeader* gLinkHumanSkelPtr = (SkeletonHeader*)gLinkHumanSkelResource->GetRawPointer();
@@ -68,6 +120,23 @@ void UpdatePlayAsKafei() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-MODES-DIFF (#1236): 2Ship's registrar runs once, at boot, and loads both skeletons at once. In the single exe the
+// registrars first run from MM_Rando_InitCore, which the paired-file creation seam calls while Ocarina of Time runs and
+// mm.o2r may not be mounted (LoadResource returns null), and the ROM-free rows call with no archive at all. And the
+// resource cache has one owner per game (#981): a swap made while Ocarina of Time runs would edit a copy MM never
+// draws. So the swap happens only from MM's own scene-destroy hook (MM runs, its owner holds), or here when MM is
+// running with no scene yet (MM's own boot), never mid-scene. Keyed on the switch, so a change reaches the next scene
+// change; the hook stays armed while Kafei's skeleton is in, so turning the switch off puts Link back.
+void RegisterPlayAsKafei() {
+    if (CVAR && Context_GetCurrentGame() == GAME_MM && MM_gPlayState == nullptr) {
+        UpdatePlayAsKafei();
+    }
+    COND_HOOK(OnPlayDestroy, CVAR || sKafeiApplied, UpdatePlayAsKafei);
+}
+
+static RegisterShipInitFunc initFunc(RegisterPlayAsKafei, { CVAR_NAME });
+#else
 void RegisterPlayAsKafei() {
     // Even though this isn't run when a cvar is changed, it can still run if ShipInit::InitAll(); is called again,
     // likely in the case of setting a preset or something. So we need to make sure this only runs once.
@@ -93,3 +162,4 @@ void RegisterPlayAsKafei() {
 
 // We only want this running at boot, we don't want this running when the cvar is changed, only on scene destroy
 static RegisterShipInitFunc initFunc(RegisterPlayAsKafei, {});
+#endif

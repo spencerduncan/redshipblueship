@@ -452,6 +452,36 @@ const CheatProbe kCheatProbes[] = {
       MainStartCount },
 };
 
+// ---- W6-TIMERS (#1235, #1239): MM's Time Splits actions ----------------------
+// One key, the Enable row's (SohGui/HostedMm/SohMenuHostedMmTimers.cpp): with it on, Trackers/TimeSplits/
+// TimeSplitsActions.cpp's registrar puts one hook in each registry below and nothing else does on a vanilla save (the
+// rando legs of the two great-fairy VBs are IS_RANDO). The TU is named only in the text; nothing it defines is.
+struct TimerSplitRegistry {
+    const char* what;
+    size_t (*count)();
+};
+
+const TimerSplitRegistry kTimerSplitRegistries[] = {
+    { "OnItemGive, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnItemGive>(); } },
+    { "OnBottleContentsUpdate, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnBottleContentsUpdate>(); } },
+    { "OnBossDefeated, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnBossDefeated>(); } },
+    { "VB_GIVE_ITEM_FROM_GREAT_FAIRY (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_GREAT_FAIRY); } },
+    { "VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER (TimeSplits/TimeSplitsActions.cpp)",
+      []() {
+          return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER);
+      } },
+    { "OnSceneInit, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnSceneInit>(); } },
+};
+
+// The registries above as one Phase 5 probe. Defined after Phase 12 (SkipKeyProbe is complete there).
+const std::vector<SkipKeyProbe>& TimerProbes();
+RegisterW6Phase sTimerPhase{ "W6-TIMERS (#1235, #1239)", TimerProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetCheatKeys() {
@@ -599,6 +629,141 @@ const std::vector<SkipKeyProbe>& SkipProbes() {
     };
     return probes;
 }
+
+// ---- W6-MINIGAMES (#1236): MM's minigame TUs --------------------------------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id or a text id, and the delta is measured with every other key off, so
+// only the TU behind the probed key can move it. Per key, the TU: Timesavers/BombersHideAndSeek.cpp,
+// Minigames/SwordsmanSchool.cpp, HoneyAndDarling.cpp (one registrar on its three keys), Archery.cpp (Town, Swamp and
+// Boat scores, Koume's health, Invincible), RomaniTargetPractice.cpp, AlwaysWinDoggyRace.cpp, CuccoShackCuccoCount.cpp,
+// SkipHorseRace.cpp, BeaverRace.cpp (two keys), DifficultyOptions/GoronRace.cpp, TreasureChestShopFullMaze.cpp and
+// MarkShootingGalleryOctoroks.cpp.
+//
+// Most of these are sliders whose default (MM's vanilla value) is the one value that disarms them: they arm while the
+// key differs from it, so the drive's "off" (0) would arm them too. Every count below first puts each such key that
+// reads 0 back to its default (cleared) and re-drives it, the Zora Egg Count shape: 0 before the drive, +1 while the
+// drive holds the probed key at 1 (a one-point target), and every key is left cleared and disarmed by the counts after
+// the drive. Goron Race's 1 is Balanced, its rubber-band leg; its Skip leg (2) shares the one registrar, so the
+// transition bucket must stay put.
+constexpr const char* kW6MinigameDefaultKeys[] = {
+    "gEnhancements.Minigames.BombersHideAndSeek",   "gEnhancements.Minigames.SwordsmanSchoolScore",
+    "gEnhancements.Minigames.HoneyAndDarlingDay1",  "gEnhancements.Minigames.HoneyAndDarlingDay2",
+    "gEnhancements.Minigames.HoneyAndDarlingDay3",  "gEnhancements.Minigames.TownArcheryScore",
+    "gEnhancements.Minigames.SwampArcheryScore",    "gEnhancements.Minigames.RomaniTargetPractice",
+    "gEnhancements.Minigames.CuccoShackCuccoCount", "gEnhancements.Minigames.BeaverRaceRingsCollected",
+    "gEnhancements.Minigames.BoatArcheryScore",     "gEnhancements.Minigames.BoatArcheryHealth",
+};
+
+void SettleW6MinigameDefaults() {
+    for (const char* key : kW6MinigameDefaultKeys) {
+        if (CVarGetInteger(key, -1) == 0) {
+            CVarClear(key);
+            ShipInit::Init(key);
+        }
+    }
+}
+
+template <typename H> size_t W6MinigameCount(int32_t forId) {
+    SettleW6MinigameDefaults();
+    return SettledCountForId<H>(forId);
+}
+
+#define W6_MINIGAME_VB_COUNT(vb) []() { return W6MinigameCount<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_MINIGAME_UPDATE_COUNT(id) []() { return W6MinigameCount<GameInteractor::ShouldActorUpdate>(id); }
+
+const std::vector<SkipKeyProbe>& W6MinigameProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Minigames.BombersHideAndSeek",
+          "Bombers Hide-and-Seek",
+          { { "ShouldActorUpdate[EN_BOMJIMB] (Timesavers/BombersHideAndSeek.cpp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_BOMJIMB), 1 } } },
+        { "gEnhancements.Minigames.SwordsmanSchoolScore",
+          "Swordsman School",
+          { { "ShouldActorUpdate[EN_KENDO_JS] (Minigames/SwordsmanSchool.cpp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_KENDO_JS), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay1",
+          "Honey & Darling Day 1",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay2",
+          "Honey & Darling Day 2",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay3",
+          "Honey & Darling Day 3",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.TownArcheryScore",
+          "Town Archery Score",
+          { { "ShouldActorUpdate[EN_SYATEKI_MAN] (Minigames/Archery.cpp, Town)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_SYATEKI_MAN), 1 } } },
+        { "gEnhancements.Minigames.SwampArcheryScore",
+          "Swamp Archery Score",
+          { { "ShouldActorUpdate[EN_SYATEKI_MAN] (Minigames/Archery.cpp, Swamp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_SYATEKI_MAN), 1 },
+            { "VB_ARCHERY_ADD_BONUS_POINTS (Minigames/Archery.cpp, Swamp)",
+              W6_MINIGAME_VB_COUNT(VB_ARCHERY_ADD_BONUS_POINTS), 1 } } },
+        { "gEnhancements.Minigames.RomaniTargetPractice",
+          "Romani Target Practice",
+          { { "VB_WIN_ROMANI_PRACTICE (Minigames/RomaniTargetPractice.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_WIN_ROMANI_PRACTICE), 1 } } },
+        { "gEnhancements.Minigames.AlwaysWinDoggyRace",
+          "Always Win Doggy Race",
+          { { "VB_DOGGY_RACE_SET_MAX_SPEED (Minigames/AlwaysWinDoggyRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_DOGGY_RACE_SET_MAX_SPEED), 1 } } },
+        { "gEnhancements.Minigames.CuccoShackCuccoCount",
+          "Cucco Shack Count",
+          { { "ShouldActorUpdate[EN_HS] (Minigames/CuccoShackCuccoCount.cpp)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_HS),
+              1 } } },
+        { "gEnhancements.Minigames.SkipHorseRace",
+          "Skip Gorman Horse Race",
+          { { "VB_PLAY_TRANSITION_CS (Minigames/SkipHorseRace.cpp)", W6_MINIGAME_VB_COUNT(VB_PLAY_TRANSITION_CS),
+              1 } } },
+        { "gEnhancements.Minigames.BeaverRaceRingsCollected",
+          "Beaver Race Rings",
+          { { "ShouldActorUpdate[EN_AZ] (Minigames/BeaverRace.cpp, rings)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_AZ),
+              1 } } },
+        { "gEnhancements.Minigames.SkipLittleBeaver",
+          "Skip Little Beaver Races",
+          { { "ShouldActorUpdate[EN_AZ] (Minigames/BeaverRace.cpp, speed-up)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_AZ),
+              1 },
+            { "OnOpenText[0x10D6] (Minigames/BeaverRace.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x10D6); }, 1 },
+            { "OnOpenText[0x10FA] (Minigames/BeaverRace.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x10FA); }, 1 } } },
+        { "gEnhancements.DifficultyOptions.GoronRace",
+          "Goron Race (Balanced)",
+          { { "VB_GORON_RACE_RUBBERBANDING (DifficultyOptions/GoronRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_GORON_RACE_RUBBERBANDING), 1 },
+            { "VB_PLAY_TRANSITION_CS: the Skip leg stays off at Balanced (DifficultyOptions/GoronRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_PLAY_TRANSITION_CS), 0 } } },
+        { "gEnhancements.Minigames.BoatArcheryScore",
+          "Boat Archery Score",
+          { { "OnActorInit[EN_DNH] (Minigames/Archery.cpp, Boat)",
+              []() { return W6MinigameCount<GameInteractor::OnActorInit>(ACTOR_EN_DNH); }, 1 } } },
+        { "gEnhancements.Minigames.BoatArcheryHealth",
+          "Koume's Health",
+          { { "VB_FAIL_BOAT_ARCHERY (Minigames/Archery.cpp, Koume's health)",
+              W6_MINIGAME_VB_COUNT(VB_FAIL_BOAT_ARCHERY), 1 },
+            { "OnOpenText[0x0877] (Minigames/Archery.cpp, Koume's health)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x0877); }, 1 } } },
+        { "gEnhancements.Minigames.BoatArcheryInvincible",
+          "Invincible Koume",
+          { { "VB_KOUME_TAKE_DAMAGE (Minigames/Archery.cpp, Invincible)", W6_MINIGAME_VB_COUNT(VB_KOUME_TAKE_DAMAGE),
+              1 } } },
+        { "gEnhancements.Minigames.TreasureChestShopShowFullMaze",
+          "Treasure Shop Full Maze",
+          { { "OnActorUpdate[OBJ_TAKARAYA_WALL] (Minigames/TreasureChestShopFullMaze.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnActorUpdate>(ACTOR_OBJ_TAKARAYA_WALL); }, 1 } } },
+        { "gEnhancements.Minigames.MarkShootingGalleryOctoroks",
+          "Mark Gallery Octoroks",
+          { { "OnActorDraw[EN_SYATEKI_OKUTA] (Minigames/MarkShootingGalleryOctoroks.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnActorDraw>(ACTOR_EN_SYATEKI_OKUTA); }, 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6MinigamePhase{ "W6-MINIGAMES (#1236)", W6MinigameProbes };
 
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
@@ -1066,6 +1231,24 @@ const std::vector<SkipKeyProbe>& W6DevProbes() {
 
 RegisterW6Phase sW6DevPhase{ "W6-DEV (#1238)", W6DevProbes };
 
+// ---- W6-AUDIO-SEQ (#1239): SoH's randomize-audio combobox, translated onto MM's two randomize-all hooks -------
+// Enhancements/Audio/AudioEditorSingleExe.cpp registers both through one file-scope RegisterShipInitFunc keyed on
+// SoH's gAudioEditor.RandomizeAudioGenModes. The drive turns the key "on" with 1, SoH's On New Scene: that arms the
+// new-scene hook (VB_PLAY_TRANSITION_CS, z_play.c via func_800EDDB0) and must not arm the randomizer-generation one
+// (OnRandoSeedGeneration, Rando/MiscBehavior/OnFileCreate.cpp), which waits for On Rando Gen Only.
+const std::vector<SkipKeyProbe>& AudioSeqProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gAudioEditor.RandomizeAudioGenModes",
+          "Automatically Randomize All Music and Sound Effects (On New Scene)",
+          { { "VB_PLAY_TRANSITION_CS (Audio/AudioEditorSingleExe.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PLAY_TRANSITION_CS); }, 1 },
+            { "OnRandoSeedGeneration, unkeyed: not armed by On New Scene (Audio/AudioEditorSingleExe.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnRandoSeedGeneration>(); }, 0 } } },
+    };
+    return probes;
+}
+RegisterW6Phase sAudioSeqPhase{ "W6-AUDIO-SEQ (#1239)", AudioSeqProbes };
+
 // ---- Phase 8 (#1023): Free Look ---------------------------------------------
 // Same shape as Phase 5 (SkipKeyProbe).
 const std::vector<SkipKeyProbe>& FreeLookProbes() {
@@ -1079,6 +1262,37 @@ const std::vector<SkipKeyProbe>& FreeLookProbes() {
     };
     return probes;
 }
+
+// ---- W6-GFX (#1237, #1240): MM's two clock-style TUs ------------------------
+// One probe on MM's three-way clock style (0 original, 1 MM3D, 2 text only). Graphics/3DSClock.cpp registers on
+// VB_PREVENT_CLOCK_DISPLAY at style 1 and Graphics/TextBasedClock.cpp at style 2. The W6 drive turns the key "on" with
+// 1, which arms the MM3D clock alone, so the first count reads the bucket there. The second re-drives the key at 2:
+// the MM3D registrant must leave and the text one arrive, so the bucket is again one above its base. The drive's own
+// "off" (0) then disarms both. Attributed by registry content: with either TU out of the link one count stays at its
+// base and the phase is red. 24 Hours Clock has no TU of its own (z_parameter.c and both clocks read it inline).
+constexpr const char* kW6GfxClockTypeCVar = "gEnhancements.Graphics.ClockType";
+
+const std::vector<SkipKeyProbe>& W6GfxProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { kW6GfxClockTypeCVar,
+          "Clock Type",
+          { { "VB_PREVENT_CLOCK_DISPLAY at MM3D style (Graphics/3DSClock.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PREVENT_CLOCK_DISPLAY); }, 1 },
+            { "VB_PREVENT_CLOCK_DISPLAY at text only (Graphics/TextBasedClock.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6GfxClockTypeCVar, 0) == 1) {
+                      CVarSetInteger(kW6GfxClockTypeCVar, 2);
+                      ShipInit::Init(kW6GfxClockTypeCVar);
+                      ShipInit::Init(kW6GfxClockTypeCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PREVENT_CLOCK_DISPLAY);
+              },
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6GfxPhase{ "W6-GFX (#1237, #1240)", W6GfxProbes };
 
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
@@ -1296,6 +1510,103 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
     return probes;
 }
 
+// ---- W6-MODES-DIFF (#1236, #1240): MM's Modes, Difficulty and 'Other' TUs, and the Mirrored World translator ------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id, a limb or a text id, or is an unkeyed registry no other W6 key arms
+// while this key is the only one on. Mirrored World's key is SoH's gEnhancements.MirroredWorldMode (1 = Always): the
+// translator (Modes/MirroredWorld.cpp) arms one unkeyed OnSceneInit hook for any mode but Off. DeleteFileOnDeath.cpp
+// is not linked (INTENTIONAL: MM's SaveManager is not in the single exe, and a paired file may only be deleted whole),
+// so it has no probe.
+#define W6_MODES_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_MODES_ID_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+
+constexpr const char* kW6JinxedTimerCVar = "gEnhancements.DifficultyOptions.JinxedTimer";
+
+const std::vector<SkipKeyProbe>& W6ModesDifficultyProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gModes.PlayAsKafei",
+          "Play as Kafei",
+          { { "OnPlayDestroy, unkeyed (Modes/PlayAsKafei.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnPlayDestroy>(); }, 1 } } },
+        { "gModes.HyruleWarriorsStyledLink",
+          "Hyrule Warriors Styled Link",
+          { { "OnPlayerPostLimbDraw[PLAYER_LIMB_HEAD] (Modes/HyruleWarriorsStyledLink.cpp)",
+              W6_MODES_ID_COUNT(OnPlayerPostLimbDraw, PLAYER_LIMB_HEAD), 1 },
+            { "OnPlayerPostLimbDraw[PLAYER_LIMB_WAIST] (Modes/HyruleWarriorsStyledLink.cpp)",
+              W6_MODES_ID_COUNT(OnPlayerPostLimbDraw, PLAYER_LIMB_WAIST), 1 } } },
+        { "gModes.TimeMovesWhenYouMove",
+          "Time Moves when you Move",
+          { { "OnActorUpdate[ACTOR_PLAYER] (Modes/TimeMovesWhenYouMove.cpp)",
+              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+        { "gEnhancements.MirroredWorldMode",
+          "Mirrored World (SoH's row, translated)",
+          { { "OnSceneInit, unkeyed (Modes/MirroredWorld.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSceneInit>(); }, 1 } } },
+        // A slider that arms BELOW its default (`CVAR < 60`), so the drive's 0 and 1 both arm it. This count, read
+        // while the key is 0 (before the drive turns it on, and after it turns it off), first re-drives it at 60
+        // (the default, unarmed), so the drive's 1 measures exactly the TU's one registration. Without the TU in the
+        // link nothing arms and the probe is red. It leaves the key at its default, 60.
+        { kW6JinxedTimerCVar,
+          "Jinxed Timer",
+          { { "ShouldActorUpdate[ACTOR_PLAYER] (DifficultyOptions/JinxedTimer.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6JinxedTimerCVar, 60) == 0) {
+                      CVarSetInteger(kW6JinxedTimerCVar, 60);
+                      ShipInit::Init(kW6JinxedTimerCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldActorUpdate>(ACTOR_PLAYER);
+              },
+              1 } } },
+        { "gEnhancements.DifficultyOptions.LowerBankRewardThresholds",
+          "Lower Bank Reward Thresholds",
+          { { "VB_PASS_FIRST_BANK_THRESHOLD (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_VB_COUNT(VB_PASS_FIRST_BANK_THRESHOLD), 1 },
+            { "VB_PASS_SECOND_BANK_THRESHOLD_ALT (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_VB_COUNT(VB_PASS_SECOND_BANK_THRESHOLD_ALT), 1 },
+            { "OnOpenText[0x045B] (DifficultyOptions/CustomBankRewardThresholds.cpp)",
+              W6_MODES_ID_COUNT(OnOpenText, 0x045B), 1 } } },
+        { "gEnhancements.DifficultyOptions.DisableTakkuriSteal",
+          "Disable Takkuri Steal",
+          { { "VB_THIEF_BIRD_STEAL (DifficultyOptions/DisableTakkuriSteal.cpp)", W6_MODES_VB_COUNT(VB_THIEF_BIRD_STEAL),
+              1 } } },
+        { "gEnhancements.DifficultyOptions.DekuGuardSearchBalls",
+          "Deku Guard Search Balls",
+          { { "VB_DEKU_GUARD_SHOW_SEARCH_BALLS (DifficultyOptions/DekuGuardSearchBalls.cpp)",
+              W6_MODES_VB_COUNT(VB_DEKU_GUARD_SHOW_SEARCH_BALLS), 1 } } },
+        { "gEnhancements.DifficultyOptions.GibdoTradeSequence",
+          "Gibdo Trade Sequence Options",
+          { { "VB_GIBDO_TRADE_SEQUENCE_SUFFICIENT_QUANTITY_PRESENTED (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_SUFFICIENT_QUANTITY_PRESENTED), 1 },
+            { "VB_GIBDO_TRADE_SEQUENCE_ACCEPT_RED_POTION (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_ACCEPT_RED_POTION), 1 },
+            { "VB_GIBDO_TRADE_SEQUENCE_TAKE_MORE_THAN_ONE_ITEM (DifficultyOptions/GibdoTradeSequenceOptions.cpp)",
+              W6_MODES_VB_COUNT(VB_GIBDO_TRADE_SEQUENCE_TAKE_MORE_THAN_ONE_ITEM), 1 } } },
+        { "gEnhancements.DifficultyOptions.HiddenGrottosVisibility",
+          "Hidden Grottos Visibility",
+          { { "OnActorDraw[ACTOR_DOOR_ANA] (DifficultyOptions/HiddenGrottosVisibility.cpp)",
+              W6_MODES_ID_COUNT(OnActorDraw, ACTOR_DOOR_ANA), 1 } } },
+        { "gEnhancements.DifficultyOptions.FrogChoirCount",
+          "Frog Choir Count",
+          { { "OnActorUpdate[ACTOR_EN_MINIFROG] (Minigames/FrogChoirCount.cpp)",
+              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_EN_MINIFROG), 1 } } },
+        { "gEnhancements.Minigames.CremiaHugs",
+          "Milk Run Reward Options",
+          { { "VB_PLAY_CREMIA_HUG_CUTSCENE (Minigames/CremiaHugs.cpp)", W6_MODES_VB_COUNT(VB_PLAY_CREMIA_HUG_CUTSCENE),
+              1 } } },
+        { "gEnhancements.Items.AmmoBuyback",
+          "Ammo Buyback Options",
+          { { "OnActorUpdate[ACTOR_EN_FSN] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_EN_FSN),
+              1 },
+            { "OnActorDestroy[ACTOR_EN_FSN] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnActorDestroy, ACTOR_EN_FSN),
+              1 },
+            { "OnOpenText[0x29EF] (Items/AmmoBuyback.cpp)", W6_MODES_ID_COUNT(OnOpenText, 0x29EF), 1 },
+            { "VB_MSG_LOAD_RUPEES_TEXT (Items/AmmoBuyback.cpp)", W6_MODES_VB_COUNT(VB_MSG_LOAD_RUPEES_TEXT), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6ModesDifficultyPhase{ "W6-MODES-DIFF (#1236, #1240)", W6ModesDifficultyProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetKeyGapKeys() {
@@ -1309,6 +1620,102 @@ void ResetKeyGapKeys() {
         }
     }
 }
+
+// ---- W6-FIXES (#1237): MM's Fixes and Restorations TUs ------------------------------------------------------------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc on its own key. Per key, the TU:
+// Fixes/FixEponaStealingSword.cpp, Fixes/FierceDeityZTargetMovement.cpp, Fixes/CompletedHeartContainerAudio.cpp,
+// Restorations/FlipHopVariable.cpp (ConstantFlipsHops), PowerCrouchStab.cpp, SideRoll.cpp, OoTFasterSwim.cpp,
+// TatlISG.cpp, WoodfallMountainAppearance.cpp, JPGrottos.cpp and BonkCollision.cpp. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id or a scene id, and the delta is measured with every other key off.
+// The four row-only Fixes keys (Targeting Camera Snap, Ammo Count Color, Ikana Great Fairy Fountain Color, Text Control
+// Characters) have no TU (z_player.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
+//
+// JP GROTTOS: BOTH LEGS TOGETHER. JPGrottos.cpp's four ShouldActorInit legs delete Deku Palace's vanilla grottos and
+// torches unless isSpawningJPGrottos is set, and its AfterRoomSceneCommands[SCENE_22DEKUCITY] leg is the flag's only
+// writer (GameExports_SingleExe.cpp's ExecuteForID leg dispatches it). A link that armed the deleting legs without the
+// spawning one would leave Deku Palace with no grottos at all, so the probe asserts every leg, the spawning one
+// included, under the one key. The harness configuration still forces the key off before MM_Rando_Init
+// (kJPGrottosCVar) and ZeroW6PhaseKeys does again, so the EN_ITEM00 exactly-one probe (FAIL 7) runs honest; this phase
+// turns it on, measures it and clears it.
+#define W6_FIXES_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_FIXES_SHOULD_INIT_COUNT(id) []() { return SettledCountForId<GameInteractor::ShouldActorInit>(id); }
+
+constexpr const char* kW6FixesPowerCrouchStabCVar = "gEnhancements.Restorations.PowerCrouchStab";
+
+const std::vector<SkipKeyProbe>& W6FixesProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gFixes.FixEponaStealingSword",
+          "Fix Epona Stealing Sword",
+          { { "VB_CLEAR_B_BUTTON_FOR_NO_BOW (Fixes/FixEponaStealingSword.cpp)",
+              W6_FIXES_VB_COUNT(VB_CLEAR_B_BUTTON_FOR_NO_BOW), 1 } } },
+        { "gEnhancements.Fixes.FierceDeityZTargetMovement",
+          "Fix Fierce Deity Z-Target Movement",
+          { { "VB_ZTARGET_SPEED_CHECK (Fixes/FierceDeityZTargetMovement.cpp)",
+              W6_FIXES_VB_COUNT(VB_ZTARGET_SPEED_CHECK), 1 } } },
+        { "gEnhancements.Fixes.CompletedHeartContainerAudio",
+          "Fix Completed Heart Container Audio",
+          { { "VB_PLAY_HEART_CONTAINER_GET_FANFARE (Fixes/CompletedHeartContainerAudio.cpp)",
+              W6_FIXES_VB_COUNT(VB_PLAY_HEART_CONTAINER_GET_FANFARE), 1 } } },
+        { "gEnhancements.Restorations.ConstantFlipsHops",
+          "Constant Distance Backflips and Sidehops",
+          { { "VB_APPLY_AIR_CONTROL (Restorations/FlipHopVariable.cpp)", W6_FIXES_VB_COUNT(VB_APPLY_AIR_CONTROL),
+              1 } } },
+        // A combobox: 1 = Unpatched (JP) arms the VB leg alone, 2 = Unpatched (OoT) also arms OnActorInit[PLAYER] (the
+        // Kokiri Sword damage flags). The drive turns the key "on" with 1, so the VB bucket is read there; the second
+        // count, read while the drive holds the key at 1, re-drives it at 2 first and reads the actor bucket there.
+        // Before the drive the key is 0 and both counts are plain reads; the drive's own "off" (0) disarms both.
+        { kW6FixesPowerCrouchStabCVar,
+          "MM Power Crouch Stab",
+          { { "VB_PATCH_POWER_CROUCH_STAB at Unpatched (JP) (Restorations/PowerCrouchStab.cpp)",
+              W6_FIXES_VB_COUNT(VB_PATCH_POWER_CROUCH_STAB), 1 },
+            { "OnActorInit[ACTOR_PLAYER] at Unpatched (OoT) (Restorations/PowerCrouchStab.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6FixesPowerCrouchStabCVar, 0) == 1) {
+                      CVarSetInteger(kW6FixesPowerCrouchStabCVar, 2);
+                      ShipInit::Init(kW6FixesPowerCrouchStabCVar);
+                      ShipInit::Init(kW6FixesPowerCrouchStabCVar);
+                  }
+                  return SettledCountForId<GameInteractor::OnActorInit>(ACTOR_PLAYER);
+              },
+              1 } } },
+        { "gEnhancements.Restorations.SideRoll",
+          "Side Rolls",
+          { { "VB_PATCH_SIDEROLL (Restorations/SideRoll.cpp)", W6_FIXES_VB_COUNT(VB_PATCH_SIDEROLL), 1 } } },
+        { "gEnhancements.Restorations.OoTFasterSwim",
+          "Faster Swim",
+          { { "VB_CLAMP_ANIMATION_SPEED (Restorations/OoTFasterSwim.cpp)", W6_FIXES_VB_COUNT(VB_CLAMP_ANIMATION_SPEED),
+              1 } } },
+        { "gEnhancements.Restorations.TatlISG",
+          "Tatl ISG (restoration)",
+          { { "VB_TATL_CONVERSATION_AVAILABLE (Restorations/TatlISG.cpp)",
+              W6_FIXES_VB_COUNT(VB_TATL_CONVERSATION_AVAILABLE), 1 } } },
+        { "gEnhancements.Restorations.WoodfallMountainAppearance",
+          "Woodfall Mountain Appearance",
+          { { "OnActorInit[ACTOR_BG_BREAKWALL] (Restorations/WoodfallMountainAppearance.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorInit>(ACTOR_BG_BREAKWALL); }, 1 } } },
+        { kJPGrottosCVar,
+          "JP Deku Palace Grottos",
+          { { "ShouldActorInit[ACTOR_DOOR_ANA] (Restorations/JPGrottos.cpp, deletes the vanilla grottos)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_DOOR_ANA), 1 },
+            { "ShouldActorInit[ACTOR_OBJ_SYOKUDAI] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_OBJ_SYOKUDAI), 1 },
+            { "ShouldActorInit[ACTOR_OBJ_MURE3] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_OBJ_MURE3), 1 },
+            { "ShouldActorInit[ACTOR_EN_ITEM00] (Restorations/JPGrottos.cpp)",
+              W6_FIXES_SHOULD_INIT_COUNT(ACTOR_EN_ITEM00), 1 },
+            { "VB_PLAY_TRANSITION_CS (Restorations/JPGrottos.cpp)", W6_FIXES_VB_COUNT(VB_PLAY_TRANSITION_CS), 1 },
+            { "AfterRoomSceneCommands[SCENE_22DEKUCITY] (Restorations/JPGrottos.cpp, spawns the JP grottos and is the "
+              "only writer of the flag the deleting legs wait on)",
+              []() { return SettledCountForId<GameInteractor::AfterRoomSceneCommands>(SCENE_22DEKUCITY); }, 1 } } },
+        { "gEnhancements.Restorations.BonkCollision",
+          "Bonk Collision",
+          { { "VB_SET_PLAYER_CYLINDER_OC_FLAGS (Restorations/BonkCollision.cpp)",
+              W6_FIXES_VB_COUNT(VB_SET_PLAYER_CYLINDER_OC_FLAGS), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6FixesPhase{ "W6-FIXES (#1237)", W6FixesProbes };
 
 // ---- W6 phases (#1233): the zero and run helpers ---------------------------
 // The list itself is above Phase 4 (W6Phases). Both helpers take the list, so the control below can drive a synthetic
@@ -1718,6 +2125,18 @@ const std::vector<SkipKeyProbe>& CycleCheatProbes() {
             out.push_back(SkipKeyProbe{ r.key, r.row, { SkipRegistry{ r.what, r.count, r.expected } } });
         }
         return out;
+    }();
+    return probes;
+}
+
+// W6-TIMERS: kTimerSplitRegistries (registered with the W6 list after Phase 4), one hook each, under the Enable key.
+const std::vector<SkipKeyProbe>& TimerProbes() {
+    static const std::vector<SkipKeyProbe> probes = []() {
+        SkipKeyProbe probe{ "gSettings.TimeSplits.Enable", "Enable Time Splits", {} };
+        for (const TimerSplitRegistry& r : kTimerSplitRegistries) {
+            probe.registries.push_back(SkipRegistry{ r.what, r.count, 1 });
+        }
+        return std::vector<SkipKeyProbe>{ probe };
     }();
     return probes;
 }

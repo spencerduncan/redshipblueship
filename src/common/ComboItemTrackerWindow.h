@@ -229,6 +229,13 @@ inline constexpr int kComboItemTrackerTextSizeMax = 30;
 inline constexpr int kComboItemTrackerSohSectionCount = 5;
 extern const char* const kComboItemTrackerSohSectionGroups[kComboItemTrackerSohSectionCount];
 
+/** SoH's optional main-window sections the OoT section's groups are (#1142), in SoH's order; each has a
+ *  DisplayType.<Section> key, default Hidden (SECTION_DISPLAY_HIDDEN and Greg's and the fishing pole's
+ *  SECTION_DISPLAY_EXTENDED_HIDDEN are both 0), and any other value shows it. Dungeon Items also names the
+ *  keys-only table, group "Dungeon Keys", drawn instead while DungeonItems.DisplayMaps is off. */
+inline constexpr int kComboItemTrackerSohOptionalCount = 8;
+extern const char* const kComboItemTrackerSohOptionalGroups[kComboItemTrackerSohOptionalCount];
+
 /** The overlay's settings, as read this frame. */
 struct ComboItemTrackerKeys {
     // SoH's General settings.
@@ -249,6 +256,7 @@ struct ComboItemTrackerKeys {
     bool hookshotIdentifier = false;                                // HookshotIdentifier
     bool dungeonItemsDisplayMaps = true;                            // DungeonItems.DisplayMaps: lane IT-2 (#1142)
     int sectionDisplay[kComboItemTrackerSohSectionCount] = { 1, 1, 1, 1, 1 }; // DisplayType.<Section>
+    int optionalDisplay[kComboItemTrackerSohOptionalCount] = {};              // DisplayType.<Section>, #1142
     // The overlay's own (gCombo.Tracker.Items.*), which SoH's overlay has no row for.
     float opacity = 1.0f;                                               // Opacity, held to 0.1..1
     bool sectionShown[COMBO_ITEM_SECTION_COUNT] = { true, true, true }; // Section.OoT / .MM / .Shared

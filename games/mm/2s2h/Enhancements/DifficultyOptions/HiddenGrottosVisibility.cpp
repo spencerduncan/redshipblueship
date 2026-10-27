@@ -11,6 +11,8 @@ extern "C" {
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 void drawHiddenGrottoMarker(Actor* actor) {
+    // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL && MM_gGameState != NULL);
     s32 grottoType = DOORANA_GET_TYPE(actor);
     if (grottoType == DOORANA_TYPE_HIDDEN_STORMS || grottoType == DOORANA_TYPE_HIDDEN_BOMB) {
         if (MM_gGameState->frames % 4) {
@@ -39,6 +41,7 @@ void RegisterHiddenGrottosVisibility() {
     });
 
     COND_ID_HOOK(OnActorDraw, ACTOR_DOOR_ANA, CVAR == HIDDEN_GROTTOS_VISIBLITY_WEAR_MASK_OF_TRUTH, [](Actor* actor) {
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL); // W6-MODES-DIFF (#1236): the #516 play-state guard
         if (MM_Player_GetMask(MM_gPlayState) == PLAYER_MASK_TRUTH) {
             drawHiddenGrottoMarker(actor);
         }

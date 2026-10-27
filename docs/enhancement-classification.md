@@ -72,19 +72,19 @@ brief, plus everything in the collision set:
 | MM category | MM keys | Covered |
 |---|---:|---|
 | `gCheats.` | 14 | ✅ all |
-| `Graphics` | 16 | ✅ all |
-| `Restorations` | 10 | ✅ all |
+| `Graphics` | 16 | ✅ all, but per key only since W6-GFX (#1237): the eight keys MM still reads under its own spelling (Clock Type, 24 Hours Clock, the three Motion Blur keys, the two Scene Geometry keys, and Authentic Logo, INTENTIONAL) in §6.1 W6-GFX; Bow Reticle, Disable Black Bars and Enemy Health Bars in §5.3; Actor Culling and Actor Draw Distance in §3.2. The earlier "✅ all" named few of them |
+| `Restorations` | 10 | ✅ all; the eight behaviour restorations per key since W6-FIXES (#1237, §6.1 W6-FIXES), N64 Weird Frames and Pause Buffer Window in §5.3 |
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
 | `Player` | 9 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
 | `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
-| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
+| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim |
 | **Subtotal** | **130** | |
 
 **NOT classified at individual-setting level** — 55 MM keys across 6 categories:
-`Minigames` (18), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
+`Minigames` (18; per key in §6.1 since W6-MINIGAMES), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
 are classified **(O) MM-only at the category level** on the strength of their contents —
 Bombers' hide-and-seek, Deku flower launches, three-day-cycle resets, Song of Double Time,
 transformation masks have no OoT counterpart by construction. The two rows inside them that
@@ -148,15 +148,24 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
 
 **The Audio Editor's other MM keys (#1239).** Not shared spellings, so not rows of the table above; each is now driven
-from SoH's Audio Editor > Audio Options block, and its provider (`Audio/Sfx/`) is carved into `ship__Enh_registrars`:
+from SoH's Audio Editor, by its Audio Options block (providers in `Audio/Sfx/`, carved into `ship__Enh_registrars`) or
+by its Majora's Mask tab (W6-AUDIO-SEQ: the port of 2Ship's editor write paths, `Audio/AudioEditorSingleExe.cpp`):
 
-| MM key | Category | How SoH's Audio Options block drives it |
+| MM key | Category | How SoH's Audio Editor drives it |
 |---|---|---|
 | `gAudioEditor.DisableTatlCallAudio` | converged (§5.3 group E) | retired onto SoH's `gAudioEditor.DisableNaviCallAudio` ("Disable Navi Call Audio"): one row mutes the companion fairy's call in both games |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Enable` | translated (`kTranslatedKeys`) | SoH's one float slider `gAudioEditor.LinkVoiceFreqMultiplier` (0.4-2.5); MM's pitch hook is armed when it is not 1.0. LUS stores CVars as dot-nested JSON, so SoH's leaf cannot also be the parent of MM's pair, and a rename is impossible |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Scale` | translated (`kTranslatedKeys`) | the same slider's value, read by the same translator (`LinksVoicePitchMultiplier.cpp`); nothing writes MM's two keys |
 | `gAudioEditor.MuteCarpenterSfx` | (O) MM-only | its own MM row, "MM Mute Carpenter Sounds", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_CARPENTER_SFX`) |
 | `gAudioEditor.ChildGoronCry` | (O) MM-only | its own MM row, "MM Mute Crying Goron Child", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY`) |
+| `gAudioEditor.ReplacedSequences.<sfxKey>.value` / `.locked` | (O) MM-only family, **moved** to `gAudioEditor.MM.ReplacedSequences.` (`RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX`) | the Majora's Mask tab's seven sequence tabs (Background Music, Fanfares, Events, Battle Music, Ocarina, Instrument, Songs), laid out like SoH's. Not shared: 11 sfxKeys name a sequence in both games (`NA_BGM_BOSS`, `NA_BGM_ENEMY`, `NA_BGM_FILE_SELECT`, `NA_BGM_GAME_OVER`, `NA_BGM_HORSE`, `NA_BGM_HORSE_GOAL`, `NA_BGM_INGO`, `NA_BGM_MINI_BOSS`, `NA_BGM_OWL`, `NA_BGM_SHOP`, `NA_BGM_TIMED_MINI_GAME`), so under SoH's spelling either game's tab would set the other's music. MM's collection composes the family; MM's audio core reads it through `MM_AudioEditor_GetReplacementSeq`. MM's Instrument tab lists nothing: 2Ship's sequence table has no instrument rows |
+| `gAudioEditor.Excluded.<sfxKey>` | (O) MM-only family, **moved** to `gAudioEditor.MM.Excluded.` (`RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX`) | the Majora's Mask tab's Audio Shuffle Pool Management, with a Songs filter 2Ship lacked |
+| `gAudioEditor.RandomizeAllOnNewScene` | translated (`kTranslatedKeys`) | SoH's combobox `gAudioEditor.RandomizeAudioGenModes` ("Automatically Randomize All Music and Sound Effects"): On New Scene arms MM's randomize on each new scene (`VB_PLAY_TRANSITION_CS`). Nothing writes MM's bool |
+| `gAudioEditor.RandomizeAllOnRandoGen` | translated (`kTranslatedKeys`) | the same combobox: On Rando Gen Only arms MM's randomize when MM's randomizer file is created (`OnRandoSeedGeneration`). Nothing writes MM's bool |
+| MM's Randomize / Reset / Lock / Unlock All Groups | no key | four MM rows at the top of the Majora's Mask tab ("MM Randomize All Groups", ...). "All Groups" is the seven tabbed groups: 2Ship's own list left out Songs (its Songs tab worked, its "All Groups" skipped it), so Songs is in; it listed Sound Effects and Voices, which have no replaceable MM row, so they are out |
+| MM's Sound Effects and Voices tabs | **not ported** | compiled out in 2Ship itself (`#if 0`, `AudioEditor.cpp:533-541`); nothing to drive |
+| `gAudioEditor.Playing` (MM's preview) | not used | MM's preview state is kept in memory by the port, so SoH's preview key stays SoH's; MM's previews play only while Majora's Mask runs |
+| `gWindows.AudioEditor` (#1237) | resolved, no key | 2Ship's popout opens no window in the single exe: SoH's one Audio Editor (Enhancements > Audio Editor) holds the Majora's Mask tab (ADR 0003 §5.2, tier 2 `gWindows.*` -> `gOpenWindows.*`) |
 
 ### 3.3 ❌ Accidental divergence — the actual bug list (2 rows, 4 keys)
 
@@ -227,7 +236,7 @@ rename pass.**
 | # | Setting | OoT key | MM key | Why (P) |
 |---|---|---|---|---|
 | P1 | **Text speed** | `gEnhancements.TextSpeed` (int slider, Min 1 Max 5, `%dx`) | `gEnhancements.Dialogue.FastText` (bool) | **Units are incompatible.** OoT is a 1–5× multiplier; MM is on/off. Writing MM's `1` into OoT's key means "1× = no speedup" — the toggle would silently do nothing. MM's FastText *also bundles* hold-B-to-advance, which OoT exposes as a **separate** CVar `gEnhancements.SkipText`. One control cannot express both decompositions. |
-| P2 | **Infinite Sword Glitch** | `gCheats.EasyISG` (a **Cheat**) | `gEnhancements.Restorations.TatlISG` (a **Restoration**) | Taxonomy conflict *and* semantics: OoT treats ISG as a cheat to grant; MM treats restoring the Navi-ISG behaviour (via Tatl) as authenticity. Different menu sections, different framing. Needs a maintainer call before any merge. |
+| P2 | **Infinite Sword Glitch** | `gCheats.EasyISG` (a **Cheat**) | `gEnhancements.Restorations.TatlISG` (a **Restoration**) | Taxonomy conflict *and* semantics: OoT treats ISG as a cheat to grant; MM treats restoring the Navi-ISG behaviour (via Tatl) as authenticity. Different menu sections, different framing. **Ruled (ADR 0004): keep both keys distinct** (`kMustStayDistinct`, bound through `RSBS_CVAR_MM_RESTORATIONS_TATL_ISG`); MM's own row, "Tatl ISG (restoration)", is hosted on Enhancements > Fixes > Glitch Restorations and `Restorations/TatlISG.cpp` is linked (W6-FIXES, #1237). |
 | P3 | **Camera invert / sensitivity** | `gSettings.FreeLook.Invert{X,Y}Axis`, `gSettings.Controls.InvertAiming{X,Y}Axis`, `…InvertShieldAiming{X,Y}Axis`, `…InvertZAimingYAxis`, `gSettings.FirstPersonCameraSensitivity.{Enabled,X,Y}` | `gEnhancements.Camera.RightStick.Invert{X,Y}Axis`, `gEnhancements.Camera.FirstPerson.Invert{X,Y}`, `…RightStickInvert{X,Y}`, `…GyroInvert{X,Y}`, `…Sensitivity{X,Y}` | **Different axis decomposition.** OoT splits by *context* (free-look vs aiming vs shield-aiming vs Z-aiming); MM splits by *input device* (right stick vs gyro vs first-person). There is no 1:1 mapping — OoT has no gyro axis, MM has no shield-aim axis. Merging would drop settings on both sides. |
 | P4 | **Tunic / transformation colours** | `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value` | `gCosmetics.Link_{Kokiri,Goron,Zora}Tunic.Value` | See §3.3 BUG 1. Intent is shared; the *current keys* are desynced by an OoT migration MM never followed. Converge, but as a fix, not a plain rename. |
 | P5 | **Debug save file mode** | `gDeveloperTools.DebugSaveFileMode` (default 1) | `gDeveloperTools.DebugSaveFileMode` (default 1 since #454) | **RESOLVED (#454): now (S).** See §3.3 BUG 2 — MM's clobbering write retired and read default aligned to OoT's 1. |
@@ -537,17 +546,72 @@ default (off).
 | `Songs.SkipSoaringCutscene` | 1 | (O). Row "Skip Soaring Cutscene", same block; `Songs/SkipSoaringCutscene.cpp` linked (play-state guard added). #1133 L7 may move it to Skips & Speed-ups > Cutscenes later |
 | `Songs.{BetterSongOfDoubleTime, SkipSoTCutscenes}` | 2 | (O). Rows hosted by L7 (#1133): see the #1133 hosted-rows table in §5.3 |
 | `Player.UnderwaterOcarina` | 1 | (O). Row "Underwater Ocarina", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1236); `Player/UnderwaterOcarina.cpp` linked (play-state guard added) |
-| `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
-| `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
+| `Minigames.TownArcheryScore` | 1 | (O). Slider "Town Archery Score" (1-50, default 50), Minigames > Shooting Gallery, after SoH's gallery rows (W6-MINIGAMES, #1236); `Minigames/Archery.cpp` linked. Nearest relative only: SoH's gallery options are Hyrule's. Default kept at MM's 50, which `Timesavers/GalleryTwofer.cpp` also reads. Every W6-MINIGAMES TU only moves a win condition: the reward stays the vanilla actor's, which the rando hooks take (`mm_minigame_offer_hooks_test.cpp` runs its rows with every minigame row on) |
+| `Minigames.SwampArcheryScore` | 1 | (O). Slider "Swamp Archery Score" (1000-2180, default 2180), same section; `Archery.cpp`. Default kept at 2180 for `GalleryTwofer.cpp` |
+| `Minigames.MarkShootingGalleryOctoroks` | 1 | (O). Row "Mark Gallery Octoroks", same section (2Ship keeps it under Accessibility); `Minigames/MarkShootingGalleryOctoroks.cpp` linked (play-state guard added) |
+| `Minigames.BombersHideAndSeek` | 1 | (O). Slider "Bombers Hide-and-Seek" (1-5, default 5), Minigames, Majora's Mask block at the end of the page; `Timesavers/BombersHideAndSeek.cpp` linked (play-state guard added) |
+| `Minigames.SwordsmanSchoolScore` | 1 | (O). Slider "Swordsman School" (1-30, default 30), same block; `Minigames/SwordsmanSchool.cpp` linked |
+| `Minigames.HoneyAndDarlingDay1` | 1 | (O). Slider "Honey & Darling Day 1" (1-8, default 8), same block; `Minigames/HoneyAndDarling.cpp` (one registrar on its three keys) linked |
+| `Minigames.HoneyAndDarlingDay2` | 1 | (O). Slider "Honey & Darling Day 2" (1-8, default 8), same block; `HoneyAndDarling.cpp` |
+| `Minigames.HoneyAndDarlingDay3` | 1 | (O). Slider "Honey & Darling Day 3" (1-16, default 16), same block; `HoneyAndDarling.cpp` |
+| `Minigames.RomaniTargetPractice` | 1 | (O). Slider "Romani Practice" (1-10, default 10), same block; `Minigames/RomaniTargetPractice.cpp` linked |
+| `Minigames.AlwaysWinDoggyRace` | 1 | (O). Combobox "Always Win Doggy Race" (Off, With Mask of Truth, Always), same block; `Minigames/AlwaysWinDoggyRace.cpp` linked |
+| `Minigames.CuccoShackCuccoCount` | 1 | (O). Slider "Cucco Shack Count" (1-10, default 10), same block; `Minigames/CuccoShackCuccoCount.cpp` linked |
+| `Minigames.SkipHorseRace` | 1 | (O). Row "Skip Gorman Horse Race", same block; `Minigames/SkipHorseRace.cpp` linked |
+| `Minigames.BeaverRaceRingsCollected` | 1 | (O). Slider "Beaver Race Rings" (1-20, default 20), same block; `Minigames/BeaverRace.cpp` linked (play-state guard added) |
+| `Minigames.SkipLittleBeaver` | 1 | (O). Row "Skip Little Beaver Races", same block; `BeaverRace.cpp` |
+| `DifficultyOptions.GoronRace` | 1 | (O). Combobox "Goron Race" (Vanilla, Balanced, Skip), same block (2Ship keeps it with the minigames); `DifficultyOptions/GoronRace.cpp` linked |
+| `Minigames.BoatArcheryScore` | 1 | (O). Slider "Boat Archery Score" (1-50, default 20), same block; `Archery.cpp`. Default kept at 20, which `Timesavers/SwampBoatSkip.cpp` also reads |
+| `Minigames.BoatArcheryHealth` | 1 | (O). Slider "Koume's Health" (1-30, default 10; disabled while "Invincible Koume" is on), same block; `Archery.cpp` |
+| `Minigames.BoatArcheryInvincible` | 1 | (O). Row "Invincible Koume", same block; `Archery.cpp` |
+| `Minigames.TreasureChestShopShowFullMaze` | 1 | (O). Row "Treasure Shop Full Maze", same block; `Minigames/TreasureChestShopFullMaze.cpp` linked |
+| `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…). Eight classified per key since W6-MODES-DIFF (#1236, below): seven rows and Delete File on Death (INTENTIONAL, no row) |
 | `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
-| `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
-| `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
-| `gFixes.*` | 4 | MM-specific colour/Epona fixes |
+| `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` and `N64WeirdFrames` → (S), minus `TatlISG` → (P); the other seven are MM/OoT-behaviour restorations, classified per key in W6-FIXES below |
+| `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions**, but not a clean MM-only block: since W6-MODES-DIFF (#1236, below) three are (O) rows and Mirrored World's `.State` is translated from SoH's `gEnhancements.MirroredWorldMode` (`kTranslatedKeys`), with `.Mode` retired |
+| `gFixes.*` | 3 | MM-specific colour/Epona fixes, classified per key in W6-FIXES below. 2Ship v1's `gFixes.FixButtonEnvColor` is a rename MM's code never followed (`z_parameter.c` reads `gFixes.FixAmmoCountEnvColor`), so it is not counted |
 | `gWindows.*` | 23 | MM's own window-open namespace (OoT uses `gOpenWindows.*`) |
+| `gWindows.HudEditor` | 1 | (G), no row and no second window (W6-HUD-A, #1237). 2Ship's HUD Editor popout resolves to SoH's "Popout Cosmetics Editor Window": MM's HUD placements are in the Cosmetics Editor's HUD Placement tab, and `BenGui/HudEditor.cpp` stays unlinked |
+| `gHudEditor.B.{Mode, Position.X, Position.Y, Scale}` | 4 | (O) MM-only (W6-HUD-A, #1239). Header "MM B Button position" in the Majora's Mask section of SoH's Cosmetics Editor, HUD Placement tab, after SoH's placements: SoH's position radio buttons (Original position = Vanilla, Anchor to the left / right = Movable left / right, No anchors = Movable center, Hidden), its Up/Down and Left/Right sliders and MM's scale. Read by `mm_hudeditor_stubs.c`, 2Ship's reader ported. Composed from `RSBS_CVAR_MM_HUD_EDITOR_PREFIX` (leg 3d-3); not SoH's `gCosmetics.HUD.*` placements, whose positions and anchors mean OoT's HUD layout |
+| `gHudEditor.A.*` | 4 | (O), likewise: "MM A Button position" |
+| `gHudEditor.Start.*` | 4 | (O), likewise: "MM Start Button position" |
+| `gHudEditor.CUp.*` | 4 | (O), likewise: "MM C Button Up position" (Tatl's button) |
+| `gHudEditor.CDown.*` | 4 | (O), likewise: "MM C Button Down position" |
+| `gHudEditor.CLeft.*` | 4 | (O), likewise: "MM C Button Left position" |
+| `gHudEditor.CRight.*` | 4 | (O), likewise: "MM C Button Right position" |
+| `gHudEditor.DPad.*` | 4 | (O), likewise: "MM DPad items position" |
+| `gHudEditor.Minimap.*` | 4 | (O), likewise: "MM Minimaps position" |
+| HUD Editor preset | 0 | (O), no key: the section's "HUD Preset" row (Vanilla (4:3) / Hidden / Widescreen) writes every element's Mode and clears its position and scale, as 2Ship's preset did |
+| `gColors.<element>.{Color, Changed}` | 0 rows | INTENTIONAL, no row: 2Ship's HUD editor colour keys are read only by its window, never by a draw, so a row would write a key nothing in MM reads. MM's HUD colours are W6-COS-A's `gCosmetic.*` |
 | `gCollisionViewer.*` | 18 | MM collision viewer |
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
-| `gNotifications.*`, `gDisplayOverlay.*` | 7 | MM overlay/notification system |
+| `gNotifications.*` | 4 | MM notification system |
+| `gDisplayOverlay.*` | 3 | (O) MM's In-Game Timer overlay; rows on Enhancements > Timers since W6-TIMERS, see the table below |
 | `gRando.*` | 72 | MM randomizer — see ADR 0004 §3 |
+
+**W6-TIMERS (#1235, #1237, #1239) — MM's In-Game Timer and Time Splits, linked and hosted.** 2Ship created its three
+timer windows in the excluded `BenGui.cpp` and drew their rows in the excluded `BenMenu.cpp` and in the Time Splits
+popout, so none of these keys could be written or shown. `Trackers/DisplayOverlay.cpp` and the three `Trackers/TimeSplits/`
+TUs are now carved into `ship__Enh_registrars`; `TimersGuiSingleExe.cpp` registers the In-Game Timer and the splits list
+beside MM's trackers, drawn only while MM runs; and SoH's own Time Splits window hosts 2Ship's popout body while MM runs,
+so the popout resolves to that one surface. SoH's Additional Timers and Time Splits read OoT's save only, so no key has
+a twin. Each scalar key is bound through its `RSBS_CVAR_MM_*` define (classification leg 3f-2c); the registrar-coverage
+lock's W6-TIMERS phase attributes `TimeSplitsActions.cpp` by registry content, and mm-trackers-gui leg 8 holds the
+windows' registration and gate.
+
+| MM key | MM default | Row or surface (page > section) | Call |
+|---|---|---|---|
+| `gDisplayOverlay.Mode` | Off | In-Game Timer (Enhancements > Timers, Majora's Mask block): Off, Real-Time, In-Game Time | (O) MM-only. The mode alone shows the timer; 2Ship's `gWindows.DisplayOverlay` is not used |
+| `gDisplayOverlay.Background` | off | Hide In-Game Timer Background (likewise) | (O) MM-only |
+| `gDisplayOverlay.Scale` | 1.0 | In-Game Timer Scale (likewise), 1x to 5x | (O) MM-only |
+| `gSettings.TimeSplits.Enable` | off | Enable Time Splits (Enhancements > Time Splits, Majora's Mask block) | (O) MM-only; arms `TimeSplitsActions.cpp`'s six hooks and shows the splits list |
+| `gSettings.TimeSplits.ShowHeaders` | off | Show Split Headers (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Opacity` | off | Hide Split List Background (likewise) | (O) MM-only; despite its name a switch |
+| `gSettings.TimeSplits.Highlight` | off | Highlight Active Split (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Follow` | off | Follow Active Split (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Compare` | off | Compare Splits (likewise); the list compared against is chosen in the Time Splits window | (O) MM-only |
+| `gWindows.Timesplits` | off | The splits list window ("MM Time Splits"), registered beside MM's trackers | (O) MM-only, no row: as upstream, the list draws while Enable Time Splits is on, whatever this key says |
+| `gWindows.Timesplits.Settings` | off | Resolves to SoH's Time Splits window (Popout Time Splits Window), which hosts 2Ship's list management and Split Entries tabs while MM runs | INTENTIONAL, no row: one Time Splits surface, not a second window |
 
 **W6-PLAYER (#1236) — MM's Player, Equipment and PlayerActions rows, linked and hosted.** MM read twelve Player,
 Equipment and PlayerActions keys: the ten (O) keys below and the two held-apart (P) keys, Climb Speed and Bombchu Drops,
@@ -594,12 +658,90 @@ already shared and MM honours it in `z_pause.c`), and Debug Save File Mode drive
 BUG 2). MM's `RegisterDebugMode`, linked with the rest, clears the four switches and MM's frame advance when Debug Mode
 goes off, as in 2Ship, clearing rather than storing the keys.
 
+**W6-MODES-DIFF (#1236, #1240) — MM's Modes, Difficulty and 'Other' keys, linked and given rows or a ruling.** None of
+2Ship's Modes reached MM: Mirrored World was read (`gModes.MirroredWorld.State`, some thirty read sites) but only the
+excluded `BenMenu.cpp` wrote it, and the other three Modes TUs were not linked. The same held for 2Ship's Difficulty
+'Combat' and 'Other' rows. Twelve provider TUs and one new translator (`Modes/MirroredWorld.cpp`) are carved into
+`ship__Enh_registrars`, each hook body that reads the play state is guarded, and each key has one row below or a
+ruling. The registrar-coverage lock's W6-MODES-DIFF phase attributes each TU by registry content; the classification
+lock's leg 3f-2c holds each binding and leg 3f-3b the Mirrored World translation; the `MMMirroredWorld` row drives it.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gModes.MirroredWorld.State` | off | none: SoH's Mirrored World (Extra Modes) | translated (`kTranslatedKeys`). SoH's nine-mode `gEnhancements.MirroredWorldMode` is the one control; `Modes/MirroredWorld.cpp` sets `.State` when it changes and on each MM scene change. Off and Always map exactly; Random and Random (Seeded) per MM scene (seeded by the MM scene and the file: rando seed, else creation stamp); Dungeons and Dungeons (Vanilla) mirror MM's four temples and their lairs; Dungeons (MQ) never mirrors in MM (no Master Quest: the one mode with no MM meaning); the Dungeons Random modes add the coin. It is the only MM writer of `.State` |
+| `gModes.MirroredWorld.Mode` | off | none | RETIRED. 2Ship's on/off checkbox; nothing in the single exe reads or writes it (leg 3f-3b), and SoH's row replaces it |
+| `gModes.PlayAsKafei` | off | Play as Kafei (Extra Modes, Majora's Mask block) | (O) MM-only. Swaps MM's cached `gLinkHumanSkel` for Kafei's only from MM's own scene-destroy hook, or at MM's boot with no scene, so it edits MM's cache owner's copy (#981) and never a copy drawn by Ocarina of Time; it takes effect at the next MM scene change, and turning it off puts Link back at the next one |
+| `gModes.HyruleWarriorsStyledLink` | off | Hyrule Warriors Styled Link (likewise) | (O) MM-only. Draws MM's own mask display lists from MM's player-limb hook, under MM's cache owner |
+| `gModes.TimeMovesWhenYouMove` | off | Time Moves When You Move (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.JinxedTimer` | 60 | Jinxed Timer (Difficulty, Majora's Mask block after Enemies) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.LowerBankRewardThresholds` | off | Lower Bank Reward Thresholds (likewise) | (O) MM-only. This row owns the key; W6-TIMESAVERS' `AutoBankDeposit.cpp` also reads it (default off) |
+| `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | off | Disable Takkuri Steal (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.DekuGuardSearchBalls` | Night Only | Deku Guard Search Balls (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.GibdoTradeSequence` | Vanilla | Gibdo Trade Sequence Options (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.HiddenGrottosVisibility` | Off | Hidden Grottos Visibility (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.FrogChoirCount` | 5 | Frog Choir Count (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.DeleteFileOnDeath` | off | none | INTENTIONAL, no row. A paired file is one game, so a death may delete only the whole paired save; 2Ship's `DeleteFileOnDeath.cpp` deletes MM's own slot through MM's SaveManager, which the single exe does not compile, so the TU stays unlinked. SoH's own Delete File on Death acts on Ocarina of Time deaths only |
+| `gEnhancements.Minigames.CremiaHugs` | Vanilla | Milk Run Reward Options (Difficulty, Majora's Mask block) | (O) MM-only; from 2Ship's 'Other' block, no nearer SoH relative |
+| `gEnhancements.Items.AmmoBuyback` | Vanilla | Ammo Buyback Options (likewise) | (O) MM-only; from 2Ship's 'Other' block. The ammo sold is the shared count, so a sale in Termina spends Hyrule's too: one pool, one game |
+
+**W6-GFX (#1237, #1240) — MM's clock, motion blur and scene-geometry rows, linked and hosted.** MM read eight Graphics
+keys under its own spelling, all (O) MM-only, and two motion blur values that are registers, not keys. The only widgets
+sat in the excluded `BenMenu.cpp`, and the two clock-style TUs (`Graphics/3DSClock.cpp`, `Graphics/TextBasedClock.cpp`)
+were dropped from the link. Both TUs are now carved into `ship__Enh_registrars` (play-state guards added), and every
+key but one has a row on Enhancements > Graphics through the hosted-row seam, bound through its `RSBS_CVAR_MM_*`
+define. The registrar-coverage lock's W6-GFX phase attributes both clock TUs by registry content, the classification
+lock's leg 3f-2c holds each binding, and MenuCapabilityGating's leg 8 holds the two register rows disabled while MM has
+no play state.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Graphics.ClockType` | 0 (original) | Clock Type (Graphics, UI column, Majora's Mask block) | (O) MM-only: the three-day clock, as the original, the MM3D clock or a text-only clock. Its two TUs were UNLINKED; both draw through the HUD-editor stand-ins (`mm_hudeditor_stubs.c`) until W6-HUD-A |
+| `gEnhancements.Graphics.24HoursClock` | off | 24 Hours Clock (likewise) | (O) MM-only; read inline by `z_parameter.c` and both clock TUs |
+| `gEnhancements.Graphics.MotionBlur.Mode` | 0 (Dynamic) | Motion Blur Mode (Graphics, Misc. column, Majora's Mask block) | (O) MM-only; `MotionBlur.cpp` (linked from `z_play.c`) |
+| `gEnhancements.Graphics.MotionBlur.Interpolate` | off | Interpolate Motion Blur (likewise; disabled while the mode is Always Off) | (O) MM-only; read by `z_play.c` |
+| `gEnhancements.Graphics.MotionBlur.Strength` | 180 | Motion Blur Strength (likewise; disabled unless the mode is Always On) | (O) MM-only |
+| (register `R_MOTION_BLUR_ENABLED`, no key) | set by MM's scenes | Dynamic Motion Blur (likewise) | (O) MM-only and not persisted: reached through `src/common/mm_graphics_bridge.h`, live only while MM runs a play state, otherwise disabled with the reason "Majora's Mask Not Running" and a gray note (ADR 0004's CAPABILITY state, #497) |
+| (register `R_MOTION_BLUR_ALPHA`, no key) | set by MM's scenes | Dynamic Motion Blur Strength (likewise) | (O) likewise, and disabled while Dynamic Motion Blur is off |
+| `gEnhancements.Graphics.FixSceneGeometrySeams` | off | Fix Scene Geometry Seams (likewise) | (O) MM-only. Read by MM's authentic patches, applied once in MM's asset phase; a change now reapplies them through `MM_GfxPatches_Reapply`, at once while MM runs and otherwise at MM's next resume (never under OoT's resource cache owner, #1000). SoH's Fix Out of Bounds Textures row (the shared `gEnhancements.FixTexturesOOB`) reapplies MM's patches the same way |
+| `gEnhancements.Graphics.DisableSceneGeometryDistanceCheck` | off | Disable Scene Geometry Distance Check (likewise) | (O) MM-only; reapplied as the row above |
+| `gEnhancements.Graphics.AuthenticLogo` | off | none | INTENTIONAL, no row. It changes only the console logo screen, which draws only on a cold `--game mm` boot: `z_title.c` skips it on every crossing into MM, and unpaired play is not a supported mode |
+
+**W6-FIXES (#1237, #1236) — MM's Fixes and Restorations, linked and hosted.** MM read fifteen Fixes, `gFixes.*` and
+Restorations keys and one Camera key (Fix Targeting Camera Snap), but its only widgets sat in the excluded `BenMenu.cpp`,
+so nothing in the single exe wrote them, and eleven of their TUs were dropped from the link (a plain `2ship_enh`
+archive keeps no TU whose only anchor is a `RegisterShipInitFunc`). The eleven are now carved into
+`ship__Enh_registrars`, and fifteen keys have a row on Enhancements > Fixes, at the end of the SoH section holding
+their nearest relatives, added through the hosted-row seam (`SohMenuHostedMmFixes.cpp`) and bound through its
+`RSBS_CVAR_MM_*` define. The registrar-coverage lock's W6-FIXES phase attributes each TU by registry content (JP
+Grottos with every leg under its one key); the classification lock's leg 3f-2c holds each binding. None has an SoH twin
+that could share its key.
+
+| MM key | MM default | Row (Fixes > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Camera.FixTargettingCameraSnap` | off | Fix Targeting Camera Snap (Camera Fixes) | (O) MM-only; row only, `z_player.c` reads it |
+| `gFixes.FixEponaStealingSword` | off | Fix Epona Stealing Sword (Gameplay Fixes) | (O) MM-only; `Fixes/FixEponaStealingSword.cpp` linked (play-state guard added) |
+| `gEnhancements.Fixes.FierceDeityZTargetMovement` | off | Fix Fierce Deity Z-Target Movement (Gameplay Fixes) | (O) MM-only; `Fixes/FierceDeityZTargetMovement.cpp` linked (guard added) |
+| `gEnhancements.Fixes.ConsoleCrashes` | on | none | INTENTIONAL: the single exe always keeps the crash fixes on. `src/common/mm_stubs.c`'s handler returns "not reset" and every call site takes its safe fallback; 2Ship's off mode is a soft reset through the console's "reset" command, which in the single exe is SoH's and resets Ocarina of Time, not the Majora's Mask state the crash came from |
+| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key |
+| `gFixes.FixIkanaGreatFairyFountainColor` | off | Fix Ikana Great Fairy Fountain Color (Graphical Fixes) | (O) MM-only; row only, `z_kankyo.c` reads it |
+| `gEnhancements.Fixes.ControlCharacters` | off | Fix Text Control Characters (Graphical Fixes) | (O) MM-only; row only, `z_message_nes.c` reads it |
+| `gEnhancements.Fixes.CompletedHeartContainerAudio` | off | Fix Completed Heart Container Audio (Audio Fixes) | (O) MM-only; `Fixes/CompletedHeartContainerAudio.cpp` linked |
+| `gEnhancements.Restorations.PowerCrouchStab` | 0 (Patched) | MM Power Crouch Stab (Item-related Fixes, after SoH's Remove Power Crouch Stab, always shown) | (O) never mapped: SoH's `gEnhancements.CrouchStabFix` REMOVES the glitch and is a bool behind Fix Megaton Hammer Crouch Stab; MM's RESTORES it, with three values (Patched, Unpatched JP, Unpatched OoT). `Restorations/PowerCrouchStab.cpp` linked |
+| `gEnhancements.Restorations.TatlISG` | off | Tatl ISG (restoration) (Glitch Restorations) | (P) P2, held apart from SoH's `gCheats.EasyISG` (§4); `Restorations/TatlISG.cpp` linked |
+| `gEnhancements.Restorations.ConstantFlipsHops` | off | Constant Distance Backflips and Sidehops (Misc Restorations) | (O) restores OoT behaviour in MM; `Restorations/FlipHopVariable.cpp` linked (guard added) |
+| `gEnhancements.Restorations.SideRoll` | off | Side Rolls (Misc Restorations) | (O) likewise; `Restorations/SideRoll.cpp` linked |
+| `gEnhancements.Restorations.OoTFasterSwim` | off | Faster Swim (Misc Restorations) | (O) likewise; `Restorations/OoTFasterSwim.cpp` linked (guard added) |
+| `gEnhancements.Restorations.WoodfallMountainAppearance` | off | Woodfall Mountain Appearance (Misc Restorations) | (O) MM-only; `Restorations/WoodfallMountainAppearance.cpp` linked |
+| `gEnhancements.Restorations.JPGrottos` | off | JP Deku Palace Grottos (Misc Restorations) | (O) MM-only; `Restorations/JPGrottos.cpp` linked whole: its AfterRoomSceneCommands leg is the only writer of the flag its four ShouldActorInit legs wait on, so linking the deleting legs alone would leave Deku Palace with no grottos (guards added to the four legs) |
+| `gEnhancements.Restorations.BonkCollision` | off | Bonk Collision (Misc Restorations) | (O) restores OoT behaviour in MM; `Restorations/BonkCollision.cpp` linked |
+
 ### 6.2 OoT-only (category level)
 
 Dungeon/trade/age machinery with no MM counterpart: `gRandoSettings.*` (232),
 `gTrackers.*` (78), `gGeneral.*` (21), `gGameplayStats.*`, `gTimeDisplay.*`,
 `gRemote.*` (Crowd Control / Sail / Anchor), plus within `gEnhancements.*`:
-`RandomizedEnemyList` (62), `ExtraTraps` (11), `OcarinaGame` (5), `MirroredWorld*`,
+`RandomizedEnemyList` (62), `ExtraTraps` (11), `OcarinaGame` (5), `MirroredWorld` (the per-scene state OoT acts on;
+`MirroredWorldMode` drives both games since W6-MODES-DIFF, §6.1),
 `TimeTravel`, `BetaQuest*`, and within `gCheats.*`: `SaveStates*`, `EasyPauseBuffer`,
 `EasyInputBuffer`, `EasyQPA`, `SpeedModifier.*`, `SuperTunic`, `TimelessEquipment`,
 `InfiniteEponaBoost`, `InfiniteNayru`, `NoRedeadFreeze`, `FireproofDekuShield`, and ~20 more.

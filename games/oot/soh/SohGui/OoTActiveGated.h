@@ -73,12 +73,65 @@ template <typename BaseWindow> class OoTActiveGated final : public BaseWindow {
         BaseWindow::UpdateElement();
     }
 };
+
+/**
+ * OoTActiveGated<B> for an SoH window that also HOSTS a Majora's Mask body (W6-TIMERS, #1237: SoH's Time Splits window,
+ * whose body is 2Ship's Time Splits popout while MM runs, so the player has one Time Splits surface, not two).
+ *
+ * Under OoT it is exactly OoTActiveGated<B>. While HostMm's @c active() says MM's body is live, Draw() runs B's Draw(),
+ * which must only frame the window (B's title, size, visibility key and colours; TimeSplitWindow::Draw pushes its
+ * background colour and calls GuiWindow::Draw), and DrawElement() draws MM's body through @c drawElement() instead of
+ * B's, so B's body never reads OoT state under MM. The page embed reaches DrawElement() directly, so it hosts too.
+ * UpdateElement() stays OoT-only. Before HostMm is called it gates exactly as OoTActiveGated<B> does.
+ */
+template <typename BaseWindow> class OoTGatedHostingMm final : public BaseWindow {
+  public:
+    template <typename... Args> explicit OoTGatedHostingMm(Args&&... args) : BaseWindow(std::forward<Args>(args)...) {
+    }
+
+    /** Host MM's body: @p active says whether it is live (MM running), @p drawElement draws it. */
+    void HostMm(bool (*active)(void), void (*drawElement)(void)) {
+        mMmActive = active;
+        mMmDrawElement = drawElement;
+    }
+
+    void Draw() override {
+        if (OoT_Gui_ShouldDraw() || MmHosted()) {
+            BaseWindow::Draw();
+        }
+    }
+
+    void DrawElement() override {
+        if (OoT_Gui_ShouldDraw()) {
+            BaseWindow::DrawElement();
+        } else if (MmHosted()) {
+            mMmDrawElement();
+        }
+    }
+
+  protected:
+    void UpdateElement() override {
+        if (!OoT_Gui_ShouldDraw()) {
+            return;
+        }
+        BaseWindow::UpdateElement();
+    }
+
+  private:
+    bool MmHosted() const {
+        return mMmActive != nullptr && mMmDrawElement != nullptr && mMmActive();
+    }
+
+    bool (*mMmActive)(void) = nullptr;
+    void (*mMmDrawElement)(void) = nullptr;
+};
 #endif // __cplusplus
 
 #elif defined(__cplusplus)
 
 // Outside the single executable there is no second game, so the wrap sites construct the window itself.
 template <typename BaseWindow> using OoTActiveGated = BaseWindow;
+template <typename BaseWindow> using OoTGatedHostingMm = BaseWindow;
 
 #endif // RSBS_SINGLE_EXECUTABLE
 

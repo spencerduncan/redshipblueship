@@ -448,6 +448,11 @@ typedef struct {
     // (#458 U3). The text and the tooltip keep "n/max"; the icon game's
     // sharedIcon may still name a number of its own (the wallet's capacity).
     bool tierIcon;
+    // Non-zero: the row counts what is left over a whole multiple of this many
+    // pool units, in `unitsPerCount` units (#1159: the pieces toward the next
+    // heart, the quantity modulo 16 in 4s), and draws the icon sharedIcon names
+    // for COMBO_ITEM_SHARED_ICON_HEART_PIECE.
+    uint16_t remainderOf;
 } SharedRowDef;
 
 static const SharedRowDef kSharedRows[] = {
@@ -460,11 +465,15 @@ static const SharedRowDef kSharedRows[] = {
     // (wallet shuffle's flag is per game, not pooled), so under wallet shuffle
     // the per-game row is the authority for whether a wallet is held.
     { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true, true },
-    // Whole hearts only: the pieces toward the next heart are truncated (5
-    // hearts and 2 pieces reads 5). The per-game "Pieces of Heart" row carries
+    // Whole hearts (5 hearts and 2 pieces reads 5); the row after it carries
     // the pieces.
     { "Hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
       (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false, false },
+    // #1159: the pieces toward the next heart, n/4. Health is one quantity for
+    // the pair (Combo_MakeHealthQuarters: 4 units a piece, 16 a heart), so four
+    // pieces make a heart whichever game each was found in; both native rows
+    // count their own game's pieces only (OoT's a lifetime n/36).
+    { "Heart Pieces", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL, 4, 4, false, false, 16 },
     { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
     { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
     { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false, false },
@@ -674,10 +683,13 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     out->iconKeyFaded = NULL;
     // An ammo count is bounded by its capacity tier, so it follows the live game only
     // below, where the tier is read; every other kind is live here (#971).
-    out->count = (int)(((def->tierKind != RSBS_SHARED_RES_NONE) ? SharedValue(def->countKind)
-                                                                : SharedColumnValue(def->countKind)) /
-                       def->unitsPerCount);
-    uint16_t iconTier = (uint16_t)out->count;
+    uint16_t value =
+        (def->tierKind != RSBS_SHARED_RES_NONE) ? SharedValue(def->countKind) : SharedColumnValue(def->countKind);
+    if (def->remainderOf != 0u) {
+        value = (uint16_t)(value % def->remainderOf); // #1159: what is left over the whole hearts
+    }
+    out->count = (int)(value / def->unitsPerCount);
+    uint16_t iconTier = (def->remainderOf != 0u) ? (uint16_t)COMBO_ITEM_SHARED_ICON_HEART_PIECE : (uint16_t)out->count;
     if (def->tierKind != RSBS_SHARED_RES_NONE) {
         // The tier and the ammo of the active game's live copy when it is at
         // least the pool's: the pool is written at a switch or a save, so a

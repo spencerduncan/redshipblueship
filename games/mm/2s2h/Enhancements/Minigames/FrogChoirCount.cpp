@@ -35,6 +35,8 @@ u8 SavedFrogs() {
 void RegisterFrogChoirCount() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_EN_MINIFROG, CVAR, [](Actor* actor) {
         EnMinifrog* enMinifrog = (EnMinifrog*)actor;
+        // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
 
         if (MM_gPlayState->sceneId != SCENE_10YUKIYAMANOMURA2 || enMinifrog->frogIndex == 0) {
             return;
