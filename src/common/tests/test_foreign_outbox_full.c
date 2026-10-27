@@ -22,6 +22,8 @@
  *    `cycleObtained`, still `eligible`; the refusal is counted once.
  *  F THE SHOP: the counter refuses the sale; a buy forced past it charges
  *    nothing, crosses nothing, and leaves the slot unsold and the shelf standing.
+ *  T THE PLAYER IS TOLD: the refused sale shows a toast naming the full outbox
+ *    ("Outbox full: ..."), through the shared overlay.
  *  R ROOM AGAIN: with one row redeemed (reclaimable), the same host is no longer
  *    held and its give delivers.
  *
@@ -31,6 +33,7 @@
 
 #include "../context.h"
 #include "../foreign_items.h"
+#include "../notification_bridge.h" // OoT_Notification_RecordForTest: the toasts a leg emits
 #include "../shared_items.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
@@ -58,6 +61,18 @@ int MM_EnGirlA_TestForeignPurchaseOutboxFull(uint16_t randoCheckId);
     } while (0)
 
 namespace {
+
+// How many recorded toasts name the full outbox.
+int OutboxToasts(void) {
+    int n = 0;
+    char toast[256];
+    for (int i = 0; i < OoT_Notification_EmittedCountForTest(); i++) {
+        if (OoT_Notification_EmittedAtForTest(i, toast, sizeof(toast)) == 1 && std::strstr(toast, "Outbox full")) {
+            n++;
+        }
+    }
+    return n;
+}
 
 void OutboxTestPair(void) {
     gComboCtx.sourceIsRando = true;
@@ -151,8 +166,11 @@ TestResult Test_ForeignOutboxFullMM(void) {
            crossed, obtained, cycleObtained, eligible, (unsigned)overflowBefore, (unsigned)overflowAfter, hammerRows);
 
     // ---- F: the shop -------------------------------------------------------------
+    OoT_Notification_RecordForTest(1);
     const int shop = MM_EnGirlA_TestForeignPurchaseOutboxFull(shopCheck);
-    printf("[TEST]   F shop purchase on the full outbox: step code %d\n", shop);
+    const int shopToasts = OutboxToasts();
+    OoT_Notification_RecordForTest(0);
+    printf("[TEST]   F shop purchase on the full outbox: step code %d; outbox toasts %d\n", shop, shopToasts);
 
     // ---- R: room again -----------------------------------------------------------
     // A crossing the other game redeemed is reclaimable (ReclaimOldestRedeemedSlot).
@@ -180,6 +198,7 @@ TestResult Test_ForeignOutboxFullMM(void) {
     FO_ASSERT(overflowAfter == overflowBefore + 1u, "G the refusal is counted once in the durable overflow count");
     FO_ASSERT(shop == 0, "F the shop refuses the sale and a forced buy charges nothing, crosses nothing and sells "
                          "nothing (see the F line; 1 = sold, 2 = charged, 4 = slot sold out, 5 = shelf emptied)");
+    FO_ASSERT(shopToasts >= 1, "T the refused sale tells the player the outbox is full (an \"Outbox full\" toast)");
     FO_ASSERT(heldWithRoom == 0 && crossedR == 1 && obtainedR == 1 && eligibleR == 0 && hammerRowsR == 1,
               "R once a row is free the held host delivers its crossing (see the R line)");
 
