@@ -890,7 +890,9 @@ void MMItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
             break;
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
-            key = MMItemIcon(ITEM_HEART_CONTAINER);
+            // The pooled pieces toward the next heart (#1159) draw the piece MM's Quest row does.
+            key = (tier == COMBO_ITEM_SHARED_ICON_HEART_PIECE) ? MMItemRandoIcon(RI_HEART_PIECE)
+                                                               : MMItemIcon(ITEM_HEART_CONTAINER);
             break;
         case RSBS_SHARED_RES_DOUBLE_DEFENSE:
             key = MMItemRandoIcon(RI_DOUBLE_DEFENSE);
