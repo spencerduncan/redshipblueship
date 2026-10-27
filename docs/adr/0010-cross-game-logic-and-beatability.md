@@ -1587,6 +1587,12 @@ somewhere else, and this entry records where and why.
   file is refused by a pre-v3 build. No save is invalidated. A malformed or
   over-cap block refuses the load as `RSBS_REFUSE_CROSSINGS` (quarantined),
   never truncated.
+- *Amended 2026-10-27 (the tier list).* The `.redsave` is now Tier-0 header,
+  Tier-1 `ComboContext` record, Tier-2 OoT, Tier-3 MM, Tier-4 this crossing
+  block (v3+), and **Tier-5 the shared-item overflow block (v5+)**, appended
+  after Tier-4 in the same self-sized shape (16-byte header, 4-byte
+  `SharedItem` rows, inside the CRC). See the 2026-10-27 entry below and ADR
+  0002's amendment of the same date.
 - **Semantics.** The crossing set is world identity frozen at creation: the
   store follows the seed-stamp policy (KEEP on the creation path, DROP on
   every other); the spoiler-load writer is frozen (an empty store takes the
@@ -1782,7 +1788,9 @@ and `Combo_ComboSettingsFrozen`):
 - Each side hosts at most `RSBS_CROSSINGS_PER_SIDE_MAX` crossings
   (`maxCrossingsPerSide`, the shared-item array's capacity): a crossing pickup
   takes one un-merged slot until its origin game redeems it, and a refused
-  record would lose the item.
+  record would lose the item. *Amended 2026-10-27:* the bound is the outbox's
+  logical capacity (2048), equal to a side's placement cap, so it no longer
+  binds; see the 2026-10-27 entry at the end.
 - Crossings go only to hosts whose give path delivers them: the ABI-5 vtable
   entry `hostAcceptsForeign` (OoT: `ACTOR_EN_BOX` chests that are not shops,
   scrubs, merchants or the chest game; MM: `IsForeignHostClass`, Tier-A chests).
@@ -2522,3 +2530,27 @@ Locked by `SeedPackageContainer`, `SeedPackageGeneratorVersionRefused`,
 `GoldenSeedDigestPackagePath` (a file created from a package loaded off disk
 reproduces `seed-digest-default`); `GoldenSeedDigestPlayerPath` now ticks the file
 select like a player.
+
+### 2026-10-27 -- A side hosts any number of crossings: the outbox gains a Tier-5 overflow block
+
+Operator ruling 2026-10-27 ("do the variable length block"), following OoTMM, which keeps one merged save and
+puts no cap on how many items are placed in the other world. Until now each side hosted at most
+`RSBS_CROSSINGS_PER_SIDE_MAX` = 64 crossings, the shared-item array's capacity, and the bound shaped worlds
+(the increment 3 sample above: 9 of 30 worlds at exactly 64 MM items in OoT; the operator's own seed at 64 MM
+items in Hyrule and 38 OoT items in Termina).
+
+- **The outbox.** ADR 0002's amendment of this date: the cross-game outbox is one logical array of 2048
+  slots, the fixed 64 of Tier-1 then an overflow segment the `.redsave` carries as **Tier-5** (format version
+  5), appended after this ADR's Tier-4 crossing block in the same self-sized shape. Tier list: header, Tier-1
+  record, Tier-2 OoT, Tier-3 MM, Tier-4 crossings (v3+), Tier-5 shared-item overflow (v5+). Zero bytes of
+  `reserved[]` (ADR 0009 row 15).
+- **The fill.** `RSBS_CROSSINGS_PER_SIDE_MAX` is now `RSBS_SHARED_ITEM_LOGICAL_CAP`, which equals
+  `RSBS_CROSSING_STORE_CAP` and the coordinator's per-side placement cap, so the single bag still passes it
+  (the invariant stays stated where the fill reads it) and it never binds. A world that never reached 64
+  crossings on a side places exactly as before (the bound only marks a side full once reached); a world that
+  did now places the crossings it was denied.
+- **The hold-and-toast of #1222 stays**, for the hard ceiling only: a netplay peer's sourced grants share the
+  outbox and can still fill it.
+
+Locked by `ComboLogicBagModel` leg P6 (a bag that needs 76 crossings on one side places under the production
+bound; red while the bound was 64) and the four outbox rows ADR 0002's amendment names.

@@ -150,7 +150,11 @@ If every entry is un-redeemed, the record is **refused loudly**:
   pickup already happened in-game. The counter is what makes that loss
   diagnosable instead of a `stderr` line nobody sees. With reclamation, this
   requires 64 simultaneously *undelivered* items, which the working set can
-  no longer reach by mere accumulation.
+  no longer reach by mere accumulation. *Amended 2026-10-27 (ADR 0002's
+  overflow amendment):* the array is now a logical outbox of 2048 slots (the
+  fixed 64 plus a `.redsave` Tier-5 overflow segment); reclamation still comes
+  first and runs across the segment boundary, and refusal, `RETRY_FULL` and the
+  counter now happen only when all 2048 are un-redeemed.
 
 This is the honest middle the increment asked for: the game never blocks, no
 peer's gift is silently lost (sourced grants are retried by contract), and the
