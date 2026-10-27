@@ -573,18 +573,26 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   want.key, want.sidebar, want.section);
     }
     // The block's place: Quality of Life's first column, after Time of Day's
-    // SoH rows, before Pause Menu.
+    // SoH rows, before Pause Menu. The block is the "Majora's Mask" heading that
+    // opens Game Over Prompt's group: since #1247 the column holds a second
+    // block of that name under Saving (Pause Menu Save), so the first heading of
+    // the name is not this one.
     {
         long block = -1;
         long shops = -1;
         long pause = -1;
+        long lastHeading = -1;
         for (std::size_t i = 0; i < rows.size(); i++) {
             const FlatRow& r = rows[i];
             if (r.sidebar != "Quality of Life" || r.column != SECTION_COLUMN_1) {
                 continue;
             }
-            if (r.info->type == WIDGET_SEPARATOR_TEXT && r.info->name == SohGui::kHostedMmBlockLabel && block < 0) {
-                block = (long)i;
+            if (r.info->type == WIDGET_SEPARATOR_TEXT) {
+                lastHeading = (long)i;
+            }
+            if (r.info->cVar != nullptr && std::string(r.info->cVar) == RSBS_CVAR_MM_KALEIDO_GAME_OVER &&
+                lastHeading >= 0 && rows[(std::size_t)lastHeading].info->name == SohGui::kHostedMmBlockLabel) {
+                block = lastHeading;
             } else if (r.info->name == "Shops and Games Always Open") {
                 shops = (long)i;
             } else if (r.info->type == WIDGET_SEPARATOR_TEXT && r.info->name == "Pause Menu") {
