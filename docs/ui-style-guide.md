@@ -624,7 +624,10 @@ A reworded entry counts as growth: fix the surface instead.
   separator title is measured by its width (ImGui ellipsizes it), and a slider's label at both ends of its range.
   Custom rows (trick tables, the mod list) are left out: the trick tables scroll sideways as SoH's Tricks/Glitches
   table does, and the mod list clips a long name at its column as SoH's Mod Menu does (the same table flags). SoH's
-  pages are measured the same way and only reported, in `label-fit.txt`. R9 cannot pass by measuring nothing: a
+  pages are measured the same way and only reported, in `label-fit.txt`. A Majora's Mask row hosted on one of SoH's
+  pages (#1133) sits in SoH's column, which SoH's own rows overrun at `min-832x600`: it is held to that column, failing
+  only when it overruns by more than the widest SoH row drawn there, and reported as `host`. R9 cannot pass by
+  measuring nothing: a
   measuring frame that fails fails the run, and so does a page of ours that has measurable rows and reports none
   (sabotage `no-label-fit`, section 12)
 
