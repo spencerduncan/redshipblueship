@@ -415,6 +415,32 @@ def test_titlesetup_game_over_exit_is_guarded():
     )
 
 
+def test_paired_pause_save_ends_its_commit():
+    """W6-TIMESAVERS (#1236): the call-site half of MMUnifiedSaveCapture check 14.
+
+    With Pause Menu Save on, the kaleido save prompt sets isOwlSave and
+    pauseSaveEntrance before its commit (func_8014546C) and vanilla clears them
+    only in the flash-write branch, which a paired session (fileNum 0xFF) never
+    takes. The ROM-free row locks MM_Combo_EndPauseSaveCommit's clear; this locks
+    that the prompt calls it AFTER the commit and before the paired leg's
+    PAUSE_SAVEPROMPT_STATE_5. Called before the commit, the .redsave would lose
+    the pause save; not called, Link spawns standing on the next scene.
+    """
+    text = (REPO_ROOT / TITLESETUP_GAME_OVER_FILE).read_text(encoding="utf-8")
+    commit = text.find("func_8014546C(sramCtx);")
+    assert commit >= 0, f"the pause save's commit is no longer in {TITLESETUP_GAME_OVER_FILE}"
+    paired_end = text.find("pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_5;", commit)
+    assert paired_end >= 0, "the paired leg's PAUSE_SAVEPROMPT_STATE_5 no longer follows the pause save's commit"
+    call = text.find("MM_Combo_EndPauseSaveCommit();", commit, paired_end)
+    assert call >= 0, (
+        "#1236: the paired pause-save leg must call MM_Combo_EndPauseSaveCommit() after func_8014546C, "
+        "or isOwlSave / pauseSaveEntrance stay set and Link spawns standing on the next scene"
+    )
+    assert text.find("MM_Combo_EndPauseSaveCommit();", 0, commit) < 0, (
+        "#1236: MM_Combo_EndPauseSaveCommit() must run after the commit, not before it"
+    )
+
+
 def test_titlesetup_invariant_sees_the_known_transitions():
     """Guard against the guard: a scanner that finds nothing passes vacuously.
 

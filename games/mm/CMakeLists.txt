@@ -370,6 +370,25 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cheats/HookshotAnywhere.cpp"
         "2s2h/Enhancements/Cheats/MoonJump.cpp"
         "2s2h/Enhancements/Cheats/EasyFrameAdvance.cpp"
+        # W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle options, each drawn by an MM row on SoH's Cheats
+        # and Quality of Life pages (SohGui/HostedMm/SohMenuHostedMmCycleCheats.cpp). Each registers only through a
+        # file-scope RegisterShipInitFunc on its own key (the four rando gates also on "IS_RANDO", so a rando file arms
+        # them with every row off; #1224's port of their IS_RANDO halves is retired with this link). Hooks, all
+        # dispatched: VB_* via MM_GameHooks_ExecuteVBShould (z_player.c, z_actor.c, z_parameter.c, z_kaleido_item.c,
+        # z_message.c, z_msgevent.c), OnFlagSet (z_actor.c), Before/AfterEndOfCycleSave (z_sram_NES.c) and
+        # AfterRoomSceneCommands (GameExports_SingleExe.cpp); LongerFlowerGlide writes z_player.c's glide table and
+        # registers nothing. Play-state guards: KeepExpressMail (added) and TimeStop (#438). EndOfCycle's rupee and
+        # consumable restores are held off (the combo's own cycle handling decides them). No registrar has a twin in
+        # games/oot (UnrestrictedItems' is MM_-prefixed); nothing in mm_stubs.c shadows them.
+        "2s2h/Enhancements/Cheats/UnbreakableRazorSword.cpp"
+        "2s2h/Enhancements/Cheats/LongerFlowerGlide.cpp"
+        "2s2h/Enhancements/Cheats/UnrestrictedItems.cpp"
+        "2s2h/Enhancements/Cheats/ElegyAnywhere.cpp"
+        "2s2h/Enhancements/Cheats/TimeStop.cpp"
+        "2s2h/Enhancements/Cycle/EndOfCycle.cpp"
+        "2s2h/Enhancements/Cycle/KeepExpressMail.cpp"
+        "2s2h/Enhancements/Cycle/OceansideSpiderHouseSquatter.cpp"
+        "2s2h/Enhancements/Cycle/OceansideWalletAnyDay.cpp"
         # #1018-#1022: the Skips & Speed-ups rows the SoH menu draws. Every file keys on the converged
         # gEnhancements.TimeSavers.* key SoH writes (kConvergedKeys), registers only through a file-scope
         # RegisterShipInitFunc, and rides a VB/actor hook the single exe dispatches (z_demo.c, z_eventmgr.c,
@@ -408,6 +427,26 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
+        # W6-TIMESAVERS (#1236, #1240): the dialogue, time-saver and pause-save rows SoH's Enhancements pages host
+        # (SohMenuHostedMmTimesavers.cpp), each keyed on the MM key its row writes. Hooks, all dispatched:
+        # OnActorUpdate / OnActorInit / OnFlagSet / OnOpenText via MM_GameHooks_Execute* (z_actor.c, z_message.c);
+        # VB_SETUP_TRANSITION (z_play.c), VB_EXEC_MSG_EVENT (z_msgevent.c), VB_BALLAD_PLAYED_FORM (z_en_toto.c),
+        # VB_DISCARD_EXCESS_RUPEES (z_parameter.c), VB_SAVE_ON_B_BUTTON_IN_PAUSE_MENU (z_kaleido_scope_NES.c) and
+        # VB_PLAY_SCENE_SEQUENCE (code_8019AF00.c) via MM_GameHooks_ExecuteVBShould. Play-state guards in every body
+        # that reads MM_gPlayState. BgmReplay.cpp is required: it keeps MM's main BGM player valid under Faster Scene
+        # Transitions and Pause Menu Save (and, as in 2Ship, under the shared Debug Mode key). No twin in games/oot.
+        "2s2h/Enhancements/Dialogue/FastBankSelection.cpp"
+        "2s2h/Enhancements/Dialogue/AutoBombersCode.cpp"
+        "2s2h/Enhancements/Timesavers/SwampBoatSkip.cpp"
+        "2s2h/Enhancements/Timesavers/GalleryTwofer.cpp"
+        "2s2h/Enhancements/Timesavers/MarineLabHP.cpp"
+        "2s2h/Enhancements/Timesavers/DampeDiggingSkip.cpp"
+        "2s2h/Enhancements/Timesavers/FasterSceneTransitions.cpp"
+        "2s2h/Enhancements/Minigames/SkipPowderKegCertification.cpp"
+        "2s2h/Enhancements/Minigames/SkipBalladOfWindfish.cpp"
+        "2s2h/Enhancements/Timesavers/AutoBankDeposit.cpp"
+        "2s2h/Enhancements/Saving/PauseSave.cpp"
+        "2s2h/Enhancements/Fixes/BgmReplay.cpp"
         # #1010-#1017: eight enhancement rows the SoH menu draws. Each keys on the converged
         # gEnhancements.* key SoH's row writes (kConvergedKeys; DpadEquips for ItemUnequip's second
         # half), registers only through a file-scope RegisterShipInitFunc, and rides a hook the single
@@ -541,11 +580,11 @@ if(SINGLE_EXECUTABLE_BUILD)
         # guard. Held APART from SoH's gEnhancements.DamageMult, whose value space differs: the row that writes MM's
         # key is hosted beside SoH's on Enhancements > Difficulty. RegisterDamageMultiplier has no twin in games/oot)
         "2s2h/Enhancements/DifficultyOptions/DamageMultiplier.cpp"
-        # #1215, #1221: deliberately NOT listed: Cheats/UnbreakableRazorSword.cpp, Cycle/EndOfCycle.cpp,
-        # Cycle/OceansideWalletAnyDay.cpp and Cycle/OceansideSpiderHouseSquatter.cpp. Each registers a `CVAR || IS_RANDO`
-        # gate, but its CVar has no shared-menu row (the #966 class), so only the IS_RANDO half is ported, into the
-        # WHOLE_ARCHIVE rando archive: Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp (the Razor
-        # restore). Linking one of the four here would register its rando gate a second time.
+        # #1215, #1221: Cheats/UnbreakableRazorSword.cpp, Cycle/EndOfCycle.cpp, Cycle/OceansideWalletAnyDay.cpp and
+        # Cycle/OceansideSpiderHouseSquatter.cpp each register a `CVAR || IS_RANDO` gate. Since W6-CYCLE-CHEATS they are
+        # linked whole under the Cheats block above, each CVar drawn by an MM row, and #1224's port of their IS_RANDO
+        # halves (Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp's Razor restore) is retired, so
+        # every rando gate registers exactly once. MMRegistrarCoverage phase 12 holds that.
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

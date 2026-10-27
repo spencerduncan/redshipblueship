@@ -3480,6 +3480,36 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     return ok;
 }
 
+/**
+ * W6-TIMESAVERS (#1236): the CVar-free core of MM_Combo_EndPauseSaveCommit below,
+ * with the Pause Menu Save state as an argument so MMUnifiedSaveCapture check 14
+ * drives it without a Ship::Context (CVar reads and writes need one).
+ */
+extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
+    if (pauseSaveOn) {
+        gSaveContext.save.isOwlSave = false;
+        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    }
+}
+
+/**
+ * W6-TIMESAVERS (#1236): the end of a paired Pause Menu Save, called by
+ * z_kaleido_scope_NES.c's save prompt right after its commit (func_8014546C ->
+ * Sram_ComboCommitUnifiedSave -> the capture above). With the enhancement on,
+ * the prompt sets isOwlSave and pauseSaveEntrance BEFORE that commit, so the
+ * .redsave records the pause save; vanilla clears the pair again only in the
+ * flash-write branch, which a paired session (fileNum 0xFF) never takes.
+ * Clearing it here is the paired twin of that clear and of the autosave's
+ * (SavingEnhancements.cpp HandleAutoSave). Left set, the next scene's Player
+ * init reads pauseSaveEntrance and spawns Link standing (z_player.c), and every
+ * later commit carries the stale pair. The commit is a synchronous staged copy,
+ * so clearing after it loses nothing. ROM-free lock: MMUnifiedSaveCapture,
+ * check 14.
+ */
+extern "C" void MM_Combo_EndPauseSaveCommit(void) {
+    MM_Combo_EndPauseSaveCommitFor(CVarGetInteger("gEnhancements.Saving.PauseSave", 0));
+}
+
 namespace {
 
 // The committed MM half a moon-crash reset reads back (#785). Static: ~48 KiB.
@@ -4368,15 +4398,16 @@ extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagTyp
  * it deletes a flash slot and clears isOwlSave rather than reading flash back
  * over gSaveContext, so it is not the #487 flash-readback class.
  *
- * WHAT DOES NOT COME BACK: 2s2h/Enhancements/Cycle/EndOfCycle.cpp's six
- * registrants (its own saveInfoCopy plus the DoNotReset{Rupees,Consumables,
- * BottleContent,RazorSword,TimeSpeed} restores) are still absent from the
- * binary — that TU is link-elided from the plain-archive 2ship_enh, verified
- * against build-cmake/redship.map, which lists no EndOfCycle.cpp.obj. Nothing
- * here changes that; those CVars stay inert until the TU links. Its razor-sword
- * hook is forced on for rando (`CVAR || IS_RANDO`), so that one restore is
- * ported into the rando's own AfterEndOfCycleSave (Rando/MiscBehavior/
- * OnCycleSave.cpp, #1215), which 2ship_rando's WHOLE_ARCHIVE link keeps.
+ * 2s2h/Enhancements/Cycle/EndOfCycle.cpp's registrants (its own saveInfoCopy
+ * plus the DoNotReset{Rupees,Consumables,BottleContent,RazorSword,TimeSpeed}
+ * restores) are linked since W6-CYCLE-CHEATS (#1236, ship__Enh_registrars), and
+ * the Bottle Content, Razor Sword and Time Speed restores have MM rows on SoH's
+ * Quality of Life > Time of Day. The razor-sword hook is forced on for rando
+ * (`CVAR || IS_RANDO`), which retired #1215's inline port in OnCycleSave.cpp.
+ * The Rupees and Consumables restores are held off in the single exe
+ * (EndOfCycle.cpp): MM_RegisterSharedResourceCycleHooks below keeps the shared
+ * rupees and ammo in every world, and the MM-local counts follow the frozen
+ * Keep Items on Cycle Reset (#1175), which a live switch may not overrule.
  *
  * Unkeyed leg only, matching the GameInteractor.cpp twins: both hook types are
  * DEFINE_HOOK(..., ()) 0-arg, upstream's executors call plain ExecuteHooks<>,

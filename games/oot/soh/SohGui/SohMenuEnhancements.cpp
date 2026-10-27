@@ -40,6 +40,11 @@ using namespace UIWidgets;
 
 // #1037: MM's own damage multiplier row (SohMenuComboMmEnhancements.cpp), drawn right after SoH's.
 void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
+// W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
+// Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
+void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
+void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
+void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
 // W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows (HostedMm/SohMenuHostedMmPlayer.cpp).
 void AddMmControlsRows(SohMenu& menu, WidgetPath& path);
 void AddMmClimbSpeedRow(SohMenu& menu, WidgetPath& path);
@@ -179,6 +184,12 @@ void OnFixBrokenGiantsKnifeToggled() {
     }
 }
 
+// W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle rows (HostedMm/SohMenuHostedMmCycleCheats.cpp).
+void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
+void AddMmUnrestrictedItemsRow(SohMenu& menu, WidgetPath& path);
+void AddMmCheatsBlock(SohMenu& menu, WidgetPath& path);
+void AddMmTimeCycleBlock(SohMenu& menu, WidgetPath& path);
+
 void SohMenu::AddMenuEnhancements() {
     // Add Enhancements Menu
     AddMenuEntry("Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"));
@@ -208,6 +219,8 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "When loading a save, places Link at the last entrance he went through.\n"
             "This doesn't work if the save was made in grottos, fairy fountains, or dungeons."));
+    // W6-TIMESAVERS (#1236): a Majora's Mask block with Pause Menu Save (HostedMm/SohMenuHostedMmTimesavers.cpp).
+    AddMmSavingRows(*this, path);
 
     AddWidget(path, "Containers Match Contents", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Containers Match Contents", WIDGET_CVAR_CHECKBOX)
@@ -253,6 +266,7 @@ void SohMenu::AddMenuEnhancements() {
             CheckboxOptions()
                 .Tooltip("Shops and Minigames are open both day and night. Requires a scene reload to take effect.")
                 .DisabledTooltip("This is not compatible with the Locked Overworld Doors Randomizer option."));
+    AddMmTimeCycleBlock(*this, path);
 
     AddWidget(path, "Pause Menu", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Allow the Cursor to be on Any Slot", WIDGET_CVAR_COMBOBOX)
@@ -471,6 +485,8 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Text Speed: %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("TextSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx"));
+    // W6-TIMESAVERS (#1236): MM Fast Text, held apart from Text Speed (P1), right after it.
+    AddMmFastTextRow(*this, path);
     AddWidget(path, "Slow Text Speed: %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("SlowTextSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx").Tooltip(
@@ -569,6 +585,8 @@ void SohMenu::AddMenuEnhancements() {
         .Options(IntSliderOptions().Min(0).Max(3).DefaultValue(3).Format("%d days").Tooltip(
             "Allows you to change the number of days it takes for "
             "Biggoron to forge the Biggoron's Sword."));
+    // W6-TIMESAVERS (#1236): MM's dialogue rows and time savers, no SoH twin, in a Majora's Mask block ending Misc.
+    AddMmTimesaverRows(*this, path);
 
     // Graphics
     path.sidebarName = "Graphics";
@@ -1744,6 +1762,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Money", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteMoney"));
     AddWidget(path, "Health", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteHealth"));
     AddWidget(path, "Ammo", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteAmmo"));
+    AddMmInfiniteConsumablesRow(*this, path);
     AddWidget(path, "Magic", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteMagic"));
     AddWidget(path, "Nayru's Love", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteNayru"));
     AddWidget(path, "Epona Boost", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteEponaBoost"));
@@ -1756,6 +1775,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Unrestricted Items", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("NoRestrictItems"))
         .Options(CheckboxOptions().Tooltip("Allows you to use any item at any location"));
+    AddMmUnrestrictedItemsRow(*this, path);
     AddWidget(path, "Super Tunic", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("SuperTunic"))
         .Options(CheckboxOptions().Tooltip("Makes every tunic have the effects of every other tunic."));
@@ -1899,6 +1919,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(IntSliderOptions().DefaultValue(0).Min(0).Max(8).Tooltip(
             "Set the Beta Quest world to explore. *WARNING*: Changing this will reset your game!\n"
             "Ctrl+Click to type in a value."));
+    AddMmCheatsBlock(*this, path);
 
     // Cosmetics Editor
     path.sidebarName = "Cosmetics Editor";

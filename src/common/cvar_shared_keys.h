@@ -468,8 +468,38 @@ struct DistinctPair {
  * define, bound by exactly one shared-menu row and read under games/mm (the classification lock's leg 3f-2c); a key
  * family MM composes by concatenation gets one define whose name ends in _PREFIX, locked by its lane's own leg.
  */
-// W6-TIMESAVERS
+// W6-TIMESAVERS (#1236, #1240): MM's text, time-saver and pause-save keys, each written by one hosted row on SoH's
+// Enhancements pages (SohMenuHostedMmTimesavers.cpp). Fast Text stays held apart from SoH's Text Speed (P1 below).
+// MM spells the Timesavers family with a lowercase s (kParkedCasingPrefixMM); these defines keep that spelling.
+#define RSBS_CVAR_MM_DIALOGUE_FAST_TEXT "gEnhancements.Dialogue.FastText"
+#define RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION "gEnhancements.Dialogue.FastBankSelection"
+#define RSBS_CVAR_MM_DIALOGUE_AUTO_BOMBERS_CODE "gEnhancements.Dialogue.AutoBombersCode"
+#define RSBS_CVAR_MM_TIMESAVERS_SWAMP_BOAT_SPEED "gEnhancements.Timesavers.SwampBoatSpeed"
+#define RSBS_CVAR_MM_TIMESAVERS_GALLERY_TWOFER "gEnhancements.Timesavers.GalleryTwofer"
+#define RSBS_CVAR_MM_TIMESAVERS_MARINE_LAB_HP "gEnhancements.Timesavers.MarineLabHP"
+#define RSBS_CVAR_MM_TIMESAVERS_DAMPE_DIGGING_SKIP "gEnhancements.Timesavers.DampeDiggingSkip"
+#define RSBS_CVAR_MM_TIMESAVERS_FASTER_SCENE_TRANSITIONS "gEnhancements.Timesavers.FasterSceneTransitions"
+#define RSBS_CVAR_MM_TIMESAVERS_POWDER_KEG_CERTIFICATION "gEnhancements.Timesavers.PowderKegCertification"
+#define RSBS_CVAR_MM_TIMESAVERS_SKIP_BALLAD_OF_WINDFISH "gEnhancements.Timesavers.SkipBalladOfWindfish"
+#define RSBS_CVAR_MM_TIMESAVERS_AUTO_BANK_DEPOSIT "gEnhancements.Timesavers.AutoBankDeposit"
+#define RSBS_CVAR_MM_SAVING_PAUSE_SAVE "gEnhancements.Saving.PauseSave"
 // W6-CYCLE-CHEATS
+// #1236, #1240: MM's cheats and Time Cycle options, each bound by one hosted row on SoH's Cheats or
+// Quality of Life page. The first two are the PARKED pairs below (kept apart, MM rows beside SoH's); the rest have no
+// OoT twin. DoNotResetRupees / DoNotResetConsumables have no row on purpose (the combo's cycle hooks and the frozen
+// Keep Items on Cycle Reset decide them), so they have no define either.
+#define RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES "gCheats.InfiniteConsumables"
+#define RSBS_CVAR_MM_CHEATS_UNRESTRICTED_ITEMS "gCheats.UnrestrictedItems"
+#define RSBS_CVAR_MM_CHEATS_LONGER_FLOWER_GLIDE "gCheats.LongerFlowerGlide"
+#define RSBS_CVAR_MM_CHEATS_ELEGY_ANYWHERE "gCheats.ElegyAnywhere"
+#define RSBS_CVAR_MM_CHEATS_TEMPLE_TIME_STOP "gCheats.TempleTimeStop"
+#define RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD "gCheats.UnbreakableRazorSword"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_BOTTLE_CONTENT "gEnhancements.Cycle.DoNotResetBottleContent"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_RAZOR_SWORD "gEnhancements.Cycle.DoNotResetRazorSword"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_TIME_SPEED "gEnhancements.Cycle.DoNotResetTimeSpeed"
+#define RSBS_CVAR_MM_CYCLE_KEEP_EXPRESS_MAIL "gEnhancements.Cycle.KeepExpressMail"
+#define RSBS_CVAR_MM_CYCLE_STOP_OCEANSIDE_SPIDER_HOUSE_SQUATTER "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter"
+#define RSBS_CVAR_MM_CYCLE_OCEANSIDE_WALLET_ANY_DAY "gEnhancements.Cycle.OceansideWalletAnyDay"
 // W6-PLAYER
 // W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
 // (SohGui/HostedMm/SohMenuHostedMmPlayer.cpp). Climb speed and Bombchu drops are held apart (kMustStayDistinct).
@@ -533,7 +563,7 @@ struct DistinctPair {
  * on maintainer answers rather than settled non-merges.
  */
 inline constexpr DistinctPair kMustStayDistinct[] = {
-    { "P1 text speed", "gEnhancements.Dialogue.FastText", "gEnhancements.TextSpeed",
+    { "P1 text speed", RSBS_CVAR_MM_DIALOGUE_FAST_TEXT, "gEnhancements.TextSpeed",
       "Units are incompatible: OoT is a 1-5x integer multiplier, MM is a boolean. Merging writes 1 = "
       "'no speedup', so the control silently does nothing. MM's FastText also bundles hold-B-to-advance, "
       "which OoT exposes as the SEPARATE key gEnhancements.SkipText — one control cannot express both "
@@ -590,10 +620,10 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "carries. One switch would mean two rules, and a seed-forced SoH row would show on while MM followed the "
       "hidden value. Ruled: the keys stay distinct and MM's row is hosted beside SoH's on Enhancements > "
       "Difficulty > Drops." },
-    { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
+    { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
-    { "PARKED: item restriction gate", "gCheats.UnrestrictedItems", "gCheats.NoRestrictItems",
+    { "PARKED: item restriction gate", RSBS_CVAR_MM_CHEATS_UNRESTRICTED_ITEMS, "gCheats.NoRestrictItems",
       "Same intent (drop item gating) but DIFFERENT GATE: OoT ignores age restrictions, MM lets all forms "
       "use all items. Pending a maintainer answer; do not converge until it lands." },
 };

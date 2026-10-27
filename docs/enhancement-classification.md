@@ -227,6 +227,31 @@ rename pass.**
 | P6 | **Ocarina D-pad input** | `gSettings.CustomOcarina.Dpad`, `gSettings.CustomOcarina.RightStick` (Settings > Controls > Ocarina Controls), `gEnhancements.DpadNoDropOcarinaInput`; OoT-only: `gSettings.CustomOcarina.Enabled` (the button-mapping layer) | `gEnhancements.Playback.DpadOcarina`, `gEnhancements.Playback.RightStickOcarina`, `gEnhancements.Playback.NoDropOcarinaInput` | **RESOLVED (#1062): now (S).** This row was first written from key names alone: it listed a `gSettings.OcarinaControl.Dpad` that no OoT code reads. Read at the call sites, the three switches mean the same thing on both sides (bool, default off; the D-pad or the right stick also plays the ocarina notes; a second note is no longer dropped in the frame after the first). MM therefore moved onto SoH's keys (three `kConvergedKeys` rows, three version-9 migration rows) and the held-apart entry left `kMustStayDistinct`. MM's readers were never elided (`GameInteractor_Dpad` and `GameInteractor_RightStickOcarina` are real definitions in `GameExports_SingleExe.cpp`; `code_8019AF00.c` and `z_player.c` read the other key directly); what was missing was a writer, because MM's only widgets sat in the excluded `BenMenu.cpp`. Still OoT-only: the custom button-mapping layer (`CustomOcarina.Enabled` and its per-note bindings), which MM has no equivalent of. `gSettings.DpadInText`, `gSettings.DpadHoldChange` and `gSettings.DPadOnPause` (D-pad navigation of text boxes, shops, file select and the pause screen) have no MM reader at all, so they stay (O) until MM grows the behaviour. |
 | P7 | **Shield aim inversion** | `gSettings.Controls.InvertShieldAimingYAxis` (+ X axis) | `gEnhancements.Equipment.InvertShieldY` (Y only) | Different namespace *and* different axis coverage (OoT X+Y, MM Y only). Merging loses OoT's X axis. |
 
+**W6-TIMESAVERS (#1236, #1240) — MM's Dialogue, Timesavers and Saving keys.** All fifteen are (O) MM-only except Fast
+Text, which is P1 above and stays held apart. MM read each of them, but its only widgets sat in the excluded
+`BenMenu.cpp`, and the TUs behind the hooked ones were not linked. Twelve now have a hosted row, bound through its
+`RSBS_CVAR_MM_*` define (`SohMenuHostedMmTimesavers.cpp`), with their TUs in `ship__Enh_registrars` (and
+`Fixes/BgmReplay.cpp`, which keeps MM's main BGM player valid under Faster Scene Transitions and Pause Menu Save). Three
+are INTENTIONAL: they cannot act in the paired game. The Timesavers family keeps MM's lowercase-s spelling (§5.1).
+
+| MM key | Row (page > section) | Call |
+|---|---|---|
+| `gEnhancements.Dialogue.FastText` | MM Fast Text (Skips & Speed-ups > Text, after Text Speed) | (P) P1: MM's own row beside SoH's Text Speed |
+| `gEnhancements.Dialogue.FastBankSelection` | Fast Bank Selection (Skips & Speed-ups > Majora's Mask) | (O) |
+| `gEnhancements.Dialogue.AutoBombersCode` | Auto Bombers' Code (likewise) | (O) |
+| `gEnhancements.Timesavers.SwampBoatSpeed` | Swamp Boat Timesaver (likewise) | (O) |
+| `gEnhancements.Timesavers.GalleryTwofer` | Shooting Gallery Both Rewards (likewise) | (O); in a randomizer file the second reward is the Perfect Score check's item, given once |
+| `gEnhancements.Timesavers.MarineLabHP` | Fast Marine Lab Fish (likewise) | (O); in a randomizer file the fish still gives its check's item once |
+| `gEnhancements.Timesavers.DampeDiggingSkip` | Fast Dampe Flame Digging (likewise) | (O) |
+| `gEnhancements.Timesavers.FasterSceneTransitions` | Faster Scene Transitions (likewise) | (O) |
+| `gEnhancements.Timesavers.PowderKegCertification` | Skip Powder Keg Certification (likewise) | (O) |
+| `gEnhancements.Timesavers.SkipBalladOfWindfish` | Skip Ballad of Windfish (likewise) | (O) |
+| `gEnhancements.Timesavers.AutoBankDeposit` | Auto Bank Deposit (likewise) | (O) |
+| `gEnhancements.Saving.PauseSave` | Pause Menu Save (Quality of Life > Saving, in a Majora's Mask block after SoH's rows) | (O); the save is a paired `.redsave` commit, not a flash write |
+| `gEnhancements.Saving.FileSlot3` | none | INTENTIONAL: it shapes MM's file select, which paired play never shows (the file select is OoT's) |
+| `gEnhancements.Saving.PersistentOwlSaves` | none | INTENTIONAL: it only stops the owl save's flash delete on continue, and a paired MM session has no flash slot (`func_80147314` returns at the 0xFF fileNum), so the owl save already persists |
+| `gEnhancements.Saving.DisableSaveDelay` | none | INTENTIONAL: it only shortens the wait on a flash write, and a paired MM session never starts one |
+
 **W6-CAM-AIM (#1236) — P3 and P7 per key, held apart and given rows.** MM read all sixteen keys below
 (`GameInteractor_InvertControl` in `GameExports_SingleExe.cpp`, `z_player.c`, `FreeLook.cpp`) but its only widgets sat
 in the excluded `BenMenu.cpp`, so nothing in the single exe wrote them, and three of them MM reads inverted by
@@ -327,8 +352,8 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 | Climb everything | `gCheats.ClimbEverything` | `gCheats.ClimbAnywhere` | "Everything" vs "Anywhere" |
 | Hookshot everything | `gCheats.HookshotEverything` | `gCheats.HookshotAnywhere` | same |
 | Infinite money | `gCheats.InfiniteMoney` | `gCheats.InfiniteRupees` | same concept, different noun |
-| Infinite ammo | `gCheats.InfiniteAmmo` | `gCheats.InfiniteConsumables` | ⚠️ MM's "consumables" scope may be wider than OoT's "ammo" — confirm before renaming |
-| Unrestricted items | `gCheats.NoRestrictItems` | `gCheats.UnrestrictedItems` | ⚠️ OoT = ignore age restrictions; MM = all forms use all items. Same *intent* (drop item gating), different gate. Confirm. |
+| Infinite ammo | `gCheats.InfiniteAmmo` | `gCheats.InfiniteConsumables` | ⚠️ MM's "consumables" scope may be wider than OoT's "ammo" — confirm before renaming. PARKED (`kMustStayDistinct`); until it is answered MM keeps its own row, "MM Consumables", right after SoH's Ammo on Cheats > Infinite... (W6-CYCLE-CHEATS, #1240; `RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES`). MM's reader `Cheats/Infinite.cpp` was already linked (#1005-#1009); the row was MISSING. |
+| Unrestricted items | `gCheats.NoRestrictItems` | `gCheats.UnrestrictedItems` | ⚠️ OoT = ignore age restrictions; MM = all forms use all items. Same *intent* (drop item gating), different gate. Confirm. PARKED (`kMustStayDistinct`); until it is answered MM keeps its own row, "MM Unrestricted Items", right after SoH's on Cheats > Items (W6-CYCLE-CHEATS, #1240), and `Cheats/UnrestrictedItems.cpp` is linked. |
 | Enemy health bar | `gEnhancements.EnemyHealthBar` | `gEnhancements.Graphics.EnemyHealthBars` | **singular vs plural** leaf |
 | Title cards | `gEnhancements.TimeSavers.DisableTitleCard` | `gEnhancements.Cutscenes.HideTitleCards` | "Disable…Card" vs "Hide…Cards" |
 
@@ -424,7 +449,15 @@ default (off).
 
 | MM category | Keys | Why (O) |
 |---|---:|---|
-| `Cycle` | 8 | Three-day cycle resets — no OoT analogue |
+| `Cycle.DoNotResetBottleContent` | 1 | (O). Row "Do Not Reset Bottle Contents", Quality of Life > Time of Day, Majora's Mask block (W6-CYCLE-CHEATS, #1236); `Cycle/EndOfCycle.cpp` linked. Bottle contents never cross (the shared bottle COUNT, #970, is untouched) |
+| `Cycle.DoNotResetRazorSword` | 1 | (O). Row "Do Not Reset Razor Sword", same block. Forced on for rando (`CVAR \|\| IS_RANDO`): EndOfCycle.cpp's own hook, which retired #1224's inline port in `Rando/MiscBehavior/OnCycleSave.cpp` |
+| `Cycle.DoNotResetTimeSpeed` | 1 | (O). Row "Do Not Reset Time Speed", same block |
+| `Cycle.DoNotResetRupees` | 1 | INTENTIONAL, no row. The combo keeps the SHARED rupees through every cycle reset in every world (`MM_RegisterSharedResourceCycleHooks`, #525), so the switch would do nothing; EndOfCycle.cpp holds its restore off in the single exe so a hand-set key cannot restore a second, unsettled count over the combo's |
+| `Cycle.DoNotResetConsumables` | 1 | INTENTIONAL, no row. The five shared ammo counts survive every reset (#525), and the Powder Keg and the Magic Beans follow the world's FROZEN Keep Items on Cycle Reset (#1175, `gComboCtx.mmKeepItemsReset`); a live per-player switch may not overrule a setting frozen at file creation (one-game semantics). Held off in EndOfCycle.cpp |
+| `Cycle.KeepExpressMail` | 1 | (O). Row "Keep Express Mail", same block; `Cycle/KeepExpressMail.cpp` linked (play-state guard added) |
+| `Cycle.StopOceansideSpiderHouseSquatter` | 1 | (O). Row "Stop Oceanside Spider House Squatter", same block; forced on for rando (`CVAR \|\| IS_RANDO`, #1221), `Cycle/OceansideSpiderHouseSquatter.cpp` linked and #1224's port retired |
+| `Cycle.OceansideWalletAnyDay` | 1 | (O). Row "Oceanside Wallet Any Day", same block; forced on for rando (#1221), `Cycle/OceansideWalletAnyDay.cpp` linked and #1224's port retired |
+| `gCheats.{LongerFlowerGlide, ElegyAnywhere, TempleTimeStop, UnbreakableRazorSword}` | 4 | (O) MM-only cheats. Rows "Longer Deku Flower Glide", "Elegy of Emptiness Anywhere", "Stop Time in Dungeons" and "Unbreakable Razor Sword" under a Majora's Mask block at the end of Enhancements > Cheats (W6-CYCLE-CHEATS, #1240); their four TUs linked. Unbreakable Razor Sword is forced on for rando (#1215) |
 | `Masks` | 10 | Transformation masks, Bunny Hood persistence, Blast Mask |
 | `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
