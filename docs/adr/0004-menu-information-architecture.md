@@ -941,10 +941,19 @@ is hosted on the SoH page that holds its twin or nearest relative (the #1037 pat
 these pages: SoH's rows, widgets and wording are unchanged except one sentence added to SoH's Autosave tooltip, and
 ours sit directly after their twin or in a block of their own.
 
+**Refined the same day** (operator, 2026-10-27, on PR #1248's review): "Have two rows, OoT Mods and MM Mods instead of
+just Mods." D5's "MM Mods folds into Settings > Mod Menu" placed Majora's Mask's mod list below SoH's embedded mod
+list, which fills the page, so a player had to scroll past one list to reach the other. Settings now has two sidebar
+entries where it had one: **OoT Mods** is SoH's Mod Menu page with only its sidebar label changed (its Popout Mod Menu
+Window row, the embedded window and SoH's behaviour are unchanged), and **MM Mods** is a Settings page of ours directly
+after it, holding Majora's Mask's mod rows with no "Majora's Mask" heading (the page's name says whose they are).
+
 **There is no header of ours.** `AddMenuCombo` (`SohMenuCombo.cpp`) registers nothing; `AddMenuElements` still calls
-it, as the carry's call site. `ComboPageHost` names SoH's headers only: `Randomizer` (#1101) and `DevTools` (new,
-drawn by `AddComboDevToolsPages`, which `AddMenuDevTools` calls after its last page). Where each former page's rows
-live:
+it, as the carry's call site. `ComboPageHost` names SoH's headers only: `Randomizer` (#1101), `DevTools` (new,
+drawn by `AddComboDevToolsPages`, which `AddMenuDevTools` calls after its last page) and `Settings` (the refinement
+above, drawn by `AddComboSettingsPages`, which `AddMenuSettings` calls after OoT Mods, the last page it draws; SoH's
+Presets follows them, added by its own menu-init function). Where each
+former page's rows live:
 
 | Former page | Rows | Host now |
 |---|---|---|
@@ -952,7 +961,7 @@ live:
 | | Autosave (the page's pointer row) | gone: SoH's own Autosave is the converged key both games read, one row for both (its tooltip now says so) |
 | | Skip Time Song Cutscenes | Enhancements > Skips & Speed-ups > Cutscenes, directly after SoH's Skip Song Cutscenes |
 | | Game Over Prompt, Better Double Time | the "Majora's Mask" block on Enhancements > Quality of Life at the end of Time of Day, after #1245's Time Cycle rows (no twin; Quality of Life holds how play flows around saving and the time of day) |
-| Combo > MM Mods | the state note, Rescan Mods Folder, MM Mod List | a "Majora's Mask" block on Settings > Mod Menu, after SoH's Popout Mod Menu Window (`RegisterSohPageRows`) |
+| Combo > MM Mods | the state note, Rescan Mods Folder, MM Mod List | Settings > MM Mods, a page of its own directly after SoH's Mod Menu page, which is labelled OoT Mods (`ComboPageHost::Settings`; Rescan Mods Folder through the hosted-row seam, under no heading) |
 | Combo > Save Files | the page | Dev Tools > Save Files, after SoH's last Dev Tools page |
 | Combo > Windows, Tracker Settings | (retired by #1132 and #1141) | Randomizer > Check Tracker and Item Tracker |
 | Combo > Cross-Game Rules, MM Randomizer, MM Tricks | (moved by #1101) | Randomizer > Cross-Game, MM Randomizer, MM Tricks |
@@ -965,16 +974,22 @@ captures, hovers and lints it on its SoH page. The curated rows keep `RSBS::kHos
 only catch is `std::bad_variant_access`, so a config left on "Combo" would be an uncaught `std::out_of_range`. When
 the open header is Combo, the carry maps its last selection by name to the new host (Cross-Game Rules, MM Randomizer,
 MM Tricks, Windows, Cross-Game Windows and Tracker Settings to their Randomizer pages; Majora's Mask and MM
-Enhancements to Enhancements > Quality of Life, the page that got its first rows; MM Mods to Settings > Mod Menu;
+Enhancements to Enhancements > Quality of Life, the page that got its first rows; MM Mods to Settings > MM Mods;
 Save Files to Dev Tools > Save Files), writing the header key and that header's sidebar key; an empty or unknown
 selection clears the header key, so the menu opens on its default. `gSettings.Menu.ComboSidebarSection` is cleared in
 every case, and no other key is written: a carried selection lands on a page the host's builder registers, so the
-contended `kMenuIndexKeys` (#451) hold only values SoH's own menu writes.
+contended `kMenuIndexKeys` (#451) hold only values SoH's own menu writes. Selection persists by display name, and a
+Settings selection the menu has no page for opens on General, so `gSettings.Menu.SettingsSidebarSection` = "Mod Menu"
+is renamed to "OoT Mods" whichever header is open. MM Mods is inserted after OoT Mods and before SoH's Presets; every
+other Settings page keeps its name, so no other saved Settings selection moves (an index would; a name does not).
 
 **Locks:** `MenuComboSection` (no Combo header among SoH's ROM-free headers; the extension point under Dev Tools and
 Randomizer; the carry for every former page, every former name, the absent, empty and unknown selections and another
-open header, each probe putting back the keys it set; Settings > Mod Menu and Dev Tools > Save Files row for row),
+open header, each probe putting back the keys it set; the Mod Menu to OoT Mods rename; Settings > OoT Mods, Settings
+> MM Mods directly after it and Dev Tools > Save Files row for row; the Settings host),
 `MenuMmEnhancementRows` (each curated row on its SoH page, separator and neighbour, through the seam; the converged
-Autosave as one row; the block builder over synthetic non-live tables), `CVarClassification` (each new define bound
+Autosave as one row; the block builder over synthetic non-live tables; Rescan Mods Folder on Settings > MM Mods), `CVarClassification` (each new define bound
 by exactly one row), `ComboSettingsRows` and `MenuMmRandomizerPages` (no longer read a Combo header), and `UiSnapshot` /
-`UiSnapshotMin` (the `Combo/*` states retired; the SoH pages holding the hosted rows captured as ours).
+`UiSnapshotMin` (the `Combo/*` states retired; the SoH pages holding the hosted rows captured as ours; SoH's
+`Settings/OoT Mods` captured as a reference with its embedded mod menu off, and `MM rows/Settings/MM Mods` as ours,
+every row on it held to its column).

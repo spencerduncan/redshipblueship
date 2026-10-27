@@ -1,31 +1,35 @@
 /**
  * @file SohMenuComboMmMods.cpp
- * @brief #706 — Majora's Mask's mod list (enable, disable, reorder), a
- *        "Majora's Mask" block on SoH's Settings > Mod Menu (a page of the
- *        tier-4 Combo header, "MM Mods", until #1133).
+ * @brief #706 — Majora's Mask's mod list (enable, disable, reorder), the
+ *        Settings > MM Mods page, directly after SoH's Mod Menu page, which is
+ *        labelled OoT Mods (a page of the tier-4 Combo header until #1133).
  *
  * THE PROBLEM. Since #670 MM mounts `mods/mm/`, but every archive there, in path
  * order: MM had no enabled set and no menu, so the player's controls were renaming
  * a file and moving it out of the folder. OoT's half of the same tree has its mod
- * menu (Settings > Mod Menu, games/oot/soh/Enhancements/mod_menu.cpp). The model
+ * menu (Settings > OoT Mods, games/oot/soh/Enhancements/mod_menu.cpp). The model
  * this page edits is src/common/mm_mod_set.h; MM's mount reads the same model, so
  * the page and the game cannot disagree about what is enabled.
  *
- * WHERE IT IS (#1133, operator ruling D5 of 2026-10-22: "MM Mods folds into
- * Settings > Mod Menu"). The tier-4 Combo header retired; its MM Mods page's
- * rows are a "Majora's Mask" block (the hosted-row seam's heading,
- * HostedMm/SohMenuHostedMm.h) on SoH's Settings > Mod Menu, after SoH's own
- * Popout Mod Menu Window, appended through `RegisterSohPageRows`: SoH's Mod Menu
- * page calls `AddContributedSohPageRows` after its row. Rescan Mods Folder goes
- * through the hosted-row seam, bound to the src/common accessor it calls, so the
- * UI snapshot captures that page, hovers it and lints it. Nothing else moved: the
- * rows, their order, their words and the model are the page's. SohMenuCombo.cpp
- * carries a menu left open on Combo > MM Mods to Settings > Mod Menu. This TU is
- * under games/oot/soh, whose archives are WHOLE_ARCHIVE'd, so the file-scope
- * registration cannot be elided (#516/#640's class). OoT's own mod menu is left
- * exactly as SoH shipped it (docs/ui-style-guide.md rule 0): MM's mods are a
- * block of their own rather than rows in OoT's list, which would also have meant
- * sharing OoT's `EnabledMods` CVar.
+ * WHERE IT IS. The tier-4 Combo header retired with #1133 (operator ruling D5
+ * of 2026-10-22: "MM Mods folds into Settings > Mod Menu"). A block below SoH's
+ * Popout Mod Menu Window sat under SoH's embedded mod list, which fills the
+ * page, so the operator ruled on 2026-10-27: "Have two rows, OoT Mods and MM
+ * Mods instead of just Mods". SoH's Settings > Mod Menu page is labelled OoT
+ * Mods, its rows and behaviour unchanged, and this TU registers MM Mods, a
+ * Settings page of its own (ComboPageHost::Settings), which AddMenuSettings draws
+ * through AddComboSettingsPages directly after OoT Mods. The page's name says
+ * whose mods it holds, so it has no "Majora's Mask" heading. Rescan Mods Folder
+ * goes through the hosted-row seam (HostedMm/SohMenuHostedMm.h), bound to the
+ * src/common accessor it calls, so the UI snapshot captures the page, hovers the
+ * row and lints it. Nothing else moved: the rows, their order, their words and
+ * the model are the Combo page's. SohMenuCombo.cpp carries a menu left open on
+ * Combo > MM Mods to Settings > MM Mods, and a saved Settings > Mod Menu to OoT
+ * Mods. This TU is under games/oot/soh, whose archives are WHOLE_ARCHIVE'd, so
+ * the file-scope registration cannot be elided (#516/#640's class). OoT's own
+ * mod menu is left exactly as SoH shipped it (docs/ui-style-guide.md rule 0):
+ * MM's mods are a page of their own rather than rows in OoT's list, which would
+ * also have meant sharing OoT's `EnabledMods` CVar.
  *
  * THE LOOK is OoT's mod menu (the UI snapshot compares the page with
  * Randomizer/Tricks/Glitches, SoH's other two-column Disabled/Enabled table,
@@ -42,7 +46,7 @@
  * and the read-only model a partial walk or a missing mods/mm leaves) and
  * MMModsMount (a disabled archive is neither mounted nor registered and the chosen
  * order wins, across both switch directions); its host and its rows' order by
- * MenuComboSection leg 9; drawn and compared by UiSnapshot (Settings > Mod Menu,
+ * MenuComboSection leg 9; drawn and compared by UiSnapshot (Settings > MM Mods,
  * captured through the hosted-row registry), whose empty, listed and unfinished
  * states each assert their own note. NOT locked by a row: the
  * arrow-to-action mapping in DrawMmModList (up = Raise, down = Lower, right =
@@ -52,7 +56,7 @@
 #include "SohMenu.h"
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
-// The hosted-row seam (#1233): the block heading and the Rescan row.
+// The hosted-row seam (#1233): the Rescan row.
 #include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 
 // src/common only (ADR 0002 / ADR 0008 rule 5): the model and MM's mods root.
@@ -67,9 +71,8 @@ using namespace UIWidgets;
 
 namespace {
 
-/** SoH's page the block is appended to (SohMenuSettings.cpp's "Mod Menu"). */
-constexpr const char* kModMenuHeader = "Settings";
-constexpr const char* kModMenuPage = "Mod Menu";
+/** The page's sidebar label under SoH's Settings header, after OoT Mods. Selection persists by display name. */
+constexpr const char* kMmModsPage = "MM Mods";
 
 /** The note row's text, rewritten by its PreFunc every frame. */
 std::string sMmModsNote;
@@ -199,14 +202,13 @@ void DrawMmModList(WidgetInfo& info) {
 } // namespace
 
 /**
- * The block's registrar, handed SoH's Mod Menu page with its one column pinned:
- * the "Majora's Mask" heading, then the MM Mods page's rows in its order (the
- * gray state note, a rescan button and the list). The note is no hosted row: its
- * name is rewritten every frame, and it is SoH's TEXT-row idiom, not a setting.
+ * The page's registrar, handed Settings > MM Mods with its one column pinned:
+ * the MM Mods page's rows in its order (the gray state note, a rescan button and
+ * the list), under no heading. The note is no hosted row: its name is rewritten
+ * every frame, and it is SoH's TEXT-row idiom, not a setting.
  */
 void AddMmModsWidgets(SohMenu& menu, WidgetPath& path) {
     path.column = SECTION_COLUMN_1;
-    AddHostedMmBlock(menu, path);
     // The state note: whether a change applies now or after a restart, or where the
     // files go when there are none. Rewritten every frame, so kept out of search.
     menu.AddWidget(path, "MM Mods Status", WIDGET_TEXT)
@@ -214,7 +216,7 @@ void AddMmModsWidgets(SohMenu& menu, WidgetPath& path) {
         .HideInSearch(true)
         .PreFunc(MmModsNotePreFunc)
         .Options(TextOptions().Color(Colors::Gray));
-    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Rescan Mods Folder", WIDGET_BUTTON)
+    AddHostedMmWidget(menu, path, "", "Rescan Mods Folder", WIDGET_BUTTON)
         .Accessor("Combo_MMModSet_Scan")
         .RaceDisable(false)
         .Callback([](WidgetInfo& info) { (void)Combo_MMModSet_Scan(Combo_ModsRootForGame(GAME_MM)); })
@@ -227,7 +229,7 @@ void AddMmModsWidgets(SohMenu& menu, WidgetPath& path) {
 }
 
 /** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract). The
- *  block always holds its heading, note, button and list. */
-static RegisterSohPageRows_t sMmModsRows(kModMenuHeader, kModMenuPage, AddMmModsWidgets);
+ *  page always holds its note, button and list, so it is never empty (#640). */
+static RegisterComboSectionPage_t sMmModsPage(kMmModsPage, 1, AddMmModsWidgets, ComboPageHost::Settings);
 
 } // namespace SohGui

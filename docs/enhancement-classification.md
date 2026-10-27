@@ -431,8 +431,10 @@ in MM only after a restart; the slider callbacks now also call `MM_Volume_Reappl
 
 The two rows with no twin share one block on Quality of Life, the page where SoH keeps how play flows around saving
 and the time of day: the Game Over Prompt is a save prompt on death, and Better Double Time picks the hour the Song of
-Double Time skips to. MM Mods (Rescan Mods Folder and the MM mod list) is a "Majora's Mask" block on Settings > Mod
-Menu; it binds no key (`Combo_MMModSet_*`, `RSBS_CVAR_MM_ENABLED_MODS` / `_DISABLED_MODS` are written by the model).
+Double Time skips to. MM Mods (Rescan Mods Folder and the MM mod list) is a Settings page of its own, directly after
+SoH's Mod Menu page, which is labelled OoT Mods (the operator's ruling of 2026-10-27: "Have two rows, OoT Mods and MM
+Mods instead of just Mods"); it binds no key (`Combo_MMModSet_*`, `RSBS_CVAR_MM_ENABLED_MODS` / `_DISABLED_MODS` are
+written by the model).
 
 **Hosted-row convention (#1133 ruling D5, #1233).** Every MM row goes on the SoH page holding its twin or nearest
 relative, directly after that row, through a project-added function SoH's page calls in one line; a row with no twin

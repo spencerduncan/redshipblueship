@@ -1006,10 +1006,11 @@ bool IsOurDevToolsPage(const std::string& sidebar) {
            std::find(ours.begin(), ours.end(), sidebar) != ours.end();
 }
 
-/** #1133: the rows of a block of ours on one of SoH's pages that are not hosted rows (no setting of their own), so
- *  not SoH's either: Majora's Mask's mod list's state note and the list itself, on Settings > Mod Menu. */
-bool IsOurBlockRow(const std::string& header, const std::string& sidebar, const std::string& name) {
-    return header == "Settings" && sidebar == "Mod Menu" && (name == "MM Mods Status" || name == "MM Mod List");
+/** Is @p sidebar under Settings a page of ours: one AddComboSettingsPages registers (the operator's ruling of
+ *  2026-10-27: MM Mods, after SoH's Mod Menu page, labelled OoT Mods)? SoH's own Settings pages are references. */
+bool IsOurSettingsPage(const std::string& sidebar) {
+    const std::vector<std::string> ours = SohGui::ComboSettingsPageNames();
+    return std::find(ours.begin(), ours.end(), sidebar) != ours.end();
 }
 
 /** #1133: the state a hosted page is captured in to show a row gated on @p gateKey (its key written to 1, cleared
@@ -1034,8 +1035,9 @@ const char* HostedRowGate(const SohGui::HostedMmRow& row) {
     return nullptr;
 }
 
-/** #1133: SoH's Settings > Mod Menu row embeds OoT's mod menu window when that window is not popped out; the harness
- *  turns the embed off for its own captures of the page (BuildPageList says why) and back on after. */
+/** #1133: SoH's Settings > OoT Mods row (SoH's Mod Menu page, renamed on 2026-10-27) embeds OoT's mod menu window
+ *  when that window is not popped out; the harness turns the embed off for its captures of the page (BuildPageList
+ *  says why) and back on after. */
 void SetSohModMenuEmbed(Ship::Menu& m, bool embed);
 
 class Session {
@@ -2011,6 +2013,11 @@ void Session::BuildPageList() {
              { "Randomizer", "Logic/Access" },
              { "Enhancements", "Quality of Life" },
              { "Settings", "General" },
+             // SoH's Mod Menu page, labelled OoT Mods since the operator's ruling of 2026-10-27 (its rows are SoH's).
+             // Its Popout Mod Menu Window embeds OoT's mod menu while that window is not popped out, and the embedded
+             // menu throws in the harness's fresh config (GetEnabledModsFromCVar yields one empty name and DrawMods's
+             // filePaths.at("") throws), so EnterState draws SoH's row as its button only, never embedding that window.
+             { "Settings", "OoT Mods" },
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);
         p.needsRom = true;
@@ -2071,15 +2078,25 @@ void Session::BuildPageList() {
                     p.bodyText = WordPrefix(VisibleLabel(row.name), 40);
                 }
             }
-            if (p.id == std::string(kHostedMmPagePrefix) + "Settings/Mod Menu") {
-                // #1133: Majora's Mask's mod list (the MM Mods page until then), a block after SoH's Popout Mod
-                // Menu Window. "": an empty model, so the empty-folder note. "listed": a synthetic list with one
-                // disabled mod, so both columns and every arrow draw. "unfinished": the same list from a walk that
-                // ended early, which is read-only (mm_mod_set.h rule 4): its note, and every arrow disabled. All
-                // three are authored through the model's test seam, so the harness's own mods folder cannot change
-                // them. SoH's own embedded mod menu above the block throws in the harness's fresh config
-                // (GetEnabledModsFromCVar yields one empty name and DrawMods's filePaths.at("") throws), so
-                // EnterState draws SoH's row as its button only, never embedding that window.
+            if (h == "Settings" && IsOurSettingsPage(s) && MenuEntries(*menu).contains(h) &&
+                MenuEntries(*menu).at(h).sidebars.contains(s)) {
+                // A Settings page of ours (MM Mods, the operator's ruling of 2026-10-27) holds no SoH row: every row
+                // on it is ours for R9, held to its column with no SoH row to be measured against.
+                for (const auto& column : MenuEntries(*menu).at(h).sidebars.at(s).columnWidgets) {
+                    for (const WidgetInfo& row : column) {
+                        if (row.type != WIDGET_SEPARATOR && row.type != WIDGET_SEPARATOR_TEXT) {
+                            p.hostedRows.insert(row.name);
+                        }
+                    }
+                }
+            }
+            if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
+                // Majora's Mask's mod list: Combo > MM Mods until #1133, a block on Settings > Mod Menu until the
+                // operator's ruling of 2026-10-27, a Settings page of its own since. "": an empty model, so the
+                // empty-folder note. "listed": a synthetic list with one disabled mod, so both columns and every
+                // arrow draw. "unfinished": the same list from a walk that ended early, which is read-only
+                // (mm_mod_set.h rule 4): its note, and every arrow disabled. All three are authored through the
+                // model's test seam, so the harness's own mods folder cannot change them.
                 p.states = { "", "listed", "unfinished" };
                 p.stateText[""] = { "No Majora's Mask mods found" };
                 p.stateText["listed"] = { kMmModsListedEnabled[0], kMmModsListedDisabled,
@@ -3069,10 +3086,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 gComboCtx.sharedRandoSettingsHash = 0;
             }
         }
-    } else if (p.id == std::string(kHostedMmPagePrefix) + "Settings/Mod Menu") {
+    } else if (p.id == "Settings/OoT Mods") {
         // SoH's Popout Mod Menu Window would embed OoT's mod menu, which throws in this fresh config (see
         // BuildPageList): its button only, for this page's captures.
         SetSohModMenuEmbed(*menu, false);
+    } else if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
         // Every state loads its model through the test seam, which persists
         // nothing and reads no disk, so the block never scans the harness's own
         // mods root (it scans lazily only when the model is empty).
@@ -3195,11 +3213,13 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Dev Tools/Save Files") {
         Combo_SaveFiles_SetMetaForTest(nullptr, 0);
     }
-    if (p.id == std::string(kHostedMmPagePrefix) + "Settings/Mod Menu") {
+    if (p.id == "Settings/OoT Mods") {
+        SetSohModMenuEmbed(*menu, true);
+    }
+    if (p.id == std::string(kHostedMmPagePrefix) + "Settings/MM Mods") {
         CVarClear(RSBS_CVAR_MM_ENABLED_MODS);
         CVarClear(RSBS_CVAR_MM_DISABLED_MODS);
         Combo_MMModSet_Reset();
-        SetSohModMenuEmbed(*menu, true);
     }
     // #1133: a hosted page's gate state (BuildPageList), cleared, never stored.
     if (p.id.rfind(kHostedMmPagePrefix, 0) == 0 && state.rfind(kHostedGateStatePrefix, 0) == 0) {
@@ -3576,7 +3596,7 @@ WidgetInfo* FindRow(Ship::Menu& m, const std::string& header, const std::string&
 
 void SetSohModMenuEmbed(Ship::Menu& m, bool embed) {
     WidgetInfo* row =
-        FindRow(m, "Settings", "Mod Menu", [](const WidgetInfo& w) { return w.type == WIDGET_WINDOW_BUTTON; });
+        FindRow(m, "Settings", "OoT Mods", [](const WidgetInfo& w) { return w.type == WIDGET_WINDOW_BUTTON; });
     if (row != nullptr && row->options != nullptr) {
         std::static_pointer_cast<UIWidgets::WindowButtonOptions>(row->options)->embedWindow = embed;
     }
@@ -5802,6 +5822,14 @@ int Session::RuntimeLint() {
             }
         }
     }
+    // Our pages under SoH's Settings header (the operator's ruling of 2026-10-27: MM Mods), whole.
+    if (entries.contains("Settings")) {
+        for (const std::string& sidebar : SohGui::ComboSettingsPageNames()) {
+            if (entries.at("Settings").sidebars.contains(sidebar)) {
+                lintPage("Settings", sidebar, entries.at("Settings").sidebars.at(sidebar), false);
+            }
+        }
+    }
     // #1233: the MM rows the hosted-row seam put on SoH's own pages, those rows only.
     {
         std::set<std::pair<std::string, std::string>> hostedPages;
@@ -5952,10 +5980,12 @@ void Session::DumpSohNames() {
         }
         const MainMenuEntry& e = entries.at(header);
         for (const std::string& sidebar : e.sidebarOrder) {
-            // Our pages under SoH's Randomizer header (#1101) and Dev Tools header (#1133) are not SoH's rows.
+            // Our pages under SoH's Randomizer header (#1101), Dev Tools header (#1133) and Settings header (MM
+            // Mods, 2026-10-27) are not SoH's rows.
             if ((header == "Randomizer" &&
                  std::find(randoPages.begin(), randoPages.end(), sidebar) != randoPages.end()) ||
-                (header == "Dev Tools" && IsOurDevToolsPage(sidebar))) {
+                (header == "Dev Tools" && IsOurDevToolsPage(sidebar)) ||
+                (header == "Settings" && IsOurSettingsPage(sidebar))) {
                 continue;
             }
             if (!e.sidebars.contains(sidebar)) {
@@ -5966,8 +5996,7 @@ void Session::DumpSohNames() {
                     // #1233: the MM rows the hosted-row seam added, and their "Majora's Mask" block headings, are
                     // ours, not SoH's.
                     if (SohGui::IsHostedMmRow(header, sidebar, row.name) ||
-                        (row.type == WIDGET_SEPARATOR_TEXT && row.name == SohGui::kHostedMmBlockLabel) ||
-                        IsOurBlockRow(header, sidebar, row.name)) {
+                        (row.type == WIDGET_SEPARATOR_TEXT && row.name == SohGui::kHostedMmBlockLabel)) {
                         continue;
                     }
                     std::string tip = (row.options != nullptr && row.options->tooltip != nullptr)
@@ -6057,11 +6086,12 @@ int Session::Run() {
     BuildPageList();
     // R5 needs every interactive row's registered name before anything draws it.
     for (auto& [header, entry] : MenuEntries(*menu)) {
-        if (header != "Randomizer" && header != "Dev Tools") {
+        if (header != "Randomizer" && header != "Dev Tools" && header != "Settings") {
             continue;
         }
         for (auto& [sidebar, page] : entry.sidebars) {
-            if (header == "Dev Tools" && !IsOurDevToolsPage(sidebar)) {
+            if ((header == "Dev Tools" && !IsOurDevToolsPage(sidebar)) ||
+                (header == "Settings" && !IsOurSettingsPage(sidebar))) {
                 continue;
             }
             for (auto& column : page.columnWidgets) {

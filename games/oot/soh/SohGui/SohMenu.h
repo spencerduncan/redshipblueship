@@ -295,7 +295,7 @@ std::vector<std::string> ComboDevToolsPageNames();
  * ruling of 2026-10-27, "Have two rows, OoT Mods and MM Mods instead of just
  * Mods"): every contributed page whose host is ComboPageHost::Settings, in
  * registration order, each with its sidebar created here and a pinned first
- * column. AddMenuSettings() calls it after its last page, OoT Mods (SoH's Mod
+ * column. AddMenuSettings() calls it after the last page it draws, OoT Mods (SoH's Mod
  * Menu page, renamed), so MM Mods sits directly after it. Defined in
  * SohMenuCombo.cpp; callable ROM-free, so the locks and the UI snapshot probe
  * drive it directly.

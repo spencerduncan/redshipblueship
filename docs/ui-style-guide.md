@@ -81,13 +81,17 @@ and on ours (R-N4).
   needs about 10 px of padding each side, so keep a label under about 180 px. Our "Cross-Game Windows" (18) was cut on
   both sides ("ross-Game Window"), and our "MM Enhancements" (15) measured 192 px, the whole child width, so its selected
   highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" (retired by #1132) and "Majora's Mask". The selection
-  persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
-  with a carry of the persisted value and a lock leg that drives it (MenuComboSection leg 6). A page that moves to
+  persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar unless the operator rules it, and
+  then only with a carry: Settings > Mod Menu is labelled "OoT Mods" since the operator's ruling of 2026-10-27, and a
+  saved "Mod Menu" reopens on it (`ComboHeaderCarrySelection`). One of ours is renamed only together with a carry of
+  the persisted value and a lock leg that drives it (MenuComboSection leg 6). A page that moves to
   another header carries the selection across headers (`ComboHeaderCarrySelection`, `SohMenuCombo.cpp`, the same
   leg: since #1133 every page the retired Combo header had, under every name it had). A page must hold at least one
   widget (#640, `Menu.cpp:896-904`). Our pages register through `RegisterComboSectionPage` (`SohMenu.h`), naming
   SoH's header: `ComboPageHost::Randomizer` (#1101), where they sit after Tricks/Glitches and before Plandomizer, or
-  `ComboPageHost::DevTools` (#1133), after SoH's last Dev Tools page. Rows of ours on one of SoH's own pages are not
+  `ComboPageHost::DevTools` (#1133), after SoH's last Dev Tools page, or `ComboPageHost::Settings` (the ruling of
+  2026-10-27: "Have two rows, OoT Mods and MM Mods instead of just Mods"), after the last page `AddMenuSettings`
+  draws, OoT Mods, where MM Mods sits (SoH's Presets, added by its own menu-init function, follows). Rows of ours on one of SoH's own pages are not
   pages: a Majora's Mask row goes directly after the SoH row that holds its twin or nearest relative, or in a
   "Majora's Mask" block on the most applicable page, through the hosted-row seam (`SohGui/HostedMm/SohMenuHostedMm.h`,
   a one-line call in SoH's builder); other rows are appended after SoH's last row through `RegisterSohPageRows`
@@ -95,7 +99,9 @@ and on ours (R-N4).
   tracker page of ours is added beside them. The Randomizer sidebar holds 16 entries since #1101 and lane R3 (#1132
   and #1133 added none); the sidebar child scrolls past `columnHeight` (`Menu.cpp:855-857`), so at `min-832x600` it
   scrolls, as SoH's own 12 already did there. The Dev Tools sidebar holds 12 entries since #1133 (SoH's 11 and Save
-  Files). There is no Combo header since #1133.
+  Files). The Settings sidebar holds 9 since 2026-10-27: SoH's 8 (General, Audio, Graphics, Controls, Input
+  Viewer, Notifications, Mod Menu labelled OoT Mods, Presets) and MM Mods directly after OoT Mods; Search is
+  inserted among them when Search In Sidebar is on. There is no Combo header since #1133.
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
   (`SohMenuEnhancements.cpp:155`, `SohMenuSettings.cpp:132`). Some open with a row or a gray note instead
@@ -267,7 +273,7 @@ SoH decides by WHEN a surface is used, not by how big it is. Ours follow the sam
   embeds it by default (`EmbedWindow` defaults to true, `UIWidgets.hpp:226-262`), so the editor draws inside its
   own page until the player pops it out with a "Popout <Window>" row. Examples: Cosmetics Editor and Audio Editor
   (`SohMenuEnhancements.cpp:1869,1879`), Plandomizer (`SohMenuRandomizer.cpp:730`) and Mod Menu
-  (`SohMenuSettings.cpp:517`).
+  (Settings > OoT Mods, `SohMenuSettings.cpp:538`).
 
 Ours: MM's randomizer options and tricks freeze at the creation event, so they are pages (Randomizer > MM
 Randomizer and Randomizer > MM Tricks, `SohMenuComboMmRandomizer.cpp`; pages since 2026-09-27, ADR 0004's host
@@ -409,9 +415,9 @@ theme, scale and background opacity, multi-viewports off, and MSAA 1.
 | Ours | SoH reference |
 |---|---|
 | Randomizer > Cross-Game (Combo > Cross-Game Rules until #1101) | Randomizer > General (its gray note, groups, comboboxes and 250 px button; ours is one column since #844, nothing being left for a second) |
-| The Majora's Mask rows hosted on SoH's pages (`MM rows/<header>/<page>`: Enhancements > Quality of Life, Skips & Speed-ups and Difficulty, Settings > Audio and Mod Menu; only those rows are ours there, each hovered) | the same SoH page's own capture, or the first SoH capture under its header (ROM-rich runs only) |
+| The Majora's Mask rows hosted on SoH's pages (`MM rows/<header>/<page>`: Enhancements > Quality of Life, Skips & Speed-ups and Difficulty, Settings > Audio; only those rows are ours there, each hovered) | the same SoH page's own capture, or the first SoH capture under its header (ROM-rich runs only) |
 | Dev Tools > MM Row States (harness-only: the curated rows' block builder over a synthetic non-live table, so its disabled rows and note are drawn) | Enhancements > Quality of Life |
-| Settings > Mod Menu's Majora's Mask block (`MM rows/Settings/Mod Menu`, states "", "listed" and "unfinished"; SoH's embedded mod menu is drawn as its button only, because it throws in the harness's fresh config) | Settings > General |
+| Settings > MM Mods (`MM rows/Settings/MM Mods`, a page of ours since the ruling of 2026-10-27, captured through the hosted-row loop because Rescan Mods Folder is a hosted row; its note and list are ours too; states "", "listed" and "unfinished"; SoH's Settings > OoT Mods is captured as a reference, its embedded mod menu drawn as its button only, because it throws in the harness's fresh config) | Settings > General |
 | Randomizer > MM Randomizer | Randomizer > General (the two-column option page) |
 | Randomizer > MM Locations | Randomizer > Tricks/Glitches (SoH's captured bordered two-column table; SoH's own Locations page, whose shape it takes, is not captured) |
 | Randomizer > MM Tricks | Randomizer > Tricks/Glitches (the Disabled/Enabled trick table) |

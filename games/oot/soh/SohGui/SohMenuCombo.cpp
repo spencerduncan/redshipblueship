@@ -8,9 +8,11 @@
  * THE COMBO HEADER IS GONE (#1133, operator rulings D4 and D5 of 2026-10-22).
  * Its last pages were folded into SoH's own: the Majora's Mask page's rows are
  * hosted beside their SoH twins on the Enhancements pages
- * (SohMenuComboMmEnhancements.cpp), MM Mods is a block of Settings > Mod Menu
- * (SohMenuComboMmMods.cpp) and Save Files a page of Dev Tools
- * (SohMenuComboSaveFiles.cpp, through AddComboDevToolsPages below). AddMenuCombo
+ * (SohMenuComboMmEnhancements.cpp), MM Mods is a Settings page directly after
+ * SoH's Mod Menu page, which is labelled OoT Mods (the operator's ruling of
+ * 2026-10-27; SohMenuComboMmMods.cpp, through AddComboSettingsPages below) and
+ * Save Files a page of Dev Tools (SohMenuComboSaveFiles.cpp, through
+ * AddComboDevToolsPages below). AddMenuCombo
  * registers nothing; it is the call site of the carry that moves a menu left open
  * on the header (ComboHeaderCarrySelection). The history below is the header's.
  *
@@ -54,8 +56,8 @@
  * undocks libultraship's "Main Game" window), so they are left unregistered
  * until they have content.
  *
- * THE EXTENSION POINTS. Other TUs contribute pages under SoH's Randomizer or
- * Dev Tools header through SohGui::RegisterComboSectionPage, and rows on one of
+ * THE EXTENSION POINTS. Other TUs contribute pages under SoH's Randomizer, Dev
+ * Tools or Settings header through SohGui::RegisterComboSectionPage, and rows on one of
  * SoH's own pages through SohGui::RegisterSohPageRows (#1132), both declared in
  * SohMenu.h and implemented below, rather than by editing this file. See that
  * declaration for the two things that bite: a file-scope registrar in a plain
@@ -943,9 +945,11 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
  * #1141 Tracker Settings (its rows are on SoH's Item Tracker page), and #1133 the
  * rest with the header. The Majora's Mask page lands on Enhancements > Quality of
  * Life, the page that got its first rows (Game Over Prompt and Better Double
- * Time, its Majora's Mask block). Spelled here as literals: MenuComboSection leg 6
- * requires every carried-to name to be a page its header's own builder
- * registers, so these cannot drift from the pages without a red row.
+ * Time, its Majora's Mask block). MM Mods lands on Settings > MM Mods, a page of
+ * its own since the operator's ruling of 2026-10-27. Spelled here as literals:
+ * MenuComboSection leg 6 requires every carried-to name to be a page its
+ * header's own builder registers, so these cannot drift from the pages without a
+ * red row.
  */
 struct ComboHeaderCarry {
     const char* formerName;
@@ -962,9 +966,24 @@ static const ComboHeaderCarry kComboHeaderCarries[] = {
     { "Tracker Settings", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "Item Tracker" },
     { "Majora's Mask", "Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"), "Quality of Life" },
     { "MM Enhancements", "Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"), "Quality of Life" },
-    { "MM Mods", "Settings", CVAR_SETTING("Menu.SettingsSidebarSection"), "Mod Menu" },
+    { "MM Mods", "Settings", CVAR_SETTING("Menu.SettingsSidebarSection"), "MM Mods" },
     { "Save Files", "Dev Tools", CVAR_SETTING("Menu.DevToolsSidebarSection"), "Save Files" },
 };
+
+/**
+ * SoH's Settings > Mod Menu page is labelled OoT Mods since the operator's ruling
+ * of 2026-10-27 ("Have two rows, OoT Mods and MM Mods instead of just Mods"), the
+ * one SoH sidebar this project renames. Its selection persists by display name in
+ * gSettings.Menu.SettingsSidebarSection, and Menu::DrawElement opens a Settings
+ * selection it has no page for on the header's first page (General), so a saved
+ * "Mod Menu" is renamed to the page's new name. MM Mods is inserted directly
+ * after OoT Mods (before SoH's Presets, which its own menu-init function adds
+ * later); every other Settings page keeps its name, so no other saved selection
+ * moves. MenuComboSection leg 6 holds both names to pages AddMenuSettings
+ * registers.
+ */
+static constexpr const char* kSohModMenuFormerName = "Mod Menu";
+static constexpr const char* kSohModMenuSettingsPage = "OoT Mods";
 
 /**
  * THE CARRY (#1133). Menu::DrawElement reads gSettings.Menu.ActiveHeader and then
@@ -978,12 +997,19 @@ static const ComboHeaderCarry kComboHeaderCarries[] = {
  * clear, never store a value a later run would not expect, on keys #451 contends
  * over (RSBS::kMenuIndexKeys). The Combo sidebar key is cleared in every case,
  * so no key names a header that no longer exists; when another header was open,
- * nothing else is touched. Runs once per menu build, before the first draw
- * (AddMenuElements calls AddMenuCombo before Network and Dev Tools); idempotent.
+ * nothing else is touched. First, whatever header is open, a saved Settings >
+ * Mod Menu is renamed to OoT Mods (above); the Settings key is written only when
+ * it holds that former name, so nothing is minted. Runs once per menu build,
+ * before the first draw (AddMenuElements calls AddMenuCombo before Network and
+ * Dev Tools); idempotent.
  */
 static void ComboHeaderCarrySelection() {
     const char* headerCvar = CVAR_SETTING("Menu.ActiveHeader");
     const char* comboCvar = CVAR_SETTING("Menu.ComboSidebarSection");
+    const char* settingsCvar = CVAR_SETTING("Menu.SettingsSidebarSection");
+    if (CVarExists(settingsCvar) && std::string(CVarGetString(settingsCvar, "")) == kSohModMenuFormerName) {
+        CVarSetString(settingsCvar, kSohModMenuSettingsPage);
+    }
     // Copies: CVarGetString's pointer is the store's, and the writes below may
     // replace the string it points into.
     const std::string header = CVarExists(headerCvar) ? CVarGetString(headerCvar, "") : "";

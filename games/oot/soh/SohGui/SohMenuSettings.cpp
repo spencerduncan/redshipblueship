@@ -531,15 +531,17 @@ void SohMenu::AddMenuSettings() {
         .Options(CheckboxOptions().Tooltip("Prevent notifications from playing a sound."));
 
     // Mod Menu
-    path.sidebarName = "Mod Menu";
+    // RSBS (operator ruling 2026-10-27, "Have two rows, OoT Mods and MM Mods instead of just Mods"): SoH's page,
+    // labelled OoT Mods; a saved "Mod Menu" selection reopens on it (SohMenuCombo.cpp's carry).
+    path.sidebarName = "OoT Mods";
     AddSidebarEntry("Settings", path.sidebarName, 1);
     AddWidget(path, "Popout Mod Menu Window", WIDGET_WINDOW_BUTTON)
         .CVar(CVAR_WINDOW("ModMenu"))
         .WindowName("Mod Menu")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Mod Menu Window."));
-    // RSBS (#1133, ruling D5): Majora's Mask's mod list, a block after SoH's row (SohMenuComboMmMods.cpp).
-    AddContributedSohPageRows(*this, path);
+    // RSBS (same ruling): our Settings pages after SoH's own, MM Mods first (SohMenuComboMmMods.cpp).
+    AddComboSettingsPages(*this, path);
 }
 
 } // namespace SohGui

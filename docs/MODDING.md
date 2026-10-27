@@ -145,8 +145,8 @@ overrides a base asset at all. Its `loose/` folder is mounted after all of its
 packed mods, so a loose file beats both.
 
 - **Between two mods of the same game:** the one listed higher wins. OoT's order
-  is the one you set in its mod menu (Settings → Mod Menu: Edit, then the arrows
-  or drag to reorder). MM's is set on **Combo → MM Mods**, which lists every
+  is the one you set in its mod menu (Settings → OoT Mods: Edit, then the arrows
+  or drag to reorder). MM's is set on **Settings → MM Mods**, which lists every
   archive under `mods/mm/` in two columns: Enabled Mods, highest priority at the
   top, with arrows to move a mod up or down and one to turn it off; and Disabled
   Mods, with an arrow to turn it back on. A mod you turn back on, and any archive
