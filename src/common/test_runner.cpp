@@ -4602,6 +4602,30 @@ TestResult Test_ArchiveAddDedup(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1190: a re-added .otr must release the MPQ of the copy it replaced (every
+// boot re-adds the mods after the curated half; every switch re-adds them).
+// Body in its own TU, src/common/tests/test_otr_readd_releases_handle.cpp
+// (StormLib's header brings in <windows.h>): a one-file MPQ re-added eight
+// times, the process's open handle count asserted. ROM-free and archive-free.
+extern "C" int OtrReaddReleasesHandle_RunHeadless(void);
+TestResult Test_OtrReaddReleasesHandle(void) {
+    printf("[TEST] otr-readd-releases-handle: a re-added .otr releases the MPQ it replaced (#1190)\n");
+
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    int rc = OtrReaddReleasesHandle_RunHeadless();
+    printf("[TEST] %s: otr re-add releases handle rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -7244,6 +7268,8 @@ const TestDescriptor gTests[] = {
     { "cosmetics-patch-owner-gate", "The Cosmetics Editor patches only while OoT runs (#1040)",
       Test_CosmeticsPatchOwnerGate },
     { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
+    { "otr-readd-releases-handle", "A re-added .otr releases the MPQ of the copy it replaced (#1190)",
+      Test_OtrReaddReleasesHandle },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
