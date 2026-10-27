@@ -28,12 +28,32 @@
 
 /** The registration names SoH's two retired windows keep on the shared Gui. The unprefixed "Check Tracker" and
  *  "Item Tracker" belong to the unified windows, which SoH's own toggle rows open by name. */
-inline constexpr const char* kSohRetiredCheckTrackerWindowName = "Check Tracker";
-inline constexpr const char* kSohRetiredItemTrackerWindowName = "Item Tracker";
+inline constexpr const char* kSohRetiredCheckTrackerWindowName = "SoH Check Tracker";
+inline constexpr const char* kSohRetiredItemTrackerWindowName = "SoH Item Tracker";
+
+/** True only while the UI snapshot harness captures one of SoH's retired windows as a reference
+ *  (soh_ui_snapshot.cpp); defined in SohGui.cpp. Nothing else sets it. */
+extern bool gSohRetiredWindowReferenceDraw;
 
 template <typename BaseWindow> class RetiredInSingleExe : public BaseWindow {
   public:
     template <typename... Args> explicit RetiredInSingleExe(Args&&... args) : BaseWindow(std::forward<Args>(args)...) {
+    }
+
+    void Draw() override {
+        if (!gSohRetiredWindowReferenceDraw) {
+            return;
+        }
+        BaseWindow::Draw();
+    }
+
+    // The Port Menu's embed path (SohGui/Menu.cpp calls DrawElement() through a GuiWindow pointer), which
+    // bypasses Draw().
+    void DrawElement() override {
+        if (!gSohRetiredWindowReferenceDraw) {
+            return;
+        }
+        BaseWindow::DrawElement();
     }
 };
 

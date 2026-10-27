@@ -181,7 +181,7 @@ WidgetInfo* FindRow(SidebarEntry& page, const std::string& name, uint32_t* colum
 }
 
 // The row registered directly before `row` in its column, or null when `row`
-// opens the column. The Windows page's SoH shape is "separator, then its
+// opens the column. SoH's tracker pages' shape is "separator, then its
 // button", so this is how leg 3 reads which separator a button sits under.
 const WidgetInfo* RowBefore(SidebarEntry& page, const WidgetInfo* row) {
     for (auto& column : page.columnWidgets) {

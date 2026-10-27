@@ -218,6 +218,11 @@
  * pages: nothing reads it, so it is no longer classified or spelled. A config
  * that still holds it keeps an inert entry. */
 #define RSBS_CVAR_COMBO_WINDOW_SPOILER "gCombo.Windows.Spoiler"
+/* #1132: the Check Tracker and Item Tracker windows answer SoH's own window keys
+ * (gOpenWindows.CheckTracker / .ItemTracker) since they replace SoH's, so
+ * nothing reads this key or RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER below any more.
+ * Both stay classified, so a config that holds them keeps a classified, inert
+ * entry. */
 #define RSBS_CVAR_COMBO_WINDOW_TRACKER "gCombo.Windows.Tracker"
 #define RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS "gCombo.Windows.ComboSettings"
 /* #458 U0: the unified Item Tracker overlay's visibility (one overlay for both
@@ -765,11 +770,12 @@ inline constexpr ComboKey kComboKeys[] = {
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
-    { RSBS_CVAR_COMBO_WINDOW_TRACKER, ComboKeyClass::Preference, "combo tracker window visibility (#458)" },
+    { RSBS_CVAR_COMBO_WINDOW_TRACKER, ComboKeyClass::Preference,
+      "combo tracker window visibility (#458; unread since #1132)" },
     { RSBS_CVAR_COMBO_WINDOW_COMBO_SETTINGS, ComboKeyClass::Preference,
       "combo settings pane visibility (ADR 0011 increment 2)" },
     { RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, ComboKeyClass::Preference,
-      "unified item tracker overlay visibility (#458; ADR 0004's 2026-09-30 amendment)" },
+      "unified item tracker overlay visibility (#458; ADR 0004's 2026-09-30 amendment; unread since #1132)" },
     // ---- gCombo.Tracker.Items.*: the unified Item Tracker overlay's look
     //      (#458 U2). All PREFERENCE: how the overlay draws says nothing about
     //      a world.

@@ -873,3 +873,55 @@ the profile is frozen and under Vanilla logic, and writes MM's one spelling of t
 restore (#781) puts it back. Locks: `MMLocations`, `PairedLoadRestore` leg 2e, `MenuMmRandomizerPages` legs 1 and 9,
 `MenuComboSection` leg 4, `UiSnapshot` / `UiSnapshotMin` (page `Randomizer/MM Locations`). The sidebar now has 16
 entries; SoH's own 12 already scroll at `min-832x600`, so the page was kept rather than folded into MM Randomizer.
+
+## Amendment 2026-10-26 — the unified trackers replace SoH's; Combo > Windows retires (#1132, lane L5)
+
+**The rulings** (operator, 2026-10-22, on the tracker scoping report, #1132): D1 "replace the soh tracker": the
+unified Check Tracker takes SoH's place in the single exe, SoH's Randomizer > Check Tracker page becomes its page (its
+toggle opens ours, its settings govern ours), and SoH's native window retires there; the Item Tracker does the same
+(ruling IT-D6). D3 "the user should just have one set of settings to worry about": the window reads SoH's shared
+`gTrackers.CheckTracker.*` keys, and its own two (#1131) sit on SoH's page beside them. D7 "just drop the combo": the
+windows are "Check Tracker" and "Item Tracker", with no new page name. D12: the quick toggles inside the window are per
+pane. The 2026-09-27 "no unneeded overhaul of original SoH menus" ruling is amended for the two tracker pages only:
+SoH's rows, widgets and wording there are unchanged, and ours are appended after them.
+
+**What changed.**
+1. **Replace, not unregister.** The unified windows register under SoH's names, "Check Tracker" and "Item Tracker",
+   over SoH's keys, `CVAR_WINDOW("CheckTracker")` and `CVAR_WINDOW("ItemTracker")` (`gOpenWindows.*`, never MM's
+   `gWindows.*`). SoH's Toggle Check Tracker and Toggle Item Tracker rows are untouched: a WINDOW_BUTTON finds its
+   window by name, so they open ours. SoH's two windows stay registered, because their `InitElement` registers the
+   hooks and save sections the unified panes read (shop SEEN / IDENTIFIED, collected and scummed, dialogue
+   identification, `trackerData`; `itemTrackerData` and the Item Tracker's frame hook). `SetupGuiElements` constructs
+   them through `RetiredInSingleExe<>` (`SohGui/SohRetiredWindow.h`) under "SoH Check Tracker" and "SoH Item Tracker",
+   with no visibility key, and never draws them (the UI snapshot harness draws SoH's Item Tracker for one reference
+   capture). `gCombo.Windows.Tracker` and `gCombo.Windows.ItemTracker` are no longer read; they stay classified.
+   ImGui keys a window's saved place by its title, so the renamed windows take SoH's own windows' saved places when
+   the player had moved those; the old "Combo Tracker" / "Combo Item Tracker" entries are left unused in `imgui.ini`.
+2. **Pages.** `RegisterSohPageRows` (`SohMenu.h`) appends rows of ours to one of SoH's own pages; SoH's Item Tracker
+   and Check Tracker pages call `AddContributedSohPageRows` after their last row. Randomizer > Check Tracker reads:
+   SoH's four rows, then Auto Scroll To Current Area and Only Show Current Area (#1131's keys, under SoH's Check
+   Tracker Settings group), then a Cross-Game Spoiler separator and its toggle (race-disabled, as before).
+   **Combo > Windows is retired**: its three toggles went to SoH's two pages and the Check Tracker page. A config that
+   had Combo open on Windows (or its old name, Cross-Game Windows) reopens on Randomizer > Check Tracker
+   (`ComboSidebarCarryMovedSelection`).
+3. **Transitional state.** Combo > Tracker Settings keeps only the Item Tracker overlay's nine `gCombo.Tracker.Items.*`
+   rows. Per ruling IT-D6, lane IT-3 (#1141) retires the five with SoH twins and appends the rest to SoH's Item Tracker
+   page, which takes no rows of ours until then; SoH's own Item Tracker Settings window there still sets only SoH's
+   retired overlay. When IT-3 lands, the Combo header loses Tracker Settings, and lane L7 (#1133) folds the MM rows and
+   retires the header.
+4. **Parity.** The Check Tracker's rows lead with their name in the status colour, as SoH's do (the status square is
+   gone); the separator under a pane's header draws only while one of SoH's header controls shows (SoH's
+   `headerPresent`), and the pane's Only Show Current Area toggle shows with them; the search box matches names, the
+   area and the revealed item, never the price (SoH's `ShouldShowCheck`).
+
+**The Combo header now holds** Majora's Mask, MM Mods, Save Files and Tracker Settings (4 pages). The Randomizer
+sidebar is unchanged (16 entries).
+
+**Locks:** `MenuComboSection` (the Combo header's four pages; SoH's two tracker pages driven row for row, their
+toggles opening the unified windows by name and key, our rows and their order; the Windows carry; Tracker Settings
+holding only the overlay's rows; the retired windows on a spy and as real windows on a bare Gui, every hook counted),
+`ComboTrackerWindow` (the name and key; the search text; the header gate; no status square; SoH's toggle literals and
+the retired construction, by source scan), `ComboItemTrackerWindow` (the name and key), `OoTWindowsGate` (both SoH
+trackers constructed through `RetiredInSingleExe<>`), `ComboSettingsRows` (every Combo page instead of Windows),
+`UiSnapshot` / `UiSnapshotMin` (`Randomizer/Check Tracker` captured, `window/Check Tracker` and `window/Item Tracker`
+renamed, SoH's overlay as `window/SoH Item Tracker`, `Combo/Windows` retired).

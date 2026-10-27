@@ -74,15 +74,19 @@ and on ours (R-N4).
   pixels, not characters. SoH's widest entry, "Entrance Tracker" (16), is about 169 px; a selected entry's highlight
   needs about 10 px of padding each side, so keep a label under about 180 px. Our "Cross-Game Windows" (18) was cut on
   both sides ("ross-Game Window"), and our "MM Enhancements" (15) measured 192 px, the whole child width, so its selected
-  highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" and "Majora's Mask". The selection
+  highlight lost its padding and rounded corners. Since 2026-09-27 those pages are "Windows" (retired by #1132) and "Majora's Mask". The selection
   persists BY DISPLAY NAME (`Menu.cpp:849-852`), so never rename an SoH sidebar. One of ours is renamed only together
   with a carry of the persisted value (`ComboSidebarCarryRenamedSelection`, `SohMenuCombo.cpp`) and a lock leg that
   drives it (MenuComboSection leg 6). A page that moves to another header carries the selection across headers
   (`ComboSidebarCarryMovedSelection`, the same leg). A page must hold at least one widget (#640, `Menu.cpp:896-904`).
   Our pages register through `RegisterComboSectionPage` (`SohMenu.h`), under Combo by default or under SoH's
   Randomizer header with `ComboPageHost::Randomizer` (#1101), where they sit after Tricks/Glitches and before
-  Plandomizer. The Randomizer sidebar holds 15 entries since #1101; the sidebar child scrolls past `columnHeight`
-  (`Menu.cpp:855-857`), so at `min-832x600` it scrolls, as SoH's own 12 already did there.
+  Plandomizer. Rows of ours on one of SoH's own pages are appended after SoH's last row through
+  `RegisterSohPageRows` (`SohMenu.h`, #1132): SoH's Randomizer > Check Tracker and Item Tracker pages are the unified
+  trackers' pages, so no tracker page of ours is added beside them. The Randomizer sidebar holds 16 entries since
+  #1101 and lane R3 (#1132 added none); the sidebar child scrolls past `columnHeight` (`Menu.cpp:855-857`), so at
+  `min-832x600` it scrolls, as SoH's own 12 already did there. The Combo header holds 4 pages since #1132 retired
+  Windows.
 - **Column.** Set `path.column` explicitly before each column's first row (`SohMenuEnhancements.cpp:235,284`).
 - **Section.** `WIDGET_SEPARATOR_TEXT` (`Menu.cpp:370-379`). Most SoH columns open with one
   (`SohMenuEnhancements.cpp:155`, `SohMenuSettings.cpp:132`). Some open with a row or a gray note instead
@@ -276,8 +280,14 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   window's visibility to `ImGui::Begin` (`libultraship/src/ship/window/gui/GuiWindow.cpp:72`). A pane that overrides
   `Draw` (to read its CVar live) still passes an `open` flag and calls `SetVisibility(false)` when it is closed.
   A tracker pane in Floating type keeps no close button, as SoH's overlays; the Window type keeps it (#1130: the
-  Combo Tracker takes SoH's Check Tracker Window Type and its other chrome keys,
-  `randomizer_check_tracker.cpp:1215-1245`, and the Combo > Windows row toggles the floating overlay).
+  Check Tracker takes SoH's Check Tracker Window Type and its other chrome keys,
+  `randomizer_check_tracker.cpp:1215-1245`, and SoH's Randomizer > Check Tracker toggle opens and closes the floating
+  overlay).
+- **A pane that replaces SoH's** (#1132, operator rulings D1 and D7) takes SoH's window's name and key: the Check
+  Tracker is "Check Tracker" over `CVAR_WINDOW("CheckTracker")`, the Item Tracker "Item Tracker" over
+  `CVAR_WINDOW("ItemTracker")`, so SoH's own toggle rows open them by name. SoH's window stays registered for the
+  hooks its `InitElement` adds, under an "SoH "-prefixed name, never drawn (`RetiredInSingleExe<>`,
+  `SohGui/SohRetiredWindow.h`). No pane of ours carries "Combo" in its title.
 - Inside a pane, use the same helpers with `THEME_COLOR` (`randomizer_check_tracker.cpp:2223-2283`). From `src/common`,
   which cannot include UIWidgets, go through the `combo_ui` seam (`src/common/combo_ui.h`): a C function table
   (Checkbox, Combobox, SliderInt, Button, SearchInput, SeparatorText, NoteText, WarningText, Tooltip, TagChip, Confirm,
@@ -302,12 +312,12 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   the theme's `ImGuiCol_Header*` colours reach a header row only while it is hovered or clicked. A count belongs in
   a gray note under the section header, never in the header (R-N1, R-N4).
 - **Status marks** are FontAwesome glyphs (merged into every menu font, `OTRGlobals.cpp`; the macros are
-  libultraship's `IconsFontAwesome4.h`), never bracketed ASCII such as `[x]`, `[s]` or `[ ]`. This is a project
-  convention, not an SoH idiom: SoH's check tracker marks a check's status by row colour and uses glyphs only on its
-  skip and lock buttons (`ICON_FA_PLUS`/`ICON_FA_TIMES`, `ICON_FA_UNLOCK`/`ICON_FA_LOCK`,
-  `randomizer_check_tracker.cpp`). A pane uses ONE notation for one state: the crossing tables lead each check name
-  with the Checks lists' glyph rather than adding a Yes/No column.
-- **Pane size.** The Combo Tracker and the Cross-Game Spoiler open at 480 x 520 and are never taller than what they
+  libultraship's `IconsFontAwesome4.h`), never bracketed ASCII such as `[x]`, `[s]` or `[ ]`. A tracker list marks a
+  check's status the way SoH's check tracker does, by row colour, with glyphs only on its skip and lock buttons
+  (`ICON_FA_PLUS`/`ICON_FA_TIMES`, `ICON_FA_UNLOCK`/`ICON_FA_LOCK`, `randomizer_check_tracker.cpp`); the Check
+  Tracker's rows dropped their leading status square in #1132. The Cross-Game Spoiler's crossing tables lead each
+  host check with a found glyph rather than adding a Yes/No column.
+- **Pane size.** The Check Tracker and the Cross-Game Spoiler open at 480 x 520 and are never taller than what they
   draw (`ComboPaneFit`, `ComboTrackerWindow.h`), so a short state is not a tall empty box; a long one scrolls, as
   SoH's panes do. Table cells wrap in balanced lines, so a long name never leaves its last word alone on a line.
 - **Trick lists** follow `DrawTricksMenu` (`SohMenuRandomizer.cpp:171-551`): a filter; "Disable All" and "Enable All"

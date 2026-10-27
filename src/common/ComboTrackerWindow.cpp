@@ -24,11 +24,10 @@
  * header row). The header row stays in ImGui's table-header gray, as in the
  * Check Tracker Settings pane: the theme's Header / HeaderHovered /
  * HeaderActive colours reach a table's header row only while it is hovered or
- * clicked. A check's status is a FontAwesome glyph, a
- * project convention (SoH's check tracker marks status by row colour instead),
- * and it is the ONE notation for it: the crossing tables (DrawCrossingList,
- * drawn by the Cross-Game Spoiler since ruling D10 cut them from this window)
- * lead each host check's name with the same glyph the Checks lists use.
+ * clicked. A check's status is its row's colour, as in SoH's Check Tracker
+ * (#1132: the status square the rows used to lead with is gone); the crossing
+ * tables (DrawCrossingList, drawn by the Cross-Game Spoiler since ruling D10 cut
+ * them from this window) still lead each host check with a found glyph.
  * src/common cannot include UIWidgets, so every styled element goes through the
  * combo_ui seam.
  */
@@ -68,20 +67,7 @@ const ComboUiTable& Ui() {
     return *ComboUi_Get();
 }
 
-/**
- * A check's status as a FontAwesome glyph (a project convention, style guide
- * section 10: SoH's check tracker colours the row instead, and uses glyphs only
- * on its skip/lock buttons): a ticked box when collected, a box with a minus
- * when the player skipped it, an empty box otherwise.
- */
-const char* CheckGlyph(const ComboTrackerCheckRow& row) {
-    if (row.obtained) {
-        return ICON_FA_CHECK_SQUARE_O;
-    }
-    return row.skipped ? ICON_FA_MINUS_SQUARE_O : ICON_FA_SQUARE_O;
-}
-
-/** A crossing's found state in the Checks lists' notation (CheckGlyph). */
+/** A crossing's found state: a ticked box when found, an empty one when not, a question mark when unknown. */
 const char* FoundGlyph(uint8_t found) {
     if (found == COMBO_TRACKER_FOUND_YES) {
         return ICON_FA_CHECK_SQUARE_O;
@@ -316,12 +302,12 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
         snprintf(extra, sizeof(extra), "(Skipped)");
     }
 
-    // One group from the glyph to the item, so the logic tooltip (#1161) answers a
-    // hover anywhere on the check's text, not on its last item only.
+    // One group from the name to the item, so the logic tooltip (#1161) answers a
+    // hover anywhere on the check's text, not on its last item only. The name
+    // leads, in its status's colour, as SoH's DrawLocation draws it: no status
+    // square in front (#1132).
     ImGui::BeginGroup();
     ImGui::PushStyleColor(ImGuiCol_Text, c.main);
-    ImGui::TextUnformatted(CheckGlyph(row));
-    ImGui::SameLine();
     const float nameX = ImGui::GetCursorPosX();
     TextBalanced(name);
     ImGui::PopStyleColor();
@@ -485,6 +471,10 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     (void)ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame(), nav.autoScroll, areaKnown,
                               currentArea);
     const ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
+    // #1132: SoH draws its header, and the separator under it, only while one of
+    // its header controls shows; the pane's own Only Show Current Area rides
+    // with them, so a player who hid every control gets SoH's bare list.
+    const bool headerPresent = ComboCheckHeaderPresent(header);
     if (header.hiddenItemsToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's checks show even where your Check Tracker Settings "
                                         "hide them.",
@@ -499,8 +489,9 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         (void)Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip);
     }
     // #1131: Only Show Current Area, this pane's own (ruling D12), as MM's tracker
-    // offers Only Show Current Scene; SoH has no such toggle, so no visibility key.
-    {
+    // offers Only Show Current Scene; SoH has no such toggle, so it shows with
+    // the rest of the header (#1132).
+    if (headerPresent) {
         const ComboUiWidgetOpts tip = { "When active, only this game's checks in the area you are in are shown.", false,
                                         nullptr };
         (void)Ui().Checkbox("Only Show Current Area", &pane.area.onlyCurrentArea, &tip);
@@ -525,7 +516,7 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         Ui().Tooltip(header.availableChecks && summary.availabilityKnown ? "Available / Checked / Total"
                                                                          : "Checked / Total");
     }
-    if (ComboCheckHeaderPresent(header)) {
+    if (headerPresent) {
         ImGui::Separator();
     }
 
@@ -636,7 +627,11 @@ std::string ComboCheckRowSearchText(uint8_t game, const ComboTrackerCheckRow& ro
     haystack += row.name != nullptr ? row.name : "";
     haystack += ' ';
     haystack += row.areaName != nullptr ? row.areaName : "";
-    const std::string item = ComboCheckRowItemText(game, row);
+    // The item as the row names it, never its price: SoH's ShouldShowCheck adds
+    // PlacedItemTrackerName (or the disguise / trick name) and nothing else.
+    ComboTrackerCheckRow unpriced = row;
+    unpriced.hasPrice = false;
+    const std::string item = ComboCheckRowItemText(game, unpriced);
     if (!item.empty()) {
         haystack += ' ';
         haystack += item;
@@ -814,8 +809,9 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
 }
 
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header) {
-    (void)header;
-    return true; // Only Show Current Area always draws (#1131), so the header always does
+    // SoH's DrawElement: headerPresent, from the same five keys.
+    return header.hiddenItemsToggle || (header.availableChecks && header.availableChecksToggle) ||
+           header.expandCollapseButtons || header.searchInput || header.checkTotals;
 }
 
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {
@@ -1094,7 +1090,7 @@ void ComboTrackerWindow::Draw() {
     // ImGui::Begin, so the pane has a close button; closing clears the
     // visibility CVar through SetVisibility, which also schedules the save, as a
     // closed SoH pane does. The Floating type passes none, as SoH's overlays and
-    // the Combo Item Tracker do: the Combo > Windows row toggles it.
+    // the Item Tracker do: SoH's Randomizer > Check Tracker row toggles it.
     bool open = true;
     BeginComboPaneFit(mFit);
     BeginChromeStyle(keys);

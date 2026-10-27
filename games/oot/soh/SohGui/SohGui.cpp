@@ -35,9 +35,13 @@
 #include "soh/Network/Anchor/Anchor.h"
 
 #include "OoTActiveGated.h"
+#include "SohRetiredWindow.h"
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "context.h" // src/common/context.h via redship_common's public include dir
+
+// #1132: set only by the UI snapshot harness, to capture a retired SoH window as a reference.
+bool gSohRetiredWindowReferenceDraw = false;
 
 // #797: gSaveContext is shared with Majora's Mask, so the eight windows in
 // SetupGuiElements that read or write OoT save/play state are drawn only while
@@ -185,8 +189,10 @@ void SetupGuiElements() {
     mGameplayStatsWindow = std::make_shared<OoTActiveGated<GameplayStatsWindow>>(CVAR_WINDOW("GameplayStats"),
                                                                                  "Gameplay Stats", ImVec2(480, 550));
     gui->AddGuiWindow(mGameplayStatsWindow);
-    mCheckTrackerWindow = std::make_shared<OoTActiveGated<CheckTracker::CheckTrackerWindow>>(
-        CVAR_WINDOW("CheckTracker"), "Check Tracker", ImVec2(400, 540));
+    // RSBS (#1132, ruling D1): the unified Check Tracker replaces this window, so it is retired: registered for the
+    // hooks and save section its InitElement adds, never drawn, and bound to no key (SohRetiredWindow.h).
+    mCheckTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>(
+        "", kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));
     gui->AddGuiWindow(mCheckTrackerWindow);
     mCheckTrackerSettingsWindow = std::make_shared<CheckTracker::CheckTrackerSettingsWindow>(
         CVAR_WINDOW("CheckTrackerSettings"), "Check Tracker Settings", ImVec2(600, 375));
@@ -197,8 +203,9 @@ void SetupGuiElements() {
     mEntranceTrackerSettingsWindow = std::make_shared<EntranceTracker::EntranceTrackerSettingsWindow>(
         CVAR_WINDOW("EntranceTrackerSettings"), "Entrance Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mEntranceTrackerSettingsWindow);
-    mItemTrackerWindow = std::make_shared<OoTActiveGated<ItemTrackerWindow>>(CVAR_WINDOW("ItemTracker"), "Item Tracker",
-                                                                             ImVec2(350, 600));
+    // RSBS (#1132, ruling D1): retired as the Check Tracker is; the unified Item Tracker replaces it.
+    mItemTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(
+        "", kSohRetiredItemTrackerWindowName, ImVec2(350, 600));
     gui->AddGuiWindow(mItemTrackerWindow);
     mItemTrackerSettingsWindow = std::make_shared<ItemTrackerSettingsWindow>(CVAR_WINDOW("ItemTrackerSettings"),
                                                                              "Item Tracker Settings", ImVec2(733, 472));

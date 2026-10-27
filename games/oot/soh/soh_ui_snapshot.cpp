@@ -104,6 +104,7 @@
 #include "soh/SohGui/SohMenu.h"
 #include "soh/SohGui/UIWidgets.hpp"
 #include "soh/SohGui/CreationProgressOverlay.h"
+#include "soh/SohGui/SohRetiredWindow.h" // #1132: SoH's own Item Tracker, captured as a reference
 #include "soh/Notification/Notification.h"
 
 #include <imgui.h>
@@ -807,6 +808,10 @@ struct PageSpec {
     std::string header;
     std::string sidebar;
     std::string window; // WINDOW/OVERLAY/MODAL: the ImGui window name to crop (TOAST: a name prefix)
+    // WINDOW: the Gui registration name, when it is not `window` (#1132: SoH's
+    // retired Item Tracker is registered as "SoH Item Tracker" and draws its
+    // ImGui window as "Item Tracker").
+    std::string guiWindow;
     std::string compareWith;
     // Per state: a different reference for that state's captures (unused by the
     // shipped pages since the MM options pane became pages; kept for a page
@@ -1471,7 +1476,7 @@ std::vector<std::string> TooltipLinePrefixes(const std::string& tip) {
 constexpr const char* kSnapshotOoTItemA = "Lens of Truth";
 // The SoH pane our tracker and spoiler panes are read against (compareWith).
 constexpr const char* kSohPaneReference = "window/Check Tracker Settings";
-constexpr const char* kSohItemTrackerReference = "window/Item Tracker";
+constexpr const char* kSohItemTrackerReference = "window/SoH Item Tracker";
 constexpr const char* kSnapshotOoTItemB = "Megaton Hammer";
 // MM checks hosting the OoT items; the first is collected in the authored MM save.
 constexpr uint16_t kSnapshotOoTToMMCheckA = 0x0401;
@@ -1921,6 +1926,9 @@ void Session::BuildPageList() {
     for (const auto& [h, s] : std::vector<std::pair<std::string, std::string>>{
              { "Randomizer", "General" },
              { "Randomizer", "Item Tracker" },
+             // #1132: the Check Tracker's page, SoH's rows and then ours (its two
+             // navigation rows and the Cross-Game Spoiler's toggle).
+             { "Randomizer", "Check Tracker" },
              { "Randomizer", "Tricks/Glitches" },
              { "Randomizer", "Logic/Access" },
              { "Enhancements", "Quality of Life" },
@@ -2010,12 +2018,15 @@ void Session::BuildPageList() {
         // loaded, so every icon is drawn faded. It draws icons and no text, so
         // there is no text to expect; the window being drawn and not blank is
         // the oracle. OoT is made the active game for it (its window is
-        // OoT-gated, #797).
+        // OoT-gated, #797). Since #1132 the unified overlay is "Item Tracker"
+        // and SoH's is retired, registered under kSohRetiredItemTrackerWindowName
+        // and drawn only while gSohRetiredWindowReferenceDraw is set (EnterState).
         PageSpec p;
         p.id = kSohItemTrackerReference;
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::WINDOW;
         p.window = "Item Tracker";
+        p.guiWindow = kSohRetiredItemTrackerWindowName;
         p.states = { "" };
         p.needsRom = true;
         pages.push_back(p);
@@ -2027,7 +2038,6 @@ void Session::BuildPageList() {
     // default and says so in the manifest. Keyed by page id.
     static const std::map<std::string, std::string> kCompare = {
         { "Randomizer/Cross-Game", "Randomizer/General" },
-        { "Combo/Windows", "Randomizer/Item Tracker" },
         { "Combo/Majora's Mask", "Enhancements/Quality of Life" },
         // OoT's own mod menu (Settings/Mod Menu, which embeds ModMenuWindow)
         // cannot be the reference: with the harness's fresh config and no mods
@@ -2048,7 +2058,8 @@ void Session::BuildPageList() {
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
         { "Combo/Save Files", "Randomizer/Tricks/Glitches" },
-        // The unified trackers' settings (#458 U7): SoH's tracker page, whose
+        // The Item Tracker overlay's settings (#458 U7; the Check Tracker's
+        // left for SoH's own page with #1132): SoH's tracker page, whose
         // embedded Item Tracker Settings hold the rows this page takes.
         { "Combo/Tracker Settings", "Randomizer/Item Tracker" },
     };
@@ -2195,22 +2206,10 @@ void Session::BuildPageList() {
                 // hide options and header toggles too); hovered below.
                 p.forbidText = { "The Combo Tracker draws its checks in the colors set below",
                                  "whose check colors, and no other setting" };
-                // The Window Type row: its tooltip's "Value: effect" lines.
+                // The Window Type row: its tooltip's "Value: effect" lines. (The
+                // Popout Check Tracker Settings row left with #1132.)
                 p.hovers = { "window-type" };
                 p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
-                // ROM-rich only: SoH registers its Check Tracker Settings window
-                // in SetupGuiElements, which a ROM-free run never reaches, so
-                // there the button draws #535's disabled shape ("Its window is
-                // not available yet") instead of the tooltip under test.
-                if (!romFree) {
-                    p.hovers.push_back("check-tracker-settings");
-                    p.hoverRows["check-tracker-settings"] = "Popout Check Tracker Settings";
-                }
-            } else if (p.id == "Combo/Windows") {
-                // A tracker toggle: SoH's "Toggles the <Window>." (the unified
-                // Item Tracker's, since MM's tracker rows left the page, #458 U6).
-                p.hovers = { "item-tracker" };
-                p.hoverRows["item-tracker"] = "Toggle Combo Item Tracker";
             } else if (p.id == std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME) {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
@@ -3005,10 +3004,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
         }
     } else if (p.kind == Kind::WINDOW) {
-        if (p.window == ComboGui::kComboItemTrackerWindowName) {
+        if (p.window == ComboGui::kComboItemTrackerWindowName && p.guiWindow.empty()) {
             AuthorItemTrackerState(state);
         } else if (p.id == kSohItemTrackerReference) {
-            Context_SetCurrentGame(GAME_OOT); // SoH's tracker draws only while OoT is the active game (#797)
+            Context_SetCurrentGame(GAME_OOT);      // SoH's tracker draws only while OoT is the active game (#797)
+            gSohRetiredWindowReferenceDraw = true; // retired since #1132: drawn for this capture only
         }
         if (state == "paired") {
             AuthorPairing();
@@ -3066,8 +3066,11 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
         CVarClear(kSnapshotCollectedHideKey);
         CVarClear(kSnapshotWindowTypeKey);
     }
-    if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName) {
+    if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName && p.guiWindow.empty()) {
         RestoreItemTrackerState();
+    }
+    if (p.id == kSohItemTrackerReference) {
+        gSohRetiredWindowReferenceDraw = false;
     }
     ComboContext_Init();
     Combo_Crossings_Clear();
@@ -4202,7 +4205,7 @@ void Session::CaptureWindowPage(const PageSpec& p) {
     // Draw() tests IsVisible(), so it is opened with Show() and closed with Hide().
     const bool sohPane = p.origin == Origin::SOH_REFERENCE;
     const char* cvar = sohPane ? nullptr : PaneCvar(p.window);
-    auto guiWindow = gui->GetGuiWindow(p.window);
+    auto guiWindow = gui->GetGuiWindow(p.guiWindow.empty() ? p.window : p.guiWindow);
     for (const std::string& state : p.states) {
         const std::string base = VariantName(state, "");
         if (!Selected(p, base) && !Selected(p, VariantName(state, "scroll0"))) {
