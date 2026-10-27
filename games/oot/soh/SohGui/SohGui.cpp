@@ -39,6 +39,7 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "context.h" // src/common/context.h via redship_common's public include dir
+#include "mm_time_splits_bridge.h" // src/common: MM's Time Splits body, hosted in SoH's window (W6-TIMERS)
 
 // #1132: set only by the UI snapshot harness, to capture a retired SoH window as a reference.
 bool gSohRetiredWindowReferenceDraw = false;
@@ -211,8 +212,14 @@ void SetupGuiElements() {
     mItemTrackerSettingsWindow = std::make_shared<ItemTrackerSettingsWindow>(CVAR_WINDOW("ItemTrackerSettings"),
                                                                              "Item Tracker Settings", ImVec2(733, 472));
     gui->AddGuiWindow(mItemTrackerSettingsWindow);
-    mTimeSplitWindow =
-        std::make_shared<OoTActiveGated<TimeSplitWindow>>(CVAR_WINDOW("TimeSplits"), "Time Splits", ImVec2(450, 660));
+    // RSBS W6-TIMERS (#1237): SoH's Time Splits window is the one Time Splits surface. While MM runs it hosts 2Ship's
+    // Time Splits popout body instead of OoT's (src/common/mm_time_splits_bridge.h); under OoT it is unchanged.
+    auto timeSplitWindow = std::make_shared<OoTGatedHostingMm<TimeSplitWindow>>(CVAR_WINDOW("TimeSplits"),
+                                                                                "Time Splits", ImVec2(450, 660));
+#ifdef RSBS_SINGLE_EXECUTABLE
+    timeSplitWindow->HostMm(MM_TimeSplits_HostedActive, MM_TimeSplits_DrawHostedElement);
+#endif
+    mTimeSplitWindow = timeSplitWindow;
     gui->AddGuiWindow(mTimeSplitWindow);
     mPlandomizerWindow =
         std::make_shared<PlandomizerWindow>(CVAR_WINDOW("PlandomizerEditor"), "Plandomizer Editor", ImVec2(850, 760));

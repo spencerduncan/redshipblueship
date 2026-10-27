@@ -600,6 +600,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Player/UnderwaterOcarina.cpp"
         # #1034
         "2s2h/Enhancements/Equipment/ArrowCycle.cpp"
+        # W6-TIMERS (#1235, #1237, #1239): MM's In-Game Timer overlay and Time Splits. TimersGuiSingleExe.cpp constructs
+        # the windows of the first three; TimeSplitsActions.cpp registers only through RegisterShipInitFunc. Its six hooks
+        # are dispatched: OnItemGive, OnBottleContentsUpdate and OnBossDefeated through MM_GameHooks_Execute* (#438),
+        # OnSceneInit through MM_GameHooks_ExecuteOnSceneInit (z_play.c) and the two great-fairy VBs through
+        # GameInteractor_Should. No hook body reads MM_gPlayState, and none of the four has a stub or an OoT twin
+        "2s2h/Enhancements/Trackers/DisplayOverlay.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimeSplitsActions.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/Timesplits.cpp"
+        "2s2h/Enhancements/Trackers/TimeSplits/TimesplitsSettings.cpp"
         # #1035 (Skip Magic Arrow Equip Animation, OnKaleidoUpdate: dispatched through MM_GameHooks_ExecuteOnKaleidoUpdate;
         # the body touches only the kaleido equip-state globals and the pauseCtx the dispatcher passes)
         "2s2h/Enhancements/Equipment/SkipMagicArrowEquip.cpp"

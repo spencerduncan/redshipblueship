@@ -551,8 +551,33 @@ default (off).
 | `gColors.<element>.{Color, Changed}` | 0 rows | INTENTIONAL, no row: 2Ship's HUD editor colour keys are read only by its window, never by a draw, so a row would write a key nothing in MM reads. MM's HUD colours are W6-COS-A's `gCosmetic.*` |
 | `gCollisionViewer.*` | 18 | MM collision viewer |
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
-| `gNotifications.*`, `gDisplayOverlay.*` | 7 | MM overlay/notification system |
+| `gNotifications.*` | 4 | MM notification system |
+| `gDisplayOverlay.*` | 3 | (O) MM's In-Game Timer overlay; rows on Enhancements > Timers since W6-TIMERS, see the table below |
 | `gRando.*` | 72 | MM randomizer — see ADR 0004 §3 |
+
+**W6-TIMERS (#1235, #1237, #1239) — MM's In-Game Timer and Time Splits, linked and hosted.** 2Ship created its three
+timer windows in the excluded `BenGui.cpp` and drew their rows in the excluded `BenMenu.cpp` and in the Time Splits
+popout, so none of these keys could be written or shown. `Trackers/DisplayOverlay.cpp` and the three `Trackers/TimeSplits/`
+TUs are now carved into `ship__Enh_registrars`; `TimersGuiSingleExe.cpp` registers the In-Game Timer and the splits list
+beside MM's trackers, drawn only while MM runs; and SoH's own Time Splits window hosts 2Ship's popout body while MM runs,
+so the popout resolves to that one surface. SoH's Additional Timers and Time Splits read OoT's save only, so no key has
+a twin. Each scalar key is bound through its `RSBS_CVAR_MM_*` define (classification leg 3f-2c); the registrar-coverage
+lock's W6-TIMERS phase attributes `TimeSplitsActions.cpp` by registry content, and mm-trackers-gui leg 8 holds the
+windows' registration and gate.
+
+| MM key | MM default | Row or surface (page > section) | Call |
+|---|---|---|---|
+| `gDisplayOverlay.Mode` | Off | In-Game Timer (Enhancements > Timers, Majora's Mask block): Off, Real-Time, In-Game Time | (O) MM-only. The mode alone shows the timer; 2Ship's `gWindows.DisplayOverlay` is not used |
+| `gDisplayOverlay.Background` | off | Hide In-Game Timer Background (likewise) | (O) MM-only |
+| `gDisplayOverlay.Scale` | 1.0 | In-Game Timer Scale (likewise), 1x to 5x | (O) MM-only |
+| `gSettings.TimeSplits.Enable` | off | Enable Time Splits (Enhancements > Time Splits, Majora's Mask block) | (O) MM-only; arms `TimeSplitsActions.cpp`'s six hooks and shows the splits list |
+| `gSettings.TimeSplits.ShowHeaders` | off | Show Split Headers (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Opacity` | off | Hide Split List Background (likewise) | (O) MM-only; despite its name a switch |
+| `gSettings.TimeSplits.Highlight` | off | Highlight Active Split (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Follow` | off | Follow Active Split (likewise) | (O) MM-only |
+| `gSettings.TimeSplits.Compare` | off | Compare Splits (likewise); the list compared against is chosen in the Time Splits window | (O) MM-only |
+| `gWindows.Timesplits` | off | The splits list window ("MM Time Splits"), registered beside MM's trackers | (O) MM-only, no row: as upstream, the list draws while Enable Time Splits is on, whatever this key says |
+| `gWindows.Timesplits.Settings` | off | Resolves to SoH's Time Splits window (Popout Time Splits Window), which hosts 2Ship's list management and Split Entries tabs while MM runs | INTENTIONAL, no row: one Time Splits surface, not a second window |
 
 **W6-PLAYER (#1236) — MM's Player, Equipment and PlayerActions rows, linked and hosted.** MM read twelve Player,
 Equipment and PlayerActions keys: the ten (O) keys below and the two held-apart (P) keys, Climb Speed and Bombchu Drops,

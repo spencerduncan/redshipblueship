@@ -158,6 +158,8 @@
 #include "cvar_shared_keys.h"
 #include "game.h"                  // MM_SAVE_CONTEXT_SIZE (the authored MM shadow)
 #include "mm_mod_set.h"            // #706: the MM Mods page's model, authored for its three states
+#include "mm_time_splits_bridge.h" // W6-TIMERS: MM's Time Splits body in SoH's window, its splits file
+#include "test_scratch.h"          // W6-TIMERS: that file, in this process's own scratch directory
 #include "mod_archives.h"          // Combo_MountCuratedArchive (#963)
 #include "combo_save_files_view.h" // lane W5: the Save Files page's model, authored for its two states
 #include "foreign_items.h"
@@ -2012,6 +2014,9 @@ std::string PickBodyText(Ship::Menu& m, const std::string& header, const std::st
     return std::string();
 }
 
+// W6-TIMERS (#1237): SoH's Time Splits window while Majora's Mask runs (BuildPageList, EnterState, LeaveState).
+constexpr const char* kSohTimeSplitsMmReference = "window/Time Splits (Majora's Mask)";
+
 void Session::BuildPageList() {
     auto menuPage = [this](const std::string& header, const std::string& sidebar, Origin origin) {
         PageSpec p;
@@ -2052,6 +2057,23 @@ void Session::BuildPageList() {
     // SoH references. Only Dev Tools/General registers ROM-free.
     {
         PageSpec p = menuPage("Dev Tools", "General", Origin::SOH_REFERENCE);
+        pages.push_back(p);
+    }
+    {
+        // W6-TIMERS (#1237, #1239): SoH's Time Splits window while Majora's Mask runs, when it hosts 2Ship's Time
+        // Splits popout body (OoTGatedHostingMm): the list management, the current splits and the Split Entries tab.
+        // The six MM switches are rows on Enhancements > Time Splits, captured by the hosted-row seam. MM's In-Game
+        // Timer and its titleless splits list get no capture: the timer draws only with MM play state, which the
+        // harness never has, and both draw MM's archive textures; mm-trackers-gui leg 8 holds their registration and
+        // gate instead.
+        PageSpec p;
+        p.id = kSohTimeSplitsMmReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = "Time Splits";
+        p.states = { "mm" };
+        p.expectText = { "Time Splits", "List Options", "Split Entries" };
+        p.needsRom = true;
         pages.push_back(p);
     }
     for (const auto& [h, s] : std::vector<std::pair<std::string, std::string>>{
@@ -3294,6 +3316,12 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             AuthorPairing();
             gComboCtx.mmProfileDigest = 0x4D4D0001u;
         }
+    } else if (p.id == kSohTimeSplitsMmReference) {
+        // MM running, so SoH's window hosts MM's body; its splits file is this process's own, never the app
+        // directory's (LeaveState restores both).
+        Context_SetCurrentGame(GAME_MM);
+        MM_TimeSplits_SetDataPathForTest(
+            (rsbs::test::ScratchDir("ui-snapshot-time-splits") / "2S2HTimeSplitData.json").string().c_str());
     } else if (p.kind == Kind::WINDOW) {
         if (p.window == ComboGui::kComboItemTrackerWindowName && p.guiWindow.empty()) {
             AuthorItemTrackerState(state);
@@ -3373,6 +3401,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == kSohItemTrackerReference) {
         gSohRetiredWindowReferenceDraw = false;
+    }
+    if (p.id == kSohTimeSplitsMmReference) {
+        MM_TimeSplits_SetDataPathForTest(nullptr);
     }
     ComboContext_Init();
     Combo_Crossings_Clear();
