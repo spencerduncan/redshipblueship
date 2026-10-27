@@ -931,4 +931,12 @@ extern "C" const uint8_t* OoT_SeedPackage_TestStagedMMHalf(size_t* outSize) {
     return reinterpret_cast<const uint8_t*>(half.data());
 }
 
+extern "C" void OoT_SeedPackage_TestReapplyWorldRecord(void) {
+    const std::string bytes = WorldRecordBytes(gComboCtx);
+    auto rec = std::make_unique<ComboContext>();
+    memcpy(rec.get(), bytes.data(), sizeof(ComboContext));
+    ComboContext_Init();
+    ApplyComboWorld(*rec);
+}
+
 #endif // RSBS_SINGLE_EXECUTABLE

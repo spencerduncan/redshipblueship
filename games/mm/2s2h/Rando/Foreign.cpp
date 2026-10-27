@@ -970,6 +970,16 @@ extern "C" int MM_Rando_FrozenMoonCrash(void) {
 }
 
 // ============================================================================
+// KEEP ITEMS ON CYCLE RESET (#1175; declared in src/common/combo_mm_options_view.h).
+// ============================================================================
+extern "C" void MM_Rando_FreezeKeepItemsResetAtCreation(void) {
+}
+
+extern "C" int MM_Rando_FrozenKeepItemsReset(void) {
+    return 0;
+}
+
+// ============================================================================
 // The LOAD-TIME restore (#781; declared in src/common/combo_mm_options_view.h).
 //
 // One-game semantics: a paired file's MM profile was decided at its creation,

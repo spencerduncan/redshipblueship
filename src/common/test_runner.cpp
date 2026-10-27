@@ -127,6 +127,12 @@ int MM_MoonCrashPoolApplied_Run(void);
 // Shared Song of Time rule; and a crash under New Cycle starts a new cycle.
 int MM_MoonCrashCycleForced_Run(void);
 int MM_MoonCrashCycleReset_Run(void);
+// mm-cycle-keep-items / mm-keep-items-reset-frozen (#1175,
+// games/mm/2s2h/mm_cycle_keep_items_test.cpp): a Powder Keg crossing arrives as
+// one keg, and the frozen Keep Items on Cycle Reset (OoTMM's keepItemsReset)
+// keeps it and the beans through the three-day reset; its freeze and identity.
+int MM_CycleKeepItems_Run(void);
+int MM_KeepItemsResetFrozen_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -1148,6 +1154,10 @@ static TestResult Test_MMMoonCrashCycleReset(void) {
     return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+static TestResult Test_MMCycleKeepItems(void) {
+    return MM_CycleKeepItems_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
     const bool entryPoint = MMCreationNewFile_EntryPointRegisters();
@@ -1384,6 +1394,21 @@ TestResult Test_MMMoonCrashCycleForced(void) {
         return TEST_FAIL;
     }
     return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1175: the profile stamp and the load-time restore read the CVar store, so
+// the row takes the same display-free bring-up as mm-moon-crash-cycle-forced.
+static TestResult Test_MMKeepItemsResetFrozen(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_KeepItemsResetFrozen_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 TestResult Test_BootOoT(void) {
@@ -8292,6 +8317,15 @@ const TestDescriptor gTests[] = {
       "A moon crash under New Cycle starts a new cycle (Dawn of the First Day, human form, no mask) keeping inventory "
       "and quest items found after the last commit, and commits it; the last-commit rollback does not run (#1069)",
       Test_MMMoonCrashCycleReset },
+    { "mm-cycle-keep-items",
+      "A Powder Keg found in Hyrule arrives in Termina as one keg and survives a round trip; the frozen Keep Items on "
+      "Cycle Reset keeps it and the Magic Beans through the three-day reset (off: vanilla, both wiped), the shared "
+      "counts and rupees kept either way (#1175)",
+      Test_MMCycleKeepItems },
+    { "mm-keep-items-reset-frozen",
+      "Keep Items on Cycle Reset freezes into the combo record at creation, moves MM's profile stamp only when on, "
+      "and is kept by the file-create invalidation, a seed package, a .redsave and the load-time restore (#1175)",
+      Test_MMKeepItemsResetFrozen },
     { "oot-departure-windmill-flag",
       "A cross-game departure (F10 or door) from the windmill with the gear live freezes the Song of Storms windmill "
       "flag cleared, as the gear's Destroy leaves it on any non-cutscene exit; no gear, a cutscene, or no PlayState "

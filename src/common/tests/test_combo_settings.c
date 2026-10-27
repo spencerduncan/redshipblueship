@@ -178,10 +178,12 @@ TestResult Test_ComboSettingsFormat(void) {
     // #976 carved the 8-byte cross-game item rules (900) and the 4-byte shared
     // family bitset (908) after it (ADR 0011's 2026-10-18 amendment).
     CS_ASSERT(offsetof(ComboContext, comboItemRules) == 900u, "comboItemRules moved off .redsave offset 900");
-    CS_ASSERT(offsetof(ComboContext, reserved) == 912u, "reserved[] moved off .redsave offset 912");
-    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 92u,
-              "reserved[] is not 92 bytes after the ADR 0011, O10 and #976 carves — ADR 0009's budget table and "
-              "context.h must reconcile");
+    // #1175 carved one byte (mmKeepItemsReset, 912) from the front of what #976 left.
+    CS_ASSERT(offsetof(ComboContext, mmKeepItemsReset) == 912u, "mmKeepItemsReset moved off .redsave offset 912");
+    CS_ASSERT(offsetof(ComboContext, reserved) == 913u, "reserved[] moved off .redsave offset 913");
+    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 91u,
+              "reserved[] is not 91 bytes after the ADR 0011, O10, #976 and #1175 carves — ADR 0009's budget table "
+              "and context.h must reconcile");
     CS_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u, "reserved[] fell below ADR 0009's 64-byte floor");
     CS_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE, "ComboContext outgrew its Tier-1 budget");
 
