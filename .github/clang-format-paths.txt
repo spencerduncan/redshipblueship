@@ -161,6 +161,7 @@ games/oot/soh/Enhancements/randomizer/ComboLogicEngineOoT.cpp
 games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp
 games/mm/2s2h/mm_combo_logic_engine_test.cpp
 games/mm/2s2h/mm_tracker_in_logic_test.cpp
+games/mm/2s2h/mm_logic_gates_test.cpp
 games/oot/soh/Enhancements/randomizer/ComboLogicMonotonicityOoT.cpp
 games/mm/2s2h/Rando/ComboLogicMonotonicitySingleExe.cpp
 games/mm/2s2h/mm_triforce_hunt_test.cpp
@@ -224,3 +225,4 @@ games/oot/soh/oot_departure_scene_exit_test.cpp
 games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 games/oot/soh/oot_mask_quest_paired_test.cpp
 games/oot/soh/oot_tracker_reachability_test.cpp
+games/oot/soh/oot_logic_gates_test.cpp

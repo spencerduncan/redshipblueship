@@ -2627,6 +2627,18 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1168: the location gates ported from upstream (SoH c906c71f7, 1413ceb33,
+    # 0702b11b9, 63597ec63; 2S2H 9b699dee1, cc5d87143), each asked of the game's
+    # real search with and without the item the gate names. `rando`: the region
+    # graphs (MMTrickBindings' reason for MM; RegionTable_Init's context for OoT).
+    redship_add_test(NAME OoTLogicGates COMMAND redship --test oot-logic-gates
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME MMLogicGates COMMAND redship --test mm-logic-gates
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps
@@ -2896,6 +2908,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the real builder's English offer for all four settings pairs: it must name
     # the item exactly when Scrub Hint Text is on. games/oot/soh/oot_scrub_text_hint_test.cpp.
     redship_add_test(NAME ScrubTextHintSetting COMMAND redship --test scrub-text-hint-setting
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1164 (green pin, not a fix): SoH's own drop rule makes bombchu drops under
+    # Bombchu Bag Single with no bomb bag, and cancels a bomb drop under None.
+    # Drives z_en_item00.c's func_8001F404 against OTRGlobals' randomizer
+    # context. games/oot/soh/oot_shared_bombchu_test.cpp.
+    redship_add_test(NAME BombchuDropRule COMMAND redship --test bombchu-drop-rule
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

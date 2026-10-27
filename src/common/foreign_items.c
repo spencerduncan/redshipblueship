@@ -14,6 +14,7 @@
 #include "crossing_store.h"      // ADR 0010 O7: the read path's second source
 #include "combo_settings_view.h" // the tier-4 authoring surface the resolver reads (increment 2)
 #include "triforce_hunt.h"       // the O10 record joins the arrival refusal (Combo_ComboSettingsDivergence)
+#include "shared_items.h"        // Combo_ItemClassSharedKind / _Units: a counted pack's name (#1160)
 #include <stdio.h>
 #include <string.h>
 
@@ -1040,11 +1041,41 @@ void Combo_ComboSettingsSummary(ComboSettingsSummary* out) {
 // Names (ADR 0009 decision 3; ADR 0010 O7)
 // ============================================================================
 
+/* #1160: the name an MM bombchu pack is presented by outside MM: the count its
+ * pickup credits to the one shared bombchu count (Combo_ItemClassSharedUnits, the
+ * pack size MM publishes: 1, 5 or 10), as OoTMM names it ("1 Bombchu (MM)"). MM's
+ * own name for its 1-pack, "Bombchu" after "a ", read in Hyrule as a whole pack
+ * worth one OoT bombchu. NULL for every other item, which keeps its describer
+ * name. MM's own text names its packs from 2Ship's table and is untouched. */
+static const char* ForeignCountedPackName(SharedItem item) {
+    if (item.originGame != (uint8_t)GAME_MM ||
+        Combo_ItemClassSharedKind(item) != (uint8_t)RSBS_SHARED_RES_BOMBCHU_COUNT) {
+        return NULL;
+    }
+    switch (Combo_ItemClassSharedUnits(item)) {
+        case 1u:
+            return "1 Bombchu";
+        case 5u:
+            return "5 Bombchus";
+        case 10u:
+            return "10 Bombchus";
+        case 20u:
+            return "20 Bombchus";
+        default:
+            return NULL;
+    }
+}
+
 const char* Combo_GetForeignItemName(SharedItem item) {
     // Origin-aware by construction: the SharedItem carries its own tag, so the
     // only thing the origin dimension changes is WHICH describer answers. An
     // untagged item has no id-space and therefore no name.
-    return Combo_DescribeItemName(item);
+    const char* described = Combo_DescribeItemName(item);
+    if (described == NULL) {
+        return NULL;
+    }
+    const char* counted = ForeignCountedPackName(item);
+    return counted != NULL ? counted : described;
 }
 
 /** One past the highest id the inverse probes. Both id-spaces are u16 and both
@@ -1235,12 +1266,21 @@ const char* Combo_DescribeItemName(SharedItem item) {
     return (d != NULL && d->itemName != NULL) ? d->itemName(item.id) : NULL;
 }
 
-const char* Combo_GetForeignItemArticle(SharedItem item) {
+const char* Combo_DescribeItemArticle(SharedItem item) {
     if (item.originGame != (uint8_t)GAME_OOT && item.originGame != (uint8_t)GAME_MM) {
         return NULL;
     }
     const ComboGameDescriber* d = sGameDescribers[item.originGame];
     return (d != NULL && d->itemArticle != NULL) ? d->itemArticle(item.id) : NULL;
+}
+
+const char* Combo_GetForeignItemArticle(SharedItem item) {
+    const char* article = Combo_DescribeItemArticle(item);
+    if (article == NULL) {
+        return NULL;
+    }
+    // A pack named by its count takes no article (#1160).
+    return ForeignCountedPackName(item) != NULL ? "" : article;
 }
 
 const char* Combo_GetForeignItemIconName(SharedItem item) {

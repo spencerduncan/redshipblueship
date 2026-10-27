@@ -5,6 +5,17 @@
 
 using namespace Rando::Logic;
 
+// Ports 2S2H 9b699dee1 (#1506). The crawl hands Romani Ranch every time slice Milk Road
+// has as soon as its exit opens, and the exit opens on Day 3 by itself, so without these
+// the ranch's Day 1 and Night 1 checks were in logic with the boulder never broken. Upstream
+// calls this a temporary fix: it does not hold for entrance rando.
+#define BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_DAY                                                          \
+    ((BETWEEN(TIME_DAY1_AM_06_00, TIME_NIGHT1_PM_06_00) && CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)) || \
+     RANDO_EVENTS[RE_COWS_FROM_ALIENS])
+#define BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_NIGHT                                                          \
+    ((BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) && CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)) || \
+     RANDO_EVENTS[RE_COWS_FROM_ALIENS])
+
 // clang-format off
 static RegisterShipInitFunc initFunc([]() {
     Regions[RR_CUCCO_SHACK] = RandoRegion{ .sceneId = SCENE_F01C,
@@ -161,9 +172,9 @@ static RegisterShipInitFunc initFunc([]() {
     };
     Regions[RR_RANCH_BARN] = RandoRegion{ .sceneId = SCENE_OMOYA,
         .checks = {
-            CHECK(RC_ROMANI_RANCH_BARN_COW_LEFT, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS])),
-            CHECK(RC_ROMANI_RANCH_BARN_COW_MIDDLE, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS])),
-            CHECK(RC_ROMANI_RANCH_BARN_COW_RIGHT, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS]))
+            CHECK(RC_ROMANI_RANCH_BARN_COW_LEFT, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_NIGHT),
+            CHECK(RC_ROMANI_RANCH_BARN_COW_MIDDLE, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_NIGHT),
+            CHECK(RC_ROMANI_RANCH_BARN_COW_RIGHT, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_NIGHT)
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(ROMANI_RANCH, 2),                 ENTRANCE(RANCH_HOUSE, 0), true),
@@ -186,10 +197,10 @@ static RegisterShipInitFunc initFunc([]() {
     Regions[RR_ROMANI_RANCH] = RandoRegion{ .sceneId = SCENE_F01,
         .checks = {
             CHECK(RC_ROMANI_RANCH_ALIENS, CanKillEnemy(ACTOR_EN_INVADEPOH) && IS_NIGHT1() && CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)),
-            CHECK(RC_ROMANI_RANCH_EPONAS_SONG, BEFORE(TIME_NIGHT1_PM_06_00)),
-            CHECK(RC_ROMANI_RANCH_FIELD_COW_ENTRANCE, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS])),
-            CHECK(RC_ROMANI_RANCH_FIELD_COW_NEAR_HOUSE_BACK, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS])),
-            CHECK(RC_ROMANI_RANCH_FIELD_COW_NEAR_HOUSE_FRONT, CAN_PLAY_SONG(EPONA) && (BETWEEN(TIME_NIGHT1_PM_06_00, TIME_NIGHT1_AM_02_30) || RANDO_EVENTS[RE_COWS_FROM_ALIENS])),
+            CHECK(RC_ROMANI_RANCH_EPONAS_SONG, BEFORE(TIME_NIGHT1_PM_06_00) && CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)),
+            CHECK(RC_ROMANI_RANCH_FIELD_COW_ENTRANCE, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_DAY),
+            CHECK(RC_ROMANI_RANCH_FIELD_COW_NEAR_HOUSE_BACK, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_DAY),
+            CHECK(RC_ROMANI_RANCH_FIELD_COW_NEAR_HOUSE_FRONT, CAN_PLAY_SONG(EPONA) && BREAK_BOULDER_BEFORE_OR_BEAT_ALIENS_DAY),
             CHECK(RC_ROMANI_RANCH_FIELD_LARGE_CRATE, true),
             CHECK(RC_CREMIA_ESCORT, RANDO_EVENTS[RE_COWS_FROM_ALIENS] && AT(TIME_NIGHT2_PM_06_00)),
             CHECK(RC_ROMANI_RANCH_GRASS_01, true),
@@ -256,7 +267,7 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_ROMANI_RANCH_TREE_05, true),
             CHECK(RC_ROMANI_RANCH_TREE_06, true),
             CHECK(RC_ROMANI_RANCH_TREE_07, true),
-            CHECK(RC_ENEMY_DROP_ALIEN, CanKillEnemy(ACTOR_EN_INVADEPOH) && IS_NIGHT1()), // Night 1 only
+            CHECK(RC_ENEMY_DROP_ALIEN, CanKillEnemy(ACTOR_EN_INVADEPOH) && IS_NIGHT1() && CAN_BE_GORON && HAS_ITEM(ITEM_POWDER_KEG)), // Night 1 only
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(MILK_ROAD, 1),                    ENTRANCE(ROMANI_RANCH, 0), true),
