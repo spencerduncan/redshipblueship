@@ -86,6 +86,7 @@
 // forward-declared, or the call would not resolve to the 2ship_enh definition.
 #include "2s2h/Enhancements/GfxPatcher/PlayerCustomFlipbooks.h"
 #include "2s2h/Rando/Rando.h"
+#include "2s2h/Rando/MiscBehavior/ClockShuffle.h" // #1229: the last owned half-day for the moon-crash grace
 #include "2s2h/ObjectExtension/ObjectExtension.h" // #666: MM_RetireAbandonedSession
 #include "2s2h/Rando/Foreign.h"                   // attempt-ladder outcome accessors (ADR 0010 inc. 1.2)
 #include "2s2h/ShipInit.hpp"
@@ -3505,6 +3506,26 @@ int MoonCrashAcceptCommittedHalf(const uint8_t* mmBlob, size_t size, void* ctx) 
 constexpr u32 kMoonCrashLinear = 4u * 0x10000u;
 constexpr u32 kMoonCrashGrace = 0x1E0u;
 
+/**
+ * OoTMM's Time_LinearMoonCrash under Shuffle Time (#1229): the moon falls at the
+ * end of the last owned half-day, 0x10000 + (last owned + 1) * 0x8000 on the
+ * same linear clock (half-day h starts at 0x10000 + h * 0x8000). Read from the
+ * restored half: the caller runs it after the commit's Save is in place.
+ * Without it a Last Save commit taken minutes before 18:00 on Day 3 with Night
+ * 3 unowned restores a clock the moon falls on again at once. Shuffle Time off,
+ * or no half-day owned at all: vanilla's crash at day 4 06:00.
+ */
+u32 MoonCrashLinearForRestoredHalf() {
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO || RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE] == 0) {
+        return kMoonCrashLinear;
+    }
+    const int lastOwned = Rando::ClockItems::FindEarliestOwnedHalfDay(/*searchFromEnd=*/true);
+    if (lastOwned < 0) {
+        return kMoonCrashLinear;
+    }
+    return 0x10000u + (u32)(lastOwned + 1) * 0x8000u;
+}
+
 } // namespace
 
 /**
@@ -3590,17 +3611,18 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
     gSaveContext.rupeeAccumulator = 0;
 
     const u32 linear = (u32)gSaveContext.save.day * 0x10000u + (u16)(gSaveContext.save.time - CLOCK_TIME(6, 0));
-    if (linear + kMoonCrashGrace >= kMoonCrashLinear) {
-        const u32 graced = kMoonCrashLinear - kMoonCrashGrace;
+    const u32 crashLinear = MoonCrashLinearForRestoredHalf();
+    if (linear + kMoonCrashGrace >= crashLinear) {
+        const u32 graced = crashLinear - kMoonCrashGrace;
         gSaveContext.save.day = (s32)(graced >> 16);
         gSaveContext.save.time = (u16)((graced & 0xFFFFu) + CLOCK_TIME(6, 0));
         if (gSaveContext.save.eventDayCount > gSaveContext.save.day) {
             gSaveContext.save.eventDayCount = gSaveContext.save.day;
         }
         fprintf(stderr,
-                "[MM] moon crash: the committed clock was within the grace period; pulled back to day %d 05:49 "
-                "(OoTMM gracePeriod)\n",
-                (int)gSaveContext.save.day);
+                "[MM] moon crash: the committed clock was within the grace period; pulled back to day %d time "
+                "0x%04X (OoTMM gracePeriod)\n",
+                (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time);
     }
 
     // The pool first (assign the consumables, raise the capacities, set the
