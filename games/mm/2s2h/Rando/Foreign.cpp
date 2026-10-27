@@ -937,8 +937,15 @@ bool IsDeliveredForeignHost(RandoCheckId randoCheckId) {
 }
 
 bool ForeignOutboxFullFor(RandoCheckId randoCheckId) {
-    (void)randoCheckId;
-    return false; // #1222 [lock]: today nothing holds a host back
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || !IsForeignCheck(randoCheckId) || !PairingActive() ||
+        RANDO_SAVE_CHECKS[randoCheckId].obtained) {
+        return false; // nothing would be recorded: the #610 degrade and the once-per-host gate answer first
+    }
+    // Every foreign host waits on a full outbox, a counted pack or a capacity tier
+    // too (RecordForeignPickup credits those to the pool without a row): one rule
+    // the shop and CheckQueue can ask before anything is charged or shown, and a
+    // pack held until the next crossing is not lost.
+    return !Combo_SharedItemCrossingHasRoom();
 }
 
 } // namespace Foreign
