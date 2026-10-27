@@ -219,6 +219,27 @@
  * the single exe writes) and registers only through three file-scope RegisterShipInitFuncs on that key. Same table
  * as Phase 9; the key is read by this one TU alone in games/mm, so the delta is attributable.
  *
+ * PHASE 12 (#1215, #1221) -- THE RANDO-FORCED GATES THE LINK DROPPED. Four 2s2h/Enhancements TUs register a
+ * `CVAR || IS_RANDO` gate through a file-scope RegisterShipInitFunc only, in the plain `2ship_enh` archive, and none
+ * is in redship.map: Cheats/UnbreakableRazorSword, Cycle/EndOfCycle, Cycle/OceansideWalletAnyDay and
+ * Cycle/OceansideSpiderHouseSquatter. Upstream forces each on for every rando file; without them a rando file runs
+ * the vanilla behaviour. EndOfCycle's Razor restore is MMCycleRazorSword's (mm_cycle_keep_items_test.cpp). This phase
+ * probes the other three through the production arm drive (saveType SAVETYPE_RANDO, then ShipInit::Init("IS_RANDO"),
+ * what OnSaveLoadHandler runs on every MM load): disarmed first (the vanilla control and the non-vacuity baseline),
+ * then armed, where each bucket must rise by EXACTLY one and the answer must flip. The rando-only registrants armed
+ * from OnFileLoad (the OfferGetItem catch-all, the OnFlagSet check hand-off) are not ShipInit registrars, so they
+ * cannot move these deltas. Nothing those TUs define is named here (a reference would un-elide them).
+ *   - ShouldVanillaBehavior[VB_LOWER_RAZOR_SWORD_DURABILITY] (#1215, the Razor's ~100-hit break, z_player.c
+ *     func_8083FFEC): the verdict is "do not lower" under rando, "lower" on a vanilla file.
+ *   - ShouldVanillaBehavior[VB_GIVE_ITEM_FROM_OFFER] (#1221 row 1, z_actor.c MM_Actor_OfferGetItem): a stand-in
+ *     EnSth (STH_TYPE_OCEANSIDE_SPIDER_HOUSE_GREET) offering GI_RUPEE_PURPLE, the day-2 reward, with the wallet flag
+ *     clear sets WEEKEVENTREG_RECEIVED_OCEANSIDE_WALLET_UPGRADE (RC_OCEAN_SPIDER_HOUSE_WALLET's flag) and offers the
+ *     next wallet under rando; a vanilla file keeps the rupee and the flag stays clear.
+ *   - OnFlagSet, unkeyed (#1221 row 2, Mikau's grave z_en_sekihi.c): BUYER_MOVED_IN set before the reward is
+ *     collected is cleared again under rando (it stays set on a vanilla file), and collecting the reward sets it.
+ * The whole SaveContext is saved first and copied back, and the "IS_RANDO" drive re-runs under the restored saveType,
+ * so the phase is order-free.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -255,6 +276,15 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipInit.hpp"
 #include "mm_game_hooks.h"
+
+#include <cstring>
+#include <memory>
+
+extern "C" {
+// Phase 12 (#1215, #1221): the rando arm drive and the gates' flags.
+#include "variables.h"
+#include "overlays/actors/ovl_En_Sth/z_en_sth.h"
+}
 
 extern "C" {
 // The production bring-up under test. Declared, never defined here.
@@ -723,6 +753,123 @@ void ResetKeyGapKeys() {
     }
 }
 
+// ---- Phase 12 (#1215, #1221): the rando-forced gates the link dropped ------
+// See PHASE 12 in the file header for the attribution of each bucket.
+struct RandoGateCounts {
+    size_t durability;
+    size_t offer;
+    size_t flagSet;
+};
+
+RandoGateCounts ReadRandoGateCounts() {
+    return { SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_LOWER_RAZOR_SWORD_DURABILITY),
+             SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_OFFER),
+             SettledUnkeyedCount<GameInteractor::OnFlagSet>() };
+}
+
+// The production rando arm path (Rando/Rando.cpp OnSaveLoadHandler's ShipInit half).
+void DriveRandoArm(bool rando) {
+    gSaveContext.save.shipSaveInfo.saveType = rando ? SAVETYPE_RANDO : SAVETYPE_VANILLA;
+    ShipInit::Init("IS_RANDO");
+}
+
+// Raw flag writes for the setup, so arranging a leg dispatches no OnFlagSet.
+void RawClearWeekEventReg(u32 flag) {
+    WEEKEVENTREG(flag >> 8) = GET_WEEKEVENTREG(flag >> 8) & (u8) ~(flag & 0xFF);
+}
+
+struct RandoGateVerdicts {
+    bool durabilityLowers;  // VB_LOWER_RAZOR_SWORD_DURABILITY's verdict
+    bool walletFlagSet;     // the Oceanside wallet check's flag after a day-2 offer
+    s32 offered;            // the item that offer ends up with
+    bool movedInStays;      // BUYER_MOVED_IN after Mikau's grave sets it, reward not collected
+    bool movedInWithReward; // BUYER_MOVED_IN after the reward is collected
+};
+
+RandoGateVerdicts ProbeRandoGates() {
+    RandoGateVerdicts v{};
+    v.durabilityLowers = GameInteractor_Should(VB_LOWER_RAZOR_SWORD_DURABILITY, true);
+
+    // The Oceanside Spider House man at the entrance, offering the day-2 reward
+    // with the wallet tier at 0 and the check's flag clear.
+    RawClearWeekEventReg(WEEKEVENTREG_RECEIVED_OCEANSIDE_WALLET_UPGRADE);
+    Actor sth;
+    memset(&sth, 0, sizeof(sth));
+    sth.id = ACTOR_EN_STH;
+    sth.params = STH_TYPE_OCEANSIDE_SPIDER_HOUSE_GREET;
+    GetItemId gi = GI_RUPEE_PURPLE;
+    (void)GameInteractor_Should(VB_GIVE_ITEM_FROM_OFFER, true, &gi, &sth);
+    v.walletFlagSet = CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_OCEANSIDE_WALLET_UPGRADE);
+    v.offered = (s32)gi;
+
+    // Mikau's grave sets BUYER_MOVED_IN before the man has been spoken to.
+    RawClearWeekEventReg(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_BUYER_MOVED_IN);
+    RawClearWeekEventReg(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_COLLECTED_REWARD);
+    SET_WEEKEVENTREG(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_BUYER_MOVED_IN);
+    v.movedInStays = CHECK_WEEKEVENTREG(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_BUYER_MOVED_IN);
+
+    // The reward collected: the squatter may move in now.
+    RawClearWeekEventReg(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_BUYER_MOVED_IN);
+    RawClearWeekEventReg(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_COLLECTED_REWARD);
+    SET_WEEKEVENTREG(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_COLLECTED_REWARD);
+    v.movedInWithReward = CHECK_WEEKEVENTREG(WEEKEVENTREG_OCEANSIDE_SPIDER_HOUSE_BUYER_MOVED_IN);
+    return v;
+}
+
+int RunRandoGateLegs() {
+    // ---- disarmed: the vanilla control and the baseline ----------------------
+    DriveRandoArm(false);
+    const RandoGateCounts before = ReadRandoGateCounts();
+    const RandoGateVerdicts vanilla = ProbeRandoGates();
+    printf("[TEST] mm-registrar-coverage: (12) vanilla file: durability lowers %d, wallet flag %d (offered 0x%02X), "
+           "moved-in stays %d, moved-in with reward %d (expected 1, 0 (0x%02X), 1, 0)\n",
+           vanilla.durabilityLowers, vanilla.walletFlagSet, (unsigned)vanilla.offered, vanilla.movedInStays,
+           vanilla.movedInWithReward, (unsigned)GI_RUPEE_PURPLE);
+    RC_ASSERT(vanilla.durabilityLowers, 18,
+              "a vanilla file's Razor Sword does not lose durability - a rando-only gate leaked outside rando, "
+              "and the leg-2 durability probe would be vacuous (#1215)");
+    RC_ASSERT(!vanilla.walletFlagSet && vanilla.offered == GI_RUPEE_PURPLE, 18,
+              "a vanilla file's day-2 Oceanside reward was rewritten - a rando-only gate leaked outside rando, and "
+              "the leg-2 wallet probe would be vacuous (#1221)");
+    RC_ASSERT(vanilla.movedInStays && !vanilla.movedInWithReward, 18,
+              "a vanilla file's spider-house squatter flag was rewritten - a rando-only gate leaked outside rando, "
+              "and the leg-2 squatter probe would be vacuous (#1221)");
+
+    // ---- armed through the production path -----------------------------------
+    DriveRandoArm(true);
+    const RandoGateCounts after = ReadRandoGateCounts();
+    printf("[TEST] mm-registrar-coverage: (12) rando arm: VB_LOWER_RAZOR_SWORD_DURABILITY %zu -> %zu, "
+           "VB_GIVE_ITEM_FROM_OFFER %zu -> %zu, OnFlagSet %zu -> %zu (expected +1 each)\n",
+           before.durability, after.durability, before.offer, after.offer, before.flagSet, after.flagSet);
+    RC_ASSERT(after.durability == before.durability + 1, 19,
+              "VB_LOWER_RAZOR_SWORD_DURABILITY did not gain exactly one registrant when rando armed - nothing "
+              "answers the Razor's durability in a rando file, so ~100 hits break the seed's Razor into the Kokiri "
+              "Sword (#1215)");
+    RC_ASSERT(after.offer == before.offer + 1, 19,
+              "VB_GIVE_ITEM_FROM_OFFER did not gain exactly one registrant when rando armed - the Oceanside Spider "
+              "House reward is lost on day 2 or 3 in a rando file (#1221)");
+    RC_ASSERT(after.flagSet == before.flagSet + 1, 19,
+              "OnFlagSet did not gain exactly one registrant when rando armed - Mikau's grave moves the spider-house "
+              "squatter in and the Oceanside reward is lost for the cycle in a rando file (#1221)");
+
+    const RandoGateVerdicts rando = ProbeRandoGates();
+    printf("[TEST] mm-registrar-coverage: (12) rando file: durability lowers %d, wallet flag %d (offered 0x%02X), "
+           "moved-in stays %d, moved-in with reward %d (expected 0, 1 (0x%02X), 0, 1)\n",
+           rando.durabilityLowers, rando.walletFlagSet, (unsigned)rando.offered, rando.movedInStays,
+           rando.movedInWithReward, (unsigned)GI_WALLET_ADULT);
+    RC_ASSERT(!rando.durabilityLowers, 20,
+              "a rando file's Razor Sword still loses durability - ~100 hits break the seed's Razor (#1215)");
+    RC_ASSERT(rando.walletFlagSet && rando.offered == GI_WALLET_ADULT, 20,
+              "a rando file's day-2 Oceanside reward did not set the wallet check's flag - the reward is lost for "
+              "the cycle (#1221)");
+    RC_ASSERT(!rando.movedInStays, 20,
+              "a rando file kept BUYER_MOVED_IN before the reward was collected - the man leaves the entrance and "
+              "the Oceanside reward is lost for the cycle (#1221)");
+    RC_ASSERT(rando.movedInWithReward, 20,
+              "a rando file did not move the squatter in once the reward was collected (#1221)");
+    return 0;
+}
+
 } // namespace
 
 extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
@@ -1097,11 +1244,27 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     }
     ResetKeyGapKeys();
 
+    // ---- #1215, #1221: the rando-forced gates the link dropped -------------------
+    // The whole SaveContext is saved and copied back, and the "IS_RANDO" drive
+    // re-runs under the restored saveType, on pass and on fail.
+    {
+        auto savedSave = std::make_unique<uint8_t[]>(sizeof(gSaveContext));
+        memcpy(savedSave.get(), &gSaveContext, sizeof(gSaveContext));
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        const int rc = RunRandoGateLegs();
+        memcpy(&gSaveContext, savedSave.get(), sizeof(gSaveContext));
+        ShipInit::Init("IS_RANDO");
+        if (rc != 0) {
+            return rc;
+        }
+    }
+
     printf("[TEST] mm-registrar-coverage: PASS (4 re-homed registrars populated their registries; the two "
            "Phase-3 ExtensionCache entries ran, in order; the 7 Cheats keys each armed one hook; the 5 "
            "Skips & Speed-ups keys each armed their TUs; the 9 enhancement keys of #1010-#1017 each armed "
            "theirs; the 3 Audio Editor keys of #1024-#1026 each armed theirs; Free Look "
-           "of #1023 armed both its hooks; the 10 key-gap keys of #1030-#1038 and #1123 each armed their TUs)\n");
+           "of #1023 armed both its hooks; the 10 key-gap keys of #1030-#1038 and #1123 each armed their TUs; "
+           "the three rando-forced gates of #1215/#1221 arm under rando and answer as upstream)\n");
     return 0;
 }
 

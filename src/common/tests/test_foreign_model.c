@@ -91,8 +91,8 @@
  *     of the other game, dresses that chest as the item's OWN game dresses a
  *     chest holding it natively (OoT's Item::GetCategory, MM's randoItemType):
  *     a small key shows the host's key chest, a token its token chest, a heart
- *     its heart chest. Where the host has no chest for the class (OoT has no
- *     fairy or mask chest) it shows major, the pre-#862 answer. The answer comes
+ *     its heart chest; since #1172 an MM stray fairy and mask show OoT's fairy
+ *     and mask chests (before, OoT showed major for both). The answer comes
  *     from the hosts' real chest functions (OoT_Rando_Foreign_ChestCategory,
  *     Rando::Foreign::ChestItemTypeForCheck); the expectation from each game's
  *     own table, read directly.
@@ -122,6 +122,14 @@
  *     HOST_NATIVE, and the shelf's real draw emits the note: OoT's own tinted
  *     note where OoT has the song, otherwise in DrawSong's env colour. The
  *     get-item cutscene shows the same note.
+ *  M20 OoT'S OWN HEARTS AND MASKS (#1172): off OoT's item table, a Piece of
+ *     Heart, a Heart Container and Double Defense dress a chest as HEALTH (SoH
+ *     614ec084f; they were LESSER), the Treasure Game Heart stays LESSER, and
+ *     OoT's eight masks stay MAJOR (OoTMM keeps OoT's masks in major chests).
+ *  M21 MM'S MASKS AND STRAY FAIRIES IN OoT CHESTS (#1172): an OoT chest hosting
+ *     MM's Bunny Hood or Deku Mask presents OoT's mask category, one hosting a
+ *     Clock Town Stray Fairy the fairy category (z_en_box.c dresses them with
+ *     SoH's mask and fairy chest models), where both presented major before.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -187,6 +195,8 @@ int OoT_Rando_Foreign_TestChestShowsMajor(uint16_t rc);
 int OoT_Rando_Foreign_TestChestCategory(uint16_t rc);
 int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg);
 const char* OoT_Rando_Foreign_TestChestCategoryName(int category);
+// #1172: OoT's own chest category for its heart items and masks (ForeignItemsSingleExe.cpp).
+int OoT_Rando_Foreign_TestRuledChestCategories(int* out, int cap);
 int MM_Rando_Foreign_TestChestType(uint16_t randoCheckId);
 int MM_Rando_Foreign_TestOwnChestType(uint16_t randoItemId);
 const char* MM_Rando_Foreign_TestChestTypeName(int type);
@@ -2378,11 +2388,9 @@ TestResult Test_ForeignModel(void) {
                 }
                 eligible++;
                 const char* own = leg.ownName(leg.own((uint16_t)id));
-                // A host with no chest for the class shows major (OoT has no fairy
-                // or mask chest).
-                const bool hostHasClass = !(leg.origin == (uint8_t)GAME_MM &&
-                                            (std::strcmp(own, "fairy") == 0 || std::strcmp(own, "mask") == 0));
-                const char* want = hostHasClass ? own : "major";
+                // Both hosts have a chest for every class (#1172: OoT dresses an MM
+                // stray fairy and mask with SoH's fairy and mask chest models).
+                const char* want = own;
                 int placed;
                 if (leg.origin == (uint8_t)GAME_OOT) {
                     Combo_ClearForeignPlacements();
@@ -2447,6 +2455,67 @@ TestResult Test_ForeignModel(void) {
         FM_ASSERT(shownClasses[0].count("token") == 1 && shownClasses[0].count("boss key") == 1 &&
                       shownClasses[1].count("token") == 1 && shownClasses[1].count("boss key") == 1,
                   "M15 the key and token classes are populated in both directions");
+    }
+
+    // ---- M20 (#1172) ------------------------------------------------------------
+    // OoT's own heart items and masks, off OoT's item table: the chest grade
+    // "Chest Size & Texture Matches Contents" dresses an OoT chest holding them by.
+    {
+        FM_ASSERT(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "M20 OoT's item table builds");
+        static const char* const kRuledNames[] = {
+            "Piece of Heart", "Heart Container", "Double Defense", "Treasure Game Heart",
+            "Keaton Mask",    "Skull Mask",      "Spooky Mask",    "Bunny Hood",
+            "Goron Mask",     "Zora Mask",       "Gerudo Mask",    "Mask of Truth",
+        };
+        constexpr int kRuled = (int)(sizeof(kRuledNames) / sizeof(kRuledNames[0]));
+        int got[kRuled] = {};
+        const int n = OoT_Rando_Foreign_TestRuledChestCategories(got, kRuled);
+        FM_ASSERT(n == kRuled, "M20 the bridge answers every ruled item");
+        int heartFailures = 0;
+        int maskFailures = 0;
+        for (int i = 0; i < kRuled; i++) {
+            const char* shown = OoT_Rando_Foreign_TestChestCategoryName(got[i]);
+            // SoH 614ec084f: the three heart upgrades are HEALTH; the Treasure Game's
+            // prize stays LESSER, as on SoH's develop.
+            const char* want = i < 3 ? "health" : i == 3 ? "lesser" : "major";
+            printf("[TEST]   M20 OoT's own %s: \"%s\" (want \"%s\")\n", kRuledNames[i], shown, want);
+            if (std::strcmp(shown, want) != 0) {
+                (i < 4 ? heartFailures : maskFailures)++;
+            }
+        }
+        FM_ASSERT(heartFailures == 0, "M20 OoT's Piece of Heart, Heart Container and Double Defense dress a chest as "
+                                      "HEALTH and the Treasure Game Heart as LESSER (SoH 614ec084f; see the M20 lines "
+                                      "above)");
+        FM_ASSERT(maskFailures == 0, "M20 OoT's own masks keep the major chest, as OoTMM grades them (see the M20 "
+                                     "lines above)");
+    }
+
+    // ---- M21 (#1172) ------------------------------------------------------------
+    // MM's masks and stray fairies placed in Hyrule: the category an OoT chest
+    // hosting them presents, asked as z_en_box.c's init asks (junk cover).
+    {
+        static const char* const kHosted[] = { "Bunny Hood", "Deku Mask", "Clock Town Stray Fairy" };
+        static const char* const kWant[] = { "mask", "mask", "fairy" };
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t chest = 0x0125; // opaque to the table; the answer keys on the placement alone
+        int failures = 0;
+        for (int i = 0; i < 3; i++) {
+            SharedItem item;
+            const bool named = TestNamedItem((uint8_t)GAME_MM, kHosted[i], &item);
+            Combo_ClearForeignPlacementsOoT();
+            const int placed = named ? Combo_SetForeignPlacementOoT(chest, item) : -1;
+            const char* shown = OoT_Rando_Foreign_TestChestCategoryName(OoT_Rando_Foreign_TestChestCategory(chest));
+            printf("[TEST]   M21 an OoT chest hosting MM's %s (named %d, placed %d) presents \"%s\" (want \"%s\")\n",
+                   kHosted[i], named ? 1 : 0, placed, shown, kWant[i]);
+            if (!named || placed < 0 || std::strcmp(shown, kWant[i]) != 0) {
+                failures++;
+            }
+        }
+        Combo_ClearForeignPlacementsOoT();
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(failures == 0, "M21 an OoT chest hosting an MM mask presents the mask chest and one hosting a stray "
+                                 "fairy the fairy chest (see the M21 lines above)");
     }
 
     printf("[TEST] ForeignModel: PASS\n");

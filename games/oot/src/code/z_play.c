@@ -2424,7 +2424,12 @@ void Play_LoadToLastEntrance(PlayState* play) {
         (play->sceneNum == SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR) ||
         (play->sceneNum == SCENE_INSIDE_GANONS_CASTLE_COLLAPSE) || (play->sceneNum == SCENE_GANON_BOSS)) {
         play->nextEntranceIndex = ENTR_GANONS_TOWER_COLLAPSE_EXTERIOR_0;
-        OoT_Item_Give(play, ITEM_SWORD_MASTER);
+        // RSBS #1218: under Shuffle Master Sword an unfound sword is the seed's item placed elsewhere, so this
+        // respawn only re-equips a sword already found (the same test as BossGanon2_Init and Sram_OpenSave).
+        if (!IS_RANDO || !Randomizer_GetSettingValue(RSK_SHUFFLE_MASTER_SWORD) ||
+            CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_MASTER)) {
+            OoT_Item_Give(play, ITEM_SWORD_MASTER);
+        }
     } else if ((gSaveContext.entranceIndex == ENTR_HYRULE_FIELD_11) ||
                (gSaveContext.entranceIndex == ENTR_HYRULE_FIELD_12) ||
                (gSaveContext.entranceIndex == ENTR_HYRULE_FIELD_13) ||
