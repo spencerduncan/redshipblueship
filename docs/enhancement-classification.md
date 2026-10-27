@@ -72,7 +72,7 @@ brief, plus everything in the collision set:
 | MM category | MM keys | Covered |
 |---|---:|---|
 | `gCheats.` | 14 | ✅ all |
-| `Graphics` | 16 | ✅ all |
+| `Graphics` | 16 | ✅ all, but per key only since W6-GFX (#1237): the eight keys MM still reads under its own spelling (Clock Type, 24 Hours Clock, the three Motion Blur keys, the two Scene Geometry keys, and Authentic Logo, INTENTIONAL) in §6.1 W6-GFX; Bow Reticle, Disable Black Bars and Enemy Health Bars in §5.3; Actor Culling and Actor Draw Distance in §3.2. The earlier "✅ all" named few of them |
 | `Restorations` | 10 | ✅ all; the eight behaviour restorations per key since W6-FIXES (#1237, §6.1 W6-FIXES), N64 Weird Frames and Pause Buffer Window in §5.3 |
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
@@ -627,6 +627,28 @@ holds each binding.
 | `gEnhancements.Equipment.GreatFairySwordBButton` | off | Great Fairy Sword B-Button Attack (likewise) | (O) MM-only; acts on the B button's item only, never on a mask the combo owns |
 | `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
 | `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
+
+**W6-GFX (#1237, #1240) — MM's clock, motion blur and scene-geometry rows, linked and hosted.** MM read eight Graphics
+keys under its own spelling, all (O) MM-only, and two motion blur values that are registers, not keys. The only widgets
+sat in the excluded `BenMenu.cpp`, and the two clock-style TUs (`Graphics/3DSClock.cpp`, `Graphics/TextBasedClock.cpp`)
+were dropped from the link. Both TUs are now carved into `ship__Enh_registrars` (play-state guards added), and every
+key but one has a row on Enhancements > Graphics through the hosted-row seam, bound through its `RSBS_CVAR_MM_*`
+define. The registrar-coverage lock's W6-GFX phase attributes both clock TUs by registry content, the classification
+lock's leg 3f-2c holds each binding, and MenuCapabilityGating's leg 8 holds the two register rows disabled while MM has
+no play state.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Graphics.ClockType` | 0 (original) | Clock Type (Graphics, UI column, Majora's Mask block) | (O) MM-only: the three-day clock, as the original, the MM3D clock or a text-only clock. Its two TUs were UNLINKED; both draw through the HUD-editor stand-ins (`mm_hudeditor_stubs.c`) until W6-HUD-A |
+| `gEnhancements.Graphics.24HoursClock` | off | 24 Hours Clock (likewise) | (O) MM-only; read inline by `z_parameter.c` and both clock TUs |
+| `gEnhancements.Graphics.MotionBlur.Mode` | 0 (Dynamic) | Motion Blur Mode (Graphics, Misc. column, Majora's Mask block) | (O) MM-only; `MotionBlur.cpp` (linked from `z_play.c`) |
+| `gEnhancements.Graphics.MotionBlur.Interpolate` | off | Interpolate Motion Blur (likewise; disabled while the mode is Always Off) | (O) MM-only; read by `z_play.c` |
+| `gEnhancements.Graphics.MotionBlur.Strength` | 180 | Motion Blur Strength (likewise; disabled unless the mode is Always On) | (O) MM-only |
+| (register `R_MOTION_BLUR_ENABLED`, no key) | set by MM's scenes | Dynamic Motion Blur (likewise) | (O) MM-only and not persisted: reached through `src/common/mm_graphics_bridge.h`, live only while MM runs a play state, otherwise disabled with the reason "Majora's Mask Not Running" and a gray note (ADR 0004's CAPABILITY state, #497) |
+| (register `R_MOTION_BLUR_ALPHA`, no key) | set by MM's scenes | Dynamic Motion Blur Strength (likewise) | (O) likewise, and disabled while Dynamic Motion Blur is off |
+| `gEnhancements.Graphics.FixSceneGeometrySeams` | off | Fix Scene Geometry Seams (likewise) | (O) MM-only. Read by MM's authentic patches, applied once in MM's asset phase; a change now reapplies them through `MM_GfxPatches_Reapply`, at once while MM runs and otherwise at MM's next resume (never under OoT's resource cache owner, #1000). SoH's Fix Out of Bounds Textures row (the shared `gEnhancements.FixTexturesOOB`) reapplies MM's patches the same way |
+| `gEnhancements.Graphics.DisableSceneGeometryDistanceCheck` | off | Disable Scene Geometry Distance Check (likewise) | (O) MM-only; reapplied as the row above |
+| `gEnhancements.Graphics.AuthenticLogo` | off | none | INTENTIONAL, no row. It changes only the console logo screen, which draws only on a cold `--game mm` boot: `z_title.c` skips it on every crossing into MM, and unpaired play is not a supported mode |
 
 **W6-FIXES (#1237, #1236) — MM's Fixes and Restorations, linked and hosted.** MM read fifteen Fixes, `gFixes.*` and
 Restorations keys and one Camera key (Fix Targeting Camera Snap), but its only widgets sat in the excluded `BenMenu.cpp`,

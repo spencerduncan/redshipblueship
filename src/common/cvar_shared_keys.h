@@ -560,6 +560,16 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1 "gSettings.SpeedModifier.SwimMapping1"
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2 "gSettings.SpeedModifier.SwimMapping2"
 // W6-GFX
+// W6-GFX (#1237): MM's clock style, 24-hour clock, motion blur and scene-geometry keys, each written by one hosted row
+// on SoH's Enhancements > Graphics page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). None has an SoH twin. The two
+// dynamic motion blur rows bind MM registers, not keys (src/common/mm_graphics_bridge.h), so they have no define.
+#define RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE "gEnhancements.Graphics.ClockType"
+#define RSBS_CVAR_MM_GRAPHICS_24_HOURS_CLOCK "gEnhancements.Graphics.24HoursClock"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE "gEnhancements.Graphics.MotionBlur.Mode"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_INTERPOLATE "gEnhancements.Graphics.MotionBlur.Interpolate"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_STRENGTH "gEnhancements.Graphics.MotionBlur.Strength"
+#define RSBS_CVAR_MM_GRAPHICS_FIX_GEOMETRY_SEAMS "gEnhancements.Graphics.FixSceneGeometrySeams"
+#define RSBS_CVAR_MM_GRAPHICS_NO_GEOMETRY_DISTANCE_CHECK "gEnhancements.Graphics.DisableSceneGeometryDistanceCheck"
 // W6-FIXES
 // W6-FIXES (#1237, #1236): MM's Fixes and Restorations keys, each written by one hosted row on SoH's Enhancements >
 // Fixes page (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Tatl ISG stays held apart from SoH's Easy ISG (P2 below). The

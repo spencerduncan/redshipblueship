@@ -62,6 +62,8 @@
 #include "notification_bridge.h"
 // #1235: MM's audio is up from MM_AudioMgr_Init to MM_Game_Shutdown, so SoH's volume sliders may reapply.
 #include "mm_volume_bridge.h"
+// W6-GFX (#1237): a change to a patch key reapplies MM's authentic patches once they have been applied.
+#include "mm_graphics_bridge.h"
 // The refusal toasts' copy, and MM's half of the bridge that queues them with
 // Notification::Options' defaults.
 #include "pairing_refusal_toast.h"
@@ -2981,6 +2983,9 @@ extern "C" void MM_Rando_InitAssets(void) {
     // with no mm.o2r. Fixes OOB textures, mini-game symbols, and a latent
     // matrix-stack UB the smithy chimney-fire DL hits (per its own comment).
     GfxPatcher_ApplyNecessaryAuthenticPatches();
+    // W6-GFX (#1237): from here a change to Fix Scene Geometry Seams, Disable Scene Geometry Distance Check or Fix Out
+    // of Bounds Textures reapplies the patches those keys choose (mm_graphics_bridge.h); the call above read all three.
+    MM_GfxPatches_SetApplied(1);
 
     // THE ASSET-GATED SHIPINIT WORK, RE-RUN. These two bodies are registered as
     // ordinary ShipInit registrars and therefore fired ONCE, during the core
@@ -4071,6 +4076,10 @@ void MM_Game_Resume(void) {
     // arrival scene starts its BGM from scratch (the startup-entrance
     // consumption resets the restored save's stale "already playing" ids).
     MM_Audio_InitSound();
+
+    // W6-GFX (#1237): a patch key changed while OoT ran; reapply it now, under MM's resource cache owner, which the
+    // main loop set before this resume (mm_graphics_bridge.h).
+    MM_GfxPatches_ApplyPending();
 
     fprintf(stderr, "[MM] Game_Resume complete\n");
     fflush(stderr);

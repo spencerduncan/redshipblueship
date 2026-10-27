@@ -64,6 +64,7 @@ games/mm/2s2h/mm_combo_settings_test.cpp
 games/mm/2s2h/MmVolumeSingleExe.cpp
 games/mm/2s2h/mm_volume_live_apply_test.cpp
 games/mm/2s2h/mm_culling_test.cpp
+games/mm/2s2h/MmGraphicsSingleExe.cpp
 games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_hud_editor_reader_test.cpp
 games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.cpp
