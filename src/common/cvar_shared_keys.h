@@ -501,6 +501,20 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_CYCLE_STOP_OCEANSIDE_SPIDER_HOUSE_SQUATTER "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter"
 #define RSBS_CVAR_MM_CYCLE_OCEANSIDE_WALLET_ANY_DAY "gEnhancements.Cycle.OceansideWalletAnyDay"
 // W6-PLAYER
+// W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
+// (SohGui/HostedMm/SohMenuHostedMmPlayer.cpp). Climb speed and Bombchu drops are held apart (kMustStayDistinct).
+#define RSBS_CVAR_MM_PLAYER_MANUAL_JUMP "gEnhancements.Player.ManualJump"
+#define RSBS_CVAR_MM_PLAYER_PREVENT_DIVE_OVER_WATER "gEnhancements.Player.PreventDiveOverWater"
+#define RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING "gEnhancements.Player.InfiniteDekuHopping"
+#define RSBS_CVAR_MM_PLAYER_CLIMB_SPEED "gEnhancements.Player.ClimbSpeed"
+#define RSBS_CVAR_MM_PLAYER_FASTER_PUSH_AND_PULL "gEnhancements.Player.FasterPushAndPull"
+#define RSBS_CVAR_MM_PLAYER_FAST_FLOWER_LAUNCH "gEnhancements.Player.FastFlowerLaunch"
+#define RSBS_CVAR_MM_PLAYER_FIERCE_DEITY_PUTAWAY "gEnhancements.Player.FierceDeityPutaway"
+#define RSBS_CVAR_MM_EQUIPMENT_TWO_HANDED_SWORD_SPIN_ATTACK "gEnhancements.Equipment.TwoHandedSwordSpinAttack"
+#define RSBS_CVAR_MM_EQUIPMENT_GREAT_FAIRY_SWORD_B_BUTTON "gEnhancements.Equipment.GreatFairySwordBButton"
+#define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
+#define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
+#define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
 // W6-MASKS-SONGS
 // W6-CAM-GYRO
 // W6-GFX
@@ -588,7 +602,7 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
-    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", "gEnhancements.Player.ClimbSpeed",
+    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", RSBS_CVAR_MM_PLAYER_CLIMB_SPEED,
       "gEnhancements.ClimbSpeed",
       "Listed in §5.3 group A as 'both numeric', but representation verification found INCOMPATIBLE UNITS: "
       "OoT reads it as an ADDITIVE offset (slider '+%d', 0-12, default 0; playSpeed += phi_f2 * value) while "
@@ -607,6 +621,20 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
       "OoT's, so each menu would show a blank for the other's value. Ruled: the keys stay distinct and MM's own "
       "row (its own value list) is hosted beside SoH's on Enhancements > Difficulty." },
+    { "Bombchu drops rule (W6-PLAYER, held apart and hosted)", RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS,
+      "gEnhancements.EnableBombchuDrops",
+      "Same bool and JSON shape, different RULE: SoH's EnItem00_ConvertBombDropToBombchu never drops Bombchus "
+      "Link does not have and favours whichever of Bombs and Bombchus runs lower, and an Ocarina of Time seed can "
+      "force SoH's row on; MM's ChuDrops.cpp gives a Bomb drop an even chance to be a Bombchu. In the single exe "
+      "MM's rule also keeps SoH's first clause (review H1): it converts only while INV_CONTENT(ITEM_BOMBCHU) == "
+      "ITEM_BOMBCHU already holds, because the Bombchu count is a shared PROGRESSION quantity (shared_items.h) and "
+      "2Ship's unguarded rule would set the Bombchu item in Termina (z_parameter.c Item_Give), the next harvest "
+      "would carry the count into the pool, and OoT_ApplySharedAmmoCount would grant Hyrule the Bombchu item and "
+      "open its Bombchu shops before the seed placed them (OoT_SharedAmmoGrantBlocked stops that only when the "
+      "seed's Bombchu Bag option is on). It still never weighs the scarcer ammo, so one switch would still mean "
+      "two rules, and a seed-forced SoH row would show on while MM followed the hidden value. Ruled: the keys stay "
+      "distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. MM-only key: an "
+      "importer must carry it as MM's own and never onto SoH's." },
     { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },

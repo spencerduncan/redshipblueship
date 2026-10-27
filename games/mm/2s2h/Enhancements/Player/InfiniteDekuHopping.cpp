@@ -11,6 +11,9 @@ extern "C" {
 
 void RegisterInfiniteDekuHopping() {
     COND_VB_SHOULD(VB_DEKU_LINK_SPIN_ON_LAST_HOP, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (*should) {
             Player* player = GET_PLAYER(MM_gPlayState);
             if (gSaveContext.save.saveInfo.playerData.health != 0) {
@@ -20,6 +23,9 @@ void RegisterInfiniteDekuHopping() {
     });
 
     COND_VB_SHOULD(VB_APPLY_AIR_CONTROL, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         f32* dekuSpeedTargetMultiplier = va_arg(args, f32*);
         Player* player = GET_PLAYER(MM_gPlayState);
 

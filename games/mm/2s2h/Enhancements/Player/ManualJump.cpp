@@ -16,6 +16,9 @@ void func_808395F0(PlayState* play, Player* player, PlayerMeleeWeaponAnimation m
 
 void RegisterManualJump() {
     COND_VB_SHOULD(VB_START_JUMPSLASH, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         s32 temp_a2 = player->controlStickDirections[player->controlStickDataIndex];
 

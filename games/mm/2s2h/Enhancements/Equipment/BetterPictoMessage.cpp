@@ -14,6 +14,9 @@ s32 Snap_RecordPictographedActors(PlayState* play);
 
 void RegisterBetterPictoMessage() {
     COND_ID_HOOK(OnOpenText, 0xF8, CVAR, [](u16* textId, bool* loadFromMessageTable) {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (!CHECK_QUEST_ITEM(QUEST_PICTOGRAPH)) {
             Snap_RecordPictographedActors(MM_gPlayState);
         }

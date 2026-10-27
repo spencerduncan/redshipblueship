@@ -50,6 +50,14 @@ void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
 void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
 void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
+// W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows (HostedMm/SohMenuHostedMmPlayer.cpp).
+void AddMmControlsRows(SohMenu& menu, WidgetPath& path);
+void AddMmClimbSpeedRow(SohMenu& menu, WidgetPath& path);
+void AddMmPushPullRow(SohMenu& menu, WidgetPath& path);
+void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
+void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
+void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
+void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -319,6 +327,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(0)
                      .Format("%d frames")
                      .Tooltip("Buffers your inputs to be executed a specified amount of frames later."));
+    AddMmControlsRows(*this, path);
 
     AddWidget(path, "Item Count Messages", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Gold Skulltula Tokens", WIDGET_CVAR_CHECKBOX)
@@ -514,9 +523,11 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Vine/Ladder Climb Speed +%d", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("ClimbSpeed"))
         .Options(IntSliderOptions().Min(0).Max(12).DefaultValue(0).Format("+%d"));
+    AddMmClimbSpeedRow(*this, path);
     AddWidget(path, "Block Pushing Speed +%d", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("FasterBlockPush"))
         .Options(IntSliderOptions().Min(0).Max(5).DefaultValue(0).Format("+%d"));
+    AddMmPushPullRow(*this, path);
     AddWidget(path, "Crawl Speed %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("CrawlSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx"));
@@ -531,6 +542,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Faster Pause Menu", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FasterPauseMenu"))
         .Options(CheckboxOptions().Tooltip("Speeds up animation of the pause menu, similar to Majora's Mask"));
+    AddMmAnimationsRows(*this, path);
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Misc", WIDGET_SEPARATOR_TEXT);
@@ -849,6 +861,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Ask to Equip New Items", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("AskToEquip"))
         .Options(CheckboxOptions().Tooltip("Adds a prompt to equip newly-obtained Swords, Shields, and Tunics."));
+    AddMmEquipmentRows(*this, path);
 
     AddWidget(path, "Ocarina", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Prevent Dropped Ocarina Inputs", WIDGET_CVAR_CHECKBOX)
@@ -986,6 +999,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("FastBoomerang"))
         .Options(CheckboxOptions().Tooltip("Instantly return the Boomerang to Link by pressing its item button while "
                                            "it's in the air."));
+    AddMmFinBoomerangRow(*this, path);
     AddWidget(path, "Aim Boomerang in First-Person Mode", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("BoomerangFirstPerson"))
         .Callback([](WidgetInfo& info) {
@@ -1330,6 +1344,7 @@ void SohMenu::AddMenuEnhancements() {
                                             "\"Enable Bombchu Drops\" is loaded.";
         })
         .Options(CheckboxOptions().Tooltip("Bombchus will sometimes drop in place of Bombs."));
+    AddMmBombchuDropsRow(*this, path);
     AddWidget(path, "Trees Drop Sticks", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TreesDropSticks"))
         .Options(CheckboxOptions().Tooltip(
