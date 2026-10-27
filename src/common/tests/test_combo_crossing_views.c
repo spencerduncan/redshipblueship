@@ -48,7 +48,12 @@
  *        load every OoT-hosted row reads UNKNOWN, never a stale YES or NO. The
  *        OoT world is then re-authored as the stand-in for OoT's own .sav load
  *        (this ROM-free row cannot drive SoH's SaveManager), and the rows read
- *        what they read before the save.
+ *        what they read before the save;
+ *     6. two names for a counted pack (#1200): MM's 1- and 10-bombchu packs on
+ *        OoT hosts print "1 Bombchu" / "10 Bombchus" in the panes (#1160), the
+ *        one spoiler's row keeps the describer name in itemName ("Bombchu" /
+ *        "10 Bombchus") and the pane's name in displayName, and the section's
+ *        load, which reads neither name, rebuilds the same rows.
  *   A shadow MM has never loaded (the creation event's armed half: MM's
  *   marker, no creation stamp yet, #765) reads as STALE, MM's found state
  *   included.
@@ -60,7 +65,10 @@
  *   section is written by its production builder (MM_Rando_WriteCrossingSpoilerSection
  *   shares CrossingStoreSpoilerSection with MM_Rando_AugmentSpoilerWithPairedHalf)
  *   and parsed back: the tracker and the spoiler list exactly its rows, in its
- *   order, both directions, with its item names, a host check name for every
+ *   order, both directions, with both item names (#1200: the pane and the row's
+ *   displayName print Combo_GetForeignItemName, the row's itemName is
+ *   Combo_DescribeItemName; they differ for MM's 1-bombchu pack, which the pinned
+ *   seed places on an OoT host since #1178 + #1184), a host check name for every
  *   row, nothing found on the fresh world, and one host per direction marked
  *   collected in its own game's save turns exactly that row found.
  *
@@ -100,6 +108,8 @@ int OoT_TrackerAdapter_TestAuthorWorld(uint32_t seed, uint16_t outIds[3]);
 void OoT_TrackerAdapter_TestReleaseWorld(void);
 int OoT_TrackerAdapter_TestSetCollected(uint16_t rc, int collected);
 int MM_Rando_WriteCrossingSpoilerSection(const char* path);
+int MM_Rando_LoadCrossingsFromSpoiler(const char* path);
+int MM_SharedBombchuTest_PackIdOf(int units); // #1200: MM's 1/5/10-bombchu pack ids
 int Rando_HeadlessSeedTest(const char* seedStr);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestClearOoTSave(void);
@@ -411,6 +421,63 @@ TestResult ComboCrossingViews_RunSynthetic(void) {
     printf("[TEST] combo-crossing-views: after the load, %d crossings in MM (%d found), %d in OoT (%d found)\n",
            (int)loadedMM.size(), mmProgress.found, (int)loadedOoT.size(), ootProgress.found);
 
+    // ---- 6. a counted pack: two names, both written (#1200) ---------------
+    // MM's bombchu packs on OoT hosts. The panes print the presentation name,
+    // the count the pickup credits (#1160): "1 Bombchu" and "10 Bombchus", no
+    // article. The one spoiler's row keeps the origin's describer name in
+    // itemName ("Bombchu" for the 1-pack, MM's own) and carries the pane's name
+    // in displayName; the section's load reads neither name, so it still
+    // rebuilds the same store.
+    {
+        SharedItem chu1, chu10;
+        chu1.originGame = chu10.originGame = (uint8_t)GAME_MM;
+        chu1.flags = chu10.flags = 0;
+        CXV_ASSERT(MM_SharedBombchuTest_PackIdOf(1) > 0 && MM_SharedBombchuTest_PackIdOf(10) > 0);
+        chu1.id = (uint16_t)MM_SharedBombchuTest_PackIdOf(1);
+        chu10.id = (uint16_t)MM_SharedBombchuTest_PackIdOf(10);
+        const ComboCrossing packs[2] = { CxvCrossing(ootIds[0], chu1), CxvCrossing(ootIds[1], chu10) };
+        Combo_Crossings_Clear();
+        CXV_ASSERT(Combo_Crossings_Replace(packs, 2, nullptr, 0) == 2);
+        const std::vector<CxvRow> chuRows = CxvPaneRows((uint8_t)GAME_OOT, &ok);
+        CXV_ASSERT(ok && chuRows.size() == 2);
+        CXV_ASSERT(chuRows[0].itemName == "1 Bombchu" && chuRows[0].article.empty());
+        CXV_ASSERT(chuRows[1].itemName == "10 Bombchus" && chuRows[1].article.empty());
+        const char* describedChu1 = Combo_DescribeItemName(chu1);
+        const char* describedChu10 = Combo_DescribeItemName(chu10);
+        CXV_ASSERT(describedChu1 != nullptr && strcmp(describedChu1, "Bombchu") == 0);
+        CXV_ASSERT(describedChu10 != nullptr && strcmp(describedChu10, "10 Bombchus") == 0);
+
+        std::error_code ec;
+        const std::string spoilerPath = std::string(kCxvSaveDir()) + "/names-spoiler.json";
+        std::filesystem::remove(spoilerPath, ec);
+        CXV_ASSERT(MM_Rando_WriteCrossingSpoilerSection(spoilerPath.c_str()) == 0);
+        nlohmann::json doc;
+        {
+            std::ifstream in(spoilerPath);
+            CXV_ASSERT(in.is_open());
+            in >> doc;
+        }
+        CXV_ASSERT(doc.contains("combo") && doc["combo"].contains("crossingStore"));
+        const nlohmann::json& rows = doc["combo"]["crossingStore"]["mmItemsInOoT"];
+        CXV_ASSERT(rows.is_array() && rows.size() == 2);
+        const char* const kDescribed[2] = { "Bombchu", "10 Bombchus" };
+        for (size_t i = 0; i < 2; i++) {
+            printf("[TEST] combo-crossing-views: MM pack on an OoT host: pane \"%s\", spoiler itemName %s, "
+                   "displayName %s\n",
+                   chuRows[i].itemName.c_str(), rows[i].value("itemName", nlohmann::json()).dump().c_str(),
+                   rows[i].value("displayName", nlohmann::json()).dump().c_str());
+            CXV_ASSERT(rows[i]["itemName"].is_string() && rows[i]["itemName"].get<std::string>() == kDescribed[i]);
+            CXV_ASSERT(rows[i].contains("displayName") && rows[i]["displayName"].is_string() &&
+                       rows[i]["displayName"].get<std::string>() == chuRows[i].itemName);
+        }
+        // The section's load ignores both names: the same store comes back.
+        Combo_Crossings_Clear();
+        CXV_ASSERT(MM_Rando_LoadCrossingsFromSpoiler(spoilerPath.c_str()) == 2);
+        const std::vector<CxvRow> reloaded = CxvPaneRows((uint8_t)GAME_OOT, &ok);
+        CXV_ASSERT(ok && reloaded == chuRows);
+        std::filesystem::remove(spoilerPath, ec);
+    }
+
     // ---- leave no trace ----------------------------------------------------
     mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
@@ -475,6 +542,7 @@ TestResult ComboCrossingViews_RunWorld(void) {
         const char* originKey;
     } kLists[2] = { { "ootItemsInMM", (uint8_t)GAME_MM, "mm", "oot" },
                     { "mmItemsInOoT", (uint8_t)GAME_OOT, "oot", "mm" } };
+    int namesDiffer = 0; // rows whose presentation name is not the describer's (#1200)
     for (const auto& list : kLists) {
         CXV_ASSERT(section.contains(list.key) && section[list.key].is_array());
         const nlohmann::json& rows = section[list.key];
@@ -492,7 +560,27 @@ TestResult ComboCrossingViews_RunWorld(void) {
             CXV_ASSERT(pane[i].host == r["hostCheck"].get<uint32_t>());
             CXV_ASSERT(pane[i].item == r["itemId"].get<uint32_t>());
             CXV_ASSERT(pane[i].origin != list.host);
-            CXV_ASSERT(r["itemName"].is_string() && pane[i].itemName == r["itemName"].get<std::string>());
+            // #1200: two names, two contracts. The pane prints the PRESENTATION
+            // name (Combo_GetForeignItemName: an MM bombchu pack by its count,
+            // #1160); the section's itemName is the origin's DESCRIBER name
+            // (Combo_DescribeItemName, the id-space name the hints and the
+            // "foreign" section's name inverse use); its displayName is the
+            // pane's name, for a human reader. MM's 1-pack is where they differ
+            // ("1 Bombchu" / "Bombchu").
+            SharedItem rowItem;
+            rowItem.originGame = pane[i].origin;
+            rowItem.flags = (uint8_t)r["flags"].get<uint32_t>();
+            rowItem.id = pane[i].item;
+            const char* presented = Combo_GetForeignItemName(rowItem);
+            const char* described = Combo_DescribeItemName(rowItem);
+            CXV_ASSERT(presented != nullptr && described != nullptr);
+            CXV_ASSERT(pane[i].itemName == presented);
+            CXV_ASSERT(r["itemName"].is_string() && r["itemName"].get<std::string>() == described);
+            CXV_ASSERT(r.contains("displayName") && r["displayName"].is_string() &&
+                       r["displayName"].get<std::string>() == pane[i].itemName);
+            if (strcmp(presented, described) != 0) {
+                namesDiffer++;
+            }
             CXV_ASSERT(pane[i].itemName != RSBS_TRACKER_UNKNOWN_ITEM_NAME);
             // Every host check is named: MM's by its readable tracker name (the
             // section prints MM's describer spelling, RC_*), OoT's by the same
@@ -516,6 +604,7 @@ TestResult ComboCrossingViews_RunWorld(void) {
         CXV_ASSERT(progress.total == (int)rows.size() && progress.found == 0);
         CXV_ASSERT(progress.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE);
     }
+    printf("[TEST] combo-crossing-views-world: %d row(s) present a name other than the describer's\n", namesDiffer);
 
     // One host per direction collected in its own game's save: exactly that
     // row turns found, and the count follows.
