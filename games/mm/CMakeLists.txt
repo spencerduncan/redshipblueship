@@ -408,6 +408,26 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipRaisingWoodfall.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipStoppingMoonCutscene.cpp"
         "2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipWakingAndRidingTurtle.cpp"
+        # W6-TIMESAVERS (#1236, #1240): the dialogue, time-saver and pause-save rows SoH's Enhancements pages host
+        # (SohMenuHostedMmTimesavers.cpp), each keyed on the MM key its row writes. Hooks, all dispatched:
+        # OnActorUpdate / OnActorInit / OnFlagSet / OnOpenText via MM_GameHooks_Execute* (z_actor.c, z_message.c);
+        # VB_SETUP_TRANSITION (z_play.c), VB_EXEC_MSG_EVENT (z_msgevent.c), VB_BALLAD_PLAYED_FORM (z_en_toto.c),
+        # VB_DISCARD_EXCESS_RUPEES (z_parameter.c), VB_SAVE_ON_B_BUTTON_IN_PAUSE_MENU (z_kaleido_scope_NES.c) and
+        # VB_PLAY_SCENE_SEQUENCE (code_8019AF00.c) via MM_GameHooks_ExecuteVBShould. Play-state guards in every body
+        # that reads MM_gPlayState. BgmReplay.cpp is required: it keeps MM's main BGM player valid under Faster Scene
+        # Transitions and Pause Menu Save (and, as in 2Ship, under the shared Debug Mode key). No twin in games/oot.
+        "2s2h/Enhancements/Dialogue/FastBankSelection.cpp"
+        "2s2h/Enhancements/Dialogue/AutoBombersCode.cpp"
+        "2s2h/Enhancements/Timesavers/SwampBoatSkip.cpp"
+        "2s2h/Enhancements/Timesavers/GalleryTwofer.cpp"
+        "2s2h/Enhancements/Timesavers/MarineLabHP.cpp"
+        "2s2h/Enhancements/Timesavers/DampeDiggingSkip.cpp"
+        "2s2h/Enhancements/Timesavers/FasterSceneTransitions.cpp"
+        "2s2h/Enhancements/Minigames/SkipPowderKegCertification.cpp"
+        "2s2h/Enhancements/Minigames/SkipBalladOfWindfish.cpp"
+        "2s2h/Enhancements/Timesavers/AutoBankDeposit.cpp"
+        "2s2h/Enhancements/Saving/PauseSave.cpp"
+        "2s2h/Enhancements/Fixes/BgmReplay.cpp"
         # #1010-#1017: eight enhancement rows the SoH menu draws. Each keys on the converged
         # gEnhancements.* key SoH's row writes (kConvergedKeys; DpadEquips for ItemUnequip's second
         # half), registers only through a file-scope RegisterShipInitFunc, and rides a hook the single

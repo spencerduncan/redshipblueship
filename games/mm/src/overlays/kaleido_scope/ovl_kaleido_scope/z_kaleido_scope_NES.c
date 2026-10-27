@@ -3622,6 +3622,16 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             if (!gSaveContext.flashSaveAvailable ||
                                 gSaveContext.fileNum ==
                                     255) { // 2S2H [Enhancement] Don't let them save if they are in debug save
+#ifdef RSBS_SINGLE_EXECUTABLE
+                                // W6-TIMESAVERS (#1236): the pause save's commit is done (func_8014546C above), so
+                                // clear the pair the else-branch clears after its flash write, as the autosave does
+                                // after its commit. Left set, the next scene's Player init reads pauseSaveEntrance and
+                                // spawns Link standing (z_player.c), and a later commit would carry the stale pair.
+                                if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
+                                    gSaveContext.save.isOwlSave = false;
+                                    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+                                }
+#endif
                                 pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_5;
                             } else {
                                 if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
