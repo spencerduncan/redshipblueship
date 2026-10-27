@@ -13,6 +13,9 @@ void func_80C02A14(EnBomjimb* thisx, PlayState* play);
 
 void RegisterBombersHideAndSeek() {
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_BOMJIMB, CVAR < 5, [](Actor* actor, bool* should) {
+        // W6-MINIGAMES (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnBomjimb* bomberKids = (EnBomjimb*)actor;
 
         if (bomberKids->actionFunc != func_80C02A14) {

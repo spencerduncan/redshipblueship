@@ -571,6 +571,11 @@ if(BUILD_TESTING)
     # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
     # int-gameplay-roundtrip on the OoT->MM leg).
     redship_add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
+    # MM HUD placement reader (W6-HUD-A, #1239). 2Ship's HUD editor is excluded, and the
+    # linked stand-ins answered "vanilla" to every MM HUD draw. Drives the ported reader
+    # with the B button's keys (overridden, moved, scaled, hidden), the next-element
+    # override, an element with no row, and the three presets. ROM-free, display-free.
+    redship_add_test(NAME MMHudEditorReader COMMAND redship --test mm-hud-editor-reader)
     # Cross-game CVar classification lock (#34). Keeps ADR 0003 and
     # docs/enhancement-classification.md from decaying into prose: fails when a
     # converged key diverges again, OR when a key the inventory marks per-game
@@ -657,6 +662,15 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
+    # #1222: with all 64 shared rows holding un-redeemed crossings the record is
+    # refused; the MM give marked the host delivered anyway and a shop charged and
+    # sold the slot, so the OoT item was lost. Fills the rows and drives the real
+    # give, CheckQueue's hold and the shelf's purchase functions.
+    redship_add_test(NAME ForeignOutboxFullMM COMMAND redship --test foreign-outbox-full-mm)
+    # #1222, OoT leg: OoT's RC-queue drain fell through to the junk cover's give
+    # on a refused record, marking the check collected. Drives the drain's hold
+    # and hand-back seams over the same full outbox.
+    redship_add_test(NAME ForeignOutboxFullOoT COMMAND redship --test foreign-outbox-full-oot)
     # #878: "duplicate toasts when you cross over". Each pickup of a cross-game
     # item is announced at the pickup; the arrival used to toast it again. Drives
     # both legs' real arrival consumers (MM's through its first-frame drain over a
@@ -1102,6 +1116,9 @@ if(BUILD_TESTING)
     # bound-arithmetic bugs, so the capacity computation was factored into pure
     # helpers this test calls directly — display-free, ROM-free.
     redship_add_test(NAME SeqMapBounds COMMAND redship --test seq-map-bounds)
+    # MM sequence replacement (W6-AUDIO-SEQ, #1239): MM's lookup answers from MM's namespaced replacement keys, a
+    # colliding sfxKey under SoH's spelling leaves MM alone, and SoH's randomize combobox reaches MM's hooks. ROM-free.
+    redship_add_test(NAME MMAudioEditorReplacement COMMAND redship --test mm-audio-editor-replacement)
     # OoT pause-menu item age table bounds (#983). OoT_Play_Init writes
     # gItemAgeReqs[ITEM_ROCS_FEATHER] (0x9C) and the pause menu reads it, but
     # the table held the 86 vanilla entries. Asserts the count the defining TU
@@ -1773,6 +1790,11 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 180
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # W6-MODES-DIFF (#1236, #1240): SoH's Mirrored World row sets gModes.MirroredWorld.State, the key MM acts on,
+    # through its translator (games/mm/2s2h/mm_mirrored_world_test.cpp): Off and Always exactly, the Dungeons modes
+    # per MM scene. Display-free and ROM-free.
+    redship_add_test(NAME MMMirroredWorld COMMAND redship --test mm-mirrored-world
+        LABEL rando)
 
     # #575 H1: the one shared hint AREA vocabulary (src/common/combo_area.c).
     # Unlike the two rows above it is display-free and ROM-free, so it sits in

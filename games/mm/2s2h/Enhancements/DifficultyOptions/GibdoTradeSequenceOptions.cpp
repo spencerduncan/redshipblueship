@@ -60,6 +60,9 @@ void RegisterGibdoTradeSequenceOptions() {
 
         EnTalkGibud* gibudCtx = va_arg(args, EnTalkGibud*);
         bool doEndTradeMessage = (bool)va_arg(args, int);
+        // W6-MODES-DIFF (#1236): the #516 play-state guard, as a condition (a VB body must reach its va_end). Not
+        // fenced: this body is a macro argument, which cannot hold #ifdef, and outside the single exe it is a no-op.
+        doEndTradeMessage = doEndTradeMessage && MM_gPlayState != NULL;
 
         if (doEndTradeMessage) {
             MM_Message_StartTextbox(MM_gPlayState, 0x138A, &gibudCtx->actor);

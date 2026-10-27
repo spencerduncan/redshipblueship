@@ -443,6 +443,15 @@ extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item) {
     });
 }
 
+// #1222: the toast for a pickup the drain HOLDS because every shared row is full
+// (OoT_Rando_Foreign_HoldPickup); MM's twin says "cross to Hyrule".
+static void OoT_Rando_Foreign_EmitOutboxFullToast() {
+    Notification::Emit({
+        .prefix = "Outbox full:",
+        .message = "cross to Termina to send it",
+    });
+}
+
 // TEST BRIDGES (ForeignModel row M13): the drain's show-only queueing for check
 // `rc` (*queued: the slot's entry), and the slot's check (RC_UNKNOWN_CHECK when
 // free).
@@ -500,6 +509,16 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     if (randomizerQueuedCheck != RC_UNKNOWN_CHECK)
         return;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1222: checks held for a full shared outbox (below) come back to the queue
+    // on the first frame a row is free again. Nothing to do while none is held.
+    uint16_t released[8];
+    const int releasedCount = OoT_Rando_Foreign_TakeReleasedHolds(released, 8);
+    for (int i = 0; i < releasedCount; i++) {
+        randomizerQueuedChecks.push((RandomizerCheck)released[i]);
+    }
+#endif
+
     // If there's nothing to queue, don't queue
     if (randomizerQueuedChecks.size() < 1)
         return;
@@ -538,6 +557,16 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
     // host still physically holds its own junk item, so the player gets that
     // rather than a crossing no paired world could receive.
     const SharedItem* foreignItem = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    // #1222: asked BEFORE the record. Every shared row holds an item MM has not
+    // redeemed, so the record would be refused and the fall-through below would
+    // give the junk cover and mark the check collected, losing the MM item. The
+    // check is held instead (not collected, nothing given) and comes back to this
+    // queue once a crossing frees a row; one toast says why.
+    if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_HoldPickup((uint16_t)rc) != 0) {
+        OoT_Rando_Foreign_EmitOutboxFullToast();
+        randomizerQueuedChecks.pop();
+        return;
+    }
     if (foreignItem != nullptr && !loc->HasObtained() && OoT_Rando_Foreign_RecordPickup((uint16_t)rc) != 0) {
         // Presented as an ORDINARY OoT pickup (#510), with only the item's game
         // marked after its name (#865): "You found the Bunny Hood (MM)" — no
@@ -3178,6 +3207,7 @@ static void RandomizerRegisterHooks() {
 #ifdef RSBS_SINGLE_EXECUTABLE
         sGiveAttemptsCheck = RC_UNKNOWN_CHECK; // #1204: a new file starts its own count
         sGiveAttempts = 0;
+        OoT_Rando_Foreign_ClearHolds(); // #1222: a check held in one file is not the next file's
 #endif
 
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnFlagSet>(onFlagSetHook);

@@ -17,12 +17,18 @@ static bool isSpawningJPGrottos = false;
 
 void RegisterJPGrottos() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_DOOR_ANA, CVAR, [](Actor* actor, bool* should) {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the leg reads MM_gPlayState; a missing play
+        // state lets the actor init as in vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && !isSpawningJPGrottos) {
             *should = false;
         }
     });
 
     COND_ID_HOOK(ShouldActorInit, ACTOR_OBJ_SYOKUDAI, CVAR, [](Actor* actor, bool* should) {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the leg reads MM_gPlayState; a missing play
+        // state lets the actor init as in vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && actor->world.rot.x == 0) {
             *should = false;
         }
@@ -30,6 +36,9 @@ void RegisterJPGrottos() {
 
     // Move circle of rupees in Deku Palace
     COND_ID_HOOK(ShouldActorInit, ACTOR_OBJ_MURE3, CVAR, [](Actor* actor, bool* should) {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the leg reads MM_gPlayState; a missing play
+        // state lets the actor init as in vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_22DEKUCITY && GetActorListIndex(actor) == 17) {
             actor->world.pos.x = 407.0f;
             actor->world.pos.z = 1569.0f;
@@ -38,6 +47,9 @@ void RegisterJPGrottos() {
 
     // Move single freestanding rupee that's on top of the new grotto location
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_ITEM00, CVAR, [](Actor* actor, bool* should) {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the leg reads MM_gPlayState; a missing play
+        // state lets the actor init as in vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_22DEKUCITY) {
             if ((IS_RANDO && actor->params == ITEM00_NOTHING &&
                  CUSTOM_ITEM_PARAM == RC_DEKU_PALACE_FREESTANDING_RUPEE_07) ||

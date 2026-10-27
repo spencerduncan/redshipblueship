@@ -47,11 +47,16 @@
  *    opens the Check Tracker, a right-click on it offers Close, and Close
  *    clears the key so the window stays shut; setting the key again reopens
  *    it (the U6 ruling: the keys still open the native windows).
+ *
+ * 6. THE TIMER WINDOWS (W6-TIMERS, #1235/#1239, leg 8 below). MM's In-Game
+ *    Timer and Time Splits list register beside the trackers under "MM "
+ *    names, and the list draws only while MM is the running game.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 
 #include <cstdio>
+#include <cstring>
 #include <memory>
 
 #include <ship/Context.h>
@@ -59,6 +64,7 @@
 #include <ship/window/gui/GuiWindow.h>
 
 #include "TrackersGuiSingleExe.h"
+#include "TimersGuiSingleExe.h"
 #include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTracker.h"
 #include "2s2h/Enhancements/Trackers/ItemTracker/ItemTrackerSettings.h"
@@ -525,6 +531,80 @@ extern "C" int MM_TrackersGui_RunHeadless(void) {
                    "the key and the window stays shut; the key reopens it (#897)\n",
                    docked ? "docked" : "floating");
         }
+    }
+
+    // ---- 8. THE IN-GAME TIMER AND THE TIME SPLITS LIST (W6-TIMERS) ------
+    // #1235, #1239. Upstream 2S2H creates both windows in the excluded
+    // BenGui.cpp, so the single exe had neither. RegisterWindows must register
+    // them beside the trackers, under "MM "-prefixed names, and gate them on MM
+    // being the running game. The list's gate is observed through ImGui: with
+    // Time Splits enabled its Draw() begins its window while MM runs and never
+    // while OoT runs. The timer shares the wrapper; its own Draw() needs MM play
+    // state and archive textures, so under OoT it is driven as a tripwire only.
+    {
+        TGT_ASSERT(ImGui::GetCurrentContext() == nullptr, "leg 7 left an ImGui context behind");
+        auto timersGui = std::make_shared<Ship::Gui>();
+        S2H::TrackersGui::RegisterWindows(timersGui);
+        std::shared_ptr<Ship::GuiWindow> timer = timersGui->GetGuiWindow(S2H::TimersGui::kInGameTimerWindowName);
+        std::shared_ptr<Ship::GuiWindow> splits = timersGui->GetGuiWindow(S2H::TimersGui::kTimeSplitsWindowName);
+        TGT_ASSERT(timer != nullptr, "MM's In-Game Timer is not registered on the Gui: nothing in the single exe "
+                                     "creates DisplayOverlay.cpp's window (#1235)");
+        TGT_ASSERT(splits != nullptr, "MM's Time Splits list is not registered on the Gui: nothing in the single exe "
+                                      "creates Timesplits.cpp's window (#1239)");
+        // SoH's own timer windows (SohGui.cpp) as well as its trackers.
+        const char* sohTimerNames[] = { "Time Splits",     "Additional Timers", kSohOwnedNames[0],
+                                        kSohOwnedNames[1], kSohOwnedNames[2],   kSohOwnedNames[3] };
+        for (const char* sohName : sohTimerNames) {
+            TGT_ASSERT(strcmp(sohName, S2H::TimersGui::kInGameTimerWindowName) != 0 &&
+                           strcmp(sohName, S2H::TimersGui::kTimeSplitsWindowName) != 0,
+                       "an MM timer window shares a SoH-owned Gui name");
+        }
+
+        CVarSetInteger("gSettings.TimeSplits.Enable", 1);
+        CVarSetInteger("gDisplayOverlay.Mode", 1);
+        ImGuiContext* imgui = ImGui::CreateContext();
+        ImGuiIO& io = ImGui::GetIO();
+        io.IniFilename = nullptr;
+        io.LogFilename = nullptr;
+        io.DisplaySize = ImVec2(1280.0f, 800.0f);
+        io.DeltaTime = 1.0f / 60.0f;
+        io.Fonts->AddFontDefault();
+        unsigned char* atlasPixels = nullptr;
+        int atlasW = 0;
+        int atlasH = 0;
+        io.Fonts->GetTexDataAsRGBA32(&atlasPixels, &atlasW, &atlasH);
+
+        const GameId prevTimersGame = Context_GetCurrentGame();
+        auto listBegunUnder = [&](GameId game, bool drawTimer) -> bool {
+            Context_SetCurrentGame(game);
+            ImGui::NewFrame();
+            if (drawTimer) {
+                timer->Draw();
+                timer->Update();
+            }
+            splits->Draw();
+            splits->Update();
+            ImGui::Render();
+            ImGuiWindow* list = ImGui::FindWindowByName(S2H::TimersGui::kTimeSplitsImGuiName);
+            return list != nullptr && list->LastFrameActive == ImGui::GetFrameCount();
+        };
+        const bool underOoT = listBegunUnder(GAME_OOT, true);
+        const bool underNone = listBegunUnder(GAME_NONE, true);
+        const bool underMM = listBegunUnder(GAME_MM, false);
+        ImGuiWindow* overlay = ImGui::FindWindowByName(S2H::TimersGui::kInGameTimerImGuiName);
+        const bool timerBegun = overlay != nullptr;
+
+        Context_SetCurrentGame(prevTimersGame);
+        ImGui::DestroyContext(imgui);
+        CVarClear("gSettings.TimeSplits.Enable");
+        CVarClear("gDisplayOverlay.Mode");
+
+        TGT_ASSERT(!underOoT && !underNone, "MM's Time Splits list drew while MM was not the running game: its window "
+                                            "is not gated on MM (it would read OoT's save as MM's)");
+        TGT_ASSERT(!timerBegun, "MM's In-Game Timer began its window while MM was not the running game");
+        TGT_ASSERT(underMM, "MM's Time Splits list did not draw while MM runs with Time Splits enabled");
+        printf("[TEST] leg 8: MM's In-Game Timer and Time Splits list register beside the trackers and draw only while "
+               "MM is the running game (#1235, #1239)\n");
     }
 
     // Cleanup: don't leak forced-visible tracker CVars into later tests or a

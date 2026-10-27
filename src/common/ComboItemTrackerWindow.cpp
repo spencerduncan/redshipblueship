@@ -302,6 +302,12 @@ const char* const kComboItemTrackerSohSectionGroups[kComboItemTrackerSohSectionC
     "Inventory", "Equipment", "Misc", "Dungeon Rewards", "Songs",
 };
 
+// #1142: OoT's adapter's group strings (ItemAdapterSingleExe.cpp kGatedGroups and its dungeon tables).
+const char* const kComboItemTrackerSohOptionalGroups[kComboItemTrackerSohOptionalCount] = {
+    "Dungeon Items", "Greg",        "Fishing Pole",    "Bean Souls",
+    "Boss Souls",    "Jabber Nuts", "Ocarina Buttons", "Overworld Keys",
+};
+
 ComboItemTrackerKeys ComboReadItemTrackerKeys() {
     // SoH's keys and defaults (randomizer_item_tracker.cpp: CVAR_TRACKER_ITEM,
     // read by ItemTrackerWindow::DrawElement, BeginFloatingWindows,
@@ -347,6 +353,15 @@ ComboItemTrackerKeys ComboReadItemTrackerKeys() {
     for (int i = 0; i < kComboItemTrackerSohSectionCount; i++) {
         keys.sectionDisplay[i] = CVarGetInteger(kSectionDisplayKeys[i], kComboItemTrackerSectionMainWindow);
     }
+    static const char* const kOptionalDisplayKeys[kComboItemTrackerSohOptionalCount] = {
+        "gTrackers.ItemTracker.DisplayType.DungeonItems",   "gTrackers.ItemTracker.DisplayType.Greg",
+        "gTrackers.ItemTracker.DisplayType.FishingPole",    "gTrackers.ItemTracker.DisplayType.BeanSouls",
+        "gTrackers.ItemTracker.DisplayType.BossSouls",      "gTrackers.ItemTracker.DisplayType.JabberNuts",
+        "gTrackers.ItemTracker.DisplayType.OcarinaButtons", "gTrackers.ItemTracker.DisplayType.OverworldKeys",
+    };
+    for (int i = 0; i < kComboItemTrackerSohOptionalCount; i++) {
+        keys.optionalDisplay[i] = CVarGetInteger(kOptionalDisplayKeys[i], kComboItemTrackerSectionHidden);
+    }
     // The overlay's own keys, which SoH's overlay has no row for.
     const float opacity = CVarGetFloat(RSBS_CVAR_COMBO_ITEMS_OPACITY, 1.0f);
     keys.opacity = opacity < 0.1f ? 0.1f : opacity > 1.0f ? 1.0f : opacity;
@@ -363,6 +378,14 @@ bool ComboItemTrackerSohGroupShown(const ComboItemTrackerKeys& keys, const char*
     for (int i = 0; i < kComboItemTrackerSohSectionCount; i++) {
         if (strcmp(kComboItemTrackerSohSectionGroups[i], group) == 0) {
             return keys.sectionDisplay[i] != kComboItemTrackerSectionHidden;
+        }
+    }
+    // #1142: SoH's optional sections, hidden by default; one of the two dungeon tables, by DisplayMaps.
+    const bool keysOnly = strcmp(group, "Dungeon Keys") == 0;
+    for (int i = 0; i < kComboItemTrackerSohOptionalCount; i++) {
+        if (strcmp(kComboItemTrackerSohOptionalGroups[i], keysOnly ? "Dungeon Items" : group) == 0) {
+            const bool table = i != 0 || keys.dungeonItemsDisplayMaps != keysOnly;
+            return table && keys.optionalDisplay[i] != kComboItemTrackerSectionHidden;
         }
     }
     return true;

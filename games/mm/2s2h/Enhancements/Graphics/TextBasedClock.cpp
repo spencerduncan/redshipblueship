@@ -103,6 +103,9 @@ void DrawTextBasedClock() {
 
 void RegisterTextBasedClock() {
     COND_VB_SHOULD(VB_PREVENT_CLOCK_DISPLAY, CVAR == CLOCK_TYPE_TEXT_BASED, {
+        // W6-GFX (#1237): this TU is in the single-exe link now and DrawTextBasedClock reads MM_gPlayState; a missing
+        // play state leaves the original clock to draw.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         *should = true;
         DrawTextBasedClock();
     });

@@ -227,13 +227,25 @@ AudioCollection::AudioCollection() {
     }
 }
 #define CVAR_AUDIO(var) CVAR_PREFIX_AUDIO "." var
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-AUDIO-SEQ (#1239): MM's replacement and shuffle-pool keys live under MM's own families. SoH's Audio Editor composes
+// the same "gAudioEditor.ReplacedSequences.<sfxKey>" / "gAudioEditor.Excluded.<sfxKey>" spellings, and eleven sfxKeys
+// (NA_BGM_BOSS, NA_BGM_ENEMY, ...) name a sequence in both games, so one family would let either game's tab set the
+// other game's music.
+#include "cvar_shared_keys.h"
+#define CVAR_AUDIO_REPLACED_SEQUENCES RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX
+#define CVAR_AUDIO_EXCLUDED RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX
+#else
+#define CVAR_AUDIO_REPLACED_SEQUENCES CVAR_AUDIO("ReplacedSequences.")
+#define CVAR_AUDIO_EXCLUDED CVAR_AUDIO("Excluded.")
+#endif
 std::string AudioCollection::GetCvarKey(std::string sfxKey) {
-    auto prefix = CVAR_AUDIO("ReplacedSequences.");
+    auto prefix = CVAR_AUDIO_REPLACED_SEQUENCES;
     return prefix + sfxKey + ".value";
 }
 
 std::string AudioCollection::GetCvarLockKey(std::string sfxKey) {
-    auto prefix = std::string(CVAR_AUDIO("ReplacedSequences."));
+    auto prefix = std::string(CVAR_AUDIO_REPLACED_SEQUENCES);
     return prefix + sfxKey + ".locked";
 }
 
@@ -296,7 +308,7 @@ uint16_t AudioCollection::GetOriginalSequence(uint16_t seqId) {
 }
 
 void AudioCollection::RemoveFromShufflePool(SequenceInfo* seqInfo) {
-    const std::string cvarKey = std::string(CVAR_AUDIO("Excluded.")) + seqInfo->sfxKey;
+    const std::string cvarKey = std::string(CVAR_AUDIO_EXCLUDED) + seqInfo->sfxKey;
     excludedSequences.insert(seqInfo);
     includedSequences.erase(seqInfo);
     CVarSetInteger(cvarKey.c_str(), 1);
@@ -304,7 +316,7 @@ void AudioCollection::RemoveFromShufflePool(SequenceInfo* seqInfo) {
 }
 
 void AudioCollection::AddToShufflePool(SequenceInfo* seqInfo) {
-    const std::string cvarKey = std::string(CVAR_AUDIO("Excluded.")) + seqInfo->sfxKey;
+    const std::string cvarKey = std::string(CVAR_AUDIO_EXCLUDED) + seqInfo->sfxKey;
     includedSequences.insert(seqInfo);
     excludedSequences.erase(seqInfo);
     CVarClear(cvarKey.c_str());
@@ -318,7 +330,7 @@ void AudioCollection::InitializeShufflePool() {
     for (auto& [seqId, seqInfo] : mSequenceMap) {
         if (!seqInfo.canBeUsedAsReplacement)
             continue;
-        const std::string cvarKey = std::string(CVAR_AUDIO("Excluded.")) + seqInfo.sfxKey;
+        const std::string cvarKey = std::string(CVAR_AUDIO_EXCLUDED) + seqInfo.sfxKey;
         if (CVarGetInteger(cvarKey.c_str(), 0)) {
             excludedSequences.insert(&seqInfo);
         } else {

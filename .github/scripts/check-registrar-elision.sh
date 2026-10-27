@@ -642,6 +642,10 @@ main() {
         "GetActorMaxHealth(Actor\*)"
         "RegisterBowReticle()"
         "RegisterDisableBlackBars()"
+        # W6-GFX (#1237, #1240): the two clock-style registrars in lib2ship_enh_registrars.a. No OoT twin of either
+        # name (grep games/oot); the archive gate above covers the same files by member.
+        "Register3DSClock()"
+        "RegisterTextBasedClock()"
         "RegisterInstantPutaway()"
         # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions registrars in lib2ship_enh_registrars.a. No OoT
         # twin of any of the names (grep games/oot); the archive gate above covers the same files by member.
@@ -683,6 +687,20 @@ main() {
         # exported name to probe; the archive gate above covers every file by member.
         "Register3DItemDrops()"
         "RegisterSkipScarecrowSong()"
+        # W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina registrars in lib2ship_enh_registrars.a. No OoT twin
+        # of any of the names (grep games/oot). EquipWhileSwimming.cpp and SkipSoaringCutscene.cpp register through
+        # file-scope statics with no exported name; the archive gate above covers every file by member.
+        "RegisterBlastMaskKeg()"
+        "RegisterFastTransformation()"
+        "RegisterFierceDeityAnywhere()"
+        "RegisterPersistentMasks()"
+        "RegisterNoBlastMaskCooldown()"
+        "RegisterGoronRollingIgnoresMagic()"
+        "RegisterGoronRollingFastSpikes()"
+        "RegisterEnableSunsSong()"
+        "RegisterZoraEggCount()"
+        "RegisterFasterSongPlayback()"
+        "RegisterUnderwaterOcarina()"
         "MM_RegisterArrowCycle()"
         "RegisterSkipAlienStartAndFail()"
         "RegisterSkipAlienWarning()"

@@ -1472,6 +1472,23 @@ int OoT_ForeignItem_Give(uint16_t rgId);
  */
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 
+/**
+ * THE FULL OUTBOX, OoT side (#1222). 1 when OoT check @p rc hosts an MM item, the
+ * pairing is live, it has not delivered, and every shared row holds an item MM
+ * has not redeemed (Combo_SharedItemCrossingHasRoom is false): the record would
+ * be refused, so the RC-queue drain HOLDS the check (not collected, nothing
+ * given) and this remembers it; 0 otherwise (the drain records as before).
+ * OoT_Rando_Foreign_TakeReleasedHolds hands the held checks back, up to @p cap
+ * into @p out, once a row is free again (after a crossing to Termina), and
+ * forgets them; it returns how many it handed back.
+ * OoT_Rando_Foreign_ClearHolds forgets every held check without handing any
+ * back: the RC-queue drain calls it where a file load resets its own queue, so a
+ * check held in one file is never handed to the next file loaded.
+ */
+int OoT_Rando_Foreign_HoldPickup(uint16_t rc);
+int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap);
+void OoT_Rando_Foreign_ClearHolds(void);
+
 // ============================================================================
 // THE VALUES-PUBLISHING SURFACE (ADR 0011 O8; solver-inventory P1/P5;
 // ADR 0010 increment 2)

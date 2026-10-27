@@ -20,6 +20,8 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "cvar_shared_keys.h"
 #include "combo_ui.h"
+#include "mm_audio_editor.h"
+#include <imgui_internal.h> // ImGuiTabBar: the UI snapshot harness's tab request
 #endif
 
 extern "C" {
@@ -566,6 +568,367 @@ static void DrawMmAudioOptionsRows() {
 }
 #endif
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-AUDIO-SEQ (#1239): the UI snapshot harness's tab request, applied by DrawMmSequencePane on the window's next frame:
+// 1 brings the Majora's Mask tab to the front, -1 the editor's first tab (Audio Options), 0 leaves the player's choice.
+static int sMmPaneTestRequest = 0;
+
+void SohAudioEditor_ShowMmPaneForTest(bool show) {
+    sMmPaneTestRequest = show ? 1 : -1;
+}
+
+/**
+ * W6-AUDIO-SEQ (#1239, #1237): Majora's Mask's music, as one tab after SoH's sequence tabs. This is the project-added
+ * function: DrawElement calls it in one line inside SoH's tab bar, and nothing else of SoH's editor changes. It draws
+ * SoH's own tab structure over MM's sequences: four MM bulk buttons, then MM's seven sequence tabs and its shuffle pool,
+ * each laid out like SoH's (Draw_SfxTab and the Audio Shuffle Pool Management tab). Every row and every write goes
+ * through the MmAudioEditor seam (src/common/mm_audio_editor.h), whose MM side owns MM's collection and composes MM's
+ * keys, so this function names no MM key. Previews play only while Majora's Mask is running. The bulk buttons report
+ * where they drew to the combo_ui seam, which records nothing unless the UI snapshot harness is hovering one.
+ */
+static void DrawMmSequencePane() {
+    if (sMmPaneTestRequest == -1) {
+        // A tab's id is its label under the tab bar's id, which BeginTabBar pushed (ImGui's TabItemEx).
+        if (ImGuiTabBar* bar = ImGui::GetCurrentTabBar()) {
+            bar->NextSelectedTabId = ImGui::GetID("Audio Options");
+        }
+        sMmPaneTestRequest = 0;
+    }
+    ImGuiTabItemFlags tabFlags = ImGuiTabItemFlags_None;
+    if (sMmPaneTestRequest == 1) {
+        tabFlags |= ImGuiTabItemFlags_SetSelected;
+        sMmPaneTestRequest = 0;
+    }
+    if (!ImGui::BeginTabItem("Majora's Mask", nullptr, tabFlags)) {
+        return;
+    }
+
+    using MmAudioEditor::Sequence;
+    const std::vector<Sequence> all = MmAudioEditor::AllSequences();
+    const bool running = MmAudioEditor::IsRunning();
+    const uint16_t previewing = MmAudioEditor::PreviewPlaying();
+    const uint16_t activeBgm = MmAudioEditor::ActiveBgm();
+
+    struct BulkButton {
+        const char* label;
+        const char* tooltip;
+        void (*action)();
+    };
+    static const BulkButton kBulkButtons[] = {
+        { "MM Randomize All Groups",
+          "Randomizes all unlocked Majora's Mask music across its tab groups. Majora's Mask only.",
+          MmAudioEditor::RandomizeAll },
+        { "MM Reset All Groups", "Resets all unlocked Majora's Mask music across its tab groups. Majora's Mask only.",
+          MmAudioEditor::ResetAll },
+        { "MM Lock All Groups", "Locks all Majora's Mask music across its tab groups. Majora's Mask only.",
+          MmAudioEditor::LockAll },
+        { "MM Unlock All Groups", "Unlocks all Majora's Mask music across its tab groups. Majora's Mask only.",
+          MmAudioEditor::UnlockAll },
+    };
+    UIWidgets::Separator();
+    bool firstButton = true;
+    for (const BulkButton& button : kBulkButtons) {
+        if (!firstButton) {
+            ImGui::SameLine();
+        }
+        firstButton = false;
+        if (UIWidgets::Button(button.label, UIWidgets::ButtonOptions()
+                                                .Size(ImVec2(230.0f, 0.0f))
+                                                .Color(THEME_COLOR)
+                                                .Tooltip(button.tooltip))) {
+            button.action();
+        }
+        ComboUi_NotifyRect(button.label, button.tooltip, ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y,
+                           ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y);
+    }
+    UIWidgets::Separator();
+
+    // SoH's DrawPreviewButton, over MM's player: disabled while Majora's Mask is not running.
+    auto drawPreview = [&](uint16_t previewId, uint32_t group, const std::string& hiddenKey) {
+        const bool stop = running && previewing != 0 && previewing == previewId;
+        UIWidgets::ButtonOptions options = UIWidgets::ButtonOptions()
+                                               .Size(UIWidgets::Sizes::Inline)
+                                               .Padding(ImVec2(10.0f, 6.0f))
+                                               .Tooltip(stop ? "Stop Preview" : "Play Preview")
+                                               .Color(THEME_COLOR)
+                                               .DisabledTooltip("Majora's Mask must be running to preview its music.");
+        options.disabled = !running;
+        const std::string label = std::string(stop ? ICON_FA_STOP : ICON_FA_PLAY) + hiddenKey + "preview";
+        if (UIWidgets::Button(label.c_str(), options)) {
+            MmAudioEditor::TogglePreview(previewId, group);
+        }
+    };
+
+    // SoH's Draw_SfxTab, over MM's sequences.
+    auto drawTab = [&](const std::string& tabId, uint32_t group, const char* tabName) {
+        const std::string hiddenTabId = "##mm" + tabId;
+        ImGui::SeparatorText(tabName);
+        const UIWidgets::ButtonOptions inline_ =
+            UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(THEME_COLOR);
+        if (UIWidgets::Button(("Reset All" + hiddenTabId).c_str(), inline_)) {
+            MmAudioEditor::ResetGroup(group);
+        }
+        ImGui::SameLine();
+        if (UIWidgets::Button(("Randomize All" + hiddenTabId).c_str(), inline_)) {
+            MmAudioEditor::RandomizeGroup(group);
+        }
+        ImGui::SameLine();
+        if (UIWidgets::Button(("Lock All" + hiddenTabId).c_str(), inline_)) {
+            MmAudioEditor::LockGroup(group);
+        }
+        ImGui::SameLine();
+        if (UIWidgets::Button(("Unlock All" + hiddenTabId).c_str(), inline_)) {
+            MmAudioEditor::UnlockGroup(group);
+        }
+
+        // Longest text in SoH's Audio Editor, so both games' columns line up.
+        const ImVec2 columnSize = ImGui::CalcTextSize("Navi - Look/Hey/Watchout (Target Enemy)");
+        if (!ImGui::BeginTable(("mm" + tabId).c_str(), 3, ImGuiTableFlags_SizingFixedFit)) {
+            return;
+        }
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, columnSize.x + 30);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, columnSize.x + 30);
+        ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, 160.0f);
+        for (const Sequence& sequence : all) {
+            if (!MmAudioEditor::TabListsSequence(sequence, group)) {
+                continue;
+            }
+            const uint16_t current = MmAudioEditor::CurrentReplacement(sequence);
+            const bool locked = MmAudioEditor::IsLocked(sequence);
+            const std::string hiddenKey = "##mm" + sequence.sfxKey;
+            const bool isCurrentlyPlaying = (previewing != 0 && current == previewing) || sequence.id == activeBgm;
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            if (isCurrentlyPlaying) {
+                ImGui::TextColored(UIWidgets::ColorValues.at(UIWidgets::Colors::Yellow), "%s %s", ICON_FA_PLAY,
+                                   sequence.label.c_str());
+            } else {
+                ImGui::Text("%s", sequence.label.c_str());
+            }
+
+            // The sequences of this group that may stand in for it, and its own.
+            ImGui::TableNextColumn();
+            std::map<uint16_t, const char*> choices;
+            for (const Sequence& other : all) {
+                if (((~other.category) & group) ||
+                    (!other.canBeUsedAsReplacement && other.sfxKey != sequence.sfxKey)) {
+                    continue;
+                }
+                choices[other.id] = other.label.c_str();
+            }
+            choices.emplace(sequence.id, sequence.label.c_str());
+            uint16_t value = choices.count(current) != 0 ? current : sequence.id;
+            if (UIWidgets::Combobox(hiddenKey + "value", &value, choices,
+                                    UIWidgets::ComboboxOptions()
+                                        .Color(THEME_COLOR)
+                                        .LabelPosition(UIWidgets::LabelPositions::None))) {
+                MmAudioEditor::SetReplacement(sequence, group, value);
+            }
+
+            ImGui::TableNextColumn();
+            drawPreview(group == MmAudioEditor::kGroupInstrument ? sequence.id : current, group, hiddenKey);
+            ImGui::SameLine();
+            if (UIWidgets::Button((ICON_FA_UNDO + hiddenKey).c_str(), UIWidgets::ButtonOptions()
+                                                                          .Size(UIWidgets::Sizes::Inline)
+                                                                          .Padding(ImVec2(10.0f, 6.0f))
+                                                                          .Tooltip("Reset to default")
+                                                                          .Color(THEME_COLOR))) {
+                MmAudioEditor::ResetOne(sequence);
+            }
+            ImGui::SameLine();
+            if (UIWidgets::Button((ICON_FA_RANDOM + hiddenKey).c_str(), UIWidgets::ButtonOptions()
+                                                                            .Size(UIWidgets::Sizes::Inline)
+                                                                            .Padding(ImVec2(10.0f, 6.0f))
+                                                                            .Tooltip("Randomize this sound")
+                                                                            .Color(THEME_COLOR))) {
+                MmAudioEditor::RandomizeOne(sequence, group);
+            }
+            ImGui::SameLine();
+            if (UIWidgets::Button(((locked ? ICON_FA_LOCK : ICON_FA_UNLOCK) + hiddenKey).c_str(),
+                                  UIWidgets::ButtonOptions()
+                                      .Size(UIWidgets::Sizes::Inline)
+                                      .Padding(ImVec2(10.0f, 6.0f))
+                                      .Tooltip(locked ? "Sound locked" : "Sound unlocked")
+                                      .Color(THEME_COLOR))) {
+                MmAudioEditor::ToggleLock(sequence);
+            }
+        }
+        ImGui::EndTable();
+    };
+
+    // SoH's Audio Shuffle Pool Management tab, over MM's pool. MM's groups have their own filter buttons: SoH's
+    // Sound Effects and Voices have no MM rows, and MM's Songs (coloured as Ocarina) have no SoH twin.
+    struct PoolType {
+        uint32_t group;
+        const char* name;
+        SeqType colour; // SoH's group whose colour the chip and the filter button take
+    };
+    static const PoolType kPoolTypes[] = {
+        { MmAudioEditor::kGroupWorld, "World", SEQ_BGM_WORLD },
+        { MmAudioEditor::kGroupEvent, "Event", SEQ_BGM_EVENT },
+        { MmAudioEditor::kGroupBattle, "Battle", SEQ_BGM_BATTLE },
+        { MmAudioEditor::kGroupOcarina, "Ocarina", SEQ_OCARINA },
+        { MmAudioEditor::kGroupFanfare, "Fanfare", SEQ_FANFARE },
+        { MmAudioEditor::kGroupInstrument, "Instrument", SEQ_INSTRUMENT },
+        { MmAudioEditor::kGroupSongs, "Songs", SEQ_OCARINA },
+        { MmAudioEditor::kGroupCustom, "Custom", SEQ_BGM_CUSTOM },
+    };
+    static std::map<uint32_t, bool> showType = {
+        { MmAudioEditor::kGroupWorld, true },   { MmAudioEditor::kGroupEvent, true },
+        { MmAudioEditor::kGroupBattle, true },  { MmAudioEditor::kGroupOcarina, true },
+        { MmAudioEditor::kGroupFanfare, true }, { MmAudioEditor::kGroupInstrument, true },
+        { MmAudioEditor::kGroupSongs, true },   { MmAudioEditor::kGroupCustom, true },
+    };
+    // A custom fanfare files under Custom, as a custom BGM does.
+    auto poolGroup = [](uint32_t category) {
+        return category == MmAudioEditor::kGroupCustomFanfare ? static_cast<uint32_t>(MmAudioEditor::kGroupCustom)
+                                                               : category;
+    };
+    auto drawChip = [&](const Sequence& sequence) {
+        const uint32_t group = poolGroup(sequence.category);
+        for (const PoolType& type : kPoolTypes) {
+            if (type.group == group) {
+                ImGui::BeginDisabled();
+                UIWidgets::PushStyleButton(GetSequenceTypeColor(type.colour));
+                ImGui::Button((std::string(type.name) + "##mmchip" + sequence.sfxKey).c_str());
+                UIWidgets::PopStyleButton();
+                ImGui::EndDisabled();
+                return;
+            }
+        }
+    };
+    auto drawPool = [&]() {
+        static ImGuiTextFilter sequenceSearch;
+        const std::vector<Sequence> included = MmAudioEditor::IncludedSequences();
+        const std::vector<Sequence> excluded = MmAudioEditor::ExcludedSequences();
+        auto passes = [&](const Sequence& sequence) {
+            return sequenceSearch.PassFilter(sequence.label.c_str()) && showType[poolGroup(sequence.category)];
+        };
+        // Collected first and applied after the lists draw: the lists are copies, but a move mid-frame would draw a
+        // sequence in both columns.
+        std::vector<uint16_t> toInclude;
+        std::vector<uint16_t> toExclude;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2(8.0f, 8.0f));
+        UIWidgets::PushStyleInput(THEME_COLOR);
+        sequenceSearch.Draw("Filter (inc,-exc)##mm", 490.0f);
+        UIWidgets::PopStyleInput();
+        ImGui::SameLine();
+        const UIWidgets::ButtonOptions inline_ =
+            UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(THEME_COLOR);
+        if (UIWidgets::Button("Exclude All##mm", inline_)) {
+            for (const Sequence& sequence : included) {
+                if (passes(sequence)) {
+                    toExclude.push_back(sequence.id);
+                }
+            }
+        }
+        ImGui::SameLine();
+        if (UIWidgets::Button("Include All##mm", inline_)) {
+            for (const Sequence& sequence : excluded) {
+                if (passes(sequence)) {
+                    toInclude.push_back(sequence.id);
+                }
+            }
+        }
+
+        if (ImGui::BeginTable("mmSequenceTypes", IM_ARRAYSIZE(kPoolTypes),
+                              ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders)) {
+            for (const PoolType& type : kPoolTypes) {
+                ImGui::TableNextColumn();
+                ImGui::PushStyleColor(ImGuiCol_Header, GetSequenceTypeColor(type.colour));
+                ImGui::Selectable(type.name, &showType[type.group]);
+                ImGui::PopStyleColor(1);
+            }
+            ImGui::EndTable();
+        }
+
+        if (ImGui::BeginTable("mmTableAllSequences", 2, ImGuiTableFlags_BordersH | ImGuiTableFlags_BordersV)) {
+            ImGui::TableSetupColumn("Included", ImGuiTableColumnFlags_WidthStretch, 200.0f);
+            ImGui::TableSetupColumn("Excluded", ImGuiTableColumnFlags_WidthStretch, 200.0f);
+            ImGui::TableHeadersRow();
+            ImGui::TableNextRow();
+            const UIWidgets::ButtonOptions moveOptions = UIWidgets::ButtonOptions()
+                                                             .Size(UIWidgets::Sizes::Inline)
+                                                             .Padding(ImVec2(9.0f, 6.0f))
+                                                             .Color(THEME_COLOR);
+            ImGui::TableNextColumn();
+            ImGui::BeginChild("MmChildIncludedSequences", ImVec2(0, -8));
+            for (const Sequence& sequence : included) {
+                if (!passes(sequence)) {
+                    continue;
+                }
+                if (UIWidgets::Button((ICON_FA_TIMES "##mm" + sequence.sfxKey).c_str(), moveOptions)) {
+                    toExclude.push_back(sequence.id);
+                }
+                ImGui::SameLine();
+                drawPreview(sequence.id, sequence.category, "##mmpool" + sequence.sfxKey);
+                ImGui::SameLine();
+                drawChip(sequence);
+                ImGui::SameLine();
+                ImGui::Text("%s", sequence.label.c_str());
+            }
+            ImGui::EndChild();
+            ImGui::TableNextColumn();
+            ImGui::BeginChild("MmChildExcludedSequences", ImVec2(0, -8));
+            for (const Sequence& sequence : excluded) {
+                if (!passes(sequence)) {
+                    continue;
+                }
+                if (UIWidgets::Button((ICON_FA_PLUS "##mm" + sequence.sfxKey).c_str(), moveOptions)) {
+                    toInclude.push_back(sequence.id);
+                }
+                ImGui::SameLine();
+                drawPreview(sequence.id, sequence.category, "##mmpool" + sequence.sfxKey);
+                ImGui::SameLine();
+                drawChip(sequence);
+                ImGui::SameLine();
+                ImGui::Text("%s", sequence.label.c_str());
+            }
+            ImGui::EndChild();
+            ImGui::EndTable();
+        }
+        ImGui::PopStyleVar(1);
+        for (uint16_t id : toExclude) {
+            MmAudioEditor::SetInShufflePool(id, false);
+        }
+        for (uint16_t id : toInclude) {
+            MmAudioEditor::SetInShufflePool(id, true);
+        }
+    };
+
+    struct SequenceTab {
+        const char* label;
+        const char* id;
+        uint32_t group;
+    };
+    static const SequenceTab kSequenceTabs[] = {
+        { "Background Music", "backgroundMusic", MmAudioEditor::kGroupWorld },
+        { "Fanfares", "fanfares", MmAudioEditor::kGroupFanfare },
+        { "Events", "event", MmAudioEditor::kGroupEvent },
+        { "Battle Music", "battleMusic", MmAudioEditor::kGroupBattle },
+        { "Ocarina", "ocarina", MmAudioEditor::kGroupOcarina },
+        { "Instrument", "instrument", MmAudioEditor::kGroupInstrument },
+        { "Songs", "songs", MmAudioEditor::kGroupSongs },
+    };
+    if (ImGui::BeginTabBar("MmSfxContextTabBar", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton)) {
+        for (const SequenceTab& tab : kSequenceTabs) {
+            if (ImGui::BeginTabItem(tab.label)) {
+                drawTab(tab.id, tab.group, tab.label);
+                ImGui::EndTabItem();
+            }
+        }
+        if (ImGui::BeginTabItem("Audio Shuffle Pool Management")) {
+            drawPool();
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+    ImGui::EndTabItem();
+}
+#endif
+
 void AudioEditor::DrawElement() {
     AudioCollection::Instance->InitializeShufflePool();
 
@@ -669,6 +1032,9 @@ void AudioEditor::DrawElement() {
             Draw_SfxTab("voice", SEQ_VOICE, "Voices");
             ImGui::EndTabItem();
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        DrawMmSequencePane(); // #1239: Majora's Mask's music, one tab after SoH's sequence tabs
+#endif
 
         static bool excludeTabOpen = false;
         if (ImGui::BeginTabItem("Audio Shuffle Pool Management")) {

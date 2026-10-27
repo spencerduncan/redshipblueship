@@ -78,7 +78,8 @@
  * Test_ComboItemView wrapper calls after the display-free shared bring-up.
  */
 
-#include "../ComboTrackerWindow.h" // Combo_TrackerWindow_Init: the production registration
+#include "../ComboItemTrackerWindow.h" // #1142: SoH's DisplayType keys over the OoT tracker groups
+#include "../ComboTrackerWindow.h"     // Combo_TrackerWindow_Init: the production registration
 #include "../combo_item_view.h"
 #include "../context.h"
 #include "../foreign_items.h" // RSBS_XITEM_SHARED_OCARINA_BUTTONS: the #1067 leg
@@ -119,6 +120,15 @@ extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int
 extern "C" int OoT_ItemAdapter_TestAuthorNewFile(void* buf, size_t size, int variant, int* outNewfMarked);
 // OoT's .redsave slot descriptor, as OoT's SaveManager constructor registers it.
 extern "C" void OoT_SlotMeta_Register(void);
+// #1142/#1158: the OoT tracker groups' seams (games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp).
+// The tracker world: dungeon keys and items, souls, a jabber nut, two ocarina buttons, two overworld keys,
+// the fishing pole and Greg, as a randomizer file (`rando` 1) or a vanilla one.
+extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando);
+// The frozen options the gated groups read (OoT's live in the seed's context, not the buffer); see kCivOpt*.
+extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits);
+// The adapter's guarded read of an item's inventory slot (SoH 7a7f942b8), -1 when it has none.
+extern "C" int OoT_ItemAdapter_TestInvContent(const void* buf, int item);
+extern "C" int OoT_ItemAdapter_TestItemSlotCount(void);
 
 #define CIV_ASSERT(cond)                                                   \
     do {                                                                   \
@@ -198,8 +208,9 @@ static int CivOoTLegs(const ComboItemOps* ops) {
     for (int i = 0; i < rows; i++) {
         CIV_ASSERT(Combo_ItemRowAt((uint8_t)GAME_OOT, i, &row));
         CIV_ASSERT(row.group != NULL && row.group[0] != '\0');
-        CIV_ASSERT(row.name != NULL && row.name[0] != '\0');
-        CIV_ASSERT(row.iconKey != NULL && row.iconKeyFaded != NULL); // every OoT row has an icon
+        CIV_ASSERT(row.name != NULL && (row.pad || row.name[0] != '\0'));
+        // Every OoT row but a blank cell of SoH's dungeon table (#1142) has an icon.
+        CIV_ASSERT(row.pad || (row.iconKey != NULL && row.iconKeyFaded != NULL));
         CIV_ASSERT(row.freshness == COMBO_TRACKER_FRESH_STALE);
         CIV_ASSERT(row.count >= 0 && row.max >= 0);
     }
@@ -1374,6 +1385,454 @@ static int CivSharedLiveLegs(const ComboItemOps* ootOps, const ComboItemOps* mmO
     return TEST_PASS;
 }
 
+// ---- OoT's tracker groups beyond SoH's default sections (#1142, #1158) ---------
+//
+// SoH's main window adds, by its DisplayType keys, the dungeon items in its
+// compact table, Greg, the fishing pole, the bean and boss souls, the jabber
+// nuts, the ocarina buttons and the overworld keys. Each must be a row of OoT's
+// adapter, read from the buffer it is handed: the dungeon tables in every file,
+// the rest only in a randomizer file whose frozen option shuffles them (Greg:
+// any randomizer file). RED before #1142: none of these rows existed.
+
+// The frozen options OoT_ItemAdapter_TestOverrideOptions stands in for.
+static const unsigned kCivOptBeanSouls = 1u << 0;
+static const unsigned kCivOptBossSouls = 1u << 1;
+static const unsigned kCivOptBossSoulsGanon = 1u << 2; // with kCivOptBossSouls: RO_BOSS_SOULS_ON_PLUS_GANON
+static const unsigned kCivOptSpeak = 1u << 3;
+static const unsigned kCivOptButtons = 1u << 4;
+static const unsigned kCivOptOverworldDoors = 1u << 5;
+static const unsigned kCivOptFishingPole = 1u << 6;
+// RSK_GERUDO_FORTRESS in bits 7-8 (0 Normal, 1 Fast, 2 Free carpenters), and a Master Quest dungeon per scene id
+// in bits 16 and up (scene_table.h: the Water Temple is 0x05, Ganon's Castle 0x0D).
+static const unsigned kCivOptGerudoFast = 1u << 7;
+static const unsigned kCivOptGerudoFree = 2u << 7;
+static const unsigned kCivOptMqWater = 1u << (16 + 0x05);
+static const unsigned kCivOptMqGanonsCastle = 1u << (16 + 0x0D);
+static const unsigned kCivOptAll =
+    kCivOptBeanSouls | kCivOptBossSouls | kCivOptSpeak | kCivOptButtons | kCivOptOverworldDoors | kCivOptFishingPole;
+
+/** OoT's rows of `group`, as the view hands them over. */
+static std::vector<ComboItemRow> CivOoTGroup(const char* group) {
+    std::vector<ComboItemRow> out;
+    ComboItemRow row;
+    const int n = Combo_ItemCount((uint8_t)GAME_OOT);
+    for (int i = 0; i < n; i++) {
+        if (Combo_ItemRowAt((uint8_t)GAME_OOT, i, &row) && strcmp(row.group, group) == 0) {
+            out.push_back(row);
+        }
+    }
+    return out;
+}
+
+/** Row `name` of `rows`, or NULL. */
+static const ComboItemRow* CivRowNamed(const std::vector<ComboItemRow>& rows, const char* name) {
+    for (const ComboItemRow& r : rows) {
+        if (!r.pad && r.name != NULL && strcmp(r.name, name) == 0) {
+            return &r;
+        }
+    }
+    return NULL;
+}
+
+/** Does `rows` hold a row named `name`, held as `have`, labelled `label` (NULL: none), with an icon? */
+static bool CivRowIs(const std::vector<ComboItemRow>& rows, const char* name, bool have, const char* label) {
+    const ComboItemRow* r = CivRowNamed(rows, name);
+    if (r == NULL) {
+        printf("[TEST] combo-item-view: no OoT row \"%s\"\n", name);
+        return false;
+    }
+    const bool labelOk = (label == NULL) ? r->label == NULL : (r->label != NULL && strcmp(r->label, label) == 0);
+    if (r->have != have || !labelOk || r->iconKey == NULL || r->iconKeyFaded == NULL) {
+        printf("[TEST] combo-item-view: OoT row \"%s\" have=%d (want %d) label=%s (want %s) icon=%s\n", name,
+               (int)r->have, (int)have, r->label != NULL ? r->label : "(none)", label != NULL ? label : "(none)",
+               r->iconKey != NULL ? r->iconKey : "(none)");
+        return false;
+    }
+    return true;
+}
+
+/** A dungeon's small-key row: `count` collected, `held` in hand, of `max`; lit while a key is held or used. */
+static bool CivKeyRowIs(const std::vector<ComboItemRow>& rows, const char* name, bool have, int count, int held,
+                        int max, const char* label) {
+    if (!CivRowIs(rows, name, have, label)) {
+        return false;
+    }
+    const ComboItemRow* r = CivRowNamed(rows, name);
+    if (r->countKind != COMBO_ITEM_COUNT_KIND_KEYS || r->count != count || r->held != held || r->max != max) {
+        printf("[TEST] combo-item-view: OoT keys \"%s\" kind=%u collected=%d held=%d max=%d (want %d/%d/%d)\n", name,
+               (unsigned)r->countKind, r->count, r->held, r->max, count, held, max);
+        return false;
+    }
+    return true;
+}
+
+static int CivOoTTrackerGroupLegs(const ComboItemOps* ops) {
+    // The legs after these read the shadow and the active game they inherit: both go back at the end.
+    std::vector<uint8_t> inherited((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    if (const uint8_t* resident = (const uint8_t*)Context_GetOoTSaveContext()) {
+        memcpy(inherited.data(), resident, inherited.size());
+    }
+    const GameId inheritedGame = Context_GetCurrentGame();
+    std::vector<uint8_t> world((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> vanilla((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(world.data(), world.size(), 1) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(vanilla.data(), vanilla.size(), 0) == 1);
+    CIV_ASSERT(ops->hasSave(world.data()) && ops->hasSave(vanilla.data()));
+    Context_UpdateShadowCopy(GAME_OOT, world.data(), world.size());
+    Context_SetCurrentGame(GAME_MM);
+    OoT_ItemAdapter_TestOverrideOptions(1, 0u);
+
+    // ---- A. the dungeon items: SoH's compact table with maps, column-major, 36 cells
+    // (GetDungeonItemsVector(itemTrackerDungeonsWithMapsCompact), Thieves' Hideout in cell 35).
+    std::vector<ComboItemRow> dungeon = CivOoTGroup("Dungeon Items");
+    printf("[TEST] combo-item-view: OoT \"Dungeon Items\" rows=%zu (want 36)\n", dungeon.size());
+    CIV_ASSERT(dungeon.size() == 36);
+    static const char* const kWithMaps[36] = {
+        "Forest Temple Small Key", "Fire Temple Small Key",    "Water Temple Small Key",
+        "Spirit Temple Small Key", "Shadow Temple Small Key",  "Bottom of the Well Small Key",
+        "Forest Temple Boss Key",  "Fire Temple Boss Key",     "Water Temple Boss Key",
+        "Spirit Temple Boss Key",  "Shadow Temple Boss Key",   "Bottom of the Well Map",
+        "Forest Temple Map",       "Fire Temple Map",          "Water Temple Map",
+        "Spirit Temple Map",       "Shadow Temple Map",        "Bottom of the Well Compass",
+        "Forest Temple Compass",   "Fire Temple Compass",      "Water Temple Compass",
+        "Spirit Temple Compass",   "Shadow Temple Compass",    NULL,
+        "Deku Tree Map",           "Dodongo's Cavern Map",     "Jabu-Jabu's Belly Map",
+        "Ice Cavern Map",          "Ganon's Castle Small Key", "Gerudo Training Ground Small Key",
+        "Deku Tree Compass",       "Dodongo's Cavern Compass", "Jabu-Jabu's Belly Compass",
+        "Ice Cavern Compass",      "Ganon's Castle Boss Key",  "Thieves' Hideout Small Key",
+    };
+    for (size_t i = 0; i < dungeon.size(); i++) {
+        if (kWithMaps[i] == NULL) {
+            CIV_ASSERT(dungeon[i].pad); // SoH's ITEM_NONE blank
+            continue;
+        }
+        if (dungeon[i].pad || strcmp(dungeon[i].name, kWithMaps[i]) != 0) {
+            printf("[TEST] FAIL: OoT dungeon cell %zu is \"%s\", SoH draws \"%s\" there\n", i,
+                   dungeon[i].pad ? "(blank)" : dungeon[i].name, kWithMaps[i]);
+            return TEST_FAIL;
+        }
+    }
+    // Keys: collected (ship.stats), in hand, of the dungeon's vanilla keys; lit while any is held or used (SoH:
+    // dungeonKeys >= 0). Labels: SoH's short names over each small key and the four map-only dungeons' maps.
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Forest Temple Small Key", true, 3, 2, 5, "FRST"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Fire Temple Small Key", true, 1, 0, 8, "FIRE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Water Temple Small Key", false, 0, 0, 6, "WATR"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Thieves' Hideout Small Key", true, 2, 1, 4, "HIDE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Gerudo Training Ground Small Key", false, 0, 0, 9, "GTG"));
+    CIV_ASSERT(CivRowIs(dungeon, "Forest Temple Boss Key", true, NULL));
+    CIV_ASSERT(CivRowIs(dungeon, "Forest Temple Map", true, NULL));
+    CIV_ASSERT(CivRowIs(dungeon, "Forest Temple Compass", false, NULL));
+    CIV_ASSERT(CivRowIs(dungeon, "Deku Tree Compass", true, NULL));
+    CIV_ASSERT(CivRowIs(dungeon, "Deku Tree Map", false, "DEKU"));
+    CIV_ASSERT(CivRowIs(dungeon, "Ice Cavern Map", false, "ICE"));
+    CIV_ASSERT(CivRowIs(dungeon, "Ganon's Castle Boss Key", true, NULL)); // Ganon's Tower's scene holds it
+    CIV_ASSERT(CivRowIs(dungeon, "Spirit Temple Boss Key", false, NULL));
+
+    // The compact table without maps (DungeonItems.DisplayMaps off): 15 cells, keys only.
+    std::vector<ComboItemRow> keysOnly = CivOoTGroup("Dungeon Keys");
+    printf("[TEST] combo-item-view: OoT \"Dungeon Keys\" rows=%zu (want 15)\n", keysOnly.size());
+    CIV_ASSERT(keysOnly.size() == 15);
+    static const char* const kKeysOnly[15] = {
+        "Forest Temple Small Key",      "Fire Temple Small Key",
+        "Water Temple Small Key",       "Spirit Temple Small Key",
+        "Shadow Temple Small Key",      "Ganon's Castle Small Key",
+        "Forest Temple Boss Key",       "Fire Temple Boss Key",
+        "Water Temple Boss Key",        "Spirit Temple Boss Key",
+        "Shadow Temple Boss Key",       "Ganon's Castle Boss Key",
+        "Bottom of the Well Small Key", "Gerudo Training Ground Small Key",
+        "Thieves' Hideout Small Key",
+    };
+    for (size_t i = 0; i < keysOnly.size(); i++) {
+        CIV_ASSERT(!keysOnly[i].pad && strcmp(keysOnly[i].name, kKeysOnly[i]) == 0);
+    }
+    CIV_ASSERT(CivKeyRowIs(keysOnly, "Forest Temple Small Key", true, 3, 2, 5, "FRST"));
+
+    // The key maxes follow the seed in a randomizer file (SoH GetItemCurrentAndMax: each *_SMALL_KEY_MAX asks
+    // ResourceMgr_IsSceneMasterQuest, which reads the seed's per-dungeon Master Quest; Thieves' Hideout follows
+    // RSK_GERUDO_FORTRESS: Normal 4, Fast 1, Free 0). RED while the adapter read the file's quest id alone.
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFast | kCivOptMqWater | kCivOptMqGanonsCastle);
+    dungeon = CivOoTGroup("Dungeon Items");
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Thieves' Hideout Small Key", true, 2, 1, 1, "HIDE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Water Temple Small Key", false, 0, 0, 2, "WATR"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Ganon's Castle Small Key", false, 0, 0, 3, "GANON"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Forest Temple Small Key", true, 3, 2, 5, "FRST")); // vanilla in the same seed
+    CIV_ASSERT(CivKeyRowIs(CivOoTGroup("Dungeon Keys"), "Water Temple Small Key", false, 0, 0, 2, "WATR"));
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFree);
+    CIV_ASSERT(CivKeyRowIs(CivOoTGroup("Dungeon Keys"), "Thieves' Hideout Small Key", true, 2, 1, 0, "HIDE"));
+    // A vanilla file never reads the seed: SoH's vanilla counts, Thieves' Hideout's 4.
+    Context_UpdateShadowCopy(GAME_OOT, vanilla.data(), vanilla.size());
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptGerudoFast | kCivOptMqWater);
+    dungeon = CivOoTGroup("Dungeon Items");
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Thieves' Hideout Small Key", true, 2, 1, 4, "HIDE"));
+    CIV_ASSERT(CivKeyRowIs(dungeon, "Water Temple Small Key", false, 0, 0, 6, "WATR"));
+    Context_UpdateShadowCopy(GAME_OOT, world.data(), world.size());
+    OoT_ItemAdapter_TestOverrideOptions(1, 0u);
+
+    // ---- B. the shuffle-gated groups: none while every option is off (Greg: any randomizer file) --------
+    static const struct {
+        const char* group;
+        unsigned option;
+        size_t rows;
+    } kGated[] = {
+        { "Fishing Pole", kCivOptFishingPole, 1 }, { "Bean Souls", kCivOptBeanSouls, 10 },
+        { "Boss Souls", kCivOptBossSouls, 9 },     { "Jabber Nuts", kCivOptSpeak, 6 },
+        { "Ocarina Buttons", kCivOptButtons, 5 },  { "Overworld Keys", kCivOptOverworldDoors, 24 },
+    };
+    const int fixedRows = ops->count();
+    CIV_ASSERT(ops->countFor != NULL);
+    CIV_ASSERT(CivOoTGroup("Greg").size() == 1 && CivRowIs(CivOoTGroup("Greg"), "Greg the Green Rupee", true, NULL));
+    for (const auto& g : kGated) {
+        CIV_ASSERT(CivOoTGroup(g.group).empty());
+    }
+    CIV_ASSERT(ops->countFor(world.data()) == fixedRows + 1);
+    // Each option shows its own group and nothing else.
+    for (const auto& g : kGated) {
+        OoT_ItemAdapter_TestOverrideOptions(1, g.option);
+        for (const auto& other : kGated) {
+            const size_t want = (&other == &g) ? other.rows : 0u;
+            if (CivOoTGroup(other.group).size() != want) {
+                printf("[TEST] FAIL: option bit 0x%x alone: OoT group \"%s\" has %zu rows (want %zu)\n", g.option,
+                       other.group, CivOoTGroup(other.group).size(), want);
+                return TEST_FAIL;
+            }
+        }
+    }
+    // A vanilla file shows none of them, whatever the options say, and no Greg; its dungeon tables stay.
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptAll);
+    CIV_ASSERT(ops->countFor(vanilla.data()) == fixedRows);
+    Context_UpdateShadowCopy(GAME_OOT, vanilla.data(), vanilla.size());
+    CIV_ASSERT(CivOoTGroup("Greg").empty() && CivOoTGroup("Boss Souls").empty());
+    CIV_ASSERT(CivOoTGroup("Dungeon Items").size() == 36 && CivOoTGroup("Dungeon Keys").size() == 15);
+    Context_UpdateShadowCopy(GAME_OOT, world.data(), world.size());
+
+    // Every option on: SoH's order after the dungeon tables, contiguous, each row read from the buffer.
+    const int allRows = ops->countFor(world.data());
+    printf("[TEST] combo-item-view: OoT rows with every option on: %d (fixed %d)\n", allRows, fixedRows);
+    CIV_ASSERT(allRows == fixedRows + 1 + 1 + 10 + 9 + 6 + 5 + 24);
+    ComboItemRow probe;
+    for (int i = 0; i < allRows; i++) {
+        memset(&probe, 0, sizeof(probe));
+        CIV_ASSERT(ops->rowAt(world.data(), i, &probe));
+        CIV_ASSERT(probe.group != NULL && probe.name != NULL);
+        CIV_ASSERT(probe.pad || (probe.name[0] != '\0' && probe.iconKey != NULL && probe.iconKeyFaded != NULL));
+    }
+    CIV_ASSERT(!ops->rowAt(world.data(), allRows, &probe));
+    static const char* const kOrder[] = { "Songs",           "Dungeon Items", "Dungeon Keys", "Greg",
+                                          "Fishing Pole",    "Bean Souls",    "Boss Souls",   "Jabber Nuts",
+                                          "Ocarina Buttons", "Overworld Keys" };
+    int lastFirst = -1;
+    for (const char* group : kOrder) {
+        int first = -1;
+        for (int i = 0; i < allRows && first < 0; i++) {
+            memset(&probe, 0, sizeof(probe));
+            if (ops->rowAt(world.data(), i, &probe) && strcmp(probe.group, group) == 0) {
+                first = i;
+            }
+        }
+        CIV_ASSERT(first > lastFirst);
+        lastFirst = first;
+    }
+    std::vector<ComboItemRow> g = CivOoTGroup("Fishing Pole");
+    CIV_ASSERT(CivRowIs(g, "Fishing Pole", true, NULL));
+    g = CivOoTGroup("Bean Souls");
+    CIV_ASSERT(CivRowIs(g, "Kokiri Forest Bean Soul", true, "KF"));
+    CIV_ASSERT(CivRowIs(g, "Graveyard Bean Soul", false, "GY"));
+    g = CivOoTGroup("Boss Souls");
+    CIV_ASSERT(CivRowIs(g, "Gohma's Soul", true, "GOHMA"));
+    CIV_ASSERT(CivRowIs(g, "Twinrova's Soul", true, "TWIN"));
+    CIV_ASSERT(CivRowIs(g, "Volvagia's Soul", false, "VOLV"));
+    CIV_ASSERT(CivRowIs(g, "Ganon's Soul", true, "GANON")); // not shuffled: SoH draws it held
+    g = CivOoTGroup("Jabber Nuts");
+    CIV_ASSERT(CivRowIs(g, "Zora Jabber Nut", true, "ZORA"));
+    CIV_ASSERT(CivRowIs(g, "Deku Jabber Nut", false, "DEKU"));
+    g = CivOoTGroup("Ocarina Buttons");
+    CIV_ASSERT(CivRowIs(g, "Ocarina A Button", true, "A"));
+    CIV_ASSERT(CivRowIs(g, "Ocarina C Left Button", true, "C-L"));
+    CIV_ASSERT(CivRowIs(g, "Ocarina C Up Button", false, "C-U"));
+    // OoT's copy of each Shared Ocarina Buttons family slot (#1067), as MM's rows are.
+    CIV_ASSERT(CivRowNamed(g, "Ocarina A Button")->sharedFamily == RSBS_XITEM_SHARED_OCARINA_BUTTONS);
+    CIV_ASSERT(CivRowNamed(g, "Ocarina C Left Button")->sharedFamily == RSBS_XFAMILY_SLOT_OCARINA_C_LEFT);
+    CIV_ASSERT(CivRowNamed(g, "Ocarina C Up Button")->sharedFamily == RSBS_XFAMILY_SLOT_OCARINA_C_UP);
+    CIV_ASSERT(CivRowNamed(g, "Ocarina C Down Button")->sharedFamily == RSBS_XFAMILY_SLOT_OCARINA_C_DOWN);
+    CIV_ASSERT(CivRowNamed(g, "Ocarina C Right Button")->sharedFamily == RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT);
+    g = CivOoTGroup("Overworld Keys");
+    CIV_ASSERT(CivRowIs(g, "Guard House Key", true, "GUARD"));
+    CIV_ASSERT(CivRowIs(g, "Fishing Hole Key", true, "FISH"));
+    CIV_ASSERT(CivRowIs(g, "Windmill Key", false, "WIND"));
+    // Ganon's soul shuffled (RO_BOSS_SOULS_ON_PLUS_GANON): its own flag, unset here.
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptAll | kCivOptBossSoulsGanon);
+    CIV_ASSERT(CivRowIs(CivOoTGroup("Boss Souls"), "Ganon's Soul", false, "GANON"));
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptAll);
+
+    // ---- C. each gated group on its own line of SoH's grid; the dungeon tables flow on after the songs ----
+    const ComboItemGridStyle* grid = Combo_ItemGridStyle((uint8_t)GAME_OOT);
+    CIV_ASSERT(grid->groupOwnLine != NULL && grid->columns == 6 && grid->cellPx == 36.0f && grid->gapPx == 12.0f);
+    for (const char* own :
+         { "Greg", "Fishing Pole", "Bean Souls", "Boss Souls", "Jabber Nuts", "Ocarina Buttons", "Overworld Keys" }) {
+        CIV_ASSERT(grid->groupOwnLine(own));
+    }
+    for (const char* flow : { "Inventory", "Songs", "Dungeon Items", "Dungeon Keys" }) {
+        CIV_ASSERT(!grid->groupOwnLine(flow));
+    }
+
+    // ---- D. SoH's DisplayType keys govern them in the overlay, hidden by SoH's default -------------------
+    static const struct {
+        const char* group;
+        const char* key;
+    } kKeys[] = {
+        { "Dungeon Items", "gTrackers.ItemTracker.DisplayType.DungeonItems" },
+        { "Greg", "gTrackers.ItemTracker.DisplayType.Greg" },
+        { "Fishing Pole", "gTrackers.ItemTracker.DisplayType.FishingPole" },
+        { "Bean Souls", "gTrackers.ItemTracker.DisplayType.BeanSouls" },
+        { "Boss Souls", "gTrackers.ItemTracker.DisplayType.BossSouls" },
+        { "Jabber Nuts", "gTrackers.ItemTracker.DisplayType.JabberNuts" },
+        { "Ocarina Buttons", "gTrackers.ItemTracker.DisplayType.OcarinaButtons" },
+        { "Overworld Keys", "gTrackers.ItemTracker.DisplayType.OverworldKeys" },
+    };
+    const char* const kMapsKey = "gTrackers.ItemTracker.DungeonItems.DisplayMaps";
+    for (const auto& k : kKeys) {
+        CVarClear(k.key);
+    }
+    CVarClear(kMapsKey);
+    ComboGui::ComboItemTrackerKeys keys = ComboGui::ComboReadItemTrackerKeys();
+    int visibilityFailures = 0;
+    for (const auto& k : kKeys) {
+        visibilityFailures += ComboGui::ComboItemTrackerSohGroupShown(keys, k.group) ? 1 : 0;
+    }
+    visibilityFailures += ComboGui::ComboItemTrackerSohGroupShown(keys, "Dungeon Keys") ? 1 : 0;
+    visibilityFailures += ComboGui::ComboItemTrackerSohGroupShown(keys, "Inventory") ? 0 : 1;
+    for (const auto& k : kKeys) {
+        for (int value : { 1, 2 }) { // Main Window; Separate (or Misc Window): the overlay is one window
+            CVarSetInteger(k.key, value);
+            keys = ComboGui::ComboReadItemTrackerKeys();
+            for (const auto& other : kKeys) {
+                if (ComboGui::ComboItemTrackerSohGroupShown(keys, other.group) != (&other == &k)) {
+                    visibilityFailures++;
+                }
+            }
+        }
+        CVarClear(k.key);
+    }
+    // The dungeon table follows DungeonItems.DisplayMaps: with maps (SoH's default), or keys only.
+    CVarSetInteger(kKeys[0].key, 1);
+    keys = ComboGui::ComboReadItemTrackerKeys();
+    const bool mapsShown = ComboGui::ComboItemTrackerSohGroupShown(keys, "Dungeon Items");
+    const bool keysHidden = !ComboGui::ComboItemTrackerSohGroupShown(keys, "Dungeon Keys");
+    CVarSetInteger(kMapsKey, 0);
+    keys = ComboGui::ComboReadItemTrackerKeys();
+    const bool mapsHidden = !ComboGui::ComboItemTrackerSohGroupShown(keys, "Dungeon Items");
+    const bool keysShown = ComboGui::ComboItemTrackerSohGroupShown(keys, "Dungeon Keys");
+    CVarClear(kMapsKey);
+
+    // The overlay's OoT section with every key on lays each gated group from a line's start.
+    for (const auto& k : kKeys) {
+        CVarSetInteger(k.key, 1);
+    }
+    ComboGui::ComboItemTrackerSection section;
+    ComboGui::ComboItemTrackerCollectSection(ComboGui::COMBO_ITEM_SECTION_OOT, section);
+    for (const auto& k : kKeys) {
+        CVarClear(k.key);
+    }
+    std::vector<ComboGui::ComboItemGridCell> cells;
+    ComboGui::ComboItemIconLayout(section.rows, *section.grid, cells);
+    int lineStarts = 0;
+    for (size_t i = 0; i < section.rows.size() && i < cells.size(); i++) {
+        const bool first = i == 0 || strcmp(section.rows[i - 1].group, section.rows[i].group) != 0;
+        if (first && grid->groupOwnLine != NULL && grid->groupOwnLine(section.rows[i].group)) {
+            lineStarts += cells[i].column == 0 ? 1 : 0;
+        }
+    }
+    printf("[TEST] combo-item-view: OoT overlay rows with every DisplayType on: %zu, gated groups from a line's "
+           "start: %d (want 7); visibility failures %d; maps %d/%d keys %d/%d\n",
+           section.rows.size(), lineStarts, visibilityFailures, (int)mapsShown, (int)mapsHidden, (int)keysShown,
+           (int)keysHidden);
+    CIV_ASSERT(visibilityFailures == 0 && mapsShown && keysHidden && mapsHidden && keysShown);
+    CIV_ASSERT(lineStarts == 7);
+    CIV_ASSERT(section.rows.size() == (size_t)(66 + 36 + 1 + 1 + 10 + 9 + 6 + 5 + 24));
+
+    // ---- E. the slot guard (SoH 7a7f942b8): an item id past gItemSlots names no slot ---------------------
+    const int slots = OoT_ItemAdapter_TestItemSlotCount();
+    const int kItemHookshot = 0x0A, kItemLongshot = 0x0B, kItemFishingPole = 0x59, kItemNone = 0xFF; // z64item.h
+    printf("[TEST] combo-item-view: guarded slot reads: hookshot=%d fishing pole=%d past table=%d (slots %d)\n",
+           OoT_ItemAdapter_TestInvContent(world.data(), kItemHookshot),
+           OoT_ItemAdapter_TestInvContent(world.data(), kItemFishingPole),
+           OoT_ItemAdapter_TestInvContent(world.data(), slots), slots);
+    CIV_ASSERT(slots > kItemLongshot && slots <= kItemFishingPole);
+    CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), kItemHookshot) == kItemLongshot);
+    CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), kItemFishingPole) == kItemNone);
+    CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), slots) == kItemNone);
+    CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), 255) == kItemNone);
+    CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), -1) == kItemNone);
+
+    OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+    Context_UpdateShadowCopy(GAME_OOT, inherited.data(), inherited.size());
+    Context_SetCurrentGame(inheritedGame);
+    return TEST_PASS;
+}
+
+// ---- the Shared column shows the pooled pieces toward the next heart (#1159) ----
+//
+// Health is ONE quantity for the pair (Combo_MakeHealthQuarters: capacity plus
+// four units per piece, sixteen per heart), max-merged at every harvest and
+// raised into the arriving game at every apply. So four pieces make a heart
+// whichever game each came from, and the Shared column shows the pieces toward
+// the next one right after the hearts. RED before #1159: the Shared Hearts row
+// truncated the pieces and no row carried them.
+static int CivSharedHeartLegs(void) {
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    Context_SetCurrentGame(GAME_NONE); // the pool alone, no live game
+    ComboItemRow hearts;
+    ComboItemRow pieces;
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 2));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &hearts) && hearts.count == 5 && hearts.max == 20);
+    const bool found = CivFindSharedRow("Heart Pieces", &pieces);
+    printf("[TEST] combo-item-view: pool 5 hearts + 2 pieces: Heart Pieces row %s count=%d max=%d have=%d\n",
+           found ? "shown" : "MISSING", found ? pieces.count : -1, found ? pieces.max : -1,
+           found ? (int)pieces.have : -1);
+    CIV_ASSERT(found && pieces.have && pieces.count == 2 && pieces.max == 4);
+    // It follows the Hearts row in the Shared column.
+    int heartsAt = -1;
+    int piecesAt = -1;
+    ComboItemRow row;
+    for (int i = 0; i < Combo_ItemSharedCount(); i++) {
+        CIV_ASSERT(Combo_ItemSharedRowAt(i, &row));
+        heartsAt = strcmp(row.name, "Hearts") == 0 ? i : heartsAt;
+        piecesAt = strcmp(row.name, "Heart Pieces") == 0 ? i : piecesAt;
+    }
+    CIV_ASSERT(heartsAt >= 0 && piecesAt == heartsAt + 1);
+    // Each game's own heart-piece icon (OoT: SoH's ITEM_HEART_PIECE; MM: its own, not the container).
+    CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(piecesAt, (uint8_t)GAME_OOT, &row));
+    CIV_ASSERT(row.iconKey != NULL && strcmp(row.iconKey, "ITEM_HEART_PIECE") == 0);
+    ComboItemRow mmHearts;
+    CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(heartsAt, (uint8_t)GAME_MM, &mmHearts));
+    CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(piecesAt, (uint8_t)GAME_MM, &row));
+    CIV_ASSERT(row.iconKey != NULL && mmHearts.iconKey != NULL && strcmp(row.iconKey, mmHearts.iconKey) != 0);
+
+    // A third piece found in MM (the pool's two applied there first) is the pair's third.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x50, 3));
+    CIV_ASSERT(CivFindSharedRow("Heart Pieces", &pieces) && pieces.count == 3);
+    CIV_ASSERT(CivFindSharedRow("Hearts", &hearts) && hearts.count == 5);
+    // A fourth from OoT completes the heart, for both games: 6 hearts, no pieces.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x60, 0));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &hearts) && hearts.count == 6);
+    CIV_ASSERT(CivFindSharedRow("Heart Pieces", &pieces) && pieces.count == 0 && !pieces.have);
+    // OoT holding a fourth piece it has not converted yet (it converts when the textbox closes) reads the same.
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x60, 3));
+    CIV_ASSERT(CivFindSharedRow("Heart Pieces", &pieces) && pieces.count == 3);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x60, 4));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &hearts) && hearts.count == 7);
+    CIV_ASSERT(CivFindSharedRow("Heart Pieces", &pieces) && pieces.count == 0);
+    // The cap: a game past 20 hearts (neither give path clamps) harvests 20, and no piece shows past it.
+    Combo_HarvestSharedResource(GAME_MM, RSBS_SHARED_RES_HEALTH_QUARTERS, Combo_MakeHealthQuarters(0x150, 3));
+    CIV_ASSERT(CivFindSharedRow("Hearts", &hearts) && hearts.count == 20 && hearts.max == 20);
+    CIV_ASSERT(CivFindSharedRow("Heart Pieces", &pieces) && pieces.count == 0);
+    uint16_t pooled = 0;
+    CIV_ASSERT(Combo_GetSharedResource(RSBS_SHARED_RES_HEALTH_QUARTERS, &pooled) &&
+               pooled == RSBS_SHARED_RES_MAX_HEALTH_QUARTERS);
+    return TEST_PASS;
+}
+
 extern "C" int Combo_ItemView_RunHeadless(void) {
     printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
@@ -1430,13 +1889,23 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             result = TEST_FAIL;
             break;
         }
-        if (ops->count() < 55 || ops->count() > 75) {
-            printf("[TEST] FAIL: OoT item adapter row count %d is not the curated ~60\n", ops->count());
+        // SoH's 66 default main-window rows plus its two dungeon tables (36 and 15 cells, #1142).
+        if (ops->count() < 110 || ops->count() > 125) {
+            printf("[TEST] FAIL: OoT item adapter row count %d is not the curated 66 plus the dungeon tables\n",
+                   ops->count());
             result = TEST_FAIL;
             break;
         }
         printf("[TEST] combo-item-view: OoT adapter registered with %d curated rows\n", ops->count());
         if (CivOoTLegs(ops) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 2 for OoT's dungeon tables and shuffle-gated groups (#1142, #1158) --
+        const int ootGroupResult = CivOoTTrackerGroupLegs(ops);
+        OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+        if (ootGroupResult != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }
@@ -1482,6 +1951,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
         // ---- 5. the Shared group -----------------------------------------
         if (CivSharedLegs() != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5a. the Shared column's pooled heart pieces (#1159) -----------
+        if (CivSharedHeartLegs() != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

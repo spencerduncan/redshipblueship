@@ -21,6 +21,15 @@ uint64_t GetUnixTimestamp();
 #define CVAR_NAME "gSettings.TimeSplits.Enable"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-TIMERS (#1239): one path for the splits file, defined in TimersGuiSingleExe.cpp, so a test or the UI harness can
+// point it at its own scratch directory. Production reads the same app-directory file upstream does.
+std::string MM_TimeSplits_DataPath();
+#define TIME_SPLITS_DATA_PATH MM_TimeSplits_DataPath()
+#else
+#define TIME_SPLITS_DATA_PATH Ship::Context::GetPathRelativeToAppDirectory("2S2HTimeSplitData.json")
+#endif
+
 nlohmann::json TimesplitObject_to_json(const TimesplitObject& split) {
     return nlohmann::json{
         { "splitId", split.splitId },
@@ -292,7 +301,7 @@ void GetSplitByActorId(int16_t actorId, uint32_t specialType = 0) {
 }
 
 void SplitLoadComparisonList() {
-    std::string filename = Ship::Context::GetPathRelativeToAppDirectory("2S2HTimeSplitData.json");
+    std::string filename = TIME_SPLITS_DATA_PATH;
     json compareFile;
     json listArray = nlohmann::json::array();
 
@@ -313,7 +322,7 @@ void SplitLoadComparisonList() {
 }
 
 void SplitSaveFileAction(uint32_t action, std::string listName) {
-    std::string filename = Ship::Context::GetPathRelativeToAppDirectory("2S2HTimeSplitData.json");
+    std::string filename = TIME_SPLITS_DATA_PATH;
     json saveFile;
     json listArray = nlohmann::json::array();
 
@@ -361,6 +370,11 @@ void SplitSaveFileAction(uint32_t action, std::string listName) {
 }
 
 void RegisterTimesplits() {
+    // W6-TIMERS (#1239): in the single exe this registrar runs at every boot, ROM-free test rows included, and a test
+    // must not touch the player's app directory, so the file is read only once the player uses Time Splits: the
+    // hosted Time Splits body (TimersGuiSingleExe.cpp) retrieves the saved lists before its first draw, Compare
+    // Splits reads them when it is on, and a save creates the file.
+#ifndef RSBS_SINGLE_EXECUTABLE
     if (!std::filesystem::exists(Ship::Context::GetPathRelativeToAppDirectory("2S2HTimeSplitData.json"))) {
         json initFile;
         std::ofstream file(Ship::Context::GetPathRelativeToAppDirectory("2S2HTimeSplitData.json"));
@@ -369,6 +383,7 @@ void RegisterTimesplits() {
     }
 
     SplitSaveFileAction(SPLIT_RETRIEVE, "");
+#endif
 
     COND_HOOK(OnItemGive, CVAR, [](u8 item) {
         if (item == ITEM_HEART_PIECE_2) {

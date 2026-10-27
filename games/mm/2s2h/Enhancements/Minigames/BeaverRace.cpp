@@ -20,6 +20,9 @@ static bool minigameScoreSet = false; // Flag to track if the score has been set
 
 void RegisterBeaverRaceRings() {
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_AZ, CVAR_RINGS < 20, [](Actor* actor, bool* should) {
+        // W6-MINIGAMES (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnAz* enAz = (EnAz*)actor;
         Player* player = GET_PLAYER(MM_gPlayState);
 
