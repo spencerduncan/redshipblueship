@@ -524,8 +524,9 @@ void Combo_ClearSharedItemOutbox(void);
 // grade back to its own chest set. That is OoTMM's rule (csmcFromItem grades a
 // chest by the item's type, the same way for either game's items), expressed in
 // the two ports' own vocabularies: the union of the classes the two games' chests
-// distinguish. A host with no chest for a grade (OoT has no fairy or mask chest)
-// presents it as MAJOR.
+// distinguish. A host with no chest for a grade presents it as MAJOR; since #1172
+// both hosts have one for every grade (OoT dresses MM's stray fairies and masks
+// with SoH's fairy and mask chest models).
 //
 // NONE is "no grade": a non-fill id, or a source that leaves the byte zero. A
 // host presents it as MAJOR, the answer every crossing chest gave before #862, so
@@ -538,8 +539,8 @@ void Combo_ClearSharedItemOutbox(void);
 #define RSBS_CHEST_GRADE_BOSS_KEY 5u  /* ITEM_CATEGORY_BOSS_KEY, RITYPE_BOSS_KEY */
 #define RSBS_CHEST_GRADE_SMALL_KEY 6u /* ITEM_CATEGORY_SMALL_KEY, RITYPE_SMALL_KEY */
 #define RSBS_CHEST_GRADE_TOKEN 7u     /* ITEM_CATEGORY_SKULLTULA_TOKEN, RITYPE_SKULLTULA_TOKEN */
-#define RSBS_CHEST_GRADE_FAIRY 8u     /* RITYPE_STRAY_FAIRY (OoT has no fairy chest) */
-#define RSBS_CHEST_GRADE_MASK 9u      /* RITYPE_MASK (OoT has no mask chest) */
+#define RSBS_CHEST_GRADE_FAIRY 8u     /* RITYPE_STRAY_FAIRY (OoT: ITEM_CATEGORY_MM_STRAY_FAIRY, #1172) */
+#define RSBS_CHEST_GRADE_MASK 9u      /* RITYPE_MASK (OoT: ITEM_CATEGORY_MM_MASK, #1172) */
 #define RSBS_CHEST_GRADE_COUNT 10u
 
 /** One source row. */

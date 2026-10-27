@@ -257,9 +257,11 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * publishes for its own item (MM's randoItemType, through the item class owner,
  * shared_items.h "THE CHEST GRADE"; ADR 0002 keeps MM's item table out of this
  * TU), mapped onto OoT's own categories, so an MM small key shows OoT's key chest
- * and an MM heart piece OoT's heart chest. OoT has no fairy or mask chest: a stray
- * fairy, a mask, or an item with no grade presents as major, the answer every
- * crossing chest gave before #862. Every other chest keeps its own item's category.
+ * and an MM heart piece OoT's heart chest. A stray fairy and a mask present the two
+ * single-exe categories z_en_box.c dresses with SoH's fairy and mask chest models
+ * (#1172; OoT's own masks stay major, as OoTMM grades them); an item with no grade
+ * presents as major, the answer every crossing chest gave before #862. Every other
+ * chest keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
     const SharedItem* item = rc != 0 ? Combo_GetForeignPlacementForOoTCheck(rc) : nullptr;
@@ -279,9 +281,11 @@ extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
             return (int)ITEM_CATEGORY_SMALL_KEY;
         case RSBS_CHEST_GRADE_TOKEN:
             return (int)ITEM_CATEGORY_SKULLTULA_TOKEN;
-        case RSBS_CHEST_GRADE_MAJOR:
         case RSBS_CHEST_GRADE_FAIRY:
+            return (int)ITEM_CATEGORY_MM_STRAY_FAIRY;
         case RSBS_CHEST_GRADE_MASK:
+            return (int)ITEM_CATEGORY_MM_MASK;
+        case RSBS_CHEST_GRADE_MAJOR:
         default:
             return (int)ITEM_CATEGORY_MAJOR;
     }
