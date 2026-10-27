@@ -546,6 +546,18 @@ default (off).
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
 | `gFixes.*` | 4 | MM-specific colour/Epona fixes |
 | `gWindows.*` | 23 | MM's own window-open namespace (OoT uses `gOpenWindows.*`) |
+| `gWindows.HudEditor` | 1 | (G), no row and no second window (W6-HUD-A, #1237). 2Ship's HUD Editor popout resolves to SoH's "Popout Cosmetics Editor Window": MM's HUD placements are in the Cosmetics Editor's HUD Placement tab, and `BenGui/HudEditor.cpp` stays unlinked |
+| `gHudEditor.B.{Mode, Position.X, Position.Y, Scale}` | 4 | (O) MM-only (W6-HUD-A, #1239). Header "MM B Button position" in the Majora's Mask section of SoH's Cosmetics Editor, HUD Placement tab, after SoH's placements: SoH's position radio buttons (Original position = Vanilla, Anchor to the left / right = Movable left / right, No anchors = Movable center, Hidden), its Up/Down and Left/Right sliders and MM's scale. Read by `mm_hudeditor_stubs.c`, 2Ship's reader ported. Composed from `RSBS_CVAR_MM_HUD_EDITOR_PREFIX` (leg 3d-3); not SoH's `gCosmetics.HUD.*` placements, whose positions and anchors mean OoT's HUD layout |
+| `gHudEditor.A.*` | 4 | (O), likewise: "MM A Button position" |
+| `gHudEditor.Start.*` | 4 | (O), likewise: "MM Start Button position" |
+| `gHudEditor.CUp.*` | 4 | (O), likewise: "MM C Button Up position" (Tatl's button) |
+| `gHudEditor.CDown.*` | 4 | (O), likewise: "MM C Button Down position" |
+| `gHudEditor.CLeft.*` | 4 | (O), likewise: "MM C Button Left position" |
+| `gHudEditor.CRight.*` | 4 | (O), likewise: "MM C Button Right position" |
+| `gHudEditor.DPad.*` | 4 | (O), likewise: "MM DPad items position" |
+| `gHudEditor.Minimap.*` | 4 | (O), likewise: "MM Minimaps position" |
+| HUD Editor preset | 0 | (O), no key: the section's "HUD Preset" row (Vanilla (4:3) / Hidden / Widescreen) writes every element's Mode and clears its position and scale, as 2Ship's preset did |
+| `gColors.<element>.{Color, Changed}` | 0 rows | INTENTIONAL, no row: 2Ship's HUD editor colour keys are read only by its window, never by a draw, so a row would write a key nothing in MM reads. MM's HUD colours are W6-COS-A's `gCosmetic.*` |
 | `gCollisionViewer.*` | 18 | MM collision viewer |
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
 | `gNotifications.*`, `gDisplayOverlay.*` | 7 | MM overlay/notification system |
