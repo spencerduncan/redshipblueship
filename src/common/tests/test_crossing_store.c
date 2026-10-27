@@ -54,6 +54,7 @@
 #include "../entrance.h"
 #include "../foreign_items.h"
 #include "../save.h"
+#include "../shared_items.h" // Combo_SharedItemOverflow_SerializedSize: the v5 Tier-5 length
 #include "../test_runner.h"
 
 #include <algorithm>
@@ -467,7 +468,7 @@ TestResult Test_CrossingStoreCapacity(void) {
     {
         std::vector<uint8_t> file = XsReadFile(mgr.SlotPath(0));
         const size_t t4 = XsTier4Offset();
-        XS_ASSERT(file.size() == t4 + RSBS_CROSSING_BLOCK_MAX_SIZE);
+        XS_ASSERT(file.size() == t4 + RSBS_CROSSING_BLOCK_MAX_SIZE + Combo_SharedItemOverflow_SerializedSize());
         const uint16_t over = (uint16_t)(cap + 1);
         file[t4 + 8] = (uint8_t)(over & 0xFF);
         file[t4 + 9] = (uint8_t)(over >> 8);
@@ -559,9 +560,10 @@ TestResult Test_CrossingStoreRedsave(void) {
     XS_ASSERT(file.size() >= sizeof(h));
     std::memcpy(&h, file.data(), sizeof(h));
     XS_ASSERT(h.version == RSBS_SAVE_VERSION && h.version >= RSBS_SAVE_VERSION_CROSSINGS); // 4 since #1129
-    // Tier-4 on disk IS the serialized block, right after Tier-3.
+    // Tier-4 on disk IS the serialized block, right after Tier-3 (and the v5
+    // Tier-5 shared-item overflow block after it).
     const size_t t4 = XsTier4Offset();
-    XS_ASSERT(file.size() == t4 + known.size());
+    XS_ASSERT(file.size() == t4 + known.size() + Combo_SharedItemOverflow_SerializedSize());
     XS_ASSERT(std::equal(known.begin(), known.end(), file.begin() + (std::ptrdiff_t)t4));
 
     // save -> clear -> load: byte-identical, in this ROM-free process (MM is not
@@ -605,7 +607,7 @@ TestResult Test_CrossingStoreRedsave(void) {
     }
     // A truncated block is TRUNCATED, not a shorter crossing set.
     {
-        std::vector<uint8_t> bad(file.begin(), file.end() - 4);
+        std::vector<uint8_t> bad(file.begin(), file.begin() + (std::ptrdiff_t)(t4 + known.size() - 4));
         XS_ASSERT(XsWriteFile(mgr.SlotPath(0), bad));
         XS_ASSERT(mgr.LoadSlot(0) == RSBS_LOAD_REFUSED);
         XS_ASSERT(mgr.GetSlotRefuseReason(0) == RSBS_REFUSE_TRUNCATED);

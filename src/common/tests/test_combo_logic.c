@@ -111,6 +111,10 @@ namespace {
 // ============================================================================
 
 const int kClMaxHosts = 16;
+/** Placements one stub engine can STORE: a synthetic world (below) can offer and
+ *  fill far more hosts than the authored ones, so the store is wider (P6 places
+ *  more than RSBS_SHARED_ITEM_CAP crossings on one side). */
+const int kClMaxPlaced = 160;
 const int kClMaxItems = 8;
 
 /**
@@ -247,14 +251,14 @@ struct ClEngine {
     int snapPlaced;
 
     int placedCount;
-    uint16_t placedHost[kClMaxHosts];
-    SharedItem placedItem[kClMaxHosts]; // what the engine STORED (a cover, if foreign)
+    uint16_t placedHost[kClMaxPlaced];
+    SharedItem placedItem[kClMaxPlaced]; // what the engine STORED (a cover, if foreign)
     /** What the COORDINATOR handed to `place`, verbatim. The cover above is this
      *  stub's own doing and proves nothing about the coordinator; this array is
      *  the half the coordinator controls, so it is what the ADR 0002 routing
      *  assertions read. */
-    SharedItem placedRaw[kClMaxHosts];
-    bool placedIsCover[kClMaxHosts];
+    SharedItem placedRaw[kClMaxPlaced];
+    bool placedIsCover[kClMaxPlaced];
 
     // --- contract traps --------------------------------------------------
     bool sawForeignAssume;     // an id this engine's table does not name
@@ -585,7 +589,7 @@ int ClPlace(void* self, uint16_t hostCheck, SharedItem item) {
         e->refuseNextNewPlace = false;
         return 0;
     }
-    if (e->placedCount >= kClMaxHosts) {
+    if (e->placedCount >= kClMaxPlaced) {
         return 0;
     }
     e->placedHost[e->placedCount] = hostCheck;
@@ -2767,6 +2771,48 @@ TestResult ClProductionRulesLeg(void) {
         }
         CL_ASSERT(boundedAtCap > 0, "P5: the bounded fill never crossed at all, so the bound was never reached");
         CL_ASSERT(unboundedOver > 0, "P5: without the bound no seed crossed twice, so the leg proves nothing");
+        Combo_Logic_ResetPlacements();
+    }
+
+    // P6. THE PRODUCTION BOUND LETS A SIDE HOST MORE CROSSINGS THAN THE FIXED
+    //     SHARED-ITEM SEGMENT (operator ruling 2026-10-27; Refs #1222). 80 OoT rows
+    //     on a world of 4 OoT + 100 MM hosts, under RSBS_CROSSINGS_PER_SIDE_MAX, the
+    //     bound the single bag passes (combo_single_bag.c): at least 76 OoT items
+    //     must land on MM hosts. While the bound was the 64-slot array, the 65th
+    //     crossing found its side full and the bag could not be placed.
+    {
+        const int kRows = (int)RSBS_SHARED_ITEM_CAP + 16;
+        const int kOoTHosts = 4;
+        const int kMMHosts = kRows + 20;
+        static_assert((int)RSBS_SHARED_ITEM_CAP + 16 - 4 > (int)RSBS_SHARED_ITEM_CAP,
+                      "P6 must need more crossings on one side than the fixed segment holds");
+        static_assert((int)RSBS_SHARED_ITEM_CAP + 36 <= kClMaxPlaced, "P6's MM engine must store every placement");
+        ComboLogicBagItem bag[(int)RSBS_SHARED_ITEM_CAP + 16];
+        for (int i = 0; i < kRows; ++i) {
+            bag[i] = ClBagItem(O, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
+        }
+        ComboLogicFillRequest req;
+        memset(&req, 0, sizeof(req));
+        req.bag = bag;
+        req.bagCount = kRows;
+        req.goal = RSBS_COMBO_GOAL_BEAT_BOTH;
+        req.logicRung = RSBS_COMBO_RUNG_NONE;
+        req.seed = 0x1222u;
+        req.maxCrossingsPerSide = (uint16_t)RSBS_CROSSINGS_PER_SIDE_MAX;
+        ComboLogicFillResult res;
+        ClBuildWideHostWorld(kOoTHosts, kMMHosts);
+        const int status = Combo_Logic_RunFill(&req, &res);
+        int intoOoT = 0;
+        int intoMM = 0;
+        ClCountCrossings(&intoOoT, &intoMM, nullptr);
+        printf("[TEST]   P6: bound %u, %d OoT rows on %d OoT + %d MM hosts: %s, %d placed, %d crossings into MM\n",
+               (unsigned)RSBS_CROSSINGS_PER_SIDE_MAX, kRows, kOoTHosts, kMMHosts, Combo_Logic_StatusName(status),
+               res.placed, intoMM);
+        CL_ASSERT(status == RSBS_COMBO_LOGIC_OK && res.placed == kRows,
+                  "P6: the production per-side bound refused a bag that needs more crossings on one side than the "
+                  "fixed 64 shared-item slots");
+        CL_ASSERT(intoMM >= kRows - kOoTHosts && intoMM > (int)RSBS_SHARED_ITEM_CAP,
+                  "P6: MM did not host more crossings than the fixed segment holds");
         Combo_Logic_ResetPlacements();
     }
 

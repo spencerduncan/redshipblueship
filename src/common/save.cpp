@@ -13,6 +13,7 @@
 #include "combo_settings_view.h"   // Combo_ComboSettingsRestoreLive: frozen wins at load (#781)
 #include "context.h"
 #include "crossing_store.h" // the v3 Tier-4 crossing block (ADR 0010 O7)
+#include "shared_items.h"   // the v5 Tier-5 shared-item overflow block
 #include "entrance.h"       // MM_ENTR_SOUTH_CLOCK_TOWN_0 — the armed blob's return entrance
 // Combo_ComboSettingsDivergenceFor — the combo-level identity check the load
 // runs over the record it just read (ADR 0011 decision 4).
@@ -352,6 +353,15 @@ uint32_t SaveManager::StageCommit() {
         mStaged.valid = false;
         return 0;
     }
+    // Tier-5, the outbox's overflow segment: the rest of Tier-1's shared items,
+    // snapshotted at the same instant.
+    std::vector<uint8_t> sharedOverflow(Combo_SharedItemOverflow_SerializedSize());
+    if (Combo_SharedItemOverflow_Serialize(sharedOverflow.data(), sharedOverflow.size()) != sharedOverflow.size()) {
+        std::fprintf(stderr, "[RsbsSave] commit NOT staged: the shared-item overflow block did not serialize\n");
+        std::lock_guard<std::mutex> lock(mStageMtx);
+        mStaged.valid = false;
+        return 0;
+    }
 
     // Stamp the monotonic commit generation BEFORE copying, so the staged
     // Tier-1 (and therefore the artifact) carries it. gComboCtx is game-thread
@@ -367,6 +377,7 @@ uint32_t SaveManager::StageCommit() {
         mStaged.oot.assign(static_cast<const uint8_t*>(ootShadow), static_cast<const uint8_t*>(ootShadow) + kOoTSize);
         mStaged.mm.assign(static_cast<const uint8_t*>(mmShadow), static_cast<const uint8_t*>(mmShadow) + kMMSize);
         mStaged.crossings.swap(crossings);
+        mStaged.sharedOverflow.swap(sharedOverflow);
         mStaged.generation = generation;
         mStaged.valid = true;
     }
@@ -408,6 +419,7 @@ bool SaveManager::WriteStagedCommit(int slot) {
     std::vector<uint8_t> ootBlob;
     std::vector<uint8_t> mmBlob;
     std::vector<uint8_t> crossings;
+    std::vector<uint8_t> sharedOverflow;
     {
         std::lock_guard<std::mutex> lock(mStageMtx);
         if (!mStaged.valid) {
@@ -417,11 +429,12 @@ bool SaveManager::WriteStagedCommit(int slot) {
         ootBlob = mStaged.oot;
         mmBlob = mStaged.mm;
         crossings = mStaged.crossings;
+        sharedOverflow = mStaged.sharedOverflow;
     }
     if (gStagedCopyHookForTest != nullptr) {
         gStagedCopyHookForTest(gStagedCopyHookCtxForTest);
     }
-    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data(), crossings);
+    return WriteSlotFile(slot, combo, ootBlob.data(), mmBlob.data(), crossings, sharedOverflow);
 }
 
 bool SaveManager::Save(int slot) {
@@ -442,7 +455,7 @@ bool SaveManager::Save(int slot) {
 }
 
 bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8_t* ootBlob, const uint8_t* mmBlob,
-                                const std::vector<uint8_t>& crossings) {
+                                const std::vector<uint8_t>& crossings, const std::vector<uint8_t>& sharedOverflow) {
     // One writer at a time: the OnSaveFile worker (WriteStagedCommit) and a
     // synchronous game-thread commit (MM's capture, OnExitGame) share the same
     // `.tmp` staging path per slot, and interleaved temp writes would produce
@@ -488,6 +501,9 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     // Tier-4 (v3, ADR 0010 O7): the crossing block, self-sized, always present
     // in a v3 file (16 bytes when the world has no crossings), inside the CRC.
     payload.insert(payload.end(), crossings.begin(), crossings.end());
+    // Tier-5 (v5): the shared-item overflow block, self-sized, always present in
+    // a v5 file (16 bytes while the outbox fits its fixed 64 slots), inside the CRC.
+    payload.insert(payload.end(), sharedOverflow.begin(), sharedOverflow.end());
 
     RsbsSaveHeader header;
     std::memset(&header, 0, sizeof(header));
@@ -663,6 +679,8 @@ struct SaveManager::SlotFileData {
     std::vector<uint8_t> mmBlob;
     // Tier-4 (v3+). Empty for a v1/v2 file, which carries no crossing block.
     std::vector<uint8_t> crossings;
+    // Tier-5 (v5+). Empty for a v1-v4 file, which carries no overflow block.
+    std::vector<uint8_t> sharedOverflow;
 };
 
 SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& out, RsbsRefuseReason& outReason,
@@ -769,14 +787,57 @@ SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& ou
         }
     }
 
-    // CRC over Tiers 1..3 (and Tier-4 from v3) exactly as stored (not the
-    // zero-extended tails), in the same contiguous order they were written.
+    // Tier-5, the shared-item overflow block (v5+). Sized by its OWN 16-byte
+    // header the way Tier-4 is: a count past this build's overflow capacity is a
+    // refusal before a byte of the body is read, never an allocation or a
+    // truncation.
+    out.sharedOverflow.clear();
+    if (header.version >= RSBS_SAVE_VERSION_SHARED_OVERFLOW) {
+        uint8_t blockHeader[RSBS_SHARED_OVERFLOW_BLOCK_HEADER_SIZE];
+        in.read(reinterpret_cast<char*>(blockHeader), sizeof(blockHeader));
+        if (!in || in.gcount() != static_cast<std::streamsize>(sizeof(blockHeader))) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-5 (shared-item overflow header)\n", slot);
+            }
+            outReason = RSBS_REFUSE_TRUNCATED;
+            return SlotReadResult::Refused;
+        }
+        size_t blockSize = 0;
+        const int sizeRc = Combo_SharedItemOverflow_BlockSize(blockHeader, sizeof(blockHeader), &blockSize);
+        if (sizeRc != RSBS_SHARED_OVERFLOW_OK) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d Tier-5 shared-item overflow header refused (%s)\n", slot,
+                             Combo_SharedItemOverflow_StatusName(sizeRc));
+            }
+            outReason = RSBS_REFUSE_TIER_SIZE;
+            return SlotReadResult::Refused;
+        }
+        out.sharedOverflow.assign(blockHeader, blockHeader + sizeof(blockHeader));
+        out.sharedOverflow.resize(blockSize, 0);
+        const size_t body = blockSize - sizeof(blockHeader);
+        if (body > 0) {
+            in.read(reinterpret_cast<char*>(out.sharedOverflow.data() + sizeof(blockHeader)),
+                    static_cast<std::streamsize>(body));
+            if (!in || in.gcount() != static_cast<std::streamsize>(body)) {
+                if (verbose) {
+                    std::fprintf(stderr, "[RsbsSave] slot %d truncated in Tier-5 (shared-item overflow rows)\n", slot);
+                }
+                outReason = RSBS_REFUSE_TRUNCATED;
+                return SlotReadResult::Refused;
+            }
+        }
+    }
+
+    // CRC over Tiers 1..3 (Tier-4 from v3, Tier-5 from v5) exactly as stored
+    // (not the zero-extended tails), in the same contiguous order they were written.
     std::vector<uint8_t> payload;
-    payload.reserve(header.comboSize + header.ootSize + header.mmSize + out.crossings.size());
+    payload.reserve(header.comboSize + header.ootSize + header.mmSize + out.crossings.size() +
+                    out.sharedOverflow.size());
     payload.insert(payload.end(), out.comboRecord.begin(), out.comboRecord.begin() + header.comboSize);
     payload.insert(payload.end(), out.ootBlob.begin(), out.ootBlob.begin() + header.ootSize);
     payload.insert(payload.end(), out.mmBlob.begin(), out.mmBlob.begin() + header.mmSize);
     payload.insert(payload.end(), out.crossings.begin(), out.crossings.end());
+    payload.insert(payload.end(), out.sharedOverflow.begin(), out.sharedOverflow.end());
     if (Crc32(payload.data(), payload.size()) != header.crc32) {
         if (verbose) {
             std::fprintf(stderr, "[RsbsSave] slot %d failed CRC — file is corrupt, load refused\n", slot);
@@ -809,6 +870,20 @@ SaveManager::SlotReadResult SaveManager::ReadSlotFile(int slot, SlotFileData& ou
                              Combo_Crossings_StatusName(rowsRc));
             }
             outReason = RSBS_REFUSE_CROSSINGS;
+            return SlotReadResult::Refused;
+        }
+    }
+
+    // Every Tier-5 row, validated before anything commits: a row that names no
+    // game is one no writer of this build produces.
+    if (header.version >= RSBS_SAVE_VERSION_SHARED_OVERFLOW) {
+        const int rowsRc = Combo_SharedItemOverflow_ValidateBlock(out.sharedOverflow.data(), out.sharedOverflow.size());
+        if (rowsRc != RSBS_SHARED_OVERFLOW_OK) {
+            if (verbose) {
+                std::fprintf(stderr, "[RsbsSave] slot %d Tier-5 shared-item overflow refused (%s), load refused\n",
+                             slot, Combo_SharedItemOverflow_StatusName(rowsRc));
+            }
+            outReason = RSBS_REFUSE_TIER_SIZE;
             return SlotReadResult::Refused;
         }
     }
@@ -1335,6 +1410,19 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
 
     // All checks passed — commit. gComboCtx and both shadows are updated.
     std::memcpy(&gComboCtx, &combo, sizeof(ComboContext));
+    // The outbox's overflow segment is the rest of Tier-1's shared items: it
+    // commits with them. A v1-v4 file carries none and loads EMPTY (an older
+    // build held at most the fixed 64). Validated by ReadSlotFile; checked anyway
+    // because a silent miss here would keep the previous session's overflow.
+    const int overflowRc = data.sharedOverflow.empty() ? Combo_SharedItemOverflow_LoadBlock(nullptr, 0)
+                                                       : Combo_SharedItemOverflow_LoadBlock(data.sharedOverflow.data(),
+                                                                                            data.sharedOverflow.size());
+    if (overflowRc != RSBS_SHARED_OVERFLOW_OK) {
+        Combo_SharedItemOverflow_Clear();
+        std::fprintf(stderr,
+                     "[RsbsSave] slot %d: shared-item overflow failed to commit after validation (%s); cleared\n", slot,
+                     Combo_SharedItemOverflow_StatusName(overflowRc));
+    }
 
     // The crossing store travels with Tier-1 (ADR 0010 O7): the slot's own
     // record is authoritative, so it OVERWRITES. A v1/v2 file carries no block
@@ -1999,6 +2087,13 @@ RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut
     merged.saveSlot = gComboCtx.saveSlot;
     merged.commitGeneration = gComboCtx.commitGeneration;
     std::memcpy(&gComboCtx, &merged, sizeof(ComboContext));
+    // The outbox's overflow segment goes back with the fixed slots: Tier-1's
+    // shared items and their overflow are one array at one commit (a v1-v4 file
+    // has none). ReadSlotFile validated it.
+    if (Combo_SharedItemOverflow_LoadBlock(data.sharedOverflow.empty() ? nullptr : data.sharedOverflow.data(),
+                                           data.sharedOverflow.size()) != RSBS_SHARED_OVERFLOW_OK) {
+        Combo_SharedItemOverflow_Clear();
+    }
 
     // The pool is the commit's now; a watermark taken against the pre-reset
     // half would re-count (or drain) it at the next harvest. Same reset a load

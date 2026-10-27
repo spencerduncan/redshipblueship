@@ -3,9 +3,10 @@
  * @brief ROM-free locks for #1222: a foreign pickup the full shared outbox would
  *        refuse is held, not lost.
  *
- * THE OUTBOX. Every cross-game pickup is one row of gComboCtx.sharedItemsTagged
- * (RSBS_SHARED_ITEM_CAP, 64 rows), redeemed when the other game next arrives.
- * When all 64 rows hold items the other game has not redeemed yet, the record is
+ * THE OUTBOX. Every cross-game pickup is one row of the shared-item outbox
+ * (RSBS_SHARED_ITEM_LOGICAL_CAP rows: gComboCtx.sharedItemsTagged's 64, then the
+ * overflow segment, since 2026-10-27), redeemed when the other game next arrives.
+ * When every row holds an item the other game has not redeemed yet, the record is
  * REFUSED (src/common/shared_items.c, AppendSharedItem): nothing is written and
  * the durable gComboCtx.sharedItemOverflowCount goes up. Before #1222 the MM give
  * marked the host delivered whatever the record answered (MiscBehavior/
@@ -13,7 +14,7 @@
  * slot before the answer was known (ActorBehavior/EnGirlA.cpp), so the OoT item
  * was lost for the file with nothing shown to the player.
  *
- * MM (Test_ForeignOutboxFullMM), with the 64 rows full:
+ * MM (Test_ForeignOutboxFullMM), with every row full:
  *  Q CHECKQUEUE HOLDS an eligible foreign host back (Rando::Foreign::
  *    ForeignOutboxFullFor): it stays `eligible` and delivers once a crossing
  *    frees a row.
@@ -35,7 +36,7 @@
  * OoT (Test_ForeignOutboxFullOoT), the same hole in the other direction: the
  * RC-queue drain (hook_handlers.cpp) recorded through OoT_Rando_Foreign_
  * RecordPickup and, on a refusal, fell through to the ordinary give of the junk
- * cover, which marks the check collected; the MM item was lost. With the 64 rows
+ * cover, which marks the check collected; the MM item was lost. With every row
  * full:
  *  H THE DRAIN HOLDS the check (OoT_Rando_Foreign_HoldPickup): nothing recorded,
  *    nothing counted, asked twice still one hold;
@@ -105,11 +106,11 @@ void OutboxTestPair(void) {
     gComboCtx.sharedRandoSettingsHash = 0x5EED1222u;
 }
 
-// Fill every shared row with an un-redeemed crossing of `item`. Returns the
-// number recorded (RSBS_SHARED_ITEM_CAP on success).
+// Fill every shared row (both segments) with an un-redeemed crossing of `item`.
+// Returns the number recorded (RSBS_SHARED_ITEM_LOGICAL_CAP on success).
 int FillOutbox(SharedItem item) {
     int recorded = 0;
-    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_CAP; i++) {
+    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
         if (Combo_RecordSharedItemCrossing((GameId)item.originGame, item.id) >= 0) {
             recorded++;
         }
@@ -120,8 +121,8 @@ int FillOutbox(SharedItem item) {
 // How many rows hold `item` (any origin flag), redeemed or not.
 int RowsHolding(SharedItem item) {
     int n = 0;
-    for (uint32_t i = 0; i < RSBS_SHARED_ITEM_CAP; i++) {
-        const SharedItem& row = gComboCtx.sharedItemsTagged[i];
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_LOGICAL_CAP; i++) {
+        const SharedItem& row = *Combo_SharedItemSlot(i);
         if (row.originGame == item.originGame && row.id == item.id) {
             n++;
         }
@@ -172,9 +173,9 @@ static TestResult ForeignOutboxFullMM_Run(void) {
     FO_ASSERT(Combo_SetForeignPlacement(tingleCheck, hammer) >= 0, "Tingle placement accepted");
     MM_Rando_Foreign_TestSetCheckBits(host, 0, 0, 1); // picked up: CheckQueue sees it eligible
 
-    FO_ASSERT(FillOutbox(boots) == (int)RSBS_SHARED_ITEM_CAP, "every shared row recorded");
-    FO_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == (int)RSBS_SHARED_ITEM_CAP,
-              "the outbox holds 64 un-redeemed crossings");
+    FO_ASSERT(FillOutbox(boots) == (int)RSBS_SHARED_ITEM_LOGICAL_CAP, "every shared row recorded");
+    FO_ASSERT(Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false) == (int)RSBS_SHARED_ITEM_LOGICAL_CAP,
+              "the outbox holds a full logical array of un-redeemed crossings");
     const uint32_t overflowBefore = Combo_GetSharedItemOverflowCount();
 
     // Every leg runs before any verdict, so a red run shows them all.
@@ -272,7 +273,7 @@ TestResult Test_ForeignOutboxFullOoT(void) {
     FO_ASSERT(Combo_SetForeignPlacementOoT(kOoTHost, mmLens) >= 0, "OoT host placement accepted");
     FO_ASSERT(Combo_SetForeignPlacementOoT(kOoTOtherHost, mmLens) >= 0, "leg C's OoT host placement accepted");
     OoT_Rando_Foreign_ClearHolds(); // no hold left by an earlier row
-    FO_ASSERT(FillOutbox(boots) == (int)RSBS_SHARED_ITEM_CAP, "every shared row recorded");
+    FO_ASSERT(FillOutbox(boots) == (int)RSBS_SHARED_ITEM_LOGICAL_CAP, "every shared row recorded");
     const uint32_t overflowBefore = Combo_GetSharedItemOverflowCount();
 
     // ---- H: the drain holds it ---------------------------------------------------

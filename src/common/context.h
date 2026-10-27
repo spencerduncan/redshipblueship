@@ -190,27 +190,56 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_SHARED_ITEM_CAP 64u
 
 /**
- * THE PER-SIDE CROSSING BOUND the single-bag fill places under (PR #743 review):
- * at most this many of ONE game's hosts may hold the other game's items.
+ * THE SHARED-ITEM OVERFLOW (operator ruling 2026-10-27, "do the variable length
+ * block", under the follow-OoTMM rule: OoTMM keeps one merged save and puts no
+ * cap on how many items are placed in the other world). The cross-game outbox is
+ * ONE LOGICAL ARRAY of RSBS_SHARED_ITEM_LOGICAL_CAP slots: the fixed
+ * sharedItemsTagged[RSBS_SHARED_ITEM_CAP] above, unchanged in Tier-1, then the
+ * overflow segment gComboSharedItemOverflow (declared beside gComboCtx below),
+ * which the .redsave carries as the variable-length Tier-5 block (format
+ * version 5, shared_items.h). Tier-1 cannot carry it: ADR 0009 holds reserved[]
+ * at its 64-byte floor.
  *
- * WHY IT IS THE SHARED-ITEM CAPACITY. A crossing pickup is delivered through one
- * un-merged entry of sharedItemsTagged (Combo_RecordSharedItemCrossing), and an
- * entry is redeemed when its ORIGIN game next runs. So the un-redeemed crossing
+ * WHY 64 + 1984 = 2048. The logical capacity is RSBS_CROSSING_STORE_CAP, the
+ * most crossings one host game can carry in a stored world (crossing_store.h,
+ * itself RSBS_COMBO_LOGIC_PLACEMENT_CAP: a whole bag on one side;
+ * crossing_store.c static_asserts the equality). So every crossing one game
+ * hosts can sit un-redeemed in the outbox at once, which is the worst a player
+ * can do before the other game redeems, and the fill needs no bound tighter
+ * than its own placement cap (RSBS_CROSSINGS_PER_SIDE_MAX below). The ceiling
+ * stays HARD and finite: RAM is a static 7936-byte array, and a Tier-5 block is
+ * at most 16 + 7936 bytes, refused from its header past that.
+ */
+#define RSBS_SHARED_ITEM_OVERFLOW_CAP 1984u
+#define RSBS_SHARED_ITEM_LOGICAL_CAP (RSBS_SHARED_ITEM_CAP + RSBS_SHARED_ITEM_OVERFLOW_CAP)
+
+/**
+ * THE PER-SIDE CROSSING BOUND the single-bag fill places under (PR #743 review;
+ * lifted 2026-10-27): at most this many of ONE game's hosts may hold the other
+ * game's items.
+ *
+ * WHY IT IS THE LOGICAL SHARED-ITEM CAPACITY. A crossing pickup is delivered
+ * through one un-merged entry of the outbox (Combo_RecordSharedItemCrossing), and
+ * an entry is redeemed when its ORIGIN game next runs. So the un-redeemed crossing
  * entries at any moment are the pickups made in the game the player is in, of the
  * other game's items: at most the number of crossings that game hosts. Keeping
- * that number within RSBS_SHARED_ITEM_CAP per side is what makes "every slot
- * holds an un-redeemed item, record REFUSED" unreachable for crossings on their
- * own: a refusal falls through to the host's own cover item and would lose the
- * only copy of a progression item the proof counted.
+ * that number within the outbox per side is what makes "every slot holds an
+ * un-redeemed item, record REFUSED" unreachable for crossings on their own.
  *
- * NOT covered: the array's one other producer in a shipping build, a netplay
+ * Until 2026-10-27 the outbox was the fixed 64 slots, so this bound was 64 and it
+ * SHAPED worlds: the operator's seed put 64 MM items in Hyrule and the fill could
+ * put no more. The overflow segment made the outbox RSBS_SHARED_ITEM_LOGICAL_CAP,
+ * which equals the placement cap a side already has, so the bound never binds:
+ * a seed places any number of the other game's items on a side, as OoTMM does.
+ * It is still passed, so the invariant stays stated where the fill reads it.
+ *
+ * NOT covered: the outbox's one other producer in a shipping build, a netplay
  * peer's sourced grant (ADR 0005), shares the same slots. Grants have
- * backpressure and crossings do not, so a peer that fills the array while the
- * player collects crossings can still make a pickup refuse (loudly: the overflow
- * count rises). Reserving slots for the crossings still owed needs a durable count
- * of crossings already collected, which the record does not carry yet.
+ * backpressure and crossings do not, so a peer that fills the outbox while the
+ * player collects crossings can still make a pickup refuse at the hard ceiling,
+ * and #1222's hold-and-toast then keeps that pickup open instead of losing it.
  */
-#define RSBS_CROSSINGS_PER_SIDE_MAX RSBS_SHARED_ITEM_CAP
+#define RSBS_CROSSINGS_PER_SIDE_MAX RSBS_SHARED_ITEM_LOGICAL_CAP
 
 /**
  * SharedItem.flags bit: the ORIGIN game has redeemed (actually awarded) this
@@ -1415,6 +1444,15 @@ static_assert(std::is_trivially_copyable<ComboContext>::value,
 #endif
 
 extern ComboContext gComboCtx;
+/**
+ * The shared-item outbox's OVERFLOW segment (RSBS_SHARED_ITEM_OVERFLOW_CAP rows,
+ * the .redsave Tier-5 block): logical slots RSBS_SHARED_ITEM_CAP and up, after
+ * gComboCtx.sharedItemsTagged. Process RAM beside gComboCtx and part of the same
+ * record in every sense but the byte layout: ComboContext_Init clears it, a
+ * .redsave load and the #785 reset restore it with Tier-1, and a commit stages
+ * it with Tier-1. Reach it through shared_items.h, never by index arithmetic.
+ */
+extern SharedItem gComboSharedItemOverflow[RSBS_SHARED_ITEM_OVERFLOW_CAP];
 extern GameId gCurrentGame;
 
 void ComboContext_Init(void);

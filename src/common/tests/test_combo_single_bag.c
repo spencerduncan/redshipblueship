@@ -1140,7 +1140,7 @@ TestResult ComboSingleBag_Run(void) {
                "the shipped direction BOTH crossed nothing in one direction");
     CSB_ASSERT(bag.crossingsIntoMM <= (int)RSBS_CROSSINGS_PER_SIDE_MAX &&
                    bag.crossingsIntoOoT <= (int)RSBS_CROSSINGS_PER_SIDE_MAX,
-               "a side hosts more crossings than the shared-item array can deliver before a redemption");
+               "a side hosts more crossings than the shared-item outbox can deliver before a redemption");
     CSB_ASSERT(MM_ComboLogic_FixedHarvestCount() > 0,
                "MM's rounds granted no fixed check content outside the host pool (#737)");
 

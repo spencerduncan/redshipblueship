@@ -78,6 +78,11 @@ typedef struct {
   `reserved[384]`. Every previously shipped field keeps its offset; the array
   begins exactly where `reserved` used to (offset 364, pinned — see below).
   64 entries is deliberately generous, sized once; the MVP needs a handful.
+  *Amended 2026-10-27:* the single bag made 64 a real limit (a side can host
+  far more crossings than that), so these 64 slots are now the fixed FIRST
+  segment of a logical outbox of `RSBS_SHARED_ITEM_LOGICAL_CAP` (2048) slots;
+  the rest lives outside Tier-1 in a `.redsave` Tier-5 block. This array, its
+  offset and the record size do not change. See the amendment at the end.
 - **No count field.** A slot is occupied iff `originGame != GAME_NONE`. A
   count would be a second source of truth that a zero-extended legacy record
   could contradict.
@@ -316,3 +321,49 @@ that persists an area writes its name (`Combo_Area_Name`) and reads it back thro
 never the number. H1 itself persists nothing.
 
 **Locks:** `ComboAreaVocabulary` (redship tier) and the area check in `RandoHintReload` (rando tier).
+
+## Amendment 2026-10-27 — the outbox's overflow segment (Tier-5, format version 5)
+
+Operator ruling 2026-10-27 ("do the variable length block"), under the rule that OoTMM is the reference for
+game choices: OoTMM keeps one merged save and places any number of items in the other world. Here the cap was
+the 64-slot array. A crossing pickup takes one un-redeemed slot until its origin game next runs, so the fill
+bounded each side at 64 crossings to keep a refusal unreachable, and that bound shaped worlds: the operator's
+seed put 64 MM items in Hyrule (22 stray fairies and 11 heart items among them), and 9 of 30 sampled worlds hit
+it (ADR 0010, increment 3).
+
+**1. One logical array, two segments.** The outbox is `RSBS_SHARED_ITEM_LOGICAL_CAP` = 2048 slots:
+`sharedItemsTagged[64]` first, unchanged in Tier-1, then `gComboSharedItemOverflow[1984]`
+(`RSBS_SHARED_ITEM_OVERFLOW_CAP`), a static array beside `gComboCtx`. Every accessor in `shared_items.c` spans
+both in slot order (the de-dup, the append, the reclaim, the count, the redemption walk, `HasRoom`), and
+`Combo_SharedItemSlot(i)` is the only way other code indexes it. Slot order is still pickup order, which is
+still redemption order. Section 1's "no count field" holds: the segment is occupied iff `originGame != GAME_NONE`,
+and the on-disk row count is derived from it.
+
+**2. Where a record goes.** While the overflow is empty, the first free fixed slot (byte-identical to every
+earlier build). When the fixed segment is full, the oldest REDEEMED entry anywhere is reclaimed first (ADR 0005
+section 3); the compaction runs across the boundary, so the overflow's head moves into the fixed segment's last
+slot and the fixed segment stays the dense prefix. Only when nothing is reclaimable does the record spill into
+the overflow, and only when all 2048 slots are un-redeemed is it refused (the durable
+`sharedItemOverflowCount` and #1222's hold-and-toast, unchanged). So the overflow only ever holds what a
+pre-v5 build would have refused.
+
+**3. Why 2048.** It is `RSBS_CROSSING_STORE_CAP`, the most crossings one host game can carry in a stored world
+(itself the coordinator's per-side placement cap; `crossing_store.c` static-asserts the relation). Every
+crossing one game hosts can therefore sit un-redeemed at once, and the fill's per-side bound
+(`RSBS_CROSSINGS_PER_SIDE_MAX`, now the logical capacity) never binds. The ceiling stays hard: 7936 bytes of
+RAM, and a Tier-5 block of at most 16 + 7936 bytes.
+
+**4. On disk.** The overflow is the `.redsave` Tier-5 block, appended after Tier-4 and inside the payload CRC,
+in the shape ADR 0010 O7 set for Tier-4: a 16-byte header (magic `RSSO`, block format 1, record size 4, a u32
+row count, a reserved word) then 4-byte `SharedItem` rows. It is not a `reserved[]` carve because there is none
+to make (ADR 0009 holds `reserved[91]` against its 64-byte floor). `RSBS_SAVE_VERSION` 4 -> 5
+(`RSBS_SAVE_VERSION_SHARED_OVERFLOW`); `RSBS_SAVE_VERSION_MIN` stays 1. A v1-v4 file loads with an empty
+overflow, which is the truth for any world an older build held; a v5 file is refused by a v4 build by its
+version window. A count past the capacity is refused from the block header (`RSBS_REFUSE_TIER_SIZE`), a short
+block as `RSBS_REFUSE_TRUNCATED`; nothing is truncated. The commit choke point stages the block with Tier-1, a
+load commits it with Tier-1, and the #785 reset restores it with Tier-1; `ComboContext_Init` clears it with the
+fixed slots. Tier-1's layout, `RSBS_COMBO_CONTEXT_RECORD_SIZE`, every offset static assert, the seed package's
+combo record and section 5's pre-carve pin are untouched.
+
+**Locks:** `SaveSharedItemOverflowRoundtrip`, `SaveSharedItemOverflowLegacy`, `SharedItemOverflowOrder`,
+`SharedItemOverflowHasRoom` (redship tier) and `ComboLogicBagModel` leg P6.
