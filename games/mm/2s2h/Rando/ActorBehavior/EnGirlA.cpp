@@ -85,7 +85,23 @@ bool Rando::ActorBehavior::HagsMushroomSlotArmable() {
 }
 
 bool Rando::ActorBehavior::HagsMushroomLineArms() {
-    return HagsMushroomSlotArmable();
+    if (HagsMushroomSlotArmable()) {
+        return true;
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1228: the line does not re-arm a slot whose OoT item already crossed (#800),
+    // but the free blue potion the arming path settles below must be settled here
+    // too. Left clear, the next visit's blue-potion shelf answers EnTrt's
+    // free-potion line 0x881 (z_en_trt.c EnTrt_GetItemChoiceTextId), whose branch
+    // offers the shelf's getItemId and waits on HasParent: a rando shelf has none
+    // (GI_NONE, EnGirlA_RandoInit skips the InitialUpdate that sets it), so the
+    // offer never completes. Settled, the shelf offers its own (sold-out) line.
+    if (Rando::Foreign::IsDeliveredForeignHost(RC_HAGS_POTION_SHOP_ITEM_01) &&
+        RANDO_SAVE_CHECKS[RC_HAGS_POTION_SHOP_ITEM_01].shuffled) {
+        SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
+    }
+#endif
+    return false;
 }
 
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
