@@ -273,6 +273,64 @@ int ComboItemTrackerWindowFlags(int windowType, bool draggable) {
     return flags;
 }
 
+const char* const kComboItemTrackerSohSectionGroups[kComboItemTrackerSohSectionCount] = {
+    "Inventory", "Equipment", "Misc", "Dungeon Rewards", "Songs",
+};
+
+// [lock] seam: today's reads (the gCombo.Tracker.Items.* twins); #1141 moves them to SoH's keys.
+ComboItemTrackerKeys ComboReadItemTrackerKeys() {
+    ComboItemTrackerKeys keys;
+    keys.windowType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
+    keys.draggable = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, 0) != 0;
+    keys.showOnlyPaused = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, 0) != 0;
+    const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
+    keys.bg[0] = bg.r;
+    keys.bg[1] = bg.g;
+    keys.bg[2] = bg.b;
+    keys.bg[3] = bg.a;
+    keys.iconSize = (int)IconSizeSetting();
+    keys.opacity = OverlayOpacity();
+    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+        keys.sectionShown[s] = CVarGetInteger(kSectionKeys[s], 1) != 0;
+    }
+    return keys;
+}
+
+bool ComboItemTrackerSohGroupShown(const ComboItemTrackerKeys& keys, const char* group) {
+    (void)keys;
+    (void)group;
+    return true;
+}
+
+ComboItemTrackerChrome ComboItemTrackerChromeFor(const ComboItemTrackerKeys& keys, bool paused, uint32_t padButtons) {
+    (void)padButtons;
+    ComboItemTrackerChrome chrome;
+    chrome.draws = ComboItemTrackerShows(keys.windowType, keys.showOnlyPaused, paused);
+    chrome.flags = ComboItemTrackerWindowFlags(keys.windowType, keys.draggable);
+    chrome.mainViewport = keys.windowType == COMBO_ITEM_TRACKER_FLOATING;
+    return chrome;
+}
+
+int ComboItemTrackerCarryRetiredKeys() {
+    return 0;
+}
+
+ComboItemIconRect ComboItemIconFit(float cell, float aspect) {
+    ComboItemIconRect r;
+    r.w = aspect > 0.0f ? cell * aspect : cell;
+    r.h = cell;
+    r.x = (cell - r.w) * 0.5f;
+    return r;
+}
+
+void ComboItemLabelPos(float cellX, float cellY, float cell, float textWidth, float scale, float* outX, float* outY) {
+    (void)cell;
+    (void)textWidth;
+    (void)scale;
+    *outX = cellX;
+    *outY = cellY;
+}
+
 void ComboItemTrackerResetPosition() {
     gResetPositionRequested = true;
 }

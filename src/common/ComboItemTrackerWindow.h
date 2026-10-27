@@ -170,6 +170,98 @@ bool ComboItemTrackerShows(int windowType, bool showOnlyPaused, bool paused);
  */
 int ComboItemTrackerWindowFlags(int windowType, bool draggable);
 
+// ---- SoH's Item Tracker Settings keys (#1141, lane IT-3; operator ruling IT-D6) ----
+//
+// One set of settings, SoH's: the overlay reads SoH's gTrackers.ItemTracker.*
+// keys, under SoH's names with SoH's defaults (randomizer_item_tracker.cpp:
+// ItemTrackerWindow::DrawElement, BeginFloatingWindows, DrawItemsInRows,
+// ItemTrackerSettingsWindow::DrawElement and RegisterItemTrackerWidgets), and
+// SoH's own Item Tracker Settings window (Randomizer > Item Tracker > Popout
+// Item Tracker Settings) writes them. ComboReadItemTrackerKeys is the only read
+// of them, and of the overlay's own keys SoH has no twin for (its Opacity and
+// which of its sections it draws). The values are SoH's enums
+// (randomizerTypes.h, randomizer_item_tracker.cpp), which src/common cannot
+// include.
+
+inline constexpr int kComboItemTrackerDisplayAlways = 0;       // TRACKER_DISPLAY_ALWAYS, SoH's default
+inline constexpr int kComboItemTrackerDisplayComboButton = 1;  // TRACKER_DISPLAY_COMBO_BUTTON
+inline constexpr int kComboItemTrackerComboButtonL = 6;        // TRACKER_COMBO_BUTTON_L, Combo Button 1's default
+inline constexpr int kComboItemTrackerComboButtonR = 8;        // TRACKER_COMBO_BUTTON_R, Combo Button 2's default
+inline constexpr int kComboItemTrackerSectionHidden = 0;       // SECTION_DISPLAY_HIDDEN
+inline constexpr int kComboItemTrackerSectionMainWindow = 1;   // SECTION_DISPLAY_MAIN_WINDOW
+inline constexpr int kComboItemTrackerIconSpacing = 12;        // IconSpacing's default (Icon margins)
+inline constexpr int kComboItemTrackerTextSize = 13;           // TextSize's default
+inline constexpr int kComboItemTrackerCountCapacityOnly = 1;   // ITEM_TRACKER_NUMBER_CURRENT_CAPACITY_ONLY
+inline constexpr int kComboItemTrackerKeysCollectedMax = 0;    // KEYS_COLLECTED_MAX
+inline constexpr int kComboItemTrackerTriforceRequiredMax = 1; // TRIFORCE_PIECE_COLLECTED_REQUIRED_MAX
+
+/** SoH's main-window sections the OoT section's groups are, in SoH's order; each has a
+ *  DisplayType.<Section> key (Hidden, Main Window, Separate), default Main Window. */
+inline constexpr int kComboItemTrackerSohSectionCount = 5;
+extern const char* const kComboItemTrackerSohSectionGroups[kComboItemTrackerSohSectionCount];
+
+/** The overlay's settings, as read this frame. */
+struct ComboItemTrackerKeys {
+    // SoH's General settings.
+    int windowType = COMBO_ITEM_TRACKER_FLOATING;                   // WindowType
+    bool draggable = false;                                         // Draggable (Enable Dragging), floating only
+    bool showOnlyPaused = false;                                    // ShowOnlyPaused (Only Enable While Paused)
+    int displayMode = kComboItemTrackerDisplayAlways;               // DisplayType.Main (Display Mode), floating only
+    int comboButton1 = kComboItemTrackerComboButtonL;               // ComboButton1, under Combo Button Hold
+    int comboButton2 = kComboItemTrackerComboButtonR;               // ComboButton2
+    uint8_t bg[4] = { 0, 0, 0, 0 };                                 // BgColor.Value, RGBA: SoH's clear black
+    int iconSize = kComboItemTrackerIconSize;                       // IconSize, held to 25..128
+    int iconSpacing = kComboItemTrackerIconSpacing;                 // IconSpacing: not honoured yet
+    int textSize = kComboItemTrackerTextSize;                       // TextSize: not honoured yet
+    int itemCountType = kComboItemTrackerCountCapacityOnly;         // ItemCountType: lane IT-4 (#1143)
+    bool itemCountAlignLeft = false;                                // ItemCountAlignLeft: lane IT-4
+    int keyCounts = kComboItemTrackerKeysCollectedMax;              // KeyCounts: lane IT-4
+    int triforcePieceCounts = kComboItemTrackerTriforceRequiredMax; // TriforcePieceCounts: lane IT-4
+    bool hookshotIdentifier = false;                                // HookshotIdentifier: lane IT-4
+    bool dungeonItemsDisplayMaps = true;                            // DungeonItems.DisplayMaps: lane IT-2 (#1142)
+    int sectionDisplay[kComboItemTrackerSohSectionCount] = { 1, 1, 1, 1, 1 }; // DisplayType.<Section>
+    // The overlay's own (gCombo.Tracker.Items.*), which SoH's overlay has no row for.
+    float opacity = 1.0f;                                               // Opacity, held to 0.1..1
+    bool sectionShown[COMBO_ITEM_SECTION_COUNT] = { true, true, true }; // Section.OoT / .MM / .Shared
+};
+
+/** The keys' values now, SoH's default (or the overlay's) for any key not set. */
+ComboItemTrackerKeys ComboReadItemTrackerKeys();
+
+/**
+ * Whether an OoT row of group `group` shows under SoH's DisplayType.<Section>
+ * keys: hidden when its section is Hidden, shown on Main Window and Separate
+ * (the overlay is one window). A group that is none of SoH's sections shows.
+ */
+bool ComboItemTrackerSohGroupShown(const ComboItemTrackerKeys& keys, const char* group);
+
+/** What the overlay does this frame: draw or not, the flags it begins with, and whether it is pinned to the
+ *  game window's viewport. */
+struct ComboItemTrackerChrome {
+    bool draws = true;
+    int flags = 0;
+    bool mainViewport = false;
+};
+
+/**
+ * SoH's decision for its Item Tracker window (ItemTrackerWindow::DrawElement's
+ * gate and BeginFloatingWindows' flags) over `keys`, the active game's pause
+ * state `paused` and the first pad's held buttons `padButtons`: the Window
+ * type always draws, as an auto-sized pane; the Floating type is an overlay on
+ * the main viewport (ComboItemTrackerWindowFlags), drawn only while paused under
+ * Only Enable While Paused, and only while both combo buttons are held under
+ * Combo Button Hold.
+ */
+ComboItemTrackerChrome ComboItemTrackerChromeFor(const ComboItemTrackerKeys& keys, bool paused, uint32_t padButtons);
+
+/**
+ * The one-shot carry of the overlay's retired keys (RSBS::kComboRetiredKeys):
+ * a value saved under a retired gCombo.Tracker.Items.* twin moves into SoH's
+ * key, overwriting it (it is what the overlay drew), and the retired key is
+ * cleared, so a second call carries nothing. Returns how many it carried.
+ */
+int ComboItemTrackerCarryRetiredKeys();
+
 /** A rectangle in game-view pixels (the decisions below keep ImGui out of the lock). */
 struct ComboItemTrackerRect {
     float x = 0.0f;
@@ -279,6 +371,31 @@ std::vector<float> ComboItemGridColumnWidths(const std::vector<ComboItemTrackerS
  */
 void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemGridStyle& grid,
                          std::vector<ComboItemGridCell>& out);
+
+/** Where a cell's icon is drawn, as an offset in the cell and a size. */
+struct ComboItemIconRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+};
+
+/**
+ * An icon of aspect `aspect` (ComboItemRow.iconAspect) in a cell of edge
+ * `cell`: a square for 0; a narrow one (a song's note) the cell's height and
+ * centred across it; a wide one (MM's 46x24 owl face) held to the cell's width
+ * and centred down it, so it never runs into the next cell (#1149).
+ */
+ComboItemIconRect ComboItemIconFit(float cell, float aspect);
+
+/**
+ * Where a row's label (ComboItemRow.label) starts: centred over the cell, its
+ * top 13 px (at `scale`) above the icon's, as SoH's DrawItem draws its short
+ * names (randomizer_item_tracker.cpp: p.y - (iconSize + 13) from the line
+ * under the icon). `cellX`, `cellY` are the cell's top left, `textWidth` the
+ * label's width.
+ */
+void ComboItemLabelPos(float cellX, float cellY, float cell, float textWidth, float scale, float* outX, float* outY);
 
 /** The texture a cell draws and the alpha it draws it at. */
 struct ComboItemIconPick {

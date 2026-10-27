@@ -800,6 +800,31 @@ inline constexpr ComboKey kComboKeys[] = {
       "combo tracker: seeds each pane's Only Show Current Area toggle (#1131)" },
 };
 
+/**
+ * Retired gCombo.* keys (#1141): a key that left kComboKeys because a SoH key
+ * now holds the setting, and where its saved value goes. Spelled here and
+ * nowhere else; the Item Tracker overlay's one-shot carry
+ * (ComboItemTrackerCarryRetiredKeys) is their only reader, and the
+ * cvar-classification lock accepts these literals only as retired keys, never
+ * as live ones. `stored` is the suffix the value is stored under (a colour
+ * picker's ".Value").
+ */
+struct ComboRetiredKey {
+    const char* key;
+    const char* carriedTo;
+    const char* stored;
+};
+inline constexpr ComboRetiredKey kComboRetiredKeys[] = {
+    // The Item Tracker overlay's five twins of SoH's Item Tracker Settings
+    // (operator ruling IT-D6: one set of settings, SoH's).
+    { "gCombo.Tracker.Items.WindowType", "gTrackers.ItemTracker.WindowType", "" },
+    { "gCombo.Tracker.Items.Draggable", "gTrackers.ItemTracker.Draggable", "" },
+    { "gCombo.Tracker.Items.ShowOnlyPaused", "gTrackers.ItemTracker.ShowOnlyPaused", "" },
+    { "gCombo.Tracker.Items.BgColor", "gTrackers.ItemTracker.BgColor", ".Value" },
+    { "gCombo.Tracker.Items.IconSize", "gTrackers.ItemTracker.IconSize", "" },
+};
+inline constexpr std::size_t kComboRetiredKeyCount = sizeof(kComboRetiredKeys) / sizeof(kComboRetiredKeys[0]);
+
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
     for (std::size_t i = 0; prefix[i] != '\0'; i++) {
         if (key[i] != prefix[i]) {

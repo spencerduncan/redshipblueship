@@ -79,13 +79,15 @@
  *     open on one of them opens on that page under Randomizer, and no Combo
  *     selection is left naming a page the header no longer has.
  *
- *  8. THE ITEM TRACKER OVERLAY'S SETTINGS HAVE NO MENU WRITER. Leg 7 requires
- *     Combo > Tracker Settings to write every gCombo.Tracker.Items.* key in the
- *     manifest exactly once, with the overlay's own widget, default and range,
- *     to hide the floating-only rows for a windowed overlay and to draw its
- *     colour picker in the menu theme, and (#1132) to hold nothing of the Check
- *     Tracker's any more: a transitional page until lane IT-3 (#1141) moves the
- *     overlay's rows onto SoH's Item Tracker page.
+ *  8. THE ITEM TRACKER OVERLAY'S SETTINGS HAVE NO MENU WRITER, OR TWO. Operator
+ *     ruling IT-D6 (#1141): one set of settings, SoH's. SoH's own Item Tracker
+ *     Settings window writes the gTrackers.ItemTracker.* keys the overlay reads,
+ *     and leg 7 requires SoH's Randomizer > Item Tracker page to carry, after
+ *     SoH's rows, exactly one row for every gCombo.Tracker.Items.* key in the
+ *     manifest (the overlay's Opacity and sections, MM's eight group keys), with
+ *     the overlay's own widget, default and range, under SoH's separator or its
+ *     own, Move to Default Position only while the overlay floats, no row writing
+ *     a SoH key or a retired twin, and Combo > Tracker Settings gone.
  *
  *  9. SoH's OWN TRACKER WINDOWS ARE UNREGISTERED, OR DRAWN (#1132). Their
  *     InitElement registers the hooks and save sections the unified panes read,
@@ -133,10 +135,6 @@
 // option groups reach Option::AddWidget, which RUNS each option's callback at
 // registration time and dereferences a null gRandoContext), so legs 4 and 6 drive
 // our slice of it, SohGui::AddComboRandomizerPages (SohMenu.h), directly.
-namespace SohGui {
-// Leg 7 points THEME_COLOR (SohGui::GetMenuThemeColor) at the probe for one call.
-extern std::shared_ptr<SohMenu> mSohMenu;
-} // namespace SohGui
 
 // Leg 8c: the Check Tracker's two settings statics IsVisibleInCheckTracker reads
 // (randomizer_check_tracker.cpp test bridges).
@@ -492,7 +490,9 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // SoH's Randomizer > Check Tracker and Item Tracker open the unified
     // windows), and none of the three pages #1101 moved to the Randomizer header.
     {
-        const std::vector<std::string> kComboPages = { "Majora's Mask", "MM Mods", "Save Files", "Tracker Settings" };
+        // Tracker Settings retired with #1141 (ruling IT-D6): the Item Tracker's
+        // settings are SoH's page's, leg 7.
+        const std::vector<std::string> kComboPages = { "Majora's Mask", "MM Mods", "Save Files" };
         const auto& order = combo.sidebarOrder;
         std::string got;
         for (const std::string& name : order) {
@@ -503,7 +503,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         for (const std::string& name : kComboPages) {
             COMBO_CHECK(combo.sidebars.contains(name), "the Combo header has no \"%s\" page", name.c_str());
         }
-        for (const char* gone : { "Windows", "Cross-Game Windows" }) {
+        for (const char* gone : { "Windows", "Cross-Game Windows", "Tracker Settings" }) {
             COMBO_CHECK(!combo.sidebars.contains(gone),
                         "the Combo header still holds \"%s\"; the unified trackers open from SoH's Randomizer > "
                         "Check Tracker and Item Tracker pages (#1132, ruling D1)",
@@ -516,8 +516,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                         moved);
         }
     }
-    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its four contributed pages, "
-           "no Windows page, each holding widgets in every column it declares\n");
+    printf("[TEST] leg 1: the Combo header exists with its own sidebar CVar and exactly its three contributed pages, "
+           "no Windows or Tracker Settings page, each holding widgets in every column it declares\n");
 
     // ---- Leg 2: no Combo page hosts the tier-4 rows ------------------------
     // Which rows, and how they behave, is ComboSettingsRows. What this leg owns is
@@ -540,8 +540,8 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
     // rows that lived on Combo > Tracker Settings (#1131's two navigation keys)
     // and the Cross-Game Spoiler's toggle that lived on Combo > Windows follow
     // SoH's own rows on its Check Tracker page, through the contributed-rows
-    // registry; the Item Tracker page takes none yet (lane IT-3, #1141, appends
-    // the overlay's rows there).
+    // registry; the Item Tracker page takes the overlay's own rows after
+    // SoH's the same way (lane IT-3, #1141).
     {
         struct Toggle {
             const char* page;
@@ -585,12 +585,28 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             "Cross-Game Spoiler",
             "Toggle Cross-Game Spoiler",
         };
-        // The Item Tracker page: SoH's four rows, nothing of ours yet (IT-3).
+        // The Item Tracker page (#1141, ruling IT-D6): SoH's four rows, then the
+        // overlay's keys SoH's Item Tracker Settings window has no twin for.
         const std::vector<std::string> kItemPage = {
             "Item Tracker",
             "Toggle Item Tracker",
             "Item Tracker Settings",
             "Popout Item Tracker Settings",
+            "Move to Default Position##ItemTracker",
+            "Tracker Opacity##ItemTracker",
+            "Item Tracker Sections",
+            "Ocarina of Time##ItemTracker",
+            "Majora's Mask##ItemTracker",
+            "Shared##ItemTracker",
+            "Majora's Mask Groups",
+            "Tokens##ItemTracker",
+            "Stray Fairies##ItemTracker",
+            "Dungeon##ItemTracker",
+            "Boss Souls##ItemTracker",
+            "Enemy Souls##ItemTracker",
+            "Owl Statues##ItemTracker",
+            "Time##ItemTracker",
+            "Misc##ItemTracker",
         };
         const std::vector<std::string> checkRows = RowNames(randoPages.at("Check Tracker"));
         const std::vector<std::string> itemRows = RowNames(randoPages.at("Item Tracker"));
@@ -731,7 +747,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                     "UnregisterSohPageRows removed a contribution twice");
         printf("[TEST] leg 3: SoH's Toggle Check Tracker and Toggle Item Tracker open the unified windows by name and "
                "key, the Check Tracker page carries #1131's two rows and the Cross-Game Spoiler after SoH's own, the "
-               "Item Tracker page nothing yet, and a contribution reaches only its own page\n");
+               "Item Tracker page the overlay's own block, and a contribution reaches only its own page\n");
     }
 
     // ---- Leg 4: our pages under SoH's Randomizer header (#1101) ------------
@@ -977,9 +993,6 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             { "MM Enhancements", "Majora's Mask" }, // the rename of 2026-09-27
             { "Majora's Mask", "Majora's Mask" },
             { "Save Files", "Save Files" }, // a page never renamed is left alone
-            // Combo > Tracker Settings keeps the Item Tracker overlay's rows until
-            // lane IT-3 (#1141) retires it, so its selection stays put.
-            { "Tracker Settings", "Tracker Settings" },
         };
         for (const Carry& carry : kCarries) {
             CVarSetString(kSidebarKey, carry.before);
@@ -1028,9 +1041,12 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             { "Combo", "Cross-Game Rules", "Randomizer", "Cross-Game" },
             { "Combo", "Windows", "Randomizer", "Check Tracker" },
             { "Combo", "Cross-Game Windows", "Randomizer", "Check Tracker" },
+            // #1141: Tracker Settings retired; its rows are on SoH's Item Tracker page.
+            { "Combo", "Tracker Settings", "Randomizer", "Item Tracker" },
             // Another header open: the Randomizer selection is the player's own.
             { "Settings", "MM Randomizer", "Settings", "Shuffles" },
             { "Settings", "Windows", "Settings", "Shuffles" },
+            { "Settings", "Tracker Settings", "Settings", "Shuffles" },
         };
         // Where a carry may land: a page AddComboRandomizerPages registers, or
         // one of SoH's own tracker pages (AddMenuRandomizer registers them).
@@ -1066,25 +1082,28 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         restore(kComboKey, savedCombo);
         restore(kRandoKey, savedRando);
         restore(kHeaderKey, savedHeader);
-        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks, Cross-Game Rules or Windows opens on "
-               "the moved page under Randomizer, and no Combo selection is left stranded\n");
+        printf("[TEST] leg 6: a config open on Combo > MM Randomizer, MM Tricks, Cross-Game Rules, Windows or "
+               "Tracker Settings opens on the moved page under Randomizer, and no Combo selection is left "
+               "stranded\n");
     }
 
-    // ---- Leg 7: Combo > Tracker Settings writes the Item Tracker overlay's keys
-    // ADR 0004's 2026-09-30 amendment put the unified trackers' settings on a
-    // Combo page; since #1132 only the Item Tracker overlay's are left there, a
-    // transitional state until lane IT-3 (#1141). Every gCombo.Tracker.Items.*
-    // key in the manifest must have exactly one row here, with the overlay's own
-    // default and range, or the console is a player's only writer for it.
-    if (!combo.sidebars.contains(kTrackerSettingsPage)) {
-        printf("[TEST] FAIL(7): the Combo section has no \"%s\" page, so the Item Tracker overlay's settings "
-               "(gCombo.Tracker.Items.*) have no menu writer\n",
-               kTrackerSettingsPage);
-        gFailures++;
-    } else {
-        SidebarEntry& page = combo.sidebars.at(kTrackerSettingsPage);
-        COMBO_CHECK(page.columnCount == 1, "Combo / %s declares %u columns, expected 1 (SoH's tracker pages)",
-                    kTrackerSettingsPage, page.columnCount);
+    // ---- Leg 7: SoH's Randomizer > Item Tracker page writes the overlay's keys
+    // Operator ruling IT-D6 (#1141): one set of settings, SoH's. SoH's Item
+    // Tracker Settings window (the page's Popout) writes every gTrackers.ItemTracker.*
+    // key the overlay reads; the overlay's keys SoH has no twin for (its
+    // Opacity, its three sections, MM's eight group keys) are an appended block
+    // on that page, through the contributed-rows registry, and Combo > Tracker
+    // Settings is gone. Every gCombo.Tracker.Items.* key in the manifest has
+    // exactly one row there, with the overlay's own default and range, or the
+    // console is a player's only writer for it.
+    COMBO_CHECK(!combo.sidebars.contains(kTrackerSettingsPage),
+                "the Combo header still holds \"%s\"; the Item Tracker's settings are on SoH's Randomizer > Item "
+                "Tracker page (#1141, ruling IT-D6)",
+                kTrackerSettingsPage);
+    {
+        ComboSectionMenuProbe itemProbe;
+        AddSohTrackerPages(itemProbe);
+        SidebarEntry& page = itemProbe.Entries().at("Randomizer").sidebars.at("Item Tracker");
         auto rowFor = [&](const char* key) -> WidgetInfo* {
             for (auto& column : page.columnWidgets) {
                 for (WidgetInfo& row : column) {
@@ -1094,6 +1113,21 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                 }
             }
             return nullptr;
+        };
+        // The separator each row sits under.
+        auto sectionOf = [&](const WidgetInfo* target) -> std::string {
+            for (auto& column : page.columnWidgets) {
+                std::string section;
+                for (WidgetInfo& row : column) {
+                    if (row.type == WIDGET_SEPARATOR_TEXT) {
+                        section = row.name;
+                    }
+                    if (&row == target) {
+                        return section;
+                    }
+                }
+            }
+            return "";
         };
         std::size_t itemKeys = 0;
         for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
@@ -1105,182 +1139,117 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             int rows = 0;
             for (auto& column : page.columnWidgets) {
                 for (WidgetInfo& row : column) {
-                    if (row.cVar != nullptr && std::string(row.cVar) == key) {
-                        rows++;
-                        const char* tip = row.options != nullptr ? row.options->tooltip : nullptr;
-                        COMBO_CHECK(tip != nullptr && tip[0] != '\0', "row '%s' (%s) has no tooltip", row.name.c_str(),
-                                    key);
-                        COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the overlay's look is cosmetic",
-                                    row.name.c_str());
+                    if (row.cVar == nullptr || std::string(row.cVar) != key) {
+                        continue;
                     }
+                    rows++;
+                    const char* tip = row.options != nullptr ? row.options->tooltip : nullptr;
+                    COMBO_CHECK(tip != nullptr && tip[0] != '\0' && std::string(tip).find("Combo") == std::string::npos,
+                                "row '%s' (%s) has no tooltip, or one that says Combo (ruling D7)", row.name.c_str(),
+                                key);
+                    COMBO_CHECK(!row.raceDisable, "row '%s' is race-disabled; the overlay's look is cosmetic",
+                                row.name.c_str());
                 }
             }
-            COMBO_CHECK(rows == 1, "Combo / %s holds %d rows writing %s, expected exactly one", kTrackerSettingsPage,
-                        rows, key);
+            COMBO_CHECK(rows == 1, "Randomizer / Item Tracker holds %d rows writing %s, expected exactly one", rows,
+                        key);
         }
-        COMBO_CHECK(itemKeys == 9, "the manifest holds %zu %s* keys; this leg was written against nine", itemKeys,
-                    kItemTrackerKeyPrefix);
+        COMBO_CHECK(itemKeys == 12,
+                    "the manifest holds %zu %s* keys; this leg was written against twelve (Opacity, three sections, "
+                    "eight MM groups)",
+                    itemKeys, kItemTrackerKeyPrefix);
 
         // Each row's widget, default and range are the overlay's
-        // (ComboItemTrackerWindow.cpp reads every key with these defaults and
+        // (ComboReadItemTrackerKeys reads every key with these defaults and
         // clamps), so the page never shows a value the overlay is not drawing.
-        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE)) {
-            auto o = std::static_pointer_cast<UIWidgets::ComboboxOptions>(row->options);
-            COMBO_CHECK(row->type == WIDGET_CVAR_COMBOBOX &&
-                            o->defaultIndex == (uint32_t)ComboGui::COMBO_ITEM_TRACKER_FLOATING &&
-                            o->comboMap.size() == 2 && o->comboMap.contains(ComboGui::COMBO_ITEM_TRACKER_FLOATING) &&
-                            o->comboMap.contains(ComboGui::COMBO_ITEM_TRACKER_WINDOW),
-                        "the Window Type row is not a combobox over Floating/Window defaulting to Floating");
-        }
-        const char* kBoolKeys[] = { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED,
-                                    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, RSBS_CVAR_COMBO_ITEMS_SECTION_MM,
-                                    RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED };
-        const bool kBoolDefaults[] = { false, false, true, true, true };
-        for (std::size_t i = 0; i < sizeof(kBoolKeys) / sizeof(kBoolKeys[0]); i++) {
-            if (WidgetInfo* row = rowFor(kBoolKeys[i])) {
-                auto o = std::static_pointer_cast<UIWidgets::CheckboxOptions>(row->options);
-                COMBO_CHECK(row->type == WIDGET_CVAR_CHECKBOX && o->defaultValue == kBoolDefaults[i],
-                            "the %s row is not a checkbox defaulting to %s, the overlay's default", kBoolKeys[i],
-                            kBoolDefaults[i] ? "on" : "off");
-            }
-        }
-        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_ICON_SIZE)) {
-            auto o = std::static_pointer_cast<UIWidgets::IntSliderOptions>(row->options);
-            COMBO_CHECK(row->type == WIDGET_CVAR_SLIDER_INT && o->min == ComboGui::kComboItemTrackerIconSizeMin &&
-                            o->max == ComboGui::kComboItemTrackerIconSizeMax &&
-                            o->defaultValue == ComboGui::kComboItemTrackerIconSize,
-                        "the Icon Size row is not an int slider over %d..%d defaulting to %d",
-                        ComboGui::kComboItemTrackerIconSizeMin, ComboGui::kComboItemTrackerIconSizeMax,
-                        ComboGui::kComboItemTrackerIconSize);
-        }
         if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_OPACITY)) {
             auto o = std::static_pointer_cast<UIWidgets::FloatSliderOptions>(row->options);
             COMBO_CHECK(row->type == WIDGET_CVAR_SLIDER_FLOAT && o->min == 0.1f && o->max == 1.0f &&
                             o->defaultValue == 1.0f && o->isPercentage,
                         "the Opacity row is not a percentage slider over 0.1..1 defaulting to 1, the overlay's clamp");
+            COMBO_CHECK(sectionOf(row) == "Item Tracker Settings",
+                        "the Opacity row is under \"%s\", not SoH's Item Tracker Settings separator",
+                        sectionOf(row).c_str());
         }
-        if (WidgetInfo* row = rowFor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR)) {
-            auto o = std::static_pointer_cast<UIWidgets::ColorPickerOptions>(row->options);
-            COMBO_CHECK(row->type == WIDGET_CVAR_COLOR_PICKER && o->useAlpha && o->defaultValue.r == 0 &&
-                            o->defaultValue.g == 0 && o->defaultValue.b == 0 && o->defaultValue.a == 0,
-                        "the Background Color row is not an alpha colour picker defaulting to SoH's clear black");
-            // Its Reset and Random buttons draw in the menu theme, as SoH's Item
-            // Tracker Settings picker does. Menu::MenuDrawItem themes every
-            // other interactive row but draws a picker in its options' own
-            // colour (ColorPickerOptions' default is Gray), so only the row's
-            // PreFunc can theme it. The PreFunc reads THEME_COLOR, which is
-            // SohGui::mSohMenu's theme: point it at the probe for the call and
-            // drive two themes, so a fixed colour cannot pass.
-            COMBO_CHECK(row->preFunc != nullptr,
-                        "the Background Color row has no PreFunc, so its Reset and Random buttons draw Gray, not in "
-                        "the menu theme");
-            if (row->preFunc != nullptr) {
-                const char* kThemeKey = "gSettings.Menu.Theme";
-                const int savedTheme = CVarGetInteger(kThemeKey, -1);
-                std::shared_ptr<SohGui::SohMenu> savedMenu = SohGui::mSohMenu;
-                SohGui::mSohMenu = std::shared_ptr<SohGui::SohMenu>(&probe, [](SohGui::SohMenu*) {});
-                for (UIWidgets::Colors theme : { UIWidgets::Colors::Red, UIWidgets::Colors::Green }) {
-                    CVarSetInteger(kThemeKey, static_cast<int32_t>(theme));
-                    probe.UpdateElement();
-                    o->color = UIWidgets::Colors::Gray;
-                    row->ResetDisables();
-                    row->preFunc(*row);
-                    COMBO_CHECK(o->color == theme,
-                                "the Background Color picker draws in colour %d under menu theme %d, so its Reset and "
-                                "Random buttons do not follow the theme",
-                                static_cast<int>(o->color), static_cast<int>(theme));
-                }
-                SohGui::mSohMenu = savedMenu;
-                if (savedTheme < 0) {
-                    CVarClear(kThemeKey);
-                } else {
-                    CVarSetInteger(kThemeKey, savedTheme);
-                }
-                probe.UpdateElement();
-            }
-        }
-
-        // Dragging and Only While Paused apply to the floating overlay only, as
-        // in SoH's Item Tracker Settings: hidden while the overlay is a window.
-        const char* kFloatingOnly[] = { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED };
-        const int savedType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, -1);
-        for (const char* key : kFloatingOnly) {
-            WidgetInfo* row = rowFor(key);
+        const struct {
+            const char* key;
+            const char* section;
+        } kChecks[] = {
+            { "gCombo.Tracker.Items.Section.OoT", "Item Tracker Sections" },
+            { "gCombo.Tracker.Items.Section.MM", "Item Tracker Sections" },
+            { "gCombo.Tracker.Items.Section.Shared", "Item Tracker Sections" },
+            { "gCombo.Tracker.Items.MM.Tokens", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.StrayFairies", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.Dungeon", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.BossSouls", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.EnemySouls", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.OwlStatues", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.Time", "Majora's Mask Groups" },
+            { "gCombo.Tracker.Items.MM.Misc", "Majora's Mask Groups" },
+        };
+        for (const auto& c : kChecks) {
+            WidgetInfo* row = rowFor(c.key);
+            COMBO_CHECK(row != nullptr, "Randomizer / Item Tracker has no row writing %s", c.key);
             if (row == nullptr) {
                 continue;
             }
-            COMBO_CHECK(row->preFunc != nullptr, "the %s row has no PreFunc, so it shows for a windowed overlay", key);
-            if (row->preFunc == nullptr) {
-                continue;
-            }
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
-            row->ResetDisables();
-            row->preFunc(*row);
-            COMBO_CHECK(row->isHidden, "the %s row shows while the overlay is a window", key);
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
-            row->ResetDisables();
-            row->preFunc(*row);
-            COMBO_CHECK(!row->isHidden, "the %s row is hidden while the overlay floats", key);
-        }
-        if (savedType < 0) {
-            CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
-        } else {
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedType);
+            auto o = std::static_pointer_cast<UIWidgets::CheckboxOptions>(row->options);
+            COMBO_CHECK(row->type == WIDGET_CVAR_CHECKBOX && o->defaultValue,
+                        "the %s row is not a checkbox defaulting to shown, the overlay's default", c.key);
+            COMBO_CHECK(sectionOf(row) == c.section, "the %s row is under \"%s\", expected \"%s\"", c.key,
+                        sectionOf(row).c_str(), c.section);
         }
 
-        // The Check Tracker's rows left with #1132 (ruling D1): SoH's own Check
-        // Tracker page hosts its settings and #1131's two rows (leg 3), so this
-        // page neither embeds SoH's Check Tracker Settings nor writes a
-        // gCombo.Tracker.Checks.* key. It keeps only the Item Tracker overlay's
-        // rows until lane IT-3 (#1141) moves them onto SoH's Item Tracker page.
-        COMBO_CHECK(FindRow(page, "Popout Check Tracker Settings") == nullptr &&
-                        FindRow(page, "Check Tracker Settings") == nullptr,
-                    "Combo / %s still hosts the Check Tracker Settings block; it lives on SoH's Randomizer > Check "
-                    "Tracker page since #1132",
-                    kTrackerSettingsPage);
-
-        // Move to Default Position (#962) is the one row that writes no key: it asks the
-        // floating overlay to return to its default place (under the hearts),
-        // and, like Enable Dragging, shows only while the overlay floats.
-        WidgetInfo* resetPos = FindRow(page, "Move to Default Position##ComboItemTracker");
+        // Move to Default Position (#962) is the one row that writes no key: it
+        // asks the floating overlay to return to its default place (under the
+        // hearts), and shows only while SoH's Window Type is Floating.
+        WidgetInfo* resetPos = FindRow(page, "Move to Default Position##ItemTracker");
         COMBO_CHECK(resetPos != nullptr && resetPos->type == WIDGET_BUTTON && resetPos->callback != nullptr &&
-                        resetPos->cVar == nullptr,
-                    "Combo / %s has no Move to Default Position button with a Callback and no key",
-                    kTrackerSettingsPage);
+                        resetPos->cVar == nullptr && !resetPos->raceDisable,
+                    "Randomizer / Item Tracker has no Move to Default Position button with a Callback and no key");
         if (resetPos != nullptr && resetPos->preFunc != nullptr) {
-            const int savedResetType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, -1);
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+            const char* kSohWindowType = "gTrackers.ItemTracker.WindowType";
+            const int savedResetType = CVarGetInteger(kSohWindowType, -1);
+            CVarSetInteger(kSohWindowType, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
             resetPos->ResetDisables();
             resetPos->preFunc(*resetPos);
             COMBO_CHECK(resetPos->isHidden, "the Move to Default Position row shows while the overlay is a window");
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
+            CVarSetInteger(kSohWindowType, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
             resetPos->ResetDisables();
             resetPos->preFunc(*resetPos);
             COMBO_CHECK(!resetPos->isHidden, "the Move to Default Position row is hidden while the overlay floats");
             if (savedResetType < 0) {
-                CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
+                CVarClear(kSohWindowType);
             } else {
-                CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, savedResetType);
+                CVarSetInteger(kSohWindowType, savedResetType);
             }
         } else {
             COMBO_CHECK(false, "the Move to Default Position row has no PreFunc, so it shows for a windowed overlay");
         }
 
-        // No other writer: every other interactive row writes one of the keys above.
+        // No other writer, and nothing of SoH's: SoH's own settings window
+        // writes every gTrackers.ItemTracker.* key, so no row of ours does, and
+        // none writes a retired twin.
         for (auto& column : page.columnWidgets) {
             for (WidgetInfo& row : column) {
-                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == resetPos) {
+                if (row.type == WIDGET_SEPARATOR_TEXT || row.type == WIDGET_TEXT || &row == resetPos ||
+                    row.type == WIDGET_WINDOW_BUTTON) {
                     continue;
                 }
                 COMBO_CHECK(row.cVar != nullptr && RSBS::ComboKeyHasPrefix(row.cVar, kItemTrackerKeyPrefix),
-                            "row '%s' on Combo / %s writes '%s', which is not one of the Item Tracker overlay's keys",
-                            row.name.c_str(), kTrackerSettingsPage, row.cVar != nullptr ? row.cVar : "(null)");
+                            "row '%s' on Randomizer / Item Tracker writes '%s', which is not one of the Item Tracker "
+                            "overlay's own keys",
+                            row.name.c_str(), row.cVar != nullptr ? row.cVar : "(null)");
+                for (std::size_t r = 0; r < RSBS::kComboRetiredKeyCount; r++) {
+                    COMBO_CHECK(row.cVar == nullptr || std::string(row.cVar) != RSBS::kComboRetiredKeys[r].key,
+                                "row '%s' writes the retired %s", row.name.c_str(), RSBS::kComboRetiredKeys[r].key);
+                }
             }
         }
-        printf("[TEST] leg 7: Combo / %s writes each of the nine %s* keys once with the overlay's defaults and "
-               "ranges, hides the floating-only rows for a windowed overlay, themes its colour picker, and holds "
-               "nothing of the Check Tracker's (#1132)\n",
-               kTrackerSettingsPage, kItemTrackerKeyPrefix);
+        printf("[TEST] leg 7: Randomizer / Item Tracker writes each of the twelve %s* keys once with the overlay's "
+               "defaults and ranges, under SoH's separators and its own, Move to Default Position floats only, and "
+               "Combo / %s is gone (#1141)\n",
+               kItemTrackerKeyPrefix, kTrackerSettingsPage);
     }
 
     // ---- Leg 8: SoH's two tracker windows stay registered, never drawn -------

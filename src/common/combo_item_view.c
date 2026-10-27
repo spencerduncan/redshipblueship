@@ -366,6 +366,16 @@ bool Combo_ItemActiveGamePaused(void) {
     return ops != NULL && ops->paused != NULL && ops->paused();
 }
 
+const char* Combo_ItemGroupVisibilityKey(uint8_t game, const char* group) {
+    (void)game;
+    (void)group;
+    return NULL;
+}
+
+bool Combo_ItemGroupShown(uint8_t game, const char* group) {
+    return Combo_ItemGroupVisibilityKey(game, group) == NULL;
+}
+
 const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness) {
     // A section is labelled by its header alone, as SoH's item tracker labels
     // its sections (#927): no caption for any freshness. The Combo Tracker's
