@@ -103,6 +103,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <initializer_list>
 #include <fstream>
 #include <iterator>
 #include <memory>
@@ -117,6 +118,8 @@
 
 extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
+// #1140's MM world with tokens, fairies, dungeon items and the gated groups (options: test_combo_item_view.c).
+extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando, unsigned options);
 
 #define CITW_ASSERT(cond)                                                  \
     do {                                                                   \
@@ -168,15 +171,90 @@ bool CitwMMPaused(void) {
     return false;
 }
 
+// SoH's Item Tracker Settings keys the overlay reads (#1141), restated as
+// literals on purpose: the point is that the overlay and SoH agree on the
+// spelling (randomizer_item_tracker.cpp, CVAR_TRACKER_ITEM).
+const char* const kCitwSohKeys[] = {
+    "gTrackers.ItemTracker.WindowType",
+    "gTrackers.ItemTracker.Draggable",
+    "gTrackers.ItemTracker.ShowOnlyPaused",
+    "gTrackers.ItemTracker.DisplayType.Main",
+    "gTrackers.ItemTracker.ComboButton1",
+    "gTrackers.ItemTracker.ComboButton2",
+    "gTrackers.ItemTracker.BgColor.Value",
+    "gTrackers.ItemTracker.IconSize",
+    "gTrackers.ItemTracker.IconSpacing",
+    "gTrackers.ItemTracker.TextSize",
+    "gTrackers.ItemTracker.ItemCountType",
+    "gTrackers.ItemTracker.ItemCountAlignLeft",
+    "gTrackers.ItemTracker.KeyCounts",
+    "gTrackers.ItemTracker.TriforcePieceCounts",
+    "gTrackers.ItemTracker.HookshotIdentifier",
+    "gTrackers.ItemTracker.DungeonItems.DisplayMaps",
+    "gTrackers.ItemTracker.DisplayType.Inventory",
+    "gTrackers.ItemTracker.DisplayType.Equipment",
+    "gTrackers.ItemTracker.DisplayType.Misc",
+    "gTrackers.ItemTracker.DisplayType.DungeonRewards",
+    "gTrackers.ItemTracker.DisplayType.Songs",
+};
+
+// SoH's main-window sections and the group each is in the OoT section.
+const struct {
+    const char* group;
+    const char* key;
+} kCitwSohSections[] = {
+    { "Inventory", "gTrackers.ItemTracker.DisplayType.Inventory" },
+    { "Equipment", "gTrackers.ItemTracker.DisplayType.Equipment" },
+    { "Misc", "gTrackers.ItemTracker.DisplayType.Misc" },
+    { "Dungeon Rewards", "gTrackers.ItemTracker.DisplayType.DungeonRewards" },
+    { "Songs", "gTrackers.ItemTracker.DisplayType.Songs" },
+};
+
+// The overlay's five retired twins and the SoH key each carries to (#1141).
+const struct {
+    const char* key;
+    const char* carriedTo;
+} kCitwRetired[] = {
+    { "gCombo.Tracker.Items.WindowType", "gTrackers.ItemTracker.WindowType" },
+    { "gCombo.Tracker.Items.Draggable", "gTrackers.ItemTracker.Draggable" },
+    { "gCombo.Tracker.Items.ShowOnlyPaused", "gTrackers.ItemTracker.ShowOnlyPaused" },
+    { "gCombo.Tracker.Items.BgColor", "gTrackers.ItemTracker.BgColor" },
+    { "gCombo.Tracker.Items.IconSize", "gTrackers.ItemTracker.IconSize" },
+};
+
+// MM's groups and their visibility keys (#1141): the group strings are the MM adapter's.
+const struct {
+    const char* group;
+    const char* key;
+} kCitwMMGroupKeys[] = {
+    { "Tokens", "gCombo.Tracker.Items.MM.Tokens" },
+    { "Stray Fairies", "gCombo.Tracker.Items.MM.StrayFairies" },
+    { "Dungeon", "gCombo.Tracker.Items.MM.Dungeon" },
+    { "Boss Souls", "gCombo.Tracker.Items.MM.BossSouls" },
+    { "Enemy Souls", "gCombo.Tracker.Items.MM.EnemySouls" },
+    { "Owl Statues", "gCombo.Tracker.Items.MM.OwlStatues" },
+    { "Time", "gCombo.Tracker.Items.MM.Time" },
+    { "Misc", "gCombo.Tracker.Items.MM.Misc" },
+};
+
 const char* const kCitwOverlayKeys[] = {
-    RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE,         RSBS_CVAR_COMBO_ITEMS_DRAGGABLE,  RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED,
-    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT,         RSBS_CVAR_COMBO_ITEMS_SECTION_MM, RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED,
-    ComboGui::kComboItemTrackerVisibilityCVar,
+    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, RSBS_CVAR_COMBO_ITEMS_SECTION_MM,          RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED,
+    RSBS_CVAR_COMBO_ITEMS_OPACITY,     ComboGui::kComboItemTrackerVisibilityCVar,
 };
 
 void CitwClearOverlayKeys(void) {
     for (const char* key : kCitwOverlayKeys) {
         CVarClear(key);
+    }
+    for (const char* key : kCitwSohKeys) {
+        CVarClear(key);
+    }
+    for (const auto& r : kCitwRetired) {
+        CVarClear(r.key);
+        CVarClear((std::string(r.key) + ".Value").c_str());
+    }
+    for (const auto& g : kCitwMMGroupKeys) {
+        CVarClear(g.key);
     }
 }
 
@@ -1074,6 +1152,367 @@ int CitwLockLoadGuiTextureScan(void) {
     return TEST_PASS;
 }
 
+// ============================================================================
+// Point 12, #1141 (lane IT-3): SoH's Item Tracker Settings govern the overlay
+// ============================================================================
+
+/** Whether `rows` holds a row of `group`. */
+bool CitwHasGroup(const std::vector<ComboItemRow>& rows, const char* group) {
+    for (const ComboItemRow& row : rows) {
+        if (row.group != nullptr && strcmp(row.group, group) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * The seam reads SoH's keys under SoH's names with SoH's defaults, and the
+ * overlay's own keys SoH has no twin for; the retired twins are never read.
+ */
+int CitwLockSettingsRead(void) {
+    using namespace ComboGui;
+    CitwClearOverlayKeys();
+    ComboItemTrackerKeys k = ComboReadItemTrackerKeys();
+    // SoH's defaults (ItemTrackerSettingsWindow::DrawElement, RegisterItemTrackerWidgets, DrawItemsInRows).
+    CITW_ASSERT(k.windowType == COMBO_ITEM_TRACKER_FLOATING && !k.draggable && !k.showOnlyPaused);
+    CITW_ASSERT(k.displayMode == kComboItemTrackerDisplayAlways && k.comboButton1 == 6 && k.comboButton2 == 8);
+    CITW_ASSERT(k.bg[0] == 0 && k.bg[1] == 0 && k.bg[2] == 0 && k.bg[3] == 0);
+    CITW_ASSERT(k.iconSize == 36 && k.iconSpacing == 12 && k.textSize == 13);
+    CITW_ASSERT(k.itemCountType == 1 && !k.itemCountAlignLeft && k.keyCounts == 0 && k.triforcePieceCounts == 1);
+    CITW_ASSERT(!k.hookshotIdentifier && k.dungeonItemsDisplayMaps);
+    for (int i = 0; i < kComboItemTrackerSohSectionCount; i++) {
+        CITW_ASSERT(k.sectionDisplay[i] == kComboItemTrackerSectionMainWindow);
+        CITW_ASSERT(strcmp(kComboItemTrackerSohSectionGroups[i], kCitwSohSections[i].group) == 0);
+    }
+    CITW_ASSERT(k.opacity == 1.0f);
+    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+        CITW_ASSERT(k.sectionShown[s]);
+    }
+
+    // Every SoH key is read under its own name.
+    CVarSetInteger("gTrackers.ItemTracker.WindowType", COMBO_ITEM_TRACKER_WINDOW);
+    CVarSetInteger("gTrackers.ItemTracker.Draggable", 1);
+    CVarSetInteger("gTrackers.ItemTracker.ShowOnlyPaused", 1);
+    CVarSetInteger("gTrackers.ItemTracker.DisplayType.Main", kComboItemTrackerDisplayComboButton);
+    CVarSetInteger("gTrackers.ItemTracker.ComboButton1", 0);
+    CVarSetInteger("gTrackers.ItemTracker.ComboButton2", 9);
+    CVarSetColor("gTrackers.ItemTracker.BgColor.Value", Color_RGBA8{ 10, 20, 30, 40 });
+    CVarSetInteger("gTrackers.ItemTracker.IconSize", 50);
+    CVarSetInteger("gTrackers.ItemTracker.IconSpacing", 20);
+    CVarSetInteger("gTrackers.ItemTracker.TextSize", 21);
+    CVarSetInteger("gTrackers.ItemTracker.ItemCountType", 3);
+    CVarSetInteger("gTrackers.ItemTracker.ItemCountAlignLeft", 1);
+    CVarSetInteger("gTrackers.ItemTracker.KeyCounts", 2);
+    CVarSetInteger("gTrackers.ItemTracker.TriforcePieceCounts", 0);
+    CVarSetInteger("gTrackers.ItemTracker.HookshotIdentifier", 1);
+    CVarSetInteger("gTrackers.ItemTracker.DungeonItems.DisplayMaps", 0);
+    CVarSetInteger("gTrackers.ItemTracker.DisplayType.Songs", kComboItemTrackerSectionHidden);
+    CVarSetFloat(RSBS_CVAR_COMBO_ITEMS_OPACITY, 0.5f);
+    CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, 0);
+    k = ComboReadItemTrackerKeys();
+    printf("[TEST] combo-item-tracker-window #1141: read type %d drag %d paused %d display %d buttons %d/%d bg "
+           "%u,%u,%u,%u icon %d spacing %d text %d count %d left %d keys %d triforce %d hookshot %d maps %d songs %d "
+           "opacity %.2f shared %d\n",
+           k.windowType, (int)k.draggable, (int)k.showOnlyPaused, k.displayMode, k.comboButton1, k.comboButton2,
+           k.bg[0], k.bg[1], k.bg[2], k.bg[3], k.iconSize, k.iconSpacing, k.textSize, k.itemCountType,
+           (int)k.itemCountAlignLeft, k.keyCounts, k.triforcePieceCounts, (int)k.hookshotIdentifier,
+           (int)k.dungeonItemsDisplayMaps, k.sectionDisplay[4], k.opacity, (int)k.sectionShown[2]);
+    CITW_ASSERT(k.windowType == COMBO_ITEM_TRACKER_WINDOW && k.draggable && k.showOnlyPaused);
+    CITW_ASSERT(k.displayMode == kComboItemTrackerDisplayComboButton && k.comboButton1 == 0 && k.comboButton2 == 9);
+    CITW_ASSERT(k.bg[0] == 10 && k.bg[1] == 20 && k.bg[2] == 30 && k.bg[3] == 40);
+    CITW_ASSERT(k.iconSize == 50 && k.iconSpacing == 20 && k.textSize == 21);
+    CITW_ASSERT(k.itemCountType == 3 && k.itemCountAlignLeft && k.keyCounts == 2 && k.triforcePieceCounts == 0);
+    CITW_ASSERT(k.hookshotIdentifier && !k.dungeonItemsDisplayMaps);
+    CITW_ASSERT(k.sectionDisplay[4] == kComboItemTrackerSectionHidden && k.sectionDisplay[0] == 1);
+    CITW_ASSERT(k.opacity == 0.5f && k.sectionShown[0] && k.sectionShown[1] && !k.sectionShown[2]);
+    // SoH's Icon size slider bounds hold the read; the overlay's opacity clamp.
+    CVarSetInteger("gTrackers.ItemTracker.IconSize", 5);
+    CVarSetFloat(RSBS_CVAR_COMBO_ITEMS_OPACITY, 0.0f);
+    k = ComboReadItemTrackerKeys();
+    CITW_ASSERT(k.iconSize == kComboItemTrackerIconSizeMin && k.opacity == 0.1f);
+    CVarSetInteger("gTrackers.ItemTracker.IconSize", 500);
+    CITW_ASSERT(ComboReadItemTrackerKeys().iconSize == kComboItemTrackerIconSizeMax);
+
+    // The retired twins are not read: one set of settings, SoH's (ruling IT-D6).
+    CitwClearOverlayKeys();
+    CVarSetInteger("gCombo.Tracker.Items.WindowType", COMBO_ITEM_TRACKER_WINDOW);
+    CVarSetInteger("gCombo.Tracker.Items.Draggable", 1);
+    CVarSetInteger("gCombo.Tracker.Items.ShowOnlyPaused", 1);
+    CVarSetColor("gCombo.Tracker.Items.BgColor.Value", Color_RGBA8{ 1, 2, 3, 4 });
+    CVarSetInteger("gCombo.Tracker.Items.IconSize", 60);
+    k = ComboReadItemTrackerKeys();
+    CITW_ASSERT(k.windowType == COMBO_ITEM_TRACKER_FLOATING && !k.draggable && !k.showOnlyPaused);
+    CITW_ASSERT(k.bg[3] == 0 && k.iconSize == 36);
+    CitwClearOverlayKeys();
+
+    // SoH's DisplayType.<Section>: Hidden hides that section's OoT group only;
+    // Main Window and Separate show it (the overlay is one window).
+    for (const auto& section : kCitwSohSections) {
+        k = ComboReadItemTrackerKeys();
+        CITW_ASSERT(ComboItemTrackerSohGroupShown(k, section.group));
+        CVarSetInteger(section.key, kComboItemTrackerSectionHidden);
+        k = ComboReadItemTrackerKeys();
+        for (const auto& other : kCitwSohSections) {
+            CITW_ASSERT(ComboItemTrackerSohGroupShown(k, other.group) == (other.group != section.group));
+        }
+        CVarSetInteger(section.key, 2); // Separate
+        CITW_ASSERT(ComboItemTrackerSohGroupShown(ComboReadItemTrackerKeys(), section.group));
+        CVarClear(section.key);
+    }
+    CITW_ASSERT(ComboItemTrackerSohGroupShown(k, "Tokens") && ComboItemTrackerSohGroupShown(k, nullptr));
+    CitwClearOverlayKeys();
+    printf("[TEST] combo-item-tracker-window #1141: SoH's keys read with SoH's defaults, the twins ignored, "
+           "DisplayType.<Section> Hidden hides its group\n");
+    return TEST_PASS;
+}
+
+/** SoH's window decision over type x draggable x paused x the combo-button hold. */
+int CitwLockChrome(void) {
+    using namespace ComboGui;
+    const uint32_t l = ComboTrackerComboButtonMask(kComboItemTrackerComboButtonL);
+    const uint32_t r = ComboTrackerComboButtonMask(kComboItemTrackerComboButtonR);
+    CITW_ASSERT(l != 0 && r != 0 && l != r);
+    const uint32_t pads[] = { 0u, l, r, l | r };
+    int cases = 0;
+    for (int type : { (int)COMBO_ITEM_TRACKER_FLOATING, (int)COMBO_ITEM_TRACKER_WINDOW }) {
+        for (bool draggable : { false, true }) {
+            for (bool onlyPaused : { false, true }) {
+                for (bool paused : { false, true }) {
+                    for (int mode : { kComboItemTrackerDisplayAlways, kComboItemTrackerDisplayComboButton }) {
+                        for (uint32_t pad : pads) {
+                            ComboItemTrackerKeys keys;
+                            keys.windowType = type;
+                            keys.draggable = draggable;
+                            keys.showOnlyPaused = onlyPaused;
+                            keys.displayMode = mode;
+                            const ComboItemTrackerChrome c = ComboItemTrackerChromeFor(keys, paused, pad);
+                            const bool floating = type == COMBO_ITEM_TRACKER_FLOATING;
+                            const bool held = (pad & l) != 0 && (pad & r) != 0;
+                            const bool draws = !floating || ((!onlyPaused || paused) &&
+                                                             (mode == kComboItemTrackerDisplayAlways || held));
+                            if (c.draws != draws || c.flags != ComboItemTrackerWindowFlags(type, draggable) ||
+                                c.mainViewport != floating) {
+                                printf("[TEST] FAIL: chrome for type %d drag %d onlyPaused %d paused %d mode %d pad "
+                                       "0x%x: draws %d flags 0x%x viewport %d, expected draws %d flags 0x%x "
+                                       "viewport %d\n",
+                                       type, (int)draggable, (int)onlyPaused, (int)paused, mode, pad, (int)c.draws,
+                                       c.flags, (int)c.mainViewport, (int)draws,
+                                       ComboItemTrackerWindowFlags(type, draggable), (int)floating);
+                                return TEST_FAIL;
+                            }
+                            cases++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // The player's own buttons (A and Start), and a value outside SoH's table, which no pad holds.
+    ComboItemTrackerKeys keys;
+    keys.displayMode = kComboItemTrackerDisplayComboButton;
+    keys.comboButton1 = 0;
+    keys.comboButton2 = 9;
+    const uint32_t aStart = ComboTrackerComboButtonMask(0) | ComboTrackerComboButtonMask(9);
+    CITW_ASSERT(ComboItemTrackerChromeFor(keys, false, aStart).draws);
+    CITW_ASSERT(!ComboItemTrackerChromeFor(keys, false, l | r).draws);
+    keys.comboButton2 = 99;
+    CITW_ASSERT(!ComboItemTrackerChromeFor(keys, false, 0xFFFFFFFFu).draws);
+    printf("[TEST] combo-item-tracker-window #1141: %d chrome cases follow SoH's window rule\n", cases);
+    return TEST_PASS;
+}
+
+/** The one-shot carry of a retired twin's saved value into SoH's key. */
+int CitwLockCarry(void) {
+    using namespace ComboGui;
+    // The manifest's retired table is these five, each to its SoH key.
+    CITW_ASSERT(RSBS::kComboRetiredKeyCount == sizeof(kCitwRetired) / sizeof(kCitwRetired[0]));
+    for (std::size_t i = 0; i < RSBS::kComboRetiredKeyCount; i++) {
+        CITW_ASSERT(strcmp(RSBS::kComboRetiredKeys[i].key, kCitwRetired[i].key) == 0);
+        CITW_ASSERT(strcmp(RSBS::kComboRetiredKeys[i].carriedTo, kCitwRetired[i].carriedTo) == 0);
+    }
+    CitwClearOverlayKeys();
+    CITW_ASSERT(ComboItemTrackerCarryRetiredKeys() == 0); // nothing saved, nothing carried
+    CVarSetInteger("gCombo.Tracker.Items.WindowType", COMBO_ITEM_TRACKER_WINDOW);
+    CVarSetInteger("gCombo.Tracker.Items.Draggable", 1);
+    CVarSetInteger("gCombo.Tracker.Items.ShowOnlyPaused", 1);
+    CVarSetColor("gCombo.Tracker.Items.BgColor.Value", Color_RGBA8{ 1, 2, 3, 4 });
+    CVarSetInteger("gCombo.Tracker.Items.IconSize", 60);
+    CVarSetInteger("gTrackers.ItemTracker.IconSize", 40); // SoH's own value: the twin's is what the overlay drew
+    const int carried = ComboItemTrackerCarryRetiredKeys();
+    ComboItemTrackerKeys k = ComboReadItemTrackerKeys();
+    printf("[TEST] combo-item-tracker-window #1141: carried %d: type %d drag %d paused %d bg %u,%u,%u,%u icon %d\n",
+           carried, k.windowType, (int)k.draggable, (int)k.showOnlyPaused, k.bg[0], k.bg[1], k.bg[2], k.bg[3],
+           k.iconSize);
+    CITW_ASSERT(carried == 5);
+    CITW_ASSERT(k.windowType == COMBO_ITEM_TRACKER_WINDOW && k.draggable && k.showOnlyPaused && k.iconSize == 60);
+    CITW_ASSERT(k.bg[0] == 1 && k.bg[1] == 2 && k.bg[2] == 3 && k.bg[3] == 4);
+    for (const auto& r : kCitwRetired) {
+        CITW_ASSERT(!CVarExists(r.key) && !CVarExists((std::string(r.key) + ".Value").c_str()));
+    }
+    CITW_ASSERT(ComboItemTrackerCarryRetiredKeys() == 0); // once
+    CITW_ASSERT(ComboReadItemTrackerKeys().iconSize == 60);
+    // One twin saved: that one carries, the others' SoH keys stay unset.
+    CitwClearOverlayKeys();
+    CVarSetInteger("gCombo.Tracker.Items.Draggable", 1);
+    CITW_ASSERT(ComboItemTrackerCarryRetiredKeys() == 1);
+    CITW_ASSERT(CVarGetInteger("gTrackers.ItemTracker.Draggable", 0) == 1);
+    CITW_ASSERT(!CVarExists("gTrackers.ItemTracker.WindowType") && !CVarExists("gTrackers.ItemTracker.IconSize"));
+    CitwClearOverlayKeys();
+    printf("[TEST] combo-item-tracker-window #1141: the retired twins carry into SoH's keys once\n");
+    return TEST_PASS;
+}
+
+std::vector<ComboItemRow> CitwRowsOf(std::initializer_list<const char*> groups) {
+    std::vector<ComboItemRow> rows;
+    for (const char* g : groups) {
+        ComboItemRow r = {};
+        r.group = g;
+        r.name = g;
+        rows.push_back(r);
+    }
+    return rows;
+}
+
+bool CitwOptOwnLine(const char* group) {
+    return group != nullptr && strcmp(group, "Opt") == 0;
+}
+bool CitwAnyImage(const char*) {
+    return true;
+}
+bool CitwNoImage(const char*) {
+    return false;
+}
+
+/**
+ * The view fields (label, pad, groupOwnLine) and the icon fit: a pad takes a
+ * cell and draws nothing, a group with lines of its own starts a fresh line
+ * and so does the group after it, a wide icon is held to its cell (MM's owl).
+ */
+int CitwLockViewFields(void) {
+    using namespace ComboGui;
+    ComboItemGridStyle grid = kComboItemSohGrid;
+    grid.groupOwnLine = CitwOptOwnLine;
+    std::vector<ComboItemGridCell> cells;
+    // A flows; Opt starts a fresh line, wraps at six, and B after it starts fresh too.
+    std::vector<ComboItemRow> rows =
+        CitwRowsOf({ "A", "A", "A", "A", "Opt", "Opt", "Opt", "Opt", "Opt", "Opt", "Opt", "B", "B" });
+    ComboItemIconLayout(rows, grid, cells);
+    const ComboItemGridCell want[] = { { 0, 0 }, { 0, 1 }, { 0, 2 }, { 0, 3 }, { 1, 0 }, { 1, 1 }, { 1, 2 },
+                                       { 1, 3 }, { 1, 4 }, { 1, 5 }, { 2, 0 }, { 3, 0 }, { 3, 1 } };
+    CITW_ASSERT(cells.size() == rows.size());
+    for (size_t i = 0; i < cells.size(); i++) {
+        if (cells[i].line != want[i].line || cells[i].column != want[i].column) {
+            printf("[TEST] FAIL: groupOwnLine cell %zu is line %d column %d, expected line %d column %d\n", i,
+                   cells[i].line, cells[i].column, want[i].line, want[i].column);
+            return TEST_FAIL;
+        }
+    }
+    // Without it every group flows on, as SoH's main sections do.
+    rows = CitwRowsOf({ "A", "A", "A", "A", "B", "B", "B" });
+    ComboItemIconLayout(rows, grid, cells);
+    CITW_ASSERT(cells[4].line == 0 && cells[4].column == 4 && cells[6].line == 1 && cells[6].column == 0);
+    // A pad keeps its cell...
+    rows = CitwRowsOf({ "A", "A", "A" });
+    rows[1].pad = true;
+    rows[1].iconKey = "PAD";
+    rows[1].iconKeyFaded = "PAD";
+    ComboItemIconLayout(rows, grid, cells);
+    CITW_ASSERT(cells.size() == 3 && cells[1].column == 1 && cells[2].column == 2);
+    // ...and draws nothing: no icon, no count, no text, no load.
+    std::vector<ComboItemRow> padOnly(1, rows[1]);
+    CITW_ASSERT(!ComboItemSectionDrawsIcons(padOnly, CitwAnyImage));
+    ComboItemCount count;
+    padOnly[0].count = 3;
+    padOnly[0].have = true;
+    CITW_ASSERT(!ComboItemCountFor(padOnly[0], COMBO_ITEM_COUNT_SOH, count));
+    CITW_ASSERT(ComboItemRowText(padOnly[0]).empty());
+    ComboItemIconLoadMemo memo;
+    padOnly[0].iconKey = "__OTR__pad";
+    CITW_ASSERT(ComboItemTrackerLoadIcons(padOnly, CitwNoImage, CitwAnyImage, 0, memo) == 0);
+
+    // The icon's fit: square, a narrow note centred across, a wide owl held to the cell.
+    ComboItemIconRect fit = ComboItemIconFit(36.0f, 0.0f);
+    CITW_ASSERT(fit.x == 0.0f && fit.y == 0.0f && fit.w == 36.0f && fit.h == 36.0f);
+    fit = ComboItemIconFit(36.0f, 1.0f / 1.5f);
+    CITW_ASSERT(fit.w > 23.9f && fit.w < 24.1f && fit.h == 36.0f && fit.x > 5.9f && fit.x < 6.1f && fit.y == 0.0f);
+    fit = ComboItemIconFit(46.0f, 46.0f / 24.0f);
+    printf("[TEST] combo-item-tracker-window #1141: the owl face fits at %.1f,%.1f %.1fx%.1f in a 46 px cell\n", fit.x,
+           fit.y, fit.w, fit.h);
+    CITW_ASSERT(fit.w == 46.0f && fit.x == 0.0f && fit.h > 23.9f && fit.h < 24.1f && fit.y > 10.9f && fit.y < 11.1f);
+
+    // A label: centred over the cell, 13 px (at the scale) above the icon's top.
+    float x = 0.0f;
+    float y = 0.0f;
+    ComboItemLabelPos(100.0f, 200.0f, 36.0f, 20.0f, 1.0f, &x, &y);
+    CITW_ASSERT(x == 108.0f && y == 187.0f);
+    ComboItemLabelPos(100.0f, 200.0f, 36.0f, 20.0f, 2.0f, &x, &y);
+    CITW_ASSERT(x == 108.0f && y == 174.0f);
+    ComboItemRow zeroed = {};
+    CITW_ASSERT(zeroed.label == nullptr && !zeroed.pad); // a zeroed row has neither
+    CITW_ASSERT(kComboItemSohGrid.groupOwnLine == nullptr && kComboItemSharedGrid.groupOwnLine == nullptr);
+    printf("[TEST] combo-item-tracker-window #1141: pad, groupOwnLine, label and icon fit PASS\n");
+    return TEST_PASS;
+}
+
+/**
+ * The section collect honours the groups' keys: an MM group hides under its
+ * gCombo.Tracker.Items.MM.* key, an OoT group under SoH's DisplayType.<Section>,
+ * each by default shown. Over authored shadows with no game active.
+ */
+int CitwLockGroupFilter(void) {
+    using namespace ComboGui;
+    std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mm((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CITW_ASSERT(OoT_ItemAdapter_TestAuthorSave(oot.data(), oot.size(), 0) == 1);
+    // A randomizer file with every gated group on (boss/enemy souls, owls, half-days, swim).
+    CITW_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(mm.data(), mm.size(), 1, 0x1Fu) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    Context_UpdateShadowCopy(GAME_MM, mm.data(), mm.size());
+    Context_SetCurrentGame(GAME_NONE);
+    CitwClearOverlayKeys();
+    ComboItemTrackerSection mmSection;
+    ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_MM, mmSection);
+    for (const auto& g : kCitwMMGroupKeys) {
+        CITW_ASSERT(CitwHasGroup(mmSection.rows, g.group)); // shown by default
+    }
+    for (const auto& g : kCitwMMGroupKeys) {
+        CVarSetInteger(g.key, 0);
+        ComboItemTrackerSection hidden;
+        ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_MM, hidden);
+        printf("[TEST] combo-item-tracker-window #1141: MM with %s off: %zu rows (of %zu)\n", g.key, hidden.rows.size(),
+               mmSection.rows.size());
+        CITW_ASSERT(!CitwHasGroup(hidden.rows, g.group));
+        for (const auto& other : kCitwMMGroupKeys) {
+            CITW_ASSERT(other.group == g.group || CitwHasGroup(hidden.rows, other.group));
+        }
+        CITW_ASSERT(CitwHasGroup(hidden.rows, "Inventory") && CitwHasGroup(hidden.rows, "Masks"));
+        CVarClear(g.key);
+    }
+    // An MM key never reaches OoT's "Misc", and SoH's DisplayType.Misc never MM's.
+    CVarSetInteger("gCombo.Tracker.Items.MM.Misc", 0);
+    ComboItemTrackerSection ootSection;
+    ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_OOT, ootSection);
+    CITW_ASSERT(CitwHasGroup(ootSection.rows, "Misc"));
+    CVarClear("gCombo.Tracker.Items.MM.Misc");
+    CVarSetInteger("gTrackers.ItemTracker.DisplayType.Misc", 0);
+    ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_MM, mmSection);
+    CITW_ASSERT(CitwHasGroup(mmSection.rows, "Misc"));
+    CVarClear("gTrackers.ItemTracker.DisplayType.Misc");
+    for (const auto& section : kCitwSohSections) {
+        ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_OOT, ootSection);
+        CITW_ASSERT(CitwHasGroup(ootSection.rows, section.group));
+        CVarSetInteger(section.key, 0);
+        ComboItemTrackerCollectSection(COMBO_ITEM_SECTION_OOT, ootSection);
+        CITW_ASSERT(!CitwHasGroup(ootSection.rows, section.group));
+        CVarClear(section.key);
+    }
+    CitwClearOverlayKeys();
+    printf("[TEST] combo-item-tracker-window #1141: every MM group hides under its key, every OoT section under "
+           "SoH's, each shown by default\n");
+    return TEST_PASS;
+}
+
 /** Points 2-4 over the registered production adapters `oot` / `mm`. */
 int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps* oot, const ComboItemOps* mm) {
     using namespace ComboGui;
@@ -1136,8 +1575,8 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     // Visible, floating, only-paused, and no game paused: Draw() must stop
     // before ImGui under every GameId, and ask only the active game's probe.
     CVarSetInteger(kComboItemTrackerVisibilityCVar, 1);
-    CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING);
-    CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, 1);
+    CVarSetInteger("gTrackers.ItemTracker.WindowType", ComboGui::COMBO_ITEM_TRACKER_FLOATING);
+    CVarSetInteger("gTrackers.ItemTracker.ShowOnlyPaused", 1);
     for (GameId game : allGames) {
         Context_SetCurrentGame(game);
         sCitwOoTPausedCalls = 0;
@@ -1321,8 +1760,27 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     CITW_ASSERT(std::string(ComboGui::kComboItemTrackerWindowName) == "Item Tracker");
     CITW_ASSERT(std::string(ComboGui::kComboItemTrackerVisibilityCVar) == "gOpenWindows.ItemTracker");
 
+    // ---- 12. SoH's Item Tracker Settings govern the overlay (#1141) --------------
+    // First, so a seam that still reads the retired twins fails here, by name,
+    // and not as point 3's gate letting a draw reach ImGui.
+    int overlay = CitwLockSettingsRead();
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockChrome();
+    }
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockCarry();
+    }
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockViewFields();
+    }
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockGroupFilter();
+    }
+
     // ---- 2-4 ---------------------------------------------------------------
-    const int overlay = CitwLockOverlay(window, oot, mm);
+    if (overlay == TEST_PASS) {
+        overlay = CitwLockOverlay(window, oot, mm);
+    }
 
     // ---- put state back ----------------------------------------------------
     sCitwOoTLive = nullptr;
@@ -1388,7 +1846,7 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         // draws MM's unheld icons opaque), tinted as its game tints it, and a
         // cell whose texture is missing falls back to its name in the cell.
         CITW_ASSERT(flat.find(squash("ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);\n"
-                                     "const bool drawn = Ui().Image(pick.key, iconWidth, cell, row.iconTint);\n"
+                                     "const bool drawn = Ui().Image(pick.key, icon.w, icon.h, row.iconTint);\n"
                                      "ImGui::PopStyleVar();\n"
                                      "if (!drawn) { DrawCellText(row, cellMin, cell); }")) != std::string::npos);
         CITW_ASSERT(flat.find(squash("const float baseAlpha = ImGui::GetStyle().Alpha;")) != std::string::npos);
@@ -1416,7 +1874,10 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         CITW_ASSERT(loadAt < text.find("ComboItemSectionDrawsIcons(section.rows, Ui().HasImage)"));
         CITW_ASSERT(text.find("ComboItemIconLayout(section.rows, *section.grid, plan.cells)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemPickIcon(row)") != std::string::npos);
-        CITW_ASSERT(text.find("Ui().Image(pick.key, iconWidth, cell, row.iconTint)") != std::string::npos);
+        CITW_ASSERT(text.find("Ui().Image(pick.key, icon.w, icon.h, row.iconTint)") != std::string::npos);
+        // #1141: the icon is fitted to its cell (MM's wide owl face held to it).
+        CITW_ASSERT(text.find("const ComboItemIconRect icon = ComboItemIconFit(cell, row.iconAspect);") !=
+                    std::string::npos);
         CITW_ASSERT(text.find("ComboItemCountFor(row, countStyle, count)") != std::string::npos);
         CITW_ASSERT(text.find("Ui().Tooltip(row.name)") != std::string::npos); // the item's name alone, as SoH's
         CITW_ASSERT(text.find("Ui().Tooltip(ComboItemRowText") == std::string::npos);
@@ -1427,8 +1888,8 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
                     std::string::npos);
         CITW_ASSERT(text.find("ImGui::SetWindowFontScale(fit.scale)") != std::string::npos);
         CITW_ASSERT(text.find("ComboItemRowText(row)") != std::string::npos);
-        CITW_ASSERT(text.find("ComboItemTrackerWindowFlags(windowType, draggable)") != std::string::npos);
-        CITW_ASSERT(text.find("ComboItemTrackerShows(windowType, showOnlyPaused,") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemTrackerWindowFlags(keys.windowType, keys.draggable)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemTrackerShows(keys.windowType, keys.showOnlyPaused,") != std::string::npos);
         // Headers and notes through the seam; a row not held dimmed, not coloured.
         CITW_ASSERT(text.find("Ui().SeparatorText(") != std::string::npos);
         CITW_ASSERT(text.find("Ui().NoteText(") != std::string::npos);
@@ -1439,6 +1900,61 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         // SoH's overlay chrome: no close button, the visibility key read live.
         CITW_ASSERT(text.find("ImGui::Begin(kComboItemTrackerWindowName, nullptr, flags)") != std::string::npos);
         CITW_ASSERT(text.find("CVarGetInteger(kComboItemTrackerVisibilityCVar, 0)") != std::string::npos);
+        // ---- #1141: one set of settings, SoH's, read through one seam ----------
+        // The overlay names no retired twin, in its source or its header.
+        const std::string header = slurp("/src/common/ComboItemTrackerWindow.h");
+        CITW_ASSERT(!header.empty());
+        for (const char* twin : { "RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE", "RSBS_CVAR_COMBO_ITEMS_DRAGGABLE",
+                                  "RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED", "RSBS_CVAR_COMBO_ITEMS_BG_COLOR",
+                                  "RSBS_CVAR_COMBO_ITEMS_ICON_SIZE" }) {
+            CITW_ASSERT(text.find(twin) == std::string::npos && header.find(twin) == std::string::npos);
+        }
+        for (const auto& r : kCitwRetired) {
+            CITW_ASSERT(text.find(r.key) == std::string::npos && header.find(r.key) == std::string::npos);
+        }
+        // Every key read is read in ComboReadItemTrackerKeys; outside it the
+        // source reads only the visibility key, once, in Draw().
+        const size_t readerAt = text.find("ComboItemTrackerKeys ComboReadItemTrackerKeys() {");
+        CITW_ASSERT(readerAt != std::string::npos);
+        const size_t readerEnd = text.find("\n}\n", readerAt);
+        CITW_ASSERT(readerEnd != std::string::npos);
+        const std::string reader = text.substr(readerAt, readerEnd - readerAt);
+        int outside = 0;
+        for (size_t at = text.find("CVarGet"); at != std::string::npos; at = text.find("CVarGet", at + 1)) {
+            if (at > readerAt && at < readerEnd) {
+                continue;
+            }
+            outside++;
+            CITW_ASSERT(text.compare(at, strlen("CVarGetInteger(kComboItemTrackerVisibilityCVar, 0)"),
+                                     "CVarGetInteger(kComboItemTrackerVisibilityCVar, 0)") == 0);
+        }
+        CITW_ASSERT(outside == 1);
+        // ...under SoH's own names, and the overlay's own keys SoH has no twin for.
+        for (const char* key : kCitwSohKeys) {
+            if (reader.find(std::string("\"") + key + "\"") == std::string::npos) {
+                printf("[TEST] FAIL: ComboReadItemTrackerKeys does not read SoH's \"%s\"\n", key);
+                return TEST_FAIL;
+            }
+        }
+        for (const char* own : { "RSBS_CVAR_COMBO_ITEMS_OPACITY", "RSBS_CVAR_COMBO_ITEMS_SECTION_OOT",
+                                 "RSBS_CVAR_COMBO_ITEMS_SECTION_MM", "RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED" }) {
+            CITW_ASSERT(reader.find(own) != std::string::npos);
+        }
+        // The draw takes SoH's decision, the pad read only under Combo Button Hold.
+        CITW_ASSERT(flat.find(squash("const ComboItemTrackerChrome chrome = ComboItemTrackerChromeFor(keys, paused, "
+                                     "pad);")) != std::string::npos);
+        CITW_ASSERT(flat.find(squash("floating && keys.displayMode == kComboItemTrackerDisplayComboButton ? "
+                                     "ComboTrackerHeldPadButtons() : 0")) != std::string::npos);
+        CITW_ASSERT(flat.find(squash("const bool paused = floating && keys.showOnlyPaused && "
+                                     "Combo_ItemActiveGamePaused();")) != std::string::npos);
+        // The collect filters each row by its group's key, both games'.
+        CITW_ASSERT(text.find("Combo_ItemGroupShown(game, row.group)") != std::string::npos);
+        CITW_ASSERT(text.find("ComboItemTrackerSohGroupShown(keys, row.group)") != std::string::npos);
+        // The carry runs where the overlay registers, before any draw.
+        const size_t regAt = text.find("void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {");
+        CITW_ASSERT(regAt != std::string::npos);
+        const std::string reg = text.substr(regAt, text.find("\n}\n", regAt) - regAt);
+        CITW_ASSERT(reg.find("ComboItemTrackerCarryRetiredKeys()") != std::string::npos);
         // Registered by the production bring-up, beside the Combo Tracker.
         const std::string init = slurp("/src/common/ComboTrackerWindow.cpp");
         CITW_ASSERT(init.find("ComboGui::RegisterComboItemTrackerWindow(gui);") != std::string::npos);

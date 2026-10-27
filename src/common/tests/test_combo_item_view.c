@@ -91,6 +91,8 @@
 #include <cstring>
 #include <vector>
 
+#include <libultraship/bridge/consolevariablebridge.h> // #1141: the MM group visibility keys
+
 // The OoT-side authoring seam (games/oot/soh/Enhancements/randomizer/
 // ItemAdapterSingleExe.cpp): writes a started OoT save into `buf` through
 // OoT's own layout. Variant 0 is the "shadow" world, variant 1 the "live" one
@@ -829,6 +831,68 @@ static int CivMMTrackerRowLegs(const ComboItemOps* ops) {
     return TEST_PASS;
 }
 
+/**
+ * #1141 (lane IT-3): each of MM's groups the player can hide has its own
+ * Preference key, gCombo.Tracker.Items.MM.<the group without spaces>, which
+ * hides that group and no other, and shows it by default. The group strings
+ * are the adapter's (every one is a group the gated world draws); MM's
+ * Inventory, Masks, Songs, Quest and Ocarina Buttons, and every OoT group, have
+ * no such key and always show here (OoT's sections follow SoH's own
+ * DisplayType keys, which the overlay reads).
+ */
+static int CivMMGroupVisibilityLegs(const ComboItemOps* ops) {
+    (void)ops;
+    static const struct {
+        const char* group;
+        const char* key;
+    } kGroups[] = {
+        { "Tokens", "gCombo.Tracker.Items.MM.Tokens" },
+        { "Stray Fairies", "gCombo.Tracker.Items.MM.StrayFairies" },
+        { "Dungeon", "gCombo.Tracker.Items.MM.Dungeon" },
+        { "Boss Souls", "gCombo.Tracker.Items.MM.BossSouls" },
+        { "Enemy Souls", "gCombo.Tracker.Items.MM.EnemySouls" },
+        { "Owl Statues", "gCombo.Tracker.Items.MM.OwlStatues" },
+        { "Time", "gCombo.Tracker.Items.MM.Time" },
+        { "Misc", "gCombo.Tracker.Items.MM.Misc" },
+    };
+    std::vector<uint8_t> buf((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    Context_SetCurrentGame(GAME_OOT);
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(buf.data(), buf.size(), 1, 0x1Fu) == 1);
+    Context_UpdateShadowCopy(GAME_MM, buf.data(), buf.size());
+    for (const auto& g : kGroups) {
+        CVarClear(g.key);
+    }
+    for (const auto& g : kGroups) {
+        // The contract: a group the adapter draws, under exactly this key.
+        CIV_ASSERT(!CivMMGroup(g.group).empty());
+        const char* key = Combo_ItemGroupVisibilityKey((uint8_t)GAME_MM, g.group);
+        printf("[TEST] combo-item-view #1141: MM \"%s\" -> %s\n", g.group, key != NULL ? key : "(none)");
+        CIV_ASSERT(key != NULL && strcmp(key, g.key) == 0);
+        CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_MM, g.group)); // shown by default
+        CIV_ASSERT(Combo_ItemGroupVisibilityKey((uint8_t)GAME_OOT, g.group) == NULL);
+        CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_OOT, g.group));
+    }
+    for (const auto& g : kGroups) {
+        CVarSetInteger(g.key, 0);
+        for (const auto& other : kGroups) {
+            CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_MM, other.group) == (other.key != g.key));
+        }
+        CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_OOT, g.group)); // an MM key never hides an OoT group
+        CVarSetInteger(g.key, 1);
+        CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_MM, g.group));
+        CVarClear(g.key);
+    }
+    for (const char* always : { "Inventory", "Masks", "Songs", "Quest", "Ocarina Buttons" }) {
+        CIV_ASSERT(Combo_ItemGroupVisibilityKey((uint8_t)GAME_MM, always) == NULL);
+        CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_MM, always));
+    }
+    CIV_ASSERT(Combo_ItemGroupVisibilityKey((uint8_t)GAME_MM, NULL) == NULL);
+    CIV_ASSERT(Combo_ItemGroupShown((uint8_t)GAME_MM, NULL));
+    CIV_ASSERT(Combo_ItemGroupVisibilityKey((uint8_t)GAME_NONE, "Tokens") == NULL);
+    printf("[TEST] combo-item-view #1141: each MM group hides under its own key and shows by default\n");
+    return TEST_PASS;
+}
+
 /** Leg 5: the Shared group, over a freshly initialized context. */
 static int CivSharedLegs(void) {
     ComboContext_Init();
@@ -1406,6 +1470,12 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
 
         // ---- 2 for MM's tokens, fairies, dungeon items and gated groups (#1140) --
         if (CivMMTrackerRowLegs(mmOps) != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 2 for MM's per-group visibility keys (#1141) -----------------------
+        if (CivMMGroupVisibilityLegs(mmOps) != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

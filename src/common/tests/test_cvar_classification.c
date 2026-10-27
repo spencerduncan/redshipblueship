@@ -1078,6 +1078,18 @@ TestResult Test_CVarClassification(void) {
                         continue;
                     }
                     literalsSeen++;
+                    // #1141: a RETIRED key (RSBS::kComboRetiredKeys) is spelled
+                    // for its one-shot carry only; it is not a live key, and the
+                    // checks after this scan hold that it is not classified. A
+                    // retired colour's stored name ("<key>.Value") is the same key.
+                    bool retired = false;
+                    for (std::size_t k = 0; k < RSBS::kComboRetiredKeyCount; k++) {
+                        const RSBS::ComboRetiredKey& r = RSBS::kComboRetiredKeys[k];
+                        retired = retired || key == r.key || key == std::string(r.key) + r.stored;
+                    }
+                    if (retired) {
+                        continue;
+                    }
                     bool classified = false;
                     for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
                         if (key == RSBS::kComboKeys[k].key) {
@@ -1141,6 +1153,79 @@ TestResult Test_CVarClassification(void) {
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);
+
+            // #1141 (lane IT-3): the Item Tracker overlay's five twins of SoH's
+            // Item Tracker Settings retired (ruling IT-D6: one set of settings,
+            // SoH's). Each is out of the manifest, carried to SoH's key of the
+            // same name, and the manifest holds no other gCombo.Tracker.Items.*
+            // twin; the overlay's keys SoH has no twin for stay, and MM's eight
+            // per-group visibility keys are classified, as preferences.
+            {
+                const char* const kRetiredTwins[] = {
+                    "gCombo.Tracker.Items.WindowType",     "gCombo.Tracker.Items.Draggable",
+                    "gCombo.Tracker.Items.ShowOnlyPaused", "gCombo.Tracker.Items.BgColor",
+                    "gCombo.Tracker.Items.IconSize",
+                };
+                CVARCLASS_CHECK(RSBS::kComboRetiredKeyCount == 5, "#1141: the retired table is not the five twins");
+                for (const char* twin : kRetiredTwins) {
+                    bool inTable = false;
+                    for (std::size_t r = 0; r < RSBS::kComboRetiredKeyCount; r++) {
+                        if (strcmp(RSBS::kComboRetiredKeys[r].key, twin) == 0) {
+                            inTable = true;
+                            const std::string suffix = std::string(twin).substr(strlen("gCombo.Tracker.Items."));
+                            CVARCLASS_CHECK(std::string(RSBS::kComboRetiredKeys[r].carriedTo) ==
+                                                "gTrackers.ItemTracker." + suffix,
+                                            "#1141: a retired twin carries to a key that is not SoH's twin");
+                        }
+                    }
+                    CVARCLASS_CHECK(inTable, "#1141: a twin of SoH's Item Tracker Settings is not in the retired "
+                                             "table");
+                    for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                        if (strcmp(RSBS::kComboKeys[k].key, twin) == 0) {
+                            printf("[TEST] FAIL: #1141: \"%s\" is still classified in RSBS::kComboKeys; SoH's "
+                                   "gTrackers.ItemTracker.* key holds the setting now.\n",
+                                   twin);
+                            return TEST_FAIL;
+                        }
+                    }
+                }
+                for (std::size_t r = 0; r < RSBS::kComboRetiredKeyCount; r++) {
+                    for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                        CVARCLASS_CHECK(strcmp(RSBS::kComboKeys[k].key, RSBS::kComboRetiredKeys[r].key) != 0,
+                                        "#1141: a retired key is still classified as a live one");
+                    }
+                }
+                const char* const kItemTrackerKeys[] = {
+                    "gCombo.Tracker.Items.Opacity",       "gCombo.Tracker.Items.Section.OoT",
+                    "gCombo.Tracker.Items.Section.MM",    "gCombo.Tracker.Items.Section.Shared",
+                    "gCombo.Tracker.Items.MM.Tokens",     "gCombo.Tracker.Items.MM.StrayFairies",
+                    "gCombo.Tracker.Items.MM.Dungeon",    "gCombo.Tracker.Items.MM.BossSouls",
+                    "gCombo.Tracker.Items.MM.EnemySouls", "gCombo.Tracker.Items.MM.OwlStatues",
+                    "gCombo.Tracker.Items.MM.Time",       "gCombo.Tracker.Items.MM.Misc",
+                };
+                std::size_t itemKeys = 0;
+                for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                    itemKeys += RSBS::ComboKeyHasPrefix(RSBS::kComboKeys[k].key, "gCombo.Tracker.Items.") ? 1 : 0;
+                }
+                for (const char* itemKey : kItemTrackerKeys) {
+                    bool preference = false;
+                    for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
+                        if (strcmp(RSBS::kComboKeys[k].key, itemKey) == 0) {
+                            preference = RSBS::kComboKeys[k].cls == RSBS::ComboKeyClass::Preference;
+                        }
+                    }
+                    if (!preference) {
+                        printf("[TEST] FAIL: #1141: \"%s\" is not classified a preference in RSBS::kComboKeys.\n",
+                               itemKey);
+                        return TEST_FAIL;
+                    }
+                }
+                printf("[TEST]   #1141: %zu gCombo.Tracker.Items.* keys (four overlay keys + eight MM groups), %zu "
+                       "retired twins\n",
+                       itemKeys, RSBS::kComboRetiredKeyCount);
+                CVARCLASS_CHECK(itemKeys == 12, "#1141: the manifest's gCombo.Tracker.Items.* keys are not the four "
+                                                "overlay keys and the eight MM group keys");
+            }
 
             // #1131 (lane L4): the Combo Tracker's first keys of its own, which
             // SoH has no twin for, are classified, and as preferences: whether

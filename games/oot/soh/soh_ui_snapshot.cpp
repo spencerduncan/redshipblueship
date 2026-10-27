@@ -1602,6 +1602,11 @@ const void* SnapshotItemMMLive(void) {
     return gSnapshotItemMMLive.empty() ? nullptr : gSnapshotItemMMLive.data();
 }
 
+// SoH's Item Tracker Settings > Window Type, which the overlay reads since #1141
+// (ComboReadItemTrackerKeys) and the "no-data" state and the Item Tracker
+// page's "window" state set.
+constexpr const char* kSohItemTrackerWindowTypeKey = "gTrackers.ItemTracker.WindowType";
+
 void AuthorItemTrackerState(const std::string& state) {
     Context_InitFrozenStates();
     gSnapshotItemOoTOps = Combo_Item_GetOps((uint8_t)GAME_OOT);
@@ -1619,7 +1624,7 @@ void AuthorItemTrackerState(const std::string& state) {
         Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
         Combo_ResetSharedResourceWatermarks();
         Context_SetCurrentGame(GAME_OOT);
-        CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+        CVarSetInteger(kSohItemTrackerWindowTypeKey, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
         return;
     }
     AuthorMMShadow(true);
@@ -1660,7 +1665,7 @@ void RestoreItemTrackerState() {
     }
     RestoreMMShadow();
     Combo_ResetSharedResourceWatermarks();
-    CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
+    CVarClear(kSohItemTrackerWindowTypeKey);
 }
 
 /**
@@ -1936,6 +1941,16 @@ void Session::BuildPageList() {
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);
         p.needsRom = true;
+        if (p.id == "Randomizer/Item Tracker") {
+            // #1141: SoH's rows, then the overlay's own block. "": the overlay
+            // floats (SoH's default), so Move to Default Position shows.
+            // "window": SoH's Window Type is Window, so it hides (its PreFunc).
+            p.states = { "", "window" };
+            p.stateText[""] = { "Move to Default Position" };
+            p.stateContrast = { { "", "window" } };
+            p.expectText.push_back("Majora's Mask Groups");
+            p.expectText.push_back("Item Tracker Sections");
+        }
         pages.push_back(p);
     }
     {
@@ -2061,10 +2076,6 @@ void Session::BuildPageList() {
         // Each save file's cross-game state (lane W5): SoH's captured bordered
         // table page (DrawLocationsMenu's table, whose own page is not captured).
         { "Combo/Save Files", "Randomizer/Tricks/Glitches" },
-        // The Item Tracker overlay's settings (#458 U7; the Check Tracker's
-        // left for SoH's own page with #1132): SoH's tracker page, whose
-        // embedded Item Tracker Settings hold the rows this page takes.
-        { "Combo/Tracker Settings", "Randomizer/Item Tracker" },
     };
     auto& entries = MenuEntries(*menu);
     // Our pages, header by header: under Randomizer only the ones
@@ -2195,24 +2206,6 @@ void Session::BuildPageList() {
                                               RsbsSave_LoadToastRefusalMessage(RSBS_LOAD_TOAST_REFUSED_RULES) };
                 p.stateText["backup"] = { "was kept as a backup", "No cross-game record (backup kept)" };
                 p.stateContrast = { { "", "listed" }, { "listed", "" }, { "backup", "" } };
-            } else if (p.id == "Combo/Tracker Settings") {
-                // "": the overlay floats (its default), so the two floating-only
-                // rows show. "window": the overlay is a window, so they hide
-                // (their PreFunc; SoH's Item Tracker Settings hides them too).
-                p.states = { "", "window" };
-                p.stateText[""] = { "Enable Dragging", "Only Enable While Paused" };
-                p.stateContrast = { { "", "window" } };
-                // The gray caption row #927 cut (its content is the Popout
-                // Check Tracker Settings tooltip now).
-                // #1128: the Popout Check Tracker Settings tooltip no longer
-                // says the Combo Tracker takes only the colors (it takes the
-                // hide options and header toggles too); hovered below.
-                p.forbidText = { "The Combo Tracker draws its checks in the colors set below",
-                                 "whose check colors, and no other setting" };
-                // The Window Type row: its tooltip's "Value: effect" lines. (The
-                // Popout Check Tracker Settings row left with #1132.)
-                p.hovers = { "window-type" };
-                p.hoverRows["window-type"] = "Window Type##ComboItemTracker";
             } else if (p.id == std::string("Randomizer/") + COMBO_MM_OPTIONS_PAGE_NAME) {
                 // The model's state note in each state (combo_mm_options_page.c),
                 // and the suspended note, which only a non-MM running game shows.
@@ -2942,9 +2935,9 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         } else {
             Combo_MMModSet_LoadForTest(nullptr, 0, true);
         }
-    } else if (p.id == "Combo/Tracker Settings") {
+    } else if (p.id == "Randomizer/Item Tracker") {
         if (state == "window") {
-            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
+            CVarSetInteger(kSohItemTrackerWindowTypeKey, ComboGui::COMBO_ITEM_TRACKER_WINDOW);
         }
     } else if (p.id == "Combo/Save Files") {
         // Every state reads the seam's table, never the disk.
@@ -3046,8 +3039,8 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.id == "Combo/Majora's Mask" && state == "autosave") {
         CVarClear("gEnhancements.Autosave");
     }
-    if (p.id == "Combo/Tracker Settings" && state == "window") {
-        CVarClear(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE);
+    if (p.id == "Randomizer/Item Tracker" && state == "window") {
+        CVarClear(kSohItemTrackerWindowTypeKey);
     }
     if (p.id == "Settings/Graphics" && state == "match-refresh-rate") {
         CVarClear(CVAR_SETTING("MatchRefreshRate"));

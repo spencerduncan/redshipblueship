@@ -231,29 +231,31 @@
  * reads its own; the key is spelled and classified first so the overlay cannot
  * arrive with an unclassified key. */
 #define RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER "gCombo.Windows.ItemTracker"
-/* #458 U2: the unified Item Tracker overlay's own settings, SoH's
- * gTrackers.ItemTracker.* in the combo namespace, written by the Combo > Tracker
- * Settings page (#458 U7, SohMenuComboTrackerSettings.cpp). PREFERENCE keys.
- *   WindowType      0 floating (SoH's default: no title bar, input-less unless
- *                   Draggable), 1 a normal window
- *   Draggable       0/1, floating only
- *   ShowOnlyPaused  0/1, floating only: drawn only while the active game's
- *                   pause menu is open
+/* #458 U2: the unified Item Tracker overlay's own settings, the ones SoH's Item
+ * Tracker has no key for: since #1141 (operator ruling IT-D6) the overlay reads
+ * SoH's gTrackers.ItemTracker.* keys for everything else (Window Type, dragging,
+ * paused-only, background colour, icon size, ...; ComboReadItemTrackerKeys), and
+ * these are rows appended to SoH's Randomizer > Item Tracker page
+ * (SohMenuComboTrackerSettings.cpp). The five twins this block held until then
+ * are RSBS::kComboRetiredKeys, carried into SoH's keys once. PREFERENCE keys.
  *   Opacity         float 0.1..1, the whole overlay's alpha
- *   BgColor         colour picker base name; the value is "<key>.Value"
- *                   (UIWidgets::CVarColorPicker), SoH's default clear black
- *   Section.*       0/1 each, default 1: which sections the overlay draws
- *   IconSize        int px, default 36 (SoH's IconSize default): an OoT icon's
- *                   edge; every section's grid scales with it (#458 U3) */
-#define RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE "gCombo.Tracker.Items.WindowType"
-#define RSBS_CVAR_COMBO_ITEMS_DRAGGABLE "gCombo.Tracker.Items.Draggable"
-#define RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED "gCombo.Tracker.Items.ShowOnlyPaused"
+ *   Section.*       0/1 each, default 1: which sections the overlay draws */
 #define RSBS_CVAR_COMBO_ITEMS_OPACITY "gCombo.Tracker.Items.Opacity"
-#define RSBS_CVAR_COMBO_ITEMS_BG_COLOR "gCombo.Tracker.Items.BgColor"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_OOT "gCombo.Tracker.Items.Section.OoT"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_MM "gCombo.Tracker.Items.Section.MM"
 #define RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED "gCombo.Tracker.Items.Section.Shared"
-#define RSBS_CVAR_COMBO_ITEMS_ICON_SIZE "gCombo.Tracker.Items.IconSize"
+/* #1141: one key per Majora's Mask group the overlay can hide, 0/1, default 1,
+ * named after MM's own group (the MM item adapter's group string without its
+ * spaces; Combo_ItemGroupVisibilityKey maps them). Not under Section.MM, which
+ * holds a value of its own and so cannot also be a block of keys. PREFERENCE. */
+#define RSBS_CVAR_COMBO_ITEMS_MM_TOKENS "gCombo.Tracker.Items.MM.Tokens"
+#define RSBS_CVAR_COMBO_ITEMS_MM_STRAY_FAIRIES "gCombo.Tracker.Items.MM.StrayFairies"
+#define RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON "gCombo.Tracker.Items.MM.Dungeon"
+#define RSBS_CVAR_COMBO_ITEMS_MM_BOSS_SOULS "gCombo.Tracker.Items.MM.BossSouls"
+#define RSBS_CVAR_COMBO_ITEMS_MM_ENEMY_SOULS "gCombo.Tracker.Items.MM.EnemySouls"
+#define RSBS_CVAR_COMBO_ITEMS_MM_OWL_STATUES "gCombo.Tracker.Items.MM.OwlStatues"
+#define RSBS_CVAR_COMBO_ITEMS_MM_TIME "gCombo.Tracker.Items.MM.Time"
+#define RSBS_CVAR_COMBO_ITEMS_MM_MISC "gCombo.Tracker.Items.MM.Misc"
 /* #1131: the Combo Tracker's own keys, the two settings SoH's Check Tracker has
  * no key for (MM's tracker has both: gRando.CheckTracker.ScrollToCurrentScene
  * and .ShowCurrentScene), one each for both panes (ruling D3), written by the
@@ -778,19 +780,24 @@ inline constexpr ComboKey kComboKeys[] = {
       "unified item tracker overlay visibility (#458; ADR 0004's 2026-09-30 amendment; unread since #1132)" },
     // ---- gCombo.Tracker.Items.*: the unified Item Tracker overlay's look
     //      (#458 U2). All PREFERENCE: how the overlay draws says nothing about
-    //      a world.
-    { RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboKeyClass::Preference, "item tracker overlay: floating or window" },
-    { RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, ComboKeyClass::Preference, "item tracker overlay: floating overlay moves" },
-    { RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, ComboKeyClass::Preference,
-      "item tracker overlay: floating overlay drawn only while paused" },
+    //      a world. #1141 retired the five SoH twins (kComboRetiredKeys).
     { RSBS_CVAR_COMBO_ITEMS_OPACITY, ComboKeyClass::Preference, "item tracker overlay: alpha" },
-    { RSBS_CVAR_COMBO_ITEMS_BG_COLOR, ComboKeyClass::Preference,
-      "item tracker overlay: background colour (the picker stores <key>.Value)" },
     { RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, ComboKeyClass::Preference, "item tracker overlay: draws the OoT section" },
     { RSBS_CVAR_COMBO_ITEMS_SECTION_MM, ComboKeyClass::Preference, "item tracker overlay: draws the MM section" },
     { RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, ComboKeyClass::Preference,
       "item tracker overlay: draws the shared section" },
-    { RSBS_CVAR_COMBO_ITEMS_ICON_SIZE, ComboKeyClass::Preference, "item tracker overlay: icon size (#458 U3)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_TOKENS, ComboKeyClass::Preference, "item tracker overlay: MM's Tokens group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_STRAY_FAIRIES, ComboKeyClass::Preference,
+      "item tracker overlay: MM's Stray Fairies group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON, ComboKeyClass::Preference, "item tracker overlay: MM's Dungeon group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_BOSS_SOULS, ComboKeyClass::Preference,
+      "item tracker overlay: MM's Boss Souls group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_ENEMY_SOULS, ComboKeyClass::Preference,
+      "item tracker overlay: MM's Enemy Souls group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_OWL_STATUES, ComboKeyClass::Preference,
+      "item tracker overlay: MM's Owl Statues group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_TIME, ComboKeyClass::Preference, "item tracker overlay: MM's Time group (#1141)" },
+    { RSBS_CVAR_COMBO_ITEMS_MM_MISC, ComboKeyClass::Preference, "item tracker overlay: MM's Misc group (#1141)" },
     // ---- gCombo.Tracker.Checks.*: the Combo Tracker's own navigation (#1131).
     //      All PREFERENCE: where the window scrolls, or which area it shows,
     //      says nothing about a world.
@@ -799,6 +806,31 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA, ComboKeyClass::Preference,
       "combo tracker: seeds each pane's Only Show Current Area toggle (#1131)" },
 };
+
+/**
+ * Retired gCombo.* keys (#1141): a key that left kComboKeys because a SoH key
+ * now holds the setting, and where its saved value goes. Spelled here and
+ * nowhere else; the Item Tracker overlay's one-shot carry
+ * (ComboItemTrackerCarryRetiredKeys) is their only reader, and the
+ * cvar-classification lock accepts these literals only as retired keys, never
+ * as live ones. `stored` is the suffix the value is stored under (a colour
+ * picker's ".Value").
+ */
+struct ComboRetiredKey {
+    const char* key;
+    const char* carriedTo;
+    const char* stored;
+};
+inline constexpr ComboRetiredKey kComboRetiredKeys[] = {
+    // The Item Tracker overlay's five twins of SoH's Item Tracker Settings
+    // (operator ruling IT-D6: one set of settings, SoH's).
+    { "gCombo.Tracker.Items.WindowType", "gTrackers.ItemTracker.WindowType", "" },
+    { "gCombo.Tracker.Items.Draggable", "gTrackers.ItemTracker.Draggable", "" },
+    { "gCombo.Tracker.Items.ShowOnlyPaused", "gTrackers.ItemTracker.ShowOnlyPaused", "" },
+    { "gCombo.Tracker.Items.BgColor", "gTrackers.ItemTracker.BgColor", ".Value" },
+    { "gCombo.Tracker.Items.IconSize", "gTrackers.ItemTracker.IconSize", "" },
+};
+inline constexpr std::size_t kComboRetiredKeyCount = sizeof(kComboRetiredKeys) / sizeof(kComboRetiredKeys[0]);
 
 constexpr bool ComboKeyHasPrefix(const char* key, const char* prefix) {
     for (std::size_t i = 0; prefix[i] != '\0'; i++) {
@@ -1202,14 +1234,16 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // SharedMaskTruth (#978); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
-// unified item tracker overlay's) + nine gCombo.Tracker.Items.* preferences
-// (#458 U2, the overlay's look; U3 added IconSize) + two gCombo.Tracker.Checks.*
-// preferences (#1131, the Combo Tracker's navigation). Pinning the count makes a silently dropped
-// row a compile error; the lock's tree scan makes a silently ADDED key a red
-// test.
-static_assert(kComboKeyCount == 33, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "nine gCombo.Tracker.Items.* preferences + two gCombo.Tracker.Checks.* "
-                                    "preferences = 33");
+// unified item tracker overlay's) + twelve gCombo.Tracker.Items.* preferences
+// (#458 U2, the overlay's look: nine, of which #1141 retired the five SoH twins
+// into kComboRetiredKeys and added MM's eight group keys) + two
+// gCombo.Tracker.Checks.* preferences (#1131, the Combo Tracker's navigation).
+// Pinning the count makes a silently dropped row a compile error; the lock's
+// tree scan makes a silently ADDED key a red test.
+static_assert(kComboKeyCount == 36, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "twelve gCombo.Tracker.Items.* preferences + two gCombo.Tracker.Checks.* "
+                                    "preferences = 36");
+static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds
 // a fifth, deliberately: the Autosave row's MM-only interval, whose provider is

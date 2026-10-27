@@ -265,9 +265,10 @@ Randomizer and Randomizer > MM Tricks, `SohMenuComboMmRandomizer.cpp`; pages sin
 amendment of that date, and under the Randomizer header since #1101, its 2026-10-21 amendment).
 Combo > Windows holds only live-play tools: the Cross-Game Spoiler, the Combo Tracker and the Combo Item Tracker.
 MM's native trackers have no row since #458 U6 (the unified trackers cover both games); they stay registered as
-fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are a page, Combo > Tracker Settings (`SohMenuComboTrackerSettings.cpp`),
-which embeds SoH's own Check Tracker Settings because the Combo Tracker follows its colours, its Hide toggles,
-Filter Empty Areas and its header toggles (#1128). The Combo Tracker's in-window quick toggle, Show Hidden Items, is
+fallbacks that their `gWindows.*` keys still open. The unified trackers' settings are SoH's own Randomizer > Check
+Tracker and Item Tracker pages (#1132, #1141): SoH's embedded settings windows write the keys the unified windows read,
+and the few keys SoH has no twin for are rows appended after SoH's (`SohMenuComboTrackerSettings.cpp`); Combo >
+Tracker Settings is gone. The Combo Tracker's in-window quick toggle, Show Hidden Items, is
 per game pane (ruling D12): each pane draws its own checkbox, seeded from SoH's `ShowHidden` key and never written
 back, while the settings page stays one set for both panes. A new
 surface that freezes at creation, or that feeds generation, is never a pop-out.
