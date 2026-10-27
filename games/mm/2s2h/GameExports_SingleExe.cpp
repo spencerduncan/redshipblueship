@@ -3480,6 +3480,36 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
     return ok;
 }
 
+/**
+ * W6-TIMESAVERS (#1236): the CVar-free core of MM_Combo_EndPauseSaveCommit below,
+ * with the Pause Menu Save state as an argument so MMUnifiedSaveCapture check 14
+ * drives it without a Ship::Context (CVar reads and writes need one).
+ */
+extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
+    if (pauseSaveOn) {
+        gSaveContext.save.isOwlSave = false;
+        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    }
+}
+
+/**
+ * W6-TIMESAVERS (#1236): the end of a paired Pause Menu Save, called by
+ * z_kaleido_scope_NES.c's save prompt right after its commit (func_8014546C ->
+ * Sram_ComboCommitUnifiedSave -> the capture above). With the enhancement on,
+ * the prompt sets isOwlSave and pauseSaveEntrance BEFORE that commit, so the
+ * .redsave records the pause save; vanilla clears the pair again only in the
+ * flash-write branch, which a paired session (fileNum 0xFF) never takes.
+ * Clearing it here is the paired twin of that clear and of the autosave's
+ * (SavingEnhancements.cpp HandleAutoSave). Left set, the next scene's Player
+ * init reads pauseSaveEntrance and spawns Link standing (z_player.c), and every
+ * later commit carries the stale pair. The commit is a synchronous staged copy,
+ * so clearing after it loses nothing. ROM-free lock: MMUnifiedSaveCapture,
+ * check 14.
+ */
+extern "C" void MM_Combo_EndPauseSaveCommit(void) {
+    MM_Combo_EndPauseSaveCommitFor(CVarGetInteger("gEnhancements.Saving.PauseSave", 0));
+}
+
 namespace {
 
 // The committed MM half a moon-crash reset reads back (#785). Static: ~48 KiB.

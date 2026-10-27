@@ -590,6 +590,74 @@ void ResetSkipKeys() {
     }
 }
 
+// ---- W6-TIMESAVERS (#1236, #1240): MM's dialogue, time-saver and pause-save TUs
+// -------------------------------------- One probe per MM key a hosted row writes, plus the shared Debug Mode key, the
+// third of Fixes/BgmReplay.cpp's gates (driven here so ZeroW6PhaseKeys holds it off and the other two attribute
+// BgmReplay exactly). Per registry, the TUs: Dialogue/FastBankSelection.cpp, Dialogue/AutoBombersCode.cpp,
+// Timesavers/SwampBoatSkip.cpp, GalleryTwofer.cpp, MarineLabHP.cpp, DampeDiggingSkip.cpp (two actor buckets),
+// FasterSceneTransitions.cpp, AutoBankDeposit.cpp, Minigames/SkipPowderKegCertification.cpp (its OnOpenText leg is
+// !IS_RANDO; this phase runs on a vanilla save), Minigames/SkipBalladOfWindfish.cpp, Saving/PauseSave.cpp, and
+// Fixes/BgmReplay.cpp under all three of its keys. Fast Text has no TU (z_message.c reads it), so it has no probe.
+#define TS_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define TS_ACTOR_UPDATE_COUNT(id) []() { return SettledCountForId<GameInteractor::OnActorUpdate>(id); }
+
+const std::vector<SkipKeyProbe>& TimesaverProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Dialogue.FastBankSelection",
+          "Fast Bank Selection",
+          { { "OnActorUpdate[EN_GINKO_MAN] (Dialogue/FastBankSelection.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_EN_GINKO_MAN),
+              1 } } },
+        { "gEnhancements.Dialogue.AutoBombersCode",
+          "Auto Bombers' Code",
+          { { "OnActorUpdate[EN_BOMBERS2] (Dialogue/AutoBombersCode.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_EN_BOMBERS2),
+              1 } } },
+        { "gEnhancements.Timesavers.SwampBoatSpeed",
+          "Swamp Boat Timesaver",
+          { { "OnActorUpdate[BG_INGATE] (Timesavers/SwampBoatSkip.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_BG_INGATE),
+              1 } } },
+        { "gEnhancements.Timesavers.GalleryTwofer",
+          "Shooting Gallery Both Rewards",
+          { { "OnFlagSet, unkeyed (Timesavers/GalleryTwofer.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnFlagSet>(); }, 1 } } },
+        { "gEnhancements.Timesavers.MarineLabHP",
+          "Fast Marine Lab Fish",
+          { { "OnActorInit[EN_FISH2] (Timesavers/MarineLabHP.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorInit>(ACTOR_EN_FISH2); }, 1 } } },
+        { "gEnhancements.Timesavers.DampeDiggingSkip",
+          "Fast Dampe Flame Digging",
+          { { "OnActorUpdate[EN_TK] (Timesavers/DampeDiggingSkip.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_EN_TK), 1 },
+            { "OnActorUpdate[EN_BIGPO] (Timesavers/DampeDiggingSkip.cpp)", TS_ACTOR_UPDATE_COUNT(ACTOR_EN_BIGPO),
+              1 } } },
+        { "gEnhancements.Timesavers.FasterSceneTransitions",
+          "Faster Scene Transitions",
+          { { "VB_SETUP_TRANSITION (Timesavers/FasterSceneTransitions.cpp)", TS_VB_COUNT(VB_SETUP_TRANSITION), 1 },
+            { "VB_PLAY_SCENE_SEQUENCE (Fixes/BgmReplay.cpp)", TS_VB_COUNT(VB_PLAY_SCENE_SEQUENCE), 1 } } },
+        { "gEnhancements.Timesavers.PowderKegCertification",
+          "Skip Powder Keg Certification",
+          { { "VB_EXEC_MSG_EVENT (Minigames/SkipPowderKegCertification.cpp)", TS_VB_COUNT(VB_EXEC_MSG_EVENT), 1 },
+            { "OnOpenText[0x0C86] (Minigames/SkipPowderKegCertification.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnOpenText>(0x0C86); }, 1 } } },
+        { "gEnhancements.Timesavers.SkipBalladOfWindfish",
+          "Skip Ballad of Windfish",
+          { { "VB_BALLAD_PLAYED_FORM (Minigames/SkipBalladOfWindfish.cpp)", TS_VB_COUNT(VB_BALLAD_PLAYED_FORM), 1 } } },
+        { "gEnhancements.Timesavers.AutoBankDeposit",
+          "Auto Bank Deposit",
+          { { "VB_DISCARD_EXCESS_RUPEES (Timesavers/AutoBankDeposit.cpp)", TS_VB_COUNT(VB_DISCARD_EXCESS_RUPEES),
+              1 } } },
+        { "gEnhancements.Saving.PauseSave",
+          "Pause Menu Save",
+          { { "VB_SAVE_ON_B_BUTTON_IN_PAUSE_MENU (Saving/PauseSave.cpp)",
+              TS_VB_COUNT(VB_SAVE_ON_B_BUTTON_IN_PAUSE_MENU), 1 },
+            { "VB_PLAY_SCENE_SEQUENCE (Fixes/BgmReplay.cpp)", TS_VB_COUNT(VB_PLAY_SCENE_SEQUENCE), 1 } } },
+        { "gDeveloperTools.DebugEnabled",
+          "Debug Mode (BgmReplay's third gate)",
+          { { "VB_PLAY_SCENE_SEQUENCE (Fixes/BgmReplay.cpp)", TS_VB_COUNT(VB_PLAY_SCENE_SEQUENCE), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sTimesaverPhase{ "W6-TIMESAVERS (#1236)", TimesaverProbes };
+
 // ---- Phase 6 (#1010-#1017): the eight enhancement TUs ----------------------
 // Same shape as Phase 5 (SkipKeyProbe). `expected` may be 0: that row asserts a
 // registry does NOT grow when the key is driven (the EnemyHealthBars OnActorInit
