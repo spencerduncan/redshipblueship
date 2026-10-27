@@ -694,3 +694,100 @@ def test_no_port_source_names_a_namespaced_empty_dl():
     assert not offenders, (
         "a port source names a namespaced gEmptyDL; mod data spells the marker \"gEmptyDL\" (#1190):\n  "
         + "\n  ".join(offenders))
+
+
+# #1195: the #1197 lock above is a bare substring test, and the comment the fix
+# added ("gEmptyDL" is the exporter's marker...) satisfies it on its own. Match
+# the comparison itself, in code.
+EMPTY_DL_COMPARE = re.compile(r'std::strcmp\(\s*dl1\s*,\s*"gEmptyDL"\s*\)\s*==\s*0')
+
+
+def test_xml_limb_factories_strcmp_the_marker_in_code():
+    for path in SKELETON_LIMB_FACTORIES:
+        code = _strip_comments(path.read_text(encoding="utf-8"))
+        assert EMPTY_DL_COMPARE.search(code), (
+            f"{path.relative_to(REPO_ROOT).as_posix()} no longer runs std::strcmp(dl1, \"gEmptyDL\") == 0 in code "
+            "(#1190, #1195)")
+
+
+# #1195: the sweep of every literal the #53/#149 namespacing passes rewrote.
+# The surviving LOOKUP KEYS were OoT's gfxprint font resource paths: the pass
+# turned "__OTR__textures/font/sGfxPrintFontData" into ".../OoT_sGfxPrintFontData",
+# a path no archive or texture pack holds, so OoT_GfxPrint_HasArchiveTexture()
+# answered false forever and a pack's replacement debug-print font never drew in
+# OoT. MM's copy was respelled by #149 and is locked here so it stays that way.
+GFXPRINT_FONT_PATHS = {
+    REPO_ROOT / "games" / "oot" / "src" / "code" / "gfxprint.c": "OoT",
+    REPO_ROOT / "games" / "mm" / "src" / "boot" / "O2" / "gfxprint.c": "MM",
+}
+GFXPRINT_DEFINES = (
+    re.compile(r'#define\s+drGfxPrintFontData\s+"__OTR__textures/font/sGfxPrintFontData"'),
+    re.compile(r'#define\s+drGfxPrintFontDataAlt\s+"__OTR__alt/textures/font/sGfxPrintFontData"'),
+)
+
+
+def test_gfxprint_font_resource_paths_are_not_namespaced():
+    for path in GFXPRINT_FONT_PATHS:
+        code = _strip_comments(path.read_text(encoding="utf-8"))
+        for define in GFXPRINT_DEFINES:
+            assert define.search(code), (
+                f"{path.relative_to(REPO_ROOT).as_posix()} lost `{define.pattern}`: the resource path a texture "
+                "pack replaces is spelled without a game prefix (#1195)")
+
+
+# #1195: a general lock over the same class. tools/namespace_symbols.py
+# --audit-literals lists every string/char literal naming a prefixed colliding
+# symbol. A hit with no whitespace in it is KEY-SHAPED (a resource path, a
+# bare symbol/CVar name, a message token such as "[P]"): exactly what the
+# January pass broke. Messages a human reads carry spaces and stay allowed.
+# The key-shaped hits below are labels this project authored on purpose.
+NAMESPACER = REPO_ROOT / "tools" / "namespace_symbols.py"
+SYMBOL_COLLISIONS = REPO_ROOT / "symbol_collisions.txt"
+AUDITED_TREES = {
+    "OoT": ("games/oot/soh", "games/oot/src", "games/oot/include"),
+    "MM": ("games/mm/2s2h", "games/mm/src", "games/mm/include"),
+}
+KEY_SHAPED_LABELS = {
+    # MM_Fault_AddHungupAndCrashImpl's first argument: text on the crash screen.
+    ("games/mm/src/boot/fault.c", '"MM_Fault_ThreadEntry"'),
+    # The function name MM_Combo_RefuseNewSaveOverSession prints in its refusal log.
+    ("games/mm/src/code/z_sram_NES.c", '"MM_Sram_InitNewSave"'),
+    ("games/mm/src/code/z_sram_NES.c", '"MM_Sram_InitSave"'),
+    # A test's printf naming the next game state.
+    ("games/oot/soh/oot_file_select_refusal_test.cpp", '"OoT_Play_Init"'),
+}
+
+
+def _load_namespacer():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("namespace_symbols", NAMESPACER)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_no_key_shaped_literal_names_a_prefixed_symbol():
+    ns = _load_namespacer()
+    symbols = ns.load_symbols(SYMBOL_COLLISIONS)
+    assert len(symbols) > 3000, f"symbol_collisions.txt yielded only {len(symbols)} symbols"
+    offenders = []
+    scanned = 0
+    for prefix, trees in AUDITED_TREES.items():
+        namespacer = ns.SymbolNamespacer(symbols, prefix)
+        for tree in trees:
+            for path in sorted((REPO_ROOT / tree).rglob("*")):
+                if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
+                    continue
+                scanned += 1
+                rel = path.relative_to(REPO_ROOT).as_posix()
+                text = path.read_text(encoding="utf-8", errors="replace")
+                for line, _kind, literal in namespacer.audit_literals(text):
+                    if any(ch.isspace() for ch in literal) or (rel, literal) in KEY_SHAPED_LABELS:
+                        continue
+                    offenders.append(f"{rel}:{line}: {literal}")
+    assert scanned > 3000, f"the audit saw only {scanned} source files"
+    assert not offenders, (
+        "a key-shaped literal names a game-prefixed symbol; the namespacing pass rewrote it and the lookup "
+        "no longer matches (#1195). Restore the unprefixed spelling, or list a deliberate label in "
+        "KEY_SHAPED_LABELS:\n  " + "\n  ".join(offenders))
