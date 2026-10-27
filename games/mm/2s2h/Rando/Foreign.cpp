@@ -245,6 +245,13 @@ static uint8_t ResolveMoonCrashFromCVar() {
                : (uint8_t)RSBS_MM_MOON_CRASH_RESET;
 }
 
+/** The AUTHORED "Keep Items on Cycle Reset" (#1175; OoTMM's keepItemsReset),
+ *  resolved from its key with no side effects: 1 when the key is on, 0
+ *  otherwise (any nonzero value is on, as a checkbox reads it). */
+static uint8_t ResolveKeepItemsResetFromCVar() {
+    return CVarGetInteger(RSBS_CVAR_MM_KEEP_ITEMS_RESET, 0) != 0 ? 1 : 0;
+}
+
 /** Bytes of the frozen excluded-check set (randoSaveExcludedChecks): one bit
  *  per RandoCheckId. */
 constexpr size_t kExcludedChecksBytes = (RC_MAX + 7) / 8;
@@ -295,7 +302,7 @@ static std::string ExcludedChecksString(const uint8_t* bits) {
  *  different MM worlds. OoT's own settings hash is the precedent: it folds
  *  excludes and tricks. */
 static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes,
-                                         uint8_t moonCrash, const uint8_t* excludedChecks) {
+                                         uint8_t moonCrash, const uint8_t* excludedChecks, uint8_t keepItemsReset) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         if (IsAppendedOption(randoOptionId)) {
@@ -386,6 +393,16 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     if (moonCrash != RSBS_MM_MOON_CRASH_RESET) {
         s += "|moonCrash:";
         s += std::to_string((unsigned)moonCrash);
+    }
+    // KEEP ITEMS ON CYCLE RESET (#1175; OoTMM's keepItemsReset). Not a generation
+    // input (logic never reads it, as OoTMM's does not), but world identity: it
+    // decides what the three-day reset takes from the file. Frozen into the combo
+    // record by the creation event (gComboCtx.mmKeepItemsReset; RandoSaveInfo has
+    // no room for it), and folded like the moon crash, only when on: off, which
+    // every world before #1175 had, adds no term, so no existing pair's
+    // mmProfileDigest (an entropy input of the single bag) moves.
+    if (keepItemsReset != 0) {
+        s += "|keepItemsReset:1";
     }
     // ------------------------------------------------------------------------
     // WHAT IS DELIBERATELY *NOT* FOLDED, and why. #564 V4 asks for each
@@ -489,9 +506,9 @@ uint32_t ResolvePairedProfile(bool paired) {
     // under the frozen MM rules", a question about the rules alone;
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
-    const uint32_t digest =
-        DigestFromIdentity(ProfileIdentityString(values.data(), tricks.data(), trapTypes, moonCrash,
-                                                 gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks));
+    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(
+        values.data(), tricks.data(), trapTypes, moonCrash,
+        gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, ResolveKeepItemsResetFromCVar()));
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -518,6 +535,9 @@ uint32_t ResolvePairedProfile(bool paired) {
                 "generation (digest %08X)\n",
                 (unsigned)digest);
         gComboCtx.mmProfileDigest = digest;
+        // #1175: the keep-items byte the digest just folded freezes with it, so
+        // the reset this pair plays and its identity are one decision here too.
+        gComboCtx.mmKeepItemsReset = ResolveKeepItemsResetFromCVar();
         // ADR 0011 decision 4.4: the combo fingerprint FOLDS this digest, and on
         // a doubly-legacy pair the transitional combo writer ran at the arrival
         // gate while it was still 0. Re-stamp it here — "recomputes
@@ -947,9 +967,9 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     // (#1101 lane R3).
     std::vector<uint8_t> excluded(Rando::Foreign::kExcludedChecksBytes, 0);
     Rando::Foreign::ResolveExcludedChecks(excluded.data());
-    return Rando::Foreign::DigestFromIdentity(
-        Rando::Foreign::ProfileIdentityString(values.data(), tricks.data(), ResolveTrapTypesFromCVars(),
-                                              Rando::Foreign::ResolveMoonCrashFromCVar(), excluded.data()));
+    return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
+        values.data(), tricks.data(), ResolveTrapTypesFromCVars(), Rando::Foreign::ResolveMoonCrashFromCVar(),
+        excluded.data(), Rando::Foreign::ResolveKeepItemsResetFromCVar()));
 }
 
 // ============================================================================
@@ -967,6 +987,24 @@ extern "C" int MM_Rando_FrozenMoonCrash(void) {
     return gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
                ? RSBS_MM_MOON_CRASH_CYCLE
                : RSBS_MM_MOON_CRASH_RESET;
+}
+
+// ============================================================================
+// KEEP ITEMS ON CYCLE RESET (#1175; declared in src/common/combo_mm_options_view.h).
+// ============================================================================
+// The creation event's write: the same resolution MM_Rando_ComputeProfileStamp
+// folds, so the byte and the stamp it sits beside are one decision. Written to
+// the combo record because RandoSaveInfo has no room (context.h): the record is
+// KEPT through the file-create invalidation, carried by a seed package's world
+// record and by the .redsave's Tier-1.
+extern "C" void MM_Rando_FreezeKeepItemsResetAtCreation(void) {
+    gComboCtx.mmKeepItemsReset = Rando::Foreign::ResolveKeepItemsResetFromCVar();
+}
+
+// What the cycle bracket reads (GameExports_SingleExe.cpp): the frozen byte,
+// never the key, so a world plays the reset it was created with.
+extern "C" int MM_Rando_FrozenKeepItemsReset(void) {
+    return gComboCtx.mmKeepItemsReset != 0 ? 1 : 0;
 }
 
 // ============================================================================
@@ -1020,7 +1058,7 @@ namespace {
  */
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
                            std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
-                           uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded) {
+                           uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
     if (liveDigest == frozenDigest) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
@@ -1063,8 +1101,21 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     // always misses below and nothing is written.
     fileExcluded.assign(half->save.shipSaveInfo.rando.randoSaveExcludedChecks,
                         half->save.shipSaveInfo.rando.randoSaveExcludedChecks + Rando::Foreign::kExcludedChecksBytes);
-    const uint32_t candidate = Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
-        fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash, fileExcluded.data()));
+    // #1175: Keep Items on Cycle Reset is frozen in the combo record, not the
+    // half, so the half cannot say which value the file has. The frozen digest
+    // can: the term is folded only when on, so of the two candidates exactly the
+    // file's one reproduces it (off first, the default every older file has).
+    fileKeepItems = 0;
+    uint32_t candidate = Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
+        fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash, fileExcluded.data(), 0));
+    if (candidate != frozenDigest) {
+        const uint32_t candidateOn = Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
+            fileValues.data(), fileTricks.data(), fileTraps, fileMoonCrash, fileExcluded.data(), 1));
+        if (candidateOn == frozenDigest) {
+            fileKeepItems = 1;
+            candidate = candidateOn;
+        }
+    }
     if (candidate != frozenDigest) {
         fprintf(stderr,
                 "[MM] profile: load-time restore impossible — the file's own options, tricks, trap types, moon "
@@ -1085,8 +1136,9 @@ extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalf
     uint8_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
     std::vector<uint8_t> fileExcluded;
+    uint8_t fileKeepItems = 0;
     return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash,
-                                  fileExcluded);
+                                  fileExcluded, fileKeepItems);
 }
 
 extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,
@@ -1146,8 +1198,9 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     uint8_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
     std::vector<uint8_t> fileExcluded;
+    uint8_t fileKeepItems = 0;
     const int classified = ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps,
-                                                  fileMoonCrash, fileExcluded);
+                                                  fileMoonCrash, fileExcluded, fileKeepItems);
     if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE) {
         return classified;
     }
@@ -1160,6 +1213,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     Rando::Foreign::ResolveProfileTricks(liveTricks.data());
     const uint8_t liveTraps = ResolveTrapTypesFromCVars();
     const uint8_t liveMoonCrash = Rando::Foreign::ResolveMoonCrashFromCVar();
+    const uint8_t liveKeepItems = Rando::Foreign::ResolveKeepItemsResetFromCVar();
 
     // Every key written is recorded first (set, and to what, or unset), so a
     // restore whose after-check fails puts the keys back exactly as the player
@@ -1217,6 +1271,16 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
         restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, RSBS_CVAR_MM_MOON_CRASH));
         fprintf(stderr, "[MM] profile: load restored %s to the file's value %d\n", RSBS_CVAR_MM_MOON_CRASH,
                 (int)fileMoonCrash);
+    }
+    // #1175: Keep Items on Cycle Reset, its one key.
+    if (liveKeepItems != fileKeepItems) {
+        remember(RSBS_CVAR_MM_KEEP_ITEMS_RESET);
+        CVarSetInteger(RSBS_CVAR_MM_KEEP_ITEMS_RESET, fileKeepItems);
+        const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)RSBS_MM_OPTION_ID_KEEP_ITEMS_RESET);
+        restored.push_back(
+            MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, RSBS_CVAR_MM_KEEP_ITEMS_RESET));
+        fprintf(stderr, "[MM] profile: load restored %s to the file's value %d\n", RSBS_CVAR_MM_KEEP_ITEMS_RESET,
+                (int)fileKeepItems);
     }
     // #1101 lane R3: the excluded-check list, written back in its one spelling
     // (cleared when the file's list is empty) when the live set differs. Its

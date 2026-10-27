@@ -258,8 +258,9 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
 
     // ---- (b)(c) descriptor coverage, exactness, and binding ---------------
     // Every RO_* option, plus the combo's own MM rows (#1069's Moon Crash
-    // Behavior), which no RandoStaticOption row backs.
-    const int kComboOwnRows = 1;
+    // Behavior, #1175's Keep Items on Cycle Reset), which no RandoStaticOption
+    // row backs.
+    const int kComboOwnRows = 2;
     const int descCount = Combo_MMOptionCount();
     if (descCount != RO_MAX + kComboOwnRows) {
         return Fail(25, "descriptor table holds %d rows for %d option ids and %d combo rows — the pane would "
@@ -268,6 +269,8 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
     }
 
     bool seen[RO_MAX] = { false };
+    int moonCrashAt = -1;
+    int keepItemsAt = -1;
     for (int i = 0; i < descCount; i++) {
         const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
         if (desc == NULL) {
@@ -284,6 +287,22 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
                 return Fail(77, "the Moon Crash Behavior row does not bind %s, default Last Save, two values, live",
                             RSBS_CVAR_MM_MOON_CRASH);
             }
+            moonCrashAt = i;
+            continue;
+        }
+        if (desc->id == (uint16_t)RSBS_MM_OPTION_ID_KEEP_ITEMS_RESET) {
+            // #1175: OoTMM's keepItemsReset ("Keep Items on Cycle Reset", a
+            // boolean, default off), the combo's own row, drawn right after Moon
+            // Crash Behavior in its group. Checked against the one spelling.
+            if (desc->cvar == NULL || strcmp(desc->cvar, RSBS_CVAR_MM_KEEP_ITEMS_RESET) != 0 ||
+                desc->defaultValue != 0 || desc->widget != (uint8_t)COMBO_MM_WIDGET_CHECKBOX || desc->label == NULL ||
+                strcmp(desc->label, "Keep Items on Cycle Reset") != 0 || desc->tooltip == NULL ||
+                desc->tooltip[0] == '\0' || desc->liveness != (uint8_t)COMBO_MM_LIVENESS_LIVE ||
+                desc->disabledReason == NULL || desc->disabledReason[0] != '\0') {
+                return Fail(79, "the Keep Items on Cycle Reset row does not bind %s, a checkbox, default off, live",
+                            RSBS_CVAR_MM_KEEP_ITEMS_RESET);
+            }
+            keepItemsAt = i;
             continue;
         }
         if (desc->id >= (uint16_t)RO_MAX) {
@@ -401,6 +420,13 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
             default:
                 return Fail(44, "%s carries widget kind %u", row.name, (unsigned)desc->widget);
         }
+    }
+    // #1175: Keep Items on Cycle Reset is the row after Moon Crash Behavior, in
+    // the same group (the page draws a group's rows in table order).
+    if (keepItemsAt < 0 || moonCrashAt < 0 || keepItemsAt != moonCrashAt + 1 ||
+        Combo_MMOptionAt(keepItemsAt)->group != Combo_MMOptionAt(moonCrashAt)->group) {
+        return Fail(80, "Keep Items on Cycle Reset is not the row after Moon Crash Behavior in its group (at %d, %d)",
+                    keepItemsAt, moonCrashAt);
     }
     for (int id = 0; id < RO_MAX; id++) {
         if (!seen[id]) {

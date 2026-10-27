@@ -6173,15 +6173,31 @@ extern "C" void MM_ApplySharedResources(void) {
 // SHARED AMMO, by contrast, needs one — the wipe zeroes AMMO() for every slot
 // in MM_gAmmoItems (arrows, bombs, bombchus, sticks, nuts, and MM-local beans
 // and powder keg) except the pictograph box. The five SHARED counts are
-// bracketed below for the same reason rupees are; the MM-local ones are left to
-// be wiped exactly as vanilla does, because restoring those would silently
-// reimplement 2S2H's DoNotResetConsumables enhancement for items that are not
-// part of the shared model and whose loss the player opted into by playing MM.
+// bracketed below for the same reason rupees are, in every world.
 // The capacity TIERS need no bracket: the wipe never touches inventory.upgrades,
 // and a monotonic resource could not decay through it anyway.
+//
+// THE MM-LOCAL COUNTS (the Powder Keg and the Magic Beans) follow the world's
+// FROZEN "Keep Items on Cycle Reset" (#1175; OoTMM's keepItemsReset, its
+// Sram_SaveEndOfCycle twin in packages/generator/src/mm/save.c): off, the
+// default, they are wiped as vanilla wipes them (a keg found in Hyrule is lost
+// at the Song of Time, which is what #1175 reported); on, they are bracketed
+// like the shared counts. The pictograph box is never bracketed: vanilla's wipe
+// skips its count and takes the photo (REMOVE_QUEST_ITEM(QUEST_PICTOGRAPH)),
+// and OoTMM resets the pictograph under both values. The "lost" flags OoTMM
+// clears under the option (the five THREEDAYRESET_LOST_* bits) are cleared below
+// in every world already, as the shared counts they report survive. The option
+// is read from the combo record (MM_Rando_FrozenKeepItemsReset), never its key,
+// and once, in Before, so Before and After cannot disagree. 2Ship's own
+// DoNotResetConsumables (2s2h/Enhancements/Cycle/EndOfCycle.cpp) stays unlinked:
+// it reads live CVars and registers the razor-sword hook with it.
 
 static s16 sPreCycleRupees = 0;
 static s8 sPreCycleAmmo[ARRAY_COUNT(kMMSharedAmmo)];
+// #1175: the MM-local counts Keep Items on Cycle Reset brackets, by item.
+static const u8 kMMCycleKeptLocalAmmo[] = { ITEM_POWDER_KEG, ITEM_MAGIC_BEANS };
+static s8 sPreCycleLocalAmmo[ARRAY_COUNT(kMMCycleKeptLocalAmmo)];
+static bool sPreCycleKeepItems = false;
 
 extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
     S2H::GameHooks::Register<GameInteractor::BeforeEndOfCycleSave>([]() {
@@ -6208,6 +6224,12 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
         for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
             sPreCycleAmmo[i] = AMMO(kMMSharedAmmo[i].item);
         }
+
+        // #1175: the MM-local counts, only under the frozen option.
+        sPreCycleKeepItems = MM_Rando_FrozenKeepItemsReset() != 0;
+        for (int i = 0; i < ARRAY_COUNT(kMMCycleKeptLocalAmmo); i++) {
+            sPreCycleLocalAmmo[i] = AMMO(kMMCycleKeptLocalAmmo[i]);
+        }
     });
 
     S2H::GameHooks::Register<GameInteractor::AfterEndOfCycleSave>([]() {
@@ -6219,6 +6241,13 @@ extern "C" void MM_RegisterSharedResourceCycleHooks(void) {
 
         for (int i = 0; i < ARRAY_COUNT(kMMSharedAmmo); i++) {
             AMMO(kMMSharedAmmo[i].item) = sPreCycleAmmo[i];
+        }
+        // #1175: Keep Items on Cycle Reset puts the keg and the beans back; off,
+        // the wipe's zeros stand, as vanilla's do.
+        if (sPreCycleKeepItems) {
+            for (int i = 0; i < ARRAY_COUNT(kMMCycleKeptLocalAmmo); i++) {
+                AMMO(kMMCycleKeptLocalAmmo[i]) = sPreCycleLocalAmmo[i];
+            }
         }
         // Same reasoning as the rupee notice: four of the five shared counts
         // have a "you lost it" flag that the cycle stamps before wiping, and

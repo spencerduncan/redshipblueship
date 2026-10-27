@@ -168,6 +168,7 @@ games/mm/2s2h/Rando/ComboLogicMonotonicitySingleExe.cpp
 games/mm/2s2h/mm_triforce_hunt_test.cpp
 games/oot/soh/oot_triforce_hunt_test.cpp
 games/mm/2s2h/mm_shared_bombchu_test.cpp
+games/mm/2s2h/mm_cycle_keep_items_test.cpp
 games/mm/2s2h/mm_shared_kokiri_sword_test.cpp
 games/oot/soh/oot_shared_kokiri_sword_test.cpp
 games/mm/2s2h/mm_shared_shields_test.cpp

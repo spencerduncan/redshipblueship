@@ -1064,6 +1064,26 @@ typedef struct {
     // shared-resource pool: NOT in the invalidation KEEP set.
     uint32_t sharedFamilyOwned;
 
+    // #1175: Majora's Mask's FROZEN "Keep Items on Cycle Reset" (OoTMM's
+    // keepItemsReset, a main.qol boolean, MM only, default off): 1 = the
+    // three-day reset keeps every ammo count but the pictograph box (the Powder
+    // Keg and the Magic Beans; the shared counts and the rupees are kept in
+    // every world, #525), 0 = vanilla. Resolved from its MM option key by the
+    // creation event beside mmProfileDigest (Playthrough_Init), the same author
+    // and moment, so it is in the same KEEP set, copied by the seed package's
+    // world record, and folded into MM's profile identity when on (so into the
+    // fingerprint through mmProfileDigest); read by MM's cycle bracket
+    // (GameExports_SingleExe.cpp). Never a live CVar during play.
+    //
+    // Here and not in the MM half: RandoSaveInfo has no padding to spare (its
+    // last field, foreignMaskSlotSel, ends at its sizeof), and an append there
+    // shifts every later SaveContext field of every older .redsave. Carved from
+    // the FRONT of the old reserved[92] under the growth contract: a
+    // zero-extended record reads 0, "off", vanilla, which every world before
+    // #1175 played. One byte: the next carver starts at 913, so a field wider
+    // than a byte pads (or carves the alignment bytes) first.
+    uint8_t mmKeepItemsReset;
+
     // Headroom. Carve new fields from the FRONT of this array (as
     // sharedItemsTagged, sharedRandoSettingsHash, foreignPlacements, the
     // grant cursors, and the reverse placement table were) so the struct
@@ -1078,7 +1098,7 @@ typedef struct {
     // - 48 (sharedResourcesExt) - 4 (commitGeneration) - 4 (mmPairedAttempt)
     // - 4 (comboSettingsHash) - 12 (comboSettings) = 108, then - 4 (comboTriforce,
     // ADR 0010 O10) = 104, then - 8 (comboItemRules) - 4 (sharedFamilyOwned,
-    // #976) = 92.
+    // #976) = 92, then - 1 (mmKeepItemsReset, #1175) = 91.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
@@ -1108,7 +1128,8 @@ typedef struct {
     // O10's triforce record (4 bytes at 896) was carved after that measurement,
     // and #976's item rules (8 bytes at 900) and family bitset (4 at 908) after
     // it, so the next carver starts from 92 at 912; 92 clears the floor by 28.
-    uint8_t reserved[92];
+    // #1175's byte at 912 leaves 91 at 913, 27 over the floor.
+    uint8_t reserved[91];
 
     // #1129 (lane L3, ruling D6 "inactive should be captured at freeze"): each
     // game's TRACKER AVAILABILITY CAPTURE, the set its check tracker marks
@@ -1332,15 +1353,20 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, sharedFamilyOwned) ==
                            offsetof(ComboContext, comboItemRules) + sizeof(ComboItemRulesRecord),
                        "sharedFamilyOwned must be carved from the FRONT of reserved[] (contiguous with "
                        "the item rules); moving it changes .redsave format");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == offsetof(ComboContext, sharedFamilyOwned) + sizeof(uint32_t),
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmKeepItemsReset) == 912u &&
+                           offsetof(ComboContext, mmKeepItemsReset) ==
+                               offsetof(ComboContext, sharedFamilyOwned) + sizeof(uint32_t),
+                       "mmKeepItemsReset (#1175) is carved from the FRONT of reserved[] at .redsave byte offset 912; "
+                       "if this fires, a field before it grew in place");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == offsetof(ComboContext, mmKeepItemsReset) + sizeof(uint8_t),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
                        "resource blocks, the commit generation, the paired-attempt record, the "
                        "combo settings digest and record, the triforce record, the item rules, the "
-                       "family bitset, and the remaining headroom must stay contiguous (no padding, no "
-                       "fields slipped between them)");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 912u,
-                       "reserved[] begins at .redsave byte offset 912 after #976's two carves; if "
+                       "family bitset, the keep-items byte, and the remaining headroom must stay contiguous (no "
+                       "padding, no fields slipped between them)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 913u,
+                       "reserved[] begins at .redsave byte offset 913 after #976's two carves and #1175's byte; if "
                        "this fires, a field ahead of it moved and every shipped save is being "
                        "reinterpreted - that is a format generation, not an assert edit");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
@@ -1350,7 +1376,8 @@ RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
                        "reserved[] must keep at least 64 bytes: Test_SaveComboRecordFixed's headroom "
                        "round-trip degenerates to a vacuous pass when it empties (ADR 0009)");
 // #1129's append, pinned to literals on the same terms as every carve above:
-// directly after reserved[]'s 92 bytes, the two counts, then the two bitsets.
+// directly after reserved[] (92 bytes then, #1175's byte and 91 now), the two
+// counts, then the two bitsets.
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerAvailCountOoT) == 1004u &&
                            offsetof(ComboContext, trackerAvailCountMM) == 1006u &&
                            offsetof(ComboContext, trackerAvailOoT) == 1008u &&

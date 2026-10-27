@@ -125,6 +125,7 @@ std::string WorldOnlyRecord(const ComboContext& live) {
     memcpy(rec->foreignPlacements, live.foreignPlacements, sizeof(rec->foreignPlacements));
     memcpy(rec->foreignPlacementsOoT, live.foreignPlacementsOoT, sizeof(rec->foreignPlacementsOoT));
     memcpy(&rec->mmProfileDigest, &live.mmProfileDigest, sizeof(rec->mmProfileDigest));
+    memcpy(&rec->mmKeepItemsReset, &live.mmKeepItemsReset, sizeof(rec->mmKeepItemsReset)); // #1175
     memcpy(&rec->mmPairedAttempt, &live.mmPairedAttempt, sizeof(rec->mmPairedAttempt));
     memcpy(&rec->comboSettingsHash, &live.comboSettingsHash, sizeof(rec->comboSettingsHash));
     memcpy(&rec->comboSettings, &live.comboSettings, sizeof(rec->comboSettings));

@@ -165,9 +165,11 @@ TestResult Test_CrossItemRulesRecord(void) {
               (unsigned)offsetof(ComboContext, comboItemRules));
     XIR_CHECK(offsetof(ComboContext, sharedFamilyOwned) == 908u, "sharedFamilyOwned is at %u, expected 908",
               (unsigned)offsetof(ComboContext, sharedFamilyOwned));
-    XIR_CHECK(offsetof(ComboContext, reserved) == 912u && sizeof(((ComboContext*)0)->reserved) == 92u,
-              "reserved[] is %u bytes at %u, expected 92 at 912", (unsigned)sizeof(((ComboContext*)0)->reserved),
-              (unsigned)offsetof(ComboContext, reserved));
+    // #1175 carved one byte (mmKeepItemsReset) from the front of what #976 left.
+    XIR_CHECK(offsetof(ComboContext, mmKeepItemsReset) == 912u && offsetof(ComboContext, reserved) == 913u &&
+                  sizeof(((ComboContext*)0)->reserved) == 91u,
+              "reserved[] is %u bytes at %u, expected 91 at 913 after #1175's byte at 912",
+              (unsigned)sizeof(((ComboContext*)0)->reserved), (unsigned)offsetof(ComboContext, reserved));
     // #976's carves fit the record's headroom: everything up to the end of
     // reserved[] still ends at 1004 (the #1129 captures are appended after it).
     XIR_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1004u,
