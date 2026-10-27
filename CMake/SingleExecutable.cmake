@@ -3137,6 +3137,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # byte through file-create, a seed package, a .redsave and the load-time
     # restore. ROM-free (default tier); games/mm/2s2h/mm_cycle_keep_items_test.cpp.
     redship_add_test(NAME MMCycleKeepItems COMMAND redship --test mm-cycle-keep-items)
+    # #1215: the rando's own cycle-save path (Rando/MiscBehavior/OnCycleSave.cpp) keeps
+    # the seed's Razor Sword, equipped or stolen, through the same headless reset; a
+    # vanilla file still drops it to the Kokiri Sword. ROM-free (default tier).
+    redship_add_test(NAME MMCycleRazorSword COMMAND redship --test mm-cycle-razor-sword)
     redship_add_test(NAME MMKeepItemsResetFrozen COMMAND redship --test mm-keep-items-reset-frozen)
 
     # #770: two OoT actor Destroys write the save on ANY exit from their scene

@@ -52,6 +52,7 @@ games/mm/2s2h/Rando/HintAreaSingleExe.cpp
 games/mm/2s2h/Rando/HintFoolish.h
 games/mm/2s2h/Rando/HintFoolishSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp
+games/mm/2s2h/Rando/MiscBehavior/ForcedGatesSingleExe.cpp
 games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
 games/mm/2s2h/SaveEditorTimeSingleExe.cpp

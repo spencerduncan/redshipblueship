@@ -137,6 +137,9 @@ int MM_MoonCrashCycleReset_Run(void);
 // keeps it and the beans through the three-day reset; its freeze and identity.
 int MM_CycleKeepItems_Run(void);
 int MM_KeepItemsResetFrozen_Run(void);
+// mm-cycle-razor-sword (#1215, same file): the rando's cycle-save path keeps the
+// seed's Razor Sword (equipped or stolen) through the three-day reset.
+int MM_CycleRazorSword_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -1422,6 +1425,19 @@ static TestResult Test_MMCycleKeepItems(void) {
         return TEST_FAIL;
     }
     return MM_CycleKeepItems_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMCycleRazorSword(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_CycleRazorSword_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMKeepItemsResetFrozen(void) {
@@ -8532,6 +8548,10 @@ const TestDescriptor gTests[] = {
       "Cycle Reset keeps it and the Magic Beans through the three-day reset (off: vanilla, both wiped), the shared "
       "counts and rupees kept either way (#1175)",
       Test_MMCycleKeepItems },
+    { "mm-cycle-razor-sword",
+      "A rando file keeps the seed's Razor Sword through the three-day reset, equipped or stolen by Takkuri; a "
+      "vanilla file drops it to the Kokiri Sword (#1215)",
+      Test_MMCycleRazorSword },
     { "mm-keep-items-reset-frozen",
       "Keep Items on Cycle Reset freezes into the combo record at creation, moves MM's profile stamp only when on, "
       "and is kept by the file-create invalidation, a seed package, a .redsave and the load-time restore (#1175)",

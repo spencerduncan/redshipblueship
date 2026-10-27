@@ -4343,8 +4343,10 @@ extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagTyp
  * BottleContent,RazorSword,TimeSpeed} restores) are still absent from the
  * binary — that TU is link-elided from the plain-archive 2ship_enh, verified
  * against build-cmake/redship.map, which lists no EndOfCycle.cpp.obj. Nothing
- * here changes that; those CVars stay inert until the TU links. The rando half
- * is unaffected because 2ship_rando links WHOLE_ARCHIVE.
+ * here changes that; those CVars stay inert until the TU links. Its razor-sword
+ * hook is forced on for rando (`CVAR || IS_RANDO`), so that one restore is
+ * ported into the rando's own AfterEndOfCycleSave (Rando/MiscBehavior/
+ * OnCycleSave.cpp, #1215), which 2ship_rando's WHOLE_ARCHIVE link keeps.
  *
  * Unkeyed leg only, matching the GameInteractor.cpp twins: both hook types are
  * DEFINE_HOOK(..., ()) 0-arg, upstream's executors call plain ExecuteHooks<>,
@@ -6190,7 +6192,8 @@ extern "C" void MM_ApplySharedResources(void) {
 // is read from the combo record (MM_Rando_FrozenKeepItemsReset), never its key,
 // and once, in Before, so Before and After cannot disagree. 2Ship's own
 // DoNotResetConsumables (2s2h/Enhancements/Cycle/EndOfCycle.cpp) stays unlinked:
-// it reads live CVars and registers the razor-sword hook with it.
+// it reads live CVars and registers the razor-sword hook with it (that hook's
+// IS_RANDO half lives in Rando/MiscBehavior/OnCycleSave.cpp, #1215).
 
 static s16 sPreCycleRupees = 0;
 static s8 sPreCycleAmmo[ARRAY_COUNT(kMMSharedAmmo)];
