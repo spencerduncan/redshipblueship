@@ -65,6 +65,9 @@ games/mm/2s2h/MmVolumeSingleExe.cpp
 games/mm/2s2h/mm_volume_live_apply_test.cpp
 games/mm/2s2h/mm_culling_test.cpp
 games/mm/2s2h/mm_fb_effects_test.cpp
+games/mm/2s2h/mm_hud_editor_reader_test.cpp
+games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.cpp
+games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.h
 games/mm/2s2h/mm_flash_filenum_test.cpp
 games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_paired_load_restore_test.cpp

@@ -561,6 +561,25 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2 "gSettings.SpeedModifier.SwimMapping2"
 // W6-GFX
 // W6-FIXES
+// W6-FIXES (#1237, #1236): MM's Fixes and Restorations keys, each written by one hosted row on SoH's Enhancements >
+// Fixes page (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Tatl ISG stays held apart from SoH's Easy ISG (P2 below). The
+// ammo key keeps the spelling z_parameter.c reads, never 2Ship's v1 rename to gFixes.FixButtonEnvColor. Fix Console
+// Crashes has no row on purpose (the single exe always keeps the crash fixes on), so it has no define either.
+#define RSBS_CVAR_MM_CAMERA_FIX_TARGETTING_CAMERA_SNAP "gEnhancements.Camera.FixTargettingCameraSnap"
+#define RSBS_CVAR_MM_FIXES_EPONA_STEALING_SWORD "gFixes.FixEponaStealingSword"
+#define RSBS_CVAR_MM_FIXES_FIERCE_DEITY_Z_TARGET_MOVEMENT "gEnhancements.Fixes.FierceDeityZTargetMovement"
+#define RSBS_CVAR_MM_FIXES_AMMO_COUNT_ENV_COLOR "gFixes.FixAmmoCountEnvColor"
+#define RSBS_CVAR_MM_FIXES_IKANA_GREAT_FAIRY_FOUNTAIN_COLOR "gFixes.FixIkanaGreatFairyFountainColor"
+#define RSBS_CVAR_MM_FIXES_CONTROL_CHARACTERS "gEnhancements.Fixes.ControlCharacters"
+#define RSBS_CVAR_MM_FIXES_COMPLETED_HEART_CONTAINER_AUDIO "gEnhancements.Fixes.CompletedHeartContainerAudio"
+#define RSBS_CVAR_MM_RESTORATIONS_POWER_CROUCH_STAB "gEnhancements.Restorations.PowerCrouchStab"
+#define RSBS_CVAR_MM_RESTORATIONS_TATL_ISG "gEnhancements.Restorations.TatlISG"
+#define RSBS_CVAR_MM_RESTORATIONS_CONSTANT_FLIPS_HOPS "gEnhancements.Restorations.ConstantFlipsHops"
+#define RSBS_CVAR_MM_RESTORATIONS_SIDE_ROLL "gEnhancements.Restorations.SideRoll"
+#define RSBS_CVAR_MM_RESTORATIONS_OOT_FASTER_SWIM "gEnhancements.Restorations.OoTFasterSwim"
+#define RSBS_CVAR_MM_RESTORATIONS_WOODFALL_MOUNTAIN_APPEARANCE "gEnhancements.Restorations.WoodfallMountainAppearance"
+#define RSBS_CVAR_MM_RESTORATIONS_JP_GROTTOS "gEnhancements.Restorations.JPGrottos"
+#define RSBS_CVAR_MM_RESTORATIONS_BONK_COLLISION "gEnhancements.Restorations.BonkCollision"
 // W6-MODES-DIFF
 // W6-MODES-DIFF (#1236, #1240): MM's Modes and Difficulty keys, each written by one hosted row on SoH's Enhancements
 // pages (SohGui/HostedMm/SohMenuHostedMmModesDifficulty.cpp). Mirrored World has no define: SoH's own row drives MM
@@ -580,6 +599,10 @@ struct DistinctPair {
 // W6-MINIGAMES
 // W6-TIMERS
 // W6-HUD-A
+// #1239: MM's HUD placement keys, one family composed per element as PREFIX + "<Element>" + ".Mode" / ".Position.X" /
+// ".Position.Y" / ".Scale" (src/common/mm_hud_editor_elements.h, MM's HUD_EDITOR_ELEMENT). Written by the Majora's
+// Mask section of SoH's Cosmetics Editor, HUD Placement tab; locked by the classification lock's HUD-editor leg.
+#define RSBS_CVAR_MM_HUD_EDITOR_PREFIX "gHudEditor."
 // W6-COS-A
 // W6-AUDIO-SEQ
 // W6-DEV
@@ -634,9 +657,11 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "'no speedup', so the control silently does nothing. MM's FastText also bundles hold-B-to-advance, "
       "which OoT exposes as the SEPARATE key gEnhancements.SkipText — one control cannot express both "
       "decompositions." },
-    { "P2 infinite sword glitch", "gEnhancements.Restorations.TatlISG", "gCheats.EasyISG",
+    { "P2 infinite sword glitch", RSBS_CVAR_MM_RESTORATIONS_TATL_ISG, "gCheats.EasyISG",
       "Taxonomy conflict: OoT treats ISG as a cheat to grant, MM treats restoring Navi-ISG via Tatl as "
-      "authenticity. Different menu sections, different framing. Needs a maintainer call." },
+      "authenticity, and the gate differs (OoT's is an unconditional passive grant, MM's restores a behaviour the "
+      "N64 game had). Ruled (ADR 0004): the keys stay distinct, and MM's own row, \"Tatl ISG (restoration)\", is "
+      "hosted on Enhancements > Fixes > Glitch Restorations (W6-FIXES)." },
     { "P3 camera axis decomposition", "gEnhancements.Camera.FirstPerson.InvertX",
       "gSettings.Controls.InvertAimingXAxis",
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "

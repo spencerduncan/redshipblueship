@@ -86,6 +86,10 @@ int OoT_ShipInitMMDriver_RunHeadless(void);
 // at 0xA7 in MM_Interface_DrawItemButtons, first HUD-visible MM frame).
 // Returns 0 on pass, non-zero on fail.
 int CosmeticGfxStub_RunHeadless(void);
+// MM HUD placement reader (W6-HUD-A, #1239; games/mm/2s2h/mm_hud_editor_reader_test.cpp): MM's HUD draws honour the
+// shared menu's gHudEditor.* keys and its presets write them. It reads and writes CVars, so its wrapper
+// (Test_MMHudEditorReader, after CreateHarnessStyleContext) runs the display-free shared bring-up first. 0 on pass.
+int MM_HudEditorReader_RunHeadless(void);
 // MM resume-path cold-boot contracts (games/mm/2s2h/mm_resume_state_test.cpp):
 // (a) mm-resume-arena — MM_ResumeColdBootPrep must make an exhausted system
 //     arena allocatable again (the cycle-2 re-entry crash class: the retired
@@ -644,6 +648,7 @@ extern "C" {
 #include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
+#include "tests/test_foreign_outbox_full.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
 #include "tests/test_tracker_arrival_recalc.c" // #990: an arrival schedules the tracker recalc
 
@@ -1393,6 +1398,17 @@ static std::shared_ptr<Ship::Context> CreateHarnessStyleContext(void) {
     return ctx;
 }
 
+// MM HUD placement reader (W6-HUD-A, see the extern decl beside cosmetic-gfx-stub). The display-free shared
+// bring-up, because the row writes and clears MM's gHudEditor.* keys.
+static TestResult Test_MMHudEditorReader(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_HudEditorReader_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
 // over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp. Unlike
 // its mm-resume-arena sibling, this one needs the same display-free shared
@@ -1579,6 +1595,20 @@ static TestResult Test_CrossingArrivalToasts(void) {
     }
     CVarSetInteger("gSettings.Notifications.Mute", 1);
     const TestResult result = CrossingArrivalToasts_Run();
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
+}
+
+// #1222 foreign-outbox-full-mm (body: tests/test_foreign_outbox_full.c): the
+// refused sale's toast reaches the overlay's Emit, so the same bring-up and mute.
+static TestResult Test_ForeignOutboxFullMM(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = ForeignOutboxFullMM_Run();
     CVarClear("gSettings.Notifications.Mute");
     return result;
 }
@@ -7779,6 +7809,8 @@ const TestDescriptor gTests[] = {
     { "startup-entrance", "Test startup entrance flow", Test_StartupEntrance },
     { "vb-affinity", "OoT VB hooks stay quiet while MM is active", Test_VBAffinity },
     { "cosmetic-gfx-stub", "MM HUD gfx wrappers write commands and advance the display list", Test_CosmeticGfxStub },
+    { "mm-hud-editor-reader", "MM's HUD draws honour the shared menu's HUD placement keys and presets (#1239)",
+      Test_MMHudEditorReader },
     { "roundtrip", "Full round-trip with state verification", Test_Roundtrip },
     { "roundtrip-integrity", "OoT SaveContext byte-identical across OoT->MM->OoT (issue #262)",
       Test_RoundtripIntegrity },
@@ -7831,6 +7863,12 @@ const TestDescriptor gTests[] = {
     // fprintf; this one drives the real one and the real give behind it.
     { "foreign-award-mm", "MM's real award reaches the real give: once per crossing, deferred safely (#502)",
       Test_ForeignAwardMM },
+    // #1222: a foreign pickup the full shared outbox would refuse is held, not lost.
+    { "foreign-outbox-full-mm", "MM: a full outbox holds a foreign pickup open and refuses its shop sale (#1222)",
+      Test_ForeignOutboxFullMM },
+    { "foreign-outbox-full-oot",
+      "OoT: the drain holds a pickup the full outbox would refuse, until a row frees (#1222)",
+      Test_ForeignOutboxFullOoT },
     // #878: both arrivals' real consumers redeem a crossing and toast nothing:
     // the item was announced at its pickup.
     { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",

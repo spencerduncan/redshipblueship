@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include <libultraship/color.h>
 
@@ -168,7 +169,16 @@ void MM_FaultDrawer_SetCharPad(int xPad, int yPad) {
  * real scene-name table — the stub's "Unknown" would otherwise shadow it in
  * every spoiler/tracker string, and the two strong definitions cannot
  * coexist on Linux. */
-void Ship_HandleConsoleCrashAsReset(void) {
+/* Fix Console Crashes (gEnhancements.Fixes.ConsoleCrashes) is INTENTIONAL in the single exe, with no row (W6-FIXES,
+ * #1237): the crash fixes are always on. 2Ship's handler (excluded 2s2h/BenPort.cpp) returns false while the key is on,
+ * its default, and every MM call site (z_camera.c, z_player_lib.c, z_player.c, z_kaleido_map.c) then takes its safe
+ * fallback and ignores the result. Its off mode is a soft reset through the console's "reset" command, which in the
+ * single exe is Ship of Harkinian's ResetHandler (soh/Enhancements/debugconsole.cpp): it acts on OoT_gGameState and
+ * OoT's title screen and runs OoT's OnExitGame hooks, never on the Majora's Mask state the crash came from. So this
+ * stub IS the "on" behaviour. It returns bool, as BenPort.h declares it (the stub-signature-drift class), so a future
+ * caller that reads the result sees "not reset". */
+bool Ship_HandleConsoleCrashAsReset(void) {
+    return false;
 }
 
 /* The Ship_ExtendedCullingActorRestoreProjectedPos stub that used to live here

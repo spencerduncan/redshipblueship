@@ -571,6 +571,11 @@ if(BUILD_TESTING)
     # write pointer (WRITE AV at 0xA7, first HUD-visible MM frame — caught by
     # int-gameplay-roundtrip on the OoT->MM leg).
     redship_add_test(NAME CosmeticGfxStub COMMAND redship --test cosmetic-gfx-stub)
+    # MM HUD placement reader (W6-HUD-A, #1239). 2Ship's HUD editor is excluded, and the
+    # linked stand-ins answered "vanilla" to every MM HUD draw. Drives the ported reader
+    # with the B button's keys (overridden, moved, scaled, hidden), the next-element
+    # override, an element with no row, and the three presets. ROM-free, display-free.
+    redship_add_test(NAME MMHudEditorReader COMMAND redship --test mm-hud-editor-reader)
     # Cross-game CVar classification lock (#34). Keeps ADR 0003 and
     # docs/enhancement-classification.md from decaying into prose: fails when a
     # converged key diverges again, OR when a key the inventory marks per-game
@@ -657,6 +662,15 @@ if(BUILD_TESTING)
     # crossing, order preservation, origin filtering, and that a NULL PlayState
     # defers the give instead of dereferencing it.
     redship_add_test(NAME ForeignAwardMM COMMAND redship --test foreign-award-mm)
+    # #1222: with all 64 shared rows holding un-redeemed crossings the record is
+    # refused; the MM give marked the host delivered anyway and a shop charged and
+    # sold the slot, so the OoT item was lost. Fills the rows and drives the real
+    # give, CheckQueue's hold and the shelf's purchase functions.
+    redship_add_test(NAME ForeignOutboxFullMM COMMAND redship --test foreign-outbox-full-mm)
+    # #1222, OoT leg: OoT's RC-queue drain fell through to the junk cover's give
+    # on a refused record, marking the check collected. Drives the drain's hold
+    # and hand-back seams over the same full outbox.
+    redship_add_test(NAME ForeignOutboxFullOoT COMMAND redship --test foreign-outbox-full-oot)
     # #878: "duplicate toasts when you cross over". Each pickup of a cross-game
     # item is announced at the pickup; the arrival used to toast it again. Drives
     # both legs' real arrival consumers (MM's through its first-frame drain over a
