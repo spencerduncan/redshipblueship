@@ -223,7 +223,7 @@ controls are what a player sees by default and the per-game ones read as excepti
 | **Cosmetics** | Cosmetics Editor, Audio Editor, HUD Editor | Mostly (O) per game; MM's 3 tunic keys converge — see classification §3.3 BUG 1 |
 | **Randomizer** | OoT, MM, **Paired** | See §4.1 and **§4.1a** — MM's half is a common-owned window, not a SohMenu sidebar, for the timing reason given there (host superseded 2026-09-27: Combo > MM Randomizer and Combo > MM Tricks pages, see the host amendment; superseded again 2026-10-21: Randomizer > MM Randomizer, MM Tricks and Cross-Game, see the one-randomizer-menu amendment) |
 | **Trackers** | Item, Check, Entrance, Combo | Per findings §3, MM trackers are nearly free — blocked on registration surface + selective un-elision, not hook migration |
-| **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel (built 2026-09-28 as Combo > Save Files; `ComboMenuBar` deleted) |
+| **Combo** | Pairing status, Save slots, Entrance links, Hot-swap | Tier 4. Absorbs `ComboMenuBar`'s working `.redsave` file-select panel (built 2026-09-28 as Combo > Save Files; `ComboMenuBar` deleted). **Retired 2026-10-27** (#1133, rulings D4 and D5): no header of ours; Save Files is a Dev Tools page and every other row lives on the SoH page that holds its twin, see that amendment |
 | **Dev Tools** | (existing) | Shared where already shared; MM's viewers gated per §5 |
 | **Network** | (existing) | Out of scope for this ADR |
 
@@ -851,6 +851,8 @@ after Tricks/Glitches, draws them and then the rules. The pointer page (`AddCros
 its lint slice. Every TU, row, model, gated writer and freeze is unchanged, and no key is minted.
 
 **The Combo header keeps** Windows, Majora's Mask (the enhancements page), MM Mods, Save Files and Tracker Settings.
+(Superseded: Windows retired with #1132, Tracker Settings with #1141, and the header with #1133; see the 2026-10-27
+amendment.)
 
 **Persisted selections.** A config whose Combo selection names a moved page reopens on that page under Randomizer
 when Combo was the open header (`gSettings.Menu.ActiveHeader` and `gSettings.Menu.RandomizerSidebarSection`, both
@@ -903,7 +905,7 @@ SoH's rows, widgets and wording there are unchanged, and ours are appended after
    Tracker Settings group), then a Cross-Game Spoiler separator and its toggle (race-disabled, as before).
    **Combo > Windows is retired**: its three toggles went to SoH's two pages and the Check Tracker page. A config that
    had Combo open on Windows (or its old name, Cross-Game Windows) reopens on Randomizer > Check Tracker
-   (`ComboSidebarCarryMovedSelection`).
+   (`ComboSidebarCarryMovedSelection` then; `ComboHeaderCarrySelection` since #1133 retired the header).
 3. **Transitional state.** Combo > Tracker Settings keeps only the Item Tracker overlay's nine `gCombo.Tracker.Items.*`
    rows. Per ruling IT-D6, lane IT-3 (#1141) retires the five with SoH twins and appends the rest to SoH's Item Tracker
    page, which takes no rows of ours until then; SoH's own Item Tracker Settings window there still sets only SoH's
@@ -915,7 +917,8 @@ SoH's rows, widgets and wording there are unchanged, and ours are appended after
    area and the revealed item, never the price (SoH's `ShouldShowCheck`).
 
 **The Combo header now holds** Majora's Mask, MM Mods, Save Files and Tracker Settings (4 pages). The Randomizer
-sidebar is unchanged (16 entries).
+sidebar is unchanged (16 entries). (Superseded: #1141 retired Tracker Settings, and #1133 the header; see the
+2026-10-27 amendment.)
 
 **Locks:** `MenuComboSection` (the Combo header's four pages; SoH's two tracker pages driven row for row, their
 toggles opening the unified windows by name and key, our rows and their order; the Windows carry; Tracker Settings
@@ -925,3 +928,68 @@ the retired construction, by source scan), `ComboItemTrackerWindow` (the name an
 trackers constructed through `RetiredInSingleExe<>`), `ComboSettingsRows` (every Combo page instead of Windows),
 `UiSnapshot` / `UiSnapshotMin` (`Randomizer/Check Tracker` captured, `window/Check Tracker` and `window/Item Tracker`
 renamed, SoH's overlay as `window/SoH Item Tracker`, `Combo/Windows` retired).
+
+## Amendment 2026-10-27 — the Combo header retires (#1133, lane L7)
+
+**The rulings** (operator, 2026-10-22, on the tracker scoping report): D4 "dev tools": Save Files moves to the Dev
+Tools header. D5 "fold into the applicable SoH pane per setting": the Combo header retires; every Majora's Mask row
+is hosted on the SoH page that holds its twin or nearest relative (the #1037 pattern), rows with no twin under a
+"Majora's Mask" block on the most applicable SoH page; MM Mods folds into Settings > Mod Menu. They supersede §4's
+**Combo** row (which reserved a tier-4 header for pairing status, save slots, entrance links and hot-swap), the
+2026-09-20 amendment's "§4's Combo row" and the "Combo header keeps / now holds" lines of the 2026-10-21 and
+2026-10-26 amendments. The 2026-09-27 "no unneeded overhaul of original SoH menus" ruling is amended narrowly for
+these pages: SoH's rows, widgets and wording are unchanged except one sentence added to SoH's Autosave tooltip, and
+ours sit directly after their twin or in a block of their own.
+
+**Refined the same day** (operator, 2026-10-27, on PR #1248's review): "Have two rows, OoT Mods and MM Mods instead of
+just Mods." D5's "MM Mods folds into Settings > Mod Menu" placed Majora's Mask's mod list below SoH's embedded mod
+list, which fills the page, so a player had to scroll past one list to reach the other. Settings now has two sidebar
+entries where it had one: **OoT Mods** is SoH's Mod Menu page with only its sidebar label changed (its Popout Mod Menu
+Window row, the embedded window and SoH's behaviour are unchanged), and **MM Mods** is a Settings page of ours directly
+after it, holding Majora's Mask's mod rows with no "Majora's Mask" heading (the page's name says whose they are).
+
+**There is no header of ours.** `AddMenuCombo` (`SohMenuCombo.cpp`) registers nothing; `AddMenuElements` still calls
+it, as the carry's call site. `ComboPageHost` names SoH's headers only: `Randomizer` (#1101), `DevTools` (new,
+drawn by `AddComboDevToolsPages`, which `AddMenuDevTools` calls after its last page) and `Settings` (the refinement
+above, drawn by `AddComboSettingsPages`, which `AddMenuSettings` calls after OoT Mods, the last page it draws; SoH's
+Presets follows them, added by its own menu-init function). Where each
+former page's rows live:
+
+| Former page | Rows | Host now |
+|---|---|---|
+| Combo > Majora's Mask (MM Enhancements until 2026-09-27) | MM Autosave Interval | Enhancements > Quality of Life > Saving, directly after SoH's Autosave (MM's own interval; OoT's is a fixed 3 minutes) |
+| | Autosave (the page's pointer row) | gone: SoH's own Autosave is the converged key both games read, one row for both (its tooltip now says so) |
+| | Skip Time Song Cutscenes | Enhancements > Skips & Speed-ups > Cutscenes, directly after SoH's Skip Song Cutscenes |
+| | Game Over Prompt, Better Double Time | the "Majora's Mask" block on Enhancements > Quality of Life at the end of Time of Day, after #1245's Time Cycle rows (no twin; Quality of Life holds how play flows around saving and the time of day) |
+| Combo > MM Mods | the state note, Rescan Mods Folder, MM Mod List | Settings > MM Mods, a page of its own directly after SoH's Mod Menu page, which is labelled OoT Mods (`ComboPageHost::Settings`; Rescan Mods Folder through the hosted-row seam, under no heading) |
+| Combo > Save Files | the page | Dev Tools > Save Files, after SoH's last Dev Tools page |
+| Combo > Windows, Tracker Settings | (retired by #1132 and #1141) | Randomizer > Check Tracker and Item Tracker |
+| Combo > Cross-Game Rules, MM Randomizer, MM Tricks | (moved by #1101) | Randomizer > Cross-Game, MM Randomizer, MM Tricks |
+
+Every hosted MM row goes through the hosted-row seam (`SohGui/HostedMm/SohMenuHostedMm.h`, #1233), so the UI snapshot
+captures, hovers and lints it on its SoH page. The curated rows keep `RSBS::kHostedMmEnhancements` as their manifest
+(label, tooltip, widget, liveness) and bind one `RSBS_CVAR_MM_*` define each. No key is renamed.
+
+**The carry.** `Menu::DrawElement` reads `gSettings.Menu.ActiveHeader` and then calls `menuEntries.at(header)`, whose
+only catch is `std::bad_variant_access`, so a config left on "Combo" would be an uncaught `std::out_of_range`. When
+the open header is Combo, the carry maps its last selection by name to the new host (Cross-Game Rules, MM Randomizer,
+MM Tricks, Windows, Cross-Game Windows and Tracker Settings to their Randomizer pages; Majora's Mask and MM
+Enhancements to Enhancements > Quality of Life, the page that got its first rows; MM Mods to Settings > MM Mods;
+Save Files to Dev Tools > Save Files), writing the header key and that header's sidebar key; an empty or unknown
+selection clears the header key, so the menu opens on its default. `gSettings.Menu.ComboSidebarSection` is cleared in
+every case, and no other key is written: a carried selection lands on a page the host's builder registers, so the
+contended `kMenuIndexKeys` (#451) hold only values SoH's own menu writes. Selection persists by display name, and a
+Settings selection the menu has no page for opens on General, so `gSettings.Menu.SettingsSidebarSection` = "Mod Menu"
+is renamed to "OoT Mods" whichever header is open. MM Mods is inserted after OoT Mods and before SoH's Presets; every
+other Settings page keeps its name, so no other saved Settings selection moves (an index would; a name does not).
+
+**Locks:** `MenuComboSection` (no Combo header among SoH's ROM-free headers; the extension point under Dev Tools and
+Randomizer; the carry for every former page, every former name, the absent, empty and unknown selections and another
+open header, each probe putting back the keys it set; the Mod Menu to OoT Mods rename; Settings > OoT Mods, Settings
+> MM Mods directly after it and Dev Tools > Save Files row for row; the Settings host),
+`MenuMmEnhancementRows` (each curated row on its SoH page, separator and neighbour, through the seam; the converged
+Autosave as one row; the block builder over synthetic non-live tables; Rescan Mods Folder on Settings > MM Mods), `CVarClassification` (each new define bound
+by exactly one row), `ComboSettingsRows` and `MenuMmRandomizerPages` (no longer read a Combo header), and `UiSnapshot` /
+`UiSnapshotMin` (the `Combo/*` states retired; the SoH pages holding the hosted rows captured as ours; SoH's
+`Settings/OoT Mods` captured as a reference with its embedded mod menu off, and `MM rows/Settings/MM Mods` as ours,
+every row on it held to its column).

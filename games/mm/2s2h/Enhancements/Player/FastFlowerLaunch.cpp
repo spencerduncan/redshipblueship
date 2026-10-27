@@ -12,6 +12,9 @@ void Player_Action_93(Player* player, PlayState* play);
 
 void RegisterFastFlowerLaunch() {
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         if (player->actionFunc != Player_Action_93) {
             return;

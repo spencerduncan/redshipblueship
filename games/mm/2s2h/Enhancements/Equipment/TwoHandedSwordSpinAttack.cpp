@@ -13,6 +13,9 @@ extern Input* sPlayerControlInput;
 
 void RegisterTwoHandedSwordSpinAttack() {
     COND_VB_SHOULD(VB_CHECK_HELD_ITEM_BUTTON_PRESS, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Instead of checking B only, check whichever button is assigned to the currently held item. This allows
         // the Great Fairy Sword, a C button item, to be held for charged spin attacks.
         Player* player = GET_PLAYER(MM_gPlayState);
@@ -33,6 +36,9 @@ void RegisterTwoHandedSwordSpinAttack() {
     });
 
     COND_VB_SHOULD(VB_MAGIC_SPIN_ATTACK_CHECK_FORM, CVAR, {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         // Additionally allow the Fierce Deity form to use charged spin attacks
         Player* player = GET_PLAYER(MM_gPlayState);
         if (player->transformation == PLAYER_FORM_FIERCE_DEITY) {

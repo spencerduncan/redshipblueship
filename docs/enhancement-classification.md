@@ -77,8 +77,8 @@ brief, plus everything in the collision set:
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
-| `Player` | 9 | ✅ all |
-| `Equipment` | 7 | ✅ all |
+| `Player` | 9 | ⚠️ 8 of 9, and only since W6-PLAYER (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER) and six (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the six. Underwater Ocarina is still (O) at category level only |
+| `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
 | `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4) |
 | `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
 | **Subtotal** | **130** | |
@@ -277,6 +277,16 @@ at category level were checked for convergence and each failed on gating, so the
 | `gEnhancements.Camera.RightStick.InvertYAxis` | **on (inverted)** | MM Invert Camera Y Axis | (P) P3 |
 | `gEnhancements.Camera.RightStick.CameraSensitivity.{X,Y}` | 100% | MM Third-Person Horizontal / Vertical Sensitivity (1-500%) | (P) P3 |
 
+**W6-PLAYER (#1236) — Climb Speed and Bombchu Drops, held apart and given rows.** Two of W6-PLAYER's twelve keys have
+an SoH twin whose rule differs, so each stays in `kMustStayDistinct` and gets an MM-labelled row right after its SoH
+twin (`SohMenuHostedMmPlayer.cpp`), bound through its `RSBS_CVAR_MM_*` define. Their TUs are linked with the other
+ten, which are (O) and listed in §6.1 W6-PLAYER; the coverage notes there hold for all twelve.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Player.ClimbSpeed` | 1x | MM Vine/Ladder Climb Speed (Skips & Speed-ups > Animations, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH adds +0-12, MM multiplies 1-5x; §5.3 group A's "both numeric" was wrong |
+| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`). SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, then the scarcer ammo first), and an OoT seed can force it on. MM's row converts Bomb drops to Bombchu drops once you have Bombchus: in the single exe a Bomb drop converts, at an even chance, only while `INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU` already holds, which is SoH's first clause (review H1 on #1246). The reason: the Bombchu count is a shared PROGRESSION quantity (`src/common/shared_items.h`). Under 2Ship's unguarded rule the pickup would set the Bombchu item in Termina (`z_parameter.c` Item_Give), the next harvest would carry the count into the pool, and `OoT_ApplySharedAmmoCount` would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them (`OoT_SharedAmmoGrantBlocked` stops that only when the seed's Bombchu Bag option is on). MM's rule still never weighs the scarcer ammo, so the keys are not converged: same bool and JSON shape, different rule. MMRegistrarCoverage's FAIL 22 holds the rule. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031). **For W6-IMPORT: an MM-only key.** Import `gEnhancements.Equipment.ChuDrops` as MM's own key, never onto `gEnhancements.EnableBombchuDrops` |
+
 ## 5. (S) CONVERGE — the rename list for the settings-namespace ADR
 
 **This section is the direct input to the namespace ADR's rename set.** Direction is
@@ -321,7 +331,7 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 | Bow Reticle | `gEnhancements.BowReticle` | `gEnhancements.Graphics.BowReticle` | both bool |
 | Disable Black Bars | `gEnhancements.DisableBlackBars` | `gEnhancements.Graphics.DisableBlackBars` | both bool |
 | Instant Putaway | `gEnhancements.InstantPutaway` | `gEnhancements.Player.InstantPutaway` | both bool |
-| Climb Speed | `gEnhancements.ClimbSpeed` | `gEnhancements.Player.ClimbSpeed` | both numeric |
+| Climb Speed | `gEnhancements.ClimbSpeed` | `gEnhancements.Player.ClimbSpeed` | ~~both numeric~~ **held apart (P)**: OoT adds +0-12, MM multiplies 1-5x (`kMustStayDistinct`); MM row hosted, see §4 W6-PLAYER |
 | Item Unequip | `gEnhancements.ItemUnequip` | `gEnhancements.Equipment.ItemUnequip` | both bool |
 | Autosave | `gEnhancements.Autosave` | `gEnhancements.Saving.Autosave` | both bool — see caveat |
 | Remember Save Location | `gEnhancements.RememberSaveLocation` | `gEnhancements.Saving.RememberSaveLocation` | both bool ⚠️ see #442 |
@@ -337,8 +347,9 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 > therefore **(O) MM-only** and must NOT be swept into the rename. One shared checkbox
 > driving a 3-minute OoT save and a 5-minute MM save is the accepted behaviour; the interval
 > slider stays in the MM subsection.
-> Since #693 that slider is hosted on the unified menu's **Combo → Majora's Mask** page (MM Enhancements until 2026-09-27)
-> (manifest row in `RSBS::kHostedMmEnhancements`), labelled Majora's-Mask-only; the key stays
+> Since #693 that slider is hosted in the unified menu (manifest row in `RSBS::kHostedMmEnhancements`); since #1133
+> it sits on Enhancements > Quality of Life directly after SoH's Autosave (the **Combo → Majora's Mask** page that held
+> it retired with the Combo header), labelled "MM Autosave Interval" and Majora's-Mask-only; the key stays
 > in `RSBS::kMustStayDistinct`. A `static_assert` in `src/common/cvar_shared_keys.h` fails
 > the build if the key is dropped from that table, and the `CvarClassification` source scan
 > (step 3c-2) fails if `games/oot` ever names it, spelled out or as
@@ -415,6 +426,26 @@ MM live: MM read them only in `MM_AudioMgr_Init`, once per bring-up, so a slider
 in MM only after a restart; the slider callbacks now also call `MM_Volume_ReapplyPortScales`
 (`src/common/mm_volume_bridge.h`).
 
+**#1133 — the curated rows (#682, #693) hosted beside their twins.** The Combo header's Majora's Mask page retired
+(ruling D5). Each row it held now sits on SoH's own Enhancements pages through the hosted-row seam, binds an
+`RSBS_CVAR_MM_*` define (classification leg 3f-2c) and takes its label, tooltip, widget and liveness from its
+`RSBS::kHostedMmEnhancements` entry. No key is renamed.
+
+| Row | Key | Host | Placement | Form |
+|---|---|---|---|---|
+| MM Autosave Interval | `gEnhancements.Saving.AutosaveInterval` (`RSBS_CVAR_MM_AUTOSAVE_INTERVAL`) | Enhancements > Quality of Life > Saving | directly after SoH's Autosave, hidden while Autosave is off | MM's own row beside the twin (the #1037 form): OoT's interval is a fixed 3 minutes, the key stays in `kMustStayDistinct` |
+| Autosave | `gEnhancements.Autosave` (converged) | Enhancements > Quality of Life > Saving | SoH's own row | one row for both games (#1119's form); its tooltip says so; the page's pointer to it is gone |
+| Skip Time Song Cutscenes | `gEnhancements.Songs.SkipSoTCutscenes` (`RSBS_CVAR_MM_SKIP_SOT_CUTSCENES`) | Enhancements > Skips & Speed-ups > Cutscenes | directly after SoH's Skip Song Cutscenes, its nearest relative | (O) MM-only row, plain label |
+| Game Over Prompt | `gEnhancements.Kaleido.GameOver` (`RSBS_CVAR_MM_KALEIDO_GAME_OVER`) | Enhancements > Quality of Life | the "Majora's Mask" block at the end of Time of Day, after #1245's Time Cycle rows | (O) MM-only, no twin |
+| Better Double Time | `gEnhancements.Songs.BetterSongOfDoubleTime` (`RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME`) | Enhancements > Quality of Life | the same block, after Game Over Prompt | (O) MM-only, no twin |
+
+The two rows with no twin share one block on Quality of Life, the page where SoH keeps how play flows around saving
+and the time of day: the Game Over Prompt is a save prompt on death, and Better Double Time picks the hour the Song of
+Double Time skips to. MM Mods (Rescan Mods Folder and the MM mod list) is a Settings page of its own, directly after
+SoH's Mod Menu page, which is labelled OoT Mods (the operator's ruling of 2026-10-27: "Have two rows, OoT Mods and MM
+Mods instead of just Mods"); it binds no key (`Combo_MMModSet_*`, `RSBS_CVAR_MM_ENABLED_MODS` / `_DISABLED_MODS` are
+written by the model).
+
 **Hosted-row convention (#1133 ruling D5, #1233).** Every MM row goes on the SoH page holding its twin or nearest
 relative, directly after that row, through a project-added function SoH's page calls in one line; a row with no twin
 goes under a "Majora's Mask" block on the most applicable SoH page. Rows are added through the hosted-row seam
@@ -462,7 +493,7 @@ default (off).
 | `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
 | `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
-| `PlayerActions` | 3 | Arrow cycle, instant recall, remote Bombchu |
+| `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
 | `gFixes.*` | 4 | MM-specific colour/Epona fixes |
@@ -471,6 +502,28 @@ default (off).
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
 | `gNotifications.*`, `gDisplayOverlay.*` | 7 | MM overlay/notification system |
 | `gRando.*` | 72 | MM randomizer — see ADR 0004 §3 |
+
+**W6-PLAYER (#1236) — MM's Player, Equipment and PlayerActions rows, linked and hosted.** MM read twelve Player,
+Equipment and PlayerActions keys: the ten (O) keys below and the two held-apart (P) keys, Climb Speed and Bombchu Drops,
+which are in §4 W6-PLAYER. Each provider TU had been dropped from the link (a plain `2ship_enh` archive keeps no TU
+whose only anchor is a `RegisterShipInitFunc`) and the only widgets sat in the excluded `BenMenu.cpp`, so a key could be
+neither written nor acted on. Each provider is now carved into `ship__Enh_registrars` and each key has a row on an SoH
+Enhancements page, added through the hosted-row seam and bound through its `RSBS_CVAR_MM_*` define. The
+registrar-coverage lock's W6-PLAYER phase attributes each TU by registry content; the classification lock's leg 3f-2c
+holds each binding.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Player.ManualJump` | off | Manual Jump (Quality of Life > Controls, Majora's Mask block) | (O) MM-only |
+| `gEnhancements.Player.PreventDiveOverWater` | off | Prevent Diving Over Water (likewise) | (O) MM-only |
+| `gEnhancements.Player.InfiniteDekuHopping` | off | Infinite Deku Hopping (likewise) | (O) MM-only: Deku Link |
+| `gEnhancements.Player.FasterPushAndPull` | off | Faster Push/Pull (Animations, after SoH's Block Pushing Speed) | (O) nearest relative only: one switch over every pushed and pulled object (gear clamps, blocks, ice blocks), not SoH's push-speed step |
+| `gEnhancements.Player.FastFlowerLaunch` | off | Fast Deku Flower Launch (Animations, Majora's Mask block) | (O) MM-only: Deku Link |
+| `gEnhancements.Player.FierceDeityPutaway` | off | Fierce Deity Putaway (likewise) | (O) MM-only; acts on the held sword only, never on a mask the combo owns |
+| `gEnhancements.Equipment.TwoHandedSwordSpinAttack` | off | Two-Handed Sword Spin Attack (Items > Equipment, Majora's Mask block) | (O) MM-only |
+| `gEnhancements.Equipment.GreatFairySwordBButton` | off | Great Fairy Sword B-Button Attack (likewise) | (O) MM-only; acts on the B button's item only, never on a mask the combo owns |
+| `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
+| `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
 
 ### 6.2 OoT-only (category level)
 

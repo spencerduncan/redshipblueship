@@ -40,11 +40,24 @@ using namespace UIWidgets;
 
 // #1037: MM's own damage multiplier row (SohMenuComboMmEnhancements.cpp), drawn right after SoH's.
 void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
+// L7 (#1133, ruling D5): the former Combo > Majora's Mask rows (SohMenuComboMmEnhancements.cpp), each drawn beside
+// SoH's twin or nearest relative, or in a Majora's Mask block.
+void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
+void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
+void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
 // W6-TIMESAVERS (#1236): MM Fast Text, dialogue/time-saver and saving rows (HostedMm/SohMenuHostedMmTimesavers.cpp).
 // Declared here, not at block scope: MSVC binds a block-scope declaration in a member function to the global namespace.
 void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
 void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
 void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
+// W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows (HostedMm/SohMenuHostedMmPlayer.cpp).
+void AddMmControlsRows(SohMenu& menu, WidgetPath& path);
+void AddMmClimbSpeedRow(SohMenu& menu, WidgetPath& path);
+void AddMmPushPullRow(SohMenu& menu, WidgetPath& path);
+void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
+void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
+void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
+void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -201,7 +214,9 @@ void SohMenu::AddMenuEnhancements() {
             "Save the game automatically on a 3 minute interval and when soft-resetting the game. The interval "
             "autosave will wait if the game is paused in any way (dialogue, pause screen up, cutscenes, "
             "etc.).\n\n"
-            "The soft-reset save will *not* trigger in cutscene maps like the Chamber of Sages!"));
+            "The soft-reset save will *not* trigger in cutscene maps like the Chamber of Sages!\n\n"
+            "Applies to both games. Majora's Mask autosaves on its own interval, set by the row below."));
+    AddMmAutosaveIntervalRow(*this, path); // L7 (#1133): MM's interval, beside the Autosave both games share
     AddWidget(path, "Notification on Autosave", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("AutosaveNotification"))
         .PreFunc([](WidgetInfo& info) { info.isHidden = !CVarGetInteger(CVAR_ENHANCEMENT("Autosave"), 0); })
@@ -261,6 +276,7 @@ void SohMenu::AddMenuEnhancements() {
                 .Tooltip("Shops and Minigames are open both day and night. Requires a scene reload to take effect.")
                 .DisabledTooltip("This is not compatible with the Locked Overworld Doors Randomizer option."));
     AddMmTimeCycleBlock(*this, path);
+    AddMmQualityOfLifeBlockRows(*this, path); // L7 (#1133): Game Over Prompt and Better Double Time, in the same block
 
     AddWidget(path, "Pause Menu", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Allow the Cursor to be on Any Slot", WIDGET_CVAR_COMBOBOX)
@@ -313,6 +329,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(0)
                      .Format("%d frames")
                      .Tooltip("Buffers your inputs to be executed a specified amount of frames later."));
+    AddMmControlsRows(*this, path);
 
     AddWidget(path, "Item Count Messages", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Gold Skulltula Tokens", WIDGET_CVAR_CHECKBOX)
@@ -433,6 +450,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Skip Song Cutscenes", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
+    AddMmSkipTimeSongCutscenesRow(*this, path); // L7 (#1133): MM's Song of Time cutscenes, beside the song skips
     AddWidget(path, "Skip Boss Introductions", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
@@ -507,9 +525,11 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Vine/Ladder Climb Speed +%d", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("ClimbSpeed"))
         .Options(IntSliderOptions().Min(0).Max(12).DefaultValue(0).Format("+%d"));
+    AddMmClimbSpeedRow(*this, path);
     AddWidget(path, "Block Pushing Speed +%d", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("FasterBlockPush"))
         .Options(IntSliderOptions().Min(0).Max(5).DefaultValue(0).Format("+%d"));
+    AddMmPushPullRow(*this, path);
     AddWidget(path, "Crawl Speed %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("CrawlSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx"));
@@ -524,6 +544,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Faster Pause Menu", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FasterPauseMenu"))
         .Options(CheckboxOptions().Tooltip("Speeds up animation of the pause menu, similar to Majora's Mask"));
+    AddMmAnimationsRows(*this, path);
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Misc", WIDGET_SEPARATOR_TEXT);
@@ -842,6 +863,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Ask to Equip New Items", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("AskToEquip"))
         .Options(CheckboxOptions().Tooltip("Adds a prompt to equip newly-obtained Swords, Shields, and Tunics."));
+    AddMmEquipmentRows(*this, path);
 
     AddWidget(path, "Ocarina", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Prevent Dropped Ocarina Inputs", WIDGET_CVAR_CHECKBOX)
@@ -980,6 +1002,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("FastBoomerang"))
         .Options(CheckboxOptions().Tooltip("Instantly return the Boomerang to Link by pressing its item button while "
                                            "it's in the air."));
+    AddMmFinBoomerangRow(*this, path);
     AddWidget(path, "Aim Boomerang in First-Person Mode", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("BoomerangFirstPerson"))
         .Callback([](WidgetInfo& info) {
@@ -1324,6 +1347,7 @@ void SohMenu::AddMenuEnhancements() {
                                             "\"Enable Bombchu Drops\" is loaded.";
         })
         .Options(CheckboxOptions().Tooltip("Bombchus will sometimes drop in place of Bombs."));
+    AddMmBombchuDropsRow(*this, path);
     AddWidget(path, "Trees Drop Sticks", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TreesDropSticks"))
         .Options(CheckboxOptions().Tooltip(

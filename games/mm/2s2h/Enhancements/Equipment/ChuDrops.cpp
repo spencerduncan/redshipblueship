@@ -75,6 +75,16 @@ static void ChuDrop_Draw(Actor* actor, PlayState* play) {
 
 void RegisterChuDrops() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_ITEM00, CVAR, [](Actor* actor, bool* should) {
+        // W6-PLAYER (#1236): this TU is in the single-exe link now and CustomItem::Spawn returns null without a play
+        // state, which the body would dereference; a missing play state leaves the Bomb drop untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+        // W6-PLAYER (#1236, review H1): a Bomb drop converts only while Link already has Bombchus, Ship of Harkinian's
+        // first clause for its own Enable Bombchu Drops (EnItem00_ConvertBombDropToBombchu). The Bombchu count is a
+        // shared PROGRESSION quantity (src/common/shared_items.h): unguarded, the pickup's Item_Give would set the
+        // Bombchu item in Termina, the next harvest would carry the count into the pool, and OoT_ApplySharedAmmoCount
+        // would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them. Without
+        // Bombchus the Bomb drop stays a Bomb drop.
+        RSBS_SINGLE_EXE_REQUIRE(INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU);
         if (actor->params == ITEM00_BOMBS_0 || actor->params == ITEM00_BOMBS_A || actor->params == ITEM00_BOMBS_B) {
             if (Ship_Random(0, 100) < 50) {
                 *should = false;

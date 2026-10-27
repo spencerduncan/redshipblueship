@@ -260,6 +260,23 @@
  * phase and key. A synthetic phase whose key arms nothing is driven through the same code first, on every run, and
  * must come back 18. Each table attributes its TUs by registry content, never by a symbol they define.
  *
+ * W6-PLAYER'S BOMBCHU DROPS RULE (#1236, review H1) -- FAIL 22. The W6-PLAYER table shows that ChuDrops.cpp
+ * registers; this leg shows what its registrant decides. The Bombchu count is a shared PROGRESSION quantity
+ * (src/common/shared_items.h), so MM's Enable Bombchu Drops may convert a Bomb drop only while
+ * INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU already holds, Ship of Harkinian's first clause for its own Enable
+ * Bombchu Drops. 2Ship gives every Bomb drop the conversion roll whatever Link carries, and the pickup's Item_Give
+ * would hand Termina the Bombchu item and Hyrule, through the pool, the count and the item before the seed placed
+ * them. The leg arms the key, takes the ONE ShouldActorInit[EN_ITEM00] registrant arming added, and calls it on a
+ * stand-in Bomb drop (ITEM00_BOMBS_A) over a zeroed stand-in play state (without one the hook's play-state guard
+ * returns first and both cases would pass vacuously), with Ship_Random seeded so the first roll keeps the Bomb
+ * (>= 50; 2Ship converts below 50) and the second roll differs. The roll drawn after a call then says how many rolls
+ * the call took:
+ *   - no Bombchus held: no roll, and the Bomb drop is kept;
+ *   - Bombchus held: exactly one roll, so the drop is up for conversion, and the Bomb is kept because the roll said
+ *     so. This is also the leg's non-vacuity control: a stand-in the hook never reached would take no roll here.
+ * The converting roll spawns a CustomItem through MM_Actor_Spawn, which needs a live actor context, so the leg never
+ * takes it; a Bombchu appearing is the playtest's. Nothing ChuDrops.cpp defines is named here.
+ *
  * WHAT THIS DOES NOT COVER. GfxPatcher_ApplyNecessaryAuthenticPatches is a
  * one-shot resource patcher, not a hook registrar, and MM_Rando_Init gates it
  * behind MM_Rando_AssetsReady() because its ResourceMgr_Load*ByName helpers
@@ -295,10 +312,12 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipInit.hpp"
+#include "2s2h/ShipUtils.h"
 #include "mm_game_hooks.h"
 
 #include <cstring>
 #include <memory>
+#include <random>
 
 extern "C" {
 // Phase 12 (#1215, #1221): the rando arm drive and the gates' flags.
@@ -725,6 +744,100 @@ void ResetEnhKeys() {
         }
     }
 }
+
+// ---- W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions TUs ---------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry
+// content: every bucket below is keyed on a VB id, an actor id or a text id, and the delta is measured with every
+// other key off, so only the TU behind the probed key can move it. ShouldActorInit[EN_ITEM00] also holds
+// CustomItem's unconditional registrant, JPGrottos' (forced off) and the rando EnItem00 leg: the harness configuration
+// forces ChuDrops off before MM_Rando_Init (kChuDropsCVar) and ZeroW6PhaseKeys does again, so the exactly-one probe
+// (FAIL 7) runs honest; this phase turns ChuDrops on, measures +1 and clears it.
+#define W6_PLAYER_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+
+constexpr const char* kW6PlayerClimbSpeedCVar = "gEnhancements.Player.ClimbSpeed";
+
+const std::vector<SkipKeyProbe>& W6PlayerProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Player.FastFlowerLaunch",
+          "Fast Deku Flower Launch",
+          { { "OnActorUpdate[ACTOR_PLAYER] (Player/FastFlowerLaunch.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_PLAYER); }, 1 } } },
+        { "gEnhancements.Player.InfiniteDekuHopping",
+          "Infinite Deku Hopping",
+          { { "VB_DEKU_LINK_SPIN_ON_LAST_HOP (Player/InfiniteDekuHopping.cpp)",
+              W6_PLAYER_VB_COUNT(VB_DEKU_LINK_SPIN_ON_LAST_HOP), 1 },
+            { "VB_APPLY_AIR_CONTROL (Player/InfiniteDekuHopping.cpp)", W6_PLAYER_VB_COUNT(VB_APPLY_AIR_CONTROL),
+              1 } } },
+        { "gEnhancements.Player.FierceDeityPutaway",
+          "Fierce Deity Putaway",
+          { { "VB_SHOULD_PUTAWAY (Player/FierceDeityPutaway.cpp)", W6_PLAYER_VB_COUNT(VB_SHOULD_PUTAWAY), 1 },
+            { "VB_FD_ALWAYS_WIELD_SWORD (Player/FierceDeityPutaway.cpp)", W6_PLAYER_VB_COUNT(VB_FD_ALWAYS_WIELD_SWORD),
+              1 } } },
+        // A slider: ClimbSpeed.cpp arms only past 1x (`CVAR > 1`), and the W6 drive turns a key "on" with 1. So this
+        // count, read while the drive holds the key at 1, first re-drives it at 2x (the slider's lowest armed value),
+        // and reads the bucket there; the drive's own "off" (0) then disarms it. Before the drive the key is 0 and the
+        // count is a plain read. Without the TU in the link the re-drive arms nothing and the probe is red.
+        { kW6PlayerClimbSpeedCVar,
+          "MM Vine/Ladder Climb Speed",
+          { { "VB_SET_CLIMB_SPEED at 2x (Player/ClimbSpeed.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6PlayerClimbSpeedCVar, 0) == 1) {
+                      CVarSetInteger(kW6PlayerClimbSpeedCVar, 2);
+                      ShipInit::Init(kW6PlayerClimbSpeedCVar);
+                      ShipInit::Init(kW6PlayerClimbSpeedCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_SET_CLIMB_SPEED);
+              },
+              1 } } },
+        { "gEnhancements.Player.FasterPushAndPull",
+          "Faster Push/Pull",
+          { { "VB_GREAT_BAY_GEAR_CLAMP_PUSH_SPEED (Player/FasterPushAndPull.cpp)",
+              W6_PLAYER_VB_COUNT(VB_GREAT_BAY_GEAR_CLAMP_PUSH_SPEED), 1 },
+            { "VB_PUSH_BLOCK_SET_SPEED (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_PUSH_BLOCK_SET_SPEED),
+              1 },
+            { "VB_PUSH_BLOCK_SET_TIMER (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_PUSH_BLOCK_SET_TIMER),
+              1 },
+            { "VB_SKATE_BLOCK_BEGIN_MOVE (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_SKATE_BLOCK_BEGIN_MOVE),
+              1 },
+            { "VB_BLOCK_BEGIN_MOVE (Player/FasterPushAndPull.cpp)", W6_PLAYER_VB_COUNT(VB_BLOCK_BEGIN_MOVE), 1 },
+            { "VB_BLOCK_BE_FINISHED_PULLING (Player/FasterPushAndPull.cpp)",
+              W6_PLAYER_VB_COUNT(VB_BLOCK_BE_FINISHED_PULLING), 1 } } },
+        { "gEnhancements.Player.PreventDiveOverWater",
+          "Prevent Diving Over Water",
+          { { "VB_LINK_DIVE_OVER_WATER (Player/PreventDiveOverWater.cpp)", W6_PLAYER_VB_COUNT(VB_LINK_DIVE_OVER_WATER),
+              1 } } },
+        { "gEnhancements.Player.ManualJump",
+          "Manual Jump",
+          { { "VB_START_JUMPSLASH (Player/ManualJump.cpp)", W6_PLAYER_VB_COUNT(VB_START_JUMPSLASH), 1 } } },
+        { "gEnhancements.PlayerActions.InstantRecall",
+          "Instant Fin Boomerangs Recall",
+          { { "OnActorUpdate[ACTOR_EN_BOOM] (Equipment/InstantRecall.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_EN_BOOM); }, 1 } } },
+        { "gEnhancements.Equipment.TwoHandedSwordSpinAttack",
+          "Two-Handed Sword Spin Attack",
+          { { "VB_CHECK_HELD_ITEM_BUTTON_PRESS (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_CHECK_HELD_ITEM_BUTTON_PRESS), 1 },
+            { "VB_MAGIC_SPIN_ATTACK_CHECK_FORM (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_MAGIC_SPIN_ATTACK_CHECK_FORM), 1 },
+            { "VB_TRANSFORM_THUNDER_MATRIX (Equipment/TwoHandedSwordSpinAttack.cpp)",
+              W6_PLAYER_VB_COUNT(VB_TRANSFORM_THUNDER_MATRIX), 1 } } },
+        { "gEnhancements.Equipment.BetterPictoMessage",
+          "Better Picto Message",
+          { { "OnOpenText[0xF8] (Equipment/BetterPictoMessage.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnOpenText>(0xF8); }, 1 } } },
+        { kChuDropsCVar,
+          "MM Enable Bombchu Drops",
+          { { "ShouldActorInit[ACTOR_EN_ITEM00] (Equipment/ChuDrops.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EN_ITEM00); }, 1 } } },
+        { "gEnhancements.Equipment.GreatFairySwordBButton",
+          "Great Fairy Sword B-Button Attack",
+          { { "VB_GET_ITEM_ON_BUTTON (Equipment/GreatFairySwordBButton.cpp)", W6_PLAYER_VB_COUNT(VB_GET_ITEM_ON_BUTTON),
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6PlayerPhase{ "W6-PLAYER (#1236)", W6PlayerProbes };
 
 // ---- Phase 7 (#1024-#1026): the three Audio Editor TUs ---------------------
 // Same shape as Phase 5 (SkipKeyProbe).
@@ -1155,6 +1268,120 @@ int RunW6PhaseList() {
                W6Phases().size());
     }
     return rc;
+}
+
+// ---- W6-PLAYER (#1236, review H1): MM Enable Bombchu Drops' conversion rule ----------
+// See W6-PLAYER'S BOMBCHU DROPS RULE in the file header. Returns 0 or 22; leaves the key off, its registrant gone, the
+// Bombchu slot and MM_gPlayState as found, and Ship_Random reseeded from the device as an unseeded process would be.
+int RunChuDropsRuleLeg() {
+    using Init = GameInteractor::ShouldActorInit;
+
+    // A seed whose first roll keeps the Bomb and whose second differs. Searched rather than hard-coded, so a change to
+    // Ship_Random's generator cannot leave the leg on a first roll that converts (that would spawn into the stand-in).
+    uint64_t seed = 0;
+    s32 firstRoll = 0;
+    s32 secondRoll = 0;
+    for (uint64_t candidate = 1; candidate < 4096 && seed == 0; ++candidate) {
+        Ship_Random_Seed(candidate);
+        const s32 first = Ship_Random(0, 100);
+        const s32 second = Ship_Random(0, 100);
+        if (first >= 50 && first != second) {
+            seed = candidate;
+            firstRoll = first;
+            secondRoll = second;
+        }
+    }
+    RC_ASSERT(seed != 0, 22, "no Ship_Random seed below 4096 gives a first roll >= 50 and a different second roll");
+
+    // Arm the key and take the registrant arming added. RunW6PhaseList left the key off and re-driven.
+    auto registrants = []() {
+        S2H::GameHooks::FlushPendingUnregistrations<Init>();
+        std::vector<uint32_t> ids;
+        auto& buckets = S2H::GameHooks::Registry<Init>::functionsForID;
+        if (auto it = buckets.find(ACTOR_EN_ITEM00); it != buckets.end()) {
+            for (auto& [id, fn] : it->second) {
+                ids.push_back(id);
+            }
+        }
+        return ids;
+    };
+    const std::vector<uint32_t> before = registrants();
+    CVarSetInteger(kChuDropsCVar, 1);
+    ShipInit::Init(kChuDropsCVar);
+    ShipInit::Init(kChuDropsCVar);
+    std::vector<uint32_t> added;
+    for (uint32_t id : registrants()) {
+        bool seen = false;
+        for (uint32_t b : before) {
+            seen = seen || b == id;
+        }
+        if (!seen) {
+            added.push_back(id);
+        }
+    }
+    auto disarm = [&]() {
+        CVarSetInteger(kChuDropsCVar, 0);
+        ShipInit::Init(kChuDropsCVar);
+        return registrants().size() == before.size();
+    };
+    if (added.size() != 1) {
+        printf("[TEST] FAIL(22): arming \"%s\" added %zu ShouldActorInit[EN_ITEM00] registrants, expected exactly 1 "
+               "(ChuDrops.cpp's)\n",
+               kChuDropsCVar, added.size());
+        (void)disarm();
+        return 22;
+    }
+    const Init::fn chuDrops = S2H::GameHooks::Registry<Init>::functionsForID[ACTOR_EN_ITEM00][added[0]];
+
+    // A stand-in Bomb drop over a zeroed stand-in play state.
+    Actor bomb;
+    memset(&bomb, 0, sizeof(bomb));
+    bomb.id = ACTOR_EN_ITEM00;
+    bomb.params = ITEM00_BOMBS_A;
+    std::vector<char> playStorage(sizeof(PlayState), 0);
+    PlayState* const savedPlay = MM_gPlayState;
+    MM_gPlayState = reinterpret_cast<PlayState*>(playStorage.data());
+    const u8 savedChuSlot = INV_CONTENT(ITEM_BOMBCHU);
+
+    struct Case {
+        const char* held;
+        u8 slot;
+        int expectedRolls; // 0: the next roll drawn is firstRoll; 1: it is secondRoll
+    };
+    const Case cases[] = { { "no Bombchus held", ITEM_NONE, 0 }, { "Bombchus held", ITEM_BOMBCHU, 1 } };
+    int failures = 0;
+    for (const Case& c : cases) {
+        INV_CONTENT(ITEM_BOMBCHU) = c.slot;
+        Ship_Random_Seed(seed);
+        bool should = true;
+        chuDrops(&bomb, &should);
+        const s32 next = Ship_Random(0, 100);
+        const int rolls = next == firstRoll ? 0 : (next == secondRoll ? 1 : -1);
+        printf("[TEST] mm-registrar-coverage: (22) %s: a Bomb drop took %d conversion roll(s) and was %s (expected "
+               "%d, kept)\n",
+               c.held, rolls, should ? "kept" : "converted", c.expectedRolls);
+        if (rolls != c.expectedRolls || !should) {
+            printf("[TEST] FAIL(22): with \"%s\" on and %s, a Bomb drop took %d conversion roll(s) (expected %d) and "
+                   "was %s (expected kept: the seeded roll keeps the Bomb). MM's Enable Bombchu Drops may convert a "
+                   "Bomb drop only while Link already has Bombchus: the Bombchu count is a shared PROGRESSION "
+                   "quantity, and a converted drop's Item_Give hands Termina the Bombchu item and Hyrule, through "
+                   "the pool, the count and the item before the seed placed them (#1236, review H1)\n",
+                   kChuDropsCVar, c.held, rolls, c.expectedRolls, should ? "kept" : "converted");
+            failures++;
+        }
+    }
+
+    INV_CONTENT(ITEM_BOMBCHU) = savedChuSlot;
+    MM_gPlayState = savedPlay;
+    Ship_Random_Seed(static_cast<uint64_t>(std::random_device{}()));
+    const bool disarmed = disarm();
+    RC_ASSERT(disarmed, 22, "ChuDrops' registrant stayed registered after its key went back off");
+    if (failures != 0) {
+        return 22;
+    }
+    printf("[TEST] W6-PLAYER: MM Enable Bombchu Drops gives a Bomb drop its conversion roll only while Link has "
+           "Bombchus\n");
+    return 0;
 }
 
 // ---- Phase 12 (#1215, #1221): the rando-forced gates the link dropped ------
@@ -1718,6 +1945,11 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
 
     // ---- #1233: the W6 phases, every registered lane table ------------------------
     if (const int rc = RunW6PhaseList(); rc != 0) {
+        return rc;
+    }
+
+    // ---- #1236 (review H1): MM Enable Bombchu Drops converts only while Link has Bombchus --------
+    if (const int rc = RunChuDropsRuleLeg(); rc != 0) {
         return rc;
     }
 

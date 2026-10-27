@@ -465,6 +465,25 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
         # #1014
         "2s2h/Enhancements/Player/InstantPutaway.cpp"
+        # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
+        # (SohGui/HostedMm/SohMenuHostedMmPlayer.cpp). Each registers only through a file-scope RegisterShipInitFunc
+        # keyed on its own MM key (RSBS_CVAR_MM_*), and rides a hook the single exe dispatches: VB_* from z_player.c,
+        # z_player_lib.c, z_en_m_thunder.c and the block/gear overlays via MM_GameHooks_ExecuteVBShould;
+        # OnActorUpdate[PLAYER / EN_BOOM], OnOpenText[0xF8] and ShouldActorInit[EN_ITEM00] via MM_GameHooks_Execute*.
+        # Every body that reads MM_gPlayState is guarded (RSBS_SINGLE_EXE_REQUIRE). No stub in mm_stubs.c; no twin of
+        # their definitions in games/oot. ChuDrops.cpp's inline gEnhancements.NewDrops is SoH's converged key (#1031).
+        "2s2h/Enhancements/Player/FastFlowerLaunch.cpp"
+        "2s2h/Enhancements/Player/InfiniteDekuHopping.cpp"
+        "2s2h/Enhancements/Player/FierceDeityPutaway.cpp"
+        "2s2h/Enhancements/Player/ClimbSpeed.cpp"
+        "2s2h/Enhancements/Player/FasterPushAndPull.cpp"
+        "2s2h/Enhancements/Player/PreventDiveOverWater.cpp"
+        "2s2h/Enhancements/Player/ManualJump.cpp"
+        "2s2h/Enhancements/Equipment/InstantRecall.cpp"
+        "2s2h/Enhancements/Equipment/TwoHandedSwordSpinAttack.cpp"
+        "2s2h/Enhancements/Equipment/BetterPictoMessage.cpp"
+        "2s2h/Enhancements/Equipment/ChuDrops.cpp"
+        "2s2h/Enhancements/Equipment/GreatFairySwordBButton.cpp"
         # #1015
         "2s2h/Enhancements/Equipment/ItemUnequip.cpp"
         # #1016
@@ -523,7 +542,7 @@ if(SINGLE_EXECUTABLE_BUILD)
         # (kConvergedKeys), and rides a hook the single exe dispatches: VB_* via MM_GameHooks_ExecuteVBShould,
         # OnActorInit / OnActorUpdate / OnActorDestroy / ShouldActorInit / OnOpenText via MM_GameHooks_Execute*. Play-state
         # guards landed with the carve-out (RSBS_SINGLE_EXE_REQUIRE in the hook bodies, CanCycleArrows). Equipment/ChuDrops.cpp
-        # reads gEnhancements.NewDrops inline but is its own row (gEnhancements.Equipment.ChuDrops) and stays out.
+        # reads gEnhancements.NewDrops inline but is its own row (gEnhancements.Equipment.ChuDrops), linked by W6-PLAYER.
         # #1030
         "2s2h/Enhancements/Accessibility/NoScreenFlashForEnemyKill.cpp"
         # #1031

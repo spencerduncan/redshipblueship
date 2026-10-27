@@ -18,7 +18,7 @@
  *      (SohMenuComboMmEnhancements.cpp) with ComboPageHost::Randomizer, so they
  *      are pages of SoH's Randomizer header (#1101, operator ruling 2026-10-21):
  *      AddComboRandomizerPages draws them as MM Randomizer, MM Locations, MM
- *      Tricks, then the rules as Cross-Game, and the Combo header holds none of
+ *      Tricks, then the rules as Cross-Game, and no other header holds any of
  *      them. The options page declares two columns (Randomizer > General's),
  *      the tricks and locations pages one each (Randomizer > Tricks/Glitches'
  *      and Locations').
@@ -242,25 +242,29 @@ void Freeze(bool frozen) {
 } // namespace
 
 extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
-    printf("[TEST] menu-mm-randomizer-pages: MM's randomizer options and tricks are Combo pages whose rows are the "
-           "descriptor table, in the model's columns and states, writing only through the gated writers\n");
+    printf(
+        "[TEST] menu-mm-randomizer-pages: MM's randomizer options and tricks are Randomizer pages whose rows are the "
+        "descriptor table, in the model's columns and states, writing only through the gated writers\n");
     gFailures = 0;
     const GameId prevGame = Context_GetCurrentGame();
     ComboContext_Init();
 
-    // Both headers, as production builds them: our slice of the Randomizer header
-    // (AddMenuRandomizer() as a whole cannot run ROM-free), then Combo.
+    // Our slice of the Randomizer header, as production builds it
+    // (AddMenuRandomizer() as a whole cannot run ROM-free), then our Dev Tools
+    // pages: no other header holds a page of ours since #1133 retired Combo.
     MmRandomizerPagesProbe probe;
     probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
     WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
     SohGui::AddComboRandomizerPages(probe, randoPath);
-    probe.AddMenuCombo();
+    probe.AddMenuEntry("Dev Tools", "gSettings.Menu.DevToolsSidebarSection");
+    WidgetPath devToolsPath = { "Dev Tools", "General", SECTION_COLUMN_1 };
+    SohGui::AddComboDevToolsPages(probe, devToolsPath);
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
-        printf("[TEST] FAIL(1): the probe has no Combo and/or Randomizer section\n");
+    if (!entries.contains("Dev Tools") || !entries.contains("Randomizer")) {
+        printf("[TEST] FAIL(1): the probe has no Dev Tools and/or Randomizer section\n");
         return 1;
     }
-    MainMenuEntry& combo = entries.at("Combo");
+    MainMenuEntry& devTools = entries.at("Dev Tools");
     MainMenuEntry& rando = entries.at("Randomizer");
 
     // ---- Leg 1: the pages, their column counts, their header and place ------
@@ -270,9 +274,10 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
         return 1;
     }
-    MMRP_CHECK(
-        !combo.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) && !combo.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME),
-        "the Combo header still holds \"%s\" or \"%s\" as well", COMBO_MM_OPTIONS_PAGE_NAME, COMBO_MM_TRICKS_PAGE_NAME);
+    MMRP_CHECK(!devTools.sidebars.contains(COMBO_MM_OPTIONS_PAGE_NAME) &&
+                   !devTools.sidebars.contains(COMBO_MM_TRICKS_PAGE_NAME),
+               "the Dev Tools header holds \"%s\" or \"%s\" as well", COMBO_MM_OPTIONS_PAGE_NAME,
+               COMBO_MM_TRICKS_PAGE_NAME);
     SidebarEntry& options = rando.sidebars.at(COMBO_MM_OPTIONS_PAGE_NAME);
     SidebarEntry& tricks = rando.sidebars.at(COMBO_MM_TRICKS_PAGE_NAME);
     MMRP_CHECK(options.columnCount == COMBO_MM_OPTIONS_PAGE_COLUMNS,
@@ -308,7 +313,7 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
     // ---- Leg 2: the row set equals the descriptor table ---------------------
     std::vector<FlatRow> rows = FlattenRows(options);
     const int count = Combo_MMOptionCount();
-    MMRP_CHECK(count > 0, "no MM option table is registered after AddMenuCombo");
+    MMRP_CHECK(count > 0, "no MM option table is registered after AddComboRandomizerPages");
     {
         int interactive = 0;
         int resets = 0;
@@ -817,8 +822,8 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                    COMBO_MM_LOCATIONS_PAGE_NAME);
     } else {
         SidebarEntry& locations = rando.sidebars.at(COMBO_MM_LOCATIONS_PAGE_NAME);
-        MMRP_CHECK(!combo.sidebars.contains(COMBO_MM_LOCATIONS_PAGE_NAME), "the Combo header holds \"%s\" as well",
-                   COMBO_MM_LOCATIONS_PAGE_NAME);
+        MMRP_CHECK(!devTools.sidebars.contains(COMBO_MM_LOCATIONS_PAGE_NAME),
+                   "the Dev Tools header holds \"%s\" as well", COMBO_MM_LOCATIONS_PAGE_NAME);
         MMRP_CHECK(locations.columnCount == 1, "the locations page declares %u columns, expected 1 (Locations')",
                    locations.columnCount);
         std::vector<FlatRow> locationRows = FlattenRows(locations);

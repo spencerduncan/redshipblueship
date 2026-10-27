@@ -44,7 +44,8 @@
  * `SohGui::AddCrossGameWidgets` into `Randomizer → Cross-Game`, a page that said
  * in-tree it was the interim host until the tier-4 Combo section existed. That
  * section exists, so this lock followed them to `Combo → Cross-Game Rules`,
- * registered by `SohMenu::AddMenuCombo()`. #1101 (operator ruling 2026-10-21,
+ * registered by `SohMenu::AddMenuCombo()` (which registers no header since
+ * #1133 retired it). #1101 (operator ruling 2026-10-21,
  * option C) moved them back under SoH's Randomizer header as
  * `Randomizer → Cross-Game`, the one randomizer menu for both games, registered
  * by `SohGui::AddComboRandomizerPages()` (our slice of `AddMenuRandomizer()`),
@@ -53,9 +54,10 @@
  * the seam between the model and the rows, which no move changed.
  *
  * HOW IT OBSERVES. It builds a real SohMenu headless and calls the REAL
- * production entry point, `AddMenuCombo()` — not a test-only registrar. That is
- * possible here and was not possible for `AddMenuRandomizer()` (see below):
- * nothing in the Combo section reaches `Rando::Settings`. It is safe with no
+ * production entry points, `AddComboRandomizerPages()` and
+ * `AddComboDevToolsPages()` — not test-only registrars. That is possible here
+ * and was not possible for `AddMenuRandomizer()` as a whole (see below): nothing
+ * in our slices reaches `Rando::Settings`. It is safe with no
  * window and no ImGui context because registration is container work — every
  * widget's heavy lifting lives in a lambda that only the draw path calls — and a
  * `Ship::GuiWindow` constructed
@@ -76,7 +78,7 @@
  * `OTRGlobals::Instance->gRandoContext` — null in a display-free harness, an
  * access violation reading offset 0x80. (They also register through the GLOBAL
  * `SohGui::mSohMenu`, `option.cpp:453`, rather than through the menu whose
- * method is running.) `AddMenuCombo()` has no such dependency, which is a
+ * method is running.) Our slices have no such dependency, which is a
  * consequence of the move worth recording: the rows are now reachable from a
  * headless harness through the same call production makes, so the ORDER of the
  * pages and the `WidgetPath` each one receives ARE covered, where under the
@@ -139,7 +141,7 @@ int gFailures = 0;
 // The menu keeps its pages in a protected member of Ship::Menu, and there is no
 // public reader — deliberately, since nothing in production needs one. A derived
 // probe is the least invasive way in: no production header changes, and the
-// widgets under test are the real ones AddMenuCombo() built.
+// widgets under test are the real ones our production slices built.
 class ComboRulesMenuProbe final : public SohGui::SohMenu {
   public:
     // An EMPTY visibility CVar: GuiWindow's ctor then never reaches
@@ -295,19 +297,23 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
 
     // The REAL production entry points, not test-only registrars:
     // AddComboRandomizerPages() is the slice of AddMenuRandomizer() that creates
-    // our Randomizer pages (the rules among them), and AddMenuCombo() the "Combo"
-    // header; neither reaches Rando::Settings. So the page layout under test is
-    // the one a player gets, including which column each row lands in.
+    // our Randomizer pages (the rules among them), and AddComboDevToolsPages()
+    // the slice of AddMenuDevTools() that creates our Dev Tools pages (Save
+    // Files since #1133, which retired the Combo header); neither reaches
+    // Rando::Settings. So the page layout under test is the one a player gets,
+    // including which column each row lands in.
     ComboRulesMenuProbe probe;
     probe.AddMenuEntry("Randomizer", "gSettings.Menu.RandomizerSidebarSection");
     WidgetPath randoPath = { "Randomizer", "Tricks/Glitches", SECTION_COLUMN_1 };
     SohGui::AddComboRandomizerPages(probe, randoPath);
-    probe.AddMenuCombo();
+    probe.AddMenuEntry("Dev Tools", "gSettings.Menu.DevToolsSidebarSection");
+    WidgetPath devToolsPath = { "Dev Tools", "General", SECTION_COLUMN_1 };
+    SohGui::AddComboDevToolsPages(probe, devToolsPath);
 
     // ---- Leg 1: the section and the two rows exist ----------------------------
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo") || !entries.contains("Randomizer")) {
-        printf("[TEST] FAIL(1): the probe has no \"Randomizer\" and/or \"Combo\" menu entry\n");
+    if (!entries.contains("Randomizer") || !entries.contains("Dev Tools")) {
+        printf("[TEST] FAIL(1): the probe has no \"Randomizer\" and/or \"Dev Tools\" menu entry\n");
         return 1;
     }
     auto& randoSidebars = entries.at("Randomizer").sidebars;
@@ -317,7 +323,6 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "tier-4 combo rules under the one randomizer menu (operator ruling 2026-10-21)\n");
         return 1;
     }
-    auto& sidebars = entries.at("Combo").sidebars;
     const SidebarEntry& page = randoSidebars.at("Cross-Game");
     auto& columns = randoSidebars.at("Cross-Game").columnWidgets;
     if (columns.empty()) {
@@ -330,17 +335,23 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // survives anywhere in it), because the window rows moved to a sibling page:
     // checking only the rules page would make that assertion vacuous.
     std::vector<PageRow> sectionRows = rows;
-    // Every Combo page as well: the window rows lived on Combo > Windows until
-    // #1132 retired it (the windows open from SoH's tracker pages now), and no
-    // Combo page may grow a pop-out for the rules' keys either.
-    for (auto& [sidebarName, sidebar] : sidebars) {
-        for (PageRow& comboRow : FlattenPage(sidebar.columnWidgets)) {
-            sectionRows.push_back(comboRow);
+    // Every other page of ours as well, under both of SoH's headers we add pages
+    // to: the window rows lived on Combo > Windows until #1132 retired it (the
+    // windows open from SoH's tracker pages now), the Combo header retired with
+    // #1133, and no page of ours may grow a pop-out for the rules' keys either.
+    for (const char* header : { "Randomizer", "Dev Tools" }) {
+        for (auto& [sidebarName, sidebar] : entries.at(header).sidebars) {
+            if (std::string(header) == "Randomizer" && sidebarName == "Cross-Game") {
+                continue; // the rules page, already in `rows`
+            }
+            for (PageRow& otherRow : FlattenPage(sidebar.columnWidgets)) {
+                sectionRows.push_back(otherRow);
+            }
         }
     }
     if (sectionRows.size() <= rows.size()) {
-        printf("[TEST] FAIL: the \"Combo\" menu has no page with rows; leg 2's no-pop-out assertion would cover "
-               "only the rules page\n");
+        printf("[TEST] FAIL: no other page of ours has rows; leg 2's no-pop-out assertion would cover only the "
+               "rules page\n");
         gFailures++;
     }
 

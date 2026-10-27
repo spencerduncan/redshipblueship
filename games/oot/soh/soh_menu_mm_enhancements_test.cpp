@@ -1,8 +1,9 @@
 /**
  * @file soh_menu_mm_enhancements_test.cpp
- * @brief ROM-free, display-free lock for #682's PRESENTATION half: the curated
- *        MM enhancement page exists in the tier-4 Combo section, and every row
- *        on it is bound to the manifest key it claims, in the manifest's class.
+ * @brief ROM-free, display-free lock for #682's PRESENTATION half: every curated
+ *        MM enhancement row is on the Ship of Harkinian page that holds its twin
+ *        (#1133, ruling D5), bound to the manifest key it claims, in the
+ *        manifest's class; and the MM rows other lanes host on SoH's pages.
  *
  * CTest row MenuMmEnhancementRows in CMake/SingleExecutable.cmake, dispatch
  * "menu-mm-enhancement-rows" in src/common/test_runner.cpp.
@@ -11,45 +12,36 @@
  * measure three different things, and each failure this row catches is silent in
  * the other two:
  *
- *   - MenuComboSection owns the section's SHAPE and the extension point's
- *     MECHANICS, driven with a synthetic page. It would stay green if the
- *     production page never registered at all.
+ *   - MenuComboSection owns the menu's SHAPE (no Combo header, the hosts the
+ *     former Combo pages moved to, the carry) and the extension points.
  *   - MMEnhancementToggles owns the MM-side LIVENESS EVIDENCE: that each key's
  *     provider linked, that its registrar runs, and that writing the key re-arms
  *     it. It would stay green if no widget anywhere wrote the key — which is
  *     precisely the state #682 was filed against, and #499's failure before it.
- *   - This row is the join: the page is registered, and each row's `.CVar` is the
+ *   - This row is the join: each row is on its SoH page, and its `.CVar` is the
  *     manifest key, so the widget the player clicks writes the key the provider
  *     reads. A typo'd literal is a control that flips a key nothing consults, and
  *     nothing about it is a compile error or a crash.
  *
  * WHAT IT ASSERTS, and why each one is a real failure mode:
  *
- *   1. THE PAGE IS NOT THERE. The registrar is a file-scope initializer in
- *      SohGui/SohMenuComboMmEnhancements.cpp. All three OoT archives are
- *      WHOLE_ARCHIVE'd (#341/#640) so it should not be elidable, but "should not"
- *      is what #516 and #640 both said. A missing page is a missing surface with
- *      no diagnostic at all.
+ *   1. A ROW HAS NO HOST, or the wrong one (#1133). The Combo header's Majora's
+ *      Mask page retired; each of its rows is hosted on SoH's own Enhancements
+ *      pages through the hosted-row seam (a one-line call in SoH's builder, the
+ *      #1037 shape), directly after its twin or nearest relative, or in a
+ *      "Majora's Mask" block for the rows with none. Leg 1 builds SoH's own
+ *      AddMenuEnhancements and holds every curated row to its page, separator
+ *      and neighbour, recorded by the seam (so the UI snapshot captures it); and
+ *      the converged Autosave key to ONE row, SoH's, which says it applies to
+ *      both games (#1119's form) -- the retired page's pointer to it is gone.
  *
  *   2. A ROW IS BOUND TO THE WRONG KEY, or to none. `WIDGET_CVAR_CHECKBOX` with a
  *      null or misspelled `.CVar` draws and writes nothing the provider reads.
- *
- *   3. A ROW IS REGISTERED PAST THE COLUMN COUNT, or in the wrong column. The
- *      page declares two columns (SoH's count for a mixed page; three, Quality
- *      of Life's, left every label but one past its column at 832x600) and
- *      `Menu::DrawElement` iterates `columnCount` columns, so a row in a higher
- *      one is registered and never drawn. The toggles fill the first column;
- *      the first pointer row opens the second and the rows after it stay there,
- *      so a pointer and the rows gated on it are read together.
  *
  *   9. A TOOLTIP LEAVES SoH's VOICE (docs/ui-style-guide.md R-TT2, R-TT4,
  *      R-TT6). Every own-row tooltip opens with a present-tense verb, is at most
  *      two sentences, and ends with the "Majora's Mask only." caveat. The
  *      runtime lint counts none of that, so leg 6 does.
- *
- *   4. THE PAGE IS EMPTY, or the pointer row is the only thing on it. #640: an
- *      empty multi-column page leaves `SetNextWindowPos` unconsumed and undocks
- *      libultraship's "Main Game" window.
  *
  *   5. A NON-LIVE ROW DRAWS AS LIVE. ADR 0004 section 5's whole point: "a toggle
  *      that does nothing is worse than no toggle" (#682). Every row the manifest
@@ -57,12 +49,9 @@
  *      its reason in the disabled tooltip. Every Live row must come out of a
  *      draw pass with NO presentation suffix on its name and not disabled.
  *
- *   6. THE DISABLED PATH IS NEVER EXERCISED. All five shipped rows are Live
- *      today, so leg 4 below installs SYNTHETIC Partial and Dormant rows through
- *      the same code path and asserts the presentation it produces. Without that,
- *      #682's non-live branch would be untested code discovered on the day
- *      somebody adds a dormant toggle — and what it renders is the one thing ADR
- *      0004 section 5 exists to get right.
+ *   6. THE DISABLED PATH IS NEVER EXERCISED. All shipped rows are Live today, so
+ *      leg 4 installs SYNTHETIC Partial and Dormant rows through the same code
+ *      path and asserts the presentation it produces.
  *
  *   7. (#693) A NON-BOOLEAN KEY GETS A CHECKBOX, or a slider whose range or
  *      default drifted from the manifest. MM's autosave interval is minutes; a
@@ -74,25 +63,24 @@
  *      moot while Autosave is off, so its row must be hidden then and visible,
  *      enabled and unrenamed when Autosave is on — driven through the real
  *      PreFunc with the gate key really written, both ways, and the gate key put
- *      back afterwards. And it sits AFTER the row that accounts for its gate, so
- *      the player reads "Autosave lives there" before the slider that tunes it.
+ *      back afterwards. And it sits AFTER the row that writes its gate, on the
+ *      same page.
  *
  *  10. (#747) A NON-LIVE ROW NAMES NO TRACKER, or its state is legible only on
  *      hover. Every manifest row carries `issue` nonzero exactly when it is not
- *      Live (the capability registry's `{gate, issue}` split: the number is
- *      recorded, never drawn), and every row the page draws DISABLED sits in a
- *      group that SHOWS one gray note -- the part of the state a player reads
- *      without hovering and a race lockout cannot replace. Every shipped row is
- *      Live, so leg 7 drives both through the page's own builder with a
- *      synthetic table built from leg 4's reasons, and holds the shipped page to
- *      "no note shown" (nothing visible changes while every row is live). The
- *      note sits directly above the group's rows (after a pointer row's
- *      sentence), and a table that lists a pointer FIRST draws no note under the
- *      then-empty heading (7d).
+ *      Live, and every row drawn DISABLED sits in a group that SHOWS one gray
+ *      note. Every shipped row is Live, so leg 7 drives both through the block
+ *      builder with a synthetic table built from leg 4's reasons, and holds the
+ *      shipped rows to "none disabled, no note" (SoH's pages look as SoH ships
+ *      them, plus the rows). A pointer row (a key whose control is SoH's own)
+ *      draws nothing.
  *
  *  11. (#1235) MM's AMBIENCE VOLUME HAS NO CONTROL. Leg 8 builds SoH's own
  *      Settings page and requires the ambience slider right after Sound Effects
  *      Volume, in SoH's slider shape, bound to the shared key.
+ *
+ *  12. (#1233) A HOSTED ROW IS NOT WHERE THE SEAM RECORDED IT. Leg 9 walks the
+ *      hosted-row registry over SoH's Settings, Enhancements and Dev Tools.
  *
  * WHAT IT DOES NOT COVER. Whether an enabled toggle changes the game. That needs
  * a ROM, a play state and an operator; the ROM-free half of it is
@@ -117,15 +105,9 @@
 #include <vector>
 
 namespace SohGui {
-// The page's registrar and its registered sidebar name, both externally linked
-// and declared in no header — the same shape AddComboRulesWidgets uses.
-// This row reaches the registrar THROUGH AddMenuCombo() rather than by calling
-// it, so the real extension point is what is exercised; the name accessor exists
-// so the test cannot drift from the registration by spelling the literal twice.
-const char* MmEnhancementsPageName();
-// #747: the page's body over a manifest table (the shipped page passes
-// RSBS::kHostedMmEnhancements), and its group note's sentence. Leg 7 builds a
-// page from a SYNTHETIC table through the same function the shipped page uses.
+// #747: the curated rows' block builder over a manifest table (the shipped block on Quality of Life is drawn
+// from the same row and note helpers, through the hosted-row seam), and its group note's sentence. Leg 7 builds a
+// block from a SYNTHETIC table. Both externally linked and declared in no header, as AddComboRulesWidgets is.
 void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
 const char* MmEnhancementsGroupNoteText();
 } // namespace SohGui
@@ -155,20 +137,52 @@ class MmEnhancementMenuProbe final : public SohGui::SohMenu {
     }
 };
 
-/** Every widget on `page`, flattened, with the column it was registered in. */
+/** Every widget on `page`, flattened, with the column it was registered in, its page and the SEPARATOR_TEXT
+ *  above it in its column ("" when none). */
 struct FlatRow {
     WidgetInfo* info;
     uint32_t column;
+    std::string sidebar;
+    std::string section;
 };
 
-std::vector<FlatRow> FlattenRows(SidebarEntry& page) {
+std::vector<FlatRow> FlattenRows(SidebarEntry& page, const std::string& sidebar = std::string()) {
     std::vector<FlatRow> rows;
     for (uint32_t column = 0; column < page.columnWidgets.size(); column++) {
+        std::string section;
         for (WidgetInfo& row : page.columnWidgets.at(column)) {
-            rows.push_back(FlatRow{ &row, column });
+            if (row.type == WIDGET_SEPARATOR_TEXT) {
+                section = row.name;
+            }
+            rows.push_back(FlatRow{ &row, column, sidebar, section });
         }
     }
     return rows;
+}
+
+/** Every widget under `header`, page by page in sidebar order. */
+std::vector<FlatRow> FlattenHeader(MainMenuEntry& header) {
+    std::vector<FlatRow> rows;
+    for (const std::string& sidebar : header.sidebarOrder) {
+        std::vector<FlatRow> page = FlattenRows(header.sidebars.at(sidebar), sidebar);
+        rows.insert(rows.end(), page.begin(), page.end());
+    }
+    return rows;
+}
+
+/** The row registered before `row` in its page and column, skipping TEXT rows (a gray note is not a neighbour), or
+ *  NULL when `row` opens its column. */
+const WidgetInfo* PreviousInteractive(const std::vector<FlatRow>& rows, const FlatRow* row) {
+    const WidgetInfo* previous = nullptr;
+    for (const FlatRow& r : rows) {
+        if (&r == row) {
+            return previous;
+        }
+        if (r.sidebar == row->sidebar && r.column == row->column && r.info->type != WIDGET_TEXT) {
+            previous = r.info;
+        }
+    }
+    return nullptr;
 }
 
 /** The row whose `.CVar` is exactly `cVar`, or NULL. */
@@ -469,104 +483,164 @@ GroupNoteCensus CheckGroupNotes(SidebarEntry& page, const char* where, bool repo
 } // namespace
 
 extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
-    printf("[TEST] menu-mm-enhancement-rows: the curated MM enhancement page, its rows' CVar bindings and their ADR "
-           "0004 section 5 presentation (#682)\n");
+    printf("[TEST] menu-mm-enhancement-rows: the curated MM enhancement rows on SoH's own pages, their CVar bindings "
+           "and their ADR 0004 section 5 presentation (#682, #1133)\n");
 
     gFailures = 0;
 
-    const char* pageName = SohGui::MmEnhancementsPageName();
-    if (pageName == nullptr || pageName[0] == '\0') {
-        printf("[TEST] FAIL(1): the MM enhancement page has no registered name\n");
-        return 1;
-    }
-
-    // ---- Leg 1: the page exists, through the real extension point -----------
-    // Registered by a file-scope initializer, so it is already in the registry;
-    // asserting that here is leg 1's first half, and it is exact against the
-    // elision class (#516/#640) that would drop the initializer silently.
-    {
-        bool registered = false;
-        for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
-            if (page.sidebarName == pageName) {
-                registered = true;
-                MME_CHECK(page.columnCount == 2,
-                          "the MM enhancement page declares %u columns, expected 2: SoH's count for a mixed page, "
-                          "the toggles in the first and the Autosave group in the second, each wide enough for its "
-                          "labels at 832x600",
-                          page.columnCount);
-                MME_CHECK(page.registrar != nullptr, "the MM enhancement page registered a null registrar");
-            }
-        }
-        if (!registered) {
-            printf("[TEST] FAIL(1): no contributed Combo page named \"%s\" is registered -- "
-                   "SohGui/SohMenuComboMmEnhancements.cpp's file-scope registrar did not run, which is exactly the "
-                   "state #682 was filed against (MM's enhancement toggles reachable only from "
-                   "shipofharkinian.json)\n",
-                   pageName);
-            return 1;
-        }
+    // ---- Leg 1 (#1133): every curated row is on its SoH page, beside its twin --
+    // Operator ruling D5 (2026-10-22): the Combo header's Majora's Mask page
+    // retired, and each of its rows is hosted on the SoH page that holds its twin
+    // or nearest relative, through the hosted-row seam, by a one-line call in
+    // SoH's own builder. Built here through SoH's own AddMenuEnhancements, so the
+    // pages are SoH's pages. The placement table is the PR's table: a row beside
+    // a twin sits directly after it, in its column and under its separator; a row
+    // with no twin sits in the "Majora's Mask" block on Quality of Life, after
+    // Time of Day's SoH rows and before Pause Menu.
+    for (const SohGui::ComboSectionPage& page : SohGui::GetComboSectionPages()) {
+        MME_CHECK(page.sidebarName != "Majora's Mask" && page.sidebarName != "MM Enhancements",
+                  "a page named \"%s\" is still registered; its rows are hosted on SoH's own pages (#1133)",
+                  page.sidebarName.c_str());
     }
 
     MmEnhancementMenuProbe probe;
-    probe.AddMenuCombo();
-
+    probe.AddMenuEnhancements();
     auto& entries = probe.Entries();
-    if (!entries.contains("Combo")) {
-        printf("[TEST] FAIL(1): AddMenuCombo registered no \"Combo\" section at all\n");
+    if (!entries.contains("Enhancements")) {
+        printf("[TEST] FAIL(1): AddMenuEnhancements registered no Enhancements header\n");
         return 1;
     }
-    auto& sidebars = entries.at("Combo").sidebars;
-    if (!sidebars.contains(pageName)) {
-        printf("[TEST] FAIL(1): AddMenuCombo created no sidebar for the registered page \"%s\"\n", pageName);
-        return 1;
-    }
+    MainMenuEntry& enhancements = entries.at("Enhancements");
+    std::vector<FlatRow> rows = FlattenHeader(enhancements);
 
-    SidebarEntry& page = sidebars.at(pageName);
-    std::vector<FlatRow> rows = FlattenRows(page);
-
-    // #640, verbatim: an empty page undocks the "Main Game" window. And a page
-    // holding ONLY the heading separator is the same thing with a label on it.
-    MME_CHECK(rows.size() >= RSBS::kHostedMmEnhancementCount + 1,
-              "the MM enhancement page holds %zu widgets; %zu manifest rows plus a heading is the minimum", rows.size(),
-              RSBS::kHostedMmEnhancementCount + (std::size_t)1);
-    // Which column each row belongs in, from the manifest: the first pointer
-    // row's label opens the second column, and nothing before it may be there.
-    const char* firstPointerLabel = nullptr;
-    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount && firstPointerLabel == nullptr; i++) {
-        if (RSBS::kHostedMmEnhancements[i].hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
-            firstPointerLabel = RSBS::kHostedMmEnhancements[i].label;
+    struct CuratedRowHost {
+        const char* key;
+        const char* sidebar;
+        const char* section;
+        const char* after; ///< the interactive row directly before it in its column, or NULL: in its block
+    };
+    const CuratedRowHost kPlacements[] = {
+        { RSBS_CVAR_MM_AUTOSAVE_INTERVAL, "Quality of Life", "Saving", "Autosave" },
+        { RSBS_CVAR_MM_KALEIDO_GAME_OVER, "Quality of Life", SohGui::kHostedMmBlockLabel, nullptr },
+        { RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME, "Quality of Life", SohGui::kHostedMmBlockLabel, "Game Over Prompt" },
+        { RSBS_CVAR_MM_SKIP_SOT_CUTSCENES, "Skips & Speed-ups", "Cutscenes", "Skip Song Cutscenes" },
+    };
+    std::size_t ownRows = 0;
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+        if (RSBS::kHostedMmEnhancements[i].hosting == RSBS::MmEnhancementHosting::OwnRow) {
+            ownRows++;
         }
     }
-    bool inSecondGroup = false;
-    std::size_t perColumn[2] = { 0, 0 };
-    for (FlatRow& row : rows) {
-        if (firstPointerLabel != nullptr && row.info->type == WIDGET_SEPARATOR_TEXT &&
-            row.info->name == firstPointerLabel) {
-            inSecondGroup = true;
+    MME_CHECK(ownRows == sizeof(kPlacements) / sizeof(kPlacements[0]),
+              "the manifest has %zu own rows and the placement table %zu; a curated row with no placement has no "
+              "host",
+              ownRows, sizeof(kPlacements) / sizeof(kPlacements[0]));
+    for (const CuratedRowHost& want : kPlacements) {
+        int bound = 0;
+        for (const FlatRow& r : rows) {
+            bound += r.info->cVar != nullptr && std::string(r.info->cVar) == want.key ? 1 : 0;
         }
-        const uint32_t expected = inSecondGroup ? (uint32_t)SECTION_COLUMN_2 : (uint32_t)SECTION_COLUMN_1;
-        MME_CHECK(row.column == expected,
-                  "row \"%s\" is registered in column %u, expected %u: the toggles fill the first column and the "
-                  "first pointer row opens the second (a row past the page's two columns is never drawn)",
-                  row.info->name.c_str(), row.column, expected);
-        if (row.column < 2) {
-            perColumn[row.column]++;
+        FlatRow* row = FindRowByCVar(rows, want.key);
+        MME_CHECK(bound == 1, "%d rows under Enhancements bind %s, expected exactly one", bound, want.key);
+        if (row == nullptr) {
+            continue;
         }
+        MME_CHECK(row->sidebar == want.sidebar && row->section == want.section,
+                  "the %s row is on Enhancements > %s under \"%s\", expected Enhancements > %s under \"%s\"", want.key,
+                  row->sidebar.c_str(), row->section.c_str(), want.sidebar, want.section);
+        const WidgetInfo* before = PreviousInteractive(rows, row);
+        if (want.after != nullptr) {
+            MME_CHECK(before != nullptr && before->name == want.after,
+                      "the %s row follows \"%s\" in its column, expected SoH's \"%s\" directly before it", want.key,
+                      before != nullptr ? before->name.c_str() : "(the column's start)", want.after);
+        } else {
+            // In its block: right under the block's heading, or after another row the hosted-row seam put in the
+            // same block (#1245's Time Cycle rows open the Quality of Life block), never after an SoH row.
+            const bool afterBlockRow =
+                before != nullptr && SohGui::IsHostedMmRow("Enhancements", want.sidebar, before->name);
+            MME_CHECK(before != nullptr && (before->type == WIDGET_SEPARATOR_TEXT || afterBlockRow),
+                      "the %s row follows \"%s\"; it belongs in its block, after the heading or another row of it",
+                      want.key, before != nullptr ? before->name.c_str() : "(the column's start)");
+        }
+        bool recorded = false;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            recorded = recorded || (h.key != nullptr && std::string(h.key) == want.key && h.header == "Enhancements" &&
+                                    h.sidebar == want.sidebar && h.section == want.section);
+        }
+        MME_CHECK(recorded,
+                  "the %s row is not recorded by the hosted-row seam on Enhancements > %s under \"%s\", so the UI "
+                  "snapshot neither captures nor lints it",
+                  want.key, want.sidebar, want.section);
     }
-    MME_CHECK(perColumn[0] > 0 && perColumn[1] > 0,
-              "the page's columns hold %zu and %zu widgets; an empty column in a multi-column page is #640's failure "
-              "mode",
-              perColumn[0], perColumn[1]);
-    printf("[TEST] leg 1: the page is registered through the extension point, declares two columns and holds %zu "
-           "widgets (%zu toggles side, %zu Autosave side)\n",
-           rows.size(), perColumn[0], perColumn[1]);
+    // The block's place: Quality of Life's first column, after Time of Day's
+    // SoH rows, before Pause Menu. The block is the "Majora's Mask" heading that
+    // opens Game Over Prompt's group: since #1247 the column holds a second
+    // block of that name under Saving (Pause Menu Save), so the first heading of
+    // the name is not this one.
+    {
+        long block = -1;
+        long shops = -1;
+        long pause = -1;
+        long lastHeading = -1;
+        for (std::size_t i = 0; i < rows.size(); i++) {
+            const FlatRow& r = rows[i];
+            if (r.sidebar != "Quality of Life" || r.column != SECTION_COLUMN_1) {
+                continue;
+            }
+            if (r.info->type == WIDGET_SEPARATOR_TEXT) {
+                lastHeading = (long)i;
+            }
+            if (r.info->cVar != nullptr && std::string(r.info->cVar) == RSBS_CVAR_MM_KALEIDO_GAME_OVER &&
+                lastHeading >= 0 && rows[(std::size_t)lastHeading].info->name == SohGui::kHostedMmBlockLabel) {
+                block = lastHeading;
+            } else if (r.info->name == "Shops and Games Always Open") {
+                shops = (long)i;
+            } else if (r.info->type == WIDGET_SEPARATOR_TEXT && r.info->name == "Pause Menu") {
+                pause = (long)i;
+            }
+        }
+        MME_CHECK(block >= 0 && shops >= 0 && pause >= 0 && shops < block && block < pause,
+                  "Quality of Life's first column has the Majora's Mask block at %ld, Shops and Games Always Open at "
+                  "%ld and Pause Menu at %ld; the block belongs after Time of Day's rows and before Pause Menu",
+                  block, shops, pause);
+    }
+    // The converged key (#1119's form): one row, both games. SoH's Autosave on
+    // Quality of Life > Saving is the only writer of gEnhancements.Autosave,
+    // and its tooltip says it applies to both games.
+    for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+        const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
+        if (desc.hosting != RSBS::MmEnhancementHosting::HostedElsewhere) {
+            continue;
+        }
+        int bound = 0;
+        for (const FlatRow& r : rows) {
+            bound += r.info->cVar != nullptr && std::string(r.info->cVar) == desc.key ? 1 : 0;
+        }
+        FlatRow* row = FindRowByCVar(rows, desc.key);
+        MME_CHECK(bound == 1 && row != nullptr && row->info->name == desc.label &&
+                      !SohGui::IsHostedMmRow("Enhancements", row->sidebar, row->info->name),
+                  "%d rows under Enhancements bind the converged %s; expected exactly SoH's own \"%s\", the one row "
+                  "both games read",
+                  bound, desc.key, desc.label);
+        if (row != nullptr) {
+            const std::string tip = row->info->options != nullptr && row->info->options->tooltip != nullptr
+                                        ? row->info->options->tooltip
+                                        : "";
+            MME_CHECK(tip.find("both games") != std::string::npos,
+                      "SoH's \"%s\" row writes the key both games read, but its tooltip does not say so: \"%s\"",
+                      desc.label, tip.c_str());
+        }
+        MME_CHECK(FindRowByName(rows, desc.tooltip) == nullptr,
+                  "the retired page's pointer sentence for %s is still drawn", desc.key);
+    }
+    printf("[TEST] leg 1: every curated row sits on its SoH page beside its twin or in the Majora's Mask block, "
+           "through the hosted-row seam, and the converged Autosave is SoH's one row\n");
 
     // ---- Leg 6: every own-row tooltip is in SoH's voice -----------------------
     // R-TT2 (present tense, verb first: SoH's "Makes...", "Allows...",
     // "Toggles..." -- a third-person verb, so the first word ends in 's'),
     // R-TT4 (one or two sentences, the trailing caveat included) and R-TT6 (the
-    // caveat trails). A pointer row's text is a gray note, not a tooltip, and
-    // is not held to this.
+    // caveat trails). A pointer row draws nothing and is not held to this.
     {
         const std::string kCaveat = " Majora's Mask only.";
         for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
@@ -598,37 +672,23 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                "Majora's Mask caveat\n");
     }
 
-    // ---- Leg 2: every manifest key has a row, bound to that key -------------
+    // ---- Leg 2: every manifest key has its row, bound to that key -----------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
-
         if (desc.hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
-            // A pointer row, not a writer. Two assertions, both load-bearing:
-            // the label is on the page (so the player can find out where the
-            // control is), and NOTHING on this page binds the key (a second
-            // writer over one key is the duplicate-host shape #655 removed).
-            MME_CHECK(FindRowByName(rows, desc.label) != nullptr,
-                      "no row named \"%s\" -- the key is hosted elsewhere in the menu and this page is supposed to "
-                      "say so",
-                      desc.label);
-            MME_CHECK(FindRowByCVar(rows, desc.key) == nullptr,
-                      "a row on this page binds \"%s\", which is already written by another row in the unified menu. "
-                      "Two widgets over one key is the only way for two surfaces to disagree about it",
-                      desc.key);
-            continue;
+            continue; // SoH's own row, leg 1
         }
-
         FlatRow* row = FindRowByCVar(rows, desc.key);
         if (row == nullptr) {
-            printf("[TEST] FAIL(2): no row on \"%s\" is bound to \"%s\" (manifest row %zu, \"%s\"). A widget whose "
-                   "CVar drifts from its provider flips a key nothing consults -- #499's failure, and invisible\n",
-                   pageName, desc.key, i, desc.label);
+            printf("[TEST] FAIL(2): no row under Enhancements is bound to \"%s\" (manifest row %zu, \"%s\"). A widget "
+                   "whose CVar drifts from its provider flips a key nothing consults -- #499's failure, and "
+                   "invisible\n",
+                   desc.key, i, desc.label);
             gFailures++;
             continue;
         }
-        MME_CHECK(row->info->name == desc.label ||
-                      row->info->name == SohGui::SohMenu::StripPresentationSuffix(row->info->name),
-                  "the row on \"%s\" is named \"%s\"", desc.key, row->info->name.c_str());
+        MME_CHECK(row->info->name == desc.label, "the row on \"%s\" is named \"%s\", the manifest says \"%s\"",
+                  desc.key, row->info->name.c_str(), desc.label);
         if (desc.widget == RSBS::MmEnhancementWidget::SliderInt) {
             // #693: an integer key gets an integer slider, over the manifest's
             // range, with the manifest's default — which leg 6 of
@@ -665,17 +725,21 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "CVarGetInteger as booleans",
                       desc.key, (int)row->info->type);
         }
+        const char* tip = row->info->options != nullptr ? row->info->options->tooltip : nullptr;
+        MME_CHECK(tip != nullptr && std::string(tip) == desc.tooltip,
+                  "the row on \"%s\" carries tooltip \"%s\", the manifest says \"%s\"", desc.key,
+                  tip != nullptr ? tip : "(null)", desc.tooltip);
+        MME_CHECK(!row->info->raceDisable, "the row on \"%s\" is race-disabled; these are preferences", desc.key);
     }
-    printf("[TEST] leg 2: every manifest key is bound by exactly the row its hosting class calls for\n");
+    printf("[TEST] leg 2: every own manifest key is bound by exactly the row its widget class calls for, with the "
+           "manifest's label and tooltip\n");
 
     // ---- Leg 3: a Live row draws live ---------------------------------------
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
         // Every manifest reason, whatever its hosting: it is drawn after "- " in
         // SoH's disabled tooltip, so it is player text and prints no tracker
-        // number (ADR 0004's 2026-09-27 amendment). The manifest has no separate
-        // issue field yet (#747); until it does, a non-live row names its
-        // tracker in a source comment beside the entry, never in the string.
+        // number (ADR 0004's 2026-09-27 amendment).
         MME_CHECK(!PrintsIssueNumber(desc.reason),
                   "the manifest reason for \"%s\" prints a tracker number (\"%s\"); it is drawn in the disabled "
                   "tooltip, and no SoH disabled reason carries one",
@@ -683,10 +747,8 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         // #747: the tracker lives in the row's own field instead, nonzero
         // exactly when the row is not Live. BELT AND BRACES, not a lock: the
         // same rule is a static_assert on this very table
-        // (HostedMmEnhancementsAreHonest() in cvar_shared_keys.h), so a
-        // shipped row that broke it would fail the build before this ran, and
-        // this check can never be seen red. The rule's observed red halves are
-        // leg 7a's, over synthetic tables.
+        // (HostedMmEnhancementsAreHonest() in cvar_shared_keys.h). The rule's
+        // observed red halves are leg 7a's, over synthetic tables.
         MME_CHECK((desc.issue != 0) == (desc.liveness != RSBS::MmEnhancementLiveness::Live),
                   "the manifest row \"%s\" is %s with issue %u; a non-live row records the issue that retires it, "
                   "and a Live row records none",
@@ -736,8 +798,6 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     printf("[TEST] leg 3: each own-row key's presentation matches its manifest liveness class, twice over\n");
 
     // ---- Leg 5 (#693): a gated row follows its gate, both ways ----------------
-    // Numbered after leg 4 in the header's list of failure modes (7 and 8), but
-    // run here, while `rows` still points into this probe's page.
     std::size_t gatedRows = 0;
     for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
         const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
@@ -750,19 +810,13 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             continue; // already reported by leg 2
         }
 
-        // Ordering: the row accounting for the gate (its own control, or the
-        // pointer row's label) comes first on the page.
-        const char* gateLabel = nullptr;
-        for (std::size_t j = 0; j < RSBS::kHostedMmEnhancementCount; j++) {
-            if (std::string(RSBS::kHostedMmEnhancements[j].key) == desc.shownWhileKey) {
-                gateLabel = RSBS::kHostedMmEnhancements[j].label;
-            }
-        }
-        const long gateAt = IndexOfRow(rows, desc.shownWhileKey, gateLabel);
+        // Ordering: the row writing the gate comes first, on the same page.
+        FlatRow* gate = FindRowByCVar(rows, desc.shownWhileKey);
+        const long gateAt = IndexOfRow(rows, desc.shownWhileKey, nullptr);
         const long rowAt = IndexOfRow(rows, desc.key, nullptr);
-        MME_CHECK(gateAt >= 0 && rowAt > gateAt,
-                  "the row on \"%s\" is at page index %ld and the row accounting for its gate \"%s\" at %ld; the "
-                  "gated row must come after it",
+        MME_CHECK(gate != nullptr && gate->sidebar == row->sidebar && gateAt >= 0 && rowAt > gateAt,
+                  "the row on \"%s\" is at index %ld and the row writing its gate \"%s\" at %ld; the gated row must "
+                  "come after it on the same page",
                   desc.key, rowAt, desc.shownWhileKey, gateAt);
 
         // INT32_MIN marks "absent": the restore below clears rather than
@@ -800,8 +854,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   desc.key, desc.shownWhileKey);
 
         // Back as found: the gate key (absent stays absent), and the widget's
-        // isHidden re-derived from it by one more real draw, so the page is not
-        // left hidden by this leg's last OFF pass.
+        // isHidden re-derived from it by one more real draw.
         if (savedGate == INT32_MIN) {
             CVarClear(desc.shownWhileKey);
         } else {
@@ -813,7 +866,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
               "no manifest row carries a gate; #693's interval row is gated on gEnhancements.Autosave, so this leg ran "
               "on nothing");
     printf("[TEST] leg 5: %zu gated row(s) hide with their gate off, show enabled and unrenamed with it on, re-hide "
-           "when it goes off again, and sit after the row that accounts for the gate\n",
+           "when it goes off again, and sit after the row that writes the gate\n",
            gatedRows);
 
     // ---- Leg 4: the non-live path, driven with synthetic rows ---------------
@@ -822,9 +875,9 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
     // production PreFunc does.
     {
         MmEnhancementMenuProbe synthProbe;
-        WidgetPath synthPath = { "Combo", "Synthetic Liveness Page", SECTION_COLUMN_1 };
-        synthProbe.AddMenuEntry("Combo", "gSettings.Menu.ComboSidebarSection");
-        synthProbe.AddSidebarEntry("Combo", synthPath.sidebarName, 1);
+        WidgetPath synthPath = { "Synthetic", "Synthetic Liveness Page", SECTION_COLUMN_1 };
+        synthProbe.AddMenuEntry("Synthetic", "gSettings.Menu.SyntheticSidebarSection");
+        synthProbe.AddSidebarEntry("Synthetic", synthPath.sidebarName, 1);
 
         struct SynthCase {
             const char* name;
@@ -844,7 +897,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             });
         }
 
-        SidebarEntry& synthPage = synthProbe.Entries().at("Combo").sidebars.at(synthPath.sidebarName);
+        SidebarEntry& synthPage = synthProbe.Entries().at("Synthetic").sidebars.at(synthPath.sidebarName);
         std::vector<FlatRow> synthRows = FlattenRows(synthPage);
         for (const SynthCase& c : cases) {
             FlatRow* row = FindRowByName(synthRows, c.name);
@@ -900,15 +953,14 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         printf("[TEST] leg 7a: the honesty rule requires an issue exactly on the non-live rows, both directions\n");
 
         // 7-control. The check's own red half, observed on every run: a group
-        // whose row is drawn disabled with NO note under its separator -- what
-        // the page drew before #747 the day a row went non-live -- must be
+        // whose row is drawn disabled with NO note under its separator must be
         // counted as a breach. Built the way leg 4's synthetic rows are (the
         // presentation call, no builder), so no note is registered.
         {
             MmEnhancementMenuProbe controlProbe;
-            WidgetPath controlPath = { "Combo", "Synthetic Noteless Page", SECTION_COLUMN_1 };
-            controlProbe.AddMenuEntry("Combo", "gSettings.Menu.ComboSidebarSection");
-            controlProbe.AddSidebarEntry("Combo", controlPath.sidebarName, 1);
+            WidgetPath controlPath = { "Synthetic", "Synthetic Noteless Page", SECTION_COLUMN_1 };
+            controlProbe.AddMenuEntry("Synthetic", "gSettings.Menu.SyntheticSidebarSection");
+            controlProbe.AddSidebarEntry("Synthetic", controlPath.sidebarName, 1);
             controlProbe.AddWidget(controlPath, "Noteless Group", WIDGET_SEPARATOR_TEXT);
             controlProbe.AddWidget(controlPath, "Synthetic Noteless Row", WIDGET_CVAR_CHECKBOX)
                 .CVar("gEnhancements.MenuLockSyntheticRow")
@@ -918,7 +970,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                     SohGui::SohMenu::ApplyPresentation(i, i.name, SohGui::SOH_MENU_PRESENT_CAPABILITY,
                                                        kSyntheticDormantReason);
                 });
-            SidebarEntry& controlPage = controlProbe.Entries().at("Combo").sidebars.at(controlPath.sidebarName);
+            SidebarEntry& controlPage = controlProbe.Entries().at("Synthetic").sidebars.at(controlPath.sidebarName);
             GroupNoteCensus control = CheckGroupNotes(controlPage, "noteless control page", false);
             MME_CHECK(control.disabledRows == 1 && control.violations == 1,
                       "the noteless control page counted %zu disabled row(s) and %zu breach(es), expected 1 and 1: "
@@ -929,48 +981,69 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                    control.violations);
         }
 
-        // 7b. The shipped page: every row Live, so no row is drawn disabled and
-        // no group note is shown -- the page looks as it did before #747.
+        // 7b. The shipped rows: every one Live, so none is drawn disabled and no
+        // group note is registered on their pages -- SoH's pages look as SoH
+        // ships them, plus the rows.
         {
-            SidebarEntry& shipped = sidebars.at(pageName);
-            GroupNoteCensus census = CheckGroupNotes(shipped, pageName, true);
-            MME_CHECK(census.disabledRows == 0 && census.notesShown == 0,
-                      "the shipped page draws %zu disabled row(s) and %zu group note(s); every manifest row is Live, "
-                      "so it draws neither",
-                      census.disabledRows, census.notesShown);
-            printf("[TEST] leg 7b: the shipped page draws no disabled row and no group note\n");
+            std::size_t disabled = 0;
+            for (std::size_t i = 0; i < RSBS::kHostedMmEnhancementCount; i++) {
+                const RSBS::HostedMmEnhancement& desc = RSBS::kHostedMmEnhancements[i];
+                FlatRow* row =
+                    desc.hosting == RSBS::MmEnhancementHosting::OwnRow ? FindRowByCVar(rows, desc.key) : nullptr;
+                if (row != nullptr) {
+                    DrawPass(*row->info);
+                    disabled += IsDisabled(*row->info) ? 1 : 0;
+                }
+            }
+            const bool noteRegistered = FindRowByName(rows, SohGui::MmEnhancementsGroupNoteText()) != nullptr ||
+                                        FindRowByName(rows, "Majora's Mask Group Note") != nullptr;
+            MME_CHECK(disabled == 0 && !noteRegistered,
+                      "the shipped rows draw %zu disabled row(s) and the Enhancements header %s a group note; every "
+                      "manifest row is Live, so neither",
+                      disabled, noteRegistered ? "registers" : "does not register");
+            printf("[TEST] leg 7b: the shipped rows draw none disabled and their pages carry no group note\n");
         }
 
-        // 7c. A page built from the synthetic table through the page's own
-        // builder. The gate key is set explicitly both ways and put back.
+        // 7c. A block built from the synthetic table through the builder the
+        // shipped block shares its row and note code with. The pointer row
+        // draws nothing (SoH's own row is the control for its key), so the
+        // block is ONE group: its note shows while any of its rows is drawn
+        // disabled. The gate key is set explicitly both ways and put back.
         MmEnhancementMenuProbe noteProbe;
-        WidgetPath notePath = { "Combo", "Synthetic Group Note Page", SECTION_COLUMN_1 };
-        noteProbe.AddMenuEntry("Combo", "gSettings.Menu.ComboSidebarSection");
-        noteProbe.AddSidebarEntry("Combo", notePath.sidebarName, 3);
+        WidgetPath notePath = { "Synthetic", "Synthetic Group Note Page", SECTION_COLUMN_1 };
+        noteProbe.AddMenuEntry("Synthetic", "gSettings.Menu.SyntheticSidebarSection");
+        noteProbe.AddSidebarEntry("Synthetic", notePath.sidebarName, 1);
         SohGui::AddMmEnhancementRows(noteProbe, notePath, kSyntheticManifest, kSyntheticManifestCount);
-        SidebarEntry& notePage = noteProbe.Entries().at("Combo").sidebars.at(notePath.sidebarName);
+        SidebarEntry& notePage = noteProbe.Entries().at("Synthetic").sidebars.at(notePath.sidebarName);
+        std::vector<FlatRow> noteRows = FlattenRows(notePage);
+        MME_CHECK(FindRowByName(noteRows, "Synthetic Parent") == nullptr &&
+                      FindRowByCVar(noteRows, kSynthParentKey) == nullptr,
+                  "the builder drew the pointer row \"Synthetic Parent\" or bound its key; SoH's own row is the one "
+                  "control for a key hosted elsewhere");
+        MME_CHECK(!noteRows.empty() && noteRows.front().info->type == WIDGET_SEPARATOR_TEXT &&
+                      noteRows.front().info->name == SohGui::kHostedMmBlockLabel,
+                  "the builder's rows do not open with the Majora's Mask block heading");
 
         const int savedGate = CVarGetInteger(kSynthParentKey, INT32_MIN);
 
-        // Gate OFF: the Partial slider is hidden, so only the heading group has a
-        // disabled row, and only its note shows.
+        // Gate OFF: the Partial slider is hidden, so only the Dormant row is
+        // drawn disabled, and the block's one note shows.
         CVarSetInteger(kSynthParentKey, 0);
-        GroupNoteCensus off = CheckGroupNotes(notePage, "synthetic page, gate off", true);
+        GroupNoteCensus off = CheckGroupNotes(notePage, "synthetic block, gate off", true);
         MME_CHECK(off.disabledRows == 1 && off.notesShown == 1,
-                  "gate off: %zu disabled row(s) and %zu note(s) shown, expected 1 and 1 (the Dormant row and its "
-                  "group's note; the gated Partial row is hidden and its group's note with it)",
+                  "gate off: %zu disabled row(s) and %zu note(s) shown, expected 1 and 1 (the Dormant row, and the "
+                  "block's note; the gated Partial row is hidden)",
                   off.disabledRows, off.notesShown);
 
-        // Gate ON: the Partial slider draws disabled, and its group's note shows.
+        // Gate ON: the Partial slider draws disabled too; still one note.
         CVarSetInteger(kSynthParentKey, 1);
-        GroupNoteCensus on = CheckGroupNotes(notePage, "synthetic page, gate on", true);
-        MME_CHECK(on.disabledRows == 2 && on.notesShown == 2,
-                  "gate on: %zu disabled row(s) and %zu note(s) shown, expected 2 and 2 (one per group)",
+        GroupNoteCensus on = CheckGroupNotes(notePage, "synthetic block, gate on", true);
+        MME_CHECK(on.disabledRows == 2 && on.notesShown == 1,
+                  "gate on: %zu disabled row(s) and %zu note(s) shown, expected 2 and 1 (one block, one note)",
                   on.disabledRows, on.notesShown);
 
         // The disabled rows are the builder's, not leg 4's hand-made ones: SoH's
         // disabled shape around the manifest reason, and the row's own name.
-        std::vector<FlatRow> noteRows = FlattenRows(notePage);
         for (const RSBS::HostedMmEnhancement& e : kSyntheticManifest) {
             if (e.hosting != RSBS::MmEnhancementHosting::OwnRow || e.liveness == RSBS::MmEnhancementLiveness::Live) {
                 continue;
@@ -994,49 +1067,43 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         } else {
             CVarSetInteger(kSynthParentKey, savedGate);
         }
-        printf("[TEST] leg 7c: a page built from a synthetic non-live table shows one gray note per group with a "
-               "disabled row (%zu with the gate off, %zu with it on), directly above the group's rows, and none over "
-               "a group with nothing disabled\n",
+        printf("[TEST] leg 7c: a block built from a synthetic non-live table shows one gray note while a row of it "
+               "is drawn disabled (%zu with the gate off, %zu with it on), directly above its rows, and draws no "
+               "pointer row\n",
                off.notesShown, on.notesShown);
 
-        // 7d. A table that lists a POINTER FIRST. Nothing forbids that order
-        // (neither the honesty rule nor leg 5), and it leaves the heading group
-        // empty: the pointer opens the second column with its own group. The
-        // heading must then draw no note -- one there would sit under an empty
-        // heading over nothing disabled, while the pointer's group, in the other
-        // column, carries the real one.
+        // 7d. A table that lists a POINTER FIRST: the pointer draws nothing, so
+        // the block's note sits directly under its heading, above the one row,
+        // and only while that row draws disabled.
         {
             MmEnhancementMenuProbe firstProbe;
-            WidgetPath firstPath = { "Combo", "Synthetic Pointer First Page", SECTION_COLUMN_1 };
-            firstProbe.AddMenuEntry("Combo", "gSettings.Menu.ComboSidebarSection");
-            firstProbe.AddSidebarEntry("Combo", firstPath.sidebarName, 3);
+            WidgetPath firstPath = { "Synthetic", "Synthetic Pointer First Page", SECTION_COLUMN_1 };
+            firstProbe.AddMenuEntry("Synthetic", "gSettings.Menu.SyntheticSidebarSection");
+            firstProbe.AddSidebarEntry("Synthetic", firstPath.sidebarName, 1);
             SohGui::AddMmEnhancementRows(firstProbe, firstPath, kPointerFirstManifest, kPointerFirstManifestCount);
-            SidebarEntry& firstPage = firstProbe.Entries().at("Combo").sidebars.at(firstPath.sidebarName);
+            SidebarEntry& firstPage = firstProbe.Entries().at("Synthetic").sidebars.at(firstPath.sidebarName);
 
             const int savedFirstGate = CVarGetInteger(kSynthFirstParentKey, INT32_MIN);
+            CVarSetInteger(kSynthFirstParentKey, 0);
+            GroupNoteCensus firstOff = CheckGroupNotes(firstPage, "pointer-first block, gate off", true);
             CVarSetInteger(kSynthFirstParentKey, 1);
-            GroupNoteCensus first = CheckGroupNotes(firstPage, "pointer-first page, gate on", true);
-            MME_CHECK(first.disabledRows == 1 && first.notesShown == 1 && first.violations == 0,
-                      "pointer-first page: %zu disabled row(s), %zu note(s) shown and %zu breach(es), expected 1, 1 "
-                      "and 0 (the pointer group's note only; none under the empty heading)",
-                      first.disabledRows, first.notesShown, first.violations);
-            std::size_t headingNotes = 0;
-            for (const WidgetInfo& row : firstPage.columnWidgets.at(0)) {
-                if (!row.isHidden && row.type == WIDGET_TEXT && row.name == SohGui::MmEnhancementsGroupNoteText()) {
-                    headingNotes++;
-                }
-            }
-            MME_CHECK(headingNotes == 0,
-                      "pointer-first page: the empty heading column shows %zu group note(s); its group holds no row",
-                      headingNotes);
+            GroupNoteCensus firstOn = CheckGroupNotes(firstPage, "pointer-first block, gate on", true);
+            MME_CHECK(firstOff.disabledRows == 0 && firstOff.notesShown == 0 && firstOn.disabledRows == 1 &&
+                          firstOn.notesShown == 1 && firstOn.violations == 0,
+                      "pointer-first block: gate off %zu disabled / %zu note(s), gate on %zu / %zu with %zu "
+                      "breach(es); expected 0 / 0, then 1 / 1 and none",
+                      firstOff.disabledRows, firstOff.notesShown, firstOn.disabledRows, firstOn.notesShown,
+                      firstOn.violations);
+            std::vector<FlatRow> firstRows = FlattenRows(firstPage);
+            MME_CHECK(FindRowByName(firstRows, "Synthetic First Parent") == nullptr,
+                      "pointer-first block: the pointer row is drawn");
             if (savedFirstGate == INT32_MIN) {
                 CVarClear(kSynthFirstParentKey);
             } else {
                 CVarSetInteger(kSynthFirstParentKey, savedFirstGate);
             }
-            printf("[TEST] leg 7d: a table listing a pointer first draws its note in the pointer's group only (%zu "
-                   "note, none under the empty heading)\n",
-                   first.notesShown);
+            printf("[TEST] leg 7d: a table listing a pointer first draws no pointer and shows its block's note only "
+                   "while the gated row draws disabled\n");
         }
     }
 
@@ -1126,6 +1193,25 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "green over the registry would prove nothing");
         }
 
+        // The operator's ruling of 2026-10-27: MM's mod rows are a Settings page of their own, MM Mods, after SoH's
+        // OoT Mods, and the page's name says whose they are, so Rescan Mods Folder sits under no heading.
+        const SohGui::HostedMmRow* rescan = nullptr;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.name == "Rescan Mods Folder") {
+                MME_CHECK(rescan == nullptr, "the hosted-row registry holds Rescan Mods Folder twice (%s > %s too)",
+                          h.header.c_str(), h.sidebar.c_str());
+                rescan = &h;
+            }
+        }
+        MME_CHECK(rescan != nullptr && rescan->header == "Settings" && rescan->sidebar == "MM Mods" &&
+                      rescan->section.empty() && rescan->accessor != nullptr &&
+                      std::string(rescan->accessor) == "Combo_MMModSet_Scan",
+                  "the hosted-row registry holds no Rescan Mods Folder on Settings > MM Mods under no heading bound to "
+                  "Combo_MMModSet_Scan (it reads %s > %s under \"%s\")",
+                  rescan != nullptr ? rescan->header.c_str() : "(none)",
+                  rescan != nullptr ? rescan->sidebar.c_str() : "(none)",
+                  rescan != nullptr ? rescan->section.c_str() : "");
+
         std::size_t checked = 0;
         for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
             const std::string why = HostedRowVerdict(hostEntries, h);
@@ -1150,8 +1236,8 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
 #include <cstdio>
 
 /**
- * The contributed-page registry, the Combo section and the manifest's whole
- * point (MM's menu TU is excluded) exist only in the single-exe build. A
+ * The hosted rows and the manifest's whole point (MM's menu TU is excluded)
+ * exist only in the single-exe build. A
  * standalone SoH build has no MM half to configure, so the row reports pass
  * rather than failing to link. test_runner.cpp declares this unconditionally.
  */

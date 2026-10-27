@@ -501,6 +501,20 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_CYCLE_STOP_OCEANSIDE_SPIDER_HOUSE_SQUATTER "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter"
 #define RSBS_CVAR_MM_CYCLE_OCEANSIDE_WALLET_ANY_DAY "gEnhancements.Cycle.OceansideWalletAnyDay"
 // W6-PLAYER
+// W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
+// (SohGui/HostedMm/SohMenuHostedMmPlayer.cpp). Climb speed and Bombchu drops are held apart (kMustStayDistinct).
+#define RSBS_CVAR_MM_PLAYER_MANUAL_JUMP "gEnhancements.Player.ManualJump"
+#define RSBS_CVAR_MM_PLAYER_PREVENT_DIVE_OVER_WATER "gEnhancements.Player.PreventDiveOverWater"
+#define RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING "gEnhancements.Player.InfiniteDekuHopping"
+#define RSBS_CVAR_MM_PLAYER_CLIMB_SPEED "gEnhancements.Player.ClimbSpeed"
+#define RSBS_CVAR_MM_PLAYER_FASTER_PUSH_AND_PULL "gEnhancements.Player.FasterPushAndPull"
+#define RSBS_CVAR_MM_PLAYER_FAST_FLOWER_LAUNCH "gEnhancements.Player.FastFlowerLaunch"
+#define RSBS_CVAR_MM_PLAYER_FIERCE_DEITY_PUTAWAY "gEnhancements.Player.FierceDeityPutaway"
+#define RSBS_CVAR_MM_EQUIPMENT_TWO_HANDED_SWORD_SPIN_ATTACK "gEnhancements.Equipment.TwoHandedSwordSpinAttack"
+#define RSBS_CVAR_MM_EQUIPMENT_GREAT_FAIRY_SWORD_B_BUTTON "gEnhancements.Equipment.GreatFairySwordBButton"
+#define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
+#define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
+#define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
 // W6-MASKS-SONGS
 // W6-CAM-GYRO
 // #1235, #1236, #1240: MM's gyro aiming, free-look pitch limits, debug camera, Remote Bombchu Control and speed
@@ -544,6 +558,15 @@ struct DistinctPair {
  * row binds it through this constant.
  */
 #define RSBS_CVAR_MM_DAMAGE_MULTIPLIER "gEnhancements.DifficultyOptions.DamageMultiplier"
+
+// L7 (#1133, ruling D5): the curated MM enhancement rows' keys (kHostedMmEnhancements below), each bound by its row on
+// SoH's own Enhancements pages, beside the SoH row that holds its twin or in a "Majora's Mask" block
+// (SohMenuComboMmEnhancements.cpp). The Combo > Majora's Mask page that drew them from the manifest retired with the
+// Combo header; games/oot binds the define, never the literal.
+#define RSBS_CVAR_MM_KALEIDO_GAME_OVER "gEnhancements.Kaleido.GameOver"
+#define RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME "gEnhancements.Songs.BetterSongOfDoubleTime"
+#define RSBS_CVAR_MM_SKIP_SOT_CUTSCENES "gEnhancements.Songs.SkipSoTCutscenes"
+#define RSBS_CVAR_MM_AUTOSAVE_INTERVAL "gEnhancements.Saving.AutosaveInterval"
 
 // W6-CAM-AIM (#1236): MM's aiming and camera inversion / sensitivity keys and its shield Y inversion. Held apart from
 // SoH's (P3, P7 and the three first-person rows beside P3 in kMustStayDistinct), so each has an MM row beside its SoH
@@ -603,7 +626,7 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
     { "P7 shield aim inversion", "gEnhancements.Equipment.InvertShieldY", "gSettings.Controls.InvertShieldAimingYAxis",
       "Different namespace AND different axis coverage: OoT has X+Y, MM has Y only. Merging loses OoT's "
       "X axis." },
-    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", "gEnhancements.Player.ClimbSpeed",
+    { "Climb speed (inventory §5.3 group A, reclassified P by #462)", RSBS_CVAR_MM_PLAYER_CLIMB_SPEED,
       "gEnhancements.ClimbSpeed",
       "Listed in §5.3 group A as 'both numeric', but representation verification found INCOMPATIBLE UNITS: "
       "OoT reads it as an ADDITIVE offset (slider '+%d', 0-12, default 0; playSpeed += phi_f2 * value) while "
@@ -629,6 +652,20 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
       "OoT's, so each menu would show a blank for the other's value. Ruled: the keys stay distinct and MM's own "
       "row (its own value list) is hosted beside SoH's on Enhancements > Difficulty." },
+    { "Bombchu drops rule (W6-PLAYER, held apart and hosted)", RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS,
+      "gEnhancements.EnableBombchuDrops",
+      "Same bool and JSON shape, different RULE: SoH's EnItem00_ConvertBombDropToBombchu never drops Bombchus "
+      "Link does not have and favours whichever of Bombs and Bombchus runs lower, and an Ocarina of Time seed can "
+      "force SoH's row on; MM's ChuDrops.cpp gives a Bomb drop an even chance to be a Bombchu. In the single exe "
+      "MM's rule also keeps SoH's first clause (review H1): it converts only while INV_CONTENT(ITEM_BOMBCHU) == "
+      "ITEM_BOMBCHU already holds, because the Bombchu count is a shared PROGRESSION quantity (shared_items.h) and "
+      "2Ship's unguarded rule would set the Bombchu item in Termina (z_parameter.c Item_Give), the next harvest "
+      "would carry the count into the pool, and OoT_ApplySharedAmmoCount would grant Hyrule the Bombchu item and "
+      "open its Bombchu shops before the seed placed them (OoT_SharedAmmoGrantBlocked stops that only when the "
+      "seed's Bombchu Bag option is on). It still never weighs the scarcer ammo, so one switch would still mean "
+      "two rules, and a seed-forced SoH row would show on while MM followed the hidden value. Ruled: the keys stay "
+      "distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. MM-only key: an "
+      "importer must carry it as MM's own and never onto SoH's." },
     { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
@@ -1002,8 +1039,16 @@ constexpr bool ComboIdentityKeysAreIdentity() {
  * reason the MM randomizer-options table gives for its own descriptors: a menu
  * row that spells its own CVar literal can drift from the provider that reads
  * it, and the drift is invisible — the widget flips a key nothing consults
- * (#499's exact failure). One table, read by the menu page AND by the locks,
+ * (#499's exact failure). One table, read by the menu rows AND by the locks,
  * makes a typo a red test instead of a dead control.
+ *
+ * WHERE THE ROWS ARE (#1133, ruling D5). Until #1133 a Combo > Majora's Mask
+ * page drew this table; the Combo header retired, and each OwnRow entry is now
+ * a row on the SoH Enhancements page that holds its twin or nearest relative,
+ * or in a "Majora's Mask" block there (SohMenuComboMmEnhancements.cpp, through
+ * the hosted-row seam). Each such row binds its key's RSBS_CVAR_MM_* define and
+ * takes its label, tooltip, widget and presentation from the entry for that
+ * define, so the keys below are spelled through those defines.
  *
  * SCOPE, deliberately narrow. Four keys, the four #682 names. Widening the
  * allowlist is a separate decision, because `2ship_enh` is a plain archive by
@@ -1122,7 +1167,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // key: no widget, no ShipInit seed, no preset. This row is that fix. The
     // operator's 2026-09-16 ruling keeps the DEFAULT (off, vanilla respawn);
     // exposing the toggle does not change it.
-    { "gEnhancements.Kaleido.GameOver", "Game Over Prompt",
+    { RSBS_CVAR_MM_KALEIDO_GAME_OVER, "Game Over Prompt",
       "Opens the Game Over screen and its save prompt on death instead of respawning at the area entrance; the "
       "screen's artwork is not drawn yet. Majora's Mask only.",
       "games/mm/src/code/z_game_over.c:84, "
@@ -1134,13 +1179,13 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // check-registrar-elision.sh audits that archive as `required`, so leg 1 is
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
-    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Double Time",
+    { RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME, "Better Double Time",
       "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
       "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472", "gEnhancements.Songs.BetterSongOfDoubleTime",
       "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]", MmEnhancementHosting::OwnRow,
       MmEnhancementLiveness::Live, "" },
-    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Time Song Cutscenes",
+    { RSBS_CVAR_MM_SKIP_SOT_CUTSCENES, "Skip Time Song Cutscenes",
       "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
       "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
@@ -1156,11 +1201,14 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // sits in `S2H::ShipInit` under this exact key — so that one click already
     // re-arms BOTH halves. A second checkbox here would be a second writer over
     // one key with nothing to gain, which is the duplicate-host shape #655
-    // removed for the tier-4 rules. The row points at the live control instead.
-    //
-    // UI parity M3: the page draws this row as a separator carrying `label` over
-    // a gray note that IS `tooltip` (a TEXT row has no tooltip of its own), so
-    // both are SoH-shaped copy: a one-word section name and one sentence.
+    // removed for the tier-4 rules. Until #1133 the Combo > Majora's Mask page
+    // drew this entry as a pointer (a separator carrying `label` over a gray
+    // note that was `tooltip`); since the rows moved onto SoH's pages it draws
+    // nothing: the interval's row sits directly after SoH's Autosave, whose
+    // tooltip says it applies to both games, so SoH's row IS the one row
+    // (#1119's form). The entry stays as the evidence behind the interval's
+    // gate (`shownWhileKey`), which the honesty rule requires to be a key this
+    // table accounts for.
     { "gEnhancements.Autosave", "Autosave",
       "Autosave is under Enhancements > Quality of Life and applies to both games.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave", "OnGameStateDrawFinish",
@@ -1199,7 +1247,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // OoT's 3-minute behaviour onto MM's 5-minute default without anyone asking.
     // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
     // no .redsave impact.
-    { "gEnhancements.Saving.AutosaveInterval", "MM Autosave Interval: %d minutes",
+    { RSBS_CVAR_MM_AUTOSAVE_INTERVAL, "MM Autosave Interval: %d minutes",
       "Sets how often the owl autosave fires; Ocarina of Time keeps its fixed 3 minutes. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,
