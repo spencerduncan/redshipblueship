@@ -370,6 +370,34 @@ void MM_Rando_ResolveTriforceHalf(int fromSave, uint16_t* outTotal, uint16_t* ou
  */
 int MM_Rando_FrozenMoonCrash(void);
 
+/**
+ * MM's "Keep Items on Cycle Reset" (#1175; OoTMM's keepItemsReset, name and
+ * description taken from OoTMM's settings data, a boolean, default off): the
+ * three-day reset keeps the ammo counts the shared pool does not hold (the
+ * Powder Keg and the Magic Beans) instead of wiping them, the pictograph box
+ * excepted. Its authoring key, in MM's option namespace beside the RO_* rows,
+ * and its descriptor id, the next of the combo's own MM rows (see
+ * RSBS_MM_OPTION_ID_MOON_CRASH for why those are not RO_* rows).
+ */
+#define RSBS_CVAR_MM_KEEP_ITEMS_RESET "gRando.Options.KeepItemsReset"
+#define RSBS_MM_OPTION_ID_KEEP_ITEMS_RESET 0x8001u
+
+/**
+ * THE CREATION FREEZE of Keep Items on Cycle Reset (#1175): writes the
+ * authored value (1 when its key is on, else 0) into
+ * gComboCtx.mmKeepItemsReset. Called by the creation event beside the
+ * mmProfileDigest stamp (OoT's Playthrough_Init), which folds the same key into
+ * MM's profile identity when on. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+void MM_Rando_FreezeKeepItemsResetAtCreation(void);
+
+/**
+ * 1 when THIS FILE keeps its items through a cycle reset: the frozen
+ * gComboCtx.mmKeepItemsReset, never the key. 0 for every world created before
+ * #1175 (the byte zero-extends). DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_FrozenKeepItemsReset(void);
+
 /** Outcomes of MM_Rando_RestoreProfileForLoad. */
 enum {
     RSBS_MM_PROFILE_LOAD_MATCHES = 0,      // the live CVars already resolve the file's profile

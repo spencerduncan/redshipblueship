@@ -199,6 +199,11 @@ const uint8_t* OoT_SeedPackage_TestFinishedMMHalf(size_t* outSize);
 /** TEST BRIDGE: the staged package's MM half (NULL when nothing is staged). */
 const uint8_t* OoT_SeedPackage_TestStagedMMHalf(size_t* outSize);
 
+/** TEST BRIDGE (#1175): the live combo record through the package's record
+ *  bytes and back, as a package load applies them: gComboCtx is re-initialized
+ *  and the package's world apply writes back what the record carries. */
+void OoT_SeedPackage_TestReapplyWorldRecord(void);
+
 #ifdef __cplusplus
 }
 

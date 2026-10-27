@@ -389,6 +389,10 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // that is exactly what happened: file-create ran the re-init below and the
     // creation-stamped digest never reached the file it named.
     const uint32_t savedMmProfileDigest = gComboCtx.mmProfileDigest;
+    // #1175: MM's frozen Keep Items on Cycle Reset is written beside that digest
+    // by the same creation event (MM_Rando_FreezeKeepItemsResetAtCreation), so it
+    // is KEPT with it by the same rule.
+    const uint8_t savedMmKeepItemsReset = gComboCtx.mmKeepItemsReset;
     // #534: the reverse placement table (OoT checks hosting MM items, #524)
     // travels WITH the stamp because it has the same author and the same
     // moment of authorship: Playthrough_Init stamps the pairing identity and,
@@ -477,6 +481,7 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // digest with no generation behind it would freeze the options pane
         // (Combo_MMProfileFrozen) for a pair that no longer exists.
         gComboCtx.mmProfileDigest = savedMmProfileDigest;
+        gComboCtx.mmKeepItemsReset = savedMmKeepItemsReset;
         // The other generation-authored artifact (#534) — see the snapshot
         // note above. KEEP-only on purpose: on a DROP path a populated table
         // belongs to a dead session and must go with it.

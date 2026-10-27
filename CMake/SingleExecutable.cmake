@@ -3086,6 +3086,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
     redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
 
+    # #1175: a Powder Keg found in Hyrule arrives in Termina as one keg (the real
+    # crossing redemption and a suspend/resume round trip); MM's frozen "Keep Items
+    # on Cycle Reset" (OoTMM's keepItemsReset, off by default) keeps it and the
+    # Magic Beans through a headless Sram_SaveEndOfCycle, and off wipes them as
+    # vanilla; the option's creation freeze, identity fold (only when on), and its
+    # byte through file-create, a seed package, a .redsave and the load-time
+    # restore. ROM-free (default tier); games/mm/2s2h/mm_cycle_keep_items_test.cpp.
+    redship_add_test(NAME MMCycleKeepItems COMMAND redship --test mm-cycle-keep-items)
+    redship_add_test(NAME MMKeepItemsResetFrozen COMMAND redship --test mm-keep-items-reset-frozen)
+
     # #770: two OoT actor Destroys write the save on ANY exit from their scene
     # (the windmill gear clears the Song of Storms windmill flag; in rando, after
     # the Water Temple blue warp, every Lake Hylia object raises the lake again),

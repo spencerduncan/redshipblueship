@@ -868,6 +868,7 @@ static void RetractPairedWorld(void) {
     gComboCtx.sharedRandoSeed = 0;
     gComboCtx.sharedRandoSettingsHash = 0;
     gComboCtx.mmProfileDigest = 0;
+    gComboCtx.mmKeepItemsReset = 0; // #1175: frozen beside the digest, retracted with it
     gComboCtx.mmPairedAttempt = 0;
     // #1044: no world, so no package either, and nothing waits at a general pass.
     sPairedWorldComplete = false;

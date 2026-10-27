@@ -264,6 +264,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     const uint32_t rsbsPriorSeed = gComboCtx.sharedRandoSeed;
     const uint32_t rsbsPriorSettingsHash = gComboCtx.sharedRandoSettingsHash;
     const uint32_t rsbsPriorMmProfileDigest = gComboCtx.mmProfileDigest;
+    const uint8_t rsbsPriorMmKeepItemsReset = gComboCtx.mmKeepItemsReset;
     // The combo record, its fingerprint, the triforce record and the item rules
     // (#976): one snapshot, so a field the freeze gains is rolled back with it.
     ComboCreationRecords rsbsPriorCreationRecords;
@@ -275,6 +276,7 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         gComboCtx.sharedRandoSeed = rsbsPriorSeed;
         gComboCtx.sharedRandoSettingsHash = rsbsPriorSettingsHash;
         gComboCtx.mmProfileDigest = rsbsPriorMmProfileDigest;
+        gComboCtx.mmKeepItemsReset = rsbsPriorMmKeepItemsReset;
         Combo_RestoreCreationRecords(&rsbsPriorCreationRecords);
         Combo_ClearForeignGiveCaps();
         if (rsbsPriorGiveCapsPublished) {
@@ -346,6 +348,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // compare; a mismatch at arrival is refused through the #533 machinery,
     // never honored. This is its ONLY writer for post-freeze pairs.
     gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    // #1175: MM's Keep Items on Cycle Reset freezes in the same act from the same
+    // key the stamp above folds (when on), so the byte play reads and the identity
+    // the arrival compares cannot disagree.
+    MM_Rando_FreezeKeepItemsResetAtCreation();
     // ...and the VALUES half of the same freeze (ADR 0011 O8): the give
     // capabilities the frozen profile arms, published game-neutrally so the
     // reverse placement pass below can finally ask a question a digest could
