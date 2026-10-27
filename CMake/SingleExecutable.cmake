@@ -188,6 +188,9 @@ set(REDSHIP_COMMON_SOURCES
     # one shareable zip, written and read through libzip, linked below for the
     # curated archives). Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.cpp
+    # The otr-readd-releases-handle row's body (#1190), its own TU because
+    # StormLib's header brings in <windows.h>. Test tooling only. APPENDED.
+    ${CMAKE_SOURCE_DIR}/src/common/tests/test_otr_readd_releases_handle.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -936,6 +939,11 @@ if(BUILD_TESTING)
     # re-added by path: archive count, game-version list and mount order
     # asserted. ROM-free and archive-free.
     redship_add_test(NAME ArchiveAddDedup COMMAND redship --test archive-add-dedup)
+    # #1190: a re-added .otr releases the MPQ of the copy it replaced (boot
+    # re-adds every mod after the curated half). A one-file MPQ written with
+    # StormLib, re-added eight times; the process's open handle count must grow
+    # by less than eight. ROM-free and archive-free.
+    redship_add_test(NAME OtrReaddReleasesHandle COMMAND redship --test otr-readd-releases-handle)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
