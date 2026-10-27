@@ -437,6 +437,9 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
     switch (def.kind) {
         case MMRK_SLOT:
             MMItemFillSlot(src, def, out);
+            if (def.item == (uint8_t)ITEM_HOOKSHOT && out->have) {
+                out->identifier = 'H'; // #1143: SoH's Hookshot Identifier; MM has no Longshot
+            }
             return true;
         case MMRK_SLOT_AMMO:
         case MMRK_SLOT_BOMBCHU:
@@ -453,6 +456,11 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
                            : (def.kind == MMRK_SLOT_BOMBCHU) ? (int)CUR_CAPACITY(UPG_BOMB_BAG)
                                                              : (int)CUR_CAPACITY(def.data);
             }
+            // #1143: SoH's maxCapacity, the largest bag. A fixed cap never grows (0), and bombchus
+            // are SoH's static ammo (DrawItemCount's shouldDisplayAmmo): no ceiling of their own,
+            // so every count mode shows the amount (of the bag's capacity), never the bag's tier.
+            out->capacityMax =
+                (def.kind == MMRK_SLOT_FIXED || def.kind == MMRK_SLOT_BOMBCHU) ? 0 : (int)CAPACITY(def.data, 3);
             return true;
         case MMRK_BOTTLES: {
             MMItemFillRando(out, def.rando);
@@ -518,6 +526,7 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             out->have = tier >= 1;
             out->count = gSaveContext.save.saveInfo.playerData.rupees;
             out->max = (int)CUR_CAPACITY(UPG_WALLET);
+            out->capacityMax = (int)CAPACITY(UPG_WALLET, 3); // #1143: the Giant's 500
             return true;
         }
         case MMRK_HEART_PIECES: {
@@ -571,6 +580,8 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             const s8 foundRaw = gSaveContext.save.shipSaveInfo.rando.foundDungeonKeys[def.data];
             out->count = IS_RANDO ? (foundRaw < 0 ? 0 : (int)foundRaw) : held;
             out->max = (int)def.item;
+            out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_KEYS; // #1143: SoH's Key Count Tracking reads these
+            out->held = held;
             out->have = held > 0;
             return true;
         }
@@ -1031,7 +1042,8 @@ extern "C" void MM_ItemAdapter_Register(void) {
  * rupees. Variant 1, the "live" world: the Hookshot, the Zora Mask, the Song
  * of Soaring and the Kokiri Sword only. Variant 2, the "capacity tier" world
  * (#967): the Bow (tier-1 quiver, 12 arrows), bombs (tier-2 bag, 7), Deku
- * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Returns 1, or
+ * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Variant 3,
+ * the bombchu world (#1143): variant 2 plus 13 Bombchus. Returns 1, or
  * 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
@@ -1061,7 +1073,7 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         s->save.saveInfo.playerData.isMagicAcquired = 1;
         inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_WALLET]);
         s->save.saveInfo.playerData.rupees = 150;
-    } else if (variant == 2) {
+    } else if (variant == 2 || variant == 3) {
         // The capacity-tier world (#967), OoT's twin: the Bow with a tier-1
         // quiver holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku
         // Sticks (tier 1), 9 Deku Nuts (tier 3), and the Kokiri Sword.
@@ -1078,6 +1090,10 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         inv.ammo[SLOT_DEKU_NUT] = 9;
         inv.upgrades |= (3u << MM_gUpgradeShifts[UPG_DEKU_NUTS]);
         s->save.saveInfo.equips.equipment |= (u16)(EQUIP_VALUE_SWORD_KOKIRI << MM_gEquipShifts[EQUIP_TYPE_SWORD]);
+        if (variant == 3) {
+            inv.items[SLOT_BOMBCHU] = ITEM_BOMBCHU;
+            inv.ammo[SLOT_BOMBCHU] = 13;
+        }
     } else {
         inv.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         inv.items[SLOT_MASK_ZORA] = ITEM_MASK_ZORA;
