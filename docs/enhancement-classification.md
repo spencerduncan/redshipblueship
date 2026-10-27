@@ -77,14 +77,14 @@ brief, plus everything in the collision set:
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
-| `Player` | 9 | ⚠️ 8 of 9, and only since W6-PLAYER (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER) and six (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the six. Underwater Ocarina is still (O) at category level only |
+| `Player` | 9 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
-| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4) |
+| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
 | `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
 | **Subtotal** | **130** | |
 
 **NOT classified at individual-setting level** — 55 MM keys across 6 categories:
-`Minigames` (18), `DifficultyOptions` (12), `Masks` (10), `Cycle` (8), `Songs` (7). These
+`Minigames` (18), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
 are classified **(O) MM-only at the category level** on the strength of their contents —
 Bombers' hide-and-seek, Deku flower launches, three-day-cycle resets, Song of Double Time,
 transformation masks have no OoT counterpart by construction. The two rows inside them that
@@ -285,6 +285,31 @@ at category level were checked for convergence and each failed on gating, so the
 | `gEnhancements.Camera.RightStick.InvertXAxis` | off | MM Invert Camera X Axis (Third-Person Camera) | (P) P3 |
 | `gEnhancements.Camera.RightStick.InvertYAxis` | **on (inverted)** | MM Invert Camera Y Axis | (P) P3 |
 | `gEnhancements.Camera.RightStick.CameraSensitivity.{X,Y}` | 100% | MM Third-Person Horizontal / Vertical Sensitivity (1-500%) | (P) P3 |
+
+**W6-CAM-GYRO (#1235, #1236, #1240) — gyro aiming, pitch limits, debug camera, Remote Bombchu and the speed modifiers.**
+MM read every key below, but its only widgets sat in the excluded `BenMenu.cpp` and `BenInputEditorWindow.cpp`, and
+three providers (`Camera/DebugCam.cpp`, `Equipment/RemoteBombchu.cpp`, `Player/LinkSpeedModifier.cpp`) were out of the
+link. They are now carved into `ship__Enh_registrars`, and each key has an MM-labelled row bound through its
+`RSBS_CVAR_MM_*` define: the camera and speed rows in SoH's Bindings window (`SohInputEditorWindow.cpp`,
+`DrawMmCameraRows`), Remote Bombchu Control on Enhancements > Items > Explosives (`SohMenuHostedMmCamGyro.cpp`). Free
+Look stands aside while the debug camera is on, and is unchanged while it is off. The registrar-coverage lock's
+W6-CAM-GYRO phase attributes each TU by registry content; the classification lock's leg 3f-2c holds each binding.
+`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows after SoH's under Modifier
+Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistinct` row.
+
+| MM key | MM default | Row (where) | Call |
+|---|---|---|---|
+| `gEnhancements.Camera.FirstPerson.GyroEnabled` | off | MM Gyro Aiming (Camera Controls, after MM's aiming rows) | (P) P3: SoH has no gyro aiming |
+| `gEnhancements.Camera.FirstPerson.GyroInvert{X,Y}` | off | MM Invert Gyro Aiming X / Y Axis (shown while MM Gyro Aiming is on) | (P) P3 |
+| `gEnhancements.Camera.FirstPerson.GyroSensitivity{X,Y}` | 100% | MM Gyro Aiming Horizontal / Vertical Sensitivity (1-200%, likewise) | (P) P3 |
+| `gEnhancements.Camera.FreeLook.{MaxPitch,MinPitch}` | 72° / -49° | MM Max / Min Camera Height Angle (Camera Controls, after SoH's free-look rows) | (O) SoH's free look has no pitch limit; the pair stays ordered as in 2Ship |
+| `gEnhancements.Camera.DebugCam.Enable` | off | MM Debug Camera (likewise) | (O) MM-only; listens to port 1 (its port key has no row and is not read in the single exe) |
+| `gEnhancements.Camera.DebugCam.{6DOF,CameraSpeed}` | off / 50% | MM Enable Roll (6° of Freedom), MM Debug Camera Speed (10-300%, shown while MM Debug Camera is on) | (O) MM-only |
+| `gEnhancements.PlayerActions.RemoteBombchu` | off | Remote Bombchu Control (Items > Explosives, after SoH's Prevent Bombchus Forcing First-Person) | (O) nearest relative only |
+| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH's walk modifier has one enable and a 0-500% range |
+| `gSettings.SpeedModifier.{WalkEnable,SwimEnable}` | off | MM Enable Walk / Swim Speed Modifier (shown while MM's enable is on) | (P) likewise: SoH has no separate walk and swim enables |
+| `gSettings.SpeedModifier.{WalkMapping1,WalkMapping2}` | 100% | MM Walk Modifier 1 / 2 (0-1500%, likewise) | (P) likewise |
+| `gSettings.SpeedModifier.{SwimMapping1,SwimMapping2}` | 100% | MM Swim Modifier 1 / 2 (0-875%, likewise) | (P) likewise |
 
 **W6-PLAYER (#1236) — Climb Speed and Bombchu Drops, held apart and given rows.** Two of W6-PLAYER's twelve keys have
 an SoH twin whose rule differs, so each stays in `kMustStayDistinct` and gets an MM-labelled row right after its SoH
@@ -498,11 +523,25 @@ default (off).
 | `Cycle.StopOceansideSpiderHouseSquatter` | 1 | (O). Row "Stop Oceanside Spider House Squatter", same block; forced on for rando (`CVAR \|\| IS_RANDO`, #1221), `Cycle/OceansideSpiderHouseSquatter.cpp` linked and #1224's port retired |
 | `Cycle.OceansideWalletAnyDay` | 1 | (O). Row "Oceanside Wallet Any Day", same block; forced on for rando (#1221), `Cycle/OceansideWalletAnyDay.cpp` linked and #1224's port retired |
 | `gCheats.{LongerFlowerGlide, ElegyAnywhere, TempleTimeStop, UnbreakableRazorSword}` | 4 | (O) MM-only cheats. Rows "Longer Deku Flower Glide", "Elegy of Emptiness Anywhere", "Stop Time in Dungeons" and "Unbreakable Razor Sword" under a Majora's Mask block at the end of Enhancements > Cheats (W6-CYCLE-CHEATS, #1240); their four TUs linked. Unbreakable Razor Sword is forced on for rando (#1215) |
-| `Masks` | 10 | Transformation masks, Bunny Hood persistence, Blast Mask |
-| `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
+| `Masks.EquipWhileSwimming` | 1 | (O). Row "Equippable While Swimming", Items > Masks, Majora's Mask block (W6-MASKS-SONGS, #1236); `Masks/EquipWhileSwimming.cpp` linked (play-state guard added). Keys on MM item actions, so an Ocarina of Time mask MM hosts (worn through its shared slot's C button, #977) goes on in water too |
+| `Masks.BlastMaskKeg` | 1 | (O). Row "Blast Mask Has Powder Keg Force", same block; `Masks/BlastMaskKeg.cpp` linked (play-state guard added) |
+| `Masks.FastTransformation` | 1 | (O). Row "Fast Transformation", same block; `Masks/FastTransformation.cpp` linked (play-state guard added). A worn foreign mask still comes off on transforming: `Rando/ForeignMaskMM.cpp` applies MM's human-form rule every player update |
+| `Masks.FierceDeitysAnywhere` | 1 | (O). Row "Fierce Deity's Mask Anywhere", same block; `Masks/FierceDeityAnywhere.cpp` linked (play-state guards on its four play-state readers) |
+| `Masks.PersistentBunnyHood.Enabled` | 1 | (O). Row "Persistent Bunny Hood", same block; `Masks/PersistentMasks.cpp` linked (its #438 guards were already in place, three more added). Keys on the Bunny Hood alone, which shares no pause slot with a foreign mask; a Bunny Hood found in Hyrule is MM's own inventory item through the pool |
+| `Masks.PersistentBunnyHood.State` | 1 | INTERNAL, no row: the toggle `PersistentMasks.cpp` itself writes from A on the mask menu and clears when the switch is off or the hood is not owned |
+| `Masks.NoBlastMaskCooldown` | 1 | (O). Row "No Blast Mask Cooldown", same block; `Masks/NoBlastMaskCooldown.cpp` linked |
+| `Masks.GoronRollingIgnoresMagic` | 1 | (O). Row "Goron Rolling Ignores Magic", same block; `Masks/GoronRollingIgnoresMagic.cpp` linked (play-state guard added) |
+| `Masks.GoronRollingFastSpikes` | 1 | (O). Row "Goron Rolling Fast Spikes", same block; `Masks/GoronRollingFastSpikes.cpp` linked (play-state guard added) |
+| `Songs.PauseOwlWarp` | 1 | (O). Row "Pause Owl Warp", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1240). `Songs/PauseOwlWarp.cpp` was already linked through the z_kaleido accessor; the row was MISSING |
+| `Songs.EnableSunsSong` | 1 | (O). Row "Enable Sun's Song", same block; `Songs/EnableSunsSong.cpp` linked. Makes the song playable without its quest bit, which is not a shared song (only Epona's Song and the Song of Storms are, #1066), and its notes stay behind the shared ocarina buttons |
+| `Songs.ZoraEggCount` | 1 | (O). Slider "Zora Eggs for Bossa Nova" (1-7, default 7), same block; `Songs/ZoraEggCount.cpp` linked |
+| `Songs.FasterSongPlayback` | 1 | (O). Row "Faster Song Playback", same block; `Songs/FasterSongPlayback.cpp` linked (play-state guards added). SoH's `gEnhancements.FastOcarinaPlayback` is its nearest relative, not a twin (SoH skips the replay of the notes; MM cuts the wait after the song and the Elegy statues' fade) |
+| `Songs.SkipSoaringCutscene` | 1 | (O). Row "Skip Soaring Cutscene", same block; `Songs/SkipSoaringCutscene.cpp` linked (play-state guard added). #1133 L7 may move it to Skips & Speed-ups > Cutscenes later |
+| `Songs.{BetterSongOfDoubleTime, SkipSoTCutscenes}` | 2 | (O). Rows hosted by L7 (#1133): see the #1133 hosted-rows table in §5.3 |
+| `Player.UnderwaterOcarina` | 1 | (O). Row "Underwater Ocarina", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1236); `Player/UnderwaterOcarina.cpp` linked (play-state guard added) |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
 | `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
-| `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu |
+| `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
 | `gFixes.*` | 4 | MM-specific colour/Epona fixes |

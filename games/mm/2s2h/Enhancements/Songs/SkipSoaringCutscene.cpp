@@ -12,6 +12,9 @@ extern "C" {
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 static void SkipSoaringCutscene(Actor* actor, bool* should) {
+    // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+    // play state leaves the vanilla behavior untouched.
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
     s16 ocarinaMode = OWL_WARP_CS_GET_OCARINA_MODE(actor);
     if (ocarinaMode == ENTEST7_ARRIVE) {
         return;

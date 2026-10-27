@@ -181,6 +181,9 @@ void RegisterPersistentMasks() {
 
     // Speed the player up when the bunny hood state is active
     COND_VB_SHOULD(VB_CONSIDER_BUNNY_HOOD_EQUIPPED, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = va_arg(args, Player*);
 
         // But don't speed up if the player is non-human and controller input is being overriden for cutscenes/minigames
@@ -201,6 +204,9 @@ void RegisterPersistentMasks() {
 
     // When they do equip the mask, prevent it and instead set our state
     COND_VB_SHOULD(VB_USE_ITEM_EQUIP_MASK, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         PlayerMask* maskId = va_arg(args, PlayerMask*);
         Player* player = GET_PLAYER(MM_gPlayState);
 
@@ -250,6 +256,9 @@ void RegisterPersistentMasks() {
     // Prevent persistent Bunny Hood from being used as an Item Action. Normally, the currently equipped mask converts
     // to PLAYER_IA_NONE
     COND_VB_SHOULD(VB_GET_ITEM_ACTION_FROM_MASK, CVAR, {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         PlayerItemAction playerItemAction = (PlayerItemAction)va_arg(args, int);
 

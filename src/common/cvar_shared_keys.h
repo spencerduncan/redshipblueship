@@ -516,7 +516,49 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
 // W6-MASKS-SONGS
+// W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
+// Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
+// Playback is only the nearest relative of Faster Song Playback); Underwater Ocarina is a Player key whose row belongs
+// with the Ocarina. PersistentBunnyHood.State is the TU's internal toggle and has no row.
+#define RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING "gEnhancements.Masks.EquipWhileSwimming"
+#define RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG "gEnhancements.Masks.BlastMaskKeg"
+#define RSBS_CVAR_MM_MASKS_FAST_TRANSFORMATION "gEnhancements.Masks.FastTransformation"
+#define RSBS_CVAR_MM_MASKS_FIERCE_DEITYS_ANYWHERE "gEnhancements.Masks.FierceDeitysAnywhere"
+#define RSBS_CVAR_MM_MASKS_PERSISTENT_BUNNY_HOOD "gEnhancements.Masks.PersistentBunnyHood.Enabled"
+#define RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN "gEnhancements.Masks.NoBlastMaskCooldown"
+#define RSBS_CVAR_MM_MASKS_GORON_ROLLING_IGNORES_MAGIC "gEnhancements.Masks.GoronRollingIgnoresMagic"
+#define RSBS_CVAR_MM_MASKS_GORON_ROLLING_FAST_SPIKES "gEnhancements.Masks.GoronRollingFastSpikes"
+#define RSBS_CVAR_MM_SONGS_PAUSE_OWL_WARP "gEnhancements.Songs.PauseOwlWarp"
+#define RSBS_CVAR_MM_SONGS_ENABLE_SUNS_SONG "gEnhancements.Songs.EnableSunsSong"
+#define RSBS_CVAR_MM_SONGS_ZORA_EGG_COUNT "gEnhancements.Songs.ZoraEggCount"
+#define RSBS_CVAR_MM_SONGS_FASTER_SONG_PLAYBACK "gEnhancements.Songs.FasterSongPlayback"
+#define RSBS_CVAR_MM_SONGS_SKIP_SOARING_CUTSCENE "gEnhancements.Songs.SkipSoaringCutscene"
+#define RSBS_CVAR_MM_PLAYER_UNDERWATER_OCARINA "gEnhancements.Player.UnderwaterOcarina"
 // W6-CAM-GYRO
+// #1235, #1236, #1240: MM's gyro aiming, free-look pitch limits, debug camera, Remote Bombchu Control and speed
+// modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gSettings.WalkModifier.*
+// (kMustStayDistinct below: different ranges, and MM enables walking and swimming separately). The camera and speed
+// rows sit in SoH's Bindings window (SohInputEditorWindow.cpp, DrawMmCameraRows), Remote Bombchu Control on
+// Enhancements > Items > Explosives (HostedMm/SohMenuHostedMmCamGyro.cpp).
+#define RSBS_CVAR_MM_CAMERA_FP_GYRO_ENABLED "gEnhancements.Camera.FirstPerson.GyroEnabled"
+#define RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_X "gEnhancements.Camera.FirstPerson.GyroInvertX"
+#define RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_Y "gEnhancements.Camera.FirstPerson.GyroInvertY"
+#define RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_X "gEnhancements.Camera.FirstPerson.GyroSensitivityX"
+#define RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_Y "gEnhancements.Camera.FirstPerson.GyroSensitivityY"
+#define RSBS_CVAR_MM_CAMERA_FREE_LOOK_MAX_PITCH "gEnhancements.Camera.FreeLook.MaxPitch"
+#define RSBS_CVAR_MM_CAMERA_FREE_LOOK_MIN_PITCH "gEnhancements.Camera.FreeLook.MinPitch"
+#define RSBS_CVAR_MM_CAMERA_DEBUG_CAM_ENABLE "gEnhancements.Camera.DebugCam.Enable"
+#define RSBS_CVAR_MM_CAMERA_DEBUG_CAM_6DOF "gEnhancements.Camera.DebugCam.6DOF"
+#define RSBS_CVAR_MM_CAMERA_DEBUG_CAM_SPEED "gEnhancements.Camera.DebugCam.CameraSpeed"
+#define RSBS_CVAR_MM_PLAYER_ACTIONS_REMOTE_BOMBCHU "gEnhancements.PlayerActions.RemoteBombchu"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE "gSettings.SpeedModifier.Enable"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_TOGGLE "gSettings.SpeedModifier.Toggle"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_WALK_ENABLE "gSettings.SpeedModifier.WalkEnable"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1 "gSettings.SpeedModifier.WalkMapping1"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING2 "gSettings.SpeedModifier.WalkMapping2"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_ENABLE "gSettings.SpeedModifier.SwimEnable"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1 "gSettings.SpeedModifier.SwimMapping1"
+#define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2 "gSettings.SpeedModifier.SwimMapping2"
 // W6-GFX
 // W6-FIXES
 // W6-MODES-DIFF
@@ -617,6 +659,13 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "(0 vs 1) and the range (0-12 vs 1-5) both disagree, so a shared slider cannot mean both. Same failure "
       "shape as P1 text speed. Converge only after a maintainer decides which unit wins and MM's read/menu are "
       "converted to it — a plain key swap is a regression, not a fix." },
+    // W6-CAM-GYRO (#1235): the speed modifiers, the #1037 value-space ruling applied.
+    { "Speed modifier value space (W6-CAM-GYRO)", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1,
+      "gSettings.WalkModifier.Mapping1",
+      "Same idea (hold or toggle M1 / M2 to scale Link's speed), different value spaces and gating: SoH's walk and "
+      "swim multipliers run 0-5x behind one enable, while MM's walk runs 0-15x and its swim 0-8.75x, each behind "
+      "its own walk or swim enable as well as the master one. A shared slider would clip MM's range or hand SoH "
+      "values it never offers. Each game keeps its own rows under the Bindings window's Modifier Buttons." },
     { "Autosave interval (inventory §5.3 group A caveat)", "gEnhancements.Saving.AutosaveInterval",
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "

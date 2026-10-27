@@ -1540,6 +1540,10 @@ constexpr const char* kHostedMmPagePrefix = "MM rows/";
 constexpr const char* kSohBindingsWindow = "Configure Controller";
 constexpr const char* kSohBindingsReference = "window/Configure Controller";
 constexpr const char* kSohBindingsMmRightStickAim = RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED;
+// W6-CAM-GYRO: the MM switches that show MM's gyro axes (Camera Controls) and its speed modifier panel (Modifier
+// Buttons) there.
+constexpr const char* kSohBindingsMmGyroAim = RSBS_CVAR_MM_CAMERA_FP_GYRO_ENABLED;
+constexpr const char* kSohBindingsMmSpeedModifiers = RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE;
 
 /**
  * Opens (or closes) one of the Bindings window's Link (P1) CollapsingHeaders, which SoH draws closed. Its open state
@@ -2191,6 +2195,14 @@ void Session::BuildPageList() {
         p.expectText = { kSohBindingsWindow };
         p.paneHovers = { { "mm-invert-aiming-y", "", "MM Invert Aiming Y Axis" },
                          { "mm-right-stick-invert-y", "mm-right-stick", "MM Invert Right Stick Aiming Y Axis" } };
+        // W6-CAM-GYRO: "mm-gyro" turns MM's Gyro Aiming on, which shows its gyro axes after MM's aiming rows; the
+        // debug camera sits after SoH's free-look rows. "mm-speed" also opens Modifier Buttons with MM's speed
+        // modifiers on, which shows their panel after SoH's.
+        p.states.push_back("mm-gyro");
+        p.states.push_back("mm-speed");
+        p.paneHovers.push_back({ "mm-gyro-invert-x", "mm-gyro", "MM Invert Gyro Aiming X Axis" });
+        p.paneHovers.push_back({ "mm-debug-camera", "mm-gyro", "MM Debug Camera" });
+        p.paneHovers.push_back({ "mm-speed-walk-enable", "mm-speed", "MM Enable Walk Speed Modifier" });
         p.needsRom = true;
         pages.push_back(p);
     }
@@ -3195,13 +3207,26 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         if (state == "mm-right-stick") {
             CVarSetInteger(kSohBindingsMmRightStickAim, 1);
         }
-        // The window exists once it has been drawn: show it for one frame, then open Camera Controls in it.
+        if (state == "mm-gyro") {
+            CVarSetInteger(kSohBindingsMmGyroAim, 1); // W6-CAM-GYRO
+        }
+        if (state == "mm-speed") {
+            CVarSetInteger(kSohBindingsMmSpeedModifiers, 1); // W6-CAM-GYRO
+        }
+        // The window exists once it has been drawn: show it for one frame, then open Camera Controls in it (and, for
+        // "mm-speed", Modifier Buttons).
         auto bindings = gui->GetGuiWindow(kSohBindingsWindow);
         if (bindings != nullptr) {
             bindings->Show();
             std::string why;
+            const bool modifiers = state == "mm-speed";
             PumpFrame(
-                nullptr, false, []() { SetSohBindingsHeaderOpen("Camera Controls", true); }, why);
+                nullptr, false,
+                [modifiers]() {
+                    SetSohBindingsHeaderOpen("Camera Controls", true);
+                    SetSohBindingsHeaderOpen("Modifier Buttons", modifiers);
+                },
+                why);
         }
     } else if (p.id == "window/Audio Editor") {
         // W6-AUDIO-SEQ: the tab each state shows (the request is kept until the window next draws).
@@ -3294,7 +3319,10 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     }
     if (p.id == kSohBindingsReference) {
         CVarClear(kSohBindingsMmRightStickAim);
+        CVarClear(kSohBindingsMmGyroAim);        // W6-CAM-GYRO
+        CVarClear(kSohBindingsMmSpeedModifiers); // W6-CAM-GYRO
         SetSohBindingsHeaderOpen("Camera Controls", false);
+        SetSohBindingsHeaderOpen("Modifier Buttons", false);
     }
     if (p.rowStateProbe && state == "race-lockout") {
         CVarClear(CVAR_SETTING("DisableChanges"));

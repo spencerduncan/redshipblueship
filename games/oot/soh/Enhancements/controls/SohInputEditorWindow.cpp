@@ -8,6 +8,7 @@
 #include "soh/cvar_prefixes.h"
 #include "cvar_shared_keys.h" // RSBS: MM's camera keys, for DrawMmCameraRows
 #include "combo_ui.h"         // RSBS: ComboUi_NotifyRect, so the UI snapshot can hover an MM row
+#include <functional>         // RSBS (W6-CAM-GYRO): DrawMmCameraRows' group-panel callbacks
 #ifndef __WIIU__
 #include <ship/controller/controldevice/controller/mapping/sdl/SDLAxisDirectionToButtonMapping.h>
 #endif
@@ -1372,9 +1373,19 @@ void SohInputEditorWindow::DrawOcarinaControlPanel() {
 // games/oot never spells an MM key. Each row shows the default MM reads: MM inverts its aiming, right-stick aiming and
 // camera Y axes by default. Slider ranges are 2Ship's. Each row reports its rectangle to the combo_ui recorder, so the
 // UI snapshot can hover it. DrawCameraControlPanel calls this once per block.
-enum class MmCameraRows { Aiming, Shield, ThirdPerson };
+// RSBS (W6-CAM-GYRO): the same function draws MM's gyro aiming rows after its aiming rows, its free-look pitch limits
+// and debug camera after SoH's free-look rows, and its speed modifiers after SoH's under Modifier Buttons. None but the
+// speed modifiers has an SoH twin; those stay apart from SoH's (RSBS::kMustStayDistinct: other ranges, and MM enables
+// walking and swimming separately), so every row is MM-labelled and says "Majora's Mask only.".
+enum class MmCameraRows { Aiming, Shield, ThirdPerson, Gyro, FreeLookPitch, DebugCamera, SpeedModifiers };
 
-static void DrawMmCameraRows(MmCameraRows block) {
+// The speed modifier block draws SoH's group panels through @p beginPanel / @p endPanel, the window's own (protected)
+// BeginGroupPanel / EndGroupPanel, which DrawLinkTab hands in; the other blocks draw none.
+using MmBeginGroupPanel = std::function<void(const char*)>;
+using MmEndGroupPanel = std::function<void()>;
+
+static void DrawMmCameraRows(MmCameraRows block, const MmBeginGroupPanel& beginPanel = nullptr,
+                             const MmEndGroupPanel& endPanel = nullptr) {
     // MM's right-stick rows hide while its right-stick aiming is off, as SoH's move-while-aiming row does.
     static constexpr const char* kMmRightStickAim = RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED;
     auto report = [](const char* label, const char* tooltip) {
@@ -1532,6 +1543,213 @@ static void DrawMmCameraRows(MmCameraRows block) {
                                            .Tooltip(tip));
             report("MM Third-Person Vertical Sensitivity: %.0f %%", tip);
             break;
+        case MmCameraRows::Gyro:
+            // MM's gyro axes hide while its Gyro Aiming is off (z_player.c reads them only then), as 2Ship's do.
+            tip = "Aims with the controller's gyro in first-person view and weapon aiming, and stops that view from "
+                  "auto-centering. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Gyro Aiming", RSBS_CVAR_MM_CAMERA_FP_GYRO_ENABLED,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Gyro Aiming", tip);
+            if (CVarGetInteger(RSBS_CVAR_MM_CAMERA_FP_GYRO_ENABLED, 0)) {
+                tip = "Inverts the gyro's X Axis in first-person view and weapon aiming. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Invert Gyro Aiming X Axis", RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_X,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Invert Gyro Aiming X Axis", tip);
+                tip = "Inverts the gyro's Y Axis in first-person view and weapon aiming. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Invert Gyro Aiming Y Axis", RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_Y,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Invert Gyro Aiming Y Axis", tip);
+                tip = "Adjusts how fast the gyro turns the first-person view and weapon aiming sideways. Majora's Mask "
+                      "only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Gyro Aiming Horizontal Sensitivity: %.0f %%",
+                                           RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_X,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.01f)
+                                               .Max(2.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Gyro Aiming Horizontal Sensitivity: %.0f %%", tip);
+                tip = "Adjusts how fast the gyro tilts the first-person view and weapon aiming up and down. Majora's "
+                      "Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Gyro Aiming Vertical Sensitivity: %.0f %%",
+                                           RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_Y,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.01f)
+                                               .Max(2.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Gyro Aiming Vertical Sensitivity: %.0f %%", tip);
+            }
+            break;
+        case MmCameraRows::FreeLookPitch: {
+            // MM clamps its free-look camera's pitch to these two angles (FreeLook.cpp); 2Ship keeps the highest at or
+            // above the lowest, and so does this pair.
+            auto orderPitch = []() {
+                const float maxPitch = CVarGetFloat(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MAX_PITCH, 72.0f);
+                const float minPitch = CVarGetFloat(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MIN_PITCH, -49.0f);
+                if (maxPitch < minPitch) {
+                    CVarSetFloat(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MAX_PITCH, minPitch);
+                    CVarSetFloat(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MIN_PITCH, maxPitch);
+                    Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
+                }
+            };
+            tip = "Sets the highest angle the free-look camera can tilt to. Majora's Mask only.";
+            ImGui::BeginGroup();
+            if (UIWidgets::CVarSliderFloat("MM Max Camera Height Angle: %.0f\xC2\xB0",
+                                           RSBS_CVAR_MM_CAMERA_FREE_LOOK_MAX_PITCH,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .Format("%.0f\xC2\xB0")
+                                               .Step(1.0f)
+                                               .Min(-89.0f)
+                                               .Max(89.0f)
+                                               .DefaultValue(72.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip))) {
+                orderPitch();
+            }
+            report("MM Max Camera Height Angle: %.0f\xC2\xB0", tip);
+            tip = "Sets the lowest angle the free-look camera can tilt to. Majora's Mask only.";
+            ImGui::BeginGroup();
+            if (UIWidgets::CVarSliderFloat("MM Min Camera Height Angle: %.0f\xC2\xB0",
+                                           RSBS_CVAR_MM_CAMERA_FREE_LOOK_MIN_PITCH,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .Format("%.0f\xC2\xB0")
+                                               .Step(1.0f)
+                                               .Min(-89.0f)
+                                               .Max(89.0f)
+                                               .DefaultValue(-49.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip))) {
+                orderPitch();
+            }
+            report("MM Min Camera Height Angle: %.0f\xC2\xB0", tip);
+            break;
+        }
+        case MmCameraRows::DebugCamera:
+            // MM's debug camera answers the custom-camera hook beside Free Look and takes the camera while it is on
+            // (FreeLook.cpp stands aside). Its roll and speed rows hide while it is off, as 2Ship's do.
+            tip = "Frees the camera from Link: the right stick turns it, the left stick, Z and R move it, D-Up and "
+                  "D-Down set its distance, and A, B or L speed it up. Link stands still while it is on, and it takes "
+                  "the camera over from Free Look. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Debug Camera", RSBS_CVAR_MM_CAMERA_DEBUG_CAM_ENABLE,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Debug Camera", tip);
+            if (CVarGetInteger(RSBS_CVAR_MM_CAMERA_DEBUG_CAM_ENABLE, 0)) {
+                tip = "Allows all six degrees of movement, with D-Left and D-Right rolling the camera. Yaw then turns "
+                      "around the focal point instead of a polar axis. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Enable Roll (6\xC2\xB0 of Freedom)", RSBS_CVAR_MM_CAMERA_DEBUG_CAM_6DOF,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Enable Roll (6\xC2\xB0 of Freedom)", tip);
+                tip = "Adjusts how fast the debug camera moves and turns. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Debug Camera Speed: %.0f %%", RSBS_CVAR_MM_CAMERA_DEBUG_CAM_SPEED,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.1f)
+                                               .Max(3.0f)
+                                               .DefaultValue(0.5f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Debug Camera Speed: %.0f %%", tip);
+            }
+            break;
+        case MmCameraRows::SpeedModifiers:
+            // MM's speed modifiers ride the same M1 / M2 buttons as SoH's, with 2Ship's ranges (walk 0-1500%, swim
+            // 0-875%) and their own walk and swim enables; the panel shows while MM's master enable is on.
+            tip = "Hold the assigned button to change the maximum walking or swimming speed. Majora's Mask only.";
+            ImGui::BeginGroup();
+            UIWidgets::CVarCheckbox("MM Enable speed modifiers", RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE,
+                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+            report("MM Enable speed modifiers", tip);
+            if (CVarGetInteger(RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE, 0) && beginPanel && endPanel) {
+                UIWidgets::Spacer(5);
+                beginPanel("MM Speed Modifier");
+                tip = "Switches a modifier on and off with a press instead of holding its button. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Toggle modifier instead of holding", RSBS_CVAR_MM_SPEED_MODIFIER_TOGGLE,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Toggle modifier instead of holding", tip);
+                beginPanel("MM Walk Modifier");
+                tip = "Applies the modifiers to Link's walking and running speed. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Enable Walk Speed Modifier", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_ENABLE,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Enable Walk Speed Modifier", tip);
+                tip = "Multiplies Link's maximum walking speed while M1 is held. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Walk Modifier 1: %.0f %%", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.0f)
+                                               .Max(15.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Walk Modifier 1: %.0f %%", tip);
+                tip = "Multiplies Link's maximum walking speed while M2 is held. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Walk Modifier 2: %.0f %%", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING2,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.0f)
+                                               .Max(15.0f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Walk Modifier 2: %.0f %%", tip);
+                endPanel();
+                beginPanel("MM Swim Modifier");
+                tip = "Applies the modifiers to Link's swimming speed. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarCheckbox("MM Enable Swim Speed Modifier", RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_ENABLE,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
+                report("MM Enable Swim Speed Modifier", tip);
+                tip = "Multiplies Link's maximum swimming speed while M1 is held. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Swim Modifier 1: %.0f %%", RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.0f)
+                                               .Max(8.75f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Swim Modifier 1: %.0f %%", tip);
+                tip = "Multiplies Link's maximum swimming speed while M2 is held. Majora's Mask only.";
+                ImGui::BeginGroup();
+                UIWidgets::CVarSliderFloat("MM Swim Modifier 2: %.0f %%", RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2,
+                                           UIWidgets::FloatSliderOptions()
+                                               .Color(THEME_COLOR)
+                                               .IsPercentage()
+                                               .Min(0.0f)
+                                               .Max(8.75f)
+                                               .DefaultValue(1.0f)
+                                               .ShowButtons(true)
+                                               .Tooltip(tip));
+                report("MM Swim Modifier 2: %.0f %%", tip);
+                endPanel();
+                endPanel();
+            }
+            break;
     }
 }
 
@@ -1606,6 +1824,7 @@ void SohInputEditorWindow::DrawCameraControlPanel() {
                             .ShowButtons(true));
     }
     DrawMmCameraRows(MmCameraRows::Aiming); // RSBS (W6-CAM-AIM): MM's aiming rows
+    DrawMmCameraRows(MmCameraRows::Gyro);   // RSBS (W6-CAM-GYRO): MM's gyro aiming rows
     Ship::GuiWindow::EndGroupPanel(0);
 
     cursor = ImGui::GetCursorPos();
@@ -1639,6 +1858,8 @@ void SohInputEditorWindow::DrawCameraControlPanel() {
                   IntSliderOptions().Color(THEME_COLOR).Min(100).Max(900).DefaultValue(185).ShowButtons(true));
     CVarSliderInt("Camera Transition Speed: %d", CVAR_SETTING("FreeLook.TransitionSpeed"),
                   IntSliderOptions().Color(THEME_COLOR).Min(0).Max(900).DefaultValue(25).ShowButtons(true));
+    DrawMmCameraRows(MmCameraRows::FreeLookPitch); // RSBS (W6-CAM-GYRO): MM's free-look pitch limits
+    DrawMmCameraRows(MmCameraRows::DebugCamera);   // RSBS (W6-CAM-GYRO): MM's debug camera
     Ship::GuiWindow::EndGroupPanel(0);
 }
 
@@ -1827,6 +2048,10 @@ void SohInputEditorWindow::DrawLinkTab() {
                 Ship::GuiWindow::EndGroupPanel(0);
                 Ship::GuiWindow::EndGroupPanel(0);
             }
+            DrawMmCameraRows( // RSBS (W6-CAM-GYRO): MM's speed modifiers
+                MmCameraRows::SpeedModifiers,
+                [this](const char* name) { BeginGroupPanel(name, ImGui::GetContentRegionAvail()); },
+                [this]() { EndGroupPanel(0); });
             ImGui::EndDisabled();
         }
 
