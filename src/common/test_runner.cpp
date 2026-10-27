@@ -1154,9 +1154,6 @@ static TestResult Test_MMMoonCrashCycleReset(void) {
     return MM_MoonCrashCycleReset_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-static TestResult Test_MMCycleKeepItems(void) {
-    return MM_CycleKeepItems_Run() == 0 ? TEST_PASS : TEST_FAIL;
-}
 
 static TestResult Test_MMCreationNewFile(void) {
     const bool synthetic = MM_CreationNewFile_RunSynthetic() == 0;
@@ -1396,8 +1393,23 @@ TestResult Test_MMMoonCrashCycleForced(void) {
     return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// #1175: the profile stamp and the load-time restore read the CVar store, so
-// the row takes the same display-free bring-up as mm-moon-crash-cycle-forced.
+// #1175: the crossing's give and the cycle reset run 2Ship code that may read
+// a CVar, and the profile stamp and the load-time restore read the CVar store,
+// so both rows take the same display-free bring-up as
+// mm-moon-crash-cycle-forced.
+static TestResult Test_MMCycleKeepItems(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_CycleKeepItems_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMKeepItemsResetFrozen(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {

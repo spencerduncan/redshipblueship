@@ -363,11 +363,14 @@ extern "C" int MM_KeepItemsResetFrozen_Run(void) {
         ComboContext_Init();
         CVarSetInteger(RSBS_CVAR_MM_KEEP_ITEMS_RESET, 1);
         const uint32_t frozen = MM_Rando_ComputeProfileStamp();
-        // The file's MM half, resolved from the same keys (solo: no identity stamped).
+        // The file's MM half, authored as the creation event authors it: the
+        // stamp first, then the PAIRED resolution (its logic pin is part of the
+        // identity), which compares against that stamp.
+        gComboCtx.mmProfileDigest = frozen;
         memset(&gSaveContext, 0, sizeof(SaveContext));
         MM_Sram_InitNewSave();
         gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
-        Rando::Foreign::ResolvePairedProfile(false);
+        Rando::Foreign::ResolvePairedProfile(/*paired=*/true);
         std::vector<uint8_t> half(sizeof(SaveContext));
         memcpy(half.data(), &gSaveContext, sizeof(SaveContext));
         CVarClear(RSBS_CVAR_MM_KEEP_ITEMS_RESET); // the player turned it off at the title
