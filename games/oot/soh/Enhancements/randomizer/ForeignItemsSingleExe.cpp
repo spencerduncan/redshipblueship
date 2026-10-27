@@ -237,16 +237,50 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
     return OoT_Foreign_RecordPickupImpl(rc) ? 1 : 0;
 }
 
-// THE FULL OUTBOX (#1222; declared in src/common/foreign_items.h).
+// THE FULL OUTBOX (#1222; declared in src/common/foreign_items.h). The drain used
+// to record and, on a refusal (every shared row holding an item MM has not
+// redeemed), fall through to the ordinary give of the junk cover the host holds,
+// which marks the check collected: the MM item was lost. Asked BEFORE the record,
+// a check the outbox has no row for is held here instead: not collected, nothing
+// given, nothing counted. The drain hands it back to its queue on the first frame
+// a row is free (after a crossing to Termina redeems the rows MM was waiting on).
+//
+// RAM only, like the drain's own queue: it survives a crossing, which is what
+// frees the rows, but not a quit. A check held at a quit keeps its flag and its
+// item is not given (#1222's PR names this as the open limit).
+static std::vector<uint16_t> sOutboxHeldChecks;
+
 extern "C" int OoT_Rando_Foreign_HoldPickup(uint16_t rc) {
-    (void)rc;
-    return 0; // #1222 [lock]: today the drain records (and a refusal falls through to the junk give)
+    if (Combo_GetForeignPlacementForOoTCheck(rc) == nullptr || !Combo_ForeignPairingActive() ||
+        Combo_SharedItemCrossingHasRoom()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = (ctx != nullptr) ? ctx->GetItemLocation((RandomizerCheck)rc) : nullptr;
+    if (il != nullptr && il->HasObtained()) {
+        return 0; // delivered: the record's once-per-host gate answers, as before
+    }
+    if (std::find(sOutboxHeldChecks.begin(), sOutboxHeldChecks.end(), rc) == sOutboxHeldChecks.end()) {
+        sOutboxHeldChecks.push_back(rc);
+        fprintf(stderr,
+                "[OoT] foreign pickup HELD: OoT check %u stays open, the shared outbox is full; it is given after the "
+                "next crossing frees a row (#1222)\n",
+                (unsigned)rc);
+        fflush(stderr);
+    }
+    return 1;
 }
 
 extern "C" int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap) {
-    (void)out;
-    (void)cap;
-    return 0;
+    if (sOutboxHeldChecks.empty() || out == nullptr || cap <= 0 || !Combo_SharedItemCrossingHasRoom()) {
+        return 0;
+    }
+    const int n = std::min(cap, (int)sOutboxHeldChecks.size());
+    for (int i = 0; i < n; i++) {
+        out[i] = sOutboxHeldChecks[i];
+    }
+    sOutboxHeldChecks.erase(sOutboxHeldChecks.begin(), sOutboxHeldChecks.begin() + n);
+    return n;
 }
 
 /**
