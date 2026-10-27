@@ -249,7 +249,7 @@ are INTENTIONAL: they cannot act in the paired game. The Timesavers family keeps
 | `gEnhancements.Dialogue.FastBankSelection` | Fast Bank Selection (Skips & Speed-ups > Majora's Mask) | (O) |
 | `gEnhancements.Dialogue.AutoBombersCode` | Auto Bombers' Code (likewise) | (O) |
 | `gEnhancements.Timesavers.SwampBoatSpeed` | Swamp Boat Timesaver (likewise) | (O) |
-| `gEnhancements.Timesavers.GalleryTwofer` | Shooting Gallery Both Rewards (likewise) | (O); in a randomizer file the second reward is the Perfect Score check's item, given once |
+| `gEnhancements.Timesavers.GalleryTwofer` | Both Gallery Rewards (likewise) | (O); in a randomizer file the second reward is the Perfect Score check's item, given once. 2Ship's label, Shooting Gallery Both Rewards, overran its column at 832x600 (R9) |
 | `gEnhancements.Timesavers.MarineLabHP` | Fast Marine Lab Fish (likewise) | (O); in a randomizer file the fish still gives its check's item once |
 | `gEnhancements.Timesavers.DampeDiggingSkip` | Fast Dampe Flame Digging (likewise) | (O) |
 | `gEnhancements.Timesavers.FasterSceneTransitions` | Faster Scene Transitions (likewise) | (O) |
