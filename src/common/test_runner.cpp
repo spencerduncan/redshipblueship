@@ -1276,10 +1276,8 @@ static TestResult Test_MMSaveFailureSurface(void) {
     return MM_SaveFailureSurface_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// MM new-save session guard (#564 V21; see the extern decl above).
-static TestResult Test_MMNewSaveSessionGuard(void) {
-    return MM_NewSaveSessionGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
-}
+// MM new-save session guard (#564 V21): the wrapper lives further down, beside the other rows that need the
+// display-free shared Context bring-up, because CreateHarnessStyleContext is defined below this point.
 
 // MM capture harvest gate (#591; see the extern decl above). Thin wrapper over
 // the C entry point in games/mm/2s2h/mm_capture_harvest_gate_test.cpp.
@@ -1423,6 +1421,18 @@ static TestResult Test_MMAudioEditorReplacement(void) {
         return TEST_FAIL;
     }
     return MM_AudioEditorReplacement_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM new-save session guard (#564 V21; see the extern decl above). The display-free shared bring-up, because leg 7
+// (W6-DEV, #1238) writes and clears Debug Mode's gDeveloperTools.* keys and drives MM's ShipInit registrars on them,
+// and every CVar call dereferences the Ship::Context singleton (a pure row has none, so the leg faulted).
+static TestResult Test_MMNewSaveSessionGuard(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_NewSaveSessionGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
@@ -8267,8 +8277,8 @@ const TestDescriptor gTests[] = {
     // cause. Pure (no display, no ROM).
     { "mm-save-failure-surface", "An MM save that cannot commit shows a 'Save failed:' toast, once per cause",
       Test_MMSaveFailureSurface },
-    // #564 V21: MM may not author a new save over an open paired file. Pure (no
-    // display, no ROM).
+    // #564 V21: MM may not author a new save over an open paired file. No display,
+    // no ROM; the display-free shared Context bring-up for leg 7's Debug Mode keys.
     { "mm-new-save-session-guard", "MM authors no new save over an open paired file; its title retires the session",
       Test_MMNewSaveSessionGuard },
     // A capture the #533/#568 write latch refuses must be a no-op on the
