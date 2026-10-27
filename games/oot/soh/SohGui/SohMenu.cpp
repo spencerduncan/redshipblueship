@@ -212,15 +212,12 @@ void SohMenu::InitElement() {
            },
             "Vertical Resolution Toggle is Off" } },
 #ifdef RSBS_SINGLE_EXECUTABLE
-        // RSBS (#1238, W6-DEV): Majora's Mask's developer rows and viewers on SoH's Dev Tools pages.
+        // RSBS (#1238, W6-DEV): Majora's Mask's warp-point rows on SoH's Dev Tools > General.
         { DISABLE_FOR_MM_NOT_IN_GAMEPLAY,
           { [](disabledInfo& info) -> bool { return !MM_DevTools_WarpPointAvailable(); },
             "Majora's Mask Save Not Loaded" } },
         { DISABLE_FOR_NO_MM_WARP_POINT,
           { [](disabledInfo& info) -> bool { return !MM_DevTools_WarpPointSaved(); }, "No Warp Point Saved" } },
-        { DISABLE_FOR_MM_NOT_RUNNING,
-          { [](disabledInfo& info) -> bool { return Context_GetCurrentGame() != GAME_MM; },
-            "Majora's Mask Not Running" } },
 #endif
     };
 }
