@@ -18,7 +18,9 @@
  *  - Items > Boomerang: Instant Fin Boomerangs Recall right after SoH's Instant Boomerang Recall, its nearest relative
  *    (Zora Link's fins and the B button, not the Boomerang and its item button).
  *  - Difficulty > Drops: "MM Enable Bombchu Drops" right after SoH's own. Held apart (kMustStayDistinct): SoH's rule
- *    weighs what Link carries and an Ocarina of Time seed can force it on; MM's is an even chance on every Bomb drop.
+ *    weighs what Link carries and an Ocarina of Time seed can force it on; MM's gives a Bomb drop an even chance to
+ *    be a Bombchu, and in the single exe only once Link has Bombchus (review H1: the Bombchu count is a shared
+ *    progression quantity, so the row must never hand out Bombchus the seed has not given).
  * Fierce Deity Putaway and Great Fairy Sword B-Button Attack touch only how the held sword is put away or swung; no
  * mask the combo owns is read or written.
  */
@@ -107,8 +109,9 @@ void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path) {
 void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path) {
     AddHostedMmWidget(menu, path, "Drops", "MM Enable Bombchu Drops", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS)
-        .Options(UIWidgets::CheckboxOptions().Tooltip("Gives every Bomb drop an even chance to be a Bombchu instead, "
-                                                      "whatever Link carries. Majora's Mask only."));
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Converts Bomb drops to Bombchu drops once you have Bombchus: "
+                                                      "each Bomb drop then has an even chance to be a Bombchu "
+                                                      "instead. Majora's Mask only."));
 }
 
 } // namespace SohGui
