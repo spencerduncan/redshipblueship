@@ -487,6 +487,9 @@ int OoT_SceneFlagFreeze_RunHeadless(void);
 // half that was loaded, not the .sav's tracker section. Drives OoT's OnLoadFile
 // seam over a real .redsave; games/oot/soh/oot_check_state_load_test.cpp.
 int OoT_CheckStateLoad_RunHeadless(void);
+// #1217: under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item
+// and no vanilla capacity upgrade; games/oot/soh/oot_deku_theater_prize_test.cpp.
+int OoT_DekuTheaterPrize_RunHeadless(void);
 // #1163 / #1159: loading a paired file reconciles OoT's live save with the
 // shared pool before anything is earned or spent. Drives OoT's OnLoadFile seam
 // over a real .redsave; games/oot/soh/oot_load_reconcile_test.cpp.
@@ -6262,6 +6265,21 @@ TestResult Test_OoTCheckStateLoad(void) {
     return OoT_CheckStateLoad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The Deku Theater leader's prize under the randomizer (#1217). The same
+// display-free bring-up as the row above: the row authors a real Rando::Context.
+TestResult Test_OoTDekuTheaterPrize(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoT_DekuTheaterPrize_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The load reconciles OoT with the shared pool (#1163, #1159). The same
 // display-free bring-up as the row above: the seam it drives is the same one.
 TestResult Test_SharedPoolLoadReconcile(void) {
@@ -8683,6 +8701,10 @@ const TestDescriptor gTests[] = {
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
       "halves agree on keeps its status (#849, #803)",
       Test_OoTCheckStateLoad },
+    { "oot-deku-theater-prize",
+      "Under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item for the Skull Mask and Mask of Truth "
+      "checks and no vanilla Deku Stick or Nut capacity upgrade; a vanilla file still gets the upgrade (#1217)",
+      Test_OoTDekuTheaterPrize },
     { "combo-player-name",
       "The paired world has one name: OoT's typed name, in each OoT filename charset, translates into MM's charset "
       "as OoTMM's copyName does (no-glyph bytes to MM's space), every typable character prints in MM as in OoT, "
