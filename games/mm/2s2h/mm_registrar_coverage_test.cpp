@@ -192,7 +192,7 @@
  * Nothing the TU defines is named here (a reference would un-elide it).
  *   - ShouldVanillaBehavior[VB_USE_CUSTOM_CAMERA] (z_camera.c, Camera_Update): the
  *     free-look camera itself. DebugCam.cpp also registers there but keys on
- *     gEnhancements.Camera.DebugCam.Enable and is not linked.
+ *     gEnhancements.Camera.DebugCam.Enable (linked since W6-CAM-GYRO, which drives it beside Free Look).
  *   - OnCameraChangeModeFlags, unkeyed (z_camera.c, Camera_ChangeMode): the
  *     per-mode "may free-look" reset.
  *

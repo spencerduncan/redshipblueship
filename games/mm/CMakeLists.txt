@@ -501,10 +501,22 @@ if(SINGLE_EXECUTABLE_BUILD)
         # (Camera_ChangeMode), both dispatched by z_camera.c via MM_GameHooks_*. The play-state guards landed with the
         # carve-out (Camera_CanFreeLook). It reads the right stick from the play state input, which PadMgr copies from
         # libultraship's pad whole (right_stick_x/y included). Camera/DebugCam.cpp shares the VB leg but keys on its own
-        # CVar and stays out. IsBombchuFocused is fenced to false in the TU so RemoteBombchu.cpp is not dragged in.
+        # CVar; since W6-CAM-GYRO it is linked below, and Free Look stands aside while the debug camera is on.
+        # IsBombchuFocused is RemoteBombchu.cpp's again (W6-CAM-GYRO links it below).
         # Its definitions (Camera_FreeLook, Camera_CanFreeLook, UpdateFreeLookState, RegisterCameraFreeLook) have no
         # twin in games/oot or games/mm.
         "2s2h/Enhancements/Camera/FreeLook.cpp"
+        # W6-CAM-GYRO (#1235, #1236, #1240): the debug camera, Remote Bombchu Control and the speed modifiers, each
+        # drawn by an MM row in SoH's Bindings window or on Items > Explosives and each registering only through a
+        # file-scope RegisterShipInitFunc. Hooks, all dispatched: VB_USE_CUSTOM_CAMERA (z_camera.c),
+        # VB_SPEED_MODIFIER_WALK / _SWIM (z_player.c) via MM_GameHooks_ExecuteVBShould; OnPassPlayerInputs (z_player.c,
+        # GameInteractor_ExecuteOnPassPlayerInputs); OnConsoleLogoUpdate (z_title.c); OnActorInit / OnActorUpdate /
+        # OnActorDestroy keyed on ACTOR_EN_BOM_CHU via the MM_GameHooks_Execute* ForID legs (z_actor.c). Play-state
+        # guards in DebugCam's camera body and RemoteBombchu's update and destroy bodies; LinkSpeedModifier's walk body
+        # checks the player input. No stub in mm_stubs.c, no twin of their definitions in games/oot.
+        "2s2h/Enhancements/Camera/DebugCam.cpp"
+        "2s2h/Enhancements/Equipment/RemoteBombchu.cpp"
+        "2s2h/Enhancements/Player/LinkSpeedModifier.cpp"
         # #1030-#1034 (#966 key-name gaps, the link half; PR #1046 mapped the keys): the five SoH rows whose MM twin
         # was mapped onto SoH's key and still did nothing because its provider was dropped from the link. Each
         # registers only through a file-scope RegisterShipInitFunc keyed on the converged key SoH's row writes

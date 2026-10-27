@@ -18,6 +18,23 @@ extern Vec3f Camera_CalcUpVec(s16 pitch, s16 yaw, s16 roll);
 // Static Data Used For Free Camera
 static bool sDebugCamRefreshParams = true;
 
+// The controller port the debug camera listens to, 0-based.
+static s32 DebugCam_ControllerPort() {
+#if defined(RSBS_SINGLE_EXECUTABLE)
+    // W6-CAM-GYRO: no shared-menu row owns gEnhancements.Camera.DebugCam.Port (2Ship's menu draws none either), so the
+    // single exe never reads or writes it: the debug camera always listens to port 1, 2Ship's default, and holds
+    // Link still while it runs.
+    return CAMERA_DEBUG_DEFAULT_PORT - 1;
+#else
+    s32 controllerPort = CVarGetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT) - 1;
+    if (controllerPort > 3 || controllerPort < 0) {
+        controllerPort = CAMERA_DEBUG_DEFAULT_PORT - 1;
+        CVarSetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT);
+    }
+    return controllerPort;
+#endif
+}
+
 Vec3f Camera_RotatePointAroundAxis(Vec3f* point, Vec3f* axis, s16 angle) {
     f32 q0 = MM_Math_CosS(angle / 2);
     f32 q1 = MM_Math_SinS(angle / 2) * axis->x;
@@ -119,11 +136,7 @@ void Camera_DebugCam(Camera* camera) {
         sDebugCamRefreshParams = false;
     }
 
-    s32 controllerPort = CVarGetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT) - 1;
-    if (controllerPort > 3 || controllerPort < 0) {
-        controllerPort = CAMERA_DEBUG_DEFAULT_PORT - 1;
-        CVarSetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT);
-    }
+    s32 controllerPort = DebugCam_ControllerPort();
 
     /*
         Camera Speed
@@ -218,17 +231,15 @@ void RegisterDebugCam() {
     sDebugCamRefreshParams = true;
 
     COND_VB_SHOULD(VB_USE_CUSTOM_CAMERA, CVarGetInteger("gEnhancements.Camera.DebugCam.Enable", 0), {
+        // W6-CAM-GYRO: Camera_DebugCam reads the camera play state's input; without one the camera stays vanilla.
+        RSBS_SINGLE_EXE_REQUIRE(sCamPlayState != nullptr);
         Camera* camera = va_arg(args, Camera*);
         Camera_DebugCam(camera);
         *should = false;
     });
 
     COND_HOOK(OnPassPlayerInputs, CVarGetInteger("gEnhancements.Camera.DebugCam.Enable", 0), [](Input* input) {
-        s32 controllerPort = CVarGetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT) - 1;
-        if (controllerPort > 3 || controllerPort < 0) {
-            controllerPort = CAMERA_DEBUG_DEFAULT_PORT - 1;
-            CVarSetInteger("gEnhancements.Camera.DebugCam.Port", CAMERA_DEBUG_DEFAULT_PORT);
-        }
+        s32 controllerPort = DebugCam_ControllerPort();
         if (controllerPort == 0) {
             // Disable Link Inputs
             memset(input, 0, sizeof(Input));
