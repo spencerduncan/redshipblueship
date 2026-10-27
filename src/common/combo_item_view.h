@@ -200,7 +200,8 @@ typedef struct ComboItemOps {
     // count for a tier kind), and `iconNumber` for the number this game's own
     // tracker prints on it (the wallet's capacity). Leaves the rest alone. May
     // be NULL, and may leave the keys NULL for a kind the game has no icon for:
-    // the row is then text.
+    // the row is then text. RSBS_SHARED_RES_HEALTH_QUARTERS at tier
+    // COMBO_ITEM_SHARED_ICON_HEART_PIECE asks for the heart piece (#1159).
     void (*sharedIcon)(uint8_t kind, uint16_t tier, ComboItemRow* row);
     // The rows THIS save shows (#1072): count() plus the rows a save's frozen
     // options switch on (MM's ocarina buttons, shown only when the file shuffles
@@ -295,6 +296,11 @@ const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness);
 
 /** Group name of the shared-resource rows. */
 #define COMBO_ITEM_SHARED_GROUP "Shared"
+
+/** The `tier` sharedIcon is handed for the Shared "Heart Pieces" row (#1159): its
+ *  kind is RSBS_SHARED_RES_HEALTH_QUARTERS, and its icon is the game's heart piece
+ *  where the Hearts row's is the heart container. */
+#define COMBO_ITEM_SHARED_ICON_HEART_PIECE 0xFFFFu
 
 /** STALE while the pool holds any resource, UNAVAILABLE while it is empty (no
  *  game has been harvested yet). Never LIVE: the pool advances only at a game
