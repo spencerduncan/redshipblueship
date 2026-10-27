@@ -52,6 +52,13 @@ bool ShouldAdoptLegacyValue(bool legacyPresent, bool canonicalPresent);
 int32_t VolumePercentFromFloatScale(float scale);
 } // namespace SOH
 
+// W6-COS-A (#1239): MM's colour table, read through its view in games/mm/2s2h/CosmeticGfxSingleExe.cpp (the colour
+// family leg below).
+extern "C" int MM_CosmeticElement_Count(void);
+extern "C" int MM_CosmeticElement_At(int index, int* id, const char** mmColor, const char** mmChanged,
+                                     const char** sohValue, const char** sohChanged, const char** sohFallbackValue,
+                                     const char** sohFallbackChanged);
+
 #define CVARCLASS_CHECK(cond, msg)              \
     do {                                        \
         if (!(cond)) {                          \
@@ -834,6 +841,149 @@ TestResult Test_CVarClassification(void) {
                        pair.ootKey, pair.row, pair.mmKey, pair.why);
                 return TEST_FAIL;
             }
+        }
+
+        // (3c-3) W6-COS-A (#1239): MM's colour family. MM composes every colour key from one prefix, so the family has
+        // one RSBS_CVAR_MM_COSMETIC_PREFIX define and no scalar define, and W6-HOST's generic leg (3f-2c) skips it.
+        // This leg holds the family instead: every element of MM's colour table (the one CosmeticEditor_GetChangedColor
+        // reads) is EITHER an MM-only element, whose own key is composed from the prefix and is an MM row's, OR an SoH
+        // twin, whose pair is a kTranslatedKeys row of that translator (never a rename: SoH's child is .Value, MM's
+        // .Color) and whose SoH key is an option SoH's Cosmetics Editor declares. Both directions: a cosmetics
+        // translated row with no table element is a manifest entry nothing reads.
+        {
+            const std::string prefix = RSBS_CVAR_MM_COSMETIC_PREFIX;
+            CVARCLASS_CHECK(prefix == "gCosmetic.",
+                            "W6-COS-A: RSBS_CVAR_MM_COSMETIC_PREFIX is not MM's \"gCosmetic.\"");
+            const int count = MM_CosmeticElement_Count();
+            CVARCLASS_CHECK(count > 0,
+                            "W6-COS-A: MM's colour table is empty, so CosmeticEditor_GetChangedColor changes "
+                            "no colour and this leg would prove nothing");
+
+            std::string sohEditor;
+            {
+                std::ifstream f(sourceRoot / "games" / "oot" / "soh" / "Enhancements" / "cosmetics" /
+                                    "CosmeticsEditor.cpp",
+                                std::ios::binary);
+                sohEditor.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            }
+            CVARCLASS_CHECK(!sohEditor.empty(), "W6-COS-A: could not read SoH's CosmeticsEditor.cpp");
+
+            auto endsWith = [](const std::string& text, const char* suffix) {
+                const std::size_t n = std::strlen(suffix);
+                return text.size() > n && text.compare(text.size() - n, n, suffix) == 0;
+            };
+            // SoH's twin pair: "gCosmetics.<id>.Value" beside "gCosmetics.<id>.Changed", <id> an option SoH declares,
+            // and the pair translated onto MM's key by this translator. Empty when it holds, else the breach.
+            auto twinBreach = [&](const std::string& mmColor, const char* value, const char* changed) -> std::string {
+                const std::string v = value;
+                const std::string stem = v.size() > 6 ? v.substr(0, v.size() - 6) : std::string();
+                if (v.rfind("gCosmetics.", 0) != 0 || !endsWith(v, ".Value") || changed == nullptr ||
+                    stem + ".Changed" != changed) {
+                    return "SoH twin \"" + v + "\" is not a gCosmetics.<option>.Value / .Changed pair";
+                }
+                const std::string option = "COSMETIC_OPTION(\"" + stem.substr(std::strlen("gCosmetics.")) + "\",";
+                if (sohEditor.find(option) == std::string::npos) {
+                    return "SoH twin \"" + v + "\" is not an option SoH's Cosmetics Editor declares";
+                }
+                bool translated = false;
+                for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+                    const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+                    translated = translated || (mmColor == key.mmKey && v == key.ootKey &&
+                                                strcmp(key.translator, RSBS::kCosmeticTranslator) == 0);
+                }
+                if (!translated) {
+                    return "no kTranslatedKeys row translates SoH's \"" + v + "\" onto MM's \"" + mmColor + "\"";
+                }
+                for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
+                    if (mmColor == RSBS::kConvergedKeys[i].legacy || v == RSBS::kConvergedKeys[i].canonical) {
+                        return "\"" + mmColor + "\" is also a rename row; the importer would copy SoH's colour raw";
+                    }
+                }
+                return std::string();
+            };
+
+            std::vector<std::string> breaches;
+            std::vector<std::pair<std::string, std::string>> tablePairs;
+            bool seenId[256] = {};
+            for (int i = 0; i < count; i++) {
+                int id = -1;
+                const char* mmColor = nullptr;
+                const char* mmChanged = nullptr;
+                const char* sohValue = nullptr;
+                const char* sohChanged = nullptr;
+                const char* fallbackValue = nullptr;
+                const char* fallbackChanged = nullptr;
+                if (!MM_CosmeticElement_At(i, &id, &mmColor, &mmChanged, &sohValue, &sohChanged, &fallbackValue,
+                                           &fallbackChanged) ||
+                    id < 0 || id > 255 || mmColor == nullptr || mmChanged == nullptr) {
+                    breaches.push_back("element " + std::to_string(i) + " has no id or no MM key");
+                    continue;
+                }
+                const std::string color = mmColor;
+                if (seenId[id]) {
+                    breaches.push_back("element id " + std::to_string(id) + " is in the table twice");
+                }
+                seenId[id] = true;
+                const std::string stem = endsWith(color, ".Color") ? color.substr(0, color.size() - 6) : color;
+                if (color.rfind(prefix, 0) != 0 || !endsWith(color, ".Color") || stem + ".Changed" != mmChanged) {
+                    breaches.push_back("\"" + color +
+                                       "\" is not composed from RSBS_CVAR_MM_COSMETIC_PREFIX as "
+                                       "<element>.Color / .Changed");
+                }
+                if (sohValue == nullptr) {
+                    // MM-only: MM's own key decides, so it is no translated row, and games/oot never spells it whole
+                    // (its MM row composes it from the prefix).
+                    for (std::size_t k = 0; k < RSBS::kTranslatedKeyCount; k++) {
+                        if (color == RSBS::kTranslatedKeys[k].mmKey) {
+                            breaches.push_back("MM-only \"" + color + "\" is also a translated row");
+                        }
+                    }
+                    if (CvarClassOotTreeNamesKey(ootTree, mmColor) || CvarClassOotTreeNamesKey(ootTree, mmChanged)) {
+                        breaches.push_back("games/oot spells MM's \"" + color +
+                                           "\" as a literal; bind it through "
+                                           "RSBS_CVAR_MM_COSMETIC_PREFIX");
+                    }
+                    if (fallbackValue != nullptr) {
+                        breaches.push_back("MM-only \"" + color + "\" has an SoH fallback twin");
+                    }
+                    continue;
+                }
+                std::string why = twinBreach(color, sohValue, sohChanged);
+                if (why.empty()) {
+                    tablePairs.push_back({ color, sohValue });
+                } else {
+                    breaches.push_back(why);
+                }
+                if (fallbackValue != nullptr) {
+                    why = twinBreach(color, fallbackValue, fallbackChanged);
+                    if (why.empty()) {
+                        tablePairs.push_back({ color, fallbackValue });
+                    } else {
+                        breaches.push_back(why);
+                    }
+                }
+            }
+            for (std::size_t k = 0; k < RSBS::kTranslatedKeyCount; k++) {
+                const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[k];
+                if (strcmp(key.translator, RSBS::kCosmeticTranslator) != 0) {
+                    continue;
+                }
+                bool inTable = false;
+                for (const auto& pair : tablePairs) {
+                    inTable = inTable || (pair.first == key.mmKey && pair.second == key.ootKey);
+                }
+                if (!inTable) {
+                    breaches.push_back(std::string("the translated row \"") + key.ootKey + "\" -> \"" + key.mmKey +
+                                       "\" has no element in MM's colour table, so nothing reads it");
+                }
+            }
+            for (const std::string& b : breaches) {
+                printf("[TEST] FAIL: W6-COS-A colour family: %s.\n", b.c_str());
+            }
+            CVARCLASS_CHECK(
+                breaches.empty(),
+                "W6-COS-A: MM's colour table and the manifest disagree (games/mm/2s2h/CosmeticGfxSingleExe.cpp, "
+                "RSBS::kTranslatedKeys)");
         }
 
         // (3d) The casing hazard. MM's Timesavers (lowercase s) is one

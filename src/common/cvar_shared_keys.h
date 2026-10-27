@@ -524,6 +524,11 @@ struct DistinctPair {
 // W6-TIMERS
 // W6-HUD-A
 // W6-COS-A
+// W6-COS-A (#1239): MM's colour family. MM composes every colour key as "gCosmetic.<Group>.<Element>" plus ".Color" /
+// ".Changed", so the family gets this one prefix and no scalar define. An element with an SoH twin reads SoH's key
+// (a kTranslatedKeys row below); an element with none is an MM row in SoH's Cosmetics Editor, bound through this
+// prefix.
+#define RSBS_CVAR_MM_COSMETIC_PREFIX "gCosmetic."
 // W6-AUDIO-SEQ
 // W6-DEV
 
@@ -661,6 +666,14 @@ struct TranslatedKey {
     const char* why;        ///< Why a rename would be wrong.
 };
 
+/// W6-COS-A (#1239): the one translator of MM's colour family, and why each of its rows is a translation.
+inline constexpr const char* kCosmeticTranslator = "2s2h/CosmeticGfxSingleExe.cpp";
+inline constexpr const char* kCosmeticTranslationWhy =
+    "SoH stores a colour as <key>.Value beside <key>.Changed; MM as <key>.Color beside <key>.Changed. The value "
+    "children differ, so a rename would leave MM reading a child nothing writes. MM's lookup "
+    "(CosmeticEditor_GetChangedColor) reads SoH's .Changed and .Value and returns MM's colour, so one row in SoH's "
+    "Cosmetics Editor colours both games.";
+
 inline constexpr TranslatedKey kTranslatedKeys[] = {
     { 1060, "gEnhancements.Cutscenes.SkipGetItemCutscenes", "gRandoEnhancements.TimeSavers.SkipGetItemAnimation",
       "2s2h/Rando/StaticData/Items.cpp",
@@ -677,6 +690,39 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
       "The other half of the same pair: MM's .Scale is SoH's value itself (both games use 0.4-2.5), read through "
       "the same translator, so nothing writes MM's two keys." },
+    // W6-COS-A (#1239): MM's button, HUD and spin-attack colours, each read off its SoH twin in the Cosmetics Editor.
+    // A C button reads SoH's own C button row, then SoH's C Buttons row, the order OoT's HUD reads them in.
+    { 1239, "gCosmetic.Buttons.B.Color", "gCosmetics.HUD.BButton.Value", kCosmeticTranslator, kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.A.Color", "gCosmetics.HUD.AButton.Value", kCosmeticTranslator, kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CLeft.Color", "gCosmetics.HUD.CLeftButton.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CLeft.Color", "gCosmetics.HUD.CButtons.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CDown.Color", "gCosmetics.HUD.CDownButton.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CDown.Color", "gCosmetics.HUD.CButtons.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CRight.Color", "gCosmetics.HUD.CRightButton.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.CRight.Color", "gCosmetics.HUD.CButtons.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.DPad.Color", "gCosmetics.HUD.Dpad.Value", kCosmeticTranslator, kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Buttons.Start.Color", "gCosmetics.HUD.StartButton.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.HUD.SmallKey.Color", "gCosmetics.HUD.KeyCount.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.HUD.Minimap.Color", "gCosmetics.HUD.Minimap.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    // W6-COS-A: OoT's spin attack draws its charge AND its burst from one Primary per level (z_en_m_thunder.c), so
+    // MM's two elements per level both read it; the Secondary is OoT's env colour, which MM's draw does not expose.
+    { 1239, "gCosmetic.Effects.SpinSlashCharge.Color", "gCosmetics.SpinAttack.Level1Primary.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Effects.SpinSlashBurst.Color", "gCosmetics.SpinAttack.Level1Primary.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Effects.GreatSpinCharge.Color", "gCosmetics.SpinAttack.Level2Primary.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Effects.GreatSpinBurst.Color", "gCosmetics.SpinAttack.Level2Primary.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
 };
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
