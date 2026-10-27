@@ -920,6 +920,37 @@ const std::vector<SkipKeyProbe>& FreeLookProbes() {
     return probes;
 }
 
+// ---- W6-GFX (#1237, #1240): MM's two clock-style TUs ------------------------
+// One probe on MM's three-way clock style (0 original, 1 MM3D, 2 text only). Graphics/3DSClock.cpp registers on
+// VB_PREVENT_CLOCK_DISPLAY at style 1 and Graphics/TextBasedClock.cpp at style 2. The W6 drive turns the key "on" with
+// 1, which arms the MM3D clock alone, so the first count reads the bucket there. The second re-drives the key at 2:
+// the MM3D registrant must leave and the text one arrive, so the bucket is again one above its base. The drive's own
+// "off" (0) then disarms both. Attributed by registry content: with either TU out of the link one count stays at its
+// base and the phase is red. 24 Hours Clock has no TU of its own (z_parameter.c and both clocks read it inline).
+constexpr const char* kW6GfxClockTypeCVar = "gEnhancements.Graphics.ClockType";
+
+const std::vector<SkipKeyProbe>& W6GfxProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { kW6GfxClockTypeCVar,
+          "Clock Type",
+          { { "VB_PREVENT_CLOCK_DISPLAY at MM3D style (Graphics/3DSClock.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PREVENT_CLOCK_DISPLAY); }, 1 },
+            { "VB_PREVENT_CLOCK_DISPLAY at text only (Graphics/TextBasedClock.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6GfxClockTypeCVar, 0) == 1) {
+                      CVarSetInteger(kW6GfxClockTypeCVar, 2);
+                      ShipInit::Init(kW6GfxClockTypeCVar);
+                      ShipInit::Init(kW6GfxClockTypeCVar);
+                  }
+                  return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_PREVENT_CLOCK_DISPLAY);
+              },
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6GfxPhase{ "W6-GFX (#1237, #1240)", W6GfxProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetFreeLookKeys() {
