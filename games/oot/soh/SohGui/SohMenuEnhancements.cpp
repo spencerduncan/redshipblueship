@@ -200,6 +200,9 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "When loading a save, places Link at the last entrance he went through.\n"
             "This doesn't work if the save was made in grottos, fairy fountains, or dungeons."));
+    // W6-TIMESAVERS (#1236): MM's Pause Menu Save (HostedMm/SohMenuHostedMmTimesavers.cpp), after SoH's saving rows.
+    void AddMmSavingRows(SohMenu& menu, WidgetPath& path);
+    AddMmSavingRows(*this, path);
 
     AddWidget(path, "Containers Match Contents", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Containers Match Contents", WIDGET_CVAR_CHECKBOX)
@@ -462,10 +465,16 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Text Speed: %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("TextSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx"));
+    // W6-TIMESAVERS (#1236): MM Fast Text, held apart from Text Speed (P1), right after it.
+    void AddMmFastTextRow(SohMenu& menu, WidgetPath& path);
+    AddMmFastTextRow(*this, path);
     AddWidget(path, "Slow Text Speed: %dx", WIDGET_CVAR_SLIDER_INT)
         .CVar(CVAR_ENHANCEMENT("SlowTextSpeed"))
         .Options(IntSliderOptions().Min(1).Max(5).DefaultValue(1).Format("%dx").Tooltip(
             "Changes the speed of sections of text that normally are paced slower than the text surrounding it."));
+    // W6-TIMESAVERS (#1236): MM's Fast Bank Selection and Auto Bombers' Code close the Text section.
+    void AddMmDialogueRows(SohMenu& menu, WidgetPath& path);
+    AddMmDialogueRows(*this, path);
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Animations", WIDGET_SEPARATOR_TEXT);
@@ -557,6 +566,9 @@ void SohMenu::AddMenuEnhancements() {
         .Options(IntSliderOptions().Min(0).Max(3).DefaultValue(3).Format("%d days").Tooltip(
             "Allows you to change the number of days it takes for "
             "Biggoron to forge the Biggoron's Sword."));
+    // W6-TIMESAVERS (#1236): MM's eight time savers, no SoH twin, in a Majora's Mask block ending the Misc column.
+    void AddMmTimesaverRows(SohMenu& menu, WidgetPath& path);
+    AddMmTimesaverRows(*this, path);
 
     // Graphics
     path.sidebarName = "Graphics";
