@@ -1152,8 +1152,10 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
         // a Settings selection it has no page for on the header's first page
         // (General), so a config saved on Mod Menu is renamed to OoT Mods,
         // whichever header is open and with no other key written or minted. MM
-        // Mods is inserted after it, the last Settings page, so no saved Settings
-        // selection moves. OoT Mods and MM Mods themselves stay as they are.
+        // Mods is inserted after it, and every other Settings page keeps its
+        // name (Presets, which SoH's menu-init adds after them, included), so no
+        // other saved Settings selection moves. OoT Mods and MM Mods themselves
+        // stay as they are.
         struct Rename {
             const char* headerBefore; // nullptr: the key is absent
             const char* otherKey;     // another header's sidebar key this case sets, or nullptr
