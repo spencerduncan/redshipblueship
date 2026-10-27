@@ -1684,6 +1684,30 @@ void func_80090A28(Player* this, Vec3f* vecs) {
     OoT_Matrix_MultVec3f(&D_80126098, &vecs[2]);
 }
 
+// RSBS #1173: whether the reticle takes the "Targetable Hookshot Reticle" colour. Split out of the draw below so
+// a ROM-free row (OoTHookshotReticleColour) can see the choice. Ports SoH 6340ad3d5's held-item clause: the Bow,
+// Slingshot and Boomerang reticles draw through this function too, and a hookshot surface means nothing to them.
+s32 OoT_Player_HookshotReticleIsTarget(s32 heldItemAction, s32 isHookshotSurface) {
+    return isHookshotSurface && CVarGetInteger(CVAR_ENHANCEMENT("HookshotableReticle"), false) &&
+           (heldItemAction == PLAYER_IA_HOOKSHOT || heldItemAction == PLAYER_IA_LONGSHOT);
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Test export for OoTHookshotReticleColour: sample 0 Hookshot, 1 Longshot, 2 Bow, 3 Fire Arrow, 4 Slingshot,
+// 5 Boomerang. Returns 1 for the target colour, 0 for the non-target colour, -1 for an unknown sample.
+s32 OoT_Player_HookshotReticle_TestIsTarget(s32 sample, s32 isHookshotSurface) {
+    static const s32 sSampleActions[] = {
+        PLAYER_IA_HOOKSHOT, PLAYER_IA_LONGSHOT,  PLAYER_IA_BOW,
+        PLAYER_IA_BOW_FIRE, PLAYER_IA_SLINGSHOT, PLAYER_IA_BOOMERANG,
+    };
+
+    if (sample < 0 || sample >= (s32)ARRAY_COUNT(sSampleActions)) {
+        return -1;
+    }
+    return OoT_Player_HookshotReticleIsTarget(sSampleActions[sample], isHookshotSurface) ? 1 : 0;
+}
+#endif
+
 void OoT_Player_DrawHookshotReticle(PlayState* play, Player* this, f32 hookshotRange) {
     static Vec3f D_801260C8 = { -500.0f, -100.0f, 0.0f };
     CollisionPoly* colPoly;
@@ -1716,8 +1740,8 @@ void OoT_Player_DrawHookshotReticle(PlayState* play, Player* this, f32 hookshotR
         gSPTexture(OVERLAY_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
         gDPLoadTextureBlock(OVERLAY_DISP++, gLinkAdultHookshotReticleTex, G_IM_FMT_I, G_IM_SIZ_8b, 64, 64, 0,
                             G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, 6, 6, G_TX_NOLOD, G_TX_NOLOD);
-        if (OoT_SurfaceType_IsHookshotSurface(&play->colCtx, colPoly, bgId) &&
-            CVarGetInteger(CVAR_ENHANCEMENT("HookshotableReticle"), false)) {
+        if (OoT_Player_HookshotReticleIsTarget(this->heldItemAction,
+                                               OoT_SurfaceType_IsHookshotSurface(&play->colCtx, colPoly, bgId))) {
             const Color_RGBA8 defaultColor = { .r = 0, .g = 255, .b = 0, .a = 255 };
             const Color_RGBA8 color = CVarGetColor(CVAR_COSMETIC("HookshotReticle.Target.Value"), defaultColor);
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, color.r, color.g, color.b, color.a);
