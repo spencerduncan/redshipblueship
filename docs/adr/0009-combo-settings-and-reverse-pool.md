@@ -892,6 +892,7 @@ Publishing the allocation once beats five sequential re-versions:
 | 11 | `comboTriforce` (`ComboTriforceRecord`, ADR 0010 answer O10) | 4 B | **carved** — offset **896**; recorded in ADR 0010/0011, added to this table 2026-10-18 |
 | 12 (2026-10-18) | `comboItemRules` (`ComboItemRulesRecord`, #976, ADR 0011's 2026-10-18 amendment) | 8 B | **carved** — offset **900** |
 | 13 (2026-10-18) | `sharedFamilyOwned` (#976, the shared-family bitset) | 4 B | **carved** — offset **908** |
+| 14 (2026-10-27) | `mmKeepItemsReset` (#1175, PR #1194: Majora's Mask's frozen Keep Items on Cycle Reset) | 1 B | **carved** — offset **912**; `reserved[91]` now begins at 913, 27 bytes above the floor; `sizeof(ComboContext)` stays 1712 |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
