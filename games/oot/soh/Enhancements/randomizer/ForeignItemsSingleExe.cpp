@@ -283,6 +283,10 @@ extern "C" int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap) {
     return n;
 }
 
+extern "C" void OoT_Rando_Foreign_ClearHolds(void) {
+    // #1222 review [lock]: today a file load leaves the held list as it was.
+}
+
 /**
  * #800 S1, the shop shelf (z_en_girla.c): 1 when OoT check `rc` hosts an MM item
  * (the placement table, and behind it the crossing store), the fact the shelf

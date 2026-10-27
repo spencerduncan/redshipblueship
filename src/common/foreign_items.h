@@ -1481,9 +1481,13 @@ int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
  * OoT_Rando_Foreign_TakeReleasedHolds hands the held checks back, up to @p cap
  * into @p out, once a row is free again (after a crossing to Termina), and
  * forgets them; it returns how many it handed back.
+ * OoT_Rando_Foreign_ClearHolds forgets every held check without handing any
+ * back: the RC-queue drain calls it where a file load resets its own queue, so a
+ * check held in one file is never handed to the next file loaded.
  */
 int OoT_Rando_Foreign_HoldPickup(uint16_t rc);
 int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap);
+void OoT_Rando_Foreign_ClearHolds(void);
 
 // ============================================================================
 // THE VALUES-PUBLISHING SURFACE (ADR 0011 O8; solver-inventory P1/P5;
