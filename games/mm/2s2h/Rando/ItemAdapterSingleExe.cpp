@@ -1041,7 +1041,8 @@ extern "C" void MM_ItemAdapter_Register(void) {
  * rupees. Variant 1, the "live" world: the Hookshot, the Zora Mask, the Song
  * of Soaring and the Kokiri Sword only. Variant 2, the "capacity tier" world
  * (#967): the Bow (tier-1 quiver, 12 arrows), bombs (tier-2 bag, 7), Deku
- * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Returns 1, or
+ * Sticks (tier 1, 5), Deku Nuts (tier 3, 9) and the Kokiri Sword. Variant 3,
+ * the bombchu world (#1143): variant 2 plus 13 Bombchus. Returns 1, or
  * 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant) {
@@ -1071,7 +1072,7 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         s->save.saveInfo.playerData.isMagicAcquired = 1;
         inv.upgrades |= (1u << MM_gUpgradeShifts[UPG_WALLET]);
         s->save.saveInfo.playerData.rupees = 150;
-    } else if (variant == 2) {
+    } else if (variant == 2 || variant == 3) {
         // The capacity-tier world (#967), OoT's twin: the Bow with a tier-1
         // quiver holding 12 arrows, bombs with a tier-2 bag holding 7, 5 Deku
         // Sticks (tier 1), 9 Deku Nuts (tier 3), and the Kokiri Sword.
@@ -1088,6 +1089,10 @@ extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant
         inv.ammo[SLOT_DEKU_NUT] = 9;
         inv.upgrades |= (3u << MM_gUpgradeShifts[UPG_DEKU_NUTS]);
         s->save.saveInfo.equips.equipment |= (u16)(EQUIP_VALUE_SWORD_KOKIRI << MM_gEquipShifts[EQUIP_TYPE_SWORD]);
+        if (variant == 3) {
+            inv.items[SLOT_BOMBCHU] = ITEM_BOMBCHU;
+            inv.ammo[SLOT_BOMBCHU] = 13;
+        }
     } else {
         inv.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
         inv.items[SLOT_MASK_ZORA] = ITEM_MASK_ZORA;

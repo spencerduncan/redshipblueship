@@ -1819,6 +1819,20 @@ int CitwLockCountRows(const ComboItemOps* oot, const ComboItemOps* mm) {
            (int)r.countKind);
     CITW_ASSERT(r.count == 25 && r.max == 40 && r.capacityMax == 50 && r.countKind == COMBO_ITEM_COUNT_KIND_AMMO);
     CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Magic Bean", r) && r.count == 7 && r.capacityMax == 0);
+    // MM's bombchus world: 13 Bombchus beside a tier-2 bomb bag (30). SoH's bombchus are static
+    // (DrawItemCount's shouldDisplayAmmo): no capacity ceiling of their own, so every count mode
+    // shows the amount, and the two-number modes the amount of the bag's 30, never the bag's tier.
+    CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 3) == 1);
+    CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Bombchus", r));
+    printf("[TEST] combo-item-tracker-window #1143: MM Bombchus %d/%d of %d kind %d\n", r.count, r.max, r.capacityMax,
+           (int)r.countKind);
+    CITW_ASSERT(r.have && r.count == 13 && r.max == 30 && r.capacityMax == 0);
+    {
+        ComboGui::ComboItemTrackerKeys k; // SoH's default: Current Capacity
+        CITW_ASSERT(CitwCountIs(r, k, "13", "", COMBO_UI_TONE_WHITE, COMBO_UI_TONE_GREEN, false));
+        k.itemCountType = ComboGui::kComboItemTrackerCountCapacity;
+        CITW_ASSERT(CitwCountIs(r, k, "13/", "30", COMBO_UI_TONE_WHITE, COMBO_UI_TONE_GREEN, false));
+    }
     // MM's live world: the Hookshot (MM has no Longshot: "H").
     CITW_ASSERT(MM_ItemAdapter_TestAuthorSave(buf.data(), buf.size(), 1) == 1);
     CITW_ASSERT(CitwAdapterRow(mm, buf.data(), "Hookshot", r) && r.have && r.identifier == 'H');
