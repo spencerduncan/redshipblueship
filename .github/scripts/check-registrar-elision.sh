@@ -671,6 +671,11 @@ main() {
         # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
         # the archive gate above covers the same file by member.
         "RegisterCameraFreeLook()"
+        # W6-CAM-GYRO (#1235, #1236, #1240): the debug camera, Remote Bombchu Control and the speed modifiers, in
+        # lib2ship_enh_registrars.a. None of the three names has an OoT twin (grep games/oot).
+        "RegisterDebugCam()"
+        "RegisterRemoteBombchu()"
+        "RegisterLinkSpeedModifier()"
         # #1030-#1034: the key-gap registrars in lib2ship_enh_registrars.a (Disable Screen Flash for Finishing Blow,
         # 3D Dropped Items, Skip Misc Interactions (25 TUs), Skip Scarecrow's Song, Arrow Cycle). MM's ArrowCycle
         # registrar is MM_-prefixed in the source because OoT ships RegisterArrowCycle. The file-scope static
@@ -678,6 +683,20 @@ main() {
         # exported name to probe; the archive gate above covers every file by member.
         "Register3DItemDrops()"
         "RegisterSkipScarecrowSong()"
+        # W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina registrars in lib2ship_enh_registrars.a. No OoT twin
+        # of any of the names (grep games/oot). EquipWhileSwimming.cpp and SkipSoaringCutscene.cpp register through
+        # file-scope statics with no exported name; the archive gate above covers every file by member.
+        "RegisterBlastMaskKeg()"
+        "RegisterFastTransformation()"
+        "RegisterFierceDeityAnywhere()"
+        "RegisterPersistentMasks()"
+        "RegisterNoBlastMaskCooldown()"
+        "RegisterGoronRollingIgnoresMagic()"
+        "RegisterGoronRollingFastSpikes()"
+        "RegisterEnableSunsSong()"
+        "RegisterZoraEggCount()"
+        "RegisterFasterSongPlayback()"
+        "RegisterUnderwaterOcarina()"
         "MM_RegisterArrowCycle()"
         "RegisterSkipAlienStartAndFail()"
         "RegisterSkipAlienWarning()"

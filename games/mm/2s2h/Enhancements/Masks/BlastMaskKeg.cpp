@@ -14,6 +14,9 @@ EquipSlot func_8082FDC4(void);
 
 void RegisterBlastMaskKeg() {
     COND_ID_HOOK(ShouldActorInit, ACTOR_EN_BOM, CVAR, [](Actor* actor, bool* should) {
+        // W6-MASKS-SONGS (#1236): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing
+        // play state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         ItemId item;
         EquipSlot i = func_8082FDC4();

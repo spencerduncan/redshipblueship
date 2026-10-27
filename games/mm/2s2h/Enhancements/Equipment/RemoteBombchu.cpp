@@ -21,6 +21,19 @@ bool IsBombchuFocused() {
     return focused;
 }
 
+#if defined(RSBS_SINGLE_EXECUTABLE)
+// W6-CAM-GYRO: the update and destroy bodies below read MM_gPlayState and the player. Without them the remote control
+// is dropped rather than dereferenced (the #516 class), so a stale focus never keeps Free Look fenced off.
+static bool RemoteBombchu_PlayReady() {
+    if (MM_gPlayState != nullptr && GET_PLAYER(MM_gPlayState) != nullptr) {
+        return true;
+    }
+    activeBombchu = nullptr;
+    focused = false;
+    return false;
+}
+#endif
+
 static void ReleaseBombchuFocus() {
     Player* player = GET_PLAYER(MM_gPlayState);
     Camera_SetFocalActor(MM_Play_GetCamera(MM_gPlayState, player->subCamId), &player->actor);
@@ -33,6 +46,7 @@ void RegisterRemoteBombchu() {
     COND_ID_HOOK(OnActorInit, ACTOR_EN_BOM_CHU, CVAR, [](Actor* actor) { activeBombchu = (EnBomChu*)actor; });
 
     COND_ID_HOOK(OnActorDestroy, ACTOR_EN_BOM_CHU, CVAR, [](Actor* actor) {
+        RSBS_SINGLE_EXE_REQUIRE(RemoteBombchu_PlayReady());
         Player* player = GET_PLAYER(MM_gPlayState);
 
         if (actor == (Actor*)activeBombchu) {
@@ -48,6 +62,7 @@ void RegisterRemoteBombchu() {
         if (actor != (Actor*)activeBombchu) {
             return;
         }
+        RSBS_SINGLE_EXE_REQUIRE(RemoteBombchu_PlayReady());
 
         Player* player = GET_PLAYER(MM_gPlayState);
         Input* input = &MM_gPlayState->state.input[0];
