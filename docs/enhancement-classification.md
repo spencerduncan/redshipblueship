@@ -327,8 +327,8 @@ The 33 keys in §3.1 + §3.2. Listed there; not repeated.
 | Climb everything | `gCheats.ClimbEverything` | `gCheats.ClimbAnywhere` | "Everything" vs "Anywhere" |
 | Hookshot everything | `gCheats.HookshotEverything` | `gCheats.HookshotAnywhere` | same |
 | Infinite money | `gCheats.InfiniteMoney` | `gCheats.InfiniteRupees` | same concept, different noun |
-| Infinite ammo | `gCheats.InfiniteAmmo` | `gCheats.InfiniteConsumables` | ⚠️ MM's "consumables" scope may be wider than OoT's "ammo" — confirm before renaming |
-| Unrestricted items | `gCheats.NoRestrictItems` | `gCheats.UnrestrictedItems` | ⚠️ OoT = ignore age restrictions; MM = all forms use all items. Same *intent* (drop item gating), different gate. Confirm. |
+| Infinite ammo | `gCheats.InfiniteAmmo` | `gCheats.InfiniteConsumables` | ⚠️ MM's "consumables" scope may be wider than OoT's "ammo" — confirm before renaming. PARKED (`kMustStayDistinct`); until it is answered MM keeps its own row, "MM Consumables", right after SoH's Ammo on Cheats > Infinite... (W6-CYCLE-CHEATS, #1240; `RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES`). MM's reader `Cheats/Infinite.cpp` was already linked (#1005-#1009); the row was MISSING. |
+| Unrestricted items | `gCheats.NoRestrictItems` | `gCheats.UnrestrictedItems` | ⚠️ OoT = ignore age restrictions; MM = all forms use all items. Same *intent* (drop item gating), different gate. Confirm. PARKED (`kMustStayDistinct`); until it is answered MM keeps its own row, "MM Unrestricted Items", right after SoH's on Cheats > Items (W6-CYCLE-CHEATS, #1240), and `Cheats/UnrestrictedItems.cpp` is linked. |
 | Enemy health bar | `gEnhancements.EnemyHealthBar` | `gEnhancements.Graphics.EnemyHealthBars` | **singular vs plural** leaf |
 | Title cards | `gEnhancements.TimeSavers.DisableTitleCard` | `gEnhancements.Cutscenes.HideTitleCards` | "Disable…Card" vs "Hide…Cards" |
 
@@ -424,7 +424,15 @@ default (off).
 
 | MM category | Keys | Why (O) |
 |---|---:|---|
-| `Cycle` | 8 | Three-day cycle resets — no OoT analogue |
+| `Cycle.DoNotResetBottleContent` | 1 | (O). Row "Do Not Reset Bottle Contents", Quality of Life > Time of Day, Majora's Mask block (W6-CYCLE-CHEATS, #1236); `Cycle/EndOfCycle.cpp` linked. Bottle contents never cross (the shared bottle COUNT, #970, is untouched) |
+| `Cycle.DoNotResetRazorSword` | 1 | (O). Row "Do Not Reset Razor Sword", same block. Forced on for rando (`CVAR \|\| IS_RANDO`): EndOfCycle.cpp's own hook, which retired #1224's inline port in `Rando/MiscBehavior/OnCycleSave.cpp` |
+| `Cycle.DoNotResetTimeSpeed` | 1 | (O). Row "Do Not Reset Time Speed", same block |
+| `Cycle.DoNotResetRupees` | 1 | INTENTIONAL, no row. The combo keeps the SHARED rupees through every cycle reset in every world (`MM_RegisterSharedResourceCycleHooks`, #525), so the switch would do nothing; EndOfCycle.cpp holds its restore off in the single exe so a hand-set key cannot restore a second, unsettled count over the combo's |
+| `Cycle.DoNotResetConsumables` | 1 | INTENTIONAL, no row. The five shared ammo counts survive every reset (#525), and the Powder Keg and the Magic Beans follow the world's FROZEN Keep Items on Cycle Reset (#1175, `gComboCtx.mmKeepItemsReset`); a live per-player switch may not overrule a setting frozen at file creation (one-game semantics). Held off in EndOfCycle.cpp |
+| `Cycle.KeepExpressMail` | 1 | (O). Row "Keep Express Mail", same block; `Cycle/KeepExpressMail.cpp` linked (play-state guard added) |
+| `Cycle.StopOceansideSpiderHouseSquatter` | 1 | (O). Row "Stop Oceanside Spider House Squatter", same block; forced on for rando (`CVAR \|\| IS_RANDO`, #1221), `Cycle/OceansideSpiderHouseSquatter.cpp` linked and #1224's port retired |
+| `Cycle.OceansideWalletAnyDay` | 1 | (O). Row "Oceanside Wallet Any Day", same block; forced on for rando (#1221), `Cycle/OceansideWalletAnyDay.cpp` linked and #1224's port retired |
+| `gCheats.{LongerFlowerGlide, ElegyAnywhere, TempleTimeStop, UnbreakableRazorSword}` | 4 | (O) MM-only cheats. Rows "Longer Deku Flower Glide", "Elegy of Emptiness Anywhere", "Stop Time in Dungeons" and "Unbreakable Razor Sword" under a Majora's Mask block at the end of Enhancements > Cheats (W6-CYCLE-CHEATS, #1240); their four TUs linked. Unbreakable Razor Sword is forced on for rando (#1215) |
 | `Masks` | 10 | Transformation masks, Bunny Hood persistence, Blast Mask |
 | `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |

@@ -4368,15 +4368,16 @@ extern "C" void MM_GameHooks_ExecuteOnSceneFlagSet(s16 sceneId, FlagType flagTyp
  * it deletes a flash slot and clears isOwlSave rather than reading flash back
  * over gSaveContext, so it is not the #487 flash-readback class.
  *
- * WHAT DOES NOT COME BACK: 2s2h/Enhancements/Cycle/EndOfCycle.cpp's six
- * registrants (its own saveInfoCopy plus the DoNotReset{Rupees,Consumables,
- * BottleContent,RazorSword,TimeSpeed} restores) are still absent from the
- * binary — that TU is link-elided from the plain-archive 2ship_enh, verified
- * against build-cmake/redship.map, which lists no EndOfCycle.cpp.obj. Nothing
- * here changes that; those CVars stay inert until the TU links. Its razor-sword
- * hook is forced on for rando (`CVAR || IS_RANDO`), so that one restore is
- * ported into the rando's own AfterEndOfCycleSave (Rando/MiscBehavior/
- * OnCycleSave.cpp, #1215), which 2ship_rando's WHOLE_ARCHIVE link keeps.
+ * 2s2h/Enhancements/Cycle/EndOfCycle.cpp's registrants (its own saveInfoCopy
+ * plus the DoNotReset{Rupees,Consumables,BottleContent,RazorSword,TimeSpeed}
+ * restores) are linked since W6-CYCLE-CHEATS (#1236, ship__Enh_registrars), and
+ * the Bottle Content, Razor Sword and Time Speed restores have MM rows on SoH's
+ * Quality of Life > Time of Day. The razor-sword hook is forced on for rando
+ * (`CVAR || IS_RANDO`), which retired #1215's inline port in OnCycleSave.cpp.
+ * The Rupees and Consumables restores are held off in the single exe
+ * (EndOfCycle.cpp): MM_RegisterSharedResourceCycleHooks below keeps the shared
+ * rupees and ammo in every world, and the MM-local counts follow the frozen
+ * Keep Items on Cycle Reset (#1175), which a live switch may not overrule.
  *
  * Unkeyed leg only, matching the GameInteractor.cpp twins: both hook types are
  * DEFINE_HOOK(..., ()) 0-arg, upstream's executors call plain ExecuteHooks<>,
