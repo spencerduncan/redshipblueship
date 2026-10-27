@@ -291,13 +291,15 @@ bool RecordForeignPickup(RandoCheckId randoCheckId);
 /** THE FOREIGN GIVE, factored out of CheckQueue's foreign lambda (#800 pass 1) so
  *  a shop's purchase delivers through the same code as a chest's pickup. Records
  *  the crossing (RecordForeignPickup, with its #610 refusal) and marks the host
- *  delivered (`cycleObtained` and `obtained` set, `eligible` cleared) whatever the
- *  record answered, exactly as the lambda always has.
+ *  delivered (`cycleObtained` and `obtained` set, `eligible` cleared), EXCEPT when
+ *  the full outbox refuses the crossing (#1222, ForeignOutboxFullFor): then the
+ *  host is left open and untouched, still `eligible`.
  *
  *  Returns RecordForeignPickup's answer. false means nothing crossed: the check
  *  hosts nothing, it already delivered on an earlier cycle, or there is no live
  *  pairing (#610); a caller with a give of its own (the shop) then degrades to the
- *  MM cover the host physically holds.
+ *  MM cover the host physically holds. A host still not `obtained` after the call
+ *  was HELD: nothing may be charged or given for it.
  *
  *  Presentation stays with the caller: CheckQueue shows its "You found" textbox,
  *  and a shop keeps its own purchase dialogue, as for a native purchase (MM's
@@ -316,6 +318,20 @@ std::string ForeignPickupMessage(const char* article, const char* name);
  *  once-per-host gate). A shop slot like this is sold for the rest of the game
  *  (#800), where a native slot restocks. */
 bool IsDeliveredForeignHost(RandoCheckId randoCheckId);
+
+/** THE FULL OUTBOX (#1222). True when the foreign host `randoCheckId` cannot
+ *  deliver now because every shared slot holds an item the other game has not
+ *  redeemed yet, so its crossing would be refused (src/common/shared_items.c,
+ *  Combo_SharedItemCrossingHasRoom): it hosts a foreign item, the pairing is
+ *  live, it has not delivered, and the outbox has no room. CheckQueue holds such
+ *  a host back (still `eligible`, delivered once a crossing frees a slot), a shop
+ *  refuses its sale, and GiveForeignCheck leaves it open. */
+bool ForeignOutboxFullFor(RandoCheckId randoCheckId);
+
+/** The toast that tells the player a pickup or a purchase is held for want of a
+ *  shared row ("Outbox full: cross to Hyrule to send it"). Defined in
+ *  MiscBehavior/CheckQueue.cpp (#1222). */
+void NotifyForeignOutboxFull();
 
 } // namespace Foreign
 } // namespace Rando

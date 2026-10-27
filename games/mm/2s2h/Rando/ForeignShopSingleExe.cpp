@@ -10,6 +10,12 @@
  *  - MM_EnGirlA_TestForeignPurchase: the ForeignItemGiveShop row's purchase legs
  *    (src/common/tests/test_foreign_shop_mm.c);
  *  - MM_EnGirlA_TestHagsMushroomRearm: the same row's re-armed Hags leg;
+ *  - MM_EnGirlA_TestHagsDeliveredFreePotion: the same row's S7 legs (#1228);
+ *  - MM_EnGirlA_TestForeignPurchaseBoughtFirst: the same row's S8 leg (the
+ *    Curiosity Shop's order, #1222 review);
+ *  - MM_EnGirlA_TestForeignPurchaseOutboxFull: the ForeignOutboxFullMM row's
+ *    shop leg (#1222, src/common/tests/test_foreign_outbox_full.c);
+ *  - MM_EnBal_TestTingleSlotSold: the same row's Tingle leg (#1222 review);
  *  - MM_EnBal_TestForeignPurchase: the same row's Tingle map legs (#800 pass 2),
  *    through the functions EnBal.cpp's hooks answer with;
  *  - MM_Shop_PlaytestWarp / MM_Shop_PlaytestShopFrame: the env-gated playtest
@@ -33,6 +39,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 #include "overlays/actors/ovl_En_Ossan/z_en_ossan.h"
 #include "overlays/actors/ovl_En_Sob1/z_en_sob1.h"
+#include "overlays/actors/ovl_En_Trt/z_en_trt.h"
 }
 
 // src/common. Outside any extern "C" block: each header manages its own linkage.
@@ -149,6 +156,159 @@ extern "C" int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired)
     return code;
 }
 
+/** A Curiosity Shop slot (EnFsn sells it): the S8 leg's shelf. */
+extern "C" uint16_t MM_EnGirlA_TestCuriosityShopCheck(void) {
+    return (uint16_t)RC_CURIOSITY_SHOP_SPECIAL_ITEM;
+}
+
+// ============================================================================
+// TEST BRIDGE (ForeignItemGiveShop row, the S8 leg; #1222 review). The Curiosity
+// Shop's ORDER: EnFsn_HandleCanPlayerBuyItem (z_en_fsn.c) calls canBuyFunc, then
+// buyFanfareFunc, OfferGetItem and boughtFunc; the shelf's buyFunc runs only
+// later, from EnFsn.cpp's VB_GIVE_ITEM_FROM_OFFER hook. So boughtFunc sees the
+// slot NOT yet obtained on an ordinary, successful sale (the outbox has room),
+// and must still empty the shelf. Drives canBuyFunc, boughtFunc, then buyFunc
+// on `randoCheckId`, which the caller made a paired crossing host with room.
+// Prints the observation; returns 0 on success, a step code otherwise. Every
+// piece of state it touches is restored.
+// ============================================================================
+extern "C" int MM_EnGirlA_TestForeignPurchaseBoughtFirst(uint16_t randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 90;
+    }
+    const RandoCheckId rc = (RandoCheckId)randoCheckId;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    const s16 priorRupees = gSaveContext.save.saveInfo.playerData.rupees;
+    const s16 priorAccumulator = gSaveContext.rupeeAccumulator;
+    PlayState* const priorPlay = MM_gPlayState;
+
+    PlayState* play = (PlayState*)calloc(1, sizeof(PlayState));
+    EnGirlA* shelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    const s16 kPrice = 37;
+    shelf->actor.world.rot.z = (s16)randoCheckId;
+    shelf->isOutOfStock = false;
+    shelf->actor.draw = EnGirlA_RandoDrawFunc;
+    play->msgCtx.unk1206C = kPrice;
+    MM_gPlayState = play;
+
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = false;
+    check.cycleObtained = false;
+    check.eligible = false;
+    check.price = kPrice;
+    gSaveContext.save.saveInfo.playerData.rupees = 100;
+    gSaveContext.rupeeAccumulator = 0;
+
+    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+    const s32 canBuy = EnGirlA_RandoCanBuyFunc(play, shelf);
+    EnGirlA_RandoBought(play, shelf); // EnFsn: before the give
+    const bool emptied = shelf->isOutOfStock && shelf->actor.draw == NULL;
+    EnGirlA_RandoBuyFunc(play, shelf); // EnFsn.cpp's VB_GIVE_ITEM_FROM_OFFER: the give, later
+    const int crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
+    const int charged = -(int)gSaveContext.rupeeAccumulator;
+    printf("[TEST]   S8 Curiosity Shop order, check %u: canBuy=%d; boughtFunc before the give: shelf %s; then the "
+           "give: crossings authored=%d, obtained=%d, charged=%d\n",
+           (unsigned)randoCheckId, (int)canBuy, emptied ? "emptied" : "STILL STANDING", crossed, check.obtained ? 1 : 0,
+           charged);
+
+    int code = 0;
+    if (canBuy != CANBUY_RESULT_SUCCESS_2) {
+        code = 1;
+    } else if (!emptied) {
+        code = 2; // the bought item stays on the counter until the scene reloads
+    } else if (crossed != 1 || !check.obtained || charged != kPrice) {
+        code = 3;
+    }
+
+    check = priorCheck;
+    gSaveContext.save.saveInfo.playerData.rupees = priorRupees;
+    gSaveContext.rupeeAccumulator = priorAccumulator;
+    MM_gPlayState = priorPlay;
+    free(shelf);
+    free(play);
+    return code;
+}
+
+// ============================================================================
+// TEST BRIDGE (ForeignOutboxFullMM row; #1222). The same shelf purchase when the
+// crossing would be REFUSED: the caller made `randoCheckId` a crossing host,
+// paired, and filled every shared slot with an item the other game has not
+// redeemed (src/common/shared_items.c refuses the record then). Drives, in a
+// shopkeeper's order:
+//   1. canBuyFunc, which must refuse the sale (CANBUY_RESULT_CANNOT_GET_NOW);
+//   2. buyFunc and boughtFunc anyway, as a shopkeeper whose canBuy had said yes
+//      would (the defense behind 1): nothing may be charged, nothing crossed, the
+//      slot must not read sold and the shelf must stay standing.
+// Prints the observation; returns 0 on success, a step code otherwise. Every
+// piece of state it touches is restored.
+// ============================================================================
+extern "C" int MM_EnGirlA_TestForeignPurchaseOutboxFull(uint16_t randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return 90;
+    }
+    const RandoCheckId rc = (RandoCheckId)randoCheckId;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    const s16 priorRupees = gSaveContext.save.saveInfo.playerData.rupees;
+    const s16 priorAccumulator = gSaveContext.rupeeAccumulator;
+    PlayState* const priorPlay = MM_gPlayState;
+
+    PlayState* play = (PlayState*)calloc(1, sizeof(PlayState));
+    EnGirlA* shelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    const s16 kPrice = 37;
+    shelf->actor.world.rot.z = (s16)randoCheckId;
+    shelf->isOutOfStock = false;
+    shelf->actor.draw = EnGirlA_RandoDrawFunc; // standing, as EnGirlA_RandoInit leaves an unsold slot
+    play->msgCtx.unk1206C = kPrice;
+    MM_gPlayState = play;
+
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = false;
+    check.cycleObtained = false;
+    check.eligible = false;
+    check.price = kPrice;
+    gSaveContext.save.saveInfo.playerData.rupees = 100;
+    gSaveContext.rupeeAccumulator = 0;
+
+    const int before = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+    const s32 canBuy = EnGirlA_RandoCanBuyFunc(play, shelf);
+    EnGirlA_RandoBuyFunc(play, shelf);
+    EnGirlA_RandoBought(play, shelf);
+    const int crossed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true) - before;
+    const int charged = -(int)gSaveContext.rupeeAccumulator;
+    const bool delivered = check.obtained || check.cycleObtained;
+    const bool sold = Rando::ActorBehavior::ShopShelfSlotSold(rc);
+    const bool standing = !shelf->isOutOfStock && shelf->actor.draw != NULL;
+    printf("[TEST]   F shop check %u, outbox full: canBuy=%d (CANNOT_GET_NOW=%d); after a buy anyway: charged=%d, "
+           "crossings authored=%d, delivered=%d, slot sold=%d, shelf %s\n",
+           (unsigned)randoCheckId, (int)canBuy, (int)CANBUY_RESULT_CANNOT_GET_NOW, charged, crossed, delivered ? 1 : 0,
+           sold ? 1 : 0, standing ? "standing" : "EMPTIED");
+
+    int code = 0;
+    if (canBuy != CANBUY_RESULT_CANNOT_GET_NOW) {
+        code = 1; // the counter sells a slot whose crossing the outbox will refuse
+    } else if (charged != 0) {
+        code = 2; // the price is charged for an item that cannot cross
+    } else if (crossed != 0) {
+        code = 3;
+    } else if (delivered || sold) {
+        code = 4; // the slot sells out while its OoT item is lost
+    } else if (!standing) {
+        code = 5; // the shelf is emptied for a sale that did not happen
+    }
+
+    check = priorCheck;
+    gSaveContext.save.saveInfo.playerData.rupees = priorRupees;
+    gSaveContext.rupeeAccumulator = priorAccumulator;
+    MM_gPlayState = priorPlay;
+    free(shelf);
+    free(play);
+    return code;
+}
+
 /** The Hags' mushroom slot (EnGirlA.cpp's text 0x884 hook arms it). */
 extern "C" uint16_t MM_EnGirlA_TestHagsMushroomCheck(void) {
     return (uint16_t)RC_HAGS_POTION_SHOP_ITEM_01;
@@ -197,9 +357,78 @@ extern "C" void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCross
     check = priorCheck;
 }
 
+// ============================================================================
+// TEST BRIDGE (ForeignItemGiveShop row, the S7 leg; #1228). The Hags' slot on a
+// LATER cycle, its OoT item delivered on an earlier one (`obtained`, survives the
+// reset; `cycleObtained` and the weekly flags cleared by it):
+//   1. the mushroom line (text 0x884) asks HagsMushroomLineArms, which must not
+//      arm the slot but must settle the cycle's free blue potion
+//      (WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
+//   2. the next visit picks the blue-potion shelf (SI_POTION_BLUE): EnTrt's own
+//      choice line for it (EnTrt_GetItemChoiceTextId) must be the shelf's rando
+//      sale line, not the free-potion line 0x881. 0x881's TEXT_STATE_EVENT branch
+//      offers the shelf's getItemId and waits on HasParent (z_en_trt.c
+//      EnTrt_SelectItem / EnTrt_BuyItemWithFanfare), and a rando shelf has none
+//      (GI_NONE: EnGirlA_RandoInit replaces the InitialUpdate that sets it), so
+//      the offer never completes.
+// Writes the arm (1/0), the flag (1/0) and the choice text id. The save check
+// and the weekly flag byte are restored.
+//
+// With `held` (#1222 review), the slot is instead armed on an earlier cycle and
+// its crossing HELD by a full outbox (`eligible`, not delivered; CheckQueue keeps
+// it so across the reset until a crossing frees a row): the line does not arm it
+// either, and must settle the free potion the same way.
+// ============================================================================
+extern "C" u16 EnTrt_GetItemChoiceTextId(EnTrt* enTrt);
+
+extern "C" void MM_EnGirlA_TestHagsDeliveredFreePotion(int held, int* outArms, int* outFreePotionSettled,
+                                                       int* outChoiceTextId) {
+    const RandoCheckId rc = RC_HAGS_POTION_SHOP_ITEM_01;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    const u8 priorWeekByte = WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION >> 8);
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = !held; // delivered on an earlier cycle, or held
+    check.cycleObtained = false;
+    check.eligible = held != 0;
+    CLEAR_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION); // the three-day reset
+
+    *outArms = Rando::ActorBehavior::HagsMushroomLineArms() ? 1 : 0;
+    *outFreePotionSettled = CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION) ? 1 : 0;
+
+    EnTrt* hag = (EnTrt*)calloc(1, sizeof(EnTrt));
+    EnGirlA* blueShelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    blueShelf->actor.params = SI_POTION_BLUE;
+    blueShelf->actor.world.rot.z = (s16)rc;
+    blueShelf->choiceTextId = 0x0840; // EnGirlA.cpp's RANDO_CHOICE_TEXT_ID, set by EnGirlA_RandoInit
+    hag->items[2] = blueShelf;
+    hag->cursorIndex = 2;
+    *outChoiceTextId = (int)EnTrt_GetItemChoiceTextId(hag);
+    printf("[TEST]   S7 Hags' slot %u (%s), %s, a later cycle: the mushroom line arms=%d, settles the free "
+           "blue potion=%d; the blue-potion shelf's choice line=0x%03X (0x881 = the free potion, whose offer of a "
+           "rando shelf's GI_NONE never completes)\n",
+           (unsigned)rc, Rando::Foreign::IsForeignCheck(rc) ? "foreign host" : "native",
+           held ? "HELD by a full outbox" : "delivered", *outArms, *outFreePotionSettled, (unsigned)*outChoiceTextId);
+    free(blueShelf);
+    free(hag);
+    WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION >> 8) = priorWeekByte;
+    check = priorCheck;
+}
+
 /** A Tingle map slot (EnBal.cpp's tingleMap: North Clock Town's first map). */
 extern "C" uint16_t MM_EnBal_TestTingleMapCheck(void) {
     return (uint16_t)RC_CLOCK_TOWN_NORTH_TINGLE_MAP_01;
+}
+
+/** TEST BRIDGE (ForeignOutboxFullMM row, the Tingle leg; #1222 review): 1 when
+ *  VB_ALREADY_HAVE_TINGLE_MAP refuses slot `randoCheckId`'s sale, before his
+ *  price is charged (z_en_bal.c charges after that check, then arms the slot). */
+extern "C" int MM_EnBal_TestTingleSlotSold(uint16_t randoCheckId) {
+    if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX) {
+        return -1;
+    }
+    return Rando::ActorBehavior::TingleMapSlotSold((RandoCheckId)randoCheckId) ? 1 : 0;
 }
 
 // ============================================================================
