@@ -83,3 +83,16 @@ static void RegisterAutosave() {
 }
 
 static RegisterShipInitFunc initFunc(RegisterAutosave, { CVAR_AUTOSAVE_NAME });
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (oot-log-noise, #1204): one frame of the interval autosave exactly
+// as the OnGameFrameUpdate hook runs it, with the three-minute interval already
+// elapsed (the state in which the hook re-checks every frame until a save can be
+// taken). The interval clock is put back afterwards.
+extern "C" void OoT_Autosave_TestIntervalFrame(void) {
+    const uint64_t before = lastSaveTimestamp;
+    lastSaveTimestamp = GetUnixTimestamp() - THREE_MINUTES_IN_UNIX;
+    Autosave_IntervalSave();
+    lastSaveTimestamp = before;
+}
+#endif

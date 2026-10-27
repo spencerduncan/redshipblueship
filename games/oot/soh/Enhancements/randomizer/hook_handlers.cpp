@@ -432,6 +432,19 @@ extern "C" int OoT_Rando_Foreign_TestQueuedCheck(void) {
     return (int)randomizerQueuedCheck;
 }
 
+// TEST BRIDGE (oot-log-noise, #1204): occupy the give slot with `entry` for check
+// `rc`, as the drain does; the item queue handler then offers it on every player
+// update until the player takes it. A null entry frees the slot.
+extern "C" void OoT_Rando_TestQueueGive(uint16_t rc, const GetItemEntry* entry) {
+    if (entry != nullptr) {
+        randomizerQueuedCheck = (RandomizerCheck)rc;
+        randomizerQueuedItemEntry = *entry;
+    } else {
+        randomizerQueuedCheck = RC_UNKNOWN_CHECK;
+        randomizerQueuedItemEntry = GET_ITEM_NONE;
+    }
+}
+
 // PLAYTEST DRIVE (#577 M4, GameExports_SingleExe.cpp, RSBS_PFC_OOT_FOREIGN_MODEL=1):
 // queue check `rc` as the scene-flag and RandomizerInf hooks do when the player
 // opens it; the drain below then handles it.
