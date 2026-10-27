@@ -1084,6 +1084,11 @@ void BenMenu::AddEnhancements() {
     AddWidget(path, "Bow Reticle", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.BowReticle")
         .Options(CheckboxOptions().Tooltip("Gives the bow a reticle when you draw an arrow."));
+    // RSBS #1173: SoH's row and key (Enhancements > Items > Hookshot), which the single exe draws instead.
+    AddWidget(path, "Targetable Hookshot Reticle", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.HookshotableReticle")
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Hookshot Reticle use a different color when aiming at hookshotable collision."));
     AddWidget(path, "Mark Shooting Gallery Octoroks", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Minigames.MarkShootingGalleryOctoroks")
         .Options(CheckboxOptions().Tooltip("Places markers on the Town Shooting Gallery Octoroks, indicating whether "

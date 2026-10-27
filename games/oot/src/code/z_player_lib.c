@@ -1685,9 +1685,11 @@ void func_80090A28(Player* this, Vec3f* vecs) {
 }
 
 // RSBS #1173: whether the reticle takes the "Targetable Hookshot Reticle" colour. Split out of the draw below so
-// a ROM-free row (OoTHookshotReticleColour) can see the choice.
+// a ROM-free row (OoTHookshotReticleColour) can see the choice. Ports SoH 6340ad3d5's held-item clause: the Bow,
+// Slingshot and Boomerang reticles draw through this function too, and a hookshot surface means nothing to them.
 s32 OoT_Player_HookshotReticleIsTarget(s32 heldItemAction, s32 isHookshotSurface) {
-    return isHookshotSurface && CVarGetInteger(CVAR_ENHANCEMENT("HookshotableReticle"), false);
+    return isHookshotSurface && CVarGetInteger(CVAR_ENHANCEMENT("HookshotableReticle"), false) &&
+           (heldItemAction == PLAYER_IA_HOOKSHOT || heldItemAction == PLAYER_IA_LONGSHOT);
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
