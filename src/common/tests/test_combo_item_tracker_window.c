@@ -1971,7 +1971,20 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
            mmSnap.rows.size(), mmSnap.note.c_str(), shared.title, shared.rows.size(), shared.note.c_str());
     CITW_ASSERT(strcmp(ootLiveSection.title, "Ocarina of Time") == 0);
     CITW_ASSERT(ootLiveSection.freshness == COMBO_TRACKER_FRESH_LIVE && ootLiveSection.note.empty());
-    CITW_ASSERT((int)ootLiveSection.rows.size() == oot->count());
+    // #1142: SoH's optional sections (dungeon items, souls, Greg, ...) are hidden by default, so the
+    // section holds exactly the adapter's rows whose group SoH's keys show, and fewer than all of them.
+    {
+        const ComboItemTrackerKeys keysNow = ComboReadItemTrackerKeys();
+        int ootShown = 0;
+        for (int i = 0; i < oot->count(); i++) {
+            ComboItemRow r;
+            if (oot->rowAt(ootLive.data(), i, &r) && ComboItemTrackerSohGroupShown(keysNow, r.group)) {
+                ootShown++;
+            }
+        }
+        CITW_ASSERT((int)ootLiveSection.rows.size() == ootShown);
+        CITW_ASSERT(ootShown < oot->count());
+    }
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Hookshot", true));     // the live world (variant 1)
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Song of Time", true)); // the live world
     CITW_ASSERT(CitwSectionHasText(ootLiveSection, "Fairy Bow", false));   // not held: no count printed
