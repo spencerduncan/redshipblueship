@@ -52,13 +52,22 @@ constexpr const char* kPresetTooltip =
     "where Majora's Mask does, Hidden hides them all, and Widescreen moves each to the side of your game window it "
     "sits nearest. Majora's Mask only.";
 
+// MmHudPlacement_OpenElementForTest's request: whether it is set, and the element it opens.
+bool sOpenForTestSet = false;
+std::string sOpenForTest;
+
 std::string MmHudKey(const MmHudElement& e, const char* field) {
     return std::string(RSBS_CVAR_MM_HUD_EDITOR_PREFIX) + e.key + field;
 }
 
-void DrawMmHudModeRadio(const char* label, const std::string& modeKey, int32_t mode, const char* tooltip) {
+void DrawMmHudModeRadio(const std::string& header, const char* label, const std::string& modeKey, int32_t mode,
+                        const char* tooltip) {
     UIWidgets::CVarRadioButton(label, modeKey.c_str(), mode,
                                UIWidgets::RadioButtonsOptions().Color(THEME_COLOR).Tooltip(tooltip));
+    // The radio's label is its last item, the one whose hover shows the tooltip. Reported as "<header>: <label>", so
+    // the UI snapshot can find one element's radio among the identical labels of the others.
+    ComboUi_NotifyRect((header + ": " + label).c_str(), tooltip, ImGui::GetItemRectMin().x, ImGui::GetItemRectMin().y,
+                       ImGui::GetItemRectMax().x, ImGui::GetItemRectMax().y);
 }
 
 void DrawMmHudElement(const MmHudElement& e) {
@@ -71,6 +80,9 @@ void DrawMmHudElement(const MmHudElement& e) {
 
     ImGui::PushID(e.key);
     UIWidgets::PushStyleHeader(THEME_COLOR);
+    if (sOpenForTestSet) {
+        ImGui::SetNextItemOpen(sOpenForTest == e.key, ImGuiCond_Always);
+    }
     if (ImGui::CollapsingHeader(header.c_str())) {
         if (ImGui::BeginTable("tableMmHudElement", 1, FlagsTable)) {
             ImGui::TableSetupColumn(column.c_str(), FlagsCell, TablesCellsWidth);
@@ -81,16 +93,17 @@ void DrawMmHudElement(const MmHudElement& e) {
             ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x - 60);
 
             const int32_t before = CVarGetInteger(modeKey.c_str(), RSBS_MM_HUD_MODE_VANILLA);
-            DrawMmHudModeRadio("Original position", modeKey, RSBS_MM_HUD_MODE_VANILLA,
+            DrawMmHudModeRadio(header, "Original position", modeKey, RSBS_MM_HUD_MODE_VANILLA,
                                "Uses the element's original position. Majora's Mask only.");
-            DrawMmHudModeRadio("Anchor to the left", modeKey, RSBS_MM_HUD_MODE_MOVABLE_LEFT,
+            DrawMmHudModeRadio(header, "Anchor to the left", modeKey, RSBS_MM_HUD_MODE_MOVABLE_LEFT,
                                "Makes the element follow the left side of your game window. Majora's Mask only.");
-            DrawMmHudModeRadio("Anchor to the right", modeKey, RSBS_MM_HUD_MODE_MOVABLE_RIGHT,
+            DrawMmHudModeRadio(header, "Anchor to the right", modeKey, RSBS_MM_HUD_MODE_MOVABLE_RIGHT,
                                "Makes the element follow the right side of your game window. Majora's Mask only.");
-            DrawMmHudModeRadio("No anchors", modeKey, RSBS_MM_HUD_MODE_MOVABLE_43,
+            DrawMmHudModeRadio(header, "No anchors", modeKey, RSBS_MM_HUD_MODE_MOVABLE_43,
                                "Keeps the element from following any side of your game window. Better used for "
                                "center elements. Majora's Mask only.");
-            DrawMmHudModeRadio("Hidden", modeKey, RSBS_MM_HUD_MODE_HIDDEN, "Hides the element. Majora's Mask only.");
+            DrawMmHudModeRadio(header, "Hidden", modeKey, RSBS_MM_HUD_MODE_HIDDEN,
+                               "Hides the element. Majora's Mask only.");
             const int32_t mode = CVarGetInteger(modeKey.c_str(), RSBS_MM_HUD_MODE_VANILLA);
             if (mode != before) {
                 // A new mode starts the element from its vanilla position and size, as 2Ship's Mode combobox did.
@@ -137,6 +150,11 @@ void DrawMmHudElement(const MmHudElement& e) {
 } // namespace
 
 namespace SohGui {
+
+void MmHudPlacement_OpenElementForTest(const char* key) {
+    sOpenForTestSet = key != nullptr;
+    sOpenForTest = key != nullptr ? key : "";
+}
 
 void DrawMmHudPlacementSection() {
     static int32_t sPreset = RSBS_MM_HUD_PRESET_VANILLA;
