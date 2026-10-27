@@ -73,6 +73,17 @@ static int ReclaimOldestRedeemedSlot(void) {
     return -1;
 }
 
+bool Combo_SharedItemCrossingHasRoom(void) {
+    for (int i = 0; i < (int)RSBS_SHARED_ITEM_CAP; i++) {
+        const SharedItem* slot = &gComboCtx.sharedItemsTagged[i];
+        // A free slot (FindFirstFreeSlot) or a reclaimable one (ReclaimOldestRedeemedSlot).
+        if (slot->originGame == (uint8_t)GAME_NONE || (slot->flags & RSBS_SHARED_ITEM_REDEEMED) != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Append an entry with NO content de-dup (the sourced-grant path depends on
 // that: a second grant of the same item is a real second item). `flags` is 0
 // for an in-process record or RSBS_SHARED_ITEM_SOURCED for a sourced grant —
