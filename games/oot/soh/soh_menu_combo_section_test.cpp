@@ -593,7 +593,7 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
             "Item Tracker Settings",
             "Popout Item Tracker Settings",
             "Move to Default Position##ItemTracker",
-            "Tracker Opacity##ItemTracker",
+            "Tracker Opacity",
             "Item Tracker Sections",
             "Ocarina of Time##ItemTracker",
             "Majora's Mask##ItemTracker",

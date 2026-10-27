@@ -111,7 +111,7 @@ void AddItemTrackerPageRows(SohMenu& menu, WidgetPath& path) {
                      .Size(Sizes::Inline)
                      .Tooltip("Puts the floating Item Tracker back where it starts, below the hearts at the left "
                               "of the game."));
-    menu.AddWidget(path, "Tracker Opacity##ItemTracker", WIDGET_CVAR_SLIDER_FLOAT)
+    menu.AddWidget(path, "Tracker Opacity", WIDGET_CVAR_SLIDER_FLOAT)
         .CVar(RSBS_CVAR_COMBO_ITEMS_OPACITY)
         .RaceDisable(false)
         // IsPercentage() first: it resets the range to 0..1, and the overlay
