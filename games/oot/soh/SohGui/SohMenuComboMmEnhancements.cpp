@@ -1,7 +1,9 @@
 /**
  * @file SohMenuComboMmEnhancements.cpp
- * @brief #682 — the curated Majora's Mask enhancement toggles, hosted as a
- *        CONTRIBUTED page in the tier-4 Combo section.
+ * @brief #682 — the curated Majora's Mask enhancement rows, hosted on Ship of
+ *        Harkinian's own Enhancements pages beside their twins (#1133); MM's
+ *        damage multiplier row (#1037); and the registration of MM's randomizer
+ *        pages (#1101).
  *
  * THE PROBLEM. `games/mm/2s2h/BenGui/BenMenu.cpp` is excluded from the single
  * exe (games/mm/CMakeLists.txt), so MM's enhancement toggles had no widget
@@ -11,31 +13,36 @@
  * `gEnhancements.Kaleido.GameOver`, and the ADR 0009 4a/4b machinery built on
  * top of the kaleido prompt described a screen a default build cannot show.
  *
- * WHY A CONTRIBUTED PAGE AND NOT AN EDIT TO SohMenuCombo.cpp. #497 step 6 left
- * `SohGui::RegisterComboSectionPage` precisely so a page can be added without
- * touching the section's own TU (SohMenu.h documents the seam). This file is its
- * first production consumer: a file-scope `RegisterComboSectionPage_t` runs
- * before `AddMenuElements()`, `AddMenuCombo()` creates the sidebar and calls the
- * registrar below. That is safe here for the reason the seam's doc comment
- * names: this TU is under `games/oot/soh`, and all three OoT archives are
- * WHOLE_ARCHIVE'd since #341/#640, so the file-scope registrar cannot be elided
- * the way a plain-archive one would be (#516/#640's class).
- *
- * WHY THE COMBO SECTION AND NOT Enhancements. ADR 0004 section 4 gives the
- * combined product one section for the surface that has no upstream counterpart.
- * These rows are not OoT enhancements and there is no MM Enhancements header to
- * put them under; filing them beside OoT's own enhancement rows would say they
- * apply to the game the player is currently in, which is exactly what they do
- * not do. Every row here is labelled "Majora's Mask only" in its tooltip.
+ * WHERE THE ROWS ARE (#1133, operator ruling D5 of 2026-10-22: "fold into the
+ * applicable SoH pane per setting"). Until #1133 they were a page of the tier-4
+ * Combo header, "Majora's Mask" ("MM Enhancements" until 2026-09-27). That
+ * header retired, and each row is hosted on the SoH page that holds its twin or
+ * nearest relative, through the hosted-row seam (HostedMm/SohMenuHostedMm.h),
+ * by a function below that SoH's page calls in one line (the #1037 shape):
+ *  - MM Autosave Interval: Enhancements > Quality of Life > Saving, directly
+ *    after SoH's Autosave. Autosave itself is the converged key both games read
+ *    (`gEnhancements.Autosave`), so SoH's row is the one row for both games
+ *    (#1119's form) and the old page's pointer to it is gone; the interval is
+ *    MM's own (OoT's is a fixed 3 minutes), held apart in kMustStayDistinct.
+ *  - Skip Time Song Cutscenes: Enhancements > Skips & Speed-ups > Cutscenes,
+ *    directly after SoH's Skip Song Cutscenes, its nearest relative.
+ *  - Game Over Prompt and Better Double Time have no twin, so they are a
+ *    "Majora's Mask" block on Enhancements > Quality of Life, after Time of Day:
+ *    Quality of Life is where SoH keeps how play flows around saving and the
+ *    time of day, and the Game Over Prompt is a save prompt on death while
+ *    Better Double Time picks the hour the Song of Double Time skips to.
+ * Each row keeps its key and its label; SohMenuCombo.cpp carries a menu left
+ * open on the old page to Enhancements > Quality of Life.
  *
  * WHERE THE ROWS COME FROM. `RSBS::kHostedMmEnhancements`
  * (src/common/cvar_shared_keys.h). The table, not this file, is the manifest:
  * each row carries its CVar, its provider TU with line anchors, the ShipInit
  * path its registrar is keyed on, how a lock attributes that registrar, and its
- * ADR 0004 section 5 liveness class with a reason. Spelling the CVar literals
- * here instead would let a menu row drift from the provider that reads it, and
- * the drift is invisible — the widget flips a key nothing consults, which is
- * #499's failure exactly.
+ * ADR 0004 section 5 liveness class with a reason. A row here binds its key's
+ * RSBS_CVAR_MM_* define straight in `.CVar(...)` (games/oot never spells an MM
+ * key; the classification lock's generic leg holds each define to one row) and
+ * takes its label, tooltip, widget and presentation from the manifest entry for
+ * that define, so a row cannot drift from the provider that reads it.
  *
  * WHY THE ROWS ARE UNGATED, with step 3's capability gate available. Lane D's
  * rule, applied unchanged: "a gate whose predicate is a constant is the
@@ -47,28 +54,30 @@
  * `SohMenu::ApplyPresentation(SOH_MENU_PRESENT_CAPABILITY, reason)` from its own
  * PreFunc rather than through a capability key nothing could evaluate.
  *
- * ALL FIVE ROWS ARE LIVE TODAY and no carve-out was needed for any of them:
+ * ALL FOUR ROWS ARE LIVE TODAY and no carve-out was needed for any of them:
  * #679 already WHOLE_ARCHIVE'd the two Songs providers, `SavingEnhancements.cpp`
  * is pulled into the link by the extern "C" references `GameExports_SingleExe.cpp`
  * makes to it (and its `RegisterSavingEnhancements` is on
  * check-registrar-elision.sh's required-symbol allowlist), and the game-over
  * readers are decomp TUs in `2ship_src` that `z_play.c` calls. #693's autosave
  * interval is read by that same SavingEnhancements.cpp, on the tick the Autosave
- * registrar arms. The disabled
- * branch below is therefore untaken by the shipped data; it is kept, and locked
- * from synthetic rows by MenuMmEnhancementRows, because the next row added to
- * the allowlist may well not be live, and discovering that the disabled path was
- * never written would be discovering it at the worst time.
+ * registrar arms. The disabled branch below is therefore untaken by the shipped
+ * data; it is kept, and locked from synthetic rows by MenuMmEnhancementRows,
+ * because the next row added to the allowlist may well not be live, and
+ * discovering that the disabled path was never written would be discovering it
+ * at the worst time.
  *
- * Locked ROM-free by MenuMmEnhancementRows (this page's shape, every row's CVar
- * binding and presentation) and by MMEnhancementToggles (the MM-side liveness
- * evidence: the registrars linked, ran, and re-arm from the key the row writes).
+ * Locked ROM-free by MenuMmEnhancementRows (each row's SoH page, separator and
+ * neighbour, its CVar binding and presentation), by CVarClassification (each
+ * define bound by exactly one row) and by MMEnhancementToggles (the MM-side
+ * liveness evidence: the registrars linked, ran, and re-arm from the key the row
+ * writes).
  */
 
 #include "SohMenu.h"
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohGui.hpp"
-// The hosted-row seam (#1233): MM's damage multiplier row goes through it.
+// The hosted-row seam (#1233): every row below goes through it.
 #include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
 
 // The manifest. ADR 0008 rule 5's restatement for an OoT-hosted row: the row
@@ -82,6 +91,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace SohGui {
 
@@ -89,23 +99,30 @@ using namespace UIWidgets;
 
 namespace {
 
-/**
- * The page's sidebar label. A `std::string` compare against this is how
- * MenuMmEnhancementRows finds the page, and sidebar selection persists BY
- * DISPLAY-NAME STRING into `gSettings.Menu.ComboSidebarSection`, so renaming it
- * strands every config that last had it open — the measured reason ADR 0004's
- * resolved call 1 refused to rename a header.
- *
- * RENAMED 2026-09-27 (UI parity, lane U3) from "MM Enhancements", and carried:
- * that label measured 192 px in Montserrat 24, the sidebar child's whole clip
- * width, so the selected entry's highlight lost its side padding and its
- * rounded corners to the clip rect. "Majora's Mask" fits with the padding SoH's
- * own entries get. SohMenuCombo.cpp's ComboSidebarCarryRenamedSelection moves a
- * stored "MM Enhancements" to this name before the first draw reads the key,
- * and MenuComboSection leg 6 pins it (and that the carried-to name is a
- * registered page, so the two spellings cannot drift apart silently).
- */
-constexpr const char* kMmEnhancementsPage = "Majora's Mask";
+/** Is @p key one of the manifest's keys? constexpr, so a row below that binds a
+ *  define the manifest does not list is a red build, not a row with no entry. */
+constexpr bool CuratedKeyListed(const char* key) {
+    for (const RSBS::HostedMmEnhancement& row : RSBS::kHostedMmEnhancements) {
+        if (RSBS::MmEnhStringEqual(row.key, key)) {
+            return true;
+        }
+    }
+    return false;
+}
+static_assert(CuratedKeyListed(RSBS_CVAR_MM_AUTOSAVE_INTERVAL) && CuratedKeyListed(RSBS_CVAR_MM_SKIP_SOT_CUTSCENES) &&
+                  CuratedKeyListed(RSBS_CVAR_MM_KALEIDO_GAME_OVER) &&
+                  CuratedKeyListed(RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME),
+              "every curated row hosted below binds a key the manifest (RSBS::kHostedMmEnhancements) lists");
+
+/** The manifest entry for @p key, which CuratedKeyListed proved is there. */
+const RSBS::HostedMmEnhancement& CuratedRow(const char* key) {
+    for (const RSBS::HostedMmEnhancement& row : RSBS::kHostedMmEnhancements) {
+        if (RSBS::MmEnhStringEqual(row.key, key)) {
+            return row;
+        }
+    }
+    return RSBS::kHostedMmEnhancements[0]; // unreachable: the static_assert above
+}
 
 /** ADR 0004 section 6's state for a row whose provider is not fully live. */
 SohMenuPresentation PresentationFor(RSBS::MmEnhancementLiveness liveness) {
@@ -153,11 +170,11 @@ WidgetFunc PresentationPreFunc(const RSBS::HostedMmEnhancement* entry) {
  * #693: the PreFunc for a row whose setting is moot while another key is off.
  * HIDDEN, not disabled, and deliberately not through ApplyPresentation: the
  * provider is not absent (which is what SOH_MENU_PRESENT_CAPABILITY says), the
- * parent feature is simply off, and OoT's own "Notification on Autosave" row
- * already renders exactly this relationship by hiding. `MenuDrawItem` runs
- * `ResetDisables()` (which clears `isHidden`) before every draw, so this must be
- * a PreFunc re-evaluated each frame, and a row that is ALSO non-live composes
- * both: the gate first, then the presentation.
+ * parent feature is simply off, and OoT's own "Notification on Autosave" row,
+ * right below the interval since #1133, renders exactly this relationship by
+ * hiding. `MenuDrawItem` runs `ResetDisables()` (which clears `isHidden`) before
+ * every draw, so this must be a PreFunc re-evaluated each frame, and a row that
+ * is ALSO non-live composes both: the gate first, then the presentation.
  */
 WidgetFunc ShownWhilePreFunc(const RSBS::HostedMmEnhancement* entry) {
     return [entry](WidgetInfo& info) {
@@ -170,9 +187,9 @@ WidgetFunc ShownWhilePreFunc(const RSBS::HostedMmEnhancement* entry) {
 }
 
 /**
- * #747: the one gray note a group carries while any row in it is drawn
- * disabled. The sibling MM Randomizer page's group note, the same macro, so the
- * two Majora's Mask pages say one thing one way and cannot drift. It is this
+ * #747: the one gray note a block carries while any row in it is drawn
+ * disabled. The MM Randomizer page's group note, the same macro, so the
+ * Majora's Mask surfaces say one thing one way and cannot drift. It is this
  * project's sentence, not SoH's: SoH's original menus have no gray capability
  * note to copy (their disabled state is tooltip-only). A sentence-case sentence
  * (SoH's gray-note voice, style guide R-S3a), never the rows' Title Case reason
@@ -182,58 +199,45 @@ WidgetFunc ShownWhilePreFunc(const RSBS::HostedMmEnhancement* entry) {
 constexpr const char* kGroupNote = COMBO_MM_GROUP_NOTE_UNAVAILABLE;
 
 /**
- * Does the page draw @p row DISABLED right now? A row this page owns whose
- * provider is not fully live, and which is not hidden by its gate: a hidden row
- * draws nothing, so a note pointing at it would say "hover one" over nothing.
- * The gate is read the way ShownWhilePreFunc reads it, every frame.
+ * Is @p row drawn DISABLED right now? A row of ours whose provider is not fully
+ * live, and which is not hidden by its gate: a hidden row draws nothing, so a
+ * note pointing at it would say "hover one" over nothing. The gate is read the
+ * way ShownWhilePreFunc reads it, every frame.
  */
 bool DrawsDisabled(const RSBS::HostedMmEnhancement& row) {
     return row.hosting == RSBS::MmEnhancementHosting::OwnRow && row.liveness != RSBS::MmEnhancementLiveness::Live &&
            (row.shownWhileKey == nullptr || CVarGetInteger(row.shownWhileKey, 0) != 0);
 }
 
-/** Could any row in [@p begin, @p end) ever be drawn disabled? Decided at
- *  registration, because liveness is a link-time fact the table records and
- *  does not change while the menu lives. */
-bool GroupHasNonLiveRow(const RSBS::HostedMmEnhancement* begin, const RSBS::HostedMmEnhancement* end) {
-    for (const RSBS::HostedMmEnhancement* row = begin; row != end; row++) {
-        if (row->hosting == RSBS::MmEnhancementHosting::OwnRow && row->liveness != RSBS::MmEnhancementLiveness::Live) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /**
- * #747: the group's note, directly above the group's own rows (style guide R-S3:
- * one gray note row above the group, the MM Randomizer page's shape). For the
- * heading group that is right under its separator; for a pointer row's group it
- * is under the pointer's sentence, so the sentence stays with the pointer it
- * explains and "these settings" is read right above the rows it means, not
- * above a sentence about a live row elsewhere. Registered only for
- * a group that holds a non-live row, so a page whose rows are all Live -- the
- * shipped one, today -- draws exactly what it drew before. Shown while any row
- * of the group is drawn disabled, hidden otherwise (ApplyPresentationNote's LIVE
+ * #747: a block's note, directly under its heading and above its rows (style
+ * guide R-S3: one gray note row above the group). Registered only for a block
+ * that holds a non-live row of ours (liveness is a link-time fact the table
+ * records, so this is decided at registration), so a block whose rows are all
+ * Live -- the shipped one, today -- draws exactly its rows. Shown while any row
+ * of the block is drawn disabled, hidden otherwise (ApplyPresentationNote's LIVE
  * hides it). It is the part of the state that is legible WITHOUT hovering and
  * that a race lockout cannot replace: `.RaceDisable(false)`, and a TEXT row has
- * no tooltip for MenuDrawItem's lockout branch to rebuild (Menu.cpp's TEXT draw
- * never reads `disabled`). That is true by construction, not a tested state:
- * every row this page registers is `.RaceDisable(false)`, so a lockout changes
- * nothing on it at all. Kept out of the menu search, like every gray note: its
- * sentence is not a setting.
+ * no tooltip for MenuDrawItem's lockout branch to rebuild. Kept out of the menu
+ * search, like every gray note: its sentence is not a setting. @p rows point into
+ * static storage.
  */
-void AddGroupNote(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* begin,
-                  const RSBS::HostedMmEnhancement* end) {
-    if (!GroupHasNonLiveRow(begin, end)) {
+void AddGroupNote(SohMenu& menu, WidgetPath& path, std::vector<const RSBS::HostedMmEnhancement*> rows) {
+    bool anyNonLive = false;
+    for (const RSBS::HostedMmEnhancement* row : rows) {
+        anyNonLive = anyNonLive || (row->hosting == RSBS::MmEnhancementHosting::OwnRow &&
+                                    row->liveness != RSBS::MmEnhancementLiveness::Live);
+    }
+    if (!anyNonLive) {
         return;
     }
     menu.AddWidget(path, "Majora's Mask Group Note", WIDGET_TEXT)
         .RaceDisable(false)
         .HideInSearch(true)
-        .PreFunc([begin, end](WidgetInfo& note) {
+        .PreFunc([rows](WidgetInfo& note) {
             bool disabled = false;
-            for (const RSBS::HostedMmEnhancement* row = begin; row != end && !disabled; row++) {
-                disabled = DrawsDisabled(*row);
+            for (const RSBS::HostedMmEnhancement* row : rows) {
+                disabled = disabled || DrawsDisabled(*row);
             }
             SohMenu::ApplyPresentationNote(note, disabled ? SOH_MENU_PRESENT_CAPABILITY : SOH_MENU_PRESENT_LIVE,
                                            kGroupNote);
@@ -241,176 +245,136 @@ void AddGroupNote(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhanceme
         .Options(TextOptions().Color(Colors::Gray));
 }
 
-/** The first pointer row at or after @p from, or @p end. A pointer row opens a
- *  group of its own, so this is where the group holding @p from's rows ends. */
-const RSBS::HostedMmEnhancement* NextPointer(const RSBS::HostedMmEnhancement* from,
-                                             const RSBS::HostedMmEnhancement* end) {
-    while (from != end && from->hosting != RSBS::MmEnhancementHosting::HostedElsewhere) {
-        from++;
+/** The widget type a curated row draws: an integer key gets SoH's int slider (#693), a boolean SoH's checkbox. */
+WidgetType CuratedWidgetType(const RSBS::HostedMmEnhancement& row) {
+    return row.widget == RSBS::MmEnhancementWidget::SliderInt ? WIDGET_CVAR_SLIDER_INT : WIDGET_CVAR_CHECKBOX;
+}
+
+/**
+ * The rest of a curated row, after its widget is added and bound: SoH's options
+ * with the manifest's tooltip (and, for a slider, its range, default and
+ * format), never race-disabled, and its per-frame PreFunc.
+ *
+ * The widget is its own writer (UIWidgets::CVarCheckbox and CVarSliderInt call
+ * CVarSetInteger and then ShipInit::Init). That is CORRECT here and wrong for
+ * the tier-4 rules: a tier-4 rule authors world identity and has a src/common
+ * write choke point that must refuse post-creation, so binding it to a
+ * self-writing widget would put a second ungated writer beside the gate. These
+ * keys are preferences with no freeze and no choke point, so the widget IS the
+ * writer, and the ShipInit::Init call it already makes is what re-arms MM
+ * (#539). The interval's provider reads its key inline on every tick, so there
+ * is nothing for ShipInit to re-arm there.
+ */
+void ApplyCuratedRow(WidgetInfo& info, const RSBS::HostedMmEnhancement& row) {
+    if (row.liveness != RSBS::MmEnhancementLiveness::Live && row.issue == 0) {
+        // Unreachable for the shipped table: HostedMmEnhancementsAreHonest()
+        // is a static_assert on it, so such a row is a red build. Only a
+        // synthetic table can reach this, and it gets the same words, logged.
+        SPDLOG_WARN("Majora's Mask: the non-live row \"{}\" records no tracking issue. A reason nobody can trace is a "
+                    "reason nobody retires.",
+                    row.key);
     }
-    return from;
-}
-
-/** The heading group's rows: from the table's start to its first pointer row,
- *  which is EMPTY when the table lists a pointer first. No pointer skip here:
- *  a first-listed pointer opens its own group in the second column, and its
- *  rows are that group's, so counting them for the heading too would draw a
- *  second note under an empty heading, over nothing disabled. */
-const RSBS::HostedMmEnhancement* HeadingGroupEnd(const RSBS::HostedMmEnhancement* rows,
-                                                 const RSBS::HostedMmEnhancement* end) {
-    return NextPointer(rows, end);
-}
-
-/** The rows of the group the pointer row @p pointer opens: the rows after it,
- *  up to the next pointer row or @p end. The pointer itself is not one of them
- *  (it is a live separator and sentence, never drawn disabled). */
-const RSBS::HostedMmEnhancement* PointerGroupEnd(const RSBS::HostedMmEnhancement* pointer,
-                                                 const RSBS::HostedMmEnhancement* end) {
-    return NextPointer(pointer + 1, end);
+    info.RaceDisable(false);
+    if (row.widget == RSBS::MmEnhancementWidget::SliderInt) {
+        info.Options(IntSliderOptions()
+                         .Min(row.sliderMin)
+                         .Max(row.sliderMax)
+                         .DefaultValue(row.sliderDefault)
+                         .Format(row.sliderFormat)
+                         .Tooltip(row.tooltip));
+    } else {
+        info.Options(CheckboxOptions().Tooltip(row.tooltip));
+    }
+    if (row.shownWhileKey != nullptr) {
+        info.PreFunc(ShownWhilePreFunc(&row));
+    } else if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
+        info.PreFunc(PresentationPreFunc(&row));
+    }
 }
 
 } // namespace
 
 /**
- * The contributed page's registrar. Externally linked and declared in no header,
- * the way `AddComboRulesWidgets` and the other Combo registrars are: the
- * extension point hands it the section and a PINNED `path.column`, and
- * MenuMmEnhancementRows reaches it through `AddMenuCombo()` rather than by
- * name, so that the row exercises the real seam instead of a shortcut.
- */
-void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count);
-
-void AddMmEnhancementWidgets(SohMenu& menu, WidgetPath& path) {
-    AddMmEnhancementRows(menu, path, RSBS::kHostedMmEnhancements, RSBS::kHostedMmEnhancementCount);
-}
-
-/**
- * The page's body over a manifest table. The shipped page passes
- * `RSBS::kHostedMmEnhancements`; MenuMmEnhancementRows and the UiSnapshot
- * harness pass SYNTHETIC tables holding non-live rows, because every shipped
- * row is Live and the disabled rows and their group notes (#747) would
- * otherwise be code no test and no pixel ever reached. Externally linked and
- * declared in no header, like the registrar above. @p rows must have static
- * storage: the rows' PreFuncs keep pointers into it for the life of the menu.
+ * The block builder over a manifest table: the "Majora's Mask" block heading,
+ * the block's group note (#747) and each row of ours in table order. A pointer
+ * row (MmEnhancementHosting::HostedElsewhere) draws NOTHING: its key's control
+ * is SoH's own row, and a second widget over one key would only add a way for
+ * two surfaces to disagree (the duplicate-host shape #655 removed).
+ *
+ * The shipped block (AddMmQualityOfLifeBlock below) is built from the same
+ * helpers through the hosted-row seam; this builder adds its rows with
+ * SohMenu::AddWidget instead, because MenuMmEnhancementRows and the UiSnapshot
+ * harness hand it SYNTHETIC tables holding non-live rows (every shipped row is
+ * Live, so the disabled rows and their note would otherwise be code no test and
+ * no pixel ever reached), and a synthetic row in the seam's registry would be a
+ * hosted row on a page no menu has. Externally linked and declared in no header,
+ * like AddComboRulesWidgets. @p rows must have static storage: the rows'
+ * PreFuncs keep pointers into it for the life of the menu.
  */
 void AddMmEnhancementRows(SohMenu& menu, WidgetPath& path, const RSBS::HostedMmEnhancement* rows, std::size_t count) {
-    const RSBS::HostedMmEnhancement* const end = rows + count;
-    // TWO COLUMNS: SoH's count for a MIXED page (Settings > General,
-    // docs/ui-style-guide.md section 1), and this page mixes toggles, a
-    // pointer note and a slider. It used to declare three, Quality of Life's
-    // count for a dense toggle page, so its rows had that page's width at
-    // 1280 px (UI parity M3). But the narrowest profile the harness renders
-    // is the contract for OUR rows (the style guide's width rule): at
-    // 832x600 a third of the page is 188 px, and every label here but
-    // "Autosave" ran past it (runtime lint R9). A half is 272 px. As one
-    // full-width column the interval slider ran the whole page, which is
-    // still why it is not one. The split is by manifest ORDER: the first
-    // pointer row opens the second column and everything after it stays
-    // there, so a pointer row and the rows gated on it (which the manifest
-    // lists after it, MenuMmEnhancementRows leg 5) share a column.
-    path.column = SECTION_COLUMN_1;
-    menu.AddWidget(path, "MM Enhancements", WIDGET_SEPARATOR_TEXT);
-    AddGroupNote(menu, path, rows, HeadingGroupEnd(rows, end));
-
+    AddHostedMmBlock(menu, path);
+    std::vector<const RSBS::HostedMmEnhancement*> ours;
     for (std::size_t i = 0; i < count; i++) {
-        const RSBS::HostedMmEnhancement& row = rows[i];
-
-        if (row.liveness != RSBS::MmEnhancementLiveness::Live && row.issue == 0) {
-            // Unreachable for the shipped table: HostedMmEnhancementsAreHonest()
-            // is a static_assert on it, so such a row is a red build. Only a
-            // synthetic table can reach this, and it gets the same words, logged.
-            SPDLOG_WARN("Combo > Majora's Mask: the non-live row \"{}\" records no tracking issue. A reason nobody "
-                        "can trace is a reason nobody retires.",
-                        row.key);
+        if (rows[i].hosting == RSBS::MmEnhancementHosting::OwnRow) {
+            ours.push_back(&rows[i]);
         }
-
-        if (row.hosting == RSBS::MmEnhancementHosting::HostedElsewhere) {
-            path.column = SECTION_COLUMN_2;
-            // A POINTER ROW, not a second checkbox. Something in the unified menu
-            // already writes this key, and since #539 every SohMenu widget
-            // funnels through OoT's `ShipInit::Init`, which forwards to MM's
-            // registrar map — so the existing control already re-arms both
-            // halves. A second widget over one key would add no reach and one
-            // more way for two surfaces to disagree, which is the duplicate-host
-            // shape #655 removed for the tier-4 rules.
-            //
-            // Two widgets, the same shape the retired Cross-Game pointer page used
-            // (until #1101): a searchable SEPARATOR_TEXT carrying the
-            // short label, then the sentence as a gray TEXT row kept OUT of the
-            // menu search. A widget's NAME is what the search indexes, so seeding
-            // it with a sentence buries the rows a player was looking for; and
-            // `TextOptions` has no `Tooltip` override, so a text row's
-            // explanation has to BE its name rather than hide behind a hover.
-            menu.AddWidget(path, row.label, WIDGET_SEPARATOR_TEXT);
-            menu.AddWidget(path, row.tooltip, WIDGET_TEXT)
-                .RaceDisable(false)
-                .HideInSearch(true)
-                .Options(TextOptions().Color(Colors::Gray));
-            // #747: this group's note, if it holds a non-live row, AFTER the
-            // pointer's sentence: directly above the rows it describes, as the
-            // heading group's is.
-            AddGroupNote(menu, path, &row + 1, PointerGroupEnd(&row, end));
-            continue;
-        }
-
-        // WIDGET_CVAR_CHECKBOX, and it is its own writer (UIWidgets::CVarCheckbox
-        // calls CVarSetInteger and then ShipInit::Init). That is CORRECT here and
-        // wrong for the tier-4 rules next door, and the difference is worth
-        // stating: a tier-4 rule authors world identity and has a src/common
-        // write choke point that must refuse post-creation, so binding it to a
-        // self-writing widget would put a second ungated writer beside the gate.
-        // These keys are preferences with no freeze and no choke point, so the
-        // widget IS the writer, and the ShipInit::Init call it already makes is
-        // what re-arms MM (#539).
-        //
-        // #693 adds the one non-boolean row, MM's autosave interval, as a
-        // WIDGET_CVAR_SLIDER_INT in minutes. Same writer argument: the slider
-        // calls CVarSetInteger itself, and its provider reads the key inline on
-        // every tick, so there is nothing for ShipInit to re-arm.
-        WidgetInfo* info = nullptr;
-        if (row.widget == RSBS::MmEnhancementWidget::SliderInt) {
-            info = &menu.AddWidget(path, row.label, WIDGET_CVAR_SLIDER_INT)
-                        .CVar(row.key)
-                        .RaceDisable(false)
-                        .Options(IntSliderOptions()
-                                     .Min(row.sliderMin)
-                                     .Max(row.sliderMax)
-                                     .DefaultValue(row.sliderDefault)
-                                     .Format(row.sliderFormat)
-                                     .Tooltip(row.tooltip));
-        } else {
-            info = &menu.AddWidget(path, row.label, WIDGET_CVAR_CHECKBOX)
-                        .CVar(row.key)
-                        .RaceDisable(false)
-                        .Options(CheckboxOptions().Tooltip(row.tooltip));
-        }
-        if (row.shownWhileKey != nullptr) {
-            info->PreFunc(ShownWhilePreFunc(&row));
-        } else if (row.liveness != RSBS::MmEnhancementLiveness::Live) {
-            info->PreFunc(PresentationPreFunc(&row));
-        }
+    }
+    AddGroupNote(menu, path, ours);
+    for (const RSBS::HostedMmEnhancement* row : ours) {
+        ApplyCuratedRow(menu.AddWidget(path, row->label, CuratedWidgetType(*row)).CVar(row->key), *row);
     }
 }
 
 /**
- * THE REGISTRATION. File-scope, because `AddMenuCombo()` walks the registry and
- * registration must therefore happen before `AddMenuElements()` runs — a
- * function-local call would need a caller, and the only candidate is the TU this
- * seam exists to avoid editing.
- *
- * Two columns, SoH's count for a mixed page, and the page holds seven widgets
- * (the heading separator and three checkboxes in the first; the pointer row's
- * separator + text and #693's interval slider right after it in the second), so
- * the page is not #640's empty page.
+ * #693's interval, on Enhancements > Quality of Life > Saving, directly after
+ * SoH's Autosave (SohMenuEnhancements.cpp calls it in one line, L7 #1133). Shown
+ * only while Autosave is on, as SoH's Notification on Autosave below it is.
  */
-static RegisterComboSectionPage_t sMmEnhancementsPage(kMmEnhancementsPage, 2, AddMmEnhancementWidgets);
+void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path) {
+    const RSBS::HostedMmEnhancement& row = CuratedRow(RSBS_CVAR_MM_AUTOSAVE_INTERVAL);
+    ApplyCuratedRow(
+        AddHostedMmWidget(menu, path, "Saving", row.label, CuratedWidgetType(row)).CVar(RSBS_CVAR_MM_AUTOSAVE_INTERVAL),
+        row);
+}
+
+/**
+ * Skip Time Song Cutscenes, on Enhancements > Skips & Speed-ups > Cutscenes,
+ * directly after SoH's Skip Song Cutscenes (SohMenuEnhancements.cpp calls it in
+ * one line, L7 #1133). SoH has no Song of Time cutscene of this kind, so it is
+ * the nearest relative, not a twin: the row keeps its plain label.
+ */
+void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path) {
+    const RSBS::HostedMmEnhancement& row = CuratedRow(RSBS_CVAR_MM_SKIP_SOT_CUTSCENES);
+    ApplyCuratedRow(AddHostedMmWidget(menu, path, "Cutscenes", row.label, CuratedWidgetType(row))
+                        .CVar(RSBS_CVAR_MM_SKIP_SOT_CUTSCENES),
+                    row);
+}
+
+/**
+ * The Majora's Mask block on Enhancements > Quality of Life, after Time of Day
+ * (SohMenuEnhancements.cpp calls it in one line, L7 #1133): the two curated rows
+ * with no twin on any SoH page, Game Over Prompt then Better Double Time, the
+ * manifest's order, under the seam's block heading and the block's note.
+ */
+void AddMmQualityOfLifeBlock(SohMenu& menu, WidgetPath& path) {
+    const RSBS::HostedMmEnhancement& gameOver = CuratedRow(RSBS_CVAR_MM_KALEIDO_GAME_OVER);
+    const RSBS::HostedMmEnhancement& doubleTime = CuratedRow(RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME);
+    AddHostedMmBlock(menu, path);
+    AddGroupNote(menu, path, { &gameOver, &doubleTime });
+    ApplyCuratedRow(AddHostedMmWidget(menu, path, kHostedMmBlockLabel, gameOver.label, CuratedWidgetType(gameOver))
+                        .CVar(RSBS_CVAR_MM_KALEIDO_GAME_OVER),
+                    gameOver);
+    ApplyCuratedRow(AddHostedMmWidget(menu, path, kHostedMmBlockLabel, doubleTime.label, CuratedWidgetType(doubleTime))
+                        .CVar(RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME),
+                    doubleTime);
+}
 
 /**
  * MM's randomizer options, locations and tricks (SohMenuComboMmRandomizer.cpp),
- * registered HERE, right after this page, rather than from their own TU. The
- * registry keeps registration order, and file-scope initializers in different
- * TUs run in an order the language leaves to the linker, so this is the one way
- * to pin their order: MM Randomizer, MM Locations, then MM Tricks.
+ * registered HERE rather than from their own TU. The registry keeps
+ * registration order, and file-scope initializers in different TUs run in an
+ * order the language leaves to the linker, so this is the one way to pin their
+ * order: MM Randomizer, MM Locations, then MM Tricks.
  *
  * All three are hosted under SoH's Randomizer header (#1101, operator ruling
  * 2026-10-21, option C): AddComboRandomizerPages draws them after
@@ -456,14 +420,8 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path) {
                 .Tooltip("Multiplies the damage Link takes from all sources, up to 1 Hit KO. Majora's Mask only."));
 }
 
-/** The page's registered name, for the lock. Defined here so the test cannot
- *  drift from the registration by spelling the literal a second time. */
-const char* MmEnhancementsPageName() {
-    return kMmEnhancementsPage;
-}
-
 /** The group note's sentence (#747), for the lock and the UiSnapshot harness,
- *  for the same reason. */
+ *  so neither spells the literal a second time. */
 const char* MmEnhancementsGroupNoteText() {
     return kGroupNote;
 }

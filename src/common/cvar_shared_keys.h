@@ -950,8 +950,16 @@ constexpr bool ComboIdentityKeysAreIdentity() {
  * reason the MM randomizer-options table gives for its own descriptors: a menu
  * row that spells its own CVar literal can drift from the provider that reads
  * it, and the drift is invisible — the widget flips a key nothing consults
- * (#499's exact failure). One table, read by the menu page AND by the locks,
+ * (#499's exact failure). One table, read by the menu rows AND by the locks,
  * makes a typo a red test instead of a dead control.
+ *
+ * WHERE THE ROWS ARE (#1133, ruling D5). Until #1133 a Combo > Majora's Mask
+ * page drew this table; the Combo header retired, and each OwnRow entry is now
+ * a row on the SoH Enhancements page that holds its twin or nearest relative,
+ * or in a "Majora's Mask" block there (SohMenuComboMmEnhancements.cpp, through
+ * the hosted-row seam). Each such row binds its key's RSBS_CVAR_MM_* define and
+ * takes its label, tooltip, widget and presentation from the entry for that
+ * define, so the keys below are spelled through those defines.
  *
  * SCOPE, deliberately narrow. Four keys, the four #682 names. Widening the
  * allowlist is a separate decision, because `2ship_enh` is a plain archive by
@@ -1070,7 +1078,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // key: no widget, no ShipInit seed, no preset. This row is that fix. The
     // operator's 2026-09-16 ruling keeps the DEFAULT (off, vanilla respawn);
     // exposing the toggle does not change it.
-    { "gEnhancements.Kaleido.GameOver", "Game Over Prompt",
+    { RSBS_CVAR_MM_KALEIDO_GAME_OVER, "Game Over Prompt",
       "Opens the Game Over screen and its save prompt on death instead of respawning at the area entrance; the "
       "screen's artwork is not drawn yet. Majora's Mask only.",
       "games/mm/src/code/z_game_over.c:84, "
@@ -1082,13 +1090,13 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // check-registrar-elision.sh audits that archive as `required`, so leg 1 is
     // enforced on every CI build. Legs 2 and 3 are MMClockShuffleSongs'
     // registry-content probes.
-    { "gEnhancements.Songs.BetterSongOfDoubleTime", "Better Double Time",
+    { RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME, "Better Double Time",
       "Lets the Song of Double Time pick any time of day instead of only the next dawn or dusk, and with Clock "
       "Shuffle on refuses a half-day this file does not own. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/BetterSongOfDoubleTime.cpp:472", "gEnhancements.Songs.BetterSongOfDoubleTime",
       "ShouldVanillaBehavior[VB_DISPLAY_SONG_OF_DOUBLE_TIME_PROMPT]", MmEnhancementHosting::OwnRow,
       MmEnhancementLiveness::Live, "" },
-    { "gEnhancements.Songs.SkipSoTCutscenes", "Skip Time Song Cutscenes",
+    { RSBS_CVAR_MM_SKIP_SOT_CUTSCENES, "Skip Time Song Cutscenes",
       "Skips the Song of Time, Inverted Song of Time and Song of Double Time cutscenes, and with Clock Shuffle on "
       "returns the Song of Time to the earliest half-day this file owns. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Songs/SkipSoTCutscenes.cpp:101", "gEnhancements.Songs.SkipSoTCutscenes",
@@ -1104,11 +1112,14 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // sits in `S2H::ShipInit` under this exact key — so that one click already
     // re-arms BOTH halves. A second checkbox here would be a second writer over
     // one key with nothing to gain, which is the duplicate-host shape #655
-    // removed for the tier-4 rules. The row points at the live control instead.
-    //
-    // UI parity M3: the page draws this row as a separator carrying `label` over
-    // a gray note that IS `tooltip` (a TEXT row has no tooltip of its own), so
-    // both are SoH-shaped copy: a one-word section name and one sentence.
+    // removed for the tier-4 rules. Until #1133 the Combo > Majora's Mask page
+    // drew this entry as a pointer (a separator carrying `label` over a gray
+    // note that was `tooltip`); since the rows moved onto SoH's pages it draws
+    // nothing: the interval's row sits directly after SoH's Autosave, whose
+    // tooltip says it applies to both games, so SoH's row IS the one row
+    // (#1119's form). The entry stays as the evidence behind the interval's
+    // gate (`shownWhileKey`), which the honesty rule requires to be a key this
+    // table accounts for.
     { "gEnhancements.Autosave", "Autosave",
       "Autosave is under Enhancements > Quality of Life and applies to both games.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:485", "gEnhancements.Autosave", "OnGameStateDrawFinish",
@@ -1147,7 +1158,7 @@ inline constexpr HostedMmEnhancement kHostedMmEnhancements[] = {
     // OoT's 3-minute behaviour onto MM's 5-minute default without anyone asking.
     // Hence the "Majora's Mask only" label. A preference: no freeze, no digest,
     // no .redsave impact.
-    { "gEnhancements.Saving.AutosaveInterval", "MM Autosave Interval: %d minutes",
+    { RSBS_CVAR_MM_AUTOSAVE_INTERVAL, "MM Autosave Interval: %d minutes",
       "Sets how often the owl autosave fires; Ocarina of Time keeps its fixed 3 minutes. Majora's Mask only.",
       "games/mm/2s2h/Enhancements/Saving/SavingEnhancements.cpp:216 (read by HandleAutoSave, :223)", nullptr, "",
       MmEnhancementHosting::OwnRow, MmEnhancementLiveness::Live, "", MmEnhancementWidget::SliderInt, 1, 60, 5,

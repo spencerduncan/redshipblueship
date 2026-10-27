@@ -1,7 +1,18 @@
 /**
  * @file SohMenuCombo.cpp
- * @brief The tier-4 **Combo** section of the one live menu - ADR 0004 section 4's
- *        ninth top-level header and #497 step 6.
+ * @brief The cross-game rules page, the extension points for our pages under
+ *        SoH's headers, and the carry for the retired tier-4 **Combo** header
+ *        (ADR 0004 section 4's ninth top-level header: built by #497 step 6,
+ *        retired by #1133).
+ *
+ * THE COMBO HEADER IS GONE (#1133, operator rulings D4 and D5 of 2026-10-22).
+ * Its last pages were folded into SoH's own: the Majora's Mask page's rows are
+ * hosted beside their SoH twins on the Enhancements pages
+ * (SohMenuComboMmEnhancements.cpp), MM Mods is a block of Settings > Mod Menu
+ * (SohMenuComboMmMods.cpp) and Save Files a page of Dev Tools
+ * (SohMenuComboSaveFiles.cpp, through AddComboDevToolsPages below). AddMenuCombo
+ * registers nothing; it is the call site of the carry that moves a menu left open
+ * on the header (ComboHeaderCarrySelection). The history below is the header's.
  *
  * WHAT MOVED HERE AND WHY. ADR 0004 section 4's layout table gives the combined
  * product one section of its own for the surface that has no upstream
@@ -43,16 +54,17 @@
  * undocks libultraship's "Main Game" window), so they are left unregistered
  * until they have content.
  *
- * THE EXTENSION POINTS. Other TUs contribute pages through
- * SohGui::RegisterComboSectionPage, and rows on one of SoH's own pages through
- * SohGui::RegisterSohPageRows (#1132), both declared in SohMenu.h and
- * implemented below, rather than by editing this file. See that declaration for the two things that
- * bite: a file-scope registrar in a plain archive is dropped by the linker, and
- * an empty page is #640.
+ * THE EXTENSION POINTS. Other TUs contribute pages under SoH's Randomizer or
+ * Dev Tools header through SohGui::RegisterComboSectionPage, and rows on one of
+ * SoH's own pages through SohGui::RegisterSohPageRows (#1132), both declared in
+ * SohMenu.h and implemented below, rather than by editing this file. See that
+ * declaration for the two things that bite: a file-scope registrar in a plain
+ * archive is dropped by the linker, and an empty page is #640.
  *
- * Locked ROM-free by MenuComboSection (both headers' pages of ours, their order,
- * the carried selections, SoH's tracker pages and both extension points) and by ComboSettingsRows (the
- * rules' own behaviour, which followed them).
+ * Locked ROM-free by MenuComboSection (no Combo header, our pages under SoH's
+ * headers and their order, the carried selections, SoH's tracker pages and both
+ * extension points) and by ComboSettingsRows (the rules' own behaviour, which
+ * followed them).
  */
 
 #include "SohMenu.h"
@@ -68,9 +80,8 @@
 // The status sentences every randomizer page of ours shares (#1101 decision 7).
 #include "combo_mm_options_page.h"
 
-#include <cctype>  // toupper, for the disabled reason's Title Case
-#include <cstdio>  // snprintf, for the combo-rule status line and fingerprint
-#include <cstring> // strcmp, for the renamed sidebar's persisted selection
+#include <cctype> // toupper, for the disabled reason's Title Case
+#include <cstdio> // snprintf, for the combo-rule status line and fingerprint
 #include <functional>
 #include <string>
 #include <vector>
@@ -535,7 +546,7 @@ void AddContributedSohPageRows(SohMenu& menu, WidgetPath& path) {
  * which had to pin the column itself because five `Rando::Settings` option groups
  * ran immediately before it and left `path.column` wherever their last COLUMN
  * container landed (option.cpp:469-472). Nothing runs before this page in the
- * Combo section, but AddMenuCombo pins it anyway - the cost of being wrong is a
+ * Combo section, but AddMenuCombo pinned it anyway - the cost of being wrong is a
  * row that is registered and never drawn (#640's failure mode with the halves
  * swapped), which no compile catches.
  */
@@ -921,134 +932,91 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
 }
 
 /**
- * The Combo sidebar names that changed, and the name each carries to.
+ * Where each page the retired Combo header ever had now lives: its sidebar name
+ * (every name it had: "Cross-Game Windows" and "MM Enhancements" were renamed on
+ * 2026-09-27), the header and that header's sidebar key, and the page there.
  *
- * Selection persists BY DISPLAY NAME in gSettings.Menu.ComboSidebarSection, so
- * a config that last had a page open under an old name would otherwise fall
- * back to the section's first page. ComboSidebarCarryRenamedSelection moves it
- * to the new name, once, before the menu's first draw reads the key.
- *
- * RENAMED 2026-09-27 (UI parity, lane U3). "Cross-Game Windows" was wider than
- * the 200 px sidebar in Montserrat 24 (the snapshot harness showed it as
- * "ross-Game Window"), so it became "Windows"; the same day the contributed "MM
- * Enhancements" page became "Majora's Mask" (SohMenuComboMmEnhancements.cpp says
- * why). Windows then left the header (#1132), so the moves table below carries
- * both of its names across headers, the old one through the new.
- * MenuComboSection leg 6 requires every carried-to name to be a registered page,
- * so the spellings here cannot drift from the pages without a red row.
+ * Selection persists BY DISPLAY NAME: gSettings.Menu.ActiveHeader names the open
+ * header and gSettings.Menu.ComboSidebarSection was the Combo header's page. The
+ * pages left in four steps: #1101 moved the randomizer pages under Randomizer,
+ * #1132 retired Windows (its trackers open from SoH's Randomizer > Check Tracker),
+ * #1141 Tracker Settings (its rows are on SoH's Item Tracker page), and #1133 the
+ * rest with the header. The Majora's Mask page lands on Enhancements > Quality of
+ * Life, the page that got its first rows (Game Over Prompt and Better Double
+ * Time, its Majora's Mask block). Spelled here as literals: MenuComboSection leg 6
+ * requires every carried-to name to be a page its header's own builder
+ * registers, so these cannot drift from the pages without a red row.
  */
-struct ComboSidebarRename {
+struct ComboHeaderCarry {
     const char* formerName;
-    const char* currentName;
+    const char* header;
+    const char* sidebarCvar;
+    const char* sidebar;
 };
-static constexpr ComboSidebarRename kComboSidebarRenames[] = {
-    { "Cross-Game Windows", "Windows" },
-    { "MM Enhancements", "Majora's Mask" },
+static const ComboHeaderCarry kComboHeaderCarries[] = {
+    { "Cross-Game Rules", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "Cross-Game" },
+    { "MM Randomizer", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "MM Randomizer" },
+    { "MM Tricks", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "MM Tricks" },
+    { "Windows", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "Check Tracker" },
+    { "Cross-Game Windows", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "Check Tracker" },
+    { "Tracker Settings", "Randomizer", CVAR_SETTING("Menu.RandomizerSidebarSection"), "Item Tracker" },
+    { "Majora's Mask", "Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"), "Quality of Life" },
+    { "MM Enhancements", "Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"), "Quality of Life" },
+    { "MM Mods", "Settings", CVAR_SETTING("Menu.SettingsSidebarSection"), "Mod Menu" },
+    { "Save Files", "Dev Tools", CVAR_SETTING("Menu.DevToolsSidebarSection"), "Save Files" },
 };
 
-static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
-    const char* selected = CVarGetString(sidebarCvar, "");
-    if (selected == nullptr) {
-        return;
-    }
-    for (const ComboSidebarRename& rename : kComboSidebarRenames) {
-        if (strcmp(selected, rename.formerName) == 0) {
-            CVarSetString(sidebarCvar, rename.currentName);
-            return;
+/**
+ * THE CARRY (#1133). Menu::DrawElement reads gSettings.Menu.ActiveHeader and then
+ * calls menuEntries.at(header), and its only catch is std::bad_variant_access, so
+ * a config left on the retired "Combo" header would be an uncaught
+ * std::out_of_range on the first draw. When Combo was the open header, the menu
+ * reopens on the page that took the selected one's rows: the header key and that
+ * header's own sidebar key are written, with values SoH's menu itself writes
+ * (each a page that header's builder registers). An empty or unknown selection
+ * CLEARS the header key instead, so the menu opens on its default ("Settings"):
+ * clear, never store a value a later run would not expect, on keys #451 contends
+ * over (RSBS::kMenuIndexKeys). The Combo sidebar key is cleared in every case,
+ * so no key names a header that no longer exists; when another header was open,
+ * nothing else is touched. Runs once per menu build, before the first draw
+ * (AddMenuElements calls AddMenuCombo before Network and Dev Tools); idempotent.
+ */
+static void ComboHeaderCarrySelection() {
+    const char* headerCvar = CVAR_SETTING("Menu.ActiveHeader");
+    const char* comboCvar = CVAR_SETTING("Menu.ComboSidebarSection");
+    // Copies: CVarGetString's pointer is the store's, and the writes below may
+    // replace the string it points into.
+    const std::string header = CVarExists(headerCvar) ? CVarGetString(headerCvar, "") : "";
+    const std::string selected = CVarExists(comboCvar) ? CVarGetString(comboCvar, "") : "";
+    if (header == "Combo") {
+        const ComboHeaderCarry* carry = nullptr;
+        for (const ComboHeaderCarry& c : kComboHeaderCarries) {
+            if (selected == c.formerName) {
+                carry = &c;
+            }
         }
+        if (carry != nullptr) {
+            CVarSetString(headerCvar, carry->header);
+            CVarSetString(carry->sidebarCvar, carry->sidebar);
+        } else {
+            CVarClear(headerCvar);
+        }
+    }
+    if (CVarExists(comboCvar)) {
+        CVarClear(comboCvar);
     }
 }
 
 /**
- * The pages that left the Combo header for the Randomizer header, and the
- * Randomizer sidebar name each one lands on: the three #1101 moved, and Windows
- * (#1132, ruling D1), whose trackers open from SoH's own Randomizer > Check
- * Tracker and Item Tracker pages now (it lands on the Check Tracker's, which
- * also carries the Cross-Game Spoiler's toggle), and Tracker Settings (#1141,
- * ruling IT-D6), whose rows are on SoH's Item Tracker page now. Spelled here as
- * literals for the same reason the rename table above is: MenuComboSection leg
- * 6 requires every carried-to name to be a Randomizer page.
- */
-static constexpr ComboSidebarRename kComboSidebarMoves[] = {
-    { "Cross-Game Rules", "Cross-Game" }, { "MM Randomizer", "MM Randomizer" },   { "MM Tricks", "MM Tricks" },
-    { "Windows", "Check Tracker" },       { "Tracker Settings", "Item Tracker" },
-};
-
-/**
- * A persisted Combo selection on a moved page, carried ACROSS headers. Menu's
- * DrawElement reads gSettings.Menu.ActiveHeader, then that header's sidebar
- * key, and falls back to the header's first page when the name is not one of
- * its pages. So a config last open on Combo > MM Randomizer would reopen on
- * the Combo header's first page. Instead: when Combo was the open header, the menu reopens on
- * the moved page under Randomizer; when another header was open, the player's
- * own Randomizer selection is left alone. Either way the Combo key is cleared,
- * so it never names a page the header no longer has. Runs once, before the
- * menu's first draw reads the keys; writes only existing keys (no key minted).
- */
-static void ComboSidebarCarryMovedSelection(const char* sidebarCvar) {
-    const char* selected = CVarGetString(sidebarCvar, "");
-    if (selected == nullptr) {
-        return;
-    }
-    for (const ComboSidebarRename& move : kComboSidebarMoves) {
-        if (strcmp(selected, move.formerName) != 0) {
-            continue;
-        }
-        const char* headerCvar = CVAR_SETTING("Menu.ActiveHeader");
-        const char* header = CVarGetString(headerCvar, "");
-        if (header != nullptr && strcmp(header, "Combo") == 0) {
-            CVarSetString(headerCvar, "Randomizer");
-            CVarSetString(CVAR_SETTING("Menu.RandomizerSidebarSection"), move.currentName);
-        }
-        CVarClear(sidebarCvar);
-        return;
-    }
-}
-
-/**
- * The tier-4 **Combo** section itself (ADR 0004 section 4, #497 step 6).
- *
- * `Menu.ComboSidebarSection` is a new `gSettings.Menu.*` key, minted the way
- * `Menu.RandomizerSidebarSection` and `Menu.NetworkSidebarSection` were: a
- * top-level header needs one, because `MainMenuEntry::sidebarCvar` is where the
- * last-viewed sidebar persists. It is deliberately NOT added to
- * `RSBS::kMenuIndexKeys`, and that is a considered choice rather than an
- * oversight - that table holds the FOUR keys #451 contends over, which is why
- * neither of the two existing sidebar keys above appears in it either. #451's
- * arming condition is an MM-side shell indexing one of those four, and the
- * cvar-classification lock's MM-side reader allowlist is what watches for it;
- * a fifth key with no MM-side reader does not arm anything. ADR 0004's resolved
- * call 1 declined to mint a key for a purely COSMETIC promotion; this one hosts
- * a section that did not exist.
+ * The retired tier-4 **Combo** header's call site (#497 step 6 built the header,
+ * #1133 retired it). It registers nothing: no header, no page. AddMenuElements
+ * still calls it, in the header's old place, because it is the one early call
+ * site of the carry above, which must run before Menu::DrawElement first reads
+ * gSettings.Menu.ActiveHeader. `Menu.ComboSidebarSection` is read here only to be
+ * cleared; it was never one of RSBS::kMenuIndexKeys (no MM-side reader).
  */
 void SohMenu::AddMenuCombo() {
-    AddMenuEntry("Combo", CVAR_SETTING("Menu.ComboSidebarSection"));
-    ComboSidebarCarryRenamedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
-
-    ComboSidebarCarryMovedSelection(CVAR_SETTING("Menu.ComboSidebarSection"));
-
-    // NO SHIPPED PAGE since #1132. Windows held the unified trackers' toggles
-    // and the Cross-Game Spoiler's; ruling D1 makes SoH's own Randomizer >
-    // Check Tracker and Item Tracker pages theirs (the Check Tracker page also
-    // carries the Spoiler's toggle, SohMenuComboTrackerSettings.cpp). Cross-Game
-    // Rules, the first page here until #1101 moved it under the Randomizer
-    // header, is registered by AddComboRandomizerPages below.
-    //
-    // The extension point (#497 step 6). Each contributed page gets its sidebar
-    // created here rather than in its own registrar - a registrar that had to
-    // call AddSidebarEntry itself could name a section it does not belong to -
-    // and a pinned first column: a row parked in a column past the page's count
-    // is registered and never drawn.
-    WidgetPath path = { "Combo", "", SECTION_COLUMN_1 };
-    for (const ComboSectionPage& page : GetComboSectionPages()) {
-        if (page.registrar == nullptr || page.sidebarName.empty() || page.host != ComboPageHost::Combo) {
-            continue;
-        }
-        path.sidebarName = page.sidebarName;
-        path.column = SECTION_COLUMN_1;
-        AddSidebarEntry("Combo", path.sidebarName, page.columnCount);
-        page.registrar(*this, path);
-    }
+    ComboHeaderCarrySelection();
 }
 
 /**

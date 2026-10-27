@@ -221,6 +221,9 @@ void SohMenu::AddMenuDevTools() {
         .WindowName("GfxDebugger##SoH")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Gfx Debugger Window."));
+
+    // RSBS (#1133, ruling D4): our Dev Tools pages (Save Files), after SoH's own, registered by SohMenuCombo.cpp.
+    AddComboDevToolsPages(*this, path);
 }
 
 } // namespace SohGui

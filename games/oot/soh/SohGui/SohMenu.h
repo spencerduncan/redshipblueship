@@ -189,20 +189,22 @@ typedef enum {
 class SohMenu;
 
 // ============================================================================
-// The tier-4 Combo section's extension point (#497 step 6)
+// Pages of ours under SoH's headers (#497 step 6, #1101, #1133)
 // ============================================================================
-/** A Combo-section page contributed by another translation unit. */
+/** A page (or a block of rows) contributed by another translation unit. */
 using ComboPageRegistrar = void (*)(SohMenu& menu, WidgetPath& path);
 
 /**
- * Which header a contributed page is drawn under (#1101, operator ruling
- * 2026-10-21, option C). Combo: AddMenuCombo() walks it after the Windows page.
+ * Which of SoH's headers a contributed page is drawn under. There is no header of
+ * ours: the tier-4 Combo header retired with #1133 (operator rulings D4 and D5,
+ * 2026-10-22), its Majora's Mask rows hosted on the SoH pages that hold their
+ * twins, its MM Mods rows in Settings > Mod Menu and Save Files under Dev Tools.
  * Randomizer: AddComboRandomizerPages() walks it under SoH's Randomizer header,
  * after Tricks/Glitches and before Cross-Game, the one randomizer menu for both
- * games.
+ * games (#1101). DevTools: AddComboDevToolsPages() walks it after SoH's own Dev
+ * Tools pages (ruling D4: Save Files).
  */
 enum class ComboPageHost : uint8_t {
-    Combo,
     Randomizer,
     DevTools,
 };
@@ -213,22 +215,25 @@ struct ComboSectionPage {
     std::string sidebarName;
     uint32_t columnCount;
     ComboPageRegistrar registrar;
-    ComboPageHost host = ComboPageHost::Combo;
+    ComboPageHost host = ComboPageHost::Randomizer;
 };
 
 /**
- * THE EXTENSION POINT. A TU that wants its own page in the tier-4 Combo section
- * registers one here instead of editing SohMenuCombo.cpp; AddMenuCombo() walks
- * the registry after its own pages and creates each sidebar, so a contributor
- * touches no file this lane owns. A randomizer settings page passes
- * ComboPageHost::Randomizer instead and is drawn under SoH's Randomizer header
- * by AddComboRandomizerPages() (#1101). Registration must happen BEFORE
- * AddMenuElements() runs - a file-scope initializer is the intended shape:
+ * THE EXTENSION POINT. A TU that wants a page of its own under one of SoH's
+ * headers registers one here instead of editing SohMenuCombo.cpp, naming the
+ * header with @p host: ComboPageHost::Randomizer pages are drawn by
+ * AddComboRandomizerPages() (#1101), ComboPageHost::DevTools pages by
+ * AddComboDevToolsPages() (#1133), each creating the sidebar, so a contributor
+ * touches no file this lane owns. A ROW that belongs on one of SoH's own pages is
+ * not a page: it goes beside its SoH twin through the hosted-row seam
+ * (HostedMm/SohMenuHostedMm.h) or after SoH's rows through RegisterSohPageRows
+ * below. Registration must happen BEFORE AddMenuElements() runs - a file-scope
+ * initializer is the intended shape:
  *
  *     static void AddMyPage(SohGui::SohMenu& menu, WidgetPath& path) {
  *         menu.AddWidget(path, "My Toggle", WIDGET_CVAR_CHECKBOX).CVar("gEnhancements.Foo");
  *     }
- *     static SohGui::RegisterComboSectionPage_t myPage("My Page", 1, AddMyPage);
+ *     static SohGui::RegisterComboSectionPage_t myPage("My Page", 1, AddMyPage, SohGui::ComboPageHost::DevTools);
  *
  * TWO THINGS THAT WILL BITE, both measured in this tree rather than imagined:
  *
@@ -247,7 +252,7 @@ struct ComboSectionPage {
  * registry would otherwise hide.
  */
 void RegisterComboSectionPage(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
-                              ComboPageHost host = ComboPageHost::Combo);
+                              ComboPageHost host);
 
 /** The Randomizer header's sidebar name for the cross-game rules page. Selection
  *  persists by display name in gSettings.Menu.RandomizerSidebarSection, so this
@@ -328,6 +333,8 @@ class SohMenu : public Ship::Menu {
     void AddMenuEnhancements();
     void AddMenuDevTools();
     void AddMenuRandomizer();
+    /** No header since #1133: carries a persisted selection on the retired Combo header to its pages' new hosts
+     *  (SohMenuCombo.cpp), before the first draw reads gSettings.Menu.ActiveHeader. */
     void AddMenuCombo();
     void AddMenuNetwork();
     static void UpdateLanguageMap(std::map<int32_t, const char*>& languageMap);
@@ -514,7 +521,7 @@ class SohMenu : public Ship::Menu {
 /** File-scope helper for RegisterComboSectionPage; see its doc comment. */
 struct RegisterComboSectionPage_t {
     RegisterComboSectionPage_t(const char* sidebarName, uint32_t columnCount, ComboPageRegistrar registrar,
-                               ComboPageHost host = ComboPageHost::Combo) {
+                               ComboPageHost host) {
         RegisterComboSectionPage(sidebarName, columnCount, registrar, host);
     }
 };

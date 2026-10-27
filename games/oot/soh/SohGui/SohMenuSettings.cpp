@@ -538,6 +538,8 @@ void SohMenu::AddMenuSettings() {
         .WindowName("Mod Menu")
         .HideInSearch(true)
         .Options(WindowButtonOptions().Tooltip("Enables the separate Mod Menu Window."));
+    // RSBS (#1133, ruling D5): Majora's Mask's mod list, a block after SoH's row (SohMenuComboMmMods.cpp).
+    AddContributedSohPageRows(*this, path);
 }
 
 } // namespace SohGui
