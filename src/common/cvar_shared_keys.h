@@ -468,7 +468,21 @@ struct DistinctPair {
  * define, bound by exactly one shared-menu row and read under games/mm (the classification lock's leg 3f-2c); a key
  * family MM composes by concatenation gets one define whose name ends in _PREFIX, locked by its lane's own leg.
  */
-// W6-TIMESAVERS
+// W6-TIMESAVERS (#1236, #1240): MM's text, time-saver and pause-save keys, each written by one hosted row on SoH's
+// Enhancements pages (SohMenuHostedMmTimesavers.cpp). Fast Text stays held apart from SoH's Text Speed (P1 below).
+// MM spells the Timesavers family with a lowercase s (kParkedCasingPrefixMM); these defines keep that spelling.
+#define RSBS_CVAR_MM_DIALOGUE_FAST_TEXT "gEnhancements.Dialogue.FastText"
+#define RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION "gEnhancements.Dialogue.FastBankSelection"
+#define RSBS_CVAR_MM_DIALOGUE_AUTO_BOMBERS_CODE "gEnhancements.Dialogue.AutoBombersCode"
+#define RSBS_CVAR_MM_TIMESAVERS_SWAMP_BOAT_SPEED "gEnhancements.Timesavers.SwampBoatSpeed"
+#define RSBS_CVAR_MM_TIMESAVERS_GALLERY_TWOFER "gEnhancements.Timesavers.GalleryTwofer"
+#define RSBS_CVAR_MM_TIMESAVERS_MARINE_LAB_HP "gEnhancements.Timesavers.MarineLabHP"
+#define RSBS_CVAR_MM_TIMESAVERS_DAMPE_DIGGING_SKIP "gEnhancements.Timesavers.DampeDiggingSkip"
+#define RSBS_CVAR_MM_TIMESAVERS_FASTER_SCENE_TRANSITIONS "gEnhancements.Timesavers.FasterSceneTransitions"
+#define RSBS_CVAR_MM_TIMESAVERS_POWDER_KEG_CERTIFICATION "gEnhancements.Timesavers.PowderKegCertification"
+#define RSBS_CVAR_MM_TIMESAVERS_SKIP_BALLAD_OF_WINDFISH "gEnhancements.Timesavers.SkipBalladOfWindfish"
+#define RSBS_CVAR_MM_TIMESAVERS_AUTO_BANK_DEPOSIT "gEnhancements.Timesavers.AutoBankDeposit"
+#define RSBS_CVAR_MM_SAVING_PAUSE_SAVE "gEnhancements.Saving.PauseSave"
 // W6-CYCLE-CHEATS
 // W6-PLAYER
 // W6-MASKS-SONGS
@@ -519,7 +533,7 @@ struct DistinctPair {
  * on maintainer answers rather than settled non-merges.
  */
 inline constexpr DistinctPair kMustStayDistinct[] = {
-    { "P1 text speed", "gEnhancements.Dialogue.FastText", "gEnhancements.TextSpeed",
+    { "P1 text speed", RSBS_CVAR_MM_DIALOGUE_FAST_TEXT, "gEnhancements.TextSpeed",
       "Units are incompatible: OoT is a 1-5x integer multiplier, MM is a boolean. Merging writes 1 = "
       "'no speedup', so the control silently does nothing. MM's FastText also bundles hold-B-to-advance, "
       "which OoT exposes as the SEPARATE key gEnhancements.SkipText — one control cannot express both "
