@@ -591,6 +591,21 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_RESTORATIONS_JP_GROTTOS "gEnhancements.Restorations.JPGrottos"
 #define RSBS_CVAR_MM_RESTORATIONS_BONK_COLLISION "gEnhancements.Restorations.BonkCollision"
 // W6-MODES-DIFF
+// W6-MODES-DIFF (#1236, #1240): MM's Modes and Difficulty keys, each written by one hosted row on SoH's Enhancements
+// pages (SohGui/HostedMm/SohMenuHostedMmModesDifficulty.cpp). Mirrored World has no define: SoH's own row drives MM
+// through a translation (kTranslatedKeys). Delete File on Death has none either: it is INTENTIONAL with no row.
+#define RSBS_CVAR_MM_MODES_PLAY_AS_KAFEI "gModes.PlayAsKafei"
+#define RSBS_CVAR_MM_MODES_HYRULE_WARRIORS_STYLED_LINK "gModes.HyruleWarriorsStyledLink"
+#define RSBS_CVAR_MM_MODES_TIME_MOVES_WHEN_YOU_MOVE "gModes.TimeMovesWhenYouMove"
+#define RSBS_CVAR_MM_DIFFICULTY_JINXED_TIMER "gEnhancements.DifficultyOptions.JinxedTimer"
+#define RSBS_CVAR_MM_DIFFICULTY_LOWER_BANK_REWARD_THRESHOLDS "gEnhancements.DifficultyOptions.LowerBankRewardThresholds"
+#define RSBS_CVAR_MM_DIFFICULTY_DISABLE_TAKKURI_STEAL "gEnhancements.DifficultyOptions.DisableTakkuriSteal"
+#define RSBS_CVAR_MM_DIFFICULTY_DEKU_GUARD_SEARCH_BALLS "gEnhancements.DifficultyOptions.DekuGuardSearchBalls"
+#define RSBS_CVAR_MM_DIFFICULTY_GIBDO_TRADE_SEQUENCE "gEnhancements.DifficultyOptions.GibdoTradeSequence"
+#define RSBS_CVAR_MM_DIFFICULTY_HIDDEN_GROTTOS_VISIBILITY "gEnhancements.DifficultyOptions.HiddenGrottosVisibility"
+#define RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT "gEnhancements.DifficultyOptions.FrogChoirCount"
+#define RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS "gEnhancements.Minigames.CremiaHugs"
+#define RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK "gEnhancements.Items.AmmoBuyback"
 // W6-MINIGAMES
 // #1236: MM's minigame options and its Mark Shooting Gallery Octoroks row, each bound by one hosted row on SoH's
 // Enhancements > Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). No SoH twin shares a key. The three
@@ -793,6 +808,13 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "Major / Always). A rename would give SoH's All Items (2) MM's Everything But Major and keep presenting "
       "majors, so Rando::StaticData::SkipGetItemCutsceneTierFromSoh maps Off->Never, Junk Items->Junk Items "
       "Only, All Items->Always." },
+    { 1236, "gModes.MirroredWorld.State", "gEnhancements.MirroredWorldMode",
+      "2s2h/Enhancements/Modes/MirroredWorld.cpp",
+      "SoH's one control has nine modes (Off, Always, Random, Random (Seeded) and five Dungeons modes) decided per "
+      "scene; 2Ship's row was an on/off .Mode whose callback set the .State every MM reader acts on. A rename would "
+      "put SoH's mode index into a bool, so the translator sets .State on each MM scene change: Off and Always "
+      "exactly, Random and the Dungeons modes per MM scene (MM's four temples and their lairs; Dungeons (MQ) never "
+      "mirrors, since MM has no Master Quest). Nothing writes .Mode." },
     { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Enable", "gAudioEditor.LinkVoiceFreqMultiplier",
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
       "SoH writes one float leaf (0.4-2.5, default 1.0); MM reads a bool .Enable beside a float .Scale. LUS stores "

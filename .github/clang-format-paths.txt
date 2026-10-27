@@ -73,6 +73,8 @@ games/mm/2s2h/mm_flash_filenum_test.cpp
 games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
+games/mm/2s2h/mm_mirrored_world_test.cpp
+games/mm/2s2h/Enhancements/Modes/MirroredWorld.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
 games/mm/2s2h/mm_minigame_offer_hooks_test.cpp
 games/mm/2s2h/mm_crossing_song_playable_test.cpp

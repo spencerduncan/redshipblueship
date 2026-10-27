@@ -61,6 +61,9 @@ void AddMmAnimationsRows(SohMenu& menu, WidgetPath& path);
 void AddMmEquipmentRows(SohMenu& menu, WidgetPath& path);
 void AddMmFinBoomerangRow(SohMenu& menu, WidgetPath& path);
 void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
+// W6-MODES-DIFF (#1236): MM's Modes and Difficulty rows (HostedMm/SohMenuHostedMmModesDifficulty.cpp).
+void AddMmExtraModesRows(SohMenu& menu, WidgetPath& path);
+void AddMmDifficultyRows(SohMenu& menu, WidgetPath& path);
 // W6-GFX (#1237): MM's clock, motion blur and scene-geometry rows (HostedMm/SohMenuHostedMmGraphics.cpp), and the
 // reapply of MM's authentic patches that Fix Out of Bounds Textures also chooses.
 void AddMmClockRows(SohMenu& menu, WidgetPath& path);
@@ -1445,6 +1448,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(0)
                      .Format("%d seconds")
                      .Tooltip("The time between groups of Leevers spawning."));
+    AddMmDifficultyRows(*this, path);
 
     // Minigames
     path.sidebarName = "Minigames";
@@ -1757,6 +1761,7 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("ExtraTraps.Teleport"))
         .PreFunc(
             [](WidgetInfo& info) { info.isHidden = CVarGetInteger(CVAR_ENHANCEMENT("ExtraTraps.Enabled"), 0) == 0; });
+    AddMmExtraModesRows(*this, path);
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Enemy Randomizer", WIDGET_CVAR_COMBOBOX)

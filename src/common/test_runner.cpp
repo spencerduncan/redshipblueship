@@ -1979,6 +1979,23 @@ TestResult Test_CrossGameFrameInterpolation(void) {
     return ok ? TEST_PASS : TEST_FAIL;
 }
 
+// W6-MODES-DIFF (#1236, #1240): SoH's Mirrored World row drives the key MM acts on
+// (games/mm/2s2h/mm_mirrored_world_test.cpp). Needs the display-free shared
+// bring-up for CVarSetInteger, like MMRegistrarCoverage. Returns 0 on pass.
+extern "C" int MM_MirroredWorld_RunHeadless(void);
+static TestResult Test_MMMirroredWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MirroredWorld_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Arrival-rehydration lock (#482). Two more instances of the #441 class on the
 // OoT side: the check tracker's `areasSpoiled` and the item tracker's typed
 // `itemTrackerNotes` are blanked by SaveManager initFuncs that the arrival
@@ -7677,6 +7694,9 @@ const TestDescriptor gTests[] = {
     // Needs a display like rando-gen, so `--test all` skips it (below).
     { "crossgame-frame-interpolation", "The shared gfx processor interpolates with the active game's recorder (#965)",
       Test_CrossGameFrameInterpolation },
+    // W6-MODES-DIFF (#1236): SoH's Mirrored World row sets the key MM acts on. Display-free and ROM-free.
+    { "mm-mirrored-world", "SoH's Mirrored World row sets the key Majora's Mask acts on (#1236)",
+      Test_MMMirroredWorld },
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
