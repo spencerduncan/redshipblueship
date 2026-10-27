@@ -216,16 +216,29 @@ void ParsePreset(nlohmann::json& json, std::string name) {
 static void LoadUserPresets() {
     if (fs::exists(presetFolder)) {
         for (auto const& preset : fs::directory_iterator(presetFolder)) {
-            std::ifstream ifs(preset.path());
-
-            auto json = nlohmann::json::parse(ifs);
-            if (!json.contains("presetName")) {
-                spdlog::error(fmt::format("Attempted to load file {} as a preset, but was not a preset file.",
-                                          preset.path().filename().string()));
-            } else {
-                ParsePreset(json, preset.path().filename().stem().string());
+            // Skip leftover temp files from an interrupted save
+            if (preset.path().extension() != ".json") {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #1210: and anything else that is not a preset (a stray index.html, Thumbs.db, .DS_Store), naming
+                // it once so a missing preset can be traced to its file.
+                spdlog::warn("Skipping {} in the presets folder: not a .json file",
+                             preset.path().filename().string());
+#endif
+                continue;
             }
-            ifs.close();
+            try {
+                std::ifstream ifs(preset.path());
+                if (auto json = nlohmann::json::parse(ifs); !json.contains("presetName")) {
+                    spdlog::error(fmt::format("Attempted to load file {} as a preset, but was not a preset file.",
+                                              preset.path().filename().string()));
+                } else {
+                    ParsePreset(json, preset.path().filename().stem().string());
+                }
+
+                ifs.close();
+            } catch (const std::exception& e) {
+                spdlog::error("Failed to load preset {}: {}", preset.path().filename().string(), e.what());
+            }
         }
     }
 }
