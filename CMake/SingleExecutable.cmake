@@ -652,6 +652,12 @@ if(BUILD_TESTING)
     # both legs' real arrival consumers (MM's through its first-frame drain over a
     # stand-in PlayState) and requires each to redeem its crossing and toast nothing.
     redship_add_test(NAME CrossingArrivalToasts COMMAND redship --test crossing-arrival-toasts)
+    # #1203 guard from the Woodfall forensics (green before and after the fix):
+    # Sonata, Healing and Soaring crossed from Hyrule are redeemed at the arrival,
+    # given on the first gameplay frame (stand-in PlayState), land as quest bits,
+    # and free play's playable mask (MM_Message_BuildOcarinaAvailableSongs)
+    # includes them; with the bits clear it does not.
+    redship_add_test(NAME MMCrossingSongPlayable COMMAND redship --test mm-crossing-song-playable)
     # #510's ForeignPoolMM and #495's ForeignItemClass rows are RETIRED with the
     # pinned pools they locked (ADR 0010 increment 3, D3; lane K11): items leave
     # origin pools under one bag, so there is no pool to register or draw.
@@ -1405,6 +1411,10 @@ if(BUILD_TESTING)
     # registrant, no Sonata, EVENTINF_24 still cleared, no check re-armed).
     # Pure (no display, no ROM).
     redship_add_test(NAME MMMonkeyDestroySonata COMMAND redship --test mm-monkey-destroy-sonata)
+    # #1203 guard (green before and after): the Woodfall platform's Sonata box.
+    # Deku Link's Sonata raises the temple at (0, 200, 1040) and not at (0, 200,
+    # 966), (0, 200, 987) or (1, 200, 1094); another form or song raises nothing.
+    redship_add_test(NAME MMWoodfallSonataTrigger COMMAND redship --test mm-woodfall-sonata-trigger)
     # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
     # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
     # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in

@@ -435,7 +435,28 @@ extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
 // whose give is known not to read `play`: RI_GREAT_SPIN_ATTACK, which
 // Rando::GiveItem answers by setting a single week-event bit
 // (Rando/GiveItem.cpp). The week events and MM_gPlayState are put back.
+//
+// #1203 guard (games/mm/2s2h/mm_crossing_song_playable_test.cpp, CTest
+// MMCrossingSongPlayable): the three crossing songs the Woodfall forensics
+// needed are admitted too. Their give is Rando::GiveItem's default, MM_Item_Give
+// with the song's ItemId, and Item_GiveImpl's song branch sets one quest bit
+// without reading `play` (z_parameter.c). The quest bits are NOT put back here:
+// they are what that row reads, and it restores them itself.
 // ============================================================================
+
+namespace {
+bool IsStandInDrainableId(uint16_t riId) {
+    switch ((RandoItemId)riId) {
+        case RI_GREAT_SPIN_ATTACK:
+        case RI_SONG_SONATA:
+        case RI_SONG_HEALING:
+        case RI_SONG_SOARING:
+            return true;
+        default:
+            return false;
+    }
+}
+} // namespace
 
 /** The one id MM_ForeignItem_TestFlushWithStandInPlay will drain. */
 extern "C" uint16_t MM_ForeignItem_TestStandInItemId(void) {
@@ -443,10 +464,10 @@ extern "C" uint16_t MM_ForeignItem_TestStandInItemId(void) {
 }
 
 /** The drain over a stand-in PlayState: its count, or -1 (nothing drained) when
- *  the queue holds any other id. */
+ *  the queue holds an id outside IsStandInDrainableId. */
 extern "C" int MM_ForeignItem_TestFlushWithStandInPlay(void) {
     for (int i = 0; i < sPendingCount; i++) {
-        if (sPendingGives[i] != (uint16_t)RI_GREAT_SPIN_ATTACK) {
+        if (!IsStandInDrainableId(sPendingGives[i])) {
             return -1;
         }
     }
