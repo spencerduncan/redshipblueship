@@ -196,11 +196,12 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193 and #120
   folders never both mount (issue #1196, inherited from Ship of Harkinian).
 - **Majora's Mask randomizer:** leaving the Deku King's chamber after the monkey check still teaches the vanilla
   Sonata of Awakening, wherever the seed placed the real one (issue #1203).
-- **Woodfall Temple (issue #1070, open until retested):** Majora's Mask's own trigger raises the temple only when
-  Deku Link plays the Sonata standing on the Deku Scrub symbol on the floor between the pink flower and the owl
-  statue; played on the flower, or where the Song of Soaring sets you down, the song gives its full announcement and
-  nothing happens. A short chime as Deku Link takes out the pipes confirms the spot. A Sonata that crossed from
-  Hyrule works the same as one learned in Termina (playtest guide, section U).
+- **Woodfall Temple (issue #1070, open until retested):** with Dungeon Access at its default (Transformation &
+  Song), Majora's Mask's own trigger raises the temple only when Deku Link plays the Sonata standing on the Deku
+  Scrub symbol on the floor between the pink flower and the owl statue; played on the flower, or where the Song of
+  Soaring sets you down, the song gives its full announcement and nothing happens. A short chime as Deku Link takes
+  out the pipes confirms the spot. A Sonata that crossed from Hyrule works the same as one learned in Termina
+  (playtest guide, section U).
 
 ### Run record
 
