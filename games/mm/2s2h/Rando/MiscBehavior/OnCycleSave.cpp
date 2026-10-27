@@ -137,19 +137,4 @@ void Rando::MiscBehavior::AfterEndOfCycleSave() {
         SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_NONE);
         BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_NONE;
     }
-
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // #1215: keep the seed's Razor Sword, equipped or stolen. Upstream forces
-    // this on for rando from 2s2h/Enhancements/Cycle/EndOfCycle.cpp (its
-    // DoNotResetRazorSword hook, `CVAR || IS_RANDO`), which the single exe keeps
-    // unlinked because its other restores read live CVars; this is that hook's
-    // IS_RANDO half (the smithy-held case cannot arise in rando, see above).
-    // Without it the reset's Kokiri Sword stands, and RI_PROGRESSIVE_SWORD then
-    // resolves from the Kokiri Sword and gives a second Razor.
-    if (curSword == EQUIP_VALUE_SWORD_RAZOR ||
-        (curSword == EQUIP_VALUE_SWORD_NONE && (stolen1 == ITEM_SWORD_RAZOR || stolen2 == ITEM_SWORD_RAZOR))) {
-        SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_RAZOR);
-        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_RAZOR;
-    }
-#endif
 }

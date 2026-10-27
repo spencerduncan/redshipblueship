@@ -44,7 +44,7 @@ void AddMmDamageMultiplierRow(SohMenu& menu, WidgetPath& path);
 // SoH's twin or nearest relative, or in a Majora's Mask block.
 void AddMmAutosaveIntervalRow(SohMenu& menu, WidgetPath& path);
 void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path);
-void AddMmQualityOfLifeBlock(SohMenu& menu, WidgetPath& path);
+void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path);
 
 static std::map<int32_t, const char*> bunnyHoodEffectMap = {
     { BUNNY_HOOD_VANILLA, "Vanilla" },
@@ -176,6 +176,12 @@ void OnFixBrokenGiantsKnifeToggled() {
     }
 }
 
+// W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle rows (HostedMm/SohMenuHostedMmCycleCheats.cpp).
+void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
+void AddMmUnrestrictedItemsRow(SohMenu& menu, WidgetPath& path);
+void AddMmCheatsBlock(SohMenu& menu, WidgetPath& path);
+void AddMmTimeCycleBlock(SohMenu& menu, WidgetPath& path);
+
 void SohMenu::AddMenuEnhancements() {
     // Add Enhancements Menu
     AddMenuEntry("Enhancements", CVAR_SETTING("Menu.EnhancementsSidebarSection"));
@@ -252,7 +258,8 @@ void SohMenu::AddMenuEnhancements() {
             CheckboxOptions()
                 .Tooltip("Shops and Minigames are open both day and night. Requires a scene reload to take effect.")
                 .DisabledTooltip("This is not compatible with the Locked Overworld Doors Randomizer option."));
-    AddMmQualityOfLifeBlock(*this, path); // L7 (#1133): a Majora's Mask block, Game Over Prompt and Better Double Time
+    AddMmTimeCycleBlock(*this, path);
+    AddMmQualityOfLifeBlockRows(*this, path); // L7 (#1133): Game Over Prompt and Better Double Time, in the same block
 
     AddWidget(path, "Pause Menu", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Allow the Cursor to be on Any Slot", WIDGET_CVAR_COMBOBOX)
@@ -1738,6 +1745,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Money", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteMoney"));
     AddWidget(path, "Health", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteHealth"));
     AddWidget(path, "Ammo", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteAmmo"));
+    AddMmInfiniteConsumablesRow(*this, path);
     AddWidget(path, "Magic", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteMagic"));
     AddWidget(path, "Nayru's Love", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteNayru"));
     AddWidget(path, "Epona Boost", WIDGET_CVAR_CHECKBOX).CVar(CVAR_CHEAT("InfiniteEponaBoost"));
@@ -1750,6 +1758,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Unrestricted Items", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("NoRestrictItems"))
         .Options(CheckboxOptions().Tooltip("Allows you to use any item at any location"));
+    AddMmUnrestrictedItemsRow(*this, path);
     AddWidget(path, "Super Tunic", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("SuperTunic"))
         .Options(CheckboxOptions().Tooltip("Makes every tunic have the effects of every other tunic."));
@@ -1893,6 +1902,7 @@ void SohMenu::AddMenuEnhancements() {
         .Options(IntSliderOptions().DefaultValue(0).Min(0).Max(8).Tooltip(
             "Set the Beta Quest world to explore. *WARNING*: Changing this will reset your game!\n"
             "Ctrl+Click to type in a value."));
+    AddMmCheatsBlock(*this, path);
 
     // Cosmetics Editor
     path.sidebarName = "Cosmetics Editor";

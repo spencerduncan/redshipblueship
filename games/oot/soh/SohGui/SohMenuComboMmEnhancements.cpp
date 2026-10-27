@@ -26,8 +26,9 @@
  *    MM's own (OoT's is a fixed 3 minutes), held apart in kMustStayDistinct.
  *  - Skip Time Song Cutscenes: Enhancements > Skips & Speed-ups > Cutscenes,
  *    directly after SoH's Skip Song Cutscenes, its nearest relative.
- *  - Game Over Prompt and Better Double Time have no twin, so they are a
- *    "Majora's Mask" block on Enhancements > Quality of Life, after Time of Day:
+ *  - Game Over Prompt and Better Double Time have no twin, so they sit in the
+ *    "Majora's Mask" block on Enhancements > Quality of Life at the end of Time
+ *    of Day, after MM's Time Cycle rows (#1245 opened that block):
  *    Quality of Life is where SoH keeps how play flows around saving and the
  *    time of day, and the Game Over Prompt is a save prompt on death while
  *    Better Double Time picks the hour the Song of Double Time skips to.
@@ -301,7 +302,7 @@ void ApplyCuratedRow(WidgetInfo& info, const RSBS::HostedMmEnhancement& row) {
  * is SoH's own row, and a second widget over one key would only add a way for
  * two surfaces to disagree (the duplicate-host shape #655 removed).
  *
- * The shipped block (AddMmQualityOfLifeBlock below) is built from the same
+ * The shipped rows (AddMmQualityOfLifeBlockRows below) are built from the same
  * helpers through the hosted-row seam; this builder adds its rows with
  * SohMenu::AddWidget instead, because MenuMmEnhancementRows and the UiSnapshot
  * harness hand it SYNTHETIC tables holding non-live rows (every shipped row is
@@ -351,15 +352,18 @@ void AddMmSkipTimeSongCutscenesRow(SohMenu& menu, WidgetPath& path) {
 }
 
 /**
- * The Majora's Mask block on Enhancements > Quality of Life, after Time of Day
- * (SohMenuEnhancements.cpp calls it in one line, L7 #1133): the two curated rows
- * with no twin on any SoH page, Game Over Prompt then Better Double Time, the
- * manifest's order, under the seam's block heading and the block's note.
+ * Game Over Prompt then Better Double Time, the manifest's order: the two curated
+ * rows with no twin on any SoH page, in the "Majora's Mask" block on Enhancements
+ * > Quality of Life at the end of Time of Day. W6-CYCLE-CHEATS (#1245) opened
+ * that block for MM's Time Cycle rows (AddMmTimeCycleBlock, which draws the
+ * heading), so these rows are appended inside it rather than opening a second
+ * block on the page: SohMenuEnhancements.cpp calls this right after it (L7
+ * #1133). The block's note (#747) sits above these rows when one of them is not
+ * live.
  */
-void AddMmQualityOfLifeBlock(SohMenu& menu, WidgetPath& path) {
+void AddMmQualityOfLifeBlockRows(SohMenu& menu, WidgetPath& path) {
     const RSBS::HostedMmEnhancement& gameOver = CuratedRow(RSBS_CVAR_MM_KALEIDO_GAME_OVER);
     const RSBS::HostedMmEnhancement& doubleTime = CuratedRow(RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME);
-    AddHostedMmBlock(menu, path);
     AddGroupNote(menu, path, { &gameOver, &doubleTime });
     ApplyCuratedRow(AddHostedMmWidget(menu, path, kHostedMmBlockLabel, gameOver.label, CuratedWidgetType(gameOver))
                         .CVar(RSBS_CVAR_MM_KALEIDO_GAME_OVER),

@@ -470,6 +470,22 @@ struct DistinctPair {
  */
 // W6-TIMESAVERS
 // W6-CYCLE-CHEATS
+// #1236, #1240: MM's cheats and Time Cycle options, each bound by one hosted row on SoH's Cheats or
+// Quality of Life page. The first two are the PARKED pairs below (kept apart, MM rows beside SoH's); the rest have no
+// OoT twin. DoNotResetRupees / DoNotResetConsumables have no row on purpose (the combo's cycle hooks and the frozen
+// Keep Items on Cycle Reset decide them), so they have no define either.
+#define RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES "gCheats.InfiniteConsumables"
+#define RSBS_CVAR_MM_CHEATS_UNRESTRICTED_ITEMS "gCheats.UnrestrictedItems"
+#define RSBS_CVAR_MM_CHEATS_LONGER_FLOWER_GLIDE "gCheats.LongerFlowerGlide"
+#define RSBS_CVAR_MM_CHEATS_ELEGY_ANYWHERE "gCheats.ElegyAnywhere"
+#define RSBS_CVAR_MM_CHEATS_TEMPLE_TIME_STOP "gCheats.TempleTimeStop"
+#define RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD "gCheats.UnbreakableRazorSword"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_BOTTLE_CONTENT "gEnhancements.Cycle.DoNotResetBottleContent"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_RAZOR_SWORD "gEnhancements.Cycle.DoNotResetRazorSword"
+#define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_TIME_SPEED "gEnhancements.Cycle.DoNotResetTimeSpeed"
+#define RSBS_CVAR_MM_CYCLE_KEEP_EXPRESS_MAIL "gEnhancements.Cycle.KeepExpressMail"
+#define RSBS_CVAR_MM_CYCLE_STOP_OCEANSIDE_SPIDER_HOUSE_SQUATTER "gEnhancements.Cycle.StopOceansideSpiderHouseSquatter"
+#define RSBS_CVAR_MM_CYCLE_OCEANSIDE_WALLET_ANY_DAY "gEnhancements.Cycle.OceansideWalletAnyDay"
 // W6-PLAYER
 // W6-MASKS-SONGS
 // W6-CAM-GYRO
@@ -577,10 +593,10 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "10 = '1 Hit KO'. A plain key swap leaves OoT's 5-8 with no entry in MM's list and MM's 10 with none in "
       "OoT's, so each menu would show a blank for the other's value. Ruled: the keys stay distinct and MM's own "
       "row (its own value list) is hosted beside SoH's on Enhancements > Difficulty." },
-    { "PARKED: infinite ammo scope", "gCheats.InfiniteConsumables", "gCheats.InfiniteAmmo",
+    { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
-    { "PARKED: item restriction gate", "gCheats.UnrestrictedItems", "gCheats.NoRestrictItems",
+    { "PARKED: item restriction gate", RSBS_CVAR_MM_CHEATS_UNRESTRICTED_ITEMS, "gCheats.NoRestrictItems",
       "Same intent (drop item gating) but DIFFERENT GATE: OoT ignores age restrictions, MM lets all forms "
       "use all items. Pending a maintainer answer; do not converge until it lands." },
 };

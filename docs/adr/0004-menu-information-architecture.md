@@ -951,7 +951,7 @@ live:
 | Combo > Majora's Mask (MM Enhancements until 2026-09-27) | MM Autosave Interval | Enhancements > Quality of Life > Saving, directly after SoH's Autosave (MM's own interval; OoT's is a fixed 3 minutes) |
 | | Autosave (the page's pointer row) | gone: SoH's own Autosave is the converged key both games read, one row for both (its tooltip now says so) |
 | | Skip Time Song Cutscenes | Enhancements > Skips & Speed-ups > Cutscenes, directly after SoH's Skip Song Cutscenes |
-| | Game Over Prompt, Better Double Time | a "Majora's Mask" block on Enhancements > Quality of Life, after Time of Day (no twin; Quality of Life holds how play flows around saving and the time of day) |
+| | Game Over Prompt, Better Double Time | the "Majora's Mask" block on Enhancements > Quality of Life at the end of Time of Day, after #1245's Time Cycle rows (no twin; Quality of Life holds how play flows around saving and the time of day) |
 | Combo > MM Mods | the state note, Rescan Mods Folder, MM Mod List | a "Majora's Mask" block on Settings > Mod Menu, after SoH's Popout Mod Menu Window (`RegisterSohPageRows`) |
 | Combo > Save Files | the page | Dev Tools > Save Files, after SoH's last Dev Tools page |
 | Combo > Windows, Tracker Settings | (retired by #1132 and #1141) | Randomizer > Check Tracker and Item Tracker |

@@ -9,9 +9,19 @@ extern "C" {
 }
 
 #define CVAR_NAME_RUPEES "gEnhancements.Cycle.DoNotResetRupees"
-#define CVAR_RUPEES CVarGetInteger(CVAR_NAME_RUPEES, 0)
 #define CVAR_NAME_CONSUME "gEnhancements.Cycle.DoNotResetConsumables"
+#ifdef RSBS_SINGLE_EXECUTABLE
+// W6-CYCLE-CHEATS (#1236): these two restores are held off in the combo, and no shared-menu row writes their keys.
+// The combo keeps the shared rupees and the five shared ammo counts through every cycle reset
+// (MM_RegisterSharedResourceCycleHooks, GameExports_SingleExe.cpp), and the Powder Keg and the Magic Beans follow the
+// world's FROZEN Keep Items on Cycle Reset (#1175). A live per-player switch may not overrule a setting frozen at file
+// creation (one-game semantics), and a hand-set key must not restore a second, unsettled rupee count over the combo's.
+#define CVAR_RUPEES false
+#define CVAR_CONSUME false
+#else
+#define CVAR_RUPEES CVarGetInteger(CVAR_NAME_RUPEES, 0)
 #define CVAR_CONSUME CVarGetInteger(CVAR_NAME_CONSUME, 0)
+#endif
 #define CVAR_NAME_BOTTLE "gEnhancements.Cycle.DoNotResetBottleContent"
 #define CVAR_BOTTLE CVarGetInteger(CVAR_NAME_BOTTLE, 0)
 #define CVAR_NAME_SWORD "gEnhancements.Cycle.DoNotResetRazorSword"

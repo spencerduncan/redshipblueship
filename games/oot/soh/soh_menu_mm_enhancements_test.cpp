@@ -517,7 +517,7 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         const char* key;
         const char* sidebar;
         const char* section;
-        const char* after; ///< the interactive row directly before it in its column, or NULL: first of its block
+        const char* after; ///< the interactive row directly before it in its column, or NULL: in its block
     };
     const CuratedRowHost kPlacements[] = {
         { RSBS_CVAR_MM_AUTOSAVE_INTERVAL, "Quality of Life", "Saving", "Autosave" },
@@ -554,9 +554,13 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "the %s row follows \"%s\" in its column, expected SoH's \"%s\" directly before it", want.key,
                       before != nullptr ? before->name.c_str() : "(the column's start)", want.after);
         } else {
-            MME_CHECK(before == nullptr || before->type == WIDGET_SEPARATOR_TEXT,
-                      "the %s row follows \"%s\"; it opens its block", want.key,
-                      before != nullptr ? before->name.c_str() : "");
+            // In its block: right under the block's heading, or after another row the hosted-row seam put in the
+            // same block (#1245's Time Cycle rows open the Quality of Life block), never after an SoH row.
+            const bool afterBlockRow =
+                before != nullptr && SohGui::IsHostedMmRow("Enhancements", want.sidebar, before->name);
+            MME_CHECK(before != nullptr && (before->type == WIDGET_SEPARATOR_TEXT || afterBlockRow),
+                      "the %s row follows \"%s\"; it belongs in its block, after the heading or another row of it",
+                      want.key, before != nullptr ? before->name.c_str() : "(the column's start)");
         }
         bool recorded = false;
         for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
