@@ -616,10 +616,16 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "gEnhancements.EnableBombchuDrops",
       "Same bool and JSON shape, different RULE: SoH's EnItem00_ConvertBombDropToBombchu never drops Bombchus "
       "Link does not have and favours whichever of Bombs and Bombchus runs lower, and an Ocarina of Time seed can "
-      "force SoH's row on; MM's ChuDrops.cpp gives every Bomb drop an even chance to be a Bombchu whatever Link "
-      "carries. One switch would mean two rules, and a seed-forced SoH row would show on while MM followed the "
-      "hidden value. Ruled: the keys stay distinct and MM's row is hosted beside SoH's on Enhancements > "
-      "Difficulty > Drops." },
+      "force SoH's row on; MM's ChuDrops.cpp gives a Bomb drop an even chance to be a Bombchu. In the single exe "
+      "MM's rule also keeps SoH's first clause (review H1): it converts only while INV_CONTENT(ITEM_BOMBCHU) == "
+      "ITEM_BOMBCHU already holds, because the Bombchu count is a shared PROGRESSION quantity (shared_items.h) and "
+      "2Ship's unguarded rule would set the Bombchu item in Termina (z_parameter.c Item_Give), the next harvest "
+      "would carry the count into the pool, and OoT_ApplySharedAmmoCount would grant Hyrule the Bombchu item and "
+      "open its Bombchu shops before the seed placed them (OoT_SharedAmmoGrantBlocked stops that only when the "
+      "seed's Bombchu Bag option is on). It still never weighs the scarcer ammo, so one switch would still mean "
+      "two rules, and a seed-forced SoH row would show on while MM followed the hidden value. Ruled: the keys stay "
+      "distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. MM-only key: an "
+      "importer must carry it as MM's own and never onto SoH's." },
     { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
