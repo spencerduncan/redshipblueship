@@ -76,7 +76,8 @@ void AddMmBetterMapSelectRow(SohMenu& menu, WidgetPath& path) {
             "Replaces the original map select with a translated, more user-friendly version. Majora's Mask only."));
 }
 
-// Warping, right after SoH's Warp Points.
+// Warping, right after SoH's Warp Points. Each button has a line of its own: beside MM Warp to Warp Point, MM Clear
+// Warp Point ran past the column's edge (R9 at min-832x600), where its tooltip could not be hovered.
 void AddMmWarpPointRows(SohMenu& menu, WidgetPath& path) {
     AddHostedMmWidget(menu, path, "Warping", "MM Set Warp Point", WIDGET_BUTTON)
         .Accessor("MM_DevTools_SetWarpPoint")
@@ -118,8 +119,7 @@ void AddMmWarpPointRows(SohMenu& menu, WidgetPath& path) {
                 info.activeDisables.push_back(DISABLE_FOR_NO_MM_WARP_POINT);
             }
         })
-        .Callback([](WidgetInfo& info) { MM_DevTools_ClearWarpPoint(); })
-        .SameLine(true);
+        .Callback([](WidgetInfo& info) { MM_DevTools_ClearWarpPoint(); });
 }
 
 } // namespace SohGui
