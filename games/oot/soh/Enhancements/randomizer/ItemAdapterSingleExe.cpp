@@ -95,6 +95,10 @@ bool OoTItemPaused(void) {
     return OoT_gPlayState != nullptr && OoT_gPlayState->pauseCtx.state > 0;
 }
 
+/** The ROM-free lock's stand-in for the frozen options (OoT_ItemAdapter_TestOverrideOptions). */
+bool sOoTItemTestOptionsOn = false;
+unsigned sOoTItemTestOptions = 0u;
+
 } // namespace
 
 // ============================================================================
@@ -812,6 +816,80 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
         s->inventory.questItems |= (1u << QUEST_SONG_TIME);
     }
     return 1;
+}
+
+/**
+ * The tracker world of #1142/#1158 (the OoT groups SoH's main window shows
+ * beyond its default sections): written into `buf` (zeroed first) as a started
+ * save, a randomizer file when `rando` is 1, a vanilla one otherwise. Small keys
+ * per dungeon start at -1 (none), as a new file's do (SaveManager InitFileNormal).
+ *   - Forest Temple: 2 keys in hand of 3 collected, its boss key and map;
+ *   - Fire Temple: 0 in hand of 1 collected (a key used);
+ *   - Thieves' Hideout: 1 in hand of 2 collected;
+ *   - the Deku Tree's compass, Ganon's Tower's boss key;
+ *   - the Longshot in the hookshot slot (the slot guard's in-range read);
+ *   - the randomizer-inf flags of Gohma's and Twinrova's souls, the Kokiri Forest
+ *     bean soul, the Zora jabber nut, the A and C-Left ocarina buttons, the Guard
+ *     House and Fishing Hole keys, the fishing pole and Greg (not Ganon's soul).
+ * Returns 1, or 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
+ */
+extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando) {
+    if (buf == nullptr || size < sizeof(SaveContext) || !Aligned(buf)) {
+        return 0;
+    }
+    std::memset(buf, 0, size);
+    SaveContext* s = static_cast<SaveContext*>(buf);
+    s->healthCapacity = 0x30;
+    s->health = 0x30;
+    std::memset(s->inventory.items, ITEM_NONE, sizeof(s->inventory.items));
+    std::memset(s->inventory.dungeonKeys, 0xFF, sizeof(s->inventory.dungeonKeys));
+    s->ship.quest.id = rando ? QUEST_RANDOMIZER : QUEST_NORMAL;
+    s->inventory.items[SLOT_HOOKSHOT] = ITEM_LONGSHOT;
+    // Bit (item - ITEM_KEY_BOSS) of dungeonItems: the boss key, the compass, the map (DrawDungeonItem).
+    const auto bitOf = [](int item) { return (uint8_t)(1u << (item - ITEM_KEY_BOSS)); };
+    s->inventory.dungeonItems[SCENE_FOREST_TEMPLE] = bitOf(ITEM_KEY_BOSS) | bitOf(ITEM_DUNGEON_MAP);
+    s->inventory.dungeonItems[SCENE_DEKU_TREE] = bitOf(ITEM_COMPASS);
+    s->inventory.dungeonItems[SCENE_GANONS_TOWER] = bitOf(ITEM_KEY_BOSS);
+    s->inventory.dungeonKeys[SCENE_FOREST_TEMPLE] = 2;
+    s->ship.stats.dungeonKeys[SCENE_FOREST_TEMPLE] = 3;
+    s->inventory.dungeonKeys[SCENE_FIRE_TEMPLE] = 0;
+    s->ship.stats.dungeonKeys[SCENE_FIRE_TEMPLE] = 1;
+    s->inventory.dungeonKeys[SCENE_THIEVES_HIDEOUT] = 1;
+    s->ship.stats.dungeonKeys[SCENE_THIEVES_HIDEOUT] = 2;
+    for (RandomizerInf flag :
+         { RAND_INF_GOHMA_SOUL, RAND_INF_TWINROVA_SOUL, RAND_INF_KOKIRI_FOREST_BEAN_SOUL, RAND_INF_CAN_SPEAK_ZORA,
+           RAND_INF_HAS_OCARINA_A, RAND_INF_HAS_OCARINA_C_LEFT, RAND_INF_GUARD_HOUSE_KEY_OBTAINED,
+           RAND_INF_FISHING_HOLE_KEY_OBTAINED, RAND_INF_FISHING_POLE_FOUND, RAND_INF_GREG_FOUND }) {
+        s->ship.randomizerInf[flag >> 4] |= (u16)(1u << (flag & 0xF));
+    }
+    return 1;
+}
+
+/**
+ * The frozen randomizer options the OoT tracker groups are gated by, overridden
+ * for the ROM-free lock (#1142): OoT's options live in the loaded seed's context,
+ * never in the save buffer. `enabled` 0 puts the production read back. `bits`:
+ * 0 RSK_SHUFFLE_BEAN_SOULS, 1 RSK_SHUFFLE_BOSS_SOULS on, 2 RSK_SHUFFLE_BOSS_SOULS
+ * on plus Ganon (with bit 1), 3 RSK_SHUFFLE_SPEAK, 4 RSK_SHUFFLE_OCARINA_BUTTONS,
+ * 5 RSK_LOCK_OVERWORLD_DOORS, 6 RSK_SHUFFLE_FISHING_POLE.
+ */
+extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits) {
+    sOoTItemTestOptionsOn = enabled != 0;
+    sOoTItemTestOptions = bits;
+}
+
+/** The adapter's read of item `item`'s inventory slot over `buf`, or -1 when the
+ *  adapter has no guarded read (SoH 7a7f942b8: an item id past gItemSlots names
+ *  no slot, and INV_CONTENT would index past the table). */
+extern "C" int OoT_ItemAdapter_TestInvContent(const void* buf, int item) {
+    (void)buf;
+    (void)item;
+    return -1;
+}
+
+/** OoT's gItemSlots length: an item id at or past it has no inventory slot. */
+extern "C" int OoT_ItemAdapter_TestItemSlotCount(void) {
+    return (int)ARRAY_COUNT(OoT_gItemSlots);
 }
 
 /**
