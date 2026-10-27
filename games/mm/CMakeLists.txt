@@ -575,6 +575,25 @@ if(SINGLE_EXECUTABLE_BUILD)
         # WeirdAnimation class, which MM's copy fences into S2H under RSBS_SINGLE_EXECUTABLE, so both files link)
         "2s2h/Enhancements/Restorations/N64WeirdFrames/N64WeirdFrames.cpp"
         "2s2h/Enhancements/Restorations/N64WeirdFrames/WeirdAnimation.cpp"
+        # W6-FIXES (#1237): MM's Fixes and Restorations, each drawn by an MM row on SoH's Enhancements > Fixes page
+        # (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Each registers only through a file-scope RegisterShipInitFunc on its
+        # own key. Hooks, all dispatched: VB_* via MM_GameHooks_ExecuteVBShould (z_player.c, z_parameter.c, z_demo.c);
+        # OnActorInit[PLAYER / BG_BREAKWALL] and ShouldActorInit[DOOR_ANA / OBJ_SYOKUDAI / OBJ_MURE3 / EN_ITEM00] via
+        # MM_GameHooks_Execute* (z_actor.c); AfterRoomSceneCommands[SCENE_22DEKUCITY] via ExecuteForID
+        # (GameExports_SingleExe.cpp). JPGrottos.cpp links whole: its spawning leg is the only writer of the flag its
+        # deleting legs wait on. Play-state guards in every body that reads MM_gPlayState. No stub in mm_stubs.c shadows
+        # them; no twin of their definitions in games/oot (OoTFasterSwim's Player_Action_57 is MM's z_player.c export).
+        "2s2h/Enhancements/Fixes/FixEponaStealingSword.cpp"
+        "2s2h/Enhancements/Fixes/FierceDeityZTargetMovement.cpp"
+        "2s2h/Enhancements/Fixes/CompletedHeartContainerAudio.cpp"
+        "2s2h/Enhancements/Restorations/FlipHopVariable.cpp"
+        "2s2h/Enhancements/Restorations/PowerCrouchStab.cpp"
+        "2s2h/Enhancements/Restorations/SideRoll.cpp"
+        "2s2h/Enhancements/Restorations/OoTFasterSwim.cpp"
+        "2s2h/Enhancements/Restorations/TatlISG.cpp"
+        "2s2h/Enhancements/Restorations/WoodfallMountainAppearance.cpp"
+        "2s2h/Enhancements/Restorations/JPGrottos.cpp"
+        "2s2h/Enhancements/Restorations/BonkCollision.cpp"
         # #1037 (Damage Multiplier, VB_MULTIPLY_INFLICTED_DMG from func_808339D4 in z_player.c; dispatched through
         # MM_GameHooks_ExecuteVBShould. The body only shifts the damage the hook is handed, so it needs no play-state
         # guard. Held APART from SoH's gEnhancements.DamageMult, whose value space differs: the row that writes MM's

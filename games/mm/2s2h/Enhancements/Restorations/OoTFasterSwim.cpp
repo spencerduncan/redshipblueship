@@ -12,6 +12,9 @@ void Player_Action_57(Player* player, PlayState* play);
 
 void RegisterOoTFasterSwim() {
     COND_VB_SHOULD(VB_CLAMP_ANIMATION_SPEED, CVAR, {
+        // W6-FIXES (#1237): this TU is in the single-exe link now and the body reads MM_gPlayState; a missing play
+        // state leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
         f32* animationSpeed = va_arg(args, f32*);
 
