@@ -79,7 +79,7 @@ brief, plus everything in the collision set:
 | `Saving` | 7 | ✅ all |
 | `Player` | 9 | ⚠️ 8 of 9, and only since W6-PLAYER (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER) and six (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the six. Underwater Ocarina is still (O) at category level only |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
-| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4) |
+| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
 | `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all |
 | **Subtotal** | **130** | |
 
@@ -276,6 +276,31 @@ at category level were checked for convergence and each failed on gating, so the
 | `gEnhancements.Camera.RightStick.InvertXAxis` | off | MM Invert Camera X Axis (Third-Person Camera) | (P) P3 |
 | `gEnhancements.Camera.RightStick.InvertYAxis` | **on (inverted)** | MM Invert Camera Y Axis | (P) P3 |
 | `gEnhancements.Camera.RightStick.CameraSensitivity.{X,Y}` | 100% | MM Third-Person Horizontal / Vertical Sensitivity (1-500%) | (P) P3 |
+
+**W6-CAM-GYRO (#1235, #1236, #1240) — gyro aiming, pitch limits, debug camera, Remote Bombchu and the speed modifiers.**
+MM read every key below, but its only widgets sat in the excluded `BenMenu.cpp` and `BenInputEditorWindow.cpp`, and
+three providers (`Camera/DebugCam.cpp`, `Equipment/RemoteBombchu.cpp`, `Player/LinkSpeedModifier.cpp`) were out of the
+link. They are now carved into `ship__Enh_registrars`, and each key has an MM-labelled row bound through its
+`RSBS_CVAR_MM_*` define: the camera and speed rows in SoH's Bindings window (`SohInputEditorWindow.cpp`,
+`DrawMmCameraRows`), Remote Bombchu Control on Enhancements > Items > Explosives (`SohMenuHostedMmCamGyro.cpp`). Free
+Look stands aside while the debug camera is on, and is unchanged while it is off. The registrar-coverage lock's
+W6-CAM-GYRO phase attributes each TU by registry content; the classification lock's leg 3f-2c holds each binding.
+`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows after SoH's under Modifier
+Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistinct` row.
+
+| MM key | MM default | Row (where) | Call |
+|---|---|---|---|
+| `gEnhancements.Camera.FirstPerson.GyroEnabled` | off | MM Gyro Aiming (Camera Controls, after MM's aiming rows) | (P) P3: SoH has no gyro aiming |
+| `gEnhancements.Camera.FirstPerson.GyroInvert{X,Y}` | off | MM Invert Gyro Aiming X / Y Axis (shown while MM Gyro Aiming is on) | (P) P3 |
+| `gEnhancements.Camera.FirstPerson.GyroSensitivity{X,Y}` | 100% | MM Gyro Aiming Horizontal / Vertical Sensitivity (1-200%, likewise) | (P) P3 |
+| `gEnhancements.Camera.FreeLook.{MaxPitch,MinPitch}` | 72° / -49° | MM Max / Min Camera Height Angle (Camera Controls, after SoH's free-look rows) | (O) SoH's free look has no pitch limit; the pair stays ordered as in 2Ship |
+| `gEnhancements.Camera.DebugCam.Enable` | off | MM Debug Camera (likewise) | (O) MM-only; listens to port 1 (its port key has no row and is not read in the single exe) |
+| `gEnhancements.Camera.DebugCam.{6DOF,CameraSpeed}` | off / 50% | MM Enable Roll (6° of Freedom), MM Debug Camera Speed (10-300%, shown while MM Debug Camera is on) | (O) MM-only |
+| `gEnhancements.PlayerActions.RemoteBombchu` | off | Remote Bombchu Control (Items > Explosives, after SoH's Prevent Bombchus Forcing First-Person) | (O) nearest relative only |
+| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH's walk modifier has one enable and a 0-500% range |
+| `gSettings.SpeedModifier.{WalkEnable,SwimEnable}` | off | MM Enable Walk / Swim Speed Modifier (shown while MM's enable is on) | (P) likewise: SoH has no separate walk and swim enables |
+| `gSettings.SpeedModifier.{WalkMapping1,WalkMapping2}` | 100% | MM Walk Modifier 1 / 2 (0-1500%, likewise) | (P) likewise |
+| `gSettings.SpeedModifier.{SwimMapping1,SwimMapping2}` | 100% | MM Swim Modifier 1 / 2 (0-875%, likewise) | (P) likewise |
 
 **W6-PLAYER (#1236) — Climb Speed and Bombchu Drops, held apart and given rows.** Two of W6-PLAYER's twelve keys have
 an SoH twin whose rule differs, so each stays in `kMustStayDistinct` and gets an MM-labelled row right after its SoH
@@ -493,7 +518,7 @@ default (off).
 | `Songs` | 7 | Song of Double Time, Soaring, Oath to Order |
 | `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
 | `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
-| `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu |
+| `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` → (S), minus `TatlISG` → (P); rest MM/OoT-behaviour restorations |
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions** — clean MM-only block |
 | `gFixes.*` | 4 | MM-specific colour/Epona fixes |
