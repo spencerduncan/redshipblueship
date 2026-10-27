@@ -203,6 +203,10 @@ void OnFixBrokenGiantsKnifeToggled() {
     }
 }
 
+// W6-MINIGAMES (#1236): MM's minigame rows on Minigames (HostedMm/SohMenuHostedMmMinigames.cpp).
+void AddMmShootingGalleryRows(SohMenu& menu, WidgetPath& path);
+void AddMmMinigameRows(SohMenu& menu, WidgetPath& path);
+
 // W6-CYCLE-CHEATS (#1236, #1240): MM's cheats and Time Cycle rows (HostedMm/SohMenuHostedMmCycleCheats.cpp).
 void AddMmInfiniteConsumablesRow(SohMenu& menu, WidgetPath& path);
 void AddMmUnrestrictedItemsRow(SohMenu& menu, WidgetPath& path);
@@ -1472,6 +1476,7 @@ void SohMenu::AddMenuEnhancements() {
                      .DefaultValue(15)
                      .Format("%d arrows")
                      .Tooltip("The ammunition at the start of the Shooting Gallery minigame as Adult."));
+    AddMmShootingGalleryRows(*this, path); // W6-MINIGAMES: MM's archery scores and gallery Octoroks
 
     AddWidget(path, "Bombchu Bowling", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Customize Behavior##Bowling", WIDGET_CVAR_CHECKBOX)
@@ -1636,6 +1641,7 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(fishingDisabledFunc)
         .Options(IntSliderOptions().Min(6).Max(13).DefaultValue(13).Format("%d lbs.").Tooltip(
             "The minimum weight for the unique fishing reward as an adult."));
+    AddMmMinigameRows(*this, path); // W6-MINIGAMES: MM's minigames, in a Majora's Mask block
 
     // Extra Modes
     path.sidebarName = "Extra Modes";

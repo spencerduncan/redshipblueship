@@ -630,6 +630,141 @@ const std::vector<SkipKeyProbe>& SkipProbes() {
     return probes;
 }
 
+// ---- W6-MINIGAMES (#1236): MM's minigame TUs --------------------------------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id or a text id, and the delta is measured with every other key off, so
+// only the TU behind the probed key can move it. Per key, the TU: Timesavers/BombersHideAndSeek.cpp,
+// Minigames/SwordsmanSchool.cpp, HoneyAndDarling.cpp (one registrar on its three keys), Archery.cpp (Town, Swamp and
+// Boat scores, Koume's health, Invincible), RomaniTargetPractice.cpp, AlwaysWinDoggyRace.cpp, CuccoShackCuccoCount.cpp,
+// SkipHorseRace.cpp, BeaverRace.cpp (two keys), DifficultyOptions/GoronRace.cpp, TreasureChestShopFullMaze.cpp and
+// MarkShootingGalleryOctoroks.cpp.
+//
+// Most of these are sliders whose default (MM's vanilla value) is the one value that disarms them: they arm while the
+// key differs from it, so the drive's "off" (0) would arm them too. Every count below first puts each such key that
+// reads 0 back to its default (cleared) and re-drives it, the Zora Egg Count shape: 0 before the drive, +1 while the
+// drive holds the probed key at 1 (a one-point target), and every key is left cleared and disarmed by the counts after
+// the drive. Goron Race's 1 is Balanced, its rubber-band leg; its Skip leg (2) shares the one registrar, so the
+// transition bucket must stay put.
+constexpr const char* kW6MinigameDefaultKeys[] = {
+    "gEnhancements.Minigames.BombersHideAndSeek",   "gEnhancements.Minigames.SwordsmanSchoolScore",
+    "gEnhancements.Minigames.HoneyAndDarlingDay1",  "gEnhancements.Minigames.HoneyAndDarlingDay2",
+    "gEnhancements.Minigames.HoneyAndDarlingDay3",  "gEnhancements.Minigames.TownArcheryScore",
+    "gEnhancements.Minigames.SwampArcheryScore",    "gEnhancements.Minigames.RomaniTargetPractice",
+    "gEnhancements.Minigames.CuccoShackCuccoCount", "gEnhancements.Minigames.BeaverRaceRingsCollected",
+    "gEnhancements.Minigames.BoatArcheryScore",     "gEnhancements.Minigames.BoatArcheryHealth",
+};
+
+void SettleW6MinigameDefaults() {
+    for (const char* key : kW6MinigameDefaultKeys) {
+        if (CVarGetInteger(key, -1) == 0) {
+            CVarClear(key);
+            ShipInit::Init(key);
+        }
+    }
+}
+
+template <typename H> size_t W6MinigameCount(int32_t forId) {
+    SettleW6MinigameDefaults();
+    return SettledCountForId<H>(forId);
+}
+
+#define W6_MINIGAME_VB_COUNT(vb) []() { return W6MinigameCount<GameInteractor::ShouldVanillaBehavior>(vb); }
+#define W6_MINIGAME_UPDATE_COUNT(id) []() { return W6MinigameCount<GameInteractor::ShouldActorUpdate>(id); }
+
+const std::vector<SkipKeyProbe>& W6MinigameProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Minigames.BombersHideAndSeek",
+          "Bombers Hide-and-Seek",
+          { { "ShouldActorUpdate[EN_BOMJIMB] (Timesavers/BombersHideAndSeek.cpp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_BOMJIMB), 1 } } },
+        { "gEnhancements.Minigames.SwordsmanSchoolScore",
+          "Swordsman School",
+          { { "ShouldActorUpdate[EN_KENDO_JS] (Minigames/SwordsmanSchool.cpp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_KENDO_JS), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay1",
+          "Honey & Darling Day 1",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay2",
+          "Honey & Darling Day 2",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.HoneyAndDarlingDay3",
+          "Honey & Darling Day 3",
+          { { "VB_HONEY_AND_DARLING_MINIGAME_FINISH (Minigames/HoneyAndDarling.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_HONEY_AND_DARLING_MINIGAME_FINISH), 1 } } },
+        { "gEnhancements.Minigames.TownArcheryScore",
+          "Town Archery Score",
+          { { "ShouldActorUpdate[EN_SYATEKI_MAN] (Minigames/Archery.cpp, Town)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_SYATEKI_MAN), 1 } } },
+        { "gEnhancements.Minigames.SwampArcheryScore",
+          "Swamp Archery Score",
+          { { "ShouldActorUpdate[EN_SYATEKI_MAN] (Minigames/Archery.cpp, Swamp)",
+              W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_SYATEKI_MAN), 1 },
+            { "VB_ARCHERY_ADD_BONUS_POINTS (Minigames/Archery.cpp, Swamp)",
+              W6_MINIGAME_VB_COUNT(VB_ARCHERY_ADD_BONUS_POINTS), 1 } } },
+        { "gEnhancements.Minigames.RomaniTargetPractice",
+          "Romani Target Practice",
+          { { "VB_WIN_ROMANI_PRACTICE (Minigames/RomaniTargetPractice.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_WIN_ROMANI_PRACTICE), 1 } } },
+        { "gEnhancements.Minigames.AlwaysWinDoggyRace",
+          "Always Win Doggy Race",
+          { { "VB_DOGGY_RACE_SET_MAX_SPEED (Minigames/AlwaysWinDoggyRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_DOGGY_RACE_SET_MAX_SPEED), 1 } } },
+        { "gEnhancements.Minigames.CuccoShackCuccoCount",
+          "Cucco Shack Count",
+          { { "ShouldActorUpdate[EN_HS] (Minigames/CuccoShackCuccoCount.cpp)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_HS),
+              1 } } },
+        { "gEnhancements.Minigames.SkipHorseRace",
+          "Skip Gorman Horse Race",
+          { { "VB_PLAY_TRANSITION_CS (Minigames/SkipHorseRace.cpp)", W6_MINIGAME_VB_COUNT(VB_PLAY_TRANSITION_CS),
+              1 } } },
+        { "gEnhancements.Minigames.BeaverRaceRingsCollected",
+          "Beaver Race Rings",
+          { { "ShouldActorUpdate[EN_AZ] (Minigames/BeaverRace.cpp, rings)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_AZ),
+              1 } } },
+        { "gEnhancements.Minigames.SkipLittleBeaver",
+          "Skip Little Beaver Races",
+          { { "ShouldActorUpdate[EN_AZ] (Minigames/BeaverRace.cpp, speed-up)", W6_MINIGAME_UPDATE_COUNT(ACTOR_EN_AZ),
+              1 },
+            { "OnOpenText[0x10D6] (Minigames/BeaverRace.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x10D6); }, 1 },
+            { "OnOpenText[0x10FA] (Minigames/BeaverRace.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x10FA); }, 1 } } },
+        { "gEnhancements.DifficultyOptions.GoronRace",
+          "Goron Race (Balanced)",
+          { { "VB_GORON_RACE_RUBBERBANDING (DifficultyOptions/GoronRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_GORON_RACE_RUBBERBANDING), 1 },
+            { "VB_PLAY_TRANSITION_CS: the Skip leg stays off at Balanced (DifficultyOptions/GoronRace.cpp)",
+              W6_MINIGAME_VB_COUNT(VB_PLAY_TRANSITION_CS), 0 } } },
+        { "gEnhancements.Minigames.BoatArcheryScore",
+          "Boat Archery Score",
+          { { "OnActorInit[EN_DNH] (Minigames/Archery.cpp, Boat)",
+              []() { return W6MinigameCount<GameInteractor::OnActorInit>(ACTOR_EN_DNH); }, 1 } } },
+        { "gEnhancements.Minigames.BoatArcheryHealth",
+          "Koume's Health",
+          { { "VB_FAIL_BOAT_ARCHERY (Minigames/Archery.cpp, Koume's health)",
+              W6_MINIGAME_VB_COUNT(VB_FAIL_BOAT_ARCHERY), 1 },
+            { "OnOpenText[0x0877] (Minigames/Archery.cpp, Koume's health)",
+              []() { return W6MinigameCount<GameInteractor::OnOpenText>(0x0877); }, 1 } } },
+        { "gEnhancements.Minigames.BoatArcheryInvincible",
+          "Invincible Koume",
+          { { "VB_KOUME_TAKE_DAMAGE (Minigames/Archery.cpp, Invincible)", W6_MINIGAME_VB_COUNT(VB_KOUME_TAKE_DAMAGE),
+              1 } } },
+        { "gEnhancements.Minigames.TreasureChestShopShowFullMaze",
+          "Treasure Shop Full Maze",
+          { { "OnActorUpdate[OBJ_TAKARAYA_WALL] (Minigames/TreasureChestShopFullMaze.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnActorUpdate>(ACTOR_OBJ_TAKARAYA_WALL); }, 1 } } },
+        { "gEnhancements.Minigames.MarkShootingGalleryOctoroks",
+          "Mark Gallery Octoroks",
+          { { "OnActorDraw[EN_SYATEKI_OKUTA] (Minigames/MarkShootingGalleryOctoroks.cpp)",
+              []() { return W6MinigameCount<GameInteractor::OnActorDraw>(ACTOR_EN_SYATEKI_OKUTA); }, 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6MinigamePhase{ "W6-MINIGAMES (#1236)", W6MinigameProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetSkipKeys() {
