@@ -456,10 +456,11 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
                            : (def.kind == MMRK_SLOT_BOMBCHU) ? (int)CUR_CAPACITY(UPG_BOMB_BAG)
                                                              : (int)CUR_CAPACITY(def.data);
             }
-            // #1143: SoH's maxCapacity, the largest bag; a fixed cap never grows (0).
-            out->capacityMax = (def.kind == MMRK_SLOT_FIXED)     ? 0
-                               : (def.kind == MMRK_SLOT_BOMBCHU) ? (int)CAPACITY(UPG_BOMB_BAG, 3)
-                                                                 : (int)CAPACITY(def.data, 3);
+            // #1143: SoH's maxCapacity, the largest bag. A fixed cap never grows (0), and bombchus
+            // are SoH's static ammo (DrawItemCount's shouldDisplayAmmo): no ceiling of their own,
+            // so every count mode shows the amount (of the bag's capacity), never the bag's tier.
+            out->capacityMax =
+                (def.kind == MMRK_SLOT_FIXED || def.kind == MMRK_SLOT_BOMBCHU) ? 0 : (int)CAPACITY(def.data, 3);
             return true;
         case MMRK_BOTTLES: {
             MMItemFillRando(out, def.rando);
