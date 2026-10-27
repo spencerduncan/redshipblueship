@@ -329,6 +329,11 @@ int MM_MonkeyDestroySonata_RunHeadless(void);
 // need the display-free shared bring-up first. Return 0 on pass.
 int MM_CrossingSongPlayable_RunHeadless(void);
 int MM_WoodfallSonataTrigger_RunHeadless(void);
+// #1062/#1099 guard (games/mm/2s2h/mm_ocarina_dpad_test.cpp): with
+// gSettings.CustomOcarina.Dpad on, each D-pad direction plays its C-button
+// twin's note through MM's real AudioOcarina_Update and four songs play on the
+// D-pad in free play. Needs the display-free shared bring-up. Returns 0 on pass.
+int MM_OcarinaDpad_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -5991,6 +5996,17 @@ static TestResult Test_MMCrossingSongPlayable(void) {
     return MM_CrossingSongPlayable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1062/#1099 guard. Same bring-up (CVars); restores every CVar it touches and
+// the ocarina state, so it has no ordering constraints.
+static TestResult Test_MMOcarinaDpadNotes(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_OcarinaDpad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 static TestResult Test_MMWoodfallSonataTrigger(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
@@ -7535,6 +7551,9 @@ const TestDescriptor gTests[] = {
     // and free play accepts it. Restores what it touches.
     { "mm-crossing-song-playable", "An MM song crossed from Hyrule is owned and playable in Termina (#1203 guard)",
       Test_MMCrossingSongPlayable },
+    // #1062/#1099 guard: the D-pad plays MM's ocarina notes and songs.
+    { "mm-ocarina-dpad-notes", "The D-pad plays Termina's ocarina notes and songs with the D-pad key on (#1062 guard)",
+      Test_MMOcarinaDpadNotes },
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.

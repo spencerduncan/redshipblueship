@@ -2091,12 +2091,33 @@ void MM_PreviewSequence(u16 seqId) {
     // }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS test seam (mm-ocarina-dpad-notes, #1062/#1099/#1070): a ROM-free process
+// has no pad (MM_osContGetReadData forwards to LUS's deck), so the row hands the
+// reader an Input here and everything downstream stays real. NULL (the default
+// and the only value production ever sees) reads the pad as upstream does.
+static const Input* sOcarinaInputOverrideForTest = NULL;
+
+void MM_AudioOcarina_SetInputOverrideForTest(const Input* input);
+void MM_AudioOcarina_SetInputOverrideForTest(const Input* input) {
+    sOcarinaInputOverrideForTest = input;
+}
+#endif
+
 void AudioOcarina_ReadControllerInput(void) {
     Input inputs[MAXCONTROLLERS];
     Input* input = &inputs[0];
     u32 ocarinaInputButtonPrev = sOcarinaInputButtonCur;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (sOcarinaInputOverrideForTest != NULL) {
+        inputs[0] = *sOcarinaInputOverrideForTest;
+    } else {
+        PadMgr_GetInput2(inputs, false);
+    }
+#else
     PadMgr_GetInput2(inputs, false);
+#endif
     sOcarinaInputButtonCur = input->cur.button;
     sOcarinaInputButtonPrev = ocarinaInputButtonPrev;
     sOcarinaInputStickRel.x = input->rel.stick_x;
