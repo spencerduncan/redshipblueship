@@ -22,6 +22,7 @@ extern "C" {
 #include "assets/overlays/ovl_Arrow_Ice/ovl_Arrow_Ice.h"
 
 Gfx* ResourceMgr_LoadGfxByName(const char* path);
+uint8_t ResourceMgr_FileExists(const char* filePath); // #1172
 }
 
 s32 StrayFairyOverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, Actor* thisx,
@@ -195,18 +196,117 @@ void DrawOwlStatue() {
     MM_Gfx_DrawDListOpa(MM_gPlayState, (Gfx*)gOwlStatueOpenedDL);
 }
 
+// #1172: 2S2H's dungeon key models (ports 2S2H 5d96fd84f and, for the key
+// draws, f56c7939e): one small key body and one boss key body shared by every
+// dungeon, each carrying the dungeon's emblem in the dungeon's colours. Tables
+// are file-local so nothing here can collide with OoT's at link time.
+static const Color_RGBA8 sDungeonKeyColors[10] = {
+    { 255, 170, 246, 255 }, // Woodfall Primitive
+    { 116, 226, 61, 255 },  // Snowhead Primitive
+    { 143, 103, 226, 255 }, // Great Bay Primitive
+    { 226, 221, 0, 255 },   // Stone Tower Primitive
+
+    { 143, 45, 129, 255 }, // Woodfall Accent
+    { 0, 98, 56, 255 },    // Snowhead Accent
+    { 52, 0, 61, 255 },    // Great Bay Accent
+    { 119, 65, 0, 255 },   // Stone Tower Accent
+
+    { 255, 244, 204, 255 }, // Boss Key Primitive
+    { 143, 107, 0, 255 }    // Boss Key Accent
+};
+
+static const char* const sDungeonKeyEmblemDLs[4] = { gGiWoodfallKeyEmblemDL, gGiSnowheadKeyEmblemDL,
+                                                     gGiGreatBayKeyEmblemDL, gGiStoneTowerKeyEmblemDL };
+
+/** The dungeon slot (Woodfall, Snowhead, Great Bay, Stone Tower = 0..3) of a
+ *  dungeon key, and whether it is a boss key; -1 for any other item. */
+static int DungeonKeySlot(RandoItemId randoItemId, bool* isBoss) {
+    *isBoss = false;
+    switch (randoItemId) {
+        case RI_WOODFALL_BOSS_KEY:
+            *isBoss = true;
+            [[fallthrough]];
+        case RI_WOODFALL_SMALL_KEY:
+            return 0;
+        case RI_SNOWHEAD_BOSS_KEY:
+            *isBoss = true;
+            [[fallthrough]];
+        case RI_SNOWHEAD_SMALL_KEY:
+            return 1;
+        case RI_GREAT_BAY_BOSS_KEY:
+            *isBoss = true;
+            [[fallthrough]];
+        case RI_GREAT_BAY_SMALL_KEY:
+            return 2;
+        case RI_STONE_TOWER_BOSS_KEY:
+            *isBoss = true;
+            [[fallthrough]];
+        case RI_STONE_TOWER_SMALL_KEY:
+            return 3;
+        default:
+            return -1;
+    }
+}
+
 // #1172: the dungeon key model for `randoItemId`: the body and emblem display
 // lists (resource paths), or 0 when the key draws its vanilla tinted model.
 extern "C" int MM_Rando_UniqueKeyModel(uint16_t randoItemId, const char** body, const char** emblem) {
-    (void)randoItemId;
-    *body = NULL;
-    *emblem = NULL;
-    return 0;
+    bool isBoss;
+    const int slot = DungeonKeySlot((RandoItemId)randoItemId, &isBoss);
+    if (slot < 0) {
+        *body = NULL;
+        *emblem = NULL;
+        return 0;
+    }
+    *body = isBoss ? gGiDungeonBossKeyDL : gGiDungeonSmallKeyDL;
+    *emblem = sDungeonKeyEmblemDLs[slot];
+    return 1;
+}
+
+/** Draws the dungeon key model for `randoItemId` on OPA; false (nothing drawn)
+ *  when it has none or the mounted 2ship.o2r predates the models (2ship.o2r is
+ *  regenerated from games/mm/assets/custom, which CI does not do), so the caller
+ *  draws the vanilla tinted key instead of a missing resource. */
+static bool DrawDungeonKeyModel(RandoItemId randoItemId) {
+    const char* body;
+    const char* emblem;
+    if (!MM_Rando_UniqueKeyModel((uint16_t)randoItemId, &body, &emblem) || !ResourceMgr_FileExists(body) ||
+        !ResourceMgr_FileExists(emblem)) {
+        return false;
+    }
+    bool isBoss;
+    const int slot = DungeonKeySlot(randoItemId, &isBoss);
+    const Color_RGBA8 bodyPrim = isBoss ? sDungeonKeyColors[8] : sDungeonKeyColors[slot];
+    const Color_RGBA8 bodyEnv = isBoss ? sDungeonKeyColors[9] : sDungeonKeyColors[slot + 4];
+    const Color_RGBA8 emblemPrim = sDungeonKeyColors[slot];
+    const Color_RGBA8 emblemEnv = sDungeonKeyColors[slot + 4];
+
+    OPEN_DISPS(MM_gPlayState->state.gfxCtx);
+
+    Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
+
+    // Body
+    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, bodyPrim.r, bodyPrim.g, bodyPrim.b, 255);
+    gDPSetEnvColor(POLY_OPA_DISP++, bodyEnv.r, bodyEnv.g, bodyEnv.b, 255);
+    MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, MM_gPlayState->state.gfxCtx);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)body);
+
+    // Emblem
+    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0x80, emblemPrim.r, emblemPrim.g, emblemPrim.b, 255);
+    gDPSetEnvColor(POLY_OPA_DISP++, emblemEnv.r, emblemEnv.g, emblemEnv.b, 255);
+    MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)emblem);
+
+    CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
+    return true;
 }
 
 static Gfx gGiSmallKeyCopyDL[75];
 
 void DrawSmallKey(RandoItemId randoItemId) {
+    if (DrawDungeonKeyModel(randoItemId)) {
+        return;
+    }
+
     OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
@@ -240,6 +340,10 @@ void DrawSmallKey(RandoItemId randoItemId) {
 static Gfx gGiBossKeyCopyDL[87];
 
 void DrawBossKey(RandoItemId randoItemId) {
+    if (DrawDungeonKeyModel(randoItemId)) {
+        return;
+    }
+
     OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
     Gfx_SetupDL25_Opa(MM_gPlayState->state.gfxCtx);
