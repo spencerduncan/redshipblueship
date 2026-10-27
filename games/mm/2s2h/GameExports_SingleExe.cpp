@@ -3495,7 +3495,10 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
  * check 14.
  */
 extern "C" void MM_Combo_EndPauseSaveCommit(void) {
-    // Today's behaviour: the paired leg leaves the pair as the prompt set it.
+    if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
+        gSaveContext.save.isOwlSave = false;
+        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    }
 }
 
 namespace {

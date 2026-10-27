@@ -33,6 +33,8 @@ extern int MM_Combo_OwlSaveExitToOoT(void);
 // launcher freezes it. See MM_Combo_GameOverExitToOoT for why that must not be
 // folded into the save-exit guard above.
 extern int MM_Combo_GameOverExitToOoT(void);
+// W6-TIMESAVERS (#1236): the paired pause save's clear of isOwlSave / pauseSaveEntrance after its commit.
+extern void MM_Combo_EndPauseSaveCommit(void);
 #include "archives/item_name_static/item_name_static.h"
 #include "archives/map_name_static/map_name_static.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
@@ -3611,9 +3613,10 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             //
                             // NOTE the asymmetry this leg has and the owl statue does not:
                             // when the PauseSave enhancement is on, isOwlSave and
-                            // pauseSaveEntrance are set ABOVE (before the gate), while the
-                            // pair that clears them again lives in the else-branch and so
-                            // never runs cross-game. Committing before that clear is what
+                            // pauseSaveEntrance are set ABOVE (before the gate), and the
+                            // else-branch's clear never runs cross-game, so the paired leg
+                            // clears them itself AFTER the commit (MM_Combo_EndPauseSaveCommit,
+                            // W6-TIMESAVERS #1236). Committing before that clear is what
                             // makes the state meaningful -- MM's spawn policy prefers
                             // pauseSaveEntrance over owlWarpId, which is the correct
                             // reading of a pause save.
@@ -3623,14 +3626,11 @@ void MM_KaleidoScope_Update(PlayState* play) {
                                 gSaveContext.fileNum ==
                                     255) { // 2S2H [Enhancement] Don't let them save if they are in debug save
 #ifdef RSBS_SINGLE_EXECUTABLE
-                                // W6-TIMESAVERS (#1236): the pause save's commit is done (func_8014546C above), so
-                                // clear the pair the else-branch clears after its flash write, as the autosave does
-                                // after its commit. Left set, the next scene's Player init reads pauseSaveEntrance and
-                                // spawns Link standing (z_player.c), and a later commit would carry the stale pair.
-                                if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
-                                    gSaveContext.save.isOwlSave = false;
-                                    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
-                                }
+                                // W6-TIMESAVERS (#1236): the commit is done (func_8014546C above), so clear the pair
+                                // the else-branch clears after its flash write. Left set, the next scene spawns Link
+                                // standing. Locked by MMUnifiedSaveCapture check 14 and
+                                // test_paired_pause_save_ends_its_commit.
+                                MM_Combo_EndPauseSaveCommit();
 #endif
                                 pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_5;
                             } else {
