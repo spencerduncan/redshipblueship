@@ -28,6 +28,7 @@
 #include <ship/window/gui/Gui.h>
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include "ComboTrackerWindow.h" // ComboTrackerComboButtonMask, ComboTrackerHeldPadButtons: SoH's hold (#1141)
 #include "combo_ui.h"
 #include "context.h" // GameId
 
@@ -42,43 +43,22 @@ const ComboUiTable& Ui() {
 // Set by ComboItemTrackerResetPosition, consumed by the next floating draw (UI thread only).
 bool gResetPositionRequested = false;
 
-// SoH's default overlay background (BeginFloatingWindows: CVarGetColor of
-// BgColor.Value with { 0, 0, 0, 0 }): clear, so only the icons show over the game.
+// SoH's default overlay background (BeginFloatingWindows reads BgColor.Value
+// with { 0, 0, 0, 0 }): clear, so only the icons show over the game.
 constexpr Color_RGBA8 kBgDefault = { 0, 0, 0, 0 };
-
-const char* const kSectionKeys[COMBO_ITEM_SECTION_COUNT] = {
-    RSBS_CVAR_COMBO_ITEMS_SECTION_OOT,
-    RSBS_CVAR_COMBO_ITEMS_SECTION_MM,
-    RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED,
-};
-
-float OverlayOpacity() {
-    float opacity = CVarGetFloat(RSBS_CVAR_COMBO_ITEMS_OPACITY, 1.0f);
-    if (opacity < 0.1f) {
-        opacity = 0.1f;
-    }
-    return opacity > 1.0f ? 1.0f : opacity;
-}
-
-float IconSizeSetting() {
-    int size = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_ICON_SIZE, kComboItemTrackerIconSize);
-    if (size < kComboItemTrackerIconSizeMin) {
-        size = kComboItemTrackerIconSizeMin;
-    }
-    return (float)(size > kComboItemTrackerIconSizeMax ? kComboItemTrackerIconSizeMax : size);
-}
 
 /**
  * BeginFloatingWindows (randomizer_item_tracker.cpp), statement for statement
  * where it applies to one overlay: the flags, the main viewport while floating,
  * the background colour (opaque while docked in the menu's deck, as SoH's is),
- * a transparent border and rounding 4. The overlay's Opacity is one more alpha
- * over all of it. Pushes four style entries; EndOverlay pops them.
+ * a transparent border and rounding 4, all from SoH's keys (`keys`, `chrome`).
+ * The overlay's Opacity is one more alpha over all of it. Pushes four style
+ * entries; EndOverlay pops them.
  */
-void BeginOverlay(int windowType) {
-    const bool draggable = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, 0) != 0;
-    const ImGuiWindowFlags flags = (ImGuiWindowFlags)ComboItemTrackerWindowFlags(windowType, draggable);
-    if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
+void BeginOverlay(const ComboItemTrackerKeys& keys, const ComboItemTrackerChrome& chrome) {
+    const int windowType = keys.windowType;
+    const ImGuiWindowFlags flags = (ImGuiWindowFlags)chrome.flags;
+    if (chrome.mainViewport) {
         const ImGuiViewport* main = ImGui::GetMainViewport();
         ImGui::SetNextWindowViewport(main->ID);
         // Where it first appears (#962): under the HUD's hearts, not on them.
@@ -90,8 +70,7 @@ void BeginOverlay(int windowType) {
         ImGui::SetNextWindowPos(pos, gResetPositionRequested ? ImGuiCond_Always : ImGuiCond_FirstUseEver);
         gResetPositionRequested = false;
     }
-    const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
-    ImVec4 color(bg.r / 255.0f, bg.g / 255.0f, bg.b / 255.0f, bg.a / 255.0f);
+    ImVec4 color(keys.bg[0] / 255.0f, keys.bg[1] / 255.0f, keys.bg[2] / 255.0f, keys.bg[3] / 255.0f);
     ImGuiWindow* window = ImGui::FindWindowByName(kComboItemTrackerWindowName);
     // The two additions to SoH's chrome. The floating overlay is fitted to the
     // game window (ComboItemTrackerFitBoxes); should even the smallest scale
@@ -121,7 +100,7 @@ void BeginOverlay(int windowType) {
     ImGui::PushStyleColor(ImGuiCol_WindowBg, color);
     ImGui::PushStyleColor(ImGuiCol_Border, noBorder);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * OverlayOpacity());
+    ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * keys.opacity);
     ImGui::Begin(kComboItemTrackerWindowName, nullptr, flags);
 }
 
@@ -205,13 +184,17 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
     const float baseAlpha = ImGui::GetStyle().Alpha;
     for (size_t i = 0; i < section.rows.size() && i < plan.cells.size(); i++) {
         const ComboItemRow& row = section.rows[i];
+        if (row.pad) {
+            continue; // a blank cell, as SoH's ITEM_NONE (#1141)
+        }
         const ImVec2 cellMin(origin.x + (float)plan.cells[i].column * pitch,
                              origin.y + (float)plan.cells[i].line * linePitch);
         const ComboItemIconPick pick = ComboItemPickIcon(row);
-        const float iconWidth = row.iconAspect > 0.0f ? cell * row.iconAspect : cell;
-        ImGui::SetCursorScreenPos(ImVec2(cellMin.x + (cell - iconWidth) * 0.5f, cellMin.y));
+        // Held to the cell (#1141): MM's wide owl face no longer runs into its neighbour.
+        const ComboItemIconRect icon = ComboItemIconFit(cell, row.iconAspect);
+        ImGui::SetCursorScreenPos(ImVec2(cellMin.x + icon.x, cellMin.y + icon.y));
         ImGui::PushStyleVar(ImGuiStyleVar_Alpha, baseAlpha * pick.alpha);
-        const bool drawn = Ui().Image(pick.key, iconWidth, cell, row.iconTint);
+        const bool drawn = Ui().Image(pick.key, icon.w, icon.h, row.iconTint);
         ImGui::PopStyleVar();
         if (!drawn) {
             DrawCellText(row, cellMin, cell);
@@ -220,6 +203,13 @@ void DrawIconGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
         // Tooltip(SohUtils::GetItemName(item.id)); MM's GetItemTrackerItemName).
         Ui().Tooltip(row.name);
         DrawCount(row, grid.countStyle, cellMin, cell, scale, countScale);
+        if (row.label != nullptr) {
+            // SoH's short name over the icon (DrawItem), in white.
+            ImVec2 at;
+            ComboItemLabelPos(cellMin.x, cellMin.y, cell, ImGui::CalcTextSize(row.label).x, scale, &at.x, &at.y);
+            ImGui::SetCursorScreenPos(at);
+            Ui().ToneText(row.label, COMBO_UI_TONE_WHITE);
+        }
     }
 }
 
@@ -238,6 +228,9 @@ void DrawTextGrid(const ComboItemTrackerSection& section, const SectionPlan& pla
     const float pitch = metrics.textHeight * scale + metrics.linePadding;
     for (size_t i = 0; i < section.rows.size(); i++) {
         const ComboItemRow& row = section.rows[i];
+        if (row.pad) {
+            continue; // a blank cell (#1141)
+        }
         const size_t column = (size_t)cells[i].column < columnX.size() ? (size_t)cells[i].column : 0;
         ImGui::SetCursorScreenPos(ImVec2(origin.x + columnX[column], origin.y + (float)cells[i].line * pitch));
         // A row not held is dimmed the way a disabled row is: the text twin
@@ -277,58 +270,118 @@ const char* const kComboItemTrackerSohSectionGroups[kComboItemTrackerSohSectionC
     "Inventory", "Equipment", "Misc", "Dungeon Rewards", "Songs",
 };
 
-// [lock] seam: today's reads (the gCombo.Tracker.Items.* twins); #1141 moves them to SoH's keys.
 ComboItemTrackerKeys ComboReadItemTrackerKeys() {
+    // SoH's keys and defaults (randomizer_item_tracker.cpp: CVAR_TRACKER_ITEM,
+    // read by ItemTrackerWindow::DrawElement, BeginFloatingWindows,
+    // DrawItemsInRows and DrawItemCount, written by ItemTrackerSettingsWindow).
+    static const char* const kSectionDisplayKeys[kComboItemTrackerSohSectionCount] = {
+        "gTrackers.ItemTracker.DisplayType.Inventory", "gTrackers.ItemTracker.DisplayType.Equipment",
+        "gTrackers.ItemTracker.DisplayType.Misc",      "gTrackers.ItemTracker.DisplayType.DungeonRewards",
+        "gTrackers.ItemTracker.DisplayType.Songs",
+    };
     ComboItemTrackerKeys keys;
-    keys.windowType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
-    keys.draggable = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE, 0) != 0;
-    keys.showOnlyPaused = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, 0) != 0;
-    const Color_RGBA8 bg = CVarGetColor(RSBS_CVAR_COMBO_ITEMS_BG_COLOR ".Value", kBgDefault);
+    keys.windowType = CVarGetInteger("gTrackers.ItemTracker.WindowType", COMBO_ITEM_TRACKER_FLOATING);
+    keys.draggable = CVarGetInteger("gTrackers.ItemTracker.Draggable", 0) != 0;
+    keys.showOnlyPaused = CVarGetInteger("gTrackers.ItemTracker.ShowOnlyPaused", 0) != 0;
+    keys.displayMode = CVarGetInteger("gTrackers.ItemTracker.DisplayType.Main", kComboItemTrackerDisplayAlways);
+    keys.comboButton1 = CVarGetInteger("gTrackers.ItemTracker.ComboButton1", kComboItemTrackerComboButtonL);
+    keys.comboButton2 = CVarGetInteger("gTrackers.ItemTracker.ComboButton2", kComboItemTrackerComboButtonR);
+    const Color_RGBA8 bg = CVarGetColor("gTrackers.ItemTracker.BgColor.Value", kBgDefault);
     keys.bg[0] = bg.r;
     keys.bg[1] = bg.g;
     keys.bg[2] = bg.b;
     keys.bg[3] = bg.a;
-    keys.iconSize = (int)IconSizeSetting();
-    keys.opacity = OverlayOpacity();
-    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
-        keys.sectionShown[s] = CVarGetInteger(kSectionKeys[s], 1) != 0;
+    // SoH's Icon size slider bounds (25..128).
+    const int iconSize = CVarGetInteger("gTrackers.ItemTracker.IconSize", kComboItemTrackerIconSize);
+    keys.iconSize = iconSize < kComboItemTrackerIconSizeMin   ? kComboItemTrackerIconSizeMin
+                    : iconSize > kComboItemTrackerIconSizeMax ? kComboItemTrackerIconSizeMax
+                                                              : iconSize;
+    keys.iconSpacing = CVarGetInteger("gTrackers.ItemTracker.IconSpacing", kComboItemTrackerIconSpacing);
+    keys.textSize = CVarGetInteger("gTrackers.ItemTracker.TextSize", kComboItemTrackerTextSize);
+    keys.itemCountType = CVarGetInteger("gTrackers.ItemTracker.ItemCountType", kComboItemTrackerCountCapacityOnly);
+    keys.itemCountAlignLeft = CVarGetInteger("gTrackers.ItemTracker.ItemCountAlignLeft", 0) != 0;
+    keys.keyCounts = CVarGetInteger("gTrackers.ItemTracker.KeyCounts", kComboItemTrackerKeysCollectedMax);
+    keys.triforcePieceCounts =
+        CVarGetInteger("gTrackers.ItemTracker.TriforcePieceCounts", kComboItemTrackerTriforceRequiredMax);
+    keys.hookshotIdentifier = CVarGetInteger("gTrackers.ItemTracker.HookshotIdentifier", 0) != 0;
+    keys.dungeonItemsDisplayMaps = CVarGetInteger("gTrackers.ItemTracker.DungeonItems.DisplayMaps", 1) != 0;
+    for (int i = 0; i < kComboItemTrackerSohSectionCount; i++) {
+        keys.sectionDisplay[i] = CVarGetInteger(kSectionDisplayKeys[i], kComboItemTrackerSectionMainWindow);
     }
+    // The overlay's own keys, which SoH's overlay has no row for.
+    const float opacity = CVarGetFloat(RSBS_CVAR_COMBO_ITEMS_OPACITY, 1.0f);
+    keys.opacity = opacity < 0.1f ? 0.1f : opacity > 1.0f ? 1.0f : opacity;
+    keys.sectionShown[COMBO_ITEM_SECTION_OOT] = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SECTION_OOT, 1) != 0;
+    keys.sectionShown[COMBO_ITEM_SECTION_MM] = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SECTION_MM, 1) != 0;
+    keys.sectionShown[COMBO_ITEM_SECTION_SHARED] = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED, 1) != 0;
     return keys;
 }
 
 bool ComboItemTrackerSohGroupShown(const ComboItemTrackerKeys& keys, const char* group) {
-    (void)keys;
-    (void)group;
+    if (group == nullptr) {
+        return true;
+    }
+    for (int i = 0; i < kComboItemTrackerSohSectionCount; i++) {
+        if (strcmp(kComboItemTrackerSohSectionGroups[i], group) == 0) {
+            return keys.sectionDisplay[i] != kComboItemTrackerSectionHidden;
+        }
+    }
     return true;
 }
 
 ComboItemTrackerChrome ComboItemTrackerChromeFor(const ComboItemTrackerKeys& keys, bool paused, uint32_t padButtons) {
-    (void)padButtons;
     ComboItemTrackerChrome chrome;
-    chrome.draws = ComboItemTrackerShows(keys.windowType, keys.showOnlyPaused, paused);
+    const bool floating = keys.windowType == COMBO_ITEM_TRACKER_FLOATING;
     chrome.flags = ComboItemTrackerWindowFlags(keys.windowType, keys.draggable);
-    chrome.mainViewport = keys.windowType == COMBO_ITEM_TRACKER_FLOATING;
+    chrome.mainViewport = floating;
+    // DrawElement's gate: a window always; floating, Only Enable While Paused,
+    // then Combo Button Hold (both of the player's two buttons on the first pad).
+    chrome.draws = ComboItemTrackerShows(keys.windowType, keys.showOnlyPaused, paused);
+    if (floating && keys.displayMode == kComboItemTrackerDisplayComboButton) {
+        const uint32_t button1 = ComboTrackerComboButtonMask(keys.comboButton1);
+        const uint32_t button2 = ComboTrackerComboButtonMask(keys.comboButton2);
+        const bool held = button1 != 0 && button2 != 0 && (padButtons & button1) != 0 && (padButtons & button2) != 0;
+        if (!held) {
+            chrome.draws = false;
+        }
+    }
     return chrome;
 }
 
 int ComboItemTrackerCarryRetiredKeys() {
-    return 0;
+    int carried = 0;
+    for (std::size_t i = 0; i < RSBS::kComboRetiredKeyCount; i++) {
+        const RSBS::ComboRetiredKey& retired = RSBS::kComboRetiredKeys[i];
+        const std::string from = std::string(retired.key) + retired.stored;
+        if (!CVarExists(from.c_str())) {
+            continue;
+        }
+        // The twin's value is what the overlay drew, so it wins over SoH's.
+        const std::string to = std::string(retired.carriedTo) + retired.stored;
+        CVarCopy(from.c_str(), to.c_str());
+        CVarClear(from.c_str());
+        carried++;
+    }
+    return carried;
 }
 
 ComboItemIconRect ComboItemIconFit(float cell, float aspect) {
     ComboItemIconRect r;
-    r.w = aspect > 0.0f ? cell * aspect : cell;
+    r.w = cell;
     r.h = cell;
+    if (aspect > 0.0f && aspect < 1.0f) {
+        r.w = cell * aspect; // a song's note: the cell's height, narrower
+    } else if (aspect > 1.0f) {
+        r.h = cell / aspect; // MM's owl face: the cell's width, shorter
+    }
     r.x = (cell - r.w) * 0.5f;
+    r.y = (cell - r.h) * 0.5f;
     return r;
 }
 
 void ComboItemLabelPos(float cellX, float cellY, float cell, float textWidth, float scale, float* outX, float* outY) {
-    (void)cell;
-    (void)textWidth;
-    (void)scale;
-    *outX = cellX;
-    *outY = cellY;
+    *outX = cellX + cell * 0.5f - textWidth * 0.5f;
+    *outY = cellY - 13.0f * scale;
 }
 
 void ComboItemTrackerResetPosition() {
@@ -360,6 +413,9 @@ void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float vie
 }
 
 std::string ComboItemRowText(const ComboItemRow& row) {
+    if (row.pad) {
+        return std::string(); // a blank cell (#1141)
+    }
     std::string text = row.name != nullptr ? row.name : "";
     char amount[32];
     if (!row.have && row.count == 0) {
@@ -401,8 +457,17 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, i
     out.freshness = Combo_ItemFreshness(game);
     out.note = Combo_ItemFreshnessLabel(game, out.freshness);
     out.grid = Combo_ItemGridStyle(game);
+    // #1141: a group the player hid is left out: MM's under its own key, OoT's
+    // under SoH's DisplayType.<Section>.
+    const ComboItemTrackerKeys keys = ComboReadItemTrackerKeys();
     const int count = Combo_ItemCount(game);
     for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
+        if (!Combo_ItemGroupShown(game, row.group)) {
+            continue;
+        }
+        if (game == (uint8_t)GAME_OOT && !ComboItemTrackerSohGroupShown(keys, row.group)) {
+            continue;
+        }
         out.rows.push_back(row);
     }
 }
@@ -411,7 +476,7 @@ bool ComboItemTrackerSectionShown(int section) {
     if (section < 0 || section >= COMBO_ITEM_SECTION_COUNT) {
         return false;
     }
-    return CVarGetInteger(kSectionKeys[section], 1) != 0;
+    return ComboReadItemTrackerKeys().sectionShown[section];
 }
 
 void ComboItemGridLayout(const std::vector<ComboItemRow>& rows, int columns, std::vector<ComboItemGridCell>& out) {
@@ -469,9 +534,11 @@ void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemG
     int column = 0;
     int columns = 0;
     const char* group = nullptr;
+    bool groupOwnLine = false; // the previous row's group takes lines of its own (#1141)
     for (const ComboItemRow& row : rows) {
         const bool newGroup = group == nullptr || row.group == nullptr || strcmp(row.group, group) != 0;
-        if (line < 0 || (grid.groupLines && newGroup)) {
+        const bool ownLine = grid.groupOwnLine != nullptr && row.group != nullptr && grid.groupOwnLine(row.group);
+        if (line < 0 || (grid.groupLines && newGroup) || (newGroup && (ownLine || groupOwnLine))) {
             // A new line, at the group's own width.
             columns = (grid.groupColumns != nullptr) ? grid.groupColumns(row.group) : grid.columns;
             columns = columns < 1 ? 1 : columns;
@@ -484,6 +551,7 @@ void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemG
         out.push_back({ line, column });
         column++;
         group = row.group;
+        groupOwnLine = ownLine;
     }
 }
 
@@ -500,6 +568,9 @@ ComboItemIconPick ComboItemPickIcon(const ComboItemRow& row) {
 
 bool ComboItemCountFor(const ComboItemRow& row, uint8_t countStyle, ComboItemCount& out) {
     out = ComboItemCount();
+    if (row.pad) {
+        return false; // a blank cell (#1141)
+    }
     if (row.iconNumber < 0) {
         return false; // the icon itself shows the tier
     }
@@ -540,7 +611,7 @@ bool ComboItemSectionDrawsIcons(const std::vector<ComboItemRow>& rows, bool (*ha
     }
     for (const ComboItemRow& row : rows) {
         const ComboItemIconPick pick = ComboItemPickIcon(row);
-        if (pick.key != nullptr && hasImage(pick.key)) {
+        if (!row.pad && pick.key != nullptr && hasImage(pick.key)) {
             return true;
         }
     }
@@ -563,7 +634,7 @@ int ComboItemTrackerLoadIcons(const std::vector<ComboItemRow>& rows, bool (*hasI
     int loaded = 0;
     for (const ComboItemRow& row : rows) {
         const char* key = ComboItemPickIcon(row).key;
-        if (!ComboItemKeyIsPath(key) || hasImage(key) || memo.missed.count(key) != 0) {
+        if (row.pad || !ComboItemKeyIsPath(key) || hasImage(key) || memo.missed.count(key) != 0) {
             continue;
         }
         if (loadImage(key)) {
@@ -701,20 +772,28 @@ void ComboItemTrackerWindow::Draw() {
     if (!CVarGetInteger(kComboItemTrackerVisibilityCVar, 0)) {
         return;
     }
-    const int windowType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
-    const bool showOnlyPaused = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED, 0) != 0;
-    if (!ComboItemTrackerShows(windowType, showOnlyPaused, showOnlyPaused && Combo_ItemActiveGamePaused())) {
+    // SoH's Item Tracker Settings (#1141, ruling IT-D6): its keys, its floating
+    // gates on the active game's pause and the first pad's held buttons (each
+    // read only where SoH reads it), its flags.
+    const ComboItemTrackerKeys keys = ComboReadItemTrackerKeys();
+    const bool floating = keys.windowType == COMBO_ITEM_TRACKER_FLOATING;
+    const bool paused = floating && keys.showOnlyPaused && Combo_ItemActiveGamePaused();
+    const uint32_t pad =
+        floating && keys.displayMode == kComboItemTrackerDisplayComboButton ? ComboTrackerHeldPadButtons() : 0;
+    const ComboItemTrackerChrome chrome = ComboItemTrackerChromeFor(keys, paused, pad);
+    if (!chrome.draws) {
         return;
     }
-    BeginOverlay(windowType);
+    BeginOverlay(keys, chrome);
     DrawElement();
     EndOverlay();
 }
 
 void ComboItemTrackerWindow::DrawElement() {
+    const ComboItemTrackerKeys keys = ComboReadItemTrackerKeys();
     std::vector<ComboItemTrackerSection> sections;
     for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
-        if (!ComboItemTrackerSectionShown(s)) {
+        if (!keys.sectionShown[s]) {
             continue;
         }
         sections.emplace_back();
@@ -729,7 +808,7 @@ void ComboItemTrackerWindow::DrawElement() {
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGuiStorage* storage = ImGui::GetStateStorage();
     ComboItemTrackerMetrics metrics;
-    metrics.iconSize = IconSizeSetting();
+    metrics.iconSize = (float)keys.iconSize;
     metrics.textHeight = ImGui::GetFontSize();
     metrics.linePadding = style.ItemSpacing.y;
     metrics.columnGap = style.ItemSpacing.x * 2.0f;
@@ -788,8 +867,7 @@ void ComboItemTrackerWindow::DrawElement() {
     }
 
     ComboItemTrackerFit fit;
-    const int windowType = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, COMBO_ITEM_TRACKER_FLOATING);
-    if (windowType == COMBO_ITEM_TRACKER_FLOATING) {
+    if (keys.windowType == COMBO_ITEM_TRACKER_FLOATING) {
         ImGuiWindow* window = ImGui::GetCurrentWindow();
         const ImGuiViewport* viewport = ImGui::GetMainViewport();
         // One item spacing of margin each way absorbs ImGui's pixel rounding.
@@ -847,6 +925,11 @@ void ComboItemTrackerWindow::DrawElement() {
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {
     if (gui == nullptr) {
         return;
+    }
+    // #1141: a value saved under a retired twin moves into SoH's key before the
+    // overlay first reads it, and the config is saved once it has.
+    if (ComboItemTrackerCarryRetiredKeys() > 0) {
+        gui->SaveConsoleVariablesNextFrame();
     }
     // Idempotence, the #457 guard (AddGuiWindow rejects duplicates silently).
     if (gui->GetGuiWindow(kComboItemTrackerWindowName) != nullptr) {

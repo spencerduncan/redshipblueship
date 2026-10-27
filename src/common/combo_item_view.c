@@ -13,11 +13,14 @@
 #include "combo_item_view.h"
 
 #include "context.h"          // Context_GetCurrentGame, Context_Get{OoT,MM}SaveContext
+#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_ITEMS_MM_*: MM's group visibility keys (#1141)
 #include "foreign_items.h"    // RSBS_XITEM_* / RSBS_XFAMILY_SLOT_*: the shared families the Shared group draws
 #include "shared_resources.h" // Combo_GetSharedResource, Combo_SharedResourceKindArmed
 
 #include <stdio.h>
 #include <string.h>
+
+#include <libultraship/bridge/consolevariablebridge.h> // the group visibility keys (#1141)
 
 // ============================================================================
 // Adapter registry
@@ -366,14 +369,43 @@ bool Combo_ItemActiveGamePaused(void) {
     return ops != NULL && ops->paused != NULL && ops->paused();
 }
 
+// ============================================================================
+// Majora's Mask's per-group visibility (#1141)
+// ============================================================================
+
+// MM's groups the player can hide, by the MM adapter's group string (the
+// contract ItemAdapterSingleExe.cpp spells), and each one's key. Inventory,
+// Masks, Songs, Quest and the Ocarina Buttons (gated by the file's own frozen
+// option) have none.
+static const struct {
+    const char* group;
+    const char* key;
+} kMMGroupKeys[] = {
+    { "Tokens", RSBS_CVAR_COMBO_ITEMS_MM_TOKENS },
+    { "Stray Fairies", RSBS_CVAR_COMBO_ITEMS_MM_STRAY_FAIRIES },
+    { "Dungeon", RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON },
+    { "Boss Souls", RSBS_CVAR_COMBO_ITEMS_MM_BOSS_SOULS },
+    { "Enemy Souls", RSBS_CVAR_COMBO_ITEMS_MM_ENEMY_SOULS },
+    { "Owl Statues", RSBS_CVAR_COMBO_ITEMS_MM_OWL_STATUES },
+    { "Time", RSBS_CVAR_COMBO_ITEMS_MM_TIME },
+    { "Misc", RSBS_CVAR_COMBO_ITEMS_MM_MISC },
+};
+
 const char* Combo_ItemGroupVisibilityKey(uint8_t game, const char* group) {
-    (void)game;
-    (void)group;
+    if (game != (uint8_t)GAME_MM || group == NULL) {
+        return NULL;
+    }
+    for (size_t i = 0; i < sizeof(kMMGroupKeys) / sizeof(kMMGroupKeys[0]); i++) {
+        if (strcmp(kMMGroupKeys[i].group, group) == 0) {
+            return kMMGroupKeys[i].key;
+        }
+    }
     return NULL;
 }
 
 bool Combo_ItemGroupShown(uint8_t game, const char* group) {
-    return Combo_ItemGroupVisibilityKey(game, group) == NULL;
+    const char* key = Combo_ItemGroupVisibilityKey(game, group);
+    return key == NULL || CVarGetInteger(key, 1) != 0;
 }
 
 const char* Combo_ItemFreshnessLabel(uint8_t game, uint8_t freshness) {

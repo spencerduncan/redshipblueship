@@ -1080,10 +1080,12 @@ TestResult Test_CVarClassification(void) {
                     literalsSeen++;
                     // #1141: a RETIRED key (RSBS::kComboRetiredKeys) is spelled
                     // for its one-shot carry only; it is not a live key, and the
-                    // checks after this scan hold that it is not classified.
+                    // checks after this scan hold that it is not classified. A
+                    // retired colour's stored name ("<key>.Value") is the same key.
                     bool retired = false;
                     for (std::size_t k = 0; k < RSBS::kComboRetiredKeyCount; k++) {
-                        retired = retired || key == RSBS::kComboRetiredKeys[k].key;
+                        const RSBS::ComboRetiredKey& r = RSBS::kComboRetiredKeys[k];
+                        retired = retired || key == r.key || key == std::string(r.key) + r.stored;
                     }
                     if (retired) {
                         continue;

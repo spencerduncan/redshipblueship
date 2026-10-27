@@ -914,6 +914,10 @@ uint32_t ComboTrackerComboButtonMask(int button) {
     return button >= 0 && button < kComboTrackerComboButtonCount ? kButtons[button] : 0;
 }
 
+uint32_t ComboTrackerHeldPadButtons() {
+    return HeldPadButtons();
+}
+
 ComboTrackerChrome ComboTrackerChromeFor(const ComboTrackerChromeKeys& keys, bool paused, uint32_t padButtons) {
     ComboTrackerChrome chrome;
     chrome.flags = ImGuiWindowFlags_NoFocusOnAppearing;

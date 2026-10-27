@@ -964,15 +964,14 @@ static void ComboSidebarCarryRenamedSelection(const char* sidebarCvar) {
  * Randomizer sidebar name each one lands on: the three #1101 moved, and Windows
  * (#1132, ruling D1), whose trackers open from SoH's own Randomizer > Check
  * Tracker and Item Tracker pages now (it lands on the Check Tracker's, which
- * also carries the Cross-Game Spoiler's toggle). Spelled here as literals for
- * the same reason the rename table above is: MenuComboSection leg 6 requires
- * every carried-to name to be a Randomizer page.
+ * also carries the Cross-Game Spoiler's toggle), and Tracker Settings (#1141,
+ * ruling IT-D6), whose rows are on SoH's Item Tracker page now. Spelled here as
+ * literals for the same reason the rename table above is: MenuComboSection leg
+ * 6 requires every carried-to name to be a Randomizer page.
  */
 static constexpr ComboSidebarRename kComboSidebarMoves[] = {
-    { "Cross-Game Rules", "Cross-Game" },
-    { "MM Randomizer", "MM Randomizer" },
-    { "MM Tricks", "MM Tricks" },
-    { "Windows", "Check Tracker" },
+    { "Cross-Game Rules", "Cross-Game" }, { "MM Randomizer", "MM Randomizer" },   { "MM Tricks", "MM Tricks" },
+    { "Windows", "Check Tracker" },       { "Tracker Settings", "Item Tracker" },
 };
 
 /**

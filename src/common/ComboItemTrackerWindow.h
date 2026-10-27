@@ -12,20 +12,21 @@
  * to draw under GAME_OOT, GAME_MM and GAME_NONE alike (ADR 0008 rule 5).
  *
  * CHROME. SoH's own Item Tracker overlay (randomizer_item_tracker.cpp,
- * BeginFloatingWindows / EndFloatingWindows), read from the combo's own keys
- * (gCombo.Tracker.Items.*, cvar_shared_keys.h): floating by default (no title
- * bar, input-less and fixed unless Draggable, on the main viewport), or a normal
- * auto-sized window; SoH's clear background colour, transparent border and
- * rounding 4; ShowOnlyPaused hides the floating overlay until the active game's
- * pause menu opens. Like SoH's overlay it has no close button: the Combo >
- * Windows row toggles it.
+ * BeginFloatingWindows / EndFloatingWindows), read from SoH's own Item Tracker
+ * Settings keys (#1141, operator ruling IT-D6: one set of settings, SoH's;
+ * ComboReadItemTrackerKeys): floating by default (no title bar, input-less and
+ * fixed unless Enable Dragging, on the main viewport), or a normal auto-sized
+ * window; SoH's background colour (clear by default), transparent border and
+ * rounding 4; Only Enable While Paused hides the floating overlay until the
+ * active game's pause menu opens, and Display Mode Combo Button Hold until both
+ * of its combo buttons are held. Like SoH's overlay it has no close button:
+ * SoH's Randomizer > Item Tracker > Toggle Item Tracker toggles it.
  *
  * POSITION (#962). The floating overlay first appears at the left edge, just
  * below the HUD's hearts and magic bar (ComboItemTrackerDefaultPos), not on
  * them; a dragged position is kept (ImGui's saved window settings, as SoH's
- * trackers keep theirs) and Combo > Tracker Settings > Move to Default Position
- * returns it, also from an old saved position on the hearts. The Windows
- * toggle's tooltip and the Enable Dragging row say how to move it.
+ * trackers keep theirs) and Randomizer > Item Tracker > Move to Default
+ * Position returns it, also from an old saved position on the hearts.
  *
  * ICONS (#458 U3). Each game's section is that game's own tracker: its icons
  * (OoT's keyed by texture name, MM's by resource path, both straight from the
@@ -37,8 +38,16 @@
  * icon's tooltip. The Shared section draws the active game's own icons for the
  * pool, four a line, tinted and numbered as that game draws them. The sections
  * stand side by side, as three columns of one table, each at least as wide as
- * its ruled header, so the overlay is as tall as one game's grid. The
- * gCombo.Tracker.Items.IconSize key sizes every grid.
+ * its ruled header, so the overlay is as tall as one game's grid. SoH's Icon
+ * size sizes every grid. A group the player hid is left out (#1141): MM's under
+ * its own key (Combo_ItemGroupVisibilityKey), OoT's under SoH's
+ * DisplayType.<Section>.
+ *
+ * NOT HONOURED YET (#1141 reads them; their lanes consume them): SoH's Icon
+ * margins and Text size, its Ammo/Capacity, Align count to left side, Key
+ * Count and Triforce Piece count modes and Hookshot identifier (lane IT-4,
+ * #1143), its Maps and compasses (lane IT-2, #1142), and the Separate display
+ * type (the overlay is one window: Separate shows a section in it).
  *
  * TEXT FALLBACK. A section none of whose icons is loaded (MM's load only once
  * MM has booted) is U2's text grid: each item's name, with its count and
@@ -75,7 +84,7 @@
 
 #include "combo_item_view.h"
 #include "combo_ui.h"         // ComboUiTone
-#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER, RSBS_CVAR_COMBO_ITEMS_*
+#include "cvar_shared_keys.h" // the overlay's own keys (RSBS_CVAR_COMBO_ITEMS_*), RSBS::kComboRetiredKeys
 
 namespace Ship {
 class Gui;
@@ -95,7 +104,7 @@ inline constexpr const char* kComboItemTrackerWindowName = "Item Tracker";
 // gWindows.ItemTracker. RSBS_CVAR_COMBO_WINDOW_ITEM_TRACKER held it until then.
 inline constexpr const char* kComboItemTrackerVisibilityCVar = "gOpenWindows.ItemTracker";
 
-/** RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE's values: SoH's TRACKER_WINDOW_FLOATING / _WINDOW. */
+/** SoH's Window Type values (gTrackers.ItemTracker.WindowType): TRACKER_WINDOW_FLOATING / _WINDOW. */
 enum ComboItemTrackerWindowType : int {
     COMBO_ITEM_TRACKER_FLOATING = 0,
     COMBO_ITEM_TRACKER_WINDOW = 1,
@@ -302,7 +311,7 @@ void ComboItemTrackerDefaultPos(float viewX, float viewY, float viewW, float vie
 
 /**
  * Asks the floating overlay to go back to ComboItemTrackerDefaultPos on its
- * next draw (the Combo > Tracker Settings Move to Default Position button). Takes effect
+ * next draw (Randomizer > Item Tracker > Move to Default Position). Takes effect
  * once; draws nothing itself.
  */
 void ComboItemTrackerResetPosition();

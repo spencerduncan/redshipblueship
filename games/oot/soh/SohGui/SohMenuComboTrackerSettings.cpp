@@ -1,29 +1,22 @@
 /**
  * @file SohMenuComboTrackerSettings.cpp
- * @brief Combo > Tracker Settings, the Item Tracker overlay's settings (#458 U7),
- *        a CONTRIBUTED page in the tier-4 Combo section; and the Check
- *        Tracker's rows on SoH's own Randomizer > Check Tracker page (#1132).
+ * @brief The unified trackers' rows on SoH's own Randomizer > Item Tracker and
+ *        Check Tracker pages (#1132, #1141).
  *
- * THE ITEM TRACKER'S PAGE. The Item Tracker overlay (src/common/
- * ComboItemTrackerWindow.cpp) reads nine gCombo.Tracker.Items.* keys
- * (cvar_shared_keys.h), and this page is their writer. Its rows are SoH's own
- * Item Tracker Settings (randomizer_item_tracker.cpp,
- * ItemTrackerSettingsWindow::DrawElement and RegisterItemTrackerWidgets) for the
- * keys the overlay has: Background Color (SoH's clear-black alpha picker), Window
- * Type (Floating / Window), Enable Dragging and Only Enable While Paused
- * (floating only, hidden for a window as SoH hides them) and, after them, Move to
- * Default Position (floating only; #962: the overlay starts under the hearts, and
- * this returns a dragged overlay there; not named Reset, which the parity lint
- * reserves for confirmed destructive buttons), the Icon Size slider (SoH's
- * 25..128 px, default 36), then the overlay's two keys SoH's overlay has no row
- * for: its Opacity (the overlay's 0.1..1 clamp) and which of its three sections
- * it draws. Every default and range is the overlay's own
- * (ComboItemTrackerWindow.h), so the page never shows a value the overlay is not
- * drawing. TRANSITIONAL (#1132, operator ruling IT-D6): the unified Item Tracker
- * replaces SoH's and opens from SoH's Randomizer > Item Tracker page, and lane
- * IT-3 (#1141) retires the five rows that have SoH twins and appends the rest to
- * that page; until then they are here, and this is the Combo header's only
- * tracker page.
+ * THE ITEM TRACKER'S ROWS (#1141, lane IT-3; operator ruling IT-D6: one set of
+ * settings, SoH's). The unified Item Tracker is SoH's Item Tracker in the
+ * single exe, so its settings are SoH's page: SoH's own rows there (its toggle,
+ * which opens the unified overlay by name, and its embedded Item Tracker
+ * Settings, whose gTrackers.ItemTracker.* keys the overlay reads through
+ * ComboReadItemTrackerKeys), then, through SohGui::RegisterSohPageRows, the
+ * overlay's rows SoH's settings window has no twin for: Move to Default
+ * Position (floating only; #962) and the overlay's Opacity under SoH's Item
+ * Tracker Settings separator, which of its three sections it draws, and Majora's
+ * Mask's eight groups (gCombo.Tracker.Items.*, cvar_shared_keys.h), each with the
+ * overlay's own default and range. Combo > Tracker Settings, which held these
+ * and the five twins of SoH's keys (retired into RSBS::kComboRetiredKeys and
+ * carried into SoH's keys once), is gone; a selection persisted on it is
+ * carried to this page (SohMenuCombo.cpp, kComboSidebarMoves).
  *
  * THE CHECK TRACKER'S ROWS (#1132, operator ruling D1: "replace the soh
  * tracker"). The unified Check Tracker is SoH's Check Tracker in the single exe,
@@ -34,16 +27,16 @@
  * gCombo.Tracker.Checks.*, with MM's tracker's defaults) under SoH's Check Tracker
  * Settings separator, and the Cross-Game Spoiler's toggle under its own
  * separator (it was on Combo > Windows, which #1132 retired; it reads the
- * crossings ruling D10 cut from the tracker). SoH's window is not copied or
+ * crossings ruling D10 cut from the tracker). SoH's windows are not copied or
  * edited (rule 0).
  *
  * Locked by MenuComboSection leg 7 (every gCombo.Tracker.Items.* key written
- * exactly once with the overlay's widget, default and range, the floating-only
- * rows hidden for a window, the picker in the menu theme, and nothing of the
- * Check Tracker's) and leg 3 (SoH's Check Tracker page's rows and their order,
- * each gCombo.Tracker.Checks.* key once under SoH's separator, the Spoiler's
- * toggle), and drawn by UiSnapshot (Combo > Tracker Settings beside SoH's
- * Randomizer > Item Tracker, states "" and "window"; Randomizer > Check Tracker).
+ * exactly once on SoH's Item Tracker page with the overlay's widget, default and
+ * range, under its separator, Move to Default Position floating only, no SoH key
+ * or retired twin written, Combo > Tracker Settings gone) and leg 3 (SoH's two
+ * tracker pages' rows and their order, each gCombo.Tracker.Checks.* key once
+ * under SoH's separator, the Spoiler's toggle), and drawn by UiSnapshot
+ * (Randomizer > Item Tracker and Check Tracker).
  */
 
 #include "SohMenu.h"
@@ -64,74 +57,53 @@ using namespace UIWidgets;
 
 namespace {
 
-/** The sidebar label. Selection persists by display name, so this is the one
- *  spelling; UiSnapshot's reference table (soh_ui_snapshot.cpp, kCompare) and
- *  MenuComboSection leg 7 repeat it and fail when no registered Combo page
- *  carries it. */
-constexpr const char* kTrackerSettingsPage = "Tracker Settings";
-
-/** SoH's Window Type values (randomizer_entrance_tracker.h, windowType). */
-const std::map<int32_t, const char*> kComboItemTrackerWindowTypes = {
-    { ComboGui::COMBO_ITEM_TRACKER_FLOATING, "Floating" },
-    { ComboGui::COMBO_ITEM_TRACKER_WINDOW, "Window" },
-};
-
-/** SoH's Item Tracker Settings draws Enable Dragging and Only Enable While
- *  Paused only while its overlay floats; these rows follow the same rule. */
+/** Move to Default Position applies to the floating overlay only, as SoH's Item
+ *  Tracker Settings shows Enable Dragging only while SoH's Window Type is
+ *  Floating (read through the overlay's one seam). */
 void HideUnlessFloating(WidgetInfo& info) {
-    info.isHidden = CVarGetInteger(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE, ComboGui::COMBO_ITEM_TRACKER_FLOATING) !=
-                    ComboGui::COMBO_ITEM_TRACKER_FLOATING;
+    info.isHidden = ComboGui::ComboReadItemTrackerKeys().windowType != ComboGui::COMBO_ITEM_TRACKER_FLOATING;
 }
 
-/** MenuDrawItem gives every other interactive row the menu's theme colour, but
- *  draws a colour picker in its options' own colour (no SoH page has one), so
- *  its Reset and Random buttons would be gray where SoH's are themed. SoH's
- *  Item Tracker Settings sets THEME_COLOR on its picker; this does the same,
- *  read every frame so a theme change follows at once. */
-void ThemeColorPicker(WidgetInfo& info) {
-    std::static_pointer_cast<ColorPickerOptions>(info.options)->color = THEME_COLOR;
-}
+/** One of Majora's Mask's groups on the page: its row label (MM's own group
+ *  name), its key and its tooltip. */
+struct ItemTrackerGroupRow {
+    const char* label;
+    const char* key;
+    const char* tooltip;
+};
+const ItemTrackerGroupRow kItemTrackerMMGroups[] = {
+    { "Tokens", RSBS_CVAR_COMBO_ITEMS_MM_TOKENS,
+      "Shows the Swamp and Ocean Gold Skulltula tokens of Majora's Mask in the Item Tracker." },
+    { "Stray Fairies", RSBS_CVAR_COMBO_ITEMS_MM_STRAY_FAIRIES,
+      "Shows the stray fairies of Clock Town and the four temples of Majora's Mask in the Item Tracker." },
+    { "Dungeon", RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON,
+      "Shows the boss keys, small keys, maps and compasses of Majora's Mask in the Item Tracker." },
+    { "Boss Souls", RSBS_CVAR_COMBO_ITEMS_MM_BOSS_SOULS,
+      "Shows the boss souls of Majora's Mask in the Item Tracker, in a file that shuffles them." },
+    { "Enemy Souls", RSBS_CVAR_COMBO_ITEMS_MM_ENEMY_SOULS,
+      "Shows how many enemy souls of Majora's Mask you hold in the Item Tracker, in a file that shuffles them." },
+    { "Owl Statues", RSBS_CVAR_COMBO_ITEMS_MM_OWL_STATUES,
+      "Shows the owl statues of Majora's Mask in the Item Tracker, in a file that shuffles them." },
+    { "Time", RSBS_CVAR_COMBO_ITEMS_MM_TIME,
+      "Shows the half-days of Majora's Mask in the Item Tracker, in a file that shuffles them." },
+    { "Misc", RSBS_CVAR_COMBO_ITEMS_MM_MISC,
+      "Shows the ability to swim in Majora's Mask in the Item Tracker, in a file that shuffles it." },
+};
 
 } // namespace
 
 /**
- * The contributed page's registrar. One column, like SoH's tracker pages: the
- * overlay's general settings, then its sections. Every row is cosmetic, so none
- * is race-disabled (SoH's tracker rows are not).
+ * The Item Tracker's rows on SoH's Randomizer > Item Tracker page (#1141, lane
+ * IT-3), after SoH's own (the page's path, first column pinned, handed over by
+ * AddContributedSohPageRows): they continue SoH's Item Tracker Settings group
+ * with the two rows its settings window has no twin for, then the overlay's
+ * sections and Majora's Mask's groups under separators of their own.
  */
-void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
-    path.column = SECTION_COLUMN_1;
-
-    menu.AddWidget(path, "Item Tracker Settings", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Background Color##ComboItemTracker", WIDGET_CVAR_COLOR_PICKER)
-        .CVar(RSBS_CVAR_COMBO_ITEMS_BG_COLOR)
-        .RaceDisable(false)
-        .PreFunc(ThemeColorPicker)
-        .Options(ColorPickerOptions()
-                     .DefaultValue({ 0, 0, 0, 0 })
-                     .UseAlpha()
-                     .ShowReset()
-                     .ShowRandom()
-                     .Tooltip("Sets the background color of the Item Tracker."));
-    menu.AddWidget(path, "Window Type##ComboItemTracker", WIDGET_CVAR_COMBOBOX)
-        .CVar(RSBS_CVAR_COMBO_ITEMS_WINDOW_TYPE)
-        .RaceDisable(false)
-        .Options(ComboboxOptions()
-                     .DefaultIndex(ComboGui::COMBO_ITEM_TRACKER_FLOATING)
-                     .ComponentAlignment(ComponentAlignments::Right)
-                     .LabelPosition(LabelPositions::Far)
-                     .ComboMap(kComboItemTrackerWindowTypes)
-                     .Tooltip("Chooses how the Item Tracker is shown.\n\n"
-                              "Floating: Over the game, with no title bar.\n"
-                              "Window: In a window of its own, which you move by its title bar."));
-    menu.AddWidget(path, "Enable Dragging##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
-        .CVar(RSBS_CVAR_COMBO_ITEMS_DRAGGABLE)
-        .RaceDisable(false)
-        .PreFunc(HideUnlessFloating)
-        .Options(CheckboxOptions().DefaultValue(false).Tooltip(
-            "Allows the floating Item Tracker to be dragged to a new place. It starts below the hearts at the "
-            "left of the game: turn this on, then drag it where you want it."));
-    menu.AddWidget(path, "Move to Default Position##ComboItemTracker", WIDGET_BUTTON)
+void AddItemTrackerPageRows(SohMenu& menu, WidgetPath& path) {
+    // Move to Default Position (#962): the floating overlay starts under the
+    // hearts; this returns a dragged one there. Not named Reset, which the
+    // parity lint reserves for confirmed destructive buttons.
+    menu.AddWidget(path, "Move to Default Position##ItemTracker", WIDGET_BUTTON)
         .RaceDisable(false)
         .PreFunc(HideUnlessFloating)
         .Callback([](WidgetInfo& info) { ComboGui::ComboItemTrackerResetPosition(); })
@@ -139,48 +111,45 @@ void AddTrackerSettingsWidgets(SohMenu& menu, WidgetPath& path) {
                      .Size(Sizes::Inline)
                      .Tooltip("Puts the floating Item Tracker back where it starts, below the hearts at the left "
                               "of the game."));
-    menu.AddWidget(path, "Only Enable While Paused##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
-        .CVar(RSBS_CVAR_COMBO_ITEMS_SHOW_ONLY_PAUSED)
-        .RaceDisable(false)
-        .PreFunc(HideUnlessFloating)
-        .Options(CheckboxOptions().DefaultValue(false).Tooltip(
-            "Shows the floating Item Tracker only while the game is paused."));
-    menu.AddWidget(path, "Icon Size: %dpx", WIDGET_CVAR_SLIDER_INT)
-        .CVar(RSBS_CVAR_COMBO_ITEMS_ICON_SIZE)
-        .RaceDisable(false)
-        .Options(IntSliderOptions()
-                     .Min(ComboGui::kComboItemTrackerIconSizeMin)
-                     .Max(ComboGui::kComboItemTrackerIconSizeMax)
-                     .DefaultValue(ComboGui::kComboItemTrackerIconSize)
-                     .Format("%dpx")
-                     .Tooltip("Sets the size of the icons in the Item Tracker."));
-    menu.AddWidget(path, "Tracker Opacity", WIDGET_CVAR_SLIDER_FLOAT)
+    menu.AddWidget(path, "Tracker Opacity##ItemTracker", WIDGET_CVAR_SLIDER_FLOAT)
         .CVar(RSBS_CVAR_COMBO_ITEMS_OPACITY)
         .RaceDisable(false)
         // IsPercentage() first: it resets the range to 0..1, and the overlay
-        // clamps at 0.1 (ComboItemTrackerWindow.cpp, OverlayOpacity).
+        // clamps at 0.1 (ComboReadItemTrackerKeys).
         .Options(FloatSliderOptions().IsPercentage().Min(0.1f).Max(1.0f).DefaultValue(1.0f).Tooltip(
             "Sets the opacity of the whole Item Tracker, its icons included."));
 
     menu.AddWidget(path, "Item Tracker Sections", WIDGET_SEPARATOR_TEXT);
-    menu.AddWidget(path, "Ocarina of Time##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
+    menu.AddWidget(path, "Ocarina of Time##ItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_OOT)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
             "Shows the items you hold in Ocarina of Time in the Item Tracker, as of your last game switch or "
             "save while you play Majora's Mask."));
-    menu.AddWidget(path, "Majora's Mask##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
+    menu.AddWidget(path, "Majora's Mask##ItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_MM)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
             "Shows the items you hold in Majora's Mask in the Item Tracker, as of your last game switch or save "
             "while you play Ocarina of Time."));
-    menu.AddWidget(path, "Shared##ComboItemTracker", WIDGET_CVAR_CHECKBOX)
+    menu.AddWidget(path, "Shared##ItemTracker", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_COMBO_ITEMS_SECTION_SHARED)
         .RaceDisable(false)
         .Options(CheckboxOptions().DefaultValue(true).Tooltip(
             "Shows the items and resources the two games share in the Item Tracker, as of your last game "
             "switch or save."));
+
+    // MM's groups, one checkbox each, named as MM's own tracker names them
+    // (the MM item adapter's groups). Ocarina of Time's sections are SoH's
+    // own Inventory, Equipment, Misc, Dungeon Rewards and Songs rows in the
+    // Item Tracker Settings window above.
+    menu.AddWidget(path, "Majora's Mask Groups", WIDGET_SEPARATOR_TEXT);
+    for (const ItemTrackerGroupRow& group : kItemTrackerMMGroups) {
+        menu.AddWidget(path, std::string(group.label) + "##ItemTracker", WIDGET_CVAR_CHECKBOX)
+            .CVar(group.key)
+            .RaceDisable(false)
+            .Options(CheckboxOptions().DefaultValue(true).Tooltip(group.tooltip));
+    }
 }
 
 /**
@@ -218,13 +187,11 @@ void AddCheckTrackerPageRows(SohMenu& menu, WidgetPath& path) {
         .Options(WindowButtonOptions().Tooltip("Toggles the Cross-Game Spoiler.").EmbedWindow(false));
 }
 
-/** File-scope, so it runs before AddMenuElements() (SohMenu.h's contract); this
- *  TU is under games/oot/soh, whose archives are WHOLE_ARCHIVE'd, so the
- *  registrar is not elided. The page always holds its rows, so it is never
- *  #640's empty page. */
-static RegisterComboSectionPage_t sTrackerSettingsPage(kTrackerSettingsPage, 1, AddTrackerSettingsWidgets);
-/** The same for the Check Tracker's rows (#1132): SoH's page always holds its own
- *  rows, so a contribution can never make it #640's empty page. */
+/** File-scope, so they run before AddMenuElements() (SohMenu.h's contract);
+ *  this TU is under games/oot/soh, whose archives are WHOLE_ARCHIVE'd, so the
+ *  registrars are not elided. SoH's pages always hold their own rows, so a
+ *  contribution can never make one #640's empty page. */
+static RegisterSohPageRows_t sItemTrackerRows("Randomizer", "Item Tracker", AddItemTrackerPageRows);
 static RegisterSohPageRows_t sCheckTrackerRows("Randomizer", "Check Tracker", AddCheckTrackerPageRows);
 
 } // namespace SohGui
