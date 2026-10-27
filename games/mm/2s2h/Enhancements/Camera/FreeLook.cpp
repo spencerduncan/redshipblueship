@@ -18,16 +18,19 @@ extern s32 MM_sCameraInterfaceFlags;
 }
 
 // Check if bombchu remote control is active
+extern bool IsBombchuFocused();
+
 #if defined(RSBS_SINGLE_EXECUTABLE)
-// #1023: Equipment/RemoteBombchu.cpp (the only definition of IsBombchuFocused) is not in the single-exe link, and a
-// reference from here would drag it in from the plain 2ship_enh archive and arm its hooks as a side effect of a
-// camera row. With it absent no bombchu is ever remote-controlled, so the check is always false. Whoever links
-// RemoteBombchu.cpp restores the upstream extern here in the same change.
-static bool IsBombchuFocused() {
-    return false;
+// W6-CAM-GYRO: Camera/DebugCam.cpp answers VB_USE_CUSTOM_CAMERA too, and both are linked. 2Ship keeps the two rows
+// mutually exclusive in its menu; SoH's Free Look row cannot see MM's debug camera, so Free Look stands aside here
+// while the debug camera's own key is on, and behaves exactly as before while it is off.
+static bool FreeLook_DebugCamOwnsCamera() {
+    return CVarGetInteger("gEnhancements.Camera.DebugCam.Enable", 0) != 0;
 }
 #else
-extern bool IsBombchuFocused();
+static bool FreeLook_DebugCamOwnsCamera() {
+    return false;
+}
 #endif
 
 // Static Data Used For Free Camera
@@ -194,7 +197,7 @@ void RegisterCameraFreeLook() {
             case CAM_FUNC_BATTLE1:
             case CAM_FUNC_UNIQUE2:
             case CAM_FUNC_UNIQUE3:
-                if (Camera_CanFreeLook(camera)) {
+                if (!FreeLook_DebugCamOwnsCamera() && Camera_CanFreeLook(camera)) {
                     Camera_FreeLook(camera);
                     *should = false;
                 }

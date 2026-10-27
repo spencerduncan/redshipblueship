@@ -671,6 +671,11 @@ main() {
         # #1023: Free Look (Camera/FreeLook.cpp), in lib2ship_enh_registrars.a. Its registrar has no OoT twin (grep games/oot);
         # the archive gate above covers the same file by member.
         "RegisterCameraFreeLook()"
+        # W6-CAM-GYRO (#1235, #1236, #1240): the debug camera, Remote Bombchu Control and the speed modifiers, in
+        # lib2ship_enh_registrars.a. None of the three names has an OoT twin (grep games/oot).
+        "RegisterDebugCam()"
+        "RegisterRemoteBombchu()"
+        "RegisterLinkSpeedModifier()"
         # #1030-#1034: the key-gap registrars in lib2ship_enh_registrars.a (Disable Screen Flash for Finishing Blow,
         # 3D Dropped Items, Skip Misc Interactions (25 TUs), Skip Scarecrow's Song, Arrow Cycle). MM's ArrowCycle
         # registrar is MM_-prefixed in the source because OoT ships RegisterArrowCycle. The file-scope static
