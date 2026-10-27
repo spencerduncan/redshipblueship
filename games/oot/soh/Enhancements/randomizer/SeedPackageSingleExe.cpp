@@ -199,6 +199,8 @@ std::string WorldRecordBytes(const ComboContext& live) {
     memcpy(rec->foreignPlacements, live.foreignPlacements, sizeof(rec->foreignPlacements));
     memcpy(rec->foreignPlacementsOoT, live.foreignPlacementsOoT, sizeof(rec->foreignPlacementsOoT));
     memcpy(&rec->mmProfileDigest, &live.mmProfileDigest, sizeof(rec->mmProfileDigest));
+    // #1175: MM's frozen Keep Items on Cycle Reset, the creation's like the digest.
+    memcpy(&rec->mmKeepItemsReset, &live.mmKeepItemsReset, sizeof(rec->mmKeepItemsReset));
     memcpy(&rec->mmPairedAttempt, &live.mmPairedAttempt, sizeof(rec->mmPairedAttempt));
     memcpy(&rec->comboSettingsHash, &live.comboSettingsHash, sizeof(rec->comboSettingsHash));
     memcpy(&rec->comboSettings, &live.comboSettings, sizeof(rec->comboSettings));
@@ -506,6 +508,7 @@ void ApplyComboWorld(const ComboContext& rec) {
     gComboCtx.sharedRandoSeed = rec.sharedRandoSeed;
     gComboCtx.sharedRandoSettingsHash = rec.sharedRandoSettingsHash;
     gComboCtx.mmProfileDigest = rec.mmProfileDigest;
+    gComboCtx.mmKeepItemsReset = rec.mmKeepItemsReset;
     gComboCtx.mmPairedAttempt = rec.mmPairedAttempt;
     memcpy(gComboCtx.foreignPlacements, rec.foreignPlacements, sizeof(gComboCtx.foreignPlacements));
     memcpy(gComboCtx.foreignPlacementsOoT, rec.foreignPlacementsOoT, sizeof(gComboCtx.foreignPlacementsOoT));

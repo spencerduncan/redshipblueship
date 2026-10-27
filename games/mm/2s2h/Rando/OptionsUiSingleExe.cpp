@@ -706,6 +706,26 @@ std::vector<ComboMMOptionDesc>& DescriptorTable() {
     moonCrash.liveness = (uint8_t)COMBO_MM_LIVENESS_LIVE;
     moonCrash.disabledReason = "";
     sDescriptors.push_back(moonCrash);
+    // #1175: the combo's second own MM option, the row after Moon Crash Behavior
+    // in its group. OoTMM's "Keep Items on Cycle Reset" (keepItemsReset): name,
+    // description and default (off) from OoTMM's settings data, the description
+    // then saying what this build already keeps in every world (the shared
+    // rupees and ammo, #525). Frozen at creation into the combo record
+    // (gComboCtx.mmKeepItemsReset) and read by the cycle reset, so it is LIVE.
+    ComboMMOptionDesc keepItems = {};
+    keepItems.id = (uint16_t)RSBS_MM_OPTION_ID_KEEP_ITEMS_RESET;
+    keepItems.name = "KEEP_ITEMS_RESET";
+    keepItems.cvar = RSBS_CVAR_MM_KEEP_ITEMS_RESET;
+    keepItems.label = "Keep Items on Cycle Reset";
+    keepItems.tooltip = "Keeps ammo & rupees through a cycle reset. Rupees and the ammo shared with Ocarina of Time "
+                        "are always kept; this also keeps the Powder Keg and the Magic Beans, which the Song of Time "
+                        "otherwise takes. The pictograph is still lost.";
+    keepItems.group = (uint8_t)COMBO_MM_GROUP_LOGIC;
+    keepItems.widget = (uint8_t)COMBO_MM_WIDGET_CHECKBOX;
+    keepItems.defaultValue = 0;
+    keepItems.liveness = (uint8_t)COMBO_MM_LIVENESS_LIVE;
+    keepItems.disabledReason = "";
+    sDescriptors.push_back(keepItems);
     return sDescriptors;
 }
 
