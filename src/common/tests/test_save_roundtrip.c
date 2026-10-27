@@ -1206,3 +1206,164 @@ TestResult Test_SharedItemOverflowHasRoom(void) {
     printf("[TEST] PASS: room until the logical capacity, refusal and reclaim at it\n");
     return TEST_PASS;
 }
+
+// ============================================================================
+// THE MOON-CRASH RESET RESTORES BOTH SEGMENTS (#785 x Tier-5; #1264 review N1).
+// RsbsSave_RestoreLastCommitForReset puts the session back at its last whole
+// commit. Tier-1 brings back the fixed 64 shared-item slots; the overflow
+// segment is the rest of the same array and must come back from the commit's
+// Tier-5 block with them. Restore one segment and not the other and the array
+// is two commits spliced together: slot order breaks at 64, and a crossing is
+// awarded twice or never.
+// ============================================================================
+
+namespace {
+
+// The whole logical array, slot by slot.
+std::vector<SharedItem> SaveTestSnapshotOutbox() {
+    std::vector<SharedItem> out;
+    for (int i = 0; i < static_cast<int>(RSBS_SHARED_ITEM_LOGICAL_CAP); i++) {
+        out.push_back(*Combo_SharedItemSlot(i));
+    }
+    return out;
+}
+
+// Logical slots whose origin, flags or id differ from the snapshot.
+int SaveTestOutboxMismatches(const std::vector<SharedItem>& want, int* firstWrong) {
+    int wrong = 0;
+    *firstWrong = -1;
+    for (int i = 0; i < static_cast<int>(want.size()); i++) {
+        const SharedItem* s = Combo_SharedItemSlot(i);
+        if (s == nullptr || s->originGame != want[i].originGame || s->flags != want[i].flags || s->id != want[i].id) {
+            if (*firstWrong < 0) {
+                *firstWrong = i;
+            }
+            wrong++;
+        }
+    }
+    return wrong;
+}
+
+// Slots anywhere in the logical array that carry `id`.
+int SaveTestSlotsWithId(uint16_t id) {
+    int n = 0;
+    for (int i = 0; i < static_cast<int>(RSBS_SHARED_ITEM_LOGICAL_CAP); i++) {
+        n += Combo_SharedItemSlot(i)->id == id ? 1 : 0;
+    }
+    return n;
+}
+
+// The staged commit path the game takes (stage on the game thread, write on the worker).
+bool SaveTestStagedCommit(int slot) {
+    return RsbsSave_StageCommit() != 0 && RsbsSave_WriteStagedCommit(slot) == 1;
+}
+
+int SaveTestResetRestore(int slot) {
+    std::vector<uint8_t> mmHalf(MM_SAVE_CONTEXT_SIZE);
+    int ootMoved = 0;
+    return RsbsSave_RestoreLastCommitForReset(slot, mmHalf.data(), mmHalf.size(), nullptr, nullptr, &ootMoved);
+}
+
+} // namespace
+
+TestResult Test_SaveSharedItemOverflowResetRestore(void) {
+    printf("[TEST] save-shared-item-overflow-reset-restore: the moon-crash reset restores the fixed 64 shared-item "
+           "slots AND the overflow segment to the last commit (#785, Tier-5)\n");
+
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveTestDir());
+    SaveTestSeed(0x0F10F112u);
+    Combo_ClearSharedItemOutbox();
+    Combo_Crossings_Clear();
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0); // arms the slot for this session's writes (#533)
+
+    const int fixed = static_cast<int>(RSBS_SHARED_ITEM_CAP);
+    const uint16_t kLiveOnlyId = 0x0EEEu; // recorded after the commit only
+
+    // ---- leg 1: the commit spans both segments -----------------------------
+    // 72 crossings, then MM redeems its share (every third, in both segments),
+    // so the commit carries redeemed and un-redeemed entries on each side of 64.
+    const int committed = fixed + 8;
+    SAVE_ASSERT(SaveTestRecordCrossings(committed) == committed, "the committed crossings were refused");
+    SaveTestAwardLog preCommit;
+    SAVE_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, SaveTestAward, &preCommit) > 0,
+                "nothing to redeem before the commit");
+    SAVE_ASSERT(SaveTestStagedCommit(0), "the staged commit failed");
+    const std::vector<SharedItem> atCommit = SaveTestSnapshotOutbox();
+    const int overflowAtCommit = Combo_SharedItemOverflowUsed();
+    SAVE_ASSERT(overflowAtCommit == committed - fixed, "the commit's overflow segment is not the 8 past the fixed 64");
+
+    // ---- live play after the commit: both segments move --------------------
+    // New crossings first reclaim the commit's redeemed MM entries, oldest
+    // first, compacting the array across the 64 boundary (the overflow head
+    // moves into the fixed segment), then append past where the commit ended.
+    const int liveOnly = 40;
+    for (int k = 0; k < liveOnly; k++) {
+        SAVE_ASSERT(Combo_RecordSharedItemCrossing(GAME_OOT, kLiveOnlyId) >= 0, "a post-commit crossing was refused");
+    }
+    int firstLiveWrong = -1;
+    const int liveWrong = SaveTestOutboxMismatches(atCommit, &firstLiveWrong);
+    printf("[TEST]   before the reset: %d slots differ from the commit (first %d), overflow rows %d (commit %d)\n",
+           liveWrong, firstLiveWrong, Combo_SharedItemOverflowUsed(), overflowAtCommit);
+    SAVE_ASSERT(liveWrong > 0 && firstLiveWrong < fixed, "live play did not move the fixed segment");
+    SAVE_ASSERT(Combo_SharedItemOverflowUsed() != overflowAtCommit, "live play did not move the overflow segment");
+
+    const int outcome = SaveTestResetRestore(0);
+    int firstWrong = -1;
+    const int wrong = SaveTestOutboxMismatches(atCommit, &firstWrong);
+    const int liveOnlyLeft = SaveTestSlotsWithId(kLiveOnlyId);
+    printf("[TEST]   after the reset: outcome %d, %d slots differ from the commit (first %d), overflow rows %d, %d "
+           "live-only records left\n",
+           outcome, wrong, firstWrong, Combo_SharedItemOverflowUsed(), liveOnlyLeft);
+    SAVE_ASSERT(outcome == RSBS_RESET_RESTORED, "the reset did not restore the last commit");
+    SAVE_ASSERT(wrong == 0, "the reset left the logical outbox other than the commit's (count, order or flags)");
+    SAVE_ASSERT(Combo_SharedItemOverflowUsed() == overflowAtCommit, "the overflow row count is not the commit's");
+    SAVE_ASSERT(liveOnlyLeft == 0, "a crossing recorded after the commit survived the reset");
+
+    // What the restored array redeems is exactly the commit's un-redeemed OoT
+    // crossings, in pickup order, each once: nothing awarded twice or dropped.
+    int expectOoT = 0;
+    for (int i = 0; i < committed; i++) {
+        expectOoT += SaveTestOverflowOrigin(i) == GAME_OOT ? 1 : 0;
+    }
+    SaveTestAwardLog afterReset;
+    const int ootAwards = Combo_RedeemSharedItemsForGame(GAME_OOT, SaveTestAward, &afterReset);
+    printf("[TEST]   the restored outbox redeems %d OoT crossings (commit held %d)\n", ootAwards, expectOoT);
+    SAVE_ASSERT(ootAwards == expectOoT, "the restored outbox awards other than the commit's OoT crossings");
+    for (int i = 0, a = 0; i < committed; i++) {
+        if (SaveTestOverflowOrigin(i) == GAME_OOT) {
+            SAVE_ASSERT(afterReset.items[a++].id == SaveTestOverflowId(i), "the restored OoT awards are out of order");
+        }
+    }
+    SAVE_ASSERT(Combo_RedeemSharedItemsForGame(GAME_MM, SaveTestAward, &afterReset) == 0,
+                "an MM crossing the commit had redeemed was awarded again");
+
+    // ---- leg 2: a commit inside the fixed 64 drops a live overflow ---------
+    SaveTestSeed(0x0F10F113u);
+    Combo_ClearSharedItemOutbox();
+    Combo_Crossings_Clear();
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0);
+    SAVE_ASSERT(SaveTestRecordCrossings(10) == 10, "the small commit's crossings were refused");
+    SAVE_ASSERT(SaveTestStagedCommit(0), "the small staged commit failed");
+    const std::vector<SharedItem> smallCommit = SaveTestSnapshotOutbox();
+    for (int k = 0; k < fixed; k++) {
+        SAVE_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, kLiveOnlyId) >= 0, "a post-commit crossing was refused");
+    }
+    SAVE_ASSERT(Combo_SharedItemOverflowUsed() > 0, "the live outbox did not reach the overflow segment");
+    const int smallOutcome = SaveTestResetRestore(0);
+    int smallFirstWrong = -1;
+    const int smallWrong = SaveTestOutboxMismatches(smallCommit, &smallFirstWrong);
+    printf("[TEST]   commit inside the fixed slots: outcome %d, %d slots differ (first %d), overflow rows %d\n",
+           smallOutcome, smallWrong, smallFirstWrong, Combo_SharedItemOverflowUsed());
+    SAVE_ASSERT(smallOutcome == RSBS_RESET_RESTORED, "the reset did not restore the small commit");
+    SAVE_ASSERT(smallWrong == 0 && Combo_SharedItemOverflowUsed() == 0 && SaveTestSlotsWithId(kLiveOnlyId) == 0,
+                "the reset kept the live overflow over a commit that had none");
+
+    mgr.DeleteSave(0);
+    Combo_Crossings_Clear();
+    ComboContext_Init();
+    printf("[TEST] PASS: the reset restores the whole logical outbox to the last commit\n");
+    return TEST_PASS;
+}
