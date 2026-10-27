@@ -29,6 +29,7 @@
  * and M2 fail; without the item_list.cpp half C1 fails on RG_DEKU_TREE_COMPASS.
  */
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -181,15 +182,21 @@ extern "C" int RandoTest_MapCompassText(void) {
     int failures = 0;
 
     // M1 / M2: the Great Deku Tree Map's get-item text.
+    // The raw text holds zero bytes (the default colour is "\x05\x00"), so it is read
+    // by length, not as a C string.
     char text[2048] = {};
-    if (OoT_Rando_MapMessageText(static_cast<uint16_t>(RG_DEKU_TREE_MAP), text, sizeof(text)) < 0) {
+    const int length = OoT_Rando_MapMessageText(static_cast<uint16_t>(RG_DEKU_TREE_MAP), text, sizeof(text));
+    if (length < 0) {
         printf("[TEST] FAIL: the map text bridge refused RG_DEKU_TREE_MAP\n");
         return 1;
     }
-    const std::string raw = text;
+    const std::string raw(text, static_cast<size_t>(length));
+    // The layout may break the name across lines: compare with each line break as a space.
+    std::string words = raw;
+    std::replace(words.begin(), words.end(), CustomMessage::NEWLINE()[0], ' ');
     const std::string name = Rando::StaticData::RetrieveItem(RG_DEKU_TREE_MAP).GetName().GetEnglish();
     printf("[TEST] map-compass-text: the Great Deku Tree Map reads \"%s\"\n", CmtPrintable(raw).c_str());
-    if (name.empty() || raw.find(name) == std::string::npos || raw.find("[[name]]") != std::string::npos) {
+    if (name.empty() || words.find(name) == std::string::npos || raw.find("[[name]]") != std::string::npos) {
         printf("[TEST] FAIL M1: the map's text does not name \"%s\" (or still carries [[name]])\n", name.c_str());
         failures++;
     }

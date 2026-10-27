@@ -523,15 +523,18 @@ static CustomMessage BuildMapMessageText(uint16_t getItemId) {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Test seam (row MapCompassText, #1187): the raw English get-item text of dungeon
-// map `getItemId`. Returns its length (cut to `cap` - 1 characters when longer), or
-// -1 for a bad argument.
+// map `getItemId`, copied byte for byte (control codes include zero bytes, such as
+// the default colour's "\x05\x00"). Returns the number of bytes copied (at most
+// `cap` - 1; a terminating zero follows them), or -1 for a bad argument.
 extern "C" int OoT_Rando_MapMessageText(uint16_t getItemId, char* out, size_t cap) {
     if (out == nullptr || cap == 0) {
         return -1;
     }
     const std::string text = BuildMapMessageText(getItemId).GetEnglish(MF_RAW);
-    snprintf(out, cap, "%s", text.c_str());
-    return static_cast<int>(text.size());
+    const size_t n = text.size() < cap - 1 ? text.size() : cap - 1;
+    std::copy(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(n), out);
+    out[n] = '\0';
+    return static_cast<int>(n);
 }
 #endif
 
