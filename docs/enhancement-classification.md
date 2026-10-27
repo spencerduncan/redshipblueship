@@ -84,7 +84,7 @@ brief, plus everything in the collision set:
 | **Subtotal** | **130** | |
 
 **NOT classified at individual-setting level** — 55 MM keys across 6 categories:
-`Minigames` (18), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
+`Minigames` (18; per key in §6.1 since W6-MINIGAMES), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
 are classified **(O) MM-only at the category level** on the strength of their contents —
 Bombers' hide-and-seek, Deku flower launches, three-day-cycle resets, Song of Double Time,
 transformation masks have no OoT counterpart by construction. The two rows inside them that
@@ -530,7 +530,25 @@ default (off).
 | `Songs.SkipSoaringCutscene` | 1 | (O). Row "Skip Soaring Cutscene", same block; `Songs/SkipSoaringCutscene.cpp` linked (play-state guard added). #1133 L7 may move it to Skips & Speed-ups > Cutscenes later |
 | `Songs.{BetterSongOfDoubleTime, SkipSoTCutscenes}` | 2 | (O). Rows hosted by L7 (#1133): see the #1133 hosted-rows table in §5.3 |
 | `Player.UnderwaterOcarina` | 1 | (O). Row "Underwater Ocarina", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1236); `Player/UnderwaterOcarina.cpp` linked (play-state guard added) |
-| `Minigames` | 18 | Termina-specific minigames (Doggy Race, Bombers, Honey & Darling…) |
+| `Minigames.TownArcheryScore` | 1 | (O). Slider "Town Archery Score" (1-50, default 50), Minigames > Shooting Gallery, after SoH's gallery rows (W6-MINIGAMES, #1236); `Minigames/Archery.cpp` linked. Nearest relative only: SoH's gallery options are Hyrule's. Default kept at MM's 50, which `Timesavers/GalleryTwofer.cpp` also reads. Every W6-MINIGAMES TU only moves a win condition: the reward stays the vanilla actor's, which the rando hooks take (`mm_minigame_offer_hooks_test.cpp` runs its rows with every minigame row on) |
+| `Minigames.SwampArcheryScore` | 1 | (O). Slider "Swamp Archery Score" (1000-2180, default 2180), same section; `Archery.cpp`. Default kept at 2180 for `GalleryTwofer.cpp` |
+| `Minigames.MarkShootingGalleryOctoroks` | 1 | (O). Row "Mark Gallery Octoroks", same section (2Ship keeps it under Accessibility); `Minigames/MarkShootingGalleryOctoroks.cpp` linked (play-state guard added) |
+| `Minigames.BombersHideAndSeek` | 1 | (O). Slider "Bombers Hide-and-Seek" (1-5, default 5), Minigames, Majora's Mask block at the end of the page; `Timesavers/BombersHideAndSeek.cpp` linked (play-state guard added) |
+| `Minigames.SwordsmanSchoolScore` | 1 | (O). Slider "Swordsman School" (1-30, default 30), same block; `Minigames/SwordsmanSchool.cpp` linked |
+| `Minigames.HoneyAndDarlingDay1` | 1 | (O). Slider "Honey & Darling Day 1" (1-8, default 8), same block; `Minigames/HoneyAndDarling.cpp` (one registrar on its three keys) linked |
+| `Minigames.HoneyAndDarlingDay2` | 1 | (O). Slider "Honey & Darling Day 2" (1-8, default 8), same block; `HoneyAndDarling.cpp` |
+| `Minigames.HoneyAndDarlingDay3` | 1 | (O). Slider "Honey & Darling Day 3" (1-16, default 16), same block; `HoneyAndDarling.cpp` |
+| `Minigames.RomaniTargetPractice` | 1 | (O). Slider "Romani Practice" (1-10, default 10), same block; `Minigames/RomaniTargetPractice.cpp` linked |
+| `Minigames.AlwaysWinDoggyRace` | 1 | (O). Combobox "Always Win Doggy Race" (Off, With Mask of Truth, Always), same block; `Minigames/AlwaysWinDoggyRace.cpp` linked |
+| `Minigames.CuccoShackCuccoCount` | 1 | (O). Slider "Cucco Shack Count" (1-10, default 10), same block; `Minigames/CuccoShackCuccoCount.cpp` linked |
+| `Minigames.SkipHorseRace` | 1 | (O). Row "Skip Gorman Horse Race", same block; `Minigames/SkipHorseRace.cpp` linked |
+| `Minigames.BeaverRaceRingsCollected` | 1 | (O). Slider "Beaver Race Rings" (1-20, default 20), same block; `Minigames/BeaverRace.cpp` linked (play-state guard added) |
+| `Minigames.SkipLittleBeaver` | 1 | (O). Row "Skip Little Beaver Races", same block; `BeaverRace.cpp` |
+| `DifficultyOptions.GoronRace` | 1 | (O). Combobox "Goron Race" (Vanilla, Balanced, Skip), same block (2Ship keeps it with the minigames); `DifficultyOptions/GoronRace.cpp` linked |
+| `Minigames.BoatArcheryScore` | 1 | (O). Slider "Boat Archery Score" (1-50, default 20), same block; `Archery.cpp`. Default kept at 20, which `Timesavers/SwampBoatSkip.cpp` also reads |
+| `Minigames.BoatArcheryHealth` | 1 | (O). Slider "Koume's Health" (1-30, default 10; disabled while "Invincible Koume" is on), same block; `Archery.cpp` |
+| `Minigames.BoatArcheryInvincible` | 1 | (O). Row "Invincible Koume", same block; `Archery.cpp` |
+| `Minigames.TreasureChestShopShowFullMaze` | 1 | (O). Row "Treasure Shop Full Maze", same block; `Minigames/TreasureChestShopFullMaze.cpp` linked |
 | `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…) |
 | `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` and `N64WeirdFrames` → (S), minus `TatlISG` → (P); the other seven are MM/OoT-behaviour restorations, classified per key in W6-FIXES below |

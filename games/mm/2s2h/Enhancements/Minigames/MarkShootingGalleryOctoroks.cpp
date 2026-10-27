@@ -16,6 +16,9 @@ extern void EnSyatekiOkuta_Die(EnSyatekiOkuta* enSyatekiOkuta, PlayState* play);
 // Octorok has been hit.
 void RegisterMarkShootingGalleryOctoroks() {
     COND_ID_HOOK(OnActorDraw, ACTOR_EN_SYATEKI_OKUTA, CVAR, [](Actor* actor) {
+        // W6-MINIGAMES (#1236): linked in the single exe now, and the body reads MM_gPlayState; a missing play state
+        // leaves the vanilla behavior untouched.
+        RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         EnSyatekiOkuta* enSyatekiOkuta = (EnSyatekiOkuta*)actor;
 
         if (enSyatekiOkuta->actionFunc != EnSyatekiOkuta_Die) {
