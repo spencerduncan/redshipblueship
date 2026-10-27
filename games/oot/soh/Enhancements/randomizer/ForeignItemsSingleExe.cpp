@@ -312,6 +312,27 @@ extern "C" int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg) {
     return (int)Rando::StaticData::RetrieveItem((RandomizerGet)rg).GetCategory();
 }
 
+/** TEST BRIDGE (ForeignModel row M20, #1172): OoT's OWN chest category, off the
+ *  item table, for the items #1172 rules on, in this order: Piece of Heart, Heart
+ *  Container, Double Defense, the Treasure Game Heart, then OoT's eight masks
+ *  (Keaton, Skull, Spooky, Bunny Hood, Goron, Zora, Gerudo, Truth). Writes at
+ *  most `cap` values and returns how many it wrote. */
+extern "C" int OoT_Rando_Foreign_TestRuledChestCategories(int* out, int cap) {
+    static const RandomizerGet kRuled[] = {
+        RG_PIECE_OF_HEART, RG_HEART_CONTAINER, RG_DOUBLE_DEFENSE, RG_TREASURE_GAME_HEART,
+        RG_KEATON_MASK,    RG_SKULL_MASK,      RG_SPOOKY_MASK,    RG_BUNNY_HOOD,
+        RG_GORON_MASK,     RG_ZORA_MASK,       RG_GERUDO_MASK,    RG_MASK_OF_TRUTH,
+    };
+    int n = 0;
+    for (const RandomizerGet rg : kRuled) {
+        if (n >= cap) {
+            break;
+        }
+        out[n++] = (int)Rando::StaticData::RetrieveItem(rg).GetCategory();
+    }
+    return n;
+}
+
 /** TEST BRIDGE (M15): an ITEM_CATEGORY_* value's name in the vocabulary both
  *  games' chest bridges share ("major", "small key", ...), "?" past the enum. */
 extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
