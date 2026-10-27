@@ -635,6 +635,11 @@ if(BUILD_TESTING)
     # for each named key, and every list it answers is in games/mm/assets/custom.
     # Static tables and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
     redship_add_test(NAME MmUniqueKeyModels COMMAND redship --test mm-unique-key-models)
+    # #1173: SoH's "Targetable Hookshot Reticle" turns the hookshot reticle green on
+    # a hookshot surface in both games, and only for the Hookshot/Longshot (SoH
+    # 6340ad3d5: the Bow, Slingshot and Boomerang reticles never turn green).
+    redship_add_test(NAME OoTHookshotReticleColour COMMAND redship --test oot-hookshot-reticle-colour)
+    redship_add_test(NAME MmHookshotReticleColour COMMAND redship --test mm-hookshot-reticle-colour)
     # #575 H2: MM's hints said a check's scene, so every grotto check read "Lone
     # Peak Shrine & Grottos" and an enemy drop could be hinted. Drives the
     # stone's real text and candidate filter (EnGs.cpp) over MM's real check
@@ -1464,6 +1469,13 @@ if(BUILD_TESTING)
     redship_add_test(NAME MenuCapabilityGating COMMAND redship --test menu-capability-gating)
     redship_add_test(NAME MenuComboSection COMMAND redship --test menu-combo-section)
     redship_add_test(NAME SetMenuCount COMMAND redship --test setmenu-count)
+    # #1210: SoH's LoadPresets (a boot-time RegisterMenuInitFunc) parsed every
+    # entry of presets/ as JSON with no filter and no catch, so a stray
+    # index.html ended the process at boot. A scratch folder holding a preset,
+    # an index.html and a truncated .json: the pass returns, lists the preset,
+    # and names each bad file in one log line. Display-free and ROM-free.
+    # games/oot/soh/soh_presets_folder_test.cpp.
+    redship_add_test(NAME PresetsSkipNonJson COMMAND redship --test presets-skip-non-json)
     # #658: MM_GOAL's "Majora defeated" conjunct (ADR 0010 D1). Three things in
     # one row, all display-free and ROM-free: the predicate answers from the save
     # at all (it used to fall through CanKillEnemy's default assert), its polarity
