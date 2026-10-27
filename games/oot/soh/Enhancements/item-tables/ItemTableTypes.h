@@ -29,6 +29,13 @@ typedef enum GetItemCategory {
     /* 0x04 */ ITEM_CATEGORY_SMALL_KEY,
     /* 0x05 */ ITEM_CATEGORY_SKULLTULA_TOKEN,
     /* 0x06 */ ITEM_CATEGORY_MAJOR,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1172: Majora's Mask's stray fairy and mask classes. No OoT item carries
+    // them: only a chest hosting an MM item presents them (OoT_Rando_Foreign_
+    // ChestCategory), dressed by SoH's fairy and mask chest models (z_en_box.c).
+    /* 0x07 */ ITEM_CATEGORY_MM_STRAY_FAIRY,
+    /* 0x08 */ ITEM_CATEGORY_MM_MASK,
+#endif
 } GetItemCategory;
 
 #define GET_ITEM(itemId, objectId, drawId, textId, field, chestAnim, itemCategory, modIndex, getItemId)                \

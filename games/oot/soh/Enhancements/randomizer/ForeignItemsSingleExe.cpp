@@ -351,6 +351,10 @@ extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
             return "token";
         case ITEM_CATEGORY_MAJOR:
             return "major";
+        case ITEM_CATEGORY_MM_STRAY_FAIRY: // #1172
+            return "fairy";
+        case ITEM_CATEGORY_MM_MASK:
+            return "mask";
         default:
             return "?";
     }
