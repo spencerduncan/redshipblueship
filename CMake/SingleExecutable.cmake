@@ -1410,6 +1410,11 @@ if(BUILD_TESTING)
     # of it; repeats keep their rupee; the beavers' race-1 Red Rupee likewise.
     # Pure (no display, no ROM).
     redship_add_test(NAME MMGalleryRupeeStandIn COMMAND redship --test mm-gallery-rupee-stand-in)
+    # MMDoggyRaceReward (#1219): the Doggy Racetrack's first win of a cycle is
+    # hijacked with no rupee of the hook's own (the HasParent flag set arms the
+    # check), a repeat win with the check spent keeps the vanilla Red Rupee and
+    # does not re-arm it, and an unshuffled check keeps its heart piece.
+    redship_add_test(NAME MMDoggyRaceReward COMMAND redship --test mm-doggy-race-reward)
     # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
     # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
     # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in

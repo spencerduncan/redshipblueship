@@ -5,6 +5,7 @@
  * names in CMake/SingleExecutable.cmake and src/common/test_runner.cpp:
  *
  *   MMGalleryRupeeStandIn  (--test mm-gallery-rupee-stand-in, #1216)
+ *   MMDoggyRaceReward      (--test mm-doggy-race-reward, #1219)
  *
  * HOW THE HOOKS ARE DRIVEN. Through the production arm path: saveType set to
  * SAVETYPE_RANDO and Rando::ActorBehavior::OnFileLoad(), what Rando.cpp's
@@ -51,6 +52,19 @@
  * the hook's own predicate (Rando::ActorBehavior::EnAzOfferStandsInForCheck)
  * instead of dispatching.
  *
+ * ---- MMDoggyRaceReward (#1219) ---------------------------------------------
+ * The Doggy Racetrack owner (z_en_aob_01.c) offers the heart piece while
+ * WEEKEVENTREG_RECEIVED_DOGGY_RACETRACK_HEART_PIECE is clear and a Red Rupee
+ * once it is set, and sets it in the HasParent branch. That flag is
+ * RC_DOGGY_RACETRACK_PIECE_OF_HEART's own flag, so the first win arms the check
+ * through OnFlagSet. EnAob01.cpp read the selector backwards: on the first win
+ * it gave an unplaced Red Rupee itself (+20 rupees on top of the check), and on
+ * every repeat win it re-armed the check with no cycleObtained guard (the
+ * check's item again). Legs: the first win is hijacked and gives nothing
+ * itself (rupees and the rupee accumulator unchanged); a repeat win with the
+ * check spent keeps the vanilla Red Rupee and leaves the check unarmed; an
+ * unshuffled check keeps its vanilla heart piece (OnFlagSet would not arm it).
+ *
  * WHAT THIS DOES NOT COVER. That the gallery owner and the beavers then carry
  * on talking normally after the hand-off, and that CheckQueue gives the seed's
  * item, need a real play state; they are the operator playtest in the PR.
@@ -67,6 +81,10 @@
  */
 extern "C" int MM_GalleryRupeeStandIn_RunHeadless(void) {
     printf("[TEST] mm-gallery-rupee-stand-in: PASS (not applicable outside RSBS_SINGLE_EXECUTABLE)\n");
+    return 0;
+}
+extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
+    printf("[TEST] mm-doggy-race-reward: PASS (not applicable outside RSBS_SINGLE_EXECUTABLE)\n");
     return 0;
 }
 #else
@@ -284,6 +302,68 @@ int RunGalleryLegs(HookFixture& fx) {
     return 0;
 }
 
+// ---- #1219 -------------------------------------------------------------------
+
+int32_t RupeeTotal() {
+    return gSaveContext.save.saveInfo.playerData.rupees + gSaveContext.rupeeAccumulator;
+}
+
+int RunDoggyLegs(HookFixture& fx) {
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[RC_DOGGY_RACETRACK_PIECE_OF_HEART];
+    fx.play->sceneId = SCENE_F01_B;
+
+    // ---- Leg 1: rando disarmed (non-vacuity) -------------------------------
+    fx.Arm(false);
+    SetWeekEventReg(WEEKEVENTREG_RECEIVED_DOGGY_RACETRACK_HEART_PIECE, false);
+    SetCheck(RC_DOGGY_RACETRACK_PIECE_OF_HEART, true, false);
+    int32_t before = RupeeTotal();
+    if (!fx.OfferVerdict(ACTOR_EN_AOB_01, GI_HEART_PIECE) || RupeeTotal() != before) {
+        return Fail(2, "the racetrack's heart piece offer is already hijacked with rando disarmed - the armed probes "
+                       "would be vacuous");
+    }
+
+    fx.Arm(true);
+
+    // ---- Leg 2: first win of the cycle (flag clear) -------------------------
+    SetCheck(RC_DOGGY_RACETRACK_PIECE_OF_HEART, true, false);
+    before = RupeeTotal();
+    if (fx.OfferVerdict(ACTOR_EN_AOB_01, GI_HEART_PIECE)) {
+        return Fail(10, "first win: the vanilla heart piece was let through with RC_DOGGY_RACETRACK_PIECE_OF_HEART "
+                        "shuffled (#1219)");
+    }
+    if (RupeeTotal() != before) {
+        return Fail(11,
+                    "first win: the hook gave %d rupees of its own on top of the check, which the HasParent flag set "
+                    "arms through OnFlagSet - an unplaced Red Rupee (#1219)",
+                    (int)(RupeeTotal() - before));
+    }
+    if (check.eligible) {
+        return Fail(12, "first win: the hook armed the check itself; the HasParent flag set arms it (#1219)");
+    }
+
+    // ---- Leg 3: a repeat win, check already given this cycle ----------------
+    SetWeekEventReg(WEEKEVENTREG_RECEIVED_DOGGY_RACETRACK_HEART_PIECE, true);
+    SetCheck(RC_DOGGY_RACETRACK_PIECE_OF_HEART, true, true);
+    const bool vanilla = fx.OfferVerdict(ACTOR_EN_AOB_01, GI_RUPEE_RED);
+    if (check.eligible) {
+        return Fail(13, "repeat win: RC_DOGGY_RACETRACK_PIECE_OF_HEART was armed again although it was already "
+                        "obtained this cycle - the check's item would be given a second time (#1219)");
+    }
+    if (!vanilla) {
+        return Fail(14, "repeat win: the vanilla Red Rupee was blocked; a repeat with the check spent gives the "
+                        "vanilla junk, as OoTMM does (#1219)");
+    }
+
+    // ---- Leg 4: an unshuffled check keeps its vanilla heart piece ------------
+    SetWeekEventReg(WEEKEVENTREG_RECEIVED_DOGGY_RACETRACK_HEART_PIECE, false);
+    SetCheck(RC_DOGGY_RACETRACK_PIECE_OF_HEART, false, false);
+    if (!fx.OfferVerdict(ACTOR_EN_AOB_01, GI_HEART_PIECE)) {
+        return Fail(15, "unshuffled check: the vanilla heart piece was blocked, but OnFlagSet arms only a shuffled "
+                        "check, so nothing would be given (#1219)");
+    }
+    return 0;
+}
+
 bool BringUpOk(const char* name) {
     auto ctx = Ship::Context::GetInstance();
     if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr) {
@@ -314,6 +394,28 @@ extern "C" int MM_GalleryRupeeStandIn_RunHeadless(void) {
     }
     printf("[TEST] mm-gallery-rupee-stand-in: PASS (both galleries hijack the rupee only while the high-score check "
            "is open, keep it on repeats; the beavers' race-1 Red Rupee stands in for its shuffled check)\n");
+    return 0;
+}
+
+extern "C" int MM_DoggyRaceReward_RunHeadless(void) {
+    printf("[TEST] mm-doggy-race-reward: the Doggy Racetrack reward follows the vanilla selector and is given once "
+           "per cycle (#1219)\n");
+    if (!BringUpOk("mm-doggy-race-reward")) {
+        return 1;
+    }
+    int rc;
+    {
+        HookFixture fx;
+        if (!fx.Ok()) {
+            return Fail(1, "could not allocate the fixtures");
+        }
+        rc = RunDoggyLegs(fx);
+    }
+    if (rc != 0) {
+        return rc;
+    }
+    printf("[TEST] mm-doggy-race-reward: PASS (first win hijacked with no extra rupee, a spent check keeps the "
+           "vanilla Red Rupee and is not re-armed, an unshuffled check keeps its heart piece)\n");
     return 0;
 }
 
