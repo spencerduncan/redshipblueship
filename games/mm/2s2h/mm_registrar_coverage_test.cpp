@@ -452,6 +452,36 @@ const CheatProbe kCheatProbes[] = {
       MainStartCount },
 };
 
+// ---- W6-TIMERS (#1235, #1239): MM's Time Splits actions ----------------------
+// One key, the Enable row's (SohGui/HostedMm/SohMenuHostedMmTimers.cpp): with it on, Trackers/TimeSplits/
+// TimeSplitsActions.cpp's registrar puts one hook in each registry below and nothing else does on a vanilla save (the
+// rando legs of the two great-fairy VBs are IS_RANDO). The TU is named only in the text; nothing it defines is.
+struct TimerSplitRegistry {
+    const char* what;
+    size_t (*count)();
+};
+
+const TimerSplitRegistry kTimerSplitRegistries[] = {
+    { "OnItemGive, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnItemGive>(); } },
+    { "OnBottleContentsUpdate, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnBottleContentsUpdate>(); } },
+    { "OnBossDefeated, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnBossDefeated>(); } },
+    { "VB_GIVE_ITEM_FROM_GREAT_FAIRY (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_GREAT_FAIRY); } },
+    { "VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER (TimeSplits/TimeSplitsActions.cpp)",
+      []() {
+          return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_GIVE_ITEM_FROM_STRAY_FAIRY_MANAGER);
+      } },
+    { "OnSceneInit, unkeyed (TimeSplits/TimeSplitsActions.cpp)",
+      []() { return SettledUnkeyedCount<GameInteractor::OnSceneInit>(); } },
+};
+
+// The registries above as one Phase 5 probe. Defined after Phase 12 (SkipKeyProbe is complete there).
+const std::vector<SkipKeyProbe>& TimerProbes();
+RegisterW6Phase sTimerPhase{ "W6-TIMERS (#1235, #1239)", TimerProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetCheatKeys() {
@@ -1477,6 +1507,18 @@ const std::vector<SkipKeyProbe>& CycleCheatProbes() {
             out.push_back(SkipKeyProbe{ r.key, r.row, { SkipRegistry{ r.what, r.count, r.expected } } });
         }
         return out;
+    }();
+    return probes;
+}
+
+// W6-TIMERS: kTimerSplitRegistries (registered with the W6 list after Phase 4), one hook each, under the Enable key.
+const std::vector<SkipKeyProbe>& TimerProbes() {
+    static const std::vector<SkipKeyProbe> probes = []() {
+        SkipKeyProbe probe{ "gSettings.TimeSplits.Enable", "Enable Time Splits", {} };
+        for (const TimerSplitRegistry& r : kTimerSplitRegistries) {
+            probe.registries.push_back(SkipRegistry{ r.what, r.count, 1 });
+        }
+        return std::vector<SkipKeyProbe>{ probe };
     }();
     return probes;
 }

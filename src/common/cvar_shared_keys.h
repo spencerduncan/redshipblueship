@@ -522,6 +522,18 @@ struct DistinctPair {
 // W6-MODES-DIFF
 // W6-MINIGAMES
 // W6-TIMERS
+// #1235, #1239: MM's In-Game Timer overlay and its Time Splits list options, each bound by one hosted row on SoH's
+// Enhancements > Timers or Time Splits page (SohGui/HostedMm/SohMenuHostedMmTimers.cpp). No OoT twin: SoH's Additional
+// Timers and Time Splits read OoT's save only. Read by Trackers/DisplayOverlay.cpp and Trackers/TimeSplits/.
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_MODE "gDisplayOverlay.Mode"
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_BACKGROUND "gDisplayOverlay.Background"
+#define RSBS_CVAR_MM_DISPLAY_OVERLAY_SCALE "gDisplayOverlay.Scale"
+#define RSBS_CVAR_MM_TIME_SPLITS_ENABLE "gSettings.TimeSplits.Enable"
+#define RSBS_CVAR_MM_TIME_SPLITS_SHOW_HEADERS "gSettings.TimeSplits.ShowHeaders"
+#define RSBS_CVAR_MM_TIME_SPLITS_HIDE_BACKGROUND "gSettings.TimeSplits.Opacity"
+#define RSBS_CVAR_MM_TIME_SPLITS_HIGHLIGHT "gSettings.TimeSplits.Highlight"
+#define RSBS_CVAR_MM_TIME_SPLITS_FOLLOW "gSettings.TimeSplits.Follow"
+#define RSBS_CVAR_MM_TIME_SPLITS_COMPARE "gSettings.TimeSplits.Compare"
 // W6-HUD-A
 // W6-COS-A
 // W6-AUDIO-SEQ
