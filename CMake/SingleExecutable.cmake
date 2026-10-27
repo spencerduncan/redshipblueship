@@ -2835,6 +2835,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # vendored header decode and the icon draw put OoT's texture in MM's textbox at
     # its own format and size. Static tables and a heap PlayState: default tier.
     redship_add_test(NAME ForeignTextboxIcon COMMAND redship --test foreign-textbox-icon)
+    # #1187: CustomMessage::Replace searched again from the start after each
+    # replacement, so a replacement containing the search string (AutoFormat(ItemID)
+    # on a two-page text) never returned. Plain strings under a watchdog: default
+    # tier. games/oot/soh/oot_custom_message_text_test.cpp.
+    redship_add_test(NAME CustomMessageReplace COMMAND redship --test custom-message-replace)
     # A FOREIGN ITEM'S GET-ITEM MODEL (#577 M2): every draw row of both games'
     # get-item tables and every progression item classifies to a descriptor of
     # its own lists, a host-native answer or a named "no model"; descriptors
@@ -2916,6 +2921,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the real builder's English offer for all four settings pairs: it must name
     # the item exactly when Scrub Hint Text is on. games/oot/soh/oot_scrub_text_hint_test.cpp.
     redship_add_test(NAME ScrubTextHintSetting COMMAND redship --test scrub-text-hint-setting
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1187: a dungeon map's get-item text left "[[name]]" in place and was never
+    # auto-formatted, and the Great Deku Tree Compass opened the map's text id.
+    # Reads the real builder's text after a generation and every map and compass
+    # row's text id. games/oot/soh/oot_custom_message_text_test.cpp.
+    redship_add_test(NAME MapCompassText COMMAND redship --test map-compass-text
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

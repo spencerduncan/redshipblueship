@@ -465,14 +465,15 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
     msg.LoadIntoFont();
 }
 
-void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    GetItemEntry itemEntry = GET_PLAYER(OoT_gPlayState)->getItemEntry;
+// Dungeon map `getItemId`'s get-item text, ready to load. Split out of
+// BuildMapMessage so a ROM-free row can read it (OoT_Rando_MapMessageText, #1187).
+static CustomMessage BuildMapMessageText(uint16_t getItemId) {
     auto ctx = OTRGlobals::Instance->gRandoContext;
     CustomMessage msg =
         CustomMessage("You found the %g[[name]]%w! [[typeHint]]", "Du erhältst das %g[[name]]%w! [[typeHint]]",
                       "Vous ebtenez %g[[name]]%w! [[typeHint]]", TEXTBOX_TYPE_BLUE);
     int sceneNum = -1;
-    switch (itemEntry.getItemId) {
+    switch (getItemId) {
         case RG_DEKU_TREE_MAP:
             sceneNum = SCENE_DEKU_TREE;
             break;
@@ -504,6 +505,9 @@ void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
             sceneNum = SCENE_ICE_CAVERN;
             break;
     }
+    CustomMessage name =
+        CustomMessage(Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(getItemId)).GetName());
+    msg.Replace("[[name]]", name);
     if (ctx->GetOption(RSK_MQ_DUNGEON_RANDOM).Is(RO_MQ_DUNGEONS_NONE) ||
         (ctx->GetOption(RSK_MQ_DUNGEON_RANDOM).Is(RO_MQ_DUNGEONS_SET_NUMBER) &&
          ctx->GetOption(RSK_MQ_DUNGEON_COUNT).Is(12))) {
@@ -513,6 +517,29 @@ void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
     } else {
         msg.Replace("[[typeHint]]", Rando::StaticData::hintTextTable[RHT_DUNGEON_ORDINARY].GetHintMessage());
     }
+    msg.AutoFormat(ITEM_DUNGEON_MAP);
+    return msg;
+}
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// Test seam (row MapCompassText, #1187): the raw English get-item text of dungeon
+// map `getItemId`, copied byte for byte (control codes include zero bytes, such as
+// the default colour's "\x05\x00"). Returns the number of bytes copied (at most
+// `cap` - 1; a terminating zero follows them), or -1 for a bad argument.
+extern "C" int OoT_Rando_MapMessageText(uint16_t getItemId, char* out, size_t cap) {
+    if (out == nullptr || cap == 0) {
+        return -1;
+    }
+    const std::string text = BuildMapMessageText(getItemId).GetEnglish(MF_RAW);
+    const size_t n = text.size() < cap - 1 ? text.size() : cap - 1;
+    std::copy(text.begin(), text.begin() + static_cast<std::ptrdiff_t>(n), out);
+    out[n] = '\0';
+    return static_cast<int>(n);
+}
+#endif
+
+void BuildMapMessage(uint16_t* textId, bool* loadFromMessageTable) {
+    CustomMessage msg = BuildMapMessageText(GET_PLAYER(OoT_gPlayState)->getItemEntry.getItemId);
     *loadFromMessageTable = false;
     msg.LoadIntoFont();
 }
