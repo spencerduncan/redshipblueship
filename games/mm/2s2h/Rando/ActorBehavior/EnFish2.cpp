@@ -8,8 +8,14 @@ extern "C" {
 void MM_Player_StartTalking(PlayState* play, Actor* actor);
 }
 
+/*
+ * #1220: the check is FLAG_NONE and its pickup arms it on touch, and CheckQueue gives any eligible check, so a fish fed
+ * again after a lab re-entry would give the check's item a second time. Offer it only while it is still open this
+ * cycle. A repeat gives nothing: the vanilla En_Col_Man stays blocked too, because the rando never sets
+ * WEEKEVENTREG_RECEIVED_MARINE_RESEARCH_LAB_FISH_HEART_PIECE and Col_Man would offer a vanilla heart piece.
+ */
 bool Rando::ActorBehavior::Fish2ShouldOfferCheck() {
-    return true;
+    return !RANDO_SAVE_CHECKS[RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART].cycleObtained;
 }
 
 void Rando::ActorBehavior::InitEnFish2Behavior() {
