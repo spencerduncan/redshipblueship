@@ -135,7 +135,7 @@ void SetOwnedHalfDays(u8 mask) {
     }
 }
 
-void Arm(bool shuffleOn) {
+void ArmClockShuffle(bool shuffleOn) {
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE] = shuffleOn ? RO_GENERIC_ON : RO_GENERIC_OFF;
     RANDO_SAVE_OPTIONS[RO_CLOCK_TERMINAL_TIME] = 0; // the shipped default (00:00)
@@ -169,12 +169,12 @@ bool InUnownedNight3(s32 day, u16 time) {
 int RunLegs(EnTest4* test4) {
     // ---- Leg 0: the gate (non-vacuity) -----------------------------------
     StageClock(1, kDawn);
-    Arm(false);
+    ArmClockShuffle(false);
     FH_ASSERT(Test4Registrants() == 0, 1,
               "ShouldActorUpdate[ACTOR_EN_TEST4] holds %zu registrants with Shuffle Time off; the legs below "
               "would not be attributable to ClockShuffle",
               Test4Registrants());
-    Arm(true);
+    ArmClockShuffle(true);
     FH_ASSERT(Test4Registrants() == 1, 2,
               "ShouldActorUpdate[ACTOR_EN_TEST4] holds %zu registrants with Shuffle Time on, expected exactly the "
               "ClockShuffle hook",
