@@ -1279,8 +1279,10 @@ int LockL5(void) {
     }
 
     // SoH's own two windows are constructed retired, under their retired names
-    // and with no visibility key (MenuComboSection leg 8 holds what that does;
-    // OoTWindowsGate's scan holds the wrapper's type), whitespace aside.
+    // and with no visibility key in the single exe (MenuComboSection leg 8 holds
+    // what that does; OoTWindowsGate's scan holds the wrapper's type), whitespace
+    // aside. The key is SohRetiredWindow.h's, so a build without the single exe
+    // keeps SoH's own gOpenWindows keys.
     auto squash = [](const std::string& text) {
         std::string out;
         for (char c : text) {
@@ -1291,12 +1293,48 @@ int LockL5(void) {
         return out;
     };
     const std::string gui = squash(CtwSource("games/oot/soh/SohGui/SohGui.cpp"));
-    CTW_ASSERT(gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>("
-                               "\"\", kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));")) != std::string::npos);
-    CTW_ASSERT(gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(\"\", "
-                               "kSohRetiredItemTrackerWindowName, ImVec2(350, 600));")) != std::string::npos);
+    CTW_ASSERT(
+        gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<CheckTracker::CheckTrackerWindow>>>("
+                        "SOH_RETIRED_CHECK_TRACKER_KEY, kSohRetiredCheckTrackerWindowName, ImVec2(400, 540));")) !=
+        std::string::npos);
+    CTW_ASSERT(gui.find(squash("std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>("
+                               "SOH_RETIRED_ITEM_TRACKER_KEY, kSohRetiredItemTrackerWindowName, ImVec2(350, 600));")) !=
+               std::string::npos);
     CTW_ASSERT(gui.find(squash("gui->AddGuiWindow(mCheckTrackerWindow);")) != std::string::npos);
     CTW_ASSERT(gui.find(squash("gui->AddGuiWindow(mItemTrackerWindow);")) != std::string::npos);
+    const std::string retiredHeader = CtwSource("games/oot/soh/SohGui/SohRetiredWindow.h");
+    const std::string retiredSingle =
+        CtwSlice(retiredHeader, "#ifdef RSBS_SINGLE_EXECUTABLE\n", "#else // RSBS_SINGLE_EXECUTABLE\n");
+    const std::string retiredOther = CtwSlice(retiredHeader, "#else // RSBS_SINGLE_EXECUTABLE\n", "#endif");
+    CTW_ASSERT(retiredSingle.find("#define SOH_RETIRED_CHECK_TRACKER_KEY \"\"\n") != std::string::npos);
+    CTW_ASSERT(retiredSingle.find("#define SOH_RETIRED_ITEM_TRACKER_KEY \"\"\n") != std::string::npos);
+    CTW_ASSERT(retiredOther.find("#define SOH_RETIRED_CHECK_TRACKER_KEY CVAR_WINDOW(\"CheckTracker\")\n") !=
+               std::string::npos);
+    CTW_ASSERT(retiredOther.find("#define SOH_RETIRED_ITEM_TRACKER_KEY CVAR_WINDOW(\"ItemTracker\")\n") !=
+               std::string::npos);
+
+    // SoH's floating Item Tracker draws its main window while its key is on
+    // (randomizer_item_tracker.cpp, DrawElement). That key, gOpenWindows.ItemTracker,
+    // opens the unified overlay now, which draws under the same ImGui name; the
+    // retired window, shown only for the UI snapshot harness's reference capture,
+    // must gate on its own visibility instead, or that reference never draws.
+    const std::string itemTracker = CtwSource("games/oot/soh/Enhancements/randomizer/randomizer_item_tracker.cpp");
+    const std::string itemDraw = CtwSlice(itemTracker, "void ItemTrackerWindow::DrawElement() {", "\n}\n");
+    CTW_ASSERT(itemDraw.find("#ifdef RSBS_SINGLE_EXECUTABLE\n    const bool mainWindowOpen = IsVisible();\n#else\n"
+                             "    const bool mainWindowOpen = CVarGetInteger(CVAR_WINDOW(\"ItemTracker\"), 0);\n"
+                             "#endif\n") != std::string::npos);
+    CTW_ASSERT(itemDraw.find("? mainWindowOpen") != std::string::npos);
+    CTW_ASSERT(itemDraw.find("? CVarGetInteger(CVAR_WINDOW(\"ItemTracker\"), 0)") == std::string::npos);
+
+    // SoH's Always Show Gold Skulltulas row flipped its static instead of
+    // reading its key; the per-frame load (MenuComboSection leg 8c) makes a flip
+    // drift from the key, so the single exe's callback reads the key, as the
+    // Hide Unshuffled Shop Item Checks row's does.
+    const std::string checkTracker = CtwSource("games/oot/soh/Enhancements/randomizer/randomizer_check_tracker.cpp");
+    CTW_ASSERT(
+        checkTracker.find("#ifdef RSBS_SINGLE_EXECUTABLE\n"
+                          "            alwaysShowGS = CVarGetInteger(CVAR_TRACKER_CHECK(\"AlwaysShowGSLocs\"), 0);\n"
+                          "#else\n            alwaysShowGS = !alwaysShowGS;\n#endif\n") != std::string::npos);
 #endif
     return TEST_PASS;
 }

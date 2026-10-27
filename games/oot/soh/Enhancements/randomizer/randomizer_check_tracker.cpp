@@ -2353,6 +2353,24 @@ extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
     SetEnableAvailableChecks(enabled != 0);
 }
 
+// TEST BRIDGES (#1132): the two settings statics IsVisibleInCheckTracker reads
+// (Always Show Gold Skulltulas, Hide Unshuffled Shop Item Checks), read and set
+// directly, so a ROM-free row can tell whether the window's per-frame path
+// loaded them from their keys.
+extern "C" void RandoTest_CheckTrackerVisibilityStatics(int* alwaysShowGsOut, int* hideUnshuffledShopsOut) {
+    if (alwaysShowGsOut != nullptr) {
+        *alwaysShowGsOut = alwaysShowGS ? 1 : 0;
+    }
+    if (hideUnshuffledShopsOut != nullptr) {
+        *hideUnshuffledShopsOut = hideShopUnshuffledChecks ? 1 : 0;
+    }
+}
+
+extern "C" void RandoTest_CheckTrackerSetVisibilityStatics(int alwaysShowGs, int hideUnshuffledShops) {
+    alwaysShowGS = alwaysShowGs != 0;
+    hideShopUnshuffledChecks = hideUnshuffledShops != 0;
+}
+
 // The combo tracker's OoT pane (#1129, TrackerAdapterSingleExe.cpp): whether
 // ItemLocation::IsAvailable is this tracker's current answer. It does for a closed
 // window what DrawElement does each frame: the option is read from its key (the

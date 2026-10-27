@@ -138,6 +138,11 @@ namespace SohGui {
 extern std::shared_ptr<SohMenu> mSohMenu;
 } // namespace SohGui
 
+// Leg 8c: the Check Tracker's two settings statics IsVisibleInCheckTracker reads
+// (randomizer_check_tracker.cpp test bridges).
+extern "C" void RandoTest_CheckTrackerVisibilityStatics(int* alwaysShowGsOut, int* hideUnshuffledShopsOut);
+extern "C" void RandoTest_CheckTrackerSetVisibilityStatics(int alwaysShowGs, int hideUnshuffledShops);
+
 namespace {
 
 int gFailures = 0;
@@ -1388,6 +1393,48 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                 retired->DrawElement();
                 retired->Hide();
             }
+        }
+
+        // c. The unified OoT pane lists what CheckTracker::IsVisibleInCheckTracker
+        //    lists, which reads two settings statics (Always Show Gold
+        //    Skulltulas, Hide Unshuffled Shop Item Checks). SoH's DrawElement
+        //    loaded them from their keys every frame; retired, it never runs, so
+        //    the window's per-frame path (what Gui::Draw runs for every
+        //    registered window: Update(), then Draw()) must load them itself,
+        //    from the keys and never by flipping. Statics at their defaults,
+        //    keys on, then keys off.
+        {
+            int gsBefore = 0;
+            int shopsBefore = 0;
+            RandoTest_CheckTrackerVisibilityStatics(&gsBefore, &shopsBefore);
+            IntKeyGuard gsKey("gTrackers.CheckTracker.AlwaysShowGSLocs");
+            IntKeyGuard shopsKey("gTrackers.CheckTracker.HideUnshuffledShopChecks");
+            RandoTest_CheckTrackerSetVisibilityStatics(0, 0);
+            CVarSetInteger("gTrackers.CheckTracker.AlwaysShowGSLocs", 1);
+            CVarSetInteger("gTrackers.CheckTracker.HideUnshuffledShopChecks", 1);
+            check->Update();
+            check->Draw();
+            int gsOn = -1;
+            int shopsOn = -1;
+            RandoTest_CheckTrackerVisibilityStatics(&gsOn, &shopsOn);
+            CVarSetInteger("gTrackers.CheckTracker.AlwaysShowGSLocs", 0);
+            CVarSetInteger("gTrackers.CheckTracker.HideUnshuffledShopChecks", 0);
+            check->Update();
+            check->Draw();
+            int gsOff = -1;
+            int shopsOff = -1;
+            RandoTest_CheckTrackerVisibilityStatics(&gsOff, &shopsOff);
+            RandoTest_CheckTrackerSetVisibilityStatics(gsBefore, shopsBefore);
+            printf("[TEST] leg 8: one frame of the retired Check Tracker loaded Always Show Gold Skulltulas %d and "
+                   "Hide Unshuffled Shop Item Checks %d with both keys on, %d and %d with both off\n",
+                   gsOn, shopsOn, gsOff, shopsOff);
+            COMBO_CHECK(gsOn == 1 && shopsOn == 1,
+                        "with Always Show Gold Skulltulas and Hide Unshuffled Shop Item Checks on, a frame of the "
+                        "retired Check Tracker left their statics off: the unified OoT pane ignores both settings "
+                        "until the rows are toggled");
+            COMBO_CHECK(gsOff == 0 && shopsOff == 0,
+                        "with both keys off, a frame of the retired Check Tracker left a static on: the statics do "
+                        "not follow their keys");
         }
 
         for (HookWatchBase* w : std::initializer_list<HookWatchBase*>{
