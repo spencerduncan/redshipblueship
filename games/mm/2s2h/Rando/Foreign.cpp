@@ -535,6 +535,9 @@ uint32_t ResolvePairedProfile(bool paired) {
                 "generation (digest %08X)\n",
                 (unsigned)digest);
         gComboCtx.mmProfileDigest = digest;
+        // #1175: the keep-items byte the digest just folded freezes with it, so
+        // the reset this pair plays and its identity are one decision here too.
+        gComboCtx.mmKeepItemsReset = ResolveKeepItemsResetFromCVar();
         // ADR 0011 decision 4.4: the combo fingerprint FOLDS this digest, and on
         // a doubly-legacy pair the transitional combo writer ran at the arrival
         // gate while it was still 0. Re-stamp it here — "recomputes
