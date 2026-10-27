@@ -731,6 +731,116 @@ const std::vector<SkipKeyProbe>& EnhProbes() {
     return probes;
 }
 
+// ---- W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina TUs ----------------
+// One probe per key; each TU registers only through a file-scope RegisterShipInitFunc. Attributed by registry content:
+// every bucket is keyed on a VB id, an actor id, a limb or a pause page, or is an unkeyed registry no other W6 key
+// arms, and the delta is measured with every other key off, so only the TU behind the probed key can move it (the
+// unconditional registrants on the same buckets, Rando/ForeignMaskMM.cpp's head draw and player update among them, are
+// in both counts). Pause Owl Warp's TU was already linked (z_kaleido_*.c calls its extern "C" accessor); its probe is
+// held here so a link change cannot drop its registrar unseen now that a row writes its key.
+#define W6_MASKS_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
+
+constexpr const char* kW6ZoraEggCountCVar = "gEnhancements.Songs.ZoraEggCount";
+
+const std::vector<SkipKeyProbe>& W6MasksSongsProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { "gEnhancements.Masks.EquipWhileSwimming",
+          "Equippable While Swimming",
+          { { "VB_USE_ITEM_CONSIDER_ITEM_ACTION (Masks/EquipWhileSwimming.cpp)",
+              W6_MASKS_VB_COUNT(VB_USE_ITEM_CONSIDER_ITEM_ACTION), 1 },
+            { "VB_DISABLE_ITEM_UNDERWATER (Masks/EquipWhileSwimming.cpp)",
+              W6_MASKS_VB_COUNT(VB_DISABLE_ITEM_UNDERWATER), 1 } } },
+        { "gEnhancements.Masks.BlastMaskKeg",
+          "Blast Mask Has Powder Keg Force",
+          { { "ShouldActorInit[ACTOR_EN_BOM] (Masks/BlastMaskKeg.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EN_BOM); }, 1 } } },
+        { "gEnhancements.Masks.FastTransformation",
+          "Fast Transformation",
+          { { "VB_PREVENT_MASK_TRANSFORMATION_CS (Masks/FastTransformation.cpp)",
+              W6_MASKS_VB_COUNT(VB_PREVENT_MASK_TRANSFORMATION_CS), 1 } } },
+        { "gEnhancements.Masks.FierceDeitysAnywhere",
+          "Fierce Deity's Mask Anywhere",
+          { { "VB_DISABLE_FD_MASK (Masks/FierceDeityAnywhere.cpp)", W6_MASKS_VB_COUNT(VB_DISABLE_FD_MASK), 1 },
+            { "VB_DAMAGE_EFFECT (Masks/FierceDeityAnywhere.cpp)", W6_MASKS_VB_COUNT(VB_DAMAGE_EFFECT), 1 },
+            { "VB_BE_NEAR_DOOR (Masks/FierceDeityAnywhere.cpp)", W6_MASKS_VB_COUNT(VB_BE_NEAR_DOOR), 1 },
+            { "ShouldActorUpdate[ACTOR_EN_BIGOKUTA] (Masks/FierceDeityAnywhere.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorUpdate>(ACTOR_EN_BIGOKUTA); }, 1 },
+            { "ShouldActorInit[ACTOR_EN_CLEAR_TAG] (Masks/FierceDeityAnywhere.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EN_CLEAR_TAG); }, 1 } } },
+        // UpdatePersistentMasksState unregisters its two id-keyed hooks before it registers them again, so driving the
+        // key twice settles at +1 on each; with the key off it unregisters them and clears the internal .State key.
+        { "gEnhancements.Masks.PersistentBunnyHood.Enabled",
+          "Persistent Bunny Hood",
+          { { "OnPlayerPostLimbDraw[PLAYER_LIMB_HEAD] (Masks/PersistentMasks.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnPlayerPostLimbDraw>(PLAYER_LIMB_HEAD); }, 1 },
+            { "BeforeKaleidoDrawPage[PAUSE_MASK] (Masks/PersistentMasks.cpp)",
+              []() { return SettledCountForId<GameInteractor::BeforeKaleidoDrawPage>(PAUSE_MASK); }, 1 },
+            { "VB_CONSIDER_BUNNY_HOOD_EQUIPPED (Masks/PersistentMasks.cpp)",
+              W6_MASKS_VB_COUNT(VB_CONSIDER_BUNNY_HOOD_EQUIPPED), 1 },
+            { "VB_GET_ITEM_ACTION_FROM_MASK (Masks/PersistentMasks.cpp)",
+              W6_MASKS_VB_COUNT(VB_GET_ITEM_ACTION_FROM_MASK), 1 } } },
+        { "gEnhancements.Masks.NoBlastMaskCooldown",
+          "No Blast Mask Cooldown",
+          { { "VB_SET_BLAST_MASK_COOLDOWN_TIMER (Masks/NoBlastMaskCooldown.cpp)",
+              W6_MASKS_VB_COUNT(VB_SET_BLAST_MASK_COOLDOWN_TIMER), 1 } } },
+        { "gEnhancements.Masks.GoronRollingIgnoresMagic",
+          "Goron Rolling Ignores Magic",
+          { { "VB_GORON_ROLL_CONSUME_MAGIC (Masks/GoronRollingIgnoresMagic.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_CONSUME_MAGIC), 1 },
+            { "VB_GORON_ROLL_DISABLE_SPIKE_MODE (Masks/GoronRollingIgnoresMagic.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_DISABLE_SPIKE_MODE), 1 },
+            { "VB_GORON_ROLL_INCREASE_SPIKE_LEVEL (Masks/GoronRollingIgnoresMagic.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL), 1 } } },
+        { "gEnhancements.Masks.GoronRollingFastSpikes",
+          "Goron Rolling Fast Spikes",
+          { { "VB_GORON_ROLL_INCREASE_SPIKE_LEVEL (Masks/GoronRollingFastSpikes.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL), 1 } } },
+        { "gEnhancements.Songs.PauseOwlWarp",
+          "Pause Owl Warp",
+          { { "OnKaleidoUpdate, unkeyed (Songs/PauseOwlWarp.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnKaleidoUpdate>(); }, 1 } } },
+        { "gEnhancements.Songs.EnableSunsSong",
+          "Enable Sun's Song",
+          { { "VB_SONG_AVAILABLE_TO_PLAY (Songs/EnableSunsSong.cpp)", W6_MASKS_VB_COUNT(VB_SONG_AVAILABLE_TO_PLAY),
+              1 } } },
+        // A slider whose default (7, every egg) is the one value that disarms it: ZoraEggCount.cpp arms while the key
+        // is not 7, so the drive's "off" (0) would arm it too. This count first puts a 0 back to the default (cleared,
+        // so 7) and re-drives it, then reads the bucket: 0 before the drive, +1 while the drive holds the key at 1 (one
+        // egg), and the key is left cleared and disarmed by every count after the drive. Without the TU in the link
+        // nothing arms and the probe is red.
+        { kW6ZoraEggCountCVar,
+          "Zora Eggs for Bossa Nova",
+          { { "OnActorUpdate[ACTOR_EN_MK] (Songs/ZoraEggCount.cpp)",
+              []() {
+                  if (CVarGetInteger(kW6ZoraEggCountCVar, 7) == 0) {
+                      CVarClear(kW6ZoraEggCountCVar);
+                      ShipInit::Init(kW6ZoraEggCountCVar);
+                  }
+                  return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_EN_MK);
+              },
+              1 } } },
+        { "gEnhancements.Songs.FasterSongPlayback",
+          "Faster Song Playback",
+          { { "OnActorUpdate[ACTOR_PLAYER] (Songs/FasterSongPlayback.cpp)",
+              []() { return SettledCountForId<GameInteractor::OnActorUpdate>(ACTOR_PLAYER); }, 1 },
+            { "ShouldActorInit[ACTOR_EFF_CHANGE] (Songs/FasterSongPlayback.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EFF_CHANGE); }, 1 },
+            { "VB_ELEGY_STATUE_FADE_IN_OUT (Songs/FasterSongPlayback.cpp)",
+              W6_MASKS_VB_COUNT(VB_ELEGY_STATUE_FADE_IN_OUT), 1 } } },
+        { "gEnhancements.Songs.SkipSoaringCutscene",
+          "Skip Soaring Cutscene",
+          { { "ShouldActorInit[ACTOR_EN_TEST7] (Songs/SkipSoaringCutscene.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldActorInit>(ACTOR_EN_TEST7); }, 1 } } },
+        { "gEnhancements.Player.UnderwaterOcarina",
+          "Underwater Ocarina",
+          { { "VB_DISABLE_ITEM_UNDERWATER (Player/UnderwaterOcarina.cpp)",
+              W6_MASKS_VB_COUNT(VB_DISABLE_ITEM_UNDERWATER), 1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6MasksSongsPhase{ "W6-MASKS-SONGS (#1236, #1240)", W6MasksSongsProbes };
+
 // Puts every probed key back to 0 and re-drives it, so the registrants a probe
 // armed are queued for removal and the row leaves no hook behind.
 void ResetEnhKeys() {

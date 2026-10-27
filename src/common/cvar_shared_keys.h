@@ -516,6 +516,24 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
 // W6-MASKS-SONGS
+// W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
+// Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
+// Playback is only the nearest relative of Faster Song Playback); Underwater Ocarina is a Player key whose row belongs
+// with the Ocarina. PersistentBunnyHood.State is the TU's internal toggle and has no row.
+#define RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING "gEnhancements.Masks.EquipWhileSwimming"
+#define RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG "gEnhancements.Masks.BlastMaskKeg"
+#define RSBS_CVAR_MM_MASKS_FAST_TRANSFORMATION "gEnhancements.Masks.FastTransformation"
+#define RSBS_CVAR_MM_MASKS_FIERCE_DEITYS_ANYWHERE "gEnhancements.Masks.FierceDeitysAnywhere"
+#define RSBS_CVAR_MM_MASKS_PERSISTENT_BUNNY_HOOD "gEnhancements.Masks.PersistentBunnyHood.Enabled"
+#define RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN "gEnhancements.Masks.NoBlastMaskCooldown"
+#define RSBS_CVAR_MM_MASKS_GORON_ROLLING_IGNORES_MAGIC "gEnhancements.Masks.GoronRollingIgnoresMagic"
+#define RSBS_CVAR_MM_MASKS_GORON_ROLLING_FAST_SPIKES "gEnhancements.Masks.GoronRollingFastSpikes"
+#define RSBS_CVAR_MM_SONGS_PAUSE_OWL_WARP "gEnhancements.Songs.PauseOwlWarp"
+#define RSBS_CVAR_MM_SONGS_ENABLE_SUNS_SONG "gEnhancements.Songs.EnableSunsSong"
+#define RSBS_CVAR_MM_SONGS_ZORA_EGG_COUNT "gEnhancements.Songs.ZoraEggCount"
+#define RSBS_CVAR_MM_SONGS_FASTER_SONG_PLAYBACK "gEnhancements.Songs.FasterSongPlayback"
+#define RSBS_CVAR_MM_SONGS_SKIP_SOARING_CUTSCENE "gEnhancements.Songs.SkipSoaringCutscene"
+#define RSBS_CVAR_MM_PLAYER_UNDERWATER_OCARINA "gEnhancements.Player.UnderwaterOcarina"
 // W6-CAM-GYRO
 // #1235, #1236, #1240: MM's gyro aiming, free-look pitch limits, debug camera, Remote Bombchu Control and speed
 // modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gSettings.WalkModifier.*
