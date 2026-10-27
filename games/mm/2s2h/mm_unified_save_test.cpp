@@ -204,7 +204,10 @@
  *      cleared (W6-TIMESAVERS, #1236). The save prompt sets the pair before its
  *      commit and vanilla clears it only in the flash-write branch, which the
  *      0xFF fileNum never takes, so Link spawned standing on the next scene.
- *      MM_Combo_EndPauseSaveCommit is the paired clear; the call-site half
+ *      MM_Combo_EndPauseSaveCommitFor is the paired clear (driven with the
+ *      Pause Menu Save state as an argument: CVarSetInteger needs the
+ *      Ship::Context this row deliberately runs without, and crashed here);
+ *      MM_Combo_EndPauseSaveCommit reads the CVar into it; the call-site half
  *      (after the commit, in the paired leg) is the source-text invariant
  *      test_paired_pause_save_ends_its_commit in tools/tests/test_repo_invariants.py.
  */
@@ -231,7 +234,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void);
 extern "C" int MM_Combo_OwlSaveExitToOoT(void);
 extern "C" int MM_Combo_GameOverExitToOoT(void);
 extern "C" void MM_HarvestSharedResources(void);
-extern "C" void MM_Combo_EndPauseSaveCommit(void);
+extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn);
 
 namespace {
 
@@ -863,26 +866,25 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     // vanilla clears them only in the flash-write branch, which the 0xFF fileNum
     // never takes. Left set, the next scene's Player init spawns Link standing at
     // pauseSaveEntrance. The prompt itself needs a live pause context, so this
-    // drives the single-exe step it calls after the commit.
+    // drives the single-exe step it calls after the commit, with the Pause Menu
+    // Save state passed in: this row runs without a Ship::Context, and
+    // CVarSetInteger dereferences it (the SIGSEGV CI caught).
     {
         memset(&gSaveContext, 0, sizeof(SaveContext));
         gSaveContext.fileNum = 0xFF;
         gSaveContext.save.isOwlSave = true;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = 0x1A30;
 
-        CVarSetInteger("gEnhancements.Saving.PauseSave", 0);
-        MM_Combo_EndPauseSaveCommit();
+        MM_Combo_EndPauseSaveCommitFor(0);
         USAVE_ASSERT(gSaveContext.save.isOwlSave && gSaveContext.save.shipSaveInfo.pauseSaveEntrance == 0x1A30,
                      "with Pause Menu Save off the step must leave the pair alone, as vanilla's branch does");
 
-        CVarSetInteger("gEnhancements.Saving.PauseSave", 1);
-        MM_Combo_EndPauseSaveCommit();
+        MM_Combo_EndPauseSaveCommitFor(1);
         USAVE_ASSERT(!gSaveContext.save.isOwlSave,
                      "a paired pause save must clear isOwlSave after its commit, as the flash branch does");
         USAVE_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1,
                      "a paired pause save must clear pauseSaveEntrance after its commit, or Link spawns standing "
                      "on the next scene");
-        CVarClear("gEnhancements.Saving.PauseSave");
     }
 
     // Leave global state clean for whatever runs next.

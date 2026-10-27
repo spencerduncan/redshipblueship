@@ -3481,6 +3481,16 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
 }
 
 /**
+ * W6-TIMESAVERS (#1236): the CVar-free core of MM_Combo_EndPauseSaveCommit below,
+ * with the Pause Menu Save state as an argument so MMUnifiedSaveCapture check 14
+ * drives it without a Ship::Context (CVar reads and writes need one).
+ */
+extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
+    // Today's behaviour: the paired leg leaves the pair as the prompt set it.
+    (void)pauseSaveOn;
+}
+
+/**
  * W6-TIMESAVERS (#1236): the end of a paired Pause Menu Save, called by
  * z_kaleido_scope_NES.c's save prompt right after its commit (func_8014546C ->
  * Sram_ComboCommitUnifiedSave -> the capture above). With the enhancement on,
