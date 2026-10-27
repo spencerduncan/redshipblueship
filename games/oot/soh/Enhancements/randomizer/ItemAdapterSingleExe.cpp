@@ -25,8 +25,23 @@
  * sections (randomizer_item_tracker.cpp: inventoryItems, equipmentItems,
  * miscItems, dungeonRewardStones/Medallions, songItems), 66 rows. The icon keys
  * are the native tracker's texture names (ImGuiUtils.cpp itemMapping /
- * questMapping / songMapping: "ITEM_X" and "ITEM_X_Faded"), so a drawer can
+ * questMapping / songMapping / customItemsMapping / jabbernutMapping /
+ * gregMapping: "ITEM_X" or "RG_X" and their "_Faded" twins), so a drawer can
  * hand them to the Gui's texture map as-is once OoT has booted.
+ *
+ * SoH'S OPTIONAL SECTIONS (#1142, #1158). After those come SoH's two compact
+ * dungeon tables, both always rows of every file (the overlay shows one, by
+ * DungeonItems.DisplayMaps, and only under DisplayType.DungeonItems): "Dungeon
+ * Items" (itemTrackerDungeonsWithMapsCompact, 36 cells column-major with one
+ * blank, Thieves' Hideout in cell 35) and "Dungeon Keys" (itemTrackerDungeons-
+ * Compact, 15 cells). Then, through `countFor`, the groups a randomizer file
+ * finds only under its frozen option, in SoH's main-window order: "Greg" (any
+ * randomizer file), "Fishing Pole", "Bean Souls", "Boss Souls", "Jabber Nuts",
+ * "Ocarina Buttons", "Overworld Keys", each on a line of its own (OoTItemGrid).
+ * OoT's options are not in the save buffer: they are the loaded seed's
+ * (Rando::Context, frozen into the file at creation and loaded with it), read
+ * through OoTItemOption. Ownership is the buffer's own: the dungeon fields and
+ * the randomizer-inf flags SoH's DrawItem / DrawDungeonItem test.
  *
  * Lives in soh/Enhancements/randomizer/ (soh_rando, WHOLE_ARCHIVE) and is
  * referenced by name from Combo_TrackerWindow_Init, so no elision mode leaves
@@ -50,7 +65,8 @@ extern PlayState* OoT_gPlayState;
 }
 
 #include "soh/GameVersions.h"
-#include "soh/SaveManager.h" // SaveManager::Instance, for the new-file lock's seam (#873)
+#include "soh/Enhancements/randomizer/SeedContext.h" // Rando::Context: the loaded seed's frozen options (#1142)
+#include "soh/SaveManager.h"                         // SaveManager::Instance, for the new-file lock's seam (#873)
 // Declared only in SaveManager.h's C branch (#ifndef __cplusplus).
 extern "C" void Save_InitFile(int isDebug);
 // SaveManager.cpp: whether an OoT SaveContext blob holds a created file (#873).
@@ -99,6 +115,39 @@ bool OoTItemPaused(void) {
 bool sOoTItemTestOptionsOn = false;
 unsigned sOoTItemTestOptions = 0u;
 
+/**
+ * The file's frozen randomizer option `key` (#1142): OoT keeps its options in
+ * the seed's context, frozen into the file at its creation and loaded with it,
+ * never in the SaveContext the view hands over. 0 (off) with no context. The
+ * ROM-free lock stands in for it (OoT_ItemAdapter_TestOverrideOptions).
+ */
+uint8_t OoTItemOption(RandomizerSettingKey key) {
+    if (sOoTItemTestOptionsOn) {
+        const unsigned b = sOoTItemTestOptions;
+        switch (key) {
+            case RSK_SHUFFLE_BEAN_SOULS:
+                return (b & (1u << 0)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_BOSS_SOULS:
+                if ((b & (1u << 1)) == 0) {
+                    return RO_BOSS_SOULS_OFF;
+                }
+                return (b & (1u << 2)) != 0 ? RO_BOSS_SOULS_ON_PLUS_GANON : RO_BOSS_SOULS_ON;
+            case RSK_SHUFFLE_SPEAK:
+                return (b & (1u << 3)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_OCARINA_BUTTONS:
+                return (b & (1u << 4)) != 0 ? 1 : 0;
+            case RSK_LOCK_OVERWORLD_DOORS:
+                return (b & (1u << 5)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_FISHING_POLE:
+                return (b & (1u << 6)) != 0 ? 1 : 0;
+            default:
+                return 0;
+        }
+    }
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr ? (uint8_t)ctx->GetOption(key).Get() : 0u;
+}
+
 } // namespace
 
 // ============================================================================
@@ -116,6 +165,16 @@ bool RandInfOf(const SaveContext* src, RandomizerInf flag) {
 
 bool Aligned(const void* src) {
     return src != nullptr && (reinterpret_cast<uintptr_t>(src) % alignof(SaveContext)) == 0;
+}
+
+/** INV_CONTENT(item) over `src`, or ITEM_NONE for an id past gItemSlots: SoH's
+ *  custom ids (ITEM_FISHING_POLE, 0x59, on) name no inventory slot, and the
+ *  macro would index past the table (ports SoH 7a7f942b8's bound; #983/#984). */
+uint8_t InvContentOf(const SaveContext* src, int item) {
+    if (item < 0 || item >= ARRAY_COUNT(OoT_gItemSlots)) {
+        return ITEM_NONE;
+    }
+    return INV_CONTENT(item);
 }
 
 // ---- icon keys and names for inventory contents ----------------------------
@@ -386,14 +445,14 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     out->group = def.group;
     switch (def.kind) {
         case RK_INV:
-            FillSlot(out, INV_CONTENT(def.item), def);
+            FillSlot(out, InvContentOf(src, def.item), def);
             if (def.item == (uint8_t)ITEM_HOOKSHOT && out->have) {
                 // #1143: SoH's Hookshot Identifier letter for the tier held.
-                out->identifier = INV_CONTENT(def.item) == ITEM_LONGSHOT ? 'L' : 'H';
+                out->identifier = InvContentOf(src, def.item) == ITEM_LONGSHOT ? 'L' : 'H';
             }
             return true;
         case RK_INV_AMMO:
-            FillSlot(out, INV_CONTENT(def.item), def);
+            FillSlot(out, InvContentOf(src, def.item), def);
             out->capacityMax = (int)CAPACITY(def.data, 3); // #1143: SoH's maxCapacity, the largest bag
             // This game's copy of a shared capacity tier: the view dims it once the Shared column holds it.
             out->sharedKind = SharedTierKindOf(def.data);
@@ -404,7 +463,7 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
             }
             return true;
         case RK_INV_FIXED:
-            FillSlot(out, INV_CONTENT(def.item), def);
+            FillSlot(out, InvContentOf(src, def.item), def);
             if (out->have) {
                 out->count = AMMO(def.item);
                 out->max = (int)def.data;
@@ -492,10 +551,358 @@ bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     return false;
 }
 
+// ---- SoH's compact dungeon tables (#1142) ----------------------------------------
+
+enum DungeonCellKind : uint8_t { DC_PAD, DC_SMALL_KEY, DC_BOSS_KEY, DC_MAP, DC_COMPASS };
+
+struct DungeonCell {
+    DungeonCellKind kind;
+    uint8_t scene; // the dungeonItems / dungeonKeys index (Ganon's boss key: SCENE_GANONS_TOWER)
+    const char* name;
+    const char* label; // SoH's short name over the icon (DrawDungeonItem), or NULL
+};
+
+#define DSK(scene, dname, label) \
+    { DC_SMALL_KEY, (uint8_t)(scene), dname " Small Key", label }
+#define DBK(scene, dname) \
+    { DC_BOSS_KEY, (uint8_t)(scene), dname " Boss Key", nullptr }
+#define DMAP(scene, dname, label) \
+    { DC_MAP, (uint8_t)(scene), dname " Map", label }
+#define DCOMP(scene, dname) \
+    { DC_COMPASS, (uint8_t)(scene), dname " Compass", nullptr }
+#define DPAD \
+    { DC_PAD, 0, "", nullptr }
+
+// GetDungeonItemsVector(itemTrackerDungeonsWithMapsCompact): six dungeons a block, column-major, an
+// ITEM_NONE blank under a shorter column, Thieves' Hideout patched into cell 35 (UpdateVectors).
+const DungeonCell kDungeonWithMaps[] = {
+    DSK(SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
+    DSK(SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
+    DSK(SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
+    DSK(SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
+    DSK(SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
+    DSK(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
+    DBK(SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DBK(SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DBK(SCENE_WATER_TEMPLE, "Water Temple"),
+    DBK(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DBK(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DMAP(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", nullptr),
+    DMAP(SCENE_FOREST_TEMPLE, "Forest Temple", nullptr),
+    DMAP(SCENE_FIRE_TEMPLE, "Fire Temple", nullptr),
+    DMAP(SCENE_WATER_TEMPLE, "Water Temple", nullptr),
+    DMAP(SCENE_SPIRIT_TEMPLE, "Spirit Temple", nullptr),
+    DMAP(SCENE_SHADOW_TEMPLE, "Shadow Temple", nullptr),
+    DCOMP(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well"),
+    DCOMP(SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DCOMP(SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DCOMP(SCENE_WATER_TEMPLE, "Water Temple"),
+    DCOMP(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DCOMP(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DPAD,
+    DMAP(SCENE_DEKU_TREE, "Deku Tree", "DEKU"),
+    DMAP(SCENE_DODONGOS_CAVERN, "Dodongo's Cavern", "DCVN"),
+    DMAP(SCENE_JABU_JABU, "Jabu-Jabu's Belly", "JABU"),
+    DMAP(SCENE_ICE_CAVERN, "Ice Cavern", "ICE"),
+    DSK(SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
+    DSK(SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
+    DCOMP(SCENE_DEKU_TREE, "Deku Tree"),
+    DCOMP(SCENE_DODONGOS_CAVERN, "Dodongo's Cavern"),
+    DCOMP(SCENE_JABU_JABU, "Jabu-Jabu's Belly"),
+    DCOMP(SCENE_ICE_CAVERN, "Ice Cavern"),
+    DBK(SCENE_GANONS_TOWER, "Ganon's Castle"),
+    DSK(SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
+};
+
+// GetDungeonItemsVector(itemTrackerDungeonsCompact): the keys alone, the last three dungeons a block of three.
+const DungeonCell kDungeonKeysOnly[] = {
+    DSK(SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
+    DSK(SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
+    DSK(SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
+    DSK(SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
+    DSK(SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
+    DSK(SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
+    DBK(SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DBK(SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DBK(SCENE_WATER_TEMPLE, "Water Temple"),
+    DBK(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DBK(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DBK(SCENE_GANONS_TOWER, "Ganon's Castle"),
+    DSK(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
+    DSK(SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
+    DSK(SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
+};
+
+#undef DSK
+#undef DBK
+#undef DMAP
+#undef DCOMP
+#undef DPAD
+
+constexpr int kDungeonWithMapsCount = (int)(sizeof(kDungeonWithMaps) / sizeof(kDungeonWithMaps[0]));
+constexpr int kDungeonKeysOnlyCount = (int)(sizeof(kDungeonKeysOnly) / sizeof(kDungeonKeysOnly[0]));
+static_assert(kDungeonWithMapsCount == 36 && kDungeonKeysOnlyCount == 15, "SoH's two compact dungeon tables");
+constexpr int kFixedRowCount = kRowCount + kDungeonWithMapsCount + kDungeonKeysOnlyCount;
+
+/** A dungeon's small keys as plain numbers (macros.h *_SMALL_KEY_MAX): per-dungeon Master Quest lives in the
+ *  seed's context, so only an all-Master-Quest file reads the Master Quest counts. */
+int DungeonKeyMax(uint8_t scene, bool mq) {
+    switch (scene) {
+        case SCENE_FOREST_TEMPLE:
+            return mq ? 6 : 5;
+        case SCENE_FIRE_TEMPLE:
+            return mq ? 5 : 8;
+        case SCENE_WATER_TEMPLE:
+            return mq ? 2 : 6;
+        case SCENE_SPIRIT_TEMPLE:
+            return mq ? 7 : 5;
+        case SCENE_SHADOW_TEMPLE:
+            return mq ? 6 : 5;
+        case SCENE_BOTTOM_OF_THE_WELL:
+            return mq ? 2 : 3;
+        case SCENE_GERUDO_TRAINING_GROUND:
+            return mq ? 3 : 9;
+        case SCENE_THIEVES_HIDEOUT:
+            return 4; // GERUDO_FORTRESS_SMALL_KEY_MAX
+        case SCENE_INSIDE_GANONS_CASTLE:
+            return mq ? 3 : 2;
+        default:
+            return 0;
+    }
+}
+
+/** DrawDungeonItem over `src`: a small key is lit while its count is not -1 (SoH: dungeonKeys >= 0), drawn as
+ *  collected (ship.stats.dungeonKeys) of the dungeon's keys with the keys in hand (GetItemCurrentAndMax);
+ *  the boss key, map and compass are bit (item - ITEM_KEY_BOSS) of dungeonItems. */
+void DeriveDungeonCell(const SaveContext* src, const DungeonCell& cell, const char* group, ComboItemRow* out) {
+    out->group = group;
+    out->name = cell.name;
+    out->label = cell.label;
+    switch (cell.kind) {
+        case DC_PAD:
+            out->pad = true;
+            return;
+        case DC_SMALL_KEY: {
+            const s8 held = gSaveContext.inventory.dungeonKeys[cell.scene];
+            out->iconKey = "ITEM_KEY_SMALL";
+            out->iconKeyFaded = "ITEM_KEY_SMALL_Faded";
+            out->have = held >= 0;
+            out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_KEYS;
+            out->held = held < 0 ? 0 : (int)held;
+            out->count = (int)gSaveContext.ship.stats.dungeonKeys[cell.scene];
+            out->max = DungeonKeyMax(cell.scene, gSaveContext.ship.quest.id == QUEST_MASTER);
+            return;
+        }
+        case DC_BOSS_KEY:
+        case DC_MAP:
+        case DC_COMPASS: {
+            const int item = cell.kind == DC_BOSS_KEY ? ITEM_KEY_BOSS
+                             : cell.kind == DC_MAP    ? ITEM_DUNGEON_MAP
+                                                      : ITEM_COMPASS;
+            out->iconKey = cell.kind == DC_BOSS_KEY ? "ITEM_KEY_BOSS"
+                           : cell.kind == DC_MAP    ? "ITEM_DUNGEON_MAP"
+                                                    : "ITEM_COMPASS";
+            out->iconKeyFaded = cell.kind == DC_BOSS_KEY ? "ITEM_KEY_BOSS_Faded"
+                                : cell.kind == DC_MAP    ? "ITEM_DUNGEON_MAP_Faded"
+                                                         : "ITEM_COMPASS_Faded";
+            out->have = (gSaveContext.inventory.dungeonItems[cell.scene] & (1u << (item - ITEM_KEY_BOSS))) != 0;
+            return;
+        }
+    }
+}
+
+// ---- the groups a randomizer file shows by its frozen options (#1142) --------------
+
+struct FlagRow {
+    const char* name;
+    const char* label; // SoH's short name over the icon, or NULL
+    RandomizerInf flag;
+    const char* key;
+    const char* faded;
+    uint32_t family; // the shared-family slot this row is OoT's copy of (foreign_items.h), or 0
+};
+
+#define FLAG_ROW(name, label, flag, icon) \
+    { name, label, flag, #icon, #icon "_Faded", 0u }
+
+const FlagRow kGregRows[] = { FLAG_ROW("Greg the Green Rupee", nullptr, RAND_INF_GREG_FOUND, ITEM_RUPEE_GREEN) };
+const FlagRow kFishingPoleRows[] = { FLAG_ROW("Fishing Pole", nullptr, RAND_INF_FISHING_POLE_FOUND,
+                                              ITEM_FISHING_POLE) };
+// beanSoulItems, drawn with the Magic Bean (ITEM_TRACKER_ITEM_CUSTOM) and itemTrackerBeanShortNames.
+const FlagRow kBeanSoulRows[] = {
+    FLAG_ROW("Death Mountain Crater Bean Soul", "DMC", RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Death Mountain Trail Bean Soul", "DMT", RAND_INF_DEATH_MOUNTAIN_TRAIL_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Desert Colossus Bean Soul", "DC", RAND_INF_DESERT_COLOSSUS_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Gerudo Valley Bean Soul", "GV", RAND_INF_GERUDO_VALLEY_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Graveyard Bean Soul", "GY", RAND_INF_GRAVEYARD_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Kokiri Forest Bean Soul", "KF", RAND_INF_KOKIRI_FOREST_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Lake Hylia Bean Soul", "LA", RAND_INF_LAKE_HYLIA_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Lost Woods Bridge Bean Soul", "LWB", RAND_INF_LOST_WOODS_BRIDGE_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Lost Woods Theatre Bean Soul", "LWT", RAND_INF_LOST_WOODS_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("Zora's River Bean Soul", "ZR", RAND_INF_ZORAS_RIVER_BEAN_SOUL, ITEM_BEAN),
+};
+// bossSoulItems and itemTrackerBossShortNames; Ganon's is held unless the file shuffles it (OoTItemFlagHeld).
+const FlagRow kBossSoulRows[] = {
+    FLAG_ROW("Gohma's Soul", "GOHMA", RAND_INF_GOHMA_SOUL, RG_GOHMA_SOUL),
+    FLAG_ROW("King Dodongo's Soul", "KD", RAND_INF_KING_DODONGO_SOUL, RG_KING_DODONGO_SOUL),
+    FLAG_ROW("Barinade's Soul", "BARI", RAND_INF_BARINADE_SOUL, RG_BARINADE_SOUL),
+    FLAG_ROW("Phantom Ganon's Soul", "PG", RAND_INF_PHANTOM_GANON_SOUL, RG_PHANTOM_GANON_SOUL),
+    FLAG_ROW("Volvagia's Soul", "VOLV", RAND_INF_VOLVAGIA_SOUL, RG_VOLVAGIA_SOUL),
+    FLAG_ROW("Morpha's Soul", "MORPH", RAND_INF_MORPHA_SOUL, RG_MORPHA_SOUL),
+    FLAG_ROW("Bongo Bongo's Soul", "BONGO", RAND_INF_BONGO_BONGO_SOUL, RG_BONGO_BONGO_SOUL),
+    FLAG_ROW("Twinrova's Soul", "TWIN", RAND_INF_TWINROVA_SOUL, RG_TWINROVA_SOUL),
+    FLAG_ROW("Ganon's Soul", "GANON", RAND_INF_GANON_SOUL, RG_GANON_SOUL),
+};
+// jabbernutItems (jabbernutMapping: the Deku Nut) and itemTrackerJabberNutShortNames.
+const FlagRow kJabberNutRows[] = {
+    FLAG_ROW("Deku Jabber Nut", "DEKU", RAND_INF_CAN_SPEAK_DEKU, RG_SPEAK_DEKU),
+    FLAG_ROW("Gerudo Jabber Nut", "GERUDO", RAND_INF_CAN_SPEAK_GERUDO, RG_SPEAK_GERUDO),
+    FLAG_ROW("Goron Jabber Nut", "GORON", RAND_INF_CAN_SPEAK_GORON, RG_SPEAK_GORON),
+    FLAG_ROW("Hylian Jabber Nut", "HYLIAN", RAND_INF_CAN_SPEAK_HYLIAN, RG_SPEAK_HYLIAN),
+    FLAG_ROW("Kokiri Jabber Nut", "KOKIRI", RAND_INF_CAN_SPEAK_KOKIRI, RG_SPEAK_KOKIRI),
+    FLAG_ROW("Zora Jabber Nut", "ZORA", RAND_INF_CAN_SPEAK_ZORA, RG_SPEAK_ZORA),
+};
+// ocarinaButtonItems, drawn with the Ocarina of Time, and itemTrackerOcarinaButtonShortNames. Each is OoT's
+// copy of a Shared Ocarina Buttons family slot (#1067), as MM's rows are.
+const FlagRow kOcarinaButtonRows[] = {
+    { "Ocarina A Button", "A", RAND_INF_HAS_OCARINA_A, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+      RSBS_XITEM_SHARED_OCARINA_BUTTONS },
+    { "Ocarina C Up Button", "C-U", RAND_INF_HAS_OCARINA_C_UP, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+      RSBS_XFAMILY_SLOT_OCARINA_C_UP },
+    { "Ocarina C Down Button", "C-D", RAND_INF_HAS_OCARINA_C_DOWN, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+      RSBS_XFAMILY_SLOT_OCARINA_C_DOWN },
+    { "Ocarina C Left Button", "C-L", RAND_INF_HAS_OCARINA_C_LEFT, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+      RSBS_XFAMILY_SLOT_OCARINA_C_LEFT },
+    { "Ocarina C Right Button", "C-R", RAND_INF_HAS_OCARINA_C_RIGHT, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+      RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT },
+};
+// overworldKeyItems, drawn with the small key, and itemTrackerOverworldKeyShortNames.
+const FlagRow kOverworldKeyRows[] = {
+    FLAG_ROW("Guard House Key", "GUARD", RAND_INF_GUARD_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Market Bazaar Key", "MKBAZ", RAND_INF_MARKET_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Market Potion Shop Key", "MKPOT", RAND_INF_MARKET_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Mask Shop Key", "MASK", RAND_INF_MASK_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Market Shooting Gallery Key", "MKSHO", RAND_INF_MARKET_SHOOTING_GALLERY_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Bombchu Bowling Key", "BOWL", RAND_INF_BOMBCHU_BOWLING_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Treasure Chest Game Building Key", "TREASU", RAND_INF_TREASURE_CHEST_GAME_BUILDING_KEY_OBTAINED,
+             ITEM_KEY_SMALL),
+    FLAG_ROW("Bombchu Shop Key", "CHUSHO", RAND_INF_BOMBCHU_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Richards House Key", "RICH", RAND_INF_RICHARDS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Alley House Key", "ALLEY", RAND_INF_ALLEY_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Kak Bazaar Key", "KAKBAZ", RAND_INF_KAK_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Kak Potion Shop Key", "KAKPO", RAND_INF_KAK_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Boss House Key", "BOSS", RAND_INF_BOSS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Granny's Potion Shop Key", "GRANNY", RAND_INF_GRANNYS_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Skulltula House Key", "SKULL", RAND_INF_SKULLTULA_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Impa's House Key", "IMPAS", RAND_INF_IMPAS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Windmill Key", "WIND", RAND_INF_WINDMILL_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Kak Shooting Gallery Key", "KAKSHO", RAND_INF_KAK_SHOOTING_GALLERY_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Dampe's Hut Key", "DAMPES", RAND_INF_DAMPES_HUT_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Talon's House Key", "TALONS", RAND_INF_TALONS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Stables Key", "STABLE", RAND_INF_STABLES_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Back Tower Key", "TOWER", RAND_INF_BACK_TOWER_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Hylia Lab Key", "LAB", RAND_INF_HYLIA_LAB_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("Fishing Hole Key", "FISH", RAND_INF_FISHING_HOLE_KEY_OBTAINED, ITEM_KEY_SMALL),
+};
+
+#undef FLAG_ROW
+
+/** One gated group: its rows, shown while `option` is on (RSK_NONE: in any randomizer file). */
+struct GatedGroup {
+    const char* group;
+    const FlagRow* rows;
+    int count;
+    RandomizerSettingKey option;
+};
+
+#define GATED(group, rows, option) \
+    { group, rows, (int)(sizeof(rows) / sizeof(rows[0])), option }
+
+// SoH's main-window order (UpdateVectors): Greg, then the fishing pole, the bean souls, the boss souls, the
+// jabber nuts, the ocarina buttons and the overworld keys. The strings are the contract with the overlay's
+// DisplayType keys (ComboItemTrackerWindow.cpp kComboItemTrackerSohOptionalGroups): spell them exactly.
+const GatedGroup kGatedGroups[] = {
+    GATED("Greg", kGregRows, RSK_NONE),
+    GATED("Fishing Pole", kFishingPoleRows, RSK_SHUFFLE_FISHING_POLE),
+    GATED("Bean Souls", kBeanSoulRows, RSK_SHUFFLE_BEAN_SOULS),
+    GATED("Boss Souls", kBossSoulRows, RSK_SHUFFLE_BOSS_SOULS),
+    GATED("Jabber Nuts", kJabberNutRows, RSK_SHUFFLE_SPEAK),
+    GATED("Ocarina Buttons", kOcarinaButtonRows, RSK_SHUFFLE_OCARINA_BUTTONS),
+    GATED("Overworld Keys", kOverworldKeyRows, RSK_LOCK_OVERWORLD_DOORS),
+};
+
+#undef GATED
+
+/** Does the buffer's file show gated group `g`? A randomizer file whose frozen option is on. */
+bool OoTItemGroupShown(const SaveContext* src, const GatedGroup& g) {
+    return IS_RANDO && (g.option == RSK_NONE || OoTItemOption(g.option) != 0);
+}
+
+/** DrawItem's held test for a flag row: its randomizer-inf flag, except Ganon's soul, which SoH draws held
+ *  unless the file shuffles it (RO_BOSS_SOULS_ON_PLUS_GANON). */
+bool OoTItemFlagHeld(const SaveContext* src, const FlagRow& row) {
+    if (row.flag == RAND_INF_GANON_SOUL && OoTItemOption(RSK_SHUFFLE_BOSS_SOULS) != RO_BOSS_SOULS_ON_PLUS_GANON) {
+        return true;
+    }
+    return RandInfOf(src, row.flag);
+}
+
+/** The gated rows this buffer shows. */
+int OoTItemGatedRows(const SaveContext* src) {
+    int n = 0;
+    for (const GatedGroup& g : kGatedGroups) {
+        n += OoTItemGroupShown(src, g) ? g.count : 0;
+    }
+    return n;
+}
+
+/** Gated row `index` (0-based over the groups shown), or false past the last. */
+bool OoTItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
+    for (const GatedGroup& g : kGatedGroups) {
+        if (!OoTItemGroupShown(src, g)) {
+            continue;
+        }
+        if (index < g.count) {
+            const FlagRow& row = g.rows[index];
+            out->group = g.group;
+            out->name = row.name;
+            out->label = row.label;
+            out->iconKey = row.key;
+            out->iconKeyFaded = row.faded;
+            out->have = OoTItemFlagHeld(src, row);
+            out->sharedFamily = row.family;
+            return true;
+        }
+        index -= g.count;
+    }
+    return false;
+}
+
+/** SoH pads each optional section onto a fresh line of its main window (UpdateVectors); the dungeon tables
+ *  follow the songs. */
+bool OoTItemGroupOwnLine(const char* group) {
+    if (group == nullptr) {
+        return false;
+    }
+    for (const GatedGroup& g : kGatedGroups) {
+        if (std::strcmp(g.group, group) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // ---- the vtable ----------------------------------------------------------------
 
 int OoTItemCount(void) {
-    return kRowCount;
+    return kFixedRowCount;
+}
+
+int OoTItemCountFor(const void* buf) {
+    if (!Aligned(buf)) {
+        return kFixedRowCount;
+    }
+    return kFixedRowCount + OoTItemGatedRows(static_cast<const SaveContext*>(buf));
 }
 
 /** A created OoT file is in `buf`: the test the .redsave slot panel registers
@@ -533,18 +940,31 @@ uint32_t OoTItemSharedFamily(const RowDef& def) {
 }
 
 bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
-    if (!Aligned(buf) || out == nullptr || index < 0 || index >= kRowCount) {
+    if (!Aligned(buf) || out == nullptr || index < 0) {
         return false;
     }
     const SaveContext* src = static_cast<const SaveContext*>(buf);
     const uint8_t freshness = out->freshness; // the view's field; left alone
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
-    if (!Derive(src, kRows[index], out)) {
-        return false;
+    if (index < kRowCount) {
+        if (!Derive(src, kRows[index], out)) {
+            return false;
+        }
+        out->sharedFamily = OoTItemSharedFamily(kRows[index]);
+        return true;
     }
-    out->sharedFamily = OoTItemSharedFamily(kRows[index]);
-    return true;
+    index -= kRowCount;
+    if (index < kDungeonWithMapsCount) {
+        DeriveDungeonCell(src, kDungeonWithMaps[index], "Dungeon Items", out);
+        return true;
+    }
+    index -= kDungeonWithMapsCount;
+    if (index < kDungeonKeysOnlyCount) {
+        DeriveDungeonCell(src, kDungeonKeysOnly[index], "Dungeon Keys", out);
+        return true;
+    }
+    return OoTItemDeriveGated(src, index - kDungeonKeysOnlyCount, out);
 }
 
 } // namespace
@@ -585,6 +1005,12 @@ void OoTItemSharedIcon(uint8_t kind, uint16_t tier, ComboItemRow* row) {
             row->iconNumber = (int)CAPACITY(UPG_WALLET, tier > 3 ? 3 : tier);
             break;
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
+            if (tier == COMBO_ITEM_SHARED_ICON_HEART_PIECE) {
+                OOT_SHARED_ICON("ITEM_HEART_PIECE"); // the pooled pieces toward the next heart (#1159)
+            } else {
+                OOT_SHARED_ICON("ITEM_HEART_CONTAINER");
+            }
+            break;
         case RSBS_SHARED_RES_DOUBLE_DEFENSE: // OoT's tracker has no icon for it: MM's Rando shows a heart container
             OOT_SHARED_ICON("ITEM_HEART_CONTAINER");
             break;
@@ -727,7 +1153,7 @@ bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
             *out = ammoOf(ITEM_NUT);
             return true;
         case RSBS_SHARED_RES_HOOKSHOT_TIER: {
-            const u8 held = INV_CONTENT(ITEM_HOOKSHOT);
+            const u8 held = InvContentOf(src, ITEM_HOOKSHOT);
             *out = (held == ITEM_LONGSHOT) ? 2u : (held == ITEM_HOOKSHOT ? 1u : 0u);
             return true;
         }
@@ -741,11 +1167,18 @@ bool OoTItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
 } // namespace
 
 extern "C" void OoT_ItemAdapter_Register(void) {
-    // SoH's main window grid (kComboItemSohGrid): the 66 rows flow six a line,
-    // 11 lines, exactly DrawItemsInRows(mainWindowItems, 6).
+    // SoH's main window grid (kComboItemSohGrid's metrics): the 66 rows flow six
+    // a line, 11 lines, exactly DrawItemsInRows(mainWindowItems, 6), and each of
+    // SoH's optional sections starts a line of its own (#1142).
+    static const ComboItemGridStyle kOoTItemGrid = {
+        kComboItemSohGrid.cellPx,       kComboItemSohGrid.gapPx,
+        kComboItemSohGrid.columns,      kComboItemSohGrid.groupLines,
+        kComboItemSohGrid.groupColumns, kComboItemSohGrid.countStyle,
+        kComboItemSohGrid.lineGapPx,    OoTItemGroupOwnLine,
+    };
     static const ComboItemOps kOps = {
-        OoTItemCount,       OoTItemRowAt,      OoTItemHasSave, OoTItemLiveSave,   OoTItemPaused,
-        &kComboItemSohGrid, OoTItemSharedIcon, nullptr,        OoTItemSharedLive,
+        OoTItemCount,  OoTItemRowAt,      OoTItemHasSave,  OoTItemLiveSave,   OoTItemPaused,
+        &kOoTItemGrid, OoTItemSharedIcon, OoTItemCountFor, OoTItemSharedLive,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }
@@ -882,9 +1315,10 @@ extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits) 
  *  adapter has no guarded read (SoH 7a7f942b8: an item id past gItemSlots names
  *  no slot, and INV_CONTENT would index past the table). */
 extern "C" int OoT_ItemAdapter_TestInvContent(const void* buf, int item) {
-    (void)buf;
-    (void)item;
-    return -1;
+    if (!Aligned(buf)) {
+        return -1;
+    }
+    return (int)InvContentOf(static_cast<const SaveContext*>(buf), item);
 }
 
 /** OoT's gItemSlots length: an item id at or past it has no inventory slot. */

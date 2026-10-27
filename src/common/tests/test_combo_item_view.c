@@ -1461,6 +1461,12 @@ static bool CivKeyRowIs(const std::vector<ComboItemRow>& rows, const char* name,
 }
 
 static int CivOoTTrackerGroupLegs(const ComboItemOps* ops) {
+    // The legs after these read the shadow and the active game they inherit: both go back at the end.
+    std::vector<uint8_t> inherited((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    if (const uint8_t* resident = (const uint8_t*)Context_GetOoTSaveContext()) {
+        memcpy(inherited.data(), resident, inherited.size());
+    }
+    const GameId inheritedGame = Context_GetCurrentGame();
     std::vector<uint8_t> world((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
     std::vector<uint8_t> vanilla((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
     CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(world.data(), world.size(), 1) == 1);
@@ -1732,6 +1738,8 @@ static int CivOoTTrackerGroupLegs(const ComboItemOps* ops) {
     CIV_ASSERT(OoT_ItemAdapter_TestInvContent(world.data(), -1) == kItemNone);
 
     OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+    Context_UpdateShadowCopy(GAME_OOT, inherited.data(), inherited.size());
+    Context_SetCurrentGame(inheritedGame);
     return TEST_PASS;
 }
 
