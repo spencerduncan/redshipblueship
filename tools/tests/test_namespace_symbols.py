@@ -80,3 +80,62 @@ def test_rewrite_is_idempotent(tmp_path):
     path = tmp_path / "sample.cpp"
     namespace_symbols.namespace_file(path, SYMBOLS, "OoT")
     assert path.read_text(encoding="utf-8") == once == 'Gfx* dl = OoT_gEmptyDL; puts("gEmptyDL");\n'
+
+
+def test_digit_separator_is_not_a_char_literal(tmp_path):
+    # Read as char literals, the two separators would hide gPlayState between them.
+    src = "int n = 1'000 + gPlayState->x + 2'000; char c = 'x'; Actor_Spawn();\n"
+    out = _run(tmp_path, src, prefix="MM")
+    assert out == "int n = 1'000 + MM_gPlayState->x + 2'000; char c = 'x'; MM_Actor_Spawn();\n"
+
+
+def test_unterminated_quote_stops_at_the_line_end(tmp_path):
+    # An apostrophe in a preprocessor message must not swallow the next lines.
+    src = "#error can't build\nGfx* dl = gEmptyDL;\n"
+    assert _run(tmp_path, src) == "#error can't build\nGfx* dl = OoT_gEmptyDL;\n"
+
+
+def test_split_source_round_trips_real_sources():
+    repo = TOOL.parents[1]
+    for rel in (
+        "games/oot/soh/resource/importer/SkeletonLimbFactory.cpp",
+        "games/oot/soh/Enhancements/custom-message/CustomMessageManager.cpp",
+        "games/oot/src/code/gfxprint.c",
+    ):
+        text = (repo / rel).read_text(encoding="utf-8")
+        segments = namespace_symbols.split_source(text)
+        assert "".join(seg for _, seg in segments) == text, rel
+        assert any(kind == namespace_symbols.STRING for kind, _ in segments), rel
+
+
+def test_split_source_kinds():
+    # The // comment is spliced onto the next line by a backslash before CRLF;
+    # the raw string's prefix stays in the code segment.
+    text = 'a /*b*/ "c\\"d" \'e\' // f \\\r\n still f\ng R"z(h)" i)z" j'
+    kinds = [(k, s) for k, s in namespace_symbols.split_source(text) if k != namespace_symbols.CODE]
+    assert kinds == [
+        (namespace_symbols.COMMENT, "/*b*/"),
+        (namespace_symbols.STRING, '"c\\"d"'),
+        (namespace_symbols.CHAR, "'e'"),
+        (namespace_symbols.COMMENT, "// f \\\r\n still f"),
+        (namespace_symbols.STRING, '"z(h)" i)z"'),
+    ]
+    spliced = 'x = "ab\\\r\ncd"; y'
+    assert [s for k, s in namespace_symbols.split_source(spliced) if k == namespace_symbols.STRING] == [
+        '"ab\\\r\ncd"'
+    ]
+
+
+def test_audit_lists_prefixed_literals_and_skips_comments_by_default():
+    ns = namespace_symbols.SymbolNamespacer(SYMBOLS, "OoT")
+    text = (
+        'if (!strcmp(n, "OoT_gEmptyDL")) {}\n'
+        "// OoT_gEmptyDL in a comment\n"
+        'puts("OoT_gPlayStateX is not a symbol");\n'
+        "char c = 'P'; Gfx* g = OoT_gEmptyDL;\n"
+    )
+    assert ns.audit_literals(text) == [(1, namespace_symbols.STRING, '"OoT_gEmptyDL"')]
+    assert ns.audit_literals(text, include_comments=True) == [
+        (1, namespace_symbols.STRING, '"OoT_gEmptyDL"'),
+        (2, namespace_symbols.COMMENT, "// OoT_gEmptyDL in a comment"),
+    ]
