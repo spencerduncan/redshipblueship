@@ -1397,6 +1397,14 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # #1203: EnMnk_Destroy taught the vanilla Sonata whenever a tied-up monkey
+    # whose choice was answered unloaded, which the rando lesson skip's warp-out
+    # does, so every rando file learned a song the seed placed elsewhere. The
+    # give now asks VB_GIVE_ITEM_FROM_MNK_ON_DESTROY (Rando/ActorBehavior/
+    # EnMnk.cpp answers false under rando). Vanilla control, rando leg (+1
+    # registrant, no Sonata, EVENTINF_24 still cleared, no check re-armed).
+    # Pure (no display, no ROM).
+    redship_add_test(NAME MMMonkeyDestroySonata COMMAND redship --test mm-monkey-destroy-sonata)
     # Majora's Mask tree shuffle (#1121; upstream 2Ship's Tree Shuffle minus the
     # Gorman Track trees). MMTreeShuffle: the option defaults off, the page draws
     # its row after Shuffle Grass Drops, the 53 trees are one check type, sit in

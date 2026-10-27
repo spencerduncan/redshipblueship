@@ -314,6 +314,11 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// The monkey's destroy-time Sonata (games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp,
+// #1203): unloading the tied-up monkey after its choice teaches the Sonata in a
+// vanilla save only; a rando save gets the seed's item through the check and
+// no song. Needs the display-free shared bring-up first. Returns 0 on pass.
+int MM_MonkeyDestroySonata_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -5899,6 +5904,23 @@ static TestResult Test_MMSongTeacherHooks(void) {
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1203. Same bring-up as mm-song-teacher-hooks (the behaviour registrars read
+// CVars). Restores the SaveContext image and MM_gPlayState and re-runs
+// ActorBehavior::OnFileLoad on the way out, so it has no ordering constraints.
+static TestResult Test_MMMonkeyDestroySonata(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MonkeyDestroySonata_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Tree shuffle (#1121). Same display-free bring-up as mm-song-teacher-hooks: the
 // option table, the page view model and the hook registries are all in the
 // link, and the CVar store must exist.
@@ -7854,6 +7876,10 @@ const TestDescriptor gTests[] = {
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // #1203: the monkey's destroy-time Sonata is a vanilla-only give. Restores
+    // what it touches, so it has no ordering constraints.
+    { "mm-monkey-destroy-sonata", "Unloading the tied-up monkey teaches no Sonata in a rando save (#1203)",
+      Test_MMMonkeyDestroySonata },
     // Tree shuffle (#1121). After mm-registrar-coverage: mm-tree-shuffle runs the
     // irreversible MM_Rando_Init to fill the region graph. Both restore what
     // they write.
