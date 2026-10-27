@@ -10,6 +10,7 @@
  *  - MM_EnGirlA_TestForeignPurchase: the ForeignItemGiveShop row's purchase legs
  *    (src/common/tests/test_foreign_shop_mm.c);
  *  - MM_EnGirlA_TestHagsMushroomRearm: the same row's re-armed Hags leg;
+ *  - MM_EnGirlA_TestHagsDeliveredFreePotion: the same row's S7 leg (#1228);
  *  - MM_EnGirlA_TestForeignPurchaseOutboxFull: the ForeignOutboxFullMM row's
  *    shop leg (#1222, src/common/tests/test_foreign_outbox_full.c);
  *  - MM_EnBal_TestForeignPurchase: the same row's Tingle map legs (#800 pass 2),
@@ -35,6 +36,7 @@ extern "C" {
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 #include "overlays/actors/ovl_En_Ossan/z_en_ossan.h"
 #include "overlays/actors/ovl_En_Sob1/z_en_sob1.h"
+#include "overlays/actors/ovl_En_Trt/z_en_trt.h"
 }
 
 // src/common. Outside any extern "C" block: each header manages its own linkage.
@@ -274,6 +276,59 @@ extern "C" void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCross
            "the line arms again=%d\n",
            (unsigned)rc, Rando::Foreign::IsForeignCheck(rc) ? "foreign host" : "native", *outFirstArm, *outCrossed,
            *outLaterArm);
+    check = priorCheck;
+}
+
+// ============================================================================
+// TEST BRIDGE (ForeignItemGiveShop row, the S7 leg; #1228). The Hags' slot on a
+// LATER cycle, its OoT item delivered on an earlier one (`obtained`, survives the
+// reset; `cycleObtained` and the weekly flags cleared by it):
+//   1. the mushroom line (text 0x884) asks HagsMushroomLineArms, which must not
+//      arm the slot but must settle the cycle's free blue potion
+//      (WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
+//   2. the next visit picks the blue-potion shelf (SI_POTION_BLUE): EnTrt's own
+//      choice line for it (EnTrt_GetItemChoiceTextId) must be the shelf's rando
+//      sale line, not the free-potion line 0x881. 0x881's TEXT_STATE_EVENT branch
+//      offers the shelf's getItemId and waits on HasParent (z_en_trt.c
+//      EnTrt_SelectItem / EnTrt_BuyItemWithFanfare), and a rando shelf has none
+//      (GI_NONE: EnGirlA_RandoInit replaces the InitialUpdate that sets it), so
+//      the offer never completes.
+// Writes the arm (1/0), the flag (1/0) and the choice text id. The save check
+// and the weekly flag byte are restored.
+// ============================================================================
+extern "C" u16 EnTrt_GetItemChoiceTextId(EnTrt* enTrt);
+
+extern "C" void MM_EnGirlA_TestHagsDeliveredFreePotion(int* outArms, int* outFreePotionSettled, int* outChoiceTextId) {
+    const RandoCheckId rc = RC_HAGS_POTION_SHOP_ITEM_01;
+    const RandoSaveCheck priorCheck = RANDO_SAVE_CHECKS[rc];
+    const u8 priorWeekByte = WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION >> 8);
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    check.randoItemId = RI_JUNK;
+    check.shuffled = true;
+    check.obtained = true; // delivered on an earlier cycle
+    check.cycleObtained = false;
+    check.eligible = false;
+    CLEAR_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION); // the three-day reset
+
+    *outArms = Rando::ActorBehavior::HagsMushroomLineArms() ? 1 : 0;
+    *outFreePotionSettled = CHECK_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION) ? 1 : 0;
+
+    EnTrt* hag = (EnTrt*)calloc(1, sizeof(EnTrt));
+    EnGirlA* blueShelf = (EnGirlA*)calloc(1, sizeof(EnGirlA));
+    blueShelf->actor.params = SI_POTION_BLUE;
+    blueShelf->actor.world.rot.z = (s16)rc;
+    blueShelf->choiceTextId = 0x0840; // EnGirlA.cpp's RANDO_CHOICE_TEXT_ID, set by EnGirlA_RandoInit
+    hag->items[2] = blueShelf;
+    hag->cursorIndex = 2;
+    *outChoiceTextId = (int)EnTrt_GetItemChoiceTextId(hag);
+    printf("[TEST]   S7 Hags' slot %u (%s), delivered, a later cycle: the mushroom line arms=%d, settles the free "
+           "blue potion=%d; the blue-potion shelf's choice line=0x%03X (0x881 = the free potion, whose offer of a "
+           "rando shelf's GI_NONE never completes)\n",
+           (unsigned)rc, Rando::Foreign::IsForeignCheck(rc) ? "foreign host" : "native", *outArms,
+           *outFreePotionSettled, (unsigned)*outChoiceTextId);
+    free(blueShelf);
+    free(hag);
+    WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION >> 8) = priorWeekByte;
     check = priorCheck;
 }
 

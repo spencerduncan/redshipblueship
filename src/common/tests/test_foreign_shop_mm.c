@@ -31,6 +31,13 @@
  *     the line must not arm it again (it would offer and "find" the OoT item a
  *     second time while RecordForeignPickup refuses the crossing). A native slot
  *     still re-arms every cycle, as in 2Ship.
+ *  S7 THE HAGS' FREE BLUE POTION, DELIVERED SLOT (#1228): S6's not-arming line
+ *     returned before settling the cycle's free blue potion
+ *     (WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION), which the arming path sets. On a
+ *     later visit EnTrt then showed the free-potion line 0x881 for the blue-potion
+ *     shelf and offered the shelf's getItemId, which a rando shelf leaves at
+ *     GI_NONE, so the shop waited on an offer that never completes. The line must
+ *     settle the flag, so the shelf offers its own sale line (sold out).
  *
  * #800 pass 2, Tingle's map slots (RCTYPE_TINGLE_SHOP):
  *  T1 THE HOST CLASS: a Tingle map slot is a foreign host.
@@ -68,6 +75,7 @@ int MM_Rando_Foreign_TestCheckShopClass(uint16_t randoCheckId, int* outIsShop, i
 int MM_EnGirlA_TestForeignPurchase(uint16_t randoCheckId, int paired);
 uint16_t MM_EnGirlA_TestHagsMushroomCheck(void);
 void MM_EnGirlA_TestHagsMushroomRearm(int* outFirstArm, int* outCrossed, int* outLaterArm);
+void MM_EnGirlA_TestHagsDeliveredFreePotion(int* outArms, int* outFreePotionSettled, int* outChoiceTextId);
 uint16_t MM_EnBal_TestTingleMapCheck(void);
 int MM_EnBal_TestForeignPurchase(uint16_t randoCheckId, int paired, const char* wantName);
 void MM_ForeignModel_TestSetMountOverride(int value);
@@ -226,6 +234,16 @@ TestResult Test_ForeignItemGiveShop(void) {
     MM_EnGirlA_TestHagsMushroomRearm(&nativeFirst, &nativeCrossed, &nativeLater);
     ComboContext_Init();
 
+    // ---- S7: the Hags' delivered slot on a later cycle settles the free potion (#1228)
+    Combo_ClearSharedItemOutbox();
+    ShopTestPair();
+    FS_ASSERT(Combo_SetForeignPlacement(hagsCheck, hammer) >= 0, "S7 placement accepted");
+    int hagsDeliveredArms = -1;
+    int hagsFreePotionSettled = -1;
+    int hagsBlueChoiceText = -1;
+    MM_EnGirlA_TestHagsDeliveredFreePotion(&hagsDeliveredArms, &hagsFreePotionSettled, &hagsBlueChoiceText);
+    ComboContext_Init();
+
     // ---- T1-T3: Tingle's map slots (#800 pass 2) -------------------------------------
     const uint16_t tingleCheck = MM_EnBal_TestTingleMapCheck();
     int tingleIsShop = -1;
@@ -275,6 +293,12 @@ TestResult Test_ForeignItemGiveShop(void) {
                               "(see the S6 lines above)");
     FS_ASSERT(nativeFirst == 1 && nativeCrossed == 0 && nativeLater == 1,
               "S6 a native Hags' slot still re-arms every cycle (see the S6 lines above)");
+    FS_ASSERT(hagsDeliveredArms == 0 && hagsFreePotionSettled == 1,
+              "S7 a later cycle's mushroom line settles the free blue potion for a Hags' slot whose OoT item was "
+              "delivered, though it does not arm it (see the S7 line above)");
+    FS_ASSERT(hagsBlueChoiceText == 0x0840,
+              "S7 the blue-potion shelf then offers its own sale line, not the free-potion line 0x881 whose offer of "
+              "the shelf's GI_NONE never completes (#1228; see the S7 line above)");
     FS_ASSERT(tingleHost == 1, "T1 a Tingle map slot is a foreign host class");
     FS_ASSERT(tinglePaired == 0, "T2 Tingle's offer names the OoT item, sells it once and hands it to the shared "
                                  "structure (see the T-line above; 1 = offer names the cover, 4 = nothing crossed, "

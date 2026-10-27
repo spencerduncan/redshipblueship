@@ -84,6 +84,10 @@ bool Rando::ActorBehavior::HagsMushroomSlotArmable() {
     return true;
 }
 
+bool Rando::ActorBehavior::HagsMushroomLineArms() {
+    return HagsMushroomSlotArmable();
+}
+
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
 static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
@@ -491,7 +495,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         RandoCheckId randoCheckId = RC_HAGS_POTION_SHOP_ITEM_01;
         auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
-        if (!Rando::ActorBehavior::HagsMushroomSlotArmable()) {
+        if (!Rando::ActorBehavior::HagsMushroomLineArms()) {
             return;
         }
 
