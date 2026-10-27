@@ -90,6 +90,10 @@
  *      sentence), and a table that lists a pointer FIRST draws no note under the
  *      then-empty heading (7d).
  *
+ *  11. (#1235) MM's AMBIENCE VOLUME HAS NO CONTROL. Leg 8 builds SoH's own
+ *      Settings page and requires the ambience slider right after Sound Effects
+ *      Volume, in SoH's slider shape, bound to the shared key.
+ *
  * WHAT IT DOES NOT COVER. Whether an enabled toggle changes the game. That needs
  * a ROM, a play state and an operator; the ROM-free half of it is
  * MMEnhancementToggles' registry-content evidence, and the rest is a playtest.
@@ -984,6 +988,57 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             printf("[TEST] leg 7d: a table listing a pointer first draws its note in the pointer's group only (%zu "
                    "note, none under the empty heading)\n",
                    first.notesShown);
+        }
+    }
+
+    // ---- Leg 8 (#1235): Settings > Audio holds MM's ambience slider -----------
+    // MM's fifth sequence player (wind, birds, night sounds) has no OoT twin, so nothing in the single exe wrote its
+    // key: MM_AudioMgr_Init reads RSBS_CVAR_VOLUME_AMBIENCE and only shipofharkinian.json could set it. The row is
+    // SoH's slider in SoH's shape (0-100 percent, default 100, the family's spelling), right after SoH's Sound Effects
+    // Volume and in its column, built here through SoH's own AddMenuSettings so the page is SoH's page.
+    {
+        MmEnhancementMenuProbe settingsProbe;
+        settingsProbe.AddMenuSettings();
+        auto& settingsEntries = settingsProbe.Entries();
+        if (!settingsEntries.contains("Settings") || !settingsEntries.at("Settings").sidebars.contains("Audio")) {
+            printf("[TEST] FAIL(8): AddMenuSettings registered no Settings > Audio page\n");
+            gFailures++;
+        } else {
+            std::vector<FlatRow> audioRows = FlattenRows(settingsEntries.at("Settings").sidebars.at("Audio"));
+            const long sfx = IndexOfRow(audioRows, RSBS_CVAR_VOLUME_SFX, nullptr);
+            const long ambience = IndexOfRow(audioRows, RSBS_CVAR_VOLUME_AMBIENCE, nullptr);
+            MME_CHECK(sfx >= 0, "Settings > Audio has no Sound Effects Volume row bound to %s", RSBS_CVAR_VOLUME_SFX);
+            MME_CHECK(ambience >= 0,
+                      "Settings > Audio has no row bound to %s: MM's ambience volume has no control in the single "
+                      "exe, so only a hand-edited config can set it",
+                      RSBS_CVAR_VOLUME_AMBIENCE);
+            if (sfx >= 0 && ambience >= 0) {
+                WidgetInfo& row = *audioRows[(size_t)ambience].info;
+                MME_CHECK(ambience == sfx + 1 && audioRows[(size_t)ambience].column == audioRows[(size_t)sfx].column,
+                          "the ambience row is row %ld (column %u); it belongs right after Sound Effects Volume (row "
+                          "%ld, column %u)",
+                          ambience, audioRows[(size_t)ambience].column, sfx, audioRows[(size_t)sfx].column);
+                MME_CHECK(row.type == WIDGET_CVAR_SLIDER_INT,
+                          "the ambience row is widget type %d, not SoH's int slider", (int)row.type);
+                if (row.type == WIDGET_CVAR_SLIDER_INT && row.options != nullptr) {
+                    const auto opts = std::static_pointer_cast<UIWidgets::IntSliderOptions>(row.options);
+                    MME_CHECK(opts->min == 0 && opts->max == 100 && opts->defaultValue == 100,
+                              "the ambience slider is %d-%d with default %d; the volume family is 0-100 percent with "
+                              "default 100 (MM_AudioMgr_Init's read default)",
+                              opts->min, opts->max, opts->defaultValue);
+                }
+                const std::string tip = row.options != nullptr && row.options->tooltip != nullptr
+                                            ? std::string(row.options->tooltip)
+                                            : std::string();
+                const std::string caveat = " Majora's Mask only.";
+                MME_CHECK(tip.size() > caveat.size() &&
+                              tip.compare(tip.size() - caveat.size(), caveat.size(), caveat) == 0,
+                          "the ambience row's tooltip \"%s\" does not end with the \"Majora's Mask only.\" caveat",
+                          tip.c_str());
+            }
+            printf("[TEST] leg 8: Settings > Audio holds MM's ambience slider right after Sound Effects Volume (row "
+                   "%ld after row %ld)\n",
+                   ambience, sfx);
         }
     }
 

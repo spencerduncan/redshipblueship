@@ -1120,6 +1120,12 @@ if(BUILD_TESTING)
     # it the no-op the thread's silence contract already assumes. Locks the
     # no-op via the producer's task counter (see test_oot_audio_init_guard.c).
     redship_add_test(NAME OoTAudioInitGuard COMMAND redship --test oot-audio-init-guard)
+    # MM live volume apply (#1235). MM reads the five volume keys only in MM_AudioMgr_Init,
+    # once per bring-up, and SoH's slider callbacks moved only OoT's players, so a slider
+    # moved after MM's first init reached MM after a restart. Drives the bridge's
+    # reapply with MM's audio down (a no-op) and up (each player at its key's percent).
+    # Display-free and ROM-free: the port scales are floats in MM's static audio context.
+    redship_add_test(NAME MMVolumeLiveApply COMMAND redship --test mm-volume-live-apply)
     # Gameplay round-trip phase watchdog (#376 item 4). The round-trip repro it
     # guards is ROM-gated, but the watchdog decision is pure — this row proves,
     # ROM-free, that the budget is wall-clock and stays under the CTest TIMEOUT
