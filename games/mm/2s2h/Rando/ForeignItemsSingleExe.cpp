@@ -89,6 +89,8 @@
 #include <cstring>
 #include <string>
 
+#include <spdlog/spdlog.h>
+
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
@@ -316,7 +318,7 @@ extern "C" int MM_ForeignItem_FlushPending(void) {
     sPendingCount = 0;
 
     for (int i = 0; i < count; i++) {
-        fprintf(stderr, "[MM] foreign give (deferred to gameplay): RI id=%u\n", (unsigned)drained[i]);
+        SPDLOG_INFO("[MM] foreign give (deferred to gameplay): RI id={}", (unsigned)drained[i]);
         GiveNow(drained[i], drainedAnnounce[i]);
     }
     return count;

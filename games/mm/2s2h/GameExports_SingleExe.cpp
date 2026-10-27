@@ -34,6 +34,7 @@
 #include <vector>
 
 #include <ship/Context.h>
+#include <spdlog/spdlog.h>
 #include <ship/window/Window.h>
 
 #include "game_lifecycle.h"
@@ -4760,12 +4761,13 @@ static void MM_AwardSharedItem(const SharedItem* item, void* ctx) {
     // before. A SOURCED grant keeps the give, whose toast is its only
     // presentation.
     if (!sourced && MM_CreditSharedPickup(item) != 0) {
-        fprintf(stderr, "[MM] shared-item redeem: RI id=%u credited to the shared pool (#1061)\n", (unsigned)item->id);
+        SPDLOG_INFO("[MM] shared-item redeem: RI id={} credited to the shared pool (#1061)", (unsigned)item->id);
         return;
     }
     int given = MM_ForeignItem_Give(item->id, sourced ? 1 : 0);
-    fprintf(stderr, "[MM] shared-item redeem: RI id=%u %s (Lane 6 foreign give)\n", (unsigned)item->id,
-            given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
+    // Through spdlog (#1203 forensics): an uploaded log has to show redemptions.
+    SPDLOG_INFO("[MM] shared-item redeem: RI id={} {} (Lane 6 foreign give)", (unsigned)item->id,
+                given ? "awarded or queued for the next gameplay frame" : "NOT awarded — no such MM item");
 }
 
 /**
