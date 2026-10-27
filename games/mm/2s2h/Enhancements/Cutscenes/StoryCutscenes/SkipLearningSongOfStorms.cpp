@@ -23,7 +23,11 @@ void RegisterSkipLearningSongOfStorms() {
         RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         if (MM_gPlayState->sceneId == SCENE_HAKASHITA && *csId == 13) { // Z-Target Flat's tombstone Beneath the Graveyard
             if (IS_RANDO) {
-                RANDO_SAVE_CHECKS[RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS].eligible = true;
+                // #1220: Bg_Haka_Tomb starts this cutscene again after a room re-entry; arm the check only while it
+                // is still open this cycle (CheckQueue gives any eligible check). The cutscene stays skipped.
+                if (!RANDO_SAVE_CHECKS[RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS].cycleObtained) {
+                    RANDO_SAVE_CHECKS[RC_BENEATH_THE_GRAVEYARD_SONG_OF_STORMS].eligible = true;
+                }
             } else {
                 MM_GameEvents_Queue().emplace_back(GIEventGiveItem{
                     .showGetItemCutscene = Rando::StaticData::StoryGiveShowsGetItemCutscene(),

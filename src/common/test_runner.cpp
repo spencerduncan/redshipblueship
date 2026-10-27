@@ -317,6 +317,17 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
+// a rupee that stands in for an open check is not given on top of it (#1216).
+// Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
+// play state. Needs the display-free shared bring-up first. Return 0 on pass.
+int MM_GalleryRupeeStandIn_RunHeadless(void);
+// Same TU: the Doggy Racetrack reward follows the vanilla selector and is
+// given once per cycle (#1219).
+int MM_DoggyRaceReward_RunHeadless(void);
+// Same TU: the Deku Playground, the lab fish and Flat's tomb arm their check
+// once per cycle (#1220).
+int MM_MinigameRepeatGuards_RunHeadless(void);
 // The monkey's destroy-time Sonata (games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp,
 // #1203): unloading the tied-up monkey after its choice teaches the Sonata in a
 // vanilla save only; a rando save gets the seed's item through the check and
@@ -5963,6 +5974,55 @@ static TestResult Test_MMSongTeacherHooks(void) {
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
+// the SaveContext image and MM_gPlayState and re-runs OnFileLoad on the way
+// out, so it has no ordering constraints.
+static TestResult Test_MMGalleryRupeeStandIn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_GalleryRupeeStandIn_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1219. Same bring-up and cleanup as mm-gallery-rupee-stand-in.
+static TestResult Test_MMDoggyRaceReward(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_DoggyRaceReward_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1220. Same bring-up and cleanup as mm-gallery-rupee-stand-in, plus the
+// ShipInit "IS_RANDO" drive and the Story CVar, restored like
+// mm-song-teacher-hooks does.
+static TestResult Test_MMMinigameRepeatGuards(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MinigameRepeatGuards_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1203. Same bring-up as mm-song-teacher-hooks (the behaviour registrars read
 // CVars). Restores the SaveContext image and MM_gPlayState and re-runs
 // ActorBehavior::OnFileLoad on the way out, so it has no ordering constraints.
@@ -7986,6 +8046,14 @@ const TestDescriptor gTests[] = {
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // The MM rando minigame reward hooks (#1216). Restores everything it touches.
+    { "mm-gallery-rupee-stand-in",
+      "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
+      Test_MMGalleryRupeeStandIn },
+    { "mm-doggy-race-reward", "The Doggy Racetrack reward follows the vanilla selector, once per cycle (#1219)",
+      Test_MMDoggyRaceReward },
+    { "mm-minigame-repeat-guards", "The Deku Playground, lab fish and Song of Storms checks arm once per cycle (#1220)",
+      Test_MMMinigameRepeatGuards },
     // #1203: the monkey's destroy-time Sonata is a vanilla-only give. Restores
     // what it touches, so it has no ordering constraints.
     { "mm-monkey-destroy-sonata", "Unloading the tied-up monkey teaches no Sonata in a rando save (#1203)",

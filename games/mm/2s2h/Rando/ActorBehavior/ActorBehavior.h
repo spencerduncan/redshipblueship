@@ -35,6 +35,13 @@ bool HagsMushroomSlotArmable();
 // whether a purchase of it is refused as "already have".
 std::string TingleOfferedItemName(RandoCheckId rc);
 bool TingleMapSlotSold(RandoCheckId rc);
+// The Beaver Bros (EnAz.cpp, #1216): a race reward offer `getItemId` stands in for
+// one of the two race checks, so the hook replaces it instead of letting the
+// vanilla give through.
+bool EnAzOfferStandsInForCheck(GetItemId getItemId);
+// The Marine Research Lab fish (EnFish2.cpp, #1220): a completed feeding spawns
+// the pickup for RC_GREAT_BAY_COAST_MARINE_LAB_FISH_PIECE_OF_HEART.
+bool Fish2ShouldOfferCheck();
 
 void InitDmChar01Behavior();
 void InitDmChar05Behavior();

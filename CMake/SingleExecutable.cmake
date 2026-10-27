@@ -1413,6 +1413,25 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
+    # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
+    # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's
+    # quiver flag (its high-score check's own flag) is clear, the rupee a maxed
+    # quiver falls through to stands in for that check and is not given on top
+    # of it; repeats keep their rupee; the beavers' race-1 Red Rupee likewise.
+    # Pure (no display, no ROM).
+    redship_add_test(NAME MMGalleryRupeeStandIn COMMAND redship --test mm-gallery-rupee-stand-in)
+    # MMDoggyRaceReward (#1219): the Doggy Racetrack's first win of a cycle is
+    # hijacked with no rupee of the hook's own (the HasParent flag set arms the
+    # check), a repeat win with the check spent keeps the vanilla Red Rupee and
+    # does not re-arm it, and an unshuffled check keeps its heart piece.
+    redship_add_test(NAME MMDoggyRaceReward COMMAND redship --test mm-doggy-race-reward)
+    # MMMinigameRepeatGuards (#1220): the Deku Playground's any-day check, the
+    # Marine Research Lab fish and Flat's tomb (Song of Storms, a ShipInit
+    # IS_RANDO registrar) arm their check only while it is still open this
+    # cycle; a repeat keeps the vanilla Purple Rupee, nothing, and a skipped
+    # cutscene respectively.
+    redship_add_test(NAME MMMinigameRepeatGuards COMMAND redship --test mm-minigame-repeat-guards)
     # #1203: EnMnk_Destroy taught the vanilla Sonata whenever a tied-up monkey
     # whose choice was answered unloaded, which the rando lesson skip's warp-out
     # does, so every rando file learned a song the seed placed elsewhere. The
