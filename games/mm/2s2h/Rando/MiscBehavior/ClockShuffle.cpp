@@ -140,20 +140,13 @@ constexpr u16 DAY_0_0559_TIME = CLOCK_TIME(6, 0) - 1; // Day 0, 5:59 AM - Cycle 
 // Vanilla uses CLOCK_TIME(6, 0) - 1 = 16383, NOT CLOCK_TIME(5, 59) = 16338 for cycle resets
 // This 45-unit difference has to be accounted for.
 
-// ============================================================================
-// TERMINAL TIME HELPER FUNCTIONS
-// ============================================================================
-
-// Convert slider minutes (0-359) to CLOCK_TIME format
-u16 MinutesToClockTime(int minutes) {
-    return CLOCK_TIME(0, minutes); // 00:00 + minutes
-}
-
-// Get the configured terminal state time from the saved rando option
-u16 GetConfiguredTerminalTime() {
-    int terminalMinutes = RANDO_SAVE_OPTIONS[RO_CLOCK_TERMINAL_TIME];
-    return MinutesToClockTime(terminalMinutes);
-}
+// RSBS (#1229): no "Final Hours" window. 2Ship gave a file that ran out of
+// owned half-days Day 3 from RO_CLOCK_TERMINAL_TIME (00:00 by default) to dawn,
+// a slice of Night 3 the file does not own. The combo follows OoTMM instead: an
+// unowned half-day is never playable, and when no owned half-day is left the
+// moon falls at the end of the last owned one (OoTMM's EnTest4_TimeSkip and
+// Time_LinearMoonCrash). RO_CLOCK_TERMINAL_TIME keeps its stored byte and its
+// (retired) menu row; nothing reads its value.
 
 // Configuration for each half-day's timing and behavior
 constexpr HalfDayTimeConfig HALF_DAY_CONFIGS[] = {
@@ -186,24 +179,6 @@ inline bool IsNightTime(u16 time) {
     return (time < GAME_TIME_DAY_START) || (time >= GAME_TIME_NIGHT_START);
 }
 
-// Check if a given day/time is in the configured terminal state range
-bool IsInTerminalRange(s32 day, u16 time) {
-    if (day != 3) {
-        return false;
-    }
-
-    u16 terminalTime = GetConfiguredTerminalTime();
-
-    // Terminal range spans from terminal time until 6:00 AM (may wrap around midnight)
-    if (terminalTime >= DUSK_TIME) {
-        // Terminal starts in evening (18:00-23:59), range wraps through midnight to dawn
-        return (time >= terminalTime) || (time < DAWN_TIME);
-    } else {
-        // Terminal starts after midnight (0:00-5:59), range goes until dawn
-        return (time >= terminalTime && time < DAWN_TIME);
-    }
-}
-
 // Calculate half-day index from day/time (extracted for reuse)
 int GetHalfDayIndexFromTime(s32 day, u16 time) {
     if (day < 1)
@@ -226,12 +201,6 @@ int GetCurrentHalfDayIndex() {
     // The game uses Day 0 as a transition before placing the player at the correct half-day.
     if (currentDay == 0) {
         return ClockItems::TERMINAL_STATE; // Signal: handle Day 0 as a reset/redirect.
-    }
-
-    // This is what ClockShuffle treats as a "buffer" period before the moon crash.
-    // The buffer length is now configurable via RO_CLOCK_TERMINAL_TIME.
-    if (IsInTerminalRange(currentDay, currentTime)) {
-        return ClockItems::TERMINAL_STATE;
     }
 
     const bool isNight = IsCurrentlyNightTime(currentTime);
@@ -327,7 +296,8 @@ void ForceSceneReload() {
 // - prevTime = newTime - 1 minute
 //
 // Additional features:
-// - Terminal state: If no owned clocks, jump to configured terminal time (not Day 4)
+// - Terminal state: If no owned half-day is left, the moon falls at the end of the
+//   last owned one (RSBS #1229, OoTMM's rule; 2Ship jumped to a "Final Hours" time)
 // - RandoInf flags for tracking owned half-days
 // - GameInteractor hooks for seamless integration
 
@@ -336,11 +306,6 @@ void ForceSceneReload() {
 bool ShouldSkipTime(s32 day, u16 time, int* outNextHalfDay) {
     // Early exits
     if (MM_gPlayState->envCtx.sceneTimeSpeed == 0 || MM_Play_InCsMode(MM_gPlayState) || day >= 4) {
-        return false;
-    }
-
-    // Check terminal range
-    if (IsInTerminalRange(day, time)) {
         return false;
     }
 
@@ -364,15 +329,13 @@ bool ShouldSkipTime(s32 day, u16 time, int* outNextHalfDay) {
 }
 
 // Apply time skip to target half-day (extracted helper)
+// RSBS (#1229): TERMINAL_STATE (6) takes the generic path, as OoTMM's
+// EnTest4_TimeSkip does: Day 4 at 06:00, daytimeIndex NIGHT, then the day-- below
+// leaves Day 3 at 06:00 with prevTime 05:59, so vanilla EnTest4_HandleEvents sees
+// the dawn of Day 3 and starts the moon crash on this frame.
 void ApplyTimeSkip(int nextHalfDay, EnTest4* enTest4) {
     s32 day = (nextHalfDay / 2) + 1;
     u16 time = (nextHalfDay & 1) ? GAME_TIME_NIGHT_START : GAME_TIME_DAY_START;
-
-    // Terminal state override
-    if (nextHalfDay == ClockItems::TERMINAL_STATE) {
-        day = 3;
-        time = GetConfiguredTerminalTime();
-    }
 
     // Apply time change
     gSaveContext.save.day = day;
@@ -381,15 +344,11 @@ void ApplyTimeSkip(int nextHalfDay, EnTest4* enTest4) {
     // Update actor state
     enTest4->daytimeIndex = IsCurrentlyNightTime(time) ? 1 : 0;
 
-    // Handle scene reload for time-sensitive scenes
-    if (SceneNeedsReloadForTimeSkip(MM_gPlayState->sceneId)) {
+    // Handle scene reload for time-sensitive scenes. Never for the moon crash:
+    // the reload returns before the day-- below and would leave Day 4 at 06:00,
+    // which no EnTest4 path turns into a crash.
+    if (nextHalfDay != ClockItems::TERMINAL_STATE && SceneNeedsReloadForTimeSkip(MM_gPlayState->sceneId)) {
         ForceSceneReload();
-        enTest4->prevTime = time - CLOCK_TIME(0, 1);
-        return;
-    }
-
-    // Terminal state handling
-    if (nextHalfDay == ClockItems::TERMINAL_STATE) {
         enTest4->prevTime = time - CLOCK_TIME(0, 1);
         return;
     }
@@ -454,8 +413,6 @@ bool IsTimeOwnedForClockShuffle(s32 day, u16 time) {
 
     if (day < 1 || day > 3)
         return true;
-    if (IsInTerminalRange(day, time))
-        return true;
 
     int halfDayIndex = GetHalfDayIndexFromTime(day, time);
     return OwnsClockHalfDay(halfDayIndex);
@@ -463,11 +420,6 @@ bool IsTimeOwnedForClockShuffle(s32 day, u16 time) {
 
 // Get a formatted description of a time period for error messages
 std::string GetTimeDescriptionForMessage(s32 day, u16 time) {
-    // Handle terminal state
-    if (IsInTerminalRange(day, time)) {
-        return "%rFinal Hours%w";
-    }
-
     // Determine if this is night time
     bool isNight = IsCurrentlyNightTime(time);
 
@@ -526,7 +478,8 @@ void ProcessClockShuffleMessage(u16* textId, bool* loadFromMessageTable, bool is
 
     std::string destinationText;
     if (targetHalfDay == ClockItems::TERMINAL_STATE) {
-        destinationText = "%rFinal Hours%w";
+        // RSBS (#1229): no owned half-day is left, so what lies ahead is the moon.
+        destinationText = "%rthe Moon's Fall%w";
     } else {
         // Convert half-day index to readable text
         int targetDay = (targetHalfDay / 2) + 1;
@@ -615,23 +568,8 @@ void OnFileLoad() {
             }
         }
 
-        // Add final hours based on configured terminal time if we're in terminal state
-        // OR if we don't own Night 3 (which means we'll end up in terminal state)
-        bool shouldIncludeTerminalHours =
-            (GetCurrentHalfDayIndex() == ClockItems::TERMINAL_STATE) || !OwnsClockHalfDay(ClockItems::HALF_DAY3_NIGHT);
-
-        if (shouldIncludeTerminalHours) {
-            // Calculate remaining hours from configured terminal time to 6:00 AM
-            u16 terminalTime = GetConfiguredTerminalTime();
-
-            // Calculate time difference (terminal time to dawn)
-            u32 terminalZeroed = ZERO_DAY_START(terminalTime);
-            u32 timeDiff = (DAY_LENGTH - terminalZeroed) % DAY_LENGTH;
-
-            // Convert to hours (round up to ensure we don't under-calculate)
-            u32 terminalHours = (timeDiff + CLOCK_TIME_HOUR - 1) / CLOCK_TIME_HOUR;
-            totalHours += terminalHours;
-        }
+        // RSBS (#1229): no Final Hours term. With no owned half-day left the moon
+        // falls at the end of the last owned one, so only owned half-days count.
 
         u32 ownedTime = totalHours * CLOCK_TIME_HOUR;
 
@@ -654,10 +592,10 @@ void OnFileLoad() {
         int nextHalfDay = ClockItems::FindNextOwnedHalfDayAfter(currentHalfDay, ownedHalfDaysMask);
 
         if (nextHalfDay == ClockItems::TERMINAL_STATE) {
-            // Jump to terminal time
-            gSaveContext.save.day = 3;
-            gSaveContext.save.time = GetConfiguredTerminalTime();
-            gSaveContext.respawnFlag = -8; // No daytelop for terminal
+            // RSBS (#1229): no owned half-day ahead, and no Final Hours to jump
+            // to. The clock stays where it is (OoTMM's selector stays put too);
+            // the dance's respawn reloads the scene with no daytelop.
+            gSaveContext.respawnFlag = -8;
         } else {
             // Get target half-day configuration
             const HalfDayTimeConfig* config = GetHalfDayTimeConfig(nextHalfDay);

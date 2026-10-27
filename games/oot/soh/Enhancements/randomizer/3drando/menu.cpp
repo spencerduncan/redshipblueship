@@ -1290,6 +1290,61 @@ extern "C" int Rando_ValidatePairedWorldHints(void) {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 /**
+ * #1187, ComboSingleBag leg H: the caller has created a paired world with Mido's
+ * Hint and Boss Door Hints on and run Rando_ValidatePairedWorldHints over it. The
+ * seven hints those settings enable (CreateStaticHintFromData over
+ * staticHintInfoMap) are all generated, and each slot whose item the single bag
+ * put in Termina (PushTerminaSlot) names, in the text a player reads, the MM area
+ * of that item's first MM host. P6 checks the slot's stored area; this checks the
+ * words.
+ * @param outTermina  the Termina slots among the seven (0 leaves the words unproven).
+ * @return the failures.
+ */
+extern "C" int Rando_TestMidoBossDoorHints(int* outTermina) {
+    auto ctx = Rando::Context::GetInstance();
+    int failures = 0;
+    int termina = 0;
+    const RandomizerHint keys[] = { RH_MIDO_HINT,           RH_FOREST_BOSS_KEY_HINT, RH_FIRE_BOSS_KEY_HINT,
+                                    RH_WATER_BOSS_KEY_HINT, RH_SPIRIT_BOSS_KEY_HINT, RH_SHADOW_BOSS_KEY_HINT,
+                                    RH_GANONS_BOSS_KEY_HINT };
+    for (const RandomizerHint key : keys) {
+        const std::string label = Rando::StaticData::hintNames[key].GetForCurrentLanguage(MF_CLEAN);
+        Rando::Hint* hint = ctx->GetHint(key);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            fprintf(stderr, "[rando-hints] FAIL %s: not generated although its setting is on (#1187)\n",
+                    label.c_str());
+            failures++;
+            continue;
+        }
+        const std::vector<RandomizerArea> areas = hint->GetHintedAreas();
+        const std::vector<RandomizerGet> slotItems = TerminaSlotItemsOf(key, *hint);
+        const std::string text = JoinMessages(hint->GetAllMessageStrings(MF_CLEAN));
+        fprintf(stderr, "[rando-hints] %s: \"%s\"\n", label.c_str(), text.c_str());
+        for (size_t ai = 0; ai < areas.size(); ai++) {
+            if (areas[ai] != RA_TERMINA) {
+                continue;
+            }
+            termina++;
+            const RandomizerGet item = ai < slotItems.size() ? slotItems[ai] : RG_NONE;
+            const std::string expected = ForeignAreaLabel(ExpectedForeignArea(item));
+            const std::string itemName =
+                item == RG_NONE ? std::string("?") : Rando::StaticData::RetrieveItem(item).GetName().GetEnglish();
+            fprintf(stderr, "[rando-hints] %s: %s is in Termina, in \"%s\"\n", label.c_str(), itemName.c_str(),
+                    expected.c_str());
+            if (item == RG_NONE || expected == "?" || text.find(expected) == std::string::npos) {
+                fprintf(stderr, "[rando-hints] FAIL %s: Termina slot %zu does not name \"%s\" (#1187)\n",
+                        label.c_str(), ai, expected.c_str());
+                failures++;
+            }
+        }
+    }
+    if (outTermina != nullptr) {
+        *outTermina = termina;
+    }
+    return failures;
+}
+
+/**
  * #575 H3b, ComboSingleBag D2b: the caller has generated a SOLO world (OoT's native
  * general pass) after a paired creation, so the crossing store still holds the
  * paired world's crossings (it outlives its creation) while the hints are this

@@ -512,6 +512,11 @@ if(SINGLE_EXECUTABLE_BUILD)
         # guard. Held APART from SoH's gEnhancements.DamageMult, whose value space differs: the row that writes MM's
         # key is hosted beside SoH's on Enhancements > Difficulty. RegisterDamageMultiplier has no twin in games/oot)
         "2s2h/Enhancements/DifficultyOptions/DamageMultiplier.cpp"
+        # #1215, #1221: deliberately NOT listed: Cheats/UnbreakableRazorSword.cpp, Cycle/EndOfCycle.cpp,
+        # Cycle/OceansideWalletAnyDay.cpp and Cycle/OceansideSpiderHouseSquatter.cpp. Each registers a `CVAR || IS_RANDO`
+        # gate, but its CVar has no shared-menu row (the #966 class), so only the IS_RANDO half is ported, into the
+        # WHOLE_ARCHIVE rando archive: Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp (the Razor
+        # restore). Linking one of the four here would register its rando gate a second time.
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

@@ -31,6 +31,21 @@
  *     (6) The load-time restore: a file frozen ON loaded with the key off is
  *         RESTORABLE and the restore writes the key back.
  *
+ *   mm-cycle-razor-sword (redship tier, ROM-free; #1215). The rando's own
+ *   cycle-save path keeps the seed's Razor Sword through the three-day reset.
+ *   Rando is armed through the production path (saveType SAVETYPE_RANDO, then
+ *   Rando::MiscBehavior::OnFileLoad, which OnSaveLoadHandler runs on every MM
+ *   load), and the reset is the same headless Sram_SaveEndOfCycle as above.
+ *     (a) Razor on B, swordHealth 60: still the Razor after the Song of Time
+ *         (vanilla's wipe writes the Kokiri Sword over it).
+ *     (b) No sword, Takkuri holding the Razor (STOLEN_ITEM_1): the Razor back.
+ *     (c) No sword and nothing stolen: still no sword (the rando's existing
+ *         no-sword override, kept).
+ *     (d) Control: a vanilla save holding the Razor drops to the Kokiri Sword.
+ *   It names nothing 2s2h/Enhancements/Cycle/EndOfCycle.cpp defines: that TU
+ *   is kept out of the single exe on purpose (its other restores read live
+ *   CVars), and a reference from here would link it by itself.
+ *
  * Every CVar a leg sets is cleared before the row returns (the gate-config
  * contamination class); the .redsave leg writes only the per-process scratch
  * directory.
@@ -51,12 +66,16 @@ extern "C" int MM_CycleKeepItems_Run(void) {
 extern "C" int MM_KeepItemsResetFrozen_Run(void) {
     return 1;
 }
+extern "C" int MM_CycleRazorSword_Run(void) {
+    return 1;
+}
 #else
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/Foreign.h"
+#include "2s2h/Rando/MiscBehavior/MiscBehavior.h"
 #include "combo_mm_options_view.h"
 #include "context.h"
 #include "save.h"
@@ -398,6 +417,98 @@ extern "C" int MM_KeepItemsResetFrozen_Run(void) {
     if (failures != 0) {
         printf("[TEST] FAIL: %s (%d failure(s))\n", sRow, failures);
         return 1;
+    }
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+namespace {
+
+/** The sword the reset left: equip value and the human B button. */
+void PrintSword(const char* when) {
+    printf("[TEST] %s: %s: sword equip value %u, human B 0x%02X, swordHealth %u, stolen 0x%08X\n", sRow, when,
+           (unsigned)GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD), (unsigned)BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B),
+           (unsigned)gSaveContext.save.saveInfo.playerData.swordHealth,
+           (unsigned)gSaveContext.save.saveInfo.stolenItems);
+}
+
+/** Arms (or disarms) the rando behaviours the way a save load does:
+ *  OnSaveLoadHandler's Rando::MiscBehavior::OnFileLoad, whose COND_HOOKs
+ *  register the rando's Before/AfterEndOfCycleSave under IS_RANDO and
+ *  unregister them otherwise. */
+void DriveRandoLoad(bool rando) {
+    gSaveContext.save.shipSaveInfo.saveType = rando ? SAVETYPE_RANDO : SAVETYPE_VANILLA;
+    Rando::MiscBehavior::OnFileLoad();
+}
+
+/** A live save with `equipValue` as its sword and `bItem` on the human B. */
+void ArmSword(u8 equipValue, u8 bItem, u32 stolenItems) {
+    ArmLiveSave();
+    SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, equipValue);
+    BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = bItem;
+    gSaveContext.save.saveInfo.playerData.swordHealth = (equipValue == EQUIP_VALUE_SWORD_RAZOR) ? 60 : 0;
+    gSaveContext.save.saveInfo.stolenItems = stolenItems;
+    gSaveContext.save.saveInfo.playerData.health = 0x30;
+}
+
+int RunRazorLegs() {
+    // ---- (a) the Razor on B ----------------------------------------------------
+    ArmSword(EQUIP_VALUE_SWORD_RAZOR, ITEM_SWORD_RAZOR, 0);
+    DriveRandoLoad(true);
+    PlaySongOfTime();
+    PrintSword("(a) rando, Razor equipped, after the Song of Time");
+    KIR_ASSERT(GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_RAZOR,
+               "(a) #1215: the Song of Time turned the seed's Razor Sword back into the Kokiri Sword");
+    KIR_ASSERT(BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) == ITEM_SWORD_RAZOR,
+               "(a) #1215: the Razor's equip value survived but B does not hold the Razor");
+
+    // ---- (b) the Razor stolen by Takkuri ---------------------------------------
+    ArmSword(EQUIP_VALUE_SWORD_NONE, ITEM_NONE, (u32)ITEM_SWORD_RAZOR << 0x18);
+    DriveRandoLoad(true);
+    PlaySongOfTime();
+    PrintSword("(b) rando, Razor stolen, after the Song of Time");
+    KIR_ASSERT(GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_RAZOR &&
+                   BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) == ITEM_SWORD_RAZOR,
+               "(b) #1215: a Razor Takkuri stole came back as the Kokiri Sword");
+
+    // ---- (c) no sword, nothing stolen ------------------------------------------
+    ArmSword(EQUIP_VALUE_SWORD_NONE, ITEM_NONE, 0);
+    DriveRandoLoad(true);
+    PlaySongOfTime();
+    PrintSword("(c) rando, no sword, after the Song of Time");
+    KIR_ASSERT(GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE &&
+                   BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) == ITEM_NONE,
+               "(c) a rando file without a sword was handed one by the reset (the rando's no-sword override)");
+
+    // ---- (d) control: vanilla --------------------------------------------------
+    ArmSword(EQUIP_VALUE_SWORD_RAZOR, ITEM_SWORD_RAZOR, 0);
+    DriveRandoLoad(false);
+    PlaySongOfTime();
+    PrintSword("(d) vanilla, Razor equipped, after the Song of Time");
+    KIR_ASSERT(GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_KOKIRI &&
+                   BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) == ITEM_SWORD_KOKIRI,
+               "(d) a vanilla file kept the Razor through the reset: the restore leaked outside rando");
+    return 0;
+}
+
+} // namespace
+
+extern "C" int MM_CycleRazorSword_Run(void) {
+    sRow = "mm-cycle-razor-sword";
+    printf("[TEST] %s: a rando file keeps the seed's Razor Sword (equipped or stolen) through the three-day reset; a "
+           "vanilla file drops it to the Kokiri Sword (#1215)\n",
+           sRow);
+    ComboContext_Init();
+    RegisterCycleHooksOnce();
+
+    const int rc = RunRazorLegs();
+
+    // Disarm whatever the legs armed, on pass and on fail.
+    DriveRandoLoad(false);
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    if (rc != 0) {
+        return rc;
     }
     printf("[TEST] PASS: %s\n", sRow);
     return 0;

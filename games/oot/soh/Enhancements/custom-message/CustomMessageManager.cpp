@@ -309,7 +309,9 @@ void CustomMessage::Replace(std::string&& oldStr, std::string&& newStr) {
         size_t position = str.find(oldStr);
         while (position != std::string::npos) {
             str.replace(position, oldStr.length(), newStr);
-            position = str.find(oldStr);
+            // Search on after the text just put in: a replacement that contains
+            // the search string would otherwise match itself forever (#1187).
+            position = str.find(oldStr, position + newStr.length());
         }
     }
 }
@@ -323,7 +325,7 @@ void CustomMessage::Replace(std::string&& oldStr, CustomMessage newMessage) {
         }
         while (position != std::string::npos) {
             messages[language].replace(position, oldStr.length(), newMsg);
-            position = messages[language].find(oldStr);
+            position = messages[language].find(oldStr, position + newMsg.length());
         }
     }
 }

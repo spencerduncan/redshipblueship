@@ -137,6 +137,9 @@ int MM_MoonCrashCycleReset_Run(void);
 // keeps it and the beans through the three-day reset; its freeze and identity.
 int MM_CycleKeepItems_Run(void);
 int MM_KeepItemsResetFrozen_Run(void);
+// mm-cycle-razor-sword (#1215, same file): the rando's cycle-save path keeps the
+// seed's Razor Sword (equipped or stolen) through the three-day reset.
+int MM_CycleRazorSword_Run(void);
 // The cross-game arrival IS MM's intro event (#654, operator ruling 2026-09-16;
 // games/mm/2s2h/mm_combo_first_cycle_test.cpp). Vanilla MM proxies "the intro
 // has not happened yet" off "no Ocarina of Time" and degrades Termina Field to
@@ -306,6 +309,13 @@ int MM_RegistrarCoverage_RunHeadless(void);
 // display-free shared bring-up first (CVarSetInteger). Returns 0 on pass,
 // non-zero on fail.
 int MM_ClockShuffleSongs_RunHeadless(void);
+// Shuffle Time's Final Hours (games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp,
+// #1229): with Shuffle Time on an unowned half-day is never playable, and when
+// none is left the moon falls at the end of the last owned one (OoTMM's rule);
+// 2Ship's terminal window handed out Night 3's 00:00-06:00. Drives the real
+// EnTest4 pre-update hook and the VB hooks over a stand-in play state, and
+// restores everything it touches. Returns 0 on pass, non-zero on fail.
+int MM_ClockShuffleFinalHours_RunHeadless(void);
 // The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
 // #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
 // file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
@@ -314,6 +324,29 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
+// a rupee that stands in for an open check is not given on top of it (#1216).
+// Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
+// play state. Needs the display-free shared bring-up first. Return 0 on pass.
+int MM_GalleryRupeeStandIn_RunHeadless(void);
+// Same TU: the Doggy Racetrack reward follows the vanilla selector and is
+// given once per cycle (#1219).
+int MM_DoggyRaceReward_RunHeadless(void);
+// Same TU: the Deku Playground, the lab fish and Flat's tomb arm their check
+// once per cycle (#1220).
+int MM_MinigameRepeatGuards_RunHeadless(void);
+// The monkey's destroy-time Sonata (games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp,
+// #1203): unloading the tied-up monkey after its choice teaches the Sonata in a
+// vanilla save only; a rando save gets the seed's item through the check and
+// no song. Needs the display-free shared bring-up first. Returns 0 on pass.
+int MM_MonkeyDestroySonata_RunHeadless(void);
+// #1203 guards from the Woodfall forensics, green before and after the fix:
+// an MM song crossed from Hyrule lands as its quest bit and free play accepts it
+// (games/mm/2s2h/mm_crossing_song_playable_test.cpp), and the Woodfall platform's
+// Sonata trigger box (games/mm/2s2h/mm_woodfall_sonata_trigger_test.cpp). Both
+// need the display-free shared bring-up first. Return 0 on pass.
+int MM_CrossingSongPlayable_RunHeadless(void);
+int MM_WoodfallSonataTrigger_RunHeadless(void);
 // Majora's Mask tree shuffle (games/mm/2s2h/mm_tree_shuffle_test.cpp, #1121):
 // the option, its page row, the 53 tree checks and the pool switch; then the
 // tree behaviour arming from ActorBehavior::OnFileLoad and running. Both need
@@ -481,9 +514,18 @@ int RandoTest_ComboIdentityDisplayWorld(void);
 // #855: the scrub's offer textbox follows Scrub Hint Text, not Merchant Hint Text.
 // Body in games/oot/soh/oot_scrub_text_hint_test.cpp. Return 0 on pass.
 int RandoTest_ScrubTextHintSetting(void);
+// #1187: CustomMessage::Replace returns when the replacement contains the search
+// string; a map's text names the map; every compass opens the compass text. Bodies
+// in games/oot/soh/oot_custom_message_text_test.cpp. Return 0 on pass.
+int OoT_CustomMessageReplaceTest_Run(void);
+int RandoTest_MapCompassText(void);
 // #1164 green pin: SoH's bombchu drop rule under the Bombchu Bag setting. Body in
 // games/oot/soh/oot_shared_bombchu_test.cpp. Return 0 on pass.
 int OoT_BombchuDropRuleTest_Run(void);
+// #1218: a respawn out of the Ganon's Tower collapse keeps a shuffled, unfound
+// Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
+// Return 0 on pass.
+int OoT_MasterSwordRespawnTest_Run(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -588,6 +630,8 @@ extern "C" {
 #include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
+#include "tests/test_mm_unique_key_models.c"    // #1172: MM's dungeon keys draw 2S2H's dungeon key models
+#include "tests/test_hookshot_reticle_colour.c" // #1173: the hookshot reticle turns green on a hookshot surface
 #include "tests/test_foreign_shop_mm.c"
 #include "tests/test_foreign_award.c"
 #include "tests/test_crossing_toasts.c"        // #878: a crossing toasts nothing its pickup announced
@@ -1411,6 +1455,19 @@ static TestResult Test_MMCycleKeepItems(void) {
         return TEST_FAIL;
     }
     return MM_CycleKeepItems_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMCycleRazorSword(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_CycleRazorSword_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 static TestResult Test_MMKeepItemsResetFrozen(void) {
@@ -2839,6 +2896,30 @@ TestResult Test_ScrubTextHintSetting(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1187: CustomMessage is plain strings, so no bring-up. Assertions in
+// games/oot/soh/oot_custom_message_text_test.cpp.
+TestResult Test_CustomMessageReplace(void) {
+    return OoT_CustomMessageReplaceTest_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1187: a map's get-item text and the compass rows' text ids. Same bring-up as
+// the row above it (BuildMapMessage reads the generated context's options).
+TestResult Test_MapCompassText(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = RandoTest_MapCompassText();
+    printf("[TEST] %s: map and compass text rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1164 green pin: a bomb drop becomes a bombchu drop under Bombchu Bag Single
 // with no bomb bag, and is cancelled under None. Same bring-up as the row above
 // (OTRGlobals' randomizer context). Assertions in
@@ -2856,6 +2937,26 @@ TestResult Test_BombchuDropRule(void) {
 
     int rc = OoT_BombchuDropRuleTest_Run();
     printf("[TEST] %s: bombchu drop rule rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower collapse
+// or Ganon's arena (Play_LoadToLastEntrance) no longer gives the unfound Master
+// Sword. Same bring-up as the row above (OTRGlobals' randomizer context).
+// Assertions in games/oot/soh/oot_master_sword_respawn_test.cpp.
+TestResult Test_MasterSwordRespawn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = OoT_MasterSwordRespawnTest_Run();
+    printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -5410,6 +5511,16 @@ static TestResult Test_MenuComboSection(void) {
     return OoT_MenuComboSection_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/soh_presets_folder_test.cpp (#1210): a non-JSON file in the
+// presets folder is skipped with one log line instead of throwing out of
+// LoadPresets (a boot-time RegisterMenuInitFunc). No bring-up: the seam reads
+// only the folder it is handed.
+extern "C" int Soh_PresetsSkipNonJson_RunHeadless(void);
+
+static TestResult Test_PresetsSkipNonJson(void) {
+    return Soh_PresetsSkipNonJson_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's presentation half. Same display-free shared bring-up as the row above,
 // for the same reason: AddMenuCombo registers rows whose PreFuncs and option
 // defaults read the Ship::Context singleton's ConsoleVariables, and this row also
@@ -5852,6 +5963,23 @@ static TestResult Test_MMClockShuffleSongs(void) {
     return MM_ClockShuffleSongs_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1229. Same display-free shared bring-up as mm-clock-shuffle-songs. It
+// restores the SaveContext image and MM_gPlayState and leaves the ClockShuffle
+// hooks disarmed, so it has no ordering constraints.
+static TestResult Test_MMClockShuffleFinalHours(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ClockShuffleFinalHours_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
 // registrars it arms read CVars through the Ship::Context singleton. It restores
 // the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
@@ -5868,6 +5996,92 @@ static TestResult Test_MMSongTeacherHooks(void) {
     }
 
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
+// the SaveContext image and MM_gPlayState and re-runs OnFileLoad on the way
+// out, so it has no ordering constraints.
+static TestResult Test_MMGalleryRupeeStandIn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_GalleryRupeeStandIn_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1219. Same bring-up and cleanup as mm-gallery-rupee-stand-in.
+static TestResult Test_MMDoggyRaceReward(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_DoggyRaceReward_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1220. Same bring-up and cleanup as mm-gallery-rupee-stand-in, plus the
+// ShipInit "IS_RANDO" drive and the Story CVar, restored like
+// mm-song-teacher-hooks does.
+static TestResult Test_MMMinigameRepeatGuards(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MinigameRepeatGuards_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1203. Same bring-up as mm-song-teacher-hooks (the behaviour registrars read
+// CVars). Restores the SaveContext image and MM_gPlayState and re-runs
+// ActorBehavior::OnFileLoad on the way out, so it has no ordering constraints.
+static TestResult Test_MMMonkeyDestroySonata(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_MonkeyDestroySonata_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1203 guards. Same bring-up as mm-monkey-destroy-sonata; each restores what it
+// writes, so neither has ordering constraints.
+static TestResult Test_MMCrossingSongPlayable(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_CrossingSongPlayable_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMWoodfallSonataTrigger(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_WoodfallSonataTrigger_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // Tree shuffle (#1121). Same display-free bring-up as mm-song-teacher-hooks: the
@@ -6493,6 +6707,26 @@ TestResult Test_MmGetItemPresentation(void) {
     return MmGetItemPresentation_Run();
 }
 
+// #1173: the reticle rows set the HookshotableReticle and cosmetics CVars,
+// which live on the Ship::Context singleton, so they need the same bring-up.
+TestResult Test_OotHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OotHookshotReticleColour_Run();
+}
+
+TestResult Test_MmHookshotReticleColour(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MmHookshotReticleColour_Run();
+}
+
 // ADR 0009 decision 4b (#590/#625): MM's cross-game death-decline exit is an
 // autosave point iff the Autosave enhancement is on. Needs the shared bring-up
 // for ONE reason: the lock arms and disarms the REAL RegisterAutosave through
@@ -7114,6 +7348,14 @@ static TestResult Test_OoTFileSelectRefusal(void) {
     return OoT_FileSelectRefusal_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// games/oot/soh/oot_log_noise_test.cpp (#1204): the interval autosave's slot
+// probe and the item queue's give retries log once, not once per frame.
+extern "C" int OoT_LogNoise_RunHeadless(void);
+
+static TestResult Test_OoTLogNoise(void) {
+    return OoT_LogNoise_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_PairedLoadRestore(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -7352,6 +7594,13 @@ const TestDescriptor gTests[] = {
     // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
     { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
       Test_MmGetItemPresentation },
+    // #1172: MM's small and boss keys draw 2S2H's dungeon key models.
+    { "mm-unique-key-models", "MM's dungeon keys draw 2S2H's dungeon key models (#1172)", Test_MmUniqueKeyModels },
+    // #1173: the hookshot reticle turns green on a hookshot surface, in both games, and only for the hookshot.
+    { "oot-hookshot-reticle-colour", "Only the Hookshot and Longshot reticles turn green on a hookshot surface (#1173)",
+      Test_OotHookshotReticleColour },
+    { "mm-hookshot-reticle-colour", "Termina's hookshot reticle turns green on a hookshot surface (#1173)",
+      Test_MmHookshotReticleColour },
     // #575 H2: MM's own hints name the shared area (H1), never the scene.
     { "mm-hint-area-text", "MM's hints name the shared area, not the scene (#575 H2)", Test_MmHintAreaText },
     // #575 H3c: MM's hints name the OoT area of an MM item hosted in OoT.
@@ -7366,6 +7615,10 @@ const TestDescriptor gTests[] = {
     // the item was announced at its pickup.
     { "crossing-arrival-toasts", "A crossing toasts nothing its pickup already announced, on both legs (#878)",
       Test_CrossingArrivalToasts },
+    // #1203 guard (Woodfall forensics): a crossed MM song lands as its quest bit
+    // and free play accepts it. Restores what it touches.
+    { "mm-crossing-song-playable", "An MM song crossed from Hyrule is owned and playable in Termina (#1203 guard)",
+      Test_MMCrossingSongPlayable },
     // #510's foreign-pool-mm and #495's foreign-item-class rows are RETIRED with
     // the pinned pools (ADR 0010 increment 3, D3); see the note at the end of
     // tests/test_foreign_items.c for where each claim is locked now.
@@ -7812,11 +8065,33 @@ const TestDescriptor gTests[] = {
     // no ordering constraints.
     { "mm-clock-shuffle-songs", "RO_CLOCK_SHUFFLE's Songs handlers survive the link and their registrars run (#678)",
       Test_MMClockShuffleSongs },
+    // Shuffle Time's Final Hours (#1229): no unowned half-day is handed out,
+    // and the moon falls at the end of the last owned one. Restores everything
+    // it touches, so it has no ordering constraints.
+    { "mm-clock-shuffle-final-hours",
+      "Shuffle Time hands out no unowned Final Hours; the moon falls at the last owned half-day (#1229)",
+      Test_MMClockShuffleFinalHours },
     // The same elided-registrar class again (#1071): the nine song-teacher
     // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // The MM rando minigame reward hooks (#1216). Restores everything it touches.
+    { "mm-gallery-rupee-stand-in",
+      "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
+      Test_MMGalleryRupeeStandIn },
+    { "mm-doggy-race-reward", "The Doggy Racetrack reward follows the vanilla selector, once per cycle (#1219)",
+      Test_MMDoggyRaceReward },
+    { "mm-minigame-repeat-guards", "The Deku Playground, lab fish and Song of Storms checks arm once per cycle (#1220)",
+      Test_MMMinigameRepeatGuards },
+    // #1203: the monkey's destroy-time Sonata is a vanilla-only give. Restores
+    // what it touches, so it has no ordering constraints.
+    { "mm-monkey-destroy-sonata", "Unloading the tied-up monkey teaches no Sonata in a rando save (#1203)",
+      Test_MMMonkeyDestroySonata },
+    // #1203 guard (Woodfall forensics): the platform's Sonata trigger box.
+    // Restores what it touches.
+    { "mm-woodfall-sonata-trigger", "Deku Link's Sonata raises Woodfall Temple inside the platform box only (#1203)",
+      Test_MMWoodfallSonataTrigger },
     // Tree shuffle (#1121). After mm-registrar-coverage: mm-tree-shuffle runs the
     // irreversible MM_Rando_Init to fill the region graph. Both restore what
     // they write.
@@ -7894,6 +8169,8 @@ const TestDescriptor gTests[] = {
     { "menu-combo-section", "The tier-4 Combo section hosts the cross-game rows and a contributed-page seam (#497)",
       Test_MenuComboSection },
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
+    { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
+      Test_PresetsSkipNonJson },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
@@ -8265,6 +8542,10 @@ const TestDescriptor gTests[] = {
       "item answers a well-formed icon with an MM textbox branch, unknown ids fall back to the icon-less textbox, and "
       "the real load, header decode and draw carry it (#607)",
       Test_ForeignTextboxIcon },
+    { "custom-message-replace",
+      "CustomMessage::Replace returns when the replacement contains the search string, in both overloads and through "
+      "AutoFormat(ItemID) (#1187)",
+      Test_CustomMessageReplace },
     { "foreign-model",
       "A foreign item's get-item model is answered by its origin game: every draw row and progression item of both "
       "games classifies to a descriptor of its own display lists, a host-native model or a named no-model, "
@@ -8321,10 +8602,18 @@ const TestDescriptor gTests[] = {
       "A scrub's offer textbox names its item exactly when Scrub Hint Text is on, whatever Merchant Hint Text says "
       "(#855)",
       Test_ScrubTextHintSetting },
+    { "map-compass-text",
+      "A dungeon map's get-item text names the map and opens with its icon; every compass opens the compass text "
+      "(#1187)",
+      Test_MapCompassText },
     { "bombchu-drop-rule",
       "SoH's drop rule turns a bomb drop into a bombchu drop under Bombchu Bag Single with no bomb bag, and cancels "
       "it under None (#1164)",
       Test_BombchuDropRule },
+    { "master-sword-respawn",
+      "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
+      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
+      Test_MasterSwordRespawn },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -8356,6 +8645,10 @@ const TestDescriptor gTests[] = {
       "A file the open path would refuse is not opened at the OoT file select (A/START consumed, one toast, nothing "
       "written), and a load refused after the gate returns to the file select instead of Play (#836)",
       Test_OoTFileSelectRefusal },
+    { "oot-log-noise",
+      "The interval autosave's slot probe never asks for the 0xFF sentinel and logs a slot's existence once per "
+      "change; a give the player cannot take yet logs one attempt and one count, not one line per frame (#1204)",
+      Test_OoTLogNoise },
     { "crossing-commit",
       "Every cross-game crossing is a whole-file commit taken between the departing suspend and the target's "
       "resume: a kill after the crossing reloads it; a latched, slot-less, freeze-less or not-live departure "
@@ -8414,6 +8707,10 @@ const TestDescriptor gTests[] = {
       "Cycle Reset keeps it and the Magic Beans through the three-day reset (off: vanilla, both wiped), the shared "
       "counts and rupees kept either way (#1175)",
       Test_MMCycleKeepItems },
+    { "mm-cycle-razor-sword",
+      "A rando file keeps the seed's Razor Sword through the three-day reset, equipped or stolen by Takkuri; a "
+      "vanilla file drops it to the Kokiri Sword (#1215)",
+      Test_MMCycleRazorSword },
     { "mm-keep-items-reset-frozen",
       "Keep Items on Cycle Reset freezes into the combo record at creation, moves MM's profile stamp only when on, "
       "and is kept by the file-create invalidation, a seed package, a .redsave and the load-time restore (#1175)",
@@ -8632,7 +8929,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "rando-settings-fold-excludes") == 0 ||
                 strcmp(gTests[i].name, "combo-identity-display-world") == 0 ||
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
-                strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
+                strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
+                strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

@@ -257,9 +257,11 @@ extern "C" int OoT_Rando_Foreign_HostsForeign(uint16_t rc) {
  * publishes for its own item (MM's randoItemType, through the item class owner,
  * shared_items.h "THE CHEST GRADE"; ADR 0002 keeps MM's item table out of this
  * TU), mapped onto OoT's own categories, so an MM small key shows OoT's key chest
- * and an MM heart piece OoT's heart chest. OoT has no fairy or mask chest: a stray
- * fairy, a mask, or an item with no grade presents as major, the answer every
- * crossing chest gave before #862. Every other chest keeps its own item's category.
+ * and an MM heart piece OoT's heart chest. A stray fairy and a mask present the two
+ * single-exe categories z_en_box.c dresses with SoH's fairy and mask chest models
+ * (#1172; OoT's own masks stay major, as OoTMM grades them); an item with no grade
+ * presents as major, the answer every crossing chest gave before #862. Every other
+ * chest keeps its own item's category.
  */
 extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
     const SharedItem* item = rc != 0 ? Combo_GetForeignPlacementForOoTCheck(rc) : nullptr;
@@ -279,9 +281,11 @@ extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory) {
             return (int)ITEM_CATEGORY_SMALL_KEY;
         case RSBS_CHEST_GRADE_TOKEN:
             return (int)ITEM_CATEGORY_SKULLTULA_TOKEN;
-        case RSBS_CHEST_GRADE_MAJOR:
         case RSBS_CHEST_GRADE_FAIRY:
+            return (int)ITEM_CATEGORY_MM_STRAY_FAIRY;
         case RSBS_CHEST_GRADE_MASK:
+            return (int)ITEM_CATEGORY_MM_MASK;
+        case RSBS_CHEST_GRADE_MAJOR:
         default:
             return (int)ITEM_CATEGORY_MAJOR;
     }
@@ -312,6 +316,27 @@ extern "C" int OoT_Rando_Foreign_TestOwnChestCategory(uint16_t rg) {
     return (int)Rando::StaticData::RetrieveItem((RandomizerGet)rg).GetCategory();
 }
 
+/** TEST BRIDGE (ForeignModel row M20, #1172): OoT's OWN chest category, off the
+ *  item table, for the items #1172 rules on, in this order: Piece of Heart, Heart
+ *  Container, Double Defense, the Treasure Game Heart, then OoT's eight masks
+ *  (Keaton, Skull, Spooky, Bunny Hood, Goron, Zora, Gerudo, Truth). Writes at
+ *  most `cap` values and returns how many it wrote. */
+extern "C" int OoT_Rando_Foreign_TestRuledChestCategories(int* out, int cap) {
+    static const RandomizerGet kRuled[] = {
+        RG_PIECE_OF_HEART, RG_HEART_CONTAINER, RG_DOUBLE_DEFENSE, RG_TREASURE_GAME_HEART,
+        RG_KEATON_MASK,    RG_SKULL_MASK,      RG_SPOOKY_MASK,    RG_BUNNY_HOOD,
+        RG_GORON_MASK,     RG_ZORA_MASK,       RG_GERUDO_MASK,    RG_MASK_OF_TRUTH,
+    };
+    int n = 0;
+    for (const RandomizerGet rg : kRuled) {
+        if (n >= cap) {
+            break;
+        }
+        out[n++] = (int)Rando::StaticData::RetrieveItem(rg).GetCategory();
+    }
+    return n;
+}
+
 /** TEST BRIDGE (M15): an ITEM_CATEGORY_* value's name in the vocabulary both
  *  games' chest bridges share ("major", "small key", ...), "?" past the enum. */
 extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
@@ -330,6 +355,10 @@ extern "C" const char* OoT_Rando_Foreign_TestChestCategoryName(int category) {
             return "token";
         case ITEM_CATEGORY_MAJOR:
             return "major";
+        case ITEM_CATEGORY_MM_STRAY_FAIRY: // #1172
+            return "fairy";
+        case ITEM_CATEGORY_MM_MASK:
+            return "mask";
         default:
             return "?";
     }

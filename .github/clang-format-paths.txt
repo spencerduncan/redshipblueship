@@ -52,6 +52,7 @@ games/mm/2s2h/Rando/HintAreaSingleExe.cpp
 games/mm/2s2h/Rando/HintFoolish.h
 games/mm/2s2h/Rando/HintFoolishSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp
+games/mm/2s2h/Rando/MiscBehavior/ForcedGatesSingleExe.cpp
 games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
 games/mm/2s2h/SaveEditorTimeSingleExe.cpp
@@ -68,6 +69,10 @@ games/mm/2s2h/mm_hook_dispatch_test.cpp
 games/mm/2s2h/mm_paired_load_restore_test.cpp
 games/mm/2s2h/mm_playtime_seed_test.cpp
 games/mm/2s2h/mm_registrar_coverage_test.cpp
+games/mm/2s2h/mm_minigame_offer_hooks_test.cpp
+games/mm/2s2h/mm_crossing_song_playable_test.cpp
+games/mm/2s2h/mm_monkey_destroy_sonata_test.cpp
+games/mm/2s2h/mm_woodfall_sonata_trigger_test.cpp
 games/mm/2s2h/mm_song_teacher_hooks_test.cpp
 games/mm/2s2h/mm_tree_shuffle_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
@@ -117,6 +122,7 @@ games/oot/soh/ShipInit.hpp
 games/oot/soh/mixer.c
 games/oot/soh/oot_exit_harvest_gate_test.cpp
 games/oot/soh/oot_file_select_refusal_test.cpp
+games/oot/soh/oot_log_noise_test.cpp
 games/oot/soh/oot_file_select_identity_shot.cpp
 games/oot/soh/oot_combo_identity_display_test.cpp
 games/oot/soh/soh_menu_registrar_test.cpp
@@ -126,6 +132,8 @@ games/oot/soh/oot_scene_flag_freeze_test.cpp
 games/oot/soh/oot_check_state_load_test.cpp
 games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
+games/oot/soh/oot_custom_message_text_test.cpp
+games/oot/soh/oot_master_sword_respawn_test.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c
 games/oot/src/code/code_800F9280.c
@@ -137,9 +145,11 @@ games/oot/src/code/z_scene.c
 games/oot/src/overlays/gamestates/ovl_title/z_title.c
 games/oot/soh/soh_combo_settings_rows_test.cpp
 games/mm/2s2h/mm_clock_shuffle_songs_test.cpp
+games/mm/2s2h/mm_clock_shuffle_final_hours_test.cpp
 games/oot/soh/SohGui/SohMenuCombo.cpp
 games/oot/soh/soh_menu_capability_test.cpp
 games/oot/soh/soh_menu_combo_section_test.cpp
+games/oot/soh/soh_presets_folder_test.cpp
 games/oot/soh/oot_windows_gate_test.cpp
 games/oot/soh/SohGui/OoTActiveGated.h
 games/oot/soh/SohGui/SohRetiredWindow.h

@@ -313,6 +313,7 @@ int OoT_Rando_Foreign_HostsForeign(uint16_t rc);
 int OoT_Rando_Foreign_HostCollected(uint16_t rc);
 int Rando_ValidatePairedWorldHints(void);
 int Rando_ValidateSoloWorldHintsAfterPairing(void);
+int Rando_TestMidoBossDoorHints(int* outTermina); // #1187 leg H (menu.cpp)
 int OoT_ComboLogic_TestSetNativeGeneralPass(int native);
 int OoT_Creation_AuthorRandoFile(int slot);
 void Randomizer_TestResetStartingGiveLog(void);
@@ -572,6 +573,15 @@ const char* const kCsbShopCVars[][2] = {
     { "gRando.Options.RO_SHUFFLE_SHOPS", "1" }, // MM's shop stock enters the bag
     { "gRandoSettings.ShuffleScrubs", "2" },    // RO_SCRUBS_ALL: every Business Scrub is a host (#800 pass 2)
     { "gRandoSettings.ShuffleMerchants", "3" }, // RO_SHUFFLE_MERCHANTS_ALL: all four merchants are hosts (#800 pass 2)
+};
+
+/** Leg H (#1187): Mido's hint and the six boss-door hints on, over a paired world in
+ *  which the Kokiri Sword and the dungeon boss keys may cross (restored after). */
+const char* const kCsbStaticHintCVars[][2] = {
+    { "gRandoSettings.MidoHint", "1" },           // RSK_MIDO_HINT: Mido names the Kokiri Sword's area
+    { "gRandoSettings.BossKeyHint", "1" },        // RSK_BOSS_KEY_HINT: the six boss doors name their key's area
+    { "gRandoSettings.ShuffleKokiriSword", "1" }, // the sword enters the pool, so the bag may cross it
+    { "gRandoSettings.BossKeysanity", "5" },      // RO_DUNGEON_ITEM_LOC_ANYWHERE: the boss keys enter the bag
 };
 
 /** RSBS_CSB_SAMPLE=N: N paired creations under the shipped budget, measured. */
@@ -2214,6 +2224,53 @@ TestResult ComboSingleBag_Run(void) {
             CSB_ASSERT(drawVerdict == 0, "the chest game's Lens display does not draw the MM item its reward holds "
                                          "(see the chest-game prize lines above)");
         }
+    }
+    Combo_SingleBag_Forget();
+    Combo_Crossings_Clear();
+
+    // ------------------------------------------------------------------
+    // H. #1187: Mido's hint and the six boss-door hints (shown since PR #1181)
+    //    over a real paired creation (a fixed seed) that crosses the Kokiri
+    //    Sword or a boss key into Termina: the #441 / P1-P7 checks over every
+    //    hint, the seven generated, and each Termina slot's words naming its
+    //    item's MM area (PushTerminaSlot through CreateStaticHintFromData).
+    // ------------------------------------------------------------------
+    {
+        std::vector<std::string> savedCVars;
+        for (const auto& cv : kCsbStaticHintCVars) {
+            savedCVars.push_back(std::to_string(CVarGetInteger(cv[0], -1)));
+            CVarSetInteger(cv[0], atoi(cv[1]));
+        }
+        struct CVarRestore {
+            const std::vector<std::string>* saved;
+            ~CVarRestore() {
+                for (size_t i = 0; i < saved->size(); i++) {
+                    const int v = atoi((*saved)[i].c_str());
+                    if (v < 0) {
+                        CVarClear(kCsbStaticHintCVars[i][0]);
+                    } else {
+                        CVarSetInteger(kCsbStaticHintCVars[i][0], v);
+                    }
+                }
+            }
+        } restoreCVars{ &savedCVars };
+
+        CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSTATICHINTS1") == 0,
+                   "the paired generation with Mido's and the boss-door hints on failed");
+        CSB_ASSERT(MM_Rando_HeadlessPairedHalf() == 0, "MM's creation-time half failed with the static hints on");
+        const int stored = OoT_Creation_FinishPairedHalf(0);
+        const int hintRc = Rando_ValidatePairedWorldHints();
+        int terminaSlots = 0;
+        const int staticFailures = Rando_TestMidoBossDoorHints(&terminaSlots);
+        printf("[TEST] combo-single-bag: H (#1187): %d crossings stored; paired-world hint validity rc=%d; Mido's "
+               "and the boss-door hints: %d failure(s), %d Termina slot(s)\n",
+               stored, hintRc, staticFailures, terminaSlots);
+        CSB_ASSERT(hintRc == 0, "a paired world with Mido's and the boss-door hints on fails a hint check (see "
+                                "[rando-hints])");
+        CSB_ASSERT(staticFailures == 0, "Mido's hint or a boss-door hint is missing, or a Termina slot's words do not "
+                                        "name its item's MM area (see [rando-hints])");
+        CSB_ASSERT(terminaSlots > 0, "the seed crossed neither the Kokiri Sword nor a boss key into Termina, so "
+                                     "PushTerminaSlot is not exercised for these hints");
     }
     Combo_SingleBag_Forget();
     Combo_Crossings_Clear();

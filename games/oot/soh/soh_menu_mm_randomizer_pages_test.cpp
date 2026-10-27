@@ -521,6 +521,11 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
         const ComboMMOptionDesc* clock = nullptr;
         for (int i = 0; i < count; i++) {
             const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+            // The one clock row, Final Hours Start Time, is retired (#1229) but
+            // still drawn: its HH:MM text is checked whatever its liveness.
+            if (d->widget == COMBO_MM_WIDGET_TIME && clock == nullptr) {
+                clock = d;
+            }
             const bool live = d->liveness == COMBO_MM_LIVENESS_LIVE || d->liveness == COMBO_MM_LIVENESS_GENERATION_ONLY;
             if (!live) {
                 continue;
@@ -531,8 +536,6 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 comboDesc = d;
             } else if (d->widget == COMBO_MM_WIDGET_SLIDER && slider == nullptr) {
                 slider = d;
-            } else if (d->widget == COMBO_MM_WIDGET_TIME && clock == nullptr) {
-                clock = d;
             }
         }
         MMRP_CHECK(checkbox && comboDesc && slider && clock, "the table lacks a live row of some widget kind");
