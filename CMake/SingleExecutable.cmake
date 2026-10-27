@@ -630,6 +630,11 @@ if(BUILD_TESTING)
     # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always
     # and ignores MM's own key (whose widget and preset are not in the single exe).
     redship_add_test(NAME MmGetItemPresentation COMMAND redship --test mm-get-item-presentation)
+    # #1172: MM's small and boss keys draw 2S2H's dungeon key models (the shared
+    # body plus the dungeon's emblem, 2S2H 5d96fd84f/f56c7939e): the model choice
+    # for each named key, and every list it answers is in games/mm/assets/custom.
+    # Static tables and the checkout (RSBS_SOURCE_DIR): ROM-free, default tier.
+    redship_add_test(NAME MmUniqueKeyModels COMMAND redship --test mm-unique-key-models)
     # #1173: SoH's "Targetable Hookshot Reticle" turns the hookshot reticle green on
     # a hookshot surface in both games, and only for the Hookshot/Longshot (SoH
     # 6340ad3d5: the Bow, Slingshot and Boomerang reticles never turn green).
@@ -2971,6 +2976,14 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower
+    # collapse or Ganon's arena (Play_LoadToLastEntrance) does not give the
+    # unfound Master Sword, and still leaves through the collapse exterior.
+    # games/oot/soh/oot_master_sword_respawn_test.cpp.
+    redship_add_test(NAME MasterSwordRespawn COMMAND redship --test master-sword-respawn
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -3143,6 +3156,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # byte through file-create, a seed package, a .redsave and the load-time
     # restore. ROM-free (default tier); games/mm/2s2h/mm_cycle_keep_items_test.cpp.
     redship_add_test(NAME MMCycleKeepItems COMMAND redship --test mm-cycle-keep-items)
+    # #1215: the rando's own cycle-save path (Rando/MiscBehavior/OnCycleSave.cpp) keeps
+    # the seed's Razor Sword, equipped or stolen, through the same headless reset; a
+    # vanilla file still drops it to the Kokiri Sword. ROM-free (default tier).
+    redship_add_test(NAME MMCycleRazorSword COMMAND redship --test mm-cycle-razor-sword)
     redship_add_test(NAME MMKeepItemsResetFrozen COMMAND redship --test mm-keep-items-reset-frozen)
 
     # #770: two OoT actor Destroys write the save on ANY exit from their scene
