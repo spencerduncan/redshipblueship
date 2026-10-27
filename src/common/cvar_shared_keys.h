@@ -560,6 +560,16 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1 "gSettings.SpeedModifier.SwimMapping1"
 #define RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2 "gSettings.SpeedModifier.SwimMapping2"
 // W6-GFX
+// W6-GFX (#1237): MM's clock style, 24-hour clock, motion blur and scene-geometry keys, each written by one hosted row
+// on SoH's Enhancements > Graphics page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). None has an SoH twin. The two
+// dynamic motion blur rows bind MM registers, not keys (src/common/mm_graphics_bridge.h), so they have no define.
+#define RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE "gEnhancements.Graphics.ClockType"
+#define RSBS_CVAR_MM_GRAPHICS_24_HOURS_CLOCK "gEnhancements.Graphics.24HoursClock"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE "gEnhancements.Graphics.MotionBlur.Mode"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_INTERPOLATE "gEnhancements.Graphics.MotionBlur.Interpolate"
+#define RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_STRENGTH "gEnhancements.Graphics.MotionBlur.Strength"
+#define RSBS_CVAR_MM_GRAPHICS_FIX_GEOMETRY_SEAMS "gEnhancements.Graphics.FixSceneGeometrySeams"
+#define RSBS_CVAR_MM_GRAPHICS_NO_GEOMETRY_DISTANCE_CHECK "gEnhancements.Graphics.DisableSceneGeometryDistanceCheck"
 // W6-FIXES
 // W6-FIXES (#1237, #1236): MM's Fixes and Restorations keys, each written by one hosted row on SoH's Enhancements >
 // Fixes page (SohGui/HostedMm/SohMenuHostedMmFixes.cpp). Tatl ISG stays held apart from SoH's Easy ISG (P2 below). The
@@ -639,6 +649,13 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_HUD_EDITOR_PREFIX "gHudEditor."
 // W6-COS-A
 // W6-AUDIO-SEQ
+// W6-AUDIO-SEQ (#1239): the two key families MM's sequence editor composes by concatenation, a replacement
+// (<prefix><sfxKey>.value / .locked) and a shuffle-pool exclusion (<prefix><sfxKey>), held under MM's own namespace.
+// Eleven sfxKeys name a sequence in both games (NA_BGM_BOSS, NA_BGM_MINI_BOSS, NA_BGM_ENEMY, ...), and SoH's tabs
+// write gAudioEditor.ReplacedSequences.<sfxKey>, so under one spelling either game's tab would set the other game's
+// music. Composed by MM's S2H::AudioCollection only; locked by the classification test's W6-AUDIO-SEQ leg.
+#define RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX "gAudioEditor.MM.ReplacedSequences."
+#define RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX "gAudioEditor.MM.Excluded."
 // W6-DEV
 
 /**
@@ -807,6 +824,15 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
       "The other half of the same pair: MM's .Scale is SoH's value itself (both games use 0.4-2.5), read through "
       "the same translator, so nothing writes MM's two keys." },
+    { 1239, "gAudioEditor.RandomizeAllOnNewScene", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "SoH writes one five-way combobox (Manual / On New Scene / On Rando Gen Only / On File Load / On File Load "
+      "(Seeded)); MM reads two bools. A rename would put SoH's mode number in MM's bool, so any mode would arm MM's "
+      "new-scene randomize. The translator arms it for On New Scene only." },
+    { 1239, "gAudioEditor.RandomizeAllOnRandoGen", "gAudioEditor.RandomizeAudioGenModes",
+      "2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp",
+      "The other bool of the same combobox: the same translator arms MM's randomize on randomizer generation for On "
+      "Rando Gen Only, so nothing writes MM's two keys." },
 };
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 

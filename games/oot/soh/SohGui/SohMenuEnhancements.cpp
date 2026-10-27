@@ -64,6 +64,11 @@ void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
 // W6-MODES-DIFF (#1236): MM's Modes and Difficulty rows (HostedMm/SohMenuHostedMmModesDifficulty.cpp).
 void AddMmExtraModesRows(SohMenu& menu, WidgetPath& path);
 void AddMmDifficultyRows(SohMenu& menu, WidgetPath& path);
+// W6-GFX (#1237): MM's clock, motion blur and scene-geometry rows (HostedMm/SohMenuHostedMmGraphics.cpp), and the
+// reapply of MM's authentic patches that Fix Out of Bounds Textures also chooses.
+void AddMmClockRows(SohMenu& menu, WidgetPath& path);
+void AddMmGraphicsBlockRows(SohMenu& menu, WidgetPath& path);
+void ReapplyMmAuthenticGfxPatches();
 // W6-FIXES (#1237): MM's Fixes and Restorations rows on the Fixes page (HostedMm/SohMenuHostedMmFixes.cpp).
 void AddMmGameplayFixesRows(SohMenu& menu, WidgetPath& path);
 void AddMmPowerCrouchStabRow(SohMenu& menu, WidgetPath& path);
@@ -776,6 +781,7 @@ void SohMenu::AddMenuEnhancements() {
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip("The skybox in the background of the File Select screen will go through the "
                                            "day and night cycle over time."));
+    AddMmClockRows(*this, path); // W6-GFX (#1237)
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Misc.", WIDGET_SEPARATOR_TEXT);
@@ -830,6 +836,7 @@ void SohMenu::AddMenuEnhancements() {
             " - Blue Warps\n"
             " - Darunia\n"
             " - Gold Skulltulas\n"));
+    AddMmGraphicsBlockRows(*this, path); // W6-GFX (#1237)
 
     path.sidebarName = "Items";
     AddSidebarEntry("Enhancements", path.sidebarName, 3);
@@ -1190,7 +1197,10 @@ void SohMenu::AddMenuEnhancements() {
             "using bombs in front of her."));
     AddWidget(path, "Fix Out of Bounds Textures", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FixTexturesOOB"))
-        .Callback([](WidgetInfo& info) { ApplyAuthenticGfxPatches(); })
+        .Callback([](WidgetInfo& info) {
+            ApplyAuthenticGfxPatches();
+            ReapplyMmAuthenticGfxPatches(); // W6-GFX (#1237): the shared key chooses MM's patches too
+        })
         .Options(CheckboxOptions().Tooltip(
             "Fixes authentic out of bounds texture reads, instead loading textures with the correct size."));
     AddWidget(path, "Fix Link's Eyes Open while Sleeping", WIDGET_CVAR_CHECKBOX)

@@ -64,6 +64,7 @@ games/mm/2s2h/mm_combo_settings_test.cpp
 games/mm/2s2h/MmVolumeSingleExe.cpp
 games/mm/2s2h/mm_volume_live_apply_test.cpp
 games/mm/2s2h/mm_culling_test.cpp
+games/mm/2s2h/MmGraphicsSingleExe.cpp
 games/mm/2s2h/mm_fb_effects_test.cpp
 games/mm/2s2h/mm_hud_editor_reader_test.cpp
 games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.cpp
@@ -84,6 +85,8 @@ games/mm/2s2h/mm_song_teacher_hooks_test.cpp
 games/mm/2s2h/mm_tree_shuffle_test.cpp
 games/mm/2s2h/mm_framebuffer_effects.c
 games/mm/2s2h/mm_gi_shim_test.cpp
+games/mm/2s2h/mm_audio_editor_test.cpp
+games/mm/2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
 games/mm/2s2h/mm_notification_bridge.cpp
 games/mm/2s2h/mm_resume_state_test.cpp

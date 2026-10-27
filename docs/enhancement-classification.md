@@ -72,7 +72,7 @@ brief, plus everything in the collision set:
 | MM category | MM keys | Covered |
 |---|---:|---|
 | `gCheats.` | 14 | ✅ all |
-| `Graphics` | 16 | ✅ all |
+| `Graphics` | 16 | ✅ all, but per key only since W6-GFX (#1237): the eight keys MM still reads under its own spelling (Clock Type, 24 Hours Clock, the three Motion Blur keys, the two Scene Geometry keys, and Authentic Logo, INTENTIONAL) in §6.1 W6-GFX; Bow Reticle, Disable Black Bars and Enemy Health Bars in §5.3; Actor Culling and Actor Draw Distance in §3.2. The earlier "✅ all" named few of them |
 | `Restorations` | 10 | ✅ all; the eight behaviour restorations per key since W6-FIXES (#1237, §6.1 W6-FIXES), N64 Weird Frames and Pause Buffer Window in §5.3 |
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
@@ -148,15 +148,24 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
 
 **The Audio Editor's other MM keys (#1239).** Not shared spellings, so not rows of the table above; each is now driven
-from SoH's Audio Editor > Audio Options block, and its provider (`Audio/Sfx/`) is carved into `ship__Enh_registrars`:
+from SoH's Audio Editor, by its Audio Options block (providers in `Audio/Sfx/`, carved into `ship__Enh_registrars`) or
+by its Majora's Mask tab (W6-AUDIO-SEQ: the port of 2Ship's editor write paths, `Audio/AudioEditorSingleExe.cpp`):
 
-| MM key | Category | How SoH's Audio Options block drives it |
+| MM key | Category | How SoH's Audio Editor drives it |
 |---|---|---|
 | `gAudioEditor.DisableTatlCallAudio` | converged (§5.3 group E) | retired onto SoH's `gAudioEditor.DisableNaviCallAudio` ("Disable Navi Call Audio"): one row mutes the companion fairy's call in both games |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Enable` | translated (`kTranslatedKeys`) | SoH's one float slider `gAudioEditor.LinkVoiceFreqMultiplier` (0.4-2.5); MM's pitch hook is armed when it is not 1.0. LUS stores CVars as dot-nested JSON, so SoH's leaf cannot also be the parent of MM's pair, and a rename is impossible |
 | `gAudioEditor.LinkVoiceFreqMultiplier.Scale` | translated (`kTranslatedKeys`) | the same slider's value, read by the same translator (`LinksVoicePitchMultiplier.cpp`); nothing writes MM's two keys |
 | `gAudioEditor.MuteCarpenterSfx` | (O) MM-only | its own MM row, "MM Mute Carpenter Sounds", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_CARPENTER_SFX`) |
 | `gAudioEditor.ChildGoronCry` | (O) MM-only | its own MM row, "MM Mute Crying Goron Child", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY`) |
+| `gAudioEditor.ReplacedSequences.<sfxKey>.value` / `.locked` | (O) MM-only family, **moved** to `gAudioEditor.MM.ReplacedSequences.` (`RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX`) | the Majora's Mask tab's seven sequence tabs (Background Music, Fanfares, Events, Battle Music, Ocarina, Instrument, Songs), laid out like SoH's. Not shared: 11 sfxKeys name a sequence in both games (`NA_BGM_BOSS`, `NA_BGM_ENEMY`, `NA_BGM_FILE_SELECT`, `NA_BGM_GAME_OVER`, `NA_BGM_HORSE`, `NA_BGM_HORSE_GOAL`, `NA_BGM_INGO`, `NA_BGM_MINI_BOSS`, `NA_BGM_OWL`, `NA_BGM_SHOP`, `NA_BGM_TIMED_MINI_GAME`), so under SoH's spelling either game's tab would set the other's music. MM's collection composes the family; MM's audio core reads it through `MM_AudioEditor_GetReplacementSeq`. MM's Instrument tab lists nothing: 2Ship's sequence table has no instrument rows |
+| `gAudioEditor.Excluded.<sfxKey>` | (O) MM-only family, **moved** to `gAudioEditor.MM.Excluded.` (`RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX`) | the Majora's Mask tab's Audio Shuffle Pool Management, with a Songs filter 2Ship lacked |
+| `gAudioEditor.RandomizeAllOnNewScene` | translated (`kTranslatedKeys`) | SoH's combobox `gAudioEditor.RandomizeAudioGenModes` ("Automatically Randomize All Music and Sound Effects"): On New Scene arms MM's randomize on each new scene (`VB_PLAY_TRANSITION_CS`). Nothing writes MM's bool |
+| `gAudioEditor.RandomizeAllOnRandoGen` | translated (`kTranslatedKeys`) | the same combobox: On Rando Gen Only arms MM's randomize when MM's randomizer file is created (`OnRandoSeedGeneration`). Nothing writes MM's bool |
+| MM's Randomize / Reset / Lock / Unlock All Groups | no key | four MM rows at the top of the Majora's Mask tab ("MM Randomize All Groups", ...). "All Groups" is the seven tabbed groups: 2Ship's own list left out Songs (its Songs tab worked, its "All Groups" skipped it), so Songs is in; it listed Sound Effects and Voices, which have no replaceable MM row, so they are out |
+| MM's Sound Effects and Voices tabs | **not ported** | compiled out in 2Ship itself (`#if 0`, `AudioEditor.cpp:533-541`); nothing to drive |
+| `gAudioEditor.Playing` (MM's preview) | not used | MM's preview state is kept in memory by the port, so SoH's preview key stays SoH's; MM's previews play only while Majora's Mask runs |
+| `gWindows.AudioEditor` (#1237) | resolved, no key | 2Ship's popout opens no window in the single exe: SoH's one Audio Editor (Enhancements > Audio Editor) holds the Majora's Mask tab (ADR 0003 §5.2, tier 2 `gWindows.*` -> `gOpenWindows.*`) |
 
 ### 3.3 ❌ Accidental divergence — the actual bug list (2 rows, 4 keys)
 
@@ -644,6 +653,28 @@ lock's leg 3f-2c holds each binding and leg 3f-3b the Mirrored World translation
 | `gEnhancements.DifficultyOptions.DeleteFileOnDeath` | off | none | INTENTIONAL, no row. A paired file is one game, so a death may delete only the whole paired save; 2Ship's `DeleteFileOnDeath.cpp` deletes MM's own slot through MM's SaveManager, which the single exe does not compile, so the TU stays unlinked. SoH's own Delete File on Death acts on Ocarina of Time deaths only |
 | `gEnhancements.Minigames.CremiaHugs` | Vanilla | Milk Run Reward Options (Difficulty, Majora's Mask block) | (O) MM-only; from 2Ship's 'Other' block, no nearer SoH relative |
 | `gEnhancements.Items.AmmoBuyback` | Vanilla | Ammo Buyback Options (likewise) | (O) MM-only; from 2Ship's 'Other' block. The ammo sold is the shared count, so a sale in Termina spends Hyrule's too: one pool, one game |
+
+**W6-GFX (#1237, #1240) — MM's clock, motion blur and scene-geometry rows, linked and hosted.** MM read eight Graphics
+keys under its own spelling, all (O) MM-only, and two motion blur values that are registers, not keys. The only widgets
+sat in the excluded `BenMenu.cpp`, and the two clock-style TUs (`Graphics/3DSClock.cpp`, `Graphics/TextBasedClock.cpp`)
+were dropped from the link. Both TUs are now carved into `ship__Enh_registrars` (play-state guards added), and every
+key but one has a row on Enhancements > Graphics through the hosted-row seam, bound through its `RSBS_CVAR_MM_*`
+define. The registrar-coverage lock's W6-GFX phase attributes both clock TUs by registry content, the classification
+lock's leg 3f-2c holds each binding, and MenuCapabilityGating's leg 8 holds the two register rows disabled while MM has
+no play state.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.Graphics.ClockType` | 0 (original) | Clock Type (Graphics, UI column, Majora's Mask block) | (O) MM-only: the three-day clock, as the original, the MM3D clock or a text-only clock. Its two TUs were UNLINKED; both draw through the HUD-editor stand-ins (`mm_hudeditor_stubs.c`) until W6-HUD-A |
+| `gEnhancements.Graphics.24HoursClock` | off | 24 Hours Clock (likewise) | (O) MM-only; read inline by `z_parameter.c` and both clock TUs |
+| `gEnhancements.Graphics.MotionBlur.Mode` | 0 (Dynamic) | Motion Blur Mode (Graphics, Misc. column, Majora's Mask block) | (O) MM-only; `MotionBlur.cpp` (linked from `z_play.c`) |
+| `gEnhancements.Graphics.MotionBlur.Interpolate` | off | Interpolate Motion Blur (likewise; disabled while the mode is Always Off) | (O) MM-only; read by `z_play.c` |
+| `gEnhancements.Graphics.MotionBlur.Strength` | 180 | Motion Blur Strength (likewise; disabled unless the mode is Always On) | (O) MM-only |
+| (register `R_MOTION_BLUR_ENABLED`, no key) | set by MM's scenes | Dynamic Motion Blur (likewise) | (O) MM-only and not persisted: reached through `src/common/mm_graphics_bridge.h`, live only while MM runs a play state, otherwise disabled with the reason "Majora's Mask Not Running" and a gray note (ADR 0004's CAPABILITY state, #497) |
+| (register `R_MOTION_BLUR_ALPHA`, no key) | set by MM's scenes | Dynamic Motion Blur Strength (likewise) | (O) likewise, and disabled while Dynamic Motion Blur is off |
+| `gEnhancements.Graphics.FixSceneGeometrySeams` | off | Fix Scene Geometry Seams (likewise) | (O) MM-only. Read by MM's authentic patches, applied once in MM's asset phase; a change now reapplies them through `MM_GfxPatches_Reapply`, at once while MM runs and otherwise at MM's next resume (never under OoT's resource cache owner, #1000). SoH's Fix Out of Bounds Textures row (the shared `gEnhancements.FixTexturesOOB`) reapplies MM's patches the same way |
+| `gEnhancements.Graphics.DisableSceneGeometryDistanceCheck` | off | Disable Scene Geometry Distance Check (likewise) | (O) MM-only; reapplied as the row above |
+| `gEnhancements.Graphics.AuthenticLogo` | off | none | INTENTIONAL, no row. It changes only the console logo screen, which draws only on a cold `--game mm` boot: `z_title.c` skips it on every crossing into MM, and unpaired play is not a supported mode |
 
 **W6-FIXES (#1237, #1236) — MM's Fixes and Restorations, linked and hosted.** MM read fifteen Fixes, `gFixes.*` and
 Restorations keys and one Camera key (Fix Targeting Camera Snap), but its only widgets sat in the excluded `BenMenu.cpp`,

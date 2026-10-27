@@ -802,6 +802,11 @@ extern "C" {
 // MAX_AUTHENTIC_SEQID). Pure arithmetic — no audio subsystem, no archives.
 #include "tests/test_seq_map_bounds.c"
 
+// MM sequence replacement (W6-AUDIO-SEQ, #1239): the lookup MM's audio core calls answers from MM's own namespaced
+// replacement keys, never SoH's, and SoH's randomize combobox reaches MM. C entry point in
+// games/mm/2s2h/mm_audio_editor_test.cpp; returns 0 on pass, non-zero on fail. Wrapper: beside mm-hud-editor-reader.
+extern "C" int MM_AudioEditorReplacement_RunHeadless(void);
+
 // OoT pause-menu item age table bounds (#983). Included at FILE SCOPE: it reads
 // the entry count z_kaleido_scope_PAL.c exports for it, declared in its own
 // extern "C" block, so no game header is needed. ROM-free, display-free.
@@ -1407,6 +1412,17 @@ static TestResult Test_MMHudEditorReader(void) {
         return TEST_FAIL;
     }
     return MM_HudEditorReader_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// MM sequence replacement (W6-AUDIO-SEQ, see the extern decl beside seq-map-bounds). The display-free shared
+// bring-up, because the row writes and clears MM's and SoH's gAudioEditor.* keys.
+static TestResult Test_MMAudioEditorReplacement(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return MM_AudioEditorReplacement_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM resume-path cold-boot contract (see the extern decl above). Thin wrapper
@@ -8191,6 +8207,9 @@ const TestDescriptor gTests[] = {
       Test_ComboSettingsWindow },
     { "mm-scene-parse", "MM scene commands parse via the S2H factory (#344)", Test_MMSceneParse },
     { "seq-map-bounds", "Sequence-map capacity covers the id range + custom slack (#371, #378)", Test_SeqMapBounds },
+    { "mm-audio-editor-replacement",
+      "MM's sequence lookup answers from MM's own replacement keys, and SoH's randomize mode reaches MM (#1239)",
+      Test_MMAudioEditorReplacement },
     { "item-age-reqs-bounds", "OoT's gItemAgeReqs covers ITEM_ROCS_FEATHER and every u8 ItemID (#983)",
       Test_ItemAgeReqsBounds },
     { "item-actions-bounds", "OoT sItemActions covers ITEM_ROCS_FEATHER and every u8 ItemID (#984)",

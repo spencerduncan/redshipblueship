@@ -261,9 +261,10 @@ if(SINGLE_EXECUTABLE_BUILD)
     # soh/Enhancements/audio/AudioEditor.cpp, so it is dropped from 2ship_enh
     # in single-exe builds. Its extern "C" entry points
     # (MM_AudioEditor_Get{Replacement,Original}Seq after the
-    # include/mm_audio_prefix.h rename) are identity-stubbed in
-    # 2s2h/GameExports_SingleExe.cpp; AudioCollection.cpp stays compiled as
-    # MM's real (S2H-namespaced) collection.
+    # include/mm_audio_prefix.h rename) are defined in
+    # 2s2h/GameExports_SingleExe.cpp over AudioCollection.cpp, MM's real
+    # (S2H-namespaced) collection, and its write paths are ported to
+    # Enhancements/Audio/AudioEditorSingleExe.cpp (W6-AUDIO-SEQ, #1239).
     list(FILTER ship__Enhancements EXCLUDE REGEX "2s2h/Enhancements/Audio/AudioEditor\\.cpp$")
 
     # #678 - the two Enhancements TUs that are the ONLY callers of
@@ -463,6 +464,14 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Graphics/BowReticle.cpp"
         # #1013
         "2s2h/Enhancements/Graphics/DisableBlackBars.cpp"
+        # W6-GFX (#1237, #1240): MM's two clock styles, chosen by the Clock Type row on SoH's Enhancements > Graphics
+        # page (SohGui/HostedMm/SohMenuHostedMmGraphics.cpp). Each registers only through a file-scope
+        # RegisterShipInitFunc keyed on gEnhancements.Graphics.ClockType (RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE) and rides
+        # VB_PREVENT_CLOCK_DISPLAY, which z_parameter.c dispatches through MM_GameHooks_ExecuteVBShould. Both draw
+        # bodies read MM_gPlayState and are guarded (RSBS_SINGLE_EXE_REQUIRE); both call the HUD-editor stand-ins in
+        # mm_hudeditor_stubs.c. No stub in mm_stubs.c; no twin of any name in games/oot.
+        "2s2h/Enhancements/Graphics/3DSClock.cpp"
+        "2s2h/Enhancements/Graphics/TextBasedClock.cpp"
         # #1014
         "2s2h/Enhancements/Player/InstantPutaway.cpp"
         # W6-PLAYER (#1236): MM's Player, Equipment and PlayerActions rows, hosted on SoH's Enhancements pages
