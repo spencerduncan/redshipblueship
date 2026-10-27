@@ -21,7 +21,7 @@
  *  - label: the element in SoH's own wording (the "<label> position" headers of Draw_Placements).
  *  - defaultX, defaultY: the element's vanilla 4:3 position, 2Ship's values (HudEditor.cpp:10-31). The reader moves an
  *    element by its offset from these, and the position sliders start from them.
- *  - widescreenMode: the mode the Widescreen preset gives the element (HudEditor.cpp:189-232).
+ *  - widescreenMode: the mode the Widescreen preset gives the element (HudEditor.cpp:197-235).
  * The order is the section's draw order, SoH's own button order.
  *
  * W6-HUD-B adds the other ten elements as rows at the marker that ends the list, and nothing else: the reader, the
@@ -56,7 +56,7 @@
     /* W6-HUD-B: the remaining elements go on the lines above this marker, one row each */
 /* clang-format on */
 
-/* The presets of the section's HUD Preset row, in its order (2Ship's presetNames, HudEditor.cpp:166-170). */
+/* The presets of the section's HUD Preset row, in its order (2Ship's presetNames, HudEditor.cpp:165-169). */
 #define RSBS_MM_HUD_PRESET_VANILLA 0
 #define RSBS_MM_HUD_PRESET_HIDDEN 1
 #define RSBS_MM_HUD_PRESET_WIDESCREEN 2
