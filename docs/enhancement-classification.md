@@ -147,6 +147,17 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gDeveloperTools.FrameAdvanceTick` | frame-advance tick | frame-advance tick | ✅ same intent |
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
 
+**The Audio Editor's other MM keys (#1239).** Not shared spellings, so not rows of the table above; each is now driven
+from SoH's Audio Editor > Audio Options block, and its provider (`Audio/Sfx/`) is carved into `ship__Enh_registrars`:
+
+| MM key | Category | How SoH's Audio Options block drives it |
+|---|---|---|
+| `gAudioEditor.DisableTatlCallAudio` | converged (§5.3 group E) | retired onto SoH's `gAudioEditor.DisableNaviCallAudio` ("Disable Navi Call Audio"): one row mutes the companion fairy's call in both games |
+| `gAudioEditor.LinkVoiceFreqMultiplier.Enable` | translated (`kTranslatedKeys`) | SoH's one float slider `gAudioEditor.LinkVoiceFreqMultiplier` (0.4-2.5); MM's pitch hook is armed when it is not 1.0. LUS stores CVars as dot-nested JSON, so SoH's leaf cannot also be the parent of MM's pair, and a rename is impossible |
+| `gAudioEditor.LinkVoiceFreqMultiplier.Scale` | translated (`kTranslatedKeys`) | the same slider's value, read by the same translator (`LinksVoicePitchMultiplier.cpp`); nothing writes MM's two keys |
+| `gAudioEditor.MuteCarpenterSfx` | (O) MM-only | its own MM row, "MM Mute Carpenter Sounds", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_CARPENTER_SFX`) |
+| `gAudioEditor.ChildGoronCry` | (O) MM-only | its own MM row, "MM Mute Crying Goron Child", after SoH's mute rows (`RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY`) |
+
 ### 3.3 ❌ Accidental divergence — the actual bug list (2 rows, 4 keys)
 
 These are the only collision-set entries where the two games disagree. Both are filed.
@@ -386,6 +397,7 @@ default (off).
 | Right-stick ocarina | `gSettings.CustomOcarina.RightStick` | `gEnhancements.Playback.RightStickOcarina` | #1062 | Was P6. |
 | Prevent dropped ocarina inputs | `gEnhancements.DpadNoDropOcarinaInput` | `gEnhancements.Playback.NoDropOcarinaInput` | #1062 | Was P6. |
 | Containers Match Contents | `gEnhancements.ChestSizeAndTextureMatchContents` | `gRando.CSMC` | #1064 | The #966 audit table listed this OOT-ONLY with no MM reader; that was wrong, the reader is `gRando.CSMC` (chests, pots, grass, crates, barrels). `ChestSizeDependsStoneOfAgony` stays OoT-only (MM has no Stone of Agony). |
+| Disable Navi Call Audio | `gAudioEditor.DisableNaviCallAudio` | `gAudioEditor.DisableTatlCallAudio` | #1239 | Both bool, default off, and both skip the companion fairy's call sound (MM's `VB_PLAY_TATL_CALL_AUDIO`). SoH's row is left as SoH wrote it and now drives both games. |
 
 ## 6. (O) — only-in-one, by category
 

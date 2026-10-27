@@ -80,6 +80,9 @@
 #define RSBS_CVAR_LEGACY_VOLUME_SFX "gSettings.Audio.SoundEffectsVolume"
 #define RSBS_CVAR_LEGACY_VOLUME_FANFARE "gSettings.Audio.FanfareVolume"
 #define RSBS_CVAR_LEGACY_VOLUME_AMBIENCE "gSettings.Audio.AmbienceVolume"
+// W6-AUDIO-SFX (#1239): MM's two sound mutes with no SoH twin, drawn as MM rows in SoH's Audio Editor (Audio Options).
+#define RSBS_CVAR_MM_MUTE_CARPENTER_SFX "gAudioEditor.MuteCarpenterSfx"
+#define RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY "gAudioEditor.ChildGoronCry"
 
 /* Character colour — issue #453, inventory §3.3 BUG 1 / §4 row P4.
  *
@@ -316,6 +319,11 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     { RSBS_CVAR_LEGACY_VOLUME_SFX, RSBS_CVAR_VOLUME_SFX, true },
     { RSBS_CVAR_LEGACY_VOLUME_FANFARE, RSBS_CVAR_VOLUME_FANFARE, true },
     { RSBS_CVAR_LEGACY_VOLUME_AMBIENCE, RSBS_CVAR_VOLUME_AMBIENCE, true },
+    // #1239 (beside the other audio rows; migrated by ConfigVersion9Updater): the companion fairy's call. SoH's
+    // "Disable Navi Call Audio" (Audio Editor > Audio Options) and MM's "Disable Tatl Call Audio" are both bool,
+    // default off, and both skip the fairy's call sound (OoT z_parameter.c, MM VB_PLAY_TATL_CALL_AUDIO at
+    // z_parameter.c:5094), so SoH's one row drives both games.
+    { "gAudioEditor.DisableTatlCallAudio", "gAudioEditor.DisableNaviCallAudio", false },
     { RSBS_CVAR_LEGACY_COLOR_KOKIRI_TUNIC, RSBS_CVAR_COLOR_KOKIRI_TUNIC, false },
     { RSBS_CVAR_LEGACY_COLOR_GORON_TUNIC, RSBS_CVAR_COLOR_GORON_TUNIC, false },
     { RSBS_CVAR_LEGACY_COLOR_ZORA_TUNIC, RSBS_CVAR_COLOR_ZORA_TUNIC, false },
@@ -572,6 +580,15 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       "Major / Always). A rename would give SoH's All Items (2) MM's Everything But Major and keep presenting "
       "majors, so Rando::StaticData::SkipGetItemCutsceneTierFromSoh maps Off->Never, Junk Items->Junk Items "
       "Only, All Items->Always." },
+    { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Enable", "gAudioEditor.LinkVoiceFreqMultiplier",
+      "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
+      "SoH writes one float leaf (0.4-2.5, default 1.0); MM reads a bool .Enable beside a float .Scale. LUS stores "
+      "CVars as dot-nested JSON, so SoH's leaf cannot also be the parent of MM's two keys. The translator arms MM's "
+      "pitch hook when SoH's value is not 1.0." },
+    { 1239, "gAudioEditor.LinkVoiceFreqMultiplier.Scale", "gAudioEditor.LinkVoiceFreqMultiplier",
+      "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp",
+      "The other half of the same pair: MM's .Scale is SoH's value itself (both games use 0.4-2.5), read through "
+      "the same translator, so nothing writes MM's two keys." },
 };
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
@@ -1234,11 +1251,11 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
 // right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
-// Introductions). 32 + 11 + 4 + 1 = 48. Pinning the count makes a silently dropped or double-added
-// row a compile error.
-static_assert(kConvergedKeyCount == 48, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+// Introductions), and #1239 one (the fairy's call). 32 + 11 + 4 + 1 + 1 = 49. Pinning the count makes a silently
+// dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 49, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
                                         "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
-                                        "= 48");
+                                        "+ #1239 (1) = 49");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to

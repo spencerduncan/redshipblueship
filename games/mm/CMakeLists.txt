@@ -444,6 +444,16 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Audio/Sfx/MuteLowHpAlarm.cpp"
         # #1025
         "2s2h/Enhancements/Audio/Sfx/DisableEnemyProximityMusic.cpp"
+        # W6-AUDIO-SFX (#1239): the Audio Editor's four other Sfx TUs, each registering only through a file-scope
+        # RegisterShipInitFunc. Hooks, all dispatched in the single exe: ShouldActorInit keyed on ACTOR_OBJ_SOUND
+        # (z_actor.c via MM_GameHooks_ExecuteShouldActorInit's ForID leg), and VB_PLAY_GORON_CHILD_CRY (ovl_En_Gk),
+        # VB_PLAY_TATL_CALL_AUDIO (z_parameter.c) and VB_LINK_VOICE_PITCH_MULTIPLIER (z_actor.c) via
+        # MM_GameHooks_ExecuteVBShould. The carpenter and voice-pitch bodies null-check MM_gPlayState. No stub in
+        # mm_stubs.c, no twin of their Register* functions in games/oot (OoT's z_actor.c freqMultiplier is static).
+        "2s2h/Enhancements/Audio/Sfx/MuteCarpenterSfx.cpp"
+        "2s2h/Enhancements/Audio/Sfx/MuteCryingGoronChild.cpp"
+        "2s2h/Enhancements/Audio/Sfx/DisableTatlCallAudio.cpp"
+        "2s2h/Enhancements/Audio/Sfx/LinksVoicePitchMultiplier.cpp"
         # #1026
         "2s2h/Enhancements/Audio/AudioHook.cpp"
         # #1023: the Free Look, Camera Distance and Camera Transition Speed rows (Settings > Controls). FreeLook.cpp
