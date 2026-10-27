@@ -3207,6 +3207,7 @@ static void RandomizerRegisterHooks() {
 #ifdef RSBS_SINGLE_EXECUTABLE
         sGiveAttemptsCheck = RC_UNKNOWN_CHECK; // #1204: a new file starts its own count
         sGiveAttempts = 0;
+        OoT_Rando_Foreign_ClearHolds(); // #1222: a check held in one file is not the next file's
 #endif
 
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnFlagSet>(onFlagSetHook);

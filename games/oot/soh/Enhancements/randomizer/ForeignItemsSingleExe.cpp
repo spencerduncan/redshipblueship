@@ -246,8 +246,10 @@ extern "C" int OoT_Rando_Foreign_RecordPickup(uint16_t rc) {
 // a row is free (after a crossing to Termina redeems the rows MM was waiting on).
 //
 // RAM only, like the drain's own queue: it survives a crossing, which is what
-// frees the rows, but not a quit. A check held at a quit keeps its flag and its
-// item is not given (#1222's PR names this as the open limit).
+// frees the rows, but not a quit, and a file load forgets it with the drain's
+// queue (OoT_Rando_Foreign_ClearHolds, from OnLoadGame), so a check held in one
+// file is never handed to the next. A check held at a quit or a file load keeps
+// its flag and its item is not given (#1222's PR names this as the open limit).
 static std::vector<uint16_t> sOutboxHeldChecks;
 
 extern "C" int OoT_Rando_Foreign_HoldPickup(uint16_t rc) {
@@ -284,7 +286,7 @@ extern "C" int OoT_Rando_Foreign_TakeReleasedHolds(uint16_t* out, int cap) {
 }
 
 extern "C" void OoT_Rando_Foreign_ClearHolds(void) {
-    // #1222 review [lock]: today a file load leaves the held list as it was.
+    sOutboxHeldChecks.clear();
 }
 
 /**

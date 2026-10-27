@@ -89,15 +89,16 @@ bool Rando::ActorBehavior::HagsMushroomLineArms() {
         return true;
     }
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #1228: the line does not re-arm a slot whose OoT item already crossed (#800),
-    // but the free blue potion the arming path settles below must be settled here
-    // too. Left clear, the next visit's blue-potion shelf answers EnTrt's
-    // free-potion line 0x881 (z_en_trt.c EnTrt_GetItemChoiceTextId), whose branch
-    // offers the shelf's getItemId and waits on HasParent: a rando shelf has none
-    // (GI_NONE, EnGirlA_RandoInit skips the InitialUpdate that sets it), so the
-    // offer never completes. Settled, the shelf offers its own (sold-out) line.
-    if (Rando::Foreign::IsDeliveredForeignHost(RC_HAGS_POTION_SHOP_ITEM_01) &&
-        RANDO_SAVE_CHECKS[RC_HAGS_POTION_SHOP_ITEM_01].shuffled) {
+    // #1228: the line does not re-arm a shuffled slot that is already armed (a
+    // crossing the full outbox holds stays `eligible` across the reset, #1222) or
+    // whose OoT item already crossed (#800), but the free blue potion the arming
+    // path settles below must be settled here too. Left clear, the next visit's
+    // blue-potion shelf answers EnTrt's free-potion line 0x881 (z_en_trt.c
+    // EnTrt_GetItemChoiceTextId), whose branch offers the shelf's getItemId and
+    // waits on HasParent: a rando shelf has none (GI_NONE, EnGirlA_RandoInit skips
+    // the InitialUpdate that sets it), so the offer never completes. Settled, the
+    // shelf offers its own line.
+    if (RANDO_SAVE_CHECKS[RC_HAGS_POTION_SHOP_ITEM_01].shuffled) {
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_FREE_BLUE_POTION);
     }
 #endif
@@ -136,9 +137,11 @@ void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
 
 void EnGirlA_RandoBought(PlayState* play, EnGirlA* enGirlA) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #1222: a purchase the full outbox held did not happen; the shelf stays.
-    if (Rando::Foreign::IsForeignCheck((RandoCheckId)enGirlA->actor.world.rot.z) &&
-        !Rando::ActorBehavior::ShopShelfSlotSold((RandoCheckId)enGirlA->actor.world.rot.z)) {
+    // #1222: a purchase the full outbox held did not happen; the shelf stays. Asked
+    // of the outbox, not of the slot: the Curiosity Shop (z_en_fsn.c) calls this
+    // BEFORE the shelf's buyFunc gives the item, so a successful sale's slot is not
+    // obtained yet here and its shelf must still empty.
+    if (Rando::Foreign::ForeignOutboxFullFor((RandoCheckId)enGirlA->actor.world.rot.z)) {
         return;
     }
 #endif
