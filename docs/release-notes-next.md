@@ -7,7 +7,8 @@ this section.
 **Merged up to:** `main` at `d94ab061` (2026-10-27), 11 commits after the tag: pull requests #1174 to #1188 (#1174,
 #1179 and #1183 are docs; #1175, #1176, #1182 and #1187 are issues).
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
-#N". Nobody has played any of it: every change below is locked by test rows.
+#N". Nobody has played any of it. Every change below is locked by test rows except Mido's, the boss door's and
+the warp-song prompt's hints (#1181) and the Nearly No Logic cow rule (#1178); #1174, #1179 and #1183 are docs.
 
 ---
 
@@ -107,8 +108,8 @@ this section.
 - **Logic (#1178):** in the game the Double Cell and Steep Slope carpenters still award each other's checks
   (inherited data, issue #1191); logic now names the right cell. The game stays more permissive than logic in two
   places (the carpenter cutscene skip without the nut, Talon's game without the bracelet), so no seed becomes
-  unbeatable. Link's House Cow shows available once Epona can be freed, as SoH's own tracker shows it: its logic
-  assumes Malon's race can be won (issue #1170, by design).
+  unbeatable. Link's House Cow shows available once everything needed to win Malon's race is held, as SoH's own
+  tracker shows it: its logic assumes the race can be won (issue #1170, by design).
 - **Bombchus (#1184):** Termina holds none without a bomb bag (by design, above). A Majora's Mask chu pack found in
   Termina with no Majora's Mask bag still becomes junk, and 2Ship2Harkinian's own Majora's Mask bomb-bag give can
   add chus to the shared count; both are follow-ups (issue #1061's root-cause comment).
