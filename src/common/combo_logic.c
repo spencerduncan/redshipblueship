@@ -1057,6 +1057,21 @@ static int sRequiredCount;
 static int sSurplusIdx[RSBS_COMBO_LOGIC_BAG_CAP];
 static int sSurplusCount;
 
+/** DEBUG SEEDS (Combo_Logic_TestSetForcedPlacements): the rows in force. */
+static ComboLogicForcedPlacement sForced[RSBS_COMBO_LOGIC_FORCED_CAP];
+static int sForcedCount;
+
+int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, int count) {
+    if (count < 0 || count > RSBS_COMBO_LOGIC_FORCED_CAP || (count > 0 && rows == NULL)) {
+        return -1;
+    }
+    for (int i = 0; i < count; ++i) {
+        sForced[i] = rows[i];
+    }
+    sForcedCount = count;
+    return sForcedCount;
+}
+
 static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
     memset(out, 0, sizeof(*out));
     out->status = RSBS_COMBO_LOGIC_OK;

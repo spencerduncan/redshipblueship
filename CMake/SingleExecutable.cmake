@@ -2298,12 +2298,19 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
-    # The four rows above generate the default seed with the default settings and
+    # #1231: a DEBUG SEED with pinned placements (the #1070 Woodfall repro: the
+    # Sonata and the Deku Mask in Mido's House) generates, proves the GOAL and
+    # packages, with both items in the crossing store on their Mido's House chests.
+    redship_add_test(NAME DebugSeedForcedPlacements COMMAND redship --test debug-seed-forced-placements
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=oot:Mido Top Left Chest=mm:Sonata of Awakening,oot:Mido Top Right Chest=mm:Deku Mask")
+    # The rows above generate the default seed with the default settings and
     # read Randomizer/<icons>.json in the build tree (the round trip twice, around
     # its package write): one at a time under ctest -j, so none reads another's
     # spoiler mid-rewrite.
     set_tests_properties(GoldenSeedDigestPlayerPath GoldenSeedDigestPackagePath SeedPackageRoundTrip
-        SeedPackageCVarsCannotMoveWorld
+        SeedPackageCVarsCannotMoveWorld DebugSeedForcedPlacements
         PROPERTIES RESOURCE_LOCK rsbs_default_seed_spoiler)
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL

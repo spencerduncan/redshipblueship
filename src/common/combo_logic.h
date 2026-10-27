@@ -1183,6 +1183,39 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
  */
 int Combo_Logic_TestLastCandidates(GameId hostGame, uint16_t* out, int cap);
 
+/** One FORCED PLACEMENT for a debug seed: `item` (a bag row's item) on `hostCheck`
+ *  of `hostGame`. See Combo_Logic_TestSetForcedPlacements. */
+typedef struct {
+    uint8_t hostGame;
+    uint16_t hostCheck;
+    SharedItem item;
+} ComboLogicForcedPlacement;
+
+/** The most forced placements one fill honours. */
+#define RSBS_COMBO_LOGIC_FORCED_CAP 8
+
+/**
+ * DEBUG SEEDS ONLY (#1070, #1231): pin up to RSBS_COMBO_LOGIC_FORCED_CAP bag rows to
+ * named hosts in every later Combo_Logic_RunFill, so a debug seed can put a known
+ * item on a check a fresh file reaches at once. Set only by the headless
+ * `debug-seed-forced-placements` dispatch (src/common/test_runner.cpp, from
+ * RSBS_FORCE_PLACEMENTS); nothing in a player's path calls it, and with no rows set
+ * the fill is byte-for-byte today's (no RNG draw, no host, no order changes).
+ *
+ * Each row claims the first unclaimed bag row with the same origin and id. Every
+ * attempt places the claimed rows on their hosts right after its reset, before the
+ * shuffle, and the claimed rows leave the required / surplus lists, so the assumed
+ * fill places the rest of the bag around them and the exit condition still proves
+ * the GOAL over the whole world. A row whose item is not in the bag, a host that is
+ * not one of that engine's empty hosts, or a crossing the row may not make refuses
+ * the fill (ERR_BAD_REQUEST), never silently ignores the row.
+ *
+ * @param rows  the rows to copy, or NULL with count 0 to clear
+ * @return the number of rows now in force, or -1 (nothing changed) on a NULL with
+ *         a positive count or more than RSBS_COMBO_LOGIC_FORCED_CAP rows
+ */
+int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, int count);
+
 // ============================================================================
 // THE BAG MODEL — copies, surplus, filler and traps (operator ruling 2026-09-26)
 // ============================================================================
