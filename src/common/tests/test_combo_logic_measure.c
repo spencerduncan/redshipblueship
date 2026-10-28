@@ -1594,15 +1594,16 @@ TestResult ComboLogicMeasure_Run(void) {
     const double extrapolatedMs = roundStats.median * fullBagRounds;
     printf("[TEST] combo-logic-measure: === THE #582 FLOOR ===\n");
     printf("[TEST] combo-logic-measure: MEASURED: a %d-item bag under the proved rung took %.1fms, which is %.3fx the "
-           "30000ms floor and %.3fx this host's %ums per-attempt budget\n",
+           "%ums floor and %.3fx this host's %ums per-attempt budget\n",
            bagCount, measuredFillMs, measuredFillMs / (double)RSBS_GENBUDGET_FLOOR_MS,
-           measuredFillMs / (double)Combo_GenBudget_FillBudgetMs(0), (unsigned)Combo_GenBudget_FillBudgetMs(0));
+           (unsigned)RSBS_GENBUDGET_FLOOR_MS, measuredFillMs / (double)Combo_GenBudget_FillBudgetMs(0),
+           (unsigned)Combo_GenBudget_FillBudgetMs(0));
     printf("[TEST] combo-logic-measure: EXTRAPOLATED (arithmetic, NOT measured): the full union bag of %d items needs "
-           "%.0f rounds; at the measured median of %.1fms per round that is %.0fms = %.1fs = %.2fx the 30000ms floor "
+           "%.0f rounds; at the measured median of %.1fms per round that is %.0fms = %.1fs = %.2fx the %ums floor "
            "and %.2fx this host's %ums total-creation budget\n",
            fullUnionBag, fullBagRounds, roundStats.median, extrapolatedMs, extrapolatedMs / 1000.0,
-           extrapolatedMs / (double)RSBS_GENBUDGET_FLOOR_MS, extrapolatedMs / (double)Combo_GenBudget_TotalBudgetMs(),
-           (unsigned)Combo_GenBudget_TotalBudgetMs());
+           extrapolatedMs / (double)RSBS_GENBUDGET_FLOOR_MS, (unsigned)RSBS_GENBUDGET_FLOOR_MS,
+           extrapolatedMs / (double)Combo_GenBudget_TotalBudgetMs(), (unsigned)Combo_GenBudget_TotalBudgetMs());
     printf("[TEST] combo-logic-measure: the extrapolation is LINEAR in the bag and that is its weakness: a round's "
            "cost is dominated by two full closures whose size does not depend on the assumed-set size, so linear is "
            "the honest first order — but the assume loop itself is O(bag) per round, which makes the true curve "
@@ -1640,9 +1641,9 @@ TestResult ComboLogicMeasure_Run(void) {
            fillPerRoundMs, beatEitherA.wallMs, beatEitherA.res.rounds, roundStats.median);
     const double fullBagAllRollbacksMs = fullBagOneAttemptMs * (double)RSBS_COMBO_LOGIC_FILL_RETRIES;
     printf("[TEST] combo-logic-measure: EXTRAPOLATED, ONE BATCH (arithmetic): the full union bag over %.0f rounds at "
-           "%.1fms = %.0fms = %.1fs, i.e. %.2fx the 30000ms floor and %.2fx this host's %ums PER-ATTEMPT budget\n",
+           "%.1fms = %.0fms = %.1fs, i.e. %.2fx the %ums floor and %.2fx this host's %ums PER-ATTEMPT budget\n",
            fullBagRounds, fillPerRoundMs, fullBagOneAttemptMs, fullBagOneAttemptMs / 1000.0,
-           fullBagOneAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS,
+           fullBagOneAttemptMs / (double)RSBS_GENBUDGET_FLOOR_MS, (unsigned)RSBS_GENBUDGET_FLOOR_MS,
            fullBagOneAttemptMs / (double)Combo_GenBudget_FillBudgetMs(0), (unsigned)Combo_GenBudget_FillBudgetMs(0));
     printf("[TEST] combo-logic-measure: EXTRAPOLATED, WORST-CASE RunFill: the coordinator's default of %d BATCH "
            "ROLL-BACKS all happen inside ONE Combo_Logic_RunFill, i.e. inside ONE ladder attempt, so %.1fs is what has "

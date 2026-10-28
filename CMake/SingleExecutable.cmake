@@ -116,7 +116,8 @@ set(REDSHIP_COMMON_SOURCES
     ${CMAKE_SOURCE_DIR}/src/common/mm_stubs.cpp
     ${CMAKE_SOURCE_DIR}/src/common/game_lifecycle.c
     # The creation event's FILL BUDGET and PROGRESS SURFACE (#582's operator
-    # decision; ADR 0010 increment 2). Host-speed calibration, the ~30 s floor
+    # decision; ADR 0010 increment 2). Host-speed calibration, the floor (60 s
+    # since 2026-10-28; #582 ruled ~30 s)
     # and the phase channel the creation seam reports into. APPENDED, never
     # reordered.
     ${CMAKE_SOURCE_DIR}/src/common/gen_budget.c
@@ -2572,7 +2573,7 @@ if(BUILD_TESTING)
 
     # Increment 3's FIRST TWO WORK ITEMS, which are measurements rather than
     # features (#645; solver-inventory audit §6.3): what one linked round costs
-    # against the #582 30 s floor, and whether a single-bag assumed fill over MM's
+    # against the #582 floor (30 s then, 60 s since 2026-10-28), and whether a single-bag assumed fill over MM's
     # forward-authored graph converges. Both are questions about
     # Combo_Logic_RunRound / Combo_Logic_RunFill driven over BOTH REAL engines, and
     # neither is answerable any other way — which is why this row exists at all.

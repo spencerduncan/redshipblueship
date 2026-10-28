@@ -23,6 +23,11 @@
  * implementer; the numbers below are that sizing and every one of them is
  * named, not buried.
  *
+ * The operator raised the floor on 2026-10-28: asked whether the "32 s" the
+ * overlay showed was a hard limit, and told it was (the round budget sized to
+ * the floor is the stop), they ruled "bump it to 60s". The floor is 60 s since
+ * then, and both round stops doubled with it.
+ *
  * ------------------------------------------------------------------------
  * THE BUDGET IS COUNTED IN ROUNDS, NOT MILLISECONDS (#950)
  * ------------------------------------------------------------------------
@@ -62,21 +67,23 @@
  * ------------------------------------------------------------------------
  * THE NUMBERS
  * ------------------------------------------------------------------------
- * - FLOOR = 30 s per attempt. The operator's "~30 second cap as the floor",
- *   taken literally. Three times upstream's 10 s, which is the constant every one
- *   of the 14 observed failures hit. Since #950 it is the TIME the round budget
- *   is sized to last on the reference machine, not a stop.
+ * - FLOOR = 60 s per attempt: the operator's 2026-10-28 ruling ("bump it to
+ *   60s"), which doubled #582's "~30 second cap as the floor" (30 s, three
+ *   times upstream's 10 s, the constant every one of the 14 observed failures
+ *   hit). Since #950 it is the TIME the round budget is sized to last on the
+ *   reference machine, not a stop.
  * - REFERENCE ROUND = the measured cost of one fill round on the reference
  *   machine (gen_budget.c says where the number comes from).
- * - ROUNDS PER ATTEMPT = FLOOR / REFERENCE ROUND: the round budget that lasts
- *   the floor on the reference machine. THE STOP. A slower host takes longer to
+ * - ROUNDS PER ATTEMPT = FLOOR / REFERENCE ROUND = 60000 / 24 = 2500: the round
+ *   budget that lasts the floor on the reference machine. THE STOP. A slower host takes longer to
  *   spend it and a faster one less; neither gets a different verdict.
- * - TOTAL ROUNDS = 2 x the rounds per attempt, summed over every ladder attempt
+ * - TOTAL ROUNDS = 2 x the rounds per attempt (5000), summed over every ladder attempt
  *   and checked BETWEEN attempts. Without it, ten deterministic dead-ends that
  *   each grind for most of their budget would keep a player waiting for
  *   minutes. Checked between attempts rather than inside one, so it can never
  *   truncate an attempt that is about to succeed.
- * - CEILING = 90 s and HOST SCALE = measured/reference clamped to [1.0, 3.0]:
+ * - CEILING = 180 s (3x the floor, so a host at the 300% clamp is estimated in
+ *   full) and HOST SCALE = measured/reference clamped to [1.0, 3.0]:
  *   DISPLAY ONLY since #950. They size the overlay's estimate of how long this
  *   host takes to spend the round budget (Combo_GenBudget_FillBudgetMs), and
  *   nothing a creation decides reads either of them.
@@ -101,7 +108,8 @@
  * learning anything about rendering.
  *
  * Combo_GenProgress_ElapsedMs() at the end of a creation is also the P12
- * measurement ("measure the linked round against the ~30 s floor"), which is why
+ * measurement ("measure the linked round against the floor", 60 s since
+ * 2026-10-28), which is why
  * the elapsed clock is part of this surface rather than an ad-hoc timer at the
  * seam.
  */
@@ -118,12 +126,14 @@ extern "C" {
 
 // ---- The pinned numbers (see the header comment for each one's reason) ------
 
-/** The operator's "~30 second cap as the floor", ms: the time the per-attempt
- *  round budget is sized to last on the reference machine. Display and sizing
- *  only since #950; no stop compares a clock against it. */
-#define RSBS_GENBUDGET_FLOOR_MS 30000u
-/** The overlay estimate's ceiling, ms (display only since #950). */
-#define RSBS_GENBUDGET_CEILING_MS 90000u
+/** The floor, ms: the time the per-attempt round budget is sized to last on the
+ *  reference machine. 60 s since the operator's 2026-10-28 ruling (#582's
+ *  "~30 second cap as the floor" until then). Display and sizing only since
+ *  #950; no stop compares a clock against it. */
+#define RSBS_GENBUDGET_FLOOR_MS 60000u
+/** The overlay estimate's ceiling, ms (display only since #950): 3x the floor,
+ *  the estimate at the RSBS_GENBUDGET_MAX_SCALE_PERCENT clamp. */
+#define RSBS_GENBUDGET_CEILING_MS 180000u
 /** Upper clamp on the measured host scale (display only since #950). */
 #define RSBS_GENBUDGET_MAX_SCALE_PERCENT 300u
 /** The whole creation's budget is this many per-attempt budgets, checked
@@ -131,7 +141,7 @@ extern "C" {
 #define RSBS_GENBUDGET_TOTAL_MULTIPLIER 2u
 /**
  * What one coordinator fill round costs on the reference machine, in ms: the
- * conversion from the operator's 30 s floor to a count of rounds. MEASURED, not
+ * conversion from the operator's 60 s floor to a count of rounds. MEASURED, not
  * chosen; gen_budget.c records the measurement. Like GENBUDGET_REFERENCE_MS it is
  * re-measured only deliberately and only in its own commit, because changing it
  * changes which seeds are creatable, on every machine at once.

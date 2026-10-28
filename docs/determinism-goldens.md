@@ -47,7 +47,8 @@ seed and dispatch as `seed-digest-default` (132 overrides; the single bag places
 its first attempt in 266 rounds (258 before #974 added the mask shop's masks), far from the fill's wall clock, so the golden does
 not ride machine speed). A heavier profile with dungeon entrances shuffled too was
 measured first and rejected: on this seed its single bag hit the 30 s per-attempt
-budget, and a golden must never pin a world a slower machine would not reach.
+budget of the time (1250 rounds, before the 2026-10-28 floor of 60 s), and a
+golden must never pin a world a slower machine would not reach.
 
 `seed-digest-armed-caps` exists because the shipped profile arms none of the four
 MM give-capability families (souls, ocarina buttons, swim, clocks; #681), so under
@@ -190,7 +191,7 @@ this golden. Before re-pinning, read the `[golden-profile]` log lines, which nam
 every OoT key and every MM key, and correct the ids in the table instead if they
 no longer name the same checks.
 
-All four are created on ladder attempt 1 in 266 rounds against the 1250-round
+All four are created on ladder attempt 1 in 266 rounds against the 2500-round
 per-attempt budget. `GoldenSeedsRoundBudget` checks three of them again, the ones
 that `RSBS_DIAG_CVARS` alone describes. Because every golden on `RSBSUNIFIED1`
 creates on attempt 1 in the same number of rounds, that row ties each entry to

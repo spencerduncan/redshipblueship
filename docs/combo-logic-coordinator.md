@@ -296,8 +296,11 @@ compile-time constants in `src/common/gen_budget.h`:
 | Constant | Value | Meaning |
 |---|---|---|
 | `RSBS_GENBUDGET_REFERENCE_ROUND_MS` | 24 | measured cost of one fill round on the reference machine |
-| `RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT` | 1250 | 30 s floor / 24 ms: the per-attempt stop |
-| `RSBS_GENBUDGET_TOTAL_ROUNDS` | 2500 | 2 x the per-attempt budget: the whole creation's stop |
+| `RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT` | 2500 | 60 s floor / 24 ms: the per-attempt stop |
+| `RSBS_GENBUDGET_TOTAL_ROUNDS` | 5000 | 2 x the per-attempt budget: the whole creation's stop |
+
+The floor was 30 s (1250 and 2500 rounds) until the operator raised it to 60 s on
+2026-10-28 (ADR 0010's amendment of that date).
 
 Until #950 both stops compared C `clock()` against a millisecond budget scaled by
 the host's measured speed. `clock()` is wall time under MSVC and the process's CPU
@@ -313,9 +316,10 @@ on every platform, used only for that display and the stderr timing lines.
 the reference machine, shipped profile, single-batch fills: 24.3 ms (ADR 0010's
 K11 sample of thirty creations, 6.41 s over about 264 rounds) and 25.7 ms (#950:
 nine fills of 258 rounds, 4.96-7.70 s). A shipped batch is 258 rounds, so a fill
-that needs four batches is created and one that needs five is stopped, which is
-where the 30 s wall-clock floor sat on that machine. The four golden seeds use
-258 of the 1250 rounds on their creating attempt (`GoldenSeedsRoundBudget`).
+that needs nine batches (2322 rounds) is created and one that needs ten (2580) is
+stopped. Under the 30 s floor the line fell between four batches and five, which
+is where the wall-clock floor sat on that machine. The four golden seeds use 266
+of the 2500 rounds on their creating attempt (`GoldenSeedsRoundBudget`).
 
 **A budget stop is never a rung.** It throws `GenerationTimeout` (per attempt) or
 stops outside the attempt's `try` (total), and the ladder stops cold, exactly as it

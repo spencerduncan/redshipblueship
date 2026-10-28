@@ -92,8 +92,9 @@ uint32_t Combo_GenBudget_NowMs(void) {
  * drift out from under the ruling.
  *
  * A machine at or below this number scales to 100% and its overlay estimates
- * the 30 s floor; one three times slower saturates the 300% clamp and estimates
- * the 90 s ceiling. (Until #950 those were the host's real per-attempt budgets.)
+ * the 60 s floor; one three times slower saturates the 300% clamp and estimates
+ * the 180 s ceiling (30 s and 90 s before the 2026-10-28 ruling). (Until #950 those were the host's real per-attempt
+ * budgets.)
  *
  * WHEN TO RE-MEASURE: only when the reference machine is deliberately changed,
  * and only as its own commit. Since #950 it moves only the overlay's estimate,
@@ -117,12 +118,14 @@ uint32_t Combo_GenBudget_NowMs(void) {
  * Each figure is the single-bag call's wall time (bag build and bookkeeping
  * included) over its rounds, so a little above a bare round's cost.
  *
- * 24 ms is the round the floor is divided by: 30 s / 24 ms = 1250 rounds per
- * attempt. A shipped single batch is 258 rounds, so a fill that needs four
- * batches (1032 rounds) is created and one that needs five (1290) is stopped,
- * which is where the wall-clock floor sat on the reference machine (ADR 0010's
- * K11 entry: "at about 6.4 s per batch, a seed would need five batches to exceed
- * the budget"). The total is 2500 rounds.
+ * 24 ms is the round the floor is divided by: 60 s / 24 ms = 2500 rounds per
+ * attempt (the operator's 2026-10-28 ruling doubled the floor from 30 s). A
+ * shipped single batch is 258 rounds, so a fill that needs nine batches (2322
+ * rounds) is created and one that needs ten (2580) is stopped. The total is 5000
+ * rounds. Under the 30 s floor the budget was 1250 rounds (four batches created,
+ * five stopped, which is where the wall-clock floor sat on the reference
+ * machine: ADR 0010's K11 entry, "at about 6.4 s per batch, a seed would need
+ * five batches to exceed the budget") and 2500 in total.
  */
 
 static uint32_t sRoundsPerAttemptOverride = 0;
@@ -405,7 +408,7 @@ void Combo_GenProgress_End(bool ok) {
     sProgress.budgetMs = 0;
     sProgress.detail = kGenPhaseNames[sProgress.phase];
 
-    // THE P12 MEASUREMENT. "Measure the linked round against the ~30 s floor"
+    // THE P12 MEASUREMENT. "Measure the linked round against the floor"
     // asked for a number, and this is where the number is produced on every real
     // creation — not only in a benchmark somebody has to remember to run.
     // The presentation split is printed with it, because "the bar cost the

@@ -3831,7 +3831,8 @@ TestResult Test_ComboCreationEvent(void) {
             return TEST_FAIL;
         }
         // THE OPERATOR'S FLOOR. "~30 second cap as the floor" is a product
-        // decision (#582, 2026-08-04); a tuning pass that quietly drops below it
+        // decision (#582, 2026-08-04), raised to 60 s by the operator on
+        // 2026-10-28 (GenBudgetFloor pins it); a tuning pass that quietly drops below it
         // changes what was ruled, so the number is asserted rather than trusted.
         if (perAttempt < (uint32_t)RSBS_GENBUDGET_FLOOR_MS || perAttempt > (uint32_t)RSBS_GENBUDGET_CEILING_MS) {
             printf("[TEST] FAIL: per-attempt budget %ums outside [%u, %u]\n", perAttempt,
@@ -3851,7 +3852,7 @@ TestResult Test_ComboCreationEvent(void) {
         // Comparing the 200% override against `perAttempt` — the budget at
         // whatever scale THIS host measured — is what this leg used to do, and it
         // is only true on a host that measures at or below 200%. A GitHub Linux
-        // runner measured 300% (per-attempt 90000ms), so pinning 200% correctly
+        // runner measured 300% (per-attempt 90000ms under the 30 s floor), so pinning 200% correctly
         // produced a smaller number and the row failed with "a 2x-slower host got
         // a SMALLER budget" while asserting nothing about the scaling at all. The
         // same runner had passed this row hours earlier; the defect is latent in
