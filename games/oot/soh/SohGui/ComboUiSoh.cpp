@@ -155,11 +155,19 @@ bool SohButton(const char* label, float width, const ComboUiWidgetOpts* opts) {
  * "Search..." placeholder drawn over the empty field at 40% white, 12 px in (SoH
  * draws it at window x 20 over a field that starts at the 8 px padding).
  */
-bool SohSearchInput(const char* id, char* buf, int bufSize) {
+bool SohSearchAction(const char* id, char* buf, int bufSize, const char* icon, const char* tooltip, bool* clicked) {
+    if (clicked != nullptr) {
+        *clicked = false;
+    }
     ImGui::PushID(id);
     UIWidgets::PushStyleCombobox(Theme());
     const float startX = ImGui::GetCursorPosX();
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42);
+    // #1280: an action button after the eraser is the eraser's size (its glyph
+    // and 10 px of padding a side) with the same gap, so the field gives up that
+    // much more of the line, as 2Ship's tracker filter does for its button.
+    const float actionWidth =
+        icon != nullptr ? ImGui::CalcTextSize(icon).x + 20.0f + ImGui::GetStyle().ItemSpacing.x : 0.0f;
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 42 - actionWidth);
     bool changed = ImGui::InputText("##search", buf, (size_t)bufSize);
     // Both parts report their rects like every seam widget (no tooltip: SoH's
     // search box has none). The eraser goes under "<id>##eraser".
@@ -174,6 +182,20 @@ bool SohSearchInput(const char* id, char* buf, int bufSize) {
         changed = changed || buf[0] != '\0';
         buf[0] = '\0';
     }
+    if (icon != nullptr) {
+        ImGui::SameLine();
+        const bool pressed = UIWidgets::Button(
+            icon, UIWidgets::ButtonOptions().Size(UIWidgets::Sizes::Inline).Color(Theme()).Padding(ImVec2(10.f, 6.f)));
+        const ComboUiWidgetOpts actionOpts = { tooltip, false, nullptr };
+        if (tooltip != nullptr && tooltip[0] != '\0') {
+            UIWidgets::Tooltip(tooltip);
+        }
+        const std::string actionLabel = std::string(id) + "##action";
+        Report(actionLabel.c_str(), &actionOpts);
+        if (clicked != nullptr) {
+            *clicked = pressed;
+        }
+    }
     if (buf[0] == '\0') {
         ImGui::SameLine(startX + 12.0f);
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 1.0f, 0.4f), "Search...");
@@ -181,6 +203,10 @@ bool SohSearchInput(const char* id, char* buf, int bufSize) {
     UIWidgets::PopStyleCombobox();
     ImGui::PopID();
     return changed;
+}
+
+bool SohSearchInput(const char* id, char* buf, int bufSize) {
+    return SohSearchAction(id, buf, bufSize, nullptr, nullptr, nullptr);
 }
 
 void SohSeparatorText(const char* text) {
@@ -363,9 +389,10 @@ void SohPopCountFont() {
 }
 
 const ComboUiTable kSohTable = {
-    SohCheckbox,    SohCombobox,   SohSliderInt, SohButton,   SohSearchInput, SohSeparatorText, SohNoteText,
-    SohWarningText, SohTooltip,    SohTagChip,   SohConfirm,  SohPushTheme,   SohPopTheme,      SohSpacer,
-    SohRowText,     SohIconButton, SohImage,     SohHasImage, SohToneText,    SohPushCountFont, SohPopCountFont,
+    SohCheckbox, SohCombobox,      SohSliderInt,    SohButton,       SohSearchInput, SohSeparatorText,
+    SohNoteText, SohWarningText,   SohTooltip,      SohTagChip,      SohConfirm,     SohPushTheme,
+    SohPopTheme, SohSpacer,        SohRowText,      SohIconButton,   SohImage,       SohHasImage,
+    SohToneText, SohPushCountFont, SohPopCountFont, SohSearchAction,
 };
 
 struct InstallSohComboUi {

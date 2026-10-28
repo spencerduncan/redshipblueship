@@ -1959,7 +1959,8 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // #1128: through the hide decision section 5 locks, with the pane's own
         // Show Hidden Items.
         CTW_ASSERT(text.find("ComboCollectVisibleCheckAreas(game, search, hide, areas)") != std::string::npos);
-        CTW_ASSERT(text.find("Ui().SearchInput(") != std::string::npos);
+        // #1280: the search box with its Scroll to Current Area button after the eraser.
+        CTW_ASSERT(text.find("Ui().SearchInputWithAction(") != std::string::npos);
         // SoH's area loop runs under FramePadding (4, 3)
         // (randomizer_check_tracker.cpp, DrawElement), which puts an area's
         // tree arrow level with its rows; the theme's larger padding pushes the

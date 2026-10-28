@@ -313,7 +313,9 @@ surface that freezes at creation, or that feeds generation, is never a pop-out.
   (shape (a) of R-S2). Every widget reports its rectangle and shown tooltip to an optional recorder, which is how the
   snapshot harness finds and hovers a pane row. `SearchInput` takes no options, since SoH's check-tracker search box
   has no tooltip and is never disabled; it reports its field under its `id` and its eraser button under
-  `<id>##eraser`. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
+  `<id>##eraser`. `SearchInputWithAction` is the same box with one more inline button after the eraser, in the
+  eraser's style (the Check Tracker's Scroll to Current Area, 2Ship's tracker precedent); it reports that button under
+  `<id>##action` with its tooltip. With no table installed, `ComboUi_Get()` returns a raw-ImGui fallback
   (`combo_ui.cpp`, excluded from the lint); the shipped binary always installs SoH's (the ComboMMOptionsPage lock).
 - **Settings groups** in a pane use `SeparatorText` [project rule, matching SoH's randomizer option pages,
   `option.cpp:450-479`]. `CollapsingHeader` is an SoH editor and tracker idiom (`CosmeticsEditor.cpp`,
