@@ -188,6 +188,11 @@ typedef enum {
  * as SoH's DrawLocation prints " - <price>" (or the price alone) beside an
  * identified check it can sell (ItemLocation::CanBePurchased, SoH 2ba368e7e);
  * `price` is that price, 0 otherwise. OoT only: MM's tracker prints none.
+ *
+ * END OF DUNGEON (#1279). `endOfDungeon` is whether the check is a dungeon's
+ * last reward, which SoH's Check Tracker sorts below the area's other open
+ * checks (CompareChecks: IsEoDCheck, a RCTYPE_BOSS_HEART_OR_OTHER_REWARD or
+ * RCTYPE_DUNGEON_REWARD location). OoT only: MM's tracker keeps id order.
  */
 typedef struct {
     uint16_t checkId;
@@ -205,6 +210,7 @@ typedef struct {
     bool available;             // reachable now; meaningful only when availabilityKnown
     bool hasPrice;              // see PRICE above
     uint16_t price;
+    bool endOfDungeon; // see END OF DUNGEON above
 } ComboTrackerCheckRow;
 
 /**

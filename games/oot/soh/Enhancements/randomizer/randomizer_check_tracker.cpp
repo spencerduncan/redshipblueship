@@ -34,6 +34,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 // src/common, outside the extern "C" block below: it manages its own linkage.
 #include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, Combo_GetForeignItemName (#796)
+#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE (#1287)
 #endif
 
 extern "C" {
@@ -2600,6 +2601,13 @@ void CheckTrackerSettingsWindow::DrawElement() {
                                 UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
         UIWidgets::CVarCheckbox("Check Totals", CVAR_TRACKER_CHECK("CheckTotalsVisible"),
                                 UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1287: the unified window's own header control, each pane's Only Show
+        // Current Area checkbox, gets its visibility row beside SoH's.
+        UIWidgets::CVarCheckbox("Only Show Current Area Toggle",
+                                RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,
+                                UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
+#endif
 
         ImGui::TableNextColumn();
 

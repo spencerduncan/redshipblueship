@@ -2405,6 +2405,8 @@ TestResult Test_CVarClassification(void) {
             const char* const kTrackerNavKeys[] = {
                 "gCombo.Tracker.Checks.AutoScrollToCurrentArea",
                 "gCombo.Tracker.Checks.OnlyShowCurrentArea",
+                // #1287: whether each pane draws its own Only Show Current Area checkbox.
+                "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible",
             };
             for (const char* navKey : kTrackerNavKeys) {
                 bool preference = false;

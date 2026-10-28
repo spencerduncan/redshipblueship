@@ -637,10 +637,18 @@ void func_80A0329C(EnElf* this, PlayState* play) {
             if (!func_80A01F90(&this->actor.world.pos, &refActor->actor.world.pos, 10.0f)) {
                 if (GameInteractor_Should(VB_FAIRY_HEAL, true, this)) {
                     OoT_Health_ChangeBy(play, 128);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // [RSBS #1289] The big fairy's magic refill rides the heal's VB: a shuffled fairy gives neither.
+                    if (this->fairyFlags & FAIRY_FLAG_BIG) {
+                        Magic_Fill(play);
+                    }
+#endif
                 }
+#ifndef RSBS_SINGLE_EXECUTABLE
                 if (this->fairyFlags & FAIRY_FLAG_BIG) {
                     Magic_Fill(play);
                 }
+#endif
                 this->unk_2B8 = 50.0f;
                 this->unk_2AC = refActor->actor.shape.rot.y;
                 this->unk_2B0 = -0x1000;

@@ -43,8 +43,21 @@
  *     of ShufflePots.cpp names for a cell stand in the same room as its guard.
  *     A data leg: no search, no save.
  *
+ *  F. The interior pots whose scene disables the item (#1282, SoH 041295f05):
+ *     with Shuffle Pots and Shuffle Grab ON and grab withheld, CanBreakPots must
+ *     not count an item the scene's OoT_sRestrictionFlags row disables
+ *     (z_parameter.c). Link's House, the Twins' and Know-It-All Brothers' houses
+ *     and the back-alley house disable B, the hookshot and every C item: a child
+ *     with the Kokiri Sword, sticks, slingshot, boomerang and bombs must NOT
+ *     reach their pots; with grab he must. Talon's house disables C items and
+ *     the hookshot but not B: the C items alone must NOT, the Kokiri Sword must.
+ *     The guard house disables only the hookshot and longshot: an adult with the
+ *     longshot must NOT reach its adult pots; with a bomb bag he must. Control:
+ *     the Kokiri Sword alone still breaks a Goron City pot (no restriction).
+ *
  * Every "must NOT" leg is paired with a "must" leg on the same save plus one
  * thing, so a location that is never reachable (a vacuous probe) fails too.
+ * Each probe sets logic->CurrentRegionKey to its region, as ProcessRegion does.
  */
 
 #include <cstdarg>
@@ -122,27 +135,35 @@ void GiveSticks() {
     logic->SetUpgrade(UPG_STICKS, 1);
     logic->Set(LOGIC_STICK_ACCESS, true);
 }
+/** One item, the way the search grants it (Item::ApplyEffect -> Logic::ApplyItemEffect). */
+void Give(RandomizerGet rg) {
+    Rando::StaticData::RetrieveItem(rg).ApplyEffect();
+}
 
 /**
- * The search's question for one location of one region, as the child (day and
- * night). Returns -1 when the probe could not be made (region or location
- * missing), which the caller counts as a failure whatever it expected.
+ * The search's question for one location of one region, as the child or the
+ * adult (day and night), with the region current as ProcessRegion makes it.
+ * Returns -1 when the probe could not be made (region or location missing),
+ * which the caller counts as a failure whatever it expected.
  */
-int ChildReaches(RandomizerRegion regionKey, RandomizerCheck rc) {
+int Reaches(RandomizerRegion regionKey, RandomizerCheck rc, bool adult) {
     Region* region = RegionTable(regionKey);
     const LocationAccess* loc = region != nullptr ? FindLocation(region, rc) : nullptr;
     if (loc == nullptr) {
         return -1;
     }
     const bool saved[4] = { region->childDay, region->childNight, region->adultDay, region->adultNight };
-    region->childDay = true;
-    region->childNight = true;
-    region->adultDay = false;
-    region->adultNight = false;
+    const RandomizerRegion savedRegionKey = logic->CurrentRegionKey;
+    region->childDay = !adult;
+    region->childNight = !adult;
+    region->adultDay = adult;
+    region->adultNight = adult;
+    logic->CurrentRegionKey = regionKey;
     while (region->UpdateEvents()) {}
     logic->CurrentCheckKey = rc;
     const bool met = loc->ConditionsMet(region, false);
     logic->CurrentCheckKey = RC_UNKNOWN_CHECK;
+    logic->CurrentRegionKey = savedRegionKey;
     region->childDay = saved[0];
     region->childNight = saved[1];
     region->adultDay = saved[2];
@@ -150,8 +171,9 @@ int ChildReaches(RandomizerRegion regionKey, RandomizerCheck rc) {
     return met ? 1 : 0;
 }
 
-void Expect(const char* leg, RandomizerRegion regionKey, RandomizerCheck rc, bool expected, const char* why) {
-    const int got = ChildReaches(regionKey, rc);
+void ExpectAs(bool adult, const char* leg, RandomizerRegion regionKey, RandomizerCheck rc, bool expected,
+              const char* why) {
+    const int got = Reaches(regionKey, rc, adult);
     if (got < 0) {
         GateFail("%s: location %d is not in region %d, so this probe evaluates nothing", leg, (int)rc, (int)regionKey);
         return;
@@ -162,6 +184,37 @@ void Expect(const char* leg, RandomizerRegion regionKey, RandomizerCheck rc, boo
         return;
     }
     printf("[TEST]   ok: %s: %s\n", leg, expected ? "reachable" : "unreachable");
+}
+
+void Expect(const char* leg, RandomizerRegion regionKey, RandomizerCheck rc, bool expected, const char* why) {
+    ExpectAs(false, leg, regionKey, rc, expected, why);
+}
+
+/** A pot whose scene disables B, the hookshot and every C item (leg F). */
+struct HousePot {
+    const char* name;
+    RandomizerRegion region;
+    RandomizerCheck check;
+};
+
+const HousePot kHousePots[] = {
+    { "Link's House pot", RR_KF_LINKS_HOUSE, RC_KF_LINKS_HOUSE_POT },
+    { "Twins' House pot 1", RR_KF_HOUSE_OF_TWINS, RC_KF_TWINS_HOUSE_POT_1 },
+    { "Twins' House pot 2", RR_KF_HOUSE_OF_TWINS, RC_KF_TWINS_HOUSE_POT_2 },
+    { "Know-It-All Brothers' pot 1", RR_KF_KNOW_IT_ALL_HOUSE, RC_KF_BROTHERS_HOUSE_POT_1 },
+    { "Know-It-All Brothers' pot 2", RR_KF_KNOW_IT_ALL_HOUSE, RC_KF_BROTHERS_HOUSE_POT_2 },
+    { "back-alley house pot 1", RR_MARKET_MAN_IN_GREEN_HOUSE, RC_MK_BACK_ALLEY_HOUSE_POT_1 },
+    { "back-alley house pot 2", RR_MARKET_MAN_IN_GREEN_HOUSE, RC_MK_BACK_ALLEY_HOUSE_POT_2 },
+    { "back-alley house pot 3", RR_MARKET_MAN_IN_GREEN_HOUSE, RC_MK_BACK_ALLEY_HOUSE_POT_3 },
+};
+
+/** Every child item CanBreakPots names: B (Kokiri Sword, sticks) and C (slingshot, boomerang, bombs). */
+void GiveChildPotBreakers() {
+    Give(RG_KOKIRI_SWORD);
+    GiveSticks();
+    Give(RG_PROGRESSIVE_SLINGSHOT);
+    Give(RG_BOOMERANG);
+    Give(RG_PROGRESSIVE_BOMB_BAG);
 }
 
 struct Carpenter {
@@ -249,6 +302,7 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     const uint8_t savedLogicRules = randoCtx->GetOption(RSK_LOGIC_RULES).Get();
     const uint8_t savedShuffleSpeak = randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Get();
     const uint8_t savedShuffleGrab = randoCtx->GetOption(RSK_SHUFFLE_GRAB).Get();
+    const uint8_t savedShufflePots = randoCtx->GetOption(RSK_SHUFFLE_POTS).Get();
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(1);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(1);
@@ -332,10 +386,58 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
         ExpectCarpenterRow(carpenter);
     }
 
+    // ---- F: a pot counts only items its scene allows (#1282, SoH 041295f05) --
+    randoCtx->GetOption(RSK_SHUFFLE_POTS).Set(RO_SHUFFLE_POTS_ALL);
+    for (const HousePot& pot : kHousePots) {
+        char leg[96];
+        ResetLogic();
+        GiveChildPotBreakers();
+        snprintf(leg, sizeof(leg), "F1 %s, sword/sticks/slingshot/boomerang/bombs, no grab", pot.name);
+        Expect(leg, pot.region, pot.check, false,
+               "a weapon the house disables (B, hookshot and C items off) counts for its pot (#1282)");
+        GiveGrab();
+        snprintf(leg, sizeof(leg), "F2 %s, with grab", pot.name);
+        Expect(leg, pot.region, pot.check, true, "a child who can lift and throw cannot break the house pot");
+    }
+    for (RandomizerCheck rc : { RC_LLR_TALONS_HOUSE_POT_1, RC_LLR_TALONS_HOUSE_POT_2, RC_LLR_TALONS_HOUSE_POT_3 }) {
+        const int n = (int)(rc - RC_LLR_TALONS_HOUSE_POT_1) + 1;
+        char leg[96];
+        ResetLogic();
+        GiveSticks();
+        Give(RG_PROGRESSIVE_SLINGSHOT);
+        Give(RG_BOOMERANG);
+        Give(RG_PROGRESSIVE_BOMB_BAG);
+        snprintf(leg, sizeof(leg), "F3 Talon's house pot %d, sticks/slingshot/boomerang/bombs, no grab", n);
+        Expect(leg, RR_LLR_TALONS_HOUSE, rc, false, "an item Talon's house disables counts for its pot (#1282)");
+        Give(RG_KOKIRI_SWORD);
+        snprintf(leg, sizeof(leg), "F4 Talon's house pot %d, plus the Kokiri Sword", n);
+        Expect(leg, RR_LLR_TALONS_HOUSE, rc, true, "the sword (B is allowed in Talon's house) does not break the pot");
+    }
+    for (RandomizerCheck rc : { RC_MK_GUARD_HOUSE_ADULT_POT_1, RC_MK_GUARD_HOUSE_ADULT_POT_11 }) {
+        const int n = (int)(rc - RC_MK_GUARD_HOUSE_ADULT_POT_1) + 1;
+        char leg[96];
+        ResetLogic();
+        Give(RG_PROGRESSIVE_HOOKSHOT);
+        Give(RG_PROGRESSIVE_HOOKSHOT); // the longshot
+        snprintf(leg, sizeof(leg), "F5 guard house adult pot %d, longshot only, no grab", n);
+        ExpectAs(true, leg, RR_MARKET_GUARD_HOUSE, rc, false,
+                 "the hookshot/longshot the guard house disables counts for its pot (#1282)");
+        Give(RG_PROGRESSIVE_BOMB_BAG);
+        snprintf(leg, sizeof(leg), "F6 guard house adult pot %d, plus a bomb bag", n);
+        ExpectAs(true, leg, RR_MARKET_GUARD_HOUSE, rc, true, "bombs (allowed in the guard house) do not break its pot");
+    }
+    ResetLogic();
+    Expect("F7 Goron City pot, nothing", RR_GORON_CITY, RC_GC_LOWER_STAIRCASE_POT_1, false,
+           "a Goron City pot is in logic with no way to break it");
+    Give(RG_KOKIRI_SWORD);
+    Expect("F8 Goron City pot, Kokiri Sword only", RR_GORON_CITY, RC_GC_LOWER_STAIRCASE_POT_1, true,
+           "the sword no longer breaks a pot in a scene that allows it");
+
     // ---- restore -------------------------------------------------------------
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(savedLogicRules);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(savedShuffleSpeak);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(savedShuffleGrab);
+    randoCtx->GetOption(RSK_SHUFFLE_POTS).Set(savedShufflePots);
     logic->Reset(true);
     logic->IsChild = savedChild;
     logic->IsAdult = savedAdult;

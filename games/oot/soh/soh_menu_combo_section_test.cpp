@@ -269,6 +269,10 @@ const struct {
     { "gCombo.Tracker.Checks.AutoScrollToCurrentArea", true },
     { "gCombo.Tracker.Checks.OnlyShowCurrentArea", false },
 };
+// #1287: a Checks key drawn by SoH's own Check Tracker Settings window (its
+// Tracker Header Visibility group, which the page embeds) rather than as a page
+// row; ComboTrackerWindow pins that row in randomizer_check_tracker.cpp.
+const char* kCheckTrackerSettingsWindowKey = "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible";
 
 // ---- Leg 3: SoH's own tracker pages, as AddMenuRandomizer registers them ----
 // AddMenuRandomizer() as a whole cannot run ROM-free, so these are its two
@@ -650,10 +654,11 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                                 "the %s row is under \"%s\", not SoH's Check Tracker Settings separator", key, section);
                 }
             }
-            COMBO_CHECK(rows == 1, "Randomizer / Check Tracker holds %d rows writing %s, expected exactly one", rows,
-                        key);
+            const int expectedRows = std::string(key) == kCheckTrackerSettingsWindowKey ? 0 : 1;
+            COMBO_CHECK(rows == expectedRows, "Randomizer / Check Tracker holds %d rows writing %s, expected %d", rows,
+                        key, expectedRows);
         }
-        COMBO_CHECK(checkKeys == 2, "the manifest holds %zu %s* keys, expected two (#1131)", checkKeys,
+        COMBO_CHECK(checkKeys == 3, "the manifest holds %zu %s* keys, expected three (#1131, #1287)", checkKeys,
                     kCheckTrackerKeyPrefix);
 
         // The Cross-Game Spoiler's toggle, moved from Combo > Windows: under its

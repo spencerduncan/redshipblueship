@@ -147,6 +147,7 @@ games/oot/soh/z_scene_otr.cpp
 games/oot/soh/oot_scene_flag_freeze_test.cpp
 games/oot/soh/oot_check_state_load_test.cpp
 games/oot/soh/oot_deku_theater_prize_test.cpp
+games/oot/soh/oot_shuffled_fairy_test.cpp
 games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
