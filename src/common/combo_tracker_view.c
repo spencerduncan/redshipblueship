@@ -534,6 +534,31 @@ bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped) {
 }
 
 // ============================================================================
+// The OoT skip journal (#1294): lock seam, today's behaviour (no journal)
+// ============================================================================
+
+bool Combo_TrackerOoTSkipJournalPut(uint16_t checkId, bool skipped, bool onlyIfPresent) {
+    (void)checkId;
+    (void)skipped;
+    (void)onlyIfPresent;
+    return false;
+}
+
+int Combo_TrackerOoTSkipJournalCount(void) {
+    return 0;
+}
+
+bool Combo_TrackerOoTSkipJournalAt(int index, uint16_t* outCheckId, bool* outSkipped) {
+    (void)index;
+    (void)outCheckId;
+    (void)outSkipped;
+    return false;
+}
+
+void Combo_TrackerOoTSkipJournalClear(void) {
+}
+
+// ============================================================================
 // Identity + cross-game crossings (#755, #757)
 // ============================================================================
 

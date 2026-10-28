@@ -654,6 +654,11 @@ extern "C" void OoT_TrackerAdapter_Register(void) {
     Combo_Tracker_RegisterOoT(&kOps);
 }
 
+// #1294 lock seam: no journal to replay yet.
+extern "C" int OoT_TrackerAdapter_ReplaySkipJournal(void) {
+    return 0;
+}
+
 // ============================================================================
 // ROM-free lock support (redship --test combo-tracker-view)
 // ============================================================================

@@ -82,6 +82,7 @@
 #include "../context.h"
 #include "../crossing_store.h"
 #include "../foreign_items.h"
+#include "../game.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
 
@@ -1344,6 +1345,103 @@ int LockNav(void) {
     return result;
 }
 
+// ---- #1294: the far pane's skip column --------------------------------------------
+//
+// The pair is one game, so the pane of the game not being played takes the skip
+// toggle as well, and the window draws SoH's skip column on it
+// (ComboPaneSkipColumn). Before #1294 the column followed "LIVE pane only" and
+// MM's pane drew none while Ocarina of Time was played. The view row
+// (ComboTrackerView, CtvSkipLegsMM / CtvSkipLegsOoT) locks what the toggle writes.
+
+// OoT's adapter stand-in: OoT plays a randomizer file (its live skip gate answers
+// yes), which is when MM's far pane takes the toggle.
+bool CtwOoTPlays(void) {
+    return true;
+}
+bool CtwNoSkipWrite(uint16_t, bool) {
+    return false;
+}
+const ComboOoTTrackerOps kCtwOoTPlaysOps = {
+    CtwSummary, CtwCount, CtwCheckAt, CtwCheckName, CtwOoTPlays, CtwNoSkipWrite
+};
+
+/**
+ * MM's far pane over the production MM adapter: an armed, marked, randomized MM
+ * half with one open and one found check. Paired and OoT playing a randomizer
+ * file: the column is drawn and the open row (only) offers the button. OoT
+ * playing no randomizer file, MM's own title screen or file select (MM the active
+ * game, no play state), or unpaired: no column.
+ */
+int LockFarSkipBody(void) {
+    MM_TrackerAdapter_Register();
+    const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    CTW_ASSERT(desc != nullptr);
+    const uint16_t kOpen = 9, kFound = 10;
+    std::vector<uint8_t> half((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    memcpy(half.data() + desc->newfOffset, desc->newf, desc->newfLen);
+    memcpy(half.data() + desc->saveTypeOffset, &desc->saveTypeRando, sizeof(uint32_t));
+    for (const uint16_t check : { kOpen, kFound }) {
+        half[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->shuffledOffset] = 1;
+    }
+    half[desc->checkTableOffset + (size_t)kFound * desc->checkStride + desc->obtainedOffset] = 1;
+    Context_UpdateShadowCopy(GAME_MM, half.data(), half.size());
+    CTW_ASSERT(Context_ArmShadowAsFrozen(GAME_MM, 0) == 1);
+    ComboContext_Init();
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFE129u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED1294u;
+
+    Context_SetCurrentGame(GAME_OOT);
+    Combo_Tracker_RegisterOoT(&kCtwOoTPlaysOps);
+    const bool farColumn = ComboGui::ComboPaneSkipColumn((uint8_t)GAME_MM);
+    ComboTrackerCheckRow open;
+    ComboTrackerCheckRow found;
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kOpen, &open));
+    CTW_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kFound, &found));
+    printf("[TEST] combo-tracker-window #1294: MM's pane while OoT is played draws the skip column: %s; the open "
+           "row's button %s, the found row's %s\n",
+           farColumn ? "yes" : "NO", Combo_TrackerRowSkippable((uint8_t)GAME_MM, &open) ? "drawn" : "MISSING",
+           Combo_TrackerRowSkippable((uint8_t)GAME_MM, &found) ? "DRAWN" : "not drawn");
+    CTW_ASSERT(farColumn);
+    CTW_ASSERT(Combo_TrackerRowSkippable((uint8_t)GAME_MM, &open));
+    CTW_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &found));
+
+    // OoT playing no randomizer file (an adapter with no live skip gate stands in): no column.
+    Combo_Tracker_RegisterOoT(&kCtwOps);
+    CTW_ASSERT(!ComboGui::ComboPaneSkipColumn((uint8_t)GAME_MM));
+    Combo_Tracker_RegisterOoT(&kCtwOoTPlaysOps);
+    // MM the active game with no play state (its title screen, file select): no column.
+    Context_SetCurrentGame(GAME_MM);
+    CTW_ASSERT(!ComboGui::ComboPaneSkipColumn((uint8_t)GAME_MM));
+    // Unpaired: no paired world behind the pane, no column.
+    Context_SetCurrentGame(GAME_OOT);
+    gComboCtx.sharedRandoSettingsHash = 0;
+    CTW_ASSERT(!ComboGui::ComboPaneSkipColumn((uint8_t)GAME_MM));
+    return TEST_PASS;
+}
+
+int LockFarSkip(void) {
+    const GameId prevGame = Context_GetCurrentGame();
+    std::vector<uint8_t> shadowBackup((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    const uint8_t* resident = (const uint8_t*)Context_GetMMSaveContext();
+    if (resident != nullptr) {
+        memcpy(shadowBackup.data(), resident, shadowBackup.size());
+    }
+    const bool wasFrozen = Context_HasFrozenState(GAME_MM) != 0;
+    const uint16_t returnEntrance = Context_GetFrozenReturnEntrance(GAME_MM);
+    const int result = LockFarSkipBody();
+    Context_ClearFrozenState(GAME_MM);
+    Context_UpdateShadowCopy(GAME_MM, shadowBackup.data(), shadowBackup.size());
+    if (wasFrozen) {
+        (void)Context_ArmShadowAsFrozen(GAME_MM, returnEntrance);
+    }
+    ComboContext_Init();
+    OoT_TrackerAdapter_Register(); // the production adapters, as the window's Init left them
+    MM_TrackerAdapter_Register();
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
 // ---- #1132 (lane L5): the Check Tracker replaces SoH's ------------------------------
 
 #ifdef RSBS_SOURCE_DIR
@@ -1766,18 +1864,20 @@ int TrackerLayoutLocks(void) {
     const int rNav = LockNav();
     const int rL5 = LockL5();
     const int rSort = LockSort();
+    const int rFarSkip = LockFarSkip();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
            "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s, "
-           "#1131 navigation %s, #1132 replaces SoH's %s, #1279 sort %s\n",
+           "#1131 navigation %s, #1132 replaces SoH's %s, #1279 sort %s, #1294 far skip column %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
            rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
            rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
            rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL",
-           rL5 == TEST_PASS ? "PASS" : "FAIL", rSort == TEST_PASS ? "PASS" : "FAIL");
+           rL5 == TEST_PASS ? "PASS" : "FAIL", rSort == TEST_PASS ? "PASS" : "FAIL",
+           rFarSkip == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
             rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
-            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS && rSort == TEST_PASS)
+            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS && rSort == TEST_PASS && rFarSkip == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }
@@ -1971,10 +2071,13 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
             return TEST_FAIL;
         }
         // The skip toggle (#458 U5): SoH's skip button through the seam, offered
-        // only where the view says the row is skippable (the LIVE panel, a check
-        // of the seed not found), flipping the row's own flag through the view's
-        // one write, and with SoH's glyphs (DrawLocation: plus to unskip, times
-        // to skip). ComboTrackerView locks what those calls do.
+        // only where the view says the row is skippable (a pane that takes skip
+        // writes, both panes since #1294, on a check of the seed not found),
+        // flipping the row's own flag through the view's one write, and with
+        // SoH's glyphs (DrawLocation: plus to unskip, times to skip). The column
+        // is the decision section 5 locks (#1294); ComboTrackerView locks what
+        // the calls do.
+        CTW_ASSERT(text.find("const bool skipColumn = ComboPaneSkipColumn(game);") != std::string::npos);
         CTW_ASSERT(text.find("Combo_TrackerSkipWritable(game)") != std::string::npos);
         CTW_ASSERT(text.find("Combo_TrackerRowSkippable(game, &row)") != std::string::npos);
         CTW_ASSERT(text.find("Combo_TrackerSetSkipped(game, row.checkId, !row.skipped)") != std::string::npos);

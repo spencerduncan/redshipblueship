@@ -2376,6 +2376,12 @@ extern "C" void RandoTest_CheckTrackerClearRecalcPending(void) {
     recalculateAvailable = false;
 }
 
+// TEST BRIDGE (#1294): whether a far-pane skip left SoH's area order to the next
+// arrival. Lock seam: nothing defers it yet.
+extern "C" int RandoTest_CheckTrackerOrderingDeferred(void) {
+    return 0;
+}
+
 extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {
     SetEnableAvailableChecks(enabled != 0);
 }

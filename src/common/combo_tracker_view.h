@@ -558,6 +558,25 @@ bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row);
  */
 bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped);
 
+// ---- The OoT skip journal (#1294) -------------------------------------------
+// Lock seam: declared with today's behaviour (no journal: nothing is recorded,
+// the count is 0); the fix gives it storage in gComboCtx.
+
+/** Record that OoT check `checkId` is now `skipped`. False when nothing was recorded. */
+bool Combo_TrackerOoTSkipJournalPut(uint16_t checkId, bool skipped, bool onlyIfPresent);
+
+/** The journal's entry count. */
+int Combo_TrackerOoTSkipJournalCount(void);
+
+/** Entry `index`: its check id and skipped value. False out of range. */
+bool Combo_TrackerOoTSkipJournalAt(int index, uint16_t* outCheckId, bool* outSkipped);
+
+/** Empty the journal. */
+void Combo_TrackerOoTSkipJournalClear(void);
+
+/** The journal's replay onto OoT's heap (#1294): DEFINED OoT-SIDE. Returns the flags it changed. */
+int OoT_TrackerAdapter_ReplaySkipJournal(void);
+
 // ============================================================================
 // Cross-game crossings: the rows both panes draw (#755, #757)
 // ============================================================================

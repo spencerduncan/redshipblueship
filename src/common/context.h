@@ -177,6 +177,13 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
 #define RSBS_TRACKER_AVAIL_OOT_CAP 3072u
 #define RSBS_TRACKER_AVAIL_MM_CAP 2560u
 
+/**
+ * The OoT skip journal's capacity (#1294), in entries: the skip toggles made on
+ * Ocarina of Time's checks while Majora's Mask is played and not yet in OoT's
+ * own .sav. (Lock seam: the journal itself lands with the fix.)
+ */
+#define RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP 64u
+
 // ============================================================================
 // Origin-tagged shared items (ADR 0002)
 // ============================================================================
