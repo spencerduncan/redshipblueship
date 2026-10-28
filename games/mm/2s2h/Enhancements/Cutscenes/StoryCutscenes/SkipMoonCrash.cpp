@@ -4,7 +4,19 @@
 
 extern "C" {
 #include "variables.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+u16 MM_Play_MoonCrashArrivalEntrance(u16 entrance); // games/mm/2s2h/GameExports_SingleExe.cpp
+#endif
 }
+
+// RSBS (#1278): a paired file lands where the Song of Time does, not in the
+// salesman's cycle-reset cutscene (OoTMM's rewrite of 0xC030). A macro because
+// the landing is written inside the COND_VB_SHOULD body, where #ifdef cannot go.
+#ifdef RSBS_SINGLE_EXECUTABLE
+#define RSBS_MOON_CRASH_LANDING(entrance) MM_Play_MoonCrashArrivalEntrance(entrance)
+#else
+#define RSBS_MOON_CRASH_LANDING(entrance) (entrance)
+#endif
 
 #define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.Story"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
@@ -26,7 +38,8 @@ void RegisterSkipMoonCrash() {
             // IT MUST BE CALLED HERE IF THAT CUTSCENE IS SKIPPED OR ELSE THE GAME STATE WILL NOT RESET CORRECTLY!
             Sram_ResetSaveFromMoonCrash(&MM_gPlayState->sramCtx);
 
-            gSaveContext.save.entrance = ENTRANCE(CLOCK_TOWER_INTERIOR, 3);
+            // RSBS (#1278): through RSBS_MOON_CRASH_LANDING, above.
+            gSaveContext.save.entrance = RSBS_MOON_CRASH_LANDING(ENTRANCE(CLOCK_TOWER_INTERIOR, 3));
         }
     });
 }
