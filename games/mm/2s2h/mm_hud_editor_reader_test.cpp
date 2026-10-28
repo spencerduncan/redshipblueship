@@ -21,13 +21,16 @@
  *      not hidden, its scale is the key's, and HudEditor_ModifyDrawValues moves the rectangle to the key's position
  *      (the offset from the vanilla position scaled), scales its size and divides its texture steps.
  *   2. The same element at "Hidden": overridden and hidden. At "Original position" (the key cleared): not overridden.
+ *   2b. W6-HUD-B: the hearts at "No anchors" are moved and scaled the same way, and each of W6-HUD-B's ten elements
+ *      (carrots, clock, hearts, magic, both timers, the minigame, rupee, key and skulltula counters) hides at "Hidden".
  *   3. HudEditor_OverrideNextElementMode(Vanilla), which Better Song of Double Time uses while it draws the clock,
  *      wins over a non-vanilla key; and no element active draws vanilla.
- *   4. An element with no row in the shared table (W6-HUD-B's, until it lands) draws vanilla even under a non-vanilla
- *      override: the reader never reads a key the shared menu does not write.
+ *   4. An element with no row in the shared table (none since W6-HUD-B; the leg then checks nothing) draws vanilla
+ *      even under a non-vanilla override: the reader never reads a key the shared menu does not write.
  *   5. The presets: Hidden sets every table element Hidden, Widescreen gives each its widescreen mode, Vanilla clears
  *      every mode, and each clears every element's position and scale.
  * RED without the fix: leg 1 (the stand-in answers "vanilla" and leaves the rectangle as it was).
+ * RED without W6-HUD-B's table rows: leg 2b (an element with no row draws vanilla whatever its keys hold).
  *
  * Clears every key it set and leaves no element active and no override set, on every exit.
  */
@@ -137,6 +140,76 @@ extern "C" int MM_HudEditorReader_RunHeadless(void) {
         failures += Fail("with gHudEditor.B.Mode cleared (Original position) the B button is still overridden");
     }
     printf("[TEST] leg 2: \"Hidden\" hides the B button and \"Original position\" draws it vanilla\n");
+
+    // Leg 2b, W6-HUD-B (#1239): the other ten elements. Hearts at "No anchors", moved to (60, 40) at one and a half
+    // times its size, is overridden and drawn at its keys' position and scale; then each of the ten, Hearts included,
+    // is overridden and hidden at "Hidden", and drawn vanilla again once its Mode key is cleared.
+    {
+        const std::string hMode = Key("Hearts", ".Mode");
+        CVarSetInteger(hMode.c_str(), HUD_EDITOR_ELEMENT_MODE_MOVABLE_43);
+        CVarSetInteger(Key("Hearts", ".Position.X").c_str(), 60);
+        CVarSetInteger(Key("Hearts", ".Position.Y").c_str(), 40);
+        CVarSetFloat(Key("Hearts", ".Scale").c_str(), 1.5f);
+        HudEditor_SetActiveElement(HUD_EDITOR_ELEMENT_HEARTS);
+        if (!HudEditor_ShouldOverrideDraw() || HudEditor_IsActiveElementHidden()) {
+            failures += Fail("with gHudEditor.Hearts.Mode at \"No anchors\" the hearts' draw is not overridden (or "
+                             "reads as hidden): MM's hearts ignore the shared menu's placement keys");
+        }
+        // A rectangle 10 px right of and 4 px below the hearts' vanilla anchor (30, 26), 16 px square.
+        s16 hLeft = 30 + 10;
+        s16 hTop = 26 + 4;
+        s16 hWidth = 16;
+        s16 hHeight = 16;
+        s16 hDsdx = 1024;
+        s16 hDtdy = 1024;
+        HudEditor_ModifyDrawValues(&hLeft, &hTop, &hWidth, &hHeight, &hDsdx, &hDtdy);
+        if (hLeft != 60 + 15 || hTop != 40 + 6 || hWidth != 24 || hHeight != 24 || hDsdx != 682 || hDtdy != 682) {
+            printf("[TEST]       rect (%d, %d) %dx%d steps %d/%d, expected (75, 46) 24x24 steps 682/682\n", hLeft, hTop,
+                   hWidth, hHeight, hDsdx, hDtdy);
+            failures += Fail("HudEditor_ModifyDrawValues did not move the hearts to their keys' position and scale");
+        }
+        struct HudBElement {
+            HudEditorElementID id;
+            const char* key;
+        };
+        const HudBElement kHudB[] = {
+            { HUD_EDITOR_ELEMENT_CARROT, "Carrots" },
+            { HUD_EDITOR_ELEMENT_CLOCK, "Clock" },
+            { HUD_EDITOR_ELEMENT_HEARTS, "Hearts" },
+            { HUD_EDITOR_ELEMENT_MAGIC_METER, "Magic" },
+            { HUD_EDITOR_ELEMENT_TIMERS, "Timers" },
+            { HUD_EDITOR_ELEMENT_TIMERS_MOON_CRASH, "SkullKidTimer" },
+            { HUD_EDITOR_ELEMENT_MINIGAME_COUNTER, "Minigames" },
+            { HUD_EDITOR_ELEMENT_RUPEE_COUNTER, "Rupees" },
+            { HUD_EDITOR_ELEMENT_KEY_COUNTER, "Keys" },
+            { HUD_EDITOR_ELEMENT_SKULLTULA_COUNTER, "Skulltulas" },
+        };
+        for (const HudBElement& element : kHudB) {
+            const std::string mode = Key(element.key, ".Mode");
+            CVarSetInteger(mode.c_str(), HUD_EDITOR_ELEMENT_MODE_HIDDEN);
+            HudEditor_SetActiveElement(element.id);
+            if (!HudEditor_ShouldOverrideDraw() || !HudEditor_IsActiveElementHidden()) {
+                printf("[TEST]       %s\n", mode.c_str());
+                failures += Fail("an element's Mode key at \"Hidden\" does not hide its draw");
+            }
+            CVarClear(mode.c_str());
+            if (HudEditor_ShouldOverrideDraw()) {
+                printf("[TEST]       %s\n", mode.c_str());
+                failures += Fail("an element with its Mode key cleared is still overridden");
+            }
+        }
+        // The ten elements' keys are cleared by name: until their table rows exist, ClearAll does not know them.
+        for (const HudBElement& element : kHudB) {
+            CVarClear(Key(element.key, ".Mode").c_str());
+            CVarClear(Key(element.key, ".Position.X").c_str());
+            CVarClear(Key(element.key, ".Position.Y").c_str());
+            CVarClear(Key(element.key, ".Scale").c_str());
+        }
+        // Leg 3 continues on the B button.
+        HudEditor_SetActiveElement(HUD_EDITOR_ELEMENT_B);
+    }
+    printf("[TEST] leg 2b: the hearts at \"No anchors\" are drawn at their keys' position and scale, and the carrots, "
+           "clock, hearts, magic, timers and counters hide at \"Hidden\"\n");
 
     // Leg 3: the override wins, and no active element draws vanilla.
     CVarSetInteger(bMode.c_str(), HUD_EDITOR_ELEMENT_MODE_MOVABLE_43);

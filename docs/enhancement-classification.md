@@ -574,7 +574,17 @@ default (off).
 | `gHudEditor.CRight.*` | 4 | (O), likewise: "MM C Button Right position" |
 | `gHudEditor.DPad.*` | 4 | (O), likewise: "MM DPad items position" |
 | `gHudEditor.Minimap.*` | 4 | (O), likewise: "MM Minimaps position" |
-| HUD Editor preset | 0 | (O), no key: the section's "HUD Preset" row (Vanilla (4:3) / Hidden / Widescreen) writes every element's Mode and clears its position and scale, as 2Ship's preset did |
+| `gHudEditor.Hearts.*` | 4 | (O), likewise (W6-HUD-B, #1239): "MM Hearts count position"; drawn by `z_lifemeter.c` |
+| `gHudEditor.Magic.*` | 4 | (O), likewise (W6-HUD-B): "MM Magic Meter position"; `z_parameter.c`'s magic meter |
+| `gHudEditor.Keys.*` | 4 | (O), likewise (W6-HUD-B): "MM Small Keys counter position" |
+| `gHudEditor.Rupees.*` | 4 | (O), likewise (W6-HUD-B): "MM Rupee counter position" |
+| `gHudEditor.Skulltulas.*` | 4 | (O), likewise (W6-HUD-B): "MM Skulltula counter position" (MM's token counter in the Spider Houses) |
+| `gHudEditor.Carrots.*` | 4 | (O), likewise (W6-HUD-B): "MM Carrots position" (Epona's horse carrots) |
+| `gHudEditor.Timers.*` | 4 | (O), likewise (W6-HUD-B): "MM Timers position", every timer but the moon-crash one, moved from its own start position |
+| `gHudEditor.SkullKidTimer.*` | 4 | (O), likewise (W6-HUD-B): "MM Skull Kid Timer position" (2Ship's "Timer - Skull Kid"), the moon-crash countdown |
+| `gHudEditor.Minigames.*` | 4 | (O), likewise (W6-HUD-B): "MM Minigame counter position" (the minigame score: its icon, such as archery's target or the fisherman's torch, and its digits) |
+| `gHudEditor.Clock.*` | 4 | (O), likewise (W6-HUD-B): "MM Three Day Clock position". All three clock styles honour it: the original clock (`z_parameter.c`), the MM3D clock (`Graphics/3DSClock.cpp`) and the text clock (`Graphics/TextBasedClock.cpp`, both linked by W6-GFX) each draw as `HUD_EDITOR_ELEMENT_CLOCK` |
+| HUD Editor preset | 0 | (O), no key: the section's "HUD Preset" row (Vanilla (4:3) / Hidden / Widescreen) writes every element's Mode (all nineteen since W6-HUD-B) and clears its position and scale, as 2Ship's preset did |
 | `gColors.<element>.{Color, Changed}` | 0 rows | INTENTIONAL, no row: 2Ship's HUD editor colour keys are read only by its window, never by a draw, so a row would write a key nothing in MM reads. MM's HUD colours are W6-COS-A's `gCosmetic.*` |
 | `gCollisionViewer.*` | 18 | MM collision viewer |
 | `gEventLog.*` | 13 | MM event log — no OoT counterpart |
