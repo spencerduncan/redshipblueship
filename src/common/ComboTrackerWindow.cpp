@@ -659,6 +659,10 @@ std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row
     return logic;
 }
 
+bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow& b) {
+    return a.checkId < b.checkId;
+}
+
 namespace {
 
 /**

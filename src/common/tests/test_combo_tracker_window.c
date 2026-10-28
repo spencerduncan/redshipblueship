@@ -318,7 +318,7 @@ const char* CtwCheckName(uint16_t id) {
 }
 const ComboOoTTrackerOps kCtwOps = { CtwSummary, CtwCount, CtwCheckAt, CtwCheckName };
 
-/** Row ids of `area`, in order, as one string ("10,12"). */
+/** Row ids of `area`, in order, as one string ("12,10"). */
 std::string CtwIds(const ComboGui::ComboTrackerAreaRows& area) {
     std::string s;
     for (const ComboTrackerCheckRow& row : area.rows) {
@@ -391,7 +391,11 @@ int LockAreasBody(void) {
     CTW_ASSERT(areas.size() == 2);
     CTW_ASSERT(areas[0].key == 3 && strcmp(areas[0].name, "Area Three") == 0); // ascending key, not table order
     CTW_ASSERT(areas[0].total == 2 && areas[0].done == 0 && CtwIds(areas[0]) == "11,13"); // unshuffled 14 never listed
-    CTW_ASSERT(areas[1].key == 7 && areas[1].total == 2 && areas[1].done == 2 && CtwIds(areas[1]) == "10,12");
+    // #1279: SoH's CompareChecks order inside an area, not table order: the
+    // skipped 0x12 before the collected 0x10.
+    printf("[TEST] combo-tracker-window #1279: area 7 lists \"%s\"\n",
+           areas.size() == 2 ? CtwIds(areas[1]).c_str() : "");
+    CTW_ASSERT(areas[1].key == 7 && areas[1].total == 2 && areas[1].done == 2 && CtwIds(areas[1]) == "12,10");
     // Search by a revealed item: one row, its area's totals unchanged.
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "fairy bow", areas);
     CTW_ASSERT(areas.size() == 1 && areas[0].key == 7 && CtwIds(areas[0]) == "10" && areas[0].total == 2);
@@ -442,7 +446,7 @@ int LockAreas(void) {
 
 // ---- #1128 (lane L1a): SoH's hide keys, Show Hidden Items per pane, totals ----
 
-/** "<area key>:<row ids>" per drawn area, in order ("3:11,13 7:10,12"); a filtered area reads "3:-". */
+/** "<area key>:<row ids>" per drawn area, in order ("3:11,13 7:12,10"); a filtered area reads "3:-". */
 std::string CtwDrawn(const std::vector<ComboGui::ComboTrackerAreaRows>& areas) {
     std::string s;
     for (const ComboGui::ComboTrackerAreaRows& area : areas) {
@@ -537,7 +541,7 @@ int LockHideBody(void) {
     ComboCheckHideOptions opts;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
     printf("[TEST] combo-tracker-window #1128: defaults draw \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     // Collected hidden: its row goes, its area's totals stay whole.
     opts.hideStatus[COMBO_TRACKER_CHECK_COLLECTED] = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
@@ -551,7 +555,7 @@ int LockHideBody(void) {
     // The pane's Show Hidden Items brings both back.
     opts.showHidden = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
 
     // Area complete / incomplete hide, and Show Hidden Items over both.
     opts = ComboCheckHideOptions();
@@ -561,11 +565,11 @@ int LockHideBody(void) {
     CTW_ASSERT(CtwDrawn(areas) == "3:11,13");
     opts.showHidden = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     opts = ComboCheckHideOptions();
     opts.hideAreaIncomplete = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "7:12,10");
 
     // Filter Empty Areas: on (SoH's default), an area the search empties goes,
     // whatever Show Hidden Items says; off, its header stays with no rows.
@@ -642,6 +646,130 @@ int LockHide(void) {
     return result;
 }
 
+// ---- #1279: each area's rows in SoH's CompareChecks order ----------------------
+
+// One area (9) holding every class CompareChecks orders, in descending id order
+// so table order and SoH's order disagree everywhere: a saved check, a collected
+// one, a skipped one, a dungeon's last reward still open, and two open checks.
+struct CtwSortRow {
+    uint16_t id;
+    uint8_t status;
+    bool endOfDungeon;
+};
+const CtwSortRow kCtwSortRows[] = {
+    { 0x26, COMBO_TRACKER_CHECK_UNCHECKED, false }, { 0x25, COMBO_TRACKER_CHECK_SAVED, false },
+    { 0x24, COMBO_TRACKER_CHECK_COLLECTED, false }, { 0x23, COMBO_TRACKER_CHECK_SKIPPED, false },
+    { 0x22, COMBO_TRACKER_CHECK_UNCHECKED, true },  { 0x21, COMBO_TRACKER_CHECK_SEEN, false },
+};
+constexpr int kCtwSortRowCount = (int)(sizeof(kCtwSortRows) / sizeof(kCtwSortRows[0]));
+
+/** A row of CompareChecks' classes: found (and saved), skipped, end of dungeon. */
+ComboTrackerCheckRow CtwSortProbe(uint16_t id, uint8_t status, bool endOfDungeon) {
+    ComboTrackerCheckRow row = {};
+    row.checkId = id;
+    row.shuffled = true;
+    row.status = status;
+    row.obtained = status == COMBO_TRACKER_CHECK_COLLECTED || status == COMBO_TRACKER_CHECK_SAVED;
+    row.skipped = status == COMBO_TRACKER_CHECK_SKIPPED;
+    row.endOfDungeon = endOfDungeon;
+    return row;
+}
+
+int CtwSortCount(void) {
+    return kCtwSortRowCount;
+}
+bool CtwSortCheckAt(int index, ComboTrackerCheckRow* out) {
+    if (index < 0 || index >= kCtwSortRowCount) {
+        return false;
+    }
+    const CtwSortRow& r = kCtwSortRows[index];
+    *out = CtwSortProbe(r.id, r.status, r.endOfDungeon);
+    out->name = "Sorted Chest";
+    out->areaKey = 9;
+    out->areaName = "Area Nine";
+    return true;
+}
+const char* CtwSortCheckName(uint16_t) {
+    return "Sorted Chest";
+}
+const ComboOoTTrackerOps kCtwSortOps = { CtwSummary, CtwSortCount, CtwSortCheckAt, CtwSortCheckName };
+
+int LockSortBody(void) {
+    using namespace ComboGui;
+
+    // The comparator, clause by clause in SoH's order (CompareChecks): each pair
+    // is decided by its first differing clause, whatever the ids say.
+    const ComboTrackerCheckRow open = CtwSortProbe(0x50, COMBO_TRACKER_CHECK_UNCHECKED, false);
+    const ComboTrackerCheckRow seen = CtwSortProbe(0x51, COMBO_TRACKER_CHECK_SEEN, false);
+    const ComboTrackerCheckRow eod = CtwSortProbe(0x10, COMBO_TRACKER_CHECK_UNCHECKED, true);
+    const ComboTrackerCheckRow skipped = CtwSortProbe(0x01, COMBO_TRACKER_CHECK_SKIPPED, false);
+    const ComboTrackerCheckRow skippedEod = CtwSortProbe(0x60, COMBO_TRACKER_CHECK_SKIPPED, true);
+    const ComboTrackerCheckRow collected = CtwSortProbe(0x02, COMBO_TRACKER_CHECK_COLLECTED, false);
+    const ComboTrackerCheckRow saved = CtwSortProbe(0x03, COMBO_TRACKER_CHECK_SAVED, false);
+    const bool notFoundFirst = ComboCheckRowLess(open, collected) && !ComboCheckRowLess(collected, open);
+    const bool unsavedFirst = ComboCheckRowLess(collected, saved) && !ComboCheckRowLess(saved, collected);
+    const bool unskippedFirst = ComboCheckRowLess(eod, skipped) && !ComboCheckRowLess(skipped, eod);
+    const bool skippedBeforeFound = ComboCheckRowLess(skippedEod, collected);
+    const bool eodLast =
+        ComboCheckRowLess(open, eod) && !ComboCheckRowLess(eod, open) && ComboCheckRowLess(skipped, skippedEod);
+    const bool idLast =
+        ComboCheckRowLess(open, seen) && !ComboCheckRowLess(seen, open) && !ComboCheckRowLess(open, open);
+    printf("[TEST] combo-tracker-window #1279: CompareChecks clauses: not found first %d, unsaved first %d, not "
+           "skipped first %d, skipped before found %d, end of dungeon last %d, then id %d\n",
+           (int)notFoundFirst, (int)unsavedFirst, (int)unskippedFirst, (int)skippedBeforeFound, (int)eodLast,
+           (int)idLast);
+    CTW_ASSERT(notFoundFirst && unsavedFirst && unskippedFirst && skippedBeforeFound && eodLast && idLast);
+
+    // The list: the open checks by id, the open end-of-dungeon reward, the
+    // skipped check, then the collected and the saved ones; the area's totals
+    // are unchanged by the order.
+    std::vector<ComboTrackerAreaRows> areas;
+    Combo_Tracker_RegisterOoT(&kCtwSortOps);
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "", areas);
+    const std::string listed = areas.size() == 1 ? CtwIds(areas[0]) : std::string("(not one area)");
+    printf("[TEST] combo-tracker-window #1279: an area of every class lists \"%s\"\n", listed.c_str());
+    CTW_ASSERT(listed == "21,26,22,23,24,25");
+    CTW_ASSERT(areas[0].total == 6 && areas[0].done == 3);
+    // The drawn list keeps the order, and SoH's Check Tracker Settings > Skipped
+    // > Hide still takes the skipped row out (the hide-skipped option the report
+    // asked for, which both panes already honour).
+    ComboCheckHideOptions opts;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "9:21,26,22,23,24,25");
+    opts.hideStatus[COMBO_TRACKER_CHECK_SKIPPED] = true;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    printf("[TEST] combo-tracker-window #1279: Skipped.Hide draws \"%s\"\n", CtwDrawn(areas).c_str());
+    CTW_ASSERT(CtwDrawn(areas) == "9:21,26,22,24,25");
+
+#ifdef RSBS_SOURCE_DIR
+    // The sort runs where the rows are collected, so the search, the hides, the
+    // area totals and the scroll all see the sorted list; stable, so equal rows
+    // keep table order. OoT's adapter fills endOfDungeon from SoH's own IsEoDCheck
+    // test.
+    {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboTrackerWindow.cpp", std::ios::binary);
+        CTW_ASSERT(in.good());
+        const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CTW_ASSERT(win.find("std::stable_sort(area.rows.begin(), area.rows.end(), ComboCheckRowLess);") !=
+                   std::string::npos);
+        std::ifstream adapterIn(std::string(RSBS_SOURCE_DIR) +
+                                    "/games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp",
+                                std::ios::binary);
+        CTW_ASSERT(adapterIn.good());
+        const std::string adapter((std::istreambuf_iterator<char>(adapterIn)), std::istreambuf_iterator<char>());
+        CTW_ASSERT(adapter.find("out->endOfDungeon = CheckTracker::IsEoDCheck(staticLoc->GetRCType());") !=
+                   std::string::npos);
+    }
+#endif
+    return TEST_PASS;
+}
+
+int LockSort(void) {
+    const int result = LockSortBody();
+    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
+    return result;
+}
+
 // ---- #1129 (lane L3): reachability ---------------------------------------------
 
 // The grouping world with each row's availability known: the ids in
@@ -700,7 +828,7 @@ int LockAvailBody(void) {
     Combo_Tracker_RegisterOoT(&kCtwAvailOps);
     opts = ComboCheckHideOptions();
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     CTW_ASSERT(areas.size() == 2 && areas[0].availabilityKnown && areas[0].available == 1 &&
                areas[1].availabilityKnown && areas[1].available == 1);
     opts.onlyAvailable = true;
@@ -716,7 +844,7 @@ int LockAvailBody(void) {
     // A world whose availability is not known: nothing goes.
     Combo_Tracker_RegisterOoT(&kCtwOps);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     CTW_ASSERT(!areas[0].availabilityKnown && areas[0].available == 0);
 
     // The totals line and the area header: SoH's Available count in front, only
@@ -1028,17 +1156,17 @@ int LockNavBody(void) {
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "7:12,10");
     // The toggle off, or no area known: the whole list.
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, false);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(!opts.onlyCurrentArea && CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(!opts.onlyCurrentArea && CtwDrawn(areas) == "3:11,13 7:12,10");
     sCtwAreaKnown = false;
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(!opts.currentAreaKnown && CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(!opts.currentAreaKnown && CtwDrawn(areas) == "3:11,13 7:12,10");
 
     // Per pane (ruling D12): each pane's toggle is its own, seeded from the one
     // key whenever the key changes, and a pane's checkbox moves that pane alone.
@@ -1540,18 +1668,19 @@ int TrackerLayoutLocks(void) {
     const int rLogic = LockLogic();
     const int rNav = LockNav();
     const int rL5 = LockL5();
+    const int rSort = LockSort();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
            "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s, "
-           "#1131 navigation %s, #1132 replaces SoH's %s\n",
+           "#1131 navigation %s, #1132 replaces SoH's %s, #1279 sort %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
            rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
            rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
            rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL",
-           rL5 == TEST_PASS ? "PASS" : "FAIL");
+           rL5 == TEST_PASS ? "PASS" : "FAIL", rSort == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
             rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
-            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS)
+            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS && rSort == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }

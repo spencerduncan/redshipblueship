@@ -221,6 +221,17 @@ const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row);
 std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic);
 
 /**
+ * Whether `a` sorts before `b` in its area (#1279): SoH's CompareChecks
+ * (randomizer_check_tracker.cpp), clause for clause. A check not found comes
+ * before a found one, an unsaved one before a saved one, one not skipped before
+ * a skipped one, one that is not a dungeon's last reward before one that is
+ * (`endOfDungeon`), and then the lower check id first. So an area lists its open
+ * checks first and its skipped and found ones below them, as SoH's does, and a
+ * skip moves its row at once (the list is collected again every frame).
+ */
+bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow& b);
+
+/**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
  * and name, its shuffled-check count and how many of them are done (collected
  * or skipped: SoH's and MM's trackers both count a skipped check as checked),
