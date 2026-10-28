@@ -11,6 +11,12 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include <libultraship/log/luslog.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// (#1278) Where a paired file lands after the moon crash; defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp.
+u16 MM_Play_MoonCrashArrivalEntrance(u16 entrance);
+#endif
+
 s16 sCutsceneQuakeIndex;
 struct CutsceneCamera sCutsceneCameraInfo;
 u16 sCueTypeList[10];
@@ -607,6 +613,12 @@ void CutsceneCmd_DestinationDefault(PlayState* play, CutsceneContext* csCtx, CsC
 
     if (cmd->type == CS_DESTINATION_DEFAULT) {
         play->nextEntrance = play->csCtx.scriptList[play->csCtx.scriptIndex].nextEntrance;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#1278): the Fire Wall's destination is the Clock Tower interior's
+        // spawn 3 (the salesman's cycle-reset cutscene); a paired file lands where
+        // the Song of Time does (OoTMM's rewrite of 0xC030).
+        play->nextEntrance = MM_Play_MoonCrashArrivalEntrance(play->nextEntrance);
+#endif
         gSaveContext.nextCutsceneIndex = 0;
         play->transitionTrigger = TRANS_TRIGGER_START;
 
