@@ -3070,6 +3070,20 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1289: a shuffled fairy (gossip stone, fountain, fairy spot, bean) gives its
+    # item and no heal, and a shuffled big fairy no magic refill either; a fairy
+    # with no check still heals (and the big one refills magic). The bottle-guard
+    # row is SoH 5e13570b8 (#6405): a non-EnElf actor carrying a check identity
+    # does not take the fairy's bottle path. Drives EnElf's real touch handler and
+    # ShuffleFairies' real hooks. games/oot/soh/oot_shuffled_fairy_test.cpp.
+    redship_add_test(NAME ShuffledFairyNoHeal COMMAND redship --test shuffled-fairy-no-heal
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME ShuffledFairyBottleGuard COMMAND redship --test shuffled-fairy-bottle-guard
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
