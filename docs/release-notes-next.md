@@ -538,7 +538,10 @@ the ROM tiers alone did not see it. Cycle 30, at `38a5138c` (with #1194, #1198, 
 78 of 78 and 79 of 79, `integration` 21 of 21 and `integration-soak` 1 of 1 both times. Cycles 32 to 37
 passed every tier too, at `3772e70d` (with #1205, #1224, #1225, #1227 and #1230), `c9fd36de`, `7ec19332`, `9ceea4bc`,
 `11b2212b` and `791f26d3`: every `redship` row (260, 262, 263, 265, 267 and 271), every `rando` row (79, 80, 80, 80, 80
-and 81), `integration` 21 of 21 and `integration-soak` 1 of 1 each time. Cycle 38, at `347ba755` (with #1268, #1259, #1260, #1267, #1270, #1269 and #1271), was running when this was written. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md). Nobody has played any of it.
+and 81), `integration` 21 of 21 and `integration-soak` 1 of 1 each time. Cycle 38, at `347ba755` (with #1268, #1259,
+#1260, #1267, #1270, #1269 and #1271), passed every tier as well: `redship` 273 of 273, `rando` 81 of 81, `integration`
+21 of 21, `integration-soak` 1 of 1. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md).
+Nobody has played any of it.
 
 ---
 
