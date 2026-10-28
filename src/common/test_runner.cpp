@@ -540,6 +540,11 @@ int OoT_BombchuDropRuleTest_Run(void);
 // Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
 // Return 0 on pass.
 int OoT_MasterSwordRespawnTest_Run(void);
+// #1289: a shuffled fairy is an item pickup, not a heal; #6405: only an EnElf takes
+// the shuffled fairy's bottle path. Bodies in games/oot/soh/oot_shuffled_fairy_test.cpp.
+// Return 0 on pass.
+int OoT_ShuffledFairyNoHealTest_Run(void);
+int OoT_ShuffledFairyBottleGuardTest_Run(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -3080,6 +3085,35 @@ TestResult Test_MasterSwordRespawn(void) {
     int rc = OoT_MasterSwordRespawnTest_Run();
     printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1289: a shuffled fairy's touch gives its item and no heal or magic refill; a
+// fairy with no check still heals. #6405: a non-EnElf actor with a check identity
+// does not take the fairy's bottle path. Same bring-up as the row above
+// (OTRGlobals' randomizer context). Assertions in
+// games/oot/soh/oot_shuffled_fairy_test.cpp.
+static TestResult RunShuffledFairyRow(int (*run)(void), const char* what) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = run();
+    printf("[TEST] %s: %s rc=%d\n", rc == 0 ? "PASS" : "FAIL", what, rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_ShuffledFairyNoHeal(void) {
+    return RunShuffledFairyRow(OoT_ShuffledFairyNoHealTest_Run, "shuffled fairy no heal");
+}
+
+TestResult Test_ShuffledFairyBottleGuard(void) {
+    return RunShuffledFairyRow(OoT_ShuffledFairyBottleGuardTest_Run, "shuffled fairy bottle guard");
 }
 
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
@@ -9066,6 +9100,14 @@ const TestDescriptor gTests[] = {
       "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
       "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
       Test_MasterSwordRespawn },
+    { "shuffled-fairy-no-heal",
+      "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "
+      "randomized big fairy no magic refill; a fairy with no check still heals and the big one refills magic (#1289)",
+      Test_ShuffledFairyNoHeal },
+    { "shuffled-fairy-bottle-guard",
+      "Only an EnElf takes the shuffled fairy's bottle path: a pot, crate, grass patch, beehive or tree carrying a "
+      "check identity stays an ordinary bottle swing (SoH 5e13570b8, #1289)",
+      Test_ShuffledFairyBottleGuard },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -9388,6 +9430,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
+                strcmp(gTests[i].name, "shuffled-fairy-no-heal") == 0 ||
+                strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
