@@ -13,7 +13,7 @@ written by this version are version 5 and seeds come from generator 2 (Read this
 follow this section.
 **Merged up to:** `main` at `347ba755` (2026-10-27) for the code, 67 commits after the tag: pull requests #1174 to
 #1271 (#1174, #1179, #1183, #1193, #1208, #1214 and #1241 are docs; the numbers in that range that are not listed
-below are issues or pull requests closed unmerged); then the docs of #1273 (`53a49d42`) and the release commit.
+below are issues); then the docs of #1273 (`53a49d42`) and the release commit.
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
 #N". The operator played one path of it on the `347ba755` build on 2026-10-27, the Mido's House debug seed through
 the crossing to Woodfall Temple, which rose at the first attempt (Read this first); nobody has played the rest. Every

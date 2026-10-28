@@ -18,7 +18,7 @@ Both builds bundle `soh.o2r` and the asset extraction tools (`assets/extractor/`
 
 - **Back up first.** Copy your `Save/` and `Randomizer/` folders aside before running this build on them.
 - **Saves are version 5.** Files from `v0.3.1-prealpha` load unchanged and are written as version 5 at their next save; from then on older builds refuse them.
-- **Old paired files are refused.** A paired randomizer file created before 2026-10-10 is not opened ("Refused: Majora's Mask options differ"): erase it and create a new file.
+- **Old paired files are refused.** A paired randomizer file saved by `v0.3.0-prealpha` or any earlier build is not opened ("Refused: This file has no Majora's Mask world", or "Refused: Majora's Mask options differ" for a file created before 2026-10-10): erase it and create a new file. Only paired files from `v0.3.1-prealpha` carry over.
 - **Old seed packages are refused.** This build's seed generator is version 2 (#1264): a seed package made by an earlier build is refused; generate the seed again.
 - **Old seeds make new worlds.** A seed and settings from an older build generate a different world on this one.
 - **Rollback:** install into a new folder and keep the old one; earlier releases, `v0.1.1-prealpha` among them, stay downloadable from the releases page.
