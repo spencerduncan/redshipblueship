@@ -3239,6 +3239,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
     redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
+    # #1278: after the crash a paired file lands in South Clock Town (0xD800, OoTMM's
+    # rewrite of 0xC030), never in the salesman's Clock Tower scene: the Fire Wall's
+    # destination and the Story skip's, under both behaviours. ROM-free (default tier);
+    # games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashArrival COMMAND redship --test mm-moon-crash-arrival)
 
     # #1175: a Powder Keg found in Hyrule arrives in Termina as one keg (the real
     # crossing redemption and a suspend/resume round trip); MM's frozen "Keep Items

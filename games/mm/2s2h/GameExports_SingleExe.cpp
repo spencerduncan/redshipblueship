@@ -3676,6 +3676,17 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
 }
 
 /**
+ * Where a paired file lands after the moon crash (#1278). PlayState-free so the
+ * ROM-free mm-moon-crash-arrival row drives it.
+ *
+ * @param entrance the landing MM is about to take
+ * @return the landing to take instead
+ */
+extern "C" u16 MM_Play_MoonCrashArrivalEntrance(u16 entrance) {
+    return entrance;
+}
+
+/**
  * THE CLASS-LEVEL GUARD ON MM'S NEW-SAVE PATH (#564 V21). Called first thing by
  * MM_Sram_InitNewSave and MM_Sram_InitSave (z_sram_NES.c).
  *
