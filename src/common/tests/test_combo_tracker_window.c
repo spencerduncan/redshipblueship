@@ -1409,6 +1409,7 @@ int LockL5(void) {
     header.checkTotals = false;
     header.availableChecks = false;
     header.availableChecksToggle = true; // shown only with Enable Available Checks
+    header.onlyCurrentAreaToggle = false;
     const bool noneShown = ComboCheckHeaderPresent(header);
     header.availableChecks = true;
     const bool availableShown = ComboCheckHeaderPresent(header);
@@ -1419,6 +1420,35 @@ int LockL5(void) {
            "toggle %d, with the totals %d\n",
            (int)byDefault, (int)noneShown, (int)availableShown, (int)totalsShown);
     CTW_ASSERT(byDefault && !noneShown && availableShown && totalsShown);
+
+    // #1287: the pane's own Only Show Current Area checkbox has a visibility key
+    // of its own, on by default, and no longer rides with SoH's controls: with
+    // every one of them hidden it still draws, and the header (its separator)
+    // with it; hidden by its own key, it goes while SoH's controls stay.
+    {
+        const char* const kToggleKey = "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible";
+        const bool existed = CVarExists(kToggleKey);
+        const int32_t value = CVarGetInteger(kToggleKey, 0);
+        CVarClear(kToggleKey);
+        const bool readDefault = ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        CVarSetInteger(kToggleKey, 0);
+        const bool readOff = !ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        if (existed) {
+            CVarSetInteger(kToggleKey, value);
+        } else {
+            CVarClear(kToggleKey);
+        }
+        ComboCheckHeaderOptions bare;
+        bare.hiddenItemsToggle = false;
+        bare.searchInput = false;
+        bare.checkTotals = false;
+        const bool toggleAlone = ComboCheckHeaderPresent(bare);
+        printf("[TEST] combo-tracker-window #1287: Only Show Current Area Toggle reads on by default %d, off when set "
+               "%d; with every SoH control hidden the header is present %d\n",
+               (int)readDefault, (int)readOff, (int)toggleAlone);
+        CTW_ASSERT(ComboCheckHeaderOptions().onlyCurrentAreaToggle);
+        CTW_ASSERT(readDefault && readOff && toggleAlone);
+    }
 
 #ifdef RSBS_SOURCE_DIR
     // The draw: a row leads with its name in its status colour, as SoH's
@@ -1432,6 +1462,23 @@ int LockL5(void) {
     CTW_ASSERT(drawRow.find("SQUARE_O") == std::string::npos);
     CTW_ASSERT(win.find("if (headerPresent) {\n        ImGui::Separator();") != std::string::npos);
     CTW_ASSERT(win.find("haystack = ComboCheckRowSearchText(game, row);") != std::string::npos);
+    // #1287: the checkbox is drawn behind its own key, and the key is read.
+    const std::string areaToggle = CtwSlice(win, "if (header.onlyCurrentAreaToggle) {", "\n    }");
+    CTW_ASSERT(!areaToggle.empty() && areaToggle.find("\"Only Show Current Area\"") != std::string::npos);
+    CTW_ASSERT(win.find("header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_"
+                        "TOGGLE_VISIBLE, 1) != 0;") != std::string::npos);
+    // ...and its row sits in SoH's Check Tracker Settings, Tracker Header
+    // Visibility, right after SoH's Check Totals row (single-exe fenced).
+    const std::string settings = CtwSource("games/oot/soh/Enhancements/randomizer/randomizer_check_tracker.cpp");
+    const std::string visibility =
+        CtwSlice(settings, "ImGui::SeparatorText(\"Tracker Header Visibility\");", "ImGui::TableNextColumn();");
+    const size_t totalsRow = visibility.find("UIWidgets::CVarCheckbox(\"Check Totals\"");
+    const size_t toggleRow = visibility.find("UIWidgets::CVarCheckbox(\"Only Show Current Area Toggle\", "
+                                             "RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,");
+    printf("[TEST] combo-tracker-window #1287: Tracker Header Visibility holds Check Totals at %d, the Only Show "
+           "Current Area Toggle at %d\n",
+           totalsRow == std::string::npos ? -1 : (int)totalsRow, toggleRow == std::string::npos ? -1 : (int)toggleRow);
+    CTW_ASSERT(totalsRow != std::string::npos && toggleRow != std::string::npos && totalsRow < toggleRow);
 
     // SoH's two toggle rows are the ones that open the unified windows: their
     // .CVar and .WindowName are SoH's own literals, unchanged, which the

@@ -1929,6 +1929,12 @@ constexpr const char* kSnapshotWindowTypeKey = "gTrackers.CheckTracker.WindowTyp
 // #1280: the synthetic world has a current area, and the captures must not
 // scroll to it on their own: Auto Scroll To Current Area is off while it is in.
 constexpr const char* kSnapshotAutoScrollKey = RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL;
+// #1287: SoH's Tracker Header Visibility keys the "bare-header" state turns off.
+constexpr const char* kSnapshotSohHeaderKeys[] = {
+    "gTrackers.CheckTracker.HiddenItemsToggleVisible",
+    "gTrackers.CheckTracker.SearchInputVisible",
+    "gTrackers.CheckTracker.CheckTotalsVisible",
+};
 // #1280: the label the search box's Scroll to Current Area button reports through the seam.
 constexpr const char* kSnapshotScrollButtonLabel = "##checkSearch##action";
 
@@ -2148,6 +2154,11 @@ void Session::BuildPageList() {
             p.stateContrast = { { "", "window" } };
             p.expectText.push_back("Majora's Mask Groups");
             p.expectText.push_back("Item Tracker Sections");
+        }
+        if (p.id == "Randomizer/Check Tracker") {
+            // #1287: the pane's Only Show Current Area checkbox's own visibility
+            // row, in SoH's Tracker Header Visibility group after Check Totals.
+            p.expectText.push_back("Only Show Current Area Toggle");
         }
         pages.push_back(p);
     }
@@ -2779,13 +2790,17 @@ void Session::BuildPageList() {
         // leave, the skipped and open ones stay. "floating" is "progress" under
         // SoH's Window Type Floating (#1130): the overlay chrome, no title bar and
         // no close button, read against SoH's own floating overlay.
-        p.states = { "paired", "unpaired", "progress", "hidden", "floating" };
+        // "bare-header" (#1287) is "progress" with every one of SoH's header
+        // controls hidden: the pane's own Only Show Current Area still draws.
+        p.states = { "paired", "unpaired", "progress", "hidden", "floating", "bare-header" };
         p.compareWith = kSohPaneReference;
         p.stateCompareWith["floating"] = kSohItemTrackerReference;
         p.expectText = { ComboGui::kComboTrackerWindowName };
         p.stateTitleBar = {
-            { "paired", true }, { "unpaired", true }, { "progress", true }, { "hidden", true }, { "floating", false }
+            { "paired", true }, { "unpaired", true },  { "progress", true },
+            { "hidden", true }, { "floating", false }, { "bare-header", true },
         };
+        p.stateText["bare-header"] = { "Only Show Current Area", kSnapshotOoTChecks[0].shortName };
         p.stateText["floating"] = { kSnapshotOoTChecks[0].shortName, kSnapshotOoTItemA };
         // The saved OoT row under its area (its short name) and the crossed MM
         // item it names: shown in "progress", hidden in "hidden".
@@ -3458,7 +3473,8 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
         }
         if (state == "paired") {
             AuthorPairing();
-        } else if (state == "crossings" || state == "progress" || state == "hidden" || state == "floating") {
+        } else if (state == "crossings" || state == "progress" || state == "hidden" || state == "floating" ||
+                   state == "bare-header") {
             AuthorPairing();
             AuthorCrossings();
             AuthorMMShadow();
@@ -3469,6 +3485,11 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 // SoH's Check Tracker Settings > Saved / Collected "Hide" (#1128).
                 CVarSetInteger(kSnapshotSavedHideKey, 1);
                 CVarSetInteger(kSnapshotCollectedHideKey, 1);
+            }
+            if (state == "bare-header") {
+                for (const char* key : kSnapshotSohHeaderKeys) {
+                    CVarSetInteger(key, 0);
+                }
             }
             if (state == "floating") {
                 // SoH's Check Tracker Settings > Window Type: Floating (#1130).
@@ -3524,14 +3545,17 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.mmNoteProbe && state == "gate-on") {
         CVarClear(kMmNoteParentKey);
     }
-    if (p.kind == Kind::WINDOW &&
-        (state == "progress" || state == "crossings" || state == "hidden" || state == "floating")) {
+    if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings" || state == "hidden" ||
+                                   state == "floating" || state == "bare-header")) {
         OoT_TrackerAdapter_Register();
         RestoreMMShadow();
         CVarClear(kSnapshotSavedHideKey);
         CVarClear(kSnapshotCollectedHideKey);
         CVarClear(kSnapshotWindowTypeKey);
         CVarClear(kSnapshotAutoScrollKey);
+        for (const char* key : kSnapshotSohHeaderKeys) {
+            CVarClear(key);
+        }
     }
     if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName && p.guiWindow.empty()) {
         RestoreItemTrackerState();
@@ -4714,8 +4738,9 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         } else {
             CVarSetInteger(cvar, 1);
         }
-        const bool checksOpen = ((state == "progress" || state == "hidden" || state == "floating") &&
-                                 p.window == ComboGui::kComboTrackerWindowName);
+        const bool checksOpen =
+            ((state == "progress" || state == "hidden" || state == "floating" || state == "bare-header") &&
+             p.window == ComboGui::kComboTrackerWindowName);
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;

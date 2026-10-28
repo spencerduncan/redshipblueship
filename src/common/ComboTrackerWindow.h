@@ -337,6 +337,10 @@ struct ComboCheckHeaderOptions {
     bool availableChecksToggle = true;
     // #1161: SoH's Show Logic ("ShowLogic", off): each row's logic tooltip.
     bool showLogic = false;
+    // #1287: the pane's own Only Show Current Area checkbox, behind a key of
+    // its own in SoH's Tracker Header Visibility group, as each of SoH's header
+    // controls is: gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible (on).
+    bool onlyCurrentAreaToggle = true;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
