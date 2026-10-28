@@ -4748,12 +4748,39 @@ extern "C" void OoT_HarvestSharedResources(void) {
  *         before) when the kind is disarmed by the frozen rules or has no cap
  *         here.
  */
+/**
+ * FILL AT THE WALLET STEP (#1284; shared_resources.h): a wallet step that RAISED
+ * OoT's tier, under the pair's frozen fill-wallets rule (OoT's Full Wallets),
+ * fills OoT's rupees to the new cap the way OoT's own wallet give does under
+ * that setting (z_parameter.c's Rupees_ChangeBy): through the accumulator, set
+ * AFTER the apply, which zeroes it. The next harvest folds it into the pool,
+ * clamped to the cap. A copy absorbed at the cap fills nothing.
+ */
+static void OoT_FillWalletAfterStep(s32 tierBefore) {
+    if ((s32)CUR_UPG_VALUE(UPG_WALLET) <= tierBefore || !Combo_SharedWalletFillRule()) {
+        return;
+    }
+    if (IS_RANDO && !Flags_GetRandomizerInf(RAND_INF_HAS_WALLET)) {
+        return; // no wallet held: the frame handler pins rupees at 0 (#992)
+    }
+    const s32 fill = (s32)CUR_CAPACITY(UPG_WALLET) - (s32)gSaveContext.rupees;
+    if (fill > 0) {
+        gSaveContext.rupeeAccumulator = (s16)fill;
+        fprintf(stderr, "[OoT] shared wallet step: fill-wallets rule on, %d rupees to the tier-%d cap of %d (#1284)\n",
+                (int)fill, (int)CUR_UPG_VALUE(UPG_WALLET), (int)CUR_CAPACITY(UPG_WALLET));
+    }
+}
+
 static int OoT_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     OoT_HarvestSharedKind(kind);
+    const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
     if (!Combo_StepSharedTier(kind, units, OoT_SharedKindCap(kind))) {
         return 0; // the harvest alone changes nothing a later harvest would not
     }
     OoT_ApplySharedKind(kind);
+    if (kind == RSBS_SHARED_RES_WALLET_TIER) {
+        OoT_FillWalletAfterStep(walletTierBefore);
+    }
     uint16_t pool = 0;
     Combo_GetSharedResource(kind, &pool);
     fprintf(stderr, "[OoT] shared pickup step: %s id=%u steps shared kind %u by %u; the pool now holds %u (#1120)\n",

@@ -894,6 +894,7 @@ Publishing the allocation once beats five sequential re-versions:
 | 13 (2026-10-18) | `sharedFamilyOwned` (#976, the shared-family bitset) | 4 B | **carved** — offset **908** |
 | 14 (2026-10-27) | `mmKeepItemsReset` (#1175, PR #1194: Majora's Mask's frozen Keep Items on Cycle Reset) | 1 B | **carved** — offset **912**; `reserved[91]` now begins at 913, 27 bytes above the floor; `sizeof(ComboContext)` stays 1712 |
 | 15 (2026-10-27) | the shared-item outbox's overflow segment (operator ruling "do the variable length block"; ADR 0002's 2026-10-27 amendment) | 0 B | **outside the record** — the `.redsave` Tier-5 block (format version 5), up to 1984 rows of 4 bytes; `reserved[91]` is untouched |
+| 16 (2026-10-28) | `comboFillWallets` (#1284: the pair's frozen fill-wallets rule, OoTMM's `fillWallets`, authored from OoT's Full Wallets; a creation record) | 1 B | **carved** — offset **913**; `reserved[90]` now begins at 914, 26 bytes above the floor; `sizeof(ComboContext)` stays 1712 |
 
 Total reserved-against: 152 B of 284. After claims 1, 3, 5 and 6 land, `reserved[]`
 is 132 bytes and 152 B of capacity remain.
