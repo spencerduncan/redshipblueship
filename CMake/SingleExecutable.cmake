@@ -475,6 +475,8 @@ set_target_properties(redship PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+option(RSBS_EMIT_LINK_MAP "Emit redship.map when linking the redship executable (#1303)" ON)
+
 # Platform-specific settings
 if(MSVC)
     set_target_properties(redship PROPERTIES
@@ -491,10 +493,21 @@ if(MSVC)
     # space, not committed memory, and applies to every thread created with
     # a default stack size.
     target_link_options(redship PRIVATE /STACK:8777216)
+    if(RSBS_EMIT_LINK_MAP)
+        # Crash tracebacks print redship.exe+0xOFFSET (#1199), which resolves
+        # against redship.map (#1303). Put /MAP on the redship target rather
+        # than relying on a local CMAKE_EXE_LINKER_FLAGS cache entry so CI
+        # builds emit ${CMAKE_BINARY_DIR}/redship.map while ZAPD_OoT/ZAPD_MM
+        # and CPack's player zip stay untouched.
+        target_link_options(redship PRIVATE /MAP)
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE)
     target_link_options(redship PRIVATE -rdynamic)
+    if(RSBS_EMIT_LINK_MAP)
+        target_link_options(redship PRIVATE "-Wl,-Map=${CMAKE_BINARY_DIR}/redship.map")
+    endif()
 endif()
 
 # ============================================================================
