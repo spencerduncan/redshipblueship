@@ -127,12 +127,16 @@ TestResult Test_ForeignItemGiveShop(void) {
     SharedItem hammer;
     SharedItem boots;
     SharedItem hookshot;
+    SharedItem volvagiaSoul;
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Megaton Hammer", &hammer), "named item Megaton Hammer");
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots), "named item Hover Boots");
     FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot), "named item Progressive Hookshot");
+    FS_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Volvagia's Soul", &volvagiaSoul), "named item Volvagia's Soul");
     ComboModelAnswer bootsA;
     FS_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == COMBO_MODEL_ANSWER_DESCRIPTOR,
               "the Hover Boots are a DESCRIPTOR in MM");
+    ComboModelAnswer soulA;
+    const uint8_t soulKind = Combo_GetForeignItemModel((uint8_t)GAME_MM, volvagiaSoul, &soulA);
     // #577 M5: OoT's hookshot collides, and MM's host-native table (#577 M7) maps
     // it to MM's own hookshot row; the shelf and the hand draw that row as MM's
     // own recipe gives it.
@@ -222,6 +226,11 @@ TestResult Test_ForeignItemGiveShop(void) {
     FS_ASSERT(Combo_SetForeignPlacement(handCheck, hookshot) >= 0, "S5 hookshot placement accepted");
     printf("[TEST]   S5 Progressive Hookshot (colliding, host-native row) in the owner's hand:\n");
     const int handNative = MM_ForeignModel_TestShopDraw(handCheck, 1, &mmHookshot);
+    Combo_ClearForeignPlacements();
+    FS_ASSERT(Combo_SetForeignPlacement(shopCheck, volvagiaSoul) >= 0, "S4 Volvagia's Soul placement accepted");
+    printf("[TEST]   S4 Volvagia's Soul (#1299: tinted blue-fire flame) on a shop shelf, archive mounted:\n");
+    const int shelfSoul =
+        soulKind == COMBO_MODEL_ANSWER_DESCRIPTOR ? MM_ForeignModel_TestShopDraw(shopCheck, 0, &soulA.model) : -1;
     MM_ForeignModel_TestSetMountOverride(-1);
     ComboContext_Init();
 
@@ -308,6 +317,9 @@ TestResult Test_ForeignItemGiveShop(void) {
                                 "the shelf (#577 M5; see the Q-line above)");
     FS_ASSERT(handNative == 0, "S5 a colliding OoT model with a host-native row draws MM's OWN model for that row in "
                                "the owner's hand (#577 M5; see the Q-line above)");
+    FS_ASSERT(soulKind == COMBO_MODEL_ANSWER_DESCRIPTOR && shelfSoul == 0,
+              "S4 #1299: the shelf draws Volvagia's Soul flame descriptor, not the RI_NONE stand-in (see the Q-line "
+              "above)");
     FS_ASSERT(hagsFirst == 1 && hagsCrossed == 1, "S6 the first cycle's mushroom arms the Hags' slot and its OoT item "
                                                   "crosses (see the S6 lines above)");
     FS_ASSERT(hagsLater == 0, "S6 a later cycle's mushroom does not re-arm a Hags' slot whose OoT item was delivered "
