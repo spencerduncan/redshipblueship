@@ -4738,9 +4738,10 @@ void Session::CaptureWindowPage(const PageSpec& p) {
         } else {
             CVarSetInteger(cvar, 1);
         }
-        const bool checksOpen =
-            ((state == "progress" || state == "hidden" || state == "floating" || state == "bare-header") &&
-             p.window == ComboGui::kComboTrackerWindowName);
+        // Not "bare-header" (#1287): SoH's Search Input is hidden there, so the
+        // search census below has no box to count.
+        const bool checksOpen = ((state == "progress" || state == "hidden" || state == "floating") &&
+                                 p.window == ComboGui::kComboTrackerWindowName);
         // The pane's .txt is VISIBLE-ONLY (see HookState::unclipLog), so a state's
         // text is asserted against what some captured view actually showed.
         gHooks.unclipLog = false;
