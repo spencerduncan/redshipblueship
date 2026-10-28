@@ -137,6 +137,9 @@ int MM_MoonCrashPoolApplied_Run(void);
 // Shared Song of Time rule; and a crash under New Cycle starts a new cycle.
 int MM_MoonCrashCycleForced_Run(void);
 int MM_MoonCrashCycleReset_Run(void);
+// mm-moon-crash-arrival (#1278, same file): after a moon crash a paired file
+// lands in South Clock Town (0xD800), not the salesman's Clock Tower scene.
+int MM_MoonCrashArrival_Run(void);
 // mm-cycle-keep-items / mm-keep-items-reset-frozen (#1175,
 // games/mm/2s2h/mm_cycle_keep_items_test.cpp): a Powder Keg crossing arrives as
 // one keg, and the frozen Keep Items on Cycle Reset (OoTMM's keepItemsReset)
@@ -1529,6 +1532,21 @@ TestResult Test_MMMoonCrashCycleForced(void) {
         return TEST_FAIL;
     }
     return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1278: the Story skip leg arms SkipMoonCrash.cpp through ShipInit and its CVar,
+// so the row takes the same display-free bring-up as mm-moon-crash-cycle-forced.
+static TestResult Test_MMMoonCrashArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MoonCrashArrival_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #1175: the crossing's give and the cycle reset run 2Ship code that may read
@@ -9158,6 +9176,11 @@ const TestDescriptor gTests[] = {
       "A moon crash under New Cycle starts a new cycle (Dawn of the First Day, human form, no mask) keeping inventory "
       "and quest items found after the last commit, and commits it; the last-commit rollback does not run (#1069)",
       Test_MMMoonCrashCycleReset },
+    { "mm-moon-crash-arrival",
+      "After a moon crash (Last Save or New Cycle, Story cutscene skipped or not) a paired file lands in South Clock "
+      "Town (0xD800), the Song of Time's spawn, not the Clock Tower interior's spawn 3 (0xC030) with the salesman's "
+      "cutscene; other entrances and a session with no combo file are unchanged (#1278)",
+      Test_MMMoonCrashArrival },
     { "mm-cycle-keep-items",
       "A Powder Keg found in Hyrule arrives in Termina as one keg and survives a round trip; the frozen Keep Items on "
       "Cycle Reset keeps it and the Magic Beans through the three-day reset (off: vanilla, both wiped), the shared "
