@@ -1455,7 +1455,7 @@ int LockL5(void) {
     // DrawLocation draws it, with no status square in front; the header's
     // separator follows SoH's gate; the search goes through the search text.
     const std::string win = CtwSource("src/common/ComboTrackerWindow.cpp");
-    const std::string drawRow = CtwSlice(win, "void DrawCheckRow(", "void DrawCheckList(");
+    const std::string drawRow = CtwSlice(win, "bool DrawCheckRow(", "bool DrawCheckList(");
     CTW_ASSERT(!drawRow.empty());
     CTW_ASSERT(drawRow.find("CheckGlyph(") == std::string::npos);
     // None of the three status squares (empty, ticked, skipped) in the row draw.
