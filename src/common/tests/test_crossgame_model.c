@@ -355,6 +355,12 @@ constexpr const char* kCgmCustomDrawLists[] = {
     "objects/gameplay_keep/gStrayFairyLeftFacingHeadDL",
     "objects/object_gi_bottle_04/gGiFairyBottleGlassCorkDL",
     "objects/object_gi_bottle_04/gGiFairyBottleContentsDL",
+    // MM's clock items (#1281): DrawClock's four object_obj_tokeidai lists,
+    // single-path entries with their textures and vertex arrays.
+    "objects/object_obj_tokeidai/gClockTowerMinuteRingDL",
+    "objects/object_obj_tokeidai/gClockTowerClockCenterAndHandDL",
+    "objects/object_obj_tokeidai/gClockTowerClockFaceDL",
+    "objects/object_obj_tokeidai/gClockTowerSunAndMoonPanelDL",
 };
 
 static int CgmCheckModel(const char* dlPath);
