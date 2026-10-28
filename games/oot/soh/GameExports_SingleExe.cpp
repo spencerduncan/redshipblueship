@@ -4734,21 +4734,6 @@ extern "C" void OoT_HarvestSharedResources(void) {
 }
 
 /**
- * STEP AT PICKUP (#1120; shared_resources.h): a far game's capacity tier found
- * in Hyrule (MM's Progressive Bomb Bag on an OoT check), or an OoT tier item
- * redeemed from an older save's crossing, steps the pool now and OoT's tier
- * re-applies from it at once: harvest the kind (and the quantity it bounds),
- * step the pool by one copy, re-apply the kind through the arrival's own block
- * for it (OoT_ApplySharedKind: the tier before the quantity, the UPG_* write,
- * the item slot, the ammo count from the pool). The harvest first is what keeps
- * everything found or spent since the arrival in the pool's arithmetic.
- *
- * @return 1 when stepped (including a copy absorbed at the cap: nothing in
- *         Termina could hold it either); 0 (the caller crosses the item, as
- *         before) when the kind is disarmed by the frozen rules or has no cap
- *         here.
- */
-/**
  * FILL AT THE WALLET STEP (#1284; shared_resources.h): a wallet step that RAISED
  * OoT's tier, under the pair's frozen fill-wallets rule (OoT's Full Wallets),
  * fills OoT's rupees to the new cap the way OoT's own wallet give does under
@@ -4771,6 +4756,21 @@ static void OoT_FillWalletAfterStep(s32 tierBefore) {
     }
 }
 
+/**
+ * STEP AT PICKUP (#1120; shared_resources.h): a far game's capacity tier found
+ * in Hyrule (MM's Progressive Bomb Bag on an OoT check), or an OoT tier item
+ * redeemed from an older save's crossing, steps the pool now and OoT's tier
+ * re-applies from it at once: harvest the kind (and the quantity it bounds),
+ * step the pool by one copy, re-apply the kind through the arrival's own block
+ * for it (OoT_ApplySharedKind: the tier before the quantity, the UPG_* write,
+ * the item slot, the ammo count from the pool). The harvest first is what keeps
+ * everything found or spent since the arrival in the pool's arithmetic.
+ *
+ * @return 1 when stepped (including a copy absorbed at the cap: nothing in
+ *         Termina could hold it either); 0 (the caller crosses the item, as
+ *         before) when the kind is disarmed by the frozen rules or has no cap
+ *         here.
+ */
 static int OoT_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     OoT_HarvestSharedKind(kind);
     const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);

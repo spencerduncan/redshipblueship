@@ -5939,22 +5939,6 @@ extern "C" void MM_HarvestSharedResources(void) {
 }
 
 /**
- * STEP AT PICKUP (#1120; shared_resources.h), the twin of
- * OoT_StepSharedTierAtPickup: a far game's capacity tier found in Termina
- * (OoT's Progressive Bomb Bag on an MM check), or an MM tier item redeemed from
- * an older save's crossing, steps the pool now and MM's tier re-applies from
- * it at once through the arrival's own block for the kind (MM_ApplySharedKind:
- * the tier before the quantity, the UPG_* write, the item slot, the ammo count
- * from the pool — never MM's own give's bomb-and-bombchu refill). Touches
- * gSaveContext only, so it is safe from MM_AwardSharedItem before
- * `MM_gPlayState = this`, exactly as the apply is.
- *
- * @return 1 when stepped (including a copy absorbed at the cap: nothing in
- *         Hyrule could hold it either); 0 (the caller crosses the item, as
- *         before) when the kind is disarmed by the frozen rules or has no cap
- *         here.
- */
-/**
  * FILL AT THE WALLET STEP (#1284; shared_resources.h), the twin of
  * OoT_FillWalletAfterStep: a wallet step that RAISED MM's tier, under the pair's
  * frozen fill-wallets rule, fills MM's rupees to the new cap through the
@@ -5974,6 +5958,22 @@ static void MM_FillWalletAfterStep(s32 tierBefore) {
     }
 }
 
+/**
+ * STEP AT PICKUP (#1120; shared_resources.h), the twin of
+ * OoT_StepSharedTierAtPickup: a far game's capacity tier found in Termina
+ * (OoT's Progressive Bomb Bag on an MM check), or an MM tier item redeemed from
+ * an older save's crossing, steps the pool now and MM's tier re-applies from
+ * it at once through the arrival's own block for the kind (MM_ApplySharedKind:
+ * the tier before the quantity, the UPG_* write, the item slot, the ammo count
+ * from the pool — never MM's own give's bomb-and-bombchu refill). Touches
+ * gSaveContext only, so it is safe from MM_AwardSharedItem before
+ * `MM_gPlayState = this`, exactly as the apply is.
+ *
+ * @return 1 when stepped (including a copy absorbed at the cap: nothing in
+ *         Hyrule could hold it either); 0 (the caller crosses the item, as
+ *         before) when the kind is disarmed by the frozen rules or has no cap
+ *         here.
+ */
 static int MM_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     MM_HarvestSharedKind(kind);
     const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
