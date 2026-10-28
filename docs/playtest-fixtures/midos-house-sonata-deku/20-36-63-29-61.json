@@ -1287,7 +1287,7 @@
             "ootItemsInMM": []
         },
         "identity": {
-            "comboSettingsHash": 960774024,
+            "comboSettingsHash": 701037755,
             "masterSeed": 3436833826,
             "mmFinalSeed": 1265685699,
             "mmPairedAttempt": 1,
@@ -1586,7 +1586,7 @@
                 "RC_ZORA_HALL_SCRUB_PIECE_OF_HEART": "RI_JUNK",
                 "RC_ZORA_HALL_SCRUB_POTION_REFILL": "RI_BLUE_POTION_REFILL"
             },
-            "commitHash": "191a19a",
+            "commitHash": "5ea06a9",
             "finalSeed": 1265685699,
             "foreign": {},
             "inputSeed": "RSBSPAIR3436833826",
@@ -1661,8 +1661,8 @@
         61
     ],
     "finalSeed": 3436833826,
-    "git_branch": "claude/debug-seed-midos-bottle",
-    "git_commit": "191a19a",
+    "git_branch": "claude/debug-seed-midos-generator-v2",
+    "git_commit": "5ea06a9",
     "locations": {
         "Barinade": "Kokiri's Emerald",
         "Bongo Bongo": "Water Medallion",
