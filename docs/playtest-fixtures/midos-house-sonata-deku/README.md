@@ -7,7 +7,22 @@ Bottles is On, and everything else is the shipped defaults. A new file can open 
 the Happy Mask Shop and cross: the Sonata and the mask are waiting at the Clock Tower, and the bottle is in both
 games.
 
-## What changed (second version)
+## What changed (third version: generator 2)
+
+[#1264](https://github.com/spencerduncan/redshipblueship/pull/1264) raised the generator version
+(`RSBS_GENERATOR_VERSION`, `src/common/foreign_items.h`) from 1 to 2, so a build from #1264 on refuses the second
+version's package ("Refused: Seed package from another generator"). This version is the same seed made again by a
+generator 2 build, with the same command, rows and settings, and it makes the **same world**:
+
+- Same seed name (hash icons) `20-36-63-29-61`, and the same placements on both sides: the spoiler differs from the
+  second version's only in its commit lines and in `comboSettingsHash`.
+- Same crossings: **58** of Majora's Mask's items are hosted in Hyrule and **25** of Ocarina of Time's in Termina, as
+  before. #1264 also lifted the fill's per-side crossing cap from 64 to 2048, but this world needs only 58 on its
+  busier side, and the bag seed does not fold the generator version, so the fill made the same choices.
+- `comboSettingsHash` is `29C8FCBB` (was `39443F88`): that fingerprint folds the generator version.
+- The package is named `midos-house-sonata-deku-bottle-v2.rsbs-seed.zip`.
+
+## What the second version added
 
 The first version (made by #1234) had the Sonata and the Deku Mask only; the bottom chests held the Postman's Hat and
 the Bunny Hood by chance. This version keeps the seed string and both of those rows and adds a third:
@@ -30,13 +45,14 @@ the Bunny Hood by chance. This version keeps the seed string and both of those r
 
 | File | Where it is | What it is |
 | --- | --- | --- |
-| `midos-house-sonata-deku.rsbs-seed.zip` | Not in the repository (a binary); kept beside this README in the hand-off folder, or made again with the command below | The seed package: the whole paired world, both games' settings and the spoiler |
+| `midos-house-sonata-deku-bottle-v2.rsbs-seed.zip` | Not in the repository (a binary); kept beside this README in the hand-off folder, or made again with the command below | The seed package: the whole paired world, both games' settings and the spoiler |
 | `20-36-63-29-61.json` | This folder | The seed's spoiler (the same document as the package's `oot-spoiler.json`), for reading only |
 
-- Seed string `RSBSMIDOSDEBUG`, seed name (hash icons) `20-36-63-29-61`. The icons did not change from the first
-  version: they come from the seed string and Hyrule's settings, and the new rule is a combo setting. The world
-  did change, and so did its combo fingerprint (`comboSettingsHash` `39443F88`, was `06DDDEBF`).
-- Generated at `191a19a1` (`main`, no code change), so the package's build line reads `v0.3.1-prealpha+191a19a`.
+- Seed string `RSBSMIDOSDEBUG`, seed name (hash icons) `20-36-63-29-61`. The icons have not changed since the first
+  version: they come from the seed string and Hyrule's settings, and Shared Bottles is a combo setting. The combo
+  fingerprint is `comboSettingsHash` `29C8FCBB` (the second version's was `39443F88`, the first's `06DDDEBF`).
+- Generated at `5ea06a9c` (`main` with #1264, no code change), so the package's build line reads
+  `v0.3.1-prealpha+5ea06a9`.
 - Non-default settings: Randomizer > Logic/Access > **Closed Forest = Off**; Cross-Game Rules > **Shared Bottles =
   On** (`crossItemFlags` `0x00100000`). Everything else is the default, including Majora's Mask's Dungeon Access
   (Transformation & Song).
@@ -44,21 +60,23 @@ the Bunny Hood by chance. This version keeps the seed string and both of those r
 ## Which build loads it
 
 A seed package is not tied to one commit. Randomizer > General refuses a package only when its generator version
-(`RSBS_GENERATOR_VERSION`, 1 here) differs from the build's, or when Majora's Mask's half (47928 bytes) or the combo
+(`RSBS_GENERATOR_VERSION`, 2 here) differs from the build's, or when Majora's Mask's half (47928 bytes) or the combo
 record (1712 bytes) has another size than the build's (`games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp`).
-So any build of `main` from `191a19a1` on loads it until one of those changes. If a build refuses it ("Refused: Seed
-package damaged or incomplete" or "Refused: Seed package from another generator"), make it again on that build with the
-command below. The game's own Generate cannot pin a placement: for a paired world nothing in the menus can, which
+So any build of `main` from `5ea06a9c` (#1264) on loads it until one of those changes. A build from before #1264
+is generator 1 and refuses it; such a build loads the second version's package
+(`midos-house-sonata-deku-bottle.rsbs-seed.zip`) instead. If a build refuses it ("Refused: Seed package damaged or
+incomplete" or "Refused: Seed package from another generator"), make it again on that build with the command below.
+The game's own Generate cannot pin a placement: for a paired world nothing in the menus can, which
 is why this seed is made headless.
 
 ## Load it and create the file
 
-1. Copy `midos-house-sonata-deku.rsbs-seed.zip` into the **`Randomizer`** folder of the game install (the folder
-   beside `redship.exe` that holds the spoilers; create it if it is missing).
+1. Copy `midos-house-sonata-deku-bottle-v2.rsbs-seed.zip` into the **`Randomizer`** folder of the game install (the
+   folder beside `redship.exe` that holds the spoilers; create it if it is missing).
 2. Launch the game. On the file select, with no file loaded, open the menu (Esc): **Randomizer > General**. Under
-   Seed Package, pick `midos-house-sonata-deku.rsbs-seed.zip` in the list and press **Load seed package**. A toast
-   reads "Seed package loaded: midos-house-sonata-deku.rsbs-seed.zip" and the line under the buttons names the
-   staged package.
+   Seed Package, pick `midos-house-sonata-deku-bottle-v2.rsbs-seed.zip` in the list and press **Load seed package**.
+   A toast reads "Seed package loaded: midos-house-sonata-deku-bottle-v2.rsbs-seed.zip" and the line under the
+   buttons names the staged package.
 3. Pick an empty slot, choose the **Randomizer** quest, then **Start Randomizer**, enter a name and confirm. Creation is
    instant: the file uses the package's world, Shared Bottles included (the menu's own Shared Bottles setting does
    not matter; the package's frozen rule wins).
@@ -134,8 +152,8 @@ Steps:
 
 ## Make it again
 
-From a build tree of a build that has `--test debug-seed-forced-placements` (`main` from `c9fd36de` on), with no
-Majora's Mask or Ocarina of Time ROM needed:
+From a build tree of a build that has `--test debug-seed-forced-placements` (`main` from `c9fd36de` on; from
+`5ea06a9c` on for a generator 2 package like this one), with no Majora's Mask or Ocarina of Time ROM needed:
 
 ```bat
 set SDL_AUDIODRIVER=dummy
@@ -143,7 +161,7 @@ set RSBS_DISABLE_OTR_INIT=1
 set RSBS_DIAG_CVARS=gRandoSettings.ClosedForest=2,gCombo.Rando.SharedBottles=1
 set RSBS_FORCE_PLACEMENTS=oot:KF Mido Top Left Chest=mm:Sonata of Awakening,oot:KF Mido Top Right Chest=mm:Deku Mask,oot:KF Mido Bottom Left Chest=mm:Empty Bottle
 set RSBS_DEBUG_SEED=RSBSMIDOSDEBUG
-set RSBS_SEED_PACKAGE_PATH=%CD%\midos-house-sonata-deku.rsbs-seed.zip
+set RSBS_SEED_PACKAGE_PATH=%CD%\midos-house-sonata-deku-bottle-v2.rsbs-seed.zip
 redship.exe --test debug-seed-forced-placements
 ```
 
