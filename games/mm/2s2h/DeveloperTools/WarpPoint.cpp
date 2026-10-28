@@ -88,6 +88,12 @@ void Warp() {
     gSaveContext.respawnFlag = -8;
 }
 
+#ifndef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1238): out of the single exe. Boot to Warp Point would run Warp()'s boot leg (MM_Sram_InitNewSave and a map
+// select load) over whatever world MM's boot was bringing up, a paired one included: the MM-plays-vanilla class. No
+// shared-menu row draws it. RenderWarpPointSection, 2Ship's own menu drawing, goes too: the single exe draws the warp
+// point with SoH's Dev Tools rows through src/common/mm_dev_tools_bridge.h (games/mm/2s2h/MmDevToolsSingleExe.cpp),
+// which set and warp only while MM is in gameplay. Warp() and warpPointSceneList above stay, for that bridge.
 void RegisterWarpPoint() {
     static bool registered = false;
     if (registered) {
@@ -166,3 +172,4 @@ void RenderWarpPointSection() {
 }
 
 RegisterShipInitFunc initFuncWarpPoint(RegisterWarpPoint, {});
+#endif // RSBS_SINGLE_EXECUTABLE

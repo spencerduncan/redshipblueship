@@ -1186,6 +1186,51 @@ void ResetAudioKeys() {
     }
 }
 
+// ---- W6-DEV (#1238): MM's developer switches and debug save ------------------
+// DeveloperTools/DeveloperTools.cpp and DeveloperTools/ObjectDependency.cpp, each registering only through file-scope
+// RegisterShipInitFuncs. Attributed by registry content, each bucket measured with every other key off:
+//  - Debug Mode on arms the debug-save OnSaveInit registrant (RegisterDebugSaveCreate), because Debug Save File Mode
+//    is left unset and reads 1 (Vanilla), the shared default both games agree on;
+//  - the three Prevent switches arm only UNDER Debug Mode, so their probes hold Debug Mode on (alsoOn: set and driven
+//    before the baseline, put back to 0 and driven after, so RegisterDebugMode clears the switches again);
+//  - Disable Object Dependency arms its VB_ENABLE_OBJECT_DEPENDENCY rewrite with no Debug Mode gate.
+constexpr const char* kW6DevDebugModeCVar = "gDeveloperTools.DebugEnabled";
+
+const std::vector<SkipKeyProbe>& W6DevProbes() {
+    static const std::vector<SkipKeyProbe> probes = {
+        { kW6DevDebugModeCVar,
+          "Debug Save File Mode (under Debug Mode)",
+          { { "OnSaveInit, unkeyed (DeveloperTools.cpp RegisterDebugSaveCreate)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnSaveInit>(); }, 1 } } },
+        { "gDeveloperTools.PreventActorUpdate",
+          "Prevent Actor Update",
+          { { "ShouldActorUpdate, unkeyed (DeveloperTools.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorUpdate>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
+        { "gDeveloperTools.PreventActorDraw",
+          "Prevent Actor Draw",
+          { { "ShouldActorDraw, unkeyed (DeveloperTools.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorDraw>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
+        { "gDeveloperTools.PreventActorInit",
+          "Prevent Actor Init",
+          { { "ShouldActorInit, unkeyed (DeveloperTools.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::ShouldActorInit>(); }, 1 } },
+          0.0f,
+          { kW6DevDebugModeCVar } },
+        { "gDeveloperTools.DisableObjectDependency",
+          "Disable Object Dependency",
+          { { "VB_ENABLE_OBJECT_DEPENDENCY (ObjectDependency.cpp)",
+              []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(VB_ENABLE_OBJECT_DEPENDENCY); },
+              1 } } },
+    };
+    return probes;
+}
+
+RegisterW6Phase sW6DevPhase{ "W6-DEV (#1238)", W6DevProbes };
+
 // ---- W6-AUDIO-SEQ (#1239): SoH's randomize-audio combobox, translated onto MM's two randomize-all hooks -------
 // Enhancements/Audio/AudioEditorSingleExe.cpp registers both through one file-scope RegisterShipInitFunc keyed on
 // SoH's gAudioEditor.RandomizeAudioGenModes. The drive turns the key "on" with 1, SoH's On New Scene: that arms the

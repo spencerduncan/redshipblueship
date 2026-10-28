@@ -222,6 +222,13 @@ OoT's `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value`.**
 > class (S). The measurement below is the pre-fix state, kept for the record. The MM default is now
 > **1**, not 0.
 
+> **Live in Majora's Mask since W6-DEV (#1238).** Until then the key was shared on paper only: MM's
+> reader, `RegisterDebugSaveCreate` in `DeveloperTools/DeveloperTools.cpp`, was out of the single-exe
+> link, so SoH's Debug Save File Mode row (`[Both Games]`) drove OoT alone. The TU is now linked
+> (`ship__Enh_registrars`, W6-DEV block) and the debug save applies on MM's own new-save path only: its
+> OnSaveInit body stands down while a pairing is live, because OnSaveInit also runs when the paired
+> creation event authors the world's MM half, and a debug save there would replace the generated world.
+
 | | OoT | MM |
 |---|---|---|
 | Default | **1** (`.DefaultIndex(1)`, `SaveManager.cpp:975` reads default `1`) | **1** since #454 (`DEBUG_SAVE_INFO_VANILLA_DEBUG`, `DeveloperTools.cpp:26`); was `0` (`DEBUG_SAVE_INFO_NONE`) |
@@ -660,6 +667,29 @@ holds each binding.
 | `gEnhancements.Equipment.GreatFairySwordBButton` | off | Great Fairy Sword B-Button Attack (likewise) | (O) MM-only; acts on the B button's item only, never on a mask the combo owns |
 | `gEnhancements.Equipment.BetterPictoMessage` | off | Better Picto Message (likewise) | (O) MM-only |
 | `gEnhancements.PlayerActions.InstantRecall` | off | Instant Fin Boomerangs Recall (Items > Boomerang, after SoH's Instant Boomerang Recall) | (O) nearest relative only: Zora Link's fins on B, not the Boomerang on its item button |
+
+**W6-DEV (#1238, #1240) — MM's developer switches, linked and hosted.** 2Ship draws these in its own Dev Tools menu
+(the excluded `BenMenu.cpp`), and their TUs (`DeveloperTools/DeveloperTools.cpp`, `ObjectDependency.cpp`,
+`WarpPoint.cpp`) were out of the link, so in the single exe the keys could be neither written nor acted on. The TUs are
+now carved into `ship__Enh_registrars` and each key has a row on SoH's Dev Tools > General through the hosted-row seam,
+bound through its `RSBS_CVAR_MM_*` define. The registrar-coverage lock's W6-DEV phase attributes each TU by registry
+content; the classification lock's leg 3f-2c holds each binding. `gDeveloperTools.*` falls outside this document's
+individual-setting scope (§2), so these rows are listed here rather than in a category of their own.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gDeveloperTools.BetterMapSelect.Enabled` | off | MM Better Debug Warp Screen (Dev Tools > General > Warping, after SoH's Better Debug Warp Screen) | (O) nearest relative only: MM's map select is its own screen (`BetterMapSelect.c`, already linked), and the row was MISSING; SoH's key (default on) stays SoH's |
+| `gDeveloperTools.PreventActorUpdate` | off | Prevent Actor Update (Dev Tools > General, Majora's Mask block) | (O) MM-only; acts only under Debug Mode, so the row is disabled while it is off |
+| `gDeveloperTools.PreventActorDraw` | off | Prevent Actor Draw (likewise) | (O) MM-only; likewise |
+| `gDeveloperTools.PreventActorInit` | off | Prevent Actor Init (likewise) | (O) MM-only; likewise. Link is never prevented (2Ship's SActorNotPlayer filter, moved into the hook body) |
+| `gDeveloperTools.DisableObjectDependency` | off | Disable Object Dependency (likewise) | (O) MM-only; MM's Debug Mode switch clears it, so the row is disabled while Debug Mode is off |
+| `gDeveloperTools.WarpPoint.*` (7 keys) | unset | MM Set Warp Point / MM Warp to Warp Point / MM Clear Warp Point (Dev Tools > General > Warping, after SoH's Warp Points) | (O) MM-only. SoH's Warp Points widget stores OoT entrances in its own `WarpPoints` config block and warps OoT's play state, so it is left OoT's and MM gets rows of its own: they set, warp to and clear 2Ship's single point through `src/common/mm_dev_tools_bridge.h`, only while MM is in gameplay. `BootToWarpPoint` has no row and no reader: 2Ship's boot hook is fenced out of the single exe, since it would author a new save over the world MM was booting |
+
+SoH's own rows cover two more MM behaviours with no MM row: Frame Advance, Advance 1 and Advance (Hold) now bind the
+RUNNING game's `frameAdvCtx` (SohMenu.cpp's `RunningFrameAdvanceEnabled`; `gDeveloperTools.FrameAdvanceTick` was
+already shared and MM honours it in `z_pause.c`), and Debug Save File Mode drives MM through the one shared key (§3.3
+BUG 2). MM's `RegisterDebugMode`, linked with the rest, clears the four switches and MM's frame advance when Debug Mode
+goes off, as in 2Ship, clearing rather than storing the keys.
 
 **W6-MODES-DIFF (#1236, #1240) — MM's Modes, Difficulty and 'Other' keys, linked and given rows or a ruling.** None of
 2Ship's Modes reached MM: Mirrored World was read (`gModes.MirroredWorld.State`, some thirty read sites) but only the

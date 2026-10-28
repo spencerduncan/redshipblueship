@@ -4,6 +4,11 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipInit.hpp"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "foreign_items.h"       // src/common: Combo_ForeignPairingActive
+#include "mm_dev_tools_bridge.h" // src/common: MM_DevTools_FrameAdvanceEnabled
+#endif
+
 extern "C" {
 #include "macros.h"
 #include "z64actor.h"
@@ -113,9 +118,26 @@ void SetSaveFileInfo() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1238): MM's own new-save path only. OnSaveInit also runs while the paired creation event authors this
+// identity's MM half (MM_Rando_AuthorHalfAtCreation), and a debug save there would wipe the generated world: the
+// MM-plays-vanilla class. A live pairing is exactly that case, so the debug save stands down.
+static bool DebugSaveStandsDown() {
+    return Combo_ForeignPairingActive();
+}
+#else
+static bool DebugSaveStandsDown() {
+    return false;
+}
+#endif
+
 void RegisterDebugSaveCreate() {
-    COND_HOOK(OnSaveInit, CVAR_SAVE_FILE_MODE != DEBUG_SAVE_INFO_NONE && CVAR_DEBUG_MODE,
-              [](s16 fileNum) { SetSaveFileInfo(); });
+    COND_HOOK(OnSaveInit, CVAR_SAVE_FILE_MODE != DEBUG_SAVE_INFO_NONE && CVAR_DEBUG_MODE, [](s16 fileNum) {
+        if (DebugSaveStandsDown()) {
+            return;
+        }
+        SetSaveFileInfo();
+    });
 }
 
 #define CVAR_PREVENT_ACTOR_UPDATE_NAME "gDeveloperTools.PreventActorUpdate"
@@ -139,15 +161,28 @@ void RegisterPreventActorDrawHooks() {
 
 void RegisterPreventActorInitHooks() {
     static HOOK_ID hookId = 0;
+#ifndef RSBS_SINGLE_EXECUTABLE
     if (hookId != 0) {
         GameInteractor::Instance->UnregisterGameHookForFilter<GameInteractor::ShouldActorInit>(hookId);
         hookId = 0;
     }
+#endif
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS (#1238): GameInteractor's registration members are poisoned in MM TUs (include/mm_gi_hook_guard.h, #395),
+    // and the MM-owned registry has no filter leg, so the SActorNotPlayer filter moves into the body.
+    (void)hookId;
+    COND_HOOK(ShouldActorInit, CVAR_PREVENT_ACTOR_INIT && CVAR_DEBUG_MODE, [](Actor* actor, bool* result) {
+        if (actor->id != ACTOR_PLAYER) {
+            *result = false;
+        }
+    });
+#else
     if (CVAR_PREVENT_ACTOR_INIT && CVAR_DEBUG_MODE) {
         hookId = GameInteractor::Instance->RegisterGameHookForFilter<GameInteractor::ShouldActorInit>(
             GameInteractor::HookFilter::SActorNotPlayer, [](Actor* actor, bool* result) { *result = false; });
     }
+#endif
 }
 
 void RegisterDebugMode() {
@@ -161,6 +196,21 @@ void RegisterDebugMode() {
     // is what made the key class (P). The other options below are MM-only cvars,
     // so clearing them is correct and stays. See src/common/cvar_shared_keys.h.
     if (!CVAR_DEBUG_MODE) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#1238): clear, never store. A stored 0 is the default written into the config every launch, and a
+        // config the test gates share must not collect keys a callback stored. And MM_gPlayState dangles while OoT
+        // runs (SoH's Debug Mode row reaches this registrar then too), so frame advance is switched off through the
+        // bridge, which answers only while MM is the running game.
+        for (const char* key : { CVAR_PREVENT_ACTOR_UPDATE_NAME, CVAR_PREVENT_ACTOR_DRAW_NAME,
+                                 CVAR_PREVENT_ACTOR_INIT_NAME, "gDeveloperTools.DisableObjectDependency" }) {
+            if (CVarGetInteger(key, 0) != 0) {
+                CVarClear(key);
+            }
+        }
+        if (int32_t* frameAdvanceEnabled = MM_DevTools_FrameAdvanceEnabled()) {
+            *frameAdvanceEnabled = false;
+        }
+#else
         CVarSetInteger(CVAR_PREVENT_ACTOR_UPDATE_NAME, 0);
         CVarSetInteger(CVAR_PREVENT_ACTOR_DRAW_NAME, 0);
         CVarSetInteger(CVAR_PREVENT_ACTOR_INIT_NAME, 0);
@@ -169,6 +219,7 @@ void RegisterDebugMode() {
         if (MM_gPlayState != NULL) {
             MM_gPlayState->frameAdvCtx.enabled = false;
         }
+#endif
     }
 }
 

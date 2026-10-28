@@ -15,8 +15,12 @@ extern PlayState* OoT_gPlayState;
 }
 std::vector<ImVec2> windowTypeSizes = { {} };
 
+#ifndef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1238): unused upstream declarations. In the single exe MM's DeveloperTools/WarpPoint.cpp defines both
+// names (MM's scene table and MM's warp), so an OoT use here would bind MM's code; they stay out of the build.
 extern std::unordered_map<s16, const char*> warpPointSceneList;
 extern void Warp();
+#endif
 
 namespace SohGui {
 extern std::shared_ptr<SohModalWindow> mModalWindow;

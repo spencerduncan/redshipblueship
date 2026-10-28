@@ -12,6 +12,15 @@ namespace SohGui {
 extern std::shared_ptr<SohMenu> mSohMenu;
 using namespace UIWidgets;
 
+// RSBS (#1238, W6-DEV): the running game's frame advance (SohMenu.cpp) and Majora's Mask's rows on this page
+// (SohGui/HostedMm/SohMenuHostedMmDevTools.cpp).
+int32_t* RunningFrameAdvanceEnabled();
+bool RunningPlayStateAbsent();
+bool RunningFrameAdvanceOff();
+void AddMmDevToolsBlock(SohMenu& menu, WidgetPath& path);
+void AddMmBetterMapSelectRow(SohMenu& menu, WidgetPath& path);
+void AddMmWarpPointRows(SohMenu& menu, WidgetPath& path);
+
 static const std::map<int32_t, const char*> logLevels = {
     { DEBUG_LOG_TRACE, "Trace" }, { DEBUG_LOG_DEBUG, "Debug" }, { DEBUG_LOG_INFO, "Info" },
     { DEBUG_LOG_WARN, "Warn" },   { DEBUG_LOG_ERROR, "Error" }, { DEBUG_LOG_CRITICAL, "Critical" },
@@ -77,26 +86,20 @@ void SohMenu::AddMenuDevTools() {
             "To advance a frame, hold Z and tap R on the second controller. Holding Z "
             "and R will advance a frame every half second. You can also use the buttons below."))
         .PreFunc([](WidgetInfo& info) {
-            info.isHidden = mSohMenu->disabledMap.at(DISABLE_FOR_NULL_PLAY_STATE).active ||
-                            mSohMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active;
-            if (OoT_gPlayState != nullptr) {
-                info.valuePointer = (bool*)&OoT_gPlayState->frameAdvCtx.enabled;
-            } else {
-                info.valuePointer = (bool*)nullptr;
-            }
+            // RSBS (#1238): the running game's play state, so the rows work while Majora's Mask runs.
+            info.isHidden = RunningPlayStateAbsent() || !CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0);
+            info.valuePointer = (bool*)RunningFrameAdvanceEnabled();
         });
     AddWidget(path, "Advance 1", WIDGET_BUTTON)
         .Options(ButtonOptions().Tooltip("Advance 1 frame.").Size(Sizes::Inline))
         .Callback([](WidgetInfo& info) { CVarSetInteger(CVAR_DEVELOPER_TOOLS("FrameAdvanceTick"), 1); })
         .PreFunc([](WidgetInfo& info) {
-            info.isHidden = mSohMenu->disabledMap.at(DISABLE_FOR_FRAME_ADVANCE_OFF).active ||
-                            mSohMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active;
+            info.isHidden = RunningFrameAdvanceOff() || !CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0);
         });
     AddWidget(path, "Advance (Hold)", WIDGET_BUTTON)
         .Options(ButtonOptions().Tooltip("Advance frames while the button is held.").Size(Sizes::Inline))
         .PreFunc([](WidgetInfo& info) {
-            info.isHidden = mSohMenu->disabledMap.at(DISABLE_FOR_FRAME_ADVANCE_OFF).active ||
-                            mSohMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active;
+            info.isHidden = RunningFrameAdvanceOff() || !CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0);
         })
         .PostFunc([](WidgetInfo& info) {
             if (ImGui::IsItemActive()) {
@@ -116,6 +119,7 @@ void SohMenu::AddMenuDevTools() {
                 (spdlog::level::level_enum)CVarGetInteger(CVAR_DEVELOPER_TOOLS("LogLevel"), defaultLogLevel));
         })
         .PreFunc([](WidgetInfo& info) { info.isHidden = mSohMenu->disabledMap.at(DISABLE_FOR_DEBUG_MODE_OFF).active; });
+    AddMmDevToolsBlock(*this, path);
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Warping", WIDGET_SEPARATOR_TEXT);
@@ -124,12 +128,14 @@ void SohMenu::AddMenuDevTools() {
         .Options(CheckboxOptions()
                      .Tooltip("Optimized Debug Warp Screen, with the added ability to chose entrances and time of day.")
                      .DefaultValue(true));
+    AddMmBetterMapSelectRow(*this, path);
     AddWidget(path, "Debug Warp Screen Translation", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_DEVELOPER_TOOLS("DebugWarpScreenTranslation"))
         .Options(CheckboxOptions()
                      .Tooltip("Translate the Debug Warp Screen based on the game language.")
                      .DefaultValue(true));
     AddWidget(path, "Warp Points", WIDGET_CUSTOM).CustomFunction(WarpPointsWidget).HideInSearch(true);
+    AddMmWarpPointRows(*this, path);
 
     // Stats
     path.sidebarName = "Stats";
