@@ -38,7 +38,8 @@ code, run by no test row.
   played the Mido's House debug seed on the `347ba755` build, opened the Mido's House chests, crossed at the Happy Mask
   Shop, received the Sonata of Awakening and the Deku Mask at the Clock Tower, and raised Woodfall Temple as Deku Link
   at the first attempt (issue #1070, below). Every menu row of both games has a home: Majora's Mask's settings sit
-  beside their Ship of Harkinian twins and the Combo header is gone (#1242 to #1271, #1248). Saves are version 5 and
+  beside their Ship of Harkinian twins, apart from the few that cannot act in paired play (listed below), and the
+  Combo header is gone (#1242 to #1271, #1248). Saves are version 5 and
   seeds come from generator 2 (#1264, next items). Alpha does not mean finished: expect bugs and missing features, and
   a release can still break saves or seeds; each break is named here first. The open issues are in
   [`known-issues.md`](known-issues.md).
