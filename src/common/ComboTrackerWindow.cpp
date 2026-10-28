@@ -487,8 +487,8 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     (void)ComboAreaScrollNote(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);
     const ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
     // #1132: SoH draws its header, and the separator under it, only while one of
-    // its header controls shows; the pane's own Only Show Current Area rides
-    // with them, so a player who hid every control gets SoH's bare list.
+    // its header controls shows; #1287: the pane's own Only Show Current Area
+    // counts as one, so a player who hid every control gets SoH's bare list.
     const bool headerPresent = ComboCheckHeaderPresent(header);
     // #1280: SoH scrolls to the current area again when what its list shows
     // changes (Show Hidden Items, Only Show Available Checks, Expand All, a skip,
@@ -508,9 +508,9 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         listChanged = Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip) || listChanged;
     }
     // #1131: Only Show Current Area, this pane's own (ruling D12), as MM's tracker
-    // offers Only Show Current Scene; SoH has no such toggle, so it shows with
-    // the rest of the header (#1132).
-    if (headerPresent) {
+    // offers Only Show Current Scene; #1287: behind its own visibility key, as
+    // each of SoH's header controls is, never behind theirs.
+    if (header.onlyCurrentAreaToggle) {
         const ComboUiWidgetOpts tip = { "When active, only this game's checks in the area you are in are shown.", false,
                                         nullptr };
         (void)Ui().Checkbox("Only Show Current Area", &pane.area.onlyCurrentArea, &tip);
@@ -874,13 +874,16 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     header.availableChecksToggle = CVarGetInteger("gTrackers.CheckTracker.AvailableChecksToggleVisible", 1) != 0;
     // #1161: SoH's Show Logic (Check Tracker Settings), one key for both panes (ruling D3).
     header.showLogic = CVarGetInteger("gTrackers.CheckTracker.ShowLogic", 0) != 0;
+    // #1287: the pane's own checkbox's visibility, beside SoH's in Tracker Header Visibility.
+    header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE, 1) != 0;
     return header;
 }
 
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header) {
-    // SoH's DrawElement: headerPresent, from the same five keys.
+    // SoH's DrawElement: headerPresent, from the same five keys, and (#1287) the
+    // pane's own Only Show Current Area checkbox, which draws behind its own key.
     return header.hiddenItemsToggle || (header.availableChecks && header.availableChecksToggle) ||
-           header.expandCollapseButtons || header.searchInput || header.checkTotals;
+           header.expandCollapseButtons || header.searchInput || header.checkTotals || header.onlyCurrentAreaToggle;
 }
 
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {

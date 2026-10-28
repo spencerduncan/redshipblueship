@@ -270,6 +270,11 @@
  *                            Current Area toggle (ruling D12) when it changes */
 #define RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL "gCombo.Tracker.Checks.AutoScrollToCurrentArea"
 #define RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA "gCombo.Tracker.Checks.OnlyShowCurrentArea"
+/* #1287: whether each pane draws its own Only Show Current Area checkbox, 0/1,
+ * default 1: the "Only Show Current Area Toggle" row of SoH's Check Tracker
+ * Settings > Tracker Header Visibility, beside SoH's own per-control keys
+ * (gTrackers.CheckTracker.*Visible). PREFERENCE. */
+#define RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible"
 
 #ifdef __cplusplus
 
@@ -1495,6 +1500,8 @@ inline constexpr ComboKey kComboKeys[] = {
       "combo tracker: the active game's pane scrolls to the current area (#1131)" },
     { RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA, ComboKeyClass::Preference,
       "combo tracker: seeds each pane's Only Show Current Area toggle (#1131)" },
+    { RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE, ComboKeyClass::Preference,
+      "combo tracker: each pane draws its Only Show Current Area checkbox (#1287)" },
 };
 
 /**
@@ -1937,13 +1944,14 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + twelve gCombo.Tracker.Items.* preferences
 // (#458 U2, the overlay's look: nine, of which #1141 retired the five SoH twins
-// into kComboRetiredKeys and added MM's eight group keys) + two
-// gCombo.Tracker.Checks.* preferences (#1131, the Combo Tracker's navigation).
+// into kComboRetiredKeys and added MM's eight group keys) + three
+// gCombo.Tracker.Checks.* preferences (#1131, the Combo Tracker's navigation;
+// #1287, its Only Show Current Area checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 36, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "twelve gCombo.Tracker.Items.* preferences + two gCombo.Tracker.Checks.* "
-                                    "preferences = 36");
+static_assert(kComboKeyCount == 37, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+                                    "twelve gCombo.Tracker.Items.* preferences + three gCombo.Tracker.Checks.* "
+                                    "preferences = 37");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

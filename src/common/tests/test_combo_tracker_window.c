@@ -1473,12 +1473,13 @@ int LockL5(void) {
     const std::string visibility =
         CtwSlice(settings, "ImGui::SeparatorText(\"Tracker Header Visibility\");", "ImGui::TableNextColumn();");
     const size_t totalsRow = visibility.find("UIWidgets::CVarCheckbox(\"Check Totals\"");
-    const size_t toggleRow = visibility.find("UIWidgets::CVarCheckbox(\"Only Show Current Area Toggle\", "
-                                             "RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,");
+    const size_t toggleRow = visibility.find("UIWidgets::CVarCheckbox(\"Only Show Current Area Toggle\",");
+    const size_t toggleKey = visibility.find("RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,");
     printf("[TEST] combo-tracker-window #1287: Tracker Header Visibility holds Check Totals at %d, the Only Show "
            "Current Area Toggle at %d\n",
            totalsRow == std::string::npos ? -1 : (int)totalsRow, toggleRow == std::string::npos ? -1 : (int)toggleRow);
     CTW_ASSERT(totalsRow != std::string::npos && toggleRow != std::string::npos && totalsRow < toggleRow);
+    CTW_ASSERT(toggleKey != std::string::npos && toggleRow < toggleKey);
 
     // SoH's two toggle rows are the ones that open the unified windows: their
     // .CVar and .WindowName are SoH's own literals, unchanged, which the

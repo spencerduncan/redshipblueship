@@ -348,7 +348,8 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
 /**
  * Whether a pane draws its header at all, and so the separator under it (#1132):
  * SoH's DrawElement draws that separator only while one of its header controls
- * is visible ("headerPresent").
+ * is visible ("headerPresent"); the pane's own Only Show Current Area checkbox
+ * counts as one (#1287).
  */
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header);
 
