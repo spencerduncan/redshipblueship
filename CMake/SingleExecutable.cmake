@@ -2451,6 +2451,10 @@ if(BUILD_TESTING)
     # rewinds across the attempt ladder, a channel leg displacing the other, and
     # a terminal edge that never reaches the presenter.
     redship_add_test(NAME GenProgressOverlay COMMAND redship --test gen-progress-overlay)
+    # The operator's 2026-10-28 ruling: the creation's per-attempt budget is sized
+    # to a 60 s floor (2500 fill rounds per attempt, 5000 per creation; the
+    # overlay estimate's ceiling keeps 3x the floor). Pure; default tier.
+    redship_add_test(NAME GenBudgetFloor COMMAND redship --test gen-budget-floor)
 
     # #670: MM mounted NO mod archives in single-exe — its whole mod-mount
     # sequence is in the excluded games/mm/2s2h/BenPort.cpp, so
