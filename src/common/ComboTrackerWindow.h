@@ -411,10 +411,11 @@ bool ComboAreaScrollRequest(ComboAreaScroll& scroll, bool areaKnown, uint16_t ar
 
 /**
  * SoH's other scroll triggers (#1280): a change to what the list shows (Show
- * Hidden Items, Only Show Available Checks, Expand All, a skip from the pane,
- * the search cleared) owes a scroll to the current area, as SoH's window sets
- * doAreaScroll again then, but only on the ACTIVE pane and only under Auto
- * Scroll To Current Area. @return whether a scroll is now owed.
+ * Hidden Items, Only Show Available Checks, Expand All, the search cleared)
+ * owes a scroll to the current area, as SoH's window sets doAreaScroll again
+ * then, but only on the ACTIVE pane and only under Auto Scroll To Current Area.
+ * A skip is not a trigger: SoH's skip button (DrawLocation) never sets
+ * doAreaScroll. @return whether a scroll is now owed.
  */
 bool ComboAreaScrollRefresh(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area);
 

@@ -262,13 +262,9 @@ CheckListColours ReadCheckListColours() {
  *
  * With Show Logic on (`showLogic`, #1161) a hover on the check's text shows its
  * logic as a tooltip, as SoH's DrawLocation does (ComboCheckLogicTooltip).
- *
- * @return whether the row's skip button was pressed this frame (#1280: SoH
- * scrolls to the current area again after a skip).
  */
-bool DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn,
+void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckListColours& colours, bool skipColumn,
                   bool availableChecks, bool showLogic) {
-    bool skipPressed = false;
     if (skipColumn) {
         char buttonId[24];
         snprintf(buttonId, sizeof(buttonId), "##skip%u", (unsigned)row.checkId);
@@ -276,7 +272,6 @@ bool DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
             if (Ui().IconButton(buttonId, row.skipped ? ICON_FA_PLUS : ICON_FA_TIMES, nullptr)) {
                 // The flag changes on the next read: the view is recomputed per frame.
                 (void)Combo_TrackerSetSkipped(game, row.checkId, !row.skipped);
-                skipPressed = true;
             }
         } else {
             (void)Ui().IconButton(buttonId, nullptr, nullptr); // the seam's empty square, never a button
@@ -341,7 +336,6 @@ bool DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
             Ui().Tooltip(logic.c_str());
         }
     }
-    return skipPressed;
 }
 
 /**
@@ -356,9 +350,9 @@ bool DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
  * and its own Only Show Current Area (#1131). Each row shows its logic on hover
  * while `showLogic` (#1161). The list pays the pane's owed scroll at its current
  * area's header (#1131), as SoH's does, and drops one owed to an area it does
- * not draw (#1280). @return whether a row's skip button was pressed.
+ * not draw (#1280).
  */
-bool DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
+void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
     const char* search = pane.search;
     ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
     hide.onlyAvailable = availableChecks && pane.onlyAvailable;
@@ -376,14 +370,13 @@ bool DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableC
         if (unhidden.empty()) {
             Ui().NoteText(search[0] != '\0' ? "No check matches the search." : "No checks.");
         }
-        return false;
+        return;
     }
 
     const CheckListColours colours = ReadCheckListColours();
     // Asked once per frame: the panel takes skip writes only while it is LIVE (#458 U5).
     const bool skipColumn = Combo_TrackerSkipWritable(game);
     bool previousOpen = false;
-    bool skipPressed = false;
     // SoH draws its whole area loop under FramePadding (4, 3)
     // (randomizer_check_tracker.cpp, DrawElement), which puts an area's tree
     // arrow level with its checks; the theme's larger padding would push the
@@ -420,14 +413,13 @@ bool DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableC
         }
         if (open) {
             for (const ComboTrackerCheckRow& row : area.rows) {
-                skipPressed = DrawCheckRow(game, row, colours, skipColumn, availableChecks, showLogic) || skipPressed;
+                DrawCheckRow(game, row, colours, skipColumn, availableChecks, showLogic);
             }
         }
         ImGui::PopID();
         previousOpen = open;
     }
     ImGui::PopStyleVar();
-    return skipPressed;
 }
 
 /**
@@ -491,8 +483,10 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     // counts as one, so a player who hid every control gets SoH's bare list.
     const bool headerPresent = ComboCheckHeaderPresent(header);
     // #1280: SoH scrolls to the current area again when what its list shows
-    // changes (Show Hidden Items, Only Show Available Checks, Expand All, a skip,
-    // the search cleared); here on the active pane, under Auto Scroll.
+    // changes (Show Hidden Items, Only Show Available Checks, Expand All, the
+    // search cleared); here on the active pane, under Auto Scroll. A skip is not
+    // one: SoH's skip button (DrawLocation) never sets doAreaScroll, so a player
+    // skipping checks in another area keeps their place.
     bool listChanged = false;
     if (header.hiddenItemsToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's checks show even where your Check Tracker Settings "
@@ -560,9 +554,7 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         ImGui::Separator();
     }
 
-    if (DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic)) {
-        listChanged = true; // a skip: SoH's window scrolls to the area again
-    }
+    DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic);
     if (listChanged) {
         (void)ComboAreaScrollRefresh(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);
     }
