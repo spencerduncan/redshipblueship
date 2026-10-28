@@ -44,7 +44,11 @@
  *       pooled rupees the old cap cut now land (130 under a 200 cap);
  *   (H) the wallet's mirror in Termina;
  *   (I) the Shared Bottles rule OFF: MM's bottle on an OoT check still CROSSES
- *       (nothing is lost to a disarmed kind); ON: it steps the bottle count.
+ *       (nothing is lost to a disarmed kind); ON: it steps the bottle count;
+ *   (J) #1283: OoT's Tycoon's Wallet (tier 3) holding 800 reaches Termina as
+ *       MM's tier 3 with a 999 cap, all 800 rupees, a three-digit counter and
+ *       an icon colour row for the tier; MM earns to 900 and OoT's next
+ *       arrival holds 900, with nothing parked in the pool.
  */
 
 #include <stdio.h>
@@ -70,6 +74,9 @@ int MM_SharedTierTest_HasBombItem(void);
 void MM_SharedTierTest_SetWallet(int tier, int rupees);
 int MM_SharedTierTest_WalletTier(void);
 int MM_SharedTierTest_Rupees(void);
+int MM_SharedTierTest_WalletCapacity(void);
+int MM_SharedTierTest_RupeeDigits(void);
+int MM_SharedTierTest_RupeeIconColors(void);
 int MM_SharedTierTest_BombBagId(void);
 int MM_SharedTierTest_WalletId(void);
 int MM_SharedTierTest_BottleId(void);
@@ -522,6 +529,45 @@ TestResult Test_SharedTierPickup(void) {
         ST_CHECK(StOoTBottles() == 2 && StPool(kBottles) == 2, "OoT's bottles %d / pool %d, expected 2 / 2",
                  StOoTBottles(), StPool(kBottles));
         ST_CHECK(crossings == 0, "an armed bottle recorded %d crossing(s)", crossings);
+    }
+
+    // ---- (J) OoT's Tycoon's Wallet in Termina (#1283) -------------------------
+    StFreezeWorld(false);
+    OoT_SharedWalletTest_ArmLive(3, 800, 1); // OoT's Tycoon's Wallet holding 800
+    OoT_HarvestSharedResources();            // OoT departs: an empty pool takes the tier and all 800
+    MM_SharedTierTest_ArmLive();             // MM arrives holding the child's wallet and nothing in it
+    MM_ApplySharedResources();
+    {
+        const int tier = MM_SharedTierTest_WalletTier();
+        const int cap = MM_SharedTierTest_WalletCapacity();
+        const int rupees = MM_SharedTierTest_Rupees();
+        const int digits = MM_SharedTierTest_RupeeDigits();
+        const int colors = MM_SharedTierTest_RupeeIconColors();
+        printf("[TEST] (J) pool wallet tier %d holding %d, MM's arrival: MM tier %d, capacity %d, rupees %d, counter "
+               "digits %d, icon colour rows %d (expected 3, 800, 3, 999, 800, 3, >= 4)\n",
+               StPool(kWallet), StPool(kRupees), tier, cap, rupees, digits, colors);
+        ST_CHECK(tier == 3, "MM's wallet tier is %d after applying the pool's Tycoon tier, expected 3", tier);
+        ST_CHECK(cap == 999,
+                 "MM's tier-3 wallet holds %d, expected 999: the Tycoon's Wallet is one wallet for the pair, so "
+                 "Termina must hold what Hyrule does",
+                 cap);
+        ST_CHECK(rupees == 800, "MM holds %d rupees on arrival, expected the pool's 800", rupees);
+        ST_CHECK(digits == 3, "MM's HUD draws the tier-3 rupee counter with %d digit(s), expected 3", digits);
+        ST_CHECK(colors > tier,
+                 "MM's rupee icon colour tables cover %d tier(s): the live tier %d indexes past their end", colors,
+                 tier);
+    }
+    MM_SharedTierTest_SetWallet(3, 900); // 100 earned in Termina
+    MM_HarvestSharedResources();         // MM departs
+    OoT_ApplySharedResources();          // OoT's next arrival
+    {
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (J) MM earns to 900 and departs, OoT's arrival: pool %d, OoT tier %d, rupees %d (expected 900, "
+               "3, 900)\n",
+               StPool(kRupees), OoT_SharedWalletTest_Tier(), rupees);
+        ST_CHECK(StPool(kRupees) == 900, "the rupee pool reads %d after MM's departure, expected 900", StPool(kRupees));
+        ST_CHECK(OoT_SharedWalletTest_Tier() == 3 && rupees == 900,
+                 "OoT arrives at tier %d holding %d rupees, expected 3 and 900", OoT_SharedWalletTest_Tier(), rupees);
     }
 
     MM_ForeignItem_TestResetPending();

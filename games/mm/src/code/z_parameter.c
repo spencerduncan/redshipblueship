@@ -8830,19 +8830,46 @@ void Interface_DrawMinigameIcons(PlayState* play) {
 
 s16 sRupeeDigitsFirst[] = { 1, 0, 0, 0 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #1283: tier 3 (OoT's Tycoon's Wallet, through the shared wallet tier) holds 999: three digits.
+s16 sRupeeDigitsCount[] = { 2, 3, 3, 3 };
+#else
 s16 sRupeeDigitsCount[] = { 2, 3, 3, 0 };
+#endif
 
 Color_RGB16 sRupeeCounterIconPrimColors[] = {
     { 200, 255, 100 },
     { 170, 170, 255 },
     { 255, 105, 105 },
+#ifdef RSBS_SINGLE_EXECUTABLE
+    { 255, 90, 255 }, // RSBS #1283: tier 3, OoT's Tycoon's Wallet purple (SoH's rupeeWalletColors[3])
+#endif
 };
 
 Color_RGB16 sRupeeCounterIconEnvColors[] = {
     { 0, 80, 0 },
     { 10, 10, 80 },
     { 40, 10, 0 },
+#ifdef RSBS_SINGLE_EXECUTABLE
+    { 40, 0, 40 }, // RSBS #1283: tier 3
+#endif
 };
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #1283: the rupee counter's HUD rows per wallet tier, read by the shared-tier lock
+// (games/mm/2s2h/mm_shared_tier_test.cpp). -1 for a tier the digit table does not cover.
+s32 MM_Interface_RupeeDigitCount(s32 walletTier) {
+    if ((walletTier < 0) || (walletTier >= (s32)ARRAY_COUNT(sRupeeDigitsCount))) {
+        return -1;
+    }
+    return sRupeeDigitsCount[walletTier];
+}
+
+// How many wallet tiers the rupee icon's colour tables cover: the shorter of the prim and env tables.
+s32 MM_Interface_RupeeIconColorCount(void) {
+    return (s32)MIN(ARRAY_COUNT(sRupeeCounterIconPrimColors), ARRAY_COUNT(sRupeeCounterIconEnvColors));
+}
+#endif
 
 TexturePtr sMinigameCountdownTextures[] = {
     gMinigameCountdown3Tex,
@@ -8950,7 +8977,7 @@ void MM_Interface_Draw(PlayState* play) {
                                 COSMETIC_ELEMENT_RUPEE_ICON);
         gDPSetEnvColor(OVERLAY_DISP++, sRupeeCounterIconEnvColors[CUR_UPG_VALUE(UPG_WALLET)].r,
                        sRupeeCounterIconEnvColors[CUR_UPG_VALUE(UPG_WALLET)].g,
-                       sRupeeCounterIconEnvColors[CUR_UPG_VALUE(4)].b, 255);
+                       sRupeeCounterIconEnvColors[CUR_UPG_VALUE(UPG_WALLET)].b, 255);
         HudEditor_SetActiveElement(HUD_EDITOR_ELEMENT_RUPEE_COUNTER);
         OVERLAY_DISP =
             Gfx_DrawTexRectIA8(OVERLAY_DISP, gRupeeCounterIconTex, 16, 16, 26, 206, 16, 16, 1 << 10, 1 << 10);

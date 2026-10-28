@@ -37,21 +37,14 @@ void OnEnGinkoManUpdate(Actor* actor) {
             FastBankSelection_UpdateMessage(rupeeChar);
         }
     } else if (MM_gPlayState->msgCtx.currentTextId == 0x46E) {
-        uint32_t walletSize = CUR_UPG_VALUE(UPG_WALLET);
         uint32_t currentRupees = gSaveContext.save.saveInfo.playerData.rupees;
         uint32_t maxWallet;
         if (CHECK_BTN_ALL(MM_gPlayState->state.input[0].cur.button, BTN_Z)) {
-            switch (ITEM_WALLET_DEFAULT + walletSize) {
-                case ITEM_WALLET_ADULT:
-                    maxWallet = (200 - currentRupees);
-                    break;
-                case ITEM_WALLET_GIANT:
-                    maxWallet = (500 - currentRupees);
-                    break;
-                default:
-                    maxWallet = (99 - currentRupees);
-                    break;
-            }
+            // #1283: the live wallet's own capacity, so the shared tier 3 (OoT's Tycoon's Wallet) withdraws up to
+            // 999 (as 2S2H 6eda20817 reads it); the message holds three digits.
+            const uint32_t capacity = CUR_CAPACITY(UPG_WALLET);
+            maxWallet = capacity > currentRupees ? capacity - currentRupees : 0;
+            maxWallet = MIN(maxWallet, 999u);
 
             maxWallet = MIN(maxWallet, HS_GET_BANK_RUPEES());
 

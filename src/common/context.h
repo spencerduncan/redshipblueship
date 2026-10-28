@@ -575,9 +575,10 @@ enum {
  *   - CONSUMABLE (rupee count, current health) — a quantity the player spends.
  *     Harvest takes a DELTA against a RAM-only watermark recorded at apply
  *     time, never a raw copy. That watermark is mandatory, not an optimization:
- *     MM's tier-3 wallet holds 500 and OoT's holds 999, so a naive
- *     `shared = live` copy clamps an 800-rupee arrival to 500 and harvests 500
- *     back, silently costing the player 300 rupees on EVERY round trip.
+ *     a live wallet can be smaller than the pool (a tier not yet applied), so
+ *     a naive `shared = live` copy clamps an 800-rupee arrival to a 500 wallet
+ *     and harvests 500 back, silently costing the player 300 rupees on EVERY
+ *     round trip.
  *
  * Zero means unset for every member (growth contract): a slot is occupied iff
  * kind != RSBS_SHARED_RES_NONE. There is deliberately no count field — a count
