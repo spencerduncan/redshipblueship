@@ -47,6 +47,15 @@ extern "C" int MM_SharedTierTest_WalletTier(void) {
 extern "C" int MM_SharedTierTest_Rupees(void) {
     return -1;
 }
+extern "C" int MM_SharedTierTest_WalletCapacity(void) {
+    return -1;
+}
+extern "C" int MM_SharedTierTest_RupeeDigits(void) {
+    return -1;
+}
+extern "C" int MM_SharedTierTest_RupeeIconColors(void) {
+    return -1;
+}
 extern "C" int MM_SharedTierTest_BombBagId(void) {
     return -1;
 }
@@ -128,6 +137,25 @@ extern "C" int MM_SharedTierTest_WalletTier(void) {
 /** MM's live rupee count. */
 extern "C" int MM_SharedTierTest_Rupees(void) {
     return (int)gSaveContext.save.saveInfo.playerData.rupees;
+}
+
+// MM's HUD rows for the rupee counter (z_parameter.c, #1283).
+extern "C" s32 MM_Interface_RupeeDigitCount(s32 walletTier);
+extern "C" s32 MM_Interface_RupeeIconColorCount(void);
+
+/** What MM's live wallet holds at its tier (CUR_CAPACITY(UPG_WALLET)). */
+extern "C" int MM_SharedTierTest_WalletCapacity(void) {
+    return (int)CUR_CAPACITY(UPG_WALLET);
+}
+
+/** How many digits MM's HUD draws the rupee counter with at the live wallet tier. */
+extern "C" int MM_SharedTierTest_RupeeDigits(void) {
+    return (int)MM_Interface_RupeeDigitCount((s32)CUR_UPG_VALUE(UPG_WALLET));
+}
+
+/** How many wallet tiers MM's rupee icon colour tables cover (the live tier indexes them). */
+extern "C" int MM_SharedTierTest_RupeeIconColors(void) {
+    return (int)MM_Interface_RupeeIconColorCount();
 }
 
 /** MM's own id for a progressive bomb bag (RI_PROGRESSIVE_BOMB_BAG): what MM's

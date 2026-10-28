@@ -8844,6 +8844,22 @@ Color_RGB16 sRupeeCounterIconEnvColors[] = {
     { 40, 10, 0 },
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS #1283: the rupee counter's HUD rows per wallet tier, read by the shared-tier lock
+// (games/mm/2s2h/mm_shared_tier_test.cpp). -1 for a tier the digit table does not cover.
+s32 MM_Interface_RupeeDigitCount(s32 walletTier) {
+    if ((walletTier < 0) || (walletTier >= (s32)ARRAY_COUNT(sRupeeDigitsCount))) {
+        return -1;
+    }
+    return sRupeeDigitsCount[walletTier];
+}
+
+// How many wallet tiers the rupee icon's colour tables cover: the shorter of the prim and env tables.
+s32 MM_Interface_RupeeIconColorCount(void) {
+    return (s32)MIN(ARRAY_COUNT(sRupeeCounterIconPrimColors), ARRAY_COUNT(sRupeeCounterIconEnvColors));
+}
+#endif
+
 TexturePtr sMinigameCountdownTextures[] = {
     gMinigameCountdown3Tex,
     gMinigameCountdown2Tex,
