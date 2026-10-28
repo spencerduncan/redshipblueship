@@ -31,6 +31,29 @@ extern int MM_Rando_FrozenMoonCrash(void);
 #define RSBS_MOON_CRASH_NEW_CYCLE 1
 #endif
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * RSBS (#1305): has Play_Init built this play state's scene and interface?
+ * Interface_Init allocates interfaceCtx.iconItemSegment after MM_Play_SpawnScene,
+ * so a non-NULL segment means both exist. The Story cutscene skip's moon crash
+ * resets the save from Play_Init's VB_PLAY_TRANSITION_CS dispatch, before either
+ * (the same point the Last Save reset runs from), and under New Cycle that reset
+ * is Sram_SaveEndOfCycle(MM_gPlayState): reloading a cleared trade item's or an
+ * emptied drink's icon there wrote through the NULL segment, and saving the empty
+ * play state's flags (sceneId 0) overwrote the Southern Swamp's cycle flags (scene
+ * 0's original scene). On an unbuilt play state the
+ * end-of-cycle reset skips both: the departing scene saved its flags when its play
+ * state was destroyed (Actor_CleanupContext), the arriving scene loads them after
+ * the reset (Actor_InitContext), and Interface_Init loads every button's icon
+ * from the reset save moments later. A built play state (the Song of Time, the
+ * Fire Wall's CS_MISC_RESET_SAVE_FROM_MOON_CRASH, the Dawn of the New Day) takes
+ * the vanilla path unchanged.
+ */
+#define RSBS_END_OF_CYCLE_PLAY_BUILT(play) (((play) != NULL) && ((play)->interfaceCtx.iconItemSegment != NULL))
+#else
+#define RSBS_END_OF_CYCLE_PLAY_BUILT(play) 1
+#endif
+
 #define CHECK_NEWF(newf)                                                                                 \
     ((newf)[0] != 'Z' || (newf)[1] != 'E' || (newf)[2] != 'L' || (newf)[3] != 'D' || (newf)[4] != 'A' || \
      (newf)[5] != '3')
@@ -510,14 +533,18 @@ void Sram_SaveEndOfCycle(PlayState* play) {
         gSaveContext.save.saveInfo.playerData.threeDayResetCount = 999;
     }
 
-    sceneId = Play_GetOriginalSceneId(play->sceneId);
-    Play_SaveCycleSceneFlags(play);
+    // RSBS (#1305): only a built play state has a scene whose live flags to save
+    // and mask (RSBS_END_OF_CYCLE_PLAY_BUILT, above).
+    if (RSBS_END_OF_CYCLE_PLAY_BUILT(play)) {
+        sceneId = Play_GetOriginalSceneId(play->sceneId);
+        Play_SaveCycleSceneFlags(play);
 
-    play->actorCtx.sceneFlags.chest &= sPersistentCycleSceneFlags[sceneId].chest;
-    play->actorCtx.sceneFlags.switches[0] &= sPersistentCycleSceneFlags[sceneId].switch0;
-    play->actorCtx.sceneFlags.switches[1] &= sPersistentCycleSceneFlags[sceneId].switch1;
-    play->actorCtx.sceneFlags.collectible[0] &= sPersistentCycleSceneFlags[sceneId].collectible;
-    play->actorCtx.sceneFlags.clearedRoom = 0;
+        play->actorCtx.sceneFlags.chest &= sPersistentCycleSceneFlags[sceneId].chest;
+        play->actorCtx.sceneFlags.switches[0] &= sPersistentCycleSceneFlags[sceneId].switch0;
+        play->actorCtx.sceneFlags.switches[1] &= sPersistentCycleSceneFlags[sceneId].switch1;
+        play->actorCtx.sceneFlags.collectible[0] &= sPersistentCycleSceneFlags[sceneId].collectible;
+        play->actorCtx.sceneFlags.clearedRoom = 0;
+    }
 
     for (i = 0; i < SCENE_MAX; i++) {
         gSaveContext.cycleSceneFlags[i].switch0 =
@@ -616,14 +643,18 @@ void Sram_SaveEndOfCycle(PlayState* play) {
                 for (j = EQUIP_SLOT_C_LEFT; j <= EQUIP_SLOT_C_RIGHT; j++) {
                     if (GET_CUR_FORM_BTN_ITEM(j) == gSaveContext.save.saveInfo.inventory.items[i]) {
                         SET_CUR_FORM_BTN_ITEM(j, ITEM_BOTTLE);
-                        Interface_LoadItemIconImpl(play, j);
+                        if (RSBS_END_OF_CYCLE_PLAY_BUILT(play)) { // RSBS (#1305)
+                            Interface_LoadItemIconImpl(play, j);
+                        }
                     }
                 }
                 // #region 2S2H [Dpad]
                 for (s32 k = EQUIP_SLOT_D_RIGHT; k <= EQUIP_SLOT_D_UP; k++) {
                     if (DPAD_GET_CUR_FORM_BTN_ITEM(k) == gSaveContext.save.saveInfo.inventory.items[i]) {
                         DPAD_SET_CUR_FORM_BTN_ITEM(k, ITEM_BOTTLE);
-                        Interface_Dpad_LoadItemIconImpl(play, k);
+                        if (RSBS_END_OF_CYCLE_PLAY_BUILT(play)) { // RSBS (#1305)
+                            Interface_Dpad_LoadItemIconImpl(play, k);
+                        }
                     }
                 }
                 // #endregion
@@ -692,7 +723,9 @@ void Sram_SaveEndOfCycle(PlayState* play) {
     for (j = EQUIP_SLOT_C_LEFT; j <= EQUIP_SLOT_C_RIGHT; j++) {
         if ((GET_CUR_FORM_BTN_ITEM(j) >= ITEM_MOONS_TEAR) && (GET_CUR_FORM_BTN_ITEM(j) <= ITEM_PENDANT_OF_MEMORIES)) {
             SET_CUR_FORM_BTN_ITEM(j, ITEM_NONE);
-            Interface_LoadItemIconImpl(play, j);
+            if (RSBS_END_OF_CYCLE_PLAY_BUILT(play)) { // RSBS (#1305)
+                Interface_LoadItemIconImpl(play, j);
+            }
         }
     }
     // #region 2S2H [Dpad]
@@ -700,7 +733,9 @@ void Sram_SaveEndOfCycle(PlayState* play) {
         if ((DPAD_GET_CUR_FORM_BTN_ITEM(k) >= ITEM_MOONS_TEAR) &&
             (DPAD_GET_CUR_FORM_BTN_ITEM(k) <= ITEM_PENDANT_OF_MEMORIES)) {
             DPAD_SET_CUR_FORM_BTN_ITEM(k, ITEM_NONE);
-            Interface_Dpad_LoadItemIconImpl(play, k);
+            if (RSBS_END_OF_CYCLE_PLAY_BUILT(play)) { // RSBS (#1305)
+                Interface_Dpad_LoadItemIconImpl(play, k);
+            }
         }
     }
     // #endregion
