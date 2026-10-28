@@ -4890,12 +4890,13 @@ void MM_ConsumeSharedItems(void) {
 // merge rules both call into live in src/common/shared_resources.c, which has
 // no game headers. This half owns MM's field names and unit conversions.
 //
-// THE ASYMMETRY THAT MAKES THE WATERMARK NECESSARY LIVES HERE: MM's
-// gUpgradeCapacities row for UPG_WALLET is {99, 200, 500, 500} while OoT's is
-// {99, 200, 500, 999}. At tier 3 MM can hold 500 and OoT 999, so a shared pool
-// above 500 simply does not fit in MM's wallet. The pool keeps the true total;
-// apply materializes only what fits and records THAT as the watermark, so the
-// overflow rides out the MM visit instead of being harvested away.
+// THE WATERMARK: both games' UPG_WALLET rows are {99, 200, 500, 999} (MM's
+// tier 3, OoT's Tycoon's Wallet, holds 999 in the single exe: #1283), but the
+// two LIVE tiers can still differ for a moment (a far wallet found before the
+// other game's arrival applies it), so a shared pool above the live cap does
+// not fit. The pool keeps the true total; apply materializes only what fits
+// and records THAT as the watermark, so the overflow rides out the visit
+// instead of being harvested away.
 // ============================================================================
 
 // MM's own upgrade setter and the three tables CUR_UPG_VALUE / CUR_CAPACITY
@@ -4953,7 +4954,7 @@ static uint16_t MM_ReadAmmo(uint8_t item) {
 
 // MM's bombchus have no upgrade row of their own — the bomb bag's capacity is
 // their ceiling, where OoT fixes it at 50. The pool holds the true count and
-// each side shows what it can hold, exactly as the 500-vs-999 wallet does.
+// each side shows what it can hold, exactly as a wallet below the pool's does.
 static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
     if (row->tierKind == RSBS_SHARED_RES_NONE) {
         return (uint16_t)CUR_CAPACITY(UPG_BOMB_BAG);

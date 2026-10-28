@@ -76,7 +76,13 @@ u16 MM_gUpgradeCapacities[][4] = {
     { 0, 20, 30, 40 },     // UPG_BOMB_BAG
     { 0, 0, 0, 0 },        // UPG_STRENGTH
     { 0, 0, 0, 0 },        // UPG_SCALE
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS #1283: tier 3 is OoT's Tycoon's Wallet, reached only through the shared wallet tier; it holds 999 in
+    // Termina as in Hyrule (OoTMM's gMmMaxRupees[3]).
+    { 99, 200, 500, 999 }, // UPG_WALLET
+#else
     { 99, 200, 500, 500 }, // UPG_WALLET
+#endif
     { 0, 30, 40, 50 },     // UPG_BULLET_BAG
     { 0, 10, 20, 30 },     // UPG_DEKU_STICKS
     { 0, 20, 30, 40 },     // UPG_DEKU_NUTS

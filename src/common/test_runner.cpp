@@ -705,7 +705,7 @@ extern "C" {
 #include "tests/test_grant_sources.c"
 
 // Shared cross-game RESOURCE locks (#525): the delta-harvest watermark that
-// survives the 500-vs-999 wallet mismatch, the monotonic/consumable split, the
+// survives an unequal wallet cap (a live tier below the pool's), the monotonic/consumable split, the
 // first-harvest seed that stops a .redsave load from doubling the player's
 // money, and the canonical heart quantity with its 20-heart clamp. FILE SCOPE
 // (compiled as C++) like the file above; every symbol it drives is C-linkage

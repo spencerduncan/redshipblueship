@@ -74,14 +74,16 @@
  *   counts. A quantity the player spends. Harvest takes a DELTA against a
  *   watermark recorded at apply time, never a raw copy.
  *
- * THE WATERMARK IS MANDATORY. MM's tier-3 wallet holds 500 and OoT's holds 999
- * (`gUpgradeCapacities`, both games). Under a naive `shared = live` harvest,
- * arriving in MM with 800 shared rupees clamps the live count to 500, and the
- * next suspend harvests that 500 straight back over the 800 — the player
- * silently loses 300 rupees on EVERY round trip. With the watermark, apply
- * records what it actually materialized (500) and harvest contributes only what
- * changed since (0), so the 300 that never fit in MM's wallet stays in the pool
- * and comes back intact in OoT.
+ * THE WATERMARK IS MANDATORY. The pool can hold more than the arriving game's
+ * live wallet: the two games' tables agree ({99, 200, 500, 999}; MM's tier 3,
+ * OoT's Tycoon's Wallet, holds 999 since #1283), but a live tier can lag the
+ * pool's, and magic and ammo caps differ outright. Under a naive
+ * `shared = live` harvest, arriving with 800 shared rupees in a 500 wallet
+ * clamps the live count to 500, and the next suspend harvests that 500
+ * straight back over the 800 — the player silently loses 300 rupees on EVERY
+ * round trip. With the watermark, apply records what it actually materialized
+ * (500) and harvest contributes only what changed since (0), so the 300 that
+ * never fit stays in the pool and comes back intact in the other game.
  *
  * The watermark is RAM-only and per (kind, game): it describes how much of the
  * shared pool is currently materialized in the LIVE save, which is a property
