@@ -5,10 +5,13 @@ using namespace Rando;
 
 void RegionTable_Init_SacredForestMeadow() {
     // clang-format off
-    areaTable[RR_SFM_ENTRYWAY] = Region("SFM Entryway", SCENE_SACRED_FOREST_MEADOW, {}, {}, {
+    areaTable[RR_SFM_ENTRYWAY] = Region("SFM Entryway", SCENE_SACRED_FOREST_MEADOW, {
+        //Events
+        EventAccess(LOGIC_OPEN_SFM_GATE, []{return logic->IsChild && logic->CanKillEnemy(RE_WOLFOS);}),
+    }, {}, {
         //Exits
         Entrance(RR_LW_BEYOND_MIDO,       []{return true;}),
-        Entrance(RR_SACRED_FOREST_MEADOW, []{return logic->IsAdult || logic->CanKillEnemy(RE_WOLFOS);}),
+        Entrance(RR_SACRED_FOREST_MEADOW, []{return logic->IsAdult || logic->Get(LOGIC_OPEN_SFM_GATE);}),
         Entrance(RR_SFM_WOLFOS_GROTTO,    []{return logic->CanOpenBombGrotto();}),
     });
 
@@ -44,7 +47,7 @@ void RegionTable_Init_SacredForestMeadow() {
     }, {
         //Exits
         Entrance(RR_FOREST_TEMPLE_ENTRYWAY, []{return logic->CanUse(RG_HOOKSHOT);}),
-        Entrance(RR_SFM_ENTRYWAY,           []{return true;}),
+        Entrance(RR_SFM_ENTRYWAY,           []{return logic->IsAdult || logic->Get(LOGIC_OPEN_SFM_GATE);}),
         // adult can jump up, but it's a trick. being hit directly by club moblin while wearing hover boots also works, but relies on coming from LW
         Entrance(RR_SFM_ABOVE_MAZE,         []{return logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT) || (logic->IsAdult && logic->CanGroundJump());}),
         Entrance(RR_SFM_STORMS_GROTTO,      []{return logic->CanOpenStormsGrotto();}),
