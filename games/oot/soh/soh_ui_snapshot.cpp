@@ -1563,6 +1563,27 @@ void SetSohBindingsHeaderOpen(const char* header, bool open) {
     const ImGuiID linkTab = ImHashStr("Link (P1)###port0", 0, tabBar);
     w->StateStorage.SetInt(ImHashStr(header, 0, linkTab), open ? 1 : 0);
 }
+
+// W6-COS-A (#1239): SoH's Cosmetics Editor window, which colours Majora's Mask too.
+constexpr const char* kSohCosmeticsWindow = "Cosmetics Editor";
+constexpr const char* kSohCosmeticsReference = "window/Cosmetics Editor";
+
+/**
+ * Brings the Cosmetics Editor's tab @p tab to the front on the window's next frame. The tab bar is DrawElement's
+ * "CosmeticsContextTabBar", and a tab's ID is its label hashed under the bar's (BeginTabBar pushes the bar's ID, so
+ * ImGui::TabBarQueueFocus, which hashes under the CURRENT window, cannot be called from outside it). Needs the window
+ * to have been drawn once.
+ */
+void SelectSohCosmeticsTab(const char* tab) {
+    ImGuiWindow* w = ImGui::FindWindowByName(kSohCosmeticsWindow);
+    if (w == nullptr) {
+        return;
+    }
+    ImGuiTabBar* bar = GImGui->TabBars.GetByKey(ImHashStr("CosmeticsContextTabBar", 0, w->ID));
+    if (bar != nullptr) {
+        bar->NextSelectedTabId = ImHashStr(tab, 0, bar->ID);
+    }
+}
 // W6-HUD-A (#1239): SoH's Cosmetics Editor, whose HUD Placement tab holds MM's HUD placement section, and the tab.
 constexpr const char* kSohCosmeticsEditorWindow = "Cosmetics Editor";
 constexpr const char* kMmHudPlacementPage = "window/Cosmetics Editor HUD Placement";
@@ -2356,6 +2377,26 @@ void Session::BuildPageList() {
         p.window = "Item Tracker";
         p.guiWindow = kSohRetiredItemTrackerWindowName;
         p.states = { "" };
+        p.needsRom = true;
+        pages.push_back(p);
+    }
+    {
+        // W6-COS-A (#1239): SoH's Cosmetics Editor window, which colours Majora's Mask too. "hud" is its HUD tab:
+        // SoH's button, key-count and minimap rows there now drive MM's as well, and MM's colours with no SoH twin
+        // sit in a Majora's Mask block after SoH's HUD group. One MM row is hovered through the combo_ui seam's rect
+        // report: its tooltip must show, ending "Majora's Mask only.". "effects" is its Effects tab, whose Spin Attack
+        // rows drive MM's spin attack (every MM spin element twins one of them, so the tab has no MM row yet).
+        // W6-COS-B adds its Link & Items block directly after this one; W6-COS-C adds a hover to "effects".
+        PageSpec p;
+        p.id = kSohCosmeticsReference;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = kSohCosmeticsWindow;
+        p.states = { "hud", "effects" };
+        p.expectText = { kSohCosmeticsWindow };
+        p.stateText = { { "hud", { "B Button", "Majora's Mask", "Rupee Icon" } }, { "effects", { "Spin Attack" } } };
+        p.stateContrast = { { "hud", "effects" }, { "effects", "hud" } };
+        p.paneHovers.push_back({ "mm-rupee-icon", "hud", "Rupee Icon", false });
         p.needsRom = true;
         pages.push_back(p);
     }
@@ -3276,6 +3317,16 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
                 },
                 why);
         }
+    } else if (p.id == kSohCosmeticsReference) {
+        // W6-COS-A: the window exists once it has been drawn: show it for one frame, then bring the state's tab up.
+        auto cosmetics = gui->GetGuiWindow(kSohCosmeticsWindow);
+        if (cosmetics != nullptr) {
+            cosmetics->Show();
+            const char* tab = state == "effects" ? "Effects" : "HUD";
+            std::string why;
+            PumpFrame(
+                nullptr, false, [tab]() { SelectSohCosmeticsTab(tab); }, why);
+        }
     } else if (p.id == "window/Audio Editor") {
         // W6-AUDIO-SEQ: the tab each state shows (the request is kept until the window next draws).
         SohAudioEditor_ShowMmPaneForTest(state == "mm-pane");
@@ -3398,6 +3449,9 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
         CVarClear(kSohBindingsMmSpeedModifiers); // W6-CAM-GYRO
         SetSohBindingsHeaderOpen("Camera Controls", false);
         SetSohBindingsHeaderOpen("Modifier Buttons", false);
+    }
+    if (p.id == kSohCosmeticsReference) {
+        SelectSohCosmeticsTab("Link & Items"); // the tab SoH opens on
     }
     if (p.id == kMmHudPlacementPage) {
         // W6-HUD-B: cleared, never stored; the headers go back to the player.

@@ -1107,11 +1107,9 @@ static TestResult Test_MMSceneExecute(void) {
     return MM_SceneExecute_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
-// wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
-static TestResult Test_CosmeticGfxStub(void) {
-    return CosmeticGfxStub_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
-}
+// CosmeticEditor gfx-wrapper contract: defined further down, right after
+// CreateHarnessStyleContext, because its colour lookup reads the Ship::Context
+// singleton's ConsoleVariables (W6-COS-A, #1239).
 
 // MM resume-path cold-boot contract (see the extern decls above). Thin
 // wrapper over the C entry point in games/mm/2s2h/mm_resume_state_test.cpp.
@@ -1446,6 +1444,25 @@ TestResult Test_MMStartupRestore(void) {
     }
 
     return MM_StartupRestore_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// CosmeticEditor gfx-wrapper contract (see the extern decl above). Thin
+// wrapper over the C entry point in games/mm/2s2h/CosmeticGfxSingleExe.cpp.
+// Since W6-COS-A (#1239) the wrappers' colour lookup reads SoH's Cosmetics
+// Editor keys and MM's own colour keys, so the row needs the display-free
+// shared bring-up for the ConsoleVariables it sets and clears.
+TestResult Test_CosmeticGfxStub(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return CosmeticGfxStub_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The cross-game arrival is MM's intro event (#654; see the extern decl above).

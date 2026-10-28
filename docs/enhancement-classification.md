@@ -167,6 +167,29 @@ by its Majora's Mask tab (W6-AUDIO-SEQ: the port of 2Ship's editor write paths, 
 | `gAudioEditor.Playing` (MM's preview) | not used | MM's preview state is kept in memory by the port, so SoH's preview key stays SoH's; MM's previews play only while Majora's Mask runs |
 | `gWindows.AudioEditor` (#1237) | resolved, no key | 2Ship's popout opens no window in the single exe: SoH's one Audio Editor (Enhancements > Audio Editor) holds the Majora's Mask tab (ADR 0003 §5.2, tier 2 `gWindows.*` -> `gOpenWindows.*`) |
 
+**The Cosmetics Editor's MM keys (W6-COS-A, #1239, #1237).** MM's colours are `gCosmetic.<element>.Color` beside
+`.Changed` (one family, `RSBS_CVAR_MM_COSMETIC_PREFIX`). 2Ship's Cosmetic Editor stays excluded; SoH's one Cosmetics
+Editor drives MM through MM's colour lookup, `CosmeticEditor_GetChangedColor` (`games/mm/2s2h/CosmeticGfxSingleExe.cpp`,
+ported from 2Ship's reader), which reads the CVars live in either game. Hosting decision (upstream-backport audit M14,
+#1239 option b): an element with an SoH twin reads the twin's `.Changed` / `.Value` (one colour for both games, a
+`kTranslatedKeys` pair, never a rename: the value children differ); an element with none is an MM row in SoH's editor.
+The classification lock's colour-family leg (3c-3) holds every element of the lookup's table to one or the other.
+
+| MM key (`gCosmetic.` + …, unless spelled in full) | Category | How SoH's Cosmetics Editor drives it |
+|---|---|---|
+| `Buttons.B` | translated (`kTranslatedKeys`) | HUD tab, SoH's B Button (`gCosmetics.HUD.BButton`) |
+| `Buttons.A` | translated | HUD tab, SoH's A Button (`gCosmetics.HUD.AButton`) |
+| `Buttons.CLeft`, `Buttons.CDown`, `Buttons.CRight` | translated | HUD tab, SoH's C Left / C Down / C Right Button over SoH's C Buttons (two rows each), the order OoT's HUD reads them in |
+| `Buttons.DPad` | translated | HUD tab, SoH's Dpad (`gCosmetics.HUD.Dpad`) |
+| `Buttons.Start` | translated | HUD tab, SoH's Start Button (`gCosmetics.HUD.StartButton`) |
+| `HUD.SmallKey` | translated | HUD tab, SoH's Key Count (Advanced Mode), the small-key icon's colour in both games |
+| `HUD.Minimap` | translated | HUD tab, SoH's Minimap (`gCosmetics.HUD.Minimap`) |
+| `HUD.RupeeIcon` | (O) MM-only | its own MM row, "Rupee Icon", in a Majora's Mask block after SoH's HUD group (`CosmeticsEditorMm.cpp`) |
+| `Effects.SpinSlashCharge`, `Effects.SpinSlashBurst` | translated | Effects tab, SoH's Spin Attack Level 1 Primary (OoT draws its charge and its burst from it; Level 1 Secondary sets it too) |
+| `Effects.GreatSpinCharge`, `Effects.GreatSpinBurst` | translated | Effects tab, SoH's Spin Attack Level 2 Primary (likewise) |
+| `Menus.FileWindow`, `Menus.FilePlates` | INTENTIONAL, no row | they colour MM's file select, which paired play never shows (the file select is OoT's; see `gEnhancements.Saving.FileSlot3` below) |
+| `gWindows.CosmeticEditor` | INTENTIONAL, no row | 2Ship's editor popout resolves to SoH's one Cosmetics Editor (`gOpenWindows.CosmeticsEditor`, ADR 0003 §5.2's near-miss); no second window |
+
 ### 3.3 ❌ Accidental divergence — the actual bug list (2 rows, 4 keys)
 
 These are the only collision-set entries where the two games disagree. Both are filed.

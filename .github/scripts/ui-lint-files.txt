@@ -34,6 +34,7 @@ PANES games/mm/2s2h/TimersGuiSingleExe.cpp
 PANES games/oot/soh/SohGui/CreationProgressOverlay.cpp
 PANES games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMmHud.cpp
 PANES games/mm/2s2h/TrackersGuiSingleExe.cpp
+PANES games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMm.cpp
 
 TOASTS games/oot/soh/Enhancements/randomizer/ForeignItemsSingleExe.cpp
 TOASTS games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp
