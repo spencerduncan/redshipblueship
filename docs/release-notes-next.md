@@ -149,8 +149,8 @@ By page:
   randomizer file a shortcut win hands the check's item once, never a vanilla reward in its place.
 - **Enhancements > Graphics.** Clock Type (MM3D Style or Text Only) and 24 Hours Clock in the UI column; Motion Blur
   Mode, Interpolate Motion Blur, Motion Blur Strength and Dynamic Motion Blur with its strength (Dynamic Motion Blur
-  is live only while Majora's Mask runs); Fix Scene Geometry Seams and Disable Scene Geometry Distance Check; the scene-geometry and Fix Out of Bounds Textures switches take effect in Majora's Mask without a
-  restart (#1254).
+  is live only while Majora's Mask runs); Fix Scene Geometry Seams and Disable Scene Geometry Distance Check; the
+  scene-geometry and Fix Out of Bounds Textures switches take effect in Majora's Mask without a restart (#1254).
 - **Enhancements > Fixes.** Each Majora's Mask row at the end of the SoH section that holds its relatives: Fix Epona
   Stealing Sword, Fix Fierce Deity Z-Target Movement, MM Power Crouch Stab, Fix Targeting Camera Snap, Fix Ammo Count
   Color, Fix Ikana Great Fairy Fountain Color, Fix Text Control Characters, Fix Completed Heart Container Audio, Tatl
@@ -364,10 +364,11 @@ Consumables (above), and 2Ship2Harkinian's About panel (issue #1272).
   named the Check Tracker and the Combo Item Tracker the Item Tracker, and SoH's own Toggle Check Tracker and Toggle
   Item Tracker buttons, on Randomizer > Check Tracker and Randomizer > Item Tracker, open them; SoH's single-game
   windows no longer draw. Randomizer > Check Tracker also carries Auto Scroll To Current Area, Only Show Current Area
-  and the Cross-Game Spoiler's toggle. Combo > Windows is gone, and a menu last left on it opens on Randomizer >
-  Check Tracker. (Combo > Tracker Settings kept the Item Tracker overlay's rows until #1202, below.) Searching the menu for one of SoH's six Check Tracker settings (Background Color, Window Type,
-  Vanilla/MQ Dungeon Spoilers, Hide Unshuffled Shop Item Checks, Always Show Gold Skulltulas, Show Logic) still lands
-  on SoH's Randomizer > Check Tracker page, which is now the unified tracker's page.
+  and the Cross-Game Spoiler's toggle. Combo > Windows is gone, and a menu last left on it opens on Randomizer > Check
+  Tracker. (Combo > Tracker Settings kept the Item Tracker overlay's rows until #1202, below.) Searching the menu for
+  one of SoH's six Check Tracker settings (Background Color, Window Type, Vanilla/MQ Dungeon Spoilers, Hide Unshuffled
+  Shop Item Checks, Always Show Gold Skulltulas, Show Logic) still lands on SoH's Randomizer > Check Tracker page,
+  which is now the unified tracker's page.
 - **The Check Tracker draws its rows as SoH's does** (#1192): no status square before a check's name (the name's
   colour shows the status), the line under a pane's header only while a header control shows, and a search box that
   matches item names but no longer prices.
