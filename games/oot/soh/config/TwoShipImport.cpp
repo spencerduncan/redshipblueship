@@ -52,49 +52,26 @@ const nlohmann::json* FindNested(const nlohmann::json& cvars, const std::string&
     return nullptr;
 }
 
-/**
- * 2Ship's own config migrations, replayed against an imported json.
+/*
+ * 2Ship's own config migrations are NOT replayed (#1240).
  *
- * ADR 0003 §6.4's ordering hazard: a legacy `2ship2harkinian.json` must be
- * brought up to 2Ship's own config version BEFORE key mapping, or a pre-v1
- * file imports mis-keyed. `Ben::ConfigVersion1Updater` cannot be reused for
- * this — it mutates the LIVE CVar store through CVarCopy/CVarClear, which is
- * the wrong target for a file we are only reading — so its key mapping is
- * replayed here against the parsed json instead.
+ * ADR 0003 §6.4's ordering hazard says a legacy `2ship2harkinian.json` must be
+ * brought up to 2Ship's own config version before key mapping, and until #1240
+ * this file replayed `Ben::ConfigVersion1Updater`'s one rename against the
+ * parsed json. Neither v1 row may be replayed in the single exe:
  *
- * None of 2Ship's v1 rows currently intersect the convergence table (v1 renames
- * `gFixes.FixAmmoCountEnvColor` and reshapes `gDisplayOverlay`, neither of which
- * is a converged key), so today this is a no-op for everything we import. It
- * exists so that a future 2Ship version that DOES touch a converged key is
- * handled at the correct point in the pipeline rather than silently mis-keyed.
+ *   - `gFixes.FixAmmoCountEnvColor` -> `gFixes.FixButtonEnvColor`: MM's code
+ *     never followed the rename (`z_parameter.c` reads the old spelling, as does
+ *     2Ship's own menu row), so replaying it moved the player's value onto a key
+ *     nothing reads. The old spelling is the live one and imports through
+ *     RSBS::kTwoShipImportKeys; the new one is on RSBS::kTwoShipDoNotImport.
+ *   - The `gDisplayOverlay` reshape reads `gWindows.DisplayOverlay`, a window
+ *     key the import does not carry; a v1 file already holds the reshaped
+ *     `gDisplayOverlay.Mode`, which imports through the list.
+ *
+ * A later 2Ship migration that renames a key the import carries is replayed
+ * here, against the parsed json, before the walks below.
  */
-void ApplyTwoShipVersionUpdates(nlohmann::json& cvars, uint32_t sourceVersion) {
-    struct SourceMigration {
-        uint32_t introducedIn;
-        const char* from;
-        const char* to;
-    };
-    static constexpr SourceMigration kSourceMigrations[] = {
-        { 1, "gFixes.FixAmmoCountEnvColor", "gFixes.FixButtonEnvColor" },
-    };
-
-    for (const SourceMigration& migration : kSourceMigrations) {
-        if (sourceVersion >= migration.introducedIn) {
-            continue; // the source file already applied this one
-        }
-        const nlohmann::json* value = FindNested(cvars, migration.from);
-        if (value == nullptr) {
-            continue;
-        }
-        // Write through the flat pointer form so intermediate objects are
-        // created as needed, matching how the destination store nests keys.
-        std::string pointer = "/";
-        for (char c : std::string(migration.to)) {
-            pointer += (c == '.') ? '/' : c;
-        }
-        cvars[nlohmann::json::json_pointer(pointer)] = *value;
-    }
-}
 
 /** Is this CVar already set in the LIVE store? See ConfigUpdaters.cpp. */
 bool CVarPresent(const char* name) {
@@ -203,7 +180,6 @@ SourceResult ImportFromSource(const std::string& sourcePath) {
 
     nlohmann::json cvars = source["CVars"];
     result.sourceVersion = source.value("ConfigVersion", 0u);
-    ApplyTwoShipVersionUpdates(cvars, result.sourceVersion);
 
     for (const RSBS::ConvergedKey& key : RSBS::kConvergedKeys) {
         const nlohmann::json* value = FindNested(cvars, key.legacy);
@@ -211,6 +187,24 @@ SourceResult ImportFromSource(const std::string& sourcePath) {
             continue;
         }
         if (AdoptImportedValue(key, *value)) {
+            result.imported++;
+        } else {
+            result.skipped++;
+        }
+    }
+
+    // #1240: the MM-only keys that have a shared-menu row, and the shared keys
+    // safe to carry, under the spelling MM reads, adopted as-is under the same
+    // conflict rule. After the converged walk, so a legacy spelling converging
+    // onto a listed key (the Ambience volume) is converted first and wins. The
+    // list is fixed at compile time: this runs before the menu exists.
+    for (const char* key : RSBS::kTwoShipImportKeys) {
+        const nlohmann::json* value = FindNested(cvars, key);
+        if (value == nullptr) {
+            continue;
+        }
+        const RSBS::ConvergedKey asIs = { key, key, false };
+        if (AdoptImportedValue(asIs, *value)) {
             result.imported++;
         } else {
             result.skipped++;
