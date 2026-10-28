@@ -32,9 +32,12 @@
  *       bombchu bag a bombchu), an open exception to CheckQueue.cpp's
  *       "never a different item's model" rule awaiting the operator's call
  *       (PR #829); answering no model here restores the stand-in;
- *  - the Master Sword and Roc's Feather are re-expressed from their draw
- *    functions (one list each);
- *  - every other custom draw (boss and bean souls, ocarina buttons, jabber nuts,
+ *  - the Master Sword, Roc's Feather and the nine boss souls are re-expressed
+ *    from their draw functions (for a boss soul, the tinted flame only, #1299:
+ *    the skull depends on the SimplerBossSoulModels CVar and needs per-part
+ *    grayscale and scale, which ComboModel lacks, and the per-boss skeleton is
+ *    posed, which MM's host refuses);
+ *  - every other custom draw (bean souls, ocarina buttons, jabber nuts,
  *    the action-shuffle abilities, the Triforce piece, the fishing pole, the
  *    skeleton key, the mystery item) answers no model: its `gid` is a
  *    placeholder that would draw the wrong thing.
@@ -69,6 +72,7 @@ extern "C" {
 #include <z64.h>
 #include "objects/object_toki_objects/object_toki_objects.h" // the Master Sword's list
 #include "objects/object_gi_melody/object_gi_melody.h"       // gGiSongNoteDL (#1167)
+#include "objects/object_gi_fire/object_gi_fire.h"           // gGiBlueFireFlameDL (#1299)
 }
 
 typedef void (*OoTGetItemDrawFn)(PlayState*, s16);
@@ -443,6 +447,34 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
             Combo_ModelAddPart(out, object_toki_objects_DL_001BD0, kOpa, 0);
         } else if (custom == Randomizer_DrawRocsFeather) {
             Combo_ModelAddPart(out, gGiRocsFeatherDL, kXlu, 0);
+        } else if (custom == Randomizer_DrawBossSoul) {
+            // Randomizer_DrawBossSoul (draw.cpp:964-1002): the tinted blue-fire
+            // flame (#1299). kBossSoulFlameTints mirrors flameColors in
+            // Randomizer_DrawBossSoul; the offset is -70 before Scale(5), which
+            // is -14 in the host's post-scale space.
+            static_assert(RG_GANON_SOUL - RG_GOHMA_SOUL == 8, "nine contiguous boss souls");
+            static const uint8_t kBossSoulFlameTints[9][3] = {
+                { 0, 255, 0 },     // Gohma
+                { 255, 0, 100 },   // King Dodongo
+                { 50, 255, 255 },  // Barinade
+                { 4, 195, 46 },    // Phantom Ganon
+                { 237, 95, 95 },   // Volvagia
+                { 85, 180, 223 },  // Morpha
+                { 126, 16, 177 },  // Bongo Bongo
+                { 222, 158, 47 },  // Twinrova
+                { 150, 150, 150 }, // Ganon/Dorf
+            };
+            const int slot = (int)rg - (int)RG_GOHMA_SOUL;
+            if (slot < 0 || slot >= 9) {
+                *reason = "boss soul outside its tint table";
+                return 0;
+            }
+            out->scale = 5.0f;
+            out->billboardOffset[1] = -14.0f;
+            out->scrolls[0] = TwoTileScroll(8, kXlu, 0, 0, 16, 32, 1, -8, 16, 32);
+            out->grayscale = 1;
+            std::memcpy(out->grayscaleRgb, kBossSoulFlameTints[slot], 3);
+            Combo_ModelAddPart(out, gGiBlueFireFlameDL, kXlu, 1);
         } else {
             *reason = "SoH custom draw that is not re-expressed";
             return 0;

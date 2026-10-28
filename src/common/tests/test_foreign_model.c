@@ -52,7 +52,8 @@
  *     #577 M7: a colliding OoT item with a host-native row (the hookshot) draws
  *     MM's OWN model for that row, exactly the lists MM's recipe gives it. #830:
  *     Song of Time draws MM's host-side tinted note, one XLU list and its env
- *     colour; a foreign item with no model (Gohma's Soul) keeps the stand-in.
+ *     colour; Volvagia's Soul draws its flame descriptor (#1299); a foreign
+ *     item with no model (the Skeleton Key) keeps the stand-in.
  *
  * Not lockable headless: the pixels. The M3 playtest shows the drawn model; M4
  * draws these descriptors in OoT.
@@ -1887,7 +1888,7 @@ TestResult Test_ForeignModel(void) {
         // MM has no Minuet note row: its host-side tinted note draws it (#830).
         { (uint8_t)GAME_OOT, "Minuet of Forest", kHost, "/object_gi_melody/gGiMinuetColorDL", 2, kXlu,
           "/object_gi_melody/gGiSongNoteDL" },
-        { (uint8_t)GAME_OOT, "Gohma's Soul", kNone, nullptr, 0, 0, nullptr },
+        { (uint8_t)GAME_OOT, "Gohma's Soul", kDesc, "/object_gi_fire/gGiBlueFireFlameDL", 1, kXlu, nullptr },
         { (uint8_t)GAME_MM, "Deku Mask", kDesc, "/object_gi_nutsmask/gGiDekuMaskEmptyDL", 2, kOpa, nullptr },
         { (uint8_t)GAME_MM, "Hookshot", kHost, "/object_gi_hookshot/gGiHookshotEmptyDL", 2, kOpa,
           "/object_gi_hookshot/gGiHookshotDL" },
@@ -1934,6 +1935,46 @@ TestResult Test_ForeignModel(void) {
         Combo_GetForeignItemModel((uint8_t)GAME_MM, medallion, &a);
         FM_ASSERT(a.model.opaSetupDl == 26 && a.model.xluSetupDl == 0,
                   "M5 a medallion keeps GetItem_DrawEggOrMedallion's setup list 26");
+    }
+    {
+        // #1299: OoT's nine boss souls re-express Randomizer_DrawBossSoul's
+        // tinted blue-fire flame in MM (one camera-facing XLU list under setup
+        // 25 at scale 5, billboard offset (0, -14, 0), segment-8 two-tile
+        // scroll, per-boss grayscale tint).
+        struct SoulPin {
+            const char* name;
+            uint8_t rgb[3];
+        };
+        static const SoulPin kSouls[9] = {
+            { "Gohma's Soul", { 0, 255, 0 } },          { "King Dodongo's Soul", { 255, 0, 100 } },
+            { "Barinade's Soul", { 50, 255, 255 } },    { "Phantom Ganon's Soul", { 4, 195, 46 } },
+            { "Volvagia's Soul", { 237, 95, 95 } },     { "Morpha's Soul", { 85, 180, 223 } },
+            { "Bongo Bongo's Soul", { 126, 16, 177 } }, { "Twinrova's Soul", { 222, 158, 47 } },
+            { "Ganon's Soul", { 150, 150, 150 } },
+        };
+        for (const SoulPin& s : kSouls) {
+            SharedItem soul;
+            FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, s.name, &soul), "M5 named boss soul");
+            ComboModelAnswer a;
+            FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, soul, &a) == kDesc,
+                      "M5 #1299: an OoT boss soul is a DESCRIPTOR in MM, not no model");
+            const ComboModel& m = a.model;
+            FM_ASSERT(m.partCount == 1 && FmTailIs(m.parts[0].dl, "/object_gi_fire/gGiBlueFireFlameDL") &&
+                          m.parts[0].layer == kXlu && m.parts[0].billboard == 1 && m.parts[0].joint == 0 &&
+                          m.opaSetupDl == 0 && m.xluSetupDl == 25 && std::fabs(m.scale - 5.0f) < 1e-6f &&
+                          m.billboardOffset[0] == 0.0f && m.billboardOffset[1] == -14.0f &&
+                          m.billboardOffset[2] == 0.0f && m.grayscale == 1 &&
+                          std::memcmp(m.grayscaleRgb, s.rgb, 3) == 0 && !m.opaColor.set && !m.xluColor.set &&
+                          m.jointCount == 0 && m.jointSegment == 0 && !Combo_ForeignModel_PathCollides(m.parts[0].dl),
+                      "M5 #1299: a boss soul is gGiBlueFireFlameDL on XLU (billboard, setup 25, scale 5, offset "
+                      "y = -14) with Randomizer_DrawBossSoul's per-boss grayscale tint");
+            const ComboModelScroll& sc = m.scrolls[0];
+            FM_ASSERT(sc.segment == 8 && sc.layer == kXlu && sc.twoTiles == 1 && sc.x1 == 0 && sc.y1 == 0 &&
+                          sc.x1PerFrame == 0 && sc.y1PerFrame == 0 && sc.w1 == 16 && sc.h1 == 32 && sc.x2 == 0 &&
+                          sc.y2 == 0 && sc.x2PerFrame == 1 && sc.y2PerFrame == -8 && sc.w2 == 16 && sc.h2 == 32 &&
+                          m.scrolls[1].segment == 0,
+                      "M5 #1299: a boss soul carries Randomizer_DrawBossSoul's segment-8 two-tile scroll");
+        }
     }
     {
         // #964: the MM rows whose draw is custom code answer a model with the
@@ -2137,25 +2178,29 @@ TestResult Test_ForeignModel(void) {
         SharedItem emerald;
         SharedItem hookshot;
         SharedItem songOfTime;
-        SharedItem gohmaSoul;
+        SharedItem volvagiaSoul;
+        SharedItem skeletonKey;
         FM_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Hover Boots", &boots) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Kokiri's Emerald", &emerald) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Progressive Hookshot", &hookshot) &&
                       TestNamedItem((uint8_t)GAME_OOT, "Song of Time", &songOfTime) &&
-                      TestNamedItem((uint8_t)GAME_OOT, "Gohma's Soul", &gohmaSoul),
+                      TestNamedItem((uint8_t)GAME_OOT, "Volvagia's Soul", &volvagiaSoul) &&
+                      TestNamedItem((uint8_t)GAME_OOT, "Skeleton Key", &skeletonKey),
                   "M10 named items");
         ComboModelAnswer bootsA;
         ComboModelAnswer emeraldA;
         ComboModelAnswer hookshotA;
         ComboModelAnswer songOfTimeA;
-        ComboModelAnswer gohmaSoulA;
+        ComboModelAnswer volvagiaSoulA;
+        ComboModelAnswer skeletonKeyA;
         FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_MM, boots, &bootsA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, emerald, &emeraldA) == kDesc &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, hookshot, &hookshotA) == kHost &&
                       Combo_GetForeignItemModel((uint8_t)GAME_MM, songOfTime, &songOfTimeA) == kHost &&
-                      Combo_GetForeignItemModel((uint8_t)GAME_MM, gohmaSoul, &gohmaSoulA) == kNone,
-                  "M10 the boots and the emerald are DESCRIPTORs in MM, the (colliding) hookshot and Song of Time "
-                  "are MM's own models, Gohma's Soul is no model");
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, volvagiaSoul, &volvagiaSoulA) == kDesc &&
+                      Combo_GetForeignItemModel((uint8_t)GAME_MM, skeletonKey, &skeletonKeyA) == kNone,
+                  "M10 the boots, the emerald and Volvagia's Soul (#1299) are DESCRIPTORs in MM, the (colliding) "
+                  "hookshot and Song of Time are MM's own models, the Skeleton Key is no model");
         // What MM draws for the hookshot: its own row, as its own recipe gives it.
         ComboModel mmHookshot;
         const char* mmHookshotReason = nullptr;
@@ -2200,9 +2245,14 @@ TestResult Test_ForeignModel(void) {
         const int drawTime = MM_ForeignModel_TestCheckQueueDraw(check, &mmTimeNote);
 
         Combo_ClearForeignPlacements();
-        const int placedSoul = Combo_SetForeignPlacement(check, gohmaSoul);
-        printf("[TEST]   M10 Gohma's Soul (no model), archive mounted:\n");
-        const int drawSoul = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
+        const int placedSoul = Combo_SetForeignPlacement(check, volvagiaSoul);
+        printf("[TEST]   M10 Volvagia's Soul (#1299: tinted blue-fire flame), archive mounted:\n");
+        const int drawSoul = MM_ForeignModel_TestCheckQueueDraw(check, &volvagiaSoulA.model);
+
+        Combo_ClearForeignPlacements();
+        const int placedNoModel = Combo_SetForeignPlacement(check, skeletonKey);
+        printf("[TEST]   M10 Skeleton Key (no model), archive mounted:\n");
+        const int drawNoModel = MM_ForeignModel_TestCheckQueueDraw(check, nullptr);
         MM_ForeignModel_TestSetMountOverride(-1);
 
         // The production mount branch (no override): both answers are "no".
@@ -2211,7 +2261,8 @@ TestResult Test_ForeignModel(void) {
         const int realNull = MM_ForeignModel_TestPathMountedReal(nullptr);
 
         std::memcpy(gComboCtx.foreignPlacements, saved, sizeof(saved));
-        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0 && placedTime >= 0 && placedSoul >= 0,
+        FM_ASSERT(placedBoots >= 0 && placedEmerald >= 0 && placedHookshot >= 0 && placedTime >= 0 && placedSoul >= 0 &&
+                      placedNoModel >= 0,
                   "M10 placements accepted");
         FM_ASSERT(drawBoots == 0, "M10 MM's get-item cutscene draws OoT's Hover Boots model (see the Q-line above)");
         FM_ASSERT(drawEmerald == 0, "M10 MM's get-item cutscene draws OoT's Kokiri's Emerald with its jewel shape "
@@ -2221,7 +2272,9 @@ TestResult Test_ForeignModel(void) {
                                      "(see the Q-line above)");
         FM_ASSERT(drawTime == 0, "M10 Song of Time draws MM's tinted note: one XLU list and its env colour (see the "
                                  "Q-line above)");
-        FM_ASSERT(drawSoul == 0, "M10 a foreign item with no model keeps the stand-in (see the Q-line above)");
+        FM_ASSERT(drawSoul == 0, "M10 #1299: MM's get-item cutscene draws Volvagia's Soul flame model (see the Q-line "
+                                 "above)");
+        FM_ASSERT(drawNoModel == 0, "M10 a foreign item with no model keeps the stand-in (see the Q-line above)");
         FM_ASSERT(realNoPrefix == 0, "M10 the production mount test refuses a path without the __OTR__ prefix");
         FM_ASSERT(realMissing == 0, "M10 the production mount test refuses an __OTR__ path no archive holds");
         FM_ASSERT(realNull == 0, "M10 the production mount test refuses a null path");
