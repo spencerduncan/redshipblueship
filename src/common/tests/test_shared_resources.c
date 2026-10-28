@@ -6,12 +6,13 @@
  * value — as opposed to a shared ITEM's one-way single-use crossing. What is
  * locked here is the arithmetic that makes that safe:
  *
- *  (1) THE WATERMARK, and the 500-vs-999 round trip it exists for. MM's tier-3
- *      wallet holds 500 and OoT's holds 999. Under a naive `shared = live`
- *      harvest, carrying 800 rupees into MM clamps the live count to 500 and
- *      the next suspend writes that 500 back over the pool — 300 rupees gone,
- *      silently, on EVERY round trip. This is the regression this file exists
- *      to make impossible.
+ *  (1) THE WATERMARK, and the unequal-cap round trip it exists for. Whenever
+ *      the arriving game's live cap is below the pool (here an abstract 500
+ *      against 999; since #1283 both games' tier-3 wallets hold 999, but a
+ *      live tier can lag the pool's), a naive `shared = live` harvest clamps
+ *      800 rupees to 500 and the next suspend writes that 500 back over the
+ *      pool — 300 rupees gone, silently, on EVERY round trip. This is the
+ *      regression this file exists to make impossible.
  *
  *  (2) THE TWO DISCIPLINES ARE DIFFERENT. Monotonic resources max-merge in both
  *      directions and cannot decay; consumables delta-harvest and MUST decay
@@ -64,8 +65,10 @@
         }                                                           \
     } while (0)
 
-// Both games' real tier-3 wallet capacities. Named rather than inlined because
-// the DIFFERENCE between them is the subject of half this file.
+// An unequal pair of wallet caps: OoT's tier 3, and a 500 cap standing for a
+// live MM wallet below the pool (MM's own tier 3 holds 999 since #1283). Named
+// rather than inlined because the DIFFERENCE between them is the subject of
+// half this file.
 #define SR_OOT_WALLET_CAP_T3 999u
 #define SR_MM_WALLET_CAP_T3 500u
 
@@ -382,7 +385,7 @@ TestResult Test_SharedResources(void) {
 
     // A full double meter (0x60) visits a game that displays a single bar
     // (cap 0x30): the pool keeps the true amount, the arriving game shows what
-    // fits, and nothing is lost on the way home — the 500/999 wallet
+    // fits, and nothing is lost on the way home — the unequal-cap wallet
     // invariant, in magic units.
     Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_MAGIC_CURRENT, 0x60);
     uint16_t magic = 0;

@@ -526,7 +526,8 @@ bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow*
             out->have = tier >= 1;
             out->count = gSaveContext.save.saveInfo.playerData.rupees;
             out->max = (int)CUR_CAPACITY(UPG_WALLET);
-            out->capacityMax = (int)CAPACITY(UPG_WALLET, 3); // #1143: the Giant's 500
+            // #1143: the Giant's 500, or OoT's Tycoon's 999 once the shared tier reaches it (#1283), as OoT's row.
+            out->capacityMax = (int)CAPACITY(UPG_WALLET, tier >= 3 ? 3 : 2);
             return true;
         }
         case MMRK_HEART_PIECES: {

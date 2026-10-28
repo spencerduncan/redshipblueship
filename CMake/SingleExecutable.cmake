@@ -751,6 +751,13 @@ if(BUILD_TESTING)
     # save's crossing is credited once at redemption. Both games' real shims,
     # pickup cores and arrival consumers, ROM-free.
     redship_add_test(NAME SharedTierPickup COMMAND redship --test shared-tier-pickup)
+    # #1284: a far game's wallet stepped at its pickup (#1120) reached neither
+    # game's give, so neither game's fill ran. Under the pair's frozen
+    # fill-wallets rule (OoT's Full Wallets, OoTMM's fillWallets) the step now
+    # fills the running game's rupees to the new cap, once, in either host; the
+    # frozen byte is a creation record. ROM-free.
+    redship_add_test(NAME SharedWalletFillHyrule COMMAND redship --test shared-wallet-fill-hyrule)
+    redship_add_test(NAME SharedWalletFillTermina COMMAND redship --test shared-wallet-fill-termina)
     # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
     # only when set, freeze, the load refusing a rule this build cannot honour)
     # and the shared-family OR merge through both games' real shims. ROM-free.

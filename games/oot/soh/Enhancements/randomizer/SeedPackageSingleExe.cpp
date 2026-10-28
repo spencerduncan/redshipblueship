@@ -206,6 +206,7 @@ std::string WorldRecordBytes(const ComboContext& live) {
     memcpy(&rec->comboSettings, &live.comboSettings, sizeof(rec->comboSettings));
     memcpy(&rec->comboTriforce, &live.comboTriforce, sizeof(rec->comboTriforce));
     memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
+    memcpy(&rec->comboFillWallets, &live.comboFillWallets, sizeof(rec->comboFillWallets)); // #1284
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 
@@ -517,6 +518,7 @@ void ApplyComboWorld(const ComboContext& rec) {
     records.comboSettingsHash = rec.comboSettingsHash;
     records.comboTriforce = rec.comboTriforce;
     records.comboItemRules = rec.comboItemRules;
+    records.comboFillWallets = rec.comboFillWallets; // #1284
     Combo_RestoreCreationRecords(&records);
 }
 

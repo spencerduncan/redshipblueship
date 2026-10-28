@@ -129,7 +129,7 @@ extern "C" int MM_CaptureHarvestGate_RunHeadless(void) {
     const int kSlot = 0;
     const int kUnestablished = 1;
 
-    // MM's wallet capacities are {99, 200, 500, 500} (z_inventory.c), so tier 1
+    // MM's wallet capacities are {99, 200, 500, 999} (z_inventory.c), so tier 1
     // holds exactly kCommittedRupees and tier 2 holds well past kRefusedHigh —
     // the harvest's own wallet clamp can never be what keeps a value out of the
     // pool in this test.

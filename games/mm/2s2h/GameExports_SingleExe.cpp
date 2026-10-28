@@ -4890,12 +4890,13 @@ void MM_ConsumeSharedItems(void) {
 // merge rules both call into live in src/common/shared_resources.c, which has
 // no game headers. This half owns MM's field names and unit conversions.
 //
-// THE ASYMMETRY THAT MAKES THE WATERMARK NECESSARY LIVES HERE: MM's
-// gUpgradeCapacities row for UPG_WALLET is {99, 200, 500, 500} while OoT's is
-// {99, 200, 500, 999}. At tier 3 MM can hold 500 and OoT 999, so a shared pool
-// above 500 simply does not fit in MM's wallet. The pool keeps the true total;
-// apply materializes only what fits and records THAT as the watermark, so the
-// overflow rides out the MM visit instead of being harvested away.
+// THE WATERMARK: both games' UPG_WALLET rows are {99, 200, 500, 999} (MM's
+// tier 3, OoT's Tycoon's Wallet, holds 999 in the single exe: #1283), but the
+// two LIVE tiers can still differ for a moment (a far wallet found before the
+// other game's arrival applies it), so a shared pool above the live cap does
+// not fit. The pool keeps the true total; apply materializes only what fits
+// and records THAT as the watermark, so the overflow rides out the visit
+// instead of being harvested away.
 // ============================================================================
 
 // MM's own upgrade setter and the three tables CUR_UPG_VALUE / CUR_CAPACITY
@@ -4953,7 +4954,7 @@ static uint16_t MM_ReadAmmo(uint8_t item) {
 
 // MM's bombchus have no upgrade row of their own — the bomb bag's capacity is
 // their ceiling, where OoT fixes it at 50. The pool holds the true count and
-// each side shows what it can hold, exactly as the 500-vs-999 wallet does.
+// each side shows what it can hold, exactly as a wallet below the pool's does.
 static uint16_t MM_AmmoCapacity(const MMSharedAmmo* row) {
     if (row->tierKind == RSBS_SHARED_RES_NONE) {
         return (uint16_t)CUR_CAPACITY(UPG_BOMB_BAG);
@@ -5939,6 +5940,26 @@ extern "C" void MM_HarvestSharedResources(void) {
 }
 
 /**
+ * FILL AT THE WALLET STEP (#1284; shared_resources.h), the twin of
+ * OoT_FillWalletAfterStep: a wallet step that RAISED MM's tier, under the pair's
+ * frozen fill-wallets rule, fills MM's rupees to the new cap through the
+ * accumulator, set AFTER the apply (which zeroes it), as MM's own wallet give
+ * does (Rando/GiveItem.cpp, which fills unconditionally and is unchanged). The
+ * next harvest folds it into the pool, clamped to the cap. gSaveContext only.
+ */
+static void MM_FillWalletAfterStep(s32 tierBefore) {
+    if ((s32)CUR_UPG_VALUE(UPG_WALLET) <= tierBefore || !Combo_SharedWalletFillRule()) {
+        return;
+    }
+    const s32 fill = (s32)CUR_CAPACITY(UPG_WALLET) - (s32)gSaveContext.save.saveInfo.playerData.rupees;
+    if (fill > 0) {
+        gSaveContext.rupeeAccumulator = (s16)fill;
+        fprintf(stderr, "[MM] shared wallet step: fill-wallets rule on, %d rupees to the tier-%d cap of %d (#1284)\n",
+                (int)fill, (int)CUR_UPG_VALUE(UPG_WALLET), (int)CUR_CAPACITY(UPG_WALLET));
+    }
+}
+
+/**
  * STEP AT PICKUP (#1120; shared_resources.h), the twin of
  * OoT_StepSharedTierAtPickup: a far game's capacity tier found in Termina
  * (OoT's Progressive Bomb Bag on an MM check), or an MM tier item redeemed from
@@ -5956,10 +5977,14 @@ extern "C" void MM_HarvestSharedResources(void) {
  */
 static int MM_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     MM_HarvestSharedKind(kind);
+    const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
     if (!Combo_StepSharedTier(kind, units, MM_SharedKindCap(kind))) {
         return 0; // the harvest alone changes nothing a later harvest would not
     }
     MM_ApplySharedKind(kind);
+    if (kind == RSBS_SHARED_RES_WALLET_TIER) {
+        MM_FillWalletAfterStep(walletTierBefore);
+    }
     uint16_t pool = 0;
     Combo_GetSharedResource(kind, &pool);
     fprintf(stderr, "[MM] shared pickup step: %s id=%u steps shared kind %u by %u; the pool now holds %u (#1120)\n",

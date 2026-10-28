@@ -722,6 +722,7 @@ void Combo_SnapshotCreationRecords(ComboCreationRecords* out) {
     out->comboSettingsHash = gComboCtx.comboSettingsHash;
     out->comboTriforce = gComboCtx.comboTriforce;
     out->comboItemRules = gComboCtx.comboItemRules;
+    out->comboFillWallets = gComboCtx.comboFillWallets;
 }
 
 void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
@@ -732,6 +733,7 @@ void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
     gComboCtx.comboSettingsHash = in->comboSettingsHash;
     gComboCtx.comboTriforce = in->comboTriforce;
     gComboCtx.comboItemRules = in->comboItemRules;
+    gComboCtx.comboFillWallets = in->comboFillWallets;
 }
 
 void Combo_RetractCreationRecords(void) {
@@ -739,6 +741,7 @@ void Combo_RetractCreationRecords(void) {
     gComboCtx.comboSettingsHash = 0;
     memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
     memset(&gComboCtx.comboItemRules, 0, sizeof(gComboCtx.comboItemRules));
+    gComboCtx.comboFillWallets = 0; // #1284
 }
 
 int Combo_FreezeLegacyComboSettings(void) {

@@ -33,9 +33,13 @@
  *  - the twelve songs (DrawSong: the note in one env colour per song) answer
  *    that note as a descriptor (#1167, ModelForSong below), and the progressive
  *    Goron Lullaby its first tier's;
- *  - every other special case (owl statues, clocks, souls, frogs, the swim
- *    ability, the Triforce piece, traps, ocarina buttons) is a 2S2H custom draw
- *    and answers no model.
+ *  - the six clocks and Progressive Time (DrawClock, the Clock Tower's face
+ *    and sun-and-moon panel) answer that draw as a descriptor in its day or
+ *    night pose (#1281, ModelForClock below), Progressive Time its first
+ *    tier's (Day 1);
+ *  - every other special case (owl statues, souls, frogs, the swim ability,
+ *    the Triforce piece, traps, ocarina buttons) is a 2S2H custom draw and
+ *    answers no model.
  *
  * WHAT IT NEVER DOES: read the save, a CVar or any live state. The answer is a
  * pure function of static tables (ForeignModel row).
@@ -83,8 +87,9 @@
 extern "C" {
 #include "variables.h" // MM_gPlayState, MM_sMatrixStack, MM_sCurrentMatrix
 #include "functions.h"
-#include "objects/object_gi_melody/object_gi_melody.h" // gGiSongNoteDL (#830)
-#include "objects/gameplay_keep/gameplay_keep.h"       // the stray fairy's lists (#964)
+#include "objects/object_gi_melody/object_gi_melody.h"       // gGiSongNoteDL (#830)
+#include "objects/gameplay_keep/gameplay_keep.h"             // the stray fairy's lists (#964)
+#include "objects/object_obj_tokeidai/object_obj_tokeidai.h" // the clock's lists (#1281)
 // Test bridges only (#800): the shop shelf actor the shelf-draw bridge stands up.
 #include "overlays/actors/ovl_En_GirlA/z_en_girla.h"
 }
@@ -356,13 +361,6 @@ bool IsCustomDrawn(RandoItemId ri) {
         case RI_OWL_STONE_TOWER:
         case RI_OWL_WOODFALL:
         case RI_OWL_ZORA_CAPE:
-        case RI_TIME_DAY_1:
-        case RI_TIME_NIGHT_1:
-        case RI_TIME_DAY_2:
-        case RI_TIME_NIGHT_2:
-        case RI_TIME_DAY_3:
-        case RI_TIME_NIGHT_3:
-        case RI_TIME_PROGRESSIVE:
         case RI_FROG_BLUE:
         case RI_FROG_CYAN:
         case RI_FROG_PINK:
@@ -568,6 +566,89 @@ int ModelForSong(RandoItemId ri, ComboModel* out, const char** reason) {
     return 0;
 }
 
+// ---- Clocks (#1281) ------------------------------------------------------------
+//
+// DrawClock (DrawFuncs.cpp) is custom code: setup 25 on OPA, a lift by the
+// tower's yTranslation, MM_Matrix_Scale(0.015), a tilt about X by its
+// xRotation, then four object_obj_tokeidai lists: the minute ring (turned about
+// Z by the tower's ring angle), the centre and hand (after a Z translation by
+// the tower's face offset), the face (turned about Z by -2 * clockFaceRotation)
+// and the sun-and-moon panel (translated (0, -1112, -19.6), then turned about Y
+// by sunMoonPanelRotation). The lift, the tilt, the ring angle and the face
+// offset come from an ObjTokeidai actor only and are 0 on a shop shelf or in a
+// get-item cutscene, so they drop out. The face and panel turns are the item's:
+// a day item shows the sun (clockFaceRotation 0xC000, panel 0), a night item
+// the moon (face 0, panel 0x8000). The descriptor is that draw with the face and
+// the panel as two joints; the panel's -19.6 is rounded to a joint's whole units
+// (0.4 model units, 0.006 at the clock's scale). Progressive Time reads the live
+// save in MM; here it answers its first tier's pose (Day 1), as every
+// progressive item answers its first tier. object_obj_tokeidai is MM's alone:
+// the curated half carries the four lists, their textures and their vertex
+// arrays by path (assets/crossgame/manifest.txt).
+
+/** DrawClock's Matrix_RotateZS(-clockFaceRotation * 2), clockFaceRotation an s16. */
+constexpr int16_t ClockFaceTurn(uint16_t clockFaceRotation) {
+    return (int16_t)(-(int16_t)clockFaceRotation * 2);
+}
+
+/** A clock's model: 1 and *out; 0 and *reason (NULL: not a clock). */
+int ModelForClock(RandoItemId ri, ComboModel* out, const char** reason) {
+    *reason = nullptr;
+    bool night = false;
+    switch (ri) {
+        case RI_TIME_DAY_1:
+        case RI_TIME_DAY_2:
+        case RI_TIME_DAY_3:
+        case RI_TIME_PROGRESSIVE:
+            break;
+        case RI_TIME_NIGHT_1:
+        case RI_TIME_NIGHT_2:
+        case RI_TIME_NIGHT_3:
+            night = true;
+            break;
+        default:
+            return 0;
+    }
+    const int16_t faceTurn = ClockFaceTurn(night ? 0 : 0xC000);
+    const int16_t panelTurn = (int16_t)(night ? 0x8000 : 0);
+    const ComboModelJoint joints[] = {
+        { -1, { 0, 0, 0 }, { 0, 0, faceTurn } },       // 0 the face
+        { 0, { 0, -1112, -20 }, { 0, panelTurn, 0 } }, // 1 the sun-and-moon panel
+    };
+    // DrawClock's emission order; the ring and the centre draw under the model's
+    // matrix (part joint 0), the face and the panel under their joints (n + 1).
+    struct ClockPart {
+        const char* dl;
+        uint8_t joint;
+    };
+    const ClockPart parts[] = {
+        { gClockTowerMinuteRingDL, 0 },
+        { gClockTowerClockCenterAndHandDL, 0 },
+        { gClockTowerClockFaceDL, 1 },
+        { gClockTowerSunAndMoonPanelDL, 2 },
+    };
+    Combo_ModelInit(out);
+    for (const ClockPart& part : parts) {
+        if (Combo_ModelAddPart(out, part.dl, kOpa, 0) != 1) {
+            Combo_ModelInit(out);
+            *reason = "clock list path malformed";
+            return 0;
+        }
+        out->parts[out->partCount - 1].joint = part.joint;
+    }
+    out->opaSetupDl = 25;
+    out->scale = 0.015f;
+    out->jointCount = (uint8_t)(sizeof(joints) / sizeof(joints[0]));
+    std::memcpy(out->joints, joints, sizeof(joints));
+    DefaultSetups(out);
+    if (!Combo_ModelIsWellFormed(out)) {
+        Combo_ModelInit(out);
+        *reason = "recipe produced a malformed model";
+        return 0;
+    }
+    return 1;
+}
+
 int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
     Combo_ModelInit(out);
     *reason = nullptr;
@@ -583,6 +664,12 @@ int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {
         return 0;
     }
     if (ModelForSong(ri, out, reason) == 1) {
+        return 1;
+    }
+    if (*reason != nullptr) {
+        return 0;
+    }
+    if (ModelForClock(ri, out, reason) == 1) {
         return 1;
     }
     if (*reason != nullptr) {

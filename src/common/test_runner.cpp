@@ -710,7 +710,7 @@ extern "C" {
 #include "tests/test_grant_sources.c"
 
 // Shared cross-game RESOURCE locks (#525): the delta-harvest watermark that
-// survives the 500-vs-999 wallet mismatch, the monotonic/consumable split, the
+// survives an unequal wallet cap (a live tier below the pool's), the monotonic/consumable split, the
 // first-harvest seed that stops a .redsave load from doubling the player's
 // money, and the canonical heart quantity with its 20-heart clamp. FILE SCOPE
 // (compiled as C++) like the file above; every symbol it drives is C-linkage
@@ -8156,6 +8156,16 @@ const TestDescriptor gTests[] = {
       "A far game's capacity tier found on a host steps the shared pool at its pickup and raises the finder's tier "
       "at once, never crossing (#1120)",
       Test_SharedTierPickup },
+    // #1284: a far game's wallet stepped at its pickup fills the running game's
+    // rupees to the new cap under the pair's frozen fill-wallets rule. ROM-free.
+    { "shared-wallet-fill-hyrule",
+      "MM's wallet found in Hyrule fills OoT's rupees to the new cap when the pair's frozen fill-wallets rule (OoT's "
+      "Full Wallets) is on (#1284)",
+      Test_SharedWalletFillHyrule },
+    { "shared-wallet-fill-termina",
+      "OoT's wallet found in Termina fills MM's rupees to the new cap when the pair's frozen fill-wallets rule is on, "
+      "once (#1284)",
+      Test_SharedWalletFillTermina },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "

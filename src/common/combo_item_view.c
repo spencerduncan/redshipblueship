@@ -457,8 +457,8 @@ typedef struct {
 
 static const SharedRowDef kSharedRows[] = {
     { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
-    // The wallets' capacities differ per game (MM's largest holds 500, OoT's
-    // 999), so the tier shows with its own ceiling rather than as a rupee max.
+    // The tier shows with each game's own ceiling (both tier 3s hold 999 since
+    // #1283) rather than as a rupee max.
     // Tier 0 is the child's wallet every file starts with, so the row is held
     // at every tier (count = the tier, 0..3), agreeing with OoT's own wallet
     // row outside wallet shuffle. The pool carries no "no wallet yet" state

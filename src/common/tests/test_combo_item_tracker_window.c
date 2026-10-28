@@ -1043,11 +1043,11 @@ int CitwLockKeySpaces(const ComboItemOps* oot, const ComboItemOps* mm) {
     }
     CITW_ASSERT(oot->sharedIcon != nullptr && mm->sharedIcon != nullptr);
     // Each game draws a pool row the way its own tracker does (#458 U3 review):
-    // the wallet's capacity printed per tier (OoT's tycoon tier holds 999, MM's
-    // largest 500) and held at every tier (the pool's rule), MM's grayscale
-    // rupee tinted MM's green, OoT's icons untinted.
+    // the wallet's capacity printed per tier (both games' tier 3, OoT's
+    // Tycoon's Wallet, holds 999: #1283) and held at every tier (the pool's
+    // rule), MM's grayscale rupee tinted MM's green, OoT's icons untinted.
     const int ootWallet[4] = { 99, 200, 500, 999 };
-    const int mmWallet[4] = { 99, 200, 500, 500 };
+    const int mmWallet[4] = { 99, 200, 500, 999 };
     for (uint16_t tier = 0; tier <= 3; tier++) {
         ComboItemRow row = {};
         row.have = true;
