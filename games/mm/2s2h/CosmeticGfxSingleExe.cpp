@@ -262,6 +262,26 @@ Gfx* Gfx_DrawTexRectIA8_DropShadowOffsetOverride(Gfx* pkt, TexturePtr texture, s
 }
 
 /**
+ * W6-COS-B (#1239): the seams of Link's per-form model colours, for the cosmetics-patch-owner-gate row. Passes is how
+ * many patch passes reached the patches, Owed whether one is owed to MM's next frame, SetBodySkipped stops each pass
+ * once it is counted (the row has no archive to patch), and OnMmFrame is what MM's frame runs.
+ */
+int MM_CosmeticPlayerPatches_Passes(void) {
+    return 0;
+}
+
+int MM_CosmeticPlayerPatches_Owed(void) {
+    return 0;
+}
+
+void MM_CosmeticPlayerPatches_SetBodySkipped(int skip) {
+    (void)skip;
+}
+
+void MM_CosmeticPlayerPatches_OnMmFrame(void) {
+}
+
+/**
  * ROM-free lock for the wrapper contract (see file header). Returns 0 on
  * pass, non-zero on the first failed check.
  */
@@ -451,7 +471,41 @@ int CosmeticGfxStub_RunHeadless(void) {
         setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "HUD.RupeeIcon", ".Color", 5, 6, 7);
         expect("MM's own Rupee Icon key",
                CosmeticEditor_GetChangedColor(200, 255, 100, 255, COSMETIC_ELEMENT_RUPEE_ICON), 5, 6, 7, 255);
-        // W6-COS-B: the Hearts case goes here.
+        // 8. W6-COS-B (#1239): hearts and magic. SoH's Hearts colours MM's normal hearts and leaves its beating heart,
+        //    an MM row's own key; SoH's Magic colours MM's normal meter and leaves the Chateau Romani meter.
+        {
+            static const char* const kHeartKeys[] = {
+                "gCosmetics.Consumable.Hearts.Value",
+                "gCosmetics.Consumable.Hearts.Changed",
+                "gCosmetics.Consumable.Magic.Value",
+                "gCosmetics.Consumable.Magic.Changed",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating.Color",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating.Changed",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Magic.Chateau.Color",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Magic.Chateau.Changed",
+            };
+            setColor("gCosmetics.Consumable.Hearts", ".Value", 12, 34, 56);
+            expect("SoH's Hearts on MM's normal hearts",
+                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL), 12, 34, 56, 255);
+            expect("SoH's Hearts on MM's beating heart",
+                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 255, 70, 50,
+                   200);
+            setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating", ".Color", 21, 22, 23);
+            expect("MM's own Beating Hearts key",
+                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 21, 22, 23,
+                   255);
+            setColor("gCosmetics.Consumable.Magic", ".Value", 31, 32, 33);
+            expect("SoH's Magic on MM's magic meter",
+                   CosmeticEditor_GetChangedColor(0, 200, 0, 255, COSMETIC_ELEMENT_MAGIC_NORMAL), 31, 32, 33, 255);
+            expect("SoH's Magic on MM's Chateau meter",
+                   CosmeticEditor_GetChangedColor(0, 0, 200, 255, COSMETIC_ELEMENT_MAGIC_CHATEAU), 0, 0, 200, 255);
+            setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "Magic.Chateau", ".Color", 41, 42, 43);
+            expect("MM's own Chateau Magic key",
+                   CosmeticEditor_GetChangedColor(0, 0, 200, 255, COSMETIC_ELEMENT_MAGIC_CHATEAU), 41, 42, 43, 255);
+            for (const char* key : kHeartKeys) {
+                CVarClear(key);
+            }
+        }
         // W6-COS-C: the arrow and MM-only trail cases go here.
 
         clearKeys();
