@@ -1041,6 +1041,8 @@ if(BUILD_TESTING)
     # file loads with an empty overflow, and room runs out only at the logical capacity.
     redship_add_test(NAME SaveSharedItemOverflowRoundtrip COMMAND redship --test save-shared-item-overflow-roundtrip)
     redship_add_test(NAME SaveSharedItemOverflowLegacy COMMAND redship --test save-shared-item-overflow-legacy)
+    # The #785 moon-crash reset restores the overflow segment with the fixed slots (#1264 review N1).
+    redship_add_test(NAME SaveSharedItemOverflowResetRestore COMMAND redship --test save-shared-item-overflow-reset-restore)
     redship_add_test(NAME SharedItemOverflowOrder COMMAND redship --test shared-item-overflow-order)
     redship_add_test(NAME SharedItemOverflowHasRoom COMMAND redship --test shared-item-overflow-has-room)
     # The .redsave commit choke point (#537/#531): every commit is a
