@@ -130,6 +130,12 @@
  *     MM's Bunny Hood or Deku Mask presents OoT's mask category, one hosting a
  *     Clock Town Stray Fairy the fairy category (z_en_box.c dresses them with
  *     SoH's mask and fairy chest models), where both presented major before.
+ *  M22 MM'S CLOCKS IN OoT (#1281): each of MM's six clock items and Progressive
+ *     Time answers DrawClock as a descriptor (the four object_obj_tokeidai
+ *     lists on OPA under setup 25 at scale 0.015, the face and the sun-and-moon
+ *     panel under two joints), day and night differing only in the face and
+ *     panel turns, DrawClock's constants read off DrawFuncs.cpp; OoT's shop
+ *     shelf and get-item cutscene draw the clock, not the mystery stand-in.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++);
  * every symbol it drives is C-linkage.
@@ -1557,6 +1563,184 @@ TestResult FmMMSongsInOoT(void) {
     return TEST_PASS;
 }
 
+// ---- M22: MM's clocks in OoT (#1281) -------------------------------------------
+
+struct FmClock {
+    const char* name;
+    bool night;
+};
+
+// The items DrawClock draws (2s2h/Rando/DrawItem.cpp). Progressive Time reads the
+// live save in MM; as every progressive item, it answers its first tier's model
+// (Day 1).
+const FmClock kFmClocks[] = {
+    { "Time (Day 1)", false }, { "Time (Night 1)", true }, { "Time (Day 2)", false },     { "Time (Night 2)", true },
+    { "Time (Day 3)", false }, { "Time (Night 3)", true }, { "Progressive Time", false },
+};
+
+// DrawClock's four object_obj_tokeidai lists, in its emission order.
+const char* const kFmClockLists[4] = {
+    "/object_obj_tokeidai/gClockTowerMinuteRingDL",
+    "/object_obj_tokeidai/gClockTowerClockCenterAndHandDL",
+    "/object_obj_tokeidai/gClockTowerClockFaceDL",
+    "/object_obj_tokeidai/gClockTowerSunAndMoonPanelDL",
+};
+
+/** M22: DrawClock's body off games/mm/2s2h/Rando/DrawFuncs.cpp; false when unreadable. */
+bool FmDrawClockBody(std::string* out) {
+    std::string text;
+    if (!FmFileText("games/mm/2s2h/Rando/DrawFuncs.cpp", &text)) {
+        return false;
+    }
+    const size_t at = text.find("void DrawClock(RandoItemId randoItemId, Actor* actor) {");
+    const size_t end = at != std::string::npos ? text.find("\n}", at) : std::string::npos;
+    if (end == std::string::npos) {
+        return false;
+    }
+    *out = text.substr(at, end - at);
+    return true;
+}
+
+/**
+ * M22 (#1281): each of MM's clock items answers DrawClock as a descriptor in
+ * OoT, not the stand-in: the four object_obj_tokeidai lists on OPA under setup
+ * 25 at MM_Matrix_Scale(0.015), the face under a joint turned about Z by
+ * -2 * clockFaceRotation and the sun-and-moon panel under a child joint at
+ * (0, -1112, -19.6) turned about Y by sunMoonPanelRotation; day and night
+ * differ only in those two turns. DrawClock's constants are read off
+ * DrawFuncs.cpp, so a copy that drifts fails. OoT's shop shelf and get-item
+ * cutscene draw the clock.
+ */
+TestResult FmClockModels(void) {
+    const uint8_t kDesc = COMBO_MODEL_ANSWER_DESCRIPTOR;
+    const uint8_t kOpa = COMBO_MODEL_LAYER_OPA;
+
+    // DrawClock's shape, off its source.
+    {
+        std::string body;
+        FM_ASSERT(FmDrawClockBody(&body), "M22 DrawClock read off games/mm/2s2h/Rando/DrawFuncs.cpp");
+        static const char* const kNeedles[] = {
+            "clockFaceRotation = 0xC000;",
+            "sunMoonPanelRotation = 0x8000;",
+            "Gfx_SetupDL25_Opa(",
+            "MM_Matrix_Scale(0.015f, 0.015f, 0.015f, MTXMODE_APPLY);",
+            "Matrix_RotateZS(-clockFaceRotation * 2, MTXMODE_APPLY);",
+            "MM_Matrix_Translate(0.0f, -1112.0f, -19.6f, MTXMODE_APPLY);",
+            "Matrix_RotateYS(sunMoonPanelRotation, MTXMODE_APPLY);",
+        };
+        int missing = 0;
+        for (const char* needle : kNeedles) {
+            if (body.find(needle) == std::string::npos) {
+                printf("[TEST]   M22 DrawClock no longer says \"%s\"\n", needle);
+                missing++;
+            }
+        }
+        size_t last = 0;
+        int outOfOrder = 0;
+        for (const char* tail : kFmClockLists) {
+            const std::string call = std::string("(Gfx*)") + (std::strrchr(tail, '/') + 1) + ")";
+            const size_t at = body.find(call, last);
+            if (at == std::string::npos) {
+                printf("[TEST]   M22 DrawClock does not draw %s after the lists before it\n", call.c_str());
+                outOfOrder++;
+                continue;
+            }
+            last = at;
+        }
+        FM_ASSERT(missing == 0 && outOfOrder == 0,
+                  "M22 DrawClock's setup, scale, face and panel transforms and its four lists are the ones the "
+                  "descriptor re-expresses (see the M22 lines above)");
+    }
+
+    // Each clock is a DESCRIPTOR in OoT with DrawClock's shape.
+    ComboModel day = {};
+    ComboModel night = {};
+    for (const FmClock& c : kFmClocks) {
+        SharedItem item;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, c.name, &item), "M22 named item");
+        const char* reason = MM_ComboModel_TestItemReason(item.id);
+        ComboModelAnswer a;
+        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_OOT, item, &a);
+        printf("[TEST]   M22 %s in OoT: answer %u (%s)\n", c.name, (unsigned)kind,
+               reason == nullptr ? "a model" : reason);
+        FM_ASSERT(reason == nullptr && kind == kDesc,
+                  "M22 #1281: an MM clock item is a DESCRIPTOR in OoT, not the stand-in (see the M22 lines above)");
+        const ComboModel& m = a.model;
+        FM_ASSERT(Combo_ModelIsWellFormed(&m) == 1, "M22 the clock descriptor is well-formed");
+        bool lists = m.partCount == 4;
+        for (int i = 0; lists && i < 4; i++) {
+            lists = FmTailIs(m.parts[i].dl, kFmClockLists[i]) && m.parts[i].layer == kOpa &&
+                    m.parts[i].billboard == 0 && m.parts[i].joint == (i < 2 ? 0 : i - 1);
+        }
+        FM_ASSERT(lists, "M22 a clock is DrawClock's four lists on OPA in its order: the minute ring and the centre "
+                         "and hand under the model's matrix, the face under joint 0, the panel under joint 1");
+        FM_ASSERT(m.opaSetupDl == 25 && m.xluSetupDl == 0 && std::fabs(m.scale - 0.015f) < 1e-6f &&
+                      m.rotation[0] == 0 && m.rotation[1] == 0 && m.rotation[2] == 0 && m.scrolls[0].segment == 0 &&
+                      m.scrolls[1].segment == 0 && !m.opaColor.set && !m.xluColor.set && !m.grayscale &&
+                      m.segmentColors[0].segment == 0 && m.segmentColors[1].segment == 0 && m.jointSegment == 0,
+                  "M22 a clock is drawn under setup 25 on OPA at MM_Matrix_Scale(0.015), with no scroll, colour or "
+                  "segment binding");
+        // DrawClock: the face turns about Z by -2 * clockFaceRotation (s16: day
+        // 0xC000 -> 0x8000, night 0); the panel sits at (0, -1112, -19.6) in the
+        // face's frame (whole units in a joint) and turns about Y by
+        // sunMoonPanelRotation (day 0, night 0x8000).
+        const int16_t face = c.night ? 0 : (int16_t)-32768;
+        const int16_t panel = c.night ? (int16_t)-32768 : 0;
+        const bool joints = m.jointCount == 2 && m.joints[0].parent == -1 && m.joints[0].pos[0] == 0 &&
+                            m.joints[0].pos[1] == 0 && m.joints[0].pos[2] == 0 && m.joints[0].rot[0] == 0 &&
+                            m.joints[0].rot[1] == 0 && m.joints[0].rot[2] == face && m.joints[1].parent == 0 &&
+                            m.joints[1].pos[0] == 0 && m.joints[1].pos[1] == -1112 && m.joints[1].pos[2] == -20 &&
+                            m.joints[1].rot[0] == 0 && m.joints[1].rot[1] == panel && m.joints[1].rot[2] == 0;
+        FM_ASSERT(joints, c.night ? "M22 a night clock shows the moon: the face unturned, the panel turned half way"
+                                  : "M22 a day clock shows the sun: the face turned half way, the panel unturned");
+        (c.night ? night : day) = m;
+    }
+    // Day and night differ only in the two turns.
+    {
+        ComboModel a = day;
+        ComboModel b = night;
+        a.joints[0].rot[2] = b.joints[0].rot[2] = 0;
+        a.joints[1].rot[1] = b.joints[1].rot[1] = 0;
+        FM_ASSERT(std::memcmp(&a, &b, sizeof(a)) == 0 && day.joints[0].rot[2] != night.joints[0].rot[2] &&
+                      day.joints[1].rot[1] != night.joints[1].rot[1],
+                  "M22 the day and night clocks differ only in the face and panel turns");
+    }
+    // object_obj_tokeidai is MM's alone: the curated half's copy is the one OoT
+    // resolves, and no host-native mapping applies.
+    for (const char* tail : kFmClockLists) {
+        const std::string path = std::string("__OTR__objects") + tail;
+        FM_ASSERT(Combo_ForeignModel_PathCollides(path.c_str()) == 0, "M22 a clock list is collision-free");
+    }
+
+    // OoT's shop shelf and get-item cutscene draw the clock.
+    {
+        SharedItem night3;
+        FM_ASSERT(TestNamedItem((uint8_t)GAME_MM, "Time (Night 3)", &night3), "M22 named item");
+        ComboModelAnswer a;
+        FM_ASSERT(Combo_GetForeignItemModel((uint8_t)GAME_OOT, night3, &a) == kDesc,
+                  "M22 Time (Night 3) is a DESCRIPTOR in OoT");
+        ComboForeignPlacement saved[RSBS_FOREIGN_PLACEMENT_CAP];
+        std::memcpy(saved, gComboCtx.foreignPlacementsOoT, sizeof(saved));
+        const uint16_t shelf = 0x0126; // opaque to the table; the host draw keys on the placement alone
+        Combo_ClearForeignPlacementsOoT();
+        const int placed = Combo_SetForeignPlacementOoT(shelf, night3);
+        OoT_ForeignModel_TestSetMountOverride(1);
+        printf("[TEST]   M22 Time (Night 3) on an OoT shelf, archive mounted:\n");
+        const int drawn = OoT_ForeignModel_TestShelfDraw(shelf, &a.model);
+        printf("[TEST]   M22 Time (Night 3) on an OoT check, the get-item cutscene:\n");
+        const int show = OoT_ForeignModel_TestShowOnlyGetItem(shelf, 1, &a.model, "Time (Night 3)");
+        OoT_ForeignModel_TestSetMountOverride(-1);
+        Combo_ClearForeignPlacementsOoT();
+        std::memcpy(gComboCtx.foreignPlacementsOoT, saved, sizeof(saved));
+        FM_ASSERT(placed >= 0, "M22 placement accepted");
+        FM_ASSERT(drawn == 0, "M22 #1281: the shelf draws the clock's tokeidai lists, not the mystery stand-in (see "
+                              "the M22 lines above)");
+        FM_ASSERT(show == 0, "M22 #1281: OoT's get-item cutscene shows the clock, not the mystery stand-in (see the "
+                             "M22 lines above)");
+    }
+    return TEST_PASS;
+}
+
 } // namespace
 
 TestResult Test_ForeignModel(void) {
@@ -2306,6 +2490,11 @@ TestResult Test_ForeignModel(void) {
 
     // ---- M19 (#1167) ------------------------------------------------------------
     if (FmMMSongsInOoT() != TEST_PASS) {
+        return TEST_FAIL;
+    }
+
+    // ---- M22 (#1281) ------------------------------------------------------------
+    if (FmClockModels() != TEST_PASS) {
         return TEST_FAIL;
     }
 
