@@ -3084,6 +3084,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1296: ShuffleFairies_FairyExists checks the actor in ACTORCAT_ITEMACTION
+    # rather than &actor (its own local pointer), and VB_SPAWN_GOSSIP_STONE_FAIRY
+    # relies on it to suppress a duplicate spawn while the fairy lives.
+    redship_add_test(NAME ShuffledFairyExists COMMAND redship --test shuffled-fairy-exists
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and

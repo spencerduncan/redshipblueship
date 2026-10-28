@@ -40,6 +40,16 @@
  *   (b) control: an EnElf carrying a CheckIdentity is bottled as its item (VB
  *       false, RandomizerInf set, parent = Link).
  *
+ * shuffled-fairy-exists (#1296):
+ *   (a) ShuffleFairies_FairyExists finds a live EnElf in ACTORCAT_ITEMACTION
+ *       whose CheckIdentity matches the requested check (even behind a
+ *       preceding non-fairy actor), rejects another check or a mismatched
+ *       CheckIdentity, and returns false once the fairy is removed.
+ *   (b) VB_SPAWN_GOSSIP_STONE_FAIRY suppresses spawning a duplicate fairy (and
+ *       resets gossipStone->unk_19D) while the stone's shuffled fairy is still
+ *       live in ACTORCAT_ITEMACTION, and falls back to vanilla once the
+ *       collected fairy is gone.
+ *
  * The randomizer option, the hook registries the legs dispatch, OoT_gPlayState,
  * gGameInfo and the whole save are put back before returning.
  */
@@ -66,6 +76,7 @@
 
 extern "C" {
 #include "src/overlays/actors/ovl_En_Elf/z_en_elf.h"
+#include "src/overlays/actors/ovl_En_Gs/z_en_gs.h"
 extern PlayState* OoT_gPlayState;
 // z_en_elf.c: the heal fairy's idle-and-touch action, and the post-touch circle
 // it hands over to (both external linkage there).
@@ -73,8 +84,10 @@ void func_80A0329C(EnElf* thisx, PlayState* play);
 void func_80A03610(EnElf* thisx, PlayState* play);
 }
 
-// ShuffleFairies.cpp: the ShipInit registrar ("IS_RANDO") for every fairy hook.
+// ShuffleFairies.cpp: the ShipInit registrar ("IS_RANDO") for every fairy hook,
+// and the duplicate-spawn check (#1296).
 void RegisterShuffleFairies();
+bool ShuffleFairies_FairyExists(CheckIdentity fairyIdentity);
 
 namespace {
 
@@ -279,6 +292,93 @@ void BottleLegs(void) {
     SF_CHECK(sFairy.actor.parent == &sPlayer.actor, "(b): a bottled shuffled fairy must be parented to Link\n");
 }
 
+void ExistsLegs(void) {
+    const CheckIdentity stoneSmall = IdentityOf(RC_TOT_LEFTMOST_GOSSIP_STONE_FAIRY);
+    const CheckIdentity stoneBig = IdentityOf(RC_TOT_LEFTMOST_GOSSIP_STONE_FAIRY_BIG);
+
+    // (a) ShuffleFairies_FairyExists inspects the actor in ACTORCAT_ITEMACTION,
+    // not the address of its own local pointer (#1296), and confirms the check matches.
+    ArmSave();
+    SF_CHECK(!ShuffleFairies_FairyExists(stoneSmall),
+             "(a): ShuffleFairies_FairyExists returned true on an empty ACTORCAT_ITEMACTION list\n");
+
+    Actor pot;
+    std::memset(&pot, 0, sizeof(Actor));
+    pot.id = ACTOR_OBJ_TSUBO;
+    pot.category = ACTORCAT_ITEMACTION;
+    ObjectExtension::GetInstance().Set<CheckIdentity>(&pot, CheckIdentity(stoneSmall));
+    sPlay.actorCtx.actorLists[ACTORCAT_ITEMACTION].head = &pot;
+    SF_CHECK(!ShuffleFairies_FairyExists(stoneSmall),
+             "(a): ShuffleFairies_FairyExists matched a non-EnElf actor carrying a CheckIdentity\n");
+
+    ArmFairy(FAIRY_HEAL);
+    pot.next = &sFairy.actor;
+    SF_CHECK(!ShuffleFairies_FairyExists(stoneSmall),
+             "(a): ShuffleFairies_FairyExists matched a vanilla EnElf with no CheckIdentity\n");
+
+    ObjectExtension::GetInstance().Set<CheckIdentity>(&sFairy.actor, CheckIdentity(stoneSmall));
+    const bool foundSmall = ShuffleFairies_FairyExists(stoneSmall);
+    const bool foundBig = ShuffleFairies_FairyExists(stoneBig);
+    CheckIdentity mismatchedCheck = stoneSmall;
+    mismatchedCheck.randomizerCheck = RC_TOT_LEFTMOST_GOSSIP_STONE_FAIRY_BIG;
+    const bool foundMismatched = ShuffleFairies_FairyExists(mismatchedCheck);
+    std::printf("[TEST] %s: (a) live fairy: small=%d big=%d mismatchedCheck=%d\n", sRow, foundSmall ? 1 : 0,
+                foundBig ? 1 : 0, foundMismatched ? 1 : 0);
+    SF_CHECK(foundSmall,
+             "(a): ShuffleFairies_FairyExists failed to find a live shuffled fairy for its check (#1296)\n");
+    SF_CHECK(!foundBig, "(a): ShuffleFairies_FairyExists matched a different fairy check on the same stone\n");
+    SF_CHECK(!foundMismatched,
+             "(a): ShuffleFairies_FairyExists matched when randomizerCheck differed from the actor's check\n");
+
+    pot.next = nullptr;
+    sPlay.actorCtx.actorLists[ACTORCAT_ITEMACTION].head = nullptr;
+    ObjectExtension::GetInstance().Remove<CheckIdentity>(&sFairy.actor);
+    ObjectExtension::GetInstance().Remove<CheckIdentity>(&pot);
+    const bool foundAfterRemove = ShuffleFairies_FairyExists(stoneSmall);
+    std::printf("[TEST] %s: (a) after removal: small=%d\n", sRow, foundAfterRemove ? 1 : 0);
+    SF_CHECK(!foundAfterRemove,
+             "(a): ShuffleFairies_FairyExists still returned true after the fairy left ACTORCAT_ITEMACTION\n");
+
+    // (b) VB_SPAWN_GOSSIP_STONE_FAIRY relies on ShuffleFairies_FairyExists to block a duplicate
+    // spawn (and resets gossipStone->unk_19D) while the stone's fairy is still in ACTORCAT_ITEMACTION.
+    ArmSave();
+    ArmFairy(FAIRY_HEAL);
+    sPlay.actorCtx.actorLists[ACTORCAT_ITEMACTION].head = &sFairy.actor;
+    ObjectExtension::GetInstance().Set<CheckIdentity>(&sFairy.actor, CheckIdentity(stoneSmall));
+    // With the check flag set (as during the fairy's post-pickup circle, and so
+    // SpawnFairy does not reach OoT_Actor_Spawn when ShuffleFairies_FairyExists is broken),
+    // the hook must still veto while the fairy actor exists.
+    Flags_SetRandomizerInf(stoneSmall.randomizerInf);
+
+    EnGs stone;
+    std::memset(&stone, 0, sizeof(EnGs));
+    stone.actor.id = ACTOR_EN_GS;
+    stone.actor.world.pos.z = -680.0f;
+    stone.unk_19D = 1;
+    sPlay.msgCtx.ocarinaMode = OCARINA_MODE_04;
+    sPlay.msgCtx.unk_E3F2 = OCARINA_SONG_SUNS;
+
+    const bool shouldWhileLive = GameInteractor_Should(VB_SPAWN_GOSSIP_STONE_FAIRY, stone.unk_19D & 1, &stone);
+    std::printf("[TEST] %s: (b) stone VB while fairy lives: should=%d unk_19D=%u\n", sRow, shouldWhileLive ? 1 : 0,
+                (unsigned)stone.unk_19D);
+    SF_CHECK(!shouldWhileLive,
+             "(b): VB_SPAWN_GOSSIP_STONE_FAIRY allowed a second fairy spawn while the check's fairy still existed "
+             "(#1296)\n");
+    SF_CHECK(stone.unk_19D == 0,
+             "(b): VB_SPAWN_GOSSIP_STONE_FAIRY left gossipStone->unk_19D latched when an existing fairy blocked the "
+             "spawn (#1296)\n");
+
+    // Control: once the collected fairy actor is gone, the stone falls back to vanilla fairy spawning.
+    sPlay.actorCtx.actorLists[ACTORCAT_ITEMACTION].head = nullptr;
+    ObjectExtension::GetInstance().Remove<CheckIdentity>(&sFairy.actor);
+    stone.unk_19D = 1;
+    const bool shouldAfterGone = GameInteractor_Should(VB_SPAWN_GOSSIP_STONE_FAIRY, stone.unk_19D & 1, &stone);
+    std::printf("[TEST] %s: (b) stone VB after collected fairy is gone: should=%d\n", sRow, shouldAfterGone ? 1 : 0);
+    SF_CHECK(shouldAfterGone,
+             "(b): control failed: VB_SPAWN_GOSSIP_STONE_FAIRY must allow vanilla fairy once check is collected and "
+             "fairy actor is gone\n");
+}
+
 /** Runs @p legs on a randomizer save with Shuffle Gossip Stone Fairies on and
  *  only ShuffleFairies' hooks registered; puts every piece of global state back. */
 int RunRow(const char* row, void (*legs)(void)) {
@@ -293,6 +393,9 @@ int RunRow(const char* row, void (*legs)(void)) {
     }
     if (Rando::StaticData::GetLocation(RC_TOT_LEFTMOST_GOSSIP_STONE_FAIRY)->GetName().empty()) {
         Rando::StaticData::InitLocationTable();
+    }
+    if (Rando::StaticData::CheckFromActorMultimap.empty()) {
+        Rando::StaticData::InitHashMaps();
     }
     const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
     const uint8_t priorStone = ctx->GetOption(RSK_SHUFFLE_STONE_FAIRIES).Get();
@@ -357,4 +460,9 @@ extern "C" int OoT_ShuffledFairyNoHealTest_Run(void) {
 /** @return 0 when every leg holds, 1 otherwise. */
 extern "C" int OoT_ShuffledFairyBottleGuardTest_Run(void) {
     return RunRow("shuffled-fairy-bottle-guard", BottleLegs);
+}
+
+/** @return 0 when every leg holds, 1 otherwise. */
+extern "C" int OoT_ShuffledFairyExistsTest_Run(void) {
+    return RunRow("shuffled-fairy-exists", ExistsLegs);
 }
