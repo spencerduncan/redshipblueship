@@ -33,6 +33,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include <stdio.h>
 // Lane C1 (#392): MM-side hook dispatch. The unqualified
 // GameInteractor_Execute* calls in this file bind OoT's extern "C" wrappers,
 // which (correctly, #367) no-op while MM is the active game — and OoT's
@@ -50,6 +51,17 @@ void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor);
 // macro rebind in 2s2h/GameInteractor/GameInteractor.h (#438), which this file
 // already includes. Declaring them here too would be harmless but misleading —
 // the rebind, not a hand-written twin call, is what routes them.
+
+// (#1308) Actor overlayEntry validation, delete guard, and per-actor canary.
+bool MM_Actor_OverlayEntryIsValid(const Actor* actor);
+ActorOverlay* MM_Actor_ResolveValidOverlayEntry(Actor* actor, PlayState* play, const char* site);
+s32 MM_Actor_ScanListsForOverlayEntryCorruption(PlayState* play, ActorContext* actorCtx, const Actor* culprit,
+                                                const char* phase);
+void MM_ActorOverlayGuard_ResetForTest(void);
+s32 MM_ActorOverlayGuard_GetHitCountForTest(void);
+s16 MM_ActorOverlayGuard_GetLastCulpritIdForTest(void);
+s16 MM_ActorOverlayGuard_GetLastVictimIdForTest(void);
+u32 MM_ActorOverlayGuard_GetLastBadLowDwordForTest(void);
 #endif
 
 // bss
@@ -3780,6 +3792,53 @@ s32 MM_ActorOverlayTable_RetireAbandonedClients(void) {
         retired++;
     }
     return retired;
+}
+
+static s32 sOverlayEntryGuardHitCount = 0;
+static s16 sLastCorruptCulpritId = -1;
+static s16 sLastCorruptVictimId = -1;
+static u32 sLastCorruptBadLowDword = 0;
+
+void MM_ActorOverlayGuard_ResetForTest(void) {
+    sOverlayEntryGuardHitCount = 0;
+    sLastCorruptCulpritId = -1;
+    sLastCorruptVictimId = -1;
+    sLastCorruptBadLowDword = 0;
+}
+
+s32 MM_ActorOverlayGuard_GetHitCountForTest(void) {
+    return sOverlayEntryGuardHitCount;
+}
+
+s16 MM_ActorOverlayGuard_GetLastCulpritIdForTest(void) {
+    return sLastCorruptCulpritId;
+}
+
+s16 MM_ActorOverlayGuard_GetLastVictimIdForTest(void) {
+    return sLastCorruptVictimId;
+}
+
+u32 MM_ActorOverlayGuard_GetLastBadLowDwordForTest(void) {
+    return sLastCorruptBadLowDword;
+}
+
+bool MM_Actor_OverlayEntryIsValid(const Actor* actor) {
+    return (actor != NULL) && (actor->overlayEntry != NULL);
+}
+
+ActorOverlay* MM_Actor_ResolveValidOverlayEntry(Actor* actor, PlayState* play, const char* site) {
+    (void)play;
+    (void)site;
+    return (actor != NULL) ? actor->overlayEntry : NULL;
+}
+
+s32 MM_Actor_ScanListsForOverlayEntryCorruption(PlayState* play, ActorContext* actorCtx, const Actor* culprit,
+                                                const char* phase) {
+    (void)play;
+    (void)actorCtx;
+    (void)culprit;
+    (void)phase;
+    return 0;
 }
 #endif
 

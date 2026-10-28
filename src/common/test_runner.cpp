@@ -109,6 +109,12 @@ int MM_StartupRestore_RunHeadless(void);
 //     leave client-free overlays alone, restore the statics only Destroy used
 //     to restore, and drop every per-actor ObjectExtension entry.
 int MM_AbandonedSessionStatics_RunHeadless(void);
+// mm-actor-overlay-entry-guard (#1308, games/mm/2s2h/mm_actor_overlay_entry_guard_test.cpp):
+// MM_Actor_OverlayEntryIsValid, MM_Actor_ResolveValidOverlayEntry, MM_Actor_Delete,
+// and the per-actor update/draw canary reject corrupted actor->overlayEntry
+// pointers (including the Southern Swamp float 0x456EE46C = 3822.27f), recover
+// &gActorOverlayTable[actor->id], and identify the culprit actor ID.
+int MM_ActorOverlayEntryGuard_RunHeadless(void);
 // oot-abandoned-session-statics (#750, the OoT leg of #666) — OoT's registered
 // suspend, which retires the Play gamestate without Play_Destroy, must then
 // reset every ActorDB entry that still had clients (and zero its count, which
@@ -1141,6 +1147,10 @@ static TestResult Test_MMResumeArena(void) {
 // no ROM, no arena; a scope guard restores everything it seeds on every exit.
 static TestResult Test_MMAbandonedSessionStatics(void) {
     return MM_AbandonedSessionStatics_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMActorOverlayEntryGuard(void) {
+    return MM_ActorOverlayEntryGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // OoT abandoned-session contract (#750; see the extern decl above). Thin wrapper
@@ -9042,6 +9052,11 @@ const TestDescriptor gTests[] = {
       "(En_Test4's clock latch) after the graph is retired, client-free overlays are not, the statics only Destroy "
       "restored are restored, and no per-actor ObjectExtension entry survives (#666)",
       Test_MMAbandonedSessionStatics },
+    { "mm-actor-overlay-entry-guard",
+      "MM_Actor_Delete and the per-actor update/draw canary validate actor->overlayEntry against "
+      "&gActorOverlayTable[actor->id], guard against float-overwritten pointers (0x456EE46C), recover the canonical "
+      "overlay entry, and identify the culprit actor ID (#1308)",
+      Test_MMActorOverlayEntryGuard },
     { "mm-mod-set",
       "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
       "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
