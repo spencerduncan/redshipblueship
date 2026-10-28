@@ -1134,8 +1134,13 @@ TestResult Test_CVarClassification(void) {
                 if (!translated) {
                     return "no kTranslatedKeys row translates SoH's \"" + v + "\" onto MM's \"" + mmColor + "\"";
                 }
+                // W6-COS-B: SoH's twin may itself be a rename's canonical key when the rename is SoH-shaped on both
+                // sides (#453's Link_KokiriTunic.Value -> Link.KokiriTunic.Value, which Human Link's tunic reads); only
+                // a rename that would copy an MM .Color onto it, or rename MM's own key, is the raw copy refused here.
                 for (std::size_t i = 0; i < RSBS::kConvergedKeyCount; i++) {
-                    if (mmColor == RSBS::kConvergedKeys[i].legacy || v == RSBS::kConvergedKeys[i].canonical) {
+                    if (mmColor == RSBS::kConvergedKeys[i].legacy ||
+                        (v == RSBS::kConvergedKeys[i].canonical &&
+                         endsWith(RSBS::kConvergedKeys[i].legacy, ".Color"))) {
                         return "\"" + mmColor + "\" is also a rename row; the importer would copy SoH's colour raw";
                     }
                 }

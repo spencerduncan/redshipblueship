@@ -1567,6 +1567,8 @@ void SetSohBindingsHeaderOpen(const char* header, bool open) {
 // W6-COS-A (#1239): SoH's Cosmetics Editor window, which colours Majora's Mask too.
 constexpr const char* kSohCosmeticsWindow = "Cosmetics Editor";
 constexpr const char* kSohCosmeticsReference = "window/Cosmetics Editor";
+// W6-COS-B (#1239): the same window on its Link & Items tab.
+constexpr const char* kSohCosmeticsLinkItemsPage = "window/Cosmetics Editor Link & Items";
 
 /**
  * Brings the Cosmetics Editor's tab @p tab to the front on the window's next frame. The tab bar is DrawElement's
@@ -2397,6 +2399,25 @@ void Session::BuildPageList() {
         p.stateText = { { "hud", { "B Button", "Majora's Mask", "Rupee Icon" } }, { "effects", { "Spin Attack" } } };
         p.stateContrast = { { "hud", "effects" }, { "effects", "hud" } };
         p.paneHovers.push_back({ "mm-rupee-icon", "hud", "Rupee Icon", false });
+        p.needsRom = true;
+        pages.push_back(p);
+    }
+    {
+        // W6-COS-B (#1239): the same window on its Link & Items tab (EnterState selects it). SoH's Kokiri Tunic and
+        // Hair rows colour Human Link in MM too, and its Consumables rows MM's hearts and magic meter; MM's colours
+        // with no SoH twin sit in Majora's Mask blocks after SoH's Link and Consumables groups. The tab scrolls as a
+        // whole; one MM row of each block is found through the combo_ui seam's rect report, scrolled into view and
+        // hovered: its tooltip must show, ending "Majora's Mask only.".
+        PageSpec p;
+        p.id = kSohCosmeticsLinkItemsPage;
+        p.origin = Origin::SOH_REFERENCE;
+        p.kind = Kind::WINDOW;
+        p.window = kSohCosmeticsWindow;
+        p.states = { "" };
+        p.expectText = { kSohCosmeticsWindow };
+        p.stateText[""] = { "Kokiri Tunic", "Deku Form Tunic" };
+        p.paneHovers.push_back({ "mm-deku-form-tunic", "", "Deku Form Tunic", false });
+        p.paneHovers.push_back({ "mm-chateau-magic", "", "Chateau Magic", false });
         p.needsRom = true;
         pages.push_back(p);
     }
@@ -3326,6 +3347,15 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             std::string why;
             PumpFrame(
                 nullptr, false, [tab]() { SelectSohCosmeticsTab(tab); }, why);
+        }
+    } else if (p.id == kSohCosmeticsLinkItemsPage) {
+        // W6-COS-B: as above, on the Link & Items tab.
+        auto cosmetics = gui->GetGuiWindow(kSohCosmeticsWindow);
+        if (cosmetics != nullptr) {
+            cosmetics->Show();
+            std::string why;
+            PumpFrame(
+                nullptr, false, []() { SelectSohCosmeticsTab("Link & Items"); }, why);
         }
     } else if (p.id == "window/Audio Editor") {
         // W6-AUDIO-SEQ: the tab each state shows (the request is kept until the window next draws).

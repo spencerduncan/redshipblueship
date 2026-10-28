@@ -4922,6 +4922,14 @@ extern "C" int CosmeticsEditor_CustomGfxPatchesDeferred(void);
 extern "C" void CosmeticsEditor_ApplyCustomGfxPatches(void);
 extern "C" void CosmeticsEditor_ReapplyDeferredGfxPatches(void);
 extern "C" void CosmeticsEditor_SetCustomGfxPatchBodySkipped(int skip);
+// W6-COS-B (#1239): the MM inverse's seams (games/mm/2s2h/CosmeticGfxSingleExe.cpp) and MM's registrar map
+// (games/mm/2s2h/ShipInitBridge_SingleExe.cpp).
+extern "C" int MM_CosmeticPlayerPatches_Passes(void);
+extern "C" int MM_CosmeticPlayerPatches_Owed(void);
+extern "C" void MM_CosmeticPlayerPatches_SetBodySkipped(int skip);
+extern "C" void MM_CosmeticPlayerPatches_OnMmFrame(void);
+extern "C" int MM_ShipInit_RegistrarCountForPath(const char* path);
+extern "C" void MM_ShipInit_OnCVarChanged(const char* path);
 
 TestResult Test_CosmeticsPatchOwnerGate(void) {
     printf("[TEST] cosmetics-patch-owner-gate: the Cosmetics Editor patches only while OoT runs (#1040)\n");
@@ -4977,6 +4985,47 @@ TestResult Test_CosmeticsPatchOwnerGate(void) {
     CosmeticsEditor_ReapplyDeferredGfxPatches();
     passes = CosmeticsEditor_CustomGfxPatchPasses();
     expect(passes == p1 + 1, "the owed pass was paid twice", passes - p1, deferred);
+
+    // 4. W6-COS-B (#1239): the inverse for Majora's Mask. Link's per-form model colours patch MM's display lists and
+    //    palettes (games/mm/2s2h/CosmeticGfxSingleExe.cpp), so their registrars are registered on every key that
+    //    decides a colour (MM's own, and SoH's Kokiri Tunic and Hair for Human Link's twins), and a change refuses
+    //    to patch while OoT owns the cache: it is owed to MM's next frame, which pays it.
+    {
+        static const char* const kPlayerKeys[] = {
+            "gCosmetic.Player.DekuTunic.Changed",  "gCosmetic.Player.DekuTunic.Color",
+            "gCosmetic.Player.KafeiHair.Color",    "gCosmetic.Player.ZoraTunic.Changed",
+            "gCosmetics.Link.KokiriTunic.Changed", "gCosmetics.Link.Hair.Value",
+        };
+        for (const char* key : kPlayerKeys) {
+            if (MM_ShipInit_RegistrarCountForPath(key) < 1) {
+                printf("[TEST] FAIL: no MM patch registrar is registered on %s\n", key);
+                failures++;
+            }
+        }
+        MM_CosmeticPlayerPatches_SetBodySkipped(1);
+        Context_SetCurrentGame(GAME_OOT);
+        const int m0 = MM_CosmeticPlayerPatches_Passes();
+        MM_ShipInit_OnCVarChanged("gCosmetic.Player.DekuTunic.Changed");
+        int mmPasses = MM_CosmeticPlayerPatches_Passes();
+        int owed = MM_CosmeticPlayerPatches_Owed();
+        expect(mmPasses == m0, "under OoT an MM colour change reached MM's patches", mmPasses - m0, owed);
+        expect(owed == 1, "under OoT an MM colour change was not owed to MM", mmPasses - m0, owed);
+        MM_CosmeticPlayerPatches_OnMmFrame();
+        mmPasses = MM_CosmeticPlayerPatches_Passes();
+        owed = MM_CosmeticPlayerPatches_Owed();
+        expect(mmPasses == m0 && owed == 1, "the owed MM pass was paid while OoT still ran", mmPasses - m0, owed);
+        Context_SetCurrentGame(GAME_MM);
+        MM_CosmeticPlayerPatches_OnMmFrame();
+        mmPasses = MM_CosmeticPlayerPatches_Passes();
+        owed = MM_CosmeticPlayerPatches_Owed();
+        expect(mmPasses == m0 + 1 && owed == 0, "MM's frame did not pay the owed pass", mmPasses - m0, owed);
+        MM_ShipInit_OnCVarChanged("gCosmetic.Player.DekuTunic.Changed");
+        mmPasses = MM_CosmeticPlayerPatches_Passes();
+        owed = MM_CosmeticPlayerPatches_Owed();
+        expect(mmPasses == m0 + 2 && owed == 0, "under MM an MM colour change did not patch at once", mmPasses - m0,
+               owed);
+        MM_CosmeticPlayerPatches_SetBodySkipped(0);
+    }
 
     CosmeticsEditor_SetCustomGfxPatchBodySkipped(0);
     Context_SetCurrentGame(savedGame);

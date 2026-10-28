@@ -868,6 +868,27 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       kCosmeticTranslationWhy },
     { 1239, "gCosmetic.HUD.Minimap.Color", "gCosmetics.HUD.Minimap.Value", kCosmeticTranslator,
       kCosmeticTranslationWhy },
+    // W6-COS-B (#1239): MM's hearts and magic meter, off SoH's Consumables rows, and Human Link's tunic and hair, off
+    // SoH's Kokiri Tunic (the canonical key, BUG 1's fix) and Hair. MM's beating hearts, Chateau magic and its other
+    // forms' colours have no twin: they are MM rows.
+    { 1239, "gCosmetic.Hearts.Normal.Color", "gCosmetics.Consumable.Hearts.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Hearts.Border.Color", "gCosmetics.Consumable.HeartBorder.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Hearts.DD.Color", "gCosmetics.Consumable.DDHearts.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Hearts.DDBorder.Color", "gCosmetics.Consumable.DDHeartBorder.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Magic.Normal.Color", "gCosmetics.Consumable.Magic.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Magic.Active.Color", "gCosmetics.Consumable.MagicActive.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Magic.Border.Color", "gCosmetics.Consumable.MagicBorder.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Player.HumanTunic.Color", RSBS_CVAR_COLOR_KOKIRI_TUNIC, kCosmeticTranslator,
+      kCosmeticTranslationWhy },
+    { 1239, "gCosmetic.Player.HumanHair.Color", "gCosmetics.Link.Hair.Value", kCosmeticTranslator,
+      kCosmeticTranslationWhy },
     // W6-COS-A: OoT's spin attack draws its charge AND its burst from one Primary per level (z_en_m_thunder.c), so
     // MM's two elements per level both read it; the Secondary is OoT's env colour, which MM's draw does not expose.
     { 1239, "gCosmetic.Effects.SpinSlashCharge.Color", "gCosmetics.SpinAttack.Level1Primary.Value", kCosmeticTranslator,
