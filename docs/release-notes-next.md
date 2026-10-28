@@ -4,14 +4,17 @@
 come with the release commit, not before.
 **Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
 this section.
-**Merged up to:** `main` at `3772e70d` (2026-10-27), 32 commits after the tag: pull requests #1174 to #1230 (#1174,
-#1179, #1183, #1193, #1208 and #1214 are docs; the numbers in that range that are not listed below are issues or open
-pull requests).
+**Merged up to:** `main` at `347ba755` (2026-10-27), 67 commits after the tag: pull requests #1174 to #1271 (#1174,
+#1179, #1183, #1193, #1208, #1214 and #1241 are docs; the numbers in that range that are not listed below are issues
+or open pull requests).
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
 #N". Nobody has played any of it. Every change below is locked by test rows except the warp-song prompt's hint
 (#1181; Mido's and the boss door's hints have generation coverage in a paired world since #1207, not a lock row), the
 Nearly No Logic cow rule (#1178), the capital P's width (#1198) and the debug-print font path (#1206), the last two
-locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 and #1214 are docs.
+locked by source checks in the Python tests, and the Mido's House debug seed (#1265, #1268: a fixture, made again);
+#1174, #1179, #1183, #1193, #1208, #1214 and #1241 are docs. The Majora's Mask settings rows (#1242 to #1271) are
+locked for their page, their key and the linking of their code; what each setting does in play is 2Ship2Harkinian's
+code, run by no test row.
 
 ---
 
@@ -26,7 +29,20 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   you spent came back), and a file saved in Termina showed Ocarina of Time's older wallet, bags and hearts until the
   first crossing. Loading a paired file now applies the shared pool to Ocarina of Time as the file loads. It
   also fixes the load half of issue #1159: a Piece of Heart found in Termina counts toward Hyrule's next heart
-  straight after a load. Files from `v0.3.1-prealpha` load as before; the save format did not change.
+  straight after a load. Files from `v0.3.1-prealpha` load as before; this fix did not change the save format (#1264
+  did, next item).
+- **Saves written by this build are version 5, and older builds refuse them** (#1264). The cross-game outbox grew a
+  new block in the `.redsave` file (Cross-game outbox, below). Files from `v0.3.1-prealpha` and every earlier
+  version-4 file load unchanged and are written as version 5 at their next save; from then on `v0.3.1-prealpha` and
+  older builds refuse that file, because its version is outside their window. Back up `Save/` before you try this
+  build if you may go back.
+- **Seed packages from every earlier build are refused: generate the seed again** (#1264). Lifting the 64-crossing
+  limit per side moves every world that reached it, so the seed generator's version is now 2: the same seed shows a
+  different fingerprint at file select, and a seed package written by a generator-1 build is refused with "Seed
+  package from another generator". The Mido's House debug seed was made again for generator 2 (#1268). The
+  settings fingerprint (`comboSettingsHash`) moved in all eight golden digests (the generator label only), and
+  `seed-digest-shopsanity`'s Majora's Mask placements, hints and free stones moved, because that world reached
+  exactly 64 crossings into Hyrule; its crossings did not move.
 - **Seeds.** The same seed and settings no longer make the same world as `v0.3.1-prealpha`. Two Majora's Mask logic
   gates (#1178) put Epona's Song and the Circus Leader's Mask, checks in every paired world, in a later sphere, so
   the single bag's crossings move; and gossip stones that read "No Hint" now read gag lines (#1181), which changes
@@ -50,7 +66,149 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   Assets off.
 - **The Combo Tracker is now the Check Tracker, and the Combo Item Tracker the Item Tracker; SoH's own windows of
   those names are retired** (#1192, Trackers below). Open them from Randomizer > Check Tracker and Randomizer > Item
-  Tracker; Combo > Windows is gone.
+  Tracker.
+- **The Combo header is gone** (#1248, Menus below): every Majora's Mask setting sits beside its Ship of Harkinian
+  twin, Settings has OoT Mods and MM Mods, and Save Files is under Dev Tools. A menu last left on a Combo page opens
+  on that page's new home. Older sections of these notes name the pages of their day: Combo > Windows is Randomizer >
+  Check Tracker (and Randomizer > Item Tracker), Combo > Tracker Settings is Randomizer > Item Tracker, Combo >
+  Majora's Mask is Enhancements > Quality of Life and Skips & Speed-ups, Combo > MM Mods is Settings > MM Mods,
+  Combo > Save Files is Dev Tools > Save Files, and Combo > Cross-Game Rules, MM Randomizer and MM Tricks are
+  Randomizer > Cross-Game, MM Randomizer and MM Tricks.
+- **Majora's Mask's settings are in the shared menu** (#1242 to #1271, issue #1233). About 270 of
+  2Ship2Harkinian's settings rows had no row in the shared menu, or no linked code, or both; they now sit on the
+  Ship of Harkinian page that holds their twin, apart from a few that cannot act in paired play (listed below).
+  Majora's Mask's first-person, right-stick aiming and free-camera Y axes start inverted, as Majora's Mask
+  plays, and can at last be turned off (Settings > Controls > Popout Bindings Window > Camera Controls). The
+  one-time import of 2Ship2Harkinian's settings runs only on the first boot of an install: see "Majora's Mask
+  settings in the shared menu", below.
+
+### Majora's Mask settings in the shared menu
+
+The 2026-10-27 audit of 2Ship2Harkinian's menu (issue #1233, sections issues #1235 to #1240) found about 270 settings
+rows a player could not reach in the single executable, or whose code was not linked, or both. Twenty lanes added
+them through one seam for Majora's Mask rows hosted on Ship of Harkinian's pages (#1244): each row sits on the page
+that holds its twin, or in a "Majora's Mask" block on the page of its nearest relatives, its code is linked, and its
+tooltip ends "Majora's Mask only." A row whose name matches the SoH row beside it carries an "MM" label. Where one
+setting already meant the same thing in both games, the one SoH row now drives both. The leftovers are tracked in
+issue #1272.
+
+What you will notice first:
+
+- **The camera is no longer stuck inverted in Termina.** Majora's Mask's aiming, right-stick aiming, shield and
+  camera inversion and sensitivity have their own rows in the Bindings window (Settings > Controls > Popout Bindings
+  Window > Link (P1) > Camera Controls), beside SoH's. Majora's Mask's first-person, right-stick aiming and free-camera
+  Y axes still start inverted, as Majora's Mask plays, and can now be turned off (#1243).
+- **Disable Navi Call Audio also mutes Tatl's call**, and Link's Voice Pitch Multiplier changes Link's voice in
+  Termina (Enhancements > Audio Editor > Audio Options); two new rows mute the Clock Town carpenters and the crying
+  Goron child (#1242).
+- **Every volume slider changes Majora's Mask at once**, instead of after a restart, and Settings > Audio has an
+  Ambience Volume slider for Majora's Mask's wind, birdsong and night sounds, right after Sound Effects Volume (#1244).
+- **MM Fast Text** has its own row under Text Speed (Enhancements > Skips & Speed-ups > Text): text draws fast and
+  holding B advances it (#1247).
+- **SoH's Mirrored World mirrors Termina** (Enhancements > Extra Modes): Always, Random and the Dungeons modes mirror
+  Majora's Mask per scene; Dungeons (MQ) leaves it unmirrored, since Majora's Mask has no Master Quest (#1256).
+- **The Cosmetics Editor reaches Majora's Mask**: its HUD can be moved, scaled and hidden, and its buttons, hearts,
+  magic, Link's forms, arrows and trails take SoH's colours (below).
+- **Coming from 2Ship2Harkinian?** The one-time import of 2Ship2Harkinian's settings now brings over every Majora's
+  Mask setting that has a row (#1270), below.
+
+By page:
+
+- **Settings > Controls, Bindings window.** Camera Controls: the inversion and sensitivity rows above (#1243); MM Gyro
+  Aiming and its four axis rows, MM Max / Min Camera Height Angle for the free camera, and MM Debug Camera, which takes
+  over from Free Look while it is on (#1251). Modifier Buttons: Majora's Mask's walk and swim speed modifiers (hold or
+  toggle), kept apart from SoH's (#1251).
+- **Enhancements > Quality of Life.** Under Autosave, MM Autosave Interval (shown while Autosave is on; Autosave
+  itself applies to both games) (#1248). A "Majora's Mask" block at the end of Time of Day: Do Not Reset Bottle
+  Contents, Do Not Reset Razor Sword, Do Not Reset Time Speed, Keep Express Mail, Stop Oceanside Spider House Squatter
+  and Oceanside Wallet Any Day (#1245), then Game Over Prompt and Better Double Time (#1248). Under Saving, Pause
+  Menu Save, which saves the paired file (#1247). Under Controls, Manual Jump, Prevent Diving Over Water and Infinite
+  Deku Hopping (#1246). Do Not Reset Rupees and Do Not Reset Consumables have no row: the shared rupees and ammo
+  survive every Song of Time, and the Powder Keg and Magic Beans follow the file's Keep Items on Cycle Reset (#1245).
+- **Enhancements > Skips & Speed-ups.** MM Fast Text (above); Skip Time Song Cutscenes right after Skip Song
+  Cutscenes (#1248); a "Majora's Mask" block with Fast Bank Selection, Auto Bombers' Code and eight time savers (the
+  swamp boat, Both Gallery Rewards, the lab fish, Dampe, Faster Scene Transitions, the Powder Keg certification, the
+  Ballad of the Windfish and the automatic bank deposit) (#1247, #1262); under Animations, MM Vine/Ladder Climb Speed,
+  Faster Push/Pull, Fast Deku Flower Launch and Fierce Deity Putaway (#1246).
+- **Enhancements > Items.** Equipment: Two-Handed Sword Spin Attack, Great Fairy Sword B-Button Attack and Better Picto
+  Message; Boomerang: Instant Fin Boomerangs Recall (#1246); Explosives: Remote Bombchu Control (#1251); Masks: eight
+  rows (Equippable While Swimming, Blast Mask Has Powder Keg Force, Fast Transformation, Fierce Deity's Mask Anywhere,
+  Persistent Bunny Hood, No Blast Mask Cooldown, Goron Rolling Ignores Magic, Goron Rolling Fast Spikes); Ocarina: six
+  (Pause Owl Warp, Enable Sun's Song, Zora Eggs for Bossa Nova, Faster Song Playback, Skip Soaring Cutscene and
+  Underwater Ocarina) (#1253).
+- **Enhancements > Difficulty.** Under Drops, MM Enable Bombchu Drops turns bomb drops into Bombchu drops only once
+  you hold Bombchus, so it never hands out Bombchus the seed has not given you in either game; SoH's own Enable
+  Bombchu Drops does not change Majora's Mask (#1246). A "Majora's Mask" block: Jinxed Timer, Lower Bank Reward
+  Thresholds, Disable Takkuri Steal, Deku Guard Search Balls, Gibdo Trade Sequence, Hidden Grottos Visibility, Frog
+  Choir Count, Milk Run Reward Options and Ammo Buyback (#1256).
+- **Enhancements > Extra Modes.** Mirrored World (above); Play as Kafei, Hyrule Warriors Styled Link and Time Moves
+  When You Move (#1256).
+- **Enhancements > Minigames.** Town and Swamp Archery Score and Mark Gallery Octoroks under Shooting Gallery, and a
+  "Majora's Mask" block for the Bombers' hide-and-seek, Swordsman School, Honey & Darling, Romani's practice, the
+  Doggy, Gorman, beaver and Goron races, the Cucco Shack, boat archery, Koume and the Treasure Chest Shop (#1255). On a
+  randomizer file a shortcut win hands the check's item once, never a vanilla reward in its place.
+- **Enhancements > Graphics.** Clock Type (MM3D Style or Text Only) and 24 Hours Clock in the UI column; Motion Blur
+  Mode, Interpolate Motion Blur, Motion Blur Strength and Dynamic Motion Blur with its strength (Dynamic Motion Blur
+  is live only while Majora's Mask runs); Fix Scene Geometry Seams and Disable Scene Geometry Distance Check; the
+  scene-geometry and Fix Out of Bounds Textures switches take effect in Majora's Mask without a restart (#1254).
+- **Enhancements > Fixes.** Each Majora's Mask row at the end of the SoH section that holds its relatives: Fix Epona
+  Stealing Sword, Fix Fierce Deity Z-Target Movement, MM Power Crouch Stab, Fix Targeting Camera Snap, Fix Ammo Count
+  Color, Fix Ikana Great Fairy Fountain Color, Fix Text Control Characters, Fix Completed Heart Container Audio, Tatl
+  ISG (restoration), Constant Distance Backflips and Sidehops, Side Rolls, Faster Swim, Woodfall Mountain Appearance,
+  JP Deku Palace Grottos and Bonk Collision (#1252).
+- **Enhancements > Cheats.** MM Consumables under Infinite..., MM Unrestricted Items beside SoH's, and a "Majora's
+  Mask" block with Longer Deku Flower Glide, Elegy of Emptiness Anywhere, Stop Time in Dungeons and Unbreakable Razor
+  Sword (#1245).
+- **Enhancements > Timers and Time Splits.** Majora's Mask's In-Game Timer is back, with its mode (Real-Time or
+  In-Game Time), background and scale; on a paired file it measures Majora's Mask only. Time Splits has its six
+  options, and the Time Splits window shows 2Ship2Harkinian's list management and split entries while Majora's Mask
+  runs (#1258).
+- **Enhancements > Audio Editor.** The Tatl call, voice pitch and mutes (above, #1242), and a new "Majora's Mask" tab
+  that replaces, locks, shuffles and resets Majora's Mask's background music, fanfares, events, battle music, ocarina,
+  instrument and song sequences, with its own shuffle pool; Automatically Randomize All Music and Sound Effects
+  reaches Majora's Mask on a new scene or at randomizer generation (#1261).
+- **Enhancements > Cosmetics Editor, HUD Placement.** A "Majora's Mask" section moves, scales and hides the B, A,
+  Start and C buttons, the D-pad items, the minimap (#1257), the three-day clock in all three styles, hearts, magic
+  meter, timers, carrots, minigame score and the rupee, key and skulltula counters (#1266); its HUD Preset (Vanilla,
+  Hidden, Widescreen) covers them all.
+- **Enhancements > Cosmetics Editor, colours.** SoH's A, B, C, D-Pad and Start buttons, small-key icon, minimap and
+  spin attack rows colour Majora's Mask too, and the HUD tab has a Rupee Icon row (#1259). Hearts, Heart Border, DD
+  Hearts and Magic (with its Active and Border rows) colour Majora's Mask's hearts and meter, and Kokiri Tunic and
+  Hair colour human Link in Termina; Beating Hearts, DD Beating Hearts, Chateau Magic and the Deku, Goron and Zora
+  forms and Kafei get rows of their own (#1269). The Arrow Effects rows colour Majora's Mask's fire, ice and light
+  arrows, SoH's Kokiri Sword, Deku Stick and Boomerang trails colour Majora's Mask's, and a "Majora's Mask" block on
+  the Effects tab has the Razor, Gilded, Great Fairy and Fierce Deity sword trails and the Deku spin, Zora punch and
+  Zora kick trails (#1271).
+- **Dev Tools > General.** Frame Advance, Advance 1 and Advance (Hold) step whichever game is running, Termina
+  included. Under Warping, MM Better Debug Warp Screen (Majora's Mask's map select), MM Set Warp Point, MM Warp to
+  Warp Point and MM Clear Warp Point; a "Majora's Mask" block has the Prevent Actor Update, Prevent Actor Draw,
+  Prevent Actor Init and Disable Object Dependency switches, which turning Debug Mode off clears;
+  Debug Save File Mode applies to Majora's Mask's own new saves, never to a paired world's (#1260).
+- **The 2Ship2Harkinian settings import** (#1270). On the first boot of an install, the importer reads a standalone
+  `2ship2harkinian.json` and now brings over every Majora's Mask setting that has a row (the camera inversion and
+  sensitivity, gyro, Fast Text, motion blur, the cheats, the time savers and more), not just the settings both games
+  share; a setting already changed in this build keeps its value. It runs once per install: an install that has
+  already booted has the stamp `"TwoShipImport": {"Completed": true}` in `shipofharkinian.json`, and gets the wider
+  import only after that entry is removed. Custom colours saved under 2Ship2Harkinian's `gCosmetic.Hearts`,
+  `gCosmetic.Magic` and `gCosmetic.Player.Human` keys are not carried (issue #1272); set them again in the Cosmetics
+  Editor.
+
+Settings with no row on purpose: Fix Console Crashes (Majora's Mask's console-crash fixes are always on, #1252),
+Authentic Logo (its console logo shows only on an unpaired `--game mm` boot, #1254), 3rd Save File Slot, Persistent
+Owl Saves and Disable Save Delay (none can act in paired play, #1247), Do Not Reset Rupees and Do Not Reset
+Consumables (above), and 2Ship2Harkinian's About panel (issue #1272).
+
+### Menus: the Combo header is gone
+
+- **Every Majora's Mask row sits beside its Ship of Harkinian twin** (#1248, issue #1133): the menu's headers are
+  Settings, Enhancements, Randomizer, Network and Dev Tools, with no Combo header. Combo > Majora's Mask's rows went
+  to Enhancements > Quality of Life (MM Autosave Interval, Game Over Prompt, Better Double Time) and Skips &
+  Speed-ups (Skip Time Song Cutscenes).
+- **Settings has OoT Mods and MM Mods**, side by side in the sidebar: OoT Mods is Ship of Harkinian's Mod Menu,
+  renamed, and MM Mods is Majora's Mask's mod list, formerly Combo > MM Mods, with the same order arrows and disable.
+  **Save Files** is the last page of Dev Tools.
+- **A menu last left on a Combo page reopens on that page's new home**, and one last left on Settings > Mod Menu
+  reopens on OoT Mods. The menu search finds the moved rows on their new pages.
 
 ### Shared items
 
@@ -75,6 +233,21 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
 - **Ocarina of Time's Piece of Heart, Heart Container and Double Defense get the heart chest again** (#1213; SoH
   `614ec084f`); the Treasure Chest Game's heart stays a lesser chest. A Majora's Mask chest holding one of them shows
   Majora's Mask's heart chest.
+
+### Cross-game outbox
+
+- **The cross-game outbox holds up to 2048 pickups, and a seed can place any number of the other game's items on a
+  side** (#1264, issue #1222; the operator's ruling of 2026-10-27). The outbox, which carries the other game's items
+  you pick up until your next crossing, had 64 fixed slots, and the single bag never put more than 64 of one game's
+  items in the other game's world. The 64 slots are kept and a new block of the save carries the rest; the fill's
+  64-per-side cap is gone, so seeds mix the two games' items as OoTMM's do. The save format and the seed generator's
+  version moved with it (Read this first). A moon-crash reset restores the overflow with the fixed slots (#1267).
+- **A full outbox holds a pickup instead of losing it** (#1250, issue #1222). Before, a check in Termina that held a
+  Hyrule item was marked delivered, and a shop slot sold with its price charged, even when the outbox had no room,
+  and the item was lost. Now the item is held with an "Outbox full: cross to Hyrule to send it" toast ("cross to
+  Termina" in Hyrule) and given after your next crossing; a Majora's Mask shop or Tingle refuses the sale and charges
+  nothing, and counted packs and capacity upgrades wait for the crossing too. Since #1264 this needs 2048 un-redeemed
+  pickups in one game.
 
 ### Keys and reticles
 
@@ -146,6 +319,10 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   Master Sword the seed placed elsewhere** (#1223, issue #1218): dying and picking Continue, letting the escape timer
   run out, or voiding out. A sword you already found is still put back on B, and with Shuffle Master Sword off, or on
   a vanilla file, the respawn gives the sword as before. Inherited from Ship of Harkinian.
+- **Under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item and no vanilla capacity upgrade** (#1226,
+  issue #1217). Before, the randomizer's theater skip turned itself off under the option and the vanilla judge gave a
+  Deku Stick or Deku Nut capacity upgrade on top of the theater check, which under Deku Stick Bag or Deku Nut Bag
+  shuffle handed over the bag the seed placed elsewhere. A vanilla file still gets the upgrades.
 
 ### Majora's Mask randomizer
 
@@ -165,6 +342,9 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   check again, as in OoTMM. A second Deku Playground win gives the vanilla Purple Rupee. A lab fish fed again after
   re-entering the Marine Research Lab gives nothing (its vanilla reward would be a heart piece), and targeting Flat's
   tomb again after re-entering the room no longer gives the Song of Storms check a second time.
+- **The Hags' potion shop no longer waits forever on its free blue potion** when its first shelf hosts an Ocarina of
+  Time item already delivered (#1250, issue #1228): on a later cycle that shelf shows its own line and "can't buy
+  right now", never the free-potion offer, and the shop keeps working.
 
 ### Trackers
 
@@ -184,16 +364,41 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   named the Check Tracker and the Combo Item Tracker the Item Tracker, and SoH's own Toggle Check Tracker and Toggle
   Item Tracker buttons, on Randomizer > Check Tracker and Randomizer > Item Tracker, open them; SoH's single-game
   windows no longer draw. Randomizer > Check Tracker also carries Auto Scroll To Current Area, Only Show Current Area
-  and the Cross-Game Spoiler's toggle. Combo > Windows is gone, and a menu last left on it opens on Randomizer >
-  Check Tracker. Combo > Tracker Settings keeps only the Item Tracker overlay's rows until the Item Tracker's settings
-  move (issue #1141). Searching the menu for one of SoH's six Check Tracker settings (Background Color, Window Type,
-  Vanilla/MQ Dungeon Spoilers, Hide Unshuffled Shop Item Checks, Always Show Gold Skulltulas, Show Logic) still lands
-  on SoH's Randomizer > Check Tracker page, which is now the unified tracker's page.
+  and the Cross-Game Spoiler's toggle. Combo > Windows is gone, and a menu last left on it opens on Randomizer > Check
+  Tracker. (Combo > Tracker Settings kept the Item Tracker overlay's rows until #1202, below.) Searching the menu for
+  one of SoH's six Check Tracker settings (Background Color, Window Type, Vanilla/MQ Dungeon Spoilers, Hide Unshuffled
+  Shop Item Checks, Always Show Gold Skulltulas, Show Logic) still lands on SoH's Randomizer > Check Tracker page,
+  which is now the unified tracker's page.
 - **The Check Tracker draws its rows as SoH's does** (#1192): no status square before a check's name (the name's
   colour shows the status), the line under a pane's header only while a header control shows, and a search box that
   matches item names but no longer prices.
+- **The Item Tracker follows SoH's Item Tracker Settings** (#1202, issue #1141). Its settings live on Randomizer >
+  Item Tracker as one set: SoH's Item Tracker Settings (Window Type, Enable Dragging, Only Enable While Paused, the
+  Combo Button Hold display mode, Background Color, Icon size and each section's display) govern it, and below them
+  "Item Tracker Sections" (Ocarina of Time, Majora's Mask, Shared) and "Majora's Mask Groups" hide a column or one of
+  Majora's Mask's groups. Combo > Tracker Settings is gone; a window type and icon size saved there carry over once,
+  and a menu last left on it opens on Randomizer > Item Tracker. Owl faces fit their cells.
+- **The Item Tracker honours SoH's count settings** in both games' sections (#1249, issue #1143): Ammo/Capacity
+  Tracking, Align count to left side, Key Count Tracking, Triforce Piece Count, Hookshot Identifier, Icon margins and
+  Text size. Both sections now default to SoH's "Current Capacity", so a held bow reads its quiver ("40", where it
+  read "35/40"), and the Bombs, Deku Sticks and Deku Nuts show their bag's size; "Current Ammo" in Item Tracker
+  Settings brings the counts back. Bombchus always show their count.
+- **The Item Tracker shows more of Ocarina of Time** (#1263, issues #1142, #1158): its dungeon items (small keys,
+  boss keys, maps and compasses) in SoH's compact layout, and, when the seed shuffles them, its boss and bean souls,
+  jabber nuts, ocarina buttons, overworld keys, the fishing pole and Greg, each shown by SoH's own Item Tracker
+  section setting (hidden under SoH's defaults; set a section to Main Window to see it). A small key's cell reads
+  collected/max, or in-hand/collected/max under Key Count Tracking, with the Thieves' Hideout's count under Fast
+  carpenters and a Master Quest dungeon's own count.
+- **The Item Tracker's Shared column shows the heart pieces toward your next heart** (#1263, issue #1159): four pieces
+  from either game make one shared heart. Issue #1159's report of five pieces to a heart stays open until a playtest
+  confirms the display; no path in the code needs a fifth.
 
 ### Fixes
+
+- Majora's Mask's Shooting Gallery time saver reads "Both Gallery Rewards", so it fits its column at the smallest
+  window size (832x600) (#1262).
+- With Debug Mode on, a Majora's Mask scene change to different music stops the old main music player first, as in
+  2Ship2Harkinian, and the area music comes back after a mini-boss fight with Faster Scene Transitions on (#1247).
 
 - A file in `presets/` that is not a preset (a stray `index.html` from a recursive download, `Thumbs.db`,
   `.DS_Store`, a `.json.tmp` from an interrupted save) no longer closes the game about 110 ms after launch: it is
@@ -229,6 +434,18 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
 - `tools/namespace_symbols.py` rewrites code only, never string literals, char literals or comments, and has a
   read-only `--audit-literals` mode that lists the literals naming a game-prefixed symbol (#1206). A pytest invariant
   fails on any key-shaped literal (no whitespace) that names one.
+- `--test debug-seed-forced-placements` makes a paired seed with items pinned to checks (`RSBS_FORCE_PLACEMENTS`),
+  for reproducing reports (#1234). Its first use is the Mido's House debug seed in
+  `docs/playtest-fixtures/midos-house-sonata-deku/`: the Sonata of Awakening, the Deku Mask and an Empty Bottle in
+  Mido's House chests with Closed Forest off, a quick way to the Woodfall platform for issue #1070 (#1234, #1265),
+  made again for generator 2 (#1268).
+- `MMOcarinaDpadNotes` drives the D-pad through Majora's Mask's real ocarina note path, guarding the D-pad ocarina
+  fix of #1099 (#1232).
+- `SaveSharedItemOverflowResetRestore` proves the moon-crash reset restores the outbox's overflow with its fixed
+  slots (#1267).
+- Majora's Mask rows on Ship of Harkinian's pages go through one seam (`AddHostedMmWidget` / `AddHostedMmBlock`) that
+  the UI snapshot captures, hovers and lints, with generic menu, classification and registrar locks (#1244); the
+  hosted rows' label fit at 832x600 is measured against the widest SoH row on the same page (#1248).
 
 ### Known limitations added since v0.3.1-prealpha
 
@@ -251,10 +468,14 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   are not carried (the windows take SoH's own windows' saved positions, if any), nor whether they were open: a
   tracker opened through Combo > Windows starts closed, and one opened through SoH's own toggle opens as the unified
   window. An SoH preset's Check Tracker position is applied to SoH's retired window, not the unified one. Some of
-  SoH's Check Tracker settings govern nothing yet (Vanilla/MQ Dungeon Spoilers, for example), SoH's Item Tracker
-  Settings on Randomizer > Item Tracker still set only SoH's retired overlay, and SoH's Item Tracker extras (notes,
-  separate section windows, the combo-button display) are unreachable until the Item Tracker lanes land (issues
-  #1141, #1143).
+  SoH's Check Tracker settings govern nothing yet (Vanilla/MQ Dungeon Spoilers, for example). The menu search for one
+  of SoH's tracker settings still lands on SoH's own page. SoH's Item Tracker Settings govern the Item Tracker since
+  #1202 and its counts since #1249; SoH's notes, separate section windows, Circle and Horizontal display and Total
+  Checks are not honoured.
+- **Item Tracker (#1263):** with both on, Greg and the Fishing Pole each start a line of their own in the Ocarina of
+  Time column, where SoH's main window puts them on one line, and a section set to SoH's Misc window shows in the
+  overlay's one window. Majora's Mask's Dungeon and Boss Souls groups follow its own Majora's Mask Groups rows, not
+  SoH's section settings. Nobody has seen the new Ocarina of Time groups on screen.
 - **Keep Items on Cycle Reset (#1194):** logic does not read it, as OoTMM's does not, and the spoiler does not name
   it. OoTMM's separate Keep Bottles on Cycle Reset is not built.
 - **Mods (#1197, #1198, #1206):** the January namespacing renamed string literals as well as symbols. The class is
@@ -263,19 +484,34 @@ locked by source checks in the Python tests; #1174, #1179, #1183, #1193, #1208 a
   and debug messages. Issue #1063's crash with a texture pack that
   "worked for a while" is still open: the skeleton crash was a different defect. Same-named archives in different mod
   folders never both mount (issue #1196, inherited from Ship of Harkinian).
-- **Majora's Mask randomizer:** the monkey's vanilla Sonata (issue #1203) is fixed (#1225, above). The Hags potion
-  shop may wait forever on its free blue potion when its slot hosts an Ocarina of Time item already delivered (issue
-  #1228, a candidate split from issue #1221, not traced). Under Shuffle Time the time-left text still counts every
-  owned half-day from the start of the cycle (cosmetic, no issue).
-- **Cross-game:** a check in Termina that holds a Hyrule item is marked delivered, and a shop slot sold, even when
-  the crossing record is refused because all 64 shared slots hold unredeemed items, so that Hyrule item is lost
-  (issue #1222). It needs 64 unredeemed crossings in one direction before the next arrival.
-- **Ocarina of Time randomizer:** under Shuffle Jabber Nuts the Deku Theater leader gives a vanilla Deku Stick or
-  Deku Nut capacity upgrade on top of the theater check (issue #1217; its fix, PR #1226, is not merged).
-- **Majora's Mask settings:** the 2026-10-27 audit of 2Ship2Harkinian's menu rows (issue #1233) found 267 rows a
-  player cannot reach or that do nothing in the single executable, in sections #1235 to #1240. Three camera Y-axis
-  settings (first person, right-stick aiming, the free camera) default to inverted in Termina with no row to change
-  them. Fix lanes are being planned.
+- **Majora's Mask randomizer:** the monkey's vanilla Sonata (issue #1203) and the Hags' free potion (issue #1228)
+  are fixed (#1225, #1250, above). Under Shuffle Time the time-left text still counts every owned half-day from the
+  start of the cycle (cosmetic, no issue).
+- **Cross-game outbox (#1250, #1264):** the lost pickup of issue #1222 is fixed (above). An Ocarina of Time pickup
+  held for a full outbox at a quit or a file load, before a crossing, keeps its check collected and is not given;
+  with 2048 slots this needs 2048 un-redeemed pickups. In Hyrule a shop purchase held that way is charged at the
+  purchase and given after the next crossing. Nobody has carried more than 64 pickups across in play, nor opened a
+  version-4 file on this build by hand (playtest guide, W14).
+- **Ocarina of Time randomizer:** the Deku Theater's capacity upgrade under Shuffle Jabber Nuts (issue #1217) is fixed
+  (#1226, above).
+- **Majora's Mask settings (#1242 to #1271):** the rows landed (above); issue #1272 tracks what their reviews left
+  over: in Termina the last full heart keeps its default red until the Majora's Mask-only Beating Hearts row is set
+  (SoH's Hearts colour does not cover it, as it does in Hyrule); the magic-arrow hit flash stays vanilla in Termina;
+  the import's once-per-install stamp and its uncarried colours (above); Faster Song Playback sits in the Majora's
+  Mask Ocarina block rather than beside SoH's Fast Ocarina Playback; and 2Ship2Harkinian's About panel. A rainbow
+  colour in the Cosmetics Editor holds still in Majora's Mask, and Randomize All, Reset All and Lock All skip the
+  Majora's Mask rows (#1259). A recoloured Majora's Mask sword or form trail draws its inner edge opaque, where
+  Ocarina of Time's keeps its fade (#1271). Finishing, skipping or removing the last Majora's Mask time split marks
+  the file complete, as in 2Ship2Harkinian: Majora's Mask's playtime and its In-Game Timer then stop for that file
+  (#1258). Ammo Buyback sells the shared ammo, so a sale in Termina lowers Hyrule's count too (one pool, #1256). Time
+  Moves When You Move may save a stopped clock if you save while standing still (suspected, inherited from
+  2Ship2Harkinian; playtest guide, W6). Nobody has played any of the rows; the playtest guide's section W lists one
+  step per group.
+- **Networking:** Ship of Harkinian's Network > Anchor page is present in release builds but unsupported on a paired
+  file: it knows nothing of the pair, and a session is unsound until issue #574 (multiworld over the combo; issue
+  #1272 asks for the page to be gated meanwhile).
+- **Save editing:** there is no in-app way to edit a Termina save (issue #1231); Ship of Harkinian's Save Editor
+  draws nothing while Termina runs and must never be used on Majora's Mask.
 - **Keys and reticles (#1212, #1213):** a customised Non-Hookshotable Reticle colour applies to Hyrule's Bow reticle
   but not to Termina's, which stays red (a follow-up). Nobody has seen the Termina reticle, the mask and fairy chests
   or the key models on screen.
@@ -299,9 +535,13 @@ itself. On `main`, `integration` passed 21 of 21 at `7c1aecf9` (cycle 25; `integ
 red in `main`'s hosted CI from `d94ab061` (#1184's chu-pack names on #1178's placements) until #1201, and a gate of
 the ROM tiers alone did not see it. Cycle 30, at `38a5138c` (with #1194, #1198, #1206, #1207 and #1209), and cycle
 31, at `722da4f8` (with #1211, #1212, #1213 and #1223), passed every tier: `redship` 248 of 248 and 252 of 252, `rando`
-78 of 78 and 79 of 79, `integration` 21 of 21 and `integration-soak` 1 of 1 both times. Cycle 32, at `3772e70d`
-(with #1205, #1224, #1225, #1227 and #1230), was running when this was written. The record is under "Gates,
-2026-10-26/27" in [`known-issues.md`](known-issues.md). Nobody has played any of it.
+78 of 78 and 79 of 79, `integration` 21 of 21 and `integration-soak` 1 of 1 both times. Cycles 32 to 37
+passed every tier too, at `3772e70d` (with #1205, #1224, #1225, #1227 and #1230), `c9fd36de`, `7ec19332`, `9ceea4bc`,
+`11b2212b` and `791f26d3`: every `redship` row (260, 262, 263, 265, 267 and 271), every `rando` row (79, 80, 80, 80, 80
+and 81), `integration` 21 of 21 and `integration-soak` 1 of 1 each time. Cycle 38, at `347ba755` (with #1268, #1259,
+#1260, #1267, #1270, #1269 and #1271), passed every tier as well: `redship` 273 of 273, `rando` 81 of 81, `integration`
+21 of 21, `integration-soak` 1 of 1. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md).
+Nobody has played any of it.
 
 ---
 
