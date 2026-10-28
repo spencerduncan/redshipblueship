@@ -47,6 +47,38 @@ const MmCosmeticRow kMmHudRows[] = {
 };
 // W6-COS-B: the Link & Items tab's row tables go here.
 // W6-COS-C: the Effects tab's row tables go here.
+// Effects tab, Trails group: MM's trails with no SoH twin. MM's Kokiri Sword, Deku Stick and Zora Boomerang trails
+// follow SoH's Kokiri Sword, Stick and Boomerang rows, and its magic arrows SoH's Arrow Effects rows.
+const MmCosmeticRow kMmTrailRows[] = {
+    { "Razor Sword",
+      MM_COSMETIC_ROW_KEYS("Trails.RazorSwordTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of the Razor Sword's trail. Majora's Mask only." },
+    { "Gilded Sword",
+      MM_COSMETIC_ROW_KEYS("Trails.GildedSwordTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of the Gilded Sword's trail. Majora's Mask only." },
+    { "Great Fairy Sword",
+      MM_COSMETIC_ROW_KEYS("Trails.GreatFairySwordTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of the Great Fairy's Sword's trail. Majora's Mask only." },
+    { "Fierce Deity Sword",
+      MM_COSMETIC_ROW_KEYS("Trails.FierceDeitySwordTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of Fierce Deity Link's sword trail. Majora's Mask only." },
+    { "Deku Spin",
+      MM_COSMETIC_ROW_KEYS("Trails.DekuSpinTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of Deku Link's spin attack trail. Majora's Mask only." },
+    { "Zora Punch",
+      MM_COSMETIC_ROW_KEYS("Trails.ZoraPunchTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of Zora Link's punch trail. Majora's Mask only." },
+    { "Zora Kick",
+      MM_COSMETIC_ROW_KEYS("Trails.ZoraKickTrail"),
+      { 255, 255, 255, 255 },
+      "Changes the color of Zora Link's kick trail. Majora's Mask only." },
+};
 
 #undef MM_COSMETIC_ROW_KEYS
 
@@ -148,5 +180,8 @@ void CosmeticsEditor_DrawMmHudRows() {
 }
 // W6-COS-B: the Link & Items tab's functions go here.
 // W6-COS-C: the Effects tab's functions go here.
+void CosmeticsEditor_DrawMmTrailRows() {
+    DrawMmCosmeticGroup("MM Trails", kMmTrailRows, sizeof(kMmTrailRows) / sizeof(kMmTrailRows[0]));
+}
 
 #endif // RSBS_SINGLE_EXECUTABLE

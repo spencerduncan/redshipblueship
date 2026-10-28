@@ -140,6 +140,25 @@ const MmCosmeticElement kMmCosmeticElements[] = {
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_CHARGE, "Effects.GreatSpinCharge", "gCosmetics.SpinAttack.Level2Primary"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_BURST,  "Effects.GreatSpinBurst",  "gCosmetics.SpinAttack.Level2Primary"),
     // W6-COS-C
+    // Magic arrows: SoH's Arrow Effects. Both games draw an arrow's Primary as its prim colour and its Secondary as
+    // its env colour (z_arrow_fire.c / z_arrow_ice.c / z_arrow_light.c in each tree).
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_FIRE_ARROW_PRIMARY,    "Effects.FireArrowPrim",  "gCosmetics.Arrows.FirePrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_FIRE_ARROW_SECONDARY,  "Effects.FireArrowSec",   "gCosmetics.Arrows.FireSecondary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_ICE_ARROW_PRIMARY,     "Effects.IceArrowPrim",   "gCosmetics.Arrows.IcePrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_ICE_ARROW_SECONDARY,   "Effects.IceArrowSec",    "gCosmetics.Arrows.IceSecondary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_LIGHT_ARROW_PRIMARY,   "Effects.LightArrowPrim", "gCosmetics.Arrows.LightPrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_LIGHT_ARROW_SECONDARY, "Effects.LightArrowSec",  "gCosmetics.Arrows.LightSecondary"),
+    // Trails: SoH's Trails. Both games paint all four of a trail's colours with the chosen colour (z_eff_blure.c).
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_SWORD_KOKIRI,       "Trails.KokiriSwordTrail",   "gCosmetics.Trails.KokiriSword"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_RAZOR,         "Trails.RazorSwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_GILDED,        "Trails.GildedSwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_GREAT_FAIRY,   "Trails.GreatFairySwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_FIERCE_DEITY,  "Trails.FierceDeitySwordTrail"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_DEKU_STICK,         "Trails.DekuStickTrail",     "gCosmetics.Trails.Stick"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_DEKU_SPIN,           "Trails.DekuSpinTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_ZORA_PUNCH,          "Trails.ZoraPunchTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_ZORA_KICK,           "Trails.ZoraKickTrail"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_ZORA_BOOMERANG,     "Trails.ZoraBoomerangTrail", "gCosmetics.Trails.Boomerang"),
 };
 // clang-format on
 

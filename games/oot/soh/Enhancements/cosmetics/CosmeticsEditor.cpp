@@ -2616,6 +2616,9 @@ void CosmeticsEditorWindow::DrawElement() {
             }
 
             UIWidgets::Separator(true, true, 2.0f, 2.0f);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            CosmeticsEditor_DrawMmTrailRows(); // W6-COS-C (#1239): MM's trails with no SoH twin
+#endif
 
             ImGui::EndTabItem();
         }

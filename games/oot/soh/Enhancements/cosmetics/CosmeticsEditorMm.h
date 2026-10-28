@@ -16,5 +16,8 @@ void CosmeticsEditor_DrawMmHudRows();
 // W6-COS-B: the Link & Items tab's functions go here.
 // W6-COS-C: the Effects tab's functions go here. (The Spin Attack group has no MM row: all four of MM's spin elements
 // twin SoH's Level 1 / Level 2 Primary.)
+/** Effects tab, after SoH's Trails group and its Trails Duration: MM's trails with no SoH twin (W6-COS-C). The Arrow
+ * Effects group has no MM row: every half of MM's three magic arrows twins SoH's own. */
+void CosmeticsEditor_DrawMmTrailRows();
 
 #endif
