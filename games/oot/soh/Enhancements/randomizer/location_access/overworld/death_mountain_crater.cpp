@@ -17,7 +17,8 @@ void RegionTable_Init_DeathMountainCrater() {
         EventAccess(LOGIC_FAIRY_ACCESS, []{return logic->HasExplosives() && logic->CallGossipFairyExceptSuns() && (logic->FireTimer() >= 16 || logic->Hearts() >= 3);}),
     }, {
         //Locations
-        LOCATION(RC_DMC_WALL_FREESTANDING_POH,  logic->FireTimer() >= 16 || logic->Hearts() >= 3),
+        //You can also walk off the edge at a shallow angle to not grab the wall, then drift to land in the alcove.
+        LOCATION(RC_DMC_WALL_FREESTANDING_POH,  (logic->FireTimer() >= 16 || logic->Hearts() >= 3) && (logic->HasItem(RG_CLIMB) || (ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) && logic->CanJumpslash()))),
         LOCATION(RC_DMC_GS_CRATE,               (logic->FireTimer() >= 8 || logic->Hearts() >= 3) && logic->IsChild && logic->CanAttack() && logic->CanBreakCrates()),
         LOCATION(RC_DMC_GOSSIP_STONE_FAIRY,     logic->CallGossipFairyExceptSuns() && logic->HasExplosives() && (logic->FireTimer() >= 16 || logic->Hearts() >= 3)),
         LOCATION(RC_DMC_GOSSIP_STONE_FAIRY_BIG, logic->CanUse(RG_SONG_OF_STORMS) && logic->HasExplosives() && (logic->FireTimer() >= 16 || logic->Hearts() >= 3)),
