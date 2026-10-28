@@ -3235,6 +3235,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND ${CMAKE_COMMAND}
                 -DWORK_DIR=${CMAKE_BINARY_DIR}
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
+    # #1303: CI release and playtest builds emit redship.map beside the binary
+    # (when RSBS_EMIT_LINK_MAP is ON, its default), assert it names
+    # Combo_SetSharedGraphics, upload it as its own artifact outside the player
+    # zip, and attach it to the GitHub Release. CMake/CheckLinkMapConfig.cmake.
+    redship_add_test(NAME LinkMapConfig
+        COMMAND ${CMAKE_COMMAND}
+                -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+                -DBINARY_DIR=${CMAKE_BINARY_DIR}
+                -DEMIT_LINK_MAP=${RSBS_EMIT_LINK_MAP}
+                "-DRED_LINK_OPTIONS=$<JOIN:$<TARGET_PROPERTY:redship,LINK_OPTIONS>,|>"
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckLinkMapConfig.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default

@@ -817,3 +817,91 @@ def test_no_key_shaped_literal_names_a_prefixed_symbol():
         "a key-shaped literal names a game-prefixed symbol; the namespacing pass rewrote it and the lookup "
         "no longer matches (#1195). Restore the unprefixed spelling, or list a deliberate label in "
         "KEY_SHAPED_LABELS:\n  " + "\n  ".join(offenders))
+
+
+# #1303: since PR #1199 a release build's crash handler prints each frame as
+# `redship.exe+0xOFFSET`, which resolves against `redship.map`. CI release and
+# playtest builds must emit `redship.map` beside the binary (under
+# RSBS_EMIT_LINK_MAP, ON by default), verify that the map exists and names
+# `Combo_SetSharedGraphics`, upload it as its own small artifact outside the
+# player zip, and attach it to the GitHub Release.
+ROOT_CMAKELISTS = REPO_ROOT / "CMakeLists.txt"
+SINGLE_EXE_CMAKE = REPO_ROOT / "CMake" / "SingleExecutable.cmake"
+GENERATE_BUILDS_YML = REPO_ROOT / ".github" / "workflows" / "generate-builds.yml"
+
+
+def _strip_hash_comments(text):
+    return "\n".join(line.split("#", 1)[0] for line in text.splitlines())
+
+
+def test_link_map_emitted_verified_and_shipped_outside_player_zip():
+    root_cmake = _strip_hash_comments(ROOT_CMAKELISTS.read_text(encoding="utf-8"))
+    single_exe = _strip_hash_comments(SINGLE_EXE_CMAKE.read_text(encoding="utf-8"))
+
+    opt_re = re.compile(r"option\(\s*RSBS_EMIT_LINK_MAP\b[^)]*\bON\s*\)", re.DOTALL)
+    assert opt_re.search(root_cmake) or opt_re.search(single_exe), (
+        "#1303: RSBS_EMIT_LINK_MAP must be declared as a CMake option defaulting to ON"
+    )
+    assert re.search(r"target_link_options\(\s*redship\s+PRIVATE\s+/MAP\b", single_exe), (
+        "#1303: CMake/SingleExecutable.cmake must pass /MAP to redship on MSVC when RSBS_EMIT_LINK_MAP is ON"
+    )
+    assert re.search(
+        r'target_link_options\(\s*redship\s+PRIVATE\s+"-Wl,-Map=\$\{CMAKE_BINARY_DIR\}/redship\.map"\s*\)',
+        single_exe,
+    ), (
+        "#1303: CMake/SingleExecutable.cmake must pass -Wl,-Map=${CMAKE_BINARY_DIR}/redship.map to redship on Linux"
+    )
+    for path_label, cmake_code in (("CMakeLists.txt", root_cmake), ("CMake/SingleExecutable.cmake", single_exe)):
+        assert not re.search(r"install\([^)]*redship\.map", cmake_code, re.DOTALL), (
+            f"#1303: {path_label} must not install redship.map into a CPack component (keep it out of the player zip)"
+        )
+
+    wf = _strip_hash_comments(GENERATE_BUILDS_YML.read_text(encoding="utf-8"))
+    linux_start = wf.index("  build-linux:")
+    netplay_start = wf.index("  netplay-relay:", linux_start)
+    windows_start = wf.index("  build-windows:", netplay_start)
+    digest_start = wf.index("  digest-crossos-diff:", windows_start)
+    release_start = wf.index("  create-release:", digest_start)
+    mono_start = wf.index("  monotonicity-probe:", release_start)
+
+    linux_job = wf[linux_start:netplay_start]
+    windows_job = wf[windows_start:digest_start]
+    release_job = wf[release_start:mono_start]
+
+    assert "build-cmake/redship.map" in linux_job and "Combo_SetSharedGraphics" in linux_job, (
+        "#1303: build-linux must verify build-cmake/redship.map exists and names Combo_SetSharedGraphics"
+    )
+    assert re.search(
+        r"name:\s*redship-map-linux\s+path:\s*build-cmake/redship\.map", linux_job
+    ), "#1303: build-linux must upload build-cmake/redship.map as its own redship-map-linux artifact"
+    rsbs_linux_upload = re.search(r"name:\s*rsbs-linux\s+path:\s*\|\s*(.+?)(?:\n\s*-\s|\Z)", linux_job, re.DOTALL)
+    assert rsbs_linux_upload and "redship.map" not in rsbs_linux_upload.group(1), (
+        "#1303: rsbs-linux player artifact must not bundle redship.map"
+    )
+
+    assert "bw/redship.map" in windows_job and "Combo_SetSharedGraphics" in windows_job, (
+        "#1303: build-windows must verify bw/redship.map exists and names Combo_SetSharedGraphics"
+    )
+    assert "rsbs-windows/redship.map" in windows_job, (
+        "#1303: build-windows must verify rsbs-windows/redship.map is absent after unzipping the player package"
+    )
+    assert re.search(
+        r"name:\s*redship-map-windows\s+path:\s*bw/redship\.map", windows_job
+    ), "#1303: build-windows must upload bw/redship.map as its own redship-map-windows artifact"
+    rsbs_win_upload = re.search(r"name:\s*rsbs-windows\s+path:\s*([^\n]+)", windows_job)
+    assert rsbs_win_upload and "redship.map" not in rsbs_win_upload.group(1), (
+        "#1303: rsbs-windows player artifact must not bundle redship.map"
+    )
+
+    assert "name: redship-map-linux" in release_job and "name: redship-map-windows" in release_job, (
+        "#1303: create-release must download redship-map-linux and redship-map-windows"
+    )
+    assets_block = re.search(r"ASSETS=\(\s*(.+?)\s*\)", release_job, re.DOTALL)
+    assert assets_block, "could not find ASSETS=(...) in create-release"
+    assert '"redshipblueship-${RELEASE_TAG}-windows.map"' in assets_block.group(1), (
+        "#1303: create-release must attach redshipblueship-${RELEASE_TAG}-windows.map to the GitHub Release"
+    )
+    assert '"redshipblueship-${RELEASE_TAG}-linux.map"' in assets_block.group(1), (
+        "#1303: create-release must attach redshipblueship-${RELEASE_TAG}-linux.map to the GitHub Release"
+    )
+
