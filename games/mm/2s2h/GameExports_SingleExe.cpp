@@ -3676,6 +3676,40 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
 }
 
 /**
+ * Where a paired file lands after the moon crash (#1278). PlayState-free so the
+ * ROM-free mm-moon-crash-arrival row drives it.
+ *
+ * Vanilla lands the crash on ENTRANCE(CLOCK_TOWER_INTERIOR, 3) (0xC030): the
+ * Fire Wall cutscene's scripted destination, and the literal the Story skip
+ * (SkipMoonCrash.cpp) writes in its place. EnOsn starts the Happy Mask
+ * Salesman's cycle-reset cutscene on that spawn with no flag check, and a
+ * paired player has never been in that room (the crossing and the Song of Time
+ * both arrive in South Clock Town), so it plays as an intro. OoTMM rewrites
+ * 0xC030 to its initial entrance (packages/generator/src/mm/play/play.c), the
+ * Song of Time's spawn; this is that rule, with ours: South Clock Town spawn 0
+ * (MM_ENTR_SOUTH_CLOCK_TOWN_0, 0xD800), which is not a crossing trigger.
+ *
+ * Called where the landing is written: z_demo.c's CS_DESTINATION_DEFAULT and
+ * SkipMoonCrash.cpp. With no paired file in play (Context_ComboSessionResident)
+ * the landing is MM's own, unchanged. The crash's save semantics (Last Save,
+ * New Cycle, the pool apply) are untouched.
+ *
+ * @param entrance the landing MM is about to take
+ * @return the landing to take instead
+ */
+extern "C" u16 MM_Play_MoonCrashArrivalEntrance(u16 entrance) {
+    if (entrance != (u16)ENTRANCE(CLOCK_TOWER_INTERIOR, 3) || !Context_ComboSessionResident()) {
+        return entrance;
+    }
+    fprintf(stderr,
+            "[MM] moon crash: a paired file lands in South Clock Town (0x%04X), not the Clock Tower interior "
+            "(0x%04X) (#1278)\n",
+            (unsigned)MM_ENTR_SOUTH_CLOCK_TOWN_0, (unsigned)entrance);
+    fflush(stderr);
+    return (u16)MM_ENTR_SOUTH_CLOCK_TOWN_0;
+}
+
+/**
  * THE CLASS-LEVEL GUARD ON MM'S NEW-SAVE PATH (#564 V21). Called first thing by
  * MM_Sram_InitNewSave and MM_Sram_InitSave (z_sram_NES.c).
  *
