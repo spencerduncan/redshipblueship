@@ -2387,8 +2387,11 @@ void Session::BuildPageList() {
         // SoH's button, key-count and minimap rows there now drive MM's as well, and MM's colours with no SoH twin
         // sit in a Majora's Mask block after SoH's HUD group. One MM row is hovered through the combo_ui seam's rect
         // report: its tooltip must show, ending "Majora's Mask only.". "effects" is its Effects tab, whose Spin Attack
-        // rows drive MM's spin attack (every MM spin element twins one of them, so the tab has no MM row yet).
-        // W6-COS-B adds its Link & Items block directly after this one; W6-COS-C adds a hover to "effects".
+        // rows drive MM's spin attack (every MM spin element twins one of them).
+        // W6-COS-B adds its Link & Items block directly after this one.
+        // W6-COS-C: the Effects tab's Arrow Effects rows drive MM's magic arrows too, and MM's trails with no SoH twin
+        // sit in a Majora's Mask block after SoH's Trails; one is hovered. Both tabs now draw a "Majora's Mask"
+        // heading, so neither state's text names it (the contrast would fail): each state's MM row names its block.
         PageSpec p;
         p.id = kSohCosmeticsReference;
         p.origin = Origin::SOH_REFERENCE;
@@ -2396,9 +2399,10 @@ void Session::BuildPageList() {
         p.window = kSohCosmeticsWindow;
         p.states = { "hud", "effects" };
         p.expectText = { kSohCosmeticsWindow };
-        p.stateText = { { "hud", { "B Button", "Majora's Mask", "Rupee Icon" } }, { "effects", { "Spin Attack" } } };
+        p.stateText = { { "hud", { "B Button", "Rupee Icon" } }, { "effects", { "Spin Attack", "Razor Sword" } } };
         p.stateContrast = { { "hud", "effects" }, { "effects", "hud" } };
         p.paneHovers.push_back({ "mm-rupee-icon", "hud", "Rupee Icon", false });
+        p.paneHovers.push_back({ "mm-razor-sword-trail", "effects", "Razor Sword", false });
         p.needsRom = true;
         pages.push_back(p);
     }

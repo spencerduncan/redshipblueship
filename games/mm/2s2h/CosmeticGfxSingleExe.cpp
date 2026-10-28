@@ -170,6 +170,25 @@ const MmCosmeticElement kMmCosmeticElements[] = {
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_CHARGE, "Effects.GreatSpinCharge", "gCosmetics.SpinAttack.Level2Primary"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_GREAT_SPIN_BURST,  "Effects.GreatSpinBurst",  "gCosmetics.SpinAttack.Level2Primary"),
     // W6-COS-C
+    // Magic arrows: SoH's Arrow Effects. Both games draw an arrow's Primary as its prim colour and its Secondary as
+    // its env colour (z_arrow_fire.c / z_arrow_ice.c / z_arrow_light.c in each tree).
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_FIRE_ARROW_PRIMARY,    "Effects.FireArrowPrim",  "gCosmetics.Arrows.FirePrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_FIRE_ARROW_SECONDARY,  "Effects.FireArrowSec",   "gCosmetics.Arrows.FireSecondary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_ICE_ARROW_PRIMARY,     "Effects.IceArrowPrim",   "gCosmetics.Arrows.IcePrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_ICE_ARROW_SECONDARY,   "Effects.IceArrowSec",    "gCosmetics.Arrows.IceSecondary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_LIGHT_ARROW_PRIMARY,   "Effects.LightArrowPrim", "gCosmetics.Arrows.LightPrimary"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_LIGHT_ARROW_SECONDARY, "Effects.LightArrowSec",  "gCosmetics.Arrows.LightSecondary"),
+    // Trails: SoH's Trails. Both games paint all four of a trail's colours with the chosen colour (z_eff_blure.c).
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_SWORD_KOKIRI,       "Trails.KokiriSwordTrail",   "gCosmetics.Trails.KokiriSword"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_RAZOR,         "Trails.RazorSwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_GILDED,        "Trails.GildedSwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_GREAT_FAIRY,   "Trails.GreatFairySwordTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_SWORD_FIERCE_DEITY,  "Trails.FierceDeitySwordTrail"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_DEKU_STICK,         "Trails.DekuStickTrail",     "gCosmetics.Trails.Stick"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_DEKU_SPIN,           "Trails.DekuSpinTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_ZORA_PUNCH,          "Trails.ZoraPunchTrail"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_TRAIL_ZORA_KICK,           "Trails.ZoraKickTrail"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_TRAIL_ZORA_BOOMERANG,     "Trails.ZoraBoomerangTrail", "gCosmetics.Trails.Boomerang"),
 };
 // clang-format on
 
@@ -898,10 +917,21 @@ int CosmeticGfxStub_RunHeadless(void) {
             "gCosmetics.HUD.CLeftButton.Changed",
             "gCosmetics.SpinAttack.Level1Primary.Value",
             "gCosmetics.SpinAttack.Level1Primary.Changed",
+            // W6-COS-C
+            "gCosmetics.Arrows.IcePrimary.Value",
+            "gCosmetics.Arrows.IcePrimary.Changed",
+            "gCosmetics.Arrows.IceSecondary.Value",
+            "gCosmetics.Arrows.IceSecondary.Changed",
+            "gCosmetics.Trails.Boomerang.Value",
+            "gCosmetics.Trails.Boomerang.Changed",
+            "gCosmetics.Trails.KokiriSword.Value",
+            "gCosmetics.Trails.KokiriSword.Changed",
             RSBS_CVAR_MM_COSMETIC_PREFIX "Buttons.B.Color",
             RSBS_CVAR_MM_COSMETIC_PREFIX "Buttons.B.Changed",
             RSBS_CVAR_MM_COSMETIC_PREFIX "HUD.RupeeIcon.Color",
             RSBS_CVAR_MM_COSMETIC_PREFIX "HUD.RupeeIcon.Changed",
+            RSBS_CVAR_MM_COSMETIC_PREFIX "Trails.RazorSwordTrail.Color", // W6-COS-C
+            RSBS_CVAR_MM_COSMETIC_PREFIX "Trails.RazorSwordTrail.Changed",
         };
         auto clearKeys = []() {
             for (const char* key : kKeys) {
@@ -1012,6 +1042,41 @@ int CosmeticGfxStub_RunHeadless(void) {
             }
         }
         // W6-COS-C: the arrow and MM-only trail cases go here.
+        // 8. MM's magic arrows read SoH's: Primary is the prim colour and Secondary the env colour in both games'
+        //    draws (z_arrow_ice.c), and the env wrapper keeps the draw site's alpha.
+        setColor("gCosmetics.Arrows.IcePrimary", ".Value", 12, 34, 56);
+        expect("SoH's Ice Primary on MM's Ice Arrow Primary",
+               CosmeticEditor_GetChangedColor(170, 255, 255, 200, COSMETIC_ELEMENT_ICE_ARROW_PRIMARY), 12, 34, 56, 255);
+        expect("an unchanged Ice Arrow Secondary",
+               CosmeticEditor_GetChangedColor(0, 0, 255, 128, COSMETIC_ELEMENT_ICE_ARROW_SECONDARY), 0, 0, 255, 128);
+        setColor("gCosmetics.Arrows.IceSecondary", ".Value", 65, 43, 21);
+        {
+            static Gfx want[1];
+            memset(buffer, kPoison, sizeof(buffer));
+            memset(want, kPoison, sizeof(want));
+            gDPSetEnvColorOverride(buffer, 0, 0, 255, 128, COSMETIC_ELEMENT_ICE_ARROW_SECONDARY);
+            gDPSetEnvColor(want, 65, 43, 21, 128);
+            if (memcmp(buffer, want, sizeof(Gfx)) != 0) {
+                printf("[TEST] FAIL: gDPSetEnvColorOverride did not draw SoH's Ice Secondary colour\n");
+                failures++;
+            }
+        }
+
+        // 9. Trails: a twinned trail reads its SoH row (Zora Boomerang onto SoH's Boomerang); an MM-only trail reads
+        //    its own key and never a twin's (the Razor Sword is not the Kokiri Sword).
+        setColor("gCosmetics.Trails.Boomerang", ".Value", 90, 80, 70);
+        expect("SoH's Boomerang trail on MM's Zora Boomerang trail",
+               CosmeticEditor_GetChangedColor(255, 255, 100, 255, COSMETIC_ELEMENT_TRAIL_ZORA_BOOMERANG), 90, 80, 70,
+               255);
+        setColor("gCosmetics.Trails.KokiriSword", ".Value", 1, 1, 1);
+        expect("SoH's Kokiri Sword trail on MM's Kokiri Sword trail",
+               CosmeticEditor_GetChangedColor(255, 255, 255, 255, COSMETIC_ELEMENT_TRAIL_SWORD_KOKIRI), 1, 1, 1, 255);
+        expect("an unchanged Razor Sword trail beside a changed Kokiri Sword",
+               CosmeticEditor_GetChangedColor(255, 255, 255, 255, COSMETIC_ELEMENT_TRAIL_SWORD_RAZOR), 255, 255, 255,
+               255);
+        setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "Trails.RazorSwordTrail", ".Color", 8, 9, 10);
+        expect("MM's own Razor Sword trail key",
+               CosmeticEditor_GetChangedColor(255, 255, 255, 64, COSMETIC_ELEMENT_TRAIL_SWORD_RAZOR), 8, 9, 10, 255);
 
         clearKeys();
         if (failures != 0) {
