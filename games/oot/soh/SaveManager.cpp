@@ -212,6 +212,10 @@ extern "C" int OoT_Combo_ReconcileCheckStateToLoadedHalf(const SaveContext* desc
                                                          int* outFound, int* outNotFound);
 // GameExports_SingleExe.cpp (#1163): the arrival's shared-pool apply, for a load.
 extern "C" void OoT_ApplySharedResourcesAtFileLoad(void);
+// #1294 (combo_tracker_view.h): the OoT skip journal, the far pane's skips the .sav
+// does not have yet: replayed at a load, emptied by the full save that writes them.
+extern "C" int OoT_TrackerAdapter_ReplaySkipJournal(void);
+extern "C" void Combo_TrackerOoTSkipJournalClear(void);
 #endif
 
 /**
@@ -343,6 +347,10 @@ extern "C" void OoT_Combo_OnLoadFileSeam(int32_t fileNum, uint32_t savGeneration
     // empty and every kind stays as the file has it.
     if (sRsbsRefusedLoadSlot != fileNum) {
         OoT_ApplySharedResourcesAtFileLoad();
+        // #1294: the skips the combo tracker's OoT pane took while Majora's Mask
+        // was played after this .sav was written, which the .redsave's Tier-1
+        // (just loaded) journals and the tracker section (already applied) lacks.
+        OoT_TrackerAdapter_ReplaySkipJournal();
     }
 #endif
 }
@@ -1940,6 +1948,12 @@ void SaveManager::SaveSection(int fileNum, int sectionID, bool threaded) {
             OoT_HarvestSharedResources();
             Context_UpdateShadowCopy(GAME_OOT, &gSaveContext, sizeof(gSaveContext));
             gComboCtx.sourceGame = GAME_OOT;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1294: this save writes every heap skip flag to the .sav's tracker
+            // section (saveWithBase), the far pane's included, so the journal
+            // that carried them is emptied in the same commit.
+            Combo_TrackerOoTSkipJournalClear();
+#endif
             rsbsGeneration = RsbsSave_StageCommit();
             // #564 V12: the digest of the pairing this commit staged, read at the
             // same instant on the same thread; the worker mirrors it into the .sav.

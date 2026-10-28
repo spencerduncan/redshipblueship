@@ -596,7 +596,64 @@ bool OoTTrackerSetSkipped(uint16_t checkId, bool skipped) {
         return true;
     }
     loc->SetIsSkipped(skipped);
+    // #1294: a check the far pane journalled keeps its newest answer there, so a
+    // load that replays the journal over an older .sav cannot bring back the
+    // far pane's value over this one.
+    (void)Combo_TrackerOoTSkipJournalPut(checkId, skipped, true);
     OoTTrackerPersistSkip();
+    return true;
+}
+
+// ---- #1294: the far pane's skip toggle -----------------------------------------
+
+// The world OoT last departed from while playing a randomizer file, recorded by
+// the departure capture (OoT_TrackerAdapter_CaptureAvailability): the heap
+// survives the switch, and this is what says it is that file's world.
+bool sDepartedRando = false;
+uint32_t sDepartedSeed = 0;
+
+/**
+ * Whether the suspended heap takes a skip write while Majora's Mask is played:
+ * the pairing is live and the heap holds the world OoT departed from while
+ * playing it. Nothing of gSaveContext is read (it is MM's).
+ */
+bool OoTTrackerSuspendedSkipWritable(void) {
+    if (Context_GetCurrentGame() != GAME_MM || !Combo_ForeignPairingActive() || !sDepartedRando) {
+        return false;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetSeed() == sDepartedSeed;
+}
+
+/**
+ * The far pane's write: the heap flag, which the suspend never tears down and
+ * OoT's next full save writes to its .sav, and the journal entry the commits
+ * carry until then (ComboContext.trackerSkipJournalOoT; a load replays it).
+ * Not OoTTrackerPersistSkip: SaveSection would snapshot MM's gSaveContext and
+ * stamp the .sav's fileType from it, and SoH's order pass reads OoT's tracker
+ * settings, so the sort waits for OoT's arrival (CheckTracker::DeferAllOrdering,
+ * taken by ArmAvailableChecksRecalc). The row rule is the live write's, over the
+ * list the pane shows (the one kept from OoT's last live read, or the placed
+ * checks).
+ */
+bool OoTTrackerSetSuspendedSkipped(uint16_t checkId, bool skipped) {
+    if (!OoTTrackerSuspendedSkipWritable() || checkId == 0 || checkId >= (uint16_t)RC_MAX) {
+        return false;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)checkId);
+    if (!OoTCheckListed(ctx.get(), (RandomizerCheck)checkId) || StatusObtained(loc->GetCheckStatus())) {
+        return false;
+    }
+    if (loc->GetIsSkipped() == skipped) {
+        return true;
+    }
+    // Journalled first: with the journal full, nothing is written at all.
+    if (!Combo_TrackerOoTSkipJournalPut(checkId, skipped, false)) {
+        return false;
+    }
+    loc->SetIsSkipped(skipped);
+    CheckTracker::DeferAllOrdering();
     return true;
 }
 
@@ -629,8 +686,14 @@ bool OoTTrackerCurrentArea(uint16_t* outKey) {
  * is not known.
  */
 extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
+    if (Context_GetCurrentGame() != GAME_OOT) {
+        return;
+    }
     auto ctx = Rando::Context::GetInstance();
-    if (ctx == nullptr || Context_GetCurrentGame() != GAME_OOT || !OoTRandoFileLoaded()) {
+    // #1294: the world the far pane's skip toggle may write, or none.
+    sDepartedRando = ctx != nullptr && OoTRandoFileLoaded();
+    sDepartedSeed = sDepartedRando ? ctx->GetSeed() : 0;
+    if (!sDepartedRando) {
         return;
     }
     if (!OoTAvailabilityLive()) {
@@ -648,15 +711,51 @@ extern "C" void OoT_TrackerAdapter_CaptureAvailability(void) {
 
 extern "C" void OoT_TrackerAdapter_Register(void) {
     static const ComboOoTTrackerOps kOps = {
-        OoTTrackerSummary,      OoTTrackerCheckCount, OoTTrackerCheckAt,    OoTTrackerCheckName,
-        OoTTrackerSkipWritable, OoTTrackerSetSkipped, OoTTrackerCheckLogic, OoTTrackerCurrentArea,
+        OoTTrackerSummary,
+        OoTTrackerCheckCount,
+        OoTTrackerCheckAt,
+        OoTTrackerCheckName,
+        OoTTrackerSkipWritable,
+        OoTTrackerSetSkipped,
+        OoTTrackerCheckLogic,
+        OoTTrackerCurrentArea,
+        OoTTrackerSuspendedSkipWritable,
+        OoTTrackerSetSuspendedSkipped,
     };
     Combo_Tracker_RegisterOoT(&kOps);
 }
 
-// #1294 lock seam: no journal to replay yet.
+/**
+ * The journal's replay (#1294; combo_tracker_view.h). OoT's load seam calls it
+ * once the .sav's tracker section has set the heap's flags and the .redsave's
+ * Tier-1 has brought the journal back: each entry is a toggle the .sav does not
+ * have yet (OoT's full save empties the journal in the commit that writes them).
+ * The order pass runs here, on the game thread with OoT's save loaded, as the
+ * tracker section's own load runs it.
+ */
 extern "C" int OoT_TrackerAdapter_ReplaySkipJournal(void) {
-    return 0;
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0;
+    }
+    int changed = 0;
+    const int count = Combo_TrackerOoTSkipJournalCount();
+    for (int i = 0; i < count; i++) {
+        uint16_t checkId = 0;
+        bool skipped = false;
+        if (!Combo_TrackerOoTSkipJournalAt(i, &checkId, &skipped) || checkId == 0 || checkId >= (uint16_t)RC_MAX) {
+            continue;
+        }
+        Rando::ItemLocation* loc = ctx->GetItemLocation((size_t)checkId);
+        if (loc->GetIsSkipped() != skipped) {
+            loc->SetIsSkipped(skipped);
+            changed++;
+        }
+    }
+    if (changed > 0) {
+        CheckTracker::UpdateAllOrdering();
+    }
+    return changed;
 }
 
 // ============================================================================
