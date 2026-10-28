@@ -76,6 +76,9 @@ bool IsMysteryShopItem(RandomizerCheck rc);
 // set on each transition (CheckTrackerTransition: GetCheckArea). External, not in
 // its header.
 extern RandomizerCheckArea currentArea;
+// randomizer_check_tracker.cpp (#1279): CompareChecks's end-of-dungeon test, which
+// the window's sort follows. External, not in its header.
+bool IsEoDCheck(RandomizerCheckType type);
 } // namespace CheckTracker
 
 // The departure capture's record holds every OoT check id (#1129).
@@ -512,6 +515,9 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
         // GetShortName()); locationTable is static storage, so c_str() stays valid.
         const std::string& shortName = staticLoc->GetShortName();
         out->shortName = shortName.empty() ? nullptr : shortName.c_str();
+        // #1279: a dungeon's last reward sorts below its area's other open
+        // checks, as SoH's CompareChecks sorts it (the window's ComboCheckRowLess).
+        out->endOfDungeon = CheckTracker::IsEoDCheck(staticLoc->GetRCType());
     }
     // The name shows once the check is found: SoH prints the placed item for a
     // collected, saved or scummed check, whatever its skip flag. A seen or

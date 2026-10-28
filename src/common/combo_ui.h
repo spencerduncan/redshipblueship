@@ -206,6 +206,17 @@ typedef struct {
     bool (*PushCountFont)(void);
     /** Pop the font PushCountFont pushed. */
     void (*PopCountFont)(void);
+    /**
+     * SearchInput with one more inline button after its eraser, drawn as the
+     * eraser is (#1280): 2Ship's tracker search line, whose Scroll to Current
+     * Scene button follows the box. The field is narrowed by the button's
+     * width. `icon` is the button's glyph and `tooltip` its hover text; it
+     * reports its rect under "<id>##action". `*clicked` (may be NULL) is whether
+     * it was clicked this frame. A NULL `icon` draws exactly SearchInput. True
+     * when the text changed this frame, as SearchInput.
+     */
+    bool (*SearchInputWithAction)(const char* id, char* buf, int bufSize, const char* icon, const char* tooltip,
+                                  bool* clicked);
 } ComboUiTable;
 
 /** Install the table the panes draw through. NULL uninstalls (back to the fallback). */
