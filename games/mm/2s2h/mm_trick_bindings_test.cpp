@@ -602,6 +602,15 @@ void InvHookshotElegyGoronZora() {
     Give(ITEM_MASK_ZORA);
 }
 
+// ---- #1306: East Clock Town's Bombers' hideout door ----------------------
+
+/** The Bombers' code event set directly on a save with no projectile, so the
+ *  tricks-off route probe can tell `RANDO_EVENTS[RE_BOMBER_CODE]` apart from the
+ *  projectile gate it replaced. */
+void InvBomberCode() {
+    RANDO_EVENTS[RE_BOMBER_CODE] = 1;
+}
+
 const Probe kProbes[] = {
     // MMRT_LENS. Empty inventory and no magic, so the only way in is the trick.
     { MMRT_LENS, "Lone Peak Shrine's invisible chest without Lens of Truth", EDGE_CHECK, RR_LONE_PEAK_SHRINE,
@@ -1058,6 +1067,16 @@ const Probe kProbes[] = {
       RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyGoron, InvElegyOnly },
     { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower Temple's door from the Top with the Elegy and the Zora Mask", EDGE_EXIT,
       RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyZora, InvElegyOnly },
+
+    // ---- #1306: the Bombers' hideout door to the Astral Observatory ----------
+    //
+    // MMRT_BOMBER_BACKFLIP. Empty inventory and RE_BOMBER_CODE == 0, so the
+    // tricks-off route is shut; backflipping over the Bomber carries no item
+    // term and replaces the whole code requirement on the door (while leaving
+    // RE_BOMBER_CODE itself untouched so the Bomber's Notebook check still
+    // requires the code).
+    { MMRT_BOMBER_BACKFLIP, "East Clock Town's Bombers' hideout door by backflipping over the Bomber", EDGE_EXIT,
+      RR_CLOCK_TOWN_EAST, (int32_t)ENTRANCE(ASTRAL_OBSERVATORY, 0), kAllTime, InvEmpty, NULL },
 };
 
 /**
@@ -1211,6 +1230,12 @@ const TricksOffRouteProbe kTricksOffRouteProbes[] = {
     { MMRT_ONE_MASK_STONE_TOWER, "Stone Tower Temple's door with both masks, tricks off (one mask is not enough)",
       EDGE_EXIT, RR_STONE_TOWER_TOP, (int32_t)ENTRANCE(STONE_TOWER_TEMPLE, 0), kAllTime, InvElegyGoronZoraNoHookshot,
       InvElegyZora },
+    // #1306: East Clock Town's door to the Astral Observatory opens on the
+    // Bombers' code event with the tricks off, and a projectile alone (the old
+    // gate) is not enough when the code event has not fired.
+    { MMRT_BOMBER_BACKFLIP,
+      "East Clock Town's Bombers' hideout door with the Bombers' code, tricks off (a Bow alone is not enough)",
+      EDGE_EXIT, RR_CLOCK_TOWN_EAST, (int32_t)ENTRANCE(ASTRAL_OBSERVATORY, 0), kAllTime, InvBomberCode, InvBow },
 };
 
 /** Keys whose red/green pairs live in their own rows (part 1's two, and #719's

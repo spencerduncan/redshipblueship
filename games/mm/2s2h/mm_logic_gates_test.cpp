@@ -24,6 +24,15 @@
  *     Ocarina of Time, the Deku, Goron and Zora Masks and every ocarina button,
  *     but no Romani's Mask: the Milk Bar IS reached and the Circus Leader's check
  *     is not. With Romani's Mask it is.
+ *  O. The Bombers' hideout door to the Astral Observatory (#1306, OoTMM
+ *     clock_town.yml:171). On the door lambda itself, a projectile alone with
+ *     RE_BOMBER_CODE == 0 must stay shut and RE_BOMBER_CODE == 1 with no
+ *     projectile must open; in the full crawl from East Clock Town with an empty
+ *     inventory, MMRT_BOMBER_GUESS (which fires RE_BOMBER_CODE in North Clock Town
+ *     without a projectile) and MMRT_BOMBER_BACKFLIP (which bypasses the Bomber
+ *     on the door without firing RE_BOMBER_CODE) each reach the observatory and
+ *     the Moon's Tear, while the Deku Mask alone reaches the observatory from the
+ *     Termina Field balcony without magic or the code.
  *
  * Every "not reached" leg is paired with a "reached" leg on the same save plus
  * one thing, and each names a region or check that must be reached, so a probe
@@ -94,10 +103,24 @@ Reach CrawlFrom(s32 entrance) {
     return reach;
 }
 
+void SetTrick(MMRandoTrickId id, bool on) {
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTricks[id] = on ? 1 : 0;
+}
+
 void RequireRegion(const char* leg, const Reach& reach, RandoRegionId region, const char* name) {
     if (!reach.crawl.reachableRegions.contains(region)) {
         GateFail("%s: %s is not reached, so this leg probes nothing", leg, name);
     }
+}
+
+void ExpectRegion(const char* leg, const Reach& reach, RandoRegionId region, const char* name, bool expected,
+                  const char* why) {
+    const bool got = reach.crawl.reachableRegions.contains(region);
+    if (got != expected) {
+        GateFail("%s: %s is %s: %s", leg, name, got ? "reachable" : "unreachable", why);
+        return;
+    }
+    printf("[TEST]   ok: %s: %s %s\n", leg, name, expected ? "reachable" : "unreachable");
 }
 
 void ExpectCheck(const char* leg, const Reach& reach, RandoCheckId check, const char* name, bool expected,
@@ -147,7 +170,8 @@ void ArmMilkBarSave() {
 
 extern "C" int MM_LogicGates_RunHeadless(void) {
     printf("[TEST] mm-logic-gates: Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder "
-           "broken, and the Circus Leader needs Romani's Mask (#1168)\n");
+           "broken, the Circus Leader needs Romani's Mask (#1168), and East Clock Town's Bombers' hideout door needs "
+           "the Bombers' code or backflip trick (#1306)\n");
     sFailures = 0;
 
     // Populate the region graph (file-scope ShipInit registrars; see
@@ -210,6 +234,115 @@ extern "C" int MM_LogicGates_RunHeadless(void) {
         const Reach reach = CrawlFrom(kEastClockTown);
         ExpectCheck("C2 with Romani's Mask", reach, RC_MILK_BAR_CIRCUS_LEADER_MASK, "the Circus Leader's Mask", true,
                     "not reached with Romani's Mask, the ocarina, the three masks and every button");
+    }
+
+    // ---- O: East Clock Town's Bombers' hideout door (#1306) ----------------
+    //
+    // Direct check on the exit lambda first: in a full crawl from Clock Town with
+    // tricks off, North Clock Town is always reachable with all time slices, so a
+    // projectile fires RE_HIDE_SEEK_DAY1/2/3 -> RE_BOMBERS_* -> RE_BOMBER_CODE in
+    // the same pass. Evaluating the door lambda directly separates `CAN_USE_PROJECTILE`
+    // from `RANDO_EVENTS[RE_BOMBER_CODE]`, and the crawl legs below then drive the
+    // full region/event graph through MMRT_BOMBER_GUESS, MMRT_BOMBER_BACKFLIP, Bow
+    // hide-and-seek, and the Termina Field balcony.
+    {
+        const s32 kObservatoryEntrance = ENTRANCE(ASTRAL_OBSERVATORY, 0);
+        auto regionIt = Rando::Logic::Regions.find(RR_CLOCK_TOWN_EAST);
+        if (regionIt == Rando::Logic::Regions.end() || !regionIt->second.exits.contains(kObservatoryEntrance)) {
+            GateFail("O1 East Clock Town -> Astral Observatory exit is missing from Rando::Logic::Regions");
+        } else {
+            const auto& cond = regionIt->second.exits.at(kObservatoryEntrance).condition;
+
+            ResetSave();
+            Give(ITEM_BOW);
+            Rando::Logic::gCurrentRegionTime = Rando::Logic::TIME_ALL_SLICES;
+            if (cond()) {
+                GateFail("O1a Bow with RE_BOMBER_CODE == 0: East Clock Town -> Astral Observatory exit opened on a "
+                         "projectile alone without the Bombers' code event");
+            } else {
+                printf("[TEST]   ok: O1a Bow with RE_BOMBER_CODE == 0: hideout door shut\n");
+            }
+
+            ResetSave();
+            RANDO_EVENTS[RE_BOMBER_CODE] = 1;
+            Rando::Logic::gCurrentRegionTime = Rando::Logic::TIME_ALL_SLICES;
+            if (!cond()) {
+                GateFail("O1b RE_BOMBER_CODE == 1 with no projectile: East Clock Town -> Astral Observatory exit "
+                         "stayed shut when the Bombers' code event was set");
+            } else {
+                printf("[TEST]   ok: O1b RE_BOMBER_CODE == 1 with no projectile: hideout door open\n");
+            }
+        }
+    }
+    {
+        ResetSave();
+        const Reach reach = CrawlFrom(kEastClockTown);
+        const char* leg = "O2 empty inventory, tricks off";
+        RequireRegion(leg, reach, RR_CLOCK_TOWN_EAST, "East Clock Town");
+        RequireRegion(leg, reach, RR_CLOCK_TOWN_NORTH, "North Clock Town");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY_PASSAGE, "the Astral Observatory passage", false,
+                     "reached with no Bombers' code, no backflip trick and no way onto the balcony");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY, "the Astral Observatory", false,
+                     "reached with no Bombers' code, no backflip trick and no way onto the balcony");
+        ExpectCheck(leg, reach, RC_ASTRAL_OBSERVATORY_MOON_TEAR, "the Moon's Tear", false,
+                    "reached with no Bombers' code, no backflip trick and no way onto the balcony");
+        ExpectCheck(leg, reach, RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, "the Bomber's Notebook", false,
+                    "reached without the Bombers' code");
+    }
+    {
+        ResetSave();
+        SetTrick(MMRT_BOMBER_GUESS, true);
+        const Reach reach = CrawlFrom(kEastClockTown);
+        const char* leg = "O3 MMRT_BOMBER_GUESS on, no projectile";
+        RequireRegion(leg, reach, RR_CLOCK_TOWN_NORTH, "North Clock Town");
+        ExpectCheck(leg, reach, RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, "the Bomber's Notebook", true,
+                    "not reached when MMRT_BOMBER_GUESS fired RE_BOMBER_CODE in North Clock Town");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY_PASSAGE, "the Astral Observatory passage", true,
+                     "not reached when RE_BOMBER_CODE fired via MMRT_BOMBER_GUESS without a projectile");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY, "the Astral Observatory", true,
+                     "not reached when RE_BOMBER_CODE fired via MMRT_BOMBER_GUESS without a projectile");
+        ExpectCheck(leg, reach, RC_ASTRAL_OBSERVATORY_MOON_TEAR, "the Moon's Tear", true,
+                    "not reached when RE_BOMBER_CODE fired via MMRT_BOMBER_GUESS without a projectile");
+    }
+    {
+        ResetSave();
+        SetTrick(MMRT_BOMBER_BACKFLIP, true);
+        const Reach reach = CrawlFrom(kEastClockTown);
+        const char* leg = "O4 MMRT_BOMBER_BACKFLIP on, no code";
+        RequireRegion(leg, reach, RR_CLOCK_TOWN_EAST, "East Clock Town");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY_PASSAGE, "the Astral Observatory passage", true,
+                     "not reached with MMRT_BOMBER_BACKFLIP enabled on East Clock Town's hideout door");
+        ExpectRegion(leg, reach, RR_ASTRAL_OBSERVATORY, "the Astral Observatory", true,
+                     "not reached with MMRT_BOMBER_BACKFLIP enabled on East Clock Town's hideout door");
+        ExpectCheck(leg, reach, RC_ASTRAL_OBSERVATORY_MOON_TEAR, "the Moon's Tear", true,
+                    "not reached with MMRT_BOMBER_BACKFLIP enabled on East Clock Town's hideout door");
+        ExpectCheck(leg, reach, RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, "the Bomber's Notebook", false,
+                    "reached by backflipping past the guard without learning the Bombers' code");
+    }
+    {
+        ResetSave();
+        Give(ITEM_BOW);
+        const Reach reach = CrawlFrom(kEastClockTown);
+        const char* leg = "O5 Bow hide-and-seek, tricks off";
+        RequireRegion(leg, reach, RR_ASTRAL_OBSERVATORY_PASSAGE, "the Astral Observatory passage");
+        RequireRegion(leg, reach, RR_ASTRAL_OBSERVATORY, "the Astral Observatory");
+        ExpectCheck(leg, reach, RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, "the Bomber's Notebook", true,
+                    "not reached when a Bow shoots the balloon in North Clock Town and completes hide-and-seek");
+        ExpectCheck(leg, reach, RC_ASTRAL_OBSERVATORY_MOON_TEAR, "the Moon's Tear", true,
+                    "not reached when a Bow completes hide-and-seek and opens the Bombers' hideout door");
+    }
+    {
+        ResetSave();
+        Give(ITEM_MASK_DEKU);
+        const Reach reach = CrawlFrom(kEastClockTown);
+        const char* leg = "O6 Deku Mask without magic (Termina Field balcony route)";
+        RequireRegion(leg, reach, RR_TERMINA_FIELD, "Termina Field");
+        RequireRegion(leg, reach, RR_ASTRAL_OBSERVATORY_OUTSIDE, "Outside Astral Observatory");
+        RequireRegion(leg, reach, RR_ASTRAL_OBSERVATORY, "the Astral Observatory");
+        ExpectCheck(leg, reach, RC_ASTRAL_OBSERVATORY_MOON_TEAR, "the Moon's Tear", true,
+                    "not reached from Termina Field's Deku Flower onto the observatory balcony");
+        ExpectCheck(leg, reach, RC_CLOCK_TOWN_BOMBERS_NOTEBOOK, "the Bomber's Notebook", false,
+                    "reached with the Deku Mask and no magic (cannot pop the balloon or learn the code)");
     }
 
     memcpy(&gSaveContext, saved.get(), sizeof(SaveContext));
