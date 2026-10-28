@@ -34,6 +34,7 @@
 
 #include "ComboTrackerWindow.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
@@ -660,6 +661,22 @@ std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row
 }
 
 bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow& b) {
+    // SoH's CompareChecks, clause for clause: ItemLocation::HasObtained, then
+    // RCSHOW_SAVED, then GetIsSkipped, then IsEoDCheck, then the check id.
+    if (a.obtained != b.obtained) {
+        return !a.obtained;
+    }
+    const bool aSaved = a.status == (uint8_t)COMBO_TRACKER_CHECK_SAVED;
+    const bool bSaved = b.status == (uint8_t)COMBO_TRACKER_CHECK_SAVED;
+    if (aSaved != bSaved) {
+        return !aSaved;
+    }
+    if (a.skipped != b.skipped) {
+        return !a.skipped;
+    }
+    if (a.endOfDungeon != b.endOfDungeon) {
+        return !a.endOfDungeon;
+    }
     return a.checkId < b.checkId;
 }
 
@@ -708,6 +725,10 @@ void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std:
         area.rows.push_back(row);
     }
     for (auto& [key, area] : byKey) {
+        // #1279: SoH's order inside the area (UpdateOrdering's std::sort with
+        // CompareChecks), so a skipped or found check sinks below the open ones.
+        // The list is collected every frame, so a skip moves its row at once.
+        std::stable_sort(area.rows.begin(), area.rows.end(), ComboCheckRowLess);
         if (!area.rows.empty()) {
             out.push_back(std::move(area));
         } else if (keepFiltered) {

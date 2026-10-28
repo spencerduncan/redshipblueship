@@ -235,7 +235,7 @@ bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
  * and name, its shuffled-check count and how many of them are done (collected
  * or skipped: SoH's and MM's trackers both count a skipped check as checked),
- * and the rows the search leaves, in table order. `total` and `done` count the
+ * and the rows the search leaves, in SoH's order (ComboCheckRowLess, #1279). `total` and `done` count the
  * whole area, whatever the search hides, as SoH's area totals do.
  */
 struct ComboTrackerAreaRows {
