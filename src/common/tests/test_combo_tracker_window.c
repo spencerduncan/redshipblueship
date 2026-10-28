@@ -318,7 +318,7 @@ const char* CtwCheckName(uint16_t id) {
 }
 const ComboOoTTrackerOps kCtwOps = { CtwSummary, CtwCount, CtwCheckAt, CtwCheckName };
 
-/** Row ids of `area`, in order, as one string ("10,12"). */
+/** Row ids of `area`, in order, as one string ("12,10"). */
 std::string CtwIds(const ComboGui::ComboTrackerAreaRows& area) {
     std::string s;
     for (const ComboTrackerCheckRow& row : area.rows) {
@@ -391,7 +391,11 @@ int LockAreasBody(void) {
     CTW_ASSERT(areas.size() == 2);
     CTW_ASSERT(areas[0].key == 3 && strcmp(areas[0].name, "Area Three") == 0); // ascending key, not table order
     CTW_ASSERT(areas[0].total == 2 && areas[0].done == 0 && CtwIds(areas[0]) == "11,13"); // unshuffled 14 never listed
-    CTW_ASSERT(areas[1].key == 7 && areas[1].total == 2 && areas[1].done == 2 && CtwIds(areas[1]) == "10,12");
+    // #1279: SoH's CompareChecks order inside an area, not table order: the
+    // skipped 0x12 before the collected 0x10.
+    printf("[TEST] combo-tracker-window #1279: area 7 lists \"%s\"\n",
+           areas.size() == 2 ? CtwIds(areas[1]).c_str() : "");
+    CTW_ASSERT(areas[1].key == 7 && areas[1].total == 2 && areas[1].done == 2 && CtwIds(areas[1]) == "12,10");
     // Search by a revealed item: one row, its area's totals unchanged.
     ComboCollectCheckAreas((uint8_t)GAME_OOT, "fairy bow", areas);
     CTW_ASSERT(areas.size() == 1 && areas[0].key == 7 && CtwIds(areas[0]) == "10" && areas[0].total == 2);
@@ -442,7 +446,7 @@ int LockAreas(void) {
 
 // ---- #1128 (lane L1a): SoH's hide keys, Show Hidden Items per pane, totals ----
 
-/** "<area key>:<row ids>" per drawn area, in order ("3:11,13 7:10,12"); a filtered area reads "3:-". */
+/** "<area key>:<row ids>" per drawn area, in order ("3:11,13 7:12,10"); a filtered area reads "3:-". */
 std::string CtwDrawn(const std::vector<ComboGui::ComboTrackerAreaRows>& areas) {
     std::string s;
     for (const ComboGui::ComboTrackerAreaRows& area : areas) {
@@ -537,7 +541,7 @@ int LockHideBody(void) {
     ComboCheckHideOptions opts;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
     printf("[TEST] combo-tracker-window #1128: defaults draw \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     // Collected hidden: its row goes, its area's totals stay whole.
     opts.hideStatus[COMBO_TRACKER_CHECK_COLLECTED] = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
@@ -551,7 +555,7 @@ int LockHideBody(void) {
     // The pane's Show Hidden Items brings both back.
     opts.showHidden = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
 
     // Area complete / incomplete hide, and Show Hidden Items over both.
     opts = ComboCheckHideOptions();
@@ -561,11 +565,11 @@ int LockHideBody(void) {
     CTW_ASSERT(CtwDrawn(areas) == "3:11,13");
     opts.showHidden = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     opts = ComboCheckHideOptions();
     opts.hideAreaIncomplete = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "7:12,10");
 
     // Filter Empty Areas: on (SoH's default), an area the search empties goes,
     // whatever Show Hidden Items says; off, its header stays with no rows.
@@ -642,6 +646,130 @@ int LockHide(void) {
     return result;
 }
 
+// ---- #1279: each area's rows in SoH's CompareChecks order ----------------------
+
+// One area (9) holding every class CompareChecks orders, in descending id order
+// so table order and SoH's order disagree everywhere: a saved check, a collected
+// one, a skipped one, a dungeon's last reward still open, and two open checks.
+struct CtwSortRow {
+    uint16_t id;
+    uint8_t status;
+    bool endOfDungeon;
+};
+const CtwSortRow kCtwSortRows[] = {
+    { 0x26, COMBO_TRACKER_CHECK_UNCHECKED, false }, { 0x25, COMBO_TRACKER_CHECK_SAVED, false },
+    { 0x24, COMBO_TRACKER_CHECK_COLLECTED, false }, { 0x23, COMBO_TRACKER_CHECK_SKIPPED, false },
+    { 0x22, COMBO_TRACKER_CHECK_UNCHECKED, true },  { 0x21, COMBO_TRACKER_CHECK_SEEN, false },
+};
+constexpr int kCtwSortRowCount = (int)(sizeof(kCtwSortRows) / sizeof(kCtwSortRows[0]));
+
+/** A row of CompareChecks' classes: found (and saved), skipped, end of dungeon. */
+ComboTrackerCheckRow CtwSortProbe(uint16_t id, uint8_t status, bool endOfDungeon) {
+    ComboTrackerCheckRow row = {};
+    row.checkId = id;
+    row.shuffled = true;
+    row.status = status;
+    row.obtained = status == COMBO_TRACKER_CHECK_COLLECTED || status == COMBO_TRACKER_CHECK_SAVED;
+    row.skipped = status == COMBO_TRACKER_CHECK_SKIPPED;
+    row.endOfDungeon = endOfDungeon;
+    return row;
+}
+
+int CtwSortCount(void) {
+    return kCtwSortRowCount;
+}
+bool CtwSortCheckAt(int index, ComboTrackerCheckRow* out) {
+    if (index < 0 || index >= kCtwSortRowCount) {
+        return false;
+    }
+    const CtwSortRow& r = kCtwSortRows[index];
+    *out = CtwSortProbe(r.id, r.status, r.endOfDungeon);
+    out->name = "Sorted Chest";
+    out->areaKey = 9;
+    out->areaName = "Area Nine";
+    return true;
+}
+const char* CtwSortCheckName(uint16_t) {
+    return "Sorted Chest";
+}
+const ComboOoTTrackerOps kCtwSortOps = { CtwSummary, CtwSortCount, CtwSortCheckAt, CtwSortCheckName };
+
+int LockSortBody(void) {
+    using namespace ComboGui;
+
+    // The comparator, clause by clause in SoH's order (CompareChecks): each pair
+    // is decided by its first differing clause, whatever the ids say.
+    const ComboTrackerCheckRow open = CtwSortProbe(0x50, COMBO_TRACKER_CHECK_UNCHECKED, false);
+    const ComboTrackerCheckRow seen = CtwSortProbe(0x51, COMBO_TRACKER_CHECK_SEEN, false);
+    const ComboTrackerCheckRow eod = CtwSortProbe(0x10, COMBO_TRACKER_CHECK_UNCHECKED, true);
+    const ComboTrackerCheckRow skipped = CtwSortProbe(0x01, COMBO_TRACKER_CHECK_SKIPPED, false);
+    const ComboTrackerCheckRow skippedEod = CtwSortProbe(0x60, COMBO_TRACKER_CHECK_SKIPPED, true);
+    const ComboTrackerCheckRow collected = CtwSortProbe(0x02, COMBO_TRACKER_CHECK_COLLECTED, false);
+    const ComboTrackerCheckRow saved = CtwSortProbe(0x03, COMBO_TRACKER_CHECK_SAVED, false);
+    const bool notFoundFirst = ComboCheckRowLess(open, collected) && !ComboCheckRowLess(collected, open);
+    const bool unsavedFirst = ComboCheckRowLess(collected, saved) && !ComboCheckRowLess(saved, collected);
+    const bool unskippedFirst = ComboCheckRowLess(eod, skipped) && !ComboCheckRowLess(skipped, eod);
+    const bool skippedBeforeFound = ComboCheckRowLess(skippedEod, collected);
+    const bool eodLast =
+        ComboCheckRowLess(open, eod) && !ComboCheckRowLess(eod, open) && ComboCheckRowLess(skipped, skippedEod);
+    const bool idLast =
+        ComboCheckRowLess(open, seen) && !ComboCheckRowLess(seen, open) && !ComboCheckRowLess(open, open);
+    printf("[TEST] combo-tracker-window #1279: CompareChecks clauses: not found first %d, unsaved first %d, not "
+           "skipped first %d, skipped before found %d, end of dungeon last %d, then id %d\n",
+           (int)notFoundFirst, (int)unsavedFirst, (int)unskippedFirst, (int)skippedBeforeFound, (int)eodLast,
+           (int)idLast);
+    CTW_ASSERT(notFoundFirst && unsavedFirst && unskippedFirst && skippedBeforeFound && eodLast && idLast);
+
+    // The list: the open checks by id, the open end-of-dungeon reward, the
+    // skipped check, then the collected and the saved ones; the area's totals
+    // are unchanged by the order.
+    std::vector<ComboTrackerAreaRows> areas;
+    Combo_Tracker_RegisterOoT(&kCtwSortOps);
+    ComboCollectCheckAreas((uint8_t)GAME_OOT, "", areas);
+    const std::string listed = areas.size() == 1 ? CtwIds(areas[0]) : std::string("(not one area)");
+    printf("[TEST] combo-tracker-window #1279: an area of every class lists \"%s\"\n", listed.c_str());
+    CTW_ASSERT(listed == "21,26,22,23,24,25");
+    CTW_ASSERT(areas[0].total == 6 && areas[0].done == 3);
+    // The drawn list keeps the order, and SoH's Check Tracker Settings > Skipped
+    // > Hide still takes the skipped row out (the hide-skipped option the report
+    // asked for, which both panes already honour).
+    ComboCheckHideOptions opts;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "9:21,26,22,23,24,25");
+    opts.hideStatus[COMBO_TRACKER_CHECK_SKIPPED] = true;
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    printf("[TEST] combo-tracker-window #1279: Skipped.Hide draws \"%s\"\n", CtwDrawn(areas).c_str());
+    CTW_ASSERT(CtwDrawn(areas) == "9:21,26,22,24,25");
+
+#ifdef RSBS_SOURCE_DIR
+    // The sort runs where the rows are collected, so the search, the hides, the
+    // area totals and the scroll all see the sorted list; stable, so equal rows
+    // keep table order. OoT's adapter fills endOfDungeon from SoH's own IsEoDCheck
+    // test.
+    {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/src/common/ComboTrackerWindow.cpp", std::ios::binary);
+        CTW_ASSERT(in.good());
+        const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CTW_ASSERT(win.find("std::stable_sort(area.rows.begin(), area.rows.end(), ComboCheckRowLess);") !=
+                   std::string::npos);
+        std::ifstream adapterIn(std::string(RSBS_SOURCE_DIR) +
+                                    "/games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp",
+                                std::ios::binary);
+        CTW_ASSERT(adapterIn.good());
+        const std::string adapter((std::istreambuf_iterator<char>(adapterIn)), std::istreambuf_iterator<char>());
+        CTW_ASSERT(adapter.find("out->endOfDungeon = CheckTracker::IsEoDCheck(staticLoc->GetRCType());") !=
+                   std::string::npos);
+    }
+#endif
+    return TEST_PASS;
+}
+
+int LockSort(void) {
+    const int result = LockSortBody();
+    OoT_TrackerAdapter_Register(); // the production adapter, whatever the result
+    return result;
+}
+
 // ---- #1129 (lane L3): reachability ---------------------------------------------
 
 // The grouping world with each row's availability known: the ids in
@@ -700,7 +828,7 @@ int LockAvailBody(void) {
     Combo_Tracker_RegisterOoT(&kCtwAvailOps);
     opts = ComboCheckHideOptions();
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     CTW_ASSERT(areas.size() == 2 && areas[0].availabilityKnown && areas[0].available == 1 &&
                areas[1].availabilityKnown && areas[1].available == 1);
     opts.onlyAvailable = true;
@@ -716,7 +844,7 @@ int LockAvailBody(void) {
     // A world whose availability is not known: nothing goes.
     Combo_Tracker_RegisterOoT(&kCtwOps);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     CTW_ASSERT(!areas[0].availabilityKnown && areas[0].available == 0);
 
     // The totals line and the area header: SoH's Available count in front, only
@@ -1028,17 +1156,17 @@ int LockNavBody(void) {
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(CtwDrawn(areas) == "7:10,12");
+    CTW_ASSERT(CtwDrawn(areas) == "7:12,10");
     // The toggle off, or no area known: the whole list.
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, false);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(!opts.onlyCurrentArea && CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(!opts.onlyCurrentArea && CtwDrawn(areas) == "3:11,13 7:12,10");
     sCtwAreaKnown = false;
     opts = ComboCheckHideOptions();
     ComboApplyCurrentAreaFilter(opts, (uint8_t)GAME_OOT, true);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
-    CTW_ASSERT(!opts.currentAreaKnown && CtwDrawn(areas) == "3:11,13 7:10,12");
+    CTW_ASSERT(!opts.currentAreaKnown && CtwDrawn(areas) == "3:11,13 7:12,10");
 
     // Per pane (ruling D12): each pane's toggle is its own, seeded from the one
     // key whenever the key changes, and a pane's checkbox moves that pane alone.
@@ -1096,6 +1224,45 @@ int LockNavBody(void) {
     CTW_ASSERT(!ComboAreaScrollNote(off, true, false, true, 9));
     CTW_ASSERT(!ComboAreaScrollTake(off, 9));
 
+    // #1280: the pane's Scroll to Current Area button owes a scroll on demand:
+    // with no area change, on either pane, whatever auto scroll says, paid once.
+    CTW_ASSERT(!ComboAreaScrollRequest(scroll, false, 0)); // no area known: nothing owed
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 7));
+    const bool asked = ComboAreaScrollRequest(scroll, true, 7); // the area noted last: no change
+    const bool askedPaid = ComboAreaScrollTake(scroll, 7);
+    const bool askedOnce = !ComboAreaScrollTake(scroll, 7);
+    const bool inactivePaid = ComboAreaScrollRequest(inactive, true, 6) && ComboAreaScrollTake(inactive, 6);
+    const bool offPaid = ComboAreaScrollRequest(off, true, 9) && ComboAreaScrollTake(off, 9); // auto scroll off
+    printf("[TEST] combo-tracker-window #1280: Scroll to Current Area owes %d, paid %d once %d, on the inactive pane "
+           "%d, with auto scroll off %d\n",
+           (int)asked, (int)askedPaid, (int)askedOnce, (int)inactivePaid, (int)offPaid);
+    CTW_ASSERT(asked && askedPaid && askedOnce && inactivePaid && offPaid);
+    CTW_ASSERT(ComboAreaScrollRequest(scroll, true, 7));
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 3) && ComboAreaScrollTake(scroll, 7)); // at its own header only
+    // SoH's other triggers re-arm it: on the active pane, under auto scroll only.
+    ComboAreaScroll refresh;
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, false, true, true, 3)); // the inactive pane: none
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, true, false, true, 3)); // auto scroll off: none
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, true, true, false, 3)); // no area known: none
+    CTW_ASSERT(!ComboAreaScrollTake(refresh, 3));
+    CTW_ASSERT(ComboAreaScrollRefresh(refresh, true, true, true, 3));
+    CTW_ASSERT(ComboAreaScrollTake(refresh, 3));
+    // An owed scroll whose area the list did not draw is dropped, so a later
+    // filter change cannot jump the list; one whose area was drawn stays owed.
+    std::vector<ComboTrackerAreaRows> drawn(1);
+    drawn[0].key = 7;
+    CTW_ASSERT(ComboAreaScrollRequest(refresh, true, 3));
+    ComboAreaScrollDropUndrawn(refresh, drawn);
+    CTW_ASSERT(!ComboAreaScrollTake(refresh, 3));
+    drawn.resize(2);
+    drawn[1].key = 3;
+    CTW_ASSERT(ComboAreaScrollRequest(refresh, true, 3));
+    ComboAreaScrollDropUndrawn(refresh, drawn);
+    CTW_ASSERT(ComboAreaScrollTake(refresh, 3));
+    // The button shows while an area is known and the pane shows more than it.
+    CTW_ASSERT(ComboScrollButtonShown(true, false));
+    CTW_ASSERT(!ComboScrollButtonShown(false, false) && !ComboScrollButtonShown(true, true));
+
     // The keys, with their defaults: auto scroll on, Only Show Current Area off.
     {
         bool existed[2];
@@ -1133,12 +1300,22 @@ int LockNavBody(void) {
         CTW_ASSERT(in.good());
         const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const char* const kDraws[] = {
-            "ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame()",
+            "ComboAreaScrollNote(pane.scroll, activePane,",
             "if (ComboAreaScrollTake(pane.scroll, area.key)) {\n            ImGui::SetScrollHereY(0.0f);",
             "Ui().Checkbox(\"Only Show Current Area\", &pane.area.onlyCurrentArea",
             "ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);",
             "ComboPaneAreaToggleSeed(pane.area, ComboReadTrackerNavKeys().onlyCurrentArea);",
             "(void)Combo_TrackerCurrentArea((uint8_t)Context_GetCurrentGame(), nullptr);",
+            // #1280: the button beside the search box (the eraser's inline style,
+            // 2Ship's ICON_FA_ARROWS_V), on the header row when the box is hidden,
+            // and the triggers and the drop above, each where the pane draws.
+            "Ui().SearchInputWithAction(\"##checkSearch\", pane.search, (int)sizeof(pane.search), scrollIcon,",
+            "Ui().IconButton(\"##scrollToCurrentArea\", ICON_FA_ARROWS_V, &scrollTip)",
+            "const char* scrollIcon = scrollButton ? ICON_FA_ARROWS_V : nullptr;",
+            "kScrollToCurrentAreaTooltip = \"Scroll to Current Area\"",
+            "(void)ComboAreaScrollRequest(pane.scroll, areaKnown, currentArea);",
+            "(void)ComboAreaScrollRefresh(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);",
+            "ComboAreaScrollDropUndrawn(pane.scroll, areas);",
         };
         for (const char* draw : kDraws) {
             if (win.find(draw) == std::string::npos) {
@@ -1232,6 +1409,7 @@ int LockL5(void) {
     header.checkTotals = false;
     header.availableChecks = false;
     header.availableChecksToggle = true; // shown only with Enable Available Checks
+    header.onlyCurrentAreaToggle = false;
     const bool noneShown = ComboCheckHeaderPresent(header);
     header.availableChecks = true;
     const bool availableShown = ComboCheckHeaderPresent(header);
@@ -1242,6 +1420,35 @@ int LockL5(void) {
            "toggle %d, with the totals %d\n",
            (int)byDefault, (int)noneShown, (int)availableShown, (int)totalsShown);
     CTW_ASSERT(byDefault && !noneShown && availableShown && totalsShown);
+
+    // #1287: the pane's own Only Show Current Area checkbox has a visibility key
+    // of its own, on by default, and no longer rides with SoH's controls: with
+    // every one of them hidden it still draws, and the header (its separator)
+    // with it; hidden by its own key, it goes while SoH's controls stay.
+    {
+        const char* const kToggleKey = "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible";
+        const bool existed = CVarExists(kToggleKey);
+        const int32_t value = CVarGetInteger(kToggleKey, 0);
+        CVarClear(kToggleKey);
+        const bool readDefault = ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        CVarSetInteger(kToggleKey, 0);
+        const bool readOff = !ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        if (existed) {
+            CVarSetInteger(kToggleKey, value);
+        } else {
+            CVarClear(kToggleKey);
+        }
+        ComboCheckHeaderOptions bare;
+        bare.hiddenItemsToggle = false;
+        bare.searchInput = false;
+        bare.checkTotals = false;
+        const bool toggleAlone = ComboCheckHeaderPresent(bare);
+        printf("[TEST] combo-tracker-window #1287: Only Show Current Area Toggle reads on by default %d, off when set "
+               "%d; with every SoH control hidden the header is present %d\n",
+               (int)readDefault, (int)readOff, (int)toggleAlone);
+        CTW_ASSERT(ComboCheckHeaderOptions().onlyCurrentAreaToggle);
+        CTW_ASSERT(readDefault && readOff && toggleAlone);
+    }
 
 #ifdef RSBS_SOURCE_DIR
     // The draw: a row leads with its name in its status colour, as SoH's
@@ -1255,6 +1462,24 @@ int LockL5(void) {
     CTW_ASSERT(drawRow.find("SQUARE_O") == std::string::npos);
     CTW_ASSERT(win.find("if (headerPresent) {\n        ImGui::Separator();") != std::string::npos);
     CTW_ASSERT(win.find("haystack = ComboCheckRowSearchText(game, row);") != std::string::npos);
+    // #1287: the checkbox is drawn behind its own key, and the key is read.
+    const std::string areaToggle = CtwSlice(win, "if (header.onlyCurrentAreaToggle) {", "\n    }");
+    CTW_ASSERT(!areaToggle.empty() && areaToggle.find("\"Only Show Current Area\"") != std::string::npos);
+    CTW_ASSERT(win.find("header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_"
+                        "TOGGLE_VISIBLE, 1) != 0;") != std::string::npos);
+    // ...and its row sits in SoH's Check Tracker Settings, Tracker Header
+    // Visibility, right after SoH's Check Totals row (single-exe fenced).
+    const std::string settings = CtwSource("games/oot/soh/Enhancements/randomizer/randomizer_check_tracker.cpp");
+    const std::string visibility =
+        CtwSlice(settings, "ImGui::SeparatorText(\"Tracker Header Visibility\");", "ImGui::TableNextColumn();");
+    const size_t totalsRow = visibility.find("UIWidgets::CVarCheckbox(\"Check Totals\"");
+    const size_t toggleRow = visibility.find("UIWidgets::CVarCheckbox(\"Only Show Current Area Toggle\",");
+    const size_t toggleKey = visibility.find("RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,");
+    printf("[TEST] combo-tracker-window #1287: Tracker Header Visibility holds Check Totals at %d, the Only Show "
+           "Current Area Toggle at %d\n",
+           totalsRow == std::string::npos ? -1 : (int)totalsRow, toggleRow == std::string::npos ? -1 : (int)toggleRow);
+    CTW_ASSERT(totalsRow != std::string::npos && toggleRow != std::string::npos && totalsRow < toggleRow);
+    CTW_ASSERT(toggleKey != std::string::npos && toggleRow < toggleKey);
 
     // SoH's two toggle rows are the ones that open the unified windows: their
     // .CVar and .WindowName are SoH's own literals, unchanged, which the
@@ -1540,18 +1765,19 @@ int TrackerLayoutLocks(void) {
     const int rLogic = LockLogic();
     const int rNav = LockNav();
     const int rL5 = LockL5();
+    const int rSort = LockSort();
     printf("[TEST] combo-tracker-window layout locks: #815 %s, #816 %s, U4 areas+search %s, #1128 hide+totals %s, "
            "#1129 reachability %s, #1130 chrome %s, #1166 seen item+price %s, #1166 ice trap %s, #1161 logic %s, "
-           "#1131 navigation %s, #1132 replaces SoH's %s\n",
+           "#1131 navigation %s, #1132 replaces SoH's %s, #1279 sort %s\n",
            r815 == TEST_PASS ? "PASS" : "FAIL", r816 == TEST_PASS ? "PASS" : "FAIL",
            rAreas == TEST_PASS ? "PASS" : "FAIL", rHide == TEST_PASS ? "PASS" : "FAIL",
            rAvail == TEST_PASS ? "PASS" : "FAIL", rChrome == TEST_PASS ? "PASS" : "FAIL",
            rSeen == TEST_PASS ? "PASS" : "FAIL", rIce == TEST_PASS ? "PASS" : "FAIL",
            rLogic == TEST_PASS ? "PASS" : "FAIL", rNav == TEST_PASS ? "PASS" : "FAIL",
-           rL5 == TEST_PASS ? "PASS" : "FAIL");
+           rL5 == TEST_PASS ? "PASS" : "FAIL", rSort == TEST_PASS ? "PASS" : "FAIL");
     return (r815 == TEST_PASS && r816 == TEST_PASS && rAreas == TEST_PASS && rHide == TEST_PASS &&
             rAvail == TEST_PASS && rChrome == TEST_PASS && rSeen == TEST_PASS && rIce == TEST_PASS &&
-            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS)
+            rLogic == TEST_PASS && rNav == TEST_PASS && rL5 == TEST_PASS && rSort == TEST_PASS)
                ? TEST_PASS
                : TEST_FAIL;
 }
@@ -1734,7 +1960,8 @@ extern "C" int Combo_TrackerWindow_RunHeadless(void) {
         // #1128: through the hide decision section 5 locks, with the pane's own
         // Show Hidden Items.
         CTW_ASSERT(text.find("ComboCollectVisibleCheckAreas(game, search, hide, areas)") != std::string::npos);
-        CTW_ASSERT(text.find("Ui().SearchInput(") != std::string::npos);
+        // #1280: the search box with its Scroll to Current Area button after the eraser.
+        CTW_ASSERT(text.find("Ui().SearchInputWithAction(") != std::string::npos);
         // SoH's area loop runs under FramePadding (4, 3)
         // (randomizer_check_tracker.cpp, DrawElement), which puts an area's
         // tree arrow level with its rows; the theme's larger padding pushes the

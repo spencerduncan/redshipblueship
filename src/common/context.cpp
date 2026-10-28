@@ -440,6 +440,9 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // #976: the frozen cross-game item rules are written by the same freeze as
     // the combo record and folded into its fingerprint, so they are KEPT with it.
     const ComboItemRulesRecord savedComboItemRules = gComboCtx.comboItemRules;
+    // #1284: the pair's fill-wallets rule is frozen by the same creation event
+    // beside the item rules (a creation record), so it is KEPT with them.
+    const uint8_t savedComboFillWallets = gComboCtx.comboFillWallets;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -506,6 +509,7 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         // The item rules are half of the fingerprint above: a kept hash with
         // dropped rules would read as damage at the next compare (#976).
         gComboCtx.comboItemRules = savedComboItemRules;
+        gComboCtx.comboFillWallets = savedComboFillWallets;
         // The crossing store (ADR 0010 O7) is KEPT by not being cleared: it
         // lives outside gComboCtx, so the ComboContext_Init above never touched
         // it. Same author and same moment as the stamp; see

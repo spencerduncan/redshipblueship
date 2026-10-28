@@ -126,6 +126,32 @@ bool FallbackSearchInput(const char* id, char* buf, int bufSize) {
     return changed;
 }
 
+bool FallbackSearchAction(const char* id, char* buf, int bufSize, const char* icon, const char* tooltip,
+                          bool* clicked) {
+    if (clicked != nullptr) {
+        *clicked = false;
+    }
+    if (icon == nullptr) {
+        return FallbackSearchInput(id, buf, bufSize);
+    }
+    const ImGuiStyle& style = ImGui::GetStyle();
+    const float actionWidth = ImGui::CalcTextSize(icon).x + style.FramePadding.x * 2.0f + style.ItemSpacing.x;
+    ImGui::PushID(id);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - actionWidth);
+    const bool changed = ImGui::InputTextWithHint("##search", "Search...", buf, (size_t)bufSize);
+    FinishItem(id, OptsOrDefault(nullptr));
+    ImGui::SameLine();
+    const bool pressed = ImGui::Button(icon);
+    ImGui::PopID();
+    const std::string actionLabel = std::string(id) + "##action";
+    const ComboUiWidgetOpts actionOpts = { tooltip, false, nullptr };
+    FinishItem(actionLabel.c_str(), actionOpts);
+    if (clicked != nullptr) {
+        *clicked = pressed;
+    }
+    return changed;
+}
+
 void FallbackSeparatorText(const char* text) {
     ImGui::SeparatorText(text);
 }
@@ -226,11 +252,11 @@ void FallbackPopCountFont(void) {
 }
 
 const ComboUiTable kFallback = {
-    FallbackCheckbox,      FallbackCombobox,  FallbackSliderInt,   FallbackButton,   FallbackSearchInput,
-    FallbackSeparatorText, FallbackNoteText,  FallbackWarningText, FallbackTooltip,  FallbackTagChip,
-    FallbackConfirm,       FallbackPushTheme, FallbackPopTheme,    FallbackSpacer,   FallbackRowText,
-    FallbackIconButton,    FallbackImage,     FallbackHasImage,    FallbackToneText, FallbackPushCountFont,
-    FallbackPopCountFont,
+    FallbackCheckbox,      FallbackCombobox,     FallbackSliderInt,   FallbackButton,   FallbackSearchInput,
+    FallbackSeparatorText, FallbackNoteText,     FallbackWarningText, FallbackTooltip,  FallbackTagChip,
+    FallbackConfirm,       FallbackPushTheme,    FallbackPopTheme,    FallbackSpacer,   FallbackRowText,
+    FallbackIconButton,    FallbackImage,        FallbackHasImage,    FallbackToneText, FallbackPushCountFont,
+    FallbackPopCountFont,  FallbackSearchAction,
 };
 
 } // namespace

@@ -25,7 +25,9 @@
  * the window reads), then, through SohGui::RegisterSohPageRows, the window's two
  * keys of its own (#1131: Auto Scroll To Current Area and Only Show Current Area,
  * gCombo.Tracker.Checks.*, with MM's tracker's defaults) under SoH's Check Tracker
- * Settings separator, and the Cross-Game Spoiler's toggle under its own
+ * Settings separator (a third, #1287's Only Show Current Area Toggle, is a row of
+ * SoH's embedded settings window itself, in its Tracker Header Visibility group
+ * beside SoH's per-control rows), and the Cross-Game Spoiler's toggle under its own
  * separator (it was on Combo > Windows, which #1132 retired; it reads the
  * crossings ruling D10 cut from the tracker). SoH's windows are not copied or
  * edited (rule 0).
@@ -34,7 +36,7 @@
  * exactly once on SoH's Item Tracker page with the overlay's widget, default and
  * range, under its separator, Move to Default Position floating only, no SoH key
  * or retired twin written, Combo > Tracker Settings gone) and leg 3 (SoH's two
- * tracker pages' rows and their order, each gCombo.Tracker.Checks.* key once
+ * tracker pages' rows and their order, each gCombo.Tracker.Checks.* page key once
  * under SoH's separator, the Spoiler's toggle), and drawn by UiSnapshot
  * (Randomizer > Item Tracker and Check Tracker).
  */

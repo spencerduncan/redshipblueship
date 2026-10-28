@@ -137,6 +137,9 @@ int MM_MoonCrashPoolApplied_Run(void);
 // Shared Song of Time rule; and a crash under New Cycle starts a new cycle.
 int MM_MoonCrashCycleForced_Run(void);
 int MM_MoonCrashCycleReset_Run(void);
+// mm-moon-crash-arrival (#1278, same file): after a moon crash a paired file
+// lands in South Clock Town (0xD800), not the salesman's Clock Tower scene.
+int MM_MoonCrashArrival_Run(void);
 // mm-cycle-keep-items / mm-keep-items-reset-frozen (#1175,
 // games/mm/2s2h/mm_cycle_keep_items_test.cpp): a Powder Keg crossing arrives as
 // one keg, and the frozen Keep Items on Cycle Reset (OoTMM's keepItemsReset)
@@ -540,6 +543,11 @@ int OoT_BombchuDropRuleTest_Run(void);
 // Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
 // Return 0 on pass.
 int OoT_MasterSwordRespawnTest_Run(void);
+// #1289: a shuffled fairy is an item pickup, not a heal; #6405: only an EnElf takes
+// the shuffled fairy's bottle path. Bodies in games/oot/soh/oot_shuffled_fairy_test.cpp.
+// Return 0 on pass.
+int OoT_ShuffledFairyNoHealTest_Run(void);
+int OoT_ShuffledFairyBottleGuardTest_Run(void);
 // VB-affinity regression: MM's GameInteractor_* calls resolve to OoT's
 // extern "C" wrappers in single-exe builds, and the two games' vanilla-
 // behavior ordinals alias each other. The wrappers gate on the active game;
@@ -702,7 +710,7 @@ extern "C" {
 #include "tests/test_grant_sources.c"
 
 // Shared cross-game RESOURCE locks (#525): the delta-harvest watermark that
-// survives the 500-vs-999 wallet mismatch, the monotonic/consumable split, the
+// survives an unequal wallet cap (a live tier below the pool's), the monotonic/consumable split, the
 // first-harvest seed that stops a .redsave load from doubling the player's
 // money, and the canonical heart quantity with its 20-heart clamp. FILE SCOPE
 // (compiled as C++) like the file above; every symbol it drives is C-linkage
@@ -1529,6 +1537,21 @@ TestResult Test_MMMoonCrashCycleForced(void) {
         return TEST_FAIL;
     }
     return MM_MoonCrashCycleForced_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1278: the Story skip leg arms SkipMoonCrash.cpp through ShipInit and its CVar,
+// so the row takes the same display-free bring-up as mm-moon-crash-cycle-forced.
+static TestResult Test_MMMoonCrashArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MM_MoonCrashArrival_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #1175: the crossing's give and the cycle reset run 2Ship code that may read
@@ -3080,6 +3103,35 @@ TestResult Test_MasterSwordRespawn(void) {
     int rc = OoT_MasterSwordRespawnTest_Run();
     printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1289: a shuffled fairy's touch gives its item and no heal or magic refill; a
+// fairy with no check still heals. #6405: a non-EnElf actor with a check identity
+// does not take the fairy's bottle path. Same bring-up as the row above
+// (OTRGlobals' randomizer context). Assertions in
+// games/oot/soh/oot_shuffled_fairy_test.cpp.
+static TestResult RunShuffledFairyRow(int (*run)(void), const char* what) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = run();
+    printf("[TEST] %s: %s rc=%d\n", rc == 0 ? "PASS" : "FAIL", what, rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+TestResult Test_ShuffledFairyNoHeal(void) {
+    return RunShuffledFairyRow(OoT_ShuffledFairyNoHealTest_Run, "shuffled fairy no heal");
+}
+
+TestResult Test_ShuffledFairyBottleGuard(void) {
+    return RunShuffledFairyRow(OoT_ShuffledFairyBottleGuardTest_Run, "shuffled fairy bottle guard");
 }
 
 // Lane B unified-seed lock. Single run: bring up OoT, generate one pinned seed,
@@ -8104,6 +8156,16 @@ const TestDescriptor gTests[] = {
       "A far game's capacity tier found on a host steps the shared pool at its pickup and raises the finder's tier "
       "at once, never crossing (#1120)",
       Test_SharedTierPickup },
+    // #1284: a far game's wallet stepped at its pickup fills the running game's
+    // rupees to the new cap under the pair's frozen fill-wallets rule. ROM-free.
+    { "shared-wallet-fill-hyrule",
+      "MM's wallet found in Hyrule fills OoT's rupees to the new cap when the pair's frozen fill-wallets rule (OoT's "
+      "Full Wallets) is on (#1284)",
+      Test_SharedWalletFillHyrule },
+    { "shared-wallet-fill-termina",
+      "OoT's wallet found in Termina fills MM's rupees to the new cap when the pair's frozen fill-wallets rule is on, "
+      "once (#1284)",
+      Test_SharedWalletFillTermina },
     // #976: the cross-game item rules record and the shared-family OR merge.
     { "cross-item-rules-record",
       "The cross-game item rules are a frozen record folded into the fingerprint only when set, and a file with a "
@@ -9066,6 +9128,14 @@ const TestDescriptor gTests[] = {
       "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
       "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
       Test_MasterSwordRespawn },
+    { "shuffled-fairy-no-heal",
+      "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "
+      "randomized big fairy no magic refill; a fairy with no check still heals and the big one refills magic (#1289)",
+      Test_ShuffledFairyNoHeal },
+    { "shuffled-fairy-bottle-guard",
+      "Only an EnElf takes the shuffled fairy's bottle path: a pot, crate, grass patch, beehive or tree carrying a "
+      "check identity stays an ordinary bottle swing (SoH 5e13570b8, #1289)",
+      Test_ShuffledFairyBottleGuard },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -9158,6 +9228,11 @@ const TestDescriptor gTests[] = {
       "A moon crash under New Cycle starts a new cycle (Dawn of the First Day, human form, no mask) keeping inventory "
       "and quest items found after the last commit, and commits it; the last-commit rollback does not run (#1069)",
       Test_MMMoonCrashCycleReset },
+    { "mm-moon-crash-arrival",
+      "After a moon crash (Last Save or New Cycle, Story cutscene skipped or not) a paired file lands in South Clock "
+      "Town (0xD800), the Song of Time's spawn, not the Clock Tower interior's spawn 3 (0xC030) with the salesman's "
+      "cutscene; other entrances and a session with no combo file are unchanged (#1278)",
+      Test_MMMoonCrashArrival },
     { "mm-cycle-keep-items",
       "A Powder Keg found in Hyrule arrives in Termina as one keg and survives a round trip; the frozen Keep Items on "
       "Cycle Reset keeps it and the Magic Beans through the three-day reset (off: vanilla, both wiped), the shared "
@@ -9388,6 +9463,8 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
+                strcmp(gTests[i].name, "shuffled-fairy-no-heal") == 0 ||
+                strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

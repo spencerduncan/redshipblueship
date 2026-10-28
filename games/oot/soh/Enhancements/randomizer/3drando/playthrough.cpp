@@ -23,6 +23,7 @@
 #include "triforce_hunt.h" // src/common — the frozen O10 triforce record (ADR 0010)
 #include "combo_goal.h"    // src/common — Combo_GoalKeepsOwnHuntWin (#768)
 #include "gen_budget.h" // src/common — the #582 progress surface (OoT's half)
+#include "shared_resources.h" // src/common — Combo_FreezeFillWalletsAtCreation (#1284)
 // ComboLogicEngineOoT.cpp: the paired world's general pass, deferred to the
 // single-bag fill at the creation event (ADR 0010 increment 3, lane K11).
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
@@ -374,6 +375,11 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         ComboItemRulesRecord comboItemRules;
         Combo_ResolveComboItemRules(&comboItemRules);
         Combo_FreezeComboSettingsEx(&comboSettings, &comboItemRules);
+        // #1284: the pair's ONE fill-wallets rule (OoTMM's fillWallets), from
+        // OoT's Full Wallets, frozen in the same act so MM's wallet pickup step
+        // reads the pair's answer, never OoT's seed settings. A creation record:
+        // the rollback below restores it with the others.
+        Combo_FreezeFillWalletsAtCreation(ctx->GetOption(RSK_FULL_WALLETS).IsNot(RO_GENERIC_OFF));
         SPDLOG_INFO("Paired identity: combo settings frozen at creation (fingerprint {:08X})",
                     gComboCtx.comboSettingsHash);
     }

@@ -117,6 +117,7 @@
 
 #include "global.h"
 
+#include <climits>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -124,7 +125,9 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Rando/Foreign.h"
+#include "2s2h/ShipInit.hpp"
 #include "combo_mm_options_view.h"
 #include "combo_tracker_view.h"
 #include "context.h"
@@ -1521,6 +1524,199 @@ extern "C" int MM_MoonCrashCycleReset_Run(void) {
     ComboContext_Init();
     memset(&gSaveContext, 0, sizeof(SaveContext));
     Context_SetCurrentGame(prevGame);
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+// ============================================================================
+// THE ARRIVAL AFTER THE MOON CRASH (#1278; OoTMM's play.c rewrite of 0xC030)
+// ============================================================================
+extern "C" u16 MM_Play_MoonCrashArrivalEntrance(u16 entrance);
+
+namespace {
+
+constexpr u16 kMoonCrashLanding = 0xC030; // ENTRANCE(CLOCK_TOWER_INTERIOR, 3): the salesman's cycle-reset scene
+constexpr u16 kSongOfTimeSpawn = 0xD800;  // ENTRANCE(SOUTH_CLOCK_TOWN, 0): the Song of Time / crossing spawn
+const char* const kStorySkipKey = "gEnhancements.TimeSavers.SkipCutscene.Story";
+
+/**
+ * The Story cutscene skip's moon crash, as production drives it: the moon falls
+ * (Interface_StartMoonCrash), the transition into Termina Field spawn 12 hands
+ * Play_Init cutscene index 0, and Play_Init's VB_PLAY_TRANSITION_CS dispatch
+ * runs SkipMoonCrash.cpp's hook, which resets the save itself and writes the
+ * landing straight into the save's entrance.
+ */
+int CrashTheMoonStorySkipped(u16* landing) {
+    static u8 sSkipSaveBuf[SAVE_BUFFER_SIZE];
+    static PlayState sSkipPlayState;
+    memset(&sSkipPlayState, 0, sizeof(sSkipPlayState));
+    memset(sSkipSaveBuf, 0, sizeof(sSkipSaveBuf));
+    sSkipPlayState.sramCtx.saveBuf = sSkipSaveBuf;
+    PlayState* const savedPlayState = MM_gPlayState;
+    MM_gPlayState = &sSkipPlayState;
+    Interface_StartMoonCrash(&sSkipPlayState);
+    const u16 fall = (u16)sSkipPlayState.nextEntrance;
+    gSaveContext.save.entrance = fall;
+    gSaveContext.save.cutsceneIndex = 0;
+    (void)GameInteractor_Should(VB_PLAY_TRANSITION_CS, true);
+    MM_gPlayState = savedPlayState;
+    CNF_ASSERT(fall == (u16)ENTRANCE(TERMINA_FIELD, 12), "the moon falls into Termina Field spawn 12 (premise)");
+    CNF_ASSERT(gSaveContext.save.day != 4,
+               "the Story skip's hook ran the moon-crash reset (premise: the clock left day 4)");
+    *landing = (u16)gSaveContext.save.entrance;
+    return 0;
+}
+
+} // namespace
+
+/**
+ * mm-moon-crash-arrival (#1278). After the moon falls on a paired file the
+ * player lands where the Song of Time and the OoT -> MM crossing land, South
+ * Clock Town spawn 0 (0xD800), and never in the Clock Tower interior's spawn 3
+ * (0xC030), where the Happy Mask Salesman's cycle-reset cutscene plays as an
+ * intro the player has never seen (OoTMM rewrites 0xC030 to its initial
+ * entrance, packages/generator/src/mm/play/play.c).
+ *
+ * The landing is written in two places, and both are driven:
+ *   1. the Fire Wall cutscene's scripted destination (0xC030, ROM scene data),
+ *      which z_demo.c's CS_DESTINATION_DEFAULT copies into play->nextEntrance
+ *      through MM_Play_MoonCrashArrivalEntrance: after a Last Save crash and
+ *      after a New Cycle crash;
+ *   2. the Story cutscene skip (SkipMoonCrash.cpp), which writes the landing
+ *      itself from Play_Init's VB_PLAY_TRANSITION_CS dispatch: the REAL hook,
+ *      armed through ShipInit with its CVar on, under both behaviours.
+ * Controls: the crossing trigger 0xC010, the arrival 0xD800 and other entrances
+ * pass through unchanged on a paired file, and with no combo file in play (no
+ * open slot) 0xC030 is MM's own landing, unchanged.
+ *
+ * RED without the fix: every paired leg lands on 0xC030.
+ */
+extern "C" int MM_MoonCrashArrival_Run(void) {
+    sRow = "mm-moon-crash-arrival";
+    printf("[TEST] %s: after a moon crash a paired file lands in South Clock Town (0xD800), not in the Clock Tower "
+           "interior's spawn 3 (0xC030) with the salesman's cutscene (#1278)\n",
+           sRow);
+
+    const GameId prevGame = Context_GetCurrentGame();
+    const int savedStorySkip = CVarGetInteger(kStorySkipKey, INT_MIN);
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    // The paired identity (Combo_ForeignPairingActive) the creation event
+    // stamps, before the creation commit carries it.
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0x5EED1278u;
+    gComboCtx.sharedRandoSettingsHash = 0x1278CA5Eu;
+
+    // ---- the creation and its commit (as mm-moon-crash-never-saved) ----------
+    const uint32_t kSeed = 0x5EED1278u;
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    MM_Creation_StampNewFileFields(kMMName);
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
+    CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
+    Context_SetCurrentGame(GAME_OOT);
+    {
+        std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir());
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    CNF_ASSERT(mgr.Save(0), "the creation commits the .redsave with the armed MM half (Save_SaveFile)");
+    RsbsSave_SetActiveSlot(0);
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the arrival consumes the armed half");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    CNF_ASSERT(Context_ComboSessionResident() == 1, "a paired file is in play (premise)");
+
+    int failures = 0;
+    auto playOn = [](int moonCrash) {
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = moonCrash;
+        gSaveContext.save.day = 2;
+        gSaveContext.save.eventDayCount = 2;
+        gSaveContext.save.time = (u16)CLOCK_TIME(15, 0);
+        gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+    };
+    auto expectLanding = [&failures](const char* leg, u16 got, u16 want) {
+        printf("[TEST] %s: %s: lands on 0x%04X (want 0x%04X)\n", sRow, leg, (unsigned)got, (unsigned)want);
+        if (got != want) {
+            printf("[TEST] FAIL (%s): %s: the player lands on 0x%04X, not 0x%04X\n", sRow, leg, (unsigned)got,
+                   (unsigned)want);
+            failures++;
+        }
+    };
+    const int kModes[2] = { RSBS_MM_MOON_CRASH_RESET, RSBS_MM_MOON_CRASH_CYCLE };
+    const char* const kModeNames[2] = { "Last Save", "New Cycle" };
+
+    // ---- 1. the Fire Wall's destination, under both behaviours ---------------
+    for (int m = 0; m < 2; m++) {
+        playOn(kModes[m]);
+        if (CrashTheMoon() != 0) {
+            return 1;
+        }
+        CNF_ASSERT(gSaveContext.save.day != 4, "the moon-crash reset ran (premise: the clock left day 4)");
+        char leg[96];
+        snprintf(leg, sizeof(leg), "%s, the Fire Wall's destination", kModeNames[m]);
+        expectLanding(leg, MM_Play_MoonCrashArrivalEntrance(kMoonCrashLanding), kSongOfTimeSpawn);
+    }
+
+    // ---- 2. the Story cutscene skip writes the landing itself ----------------
+    CVarSetInteger(kStorySkipKey, 1);
+    ShipInit::Init(kStorySkipKey);
+    for (int m = 0; m < 2; m++) {
+        playOn(kModes[m]);
+        u16 landing = 0;
+        if (CrashTheMoonStorySkipped(&landing) != 0) {
+            return 1;
+        }
+        char leg[96];
+        snprintf(leg, sizeof(leg), "%s, Story cutscene skipped", kModeNames[m]);
+        expectLanding(leg, landing, kSongOfTimeSpawn);
+    }
+    if (savedStorySkip == INT_MIN) {
+        CVarClear(kStorySkipKey);
+    } else {
+        CVarSetInteger(kStorySkipKey, savedStorySkip);
+    }
+    ShipInit::Init(kStorySkipKey);
+
+    // ---- 3. controls ---------------------------------------------------------
+    const u16 kPassThrough[] = {
+        0xC010, // ENTRANCE(CLOCK_TOWER_INTERIOR, 1): the MM -> OoT crossing trigger
+        0xC000, // ENTRANCE(CLOCK_TOWER_INTERIOR, 0)
+        kSongOfTimeSpawn,
+        (u16)ENTRANCE(TERMINA_FIELD, 12), // the moon's fall itself
+        (u16)ENTRANCE(TERMINA_FIELD, 0),
+    };
+    for (u16 e : kPassThrough) {
+        char leg[96];
+        snprintf(leg, sizeof(leg), "paired, entrance 0x%04X passes through", (unsigned)e);
+        expectLanding(leg, MM_Play_MoonCrashArrivalEntrance(e), e);
+    }
+    RsbsSave_SetActiveSlot(-1);
+    CNF_ASSERT(Context_ComboSessionResident() == 0, "no combo file is in play once the slot closes (premise)");
+    expectLanding("no combo file in play: MM's own landing", MM_Play_MoonCrashArrivalEntrance(kMoonCrashLanding),
+                  kMoonCrashLanding);
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(prevGame);
+    if (failures != 0) {
+        printf("[TEST] FAIL: %s (%d failure(s))\n", sRow, failures);
+        return 1;
+    }
     printf("[TEST] PASS: %s\n", sRow);
     return 0;
 }

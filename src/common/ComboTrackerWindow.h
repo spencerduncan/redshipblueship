@@ -221,10 +221,21 @@ const char* ComboAvailabilityGlyph(const ComboTrackerCheckRow& row);
 std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row, bool showLogic);
 
 /**
+ * Whether `a` sorts before `b` in its area (#1279): SoH's CompareChecks
+ * (randomizer_check_tracker.cpp), clause for clause. A check not found comes
+ * before a found one, an unsaved one before a saved one, one not skipped before
+ * a skipped one, one that is not a dungeon's last reward before one that is
+ * (`endOfDungeon`), and then the lower check id first. So an area lists its open
+ * checks first and its skipped and found ones below them, as SoH's does, and a
+ * skip moves its row at once (the list is collected again every frame).
+ */
+bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow& b);
+
+/**
  * One area of a game panel's Checks list (#458 U4): the area's game-local key
  * and name, its shuffled-check count and how many of them are done (collected
  * or skipped: SoH's and MM's trackers both count a skipped check as checked),
- * and the rows the search leaves, in table order. `total` and `done` count the
+ * and the rows the search leaves, in SoH's order (ComboCheckRowLess, #1279). `total` and `done` count the
  * whole area, whatever the search hides, as SoH's area totals do.
  */
 struct ComboTrackerAreaRows {
@@ -326,6 +337,10 @@ struct ComboCheckHeaderOptions {
     bool availableChecksToggle = true;
     // #1161: SoH's Show Logic ("ShowLogic", off): each row's logic tooltip.
     bool showLogic = false;
+    // #1287: the pane's own Only Show Current Area checkbox, behind a key of
+    // its own in SoH's Tracker Header Visibility group, as each of SoH's header
+    // controls is: gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible (on).
+    bool onlyCurrentAreaToggle = true;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
@@ -333,7 +348,8 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions();
 /**
  * Whether a pane draws its header at all, and so the separator under it (#1132):
  * SoH's DrawElement draws that separator only while one of its header controls
- * is visible ("headerPresent").
+ * is visible ("headerPresent"); the pane's own Only Show Current Area checkbox
+ * counts as one (#1287).
  */
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header);
 
@@ -383,6 +399,39 @@ bool ComboAreaScrollNote(ComboAreaScroll& scroll, bool activePane, bool autoScro
  * false for any other area and when nothing is owed.
  */
 bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey);
+
+/**
+ * The pane's Scroll to Current Area button (#1280; 2Ship's Scroll to Current
+ * Scene beside its tracker's search box): with `areaKnown`, owe a scroll to
+ * `area` now, with no area-change test, on either pane (the inactive pane's
+ * area is the one its game left) and whatever Auto Scroll To Current Area says.
+ * Nothing is owed with no area known. @return whether a scroll is now owed.
+ */
+bool ComboAreaScrollRequest(ComboAreaScroll& scroll, bool areaKnown, uint16_t area);
+
+/**
+ * SoH's other scroll triggers (#1280): a change to what the list shows (Show
+ * Hidden Items, Only Show Available Checks, Expand All, the search cleared)
+ * owes a scroll to the current area, as SoH's window sets doAreaScroll again
+ * then, but only on the ACTIVE pane and only under Auto Scroll To Current Area.
+ * A skip is not a trigger: SoH's skip button (DrawLocation) never sets
+ * doAreaScroll. @return whether a scroll is now owed.
+ */
+bool ComboAreaScrollRefresh(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area);
+
+/**
+ * After the list is drawn (#1280): a scroll owed to an area `drawn` does not
+ * hold (a filter hides it) is dropped, so it cannot jump the list later, when a
+ * filter change brings that area back.
+ */
+void ComboAreaScrollDropUndrawn(ComboAreaScroll& scroll, const std::vector<ComboTrackerAreaRows>& drawn);
+
+/**
+ * Whether a pane offers its Scroll to Current Area button (#1280): only while
+ * its game's area is known and the pane's own Only Show Current Area is off
+ * (with it on, the list is that one area already).
+ */
+bool ComboScrollButtonShown(bool areaKnown, bool onlyCurrentArea);
 
 /**
  * One pane's Only Show Current Area toggle (ruling D12), seeded from the key:

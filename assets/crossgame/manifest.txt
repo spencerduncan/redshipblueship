@@ -108,6 +108,40 @@ mm->oot objects/gameplay_keep/gameplay_keepVtx_02B5D0
 mm->oot objects/gameplay_keep/gameplay_keepVtx_02B600
 mm->oot objects/gameplay_keep/gameplay_keepVtx_02B630
 #
+# The clock items (#1281).  MM draws Time (Day 1) .. Time (Night 3) and
+# Progressive Time with custom code (DrawClock: the Clock Tower's minute ring,
+# centre and hand, face and sun-and-moon panel); OoT draws them as a posed
+# model of the same four lists.  object_obj_tokeidai holds the whole tower (69
+# resources), so these are single-path entries: the four lists, the fifteen
+# textures and two palettes they name and their four vertex arrays.  Every
+# reference stays in the directory, none names a raw segment, and no OoT base
+# archive carries the directory.
+mm->oot objects/object_obj_tokeidai/gClockTowerMinuteRingDL
+mm->oot objects/object_obj_tokeidai/gClockTowerClockCenterAndHandDL
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceDL
+mm->oot objects/object_obj_tokeidai/gClockTowerSunAndMoonPanelDL
+mm->oot objects/object_obj_tokeidai/gClockTowerExteriorGearSidesAndMinuteRingBackTex
+mm->oot objects/object_obj_tokeidai/gClockTowerMinuteRingSidesTex
+mm->oot objects/object_obj_tokeidai/gClockTowerMinuteRingFace1Tex
+mm->oot objects/object_obj_tokeidai/gClockTowerMinuteRingFace2Tex
+mm->oot objects/object_obj_tokeidai/gClockTowerMinuteRingFace3Tex
+mm->oot objects/object_obj_tokeidai/gClockTowerHandTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockCenterSidesTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockCenterTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFacePanelBarTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceTopTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceTopTLUT
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceBottomTex
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceBottomTLUT
+mm->oot objects/object_obj_tokeidai/gClockTowerClockFaceBackTex
+mm->oot objects/object_obj_tokeidai/gClockTowerSunAndMoonPanelSunTex
+mm->oot objects/object_obj_tokeidai/gClockTowerSunAndMoonPanelMoonTex
+mm->oot objects/object_obj_tokeidai/gClockTowerSunAndMoonPanelSidesTex
+mm->oot objects/object_obj_tokeidai/object_obj_tokeidaiVtx_00C4F0
+mm->oot objects/object_obj_tokeidai/object_obj_tokeidaiVtx_00BC20
+mm->oot objects/object_obj_tokeidai/object_obj_tokeidaiVtx_00DEC0
+mm->oot objects/object_obj_tokeidai/object_obj_tokeidaiVtx_00C060
+#
 # The 43 MM-exclusive get-item objects (#577 M6).  Every display list here
 # names only its own directory.
 mm->oot objects/object_gi_bigbomb/

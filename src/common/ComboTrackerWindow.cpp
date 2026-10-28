@@ -34,6 +34,7 @@
 
 #include "ComboTrackerWindow.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
@@ -152,6 +153,8 @@ void EndChromeStyle() {
 // spelled out whole (#1128), so a search for the key finds its reader.
 
 constexpr Color_RGBA8 kSohMainDefault = { 255, 255, 255, 255 }; // Color_Main_Default
+// #1280: the Scroll to Current Area button's tooltip, 2Ship's "Scroll to Current Scene" in this window's word.
+constexpr const char* kScrollToCurrentAreaTooltip = "Scroll to Current Area";
 // SoH's Check Tracker background (randomizer_entrance_tracker.h, Color_Bg_Default): opaque black.
 constexpr Color_RGBA8 kSohBgDefault = { 0, 0, 0, 255 };
 
@@ -346,7 +349,8 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
  * Checks is on (`availableChecks`), its own Only Show Available Checks (#1129),
  * and its own Only Show Current Area (#1131). Each row shows its logic on hover
  * while `showLogic` (#1161). The list pays the pane's owed scroll at its current
- * area's header (#1131), as SoH's does.
+ * area's header (#1131), as SoH's does, and drops one owed to an area it does
+ * not draw (#1280).
  */
 void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
     const char* search = pane.search;
@@ -355,6 +359,9 @@ void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableC
     ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);
     std::vector<ComboTrackerAreaRows> areas;
     ComboCollectVisibleCheckAreas(game, search, hide, areas);
+    // #1280: a scroll owed to an area this frame does not draw (a filter hides
+    // it) is dropped, so it cannot jump the list when the filter changes later.
+    ComboAreaScrollDropUndrawn(pane.scroll, areas);
     if (areas.empty()) {
         // The note is for a game (or a search) with no checks. When only the
         // Hide options leave nothing, SoH draws an empty list, and so does this.
@@ -468,30 +475,36 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     uint16_t currentArea = 0;
     const bool areaKnown = Combo_TrackerCurrentArea(game, &currentArea);
     const ComboTrackerNavKeys nav = ComboReadTrackerNavKeys();
-    (void)ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame(), nav.autoScroll, areaKnown,
-                              currentArea);
+    const bool activePane = game == (uint8_t)Context_GetCurrentGame();
+    (void)ComboAreaScrollNote(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);
     const ComboCheckHeaderOptions header = ComboReadCheckHeaderOptions();
     // #1132: SoH draws its header, and the separator under it, only while one of
-    // its header controls shows; the pane's own Only Show Current Area rides
-    // with them, so a player who hid every control gets SoH's bare list.
+    // its header controls shows; #1287: the pane's own Only Show Current Area
+    // counts as one, so a player who hid every control gets SoH's bare list.
     const bool headerPresent = ComboCheckHeaderPresent(header);
+    // #1280: SoH scrolls to the current area again when what its list shows
+    // changes (Show Hidden Items, Only Show Available Checks, Expand All, the
+    // search cleared); here on the active pane, under Auto Scroll. A skip is not
+    // one: SoH's skip button (DrawLocation) never sets doAreaScroll, so a player
+    // skipping checks in another area keeps their place.
+    bool listChanged = false;
     if (header.hiddenItemsToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's checks show even where your Check Tracker Settings "
                                         "hide them.",
                                         false, nullptr };
-        (void)Ui().Checkbox("Show Hidden Items", &pane.showHidden, &tip);
+        listChanged = Ui().Checkbox("Show Hidden Items", &pane.showHidden, &tip) || listChanged;
     }
     // #1129: SoH's Only Show Available Checks, this pane's own (ruling D12), shown
     // as SoH shows it: only with Enable Available Checks on and its toggle visible.
     const bool availableToggle = header.availableChecks && header.availableChecksToggle;
     if (availableToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's unavailable checks will be hidden.", false, nullptr };
-        (void)Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip);
+        listChanged = Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip) || listChanged;
     }
     // #1131: Only Show Current Area, this pane's own (ruling D12), as MM's tracker
-    // offers Only Show Current Scene; SoH has no such toggle, so it shows with
-    // the rest of the header (#1132).
-    if (headerPresent) {
+    // offers Only Show Current Scene; #1287: behind its own visibility key, as
+    // each of SoH's header controls is, never behind theirs.
+    if (header.onlyCurrentAreaToggle) {
         const ComboUiWidgetOpts tip = { "When active, only this game's checks in the area you are in are shown.", false,
                                         nullptr };
         (void)Ui().Checkbox("Only Show Current Area", &pane.area.onlyCurrentArea, &tip);
@@ -501,15 +514,36 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
         // SoH's two half-width buttons.
         if (Ui().Button("Expand All", ImGui::GetContentRegionAvail().x / 2 - 6, nullptr)) {
             expandAll = 1;
+            listChanged = true;
         }
         ImGui::SameLine();
         if (Ui().Button("Collapse All", ImGui::GetContentRegionAvail().x - 6, nullptr)) {
             expandAll = -1;
         }
     }
+    // #1280: Scroll to Current Area, 2Ship's Scroll to Current Scene button: beside
+    // the search box in the eraser's inline style, or on the header row when the
+    // box is hidden; shown while the area is known and the pane shows more than it.
+    const bool scrollButton = ComboScrollButtonShown(areaKnown, pane.area.onlyCurrentArea);
+    bool scrollAsked = false;
     if (header.searchInput) {
         // Hidden, the box keeps its text and the list its filter, as SoH's does.
-        Ui().SearchInput("##checkSearch", pane.search, (int)sizeof(pane.search));
+        const char* scrollIcon = scrollButton ? ICON_FA_ARROWS_V : nullptr;
+        if (Ui().SearchInputWithAction("##checkSearch", pane.search, (int)sizeof(pane.search), scrollIcon,
+                                       kScrollToCurrentAreaTooltip, &scrollAsked) &&
+            pane.search[0] == '\0') {
+            listChanged = true; // SoH's eraser scrolls back to the area
+        }
+    } else if (scrollButton && headerPresent) {
+        const ComboUiWidgetOpts scrollTip = { kScrollToCurrentAreaTooltip, false, nullptr };
+        scrollAsked = Ui().IconButton("##scrollToCurrentArea", ICON_FA_ARROWS_V, &scrollTip);
+        if (header.checkTotals) {
+            ImGui::SameLine();
+            ImGui::AlignTextToFramePadding();
+        }
+    }
+    if (scrollAsked) {
+        (void)ComboAreaScrollRequest(pane.scroll, areaKnown, currentArea);
     }
     if (header.checkTotals) {
         ImGui::TextUnformatted(ComboCheckTotalsText(summary, header.availableChecks).c_str());
@@ -521,6 +555,9 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     }
 
     DrawCheckList(game, pane, expandAll, header.availableChecks, header.showLogic);
+    if (listChanged) {
+        (void)ComboAreaScrollRefresh(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);
+    }
 
     ImGui::PopID();
 }
@@ -659,6 +696,26 @@ std::string ComboCheckLogicTooltip(uint8_t game, const ComboTrackerCheckRow& row
     return logic;
 }
 
+bool ComboCheckRowLess(const ComboTrackerCheckRow& a, const ComboTrackerCheckRow& b) {
+    // SoH's CompareChecks, clause for clause: ItemLocation::HasObtained, then
+    // RCSHOW_SAVED, then GetIsSkipped, then IsEoDCheck, then the check id.
+    if (a.obtained != b.obtained) {
+        return !a.obtained;
+    }
+    const bool aSaved = a.status == (uint8_t)COMBO_TRACKER_CHECK_SAVED;
+    const bool bSaved = b.status == (uint8_t)COMBO_TRACKER_CHECK_SAVED;
+    if (aSaved != bSaved) {
+        return !aSaved;
+    }
+    if (a.skipped != b.skipped) {
+        return !a.skipped;
+    }
+    if (a.endOfDungeon != b.endOfDungeon) {
+        return !a.endOfDungeon;
+    }
+    return a.checkId < b.checkId;
+}
+
 namespace {
 
 /**
@@ -704,6 +761,10 @@ void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std:
         area.rows.push_back(row);
     }
     for (auto& [key, area] : byKey) {
+        // #1279: SoH's order inside the area (UpdateOrdering's std::sort with
+        // CompareChecks), so a skipped or found check sinks below the open ones.
+        // The list is collected every frame, so a skip moves its row at once.
+        std::stable_sort(area.rows.begin(), area.rows.end(), ComboCheckRowLess);
         if (!area.rows.empty()) {
             out.push_back(std::move(area));
         } else if (keepFiltered) {
@@ -805,13 +866,16 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     header.availableChecksToggle = CVarGetInteger("gTrackers.CheckTracker.AvailableChecksToggleVisible", 1) != 0;
     // #1161: SoH's Show Logic (Check Tracker Settings), one key for both panes (ruling D3).
     header.showLogic = CVarGetInteger("gTrackers.CheckTracker.ShowLogic", 0) != 0;
+    // #1287: the pane's own checkbox's visibility, beside SoH's in Tracker Header Visibility.
+    header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE, 1) != 0;
     return header;
 }
 
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header) {
-    // SoH's DrawElement: headerPresent, from the same five keys.
+    // SoH's DrawElement: headerPresent, from the same five keys, and (#1287) the
+    // pane's own Only Show Current Area checkbox, which draws behind its own key.
     return header.hiddenItemsToggle || (header.availableChecks && header.availableChecksToggle) ||
-           header.expandCollapseButtons || header.searchInput || header.checkTotals;
+           header.expandCollapseButtons || header.searchInput || header.checkTotals || header.onlyCurrentAreaToggle;
 }
 
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {
@@ -840,6 +904,42 @@ bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey) {
     }
     scroll.pending = false;
     return true;
+}
+
+bool ComboAreaScrollRequest(ComboAreaScroll& scroll, bool areaKnown, uint16_t area) {
+    if (!areaKnown) {
+        return scroll.pending; // nothing to scroll to
+    }
+    // No area-change test (2Ship's button sets its scroll target outright); the
+    // area is noted too, so the next frame's note is no change.
+    scroll.seen = true;
+    scroll.area = area;
+    scroll.pending = true;
+    scroll.target = area;
+    return true;
+}
+
+bool ComboAreaScrollRefresh(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area) {
+    if (!activePane || !autoScroll) {
+        return scroll.pending; // SoH's window has one pane, the active game's, and always scrolls
+    }
+    return ComboAreaScrollRequest(scroll, areaKnown, area);
+}
+
+void ComboAreaScrollDropUndrawn(ComboAreaScroll& scroll, const std::vector<ComboTrackerAreaRows>& drawn) {
+    if (!scroll.pending) {
+        return;
+    }
+    for (const ComboTrackerAreaRows& area : drawn) {
+        if (area.key == scroll.target) {
+            return;
+        }
+    }
+    scroll.pending = false;
+}
+
+bool ComboScrollButtonShown(bool areaKnown, bool onlyCurrentArea) {
+    return areaKnown && !onlyCurrentArea;
 }
 
 void ComboPaneAreaToggleSeed(ComboPaneAreaToggle& toggle, bool keyValue) {

@@ -58,6 +58,7 @@ CheckIdentity ShuffleFairies_GetFairyIdentity(int32_t params) {
     CheckIdentity fairyIdentity;
     s16 sceneNum = OoT_gPlayState->sceneNum;
     fairyIdentity.randomizerInf = RAND_INF_MAX;
+    fairyIdentity.randomizerCheck = RC_UNKNOWN_CHECK;
 
     if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_NIGHT || sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS) {
         sceneNum = SCENE_TEMPLE_OF_TIME_EXTERIOR_DAY;
@@ -68,7 +69,6 @@ CheckIdentity ShuffleFairies_GetFairyIdentity(int32_t params) {
 
     if (location->GetRandomizerCheck() == RC_UNKNOWN_CHECK) {
         LUSLOG_WARN("FairyGetIdentity did not receive a valid RC value (%d).", location->GetRandomizerCheck());
-        assert(false);
     } else {
         fairyIdentity.randomizerInf = static_cast<RandomizerInf>(location->GetCollectionCheck().flag);
         fairyIdentity.randomizerCheck = location->GetRandomizerCheck();
@@ -79,6 +79,9 @@ CheckIdentity ShuffleFairies_GetFairyIdentity(int32_t params) {
 
 static bool SpawnFairy(f32 posX, f32 posY, f32 posZ, int32_t params, FairyType fairyType) {
     CheckIdentity fairyIdentity = ShuffleFairies_GetFairyIdentity(params);
+    if (fairyIdentity.randomizerCheck == RC_UNKNOWN_CHECK) {
+        return false;
+    }
     if (!Flags_GetRandomizerInf(fairyIdentity.randomizerInf)) {
         Actor* fairy = OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_ELF, posX, posY - 30.0f, posZ, 0, 0, 0,
                                    fairyType, true);
@@ -102,16 +105,22 @@ void RegisterShuffleFairies() {
         const auto fairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(&enElf->actor);
         if (fairyIdentity != nullptr && fairyIdentity->randomizerInf != RAND_INF_MAX) {
             Flags_SetRandomizerInf(fairyIdentity->randomizerInf);
+            // [RSBS #1289] A shuffled fairy is an item pickup, not a heal (OoTMM's EnElf_GiveItem): no health, and
+            // z_en_elf.c skips a big fairy's magic refill with it.
+            *should = false;
         }
     });
 
     COND_VB_SHOULD(VB_BOTTLE_ACTOR, shouldRegister, {
         Actor* actor = va_arg(args, Actor*);
-        const auto fairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(actor);
-        if (fairyIdentity != nullptr && fairyIdentity->randomizerInf != RAND_INF_MAX) {
-            Flags_SetRandomizerInf(fairyIdentity->randomizerInf);
-            actor->parent = &GET_PLAYER(OoT_gPlayState)->actor;
-            *should = false;
+        // Only a fairy takes this path: pots, crates, grass, beehives and trees carry a CheckIdentity too.
+        if (actor->id == ACTOR_EN_ELF) {
+            const auto fairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(actor);
+            if (fairyIdentity != nullptr && fairyIdentity->randomizerInf != RAND_INF_MAX) {
+                Flags_SetRandomizerInf(fairyIdentity->randomizerInf);
+                actor->parent = &GET_PLAYER(OoT_gPlayState)->actor;
+                *should = false;
+            }
         }
     });
 

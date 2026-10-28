@@ -54,6 +54,9 @@ s16 sWalletFirstDigit[] = {
     1, // tens (Default Wallet)
     0, // hundreds (Adult Wallet)
     0, // hundreds (Giant Wallet)
+#ifdef RSBS_SINGLE_EXECUTABLE
+    0, // hundreds (Tycoon's Wallet: OoT's, through the shared wallet tier, #1283)
+#endif
 };
 
 void FileSelect_IncrementConfigMode(FileSelectState* this) {
@@ -1368,15 +1371,21 @@ static TexturePtr MM_sHeartTextures[2][5] = {
 u8 sHealthToQuarterHeartCount[] = {
     0, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3,
 };
-s16 sFileSelRupeePrimColors[3][3] = {
+s16 sFileSelRupeePrimColors[][3] = {
     { 200, 255, 100 }, // Default Wallet
     { 170, 170, 255 }, // Adult Wallet
     { 255, 105, 105 }, // Giant Wallet
+#ifdef RSBS_SINGLE_EXECUTABLE
+    { 255, 90, 255 }, // Tycoon's Wallet (#1283)
+#endif
 };
-s16 sFileSelRupeeEnvColors[3][3] = {
+s16 sFileSelRupeeEnvColors[][3] = {
     { 0, 80, 0 },   // Default Wallet
     { 10, 10, 80 }, // Adult Wallet
     { 40, 10, 0 },  // Giant Wallet
+#ifdef RSBS_SINGLE_EXECUTABLE
+    { 40, 0, 40 }, // Tycoon's Wallet (#1283)
+#endif
 };
 static s16 sHeartPrimColors[2][3] = {
     { 255, 70, 50 },

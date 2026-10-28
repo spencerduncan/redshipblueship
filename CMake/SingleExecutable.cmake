@@ -751,6 +751,13 @@ if(BUILD_TESTING)
     # save's crossing is credited once at redemption. Both games' real shims,
     # pickup cores and arrival consumers, ROM-free.
     redship_add_test(NAME SharedTierPickup COMMAND redship --test shared-tier-pickup)
+    # #1284: a far game's wallet stepped at its pickup (#1120) reached neither
+    # game's give, so neither game's fill ran. Under the pair's frozen
+    # fill-wallets rule (OoT's Full Wallets, OoTMM's fillWallets) the step now
+    # fills the running game's rupees to the new cap, once, in either host; the
+    # frozen byte is a creation record. ROM-free.
+    redship_add_test(NAME SharedWalletFillHyrule COMMAND redship --test shared-wallet-fill-hyrule)
+    redship_add_test(NAME SharedWalletFillTermina COMMAND redship --test shared-wallet-fill-termina)
     # #976 (epic #975 P1): the cross-game item rules record (carve, fingerprint
     # only when set, freeze, the load refusing a rule this build cannot honour)
     # and the shared-family OR merge through both games' real shims. ROM-free.
@@ -3070,6 +3077,20 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1289: a shuffled fairy (gossip stone, fountain, fairy spot, bean) gives its
+    # item and no heal, and a shuffled big fairy no magic refill either; a fairy
+    # with no check still heals (and the big one refills magic). The bottle-guard
+    # row is SoH 5e13570b8 (#6405): a non-EnElf actor carrying a check identity
+    # does not take the fairy's bottle path. Drives EnElf's real touch handler and
+    # ShuffleFairies' real hooks. games/oot/soh/oot_shuffled_fairy_test.cpp.
+    redship_add_test(NAME ShuffledFairyNoHeal COMMAND redship --test shuffled-fairy-no-heal
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME ShuffledFairyBottleGuard COMMAND redship --test shuffled-fairy-bottle-guard
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -3239,6 +3260,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashCycleForced COMMAND redship --test mm-moon-crash-cycle-forced)
     redship_add_test(NAME MMMoonCrashCycleReset COMMAND redship --test mm-moon-crash-cycle-reset)
+    # #1278: after the crash a paired file lands in South Clock Town (0xD800, OoTMM's
+    # rewrite of 0xC030), never in the salesman's Clock Tower scene: the Fire Wall's
+    # destination and the Story skip's, under both behaviours. ROM-free (default tier);
+    # games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashArrival COMMAND redship --test mm-moon-crash-arrival)
 
     # #1175: a Powder Keg found in Hyrule arrives in Termina as one keg (the real
     # crossing redemption and a suspend/resume round trip); MM's frozen "Keep Items
