@@ -191,6 +191,15 @@ class FrozenStateManager {
         return mMMState.saveContext.data();
     }
 
+    // #1294: the frozen MM half, writable, only while it is armed (a freeze, a
+    // load or the creation armed it, and no arrival has consumed it yet).
+    void* GetFrozenMMSaveContextForWrite() {
+        if (!mInitialized || mMMState.saveContext.empty() || !mMMState.hasBeenFrozen) {
+            return nullptr;
+        }
+        return mMMState.saveContext.data();
+    }
+
     void UpdateShadowCopy(GameId game, const void* saveContextData, size_t size) {
         if (!mInitialized)
             Initialize();
@@ -697,6 +706,10 @@ const void* Context_GetOoTSaveContext(void) {
 
 const void* Context_GetMMSaveContext(void) {
     return gFrozenStates.GetMMSaveContext();
+}
+
+void* Context_GetFrozenMMSaveContextForWrite(void) {
+    return gFrozenStates.GetFrozenMMSaveContextForWrite();
 }
 
 void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size) {

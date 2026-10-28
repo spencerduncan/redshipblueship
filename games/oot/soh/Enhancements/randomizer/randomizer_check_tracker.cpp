@@ -2340,11 +2340,27 @@ void ImGuiDrawTwoColorPickerSection(const char* text, const char* cvarMainName, 
 // (IsSaveLoaded is false), which is the case on a cross-game arrival until
 // Play_Init assigns OoT_gPlayState, and while Majora's Mask is the active game.
 // The draw consumes the flag once a save is loaded (#990).
+// The combo tracker's far pane skipped or unskipped an OoT check while Majora's
+// Mask was played (#1294, TrackerAdapterSingleExe.cpp). The order pass SoH's skip
+// button runs (UpdateAllOrdering) reads OoT's tracker settings and the heap with
+// gSaveContext still MM's, so it waits for the arrival below.
+static bool sOrderingDeferred = false;
+
+void DeferAllOrdering() {
+    sOrderingDeferred = true;
+}
+
 void ArmAvailableChecksRecalc() {
     recalculateAvailable = true;
+    const bool reorder = sOrderingDeferred;
+    sOrderingDeferred = false;
     if (initialized) {
-        RecalculateAllAreaTotals();
-        CalculateTotals();
+        if (reorder) {
+            UpdateAllOrdering(); // the sort, then the same totals as below
+        } else {
+            RecalculateAllAreaTotals();
+            CalculateTotals();
+        }
     }
 }
 #endif
@@ -2374,6 +2390,11 @@ extern "C" int RandoTest_CheckTrackerRecalcPending(void) {
 
 extern "C" void RandoTest_CheckTrackerClearRecalcPending(void) {
     recalculateAvailable = false;
+}
+
+// TEST BRIDGE (#1294): whether a far-pane skip left SoH's area order to the next arrival.
+extern "C" int RandoTest_CheckTrackerOrderingDeferred(void) {
+    return sOrderingDeferred ? 1 : 0;
 }
 
 extern "C" void RandoTest_CheckTrackerSetEnableAvailable(int enabled) {

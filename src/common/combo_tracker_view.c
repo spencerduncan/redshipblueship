@@ -2,10 +2,12 @@
  * @file combo_tracker_view.c
  * @brief The combo tracker's view model (#458). See combo_tracker_view.h.
  *
- * Everything here is a pure read. The one write, the skip toggle (#458 U5), is
- * made by the ACTIVE game's adapter in its own TU, on that game's live state
- * only; this file only decides when to ask (see Combo_TrackerSetSkipped). The
- * reads: gComboCtx through the foreign_items.h
+ * Everything here is a pure read but for two writes. The skip toggle (#458 U5)
+ * is made by the check's own game's adapter in its own TU, on that game's live
+ * state or, for the far pane, its frozen MM half or suspended OoT heap (#1294);
+ * this file only decides when to ask (see Combo_TrackerSetSkipped). The OoT skip
+ * journal (#1294) is gComboCtx's, game-neutral u16s kept here for OoT's adapter
+ * and save seams. The reads: gComboCtx through the foreign_items.h
  * accessors, the crossing store through crossing_store.h, the MM shadow blob
  * (or, while MM is played, the live save the MM adapter hands out, #799)
  * through the registered offset descriptor, and the OoT heap through the
@@ -71,7 +73,8 @@ void Combo_Tracker_RegisterOoT(const ComboOoTTrackerOps* ops) {
         return;
     }
     if (ops->summary == NULL || ops->checkCount == NULL || ops->checkAt == NULL || ops->checkName == NULL ||
-        (ops->skipWritable == NULL) != (ops->setSkipped == NULL)) {
+        (ops->skipWritable == NULL) != (ops->setSkipped == NULL) ||
+        (ops->suspendedSkipWritable == NULL) != (ops->setSuspendedSkipped == NULL)) {
         fprintf(stderr, "[ComboTracker] REJECTED OoT tracker vtable: NULL member\n");
         return;
     }
@@ -485,33 +488,76 @@ void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerChe
 // ============================================================================
 
 /**
- * Whether MM takes a skip write now: its adapter has the op, and
- * MMBlobIfPresent's pick reads the live save LIVE (MM active, play state
- * loaded, marked) and it holds a randomized world. This only reads; the write
- * is the MM TU's own op (setLiveSkipped), which checks the same conditions in
- * MM's layout. A STALE panel (the shadow) has no write at all.
+ * Whether Majora's Mask plays a randomizer file now: MM is the active game and
+ * MMBlobIfPresent's pick reads the live save LIVE (play state loaded, marked)
+ * and it holds a randomized world. Only reads.
  */
-static bool MMSkipWritable(void) {
-    if (!sMMRegistered || sMMDesc.setLiveSkipped == NULL || sMMDesc.liveSave == NULL ||
-        Context_GetCurrentGame() != GAME_MM) {
+static bool MMPlaysRandoFile(void) {
+    if (!sMMRegistered || sMMDesc.liveSave == NULL || Context_GetCurrentGame() != GAME_MM) {
         return false;
     }
     const uint8_t* live = (const uint8_t*)sMMDesc.liveSave();
     return MMBlobMarked(live) && MMBlobReadU32(live, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando;
 }
 
-/** OoT takes skip writes only through a vtable that has them, while OoT is played. */
-static bool OoTSkipWritable(void) {
+/**
+ * Whether Ocarina of Time plays a randomizer file now: OoT is the active game and
+ * its adapter's live skip gate answers (a loaded randomizer save; the OoT TU
+ * reads gSaveContext for it, which is OoT's then). A vtable with no skip toggle
+ * cannot say, so it reads as no.
+ */
+static bool OoTPlaysRandoFile(void) {
     return sOoTOps != NULL && sOoTOps->skipWritable != NULL && Context_GetCurrentGame() == GAME_OOT &&
            sOoTOps->skipWritable();
 }
 
+/**
+ * Whether MM's LIVE pane takes a skip write now: its adapter has the op and MM
+ * plays a randomizer file. This only reads; the write is the MM TU's own op
+ * (setLiveSkipped), which checks the same conditions in MM's layout.
+ */
+static bool MMLiveSkipWritable(void) {
+    return sMMRegistered && sMMDesc.setLiveSkipped != NULL && MMPlaysRandoFile();
+}
+
+/**
+ * Whether MM's FAR pane takes a skip write now (#1294): Ocarina of Time plays a
+ * randomizer file, the pairing is live, and the MM half is armed (frozen, not
+ * yet consumed by an arrival), marked and a randomized world: the shadow the
+ * STALE pane reads is then the paired file's MM half, the one the next commit
+ * stores and MM's arrival resumes. Only reads; the write is the MM TU's own op
+ * (setShadowSkipped), which checks the same conditions in MM's layout.
+ */
+static bool MMFarSkipWritable(void) {
+    if (!sMMRegistered || sMMDesc.setShadowSkipped == NULL || !Combo_ForeignPairingActive() ||
+        !Context_HasFrozenState(GAME_MM) || !OoTPlaysRandoFile()) {
+        return false;
+    }
+    const uint8_t* shadow = MMShadowIfPresent();
+    return shadow != NULL && MMBlobReadU32(shadow, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando;
+}
+
+/** OoT's LIVE pane takes skip writes only through a vtable that has them, while OoT plays a randomizer file. */
+static bool OoTLiveSkipWritable(void) {
+    return OoTPlaysRandoFile();
+}
+
+/**
+ * OoT's FAR pane (#1294): Majora's Mask plays a randomizer file and OoT's adapter
+ * says its suspended heap is the paired world OoT departed from (the pairing
+ * live, the departure capture's seed).
+ */
+static bool OoTFarSkipWritable(void) {
+    return sOoTOps != NULL && sOoTOps->suspendedSkipWritable != NULL && MMPlaysRandoFile() &&
+           sOoTOps->suspendedSkipWritable();
+}
+
 bool Combo_TrackerSkipWritable(uint8_t game) {
     if (game == (uint8_t)GAME_MM) {
-        return MMSkipWritable();
+        return MMLiveSkipWritable() || MMFarSkipWritable();
     }
     if (game == (uint8_t)GAME_OOT) {
-        return OoTSkipWritable();
+        return OoTLiveSkipWritable() || OoTFarSkipWritable();
     }
     return false;
 }
@@ -523,14 +569,80 @@ bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row) {
 bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped) {
     if (game == (uint8_t)GAME_MM) {
         // MM's TU writes the byte MM's own tracker flips (ADR 0008 rule 5: common
-        // code only reads MM's save); MM's next save persists it and the
-        // departure freeze carries it into the shadow.
-        return MMSkipWritable() && (uint32_t)checkId < sMMDesc.checkCount && sMMDesc.setLiveSkipped(checkId, skipped);
+        // code only reads MM's save). LIVE: MM's next save persists it and the
+        // departure freeze carries it into the shadow. FAR: the frozen half the
+        // next commit stores and the arrival resumes.
+        if ((uint32_t)checkId >= sMMDesc.checkCount) {
+            return false;
+        }
+        if (MMLiveSkipWritable()) {
+            return sMMDesc.setLiveSkipped(checkId, skipped);
+        }
+        return MMFarSkipWritable() && sMMDesc.setShadowSkipped(checkId, skipped);
     }
     if (game == (uint8_t)GAME_OOT) {
-        return OoTSkipWritable() && sOoTOps->setSkipped(checkId, skipped);
+        if (OoTLiveSkipWritable()) {
+            return sOoTOps->setSkipped(checkId, skipped);
+        }
+        return OoTFarSkipWritable() && sOoTOps->setSuspendedSkipped(checkId, skipped);
     }
     return false;
+}
+
+// ============================================================================
+// The OoT skip journal (#1294)
+// ============================================================================
+
+#define CTV_JOURNAL_SKIPPED_BIT 0x8000u
+#define CTV_JOURNAL_ID_MASK 0x7FFFu
+
+/** The journal's count, clamped to the capacity (a corrupt record reads as full, never past it). */
+static int JournalCount(void) {
+    const uint16_t count = gComboCtx.trackerSkipJournalCountOoT;
+    return count > RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP ? (int)RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP : (int)count;
+}
+
+bool Combo_TrackerOoTSkipJournalPut(uint16_t checkId, bool skipped, bool onlyIfPresent) {
+    if (checkId == 0 || checkId > CTV_JOURNAL_ID_MASK) {
+        return false;
+    }
+    const uint16_t entry = (uint16_t)(checkId | (skipped ? CTV_JOURNAL_SKIPPED_BIT : 0u));
+    const int count = JournalCount();
+    for (int i = 0; i < count; i++) {
+        if ((gComboCtx.trackerSkipJournalOoT[i] & CTV_JOURNAL_ID_MASK) == checkId) {
+            gComboCtx.trackerSkipJournalOoT[i] = entry;
+            return true;
+        }
+    }
+    if (onlyIfPresent || count >= (int)RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP) {
+        return false;
+    }
+    gComboCtx.trackerSkipJournalOoT[count] = entry;
+    gComboCtx.trackerSkipJournalCountOoT = (uint16_t)(count + 1);
+    return true;
+}
+
+int Combo_TrackerOoTSkipJournalCount(void) {
+    return JournalCount();
+}
+
+bool Combo_TrackerOoTSkipJournalAt(int index, uint16_t* outCheckId, bool* outSkipped) {
+    if (index < 0 || index >= JournalCount()) {
+        return false;
+    }
+    const uint16_t entry = gComboCtx.trackerSkipJournalOoT[index];
+    if (outCheckId != NULL) {
+        *outCheckId = (uint16_t)(entry & CTV_JOURNAL_ID_MASK);
+    }
+    if (outSkipped != NULL) {
+        *outSkipped = (entry & CTV_JOURNAL_SKIPPED_BIT) != 0;
+    }
+    return true;
+}
+
+void Combo_TrackerOoTSkipJournalClear(void) {
+    memset(gComboCtx.trackerSkipJournalOoT, 0, sizeof(gComboCtx.trackerSkipJournalOoT));
+    gComboCtx.trackerSkipJournalCountOoT = 0;
 }
 
 // ============================================================================
