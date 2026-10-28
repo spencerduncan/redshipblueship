@@ -686,7 +686,9 @@ host input; the host scale, the 90 s ceiling and the millisecond figures are the
 progress overlay's estimate only, the clock is a monotonic wall clock on every
 platform, and the single bag no longer reads
 `Rando::Logic::gRsbsGlitchlessTimeoutMsOverride`. See the Amendments entry of
-that date.]
+that date.] [amended 2026-10-28: the floor is 60 s, so 2500
+rounds per attempt and 5000 summed, and the estimate's ceiling is 180 s; see the
+Amendments entry of that date.]
 
 *The progress surface.* `Combo_GenProgress_*` in the same file: a
 phase/attempt/elapsed/budget record with a greppable stderr leg that always
@@ -949,7 +951,8 @@ is accepted (listed here; deliberately not filed by this ADR):
   adaptive budget keyed to host speed; #582 remains open as the
   implementation tracker. [amended 2026-10-16, #950: the budget is now a count
   of fill rounds sized to that 30 s floor, so it no longer depends on the
-  machine; see the Amendments entry of that date.]
+  machine; see the Amendments entry of that date.] [amended 2026-10-28: the
+  operator raised the floor to 60 s; see the Amendments entry of that date.]
 - **Determinism re-pins, twice**: increment 2 re-pins the
   SeedDeterminism/MMRandoGen/HeadlessForeignDigest rows; increment 3 re-pins
   everything again when the fill unifies. Batched deliberately; never
@@ -2376,6 +2379,9 @@ machine, which the one-game ruling does not allow.
 (`ComboLogicFillResult::rounds`), which are a pure function of the frozen
 identity:
 
+(The numbers in this entry are the pre-2026-10-28 ones; the 2026-10-28 entry
+doubles the floor to 60 s, so 2500 and 5000 rounds.)
+
 - **Per attempt:** `RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT` = 30 s /
   `RSBS_GENBUDGET_REFERENCE_ROUND_MS` (24 ms) = **1250 rounds**, checked by the
   single-bag fill's observer before every round. Reaching it is still
@@ -2554,3 +2560,30 @@ items in Hyrule and 38 OoT items in Termina).
 
 Locked by `ComboLogicBagModel` leg P6 (a bag that needs 76 crossings on one side places under the production
 bound; red while the bound was 64) and the four outbox rows ADR 0002's amendment names.
+
+### 2026-10-28 -- The creation budget's floor rises from 30 s to 60 s
+
+The operator asked whether the "32 s" the creation overlay showed was a hard limit
+and, told that it was, ruled "bump it to 60s". The 32 s was
+`Combo_GenBudget_FillBudgetMs`: the floor scaled by the measured host scale (about
+107% on the operator's machine), display only since #950. The stop it estimates is
+the round budget, which is the floor over the measured reference round, so the
+ruling raises the FLOOR and both stops follow:
+
+- **Floor:** `RSBS_GENBUDGET_FLOOR_MS` 30000 -> **60000**.
+- **Per attempt:** 60 s / 24 ms = **2500 rounds** (was 1250). A shipped batch is
+  258 rounds, so a fill that needs nine batches (2322 rounds) is created and one
+  that needs ten (2580) is stopped; under the 30 s floor the line fell between
+  four batches and five.
+- **Whole creation:** 2 x 2500 = **5000 rounds** (was 2500), still checked between
+  ladder attempts.
+- **Estimate ceiling:** `RSBS_GENBUDGET_CEILING_MS` 90000 -> **180000**, keeping 3x
+  the floor so a host at the 300% clamp is estimated in full. Display only.
+
+Unchanged: the 24 ms reference round (a measurement), the multiplier of 2 (the
+impatience rule), the never-climb rule, and every golden (the fill is
+deterministic in rounds and the stop matters only past a seed's own rounds, so a
+seed created within the old budget is created identically within the new one).
+What it costs: a seed the old budget refused now runs up to twice as long before
+it is created or refused, about 60 s per attempt on the reference machine and up
+to 180 s at three times the reference round cost. Locked by `GenBudgetFloor`.

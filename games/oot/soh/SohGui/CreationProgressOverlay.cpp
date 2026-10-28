@@ -10,8 +10,8 @@
  * `OoT_GameState_Update` on the ONLY thread that renders: graph.c's
  * `OoT_RunFrame` is a stackless coroutine that returns once per frame, and
  * `Graph_ProcessGfxCommands` (the thing that draws and swaps) does not run
- * until the update returns. So for the whole of MM's fill -- 30 s of budget on
- * a reference host, 90 s on a slow one -- no frame is produced and no window
+ * until the update returns. So for the whole of MM's fill -- up to 60 s of
+ * budget on a reference host, 180 s on a slow one -- no frame is produced and no window
  * message is pumped. The player gets a frozen, "not responding" window and no
  * evidence that anything is happening.
  *

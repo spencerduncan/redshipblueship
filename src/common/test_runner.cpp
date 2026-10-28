@@ -3758,6 +3758,50 @@ static int CreationPhaseIndexOf(uint8_t phase) {
     return -1;
 }
 
+/**
+ * The operator's 2026-10-28 ruling: the paired-world creation's per-attempt
+ * budget is sized to a 60 s floor, not the 30 s one #582 ruled. ROM-free and
+ * pure: it reads the pinned constants and the overlay estimate at the reference
+ * host scale, and restores the scale override before every return.
+ */
+TestResult Test_GenBudgetFloor(void) {
+    printf("[TEST] gen-budget-floor: the per-attempt budget is the 60 s floor (2500 fill rounds, 5000 per creation)\n");
+    const uint32_t roundsPerAttempt = (uint32_t)RSBS_GENBUDGET_ROUNDS_PER_ATTEMPT;
+    const uint32_t totalRounds = (uint32_t)RSBS_GENBUDGET_TOTAL_ROUNDS;
+    Combo_GenBudget_SetHostScalePercentOverride(100);
+    const uint32_t estimateAtReference = Combo_GenBudget_FillBudgetMs(0);
+    const uint32_t shippedRounds = Combo_GenBudget_RoundsPerAttempt(0);
+    const uint32_t shippedTotal = Combo_GenBudget_TotalRounds();
+    Combo_GenBudget_SetHostScalePercentOverride(0);
+    printf("[TEST] gen-budget-floor: floor %ums, %u rounds per attempt, %u in total, estimate at scale 100%% %ums, "
+           "ceiling %ums\n",
+           (unsigned)RSBS_GENBUDGET_FLOOR_MS, roundsPerAttempt, totalRounds, estimateAtReference,
+           (unsigned)RSBS_GENBUDGET_CEILING_MS);
+    if (roundsPerAttempt != 2500u || shippedRounds != 2500u) {
+        printf("[TEST] FAIL: %u / %u fill rounds per attempt, expected 2500 (60 s / 24 ms)\n", roundsPerAttempt,
+               shippedRounds);
+        return TEST_FAIL;
+    }
+    if (totalRounds != 5000u || shippedTotal != 5000u) {
+        printf("[TEST] FAIL: %u / %u fill rounds per creation, expected 5000 (2 x 2500)\n", totalRounds, shippedTotal);
+        return TEST_FAIL;
+    }
+    if (estimateAtReference < 60000u) {
+        printf("[TEST] FAIL: the reference host's per-attempt estimate is %ums, below the 60000 ms floor\n",
+               estimateAtReference);
+        return TEST_FAIL;
+    }
+    // The ceiling keeps its 3x headroom over the floor, so the slowest clamped
+    // host's estimate is not cut short of the round budget it really spends.
+    if ((uint32_t)RSBS_GENBUDGET_CEILING_MS < 3u * (uint32_t)RSBS_GENBUDGET_FLOOR_MS) {
+        printf("[TEST] FAIL: the estimate ceiling %ums is under 3x the %ums floor\n",
+               (unsigned)RSBS_GENBUDGET_CEILING_MS, (unsigned)RSBS_GENBUDGET_FLOOR_MS);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: gen-budget-floor\n");
+    return TEST_PASS;
+}
+
 TestResult Test_ComboCreationEvent(void) {
     printf("[TEST] combo-creation-event: the whole paired creation runs at one seam; the arrival hydrates or "
            "refuses (ADR 0010 increment 2, #644)\n");
@@ -3787,7 +3831,8 @@ TestResult Test_ComboCreationEvent(void) {
             return TEST_FAIL;
         }
         // THE OPERATOR'S FLOOR. "~30 second cap as the floor" is a product
-        // decision (#582, 2026-08-04); a tuning pass that quietly drops below it
+        // decision (#582, 2026-08-04), raised to 60 s by the operator on
+        // 2026-10-28 (GenBudgetFloor pins it); a tuning pass that quietly drops below it
         // changes what was ruled, so the number is asserted rather than trusted.
         if (perAttempt < (uint32_t)RSBS_GENBUDGET_FLOOR_MS || perAttempt > (uint32_t)RSBS_GENBUDGET_CEILING_MS) {
             printf("[TEST] FAIL: per-attempt budget %ums outside [%u, %u]\n", perAttempt,
@@ -3807,7 +3852,7 @@ TestResult Test_ComboCreationEvent(void) {
         // Comparing the 200% override against `perAttempt` — the budget at
         // whatever scale THIS host measured — is what this leg used to do, and it
         // is only true on a host that measures at or below 200%. A GitHub Linux
-        // runner measured 300% (per-attempt 90000ms), so pinning 200% correctly
+        // runner measured 300% (per-attempt 90000ms under the 30 s floor), so pinning 200% correctly
         // produced a smaller number and the row failed with "a 2x-slower host got
         // a SMALLER budget" while asserting nothing about the scaling at all. The
         // same runner had passed this row hours earlier; the defect is latent in
@@ -8669,6 +8714,10 @@ const TestDescriptor gTests[] = {
       "Creation progress reaches both channel legs, the bar never rewinds across the ladder, and the overlay's state "
       "machine has two distinct terminal edges (#582)",
       Test_GenProgressOverlay },
+    // The 2026-10-28 ruling: the per-attempt budget's floor is 60 s (2500 fill
+    // rounds, 5000 per creation). Pure and order-free.
+    { "gen-budget-floor", "The paired creation's per-attempt budget is the 60 s floor: 2500 fill rounds, 5000 in total",
+      Test_GenBudgetFloor },
     // The font-licensing invariant (license follow-up to #578). Order-free: an
     // asset/source scan under RSBS_SOURCE_DIR plus SOH::ResolveOverlayFontName,
     // a pure function over string literals. It reads no globals and writes none,

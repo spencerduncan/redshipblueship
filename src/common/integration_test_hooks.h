@@ -325,8 +325,8 @@ void IntegrationTest_StageProgress(const char* stage);
 /**
  * A paired-world creation reported progress (gen_budget.c: Begin, every phase
  * and fill-progress Report, End). The creation event blocks the game thread
- * inside ONE frame for as long as its own wall-clock budget allows (up to 90 s
- * per attempt on a slow host, gen_budget.h), so without this a healthy slow
+ * inside ONE frame for as long as its round budget takes to spend (about 60 s
+ * per attempt on the reference host, longer on a slow one, gen_budget.h), so without this a healthy slow
  * creation would read as a wedged frame. A creation that stops reporting still
  * stalls the word, and the watchdog names it.
  */
