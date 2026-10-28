@@ -891,6 +891,305 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
 /**
+ * The 2Ship config import list (#1240, W6-IMPORT).
+ *
+ * A returning 2Ship player's MM-only settings sit in 2ship2harkinian.json under the spelling MM still reads in the
+ * single exe, so SOH::ImportTwoShipConfig (games/oot/soh/config/TwoShipImport.cpp) adopts each key below as-is, beside
+ * its kConvergedKeys walk, under ADR 0003 section 6.3's conflict rule: a value already set in the combined config wins.
+ *
+ * FIXED AT COMPILE TIME. The import runs at boot (OTRGlobals.cpp) before SohGui::SetupGuiElements(), so neither the
+ * menu nor the hosted-row registry exists yet, and nothing filled at runtime may feed this list.
+ *
+ * What is on it:
+ *   - every scalar RSBS_CVAR_MM_* define (a name not ending in _PREFIX), each bound by exactly one shared-menu row
+ *     (CvarClassification leg 3f-2c), so every MM-only key that has a row imports;
+ *   - the Ambience volume, which has no OoT twin (its legacy spelling also converges through kConvergedKeys, which
+ *     runs first and so wins);
+ *   - the shared keys #1240 found safe to carry: the five deliberately shared cheats, the targetable hookshot
+ *     reticle, Debug Mode and Menu Theme. (Its other four safe keys, the autosave interval, Better Song of Double
+ *     Time, Skip Song of Time cutscenes and MM's own Damage Multiplier, are RSBS_CVAR_MM_* defines above; the damage
+ *     multiplier keeps 2Ship's own value list and is never mapped onto gEnhancements.DamageMult.)
+ *
+ * A key goes on only once a shared-menu row writes it: an imported value with no row is stuck. CvarClassification's
+ * leg (2b) holds the list: every entry is bound by a shared-menu row, no entry is in kTwoShipDoNotImport or is a
+ * converged or translated MM spelling, and every scalar RSBS_CVAR_MM_* define is in one of the two lists. A new MM
+ * row's define therefore goes here, or with its reason into kTwoShipDoNotImport, in the same change. Keys converged
+ * onto a SoH key already import through the kConvergedKeys walk and are not listed again.
+ */
+#define RSBS_TWOSHIP_IMPORT_KEYS(X)                                  \
+    /* W6-AUDIO-SFX */                                               \
+    X(RSBS_CVAR_MM_MUTE_CARPENTER_SFX)                               \
+    X(RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY)                             \
+    /* W6-TIMESAVERS */                                              \
+    X(RSBS_CVAR_MM_DIALOGUE_FAST_TEXT)                               \
+    X(RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION)                     \
+    X(RSBS_CVAR_MM_DIALOGUE_AUTO_BOMBERS_CODE)                       \
+    X(RSBS_CVAR_MM_TIMESAVERS_SWAMP_BOAT_SPEED)                      \
+    X(RSBS_CVAR_MM_TIMESAVERS_GALLERY_TWOFER)                        \
+    X(RSBS_CVAR_MM_TIMESAVERS_MARINE_LAB_HP)                         \
+    X(RSBS_CVAR_MM_TIMESAVERS_DAMPE_DIGGING_SKIP)                    \
+    X(RSBS_CVAR_MM_TIMESAVERS_FASTER_SCENE_TRANSITIONS)              \
+    X(RSBS_CVAR_MM_TIMESAVERS_POWDER_KEG_CERTIFICATION)              \
+    X(RSBS_CVAR_MM_TIMESAVERS_SKIP_BALLAD_OF_WINDFISH)               \
+    X(RSBS_CVAR_MM_TIMESAVERS_AUTO_BANK_DEPOSIT)                     \
+    X(RSBS_CVAR_MM_SAVING_PAUSE_SAVE)                                \
+    /* W6-CYCLE-CHEATS */                                            \
+    X(RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES)                      \
+    X(RSBS_CVAR_MM_CHEATS_UNRESTRICTED_ITEMS)                        \
+    X(RSBS_CVAR_MM_CHEATS_LONGER_FLOWER_GLIDE)                       \
+    X(RSBS_CVAR_MM_CHEATS_ELEGY_ANYWHERE)                            \
+    X(RSBS_CVAR_MM_CHEATS_TEMPLE_TIME_STOP)                          \
+    X(RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD)                   \
+    X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_BOTTLE_CONTENT)                \
+    X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_RAZOR_SWORD)                   \
+    X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_TIME_SPEED)                    \
+    X(RSBS_CVAR_MM_CYCLE_KEEP_EXPRESS_MAIL)                          \
+    X(RSBS_CVAR_MM_CYCLE_STOP_OCEANSIDE_SPIDER_HOUSE_SQUATTER)       \
+    X(RSBS_CVAR_MM_CYCLE_OCEANSIDE_WALLET_ANY_DAY)                   \
+    /* W6-PLAYER */                                                  \
+    X(RSBS_CVAR_MM_PLAYER_MANUAL_JUMP)                               \
+    X(RSBS_CVAR_MM_PLAYER_PREVENT_DIVE_OVER_WATER)                   \
+    X(RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING)                     \
+    X(RSBS_CVAR_MM_PLAYER_CLIMB_SPEED)                               \
+    X(RSBS_CVAR_MM_PLAYER_FASTER_PUSH_AND_PULL)                      \
+    X(RSBS_CVAR_MM_PLAYER_FAST_FLOWER_LAUNCH)                        \
+    X(RSBS_CVAR_MM_PLAYER_FIERCE_DEITY_PUTAWAY)                      \
+    X(RSBS_CVAR_MM_EQUIPMENT_TWO_HANDED_SWORD_SPIN_ATTACK)           \
+    X(RSBS_CVAR_MM_EQUIPMENT_GREAT_FAIRY_SWORD_B_BUTTON)             \
+    X(RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE)                   \
+    X(RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL)                    \
+    X(RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS)                              \
+    /* W6-MASKS-SONGS */                                             \
+    X(RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING)                       \
+    X(RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG)                             \
+    X(RSBS_CVAR_MM_MASKS_FAST_TRANSFORMATION)                        \
+    X(RSBS_CVAR_MM_MASKS_FIERCE_DEITYS_ANYWHERE)                     \
+    X(RSBS_CVAR_MM_MASKS_PERSISTENT_BUNNY_HOOD)                      \
+    X(RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN)                     \
+    X(RSBS_CVAR_MM_MASKS_GORON_ROLLING_IGNORES_MAGIC)                \
+    X(RSBS_CVAR_MM_MASKS_GORON_ROLLING_FAST_SPIKES)                  \
+    X(RSBS_CVAR_MM_SONGS_PAUSE_OWL_WARP)                             \
+    X(RSBS_CVAR_MM_SONGS_ENABLE_SUNS_SONG)                           \
+    X(RSBS_CVAR_MM_SONGS_ZORA_EGG_COUNT)                             \
+    X(RSBS_CVAR_MM_SONGS_FASTER_SONG_PLAYBACK)                       \
+    X(RSBS_CVAR_MM_SONGS_SKIP_SOARING_CUTSCENE)                      \
+    X(RSBS_CVAR_MM_PLAYER_UNDERWATER_OCARINA)                        \
+    /* W6-CAM-GYRO */                                                \
+    X(RSBS_CVAR_MM_CAMERA_FP_GYRO_ENABLED)                           \
+    X(RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_X)                          \
+    X(RSBS_CVAR_MM_CAMERA_FP_GYRO_INVERT_Y)                          \
+    X(RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_X)                     \
+    X(RSBS_CVAR_MM_CAMERA_FP_GYRO_SENSITIVITY_Y)                     \
+    X(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MAX_PITCH)                       \
+    X(RSBS_CVAR_MM_CAMERA_FREE_LOOK_MIN_PITCH)                       \
+    X(RSBS_CVAR_MM_CAMERA_DEBUG_CAM_ENABLE)                          \
+    X(RSBS_CVAR_MM_CAMERA_DEBUG_CAM_6DOF)                            \
+    X(RSBS_CVAR_MM_CAMERA_DEBUG_CAM_SPEED)                           \
+    X(RSBS_CVAR_MM_PLAYER_ACTIONS_REMOTE_BOMBCHU)                    \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_ENABLE)                            \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_TOGGLE)                            \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_WALK_ENABLE)                       \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1)                     \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING2)                     \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_ENABLE)                       \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING1)                     \
+    X(RSBS_CVAR_MM_SPEED_MODIFIER_SWIM_MAPPING2)                     \
+    /* W6-GFX */                                                     \
+    X(RSBS_CVAR_MM_GRAPHICS_CLOCK_TYPE)                              \
+    X(RSBS_CVAR_MM_GRAPHICS_24_HOURS_CLOCK)                          \
+    X(RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_MODE)                        \
+    X(RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_INTERPOLATE)                 \
+    X(RSBS_CVAR_MM_GRAPHICS_MOTION_BLUR_STRENGTH)                    \
+    X(RSBS_CVAR_MM_GRAPHICS_FIX_GEOMETRY_SEAMS)                      \
+    X(RSBS_CVAR_MM_GRAPHICS_NO_GEOMETRY_DISTANCE_CHECK)              \
+    /* W6-FIXES */                                                   \
+    X(RSBS_CVAR_MM_CAMERA_FIX_TARGETTING_CAMERA_SNAP)                \
+    X(RSBS_CVAR_MM_FIXES_EPONA_STEALING_SWORD)                       \
+    X(RSBS_CVAR_MM_FIXES_FIERCE_DEITY_Z_TARGET_MOVEMENT)             \
+    X(RSBS_CVAR_MM_FIXES_AMMO_COUNT_ENV_COLOR)                       \
+    X(RSBS_CVAR_MM_FIXES_IKANA_GREAT_FAIRY_FOUNTAIN_COLOR)           \
+    X(RSBS_CVAR_MM_FIXES_CONTROL_CHARACTERS)                         \
+    X(RSBS_CVAR_MM_FIXES_COMPLETED_HEART_CONTAINER_AUDIO)            \
+    X(RSBS_CVAR_MM_RESTORATIONS_POWER_CROUCH_STAB)                   \
+    X(RSBS_CVAR_MM_RESTORATIONS_TATL_ISG)                            \
+    X(RSBS_CVAR_MM_RESTORATIONS_CONSTANT_FLIPS_HOPS)                 \
+    X(RSBS_CVAR_MM_RESTORATIONS_SIDE_ROLL)                           \
+    X(RSBS_CVAR_MM_RESTORATIONS_OOT_FASTER_SWIM)                     \
+    X(RSBS_CVAR_MM_RESTORATIONS_WOODFALL_MOUNTAIN_APPEARANCE)        \
+    X(RSBS_CVAR_MM_RESTORATIONS_JP_GROTTOS)                          \
+    X(RSBS_CVAR_MM_RESTORATIONS_BONK_COLLISION)                      \
+    /* W6-MODES-DIFF */                                              \
+    X(RSBS_CVAR_MM_MODES_PLAY_AS_KAFEI)                              \
+    X(RSBS_CVAR_MM_MODES_HYRULE_WARRIORS_STYLED_LINK)                \
+    X(RSBS_CVAR_MM_MODES_TIME_MOVES_WHEN_YOU_MOVE)                   \
+    X(RSBS_CVAR_MM_DIFFICULTY_JINXED_TIMER)                          \
+    X(RSBS_CVAR_MM_DIFFICULTY_LOWER_BANK_REWARD_THRESHOLDS)          \
+    X(RSBS_CVAR_MM_DIFFICULTY_DISABLE_TAKKURI_STEAL)                 \
+    X(RSBS_CVAR_MM_DIFFICULTY_DEKU_GUARD_SEARCH_BALLS)               \
+    X(RSBS_CVAR_MM_DIFFICULTY_GIBDO_TRADE_SEQUENCE)                  \
+    X(RSBS_CVAR_MM_DIFFICULTY_HIDDEN_GROTTOS_VISIBILITY)             \
+    X(RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT)                      \
+    X(RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS)                            \
+    X(RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK)                               \
+    /* W6-MINIGAMES */                                               \
+    X(RSBS_CVAR_MM_MINIGAMES_BOMBERS_HIDE_AND_SEEK)                  \
+    X(RSBS_CVAR_MM_MINIGAMES_SWORDSMAN_SCHOOL_SCORE)                 \
+    X(RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY1)                 \
+    X(RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY2)                 \
+    X(RSBS_CVAR_MM_MINIGAMES_HONEY_AND_DARLING_DAY3)                 \
+    X(RSBS_CVAR_MM_MINIGAMES_TOWN_ARCHERY_SCORE)                     \
+    X(RSBS_CVAR_MM_MINIGAMES_SWAMP_ARCHERY_SCORE)                    \
+    X(RSBS_CVAR_MM_MINIGAMES_ROMANI_TARGET_PRACTICE)                 \
+    X(RSBS_CVAR_MM_MINIGAMES_ALWAYS_WIN_DOGGY_RACE)                  \
+    X(RSBS_CVAR_MM_MINIGAMES_CUCCO_SHACK_CUCCO_COUNT)                \
+    X(RSBS_CVAR_MM_MINIGAMES_SKIP_HORSE_RACE)                        \
+    X(RSBS_CVAR_MM_MINIGAMES_BEAVER_RACE_RINGS_COLLECTED)            \
+    X(RSBS_CVAR_MM_MINIGAMES_SKIP_LITTLE_BEAVER)                     \
+    X(RSBS_CVAR_MM_DIFFICULTY_GORON_RACE)                            \
+    X(RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_SCORE)                     \
+    X(RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_HEALTH)                    \
+    X(RSBS_CVAR_MM_MINIGAMES_BOAT_ARCHERY_INVINCIBLE)                \
+    X(RSBS_CVAR_MM_MINIGAMES_TREASURE_CHEST_SHOP_FULL_MAZE)          \
+    X(RSBS_CVAR_MM_MINIGAMES_MARK_SHOOTING_GALLERY_OCTOROKS)         \
+    /* W6-TIMERS */                                                  \
+    X(RSBS_CVAR_MM_DISPLAY_OVERLAY_MODE)                             \
+    X(RSBS_CVAR_MM_DISPLAY_OVERLAY_BACKGROUND)                       \
+    X(RSBS_CVAR_MM_DISPLAY_OVERLAY_SCALE)                            \
+    X(RSBS_CVAR_MM_TIME_SPLITS_ENABLE)                               \
+    X(RSBS_CVAR_MM_TIME_SPLITS_SHOW_HEADERS)                         \
+    X(RSBS_CVAR_MM_TIME_SPLITS_HIDE_BACKGROUND)                      \
+    X(RSBS_CVAR_MM_TIME_SPLITS_HIGHLIGHT)                            \
+    X(RSBS_CVAR_MM_TIME_SPLITS_FOLLOW)                               \
+    X(RSBS_CVAR_MM_TIME_SPLITS_COMPARE)                              \
+    /* W6-DEV */                                                     \
+    X(RSBS_CVAR_MM_BETTER_MAP_SELECT)                                \
+    X(RSBS_CVAR_MM_PREVENT_ACTOR_UPDATE)                             \
+    X(RSBS_CVAR_MM_PREVENT_ACTOR_DRAW)                               \
+    X(RSBS_CVAR_MM_PREVENT_ACTOR_INIT)                               \
+    X(RSBS_CVAR_MM_DISABLE_OBJECT_DEPENDENCY)                        \
+    /* #1037: MM's own Damage Multiplier, with 2Ship's value list */ \
+    X(RSBS_CVAR_MM_DAMAGE_MULTIPLIER)                                \
+    /* L7 (#1133): the curated hosted rows */                        \
+    X(RSBS_CVAR_MM_KALEIDO_GAME_OVER)                                \
+    X(RSBS_CVAR_MM_BETTER_SONG_OF_DOUBLE_TIME)                       \
+    X(RSBS_CVAR_MM_SKIP_SOT_CUTSCENES)                               \
+    X(RSBS_CVAR_MM_AUTOSAVE_INTERVAL)                                \
+    /* W6-CAM-AIM */                                                 \
+    X(RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER)                    \
+    X(RSBS_CVAR_MM_CAMERA_FP_INVERT_X)                               \
+    X(RSBS_CVAR_MM_CAMERA_FP_INVERT_Y)                               \
+    X(RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X)                          \
+    X(RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_Y)                          \
+    X(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED)                    \
+    X(RSBS_CVAR_MM_CAMERA_FP_MOVE_IN_FIRST_PERSON)                   \
+    X(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_X)                   \
+    X(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_INVERT_Y)                   \
+    X(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_X)              \
+    X(RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_SENSITIVITY_Y)              \
+    X(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_X)                      \
+    X(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_INVERT_Y)                      \
+    X(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_X)                 \
+    X(RSBS_CVAR_MM_CAMERA_RIGHT_STICK_SENSITIVITY_Y)                 \
+    X(RSBS_CVAR_MM_EQUIPMENT_INVERT_SHIELD_Y)                        \
+    /* W6-HOST: the Ambience volume, no OoT twin */                  \
+    X(RSBS_CVAR_VOLUME_AMBIENCE)                                     \
+    /* #1240's safe shared keys: one spelling, read by both games */ \
+    X("gCheats.InfiniteHealth")                                      \
+    X("gCheats.InfiniteMagic")                                       \
+    X("gCheats.EasyFrameAdvance")                                    \
+    X("gCheats.NoClip")                                              \
+    X("gCheats.MoonJumpOnL")                                         \
+    X("gEnhancements.HookshotableReticle")                           \
+    X("gDeveloperTools.DebugEnabled")                                \
+    X("gSettings.Menu.Theme")
+
+#define RSBS_TWOSHIP_IMPORT_KEY_VALUE(key) key,
+#define RSBS_TWOSHIP_IMPORT_KEY_SPELLING(key) #key,
+/// The import list's keys, in list order.
+inline constexpr const char* kTwoShipImportKeys[] = { RSBS_TWOSHIP_IMPORT_KEYS(RSBS_TWOSHIP_IMPORT_KEY_VALUE) };
+/// Each entry as spelled in the list (a define's name, or a quoted literal), for the classification lock's binding
+/// scan and for failure messages.
+inline constexpr const char* kTwoShipImportKeySpellings[] = { RSBS_TWOSHIP_IMPORT_KEYS(
+    RSBS_TWOSHIP_IMPORT_KEY_SPELLING) };
+inline constexpr std::size_t kTwoShipImportKeyCount = sizeof(kTwoShipImportKeys) / sizeof(kTwoShipImportKeys[0]);
+
+/** A 2Ship key, or a family of them, the import must never carry. */
+struct TwoShipDoNotImport {
+    const char* key; ///< The key as 2Ship spells it, or a family prefix ending in '.' when `family` is set.
+    bool family;     ///< True when every key under `key` is held back.
+    const char* why; ///< Why importing it raw would be wrong. Printed by the locks.
+};
+
+inline constexpr TwoShipDoNotImport kTwoShipDoNotImport[] = {
+    // ---- Translated: SoH's one row drives MM through a value translation (kTranslatedKeys), so a raw copy of 2Ship's
+    //      value would sit beside the translation with no row to clear it. ----
+    { "gModes.MirroredWorld.State", false,
+      "translated from SoH's Mirrored World (#1236): an imported 1 would mirror Majora's Mask with no row to clear "
+      "it" },
+    { "gModes.MirroredWorld.Mode", false,
+      "2Ship's on/off row; nothing in the single exe reads it, and SoH's Mirrored World is the one control (#1236)" },
+    { "gEnhancements.Cutscenes.SkipGetItemCutscenes", false,
+      "translated from SoH's Skip Get Item Animation (#1060), with no reverse translation: MM's 2 (Everything But "
+      "Major) has no SoH tier and MM's 3 is outside SoH's range" },
+    { "gAudioEditor.LinkVoiceFreqMultiplier.Enable", false,
+      "translated from SoH's float leaf gAudioEditor.LinkVoiceFreqMultiplier (#1239): importing it raw would turn that "
+      "leaf into a JSON parent" },
+    { "gAudioEditor.LinkVoiceFreqMultiplier.Scale", false,
+      "translated from SoH's float leaf gAudioEditor.LinkVoiceFreqMultiplier (#1239): importing it raw would turn that "
+      "leaf into a JSON parent" },
+    { "gAudioEditor.RandomizeAllOnNewScene", false,
+      "translated from SoH's five-way Randomize Audio combobox (#1239); nothing writes MM's two bools" },
+    { "gAudioEditor.RandomizeAllOnRandoGen", false,
+      "translated from SoH's five-way Randomize Audio combobox (#1239); nothing writes MM's two bools" },
+    // ---- 2Ship's v1 rename target: MM's code never followed the rename (z_parameter.c reads
+    //      gFixes.FixAmmoCountEnvColor, which imports through the list), so this key is read by nothing. ----
+    { "gFixes.FixButtonEnvColor", false,
+      "2Ship v1's rename of the ammo-count colour fix, which nothing in the single exe reads; the live spelling "
+      "gFixes.FixAmmoCountEnvColor imports" },
+    // ---- INTENTIONAL, no row (docs/enhancement-classification.md): the setting cannot act in paired play, so an
+    //      imported value would be stuck. ----
+    { "gEnhancements.Cutscenes.SkipFirstCycle", false,
+      "INTENTIONAL: inert in paired play, where the cross-game arrival is MM's intro event and already grants its set "
+      "(#654, #1123)" },
+    { "gEnhancements.Cutscenes.SkipToFileSelect", false,
+      "INTENTIONAL: inert in paired play, where the title screen and the file select are Ocarina of Time's" },
+    { "gEnhancements.Saving.FileSlot3", false,
+      "INTENTIONAL (W6-TIMESAVERS): shapes MM's file select, which paired play never shows" },
+    { "gEnhancements.Saving.PersistentOwlSaves", false,
+      "INTENTIONAL (W6-TIMESAVERS): a paired MM session has no flash slot, so the owl save already persists" },
+    { "gEnhancements.Saving.DisableSaveDelay", false,
+      "INTENTIONAL (W6-TIMESAVERS): a paired MM session never starts a flash write" },
+    { "gEnhancements.Cycle.DoNotResetRupees", false,
+      "INTENTIONAL (W6-CYCLE-CHEATS): the shared rupees survive every cycle reset" },
+    { "gEnhancements.Cycle.DoNotResetConsumables", false,
+      "INTENTIONAL (W6-CYCLE-CHEATS): the shared ammo survives every reset and the rest follows the frozen Keep Items "
+      "on Cycle Reset" },
+    { "gEnhancements.DifficultyOptions.DeleteFileOnDeath", false,
+      "INTENTIONAL (W6-MODES-DIFF): a paired file is one game, and 2Ship's MM-slot delete is not compiled" },
+    { "gEnhancements.Graphics.AuthenticLogo", false,
+      "INTENTIONAL (W6-GFX): the console logo draws only on a cold --game mm boot" },
+    { "gEnhancements.Fixes.ConsoleCrashes", false,
+      "INTENTIONAL (W6-FIXES): the single exe always keeps the crash fixes on" },
+    { "gEnhancements.Masks.PersistentBunnyHood.State", false,
+      "INTERNAL (W6-MASKS-SONGS): PersistentMasks.cpp writes it from the mask menu; it is not a setting" },
+    { "gWindows.Timesplits.Settings", false,
+      "INTENTIONAL (W6-TIMERS): SoH's Time Splits window is the one Time Splits surface" },
+    // ---- Key families: a family import is a follow-up after the family lanes (#1239). ----
+    { "gAudioEditor.ReplacedSequences.", true,
+      "2Ship's raw sequence replacements: SoH's own tabs write this spelling, eleven sfxKeys name a sequence in both "
+      "games, and MM's now live under RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX (W6-AUDIO-SEQ)" },
+    { "gAudioEditor.Excluded.", true,
+      "2Ship's raw shuffle-pool exclusions: SoH's own tabs write this spelling, and MM's now live under "
+      "RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX (W6-AUDIO-SEQ)" },
+    { "gHudEditor.", true, "MM's HUD placement family (W6-HUD-A, W6-HUD-B): a family import is a follow-up" },
+    { "gCosmetic.", true,
+      "MM's cosmetic colour family (W6-COS-A, W6-COS-B, W6-COS-C), translated onto SoH's twins where one exists: a "
+      "family import is a follow-up" },
+    { "gColors.", true, "INTENTIONAL (W6-HUD-A): 2Ship's HUD editor colours are read by no draw" },
+};
+inline constexpr std::size_t kTwoShipDoNotImportCount = sizeof(kTwoShipDoNotImport) / sizeof(kTwoShipDoNotImport[0]);
+
+/**
  * Casing hazard, inventory §5.1. MM uses `gEnhancements.Timesavers.*`
  * (lowercase s, 9 keys), OoT uses `gEnhancements.TimeSavers.*` (capital S, 16
  * keys). They do NOT collide, but they are one keystroke apart in a

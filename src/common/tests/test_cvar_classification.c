@@ -392,6 +392,69 @@ std::vector<std::string> CvarClassScalarMmDefineBreaches(const std::vector<CvarC
     return breaches;
 }
 
+// ---- (2b) helpers: the 2Ship import list (#1240, W6-IMPORT) ----
+
+/// How many shared-menu rows in @p code (comment-stripped) bind the import-list entry spelled @p spelling: an
+/// RSBS_CVAR_* define's name, bound as (3f-2c) binds it, or a quoted key literal, which SoH's own page rows bind
+/// through the literal or a soh/cvar_prefixes.h macro (`.CVar(CVAR_CHEAT("NoClip"))`).
+int CvarClassCountImportBindings(const std::string& code, const std::string& spelling) {
+    if (spelling.size() < 2 || spelling.front() != '"' || spelling.back() != '"') {
+        return CvarClassCountMenuBindings(code, spelling);
+    }
+    const std::string key = spelling.substr(1, spelling.size() - 2);
+    std::vector<std::string> forms = { spelling };
+    struct PrefixMacro {
+        const char* prefix;
+        const char* macro;
+    };
+    static const PrefixMacro kMacros[] = {
+        { "gCheats.", "CVAR_CHEAT" },      { "gEnhancements.", "CVAR_ENHANCEMENT" },
+        { "gSettings.", "CVAR_SETTING" },  { "gDeveloperTools.", "CVAR_DEVELOPER_TOOLS" },
+        { "gAudioEditor.", "CVAR_AUDIO" },
+    };
+    for (const PrefixMacro& m : kMacros) {
+        const std::size_t len = std::strlen(m.prefix);
+        if (key.compare(0, len, m.prefix) == 0) {
+            forms.push_back(std::string(m.macro) + "(\"" + key.substr(len) + "\")");
+        }
+    }
+    int count = 0;
+    for (const std::string& form : forms) {
+        const std::string pageForm = ".CVar(" + form + ")";
+        for (std::size_t p = code.find(pageForm); p != std::string::npos; p = code.find(pageForm, p + 1)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/// Is @p key on kTwoShipDoNotImport, by itself or under one of its families?
+const RSBS::TwoShipDoNotImport* CvarClassTwoShipDoNotImportEntry(const std::string& key) {
+    for (std::size_t i = 0; i < RSBS::kTwoShipDoNotImportCount; i++) {
+        const RSBS::TwoShipDoNotImport& entry = RSBS::kTwoShipDoNotImport[i];
+        if (entry.family ? key.compare(0, std::strlen(entry.key), entry.key) == 0 : key == entry.key) {
+            return &entry;
+        }
+    }
+    return nullptr;
+}
+
+/// The scalar MM-row defines in @p defines that are on neither the import list nor kTwoShipDoNotImport: a returning
+/// 2Ship player's setting the import would silently drop.
+std::vector<std::string> CvarClassTwoShipUnlisted(const std::vector<CvarClassMmDefine>& defines) {
+    std::vector<std::string> unlisted;
+    for (const CvarClassMmDefine& d : defines) {
+        bool listed = CvarClassTwoShipDoNotImportEntry(d.key) != nullptr;
+        for (std::size_t i = 0; !listed && i < RSBS::kTwoShipImportKeyCount; i++) {
+            listed = d.key == RSBS::kTwoShipImportKeys[i];
+        }
+        if (!listed) {
+            unlisted.push_back(d.name + " (\"" + d.key + "\")");
+        }
+    }
+    return unlisted;
+}
+
 } // namespace
 #endif // RSBS_SOURCE_DIR
 
@@ -777,6 +840,148 @@ TestResult Test_CVarClassification(void) {
     // than produce an out-of-range percent the slider cannot represent.
     CVARCLASS_CHECK(SOH::VolumePercentFromFloatScale(4.0f) == 100, "over-unity scale must clamp to 100%");
     CVARCLASS_CHECK(SOH::VolumePercentFromFloatScale(-1.0f) == 0, "negative scale must clamp to 0%");
+
+    // ------------------------------------------------------------------
+    // (2b) W6-IMPORT (#1240): the 2Ship config import list.
+    //
+    // RSBS_TWOSHIP_IMPORT_KEYS is the compile-time list SOH::ImportTwoShipConfig adopts as-is; kTwoShipDoNotImport
+    // holds the keys and families it must never carry. A key imported with no shared-menu row is stuck (#1240's
+    // ordering rule), a do-not-import key copied raw is a hazard, a converged or translated MM spelling copied raw
+    // bypasses its conversion, and a scalar MM-row define on neither list is a returning 2Ship player's setting
+    // dropped without a word. TwoShipImportMmKeys drives the importer itself; this leg holds the lists.
+    // ------------------------------------------------------------------
+    {
+        CVARCLASS_CHECK(RSBS::kTwoShipImportKeyCount > 0 && RSBS::kTwoShipDoNotImportCount > 0,
+                        "(2b) the 2Ship import list or its do-not-import table is empty");
+        for (std::size_t e = 0; e < RSBS::kTwoShipDoNotImportCount; e++) {
+            const RSBS::TwoShipDoNotImport& entry = RSBS::kTwoShipDoNotImport[e];
+            CVARCLASS_CHECK(entry.key != nullptr && entry.key[0] != '\0' && entry.why != nullptr &&
+                                entry.why[0] != '\0',
+                            "(2b) a kTwoShipDoNotImport entry has no key or no reason");
+            CVARCLASS_CHECK(entry.family == (entry.key[strlen(entry.key) - 1] == '.'),
+                            "(2b) a kTwoShipDoNotImport family must end in '.', and only a family may");
+        }
+        for (std::size_t i = 0; i < RSBS::kTwoShipImportKeyCount; i++) {
+            const char* key = RSBS::kTwoShipImportKeys[i];
+            const char* spelling = RSBS::kTwoShipImportKeySpellings[i];
+            CVARCLASS_CHECK(key != nullptr && key[0] != '\0', "(2b) an import-list entry is empty");
+            for (std::size_t j = i + 1; j < RSBS::kTwoShipImportKeyCount; j++) {
+                if (strcmp(key, RSBS::kTwoShipImportKeys[j]) == 0) {
+                    printf("[TEST] FAIL: (2b) \"%s\" is on the 2Ship import list twice (%s, %s).\n", key, spelling,
+                           RSBS::kTwoShipImportKeySpellings[j]);
+                    return TEST_FAIL;
+                }
+            }
+            for (std::size_t e = 0; e < RSBS::kTwoShipDoNotImportCount; e++) {
+                const RSBS::TwoShipDoNotImport& entry = RSBS::kTwoShipDoNotImport[e];
+                const bool held =
+                    entry.family ? strncmp(key, entry.key, strlen(entry.key)) == 0 : strcmp(key, entry.key) == 0;
+                if (held) {
+                    printf("[TEST] FAIL: (2b) %s (\"%s\") is on the 2Ship import list and on kTwoShipDoNotImport:\n"
+                           "[TEST]       %s.\n",
+                           spelling, key, entry.why);
+                    return TEST_FAIL;
+                }
+            }
+            for (std::size_t c = 0; c < RSBS::kConvergedKeyCount; c++) {
+                if (strcmp(key, RSBS::kConvergedKeys[c].legacy) == 0) {
+                    printf("[TEST] FAIL: (2b) %s (\"%s\") is a converged legacy spelling; the kConvergedKeys walk\n"
+                           "[TEST]       already imports it onto \"%s\" (with its conversion), so do not list it.\n",
+                           spelling, key, RSBS::kConvergedKeys[c].canonical);
+                    return TEST_FAIL;
+                }
+            }
+            for (std::size_t t = 0; t < RSBS::kTranslatedKeyCount; t++) {
+                if (strcmp(key, RSBS::kTranslatedKeys[t].mmKey) == 0) {
+                    printf("[TEST] FAIL: (2b) %s (\"%s\") is translated from SoH's \"%s\" (#%d); a raw import would\n"
+                           "[TEST]       bypass the translation. Put it on kTwoShipDoNotImport instead.\n",
+                           spelling, key, RSBS::kTranslatedKeys[t].ootKey, RSBS::kTranslatedKeys[t].issue);
+                    return TEST_FAIL;
+                }
+            }
+        }
+
+        // Every key SoH's rows drive through a translation (kTranslatedKeys) is held back by name or family: a raw
+        // copy of 2Ship's value would sit beside the translation with no row to clear it.
+        for (std::size_t t = 0; t < RSBS::kTranslatedKeyCount; t++) {
+            const char* mmKey = RSBS::kTranslatedKeys[t].mmKey;
+            bool held = false;
+            for (std::size_t e = 0; !held && e < RSBS::kTwoShipDoNotImportCount; e++) {
+                const RSBS::TwoShipDoNotImport& entry = RSBS::kTwoShipDoNotImport[e];
+                held = entry.family ? strncmp(mmKey, entry.key, strlen(entry.key)) == 0 : strcmp(mmKey, entry.key) == 0;
+            }
+            if (!held) {
+                printf("[TEST] FAIL: (2b) MM's \"%s\" is translated from SoH's \"%s\" (#%d) but is not on\n"
+                       "[TEST]       kTwoShipDoNotImport; add it there with its reason.\n",
+                       mmKey, RSBS::kTranslatedKeys[t].ootKey, RSBS::kTranslatedKeys[t].issue);
+                return TEST_FAIL;
+            }
+        }
+
+#ifdef RSBS_SOURCE_DIR
+        const std::filesystem::path importRoot(RSBS_SOURCE_DIR);
+        bool sohOk = false;
+        const std::vector<CvarClassSourceFile> sohFiles =
+            CvarClassSlurpTreeWithPaths(importRoot / "games" / "oot" / "soh", sohOk);
+        std::ifstream keysFile(importRoot / "src" / "common" / "cvar_shared_keys.h", std::ios::binary);
+        if (sohOk && !sohFiles.empty() && keysFile.is_open()) {
+            const std::string keysText((std::istreambuf_iterator<char>(keysFile)), std::istreambuf_iterator<char>());
+            // Production menu code only, as (3f-2c) reads it: tests and the UI snapshot harness are not rows.
+            std::vector<std::string> ootMenuCode;
+            for (const CvarClassSourceFile& f : sohFiles) {
+                if (f.relPath.find("_test.") == std::string::npos &&
+                    f.relPath.find("soh_ui_snapshot.cpp") == std::string::npos) {
+                    ootMenuCode.push_back(CvarClassStripComments(f.text));
+                }
+            }
+
+            // The control, observed on every run: a synthetic define on neither list is reported, and a define on
+            // the list or under a do-not-import family is not.
+            {
+                const std::string controlKeys = std::string("#define RSBS_CVAR_MM_RSBS_IMPORT_CONTROL "
+                                                            "\"gEnhancements.RsbsImportControl\"\n") +
+                                                "#define RSBS_CVAR_MM_RSBS_IMPORT_LISTED \"" +
+                                                RSBS::kTwoShipImportKeys[0] + "\"\n" +
+                                                "#define RSBS_CVAR_MM_RSBS_IMPORT_FAMILY \"gColors.RsbsImport\"\n";
+                const std::vector<std::string> controlUnlisted =
+                    CvarClassTwoShipUnlisted(CvarClassScalarMmDefines(controlKeys));
+                CVARCLASS_CHECK(controlUnlisted.size() == 1 &&
+                                    controlUnlisted[0].find("RSBS_CVAR_MM_RSBS_IMPORT_CONTROL") != std::string::npos,
+                                "(2b) control: the completeness check did not report exactly the synthetic define "
+                                "that is on neither list, so its green would prove nothing");
+            }
+
+            std::vector<std::string> breaches;
+            for (std::size_t i = 0; i < RSBS::kTwoShipImportKeyCount; i++) {
+                int bindings = 0;
+                for (const std::string& code : ootMenuCode) {
+                    bindings += CvarClassCountImportBindings(code, RSBS::kTwoShipImportKeySpellings[i]);
+                }
+                if (bindings == 0) {
+                    breaches.push_back(std::string(RSBS::kTwoShipImportKeySpellings[i]) + " (\"" +
+                                       RSBS::kTwoShipImportKeys[i] +
+                                       "\") is on the 2Ship import list, but no shared-menu row under games/oot/soh "
+                                       "binds it, so an imported value would be stuck");
+                }
+            }
+            for (const std::string& u : CvarClassTwoShipUnlisted(CvarClassScalarMmDefines(keysText))) {
+                breaches.push_back(u + " has a shared-menu row but is on neither RSBS_TWOSHIP_IMPORT_KEYS nor "
+                                       "kTwoShipDoNotImport, so a returning 2Ship player's value for it is dropped");
+            }
+            for (const std::string& b : breaches) {
+                printf("[TEST] FAIL: (2b) %s.\n", b.c_str());
+            }
+            if (!breaches.empty()) {
+                printf("[TEST]       A scalar MM-row define goes on the 2Ship import list (cvar_shared_keys.h,\n"
+                       "[TEST]       RSBS_TWOSHIP_IMPORT_KEYS) or, with its reason, on kTwoShipDoNotImport (#1240).\n");
+                return TEST_FAIL;
+            }
+            printf("[TEST] (2b) %zu key(s) on the 2Ship import list, each bound by a shared-menu row; %zu "
+                   "do-not-import entr(ies); every scalar MM-row define is on one of the two\n",
+                   RSBS::kTwoShipImportKeyCount, RSBS::kTwoShipDoNotImportCount);
+        }
+#endif // RSBS_SOURCE_DIR
+    }
 
     // ------------------------------------------------------------------
     // (3) Source scan — the drift detector.

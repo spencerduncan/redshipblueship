@@ -349,7 +349,7 @@ ten, which are (O) and listed in §6.1 W6-PLAYER; the coverage notes there hold 
 | MM key | MM default | Row (page > section) | Call |
 |---|---|---|---|
 | `gEnhancements.Player.ClimbSpeed` | 1x | MM Vine/Ladder Climb Speed (Skips & Speed-ups > Animations, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH adds +0-12, MM multiplies 1-5x; §5.3 group A's "both numeric" was wrong |
-| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`). SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, then the scarcer ammo first), and an OoT seed can force it on. MM's row converts Bomb drops to Bombchu drops once you have Bombchus: in the single exe a Bomb drop converts, at an even chance, only while `INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU` already holds, which is SoH's first clause (review H1 on #1246). The reason: the Bombchu count is a shared PROGRESSION quantity (`src/common/shared_items.h`). Under 2Ship's unguarded rule the pickup would set the Bombchu item in Termina (`z_parameter.c` Item_Give), the next harvest would carry the count into the pool, and `OoT_ApplySharedAmmoCount` would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them (`OoT_SharedAmmoGrantBlocked` stops that only when the seed's Bombchu Bag option is on). MM's rule still never weighs the scarcer ammo, so the keys are not converged: same bool and JSON shape, different rule. MMRegistrarCoverage's FAIL 22 holds the rule. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031). **For W6-IMPORT: an MM-only key.** Import `gEnhancements.Equipment.ChuDrops` as MM's own key, never onto `gEnhancements.EnableBombchuDrops` |
+| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`). SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, then the scarcer ammo first), and an OoT seed can force it on. MM's row converts Bomb drops to Bombchu drops once you have Bombchus: in the single exe a Bomb drop converts, at an even chance, only while `INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU` already holds, which is SoH's first clause (review H1 on #1246). The reason: the Bombchu count is a shared PROGRESSION quantity (`src/common/shared_items.h`). Under 2Ship's unguarded rule the pickup would set the Bombchu item in Termina (`z_parameter.c` Item_Give), the next harvest would carry the count into the pool, and `OoT_ApplySharedAmmoCount` would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them (`OoT_SharedAmmoGrantBlocked` stops that only when the seed's Bombchu Bag option is on). MM's rule still never weighs the scarcer ammo, so the keys are not converged: same bool and JSON shape, different rule. MMRegistrarCoverage's FAIL 22 holds the rule. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031). **2Ship import (W6-IMPORT, §6.3): an MM-only key.** Imported as MM's own key, never onto `gEnhancements.EnableBombchuDrops` |
 
 ## 5. (S) CONVERGE — the rename list for the settings-namespace ADR
 
@@ -755,7 +755,7 @@ that could share its key.
 | `gFixes.FixEponaStealingSword` | off | Fix Epona Stealing Sword (Gameplay Fixes) | (O) MM-only; `Fixes/FixEponaStealingSword.cpp` linked (play-state guard added) |
 | `gEnhancements.Fixes.FierceDeityZTargetMovement` | off | Fix Fierce Deity Z-Target Movement (Gameplay Fixes) | (O) MM-only; `Fixes/FierceDeityZTargetMovement.cpp` linked (guard added) |
 | `gEnhancements.Fixes.ConsoleCrashes` | on | none | INTENTIONAL: the single exe always keeps the crash fixes on. `src/common/mm_stubs.c`'s handler returns "not reset" and every call site takes its safe fallback; 2Ship's off mode is a soft reset through the console's "reset" command, which in the single exe is SoH's and resets Ocarina of Time, not the Majora's Mask state the crash came from |
-| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key |
+| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key. The 2Ship import (§6.3) carries it under this spelling and no longer replays the v1 rename, which moved the value onto a key nothing reads |
 | `gFixes.FixIkanaGreatFairyFountainColor` | off | Fix Ikana Great Fairy Fountain Color (Graphical Fixes) | (O) MM-only; row only, `z_kankyo.c` reads it |
 | `gEnhancements.Fixes.ControlCharacters` | off | Fix Text Control Characters (Graphical Fixes) | (O) MM-only; row only, `z_message_nes.c` reads it |
 | `gEnhancements.Fixes.CompletedHeartContainerAudio` | off | Fix Completed Heart Container Audio (Audio Fixes) | (O) MM-only; `Fixes/CompletedHeartContainerAudio.cpp` linked |
@@ -778,6 +778,27 @@ Dungeon/trade/age machinery with no MM counterpart: `gRandoSettings.*` (232),
 `TimeTravel`, `BetaQuest*`, and within `gCheats.*`: `SaveStates*`, `EasyPauseBuffer`,
 `EasyInputBuffer`, `EasyQPA`, `SpeedModifier.*`, `SuperTunic`, `TimelessEquipment`,
 `InfiniteEponaBoost`, `InfiniteNayru`, `NoRedeadFreeze`, `FireproofDekuShield`, and ~20 more.
+
+### 6.3 The 2Ship config import (W6-IMPORT, #1240)
+
+The one-time import of a standalone 2Ship config (`games/oot/soh/config/TwoShipImport.cpp`) used to walk only
+`kConvergedKeys`, so a returning 2Ship player lost every MM-only setting. It now also adopts, as-is and under ADR 0003
+§6.3's conflict rule (a value already set in the combined config wins), every key on the compile-time list
+`RSBS_TWOSHIP_IMPORT_KEYS` in `src/common/cvar_shared_keys.h`. Fixed at compile time because the import runs at boot
+before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys row hold both lists.
+
+| Keys | Import |
+|---|---|
+| Every MM-only key in this document with a row bound through an `RSBS_CVAR_MM_*` define (§4 W6-CAM-AIM, W6-CAM-GYRO, W6-PLAYER; §6.1 W6-TIMESAVERS through W6-DEV; the L7 hosted rows) | Imported under MM's own spelling. MM's Damage Multiplier keeps 2Ship's value list (never mapped onto `gEnhancements.DamageMult`); Bombchu Drops stays MM's own key |
+| `gSettings.Volume.Ambience` | Imported (no OoT twin); 2Ship's `gSettings.Audio.AmbienceVolume` still converges first |
+| `gCheats.{InfiniteHealth, InfiniteMagic, EasyFrameAdvance, NoClip, MoonJumpOnL}`, `gEnhancements.HookshotableReticle`, `gDeveloperTools.DebugEnabled`, `gSettings.Menu.Theme` | Imported: one spelling read by both games (§3), so the imported value drives both, as the shared row does |
+| `kConvergedKeys` legacy spellings (§5.3, the #966 rows, the fairy's call) | Imported onto SoH's key through the existing walk, never listed twice |
+| `gFixes.FixAmmoCountEnvColor` | Imported under its live spelling; 2Ship's v1 rename to `gFixes.FixButtonEnvColor` is no longer replayed, and that key is held back |
+| `gModes.MirroredWorld.State` / `.Mode` | Not imported: SoH's Mirrored World is the one control (translated, W6-MODES-DIFF) |
+| `gEnhancements.Cutscenes.SkipGetItemCutscenes` | Not imported: translated from SoH's tiers (#1060) with no reverse translation; MM's 2 and 3 have no SoH value |
+| `gAudioEditor.LinkVoiceFreqMultiplier.{Enable, Scale}`, `gAudioEditor.RandomizeAllOn{NewScene, RandoGen}` | Not imported: translated from SoH's rows (#1239); the pitch pair would turn SoH's float leaf into a JSON parent |
+| INTENTIONAL keys with no row: Skip First Cycle, Skip to File Select, 3rd Save File Slot, Persistent Owl Saves, Disable Save Delay, Do Not Reset Rupees / Consumables, Delete File on Death, Authentic Logo, Fix Console Crashes, `gWindows.Timesplits.Settings`; the internal `Masks.PersistentBunnyHood.State` | Not imported: no row could change an imported value, and none acts in paired play |
+| Families `gAudioEditor.ReplacedSequences.*`, `gAudioEditor.Excluded.*`, `gHudEditor.*`, `gCosmetic.*` (its translated colours included), `gColors.*` | Not imported; a family import is a follow-up. A raw sequence copy would land MM's choices on SoH's own keys for the eleven sfxKeys both games name (W6-AUDIO-SEQ) |
 
 ## 7. Counts
 

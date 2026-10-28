@@ -2,6 +2,8 @@
 
 #include "libultraship/libultraship.h"
 
+#include <string>
+
 namespace SOH {
 
 /**
@@ -11,12 +13,15 @@ namespace SOH {
  * `2ship2harkinian.json` under 2Ship's own app directory. RSBS runs from
  * `shipofharkinian.json`, so without this those settings are simply invisible.
  *
- * Scope, per ADR 0003 §6.4: this imports the CONVERGED keys only — the
+ * Scope, per ADR 0003 §6.4 as widened by #1240: the CONVERGED keys — the
  * settings where MM's spelling moved onto OoT's — mapped through the same
  * `RSBS::kConvergedKeys` manifest that `ConfigVersion7Updater` uses, so the
- * updater and the importer cannot drift. Keys MM still owns outright are
- * already spelled identically in both files and need no mapping; keys the
- * classification marks per-game or disputed are deliberately not touched.
+ * updater and the importer cannot drift; then the compile-time list
+ * `RSBS::kTwoShipImportKeys` (cvar_shared_keys.h), adopted as-is: every
+ * MM-only key a shared-menu row writes, which MM reads under 2Ship's own
+ * spelling, and the shared keys safe to carry. `RSBS::kTwoShipDoNotImport`
+ * names what is held back and why (translated keys, INTENTIONAL keys with no
+ * row, the key families).
  *
  * Guarantees:
  *   - **Runs at most once.** Stamped by a flag in the destination config.
@@ -36,6 +41,20 @@ namespace SOH {
  * @return true if an import was performed on this call.
  */
 bool ImportTwoShipConfig(Ship::Config* conf);
+
+/**
+ * @brief The import itself on one explicit source file (#1240's test seam).
+ *
+ * Runs the same parse, 2Ship version replay, table walks and conflict rule as
+ * ImportTwoShipConfig, but sets no run-once stamp and saves no config: the
+ * CVar store changes in memory only. TwoShipImportMmKeys drives it on a
+ * synthetic `2ship2harkinian.json` in its own scratch directory.
+ *
+ * @param sourcePath A 2Ship config file.
+ * @return The number of settings adopted, or -1 when the file cannot be read
+ *         as JSON.
+ */
+int ImportTwoShipConfigFile(const std::string& sourcePath);
 
 /**
  * @brief The run-once stamp key, exposed for tests and diagnostics.

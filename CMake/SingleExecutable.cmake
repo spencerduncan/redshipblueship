@@ -583,6 +583,10 @@ if(BUILD_TESTING)
     # the dangerous one — merging OoT's 1-5x text-speed slider with MM's
     # boolean yields a control that persists a value and does nothing.
     redship_add_test(NAME CVarClassification COMMAND redship --test cvar-classification)
+    # 2Ship config import (#1240, W6-IMPORT): a synthetic 2ship2harkinian.json in the row's own scratch directory
+    # imports every MM-only key that has a shared-menu row onto the key MM reads, keeps the ammo-colour key's live
+    # spelling, and leaves every do-not-import key alone. ROM-free, display-free; saves no config.
+    redship_add_test(NAME TwoShipImportMmKeys COMMAND redship --test twoship-import-mm-keys)
     redship_add_test(NAME Roundtrip COMMAND redship --test roundtrip)
     redship_add_test(NAME RoundtripIntegrity COMMAND redship --test roundtrip-integrity)
     redship_add_test(NAME SharedRoundtrip COMMAND redship --test shared-roundtrip)
