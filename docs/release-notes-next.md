@@ -1,20 +1,32 @@
-# Release notes: next release (draft)
+# Release notes: v0.4.0-alpha ("Deckard Alfa")
 
-**Status:** draft. The next release is planned as the first alpha, `v0.4.0-alpha`; its codename, version bump and tag
-come with the release commit, not before.
-**Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged at `038ae33d` (code tip `c1023282`). Its notes follow
-this section.
-**Merged up to:** `main` at `347ba755` (2026-10-27), 67 commits after the tag: pull requests #1174 to #1271 (#1174,
-#1179, #1183, #1193, #1208, #1214 and #1241 are docs; the numbers in that range that are not listed below are issues
-or open pull requests).
+**Status:** released. The release is cut as the tag `v0.4.0-alpha` on the commit that merges this text (the version
+bump, the release workflow's title and these notes), whose code is `main` at `347ba755` and whose docs are `main` at
+`53a49d42` plus that commit. The next release's draft starts above this section when something merges after the tag.
+**Version:** `v0.4.0-alpha`, codename "Deckard Alfa" (`src/common/rsbs_version.h`), the first alpha: the stage word
+(`RSBS_VERSION_STAGE`) moves from `prealpha` to `alpha`. Under [`VERSIONING.md`](VERSIONING.md) the number is a `y`
+bump: major features and fixes without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is
+unchanged), so it takes a new film character and the code word starts again at Alfa. A build's window title reads
+`RedShipBlueShip v0.4.0-alpha+<commit> (Deckard Alfa)`, and `redship --version` prints the same first line. Saves
+written by this version are version 5 and seeds come from generator 2 (Read this first).
+**Last release:** `v0.3.1-prealpha` ("Ripley Bravo"), tagged 2026-10-23 at `038ae33d` (code tip `c1023282`). Its notes
+follow this section.
+**Merged up to:** `main` at `347ba755` (2026-10-27) for the code, 67 commits after the tag: pull requests #1174 to
+#1271 (#1174, #1179, #1183, #1193, #1208, #1214 and #1241 are docs; the numbers in that range that are not listed
+below are issues or pull requests closed unmerged); then the docs of #1273 (`53a49d42`) and the release commit.
 **Covers:** everything merged after `038ae33d`. Numbers in parentheses are pull requests; issues are written "issue
-#N". Nobody has played any of it. Every change below is locked by test rows except the warp-song prompt's hint
+#N". The operator played one path of it on the `347ba755` build on 2026-10-27, the Mido's House debug seed through
+the crossing to Woodfall Temple, which rose at the first attempt (Read this first); nobody has played the rest. Every
+change below is locked by test rows except the warp-song prompt's hint
 (#1181; Mido's and the boss door's hints have generation coverage in a paired world since #1207, not a lock row), the
 Nearly No Logic cow rule (#1178), the capital P's width (#1198) and the debug-print font path (#1206), the last two
 locked by source checks in the Python tests, and the Mido's House debug seed (#1265, #1268: a fixture, made again);
 #1174, #1179, #1183, #1193, #1208, #1214 and #1241 are docs. The Majora's Mask settings rows (#1242 to #1271) are
 locked for their page, their key and the linking of their code; what each setting does in play is 2Ship2Harkinian's
 code, run by no test row.
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.4.0-alpha) carries
+`redshipblueship-v0.4.0-alpha-windows.zip` and `redshipblueship-v0.4.0-alpha-linux.AppImage` once the tag's
+`generate-builds` run finishes. What to test first is section W of [`playtest-2026-09.md`](playtest-2026-09.md).
 
 ---
 
@@ -22,6 +34,18 @@ code, run by no test row.
 
 ### Read this first
 
+- **This is the first alpha.** The paired game is playable end to end through Woodfall: on 2026-10-27 the operator
+  played the Mido's House debug seed on the `347ba755` build, opened the Mido's House chests, crossed at the Happy Mask
+  Shop, received the Sonata of Awakening and the Deku Mask at the Clock Tower, and raised Woodfall Temple as Deku Link
+  at the first attempt (issue #1070, below). Every menu row of both games has a home: Majora's Mask's settings sit
+  beside their Ship of Harkinian twins and the Combo header is gone (#1242 to #1271, #1248). Saves are version 5 and
+  seeds come from generator 2 (#1264, next items). Alpha does not mean finished: expect bugs and missing features, and
+  a release can still break saves or seeds; each break is named here first. The open issues are in
+  [`known-issues.md`](known-issues.md).
+- **Woodfall Temple rises (issue #1070).** The operator's retest above closes the issue's retest condition. No code
+  changed for it: its two reports came from the position box of Majora's Mask's own trigger (Deku Link must stand on
+  the Deku Scrub symbol) and from the D-pad ocarina of `v0.2.0-prealpha`, fixed by #1099 in `v0.3.0-prealpha` (issue
+  #1062).
 - **Rupees, hearts, magic and ammo earned or spent between loading a paired file and the first save or crossing are
   no longer lost or refunded, and a file saved from Termina shows the right wallet, bags and hearts in Hyrule at
   once** (#1186, issue #1163). On `v0.3.1-prealpha` nothing reconciled Ocarina of Time with the shared pool at a
@@ -399,6 +423,9 @@ Consumables (above), and 2Ship2Harkinian's About panel (issue #1272).
   window size (832x600) (#1262).
 - With Debug Mode on, a Majora's Mask scene change to different music stops the old main music player first, as in
   2Ship2Harkinian, and the area music comes back after a mini-boss fight with Faster Scene Transitions on (#1247).
+- Verdict, no code change: Woodfall Temple rises at the first attempt in the operator's 2026-10-27 play of the
+  `347ba755` build (issue #1070, Read this first); the position box and the `v0.2.0-prealpha` D-pad ocarina (issue
+  #1062, #1099) were the two causes.
 
 - A file in `presets/` that is not a preset (a stray `index.html` from a recursive download, `Thumbs.db`,
   `.DS_Store`, a `.json.tmp` from an interrupted save) no longer closes the game about 110 ms after launch: it is
@@ -515,14 +542,18 @@ Consumables (above), and 2Ship2Harkinian's About panel (issue #1272).
 - **Keys and reticles (#1212, #1213):** a customised Non-Hookshotable Reticle colour applies to Hyrule's Bow reticle
   but not to Termina's, which stays red (a follow-up). Nobody has seen the Termina reticle, the mask and fairy chests
   or the key models on screen.
-- **Woodfall Temple (issue #1070, open until retested):** with Dungeon Access at its default (Transformation &
+- **Woodfall Temple (issue #1070, resolved by the 2026-10-27 retest):** with Dungeon Access at its default (Transformation &
   Song), Majora's Mask's own trigger raises the temple only when Deku Link plays the Sonata standing on the Deku
   Scrub symbol on the floor between the pink flower and the owl statue; played on the flower, or where the Song of
   Soaring sets you down, the song gives its full announcement and nothing happens. A short chime as Deku Link takes
   out the pipes confirms the spot. A Sonata that crossed from Hyrule works the same as one learned in Termina
   (playtest guide, section U). The 2026-10-21 report, where no song with C-up was recognized, came from the D-pad
-  ocarina on `v0.2.0-prealpha`, which played no note in Termina until `v0.3.0-prealpha` (issue #1062, #1099); a
-  retest on the latest build is what closes the issue (playtest guide, V9).
+  ocarina on `v0.2.0-prealpha`, which played no note in Termina until `v0.3.0-prealpha` (issue #1062, #1099). The
+  operator's retest on the `347ba755` build raised the temple at the first attempt (Read this first; playtest guide,
+  U1).
+- **Reset in Majora's Mask (issue #1274):** the menu header's Reset button and Ctrl+R do nothing while Majora's Mask
+  runs: both send the console command `reset`, which is Ship of Harkinian's and refused outside Ocarina of Time
+  (issue #798), and Majora's Mask's own reset is not linked. Cross back to Hyrule and reset there, or quit.
 
 ### Run record
 
@@ -541,7 +572,8 @@ passed every tier too, at `3772e70d` (with #1205, #1224, #1225, #1227 and #1230)
 and 81), `integration` 21 of 21 and `integration-soak` 1 of 1 each time. Cycle 38, at `347ba755` (with #1268, #1259,
 #1260, #1267, #1270, #1269 and #1271), passed every tier as well: `redship` 273 of 273, `rando` 81 of 81, `integration`
 21 of 21, `integration-soak` 1 of 1. The record is under "Gates, 2026-10-26/27" in [`known-issues.md`](known-issues.md).
-Nobody has played any of it.
+The release commit changes only the version string, the release workflow's title and docs, so cycle 38 is the code
+record for `v0.4.0-alpha`. Beyond the operator's Woodfall run of 2026-10-27, nobody has played it.
 
 ---
 
