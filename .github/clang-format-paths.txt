@@ -92,6 +92,7 @@ games/mm/2s2h/mm_notification_bridge.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
 games/mm/2s2h/mm_save_manager_stubs.c
 games/mm/2s2h/mm_shipinit_driver_test.cpp
+games/mm/2s2h/MmDevToolsSingleExe.cpp
 games/mm/2s2h/mm_spoiler_identity_test.cpp
 games/mm/2s2h/mm_trackers_gui_test.cpp
 games/mm/2s2h/TimersGuiSingleExe.cpp

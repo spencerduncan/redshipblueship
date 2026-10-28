@@ -576,6 +576,17 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Accessibility/NoScreenFlashForEnemyKill.cpp"
         # #1031
         "2s2h/Enhancements/Graphics/3DItemDrops.cpp"
+        # W6-DEV (#1238): MM's developer switches, debug save and warp point, drawn by hosted rows on SoH's Dev Tools >
+        # General (SohGui/HostedMm/SohMenuHostedMmDevTools.cpp). Dispatched in the single exe: OnSaveInit
+        # (GameInteractor_ExecuteOnSaveInit, whose debug-save body stands down under a live pairing),
+        # ShouldActorUpdate / Draw / Init (MM_GameHooks_ExecuteShouldActor*, z_actor.c) and VB_ENABLE_OBJECT_DEPENDENCY
+        # (MM_GameHooks_ExecuteVBShould, z_scene.c). RegisterDebugMode reaches frameAdvCtx only through
+        # mm_dev_tools_bridge.h (MM_gPlayState dangles while OoT runs). WarpPoint.cpp's boot hook and 2Ship's menu
+        # drawing are fenced out; its Warp() serves MmDevToolsSingleExe.cpp. No twin in games/oot; DebugConsole.cpp
+        # (DebugConsole_Init's twin) stays out.
+        "2s2h/DeveloperTools/DeveloperTools.cpp"
+        "2s2h/DeveloperTools/ObjectDependency.cpp"
+        "2s2h/DeveloperTools/WarpPoint.cpp"
         # #1032: the 25 Skip Misc Interactions TUs, all keyed on gEnhancements.TimeSavers.SkipMiscInteractions
         "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienStartAndFail.cpp"
         "2s2h/Enhancements/Cutscenes/MiscInteractions/SkipAlienWarning.cpp"
