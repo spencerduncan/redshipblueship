@@ -1224,6 +1224,45 @@ int LockNavBody(void) {
     CTW_ASSERT(!ComboAreaScrollNote(off, true, false, true, 9));
     CTW_ASSERT(!ComboAreaScrollTake(off, 9));
 
+    // #1280: the pane's Scroll to Current Area button owes a scroll on demand:
+    // with no area change, on either pane, whatever auto scroll says, paid once.
+    CTW_ASSERT(!ComboAreaScrollRequest(scroll, false, 0)); // no area known: nothing owed
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 7));
+    const bool asked = ComboAreaScrollRequest(scroll, true, 7); // the area noted last: no change
+    const bool askedPaid = ComboAreaScrollTake(scroll, 7);
+    const bool askedOnce = !ComboAreaScrollTake(scroll, 7);
+    const bool inactivePaid = ComboAreaScrollRequest(inactive, true, 6) && ComboAreaScrollTake(inactive, 6);
+    const bool offPaid = ComboAreaScrollRequest(off, true, 9) && ComboAreaScrollTake(off, 9); // auto scroll off
+    printf("[TEST] combo-tracker-window #1280: Scroll to Current Area owes %d, paid %d once %d, on the inactive pane "
+           "%d, with auto scroll off %d\n",
+           (int)asked, (int)askedPaid, (int)askedOnce, (int)inactivePaid, (int)offPaid);
+    CTW_ASSERT(asked && askedPaid && askedOnce && inactivePaid && offPaid);
+    CTW_ASSERT(ComboAreaScrollRequest(scroll, true, 7));
+    CTW_ASSERT(!ComboAreaScrollTake(scroll, 3) && ComboAreaScrollTake(scroll, 7)); // at its own header only
+    // SoH's other triggers re-arm it: on the active pane, under auto scroll only.
+    ComboAreaScroll refresh;
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, false, true, true, 3)); // the inactive pane: none
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, true, false, true, 3)); // auto scroll off: none
+    CTW_ASSERT(!ComboAreaScrollRefresh(refresh, true, true, false, 3)); // no area known: none
+    CTW_ASSERT(!ComboAreaScrollTake(refresh, 3));
+    CTW_ASSERT(ComboAreaScrollRefresh(refresh, true, true, true, 3));
+    CTW_ASSERT(ComboAreaScrollTake(refresh, 3));
+    // An owed scroll whose area the list did not draw is dropped, so a later
+    // filter change cannot jump the list; one whose area was drawn stays owed.
+    std::vector<ComboTrackerAreaRows> drawn(1);
+    drawn[0].key = 7;
+    CTW_ASSERT(ComboAreaScrollRequest(refresh, true, 3));
+    ComboAreaScrollDropUndrawn(refresh, drawn);
+    CTW_ASSERT(!ComboAreaScrollTake(refresh, 3));
+    drawn.resize(2);
+    drawn[1].key = 3;
+    CTW_ASSERT(ComboAreaScrollRequest(refresh, true, 3));
+    ComboAreaScrollDropUndrawn(refresh, drawn);
+    CTW_ASSERT(ComboAreaScrollTake(refresh, 3));
+    // The button shows while an area is known and the pane shows more than it.
+    CTW_ASSERT(ComboScrollButtonShown(true, false));
+    CTW_ASSERT(!ComboScrollButtonShown(false, false) && !ComboScrollButtonShown(true, true));
+
     // The keys, with their defaults: auto scroll on, Only Show Current Area off.
     {
         bool existed[2];
@@ -1261,12 +1300,22 @@ int LockNavBody(void) {
         CTW_ASSERT(in.good());
         const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const char* const kDraws[] = {
-            "ComboAreaScrollNote(pane.scroll, game == (uint8_t)Context_GetCurrentGame()",
+            "ComboAreaScrollNote(pane.scroll, activePane,",
             "if (ComboAreaScrollTake(pane.scroll, area.key)) {\n            ImGui::SetScrollHereY(0.0f);",
             "Ui().Checkbox(\"Only Show Current Area\", &pane.area.onlyCurrentArea",
             "ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);",
             "ComboPaneAreaToggleSeed(pane.area, ComboReadTrackerNavKeys().onlyCurrentArea);",
             "(void)Combo_TrackerCurrentArea((uint8_t)Context_GetCurrentGame(), nullptr);",
+            // #1280: the button beside the search box (the eraser's inline style,
+            // 2Ship's ICON_FA_ARROWS_V), on the header row when the box is hidden,
+            // and the triggers and the drop above, each where the pane draws.
+            "Ui().SearchInputWithAction(\"##checkSearch\", pane.search, (int)sizeof(pane.search), scrollIcon,",
+            "Ui().IconButton(\"##scrollToCurrentArea\", ICON_FA_ARROWS_V, &scrollTip)",
+            "const char* scrollIcon = scrollButton ? ICON_FA_ARROWS_V : nullptr;",
+            "kScrollToCurrentAreaTooltip = \"Scroll to Current Area\"",
+            "(void)ComboAreaScrollRequest(pane.scroll, areaKnown, currentArea);",
+            "(void)ComboAreaScrollRefresh(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);",
+            "ComboAreaScrollDropUndrawn(pane.scroll, areas);",
         };
         for (const char* draw : kDraws) {
             if (win.find(draw) == std::string::npos) {

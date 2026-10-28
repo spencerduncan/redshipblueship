@@ -396,6 +396,38 @@ bool ComboAreaScrollNote(ComboAreaScroll& scroll, bool activePane, bool autoScro
 bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey);
 
 /**
+ * The pane's Scroll to Current Area button (#1280; 2Ship's Scroll to Current
+ * Scene beside its tracker's search box): with `areaKnown`, owe a scroll to
+ * `area` now, with no area-change test, on either pane (the inactive pane's
+ * area is the one its game left) and whatever Auto Scroll To Current Area says.
+ * Nothing is owed with no area known. @return whether a scroll is now owed.
+ */
+bool ComboAreaScrollRequest(ComboAreaScroll& scroll, bool areaKnown, uint16_t area);
+
+/**
+ * SoH's other scroll triggers (#1280): a change to what the list shows (Show
+ * Hidden Items, Only Show Available Checks, Expand All, a skip from the pane,
+ * the search cleared) owes a scroll to the current area, as SoH's window sets
+ * doAreaScroll again then, but only on the ACTIVE pane and only under Auto
+ * Scroll To Current Area. @return whether a scroll is now owed.
+ */
+bool ComboAreaScrollRefresh(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area);
+
+/**
+ * After the list is drawn (#1280): a scroll owed to an area `drawn` does not
+ * hold (a filter hides it) is dropped, so it cannot jump the list later, when a
+ * filter change brings that area back.
+ */
+void ComboAreaScrollDropUndrawn(ComboAreaScroll& scroll, const std::vector<ComboTrackerAreaRows>& drawn);
+
+/**
+ * Whether a pane offers its Scroll to Current Area button (#1280): only while
+ * its game's area is known and the pane's own Only Show Current Area is off
+ * (with it on, the list is that one area already).
+ */
+bool ComboScrollButtonShown(bool areaKnown, bool onlyCurrentArea);
+
+/**
  * One pane's Only Show Current Area toggle (ruling D12), seeded from the key:
  * whenever the key's value differs from the one it last seeded from, the
  * toggle takes it (so the settings row reaches both panes); between changes,

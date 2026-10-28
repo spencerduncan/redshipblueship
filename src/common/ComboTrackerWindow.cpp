@@ -846,6 +846,31 @@ bool ComboAreaScrollTake(ComboAreaScroll& scroll, uint16_t areaKey) {
     return true;
 }
 
+bool ComboAreaScrollRequest(ComboAreaScroll& scroll, bool areaKnown, uint16_t area) {
+    (void)areaKnown;
+    (void)area;
+    return scroll.pending;
+}
+
+bool ComboAreaScrollRefresh(ComboAreaScroll& scroll, bool activePane, bool autoScroll, bool areaKnown, uint16_t area) {
+    (void)activePane;
+    (void)autoScroll;
+    (void)areaKnown;
+    (void)area;
+    return scroll.pending;
+}
+
+void ComboAreaScrollDropUndrawn(ComboAreaScroll& scroll, const std::vector<ComboTrackerAreaRows>& drawn) {
+    (void)scroll;
+    (void)drawn;
+}
+
+bool ComboScrollButtonShown(bool areaKnown, bool onlyCurrentArea) {
+    (void)areaKnown;
+    (void)onlyCurrentArea;
+    return false;
+}
+
 void ComboPaneAreaToggleSeed(ComboPaneAreaToggle& toggle, bool keyValue) {
     const int value = keyValue ? 1 : 0;
     if (toggle.seededFrom != value) {

@@ -1902,8 +1902,22 @@ bool SnapshotOoTSkipWritable(void) {
 bool SnapshotOoTSetSkipped(uint16_t, bool) {
     return false;
 }
-const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary,   SnapshotOoTCheckCount,   SnapshotOoTCheckAt,
-                                             SnapshotOoTCheckName, SnapshotOoTSkipWritable, SnapshotOoTSetSkipped };
+// #1280: the player is in Kokiri Forest, so the OoT pane offers its Scroll to
+// Current Area button (shown only while an area is known).
+bool SnapshotOoTCurrentArea(uint16_t* outKey) {
+    if (outKey != nullptr) {
+        *outKey = kSnapshotOoTChecks[0].areaKey;
+    }
+    return true;
+}
+const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary,
+                                             SnapshotOoTCheckCount,
+                                             SnapshotOoTCheckAt,
+                                             SnapshotOoTCheckName,
+                                             SnapshotOoTSkipWritable,
+                                             SnapshotOoTSetSkipped,
+                                             nullptr,
+                                             SnapshotOoTCurrentArea };
 // The skip buttons that synthetic world draws: one per check of the seed not yet
 // found (the skipped one and the two open ones), none on the saved one.
 constexpr int kSnapshotOoTSkipButtons = 3;
@@ -1912,6 +1926,11 @@ constexpr const char* kSnapshotSavedHideKey = "gTrackers.CheckTracker.Saved.Hide
 constexpr const char* kSnapshotCollectedHideKey = "gTrackers.CheckTracker.Collected.Hide";
 // SoH's Check Tracker Settings > Window Type, which the "floating" state sets (#1130).
 constexpr const char* kSnapshotWindowTypeKey = "gTrackers.CheckTracker.WindowType";
+// #1280: the synthetic world has a current area, and the captures must not
+// scroll to it on their own: Auto Scroll To Current Area is off while it is in.
+constexpr const char* kSnapshotAutoScrollKey = RSBS_CVAR_COMBO_CHECKS_AUTO_SCROLL;
+// #1280: the label the search box's Scroll to Current Area button reports through the seam.
+constexpr const char* kSnapshotScrollButtonLabel = "##checkSearch##action";
 
 /**
  * The first trick row Randomizer > MM Tricks draws (DrawMmTrickList,
@@ -2774,6 +2793,9 @@ void Session::BuildPageList() {
         p.stateText["hidden"] = { kSnapshotOoTChecks[1].shortName };
         p.stateText["unpaired"] = { "No paired world" };
         p.stateContrast = { { "progress", "hidden" }, { "hidden", "paired" }, { "unpaired", "paired" } };
+        // #1280: the OoT pane's Scroll to Current Area button beside its search
+        // box, hovered for its tooltip.
+        p.paneHovers.push_back({ "scroll-to-current-area", "progress", kSnapshotScrollButtonLabel, false });
         // #927: a panel with no data is its header alone, and no panel or
         // crossing note says how fresh it is. Ruling D10 (#1128): no Crossings
         // section, so none of its notes.
@@ -3441,6 +3463,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             AuthorCrossings();
             AuthorMMShadow();
             Context_SetCurrentGame(GAME_OOT);
+            CVarSetInteger(kSnapshotAutoScrollKey, 0);
             Combo_Tracker_RegisterOoT(&kSnapshotOoTOps);
             if (state == "hidden") {
                 // SoH's Check Tracker Settings > Saved / Collected "Hide" (#1128).
@@ -3508,6 +3531,7 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
         CVarClear(kSnapshotSavedHideKey);
         CVarClear(kSnapshotCollectedHideKey);
         CVarClear(kSnapshotWindowTypeKey);
+        CVarClear(kSnapshotAutoScrollKey);
     }
     if (p.kind == Kind::WINDOW && p.window == ComboGui::kComboItemTrackerWindowName && p.guiWindow.empty()) {
         RestoreItemTrackerState();
