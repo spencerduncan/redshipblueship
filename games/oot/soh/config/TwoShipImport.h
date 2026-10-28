@@ -2,6 +2,8 @@
 
 #include "libultraship/libultraship.h"
 
+#include <string>
+
 namespace SOH {
 
 /**
@@ -36,6 +38,20 @@ namespace SOH {
  * @return true if an import was performed on this call.
  */
 bool ImportTwoShipConfig(Ship::Config* conf);
+
+/**
+ * @brief The import itself on one explicit source file (#1240's test seam).
+ *
+ * Runs the same parse, 2Ship version replay, table walks and conflict rule as
+ * ImportTwoShipConfig, but sets no run-once stamp and saves no config: the
+ * CVar store changes in memory only. TwoShipImportMmKeys drives it on a
+ * synthetic `2ship2harkinian.json` in its own scratch directory.
+ *
+ * @param sourcePath A 2Ship config file.
+ * @return The number of settings adopted, or -1 when the file cannot be read
+ *         as JSON.
+ */
+int ImportTwoShipConfigFile(const std::string& sourcePath);
 
 /**
  * @brief The run-once stamp key, exposed for tests and diagnostics.

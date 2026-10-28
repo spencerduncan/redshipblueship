@@ -824,6 +824,12 @@ extern "C" int MM_AudioEditorReplacement_RunHeadless(void);
 // key being merged because the names looked equivalent.
 #include "tests/test_cvar_classification.c"
 
+// 2Ship config import (#1240, W6-IMPORT): every MM-only key with a shared-menu row reaches the combined game, the
+// ammo-colour key keeps its live spelling, and no do-not-import key moves. C entry point in
+// games/oot/soh/soh_twoship_import_test.cpp, which drives SOH::ImportTwoShipConfigFile on a synthetic
+// 2ship2harkinian.json; returns 0 on pass. Wrapper: Test_TwoShipImportMmKeys, beside mm-audio-editor-replacement.
+extern "C" int OoT_TwoShipImport_RunHeadless(void);
+
 // ADR 0004 §3's "one shell" proviso, mechanized (#497 step 2's second half).
 // Ship::Gui holds a SINGLE menu slot, so a second SetMenu call replaces the first
 // with no error and no warning -- which is why the COUNT of first-party call
@@ -1419,6 +1425,17 @@ static TestResult Test_MMAudioEditorReplacement(void) {
         return TEST_FAIL;
     }
     return MM_AudioEditorReplacement_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// 2Ship config import (W6-IMPORT, see the extern decl beside cvar-classification). The display-free shared bring-up,
+// because the row writes and clears the imported keys in the CVar store (in memory only: it saves no config).
+static TestResult Test_TwoShipImportMmKeys(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OoT_TwoShipImport_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM new-save session guard (#564 V21; see the extern decl above). The display-free shared bring-up, because leg 7
@@ -8252,6 +8269,8 @@ const TestDescriptor gTests[] = {
       Test_ItemActionsBounds },
     { "cvar-classification", "Cross-game CVar classification matches ADR 0003 + the inventory (#34)",
       Test_CVarClassification },
+    { "twoship-import-mm-keys", "The 2Ship config import carries every MM-only key with a shared-menu row (#1240)",
+      Test_TwoShipImportMmKeys },
     { "active-queue", "__osGetActiveQueue returns a walkable list, not a return register (#385)", Test_ActiveQueue },
     { "oot-audio-init-guard", "OoT synth no-ops while gAudioContextInitalized == false (#365)",
       Test_OoTAudioInitGuard },

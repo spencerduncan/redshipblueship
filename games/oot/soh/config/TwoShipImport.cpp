@@ -159,7 +159,74 @@ std::vector<std::string> CandidateSourcePaths() {
     return paths;
 }
 
+/** How reading one source file went. */
+enum class SourceStatus {
+    Imported,   ///< Parsed and walked (possibly adopting nothing).
+    Unreadable, ///< Could not be opened or is not valid JSON: do not stamp, a repaired file should still import.
+    NoCVars,    ///< Valid JSON without a CVars object: nothing to import, ever.
+};
+
+struct SourceResult {
+    SourceStatus status = SourceStatus::Unreadable;
+    uint32_t sourceVersion = 0;
+    int imported = 0;
+    int skipped = 0;
+};
+
+/**
+ * The import itself, on one source file: parse, replay 2Ship's own migrations, walk the tables and adopt under the
+ * conflict rule. No stamp and no save: ImportTwoShipConfig owns those, and the test seam below must not write any
+ * config.
+ */
+SourceResult ImportFromSource(const std::string& sourcePath) {
+    SourceResult result;
+    nlohmann::json source;
+    try {
+        std::ifstream file(sourcePath);
+        if (!file.is_open()) {
+            SPDLOG_WARN("2Ship config import: cannot open {}, skipping", sourcePath);
+            return result;
+        }
+        file >> source;
+    } catch (const std::exception& e) {
+        // A malformed source file is the user's problem to fix, not a reason to
+        // fail RSBS's boot. Do NOT stamp: a corrupt file they later repair
+        // should still get imported.
+        SPDLOG_WARN("2Ship config import: {} is not valid JSON ({}), skipping", sourcePath, e.what());
+        return result;
+    }
+
+    if (!source.contains("CVars") || !source["CVars"].is_object()) {
+        result.status = SourceStatus::NoCVars;
+        return result;
+    }
+
+    nlohmann::json cvars = source["CVars"];
+    result.sourceVersion = source.value("ConfigVersion", 0u);
+    ApplyTwoShipVersionUpdates(cvars, result.sourceVersion);
+
+    for (const RSBS::ConvergedKey& key : RSBS::kConvergedKeys) {
+        const nlohmann::json* value = FindNested(cvars, key.legacy);
+        if (value == nullptr) {
+            continue;
+        }
+        if (AdoptImportedValue(key, *value)) {
+            result.imported++;
+        } else {
+            result.skipped++;
+        }
+    }
+
+    result.status = SourceStatus::Imported;
+    return result;
+}
+
 } // namespace
+
+int ImportTwoShipConfigFile(const std::string& sourcePath) {
+    const SourceResult result = ImportFromSource(sourcePath);
+    return result.status == SourceStatus::Unreadable ? -1 : result.imported;
+}
 
 bool ImportTwoShipConfig(Ship::Config* conf) {
     if (conf == nullptr) {
@@ -188,44 +255,14 @@ bool ImportTwoShipConfig(Ship::Config* conf) {
         return false;
     }
 
-    nlohmann::json source;
-    try {
-        std::ifstream file(sourcePath);
-        if (!file.is_open()) {
-            SPDLOG_WARN("2Ship config import: cannot open {}, skipping", sourcePath);
-            return false;
-        }
-        file >> source;
-    } catch (const std::exception& e) {
-        // A malformed source file is the user's problem to fix, not a reason to
-        // fail RSBS's boot. Do NOT stamp: a corrupt file they later repair
-        // should still get imported.
-        SPDLOG_WARN("2Ship config import: {} is not valid JSON ({}), skipping", sourcePath, e.what());
+    const SourceResult result = ImportFromSource(sourcePath);
+    if (result.status == SourceStatus::Unreadable) {
         return false;
     }
-
-    if (!source.contains("CVars") || !source["CVars"].is_object()) {
+    if (result.status == SourceStatus::NoCVars) {
         conf->SetBool(kTwoShipImportStampKey, true);
         conf->Save();
         return false;
-    }
-
-    nlohmann::json cvars = source["CVars"];
-    const uint32_t sourceVersion = source.value("ConfigVersion", 0u);
-    ApplyTwoShipVersionUpdates(cvars, sourceVersion);
-
-    int imported = 0;
-    int skipped = 0;
-    for (const RSBS::ConvergedKey& key : RSBS::kConvergedKeys) {
-        const nlohmann::json* value = FindNested(cvars, key.legacy);
-        if (value == nullptr) {
-            continue;
-        }
-        if (AdoptImportedValue(key, *value)) {
-            imported++;
-        } else {
-            skipped++;
-        }
     }
 
     conf->SetBool(kTwoShipImportStampKey, true);
@@ -233,8 +270,8 @@ bool ImportTwoShipConfig(Ship::Config* conf) {
     Ship::Context::GetInstance()->GetConsoleVariables()->Save();
 
     SPDLOG_INFO("2Ship config import from {} (source version {}): {} setting(s) adopted, {} already set in RSBS",
-                sourcePath, sourceVersion, imported, skipped);
-    return imported > 0;
+                sourcePath, result.sourceVersion, result.imported, result.skipped);
+    return result.imported > 0;
 }
 
 } // namespace SOH

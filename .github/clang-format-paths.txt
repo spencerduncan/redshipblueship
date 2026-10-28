@@ -142,6 +142,7 @@ games/oot/soh/oot_file_select_identity_shot.cpp
 games/oot/soh/oot_combo_identity_display_test.cpp
 games/oot/soh/soh_menu_registrar_test.cpp
 games/oot/soh/soh_shipinit_driver_test.cpp
+games/oot/soh/soh_twoship_import_test.cpp
 games/oot/soh/z_scene_otr.cpp
 games/oot/soh/oot_scene_flag_freeze_test.cpp
 games/oot/soh/oot_check_state_load_test.cpp

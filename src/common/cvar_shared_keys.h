@@ -891,6 +891,119 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
 inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / sizeof(kTranslatedKeys[0]);
 
 /**
+ * The 2Ship config import list (#1240, W6-IMPORT).
+ *
+ * A returning 2Ship player's MM-only settings sit in 2ship2harkinian.json under the spelling MM still reads in the
+ * single exe, so SOH::ImportTwoShipConfig (games/oot/soh/config/TwoShipImport.cpp) adopts each key below as-is, beside
+ * its kConvergedKeys walk, under ADR 0003 section 6.3's conflict rule: a value already set in the combined config wins.
+ *
+ * FIXED AT COMPILE TIME. The import runs at boot (OTRGlobals.cpp) before SohGui::SetupGuiElements(), so neither the
+ * menu nor the hosted-row registry exists yet, and nothing filled at runtime may feed this list.
+ *
+ * What is on it:
+ *   - every scalar RSBS_CVAR_MM_* define (a name not ending in _PREFIX), each bound by exactly one shared-menu row
+ *     (CvarClassification leg 3f-2c), so every MM-only key that has a row imports;
+ *   - the Ambience volume, which has no OoT twin (its legacy spelling also converges through kConvergedKeys, which
+ *     runs first and so wins);
+ *   - the shared keys #1240 found safe to carry: the five deliberately shared cheats, the targetable hookshot
+ *     reticle, Debug Mode and Menu Theme. (Its other four safe keys, the autosave interval, Better Song of Double
+ *     Time, Skip Song of Time cutscenes and MM's own Damage Multiplier, are RSBS_CVAR_MM_* defines above; the damage
+ *     multiplier keeps 2Ship's own value list and is never mapped onto gEnhancements.DamageMult.)
+ *
+ * A key goes on only once a shared-menu row writes it: an imported value with no row is stuck. CvarClassification's
+ * leg (2b) holds the list: every entry is bound by a shared-menu row, no entry is in kTwoShipDoNotImport or is a
+ * converged or translated MM spelling, and every scalar RSBS_CVAR_MM_* define is in one of the two lists. A new MM
+ * row's define therefore goes here, or with its reason into kTwoShipDoNotImport, in the same change. Keys converged
+ * onto a SoH key already import through the kConvergedKeys walk and are not listed again.
+ */
+#define RSBS_TWOSHIP_IMPORT_KEYS(X)                                      \
+    /* Lock commit: the Ambience volume alone; the fix fills the list */ \
+    X(RSBS_CVAR_VOLUME_AMBIENCE)
+
+#define RSBS_TWOSHIP_IMPORT_KEY_VALUE(key) key,
+#define RSBS_TWOSHIP_IMPORT_KEY_SPELLING(key) #key,
+/// The import list's keys, in list order.
+inline constexpr const char* kTwoShipImportKeys[] = { RSBS_TWOSHIP_IMPORT_KEYS(RSBS_TWOSHIP_IMPORT_KEY_VALUE) };
+/// Each entry as spelled in the list (a define's name, or a quoted literal), for the classification lock's binding
+/// scan and for failure messages.
+inline constexpr const char* kTwoShipImportKeySpellings[] = { RSBS_TWOSHIP_IMPORT_KEYS(
+    RSBS_TWOSHIP_IMPORT_KEY_SPELLING) };
+inline constexpr std::size_t kTwoShipImportKeyCount = sizeof(kTwoShipImportKeys) / sizeof(kTwoShipImportKeys[0]);
+
+/** A 2Ship key, or a family of them, the import must never carry. */
+struct TwoShipDoNotImport {
+    const char* key; ///< The key as 2Ship spells it, or a family prefix ending in '.' when `family` is set.
+    bool family;     ///< True when every key under `key` is held back.
+    const char* why; ///< Why importing it raw would be wrong. Printed by the locks.
+};
+
+inline constexpr TwoShipDoNotImport kTwoShipDoNotImport[] = {
+    // ---- Translated: SoH's one row drives MM through a value translation (kTranslatedKeys), so a raw copy of 2Ship's
+    //      value would sit beside the translation with no row to clear it. ----
+    { "gModes.MirroredWorld.State", false,
+      "translated from SoH's Mirrored World (#1236): an imported 1 would mirror Majora's Mask with no row to clear "
+      "it" },
+    { "gModes.MirroredWorld.Mode", false,
+      "2Ship's on/off row; nothing in the single exe reads it, and SoH's Mirrored World is the one control (#1236)" },
+    { "gEnhancements.Cutscenes.SkipGetItemCutscenes", false,
+      "translated from SoH's Skip Get Item Animation (#1060), with no reverse translation: MM's 2 (Everything But "
+      "Major) has no SoH tier and MM's 3 is outside SoH's range" },
+    { "gAudioEditor.LinkVoiceFreqMultiplier.Enable", false,
+      "translated from SoH's float leaf gAudioEditor.LinkVoiceFreqMultiplier (#1239): importing it raw would turn that "
+      "leaf into a JSON parent" },
+    { "gAudioEditor.LinkVoiceFreqMultiplier.Scale", false,
+      "translated from SoH's float leaf gAudioEditor.LinkVoiceFreqMultiplier (#1239): importing it raw would turn that "
+      "leaf into a JSON parent" },
+    { "gAudioEditor.RandomizeAllOnNewScene", false,
+      "translated from SoH's five-way Randomize Audio combobox (#1239); nothing writes MM's two bools" },
+    { "gAudioEditor.RandomizeAllOnRandoGen", false,
+      "translated from SoH's five-way Randomize Audio combobox (#1239); nothing writes MM's two bools" },
+    // ---- 2Ship's v1 rename target: MM's code never followed the rename (z_parameter.c reads
+    //      gFixes.FixAmmoCountEnvColor, which imports through the list), so this key is read by nothing. ----
+    { "gFixes.FixButtonEnvColor", false,
+      "2Ship v1's rename of the ammo-count colour fix, which nothing in the single exe reads; the live spelling "
+      "gFixes.FixAmmoCountEnvColor imports" },
+    // ---- INTENTIONAL, no row (docs/enhancement-classification.md): the setting cannot act in paired play, so an
+    //      imported value would be stuck. ----
+    { "gEnhancements.Cutscenes.SkipFirstCycle", false,
+      "INTENTIONAL: inert in paired play, which never starts Majora's Mask at its first cycle" },
+    { "gEnhancements.Saving.FileSlot3", false,
+      "INTENTIONAL (W6-TIMESAVERS): shapes MM's file select, which paired play never shows" },
+    { "gEnhancements.Saving.PersistentOwlSaves", false,
+      "INTENTIONAL (W6-TIMESAVERS): a paired MM session has no flash slot, so the owl save already persists" },
+    { "gEnhancements.Saving.DisableSaveDelay", false,
+      "INTENTIONAL (W6-TIMESAVERS): a paired MM session never starts a flash write" },
+    { "gEnhancements.Cycle.DoNotResetRupees", false,
+      "INTENTIONAL (W6-CYCLE-CHEATS): the shared rupees survive every cycle reset" },
+    { "gEnhancements.Cycle.DoNotResetConsumables", false,
+      "INTENTIONAL (W6-CYCLE-CHEATS): the shared ammo survives every reset and the rest follows the frozen Keep Items "
+      "on Cycle Reset" },
+    { "gEnhancements.DifficultyOptions.DeleteFileOnDeath", false,
+      "INTENTIONAL (W6-MODES-DIFF): a paired file is one game, and 2Ship's MM-slot delete is not compiled" },
+    { "gEnhancements.Graphics.AuthenticLogo", false,
+      "INTENTIONAL (W6-GFX): the console logo draws only on a cold --game mm boot" },
+    { "gEnhancements.Fixes.ConsoleCrashes", false,
+      "INTENTIONAL (W6-FIXES): the single exe always keeps the crash fixes on" },
+    { "gEnhancements.Masks.PersistentBunnyHood.State", false,
+      "INTERNAL (W6-MASKS-SONGS): PersistentMasks.cpp writes it from the mask menu; it is not a setting" },
+    { "gWindows.Timesplits.Settings", false,
+      "INTENTIONAL (W6-TIMERS): SoH's Time Splits window is the one Time Splits surface" },
+    // ---- Key families: a family import is a follow-up after the family lanes (#1239). ----
+    { "gAudioEditor.ReplacedSequences.", true,
+      "2Ship's raw sequence replacements: SoH's own tabs write this spelling, eleven sfxKeys name a sequence in both "
+      "games, and MM's now live under RSBS_CVAR_MM_AUDIO_REPLACED_SEQUENCES_PREFIX (W6-AUDIO-SEQ)" },
+    { "gAudioEditor.Excluded.", true,
+      "2Ship's raw shuffle-pool exclusions: SoH's own tabs write this spelling, and MM's now live under "
+      "RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX (W6-AUDIO-SEQ)" },
+    { "gHudEditor.", true, "MM's HUD placement family (W6-HUD-A, W6-HUD-B): a family import is a follow-up" },
+    { "gCosmetic.", true,
+      "MM's cosmetic colour family (W6-COS-A, W6-COS-B, W6-COS-C), translated onto SoH's twins where one exists: a "
+      "family import is a follow-up" },
+    { "gColors.", true, "INTENTIONAL (W6-HUD-A): 2Ship's HUD editor colours are read by no draw" },
+};
+inline constexpr std::size_t kTwoShipDoNotImportCount = sizeof(kTwoShipDoNotImport) / sizeof(kTwoShipDoNotImport[0]);
+
+/**
  * Casing hazard, inventory §5.1. MM uses `gEnhancements.Timesavers.*`
  * (lowercase s, 9 keys), OoT uses `gEnhancements.TimeSavers.*` (capital S, 16
  * keys). They do NOT collide, but they are one keystroke apart in a
