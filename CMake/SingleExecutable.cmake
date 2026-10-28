@@ -3265,6 +3265,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # destination and the Story skip's, under both behaviours. ROM-free (default tier);
     # games/mm/2s2h/mm_creation_new_file_test.cpp.
     redship_add_test(NAME MMMoonCrashArrival COMMAND redship --test mm-moon-crash-arrival)
+    # #1305: the Story skip's New Cycle crash runs Sram_SaveEndOfCycle from Play_Init
+    # before Interface_Init: a trade item or drink on a C or D-pad button must not
+    # reload its icon through the NULL segment, nor the Swamp's cycle flags be clobbered.
+    # ROM-free (default tier); games/mm/2s2h/mm_creation_new_file_test.cpp.
+    redship_add_test(NAME MMMoonCrashStorySkipIcons COMMAND redship --test mm-moon-crash-story-skip-icons)
 
     # #1175: a Powder Keg found in Hyrule arrives in Termina as one keg (the real
     # crossing redemption and a suspend/resume round trip); MM's frozen "Keep Items

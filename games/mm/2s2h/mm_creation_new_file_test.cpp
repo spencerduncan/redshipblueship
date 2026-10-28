@@ -141,6 +141,14 @@
 #include "shared_resources.h"
 #include "test_scratch.h" // #824, #925: a scratch directory per process
 
+// #1305: the fault guard around the Story skip's moon crash.
+#if defined(_MSC_VER)
+#include <excpt.h>
+#else
+#include <csetjmp>
+#include <csignal>
+#endif
+
 extern "C" {
 void MM_Creation_StampNewFileFields(const u8* playerName);
 void OoT_PlayerName_ToMMCharset(const uint8_t* ootName, uint8_t filenameLanguage, uint8_t* mmName);
@@ -1704,6 +1712,321 @@ extern "C" int MM_MoonCrashArrival_Run(void) {
     CNF_ASSERT(Context_ComboSessionResident() == 0, "no combo file is in play once the slot closes (premise)");
     expectLanding("no combo file in play: MM's own landing", MM_Play_MoonCrashArrivalEntrance(kMoonCrashLanding),
                   kMoonCrashLanding);
+
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    RsbsSave_SetActiveSlot(-1);
+    Context_ClearAllFrozenStates();
+    ComboContext_Init();
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    Context_SetCurrentGame(prevGame);
+    if (failures != 0) {
+        printf("[TEST] FAIL: %s (%d failure(s))\n", sRow, failures);
+        return 1;
+    }
+    printf("[TEST] PASS: %s\n", sRow);
+    return 0;
+}
+
+// ============================================================================
+// THE STORY SKIP'S NEW CYCLE ON A PLAY STATE PLAY_INIT HAS NOT BUILT (#1305)
+// ============================================================================
+namespace {
+
+using FaultGuardedFn = void (*)(void* arg);
+
+// Runs fn(arg) and returns 1 when it faults with an access violation (a SIGSEGV
+// or SIGBUS off Windows), 0 otherwise, so the RED of a NULL write reports as a
+// FAIL of the leg that wrote it instead of ending the row at its first leg.
+#if defined(_MSC_VER)
+int RunFaultGuarded(FaultGuardedFn fn, void* arg) {
+    __try {
+        fn(arg);
+    } __except (GetExceptionCode() == 0xC0000005u /* EXCEPTION_ACCESS_VIOLATION */ ? EXCEPTION_EXECUTE_HANDLER
+                                                                                   : EXCEPTION_CONTINUE_SEARCH) {
+        return 1;
+    }
+    return 0;
+}
+#else
+sigjmp_buf sFaultGuardJump;
+
+void FaultGuardHandler(int) {
+    siglongjmp(sFaultGuardJump, 1);
+}
+
+int RunFaultGuarded(FaultGuardedFn fn, void* arg) {
+    struct sigaction action = {};
+    struct sigaction previousSegv = {};
+    struct sigaction previousBus = {};
+    action.sa_handler = FaultGuardHandler;
+    sigemptyset(&action.sa_mask);
+    sigaction(SIGSEGV, &action, &previousSegv);
+    sigaction(SIGBUS, &action, &previousBus);
+    int faulted = 0;
+    if (sigsetjmp(sFaultGuardJump, 1) == 0) {
+        fn(arg);
+    } else {
+        faulted = 1;
+    }
+    sigaction(SIGSEGV, &previousSegv, nullptr);
+    sigaction(SIGBUS, &previousBus, nullptr);
+    return faulted;
+}
+#endif
+
+struct StorySkipLeg {
+    u16 landing;
+    int rc;
+};
+
+void DriveStorySkipLeg(void* arg) {
+    StorySkipLeg* const leg = static_cast<StorySkipLeg*>(arg);
+    leg->rc = CrashTheMoonStorySkipped(&leg->landing);
+}
+
+// Interface_LoadItemIconImpl's empty icon (2s2h_assets.h dgEmptyTexture; the
+// header's array is static, so its address differs per TU).
+const char* const kEmptyIconPath = "__OTR__textures/virtual/gEmptyTexture";
+
+// A half-built play state's sceneId is 0, SCENE_20SICHITAI2 (the cleared
+// Southern Swamp), whose flags live in its original scene's slot
+// (Play_GetOriginalSceneId): SCENE_20SICHITAI, the poisoned Southern Swamp. That
+// slot keeps switch0 bit 10 and collectible bit 30 across a cycle
+// (scene_table.h), and saving the half-built play state's zero actorCtx flags
+// into it clobbers both.
+constexpr s32 kSwampSlot = SCENE_20SICHITAI;
+constexpr u32 kSwampSwitch0 = 1u << 10;
+constexpr u32 kSwampCollectible = 1u << 30;
+
+void ClearButtons() {
+    for (int j = EQUIP_SLOT_C_LEFT; j <= EQUIP_SLOT_C_RIGHT; j++) {
+        BUTTON_ITEM_EQUIP(0, j) = ITEM_NONE;
+    }
+    for (int k = EQUIP_SLOT_D_RIGHT; k <= EQUIP_SLOT_D_UP; k++) {
+        DPAD_BUTTON_ITEM_EQUIP(0, k) = ITEM_NONE;
+    }
+}
+
+} // namespace
+
+/**
+ * mm-moon-crash-story-skip-icons (#1305). With the Story cutscene skip on, the
+ * moon's fall resets the save from Play_Init's VB_PLAY_TRANSITION_CS dispatch
+ * (func_800EDDB0), before MM_Play_SpawnScene and Interface_Init. Under New Cycle
+ * that reset is Sram_SaveEndOfCycle(MM_gPlayState) on a play state with no
+ * scene and no interface yet: a trade item or a bottled drink on a C or D-pad
+ * button made it reload that button's icon through the NULL
+ * interfaceCtx.iconItemSegment (the operator's crash: a Title Deed on D-pad
+ * Right), and it saved the empty play state's scene flags over the Southern
+ * Swamp's (scene 0's original scene).
+ *
+ * Each leg is the operator's file shape: a paired file under New Cycle on day 2
+ * at 17:59, the moon falls (Interface_StartMoonCrash), and the REAL hook runs
+ * from the dispatch (CrashTheMoonStorySkipped, a zeroed stand-in play state as
+ * Play_Init has at that point). Legs: (A) the Mountain Title Deed on D-pad
+ * Right, (B) the Moon's Tear on C-Left, (C) a Red Potion in bottle 1 on C-Down,
+ * (D) the same potion on D-pad Up, (E) no item on any button (the Swamp's flags
+ * alone). Each asserts no fault, the button cleared (ITEM_NONE) or emptied
+ * (ITEM_BOTTLE) for Interface_Init to load moments later, the Dawn of the First
+ * Day, one more cycle, the #1278 landing (0xD800), and the Swamp's persistent
+ * cycle flags kept. A control drives the Song of Time's reset on a BUILT play
+ * state: the icons are still reloaded at once and the scene's flags still saved.
+ *
+ * RED without the fix: legs A-D fault on the NULL icon segment (the guard turns
+ * each into a FAIL), and leg E, which does not fault, loses the Swamp's flags.
+ */
+extern "C" int MM_MoonCrashStorySkipIcons_Run(void) {
+    sRow = "mm-moon-crash-story-skip-icons";
+    printf("[TEST] %s: the Story skip's New Cycle moon crash runs on a play state with no scene or interface yet: "
+           "no icon reload through the NULL segment, no clobber of the Southern Swamp's cycle flags (#1305)\n",
+           sRow);
+
+    const GameId prevGame = Context_GetCurrentGame();
+    const int savedStorySkip = CVarGetInteger(kStorySkipKey, INT_MIN);
+    Context_InitFrozenStates();
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    if (memcmp(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic)) != 0) {
+        memcpy(gComboCtx.magic, COMBO_CONTEXT_MAGIC, sizeof(gComboCtx.magic));
+    }
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0x5EED1305u;
+    gComboCtx.sharedRandoSettingsHash = 0x1305CA5Eu;
+
+    // ---- the creation and its commit (as mm-moon-crash-arrival) -------------
+    const uint32_t kSeed = 0x5EED1305u;
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    MM_Sram_InitNewSave();
+    MM_Creation_StampNewFileFields(kMMName);
+    gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+    gSaveContext.save.shipSaveInfo.rando.finalSeed = kSeed;
+    CNF_ASSERT(MM_Rando_ArmCreatedHalf(0) == 0, "the authored half arms");
+    Context_SetCurrentGame(GAME_OOT);
+    {
+        std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    }
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.SetSaveDirectory(kSaveDir());
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    RsbsSave_ArmSlotOnCreate(0);
+    CNF_ASSERT(mgr.Save(0), "the creation commits the .redsave with the armed MM half (Save_SaveFile)");
+    RsbsSave_SetActiveSlot(0);
+    CNF_ASSERT(Combo_ConsumeFrozenState("mm", &gSaveContext, sizeof(gSaveContext)) == 1,
+               "the arrival consumes the armed half");
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    CNF_ASSERT(Context_ComboSessionResident() == 1, "a paired file is in play (premise)");
+
+    CVarSetInteger(kStorySkipKey, 1);
+    ShipInit::Init(kStorySkipKey);
+
+    int failures = 0;
+    auto check = [&failures](const char* leg, bool ok, const char* what) {
+        if (!ok) {
+            printf("[TEST] FAIL (%s): %s: %s\n", sRow, leg, what);
+            failures++;
+        }
+    };
+
+    enum class Holds { Nothing, TradeItem, Drink };
+    struct Leg {
+        const char* name;
+        bool dpad;
+        int button;
+        u8 item;
+        Holds holds;
+    };
+    const Leg kLegs[] = {
+        { "A: Mountain Title Deed on D-pad Right (the operator's file)", true, EQUIP_SLOT_D_RIGHT, ITEM_DEED_MOUNTAIN,
+          Holds::TradeItem },
+        { "B: Moon's Tear on C-Left", false, EQUIP_SLOT_C_LEFT, ITEM_MOONS_TEAR, Holds::TradeItem },
+        { "C: Red Potion (bottle 1) on C-Down", false, EQUIP_SLOT_C_DOWN, ITEM_POTION_RED, Holds::Drink },
+        { "D: Red Potion (bottle 1) on D-pad Up", true, EQUIP_SLOT_D_UP, ITEM_POTION_RED, Holds::Drink },
+        { "E: no item on any button (the Swamp's flags alone)", false, EQUIP_SLOT_C_LEFT, ITEM_NONE, Holds::Nothing },
+    };
+
+    for (const Leg& leg : kLegs) {
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
+        gSaveContext.save.day = 2;
+        gSaveContext.save.eventDayCount = 2;
+        gSaveContext.save.time = (u16)CLOCK_TIME(17, 59);
+        gSaveContext.save.playerForm = PLAYER_FORM_HUMAN;
+        ClearButtons();
+        gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_BOTTLE;
+        gSaveContext.save.saveInfo.inventory.items[SLOT_TRADE_DEED] = ITEM_NONE;
+        if (leg.holds == Holds::TradeItem) {
+            gSaveContext.save.saveInfo.inventory.items[SLOT_TRADE_DEED] = leg.item;
+        } else if (leg.holds == Holds::Drink) {
+            gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = leg.item;
+        }
+        if (leg.holds != Holds::Nothing) {
+            if (leg.dpad) {
+                DPAD_BUTTON_ITEM_EQUIP(0, leg.button) = leg.item;
+            } else {
+                BUTTON_ITEM_EQUIP(0, leg.button) = leg.item;
+            }
+        }
+        gSaveContext.cycleSceneFlags[kSwampSlot].switch0 = kSwampSwitch0;
+        gSaveContext.cycleSceneFlags[kSwampSlot].collectible = kSwampCollectible;
+        const u16 resetsBefore = gSaveContext.save.saveInfo.playerData.threeDayResetCount;
+
+        PlayState* const savedPlayState = MM_gPlayState;
+        StorySkipLeg run = { 0, -1 };
+        const int faulted = RunFaultGuarded(DriveStorySkipLeg, &run);
+        MM_gPlayState = savedPlayState;
+
+        const u8 now = leg.dpad ? DPAD_BUTTON_ITEM_EQUIP(0, leg.button) : BUTTON_ITEM_EQUIP(0, leg.button);
+        printf("[TEST] %s: %s: fault %d, rc %d, button 0x%02X, bottle 1 0x%02X, day %d, time 0x%04X, resets %u -> %u, "
+               "landing 0x%04X, Swamp switch0 %08X collectible %08X\n",
+               sRow, leg.name, faulted, run.rc, (unsigned)now,
+               (unsigned)gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1], (int)gSaveContext.save.day,
+               (unsigned)gSaveContext.save.time, (unsigned)resetsBefore,
+               (unsigned)gSaveContext.save.saveInfo.playerData.threeDayResetCount, (unsigned)run.landing,
+               (unsigned)gSaveContext.cycleSceneFlags[kSwampSlot].switch0,
+               (unsigned)gSaveContext.cycleSceneFlags[kSwampSlot].collectible);
+        if (faulted) {
+            check(leg.name, false,
+                  "the New Cycle reset faulted: it reloaded a button's icon through the NULL "
+                  "interfaceCtx.iconItemSegment of a play state Interface_Init has not built (the operator's crash)");
+            continue;
+        }
+        check(leg.name, run.rc == 0, "the Story skip's moon crash did not run (premise)");
+        if (leg.holds == Holds::TradeItem) {
+            check(leg.name, now == ITEM_NONE, "the trade item is still on its button after the new cycle");
+        } else if (leg.holds == Holds::Drink) {
+            check(leg.name, now == ITEM_BOTTLE,
+                  "the drink's button does not hold the empty bottle after the new cycle");
+            check(leg.name, gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] == ITEM_BOTTLE,
+                  "bottle 1 still holds the drink after the new cycle");
+        }
+        check(leg.name,
+              gSaveContext.save.day == 0 && gSaveContext.save.eventDayCount == 0 &&
+                  gSaveContext.save.time == (u16)(CLOCK_TIME(6, 0) - 1),
+              "the crash did not restart the clock at the Dawn of the First Day (day 0, 05:59)");
+        check(leg.name, gSaveContext.save.saveInfo.playerData.threeDayResetCount == (u16)(resetsBefore + 1),
+              "the crash did not start a new cycle (Sram_SaveEndOfCycle counts one)");
+        check(leg.name, run.landing == kSongOfTimeSpawn, "the landing is not South Clock Town 0xD800 (#1278)");
+        check(leg.name,
+              (gSaveContext.cycleSceneFlags[kSwampSlot].switch0 & kSwampSwitch0) != 0 &&
+                  (gSaveContext.cycleSceneFlags[kSwampSlot].collectible & kSwampCollectible) != 0,
+              "the Southern Swamp's persistent cycle flags were lost: the reset saved the unbuilt play state's empty "
+              "scene flags (sceneId 0) over its original scene's slot");
+    }
+
+    if (savedStorySkip == INT_MIN) {
+        CVarClear(kStorySkipKey);
+    } else {
+        CVarSetInteger(kStorySkipKey, savedStorySkip);
+    }
+    ShipInit::Init(kStorySkipKey);
+
+    // ---- control: the Song of Time's reset on a BUILT play state ------------
+    // Interface_Init has run (the icon segment exists) and the scene is spawned:
+    // the reset still reloads each changed button's icon at once and still
+    // saves the scene's live flags, as vanilla does.
+    {
+        static PlayState sBuilt;
+        memset(&sBuilt, 0, sizeof(sBuilt));
+        char sentinel[] = "rsbs-1305-sentinel";
+        char* segment[EQUIP_SLOT_MAX + EQUIP_SLOT_D_MAX];
+        for (char*& icon : segment) {
+            icon = sentinel;
+        }
+        sBuilt.interfaceCtx.iconItemSegment = segment;
+        sBuilt.sceneId = SCENE_20SICHITAI2;
+        sBuilt.actorCtx.sceneFlags.switches[0] = kSwampSwitch0;
+        gSaveContext.cycleSceneFlags[kSwampSlot].switch0 = 0;
+
+        ClearButtons();
+        gSaveContext.save.saveInfo.inventory.items[SLOT_TRADE_DEED] = ITEM_MOONS_TEAR;
+        gSaveContext.save.saveInfo.inventory.items[SLOT_BOTTLE_1] = ITEM_POTION_RED;
+        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_LEFT) = ITEM_MOONS_TEAR;
+        BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_C_DOWN) = ITEM_POTION_RED;
+        DPAD_BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_D_UP) = ITEM_POTION_RED;
+
+        PlayState* const savedPlayState = MM_gPlayState;
+        MM_gPlayState = &sBuilt;
+        Sram_SaveEndOfCycle(&sBuilt);
+        MM_gPlayState = savedPlayState;
+
+        const char* leg = "control: the Song of Time on a built play state";
+        printf("[TEST] %s: %s: C-Left icon %s, C-Down icon %s, D-Up icon %s, Swamp switch0 %08X\n", sRow, leg,
+               segment[EQUIP_SLOT_C_LEFT], segment[EQUIP_SLOT_C_DOWN],
+               segment[EQUIP_SLOT_MAX + DPAD_BUTTON(EQUIP_SLOT_D_UP)],
+               (unsigned)gSaveContext.cycleSceneFlags[kSwampSlot].switch0);
+        check(leg, strcmp(segment[EQUIP_SLOT_C_LEFT], kEmptyIconPath) == 0,
+              "the cleared trade item's C-Left icon was not reloaded (empty) on a built play state");
+        check(leg, segment[EQUIP_SLOT_C_DOWN] == (char*)MM_gItemIcons[ITEM_BOTTLE],
+              "the emptied drink's C-Down icon was not reloaded (bottle) on a built play state");
+        check(leg, segment[EQUIP_SLOT_MAX + DPAD_BUTTON(EQUIP_SLOT_D_UP)] == (char*)MM_gItemIcons[ITEM_BOTTLE],
+              "the emptied drink's D-pad Up icon was not reloaded (bottle) on a built play state");
+        check(leg, (gSaveContext.cycleSceneFlags[kSwampSlot].switch0 & kSwampSwitch0) != 0,
+              "the live scene's flags were not saved into its cycle flags on a built play state");
+        sBuilt.interfaceCtx.iconItemSegment = nullptr;
+    }
 
     mgr.DeleteSave(0);
     mgr.ResetSlotSessionState();
