@@ -131,6 +131,7 @@ std::string WorldOnlyRecord(const ComboContext& live) {
     memcpy(&rec->comboSettings, &live.comboSettings, sizeof(rec->comboSettings));
     memcpy(&rec->comboTriforce, &live.comboTriforce, sizeof(rec->comboTriforce));
     memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
+    memcpy(&rec->comboFillWallets, &live.comboFillWallets, sizeof(rec->comboFillWallets)); // #1284
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 

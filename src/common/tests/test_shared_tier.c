@@ -107,6 +107,8 @@ int MM_Rando_Foreign_RecordPickup(uint16_t randoCheckId);
 int MM_ForeignItem_TestPendingCount(void);
 int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 void MM_ForeignItem_TestResetPending(void);
+// #1284's carriage leg: the seed package's world record (seed_package.h).
+void OoT_SeedPackage_TestReapplyWorldRecord(void);
 #ifdef __cplusplus
 }
 #endif
@@ -579,5 +581,295 @@ TestResult Test_SharedTierPickup(void) {
         return TEST_FAIL;
     }
     printf("[TEST] PASS: shared-tier-pickup\n");
+    return TEST_PASS;
+}
+
+/*
+ * #1284: the FILL at a wallet's pickup step. A far game's wallet found on a host
+ * (MM's Progressive Wallet on an OoT check, OoT's on an MM check) raises the ONE
+ * shared wallet tier at its pickup (#1120) and never reaches either game's give,
+ * so neither game's own fill ran: OoT's under Full Wallets, MM's always. The
+ * pair's ONE fill rule (OoTMM's combo-wide fillWallets, authored from OoT's
+ * Full Wallets and frozen at creation in gComboCtx.comboFillWallets) now fills
+ * the running game's rupees to the new cap when the step raised the tier.
+ *
+ * CTest rows SharedWalletFillHyrule ("shared-wallet-fill-hyrule") and
+ * SharedWalletFillTermina ("shared-wallet-fill-termina"), label "redship".
+ * ROM-free: the same real shims, pickup cores and arrival consumers as
+ * SharedTierPickup. Cases (G) and (H) above stay the rule-OFF pin (no fill).
+ *
+ * Hyrule (OoT host):
+ *   (1) rule ON: OoT's child wallet holds 79 (99 applied, 20 spent), MM's wallet
+ *       picked up: tier 1, no crossing, and after the next harvest OoT holds the
+ *       new cap (200) and so does the pool;
+ *   (2) rule ON, a second copy: tier 2, filled to 500;
+ *   (3) rule ON at the top tier (OoT tier 3 holding 400): the copy is absorbed,
+ *       the tier does not rise, nothing fills (400 stays 400);
+ *   (4) rule OFF: tier 1, no fill (130, as (G));
+ *   (5) the frozen byte is a creation record: a failed generation's rollback
+ *       restores it, a retraction clears it, the file-create invalidation KEEPs
+ *       it (a drop does not), and a seed package's world record carries it.
+ * Termina (MM host):
+ *   (1) rule ON: MM's wallet tier 0 holding 30, OoT's wallet picked up: tier 1,
+ *       no crossing, MM filled to its tier-1 cap (200) after the next harvest,
+ *       the pool 200; OoT's next arrival then holds exactly the pool's 200 and
+ *       MM's next arrival too (a fill is applied once, never twice);
+ *   (2) rule OFF: tier 1, 30 kept (as (H)).
+ */
+
+/** A paired world as StFreezeWorld freezes it (Shared Bottles off), with the
+ *  pair's fill-wallets rule frozen on or off as the creation event does. */
+static void StFreezeWalletFillWorld(bool fill) {
+    StFreezeWorld(false);
+    Combo_FreezeFillWalletsAtCreation(fill);
+}
+
+static bool StWalletFillSeams(const char* row) {
+    if (OoT_ComboLogic_TestEnsureItemTableTransient() != 0) {
+        printf("[TEST] FAIL: %s could not bring OoT's item table up\n", row);
+        return false;
+    }
+    if (MM_SharedTierTest_WalletId() < 0 || MM_SharedTierTest_HostCheck(0) <= 0) {
+        printf("[TEST] FAIL: %s needs the single-exe MM seams\n", row);
+        return false;
+    }
+    return true;
+}
+
+static void StWalletFillCleanup(void) {
+    MM_ForeignItem_TestResetPending();
+    Combo_ClearSharedItemOutbox();
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+}
+
+TestResult Test_SharedWalletFillHyrule(void) {
+    printf("[TEST] shared-wallet-fill-hyrule: MM's wallet found in Hyrule fills OoT's rupees to the new cap when the "
+           "pair's frozen fill-wallets rule (OoT's Full Wallets) is on (#1284)\n");
+    sStFailures = 0;
+    if (!StWalletFillSeams("shared-wallet-fill-hyrule")) {
+        return TEST_FAIL;
+    }
+    const SharedItem mmWallet = StItem(GAME_MM, MM_SharedTierTest_WalletId());
+    const uint8_t kWallet = (uint8_t)RSBS_SHARED_RES_WALLET_TIER;
+    const uint8_t kRupees = (uint8_t)RSBS_SHARED_RES_RUPEES;
+
+    // ---- (1) rule ON: the first wallet fills to 200 ---------------------------
+    StFreezeWalletFillWorld(true);
+    ST_CHECK(Combo_SharedWalletFillRule(), "the frozen fill-wallets rule does not read back ON");
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[0], mmWallet) >= 0, "could not place MM's wallet on an OoT check");
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[1], mmWallet) >= 0, "could not place MM's wallet on an OoT check");
+    Combo_HarvestSharedResource(GAME_MM, kRupees, 150); // MM pooled 150 rupees
+    OoT_SharedWalletTest_ArmLive(0, 50, 1);             // OoT's child wallet, cap 99, 50 held
+    OoT_HarvestSharedResources();
+    OoT_ApplySharedResources();         // OoT holds its cap of 99
+    OoT_SharedWalletTest_SetRupees(79); // 20 spent
+    {
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[0]);
+        const int tier = OoT_SharedWalletTest_Tier();
+        const int crossings = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        OoT_HarvestSharedResources(); // the next harvest folds the fill in
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (1) rule ON, OoT holds 79 under a 99 cap, MM's wallet picked up in Hyrule: pickup %d, OoT tier "
+               "%d, MM crossings %d, after the next harvest rupees %d, pool tier %d, pool rupees %d (expected 1, 1, 0, "
+               "200, 1, 200)\n",
+               recorded, tier, crossings, rupees, StPool(kWallet), StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 1 && StPool(kWallet) == 1,
+                 "the pickup step changed: pickup %d, tier %d, pool tier %d", recorded, tier, StPool(kWallet));
+        ST_CHECK(crossings == 0, "the wallet pickup recorded %d crossing(s)", crossings);
+        ST_CHECK(rupees == 200,
+                 "OoT holds %d rupees after MM's wallet raised its tier with the fill rule on, expected the new cap "
+                 "200: the pickup step skipped the fill OoT's own wallet gives under Full Wallets",
+                 rupees);
+        ST_CHECK(StPool(kRupees) == 200, "the rupee pool reads %d after the fill's harvest, expected 200",
+                 StPool(kRupees));
+    }
+
+    // ---- (2) rule ON: a second copy fills to 500 ------------------------------
+    OoT_SharedWalletTest_SetRupees(120); // 80 spent
+    {
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[1]);
+        const int tier = OoT_SharedWalletTest_Tier();
+        OoT_HarvestSharedResources();
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (2) rule ON, OoT tier 1 holding 120, a second MM wallet: pickup %d, tier %d, rupees %d, pool "
+               "rupees %d (expected 1, 2, 500, 500)\n",
+               recorded, tier, rupees, StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 2, "the second step changed: pickup %d, tier %d", recorded, tier);
+        ST_CHECK(rupees == 500 && StPool(kRupees) == 500, "OoT holds %d and the pool %d, expected both filled to 500",
+                 rupees, StPool(kRupees));
+    }
+
+    // ---- (3) rule ON at the top tier: absorbed, nothing fills -----------------
+    StFreezeWalletFillWorld(true);
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[2], mmWallet) >= 0, "could not place MM's wallet on an OoT check");
+    OoT_SharedWalletTest_ArmLive(3, 400, 1); // tier 3, cap 999
+    OoT_HarvestSharedResources();
+    OoT_ApplySharedResources();
+    {
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[2]);
+        const int tier = OoT_SharedWalletTest_Tier();
+        OoT_HarvestSharedResources();
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (3) rule ON, OoT at tier 3 holding 400, MM's wallet absorbed: pickup %d, tier %d, rupees %d, "
+               "pool rupees %d (expected 1, 3, 400, 400)\n",
+               recorded, tier, rupees, StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 3, "the absorbed step changed: pickup %d, tier %d", recorded, tier);
+        ST_CHECK(rupees == 400 && StPool(kRupees) == 400,
+                 "a copy absorbed at the cap filled: OoT %d, pool %d, expected 400 kept", rupees, StPool(kRupees));
+    }
+
+    // ---- (4) rule OFF: no fill ----------------------------------------------
+    StFreezeWalletFillWorld(false);
+    ST_CHECK(!Combo_SharedWalletFillRule(), "the frozen fill-wallets rule does not read back OFF");
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[3], mmWallet) >= 0, "could not place MM's wallet on an OoT check");
+    Combo_HarvestSharedResource(GAME_MM, kRupees, 150);
+    OoT_SharedWalletTest_ArmLive(0, 50, 1);
+    OoT_HarvestSharedResources();
+    OoT_ApplySharedResources();
+    OoT_SharedWalletTest_SetRupees(79);
+    {
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[3]);
+        const int tier = OoT_SharedWalletTest_Tier();
+        OoT_HarvestSharedResources();
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        printf("[TEST] (4) rule OFF, the same pickup: pickup %d, tier %d, rupees %d, pool rupees %d (expected 1, 1, "
+               "130, 130)\n",
+               recorded, tier, rupees, StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 1, "the rule-off step changed: pickup %d, tier %d", recorded, tier);
+        ST_CHECK(rupees == 130 && StPool(kRupees) == 130, "the rule OFF filled: OoT %d, pool %d, expected 130", rupees,
+                 StPool(kRupees));
+    }
+
+    // ---- (5) the frozen byte is a creation record -----------------------------
+    {
+        ComboContext_Init();
+        Combo_FreezeFillWalletsAtCreation(true);
+        ComboCreationRecords prior;
+        Combo_SnapshotCreationRecords(&prior);
+        Combo_FreezeFillWalletsAtCreation(false);
+        Combo_RestoreCreationRecords(&prior);
+        const unsigned restored = gComboCtx.comboFillWallets;
+        Combo_RetractCreationRecords();
+        const unsigned retracted = gComboCtx.comboFillWallets;
+
+        ComboContext_Init();
+        gComboCtx.comboFillWallets = 1;
+        Context_InvalidateSessionState(RSBS_SEED_STAMP_KEEP);
+        const unsigned kept = gComboCtx.comboFillWallets;
+        Context_InvalidateSessionState(RSBS_SEED_STAMP_DROP);
+        const unsigned dropped = gComboCtx.comboFillWallets;
+
+        ComboContext_Init();
+        gComboCtx.comboFillWallets = 1;
+        OoT_SeedPackage_TestReapplyWorldRecord();
+        const unsigned packaged = gComboCtx.comboFillWallets;
+        printf(
+            "[TEST] (5) the frozen byte: rollback-restored %u, retracted %u, file-create KEEP %u, drop %u, through a "
+            "seed package's world record %u (expected 1, 0, 1, 0, 1)\n",
+            restored, retracted, kept, dropped, packaged);
+        ST_CHECK(restored == 1u, "a failed generation's rollback does not restore the fill rule");
+        ST_CHECK(retracted == 0u, "a retracted creation leaves the fill rule behind");
+        ST_CHECK(kept == 1u, "creating the file wiped the fill rule the creation event froze for it");
+        ST_CHECK(dropped == 0u, "a session drop kept a dead world's fill rule");
+        ST_CHECK(packaged == 1u, "a seed package drops the fill rule: a file made from it never fills");
+    }
+
+    StWalletFillCleanup();
+    if (sStFailures != 0) {
+        printf("[TEST] FAIL: shared-wallet-fill-hyrule (%d failure(s))\n", sStFailures);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: shared-wallet-fill-hyrule\n");
+    return TEST_PASS;
+}
+
+TestResult Test_SharedWalletFillTermina(void) {
+    printf("[TEST] shared-wallet-fill-termina: OoT's wallet found in Termina fills MM's rupees to the new cap when the "
+           "pair's frozen fill-wallets rule is on, once (#1284)\n");
+    sStFailures = 0;
+    if (!StWalletFillSeams("shared-wallet-fill-termina")) {
+        return TEST_FAIL;
+    }
+    const SharedItem ootWallet = StItem(GAME_OOT, OoT_SharedTierTest_WalletId());
+    const uint16_t mmHost = (uint16_t)MM_SharedTierTest_HostCheck(0);
+    const uint8_t kWallet = (uint8_t)RSBS_SHARED_RES_WALLET_TIER;
+    const uint8_t kRupees = (uint8_t)RSBS_SHARED_RES_RUPEES;
+
+    // ---- (1) rule ON: MM fills to its tier-1 cap, once ------------------------
+    StFreezeWalletFillWorld(true);
+    ST_CHECK(Combo_SetForeignPlacement(mmHost, ootWallet) >= 0, "could not place OoT's wallet on an MM check");
+    MM_SharedTierTest_ArmLive();
+    MM_SharedTierTest_SetWallet(0, 30);
+    MM_HarvestSharedResources();
+    MM_ApplySharedResources();
+    {
+        const int recorded = MM_Rando_Foreign_RecordPickup(mmHost);
+        const int tier = MM_SharedTierTest_WalletTier();
+        const int crossings = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+        MM_HarvestSharedResources(); // MM departs: the harvest folds the fill in
+        const int rupees = MM_SharedTierTest_Rupees();
+        printf("[TEST] (1) rule ON, MM wallet tier 0 holding 30, OoT's wallet picked up in Termina: pickup %d, MM tier "
+               "%d, OoT crossings %d, after the next harvest rupees %d, pool tier %d, pool rupees %d (expected 1, 1, "
+               "0, 200, 1, 200)\n",
+               recorded, tier, crossings, rupees, StPool(kWallet), StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 1 && StPool(kWallet) == 1,
+                 "the pickup step changed: pickup %d, tier %d, pool tier %d", recorded, tier, StPool(kWallet));
+        ST_CHECK(crossings == 0, "MM's wallet pickup recorded %d OoT crossing(s)", crossings);
+        ST_CHECK(rupees == 200,
+                 "MM holds %d rupees after OoT's wallet raised its tier with the fill rule on, expected the new cap "
+                 "200: the pickup step skipped the fill MM's own wallet give makes",
+                 rupees);
+        ST_CHECK(StPool(kRupees) == 200, "the rupee pool reads %d after the fill's harvest, expected 200",
+                 StPool(kRupees));
+    }
+    OoT_SharedWalletTest_ArmLive(0, 0, 1); // OoT's next arrival, child wallet, nothing held
+    OoT_ApplySharedResources();
+    OoT_ConsumeSharedItems();
+    {
+        const int tier = OoT_SharedWalletTest_Tier();
+        const int rupees = OoT_SharedWalletTest_Rupees();
+        OoT_HarvestSharedResources(); // OoT departs
+        MM_SharedTierTest_ArmLive();
+        MM_SharedTierTest_SetWallet(0, 0);
+        MM_ApplySharedResources(); // MM's next arrival
+        const int mmRupees = MM_SharedTierTest_Rupees();
+        printf("[TEST] (1) OoT's next arrival: tier %d, rupees %d; MM's after it: rupees %d, pool rupees %d (expected "
+               "1, 200, 200, 200)\n",
+               tier, rupees, mmRupees, StPool(kRupees));
+        ST_CHECK(tier == 1 && rupees == 200, "OoT's arrival holds tier %d with %d rupees, expected the pool's 1 / 200",
+                 tier, rupees);
+        ST_CHECK(mmRupees == 200 && StPool(kRupees) == 200,
+                 "the fill was applied twice or lost: MM %d, pool %d after a round trip, expected 200", mmRupees,
+                 StPool(kRupees));
+    }
+
+    // ---- (2) rule OFF: no fill ----------------------------------------------
+    StFreezeWalletFillWorld(false);
+    ST_CHECK(Combo_SetForeignPlacement(mmHost, ootWallet) >= 0, "could not place OoT's wallet on an MM check");
+    MM_SharedTierTest_ArmLive();
+    MM_SharedTierTest_SetWallet(0, 30);
+    MM_HarvestSharedResources();
+    MM_ApplySharedResources();
+    {
+        const int recorded = MM_Rando_Foreign_RecordPickup(mmHost);
+        const int tier = MM_SharedTierTest_WalletTier();
+        MM_HarvestSharedResources();
+        const int rupees = MM_SharedTierTest_Rupees();
+        printf(
+            "[TEST] (2) rule OFF, the same pickup: pickup %d, tier %d, rupees %d, pool rupees %d (expected 1, 1, 30, "
+            "30)\n",
+            recorded, tier, rupees, StPool(kRupees));
+        ST_CHECK(recorded == 1 && tier == 1, "the rule-off step changed: pickup %d, tier %d", recorded, tier);
+        ST_CHECK(rupees == 30 && StPool(kRupees) == 30, "the rule OFF filled: MM %d, pool %d, expected 30 kept", rupees,
+                 StPool(kRupees));
+    }
+
+    StWalletFillCleanup();
+    if (sStFailures != 0) {
+        printf("[TEST] FAIL: shared-wallet-fill-termina (%d failure(s))\n", sStFailures);
+        return TEST_FAIL;
+    }
+    printf("[TEST] PASS: shared-wallet-fill-termina\n");
     return TEST_PASS;
 }

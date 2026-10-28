@@ -1085,6 +1085,7 @@ typedef struct ComboCreationRecords {
     uint32_t comboSettingsHash;
     ComboTriforceRecord comboTriforce;
     ComboItemRulesRecord comboItemRules;
+    uint8_t comboFillWallets; // #1284: the pair's fill-wallets rule, frozen in the same act
 } ComboCreationRecords;
 
 /** Copy the four creation records out of gComboCtx into @p out. */

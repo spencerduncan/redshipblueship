@@ -5940,6 +5940,26 @@ extern "C" void MM_HarvestSharedResources(void) {
 }
 
 /**
+ * FILL AT THE WALLET STEP (#1284; shared_resources.h), the twin of
+ * OoT_FillWalletAfterStep: a wallet step that RAISED MM's tier, under the pair's
+ * frozen fill-wallets rule, fills MM's rupees to the new cap through the
+ * accumulator, set AFTER the apply (which zeroes it), as MM's own wallet give
+ * does (Rando/GiveItem.cpp, which fills unconditionally and is unchanged). The
+ * next harvest folds it into the pool, clamped to the cap. gSaveContext only.
+ */
+static void MM_FillWalletAfterStep(s32 tierBefore) {
+    if ((s32)CUR_UPG_VALUE(UPG_WALLET) <= tierBefore || !Combo_SharedWalletFillRule()) {
+        return;
+    }
+    const s32 fill = (s32)CUR_CAPACITY(UPG_WALLET) - (s32)gSaveContext.save.saveInfo.playerData.rupees;
+    if (fill > 0) {
+        gSaveContext.rupeeAccumulator = (s16)fill;
+        fprintf(stderr, "[MM] shared wallet step: fill-wallets rule on, %d rupees to the tier-%d cap of %d (#1284)\n",
+                (int)fill, (int)CUR_UPG_VALUE(UPG_WALLET), (int)CUR_CAPACITY(UPG_WALLET));
+    }
+}
+
+/**
  * STEP AT PICKUP (#1120; shared_resources.h), the twin of
  * OoT_StepSharedTierAtPickup: a far game's capacity tier found in Termina
  * (OoT's Progressive Bomb Bag on an MM check), or an MM tier item redeemed from
@@ -5957,10 +5977,14 @@ extern "C" void MM_HarvestSharedResources(void) {
  */
 static int MM_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     MM_HarvestSharedKind(kind);
+    const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
     if (!Combo_StepSharedTier(kind, units, MM_SharedKindCap(kind))) {
         return 0; // the harvest alone changes nothing a later harvest would not
     }
     MM_ApplySharedKind(kind);
+    if (kind == RSBS_SHARED_RES_WALLET_TIER) {
+        MM_FillWalletAfterStep(walletTierBefore);
+    }
     uint16_t pool = 0;
     Combo_GetSharedResource(kind, &pool);
     fprintf(stderr, "[MM] shared pickup step: %s id=%u steps shared kind %u by %u; the pool now holds %u (#1120)\n",
