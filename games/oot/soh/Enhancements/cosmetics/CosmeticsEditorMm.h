@@ -13,7 +13,10 @@
 
 /** HUD tab, after SoH's HUD group: MM's HUD colours with no SoH twin (the Rupee Icon). */
 void CosmeticsEditor_DrawMmHudRows();
-// W6-COS-B: the Link & Items tab's functions go here.
+/** Link & Items tab, after SoH's Link group (W6-COS-B): Deku, Goron and Zora Link's colours and Kafei's hair. */
+void CosmeticsEditor_DrawMmLinkRows();
+/** Link & Items tab, after SoH's Consumables group (W6-COS-B): MM's beating hearts and Chateau Romani magic. */
+void CosmeticsEditor_DrawMmConsumableRows();
 // W6-COS-C: the Effects tab's functions go here. (The Spin Attack group has no MM row: all four of MM's spin elements
 // twin SoH's Level 1 / Level 2 Primary.)
 

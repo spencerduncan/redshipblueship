@@ -2562,11 +2562,17 @@ void CosmeticsEditorWindow::DrawElement() {
             UIWidgets::Separator(true, true, 2.0f, 2.0f);
 
             DrawCosmeticGroup(COSMETICS_GROUP_LINK);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            CosmeticsEditor_DrawMmLinkRows(); // W6-COS-B (#1239): Link's other forms and Kafei in MM
+#endif
             DrawCosmeticGroup(COSMETICS_GROUP_GLOVES);
             DrawCosmeticGroup(COSMETICS_GROUP_MIRRORSHIELD);
             DrawCosmeticGroup(COSMETICS_GROUP_EQUIPMENT);
             DrawCosmeticGroup(COSMETICS_GROUP_SWORDS);
             DrawCosmeticGroup(COSMETICS_GROUP_CONSUMABLE);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            CosmeticsEditor_DrawMmConsumableRows(); // W6-COS-B (#1239): MM's hearts and magic with no SoH twin
+#endif
             ImGui::EndTabItem();
         }
 

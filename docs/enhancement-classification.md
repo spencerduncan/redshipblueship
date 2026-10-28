@@ -185,6 +185,19 @@ The classification lock's colour-family leg (3c-3) holds every element of the lo
 | `HUD.SmallKey` | translated | HUD tab, SoH's Key Count (Advanced Mode), the small-key icon's colour in both games |
 | `HUD.Minimap` | translated | HUD tab, SoH's Minimap (`gCosmetics.HUD.Minimap`) |
 | `HUD.RupeeIcon` | (O) MM-only | its own MM row, "Rupee Icon", in a Majora's Mask block after SoH's HUD group (`CosmeticsEditorMm.cpp`) |
+| `Hearts.Normal` | translated (W6-COS-B) | Link & Items tab, SoH's Hearts (`gCosmetics.Consumable.Hearts`) |
+| `Hearts.Border` | translated | Link & Items tab, SoH's Heart Border (Advanced Mode) |
+| `Hearts.DD` | translated | Link & Items tab, SoH's DD Hearts |
+| `Hearts.DDBorder` | translated | Link & Items tab, SoH's DD Heart Border (Advanced Mode) |
+| `Hearts.Beating` | (O) MM-only | its own MM row, "Beating Hearts", in a Majora's Mask block after SoH's Consumables group (OoT's beating heart takes the Hearts colour) |
+| `Hearts.DDBeating` | (O) MM-only | its own MM row, "DD Beating Hearts", in the same block |
+| `Magic.Normal` | translated | Link & Items tab, SoH's Magic (`gCosmetics.Consumable.Magic`) |
+| `Magic.Active` | translated | Link & Items tab, SoH's Magic Active (Advanced Mode), the meter while magic drains |
+| `Magic.Border` | translated | Link & Items tab, SoH's Magic Border (Advanced Mode) |
+| `Magic.Chateau` | (O) MM-only | its own MM row, "Chateau Magic", in the Consumables block; not SoH's Infinite Magic (`gCosmetics.Consumable_MagicInfinite`), a cheat's colour where Chateau Romani's is MM's own |
+| `Player.HumanTunic` | translated | Link & Items tab, SoH's Kokiri Tunic (`RSBS_CVAR_COLOR_KOKIRI_TUNIC`, the canonical key BUG 1 converged onto): a model-colour patch of Human Link, not a draw-site colour |
+| `Player.HumanHair` | translated | Link & Items tab, SoH's Hair (`gCosmetics.Link.Hair`), likewise a patch |
+| `Player.DekuTunic`, `Player.DekuHair`, `Player.GoronTunic`, `Player.ZoraTunic`, `Player.KafeiHair` | (O) MM-only | MM rows "Deku Form Tunic", "Deku Form Hair", "Goron Form Tunic", "Zora Form Tunic", "Kafei Hair" in a Majora's Mask block after SoH's Link group. MM's Goron and Zora Tunic colour Link's transformation forms, not OoT's tunics, so they are no twin of SoH's Goron / Zora Tunic. The patches (2Ship's registrars, ported into `CosmeticGfxSingleExe.cpp`) patch MM's resources only while MM owns the resource cache (#981/#1040), and a change made while OoT runs is applied on MM's next frame |
 | `Effects.SpinSlashCharge`, `Effects.SpinSlashBurst` | translated | Effects tab, SoH's Spin Attack Level 1 Primary (OoT draws its charge and its burst from it; Level 1 Secondary sets it too) |
 | `Effects.GreatSpinCharge`, `Effects.GreatSpinBurst` | translated | Effects tab, SoH's Spin Attack Level 2 Primary (likewise) |
 | `Menus.FileWindow`, `Menus.FilePlates` | INTENTIONAL, no row | they colour MM's file select, which paired play never shows (the file select is OoT's; see `gEnhancements.Saving.FileSlot3` below) |
@@ -214,6 +227,11 @@ is a ghost of a key neither game will agree on.
 Currently inert only because `BenPort.cpp` is excluded from the single-exe link. It arms the
 moment MM's cosmetic surface is un-elided. **Classification: (S) shared-intent, CONVERGE →
 OoT's `gCosmetics.Link.{Kokiri,Goron,Zora}Tunic.Value`.**
+
+W6-COS-B (#1239) un-elided the first of that surface onto the canonical key: Human Link's model tunic colour
+(`gCosmetic.Player.HumanTunic`) reads `gCosmetics.Link.KokiriTunic.Value` through MM's colour lookup, a
+`kTranslatedKeys` pair, so SoH's Kokiri Tunic row colours both games. MM's Goron and Zora Tunic colour its
+transformation forms and stay MM rows.
 
 #### ✅ BUG 2 (RESOLVED #454, 2026-08-02) — `gDeveloperTools.DebugSaveFileMode`: shared key, defaults now aligned
 

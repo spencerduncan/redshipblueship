@@ -45,7 +45,46 @@ const MmCosmeticRow kMmHudRows[] = {
       { 200, 255, 100, 255 },
       "Changes the color of the icon beside the rupee counter, for every wallet. Majora's Mask only." },
 };
-// W6-COS-B: the Link & Items tab's row tables go here.
+// W6-COS-B (#1239). Link & Items tab, Link group: Link's other forms and Kafei. Human Link's tunic and hair have no
+// row here: SoH's Kokiri Tunic and Hair colour them (kTranslatedKeys pairs).
+const MmCosmeticRow kMmLinkRows[] = {
+    { "Deku Form Tunic",
+      MM_COSMETIC_ROW_KEYS("Player.DekuTunic"),
+      { 30, 105, 27, 255 },
+      "Changes the color of Deku Link's tunic and hat. Majora's Mask only." },
+    { "Deku Form Hair",
+      MM_COSMETIC_ROW_KEYS("Player.DekuHair"),
+      { 30, 105, 27, 255 },
+      "Changes the color of Deku Link's leaf hair. Majora's Mask only." },
+    { "Goron Form Tunic",
+      MM_COSMETIC_ROW_KEYS("Player.GoronTunic"),
+      { 30, 105, 27, 255 },
+      "Changes the color of Goron Link's cap and belt, rolling included. Majora's Mask only." },
+    { "Zora Form Tunic",
+      MM_COSMETIC_ROW_KEYS("Player.ZoraTunic"),
+      { 30, 105, 27, 255 },
+      "Changes the green of Zora Link's skin, fins, shield and boomerangs. Majora's Mask only." },
+    { "Kafei Hair",
+      MM_COSMETIC_ROW_KEYS("Player.KafeiHair"),
+      { 30, 105, 27, 255 },
+      "Changes the color of Kafei's hair. Majora's Mask only." },
+};
+// Link & Items tab, Consumables group: the hearts and magic meter colours SoH has no row for. SoH's Hearts, Heart
+// Border, DD Hearts, DD Heart Border, Magic, Magic Active and Magic Border colour MM's as well.
+const MmCosmeticRow kMmConsumableRows[] = {
+    { "Beating Hearts",
+      MM_COSMETIC_ROW_KEYS("Hearts.Beating"),
+      { 255, 70, 50, 255 },
+      "Changes the color of the heart that beats at the end of the health meter. Majora's Mask only." },
+    { "DD Beating Hearts",
+      MM_COSMETIC_ROW_KEYS("Hearts.DDBeating"),
+      { 200, 0, 0, 255 },
+      "Changes the color of the beating heart once Link has double defense. Majora's Mask only." },
+    { "Chateau Magic",
+      MM_COSMETIC_ROW_KEYS("Magic.Chateau"),
+      { 0, 0, 200, 255 },
+      "Changes the color of the magic meter while Chateau Romani keeps it full. Majora's Mask only." },
+};
 // W6-COS-C: the Effects tab's row tables go here.
 
 #undef MM_COSMETIC_ROW_KEYS
@@ -146,7 +185,13 @@ void DrawMmCosmeticGroup(const char* id, const MmCosmeticRow* rows, std::size_t 
 void CosmeticsEditor_DrawMmHudRows() {
     DrawMmCosmeticGroup("MM HUD", kMmHudRows, sizeof(kMmHudRows) / sizeof(kMmHudRows[0]));
 }
-// W6-COS-B: the Link & Items tab's functions go here.
+void CosmeticsEditor_DrawMmLinkRows() {
+    DrawMmCosmeticGroup("MM Link", kMmLinkRows, sizeof(kMmLinkRows) / sizeof(kMmLinkRows[0]));
+}
+
+void CosmeticsEditor_DrawMmConsumableRows() {
+    DrawMmCosmeticGroup("MM Consumables", kMmConsumableRows, sizeof(kMmConsumableRows) / sizeof(kMmConsumableRows[0]));
+}
 // W6-COS-C: the Effects tab's functions go here.
 
 #endif // RSBS_SINGLE_EXECUTABLE

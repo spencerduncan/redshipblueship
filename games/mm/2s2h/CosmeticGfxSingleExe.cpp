@@ -60,9 +60,19 @@
 
 #include "cvar_shared_keys.h" // src/common: RSBS_CVAR_MM_COSMETIC_PREFIX (W6-COS-A, #1239)
 
+// W6-COS-B (#1239): Link's per-form model colours (the patch registrars below).
+#include <ship/resource/ResourceManager.h>
+
+#include "2s2h/ShipInit.hpp"
+#include "context.h"       // src/common: Context_GetCurrentGame, the owner gate
+#include "mm_game_hooks.h" // MM's frame hook
+
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <set>
 #include <string>
+#include <unordered_map>
 
 extern "C" {
 // Base drawers (games/mm/src/code/z_parameter.c) — the same local extern
@@ -132,7 +142,27 @@ const MmCosmeticElement kMmCosmeticElements[] = {
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_SMALL_KEY,         "HUD.SmallKey",   "gCosmetics.HUD.KeyCount"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MINIMAP,           "HUD.Minimap",    "gCosmetics.HUD.Minimap"),
     MM_COSMETIC_OWN(COSMETIC_ELEMENT_RUPEE_ICON,         "HUD.RupeeIcon"),
-    // W6-COS-B
+    // W6-COS-B (#1239). Hearts and magic: SoH's Link & Items tab, Consumables group. MM's beating hearts and its
+    // Chateau Romani meter have no SoH twin: they are MM rows there.
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_NORMAL,      "Hearts.Normal",    "gCosmetics.Consumable.Hearts"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_HEART_NORMAL_BEATING, "Hearts.Beating"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_BORDER,      "Hearts.Border",    "gCosmetics.Consumable.HeartBorder"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_DD,          "Hearts.DD",        "gCosmetics.Consumable.DDHearts"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_HEART_DD_BEATING,   "Hearts.DDBeating"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_DD_BORDER,   "Hearts.DDBorder",  "gCosmetics.Consumable.DDHeartBorder"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MAGIC_NORMAL,      "Magic.Normal",     "gCosmetics.Consumable.Magic"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_MAGIC_CHATEAU,      "Magic.Chateau"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MAGIC_CONSUMED,    "Magic.Active",     "gCosmetics.Consumable.MagicActive"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MAGIC_BORDER,      "Magic.Border",     "gCosmetics.Consumable.MagicBorder"),
+    // Link's forms: SoH's Link group. No draw site reads these: the model-colour patches below do. Human Link's tunic
+    // and hair are SoH's Kokiri Tunic (its canonical key, #453) and Hair; the other forms and Kafei are MM rows.
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HUMAN_TUNIC,       "Player.HumanTunic", "gCosmetics.Link.KokiriTunic"),
+    MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HUMAN_HAIR,        "Player.HumanHair",  "gCosmetics.Link.Hair"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_DEKU_TUNIC,         "Player.DekuTunic"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_DEKU_HAIR,          "Player.DekuHair"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_GORON_TUNIC,        "Player.GoronTunic"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_ZORA_TUNIC,         "Player.ZoraTunic"),
+    MM_COSMETIC_OWN(COSMETIC_ELEMENT_KAFEI_HAIR,         "Player.KafeiHair"),
     // Spin Attack: SoH's Effects tab. OoT draws a level's charge AND its burst from that level's Primary
     // (z_en_m_thunder.c); its Secondary is the charge's env colour, which MM's draw does not route through the lookup.
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_SPIN_SLASH_CHARGE, "Effects.SpinSlashCharge", "gCosmetics.SpinAttack.Level1Primary"),
@@ -154,6 +184,20 @@ const MmCosmeticElement* FindMmCosmeticElement(u8 elementId) {
         if (element.id == elementId) {
             return &element;
         }
+    }
+    return nullptr;
+}
+
+/** The key holding @p element's changed colour, or null when nothing changed it (the lookup's precedence). */
+const char* ChangedValueKey(const MmCosmeticElement& element) {
+    if (element.sohValue == nullptr) {
+        return CVarGetInteger(element.mmChanged, 0) ? element.mmColor : nullptr;
+    }
+    if (CVarGetInteger(element.sohChanged, 0)) {
+        return element.sohValue;
+    }
+    if (element.sohFallbackValue != nullptr && CVarGetInteger(element.sohFallbackChanged, 0)) {
+        return element.sohFallbackValue;
     }
     return nullptr;
 }
@@ -199,16 +243,7 @@ Color_RGBA8 CosmeticEditor_GetChangedColor(u8 r, u8 g, u8 b, u8 a, u8 elementId)
     if (element == nullptr) {
         return color;
     }
-    const char* valueKey = nullptr;
-    if (element->sohValue == nullptr) {
-        if (CVarGetInteger(element->mmChanged, 0)) {
-            valueKey = element->mmColor;
-        }
-    } else if (CVarGetInteger(element->sohChanged, 0)) {
-        valueKey = element->sohValue;
-    } else if (element->sohFallbackValue != nullptr && CVarGetInteger(element->sohFallbackChanged, 0)) {
-        valueKey = element->sohFallbackValue;
-    }
+    const char* valueKey = ChangedValueKey(*element);
     if (valueKey != nullptr) {
         const Color_RGBA8 changed = CVarGetColor(valueKey, color);
         color.r = changed.r;
@@ -261,24 +296,494 @@ Gfx* Gfx_DrawTexRectIA8_DropShadowOffsetOverride(Gfx* pkt, TexturePtr texture, s
                                                rectHeight, dsdx, dtdy, color.r, color.g, color.b, a, masks, rects);
 }
 
+} // extern "C"
+
+// ============================================================================
+// W6-COS-B (#1239): Link's per-form model colours.
+// ============================================================================
+//
+// MM's Player colours are not draw-site colours. 2Ship applies them by patching Link's display lists and shading
+// texture palettes, from RegisterShipInitFunc registrars in BenGui/CosmeticEditor.cpp (whose TU stays excluded). They
+// are ported here, into the TU MM's HUD calls already pull into the link: a TU that registered only through static
+// initialisers would be elided from the plain 2ship_port archive (#516).
+//
+// They run under the per-game resource-cache owner gate (#981/#1040), the inverse of SoH's own in CosmeticsEditor.cpp.
+// A patch is written into whatever copy of a path the current cache owner holds, and while OoT runs that is OoT's
+// owner: gameplay_keep's boomerang texture is in both archives, and the rest would be parsed again under OoT's owner.
+// So a pass is made only while MM runs. One asked for while OoT runs (SoH's Cosmetics Editor stays usable there, and
+// MM's registrars first run at MM's core bring-up, which OoT's file-creation seam reaches before MM ever booted) is
+// owed to MM and made on MM's next frame. Every MM frame's pass also compares each element's colour with the one it
+// last applied, so a colour changed from anywhere (SoH's Kokiri Tunic or Hair row, an MM row, a preset, SoH's
+// rainbow tick) is reapplied once; an unchanged element costs a CVar read or two.
+
+extern "C" {
+void ResourceMgr_PatchGfxByName(const char* path, const char* patchName, int index, Gfx instruction);
+void ResourceMgr_UnpatchGfxByName(const char* path, const char* patchName);
+void gfx_texture_cache_clear();
+}
+
+namespace {
+
+// Each display-list patch calls one of these; a colour change rewrites its first command.
+Gfx sHumanTunicDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sHumanHairDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sDekuTunicDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sDekuHairDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sKafeiHairDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sGoronTunicDL[] = {
+    gsDPSetPrimColor(0, 0, 0, 0, 0, 0),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+Gfx sBackToWhiteDL[] = {
+    gsDPSetPrimColor(0, 0x80, 255, 255, 255, 255),
+    gsDPPipeSync(),
+    gsSPEndDisplayList(),
+};
+
+// ---- 2Ship's palette shading (BenGui/CosmeticEditor.cpp), with a guard on every resource it loads. ----
+
+struct OriginalRgb {
+    uint8_t data1;
+    uint8_t data2;
+};
+std::unordered_map<std::string, std::unordered_map<int, OriginalRgb>> sOriginalRgb;
+
+enum class ShadeMode { Revert, Avg, Min, Max };
+
+uint8_t* PaletteData(const char* path) {
+    auto res = Ship::Context::GetInstance()->GetResourceManager()->LoadResource(path);
+    return res == nullptr ? nullptr : static_cast<uint8_t*>(res->GetRawPointer());
+}
+
+void PatchPalette(const char* path, int index, uint8_t r, uint8_t g, uint8_t b) {
+    uint8_t* data = PaletteData(path);
+    if (data == nullptr) {
+        return;
+    }
+    if (!sOriginalRgb.contains(path) || !sOriginalRgb[path].contains(index)) {
+        sOriginalRgb[path][index] = { data[index * 2], data[index * 2 + 1] };
+    }
+    const uint16_t col16 = (r << 11) | (g << 6) | (b << 1) | 1;
+    data[index * 2] = col16 >> 8;
+    data[index * 2 + 1] = col16 & 0xff;
+}
+
+void UnpatchPalette(const char* path, int index) {
+    if (!sOriginalRgb.contains(path) || !sOriginalRgb[path].contains(index)) {
+        return;
+    }
+    uint8_t* data = PaletteData(path);
+    if (data == nullptr) {
+        return;
+    }
+    data[index * 2] = sOriginalRgb[path][index].data1;
+    data[index * 2 + 1] = sOriginalRgb[path][index].data2;
+}
+
+// Restores the range, then (unless reverting) recolours it from newBase, shaded lighter or darker by each colour's
+// distance from the range's brightest channels.
+void ShadePaletteNewBase(const char* path, int begin, int end, Color_RGBA8 newBase, ShadeMode mode) {
+    uint8_t* data = PaletteData(path);
+    if (data == nullptr) {
+        return;
+    }
+    int maxR = 0;
+    int maxG = 0;
+    int maxB = 0;
+    for (int i = begin; i <= end; i++) {
+        UnpatchPalette(path, i);
+        const int col16 = (data[i * 2] << 8) | data[i * 2 + 1];
+        maxR = std::max(maxR, col16 >> 11);
+        maxG = std::max(maxG, (col16 >> 6) & 0x1f);
+        maxB = std::max(maxB, (col16 >> 1) & 0x1f);
+    }
+    if (mode == ShadeMode::Revert) {
+        return;
+    }
+    for (int i = begin; i <= end; i++) {
+        const int col16 = (data[i * 2] << 8) | data[i * 2 + 1];
+        const int diffR = maxR - (col16 >> 11);
+        const int diffG = maxG - ((col16 >> 6) & 0x1f);
+        const int diffB = maxB - ((col16 >> 1) & 0x1f);
+        int diff = 0;
+        if (mode == ShadeMode::Avg) {
+            diff = (diffR + diffG + diffB) / 3;
+        } else if (mode == ShadeMode::Min) {
+            diff = std::min(std::min(diffR, diffG), diffB);
+        } else {
+            diff = std::max(std::max(diffR, diffG), diffB);
+        }
+        diff = std::min(std::max(31 - diff, 0), 31);
+        PatchPalette(path, i, static_cast<uint8_t>((diff * newBase.r) / 255),
+                     static_cast<uint8_t>((diff * newBase.g) / 255), static_cast<uint8_t>((diff * newBase.b) / 255));
+    }
+}
+
+void ShadePaletteWhite(const char* path, int begin, int end, ShadeMode mode) {
+    ShadePaletteNewBase(path, begin, end, { 255, 255, 255, 255 }, mode);
+}
+
+void ShadePaletteRevert(const char* path, int begin, int end) {
+    ShadePaletteNewBase(path, begin, end, { 255, 255, 255, 255 }, ShadeMode::Revert);
+}
+
+// Maps a colour on the oldBase -> targetEnd gradient onto the newBase -> targetEnd one (channels 0-31).
+Color_RGBA8 MapNewBaseColorToGradient(Color_RGBA8 current, Color_RGBA8 oldBase, Color_RGBA8 newBase,
+                                      Color_RGBA8 targetEnd) {
+    const double gradientR = targetEnd.r - oldBase.r;
+    const double gradientG = targetEnd.g - oldBase.g;
+    const double gradientB = targetEnd.b - oldBase.b;
+    const double gradient = gradientR * gradientR + gradientG * gradientG + gradientB * gradientB;
+    const double projection =
+        gradientR * (current.r - oldBase.r) + gradientG * (current.g - oldBase.g) + gradientB * (current.b - oldBase.b);
+    const double position = gradient != 0.0 ? projection / gradient : 0.0;
+    return { uint8_t(newBase.r + position * (targetEnd.r - newBase.r)),
+             uint8_t(newBase.g + position * (targetEnd.g - newBase.g)),
+             uint8_t(newBase.b + position * (targetEnd.b - newBase.b)), 31 };
+}
+
+// Recolours a range that fades from oldBase (Zora's green) to targetEnd (its skin) to fade from newBase instead.
+void ShadePaletteGradient(const char* path, int begin, int end, Color_RGBA8 oldBase, Color_RGBA8 newBase,
+                          Color_RGBA8 targetEnd) {
+    ShadePaletteRevert(path, begin, end);
+    uint8_t* data = PaletteData(path);
+    if (data == nullptr) {
+        return;
+    }
+    auto to5 = [](Color_RGBA8 c) {
+        return Color_RGBA8{ uint8_t(c.r >> 3), uint8_t(c.g >> 3), uint8_t(c.b >> 3), uint8_t(c.a >> 3) };
+    };
+    oldBase = to5(oldBase);
+    newBase = to5(newBase);
+    targetEnd = to5(targetEnd);
+    for (int i = begin; i <= end; i++) {
+        const int col16 = (data[i * 2] << 8) | data[i * 2 + 1];
+        const Color_RGBA8 current = { uint8_t(col16 >> 11), uint8_t((col16 >> 6) & 0x1f), uint8_t((col16 >> 1) & 0x1f),
+                                      uint8_t(col16 & 1) };
+        const Color_RGBA8 mapped = MapNewBaseColorToGradient(current, oldBase, newBase, targetEnd);
+        PatchPalette(path, i, mapped.r, mapped.g, mapped.b);
+    }
+}
+
+// ---- The patches, one per element (2Ship's "...Patch" registrars; `on` is whether the element is changed). ----
+
+void SetPrimColor(Gfx* dl, Color_RGBA8 color) {
+    dl[0] = gsDPSetPrimColor(0, 0, color.r, color.g, color.b, 255);
+}
+
+struct DlSite {
+    const char* path;
+    const char* name;
+    int index;
+};
+
+void PatchHumanTunic(bool on, Color_RGBA8 color) {
+    static const DlSite kSites[] = {
+        { "objects/object_link_child/gLinkHumanWaistDL", "setPrim", 5 },
+        { "objects/object_link_child/gLinkHumanRightThighDL", "setPrim", 10 },
+        { "objects/object_link_child/gLinkHumanLeftThighDL", "setPrim", 10 },
+        { "objects/object_link_child/gLinkHumanHeadDL", "setPrim", 92 },
+        { "objects/object_link_child/gLinkHumanHatDL", "setPrim", 10 },
+        { "objects/object_link_child/gLinkHumanCollarDL", "setPrim", 5 },
+        { "objects/object_link_child/gLinkHumanLeftShoulderDL", "setPrim1", 10 },
+        { "objects/object_link_child/gLinkHumanLeftShoulderDL", "setPrim2", 65 },
+        { "objects/object_link_child/gLinkHumanRightShoulderDL", "setPrim1", 10 },
+        { "objects/object_link_child/gLinkHumanRightShoulderDL", "setPrim2", 65 },
+        { "objects/object_link_child/gLinkHumanTorsoDL", "setPrim", 5 },
+    };
+    SetPrimColor(sHumanTunicDL, color);
+    for (const DlSite& site : kSites) {
+        if (on) {
+            ResourceMgr_PatchGfxByName(site.path, site.name, site.index, gsSPDisplayList(sHumanTunicDL));
+        } else {
+            ResourceMgr_UnpatchGfxByName(site.path, site.name);
+        }
+    }
+}
+
+void PatchHumanHair(bool on, Color_RGBA8 color) {
+    SetPrimColor(sHumanHairDL, color);
+    if (on) {
+        ResourceMgr_PatchGfxByName("objects/object_link_child/gLinkHumanHeadDL", "setPrim1", 162,
+                                   gsSPDisplayList(sHumanHairDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_child/gLinkHumanHeadDL", "setPrim2", 201,
+                                   gsSPDisplayList(sBackToWhiteDL));
+        ShadePaletteWhite("objects/object_link_child/object_link_child_Tex_005400", 0, 127, ShadeMode::Avg);
+    } else {
+        ResourceMgr_UnpatchGfxByName("objects/object_link_child/gLinkHumanHeadDL", "setPrim1");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_child/gLinkHumanHeadDL", "setPrim2");
+        ShadePaletteRevert("objects/object_link_child/object_link_child_Tex_005400", 0, 127);
+    }
+    gfx_texture_cache_clear();
+}
+
+void PatchDekuTunic(bool on, Color_RGBA8 color) {
+    SetPrimColor(sDekuTunicDL, color);
+    if (on) {
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuWaistDL", "setPrim", 22,
+                                   gsSPDisplayList(sDekuTunicDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim1", 55,
+                                   gsSPDisplayList(sDekuTunicDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim2", 76,
+                                   gsSPDisplayList(sBackToWhiteDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuHatDL", "setPrim", 29,
+                                   gsSPDisplayList(sDekuTunicDL));
+        ShadePaletteWhite("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 243, 254, ShadeMode::Max);
+    } else {
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuWaistDL", "setPrim");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim1");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim2");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuHatDL", "setPrim");
+        ShadePaletteRevert("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 243, 254);
+    }
+    gfx_texture_cache_clear();
+}
+
+void PatchDekuHair(bool on, Color_RGBA8 color) {
+    SetPrimColor(sDekuHairDL, color);
+    if (on) {
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim3", 22,
+                                   gsSPDisplayList(sDekuHairDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim4", 42,
+                                   gsSPDisplayList(sBackToWhiteDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_nuts/object_link_nuts_DL_009C48", "setPrim", 22,
+                                   gsSPDisplayList(sDekuHairDL));
+        ShadePaletteWhite("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 109, 122, ShadeMode::Max);
+        ShadePaletteWhite("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 124, 242, ShadeMode::Max);
+    } else {
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim3");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/gLinkDekuHeadDL", "setPrim4");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_nuts/object_link_nuts_DL_009C48", "setPrim");
+        ShadePaletteRevert("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 109, 122);
+        ShadePaletteRevert("objects/object_link_nuts/object_link_nuts_TLUT_003EB0", 124, 242);
+    }
+    gfx_texture_cache_clear();
+}
+
+void PatchKafeiHair(bool on, Color_RGBA8 color) {
+    SetPrimColor(sKafeiHairDL, color);
+    if (on) {
+        ResourceMgr_PatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim1", 101, gsSPDisplayList(sKafeiHairDL));
+        ResourceMgr_PatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim2", 163,
+                                   gsSPDisplayList(sBackToWhiteDL));
+        ResourceMgr_PatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim3", 200, gsSPDisplayList(sKafeiHairDL));
+        ResourceMgr_PatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim4", 236,
+                                   gsSPDisplayList(sBackToWhiteDL));
+        ShadePaletteWhite("objects/object_test3/gKafeiBody2TLUT", 1, 3, ShadeMode::Min);
+        ShadePaletteWhite("objects/object_test3/gKafeiBody2TLUT", 8, 255, ShadeMode::Min);
+    } else {
+        ResourceMgr_UnpatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim1");
+        ResourceMgr_UnpatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim2");
+        ResourceMgr_UnpatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim3");
+        ResourceMgr_UnpatchGfxByName("objects/object_test3/gKafeiHeadDL", "setPrim4");
+        ShadePaletteRevert("objects/object_test3/gKafeiBody2TLUT", 1, 3);
+        ShadePaletteRevert("objects/object_test3/gKafeiBody2TLUT", 8, 255);
+    }
+    gfx_texture_cache_clear();
+}
+
+void PatchGoronTunic(bool on, Color_RGBA8 color) {
+    SetPrimColor(sGoronTunicDL, color);
+    if (on) {
+        ResourceMgr_PatchGfxByName("objects/object_link_goron/gLinkGoronWaistDL", "setPrim", 16,
+                                   gsSPDisplayList(sGoronTunicDL));
+        ResourceMgr_PatchGfxByName("objects/object_link_goron/gLinkGoronHatDL", "setPrim", 17,
+                                   gsSPDisplayList(sGoronTunicDL));
+        ShadePaletteWhite("objects/object_link_goron/object_link_goron_Tex_002780", 0, 127, ShadeMode::Max);
+        // The rolling hat obeys the prim colour only on its beads, so its texture takes the colour itself (2Ship).
+        ShadePaletteNewBase("objects/object_link_goron/object_link_goron_Tex_00CEB8", 0, 127, color, ShadeMode::Max);
+    } else {
+        ResourceMgr_UnpatchGfxByName("objects/object_link_goron/gLinkGoronWaistDL", "setPrim");
+        ResourceMgr_UnpatchGfxByName("objects/object_link_goron/gLinkGoronHatDL", "setPrim");
+        ShadePaletteRevert("objects/object_link_goron/object_link_goron_Tex_002780", 0, 127);
+        ShadePaletteRevert("objects/object_link_goron/object_link_goron_Tex_00CEB8", 0, 127);
+    }
+    gfx_texture_cache_clear();
+}
+
+struct PaletteRange {
+    const char* path;
+    int begin;
+    int end;
+};
+
+void PatchZoraTunic(bool on, Color_RGBA8 color) {
+    // Zora Link fades from its green to its skin, so 2Ship recolours the gradient in its textures and palettes
+    // directly instead of greying them and setting a prim colour.
+    static constexpr Color_RGBA8 kZoraSkin = { 197, 247, 247, 255 };
+    static constexpr Color_RGBA8 kZoraTunicBase = { 0, 74, 16, 255 };
+    static const PaletteRange kRanges[] = {
+        { "objects/object_link_zora/object_link_zora_TLUT_00C578", 151, 177 }, // arms
+        { "objects/object_link_zora/object_link_zora_TLUT_00C578", 179, 180 },
+        { "objects/object_link_zora/object_link_zora_TLUT_00C578", 183, 183 },
+        { "objects/object_link_zora/object_link_zora_TLUT_005000", 151, 177 }, // hat, head and pants
+        { "objects/object_link_zora/object_link_zora_TLUT_005000", 179, 180 },
+        { "objects/object_link_zora/object_link_zora_TLUT_005000", 183, 183 },
+        { "objects/object_link_zora/object_link_zora_Tex_010228", 80, 511 }, // shield
+        { "objects/gameplay_keep/gameplay_keep_Tex_0700B0", 80, 511 },       // boomerangs
+    };
+    for (const PaletteRange& range : kRanges) {
+        if (on) {
+            ShadePaletteGradient(range.path, range.begin, range.end, kZoraTunicBase, color, kZoraSkin);
+        } else {
+            ShadePaletteRevert(range.path, range.begin, range.end);
+        }
+    }
+    gfx_texture_cache_clear();
+}
+
+/**
+ * One Player element's patch. recolourRepatches: the patch itself depends on the colour (a palette shaded from it),
+ * so a colour change reruns it; otherwise a colour change only rewrites the patched display list's first command.
+ */
+struct MmPlayerPatch {
+    u8 id; ///< CosmeticEditorElementID, an entry of kMmCosmeticElements
+    void (*patch)(bool on, Color_RGBA8 color);
+    Gfx* colorDL;
+    bool recolourRepatches;
+};
+
+const MmPlayerPatch kMmPlayerPatches[] = {
+    { COSMETIC_ELEMENT_HUMAN_TUNIC, PatchHumanTunic, sHumanTunicDL, false },
+    { COSMETIC_ELEMENT_HUMAN_HAIR, PatchHumanHair, sHumanHairDL, false },
+    { COSMETIC_ELEMENT_DEKU_TUNIC, PatchDekuTunic, sDekuTunicDL, false },
+    { COSMETIC_ELEMENT_DEKU_HAIR, PatchDekuHair, sDekuHairDL, false },
+    { COSMETIC_ELEMENT_GORON_TUNIC, PatchGoronTunic, sGoronTunicDL, true },
+    { COSMETIC_ELEMENT_ZORA_TUNIC, PatchZoraTunic, nullptr, true },
+    { COSMETIC_ELEMENT_KAFEI_HAIR, PatchKafeiHair, sKafeiHairDL, false },
+};
+constexpr std::size_t kMmPlayerPatchCount = sizeof(kMmPlayerPatches) / sizeof(kMmPlayerPatches[0]);
+
+struct AppliedPlayerColour {
+    bool on;
+    Color_RGBA8 color;
+};
+AppliedPlayerColour sAppliedPlayerColours[kMmPlayerPatchCount] = {};
+
+int sPlayerPatchPasses = 0;
+bool sPlayerPatchesOwed = false;
+bool sPlayerPatchBodySkipped = false;
+
+/** Applies every element whose changed state or colour differs from the one last applied. MM owns the cache. */
+void ApplyChangedPlayerPatches() {
+    for (std::size_t i = 0; i < kMmPlayerPatchCount; i++) {
+        const MmPlayerPatch& patch = kMmPlayerPatches[i];
+        const MmCosmeticElement* element = FindMmCosmeticElement(patch.id);
+        const char* valueKey = element != nullptr ? ChangedValueKey(*element) : nullptr;
+        const bool on = valueKey != nullptr;
+        const Color_RGBA8 unset = { 0, 0, 0, 255 };
+        const Color_RGBA8 color = on ? CVarGetColor(valueKey, unset) : unset;
+        AppliedPlayerColour& applied = sAppliedPlayerColours[i];
+        const bool recoloured =
+            on && (applied.color.r != color.r || applied.color.g != color.g || applied.color.b != color.b);
+        if (on == applied.on && !recoloured) {
+            continue;
+        }
+        if (on != applied.on || patch.recolourRepatches) {
+            patch.patch(on, color);
+        } else if (patch.colorDL != nullptr) {
+            SetPrimColor(patch.colorDL, color);
+        }
+        applied = { on, color };
+    }
+}
+
+/** What every registrar runs: a pass now while MM owns the cache, else one owed to MM's next frame. */
+void RequestPlayerPatches() {
+    if (Context_GetCurrentGame() != GAME_MM) {
+        sPlayerPatchesOwed = true;
+        return;
+    }
+    sPlayerPatchesOwed = false;
+    sPlayerPatchPasses++;
+    if (sPlayerPatchBodySkipped) {
+        return; // the cosmetics-patch-owner-gate row: counted, not patched
+    }
+    ApplyChangedPlayerPatches();
+}
+
+void OnMmFrame() {
+    if (Context_GetCurrentGame() == GAME_MM) {
+        RequestPlayerPatches();
+    }
+}
+
+/** The keys that decide a Player colour: MM's own, and the SoH twin's for Human Link. */
+std::set<std::string> PlayerColourKeys() {
+    std::set<std::string> keys;
+    for (const MmPlayerPatch& patch : kMmPlayerPatches) {
+        const MmCosmeticElement* element = FindMmCosmeticElement(patch.id);
+        if (element == nullptr) {
+            continue;
+        }
+        keys.insert(element->mmColor);
+        keys.insert(element->mmChanged);
+        if (element->sohValue != nullptr) {
+            keys.insert(element->sohValue);
+            keys.insert(element->sohChanged);
+        }
+    }
+    return keys;
+}
+
+// The registrar. MM's ShipInit::InitAll (its core bring-up) and a change of any key that decides a Player colour
+// (MM_ShipInit_OnCVarChanged, the menu's choke point) request a pass. Its first run also hooks MM's frame
+// (MM_GameHooks_ExecuteOnGameStateMainStart, which MM's game.c dispatches every MM frame), which pays an owed pass
+// and picks up a colour that a writer changed without calling ShipInit.
+RegisterShipInitFunc sMmPlayerColourRegistrar(
+    []() {
+        static bool sFrameHooked = false;
+        if (!sFrameHooked) {
+            sFrameHooked = MM_GameHooks_RegisterOnGameStateMainStart(OnMmFrame) != 0;
+        }
+        RequestPlayerPatches();
+    },
+    PlayerColourKeys());
+
+} // namespace
+
+extern "C" {
+
 /**
  * W6-COS-B (#1239): the seams of Link's per-form model colours, for the cosmetics-patch-owner-gate row. Passes is how
  * many patch passes reached the patches, Owed whether one is owed to MM's next frame, SetBodySkipped stops each pass
  * once it is counted (the row has no archive to patch), and OnMmFrame is what MM's frame runs.
  */
 int MM_CosmeticPlayerPatches_Passes(void) {
-    return 0;
+    return sPlayerPatchPasses;
 }
 
 int MM_CosmeticPlayerPatches_Owed(void) {
-    return 0;
+    return sPlayerPatchesOwed ? 1 : 0;
 }
 
 void MM_CosmeticPlayerPatches_SetBodySkipped(int skip) {
-    (void)skip;
+    sPlayerPatchBodySkipped = skip != 0;
 }
 
 void MM_CosmeticPlayerPatches_OnMmFrame(void) {
+    OnMmFrame();
 }
 
 /**
