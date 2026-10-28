@@ -495,6 +495,28 @@ bool Combo_StepSharedTier(uint8_t kind, uint16_t units, uint16_t cap);
 int OoT_CreditSharedPickup(const SharedItem* item);
 int MM_CreditSharedPickup(const SharedItem* item);
 
+/*
+ * FILL AT THE WALLET STEP (#1284). A wallet found by either game's pickup step
+ * raises the shared wallet tier there and never reaches either game's give, so
+ * neither game's own fill runs (OoT's under Full Wallets, MM's always). The
+ * pair's ONE fill rule (OoTMM's combo-wide fillWallets flag, authored from OoT's
+ * Full Wallets, RSK_FULL_WALLETS) is frozen at file creation in
+ * gComboCtx.comboFillWallets; both games' step shims ask it here, never OoT's
+ * seed settings, so the pair answers once whichever game is running. When it
+ * is on and the step RAISED the running game's wallet tier, that game fills its
+ * rupees to the new cap through its accumulator after the apply (the apply
+ * zeroes the accumulator); its next harvest folds the fill into the pool,
+ * clamped to the cap. A copy absorbed at the cap fills nothing.
+ */
+
+/** Freeze the pair's fill-wallets rule (#1284): called by the creation event
+ *  beside the combo records with OoT's Full Wallets. */
+void Combo_FreezeFillWalletsAtCreation(bool on);
+
+/** Is the pair's FROZEN fill-wallets rule on (#1284)? False while nothing is
+ *  frozen, and for every world created before the rule was carved. */
+bool Combo_SharedWalletFillRule(void);
+
 /**
  * Read the shared pool's value for `kind` (trackers / tests / the cycle-safe
  * rupee hook). Returns false and leaves `*outValue` untouched when the resource

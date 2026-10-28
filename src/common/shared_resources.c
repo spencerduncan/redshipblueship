@@ -503,6 +503,16 @@ bool Combo_StepSharedTier(uint8_t kind, uint16_t units, uint16_t cap) {
     return true;
 }
 
+void Combo_FreezeFillWalletsAtCreation(bool on) {
+    gComboCtx.comboFillWallets = on ? 1u : 0u;
+}
+
+bool Combo_SharedWalletFillRule(void) {
+    // The frozen byte, never OoT's seed settings: MM asks the same question
+    // while OoT's settings are not its to read, and the answer is the pair's.
+    return Combo_ComboSettingsFrozen() && gComboCtx.comboFillWallets != 0u;
+}
+
 bool Combo_GetSharedResource(uint8_t kind, uint16_t* outValue) {
     if (!IsRealKind(kind) || outValue == NULL) {
         return false;
