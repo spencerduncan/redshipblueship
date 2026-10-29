@@ -180,6 +180,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                         settingsStr += option->GetOptionText(ctx->GetLocationOption(locationOption->GetKey()).Get());
                     } else if (i == RSG_TRICKS) {
                         auto trickOption = static_cast<Rando::TrickOption*>(option);
+                        if (trickOption->GetKey() == RT_HOOKSHOT_LADDERS &&
+                            ctx->GetTrickOption(RT_HOOKSHOT_LADDERS).Get() == 0) {
+                            continue;
+                        }
                         settingsStr += option->GetOptionText(ctx->GetTrickOption(trickOption->GetKey()).Get());
                     } else {
                         settingsStr += option->GetOptionText(ctx->GetOption(option->GetKey()).Get());

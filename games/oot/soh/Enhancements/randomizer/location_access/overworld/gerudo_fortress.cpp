@@ -15,10 +15,10 @@ void RegionTable_Init_GerudoFortress() {
         //Exits
         Entrance(RR_GV_FORTRESS_SIDE, []{return true;}),
         Entrance(RR_TH_1_TORCH_CELL,  []{return true;}),
+        Entrance(RR_GF_TOWER,         []{return (logic->IsChild || logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD)) && logic->CanClimbHighLadder();}),
         Entrance(RR_GF_OUTSIDE_GATE,  []{return logic->Get(LOGIC_GF_GATE_OPEN);}),
         Entrance(RR_GF_NEAR_GROTTO,   []{return logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD);}),
         Entrance(RR_GF_OUTSIDE_GTG,   []{return logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD);}),
-        Entrance(RR_GF_TOWER,         []{return (logic->IsChild || logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD)) && logic->CanClimbHighLadder();}),
         //You can talk to the guards to get yourself thrown in jail, so long as you have a hookshot to actually end up there
         Entrance(RR_GF_JAIL_WINDOW,   []{return logic->CanUse(RG_HOOKSHOT);}),
     });
