@@ -1585,6 +1585,12 @@ if(BUILD_TESTING)
     # and names each bad file in one log line. Display-free and ROM-free.
     # games/oot/soh/soh_presets_folder_test.cpp.
     redship_add_test(NAME PresetsSkipNonJson COMMAND redship --test presets-skip-non-json)
+    # #1298 / #1302: an MM Pause Menu Save commits both halves into the .redsave,
+    # persists and clears pauseSaveEntrance + shipSaveInfo.respawn, and a reload
+    # reconciles OoT's check statuses and MM's Combo Tracker panel. Display-free
+    # and ROM-free. games/oot/soh/oot_check_state_load_test.cpp +
+    # games/mm/2s2h/mm_unified_save_test.cpp.
+    redship_add_test(NAME MMPauseSaveReload COMMAND redship --test mm-pause-save-reload)
     # #658: MM_GOAL's "Majora defeated" conjunct (ADR 0010 D1). Three things in
     # one row, all display-free and ROM-free: the predicate answers from the save
     # at all (it used to fall through CanKillEnemy's default assert), its polarity

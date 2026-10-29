@@ -505,6 +505,7 @@ int OoT_SceneFlagFreeze_RunHeadless(void);
 // half that was loaded, not the .sav's tracker section. Drives OoT's OnLoadFile
 // seam over a real .redsave; games/oot/soh/oot_check_state_load_test.cpp.
 int OoT_CheckStateLoad_RunHeadless(void);
+int MM_PauseSaveReload_RunHeadless(void);
 // #1217: under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item
 // and no vanilla capacity upgrade; games/oot/soh/oot_deku_theater_prize_test.cpp.
 int OoT_DekuTheaterPrize_RunHeadless(void);
@@ -6727,6 +6728,23 @@ TestResult Test_OoTCheckStateLoad(void) {
     return OoT_CheckStateLoad_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1298, #1302: an MM Pause Menu Save commits both halves, persists and clears
+// pauseSaveEntrance + shipSaveInfo.respawn, and reconciles both games' check
+// trackers on reload. Same display-free bring-up as Test_OoTCheckStateLoad.
+TestResult Test_MMPauseSaveReload(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_PauseSaveReload_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // The Deku Theater leader's prize under the randomizer (#1217). The same
 // display-free bring-up as the row above: the row authors a real Rando::Context.
 TestResult Test_OoTDekuTheaterPrize(void) {
@@ -9229,6 +9247,11 @@ const TestDescriptor gTests[] = {
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
       "halves agree on keeps its status (#849, #803)",
       Test_OoTCheckStateLoad },
+    { "mm-pause-save-reload",
+      "An MM Pause Menu Save commits both halves into the .redsave, persists and clears pauseSaveEntrance and "
+      "shipSaveInfo.respawn, and a subsequent reload reconciles OoT's check statuses and MM's Combo Tracker panel "
+      "(#1298, #1302)",
+      Test_MMPauseSaveReload },
     { "oot-deku-theater-prize",
       "Under Shuffle Jabber Nuts the Deku Theater leader gives the seed's item for the Skull Mask and Mask of Truth "
       "checks and no vanilla Deku Stick or Nut capacity upgrade; a vanilla file still gets the upgrade (#1217)",

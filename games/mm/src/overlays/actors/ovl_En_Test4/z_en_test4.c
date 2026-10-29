@@ -58,13 +58,15 @@ void EnTest4_HandleDayNightSwapFromInit(EnTest4* this, PlayState* play) {
 
     if (this->daytimeIndex != THREEDAY_DAYTIME_NIGHT) {
         // Previously day, turning night
-        Message_DisplaySceneTitleCard(play, sNightOfTextIds[CURRENT_DAY - 1]);
+        Message_DisplaySceneTitleCard(
+            play, CURRENT_DAY < 1 || CURRENT_DAY > 3 ? 0x1BB4 : sNightOfTextIds[CURRENT_DAY - 1]);
     } else if ((sCsIdList[this->daytimeIndex] <= CS_ID_NONE) || (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON)) {
         // Previously night, turning day, without a cutscene
         if (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON) {
             Sram_IncrementDay();
             gSaveContext.save.time = CLOCK_TIME(6, 0);
-            Message_DisplaySceneTitleCard(play, sDawnOfTextIds[CURRENT_DAY - 1]);
+            Message_DisplaySceneTitleCard(
+                play, CURRENT_DAY < 1 || CURRENT_DAY > 3 ? 0x1BB2 : sDawnOfTextIds[CURRENT_DAY - 1]);
         } else {
             this->daytimeIndex = THREEDAY_DAYTIME_NIGHT;
             gSaveContext.save.time += CLOCK_TIME_MINUTE;
@@ -119,13 +121,15 @@ void EnTest4_HandleDayNightSwap(EnTest4* this, PlayState* play) {
 
     if (this->daytimeIndex != THREEDAY_DAYTIME_NIGHT) {
         // Previously day, turning night
-        Message_DisplaySceneTitleCard(play, sNightOfTextIds[CURRENT_DAY - 1]);
+        Message_DisplaySceneTitleCard(
+            play, CURRENT_DAY < 1 || CURRENT_DAY > 3 ? 0x1BB4 : sNightOfTextIds[CURRENT_DAY - 1]);
     } else if ((sCsIdList[this->daytimeIndex] <= CS_ID_NONE) || (play->actorCtx.flags & ACTORCTX_FLAG_TELESCOPE_ON)) {
         // Previously night, turning day, without a cutscene
         Sram_IncrementDay();
         gSaveContext.save.time = CLOCK_TIME(6, 0);
         Interface_NewDay(play, CURRENT_DAY);
-        Message_DisplaySceneTitleCard(play, sDawnOfTextIds[CURRENT_DAY - 1]);
+        Message_DisplaySceneTitleCard(
+            play, CURRENT_DAY < 1 || CURRENT_DAY > 3 ? 0x1BB2 : sDawnOfTextIds[CURRENT_DAY - 1]);
         gSceneSeqState = SCENESEQ_MORNING;
         MM_Environment_PlaySceneSequence(play);
         Environment_NewDay(&play->envCtx);

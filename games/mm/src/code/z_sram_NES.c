@@ -1672,8 +1672,10 @@ void MM_Sram_OpenSave(FileSelectState* fileSelect, SramContext* sramCtx) {
         // owlWarpId, this means the players last save was a pause save.
         if (gSaveContext.save.shipSaveInfo.pauseSaveEntrance != -1) {
             gSaveContext.save.entrance = gSaveContext.save.shipSaveInfo.pauseSaveEntrance;
-        } else {
+        } else if (gSaveContext.save.owlWarpId >= 0 && gSaveContext.save.owlWarpId < OWL_WARP_MAX) {
             gSaveContext.save.entrance = sOwlWarpEntrances[(void)0, gSaveContext.save.owlWarpId];
+        } else {
+            gSaveContext.save.entrance = ENTRANCE(SOUTH_CLOCK_TOWN, 0);
         }
         if ((gSaveContext.save.entrance == ENTRANCE(SOUTHERN_SWAMP_POISONED, 10)) &&
             CHECK_WEEKEVENTREG(WEEKEVENTREG_CLEARED_WOODFALL_TEMPLE)) {
@@ -2490,7 +2492,7 @@ void Sram_UpdateWriteToFlashDefault(SramContext* sramCtx) {
             }
         }
     } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
-               SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
+               SECONDS_TO_TIMER(GameInteractor_Should(VB_SAVE_DELAY, true) ? 2 : 0)) {
         // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
         sramCtx->status = 0;
@@ -2530,7 +2532,7 @@ void Sram_UpdateWriteToFlashOwlSave(SramContext* sramCtx) {
             }
         }
     } else if (OSTIME_TO_TIMER(MM_osGetTime() - sramCtx->startWriteOsTime) >=
-               SECONDS_TO_TIMER(CVarGetInteger("gEnhancements.Saving.DisableSaveDelay", 0) ? 0 : 2)) {
+               SECONDS_TO_TIMER(GameInteractor_Should(VB_SAVE_DELAY, true) ? 2 : 0)) {
         // 2S2H [Port] Some tricks require a save delay so we can't just force it to MM_zero
         // Finished status is hardcoded to 2 seconds instead of when the task finishes
         sramCtx->status = 0;

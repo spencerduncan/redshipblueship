@@ -55,6 +55,7 @@
 #include <z64.h>
 
 #include "context.h"
+#include "combo_tracker_view.h"
 #include "game.h"
 #include "save.h"
 
@@ -83,6 +84,9 @@ extern "C" int OoT_Rando_TestTakeQueuedChecks(uint16_t* out, int cap);
 // games/mm/2s2h/Rando/Foreign.cpp (declared in src/common/combo_mm_options_view.h):
 // an MM half that is the given pair's world.
 extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed);
+// games/mm/2s2h/mm_unified_save_test.cpp (#1298, #1302): MM pause-save commit + shadow verification.
+extern "C" int MM_PauseSaveReload_CommitAndVerifyMmHalf(int slot, uint32_t masterSeed);
+extern "C" int MM_PauseSaveReload_VerifyRestoredMmShadow(void);
 
 namespace {
 
@@ -478,5 +482,112 @@ extern "C" int OoT_CheckStateLoad_RunHeadless(void) {
         return 1;
     }
     printf("[TEST] PASS: OoT's check state follows the save half that was loaded\n");
+    return 0;
+}
+
+extern "C" int MM_PauseSaveReload_RunHeadless(void) {
+    printf("[TEST] mm-pause-save-reload: MM pause-save commits both halves, persists entrance/respawn, and reconciles "
+           "both trackers on reload (#1298, #1302)\n");
+    sFailures = 0;
+    if (!AuthorWorld()) {
+        printf("[TEST] FAIL (mm-pause-save-reload): could not create a Rando::Context\n");
+        return 1;
+    }
+    OoT_TrackerAdapter_Register();
+
+    auto runPauseSaveReload = []() -> int {
+        // 1. Initial OoT save in .sav (`sSavBase`), then collect heart piece + bridge rupee
+        //    and cross to MM (`sCommitted` frozen in the OoT shadow).
+        BlankRandoHalf(&sSavBase);
+        ArmControls(&sSavBase);
+        memcpy(&sCommitted, &sSavBase, sizeof(SaveContext));
+        sCommitted.sceneFlags[SCENE_LAKE_HYLIA].collect |= kHeartPieceBit;
+        SetRandoInf(&sCommitted, RAND_INF_KF_BRIDGE_RUPEE);
+
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kSaveDir());
+        Context_InitFrozenStates();
+        Context_ClearAllFrozenStates();
+        ComboContext_Init();
+        mgr.DeleteSave(kSlot);
+        mgr.ResetSlotSessionState();
+        mgr.ArmSlotOnCreate(kSlot);
+        mgr.SetActiveSlot(kSlot);
+
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = kMasterSeed;
+        gComboCtx.sharedRandoSettingsHash = 0x849u;
+
+        static std::vector<uint8_t> sMMInitial(MM_SAVE_CONTEXT_SIZE, 0);
+        std::fill(sMMInitial.begin(), sMMInitial.end(), (uint8_t)0);
+        if (MM_Rando_AuthorPairHalfForTest(sMMInitial.data(), sMMInitial.size(), kMasterSeed) != 1) {
+            OCSL_CHECK(false, "mm-pause-save-reload setup: could not author initial MM half");
+            return 1;
+        }
+        Context_UpdateShadowCopy(GAME_MM, sMMInitial.data(), sMMInitial.size());
+        Context_UpdateShadowCopy(GAME_OOT, &sSavBase, sizeof(SaveContext));
+        gComboCtx.sourceGame = GAME_OOT;
+        if (RsbsSave_Save(kSlot) != 1) {
+            OCSL_CHECK(false, "mm-pause-save-reload setup: initial OoT save failed");
+            return 1;
+        }
+        const uint32_t savGeneration = gComboCtx.commitGeneration;
+
+        // Cross into MM: the crossing freezes sCommitted into the OoT shadow.
+        Context_UpdateShadowCopy(GAME_OOT, &sCommitted, sizeof(SaveContext));
+        gComboCtx.sourceGame = GAME_MM;
+
+        // 2. In MM, collect an MM check, populate respawn[], and perform a Pause Menu Save.
+        if (MM_PauseSaveReload_CommitAndVerifyMmHalf(kSlot, kMasterSeed) != 0) {
+            sFailures++;
+            return 1;
+        }
+
+        // 3. Simulate process restart and reload the slot from OoT file select.
+        ComboContext_Init();
+        Context_ClearAllFrozenStates();
+        mgr.ResetSlotSessionState();
+        mgr.SetActiveSlot(-1);
+
+        Context_SetCurrentGame(GAME_OOT);
+        LoadAsFileSelect(sSavBase, savGeneration, RCSHOW_UNCHECKED, RCSHOW_SCUMMED, RCSHOW_SCUMMED);
+
+        const bool heartApplied = (gSaveContext.sceneFlags[SCENE_LAKE_HYLIA].collect & kHeartPieceBit) != 0;
+        const bool rupeeApplied = HasRandoInf(&gSaveContext, RAND_INF_KF_BRIDGE_RUPEE);
+        OCSL_CHECK(heartApplied && rupeeApplied,
+                   "#1298: reloading after an MM pause-save must load the OoT shadow committed by that pause-save");
+        OCSL_CHECK(Loc(RC_LH_FREESTANDING_POH)->GetCheckStatus() == RCSHOW_SAVED &&
+                       Loc(RC_KF_BRIDGE_RUPEE)->GetCheckStatus() == RCSHOW_SAVED,
+                   "#1298: OoT checks collected before crossing and committed by MM's pause-save must reconcile "
+                   "from RCSHOW_SCUMMED to RCSHOW_SAVED on reload");
+        CheckControls("mm-pause-save-reload");
+
+        // 4. Verify the MM half in the Combo Tracker and after restoring the MM shadow.
+        if (MM_PauseSaveReload_VerifyRestoredMmShadow() != 0) {
+            sFailures++;
+            return 1;
+        }
+        return 0;
+    };
+
+    const int rc = runPauseSaveReload();
+
+    (void)OoT_Rando_TestTakeQueuedChecks(nullptr, 0);
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.DeleteSave(kSlot);
+    mgr.ResetSlotSessionState();
+    mgr.SetActiveSlot(-1);
+    mgr.SetSaveDirectory("Save");
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    Context_SetCurrentGame(GAME_NONE);
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    ReleaseWorld();
+
+    if (rc != 0 || sFailures != 0) {
+        printf("[TEST] FAIL (mm-pause-save-reload): %d failure(s)\n", sFailures);
+        return 1;
+    }
+    printf("[TEST] mm-pause-save-reload: PASS\n");
     return 0;
 }
