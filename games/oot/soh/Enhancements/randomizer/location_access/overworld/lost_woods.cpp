@@ -45,9 +45,9 @@ void RegionTable_Init_LostWoods() {
         LOCATION(RC_LW_BEAN_SPROUT_NEAR_BRIDGE_FAIRY_1, logic->IsChild && logic->CanUse(RG_MAGIC_BEAN) && logic->HasItem(RG_LOST_WOODS_BRIDGE_BEAN_SOUL) && logic->CanUse(RG_SONG_OF_STORMS)),
         LOCATION(RC_LW_BEAN_SPROUT_NEAR_BRIDGE_FAIRY_2, logic->IsChild && logic->CanUse(RG_MAGIC_BEAN) && logic->HasItem(RG_LOST_WOODS_BRIDGE_BEAN_SOUL) && logic->CanUse(RG_SONG_OF_STORMS)),
         LOCATION(RC_LW_BEAN_SPROUT_NEAR_BRIDGE_FAIRY_3, logic->IsChild && logic->CanUse(RG_MAGIC_BEAN) && logic->HasItem(RG_LOST_WOODS_BRIDGE_BEAN_SOUL) && logic->CanUse(RG_SONG_OF_STORMS)),
+        LOCATION(RC_LW_SHORTCUT_STORMS_FAIRY,           logic->CanUse(RG_SONG_OF_STORMS)),
         LOCATION(RC_LW_GOSSIP_STONE_FAIRY,              logic->CallGossipFairyExceptSuns()),
         LOCATION(RC_LW_GOSSIP_STONE_FAIRY_BIG,          logic->CanUse(RG_SONG_OF_STORMS)),
-        LOCATION(RC_LW_SHORTCUT_STORMS_FAIRY,           logic->CanUse(RG_SONG_OF_STORMS)),
         LOCATION(RC_LW_GOSSIP_STONE,                    true),
         LOCATION(RC_LW_GRASS_1,                         logic->CanCutShrubs()),
         LOCATION(RC_LW_GRASS_2,                         logic->CanCutShrubs()),
@@ -60,6 +60,13 @@ void RegionTable_Init_LostWoods() {
         Entrance(RR_ZR_FROM_SHORTCUT,         []{return logic->HasItem(RG_SILVER_SCALE) || logic->CanUse(RG_IRON_BOOTS) || (ctx->GetTrickOption(RT_LOST_WOOD_NAVI_DIVE) && logic->IsChild && logic->HasItem(RG_BRONZE_SCALE) && logic->CanJumpslash());}),
         Entrance(RR_LW_BEYOND_MIDO,           []{return logic->IsChild || logic->CanUse(RG_SARIAS_SONG) || ctx->GetTrickOption(RT_LW_MIDO_BACKFLIP);}),
         Entrance(RR_LW_NEAR_SHORTCUTS_GROTTO, []{return AnyAgeTime([]{return logic->BlastOrSmash();});}),
+        Entrance(RR_LW_UNDER_BRIDGE,          []{return true;}),
+    });
+
+    areaTable[RR_LW_UNDER_BRIDGE] = Region("Lost Woods Under the Bridge", SCENE_LOST_WOODS, {}, {}, {
+        //Exits
+        Entrance(RR_LW_BRIDGE,      []{return logic->CanUse(RG_LONGSHOT);}),
+        Entrance(RR_THE_LOST_WOODS, []{return logic->CanClimbLadder();}),
     });
 
     areaTable[RR_LW_BEYOND_MIDO] = Region("LW Beyond Mido", SCENE_LOST_WOODS, {

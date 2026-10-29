@@ -156,7 +156,7 @@ void RegionTable_Init_DodongosCavern() {
     areaTable[RR_DODONGOS_CAVERN_ARMOS_ROOM] = Region("Dodongos Cavern Armos Room", SCENE_DODONGOS_CAVERN, {}, {}, {
         //Exits
         Entrance(RR_DODONGOS_CAVERN_STAIRS_UPPER,    []{return true;}),
-        Entrance(RR_DODONGOS_CAVERN_BOMB_ROOM_LOWER, []{return logic->IsAdult || (logic->HasItem(RG_POWER_BRACELET) && logic->HasItem(RG_CLIMB)) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS);}),
+        Entrance(RR_DODONGOS_CAVERN_BOMB_ROOM_LOWER, []{return logic->IsAdult || (logic->HasItem(RG_POWER_BRACELET) && logic->HasItem(RG_CLIMB)) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) || logic->CanUse(RG_HOOKSHOT);}),
     });
 
     areaTable[RR_DODONGOS_CAVERN_BOMB_ROOM_LOWER] = Region("Dodongos Cavern Bomb Room Lower", SCENE_DODONGOS_CAVERN, {}, {
@@ -390,7 +390,7 @@ void RegionTable_Init_DodongosCavern() {
 
     areaTable[RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM] = Region("Dodongos Cavern MQ Dodongo Room", SCENE_DODONGOS_CAVERN, {}, {
         //Locations
-        LOCATION(RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST,   (logic->CanKillEnemy(RE_DODONGO) || logic->HasItem(RG_GORONS_BRACELET)) && logic->HasItem(RG_OPEN_CHEST)),
+        LOCATION(RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST,   (logic->CanKillEnemy(RE_DODONGO) || (logic->HasItem(RG_GORONS_BRACELET) && logic->CanClimbLadder())) && logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_DODONGOS_CAVERN_MQ_COMPASS_GRASS_1, logic->CanCutShrubs()),
         LOCATION(RC_DODONGOS_CAVERN_MQ_COMPASS_GRASS_2, logic->CanCutShrubs()),
         LOCATION(RC_DODONGOS_CAVERN_MQ_COMPASS_GRASS_3, logic->CanCutShrubs()),
@@ -425,8 +425,7 @@ void RegionTable_Init_DodongosCavern() {
         LOCATION(RC_DODONGOS_CAVERN_MQ_TORCH_PUZZLE_ROOM_HEART, true),
     }, {
         //Exits
-        //SoH 848106039 reads CanClimbLadder() here, which also accepts RT_HOOKSHOT_LADDERS with the Hookshot; that trick is not ported.
-        Entrance(RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE, []{return (logic->IsAdult || logic->HasItem(RG_POWER_BRACELET)) || logic->HasItem(RG_CLIMB);}),
+        Entrance(RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE, []{return (logic->IsAdult || logic->HasItem(RG_POWER_BRACELET)) || logic->CanClimbLadder();}),
         Entrance(RR_DODONGOS_CAVERN_MQ_LARVAE_ROOM,          []{return logic->HasFireSource();}),
         //you can platform off the blocks to get here without climb
         Entrance(RR_DODONGOS_CAVERN_MQ_BIG_BLOCK_ROOM,       []{return logic->Get(LOGIC_DC_MQ_CLEAR_BIG_BLOCK_WEB);}), //Includes an implied CanPass(RE_BIG_SKULLTULA)

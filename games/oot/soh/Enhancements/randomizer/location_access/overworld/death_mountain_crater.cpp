@@ -39,7 +39,7 @@ void RegionTable_Init_DeathMountainCrater() {
         LOCATION(RC_DMC_DEKU_SCRUB, logic->IsChild && logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
     }, {
         //Exits
-        Entrance(RR_DMC_UPPER_NEARBY, []{return (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT)) && logic->Hearts() >= 3;}),
+        Entrance(RR_DMC_UPPER_NEARBY, []{return logic->CanClimbLadder() && logic->Hearts() >= 3;}),
         Entrance(RR_DMC_LOWER_NEARBY, []{return logic->Hearts() >= 3 && (logic->CanUse(RG_HOVER_BOOTS) || (ctx->GetTrickOption(RT_DMC_BOULDER_JS) && logic->IsAdult && logic->CanUse(RG_MEGATON_HAMMER)) || (ctx->GetTrickOption(RT_DMC_BOULDER_SKIP) && logic->IsAdult));}),
     });
 

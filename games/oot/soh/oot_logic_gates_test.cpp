@@ -86,6 +86,48 @@
  *     needs one key more (1 -> 2, 2 -> 3); without the trick one key still opens
  *     the first.
  *
+ * #1300, RT_HOOKSHOT_LADDERS / CanClimbLadder / CanClimbHighLadder (SoH
+ * 60ec65592, bundle O28, plus the two deferred clauses from 09b0fdbc9 and
+ * 848106039):
+ *  Q. GV waterfall alcove (09b0fdbc9): under RT_HOOKSHOT_LADDERS the Longshot
+ *     without Climb opens it (locking 09b0fdbc9); the Hookshot without Climb
+ *     still must NOT.
+ *  R. Dodongo's Cavern MQ compass chest (60ec65592): behind the pushed block in
+ *     the MQ Dodongo room, reaching the chest without killing the Dodongos
+ *     needs CanClimbLadder (Climb, or Hookshot under RT_HOOKSHOT_LADDERS;
+ *     closed on Hookshot with the trick off).
+ *  S. Bottom of the Well (60ec65592): both the vanilla basement ladder
+ *     (RR_BOTW_B3_OOZE -> RR_BOTW_HIDDEN_POTS) and the MQ basement ladder
+ *     (RR_BOTW_MQ_B3 -> RR_BOTW_MQ_PERIMETER) are CanClimbHighLadder (Climb, or
+ *     Longshot under RT_HOOKSHOT_LADDERS; closed on Longshot with the trick off
+ *     and on short Hookshot with the trick on).
+ *  T. Shadow Temple dock (60ec65592, vanilla): RR_SHADOW_TEMPLE_DOCK ->
+ *     RR_SHADOW_TEMPLE_BEYOND_BOAT requires RT_HOOKSHOT_LADDERS for the
+ *     Hookshot path (closed on Hookshot with the trick off, open with it, and
+ *     open with Goron's Bracelet + Climb).
+ *  U. DMC and Hyrule Field (60ec65592): DMC ladder area -> upper nearby and
+ *     both directions of the Hyrule Field <-> Lake Hylia fence ladder
+ *     (RR_HYRULE_FIELD <-> RR_HF_TO_LAKE_HYLIA) are CanClimbLadder (closed on
+ *     Hookshot with the trick off, open with it).
+ *  V. Lost Woods and SFM (60ec65592): the Lost Woods under-bridge exit
+ *     (RR_LW_UNDER_BRIDGE -> RR_THE_LOST_WOODS) and both SFM maze ladders
+ *     (RR_SACRED_FOREST_MEADOW -> RR_SFM_ABOVE_MAZE and
+ *     RR_SFM_OUTSIDE_FAIRY_GROTTO -> RR_SFM_ABOVE_MAZE) are CanClimbLadder
+ *     (closed on Hookshot with the trick off, open with it).
+ *  W. Gerudo Fortress (60ec65592): RR_GF_OUTSKIRTS -> RR_GF_TOWER is
+ *     CanClimbHighLadder, where LOGIC_GF_GATE_OPEN fires; the wasteland gate
+ *     sidehop skip (RT_GF_WASTELAND_GATE_SIDEHOP_SKIP) opens for a child.
+ *  X. Zora's River (60ec65592): RR_ZORAS_RIVER -> RR_ZR_ATOP_LADDER replaces
+ *     its unconditional Hookshot term with CanClimbLadder (closed on Hookshot
+ *     with the trick off, open with it).
+ *
+ *  Note: the Hookshot terms in 848106039 (dodongos_cavern.cpp:428), ZD island
+ *  (zoras_domain.cpp:49), DC Armos (dodongos_cavern.cpp:159), the BotW corridor
+ *  (bottom_of_the_well.cpp:23) and the KF child branch (kokiri_forest.cpp:75)
+ *  are ported faithfully but cannot change logic for either age because
+ *  Logic::CanUse(RG_HOOKSHOT/RG_LONGSHOT) requires IsAdult (logic.cpp:829-831),
+ *  so they are not lockable. Q2 locks 09b0fdbc9.
+ *
  * Every "must NOT" leg is paired with a "must" leg on the same save plus one
  * thing, so a location that is never reachable (a vacuous probe) fails too.
  * Each probe sets logic->CurrentRegionKey to its region, as ProcessRegion does.
@@ -349,6 +391,9 @@ bool AnyAccess(const Region* region) {
 /** One exit's own lambda, for one age, by day or by night. -1 when the region
  *  has no exit to `to` (the probe would evaluate nothing). */
 int ExitOpen(RandomizerRegion from, RandomizerRegion to, bool adult) {
+    if (from <= RR_NONE || from >= RR_MAX || to <= RR_NONE || to >= RR_MAX) {
+        return -1;
+    }
     for (Rando::Entrance& exit : RegionTable(from)->exits) {
         if (exit.GetConnectedRegionKey() != to) {
             continue;
@@ -743,6 +788,244 @@ void RunShuffleClimbLegs(const std::shared_ptr<Rando::Context>& randoCtx) {
     randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Set(savedHoverBoost);
 }
 
+void GiveZeldasLullaby() {
+    GiveFairyOcarina();
+    Give(RG_ZELDAS_LULLABY);
+}
+
+void GiveGoronsBracelet() {
+    Give(RG_PROGRESSIVE_STRENGTH);
+    Give(RG_PROGRESSIVE_STRENGTH);
+}
+
+// Appended by #1300 right after RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE and
+// RT_GANONS_CASTLE_GOLD_GAUNTLET_SKIP (and RT_GF_WASTELAND_GATE_SIDEHOP_SKIP
+// renames RT_GF_CHILD_SKIP_WASTELAND_GATE in place); guarded against RR_MAX /
+// RT_MAX so the [lock] commit is test-only and compiles on the pre-fix tree.
+constexpr RandomizerRegion kLwUnderBridge =
+    static_cast<RandomizerRegion>(RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE + 1);
+constexpr RandomizerRegion kGfTower = static_cast<RandomizerRegion>(RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE + 2);
+constexpr RandomizerTrick kHookshotLaddersTrick = static_cast<RandomizerTrick>(RT_GANONS_CASTLE_GOLD_GAUNTLET_SKIP + 1);
+constexpr RandomizerTrick kGfWastelandGateSidehopSkip = static_cast<RandomizerTrick>(RT_PASS_GUARDS_WITH_NOTHING + 1);
+static_assert(kLwUnderBridge == RR_LW_UNDER_BRIDGE, "kLwUnderBridge drifted from RR_LW_UNDER_BRIDGE");
+static_assert(kGfTower == RR_GF_TOWER, "kGfTower drifted from RR_GF_TOWER");
+static_assert(kHookshotLaddersTrick == RT_HOOKSHOT_LADDERS, "kHookshotLaddersTrick drifted from RT_HOOKSHOT_LADDERS");
+static_assert(kGfWastelandGateSidehopSkip == RT_GF_WASTELAND_GATE_SIDEHOP_SKIP,
+              "kGfWastelandGateSidehopSkip drifted from RT_GF_WASTELAND_GATE_SIDEHOP_SKIP");
+
+uint8_t GetHookshotLadders(const std::shared_ptr<Rando::Context>& randoCtx) {
+    return kHookshotLaddersTrick < RT_MAX ? randoCtx->GetTrickOption(kHookshotLaddersTrick).Get() : 0;
+}
+
+void SetHookshotLadders(const std::shared_ptr<Rando::Context>& randoCtx, uint8_t val) {
+    if (kHookshotLaddersTrick < RT_MAX) {
+        randoCtx->GetTrickOption(kHookshotLaddersTrick).Set(val);
+    }
+}
+
+void RunHookshotLaddersLegs(const std::shared_ptr<Rando::Context>& randoCtx) {
+    const uint8_t savedShuffleClimb = randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Get();
+    const uint8_t savedShuffleOpenChest = randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Get();
+    const uint8_t savedHookshotLadders = GetHookshotLadders(randoCtx);
+    const uint8_t savedUnintuitive = randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Get();
+    const uint8_t savedGateSkip = randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Get();
+    randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Set(1);
+    randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Set(1);
+    SetHookshotLadders(randoCtx, 0);
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(0);
+    randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Set(0);
+
+    // ---- Q: GV waterfall alcove with RT_HOOKSHOT_LADDERS (SoH 09b0fdbc9) ---
+    SetHookshotLadders(randoCtx, 1);
+    ResetClimbLogic();
+    GiveHookshot(false);
+    ExpectExit("Q1 GV waterfall alcove, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_GV_UPPER_STREAM,
+               RR_GV_WATERFALL_ALCOVE, true, false,
+               "the Hookshot reaches the waterfall alcove though only the Longshot can (#1300)");
+    GiveHookshot(true);
+    ExpectExit("Q2 GV waterfall alcove, adult with Longshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_GV_UPPER_STREAM,
+               RR_GV_WATERFALL_ALCOVE, true, true,
+               "the Longshot with RT_HOOKSHOT_LADDERS does not reach the waterfall alcove (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    // ---- R: Dodongo's Cavern MQ compass chest (SoH 60ec65592) --------------
+    ResetClimbLogic();
+    GiveGoronsBracelet();
+    GiveOpenChest();
+    ExpectAt("R1 DC MQ compass chest, adult with Goron's Bracelet, no weapon, no Climb",
+             RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST, true, false,
+             "pushing the block reaches the MQ compass chest without climbing the ladder (#1300)");
+    GiveHookshot(false);
+    ExpectAt("R2 DC MQ compass chest, adult with Goron's Bracelet and Hookshot, trick off, no Climb",
+             RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST, true, false,
+             "the Hookshot climbs the MQ compass chest ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectAt("R3 DC MQ compass chest, adult with Goron's Bracelet and Hookshot, RT_HOOKSHOT_LADDERS on",
+             RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST, true, true,
+             "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the MQ compass chest ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+    GiveClimb();
+    ExpectAt("R4 DC MQ compass chest, adult with Goron's Bracelet and Climb", RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM,
+             RC_DODONGOS_CAVERN_MQ_COMPASS_CHEST, true, true,
+             "Goron's Bracelet and Climb cannot reach the MQ compass chest");
+
+    // ---- S: Bottom of the Well ladders (SoH 60ec65592) ---------------------
+    ResetClimbLogic();
+    GiveHookshot(true);
+    ExpectExit("S1 BotW B3 ooze to hidden pots, adult with Longshot, trick off, no Climb", RR_BOTW_B3_OOZE,
+               RR_BOTW_HIDDEN_POTS, true, false,
+               "the Longshot climbs the BotW basement high ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    ExpectExit("S2 BotW MQ B3 to MQ perimeter, adult with Longshot, trick off, no Climb", RR_BOTW_MQ_B3,
+               RR_BOTW_MQ_PERIMETER, true, false,
+               "the Longshot climbs the BotW MQ basement high ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    GiveHookshot(false);
+    ExpectExit("S3 BotW B3 ooze to hidden pots, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_BOTW_B3_OOZE,
+               RR_BOTW_HIDDEN_POTS, true, false, "the short Hookshot climbs the BotW basement high ladder (#1300)");
+    GiveHookshot(true);
+    ExpectExit("S4 BotW B3 ooze to hidden pots, adult with Longshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_BOTW_B3_OOZE,
+               RR_BOTW_HIDDEN_POTS, true, true,
+               "the Longshot with RT_HOOKSHOT_LADDERS does not climb the BotW basement high ladder (#1300)");
+    ExpectExit("S5 BotW MQ B3 to MQ perimeter, adult with Longshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_BOTW_MQ_B3,
+               RR_BOTW_MQ_PERIMETER, true, true,
+               "the Longshot with RT_HOOKSHOT_LADDERS does not climb the BotW MQ basement high ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    // ---- T: Shadow Temple boat dock ladder (SoH 60ec65592) -----------------
+    ResetClimbLogic();
+    GiveZeldasLullaby();
+    GiveHookshot(false);
+    ExpectExit("T1 Shadow dock to beyond boat, adult with Lullaby and Hookshot, trick off, no Climb",
+               RR_SHADOW_TEMPLE_DOCK, RR_SHADOW_TEMPLE_BEYOND_BOAT, true, false,
+               "the Hookshot climbs the boat dock ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectExit("T2 Shadow dock to beyond boat, adult with Lullaby and Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               RR_SHADOW_TEMPLE_DOCK, RR_SHADOW_TEMPLE_BEYOND_BOAT, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the boat dock ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+    ResetClimbLogic();
+    GiveZeldasLullaby();
+    GiveGoronsBracelet();
+    GiveClimb();
+    ExpectExit("T3 Shadow dock to beyond boat, adult with Lullaby, Goron's Bracelet and Climb", RR_SHADOW_TEMPLE_DOCK,
+               RR_SHADOW_TEMPLE_BEYOND_BOAT, true, true,
+               "Goron's Bracelet and Climb do not reach the Shadow Temple boat from the dock");
+
+    // ---- U: DMC ladder and Hyrule Field to Lake Hylia fence (SoH 60ec65592)
+    ResetClimbLogic();
+    GiveHookshot(false);
+    ExpectExit("U1 DMC ladder area to upper nearby, adult with Hookshot, trick off, no Climb",
+               RR_DMC_LADDER_AREA_NEARBY, RR_DMC_UPPER_NEARBY, true, false,
+               "the Hookshot climbs the DMC ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    ExpectExit("U2 Hyrule Field to Lake Hylia, adult with Hookshot, trick off, no Climb", RR_HYRULE_FIELD,
+               RR_HF_TO_LAKE_HYLIA, true, false,
+               "the Hookshot climbs the Lake Hylia fence ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    ExpectExit(
+        "U3 HF to Lake Hylia back to Hyrule Field, adult with Hookshot, trick off, no Climb", RR_HF_TO_LAKE_HYLIA,
+        RR_HYRULE_FIELD, true, false,
+        "the Hookshot climbs the Lake Hylia fence ladder from the lake side with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectExit("U4 DMC ladder area to upper nearby, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               RR_DMC_LADDER_AREA_NEARBY, RR_DMC_UPPER_NEARBY, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the DMC ladder (#1300)");
+    ExpectExit("U5 Hyrule Field to Lake Hylia, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_HYRULE_FIELD,
+               RR_HF_TO_LAKE_HYLIA, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the Lake Hylia fence ladder (#1300)");
+    ExpectExit(
+        "U6 HF to Lake Hylia back to Hyrule Field, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+        RR_HF_TO_LAKE_HYLIA, RR_HYRULE_FIELD, true, true,
+        "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the Lake Hylia fence ladder from the lake side (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    // ---- V: Lost Woods under bridge and Sacred Forest Meadow (SoH 60ec65592)
+    ResetClimbLogic();
+    ExpectExit("V1 LW Under Bridge to Lost Woods, child with nothing", kLwUnderBridge, RR_THE_LOST_WOODS, false, false,
+               "a child climbs from under the Lost Woods bridge without Climb");
+    GiveHookshot(false);
+    ExpectExit("V2 LW Under Bridge to Lost Woods, adult with Hookshot, trick off, no Climb", kLwUnderBridge,
+               RR_THE_LOST_WOODS, true, false,
+               "the Hookshot climbs the Lost Woods under-bridge ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectExit("V3 LW Under Bridge to Lost Woods, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               kLwUnderBridge, RR_THE_LOST_WOODS, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the Lost Woods under-bridge ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+    GiveClimb();
+    ExpectExit("V4 LW Under Bridge to Lost Woods, child with Climb", kLwUnderBridge, RR_THE_LOST_WOODS, false, true,
+               "Climb does not reach Lost Woods from under the bridge (#1300)");
+
+    ResetClimbLogic();
+    GiveHookshot(false);
+    ExpectExit("V5 SFM to Above Maze, adult with Hookshot, trick off, no Climb", RR_SACRED_FOREST_MEADOW,
+               RR_SFM_ABOVE_MAZE, true, false,
+               "the Hookshot climbs the SFM maze ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    ExpectExit("V6 SFM Outside Fairy Grotto to Above Maze, adult with Hookshot, trick off, no Climb",
+               RR_SFM_OUTSIDE_FAIRY_GROTTO, RR_SFM_ABOVE_MAZE, true, false,
+               "the Hookshot climbs the SFM fairy grotto ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectExit("V7 SFM to Above Maze, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_SACRED_FOREST_MEADOW,
+               RR_SFM_ABOVE_MAZE, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the SFM maze ladder (#1300)");
+    ExpectExit("V8 SFM Outside Fairy Grotto to Above Maze, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               RR_SFM_OUTSIDE_FAIRY_GROTTO, RR_SFM_ABOVE_MAZE, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the SFM fairy grotto ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    // ---- W: Gerudo Fortress tower and wasteland gate skip (SoH 60ec65592) --
+    ResetClimbLogic();
+    Give(RG_GERUDO_MEMBERSHIP_CARD);
+    GiveHookshot(true);
+    ExpectExit("W1 GF Outskirts to Tower, adult with Card and Longshot, trick off, no Climb", RR_GF_OUTSKIRTS, kGfTower,
+               true, false, "the Longshot climbs the GF tower high ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    GiveHookshot(false);
+    ExpectExit("W2 GF Outskirts to Tower, adult with Card and Hookshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               RR_GF_OUTSKIRTS, kGfTower, true, false, "the short Hookshot climbs the GF tower high ladder (#1300)");
+    GiveHookshot(true);
+    ExpectExit("W3 GF Outskirts to Tower, adult with Card and Longshot, RT_HOOKSHOT_LADDERS on, no Climb",
+               RR_GF_OUTSKIRTS, kGfTower, true, true,
+               "the Longshot with RT_HOOKSHOT_LADDERS does not climb the GF tower high ladder (#1300)");
+    logic->SetRandoInf(RAND_INF_CAN_SPEAK_GERUDO, true);
+    SetHookshotLadders(randoCtx, 0);
+    ExpectSearch("W4 GF Outskirts to Outside Gate, adult with Longshot, Card and Speak, trick off, no Climb",
+                 RR_GF_OUTSKIRTS, true, RR_GF_OUTSIDE_GATE, RC_UNKNOWN_CHECK, false,
+                 "LOGIC_GF_GATE_OPEN fires without climbing the GF tower (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectSearch("W5 GF Outskirts to Outside Gate, adult with Longshot, Card and Speak, RT_HOOKSHOT_LADDERS on",
+                 RR_GF_OUTSKIRTS, true, RR_GF_OUTSIDE_GATE, RC_UNKNOWN_CHECK, true,
+                 "an adult on the GF tower with Card and Speak does not open the wasteland gate (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    ResetClimbLogic();
+    GiveClimb();
+    ExpectSearch("W6 GF Outskirts to Outside Gate, child with Climb, gate skip off", RR_GF_OUTSKIRTS, false,
+                 RR_GF_OUTSIDE_GATE, RC_UNKNOWN_CHECK, false,
+                 "a child passes the wasteland gate without the sidehop skip trick");
+    randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Set(1);
+    ExpectSearch("W7 GF Outskirts to Outside Gate, child with Climb, RT_GF_WASTELAND_GATE_SIDEHOP_SKIP on",
+                 RR_GF_OUTSKIRTS, false, RR_GF_OUTSIDE_GATE, RC_UNKNOWN_CHECK, true,
+                 "the wasteland gate sidehop skip stays closed for a child (IsAdult && IsChild typo, #1300)");
+    randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Set(0);
+
+    // ---- X: Zora's River ladder (SoH 60ec65592) ----------------------------
+    ResetClimbLogic();
+    GiveHookshot(false);
+    ExpectExit("X1 Zora's River to Atop Ladder, adult with Hookshot, trick off, no Climb", RR_ZORAS_RIVER,
+               RR_ZR_ATOP_LADDER, true, false,
+               "the Hookshot climbs the Zora's River ladder with RT_HOOKSHOT_LADDERS off (#1300)");
+    SetHookshotLadders(randoCtx, 1);
+    ExpectExit("X2 Zora's River to Atop Ladder, adult with Hookshot, RT_HOOKSHOT_LADDERS on, no Climb", RR_ZORAS_RIVER,
+               RR_ZR_ATOP_LADDER, true, true,
+               "the Hookshot with RT_HOOKSHOT_LADDERS does not climb the Zora's River ladder (#1300)");
+    SetHookshotLadders(randoCtx, 0);
+
+    randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Set(savedShuffleClimb);
+    randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Set(savedShuffleOpenChest);
+    SetHookshotLadders(randoCtx, savedHookshotLadders);
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(savedUnintuitive);
+    randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Set(savedGateSkip);
+}
+
 } // namespace
 
 extern "C" int OoT_LogicGates_RunHeadless(void) {
@@ -899,6 +1182,8 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
 
     // ---- F..P: the Shuffle Climb ladders (#1277, SoH bundle O5) -------------
     RunShuffleClimbLegs(randoCtx);
+    // ---- Q..X: Hookshot Ladders and ladder cleanups (#1300, SoH bundle O28) -
+    RunHookshotLaddersLegs(randoCtx);
     // ---- restore -------------------------------------------------------------
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(savedLogicRules);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(savedShuffleSpeak);

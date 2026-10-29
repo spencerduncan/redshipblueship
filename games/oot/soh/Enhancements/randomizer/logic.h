@@ -100,6 +100,8 @@ class Logic {
     bool TakeDamage();
     bool CanOpenBombGrotto();
     bool CanOpenStormsGrotto();
+    bool CanClimbLadder();
+    bool CanClimbHighLadder();
     bool CanGetNightTimeGS();
     bool CanBreakUpperBeehives();
     bool CanBreakLowerBeehives();

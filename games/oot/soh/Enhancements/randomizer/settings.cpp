@@ -1422,6 +1422,12 @@ void Settings::CreateOptions() {
               "after recoil. Can be combined with \"Simple damage boosts\" for greater uses.");
     OPT_TRICK(RT_BOMBCHU_BEEHIVES, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Bombchu Beehives",
               "Allows exploding beehives with Bombchus.");
+    OPT_TRICK(RT_HOOKSHOT_LADDERS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Hookshot Ladders",
+              "You can skip climb for hookshottable ladders can be skipped by hookshotting the top of the ladder from "
+              "the correct distance and angle.\n"
+              "This is more difficult for some ladders than others, and a few are not possible.\n"
+              "Hookshotting climbable walls in the same way is not a trick, as it is trivial to get an angle that "
+              "correctly ledge grabs.");
     OPT_TRICK(RT_BLUE_FIRE_MUD_WALLS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Blue Fire Beyond Red Ice",
               "Use Blue Fire to break mud walls, detonate bomb flowers, and break floor to King Dodongo.\nDoes not "
               "apply to MQ Dead Hand bomb flowers.\nUsing blue fire on bombflower to stop rolling goron also requires "
@@ -1627,12 +1633,15 @@ void Settings::CreateOptions() {
               "Sneak Past Moving Gerudo Guards with No Items",
               "The logic normally guarantees Bow or Hookshot to stun them from a distance,"
               "but every moving guard can be passed with basic movement and AI manipulation");
-    OPT_TRICK(RT_GF_CHILD_SKIP_WASTELAND_GATE, RCQUEST_BOTH, RA_GERUDO_FORTRESS, { Tricks::Tag::NOVICE },
-              "Gerudo\'s Fortress Skip Wasteland Gate as Child",
-              "As child a sidehop out of bounds off the tower can be used to get past the gate.");
+    OPT_TRICK(RT_GF_WASTELAND_GATE_SIDEHOP_SKIP, RCQUEST_BOTH, RA_GERUDO_FORTRESS, { Tricks::Tag::NOVICE },
+              "Gerudo\'s Fortress Gate Skip with Sidehop",
+              "You can sidehop out of bounds from the tower, then sidehop again on the other side of the gate.\n\n"
+              "This is easiest and most useful for Child, but Adult can also do this to skip the Gerudo Jabber Nut.");
     OPT_TRICK(RT_GF_ADULT_SKIP_WASTELAND_GATE, RCQUEST_BOTH, RA_GERUDO_FORTRESS, { Tricks::Tag::INTERMEDIATE },
               "Gerudo\'s Fortress Skip Wasteland Gate as Adult",
-              "As adult a precise jumpslash out of bounds with hoverboots can be used to get past the gate.");
+              "As adult a precise jumpslash out of bounds with hoverboots from above the jail can be used to get past "
+              "the gate.\n\n"
+              "This can also be used to reach the tower and lower the gate for child without climb.");
     OPT_TRICK(RT_GF_WARRIOR_WITH_DIFFICULT_WEAPON, RCQUEST_BOTH, RA_GERUDO_FORTRESS, { Tricks::Tag::NOVICE },
               "Gerudo\'s Fortress Warriors with Difficult Weapons",
               "Warriors can be defeated with Slingshot or Bombchus.");
