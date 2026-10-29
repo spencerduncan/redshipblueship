@@ -729,7 +729,7 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
     { "P2 infinite sword glitch", RSBS_CVAR_MM_RESTORATIONS_TATL_ISG, "gCheats.EasyISG",
       "Taxonomy conflict: OoT treats ISG as a cheat to grant, MM treats restoring Navi-ISG via Tatl as "
       "authenticity, and the gate differs (OoT's is an unconditional passive grant, MM's restores a behaviour the "
-      "N64 game had). Ruled (ADR 0004): the keys stay distinct, and MM's own row, \"Tatl ISG (restoration)\", is "
+      "N64 game had). Ruled (ADR 0004): the keys stay distinct, and MM's own row, \"Tatl ISG (Restoration)\", is "
       "hosted on Enhancements > Fixes > Glitch Restorations (W6-FIXES)." },
     { "P3 camera axis decomposition", "gEnhancements.Camera.FirstPerson.InvertX",
       "gSettings.Controls.InvertAimingXAxis",
