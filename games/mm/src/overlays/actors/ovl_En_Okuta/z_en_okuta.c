@@ -1076,8 +1076,15 @@ static Vec3f sEffectsBodyPartOffsets[3] = {
 
 void EnOkuta_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     EnOkuta* this = (EnOkuta*)thisx;
-    s32 bodyPartIndex = sLimbToBodyParts[limbIndex];
+    s32 bodyPartIndex;
     s32 i;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if ((limbIndex < 0) || (limbIndex >= (s32)ARRAY_COUNT(sLimbToBodyParts))) {
+        return;
+    }
+#endif
+    bodyPartIndex = sLimbToBodyParts[limbIndex];
 
     if (bodyPartIndex != BODYPART_NONE) {
         if (bodyPartIndex == EN_OKUTA_BODYPART_SNOUT) {

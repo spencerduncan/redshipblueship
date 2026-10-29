@@ -1637,6 +1637,11 @@ void MM_SkelAnime_Init(PlayState* play, SkelAnime* skelAnime, SkeletonHeader* sk
         skelAnime->jointTable = MM_ZeldaArena_Malloc(sizeof(*skelAnime->jointTable) * skelAnime->limbCount);
         skelAnime->morphTable = MM_ZeldaArena_Malloc(sizeof(*skelAnime->morphTable) * skelAnime->limbCount);
     } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if ((limbCount > 0) && (skelAnime->limbCount > limbCount)) {
+            skelAnime->limbCount = limbCount;
+        }
+#endif
         skelAnime->jointTable = jointTable;
         skelAnime->morphTable = morphTable;
     }
@@ -1666,6 +1671,11 @@ void MM_SkelAnime_InitFlex(PlayState* play, SkelAnime* skelAnime, FlexSkeletonHe
         skelAnime->jointTable = MM_ZeldaArena_Malloc(sizeof(*skelAnime->jointTable) * skelAnime->limbCount);
         skelAnime->morphTable = MM_ZeldaArena_Malloc(sizeof(*skelAnime->morphTable) * skelAnime->limbCount);
     } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if ((limbCount > 0) && (skelAnime->limbCount > limbCount)) {
+            skelAnime->limbCount = limbCount;
+        }
+#endif
         skelAnime->jointTable = jointTable;
         skelAnime->morphTable = morphTable;
     }
