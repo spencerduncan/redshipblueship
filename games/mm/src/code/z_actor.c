@@ -33,6 +33,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include <stdio.h>
 // Lane C1 (#392): MM-side hook dispatch. The unqualified
 // GameInteractor_Execute* calls in this file bind OoT's extern "C" wrappers,
 // which (correctly, #367) no-op while MM is the active game — and OoT's
@@ -50,6 +51,17 @@ void MM_GameHooks_ExecuteOnActorUpdate(Actor* actor);
 // macro rebind in 2s2h/GameInteractor/GameInteractor.h (#438), which this file
 // already includes. Declaring them here too would be harmless but misleading —
 // the rebind, not a hand-written twin call, is what routes them.
+
+// (#1308) Actor overlayEntry validation, delete guard, and per-actor canary.
+bool MM_Actor_OverlayEntryIsValid(const Actor* actor);
+ActorOverlay* MM_Actor_ResolveValidOverlayEntry(Actor* actor, PlayState* play, const char* site);
+s32 MM_Actor_ScanListsForOverlayEntryCorruption(PlayState* play, ActorContext* actorCtx, const Actor* culprit,
+                                                const char* phase);
+void MM_ActorOverlayGuard_ResetForTest(void);
+s32 MM_ActorOverlayGuard_GetHitCountForTest(void);
+s16 MM_ActorOverlayGuard_GetLastCulpritIdForTest(void);
+s16 MM_ActorOverlayGuard_GetLastVictimIdForTest(void);
+u32 MM_ActorOverlayGuard_GetLastBadLowDwordForTest(void);
 #endif
 
 // bss
@@ -1342,6 +1354,9 @@ void MM_Actor_Init(Actor* actor, PlayState* play) {
             actor->init(actor, play);
             actor->init = NULL;
             GameInteractor_ExecuteOnActorInit(actor);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            MM_Actor_ScanListsForOverlayEntryCorruption(play, &play->actorCtx, actor, "init");
+#endif
         } else {
             actor->init = NULL;
             MM_Actor_Kill(actor);
@@ -1354,6 +1369,11 @@ void MM_Actor_Destroy(Actor* actor, PlayState* play) {
         if (actor->destroy != NULL) {
             actor->destroy(actor, play);
             actor->destroy = NULL;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            if (play != NULL) {
+                MM_Actor_ScanListsForOverlayEntryCorruption(play, &play->actorCtx, actor, "destroy");
+            }
+#endif
         }
     }
 }
@@ -2773,6 +2793,9 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
                 actor->init(actor, play);
                 actor->init = NULL;
                 GameInteractor_ExecuteOnActorInit(actor);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                MM_Actor_ScanListsForOverlayEntryCorruption(play, &play->actorCtx, actor, "init");
+#endif
             } else {
                 actor->init = NULL;
                 MM_Actor_Kill(actor);
@@ -2833,6 +2856,9 @@ Actor* Actor_UpdateActor(UpdateActor_Params* params) {
 #endif
                 }
                 DynaPoly_UnsetAllInteractFlags(play, &play->colCtx.dyna, actor);
+#ifdef RSBS_SINGLE_EXECUTABLE
+                MM_Actor_ScanListsForOverlayEntryCorruption(play, &play->actorCtx, actor, "update");
+#endif
             }
 
             MM_CollisionCheck_ResetDamage(&actor->colChkInfo);
@@ -2886,6 +2912,10 @@ void MM_Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
     params.player = player;
     params.play = play;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "UpdateAll:pre");
+#endif
+
     if (play->soaringCsOrSoTCsPlaying) {
         params.updateActorFlagsMask = ACTOR_FLAG_UPDATE_DURING_SOARING_AND_SOT_CS;
     } else {
@@ -2894,6 +2924,9 @@ void MM_Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
     }
 
     Actor_SpawnSetupActors(play, actorCtx);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "SpawnSetupActors");
+#endif
 
     if (actorCtx->unk2 != 0) {
         actorCtx->unk2--;
@@ -2924,6 +2957,9 @@ void MM_Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
 
         if (category == ACTORCAT_BG) {
             DynaPoly_UpdateContext(play, &play->colCtx.dyna);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "DynaPoly_UpdateContext");
+#endif
         }
     }
 
@@ -2972,6 +3008,9 @@ void MM_Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
     MM_TitleCard_Update(&play->state, &actorCtx->titleCtx);
     Actor_UpdatePlayerImpact(play);
     MM_DynaPoly_UpdateBgActorTransforms(play, &play->colCtx.dyna);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "UpdateAll:post");
+#endif
 }
 
 // 2S2H [Port] Extern these for use below in interpolation checks
@@ -3062,6 +3101,10 @@ void MM_Actor_Draw(PlayState* play, Actor* actor) {
         actor->shape.shadowDraw(actor, light, play);
     }
     actor->isDrawn = true;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, &play->actorCtx, actor, "draw");
+#endif
 
     CLOSE_DISPS(play->state.gfxCtx);
     FrameInterpolation_RecordCloseChild();
@@ -3435,6 +3478,10 @@ void Actor_DrawAll(PlayState* play, ActorContext* actorCtx) {
     s32 drawActorFlagsMask;
     s32 category;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "DrawAll:pre");
+#endif
+
     if (play->soaringCsOrSoTCsPlaying) {
         drawActorFlagsMask = ACTOR_FLAG_UPDATE_DURING_SOARING_AND_SOT_CS;
     } else {
@@ -3567,6 +3614,10 @@ void Actor_KillAllWithMissingObject(PlayState* play, ActorContext* actorCtx) {
 void func_800BA798(PlayState* play, ActorContext* actorCtx) {
     Actor* actor;
     s32 category;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_Actor_ScanListsForOverlayEntryCorruption(play, actorCtx, NULL, "RoomChange:pre");
+#endif
 
     for (category = 0; category < ACTORCAT_MAX; category++) {
         actor = actorCtx->actorLists[category].first;
@@ -3780,6 +3831,158 @@ s32 MM_ActorOverlayTable_RetireAbandonedClients(void) {
         retired++;
     }
     return retired;
+}
+
+static s32 sOverlayEntryGuardHitCount = 0;
+static s16 sLastCorruptCulpritId = -1;
+static s16 sLastCorruptVictimId = -1;
+static u32 sLastCorruptBadLowDword = 0;
+
+void MM_ActorOverlayGuard_ResetForTest(void) {
+    sOverlayEntryGuardHitCount = 0;
+    sLastCorruptCulpritId = -1;
+    sLastCorruptVictimId = -1;
+    sLastCorruptBadLowDword = 0;
+}
+
+s32 MM_ActorOverlayGuard_GetHitCountForTest(void) {
+    return sOverlayEntryGuardHitCount;
+}
+
+s16 MM_ActorOverlayGuard_GetLastCulpritIdForTest(void) {
+    return sLastCorruptCulpritId;
+}
+
+s16 MM_ActorOverlayGuard_GetLastVictimIdForTest(void) {
+    return sLastCorruptVictimId;
+}
+
+u32 MM_ActorOverlayGuard_GetLastBadLowDwordForTest(void) {
+    return sLastCorruptBadLowDword;
+}
+
+bool MM_Actor_OverlayEntryIsValid(const Actor* actor) {
+    uintptr_t entryAddr;
+    uintptr_t tableStart;
+    uintptr_t tableEnd;
+
+    if (actor == NULL) {
+        return false;
+    }
+    if ((actor->id < 0) || (actor->id >= (s16)ARRAY_COUNT(gActorOverlayTable))) {
+        return false;
+    }
+    if (actor->overlayEntry == NULL) {
+        return false;
+    }
+
+    entryAddr = (uintptr_t)actor->overlayEntry;
+    tableStart = (uintptr_t)&gActorOverlayTable[0];
+    tableEnd = (uintptr_t)&gActorOverlayTable[ARRAY_COUNT(gActorOverlayTable)];
+    if ((entryAddr < tableStart) || (entryAddr >= tableEnd)) {
+        return false;
+    }
+    if (((entryAddr - tableStart) % sizeof(ActorOverlay)) != 0) {
+        return false;
+    }
+    return actor->overlayEntry == &gActorOverlayTable[actor->id];
+}
+
+ActorOverlay* MM_Actor_ResolveValidOverlayEntry(Actor* actor, PlayState* play, const char* site) {
+    ActorOverlay* expected = NULL;
+    u32 lowDword;
+    f32 lowFloat = 0.0f;
+
+    if (actor == NULL) {
+        return NULL;
+    }
+    if (MM_Actor_OverlayEntryIsValid(actor)) {
+        return actor->overlayEntry;
+    }
+
+    if ((actor->id >= 0) && (actor->id < (s16)ARRAY_COUNT(gActorOverlayTable))) {
+        expected = &gActorOverlayTable[actor->id];
+    }
+
+    lowDword = (u32)((uintptr_t)actor->overlayEntry & 0xFFFFFFFFu);
+    memcpy(&lowFloat, &lowDword, sizeof(lowFloat));
+
+    sOverlayEntryGuardHitCount++;
+    sLastCorruptVictimId = actor->id;
+    sLastCorruptBadLowDword = lowDword;
+
+    fprintf(stderr,
+            "[MM][ActorOverlayGuard] CORRUPT actor->overlayEntry at %s: actor=%p id=%d category=%u room=%d "
+            "badOverlayEntry=%p (low32=0x%08X as_f32=%.6g) expected=%p expectedNumLoaded=%d "
+            "sceneId=%d curRoom=%d prevRoom=%d\n",
+            (site != NULL) ? site : "unknown", (const void*)actor, (int)actor->id, (unsigned)actor->category,
+            (int)actor->room, (const void*)actor->overlayEntry, (unsigned)lowDword, (double)lowFloat,
+            (const void*)expected, (expected != NULL) ? (int)expected->numLoaded : -1,
+            (play != NULL) ? (int)play->sceneId : -1, (play != NULL) ? (int)play->roomCtx.curRoom.num : -1,
+            (play != NULL) ? (int)play->roomCtx.prevRoom.num : -1);
+    fflush(stderr);
+
+    actor->overlayEntry = expected;
+    if ((expected != NULL) && (expected->numLoaded > 0)) {
+        return expected;
+    }
+    return NULL;
+}
+
+s32 MM_Actor_ScanListsForOverlayEntryCorruption(PlayState* play, ActorContext* actorCtx, const Actor* culprit,
+                                                const char* phase) {
+    s32 repaired = 0;
+    s32 category;
+
+    if (actorCtx == NULL) {
+        if (play != NULL) {
+            actorCtx = &play->actorCtx;
+        } else {
+            return 0;
+        }
+    }
+
+    for (category = 0; category < ACTORCAT_MAX; category++) {
+        Actor* cur = actorCtx->actorLists[category].first;
+
+        while (cur != NULL) {
+            if (!MM_Actor_OverlayEntryIsValid(cur)) {
+                ActorOverlay* expected = NULL;
+                u32 lowDword = (u32)((uintptr_t)cur->overlayEntry & 0xFFFFFFFFu);
+                f32 lowFloat = 0.0f;
+
+                memcpy(&lowFloat, &lowDword, sizeof(lowFloat));
+                if ((cur->id >= 0) && (cur->id < (s16)ARRAY_COUNT(gActorOverlayTable))) {
+                    expected = &gActorOverlayTable[cur->id];
+                }
+
+                sOverlayEntryGuardHitCount++;
+                sLastCorruptCulpritId = (culprit != NULL) ? culprit->id : -1;
+                sLastCorruptVictimId = cur->id;
+                sLastCorruptBadLowDword = lowDword;
+
+                fprintf(stderr,
+                        "[MM][ActorOverlayCanary] CORRUPT actor->overlayEntry after %s (culprit=%p id=%d cat=%u "
+                        "room=%d): victim=%p id=%d cat=%u room=%d badOverlayEntry=%p (low32=0x%08X as_f32=%.6g) "
+                        "expected=%p sceneId=%d curRoom=%d prevRoom=%d\n",
+                        (phase != NULL) ? phase : "unknown", (const void*)culprit,
+                        (culprit != NULL) ? (int)culprit->id : -1,
+                        (culprit != NULL) ? (unsigned)culprit->category : 0u,
+                        (culprit != NULL) ? (int)culprit->room : -1, (const void*)cur, (int)cur->id,
+                        (unsigned)cur->category, (int)cur->room, (const void*)cur->overlayEntry, (unsigned)lowDword,
+                        (double)lowFloat, (const void*)expected, (play != NULL) ? (int)play->sceneId : -1,
+                        (play != NULL) ? (int)play->roomCtx.curRoom.num : -1,
+                        (play != NULL) ? (int)play->roomCtx.prevRoom.num : -1);
+                fflush(stderr);
+
+                cur->overlayEntry = expected;
+                repaired++;
+            }
+            cur = cur->next;
+        }
+    }
+
+    return repaired;
 }
 #endif
 
@@ -4009,7 +4212,11 @@ Actor* MM_Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play) {
     s32 pad;
     Player* player = GET_PLAYER(play);
     Actor* newHead;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    ActorOverlay* overlayEntry = MM_Actor_ResolveValidOverlayEntry(actor, play, "Actor_Delete");
+#else
     ActorOverlay* overlayEntry = actor->overlayEntry;
+#endif
 
     // Execute before actor memory is freed
     GameInteractor_ExecuteOnActorDestroy(actor);
@@ -4046,7 +4253,11 @@ Actor* MM_Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play) {
     // but we want to simulate them being unloaded to execute our actor reset funcs
     // for static variable cleanup
     // if (overlayEntry->vramStart != NULL) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if ((overlayEntry != NULL) && (overlayEntry->numLoaded > 0)) {
+#else
     if (true) {
+#endif
         // #endregion
         overlayEntry->numLoaded--;
         MM_Actor_FreeOverlay(overlayEntry);

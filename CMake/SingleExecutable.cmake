@@ -2927,6 +2927,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #1308: MM_Actor_Delete and the per-actor update/draw canary validate
+    # actor->overlayEntry against &gActorOverlayTable[actor->id] before touching
+    # overlayEntry->numLoaded, repairing float-corrupted pointers (0x456EE46C)
+    # and logging the culprit and victim actor IDs.
+    redship_add_test(NAME MMActorOverlayEntryGuard COMMAND redship --test mm-actor-overlay-entry-guard)
     # #664: an F10 from either game's game-over screen revives the departing bar
     # to that game's continue value -- or, mid fairy revive, to the spent fairy's
     # refill -- before the freeze (OoT_Combo_ReviveDeadHealthForFreeze and MM's
