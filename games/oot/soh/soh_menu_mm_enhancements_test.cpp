@@ -97,10 +97,16 @@
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#include <algorithm>
+#include <cctype>
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -272,11 +278,65 @@ std::string SohDisabledShape(const char* reason) {
 }
 
 // ---- Leg 9 (#1233): one hosted-row registry entry against a built menu -------
+/** The visible label: no "##id" suffix, no printf tail, no marker (soh_ui_snapshot.cpp R4). */
+std::string HostedVisibleLabel(const std::string& name) {
+    std::string s = name;
+    const std::size_t hid = s.find("##");
+    if (hid != std::string::npos) {
+        s = s.substr(0, hid);
+    }
+    const std::string marker = std::string(SohGui::SohMenu::SharedIntentMarker()) + " ";
+    if (s.rfind(marker, 0) == 0) {
+        s = s.substr(marker.size());
+    }
+    const std::size_t pct = s.find('%');
+    if (pct != std::string::npos) {
+        s = s.substr(0, pct);
+    }
+    while (!s.empty() && (s.back() == ' ' || s.back() == ':')) {
+        s.pop_back();
+    }
+    return s;
+}
+
+/** R4 Title Case over a visible label, parenthesised words included (#1276). */
+bool IsHostedTitleCase(const std::string& label) {
+    static const std::set<std::string> kSmall = { "a",    "an", "and", "as", "at",  "by", "for", "from", "in",
+                                                  "into", "of", "on",  "or", "the", "to", "vs",  "with" };
+    std::istringstream in(label);
+    std::string word;
+    bool first = true;
+    while (in >> word) {
+        std::string bare;
+        for (char ch : word) {
+            if (std::isalpha((unsigned char)ch)) {
+                bare += ch;
+            }
+        }
+        if (bare.empty()) {
+            first = false;
+            continue;
+        }
+        std::string lower = bare;
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) { return std::tolower(ch); });
+        if (!first && kSmall.contains(lower)) {
+            first = false;
+            continue;
+        }
+        const std::size_t alpha = word.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+        if (alpha != std::string::npos && std::islower((unsigned char)word[alpha])) {
+            return false;
+        }
+        first = false;
+    }
+    return true;
+}
+
 /**
  * Where @p h says its row is, is it there? On its header and sidebar, under its section (the nearest SEPARATOR_TEXT
- * above it in its column, "" when none), and bound to its key (the row's .CVar) or to its accessor (no CVar at all).
- * Returns "" when it is, else the reason. Shared by the registry walk and its control, so the control exercises the
- * very check the walk relies on.
+ * above it in its column, "" when none), Title Case (R4, #1276), and bound to its key (the row's .CVar) or to its
+ * accessor (no CVar at all). Returns "" when it is, else the reason. Shared by the registry walk and its control, so
+ * the control exercises the very check the walk relies on.
  */
 std::string HostedRowVerdict(std::unordered_map<std::string, MainMenuEntry>& entries, const SohGui::HostedMmRow& h) {
     const std::string where = h.header + " > " + h.sidebar;
@@ -298,6 +358,9 @@ std::string HostedRowVerdict(std::unordered_map<std::string, MainMenuEntry>& ent
                 return "\"" + h.name + "\" on " + where + " sits under \"" + section + "\", registered under \"" +
                        h.section + "\"";
             }
+            if (!IsHostedTitleCase(HostedVisibleLabel(row.name))) {
+                return "\"" + h.name + "\" on " + where + " is not Title Case (R4)";
+            }
             if (h.key != nullptr) {
                 if (row.cVar == nullptr || std::string(row.cVar) != h.key) {
                     return "\"" + h.name + "\" on " + where + " is bound to \"" +
@@ -317,6 +380,37 @@ std::string HostedRowVerdict(std::unordered_map<std::string, MainMenuEntry>& ent
         }
     }
     return "no row named \"" + h.name + "\" on " + where;
+}
+
+/**
+ * #1276: in soh_ui_snapshot.cpp, window/Audio Editor captures both "" (Audio Options) and "mm-pane" (Majora's Mask
+ * music replacement tabs, which scroll the outer Audio Editor window to mm-pane@scroll1). Finish() checks p.expectText
+ * on every scroll slice, where the top-of-window tab bar ("Audio Options") has scrolled out of InnerClipRect on
+ * mm-pane@scroll1; only the window title ("Audio Editor") stays on screen in every scroll view, while per-tab strings
+ * belong in stateText with stateContrast. Returns "" when the spec obeys this, else the reason.
+ */
+std::string AudioEditorSnapshotSpecVerdict(const std::string& snapshotSource) {
+    const std::string marker = "p.id = \"window/Audio Editor\";";
+    const std::size_t begin = snapshotSource.find(marker);
+    if (begin == std::string::npos) {
+        return "soh_ui_snapshot.cpp has no window/Audio Editor PageSpec";
+    }
+    const std::size_t end = snapshotSource.find("pages.push_back(p);", begin);
+    if (end == std::string::npos) {
+        return "window/Audio Editor PageSpec in soh_ui_snapshot.cpp has no pages.push_back(p)";
+    }
+    const std::string block = snapshotSource.substr(begin, end - begin);
+    if (block.find("p.expectText = { \"Audio Options\" };") != std::string::npos) {
+        return "window/Audio Editor's expectText is { \"Audio Options\" }, which scrolls out of view on "
+               "mm-pane@scroll1; expect the window title { \"Audio Editor\" } instead";
+    }
+    if (block.find("p.expectText = { \"Audio Editor\" };") == std::string::npos) {
+        return "window/Audio Editor's expectText is not { \"Audio Editor\" } (its window title)";
+    }
+    if (block.find("p.stateContrast") == std::string::npos) {
+        return "window/Audio Editor has no p.stateContrast between \"\" and \"mm-pane\"";
+    }
+    return std::string();
 }
 
 // ---- Leg 7 (#747): a synthetic manifest with non-live rows -----------------
@@ -1182,6 +1276,9 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                   "Enhancements page was built: #1037's row no longer goes through the seam, so nothing captures, "
                   "hovers or lints it",
                   RSBS_CVAR_MM_DAMAGE_MULTIPLIER);
+        MME_CHECK(!IsHostedTitleCase(HostedVisibleLabel("Tatl ISG (restoration)")) &&
+                      IsHostedTitleCase(HostedVisibleLabel("Tatl ISG (Restoration)")),
+                  "leg 9's R4 Title Case check does not refuse a lowercase parenthesised word (#1276)");
         if (damage != nullptr) {
             SohGui::HostedMmRow wrongSection = *damage;
             wrongSection.section = "Not The Health Section";
@@ -1192,6 +1289,18 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
                       "leg 9's verdict accepts the damage row under a wrong section or bound to a wrong key, so its "
                       "green over the registry would prove nothing");
         }
+
+        const SohGui::HostedMmRow* tatlIsg = nullptr;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.key != nullptr && std::string(h.key) == RSBS_CVAR_MM_RESTORATIONS_TATL_ISG) {
+                tatlIsg = &h;
+            }
+        }
+        MME_CHECK(tatlIsg != nullptr && tatlIsg->header == "Enhancements" && tatlIsg->sidebar == "Fixes" &&
+                      tatlIsg->section == "Glitch Restorations" && tatlIsg->name == "Tatl ISG (Restoration)",
+                  "the hosted-row registry holds no \"Tatl ISG (Restoration)\" row on Enhancements > Fixes > Glitch "
+                  "Restorations bound to %s (#1276: it reads \"%s\")",
+                  RSBS_CVAR_MM_RESTORATIONS_TATL_ISG, tatlIsg != nullptr ? tatlIsg->name.c_str() : "(none)");
 
         // The operator's ruling of 2026-10-27: MM's mod rows are a Settings page of their own, MM Mods, after SoH's
         // OoT Mods, and the page's name says whose they are, so Rescan Mods Folder sits under no heading.
@@ -1217,6 +1326,22 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
             const std::string why = HostedRowVerdict(hostEntries, h);
             MME_CHECK(why.empty(), "hosted MM row: %s", why.c_str());
             checked++;
+        }
+        MME_CHECK(!AudioEditorSnapshotSpecVerdict("p.id = \"window/Audio Editor\";\n"
+                                                  "p.expectText = { \"Audio Options\" };\n"
+                                                  "pages.push_back(p);")
+                       .empty(),
+                  "leg 9's Audio Editor snapshot spec verdict accepts p.expectText = { \"Audio Options\" } (#1276)");
+        {
+            const std::filesystem::path snapshotPath =
+                std::filesystem::path(__FILE__).parent_path() / "soh_ui_snapshot.cpp";
+            std::ifstream snapshotFile(snapshotPath, std::ios::binary);
+            if (snapshotFile.is_open()) {
+                const std::string snapshotText((std::istreambuf_iterator<char>(snapshotFile)),
+                                               std::istreambuf_iterator<char>());
+                const std::string specWhy = AudioEditorSnapshotSpecVerdict(snapshotText);
+                MME_CHECK(specWhy.empty(), "ui-snapshot window/Audio Editor spec (#1276): %s", specWhy.c_str());
+            }
         }
         printf("[TEST] leg 9: %zu hosted MM row(s) found on their SoH pages, under their sections, bound as "
                "registered (the verdict refuses a wrong section and a wrong key)\n",

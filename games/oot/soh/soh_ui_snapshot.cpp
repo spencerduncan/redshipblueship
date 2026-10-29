@@ -2336,15 +2336,19 @@ void Session::BuildPageList() {
         // W6-AUDIO-SEQ (#1239): "mm-pane" brings the editor's Majora's Mask tab to the front (DrawMmSequencePane, after
         // SoH's sequence tabs): MM's bulk buttons over MM's own sequence tabs, Background Music first. One bulk button
         // is hovered the same way. Each state picks its tab through SohAudioEditor_ShowMmPaneForTest (EnterState).
+        // #1276: expectText is checked by Finish() on every scroll slice, and on mm-pane@scroll1 the top-of-window tab
+        // bar ("Audio Options") has scrolled out of InnerClipRect; only the window title ("Audio Editor") stays on
+        // screen across scroll views, while per-tab strings belong in stateText with stateContrast.
         PageSpec p;
         p.id = "window/Audio Editor";
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::WINDOW;
         p.window = "Audio Editor";
         p.states = { "", "mm-pane" };
-        p.expectText = { "Audio Options" };
+        p.expectText = { "Audio Editor" };
         p.stateText[""] = { "Disable Navi Call Audio", "MM Mute Carpenter Sounds", "MM Mute Crying Goron Child" };
         p.stateText["mm-pane"] = { "MM Randomize All Groups", "Termina Field" };
+        p.stateContrast = { { "", "mm-pane" }, { "mm-pane", "" } };
         p.paneHovers.push_back({ "mm-carpenter", "", "MM Mute Carpenter Sounds", false });
         p.paneHovers.push_back({ "mm-randomize-all", "mm-pane", "MM Randomize All Groups", false });
         p.needsRom = true;
@@ -5458,6 +5462,11 @@ void Session::CheckStateText() {
     // the authoring and the "present" check fails; pick a string every state
     // draws and the "absent" check fails.
     for (const PageSpec& p : pages) {
+        if (p.kind == Kind::WINDOW && p.scroll && p.states.size() > 1 &&
+            p.expectText != std::vector<std::string>{ p.window }) {
+            Fail(p.id + ": a multi-state scrolling WINDOW spec's expectText must be { \"" + p.window +
+                 "\" } (its window title, which stays on screen on @scroll1+); put per-tab strings in stateText");
+        }
         for (const auto& [state, wants] : p.stateText) {
             bool any = false;
             StateText(captures, p.id, state, &any);
