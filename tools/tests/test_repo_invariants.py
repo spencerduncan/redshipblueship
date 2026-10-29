@@ -823,7 +823,7 @@ def test_no_key_shaped_literal_names_a_prefixed_symbol():
 # `redship.exe+0xOFFSET`, which resolves against `redship.map`. CI release and
 # playtest builds must emit `redship.map` beside the binary (under
 # RSBS_EMIT_LINK_MAP, ON by default), verify that the map exists and names
-# `Combo_SetSharedGraphics`, upload it as its own small artifact outside the
+# `Context_GetCurrentGame`, upload it as its own small artifact outside the
 # player zip, and attach it to the GitHub Release.
 ROOT_CMAKELISTS = REPO_ROOT / "CMakeLists.txt"
 SINGLE_EXE_CMAKE = REPO_ROOT / "CMake" / "SingleExecutable.cmake"
@@ -868,8 +868,8 @@ def test_link_map_emitted_verified_and_shipped_outside_player_zip():
     windows_job = wf[windows_start:digest_start]
     release_job = wf[release_start:mono_start]
 
-    assert "build-cmake/redship.map" in linux_job and "Combo_SetSharedGraphics" in linux_job, (
-        "#1303: build-linux must verify build-cmake/redship.map exists and names Combo_SetSharedGraphics"
+    assert "build-cmake/redship.map" in linux_job and "Context_GetCurrentGame" in linux_job, (
+        "#1303: build-linux must verify build-cmake/redship.map exists and names Context_GetCurrentGame"
     )
     assert re.search(
         r"name:\s*redship-map-linux\s+path:\s*build-cmake/redship\.map", linux_job
@@ -879,8 +879,8 @@ def test_link_map_emitted_verified_and_shipped_outside_player_zip():
         "#1303: rsbs-linux player artifact must not bundle redship.map"
     )
 
-    assert "bw/redship.map" in windows_job and "Combo_SetSharedGraphics" in windows_job, (
-        "#1303: build-windows must verify bw/redship.map exists and names Combo_SetSharedGraphics"
+    assert "bw/redship.map" in windows_job and "Context_GetCurrentGame" in windows_job, (
+        "#1303: build-windows must verify bw/redship.map exists and names Context_GetCurrentGame"
     )
     assert "rsbs-windows/redship.map" in windows_job, (
         "#1303: build-windows must verify rsbs-windows/redship.map is absent after unzipping the player package"

@@ -339,7 +339,7 @@ jobs:
     - name: Verify linker map (Linux) (#1303)
       run: |
         test -s build-cmake/redship.map || { echo "FAIL: build-cmake/redship.map is missing or empty"; exit 1; }
-        grep -q "Combo_SetSharedGraphics" build-cmake/redship.map || { echo "FAIL: Combo_SetSharedGraphics not found in build-cmake/redship.map"; exit 1; }
+        grep -q "Context_GetCurrentGame" build-cmake/redship.map || { echo "FAIL: Context_GetCurrentGame not found in build-cmake/redship.map"; exit 1; }
         ls -lh build-cmake/redship.map
     - name: Self-test registrar elision gate
       # Regression guard on the step below: synthesizes tiny archive/object
@@ -735,8 +735,8 @@ jobs:
         if (-not (Test-Path -LiteralPath 'bw/redship.map')) {
           throw 'FAIL: bw/redship.map does not exist'
         }
-        if (-not (Select-String -LiteralPath 'bw/redship.map' -SimpleMatch -Quiet 'Combo_SetSharedGraphics')) {
-          throw 'FAIL: Combo_SetSharedGraphics not found in bw/redship.map'
+        if (-not (Select-String -LiteralPath 'bw/redship.map' -SimpleMatch -Quiet 'Context_GetCurrentGame')) {
+          throw 'FAIL: Context_GetCurrentGame not found in bw/redship.map'
         }
         Get-Item -LiteralPath 'bw/redship.map'
     # Run the display-free `redship` tier against the Windows binary (#623).

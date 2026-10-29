@@ -3250,7 +3250,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
     # #1303: CI release and playtest builds emit redship.map beside the binary
     # (when RSBS_EMIT_LINK_MAP is ON, its default), assert it names
-    # Combo_SetSharedGraphics, upload it as its own artifact outside the player
+    # Context_GetCurrentGame, upload it as its own artifact outside the player
     # zip, and attach it to the GitHub Release. CMake/CheckLinkMapConfig.cmake.
     redship_add_test(NAME LinkMapConfig
         COMMAND ${CMAKE_COMMAND}

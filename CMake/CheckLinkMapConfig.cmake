@@ -6,11 +6,11 @@
 #      LINK_OPTIONS carry /MAP (Windows/MSVC) or -Wl,-Map=<build>/redship.map
 #      (Linux), rather than relying on a workstation-local CMAKE_EXE_LINKER_FLAGS
 #      cache entry;
-#   2. ${BINARY_DIR}/redship.map exists and names Combo_SetSharedGraphics;
+#   2. ${BINARY_DIR}/redship.map exists and names Context_GetCurrentGame;
 #   3. CMakeLists.txt and CMake/SingleExecutable.cmake do not install redship.map
 #      into any CPack component (keeping it out of the player zip);
 #   4. .github/workflows/generate-builds.yml verifies redship.map and
-#      Combo_SetSharedGraphics on both legs, uploads redship-map-windows and
+#      Context_GetCurrentGame on both legs, uploads redship-map-windows and
 #      redship-map-linux as separate artifacts beside rsbs-windows / rsbs-linux,
 #      and attaches redshipblueship-<tag>-windows.map and
 #      redshipblueship-<tag>-linux.map to the GitHub Release.
@@ -53,16 +53,19 @@ elseif(CMAKE_HOST_UNIX AND NOT CMAKE_HOST_APPLE)
     endif()
 endif()
 
-# 2. Live redship.map in the build directory names Combo_SetSharedGraphics
+# 2. Live redship.map in the build directory names Context_GetCurrentGame
+#    (src/common/context.cpp, referenced on every platform; a symbol nothing on
+#    Linux calls, such as Combo_SetSharedGraphics, is never pulled out of its
+#    static archive by GNU ld and so never appears in the Linux map).
 set(_map_file "${BINARY_DIR}/redship.map")
 if(NOT EXISTS "${_map_file}")
     _fail("expected linker map '${_map_file}' does not exist")
 else()
-    file(STRINGS "${_map_file}" _symbol_hits REGEX "Combo_SetSharedGraphics" LIMIT_COUNT 1)
+    file(STRINGS "${_map_file}" _symbol_hits REGEX "Context_GetCurrentGame" LIMIT_COUNT 1)
     if(NOT _symbol_hits)
-        _fail("'${_map_file}' does not name Combo_SetSharedGraphics")
+        _fail("'${_map_file}' does not name Context_GetCurrentGame")
     else()
-        message(STATUS "CheckLinkMapConfig: '${_map_file}' names Combo_SetSharedGraphics ok")
+        message(STATUS "CheckLinkMapConfig: '${_map_file}' names Context_GetCurrentGame ok")
     endif()
 endif()
 
@@ -103,7 +106,7 @@ else()
     foreach(_needle
             "build-cmake/redship.map"
             "bw/redship.map"
-            "Combo_SetSharedGraphics"
+            "Context_GetCurrentGame"
             "name: redship-map-linux"
             "name: redship-map-windows"
             "redshipblueship-\${RELEASE_TAG}-linux.map"
