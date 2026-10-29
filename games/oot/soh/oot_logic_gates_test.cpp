@@ -807,6 +807,11 @@ constexpr RandomizerRegion kLwUnderBridge =
 constexpr RandomizerRegion kGfTower = static_cast<RandomizerRegion>(RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE + 2);
 constexpr RandomizerTrick kHookshotLaddersTrick = static_cast<RandomizerTrick>(RT_GANONS_CASTLE_GOLD_GAUNTLET_SKIP + 1);
 constexpr RandomizerTrick kGfWastelandGateSidehopSkip = static_cast<RandomizerTrick>(RT_PASS_GUARDS_WITH_NOTHING + 1);
+static_assert(kLwUnderBridge == RR_LW_UNDER_BRIDGE, "kLwUnderBridge drifted from RR_LW_UNDER_BRIDGE");
+static_assert(kGfTower == RR_GF_TOWER, "kGfTower drifted from RR_GF_TOWER");
+static_assert(kHookshotLaddersTrick == RT_HOOKSHOT_LADDERS, "kHookshotLaddersTrick drifted from RT_HOOKSHOT_LADDERS");
+static_assert(kGfWastelandGateSidehopSkip == RT_GF_WASTELAND_GATE_SIDEHOP_SKIP,
+              "kGfWastelandGateSidehopSkip drifted from RT_GF_WASTELAND_GATE_SIDEHOP_SKIP");
 
 uint8_t GetHookshotLadders(const std::shared_ptr<Rando::Context>& randoCtx) {
     return kHookshotLaddersTrick < RT_MAX ? randoCtx->GetTrickOption(kHookshotLaddersTrick).Get() : 0;

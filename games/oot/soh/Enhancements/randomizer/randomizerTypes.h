@@ -1583,6 +1583,11 @@ typedef enum {
     // appended here so no other region id moves.
     RR_DODONGOS_CAVERN_MQ_ENTRANCE_SIDE_BRIDGE,
 
+    // SoH 60ec65592 puts these after RR_LW_BEYOND_MIDO and RR_GF_OUTSKIRTS;
+    // appended here so no other region id moves.
+    RR_LW_UNDER_BRIDGE,
+    RR_GF_TOWER,
+
     RR_MAX,
 } RandomizerRegion;
 
@@ -4213,7 +4218,7 @@ typedef enum {
     RT_GV_CHILD_TENT,
     RT_GV_CHILD_CUCCO_JUMP,
     RT_PASS_GUARDS_WITH_NOTHING,
-    RT_GF_CHILD_SKIP_WASTELAND_GATE,
+    RT_GF_WASTELAND_GATE_SIDEHOP_SKIP,
     RT_GF_ADULT_SKIP_WASTELAND_GATE,
     RT_GF_WARRIOR_WITH_DIFFICULT_WEAPON,
     RT_GF_LEDGE_CLIP_INTO_GTG,
@@ -4426,6 +4431,7 @@ typedef enum {
     RT_BOTTOM_OF_THE_WELL_SKULL_PUSH,
     RT_GANONS_CASTLE_BARRIER_SKIP_HOVER,
     RT_GANONS_CASTLE_GOLD_GAUNTLET_SKIP,
+    RT_HOOKSHOT_LADDERS,
     RT_MAX
 } RandomizerTrick;
 

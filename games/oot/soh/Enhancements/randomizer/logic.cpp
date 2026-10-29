@@ -615,6 +615,7 @@ bool Logic::ItemUseAllowed(RandomizerGet itemName) {
         case RG_MINUET_OF_FOREST:
         case RG_SERENADE_OF_WATER:
         case RG_NOCTURNE_OF_SHADOW:
+        case RG_CLIMB:
         case RG_CRAWL:
             return true;
         default:
@@ -919,6 +920,8 @@ bool Logic::CanUse(RandomizerGet itemName) {
         // Misc. Items
         case RG_FISHING_POLE:
             return HasItem(RG_CHILD_WALLET); // as long as you have enough rubies
+        case RG_CLIMB:
+            return true;
         case RG_CRAWL:
             return IsChild;
 
@@ -1935,6 +1938,14 @@ bool Logic::CanOpenBombGrotto() {
 
 bool Logic::CanOpenStormsGrotto() {
     return CanUse(RG_SONG_OF_STORMS) && (HasItem(RG_STONE_OF_AGONY) || ctx->GetTrickOption(RT_GROTTOS_WITHOUT_AGONY));
+}
+
+bool Logic::CanClimbLadder() {
+    return CanUse(RG_CLIMB) || (ctx->GetTrickOption(RT_HOOKSHOT_LADDERS) && CanUse(RG_HOOKSHOT));
+}
+
+bool Logic::CanClimbHighLadder() {
+    return CanUse(RG_CLIMB) || (ctx->GetTrickOption(RT_HOOKSHOT_LADDERS) && CanUse(RG_LONGSHOT));
 }
 
 bool Logic::CanGetNightTimeGS() {

@@ -7,10 +7,7 @@ using namespace Rando;
 void RegionTable_Init_GerudoFortress() {
 #pragma region Ground
 
-    areaTable[RR_GF_OUTSKIRTS] = Region("Gerudo Fortress Outskirts", SCENE_GERUDOS_FORTRESS, {
-        //Events
-        EventAccess(LOGIC_GF_GATE_OPEN,  []{return logic->IsAdult && logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD) && logic->HasItem(RG_CLIMB) && logic->HasItem(RG_SPEAK_GERUDO);}), // longshot can get up without climb, but jank is hard
-    }, {
+    areaTable[RR_GF_OUTSKIRTS] = Region("Gerudo Fortress Outskirts", SCENE_GERUDOS_FORTRESS, {}, {
         //Locations
         LOCATION(RC_GF_OUTSKIRTS_NE_CRATE, (logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD)) && logic->CanBreakCrates()),
         LOCATION(RC_GF_OUTSKIRTS_NW_CRATE, (logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD)) && logic->CanBreakCrates()),
@@ -18,9 +15,10 @@ void RegionTable_Init_GerudoFortress() {
         //Exits
         Entrance(RR_GV_FORTRESS_SIDE, []{return true;}),
         Entrance(RR_TH_1_TORCH_CELL,  []{return true;}),
-        Entrance(RR_GF_OUTSIDE_GATE,  []{return logic->Get(LOGIC_GF_GATE_OPEN) || (logic->IsAdult && logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD) && logic->CanGroundJump() /* && climb */) && (ctx->GetTrickOption(RT_GF_CHILD_SKIP_WASTELAND_GATE) && logic->IsChild);}),
+        Entrance(RR_GF_OUTSIDE_GATE,  []{return logic->Get(LOGIC_GF_GATE_OPEN);}),
         Entrance(RR_GF_NEAR_GROTTO,   []{return logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD);}),
         Entrance(RR_GF_OUTSIDE_GTG,   []{return logic->IsChild || logic->CanPassEnemy(RE_GERUDO_GUARD);}),
+        Entrance(RR_GF_TOWER,         []{return (logic->IsChild || logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD)) && logic->CanClimbHighLadder();}),
         //You can talk to the guards to get yourself thrown in jail, so long as you have a hookshot to actually end up there
         Entrance(RR_GF_JAIL_WINDOW,   []{return logic->CanUse(RG_HOOKSHOT);}),
     });
@@ -187,6 +185,16 @@ void RegionTable_Init_GerudoFortress() {
 
 #pragma endregion
 
+    //Assumes IsChild || HasItem(RG_GERUDO_MEMBERSHIP_CARD) is checked on entry
+    areaTable[RR_GF_TOWER] = Region("Gerudo Fortress Tower", SCENE_GERUDOS_FORTRESS, {
+        //Events
+        EventAccess(LOGIC_GF_GATE_OPEN, []{return logic->IsAdult && logic->HasItem(RG_SPEAK_GERUDO);}),
+    }, {}, {
+        //Exits
+        Entrance(RR_GF_OUTSKIRTS,    []{return true;}),
+        Entrance(RR_GF_OUTSIDE_GATE, []{return (logic->IsAdult && logic->CanGroundJump()) || ctx->GetTrickOption(RT_GF_WASTELAND_GATE_SIDEHOP_SKIP);}),
+    });
+
     areaTable[RR_GF_ABOVE_JAIL] = Region("GF Above Jail", SCENE_GERUDOS_FORTRESS, {}, {
         //Locations
         LOCATION(RC_GF_ABOVE_JAIL_CRATE, true),
@@ -199,7 +207,8 @@ void RegionTable_Init_GerudoFortress() {
         Entrance(RR_GF_BELOW_CHEST,         []{return logic->TakeDamage();}),
         Entrance(RR_GF_JAIL_WINDOW,         []{return logic->CanUse(RG_HOOKSHOT);}),
         Entrance(RR_TH_BREAK_ROOM_CORRIDOR, []{return true;}),
-        Entrance(RR_GF_OUTSIDE_GATE,        []{return ctx->GetTrickOption(RT_GF_ADULT_SKIP_WASTELAND_GATE) && logic->IsAdult && logic->CanUse(RG_HOVER_BOOTS) && logic->CanJumpslashExceptHammer();}),
+        Entrance(RR_GF_TOWER,               []{return ctx->GetTrickOption(RT_GF_ADULT_SKIP_WASTELAND_GATE) && logic->IsAdult && logic->CanUse(RG_HOVER_BOOTS) && logic->CanJumpslash() && logic->HasItem(RG_GERUDO_MEMBERSHIP_CARD);}),
+        Entrance(RR_GF_OUTSIDE_GATE,        []{return ctx->GetTrickOption(RT_GF_ADULT_SKIP_WASTELAND_GATE) && logic->IsAdult && logic->CanUse(RG_HOVER_BOOTS) && logic->CanJumpslash();}),
     });
 
     areaTable[RR_GF_JAIL_WINDOW] = Region("GF Jail Window", SCENE_GERUDOS_FORTRESS, {}, {}, {
