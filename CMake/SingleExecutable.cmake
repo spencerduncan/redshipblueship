@@ -475,6 +475,8 @@ set_target_properties(redship PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+option(RSBS_EMIT_LINK_MAP "Emit redship.map when linking the redship executable (#1303)" ON)
+
 # Platform-specific settings
 if(MSVC)
     set_target_properties(redship PROPERTIES
@@ -491,10 +493,21 @@ if(MSVC)
     # space, not committed memory, and applies to every thread created with
     # a default stack size.
     target_link_options(redship PRIVATE /STACK:8777216)
+    if(RSBS_EMIT_LINK_MAP)
+        # Crash tracebacks print redship.exe+0xOFFSET (#1199), which resolves
+        # against redship.map (#1303). Put /MAP on the redship target rather
+        # than relying on a local CMAKE_EXE_LINKER_FLAGS cache entry so CI
+        # builds emit ${CMAKE_BINARY_DIR}/redship.map while ZAPD_OoT/ZAPD_MM
+        # and CPack's player zip stay untouched.
+        target_link_options(redship PRIVATE /MAP)
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE)
     target_link_options(redship PRIVATE -rdynamic)
+    if(RSBS_EMIT_LINK_MAP)
+        target_link_options(redship PRIVATE "-Wl,-Map=${CMAKE_BINARY_DIR}/redship.map")
+    endif()
 endif()
 
 # ============================================================================
@@ -3247,6 +3260,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND ${CMAKE_COMMAND}
                 -DWORK_DIR=${CMAKE_BINARY_DIR}
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
+    # #1303: CI release and playtest builds emit redship.map beside the binary
+    # (when RSBS_EMIT_LINK_MAP is ON, its default), assert it names
+    # Context_GetCurrentGame, upload it as its own artifact outside the player
+    # zip, and attach it to the GitHub Release. CMake/CheckLinkMapConfig.cmake.
+    redship_add_test(NAME LinkMapConfig
+        COMMAND ${CMAKE_COMMAND}
+                -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+                -DBINARY_DIR=${CMAKE_BINARY_DIR}
+                -DEMIT_LINK_MAP=${RSBS_EMIT_LINK_MAP}
+                "-DRED_LINK_OPTIONS=$<JOIN:$<TARGET_PROPERTY:redship,LINK_OPTIONS>,|>"
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckLinkMapConfig.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default

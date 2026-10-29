@@ -336,6 +336,11 @@ jobs:
         # mtime+size, so caches survive container image rebuilds (which reset
         # mtimes and otherwise force a full ~20 min recompile).
         CCACHE_COMPILERCHECK: content
+    - name: Verify linker map (Linux) (#1303)
+      run: |
+        test -s build-cmake/redship.map || { echo "FAIL: build-cmake/redship.map is missing or empty"; exit 1; }
+        grep -q "Context_GetCurrentGame" build-cmake/redship.map || { echo "FAIL: Context_GetCurrentGame not found in build-cmake/redship.map"; exit 1; }
+        ls -lh build-cmake/redship.map
     - name: Self-test registrar elision gate
       # Regression guard on the step below: synthesizes tiny archive/object
       # files with gcc/ar/ld -r (no real soh/2ship content involved) and
@@ -483,6 +488,12 @@ jobs:
         path: |
           rsbs.appimage
           readme.txt
+    - name: Upload linker map (Linux) (#1303)
+      uses: actions/upload-artifact@v4
+      with:
+        name: redship-map-linux
+        path: build-cmake/redship.map
+        if-no-files-found: error
 
   # ==========================================================================
   # Netplay grant relay (ADR 0007, #460)
@@ -719,6 +730,15 @@ jobs:
     - name: sccache stats (Windows)
       if: always()
       run: sccache --show-stats
+    - name: Verify linker map (Windows) (#1303)
+      run: |
+        if (-not (Test-Path -LiteralPath 'bw/redship.map')) {
+          throw 'FAIL: bw/redship.map does not exist'
+        }
+        if (-not (Select-String -LiteralPath 'bw/redship.map' -SimpleMatch -Quiet 'Context_GetCurrentGame')) {
+          throw 'FAIL: Context_GetCurrentGame not found in bw/redship.map'
+        }
+        Get-Item -LiteralPath 'bw/redship.map'
     # Run the display-free `redship` tier against the Windows binary (#623).
     # Until this step the job compiled both games and every test row and ran
     # none of them, so MSVC codegen, /FORCE:MULTIPLE first-wins link semantics
@@ -829,12 +849,22 @@ jobs:
         cd ..
         mv _packages/*.zip _packages/rsbs-windows.zip
     - name: Unzip package
-      run: Expand-Archive -Path _packages/rsbs-windows.zip -DestinationPath rsbs-windows
+      run: |
+        Expand-Archive -Path _packages/rsbs-windows.zip -DestinationPath rsbs-windows
+        if (Test-Path -LiteralPath 'rsbs-windows/redship.map') {
+          throw 'FAIL: redship.map must not ship inside the player zip (_packages/rsbs-windows.zip)'
+        }
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
         name: rsbs-windows
         path: rsbs-windows
+    - name: Upload linker map (Windows) (#1303)
+      uses: actions/upload-artifact@v4
+      with:
+        name: redship-map-windows
+        path: bw/redship.map
+        if-no-files-found: error
     - name: Save Cache VCPKG folder
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
@@ -988,17 +1018,29 @@ jobs:
       with:
         name: rsbs-linux
         path: rsbs-linux
+    - name: Download Linux linker map (#1303)
+      uses: actions/download-artifact@v4
+      with:
+        name: redship-map-linux
+        path: redship-map-linux
     - name: Download Windows build
       uses: actions/download-artifact@v4
       with:
         name: rsbs-windows
         path: rsbs-windows
+    - name: Download Windows linker map (#1303)
+      uses: actions/download-artifact@v4
+      with:
+        name: redship-map-windows
+        path: redship-map-windows
     - name: Prepare release assets
       run: |
         mv rsbs-linux/rsbs.appimage "redshipblueship-${RELEASE_TAG}-linux.AppImage"
+        mv redship-map-linux/redship.map "redshipblueship-${RELEASE_TAG}-linux.map"
         # build-windows uploads the unzipped cpack output (artifacts are stored
         # extracted so PR testers get a browsable tree); re-zip it for release.
         (cd rsbs-windows && zip -qr "../redshipblueship-${RELEASE_TAG}-windows.zip" .)
+        mv redship-map-windows/redship.map "redshipblueship-${RELEASE_TAG}-windows.map"
     - name: Render release notes
       run: sed "s/{{TAG}}/${RELEASE_TAG}/g" .github/release-notes-template.md > release-notes.md
     - name: Create GitHub Release
@@ -1007,7 +1049,9 @@ jobs:
       run: |
         ASSETS=(
           "redshipblueship-${RELEASE_TAG}-linux.AppImage"
+          "redshipblueship-${RELEASE_TAG}-linux.map"
           "redshipblueship-${RELEASE_TAG}-windows.zip"
+          "redshipblueship-${RELEASE_TAG}-windows.map"
         )
         # Idempotent on re-runs: if the release already exists, refresh its assets.
         if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
