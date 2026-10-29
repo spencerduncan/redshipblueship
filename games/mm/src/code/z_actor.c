@@ -4213,7 +4213,7 @@ Actor* MM_Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play) {
     Player* player = GET_PLAYER(play);
     Actor* newHead;
 #ifdef RSBS_SINGLE_EXECUTABLE
-    ActorOverlay* overlayEntry = MM_Actor_ResolveValidOverlayEntry(actor, play, "MM_Actor_Delete");
+    ActorOverlay* overlayEntry = MM_Actor_ResolveValidOverlayEntry(actor, play, "Actor_Delete");
 #else
     ActorOverlay* overlayEntry = actor->overlayEntry;
 #endif
