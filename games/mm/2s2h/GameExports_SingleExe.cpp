@@ -7761,15 +7761,30 @@ extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwl
 }
 
 // ============================================================================
-// Console "reset" command — Majora's Mask test seam (#1274)
+// Console "reset" command — Majora's Mask dispatch & test seam (#1274)
 // ============================================================================
 //
-// OoT's GameState has `u32 running` at offset 0x98 (games/oot/include/z64.h),
-// whereas MM's GameState has `UNK_TYPE1 pad98[0x3]; u8 running;` at offset
-// 0x9B (games/mm/include/z64game.h), and MM's SET_NEXT_GAMESTATE stores
-// sizeof(ConsoleLogoState) rather than a type token. Keep all reads and writes
-// of MM_gGameState inside this MM translation unit so oot_windows_gate_test.cpp
-// never interprets MM_gGameState through OoT's GameState header.
+// Both the Menu header Reset button (SohGui/Menu.cpp, ICON_FA_UNDO) and Ctrl+R
+// (libultraship Gui.cpp) dispatch `"reset"` through Ship::Console::Run. 2Ship's
+// own DebugConsole.cpp is excluded from single-exe builds, and OoT's GameState
+// layout (`u32 running` at offset 0x98, type-token SET_NEXT_GAMESTATE) differs
+// from MM's (`UNK_TYPE1 pad98[0x3]; u8 running;` at offset 0x9B, sizeof-based
+// SET_NEXT_GAMESTATE). Keep all reads and writes of MM_gGameState inside this
+// MM translation unit.
+
+extern "C" bool MM_DebugConsole_IsActiveGame(void) {
+    return Context_GetCurrentGame() == GAME_MM;
+}
+
+extern "C" int MM_DebugConsole_Reset(void) {
+    if (MM_gGameState == nullptr) {
+        return 1;
+    }
+
+    STOP_GAMESTATE(MM_gGameState);
+    SET_NEXT_GAMESTATE(MM_gGameState, ConsoleLogo_Init, sizeof(ConsoleLogoState));
+    return 0;
+}
 
 namespace {
 GameState* sSavedTestMmGameState = nullptr;

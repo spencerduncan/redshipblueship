@@ -40,17 +40,23 @@ extern PlayState* OoT_gPlayState;
 #include <stdexcept>                   // std::out_of_range, std::invalid_argument (#930)
 #include "soh/SohGui/OoTActiveGated.h" // OoT_Gui_ShouldDraw
 
+extern "C" bool MM_DebugConsole_IsActiveGame(void);
+extern "C" int MM_DebugConsole_Reset(void);
+
 // #798: OoT and Majora's Mask share one gSaveContext buffer and one Ship::Console, and MM registers no commands of
 // its own in the single executable, so every command below runs whichever game is active. With MM running they write
 // MM's save through OoT's layout (map, rupee, bottle, bItem, item) or dereference the NULL OoT_gPlayState (give_item,
 // entrance). Every command registers through this wrapper instead, which refuses before the handler unless OoT is the
-// running game (the same predicate as the OoT windows, #797). The refusal goes into the caller's output, not the
-// Console window, so it also holds for Ship::Console::Run callers with no window.
+// running game (the same predicate as the OoT windows, #797) — except `reset` (#1274), which backs the shared Menu
+// header Reset button and Ctrl+R and dispatches to MM_DebugConsole_Reset when Majora's Mask is the running game. The
+// refusal goes into the caller's output, not the Console window, so it also holds for Ship::Console::Run callers with
+// no window.
 static void OoT_AddGatedConsoleCommand(const std::string& command, Ship::CommandEntry entry) {
     Ship::CommandHandler handler = entry.Handler;
     entry.Handler = [handler, command](std::shared_ptr<Ship::Console> console, std::vector<std::string> args,
                                        std::string* output) -> int32_t {
-        if (!OoT_Gui_ShouldDraw()) {
+        const bool allowMmReset = command == "reset" && MM_DebugConsole_IsActiveGame();
+        if (!OoT_Gui_ShouldDraw() && !allowMmReset) {
             if (output != nullptr) {
                 *output = "[SOH] '" + command +
                           "' is an Ocarina of Time command: it only runs while Ocarina of Time "
@@ -274,10 +280,28 @@ static bool SetPosHandler(std::shared_ptr<Ship::Console> Console, const std::vec
 }
 
 static bool ResetHandler(std::shared_ptr<Ship::Console> Console, std::vector<std::string> args, std::string* output) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (MM_DebugConsole_IsActiveGame()) {
+        if (MM_DebugConsole_Reset() != 0) {
+            if (output != nullptr) {
+                *output = "MM_gGameState == nullptr";
+            }
+            return 1;
+        }
+        return 0;
+    }
+    if (OoT_gGameState == nullptr) {
+        if (output != nullptr) {
+            *output = "OoT_gGameState == nullptr";
+        }
+        return 1;
+    }
+#else
     if (OoT_gGameState == nullptr) {
         ERROR_MESSAGE("OoT_gGameState == nullptr");
         return 1;
     }
+#endif
     SET_NEXT_GAMESTATE(OoT_gGameState, OoT_TitleSetup_Init, GameState);
     OoT_gGameState->running = false;
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnExitGame>(gSaveContext.fileNum);
