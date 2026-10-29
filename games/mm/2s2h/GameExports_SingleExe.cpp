@@ -7760,4 +7760,72 @@ extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwl
     S2H::GameHooks::Execute<GameInteractor::OnFileSelectSaveLoad>(fileNum, isOwlSave, saveContext);
 }
 
+// ============================================================================
+// Console "reset" command — Majora's Mask dispatch & test seam (#1274)
+// ============================================================================
+//
+// Both the Menu header Reset button (SohGui/Menu.cpp, ICON_FA_UNDO) and Ctrl+R
+// (libultraship Gui.cpp) dispatch `"reset"` through Ship::Console::Run. 2Ship's
+// own DebugConsole.cpp is excluded from single-exe builds, and OoT's GameState
+// layout (`u32 running` at offset 0x98, type-token SET_NEXT_GAMESTATE) differs
+// from MM's (`UNK_TYPE1 pad98[0x3]; u8 running;` at offset 0x9B, sizeof-based
+// SET_NEXT_GAMESTATE). Keep all reads and writes of MM_gGameState inside this
+// MM translation unit.
+
+extern "C" bool MM_DebugConsole_IsActiveGame(void) {
+    return Context_GetCurrentGame() == GAME_MM;
+}
+
+extern "C" int MM_DebugConsole_Reset(void) {
+    if (MM_gGameState == nullptr) {
+        return 1;
+    }
+
+    STOP_GAMESTATE(MM_gGameState);
+    SET_NEXT_GAMESTATE(MM_gGameState, ConsoleLogo_Init, sizeof(ConsoleLogoState));
+    return 0;
+}
+
+namespace {
+GameState* sSavedTestMmGameState = nullptr;
+bool sHasSavedTestMmGameState = false;
+GameState sTestMmGameState{};
+} // namespace
+
+extern "C" void MM_DebugConsole_TestArmGameState(int live) {
+    if (!sHasSavedTestMmGameState) {
+        sSavedTestMmGameState = MM_gGameState;
+        sHasSavedTestMmGameState = true;
+    }
+    if (live != 0) {
+        memset(&sTestMmGameState, 0, sizeof(sTestMmGameState));
+        sTestMmGameState.running = true;
+        MM_gGameState = &sTestMmGameState;
+    } else {
+        MM_gGameState = nullptr;
+    }
+}
+
+extern "C" void MM_DebugConsole_TestRestoreGameState(void) {
+    if (sHasSavedTestMmGameState) {
+        MM_gGameState = sSavedTestMmGameState;
+        sSavedTestMmGameState = nullptr;
+        sHasSavedTestMmGameState = false;
+    }
+}
+
+extern "C" int MM_DebugConsole_TestGameStateRunning(void) {
+    return MM_gGameState != nullptr && MM_gGameState->running && MM_gGameState->init == nullptr &&
+                   MM_gGameState->size == 0
+               ? 1
+               : 0;
+}
+
+extern "C" int MM_DebugConsole_TestGameStateResetToLogo(void) {
+    return MM_gGameState != nullptr && !MM_gGameState->running && MM_gGameState->init == ConsoleLogo_Init &&
+                   MM_gGameState->size == sizeof(ConsoleLogoState)
+               ? 1
+               : 0;
+}
+
 #endif /* RSBS_SINGLE_EXECUTABLE */

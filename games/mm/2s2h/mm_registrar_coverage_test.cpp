@@ -1686,7 +1686,7 @@ const std::vector<SkipKeyProbe>& W6FixesProbes() {
           { { "VB_CLAMP_ANIMATION_SPEED (Restorations/OoTFasterSwim.cpp)", W6_FIXES_VB_COUNT(VB_CLAMP_ANIMATION_SPEED),
               1 } } },
         { "gEnhancements.Restorations.TatlISG",
-          "Tatl ISG (restoration)",
+          "Tatl ISG (Restoration)",
           { { "VB_TATL_CONVERSATION_AVAILABLE (Restorations/TatlISG.cpp)",
               W6_FIXES_VB_COUNT(VB_TATL_CONVERSATION_AVAILABLE), 1 } } },
         { "gEnhancements.Restorations.WoodfallMountainAppearance",

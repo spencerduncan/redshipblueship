@@ -57,6 +57,12 @@
  * #930: a command whose numeric argument std::stoi cannot parse (`gen_rando 99999999999` overflows int, `item 0
  * notanumber` is no number in a handler with no try) must fail with the gating wrapper's error line in its output
  * instead of throwing out of Ship::Console::Run and ending the process.
+ *
+ * #1274: the Menu header Reset button and Ctrl+R dispatch console `reset`. Under Majora's Mask it must reset
+ * MM_gGameState to ConsoleLogo_Init (leaving OoT_gGameState, OoT's OnExitGame hooks and gSaveContext untouched, or
+ * failing with "MM_gGameState == nullptr" when MM has no game state); under Ocarina of Time it resets OoT_gGameState
+ * to OoT_TitleSetup_Init and runs OnExitGame (leaving MM_gGameState untouched, or failing with
+ * "OoT_gGameState == nullptr"); with no game running it is still refused.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -77,6 +83,7 @@
 #include "soh/SohGui/OoTActiveGated.h"
 #include "soh/Enhancements/debugconsole.h"
 #include "soh/Enhancements/debugger/MessageViewer.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/item-tables/ItemTableManager.h"
 #include "soh/cvar_prefixes.h"
 #include "context.h"
@@ -86,6 +93,11 @@ extern "C" {
 #include "variables.h"
 #include "macros.h"
 extern PlayState* OoT_gPlayState;
+void OoT_TitleSetup_Init(GameState* gameState);
+void MM_DebugConsole_TestArmGameState(int live);
+void MM_DebugConsole_TestRestoreGameState(void);
+int MM_DebugConsole_TestGameStateRunning(void);
+int MM_DebugConsole_TestGameStateResetToLogo(void);
 }
 
 namespace SohGui {
@@ -372,13 +384,18 @@ int RunConsoleAndKnifeGate() {
     }
 
     // ---- 6. Every command DebugConsole_Init registered, bare, under Majora's Mask and with no game ------------------
-    // The gate is one wrapper at registration, so every OoT command must refuse, not only the seven above.
+    // The gate is one wrapper at registration, so every OoT-only command must refuse, not only the seven above.
+    // #1274: `reset` is the shared Menu header Reset button / Ctrl+R command: under Majora's Mask it resets
+    // MM_gGameState (leg 6b below), while with no game running it must still be refused here.
     if (failures == 0) {
         const GameId inactiveGames[] = { GAME_MM, GAME_NONE };
         int refused = 0;
         for (GameId game : inactiveGames) {
             Context_SetCurrentGame(game);
             for (const std::string& name : ootCommands) {
+                if (game == GAME_MM && name == "reset") {
+                    continue;
+                }
                 const int f = RunRefusedCommand(console, name.c_str(), game, canary);
                 failures += f;
                 refused += f == 0 ? 1 : 0;
@@ -386,7 +403,131 @@ int RunConsoleAndKnifeGate() {
         }
         printf("[TEST] oot-windows-gate: %d of %zu OoT console commands refused under Majora's Mask and with no game, "
                "gSaveContext unchanged\n",
-               refused, ootCommands.size() * 2);
+               refused, ootCommands.size() * 2 - 1);
+    }
+
+    // ---- 6b. #1274: console `reset` (Menu header Reset button and Ctrl+R) under Majora's Mask and Ocarina of Time ---
+    if (failures == 0) {
+        using OnExitGameHooks = GameInteractor::RegisteredGameHooks<GameInteractor::OnExitGame>;
+        using OnExitGameUnregister = GameInteractor::HooksToUnregister<GameInteractor::OnExitGame>;
+        auto savedExitHooks = OnExitGameHooks::functions;
+        auto savedExitUnregister = OnExitGameUnregister::hooks;
+        OnExitGameHooks::functions.clear();
+        OnExitGameUnregister::hooks.clear();
+        int exitGameHookCalls = 0;
+        OnExitGameHooks::functions[1] = [&exitGameHookCalls](int32_t) { exitGameHookCalls++; };
+
+        GameState* const savedOoTGameState = OoT_gGameState;
+        GameState ootState{};
+        ootState.running = 1;
+        OoT_gGameState = &ootState;
+
+        // 1. Majora's Mask running, no MM_gGameState: fails with "MM_gGameState == nullptr", OoT untouched.
+        Context_SetCurrentGame(GAME_MM);
+        MM_DebugConsole_TestArmGameState(0);
+        printf("[TEST] oot-windows-gate: Majora's Mask running, no MM_gGameState, console `reset`\n");
+        fflush(stdout);
+        std::string resetOutput;
+        int32_t rc = console->Run("reset", &resetOutput);
+        long saveDiff = FirstSaveDiff(canary);
+        printf("[TEST] oot-windows-gate: `reset` (MM, null MM_gGameState) returned %d with output \"%s\" "
+               "(OoT running %u, OnExitGame %d)\n",
+               (int)rc, resetOutput.c_str(), (unsigned)ootState.running, exitGameHookCalls);
+        if (rc == 0 || resetOutput != "MM_gGameState == nullptr" || ootState.running != 1 || ootState.init != nullptr ||
+            exitGameHookCalls != 0 || saveDiff >= 0) {
+            printf("[TEST] FAIL: oot-windows-gate: `reset` under Majora's Mask with no MM_gGameState did not fail "
+                   "with \"MM_gGameState == nullptr\" leaving OoT_gGameState, OnExitGame (%d) and gSaveContext "
+                   "(first differing byte %ld) unchanged (#1274)\n",
+                   exitGameHookCalls, saveDiff);
+            failures++;
+            memcpy(&gSaveContext, canary.data(), canary.size());
+        }
+
+        // 2. Majora's Mask running, live MM_gGameState: stops MM_gGameState and sets ConsoleLogo_Init, OoT untouched.
+        ootState = GameState{};
+        ootState.running = 1;
+        OoT_gGameState = &ootState;
+        exitGameHookCalls = 0;
+        MM_DebugConsole_TestArmGameState(1);
+        printf("[TEST] oot-windows-gate: Majora's Mask running, live MM_gGameState, console `reset`\n");
+        fflush(stdout);
+        resetOutput.clear();
+        rc = console->Run("reset", &resetOutput);
+        saveDiff = FirstSaveDiff(canary);
+        const int mmResetToLogo = MM_DebugConsole_TestGameStateResetToLogo();
+        printf("[TEST] oot-windows-gate: `reset` (MM, live MM_gGameState) returned %d with output \"%s\" "
+               "(MM resetToLogo %d, OoT running %u, OnExitGame %d)\n",
+               (int)rc, resetOutput.c_str(), mmResetToLogo, (unsigned)ootState.running, exitGameHookCalls);
+        if (rc != 0 || mmResetToLogo != 1 || ootState.running != 1 || ootState.init != nullptr ||
+            exitGameHookCalls != 0 || saveDiff >= 0) {
+            printf("[TEST] FAIL: oot-windows-gate: `reset` under Majora's Mask did not reset MM_gGameState to "
+                   "ConsoleLogo_Init while leaving OoT_gGameState, OnExitGame (%d) and gSaveContext (first differing "
+                   "byte %ld) unchanged (#1274)\n",
+                   exitGameHookCalls, saveDiff);
+            failures++;
+            memcpy(&gSaveContext, canary.data(), canary.size());
+        }
+
+        // 3. Ocarina of Time running, no OoT_gGameState: fails with "OoT_gGameState == nullptr", MM untouched.
+        // Guarded on failures == 0 because an unfixed build calls ERROR_MESSAGE on the absent Console window here.
+        if (failures == 0) {
+            Context_SetCurrentGame(GAME_OOT);
+            OoT_gGameState = nullptr;
+            MM_DebugConsole_TestArmGameState(1);
+            exitGameHookCalls = 0;
+            printf("[TEST] oot-windows-gate: Ocarina of Time running, no OoT_gGameState, console `reset`\n");
+            fflush(stdout);
+            resetOutput.clear();
+            rc = console->Run("reset", &resetOutput);
+            saveDiff = FirstSaveDiff(canary);
+            const int mmStillRunning = MM_DebugConsole_TestGameStateRunning();
+            printf("[TEST] oot-windows-gate: `reset` (OoT, null OoT_gGameState) returned %d with output \"%s\" "
+                   "(MM running %d, OnExitGame %d)\n",
+                   (int)rc, resetOutput.c_str(), mmStillRunning, exitGameHookCalls);
+            if (rc == 0 || resetOutput != "OoT_gGameState == nullptr" || mmStillRunning != 1 ||
+                exitGameHookCalls != 0 || saveDiff >= 0) {
+                printf("[TEST] FAIL: oot-windows-gate: `reset` under Ocarina of Time with no OoT_gGameState did not "
+                       "fail with \"OoT_gGameState == nullptr\" leaving MM_gGameState, OnExitGame (%d) and "
+                       "gSaveContext (first differing byte %ld) unchanged (#1274)\n",
+                       exitGameHookCalls, saveDiff);
+                failures++;
+                memcpy(&gSaveContext, canary.data(), canary.size());
+            }
+
+            // 4. Ocarina of Time running, live OoT_gGameState: stops OoT_gGameState, sets OoT_TitleSetup_Init,
+            // runs OnExitGame once, and leaves MM_gGameState untouched.
+            ootState = GameState{};
+            ootState.running = 1;
+            OoT_gGameState = &ootState;
+            MM_DebugConsole_TestArmGameState(1);
+            exitGameHookCalls = 0;
+            printf("[TEST] oot-windows-gate: Ocarina of Time running, live OoT_gGameState, console `reset`\n");
+            fflush(stdout);
+            resetOutput.clear();
+            rc = console->Run("reset", &resetOutput);
+            saveDiff = FirstSaveDiff(canary);
+            const int mmRunningAfterOoTReset = MM_DebugConsole_TestGameStateRunning();
+            printf("[TEST] oot-windows-gate: `reset` (OoT, live OoT_gGameState) returned %d "
+                   "(OoT running %u, OoT init TitleSetup %d, MM running %d, OnExitGame %d)\n",
+                   (int)rc, (unsigned)ootState.running, ootState.init == OoT_TitleSetup_Init ? 1 : 0,
+                   mmRunningAfterOoTReset, exitGameHookCalls);
+            if (rc != 0 || ootState.running != 0 || ootState.init != OoT_TitleSetup_Init ||
+                ootState.size != sizeof(GameState) || mmRunningAfterOoTReset != 1 || exitGameHookCalls != 1 ||
+                saveDiff >= 0) {
+                printf("[TEST] FAIL: oot-windows-gate: `reset` under Ocarina of Time did not reset OoT_gGameState to "
+                       "OoT_TitleSetup_Init and run OnExitGame once while leaving MM_gGameState and gSaveContext "
+                       "(first differing byte %ld) unchanged (#1274)\n",
+                       saveDiff);
+                failures++;
+                memcpy(&gSaveContext, canary.data(), canary.size());
+            }
+        }
+
+        MM_DebugConsole_TestRestoreGameState();
+        OoT_gGameState = savedOoTGameState;
+        OnExitGameHooks::functions = std::move(savedExitHooks);
+        OnExitGameUnregister::hooks = std::move(savedExitUnregister);
+        fflush(stdout);
     }
 
     // ---- 7. Pass-through under OoT: the handlers are reachable through Ship::Console and the gate opens -------------

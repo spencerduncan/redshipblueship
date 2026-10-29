@@ -472,7 +472,7 @@ kept so the decision trail stays legible.
 2. **(P) row P2 — ISG.** *Was:* OoT files `gCheats.EasyISG` as a cheat, MM files
    `gEnhancements.Restorations.TatlISG` as a restoration; which section wins is a taxonomy call.
    **RESOLVED: keep both keys distinct; file ISG under Cheats, and surface MM's as its own row
-   labelled "Tatl ISG (restoration)".** The behaviour matches but the *gate* does not — OoT's is an
+   labelled "Tatl ISG (Restoration)".** The behaviour matches but the *gate* does not — OoT's is an
    unconditional passive grant, MM's restores a behaviour the N64 game had. One merged control
    would silently switch a restoration on for players who asked for neither. Stays in
    `kMustStayDistinct`.
