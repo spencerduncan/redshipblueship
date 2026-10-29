@@ -1052,6 +1052,11 @@ extern "C" int MM_PauseSaveReload_VerifyRestoredMmShadow(void) {
     CVarClear("gEnhancements.RememberSaveLocation");
     CVarClear("gEnhancements.Saving.PauseSave");
     ShipInit::Init("gEnhancements.RememberSaveLocation");
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    // Re-dispatch OnSaveLoad against the zeroed (non-rando) SaveContext so
+    // Rando::OnSaveLoadHandler disarms the IS_RANDO COND_HOOKs (including
+    // Rando::MiscBehavior::AfterEndOfCycleSave) before later AllTests rows run.
+    S2H::GameHooks::Execute<GameInteractor::OnSaveLoad>(0);
     Context_SetCurrentGame(GAME_NONE);
     memset(&gSaveContext, 0, sizeof(SaveContext));
     return 0;
