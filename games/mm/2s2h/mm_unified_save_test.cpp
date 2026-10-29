@@ -925,6 +925,7 @@ extern "C" int MM_PauseSaveReload_CommitAndVerifyMmHalf(int slot, uint32_t maste
     memset(&gSaveContext, 0, sizeof(SaveContext));
     USAVE_ASSERT(MM_Rando_AuthorPairHalfForTest(&gSaveContext, sizeof(SaveContext), masterSeed) == 1,
                  "mm-pause-save-reload setup: could not author paired MM half");
+    memcpy(gSaveContext.save.saveInfo.playerData.newf, "ZELDA3", 6);
     gSaveContext.fileNum = 0xFF;
     gSaveContext.flashSaveAvailable = true;
     gSaveContext.save.isOwlSave = false;
