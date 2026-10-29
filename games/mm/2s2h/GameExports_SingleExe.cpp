@@ -7760,4 +7760,57 @@ extern "C" void MM_GameHooks_ExecuteOnFileSelectSaveLoad(s16 fileNum, bool isOwl
     S2H::GameHooks::Execute<GameInteractor::OnFileSelectSaveLoad>(fileNum, isOwlSave, saveContext);
 }
 
+// ============================================================================
+// Console "reset" command — Majora's Mask test seam (#1274)
+// ============================================================================
+//
+// OoT's GameState has `u32 running` at offset 0x98 (games/oot/include/z64.h),
+// whereas MM's GameState has `UNK_TYPE1 pad98[0x3]; u8 running;` at offset
+// 0x9B (games/mm/include/z64game.h), and MM's SET_NEXT_GAMESTATE stores
+// sizeof(ConsoleLogoState) rather than a type token. Keep all reads and writes
+// of MM_gGameState inside this MM translation unit so oot_windows_gate_test.cpp
+// never interprets MM_gGameState through OoT's GameState header.
+
+namespace {
+GameState* sSavedTestMmGameState = nullptr;
+bool sHasSavedTestMmGameState = false;
+GameState sTestMmGameState{};
+} // namespace
+
+extern "C" void MM_DebugConsole_TestArmGameState(int live) {
+    if (!sHasSavedTestMmGameState) {
+        sSavedTestMmGameState = MM_gGameState;
+        sHasSavedTestMmGameState = true;
+    }
+    if (live != 0) {
+        memset(&sTestMmGameState, 0, sizeof(sTestMmGameState));
+        sTestMmGameState.running = true;
+        MM_gGameState = &sTestMmGameState;
+    } else {
+        MM_gGameState = nullptr;
+    }
+}
+
+extern "C" void MM_DebugConsole_TestRestoreGameState(void) {
+    if (sHasSavedTestMmGameState) {
+        MM_gGameState = sSavedTestMmGameState;
+        sSavedTestMmGameState = nullptr;
+        sHasSavedTestMmGameState = false;
+    }
+}
+
+extern "C" int MM_DebugConsole_TestGameStateRunning(void) {
+    return MM_gGameState != nullptr && MM_gGameState->running && MM_gGameState->init == nullptr &&
+                   MM_gGameState->size == 0
+               ? 1
+               : 0;
+}
+
+extern "C" int MM_DebugConsole_TestGameStateResetToLogo(void) {
+    return MM_gGameState != nullptr && !MM_gGameState->running && MM_gGameState->init == ConsoleLogo_Init &&
+                   MM_gGameState->size == sizeof(ConsoleLogoState)
+               ? 1
+               : 0;
+}
+
 #endif /* RSBS_SINGLE_EXECUTABLE */
