@@ -3489,7 +3489,7 @@ extern "C" int MM_Combo_CaptureSaveToUnifiedSlot(void) {
 extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn) {
     if (pauseSaveOn) {
         gSaveContext.save.isOwlSave = false;
-        gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+        SavingEnhancements_ClearSaveEntranceInfo();
     }
 }
 
@@ -3644,7 +3644,7 @@ extern "C" int MM_Combo_ResetFromLastCommitOnMoonCrash(void) {
 
     memcpy(&gSaveContext.save, &sMoonCrashCommittedHalf.save, sizeof(Save));
     gSaveContext.save.isOwlSave = false;
-    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+    SavingEnhancements_ClearSaveEntranceInfo();
     gSaveContext.rupeeAccumulator = 0;
 
     const u32 linear = (u32)gSaveContext.save.day * 0x10000u + (u16)(gSaveContext.save.time - CLOCK_TIME(6, 0));

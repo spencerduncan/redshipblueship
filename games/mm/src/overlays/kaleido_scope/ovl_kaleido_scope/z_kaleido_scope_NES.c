@@ -3593,16 +3593,13 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             pauseCtx->savePromptState = PAUSE_SAVEPROMPT_STATE_RETURN_TO_MENU;
                         } else {
                             Audio_PlaySfx(NA_SE_SY_PIECE_OF_HEART);
-                            if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
-                                gSaveContext.save.isOwlSave = true;
-                                // 2S2H [Enhancement] Eventually we might allow them to load from their last entrance,
-                                // but we need to first identify and fix edge cases where that doesn't work properly
-                                // like grottos and cutscenes
-                                gSaveContext.save.shipSaveInfo.pauseSaveEntrance = SavingEnhancements_GetSaveEntrance();
-                                SavingEnhancements_AdvancePlaytime();
-                            }
                             Play_SaveCycleSceneFlags(play);
                             gSaveContext.save.saveInfo.playerData.savedSceneId = play->sceneId;
+                            if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
+                                gSaveContext.save.isOwlSave = true;
+                                SavingEnhancements_PersistSaveEntranceInfo();
+                                SavingEnhancements_AdvancePlaytime();
+                            }
                             // RSBS (#35 follow-up, generalized by #530): the cross-game
                             // .redsave commit for save-and-quit now rides inside this
                             // marshal (Sram_ComboCommitUnifiedSave, z_sram_NES.c), at the
@@ -3621,6 +3618,10 @@ void MM_KaleidoScope_Update(PlayState* play) {
                             // pauseSaveEntrance over owlWarpId, which is the correct
                             // reading of a pause save.
                             func_8014546C(sramCtx);
+                            if (CVarGetInteger("gEnhancements.Saving.PauseSave", 0)) {
+                                gSaveContext.save.isOwlSave = false;
+                                SavingEnhancements_ClearSaveEntranceInfo();
+                            }
 
                             if (!gSaveContext.flashSaveAvailable ||
                                 gSaveContext.fileNum ==
@@ -3640,8 +3641,6 @@ void MM_KaleidoScope_Update(PlayState* play) {
                                         gFlashOwlSaveStartPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER],
                                         gFlashOwlSaveNumPages[gSaveContext.fileNum * FLASH_SAVE_MAIN_MULTIPLIER]);
                                     Sram_StartWriteToFlashOwlSave(sramCtx);
-                                    gSaveContext.save.isOwlSave = false;
-                                    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
                                 } else {
                                     // 2S2H [Port] (#599) main copy of this file's regular save:
                                     // entry fileNum * FLASH_SAVE_MAIN_MULTIPLIER, as for the owl save above.

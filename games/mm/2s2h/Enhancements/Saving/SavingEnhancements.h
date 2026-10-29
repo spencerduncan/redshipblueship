@@ -10,7 +10,6 @@ void RegisterAutosave();
 extern "C" {
 #endif
 
-int SavingEnhancements_GetSaveEntrance();
 void SavingEnhancements_PersistSaveEntranceInfo();
 void SavingEnhancements_ClearSaveEntranceInfo();
 bool SavingEnhancements_CanSave();
