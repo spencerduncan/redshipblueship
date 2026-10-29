@@ -117,11 +117,11 @@ The rules, the same for both games:
   OoT's mod menu (that list is of archives).
 - **Each game owns its own folder.** OoT's `mods/loose/` is OoT's and MM's
   `mods/mm/loose/` is MM's, with the same switch behaviour as a packed mod (see
-  "Between the two games" below): whichever game you are playing owns every path
-  it ships, and its own loose files are put back on top each time you arrive.
-  Like a packed mod, the other game's folder is not unmounted when you switch, so
-  a loose file whose path the game you are playing does *not* ship is still
-  there to be found; it only matters if that game asks for such a path.
+  "Between the two games" below): when you switch games, the departing game's
+  packed mods and loose folder are unmounted and the arriving game's base
+  archives, packed mods, and loose files are mounted on top. Neither colliding
+  base paths nor mod-only paths (such as `alt/` HD replacements) carry across to
+  the other game.
 - The folder's file list is read when the game starts, and **re-read each time you
   arrive in that game** from the other one — so a file you add while playing MM is
   picked up by OoT on your next switch to OoT, and vice versa. It is not re-read
@@ -186,14 +186,16 @@ packed mods, so a loose file beats both.
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths
   shared by `soh.o2r` and `2ship.o2r` (`docs/asset-collision-analysis.md`). The
-  combo resolves that by re-mounting the **arriving** game's base archives and
-  then its mods on every cross-game switch, so whichever game you are playing owns
-  every path it ships.
+  combo resolves that by unmounting the **departing** game's mod archives and
+  re-mounting the **arriving** game's base archives and then its mods on every
+  cross-game switch, so whichever game you are playing owns every path it ships
+  and no mod-only path from the other game (such as `alt/` skeleton or model
+  replacements) remains mounted.
 
-  A mod is resolved by that same mechanism and introduces no new kind of
-  collision. If an MM mod happens to ship a path OoT also uses, it owns that path
-  only while you are in MM; the switch back to OoT hands it to
-  `oot.o2r`/`oot-mq.o2r`/`soh.o2r` again, and vice versa. This is why the
+  If an MM mod happens to ship a path OoT also uses (or an `alt/` override for
+  an actor both games have), it is mounted only while you are in MM; the switch
+  back to OoT unmounts it and hands base paths back to
+  `oot.o2r`/`oot-mq.o2r`/`soh.o2r` (and vice versa). This is why the
   `mods/mm/` split matters: a mod placed in the wrong folder gets registered as
   the other game's, and *that* mis-registration would survive the switch and
   shadow the game you are actually playing.

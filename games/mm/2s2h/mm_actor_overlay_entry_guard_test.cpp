@@ -314,9 +314,9 @@ extern "C" int MM_ActorOverlayEntryGuard_RunHeadless(void) {
         // Place `victim` and `okuta` in one contiguous buffer at the exact byte
         // stride where `&okuta->bodyPartsPos[-69].z` aliases `&victim->overlayEntry`
         // (`sizeof(BgLotus) + sizeof(ArenaNode) == 0x1D8` on x64).
-        constexpr std::ptrdiff_t kUnderflowZFromOkuta =
-            static_cast<std::ptrdiff_t>(offsetof(EnOkuta, bodyPartsPos)) -
-            69 * static_cast<std::ptrdiff_t>(sizeof(Vec3f)) + static_cast<std::ptrdiff_t>(offsetof(Vec3f, z));
+        constexpr std::ptrdiff_t kUnderflowZFromOkuta = static_cast<std::ptrdiff_t>(offsetof(EnOkuta, bodyPartsPos)) -
+                                                        69 * static_cast<std::ptrdiff_t>(sizeof(Vec3f)) +
+                                                        static_cast<std::ptrdiff_t>(offsetof(Vec3f, z));
         constexpr std::ptrdiff_t kOkutaOffsetFromVictim =
             static_cast<std::ptrdiff_t>(offsetof(Actor, overlayEntry)) - kUnderflowZFromOkuta;
         static_assert(kOkutaOffsetFromVictim > 0, "okuta must follow victim in the contiguous arena buffer");
