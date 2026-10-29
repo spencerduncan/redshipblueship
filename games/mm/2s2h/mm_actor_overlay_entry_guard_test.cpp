@@ -33,10 +33,14 @@ extern "C" {
 #include "z64malloc.h"
 #include "functions.h"
 #include "variables.h"
+#include "overlays/actors/ovl_En_Okuta/z_en_okuta.h"
+
+extern MtxF* MM_sCurrentMatrix;
 
 void AudioSfx_Reset(void);
 void MM_Actor_AddToCategory(ActorContext* actorCtx, Actor* actor, u8 actorCategory);
 Actor* MM_Actor_Delete(ActorContext* actorCtx, Actor* actor, PlayState* play);
+void EnOkuta_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx);
 
 bool MM_Actor_OverlayEntryIsValid(const Actor* actor);
 ActorOverlay* MM_Actor_ResolveValidOverlayEntry(Actor* actor, PlayState* play, const char* site);
@@ -286,6 +290,69 @@ extern "C" int MM_ActorOverlayEntryGuard_RunHeadless(void) {
               "Case 4: canary must repair victimLotus.overlayEntry in-place during MM_Actor_UpdateAll");
     }
 
+    // --- Case 5: EnOkuta_PostLimbDraw bounds guard and MM_SkelAnime_Init limbCount clamp (#1308 root cause) ---
+    // When an OoT 38-limb Octorok skeleton (`alt/objects/object_okuta/gOctorokSkel`)
+    // was loaded into MM's 16-limb `EnOkuta`:
+    //   (a) `EnOkuta_PostLimbDraw` with `limbIndex = 18` read `sLimbToBodyParts[18]`
+    //       out of bounds (`0xBB` = `-69` from the adjacent `sEffectsBodyPartOffsets[0].x = 1500.0f`)
+    //       and called `Matrix_MultZero(&this->bodyPartsPos[-69])`, writing a `Vec3f`
+    //       before `this` and clobbering the preceding heap actor's `overlayEntry`.
+    //   (b) `MM_SkelAnime_Init` set `skelAnime->limbCount = 38` against 16-entry
+    //       fixed `jointTable`/`morphTable` buffers.
+    {
+        PlayState play{};
+        MtxF testMtx = gIdentityMtxF;
+        float swampCoord = 0.0f;
+        std::memcpy(&swampCoord, &kSwampCrashLowDword, sizeof(swampCoord));
+        testMtx.mf[3][0] = swampCoord;
+        testMtx.mf[3][1] = swampCoord;
+        testMtx.mf[3][2] = swampCoord;
+
+        MtxF* savedCurrentMatrix = MM_sCurrentMatrix;
+        MM_sCurrentMatrix = &testMtx;
+
+        // Place `victim` and `okuta` in one contiguous buffer at the exact byte
+        // stride where `&okuta->bodyPartsPos[-69].z` aliases `&victim->overlayEntry`
+        // (`sizeof(BgLotus) + sizeof(ArenaNode) == 0x1D8` on x64).
+        constexpr std::ptrdiff_t kUnderflowZFromOkuta =
+            static_cast<std::ptrdiff_t>(offsetof(EnOkuta, bodyPartsPos)) -
+            69 * static_cast<std::ptrdiff_t>(sizeof(Vec3f)) + static_cast<std::ptrdiff_t>(offsetof(Vec3f, z));
+        constexpr std::ptrdiff_t kOkutaOffsetFromVictim =
+            static_cast<std::ptrdiff_t>(offsetof(Actor, overlayEntry)) - kUnderflowZFromOkuta;
+        static_assert(kOkutaOffsetFromVictim > 0, "okuta must follow victim in the contiguous arena buffer");
+
+        alignas(16) u8 contiguousHeap[static_cast<size_t>(kOkutaOffsetFromVictim) + sizeof(EnOkuta)]{};
+        Actor* victim = reinterpret_cast<Actor*>(contiguousHeap);
+        EnOkuta* okuta = reinterpret_cast<EnOkuta*>(contiguousHeap + kOkutaOffsetFromVictim);
+
+        victim->id = ACTOR_BG_LOTUS;
+        victim->overlayEntry = &gActorOverlayTable[ACTOR_BG_LOTUS];
+        okuta->actor.id = ACTOR_EN_OKUTA;
+        okuta->actor.overlayEntry = &gActorOverlayTable[ACTOR_EN_OKUTA];
+
+        // Sanity-check the layout: `&okuta->bodyPartsPos[-69].z` must point at `&victim->overlayEntry`.
+        check(reinterpret_cast<void*>(&okuta->bodyPartsPos[-69].z) == reinterpret_cast<void*>(&victim->overlayEntry),
+              "Case 5a precondition: &okuta->bodyPartsPos[-69].z must alias &victim->overlayEntry");
+
+        EnOkuta_PostLimbDraw(&play, 18, nullptr, nullptr, &okuta->actor);
+        EnOkuta_PostLimbDraw(&play, -1, nullptr, nullptr, &okuta->actor);
+        MM_sCurrentMatrix = savedCurrentMatrix;
+
+        check(victim->overlayEntry == &gActorOverlayTable[ACTOR_BG_LOTUS],
+              "Case 5a: EnOkuta_PostLimbDraw with out-of-range limbIndex (18, -1) must not overwrite preceding "
+              "actor->overlayEntry");
+
+        // 5b: MM_SkelAnime_Init must clamp skelAnime.limbCount to the caller's fixed jointTable size.
+        SkeletonHeader oversizedSkel{};
+        oversizedSkel.limbCount = 37; // 37 + 1 = 38 limbs (OoT's 3DS Octorok skeleton)
+        SkelAnime skelAnime{};
+        Vec3s jointTable[OCTOROK_LIMB_MAX]{};
+        Vec3s morphTable[OCTOROK_LIMB_MAX]{};
+        MM_SkelAnime_Init(&play, &skelAnime, &oversizedSkel, nullptr, jointTable, morphTable, OCTOROK_LIMB_MAX);
+        check(skelAnime.limbCount == OCTOROK_LIMB_MAX,
+              "Case 5b: MM_SkelAnime_Init must clamp skelAnime.limbCount (38 -> 16) to match fixed jointTable size");
+    }
+
     gActorOverlayTable[ACTOR_BG_LOTUS].numLoaded = savedLotusNumLoaded;
     gActorOverlayTable[ACTOR_OBJ_ETCETERA].numLoaded = savedEtceteraNumLoaded;
     if (gActorOverlayTable[ACTOR_BG_LOTUS].profile != nullptr) {
@@ -293,7 +360,7 @@ extern "C" int MM_ActorOverlayEntryGuard_RunHeadless(void) {
     }
 
     if (failures == 0) {
-        std::printf("[TEST] PASS: mm-actor-overlay-entry-guard (4 cases)\n");
+        std::printf("[TEST] PASS: mm-actor-overlay-entry-guard (5 cases)\n");
         return 0;
     }
     std::fprintf(stderr, "[TEST] %d failure(s) in mm-actor-overlay-entry-guard\n", failures);

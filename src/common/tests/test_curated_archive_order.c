@@ -363,6 +363,48 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
             break;
         }
 
+        // ---- Cross-game mod isolation (#1308): switching to the OTHER game
+        // must evict the departing game's mod archives so paths that base
+        // archives never ship (such as `alt/objects/object_okuta/gOctorokSkel`
+        // in an OoT 3DS mod) cannot remain in `mFileToArchive` during MM.
+        Combo_EnsureGameArchivesLoaded(GAME_MM);
+
+        bool ootModStillMountedInMM = false;
+        auto archivesDuringMM = archiveManager->GetArchives();
+        if (archivesDuringMM != nullptr) {
+            for (const auto& arch : *archivesDuringMM) {
+                if (arch != nullptr && isModPath(arch->GetPath())) {
+                    ootModStillMountedInMM = true;
+                    break;
+                }
+            }
+        }
+        const std::string ownerDuringMM = ownerOf(contested);
+        printf("[mod-survives-switch] after switch to MM, OoT mod mounted=%d, %s is owned by: %s\n",
+               ootModStillMountedInMM ? 1 : 0, contested.c_str(), ownerDuringMM.c_str());
+        if (ootModStillMountedInMM || isModPath(ownerDuringMM)) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: OoT mod archive remained mounted after switching to MM "
+                    "(mounted=%d, owner=%s) — cross-game `alt/` mod assets would leak into MM (#1308)\n",
+                    ootModStillMountedInMM ? 1 : 0, ownerDuringMM.c_str());
+            rc = 1;
+            break;
+        }
+
+        // Switching back to OoT must re-mount OoT's registered mod archive on top.
+        Combo_EnsureGameArchivesLoaded(GAME_OOT);
+        const std::string ownerAfterReturnToOoT = ownerOf(contested);
+        printf("[mod-survives-switch] after return switch to OoT, %s is owned by: %s\n", contested.c_str(),
+               ownerAfterReturnToOoT.c_str());
+        if (!isModPath(ownerAfterReturnToOoT)) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: after returning from MM to OoT, OoT mod did not regain ownership of "
+                    "%s (#593/#1308)\n",
+                    contested.c_str());
+            rc = 1;
+            break;
+        }
+
         // ---- Negative control: no registered mods, base must win -----------
         // Same sequence, empty registry. If this ALSO reported the mod as
         // owner, the assertion above would be measuring something incidental
