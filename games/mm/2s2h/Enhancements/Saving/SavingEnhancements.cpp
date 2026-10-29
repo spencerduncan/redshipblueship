@@ -73,6 +73,14 @@ extern "C" int SavingEnhancements_GetSaveEntrance() {
     }
 }
 
+extern "C" void SavingEnhancements_PersistSaveEntranceInfo() {
+    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = SavingEnhancements_GetSaveEntrance();
+}
+
+extern "C" void SavingEnhancements_ClearSaveEntranceInfo() {
+    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = -1;
+}
+
 /**
  * RSBS (#530): is there ANY durable destination for a save right now?
  *

@@ -11,6 +11,8 @@ extern "C" {
 #endif
 
 int SavingEnhancements_GetSaveEntrance();
+void SavingEnhancements_PersistSaveEntranceInfo();
+void SavingEnhancements_ClearSaveEntranceInfo();
 bool SavingEnhancements_CanSave();
 // RSBS (#530): "is there any durable destination for a save right now" — a real
 // flash slot, or (cross-game) this session's active unified `.redsave` slot.

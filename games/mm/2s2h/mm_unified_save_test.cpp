@@ -222,6 +222,11 @@
 #include "game.h"
 
 #include "2s2h/Enhancements/Saving/SavingEnhancements.h"
+#include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Rando/Rando.h"
+#include "2s2h/ShipInit.hpp"
+#include "combo_tracker_view.h"
+#include <libultraship/bridge/consolevariablebridge.h>
 
 #include <cstdio>
 #include <cstring>
@@ -235,6 +240,8 @@ extern "C" int MM_Combo_OwlSaveExitToOoT(void);
 extern "C" int MM_Combo_GameOverExitToOoT(void);
 extern "C" void MM_HarvestSharedResources(void);
 extern "C" void MM_Combo_EndPauseSaveCommitFor(int pauseSaveOn);
+extern "C" void MM_TrackerAdapter_Register(void);
+extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, uint32_t masterSeed);
 
 namespace {
 
@@ -861,23 +868,28 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(pooled == 0x30, "the shared health bar must carry the revived value, not the dead one");
     }
 
-    // ---- 14. A paired Pause Menu Save ends with the pair cleared (W6-TIMESAVERS, #1236) --
-    // The save prompt sets isOwlSave and pauseSaveEntrance before its commit and
-    // vanilla clears them only in the flash-write branch, which the 0xFF fileNum
-    // never takes. Left set, the next scene's Player init spawns Link standing at
-    // pauseSaveEntrance. The prompt itself needs a live pause context, so this
-    // drives the single-exe step it calls after the commit, with the Pause Menu
-    // Save state passed in: this row runs without a Ship::Context, and
-    // CVarSetInteger dereferences it (the SIGSEGV CI caught).
+    // ---- 14. A paired Pause Menu Save ends with the pair cleared (W6-TIMESAVERS, #1236, #1302) --
+    // The save prompt sets isOwlSave, pauseSaveEntrance and shipSaveInfo.respawn
+    // before its commit and vanilla clears them only in the flash-write branch,
+    // which the 0xFF fileNum never takes. Left set, the next scene's Player init
+    // spawns Link standing at pauseSaveEntrance and retains stale respawn data.
+    // The prompt itself needs a live pause context, so this drives the
+    // single-exe step it calls after the commit, with the Pause Menu Save state
+    // passed in: this row runs without a Ship::Context, and CVarSetInteger
+    // dereferences it (the SIGSEGV CI caught).
     {
         memset(&gSaveContext, 0, sizeof(SaveContext));
         gSaveContext.fileNum = 0xFF;
         gSaveContext.save.isOwlSave = true;
         gSaveContext.save.shipSaveInfo.pauseSaveEntrance = 0x1A30;
+        gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance = 0x2400;
+        gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags = 0x11223344;
 
         MM_Combo_EndPauseSaveCommitFor(0);
-        USAVE_ASSERT(gSaveContext.save.isOwlSave && gSaveContext.save.shipSaveInfo.pauseSaveEntrance == 0x1A30,
-                     "with Pause Menu Save off the step must leave the pair alone, as vanilla's branch does");
+        USAVE_ASSERT(
+            gSaveContext.save.isOwlSave && gSaveContext.save.shipSaveInfo.pauseSaveEntrance == 0x1A30 &&
+                gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance == 0x2400,
+            "with Pause Menu Save off the step must leave the pair and respawn alone, as vanilla's branch does");
 
         MM_Combo_EndPauseSaveCommitFor(1);
         USAVE_ASSERT(!gSaveContext.save.isOwlSave,
@@ -885,6 +897,9 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
         USAVE_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1,
                      "a paired pause save must clear pauseSaveEntrance after its commit, or Link spawns standing "
                      "on the next scene");
+        USAVE_ASSERT(gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance == 0 &&
+                         gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags == 0,
+                     "a paired pause save must clear shipSaveInfo.respawn after its commit (#1302)");
     }
 
     // Leave global state clean for whatever runs next.
@@ -901,5 +916,142 @@ extern "C" int MM_UnifiedSaveCapture_RunHeadless(void) {
     RsbsSave_ResetSlotSessionState();
 
     printf("[TEST] mm-unified-save-capture: PASS\n");
+    return 0;
+}
+
+extern "C" int MM_PauseSaveReload_CommitAndVerifyMmHalf(int slot, uint32_t masterSeed) {
+    MM_TrackerAdapter_Register();
+
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    USAVE_ASSERT(MM_Rando_AuthorPairHalfForTest(&gSaveContext, sizeof(SaveContext), masterSeed) == 1,
+                 "mm-pause-save-reload setup: could not author paired MM half");
+    gSaveContext.fileNum = 0xFF;
+    gSaveContext.flashSaveAvailable = true;
+    gSaveContext.save.isOwlSave = false;
+
+    // Author one collected check and one uncollected shuffled check in MM's save table.
+    gSaveContext.save.shipSaveInfo.rando.randoSaveChecks[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].shuffled = true;
+    gSaveContext.save.shipSaveInfo.rando.randoSaveChecks[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].obtained = true;
+    gSaveContext.save.shipSaveInfo.rando.randoSaveChecks[RC_CLOCK_TOWN_SOUTH_CHEST_UPPER].shuffled = true;
+    gSaveContext.save.shipSaveInfo.rando.randoSaveChecks[RC_CLOCK_TOWN_SOUTH_CHEST_UPPER].obtained = false;
+
+    // Enable Remember Save Location + Pause Menu Save and populate runtime respawn state.
+    CVarSetInteger("gEnhancements.RememberSaveLocation", 1);
+    CVarSetInteger("gEnhancements.Saving.PauseSave", 1);
+    ShipInit::Init("gEnhancements.RememberSaveLocation");
+
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance = 0x2400;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = 3;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].data = 0x5A;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags = 0x11223344;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].tempCollectFlags = 0x55667788;
+    gSaveContext.respawn[RESPAWN_MODE_TOP].entrance = 0x3010;
+    gSaveContext.respawn[RESPAWN_MODE_TOP].roomIndex = 1;
+    gSaveContext.respawn[RESPAWN_MODE_TOP].data = 0x2B;
+
+    // Run the pause-save pre-commit step (z_kaleido_scope_NES.c PAUSE_SAVEPROMPT_STATE_3).
+    const bool currentOwlSaveState = gSaveContext.save.isOwlSave;
+    gSaveContext.save.isOwlSave = true;
+    SavingEnhancements_PersistSaveEntranceInfo();
+
+    USAVE_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0),
+                 "#1302: SavingEnhancements_PersistSaveEntranceInfo must persist pauseSaveEntrance");
+    USAVE_ASSERT(gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance == 0x2400 &&
+                     gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags == 0x11223344 &&
+                     gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_TOP].entrance == 0x3010,
+                 "#1302: SavingEnhancements_PersistSaveEntranceInfo must copy respawn[] into shipSaveInfo.respawn[]");
+
+    // Commit through func_8014546C -> Sram_ComboCommitUnifiedSave (captures live MM + frozen OoT shadow).
+    RsbsSave_SetActiveSlot(slot);
+    SramContext sramCtx = {};
+    memset(sSaveBuf, 0, sizeof(sSaveBuf));
+    sramCtx.saveBuf = sSaveBuf;
+    const uint32_t genBefore = gComboCtx.commitGeneration;
+    func_8014546C(&sramCtx);
+    USAVE_ASSERT(gComboCtx.commitGeneration == genBefore + 1,
+                 "#1298: MM's pause-save commit must advance the unified .redsave generation by 1");
+
+    // Run the paired post-commit cleanup (z_kaleido_scope_NES.c !flashSaveAvailable || fileNum == 255).
+    MM_Combo_EndPauseSaveCommitFor(1);
+    gSaveContext.save.isOwlSave = currentOwlSaveState;
+
+    USAVE_ASSERT(!gSaveContext.save.isOwlSave, "#1302: paired pause-save post-commit must restore isOwlSave");
+    USAVE_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1,
+                 "#1302: paired pause-save post-commit must clear pauseSaveEntrance");
+    USAVE_ASSERT(gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance == 0 &&
+                     gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags == 0 &&
+                     gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_TOP].entrance == 0,
+                 "#1302: paired pause-save post-commit must clear shipSaveInfo.respawn[]");
+
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    return 0;
+}
+
+extern "C" int MM_PauseSaveReload_VerifyRestoredMmShadow(void) {
+    // 1. While OoT is the active game after reloading the .redsave, the Combo Tracker's
+    //    MM panel reads the restored MM frozen shadow as STALE and shows the pause-saved check.
+    Context_SetCurrentGame(GAME_OOT);
+    ComboTrackerGameSummary mmSummary = {};
+    Combo_TrackerGameSummary(GAME_MM, &mmSummary);
+    USAVE_ASSERT(mmSummary.freshness == COMBO_TRACKER_FRESH_STALE && mmSummary.hasWorld && mmSummary.obtained == 1,
+                 "#1298: after reloading the pause-saved .redsave, the Combo Tracker's MM summary must read the "
+                 "committed MM half (STALE, 1 obtained)");
+
+    ComboTrackerCheckRow southChestRow = {};
+    USAVE_ASSERT(Combo_TrackerCheckAt(GAME_MM, RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, &southChestRow),
+                 "#1298: Combo_TrackerCheckAt must resolve RC_CLOCK_TOWN_SOUTH_CHEST_LOWER");
+    USAVE_ASSERT(southChestRow.shuffled && southChestRow.obtained &&
+                     southChestRow.status == COMBO_TRACKER_CHECK_COLLECTED,
+                 "#1298: the MM check collected before the pause-save must read COLLECTED in the Combo Tracker");
+
+    ComboTrackerCheckRow woodfallMazeRow = {};
+    USAVE_ASSERT(Combo_TrackerCheckAt(GAME_MM, RC_CLOCK_TOWN_SOUTH_CHEST_UPPER, &woodfallMazeRow),
+                 "#1298: Combo_TrackerCheckAt must resolve RC_CLOCK_TOWN_SOUTH_CHEST_UPPER");
+    USAVE_ASSERT(woodfallMazeRow.shuffled && !woodfallMazeRow.obtained &&
+                     woodfallMazeRow.status == COMBO_TRACKER_CHECK_UNCHECKED,
+                 "#1298: an uncollected MM check must stay UNCHECKED in the Combo Tracker after reload");
+
+    // 2. Restore the MM shadow into MM's gSaveContext (as a cross-game arrival / MM resume does)
+    //    and verify the pause-save entrance and respawn data survived in the committed Tier-3 blob.
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    USAVE_ASSERT(Context_RestoreState(GAME_MM, &gSaveContext, sizeof(SaveContext)) == 1,
+                 "#1298: Context_RestoreState(GAME_MM) must restore the MM half loaded from the .redsave");
+    USAVE_ASSERT(gSaveContext.save.shipSaveInfo.rando.randoSaveChecks[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].obtained,
+                 "#1298: restored MM SaveContext must retain the pause-saved check");
+    USAVE_ASSERT(
+        gSaveContext.save.shipSaveInfo.pauseSaveEntrance == ENTRANCE(SOUTH_CLOCK_TOWN, 0),
+        "#1302: restored MM SaveContext must carry the persisted pauseSaveEntrance from the pause-save commit");
+    USAVE_ASSERT(
+        gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].entrance == 0x2400 &&
+            gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags == 0x11223344 &&
+            gSaveContext.save.shipSaveInfo.respawn[RESPAWN_MODE_TOP].entrance == 0x3010,
+        "#1302: restored MM SaveContext must carry the persisted shipSaveInfo.respawn[] from the pause-save commit");
+
+    // 3. Verify LoadRespawnData on OnSaveLoad is COND_HOOK-gated on gEnhancements.RememberSaveLocation (#1302).
+    Context_SetCurrentGame(GAME_MM);
+    memset(&gSaveContext.respawn, 0, sizeof(gSaveContext.respawn));
+    CVarSetInteger("gEnhancements.RememberSaveLocation", 1);
+    ShipInit::Init("gEnhancements.RememberSaveLocation");
+    S2H::GameHooks::Execute<GameInteractor::OnSaveLoad>(0);
+    USAVE_ASSERT(gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance == 0x2400 &&
+                     gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex == 3 &&
+                     gSaveContext.respawn[RESPAWN_MODE_DOWN].tempSwitchFlags == 0x11223344 &&
+                     gSaveContext.respawn[RESPAWN_MODE_TOP].entrance == 0x3010,
+                 "#1302: with RememberSaveLocation on, OnSaveLoad must restore gSaveContext.respawn[] from "
+                 "shipSaveInfo.respawn[]");
+
+    memset(&gSaveContext.respawn, 0, sizeof(gSaveContext.respawn));
+    CVarSetInteger("gEnhancements.RememberSaveLocation", 0);
+    ShipInit::Init("gEnhancements.RememberSaveLocation");
+    S2H::GameHooks::Execute<GameInteractor::OnSaveLoad>(0);
+    USAVE_ASSERT(gSaveContext.respawn[RESPAWN_MODE_DOWN].entrance == 0 &&
+                     gSaveContext.respawn[RESPAWN_MODE_TOP].entrance == 0,
+                 "#1302: with RememberSaveLocation off, LoadRespawnData must be unhooked from OnSaveLoad");
+
+    CVarClear("gEnhancements.RememberSaveLocation");
+    CVarClear("gEnhancements.Saving.PauseSave");
+    ShipInit::Init("gEnhancements.RememberSaveLocation");
+    Context_SetCurrentGame(GAME_NONE);
+    memset(&gSaveContext, 0, sizeof(SaveContext));
     return 0;
 }
