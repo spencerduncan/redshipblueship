@@ -248,11 +248,12 @@ CheckListColours ReadCheckListColours() {
  * follows the name on its line when it fits there, and starts the next line under
  * the name when it does not.
  *
- * On a panel that takes skip writes (`skipColumn`: the LIVE panel, #458 U5) the
- * row starts with SoH's skip button (DrawLocation): a times to skip, a plus to
- * unskip, on a check of the seed not yet found, and an empty square of the same
- * size on every other row so the names stay in one column. A snapshot panel
- * draws neither.
+ * On a panel that takes skip writes (`skipColumn`, ComboPaneSkipColumn: the
+ * LIVE pane, #458 U5, and the far pane while the other game plays the paired
+ * file, #1294) the row starts with SoH's skip button (DrawLocation): a times to
+ * skip, a plus to unskip, on a check of the seed not yet found, and an empty
+ * square of the same size on every other row so the names stay in one column. A
+ * pane with no paired world behind it draws neither.
  *
  * With Enable Available Checks on (`availableChecks`, #1129) SoH's reachability
  * glyph follows, as in DrawLocation: an open lock for a check reachable now, a
@@ -374,8 +375,8 @@ void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableC
     }
 
     const CheckListColours colours = ReadCheckListColours();
-    // Asked once per frame: the panel takes skip writes only while it is LIVE (#458 U5).
-    const bool skipColumn = Combo_TrackerSkipWritable(game);
+    // Asked once per frame: whether the pane takes skip writes (#458 U5; both panes, #1294).
+    const bool skipColumn = ComboPaneSkipColumn(game);
     bool previousOpen = false;
     // SoH draws its whole area loop under FramePadding (4, 3)
     // (randomizer_check_tracker.cpp, DrawElement), which puts an area's tree
@@ -623,6 +624,10 @@ float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord) {
     const float cap = contentWidth * 3.0f / 5.0f;
     const float width = widestItemWord > share ? widestItemWord : share;
     return width < cap ? width : cap;
+}
+
+bool ComboPaneSkipColumn(uint8_t game) {
+    return Combo_TrackerSkipWritable(game);
 }
 
 bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary) {

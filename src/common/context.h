@@ -110,6 +110,16 @@ const void* Context_GetOoTSaveContext(void);
 const void* Context_GetMMSaveContext(void);
 
 /**
+ * The frozen MM half, writable, or NULL unless MM's frozen state exists
+ * (Context_HasFrozenState(GAME_MM)): the one write the combo tracker makes to
+ * it is the far pane's skip toggle (#1294), which MM's own TU makes in MM's
+ * layout (ADR 0008 rule 5). Every commit stages this storage as the .redsave's
+ * Tier-3 (RsbsSave_StageCommit) and MM's arrival consumes it into the live save
+ * (Combo_ConsumeFrozenState), so a byte written here is the MM half's own.
+ */
+void* Context_GetFrozenMMSaveContextForWrite(void);
+
+/**
  * Update shadow copy of active game's SaveContext (for trackers)
  */
 void Context_UpdateShadowCopy(GameId game, const void* saveContext, size_t size);
@@ -176,6 +186,14 @@ int Context_ArmShadowAsFrozen(GameId game, uint16_t returnEntrance);
  */
 #define RSBS_TRACKER_AVAIL_OOT_CAP 3072u
 #define RSBS_TRACKER_AVAIL_MM_CAP 2560u
+
+/**
+ * The OoT skip journal's capacity (#1294), in entries: the skip toggles made on
+ * Ocarina of Time's checks while Majora's Mask is played and not yet in OoT's
+ * own .sav (ComboContext.trackerSkipJournalOoT). Each entry is a u16, so the
+ * record costs 2 + 128 = 130 bytes.
+ */
+#define RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP 64u
 
 // ============================================================================
 // Origin-tagged shared items (ADR 0002)
@@ -1206,6 +1224,28 @@ typedef struct {
     uint16_t trackerAvailCountMM;
     uint8_t trackerAvailOoT[RSBS_TRACKER_AVAIL_OOT_CAP / 8];
     uint8_t trackerAvailMM[RSBS_TRACKER_AVAIL_MM_CAP / 8];
+
+    // #1294: THE OoT SKIP JOURNAL. The combo tracker's Ocarina of Time pane takes
+    // skip toggles while Majora's Mask is played (the pair is one game). The
+    // toggle flips the flag on OoT's suspended heap, which survives the switch,
+    // but OoT's own persistence (its .sav's trackerData section) cannot be
+    // written then: gSaveContext is MM's, and SoH's section save stamps the
+    // .sav's fileType from it. So each such toggle is also recorded here, the
+    // commits that follow carry it in Tier-1, OoT's load replays it onto the
+    // heap after the .sav's own tracker data (OoT_TrackerAdapter_ReplaySkipJournal),
+    // and OoT's next full save, which writes every heap flag to its .sav, empties
+    // it in the same commit. A later toggle of a journalled check, on either
+    // pane, rewrites its entry, so the replay never resurrects an older answer.
+    //
+    // One u16 per entry: the OoT check id in the low 15 bits, the skipped value
+    // in bit 15 (OoT's RC_MAX is about 2530). ZERO MEANS EMPTY: a .redsave
+    // written before #1294 zero-extends to no entries. APPENDED after the
+    // availability captures, inside RSBS_COMBO_CONTEXT_RECORD_SIZE, so every
+    // field above keeps its offset and neither the record size nor
+    // RSBS_SAVE_VERSION moves. Session state like the captures: not in the
+    // invalidation KEEP set, not part of a world.
+    uint16_t trackerSkipJournalCountOoT; // entries [0, count) in use
+    uint16_t trackerSkipJournalOoT[RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP];
 } ComboContext;
 
 /**
@@ -1436,9 +1476,15 @@ RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerAvailCountOoT) == 1004u &&
                            offsetof(ComboContext, trackerAvailCountMM) == 1006u &&
                            offsetof(ComboContext, trackerAvailOoT) == 1008u &&
-                           offsetof(ComboContext, trackerAvailMM) == 1392u && sizeof(ComboContext) == 1712u,
+                           offsetof(ComboContext, trackerAvailMM) == 1392u,
                        "the tracker availability captures live at .redsave byte offsets 1004-1711 (#1129); if "
                        "this fires, a field ahead of them moved");
+// #1294's append, on the same terms: directly after the captures, the count,
+// then the entries.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerSkipJournalCountOoT) == 1712u &&
+                           offsetof(ComboContext, trackerSkipJournalOoT) == 1714u && sizeof(ComboContext) == 1844u,
+                       "the OoT skip journal lives at .redsave byte offsets 1712-1841 (#1294); if this fires, a "
+                       "field ahead of it moved");
 RSBS_CTX_STATIC_ASSERT(RSBS_TRACKER_AVAIL_OOT_CAP % 64u == 0 && RSBS_TRACKER_AVAIL_MM_CAP % 64u == 0 &&
                            RSBS_TRACKER_AVAIL_OOT_CAP <= 0xFFFFu && RSBS_TRACKER_AVAIL_MM_CAP <= 0xFFFFu,
                        "a tracker availability capacity must be whole 64-bit words and fit its u16 count");

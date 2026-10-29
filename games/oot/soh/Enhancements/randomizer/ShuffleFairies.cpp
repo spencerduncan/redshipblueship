@@ -43,8 +43,11 @@ bool ShuffleFairies_FairyExists(CheckIdentity fairyIdentity) {
         if (actor->id != ACTOR_EN_ELF) {
             actor = actor->next;
         } else {
-            const auto actorFairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(&actor);
-            if (actorFairyIdentity != nullptr && fairyIdentity.randomizerInf == actorFairyIdentity->randomizerInf) {
+            const auto actorFairyIdentity = ObjectExtension::GetInstance().Get<CheckIdentity>(actor);
+            if (actorFairyIdentity != nullptr && fairyIdentity.randomizerInf != RAND_INF_MAX &&
+                fairyIdentity.randomizerCheck != RC_UNKNOWN_CHECK &&
+                fairyIdentity.randomizerInf == actorFairyIdentity->randomizerInf &&
+                fairyIdentity.randomizerCheck == actorFairyIdentity->randomizerCheck) {
                 return true;
             }
             actor = actor->next;
@@ -83,8 +86,8 @@ static bool SpawnFairy(f32 posX, f32 posY, f32 posZ, int32_t params, FairyType f
         return false;
     }
     if (!Flags_GetRandomizerInf(fairyIdentity.randomizerInf)) {
-        Actor* fairy = OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_ELF, posX, posY - 30.0f, posZ, 0, 0, 0,
-                                   fairyType, true);
+        Actor* fairy = OoT_Actor_Spawn(&OoT_gPlayState->actorCtx, OoT_gPlayState, ACTOR_EN_ELF, posX, posY - 30.0f,
+                                       posZ, 0, 0, 0, fairyType, true);
         ObjectExtension::GetInstance().Set<CheckIdentity>(fairy, std::move(fairyIdentity));
         fairy->draw = (ActorFunc)ShuffleFairies_DrawRandomizedItem;
         return true;
@@ -174,8 +177,10 @@ void RegisterShuffleFairies() {
         // Otherwise fall back to vanilla behaviour.
         if (OoT_gPlayState->msgCtx.ocarinaMode == OCARINA_MODE_04 &&
             (OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_LULLABY ||
-             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SARIAS || OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_EPONAS ||
-             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SUNS || OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_TIME ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SARIAS ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_EPONAS ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_SUNS ||
+             OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_TIME ||
              OoT_gPlayState->msgCtx.unk_E3F2 == OCARINA_SONG_STORMS)) {
 
             int32_t params = (OoT_gPlayState->sceneNum == SCENE_GROTTOS) ? Grotto_CurrentGrotto() : 0;
@@ -204,6 +209,7 @@ void RegisterShuffleFairies() {
                     *should = false;
                 }
             } else {
+                gossipStone->unk_19D = 0;
                 *should = false;
             }
         }

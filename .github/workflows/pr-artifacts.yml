@@ -52,6 +52,9 @@ jobs:
               run_id: context.payload.workflow_run.id,
             });
 
+            // Publish every generate-builds artifact except the raw port archives
+            // (soh.o2r / 2ship.o2r), including redship-map-windows and
+            // redship-map-linux beside rsbs-windows and rsbs-linux (#1303).
             return allArtifacts.data.artifacts.reduce((acc, item) => {
               if (item.name === "soh.o2r" || item.name === "2ship.o2r") return acc;
               acc += `

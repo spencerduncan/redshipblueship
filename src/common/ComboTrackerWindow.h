@@ -176,6 +176,14 @@ float ComboCrossingItemColumnWidth(float contentWidth, float widestItemWord);
 bool ComboPanelShowsOwnSeed(const ComboTrackerIdentity& identity, const ComboTrackerGameSummary& summary);
 
 /**
+ * Whether `game`'s pane draws SoH's skip column this frame (#458 U5, #1294): the
+ * view's answer to whether that pane takes skip writes, which since #1294 is the
+ * far pane's too while the other game plays the paired file (the pair is one
+ * game). Asked once per frame per pane.
+ */
+bool ComboPaneSkipColumn(uint8_t game);
+
+/**
  * The name a Checks-list row prints under its area header (#458 U4): the
  * check's short name when its game's own tracker prints one there (OoT, SoH's
  * DrawLocation), else its full name. NULL when the row has neither (no name

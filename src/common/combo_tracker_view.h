@@ -11,7 +11,7 @@
  * completion travels inside the frozen shadow blob as in-save POD. This model
  * is the projection of both, plus the cross-game identity and placements
  * already in gComboCtx. It is read-only but for one write, the skip toggle
- * (#458 U5), which only the LIVE panel takes.
+ * (#458 U5), which both games' panels take (#1294; see THE SKIP TOGGLE below).
  *
  * PER-GAME ADAPTERS, NEVER A MERGED ID SPACE (ADR 0002). The two check models
  * are irreconcilable by construction: MM keys an in-save POD table by
@@ -25,7 +25,7 @@
  *
  * FRESHNESS IS A FIELD, NOT A COMMENT. The tracker's whole point is showing
  * data that may be stale, so every summary carries an explicit freshness the
- * window acts on (no skip writes and no found state from data it cannot read):
+ * window acts on (no found state from data it cannot read):
  *   - MM reads its live save while MM is the active game AND its play state
  *     is loaded (the descriptor's liveSave hook answers non-NULL) AND that
  *     save carries the 'ZELDA3' marker: LIVE. Otherwise it reads the frozen
@@ -322,8 +322,9 @@ typedef struct ComboMMTrackerDesc {
     // a marked rando save), so common code never writes MM's save (ADR 0008
     // rule 5). False, with nothing written, outside those conditions or for a
     // check its tracker's button is not drawn on (not part of the seed, or
-    // found). The view calls it only when its own source pick reads LIVE, never
-    // for the shadow. May itself be NULL: MM's panel then offers no toggle.
+    // found). The view calls it only when its own source pick reads LIVE; the
+    // shadow's write is setShadowSkipped below. May itself be NULL: MM's LIVE
+    // panel then offers no toggle.
     bool (*setLiveSkipped)(uint16_t checkId, bool skipped);
     // Reachability on the LIVE panel (#1129): 1 when check `checkId` is in
     // logic on MM's live save now (Rando::CheckTracker::ComputeChecksInLogic,
@@ -346,6 +347,18 @@ typedef struct ComboMMTrackerDesc {
     // False with no MM play state. The view calls it only while MM is the
     // active game (Combo_TrackerCurrentArea). May itself be NULL: no area.
     bool (*currentArea)(uint16_t* outKey);
+    // The far pane's skip write (#1294), MM's own op: the same byte as
+    // setLiveSkipped, in the FROZEN MM half (Context_GetFrozenMMSaveContextForWrite)
+    // while Ocarina of Time plays the paired file. The next commit stages that
+    // half as the .redsave's Tier-3 and MM's arrival consumes it into the live
+    // save, so the write is MM's own from then on. The MM TU makes it under
+    // those conditions (OoT is the active game, the pairing is live, the MM half
+    // is armed, marked and a rando save); false, with nothing written, outside
+    // them or for a check its tracker's button is not drawn on. The view calls
+    // it only for the STALE panel while OoT plays a randomizer file (OoT's
+    // adapter's skipWritable answers). May itself be NULL: MM's far panel then
+    // offers no toggle.
+    bool (*setShadowSkipped)(uint16_t checkId, bool skipped);
 } ComboMMTrackerDesc;
 
 /**
@@ -406,13 +419,15 @@ typedef struct ComboOoTTrackerOps {
     bool (*checkAt)(int index, ComboTrackerCheckRow* out);
     // Display name for a check id, or NULL (never-initialized static data).
     const char* (*checkName)(uint16_t checkId);
-    // ---- The skip toggle (#458 U5): the one write, LIVE panel only ----------
+    // ---- The skip toggle (#458 U5): the view's one write --------------------
     // Both NULL (a read-only registrant: the panel then offers no toggle) or
-    // both set. The view calls them only while OoT is the active game.
+    // both set. The view calls them only while OoT is the active game; the far
+    // pane's pair is suspendedSkipWritable / setSuspendedSkipped below.
     //
     // Whether OoT takes a skip write now: a rando save is loaded, so the heap
     // belongs to the file being played. (Close to, not the same as, SoH's own
-    // Check Tracker draw condition; the OoT TU states the difference.)
+    // Check Tracker draw condition; the OoT TU states the difference.) The view
+    // also reads it as "OoT plays a randomizer file" for MM's far pane (#1294).
     bool (*skipWritable)(void);
     // Set check `checkId`'s skip flag on the heap and persist it, as SoH's Check
     // Tracker's skip button does (randomizer_check_tracker.cpp, DrawLocation):
@@ -432,12 +447,30 @@ typedef struct ComboOoTTrackerOps {
     // randomizer file or before the first transition. The view calls it only
     // while OoT is the active game. May itself be NULL: no area.
     bool (*currentArea)(uint16_t* outKey);
+    // ---- The far pane's skip toggle (#1294) -----------------------------------
+    // Both NULL (the far pane then offers no toggle) or both set. The view calls
+    // them only while Majora's Mask plays a randomizer file (MM's live save is
+    // marked and randomized).
+    //
+    // Whether OoT's suspended heap takes a skip write now: the pairing is live
+    // and the heap is the world OoT last departed from while playing a
+    // randomizer file (its departure capture recorded that seed). gSaveContext
+    // is MM's then, so nothing of OoT's save is read.
+    bool (*suspendedSkipWritable)(void);
+    // Set check `checkId`'s skip flag on the suspended heap, which survives the
+    // switch, and record it in the OoT skip journal (ComboContext.
+    // trackerSkipJournalOoT) the commits carry; SoH's own area order is brought
+    // up to date at OoT's next arrival, and no OoT save section is written while
+    // MM owns gSaveContext. False, with nothing written, for a check the pane
+    // offers no button on (setSkipped's row rule, over the pane's own list),
+    // when suspendedSkipWritable answers false, or when the journal is full.
+    bool (*setSuspendedSkipped)(uint16_t checkId, bool skipped);
 } ComboOoTTrackerOps;
 
 /**
  * Install OoT's accessor vtable (the pointer is retained; the OoT TU passes a
  * static). Passing NULL un-registers. A vtable with a NULL read member, or with
- * exactly one of the two skip members, is rejected with a stderr complaint — a
+ * exactly one member of either skip pair, is rejected with a stderr complaint — a
  * half-registered adapter would turn "unavailable" into a null call through
  * the window's draw path.
  */
@@ -456,9 +489,22 @@ void OoT_TrackerAdapter_Register(void);
  * With OoT playing a randomizer file it stores the checks SoH's tracker lists and
  * IsAvailable() marks available, or clears the record when that set is not known
  * (Enable Available Checks off, no recalculation yet, SoH's tracker not loaded);
- * with no randomizer file played it leaves the last capture as it is.
+ * with no randomizer file played it leaves the last capture as it is. It also
+ * records whether OoT departs while playing a randomizer file, and that world's
+ * seed, which is what lets the far pane's skip toggle write the suspended heap
+ * (#1294, ComboOoTTrackerOps.suspendedSkipWritable).
  */
 void OoT_TrackerAdapter_CaptureAvailability(void);
+
+/**
+ * The OoT skip journal's replay (#1294; ComboContext.trackerSkipJournalOoT):
+ * DEFINED OoT-SIDE, called by OoT's .redsave load seam (OoT_Combo_OnLoadFileSeam)
+ * once the .sav's tracker data and the .redsave's Tier-1 are both in memory.
+ * Sets each journalled check's skip flag on the heap to its recorded value (the
+ * .sav predates those toggles) and refreshes SoH's area order when one changed.
+ * Returns the number of flags it changed; 0 with no heap context.
+ */
+int OoT_TrackerAdapter_ReplaySkipJournal(void);
 
 // ============================================================================
 // The reads the window performs (all null-safe; game is GAME_OOT or GAME_MM)
@@ -525,24 +571,37 @@ int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId);
 // The skip toggle (#458 U5): the view's only write, made by the game's adapter
 // ============================================================================
 //
-// LIVE PANEL ONLY. A check is marked skipped in the game's own live state, the
-// same flag that game's own check tracker toggles. The view writes nothing
-// itself: it asks the active game's adapter, whose TU makes the write
-// (ComboOoTTrackerOps.setSkipped, ComboMMTrackerDesc.setLiveSkipped): OoT's heap ItemLocation
-// (persisted to its tracker-data save section, as SoH's skip button does), MM's
-// RANDO_SAVE_CHECKS[].skipped in the live save (persisted by MM's next save, as
-// MM's tracker's row click is). The other game's panel is a snapshot (MM's
-// frozen shadow, OoT's suspended heap) and is never written: the next arrival
-// replaces a shadow edit, and a suspended heap edit would land behind the back
-// of the save it belongs to.
+// BOTH PANES (#1294). The pair is one game, so both halves take the same state
+// at all times: a check is marked skipped in its own game's state, the same
+// flag that game's own check tracker toggles, whichever game is being played.
+// The view writes nothing itself: it asks that game's adapter, whose TU makes
+// the write in its own layout (ADR 0008 rule 5).
+//   - The LIVE pane (the game being played): ComboOoTTrackerOps.setSkipped,
+//     OoT's heap ItemLocation, persisted to its tracker-data save section as
+//     SoH's skip button does; ComboMMTrackerDesc.setLiveSkipped, MM's
+//     RANDO_SAVE_CHECKS[].skipped in the live save, persisted by MM's next save
+//     as MM's tracker's row click is.
+//   - The FAR pane, while the other game plays the paired file:
+//     ComboMMTrackerDesc.setShadowSkipped writes the same MM byte in the frozen
+//     MM half, which every commit stages as Tier-3 and MM's arrival consumes
+//     into the live save (nothing else rewrites that half while OoT runs: its
+//     only writers are MM's own save, the creation and a .redsave load);
+//     ComboOoTTrackerOps.setSuspendedSkipped flips the flag on OoT's suspended
+//     heap, which the switch never tears down, and journals it in Tier-1
+//     (ComboContext.trackerSkipJournalOoT), because OoT's .sav cannot be written
+//     while gSaveContext is MM's; OoT's load replays the journal and OoT's next
+//     full save empties it.
+//   - A pane with no paired world behind it (an unpaired file, MM's title or
+//     file select, a world OoT did not depart from while playing it) takes none.
 //
 // WHICH CHECKS. SoH's rule (DrawLocation draws the button only on a check that
 // is not found): a check of the seed, not collected. MM's own tracker also
 // flips a found check's flag, with no visible effect there; one window keeps
 // one rule.
 
-/** Whether `game`'s panel takes skip writes now: its data is LIVE and its
- *  adapter takes the write (MM: its live save; OoT: a loaded save). */
+/** Whether `game`'s panel takes skip writes now: LIVE, when its adapter takes
+ *  the write (MM: its live save; OoT: a loaded save); or the far pane, under
+ *  the far write's conditions above (#1294). */
 bool Combo_TrackerSkipWritable(uint8_t game);
 
 /** Whether the window offers the skip toggle on `row` of `game`'s panel: the
@@ -550,13 +609,35 @@ bool Combo_TrackerSkipWritable(uint8_t game);
 bool Combo_TrackerRowSkippable(uint8_t game, const ComboTrackerCheckRow* row);
 
 /**
- * Set `game`'s check `checkId` skipped (or not) in that game's live state.
- * True when the flag now holds `skipped` (written by this call, or already
- * so); false, with nothing written anywhere, when the panel does not take
- * writes (a snapshot, no adapter, no loaded save) or the check is not
+ * Set `game`'s check `checkId` skipped (or not) in that game's state: its live
+ * state on the LIVE pane, its frozen MM half or suspended OoT heap on the far
+ * pane (#1294). True when the flag now holds `skipped` (written by this call,
+ * or already so); false, with nothing written anywhere, when the panel does not
+ * take writes (no paired world, no adapter, no loaded save) or the check is not
  * skippable.
  */
 bool Combo_TrackerSetSkipped(uint8_t game, uint16_t checkId, bool skipped);
+
+// ---- The OoT skip journal (#1294; ComboContext.trackerSkipJournalOoT) -------
+// OoT check ids are game-local, as everywhere in this header; only OoT's
+// adapter and OoT's save seams write it.
+
+/**
+ * Record that OoT check `checkId` (1..0x7FFF) is now `skipped`: its entry is
+ * rewritten in place, or, unless `onlyIfPresent`, appended. False when nothing
+ * was recorded: an id out of range, `onlyIfPresent` with no entry, or a full
+ * journal (RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP entries).
+ */
+bool Combo_TrackerOoTSkipJournalPut(uint16_t checkId, bool skipped, bool onlyIfPresent);
+
+/** The journal's entry count. */
+int Combo_TrackerOoTSkipJournalCount(void);
+
+/** Entry `index`: its check id and skipped value. False out of range. */
+bool Combo_TrackerOoTSkipJournalAt(int index, uint16_t* outCheckId, bool* outSkipped);
+
+/** Empty the journal: OoT's full save has written every heap flag to its .sav. */
+void Combo_TrackerOoTSkipJournalClear(void);
 
 // ============================================================================
 // Cross-game crossings: the rows both panes draw (#755, #757)

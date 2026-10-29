@@ -68,11 +68,19 @@
  *    window and the native trackers cannot disagree. See CtvMMRowsU4 and
  *    CtvOoTRowsU4.
  *
- * 10. THE SKIP TOGGLE WRITES THE LIVE PANEL ONLY (#458 U5). MM: the skipped
- *    byte of the live save, never the shadow, and nothing at all while the panel
- *    is a snapshot. OoT: the heap flag, persisted once per change, only while OoT
- *    is played with a loaded save. Neither writes a found check or one outside
- *    the seed. See CtvSkipLegsMM and CtvSkipLegsOoT.
+ * 10. THE SKIP TOGGLE WRITES BOTH PANES (#458 U5, #1294). The pair is one game,
+ *    so the pane of the game not being played takes the toggle too. MM: the
+ *    skipped byte of the live save while MM is played; while OoT plays the paired
+ *    file, the same byte in the frozen MM half, which MM's arrival carries into
+ *    the live save; nothing from MM's title or file select, unpaired, or with no
+ *    armed half. OoT: the heap flag, persisted once per change, while OoT is
+ *    played with a loaded save; while MM plays the paired file, the suspended
+ *    heap of the world OoT departed from, journalled in Tier-1 with no OoT save
+ *    section written and SoH's area order left to the arrival. Neither writes a
+ *    found check or one outside the seed. A .redsave commit and load carry both
+ *    far skips: MM's in the MM half, OoT's in the journal the load replays. See
+ *    CtvSkipLegsMM, CtvSkipLegsOoT and CtvFarSkipRedsave. (Before #1294 these
+ *    legs locked the opposite: a pane that was not LIVE refused every skip.)
  *
  * 11. THE OoT PANEL LISTS WHAT SoH'S CHECK TRACKER LISTS (#1126). Once SoH's
  *    tracker has loaded its settings, the rows and the summary follow its
@@ -117,6 +125,7 @@
 #include "../context.h"
 #include "../foreign_items.h"
 #include "../game.h"
+#include "../save.h"
 #include "../test_runner.h"
 #include "test_named_items.h"
 
@@ -453,13 +462,63 @@ static int CtvOoTSeenRows(void) {
     return TEST_PASS;
 }
 
-// ---- #458 U5: the skip toggle, live panel only --------------------------------
+// ---- #458 U5, #1294: the skip toggle, on both panes ---------------------------
 
 // Failed U5 halves (MM, OoT), reported together at the end of the row.
 static int sCtvU5Failures = 0;
 
+// switch.cpp: an arrival's consumption of its game's frozen half (#1294's MM arrival leg).
+extern "C" int Combo_ConsumeFrozenState(const char* gameId, void* saveContext, size_t size);
+
 static uint8_t CtvSkipByte(const uint8_t* save, const ComboMMTrackerDesc* desc, uint16_t check) {
     return save[desc->checkTableOffset + (size_t)check * desc->checkStride + desc->skippedOffset];
+}
+
+// ---- #1294's stand-ins for "the other game plays a randomizer file" ----------------
+//
+// MM's far pane is written only while OoT plays a randomizer file, which the view
+// asks OoT's adapter (its live skip gate). Where the real OoT adapter is not
+// registered yet, a stub vtable answers it: sCtvOoTPlays.
+static bool sCtvOoTPlays = false;
+static bool CtvStubSummary(ComboTrackerGameSummary*) {
+    return false;
+}
+static int CtvStubCount(void) {
+    return 0;
+}
+static bool CtvStubCheckAt(int, ComboTrackerCheckRow*) {
+    return false;
+}
+static const char* CtvStubCheckName(uint16_t) {
+    return NULL;
+}
+static bool CtvStubOoTPlays(void) {
+    return sCtvOoTPlays;
+}
+static bool CtvStubSetSkipped(uint16_t, bool) {
+    return false;
+}
+static const ComboOoTTrackerOps kCtvOoTPlaysOps = { CtvStubSummary,   CtvStubCount,    CtvStubCheckAt,
+                                                    CtvStubCheckName, CtvStubOoTPlays, CtvStubSetSkipped };
+
+// OoT's far pane is written only while MM plays a randomizer file, which the view
+// reads from MM's live save; this tier has no MM play state, so the production
+// descriptor is registered with liveSave pointed at a marked, randomized buffer.
+static std::vector<uint8_t> sCtvPlayedMM;
+
+static void CtvMMPlaysBegin(const ComboMMTrackerDesc& real) {
+    sCtvPlayedMM.assign((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    memcpy(sCtvPlayedMM.data() + real.newfOffset, real.newf, real.newfLen);
+    memcpy(sCtvPlayedMM.data() + real.saveTypeOffset, &real.saveTypeRando, sizeof(uint32_t));
+    ComboMMTrackerDesc played = real;
+    played.liveSave = CtvLiveSave;
+    Combo_Tracker_RegisterMM(&played);
+    sCtvLive = sCtvPlayedMM.data();
+}
+
+static void CtvMMPlaysEnd(const ComboMMTrackerDesc& real) {
+    sCtvLive = NULL;
+    Combo_Tracker_RegisterMM(&real);
 }
 
 /**
@@ -473,10 +532,19 @@ static uint8_t CtvSkipByte(const uint8_t* save, const ComboMMTrackerDesc* desc, 
  *      lands in the LIVE save's skipped byte, the row and the summary follow, the
  *      shadow is untouched; unskip clears it. A found check, a check outside the
  *      seed and an out-of-range id are refused with nothing written.
- *   B. STALE (no MM play state: the shadow): nothing is skippable and nothing is
- *      written: the snapshot panel never writes.
- *   C. The same live buffer while OoT is the active game: MM's panel is not
- *      live, so refused, and the live buffer is untouched.
+ *   B. STALE while MM is the active game with no play state (its title screen or
+ *      file select): nothing is skippable and nothing is written. The far write
+ *      is for the pane of the game not being played.
+ *   C. FAR (#1294): OoT is the active game. With the MM half not armed, the
+ *      pairing not live, or OoT not playing a randomizer file (its title, file
+ *      select, a vanilla file), refused with nothing written. With the paired
+ *      half armed and OoT playing it, an open check of the SHADOW is skippable: the write lands in the
+ *      frozen half's skipped byte (the one RsbsSave_StageCommit stores as
+ *      Tier-3), the STALE row and summary follow, MM's live buffer is untouched,
+ *      unskip clears it, and a found check, a check outside the seed and an
+ *      out-of-range id are refused. MM's arrival (Combo_ConsumeFrozenState)
+ *      carries the skip into the live save, and the consumed half takes no
+ *      further far write.
  */
 static int CtvSkipLegsMM(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& shadowWorld) {
     const uint16_t kOpen = 21, kFound = 23, kOutside = 25, kShadowOpen = 3;
@@ -540,15 +608,85 @@ static int CtvSkipLegsMM(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& s
     CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
     CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
 
-    // ---- C. MM's live buffer while OoT is played: not MM's live panel -----------
+    // ---- C. FAR: OoT played, the MM half frozen (#1294) --------------------------
     sCtvLive = live.data();
+    const std::vector<uint8_t> liveBefore = live;
     Context_SetCurrentGame(GAME_OOT);
+    Combo_Tracker_RegisterOoT(&kCtvOoTPlaysOps); // OoT's adapter is registered in section 5
+    sCtvOoTPlays = true;
+    // C1. Not armed: the shadow is resident but no freeze, load or creation armed it.
+    Context_ClearFrozenState(GAME_MM);
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    CTV_ASSERT(Combo_ForeignPairingActive()); // CtvLiveLegsBody's pairing
     CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
-    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kOpen, true));
-    CTV_ASSERT(CtvSkipByte(live.data(), desc, kOpen) == 0);
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
+    // C2. Armed but unpaired: no paired world, no far write.
+    CTV_ASSERT(Context_ArmShadowAsFrozen(GAME_MM, 0) == 1);
+    const uint32_t pairHash = gComboCtx.sharedRandoSettingsHash;
+    gComboCtx.sharedRandoSettingsHash = 0;
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
+    gComboCtx.sharedRandoSettingsHash = pairHash;
+    // C2b. Armed and paired, but OoT plays no randomizer file: refused.
+    sCtvOoTPlays = false;
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    CTV_ASSERT(memcmp(Context_GetMMSaveContext(), shadowWorld.data(), shadowWorld.size()) == 0);
+    sCtvOoTPlays = true;
+    // C3. Armed, paired, OoT playing: the far pane takes the toggle.
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && summary.skipped == 1);
+    CTV_ASSERT(Combo_TrackerSkipWritable((uint8_t)GAME_MM));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShadowOpen, &row));
+    CTV_ASSERT(Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    const bool farWrote = Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true);
+    const uint8_t* shadow = (const uint8_t*)Context_GetMMSaveContext();
+    printf("[TEST] combo-tracker-view #1294 MM far skip (OoT played): returned=%d shadowByte=%u liveByte=%u\n",
+           (int)farWrote, (unsigned)CtvSkipByte(shadow, desc, kShadowOpen),
+           (unsigned)CtvSkipByte(live.data(), desc, kShadowOpen));
+    CTV_ASSERT(farWrote);
+    CTV_ASSERT(CtvSkipByte(shadow, desc, kShadowOpen) == 1);
+    CTV_ASSERT(live == liveBefore); // MM's live buffer is not the far pane's
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShadowOpen, &row));
+    CTV_ASSERT(row.skipped && row.status == COMBO_TRACKER_CHECK_SKIPPED);
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && summary.skipped == 2);
+    // Only that byte moved.
+    std::vector<uint8_t> expect = shadowWorld;
+    expect[desc->checkTableOffset + (size_t)kShadowOpen * desc->checkStride + desc->skippedOffset] = 1;
+    CTV_ASSERT(memcmp(shadow, expect.data(), expect.size()) == 0);
+    // Already set: success, nothing changes; unskip clears it; skip again.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, false));
+    CTV_ASSERT(CtvSkipByte(shadow, desc, kShadowOpen) == 0);
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true));
+    // The authored found check (5), a check outside the seed (4) and an id past the table: refused.
+    const uint16_t kShadowFound = 5, kShadowOutside = 4;
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShadowFound, &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowFound, true));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)kShadowOutside, &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_MM, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOutside, true));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_MM, (uint16_t)desc->checkCount, true));
+    CTV_ASSERT(memcmp(shadow, expect.data(), expect.size()) == 0);
     CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_NONE));
     CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_NONE, kOpen, true));
+    // C4. MM's arrival consumes the half into the live save: the skip is MM's own.
+    std::vector<uint8_t> arrived((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CTV_ASSERT(Combo_ConsumeFrozenState("mm", arrived.data(), arrived.size()) == 1);
+    printf("[TEST] combo-tracker-view #1294 MM arrival: consumed skip byte=%u\n",
+           (unsigned)CtvSkipByte(arrived.data(), desc, kShadowOpen));
+    CTV_ASSERT(CtvSkipByte(arrived.data(), desc, kShadowOpen) == 1);
+    CTV_ASSERT(memcmp(arrived.data(), expect.data(), expect.size()) == 0);
+    // A consumed half is not armed: no far write lands in it.
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_MM));
     sCtvLive = NULL;
+    sCtvOoTPlays = false;
+    Combo_Tracker_RegisterOoT(NULL);
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
     return TEST_PASS;
 }
 
@@ -556,35 +694,134 @@ static int CtvSkipLegsMM(const ComboMMTrackerDesc* desc, std::vector<uint8_t>& s
 // answer to "is a save loaded" with persists counted; returns the count since the
 // previous call.
 extern "C" int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded);
+// The OoT-side reachability seam (#1129), declared here for the far legs' departure.
+extern "C" void OoT_TrackerAdapter_TestAvailableSeam(int current);
+// #1294: the arrival's tracker notification (OTRGlobals.cpp, z_play.c calls it) and
+// whether a far-pane skip left SoH's area order to it (randomizer_check_tracker.cpp).
+extern "C" void CheckTracker_ArmAvailableChecksRecalc(void);
+extern "C" int RandoTest_CheckTrackerOrderingDeferred(void);
+extern "C" void RandoTest_CheckTrackerClearRecalcPending(void);
+
+/** The journal's entry for OoT check `id`: 1 skipped, 0 unskipped, -1 none. */
+static int CtvJournalValue(uint16_t id) {
+    for (int i = 0; i < Combo_TrackerOoTSkipJournalCount(); i++) {
+        uint16_t at = 0;
+        bool skipped = false;
+        if (Combo_TrackerOoTSkipJournalAt(i, &at, &skipped) && at == id) {
+            return skipped ? 1 : 0;
+        }
+    }
+    return -1;
+}
+
+/** OoT departs (OoT_Game_Suspend's capture) playing a randomizer file (1) or not (0). */
+static void CtvOoTDepart(int playingRandoFile) {
+    Context_SetCurrentGame(GAME_OOT);
+    (void)OoT_TrackerAdapter_TestSkipSeam(playingRandoFile);
+    OoT_TrackerAdapter_TestAvailableSeam(0); // the set is not current: the capture clears its record
+    OoT_TrackerAdapter_CaptureAvailability();
+    OoT_TrackerAdapter_TestAvailableSeam(-1);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    Context_SetCurrentGame(GAME_MM);
+}
 
 /**
- * OoT's half of the toggle (#458 U5), over the seam's authored heap world
+ * OoT's half of the toggle (#458 U5, #1294), over the seam's authored heap world
  * (ootIds: saved, untouched, skipped).
  *
- *   A. MM played: OoT's panel is the suspended heap. Refused, heap unchanged,
- *      even when the seam says a save is loaded.
+ *   A. MM played: OoT's panel is the suspended heap (#1294). Refused while that
+ *      heap is not a world OoT departed from playing it, while unpaired, and
+ *      while MM plays no randomizer file (its title, file select). After
+ *      a departure from the randomizer file, paired: the untouched check is
+ *      skippable; the write sets the heap flag, journals (id, skipped) in Tier-1,
+ *      issues no OoT save section (gSaveContext is MM's) and leaves SoH's area
+ *      order to the arrival, which takes it. A no-op writes nothing; unskip
+ *      rewrites the same entry; the saved check and a check outside the seed are
+ *      refused with nothing journalled.
  *   B. OoT played with no loaded save (the production predicate: this tier has
  *      no play state): the panel is LIVE but refused, as SoH's tracker shows no
  *      list before a file loads.
  *   C. OoT played with a loaded save: the untouched check is skipped on the heap,
  *      the row and summary follow, and the tracker-data section is persisted
  *      once per change (not for a no-op); the skipped check unskips. The saved
- *      check and a check outside the seed are refused with nothing persisted.
+ *      check and a check outside the seed are refused with nothing persisted. A
+ *      live toggle of a journalled check rewrites its entry (a load's replay must
+ *      not bring the far pane's older answer back) and journals no other check.
  */
 static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
     ComboTrackerCheckRow row;
     ComboTrackerGameSummary summary;
     const uint16_t kOutside = (uint16_t)(ootIds[2] + 1); // not placed by the seam
 
-    // ---- A. MM played ---------------------------------------------------------
-    Context_SetCurrentGame(GAME_MM);
-    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    // ---- A. MM played: the far pane (#1294) --------------------------------------
+    const ComboMMTrackerDesc* mmDesc = Combo_Tracker_GetMMDesc();
+    CTV_ASSERT(mmDesc != NULL);
+    const ComboMMTrackerDesc realMM = *mmDesc;
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFE129u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED1294u;
+    Combo_TrackerOoTSkipJournalClear();
+    RandoTest_CheckTrackerClearRecalcPending();
+    CheckTracker_ArmAvailableChecksRecalc(); // drop any order pass an earlier row deferred
+    RandoTest_CheckTrackerClearRecalcPending();
+    // A1. OoT departed from no randomizer file (its title, a vanilla file): the
+    // heap is not the played world, so refused even paired, with MM playing.
+    CtvOoTDepart(0);
+    CtvMMPlaysBegin(realMM);
     CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
     CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
     CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.skipped);
+    // A2. Departed from the randomizer file, but unpaired: refused.
+    CtvOoTDepart(1);
+    gComboCtx.sharedRandoSettingsHash = 0;
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    gComboCtx.sharedRandoSettingsHash = 0x5EED1294u;
+    // A2b. Paired, but MM plays no randomizer file (no play state): refused.
+    sCtvLive = NULL;
+    CTV_ASSERT(!Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    sCtvLive = sCtvPlayedMM.data();
+    // A3. Paired, MM playing: the far pane takes the toggle.
+    CTV_ASSERT(Combo_TrackerSkipWritable((uint8_t)GAME_OOT));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    CTV_ASSERT(Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    (void)OoT_TrackerAdapter_TestSkipSeam(1); // count any section save the write might issue
+    Context_SetCurrentGame(GAME_MM);
+    const bool farWrote = Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    const int farPersists = OoT_TrackerAdapter_TestSkipSeam(1);
+    printf("[TEST] combo-tracker-view #1294 OoT far skip (MM played): returned=%d heapSkipped=%d persists=%d "
+           "journal=%d (entry %d) orderDeferred=%d\n",
+           (int)farWrote, (int)row.skipped, farPersists, Combo_TrackerOoTSkipJournalCount(), CtvJournalValue(ootIds[1]),
+           RandoTest_CheckTrackerOrderingDeferred());
+    CTV_ASSERT(farWrote);
+    CTV_ASSERT(row.skipped && row.status == COMBO_TRACKER_CHECK_SKIPPED);
+    CTV_ASSERT(farPersists == 0); // no OoT save section while MM owns gSaveContext
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1 && CtvJournalValue(ootIds[1]) == 1);
+    CTV_ASSERT(RandoTest_CheckTrackerOrderingDeferred() == 1);
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && summary.skipped == 2);
+    // A no-op succeeds and journals nothing new; unskip rewrites the same entry.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true));
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1);
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], false));
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.skipped);
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1 && CtvJournalValue(ootIds[1]) == 0);
+    // The saved check and a check outside the seed: no button, nothing journalled.
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row));
+    CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[0], true));
+    CTV_ASSERT(!Combo_TrackerSetSkipped((uint8_t)GAME_OOT, kOutside, true));
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1);
     CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(-1) == 0);
+    CtvMMPlaysEnd(realMM);
+    // OoT's arrival takes the deferred order pass.
+    CheckTracker_ArmAvailableChecksRecalc();
+    CTV_ASSERT(RandoTest_CheckTrackerOrderingDeferred() == 0);
+    RandoTest_CheckTrackerClearRecalcPending();
 
     // ---- B. OoT played, no loaded save -----------------------------------------
     Context_SetCurrentGame(GAME_OOT);
@@ -619,6 +856,10 @@ static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
     CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[2], true));
     CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], false));
     CTV_ASSERT(OoT_TrackerAdapter_TestSkipSeam(1) == 3);
+    // #1294: the journalled check's entry followed each live toggle of it (last:
+    // unskipped), and the live toggles of the other check journalled nothing.
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1 && CtvJournalValue(ootIds[1]) == 0);
+    CTV_ASSERT(CtvJournalValue(ootIds[2]) == -1);
     // The saved check and a check outside the seed: no button, no write.
     CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[0], &row));
     CTV_ASSERT(!Combo_TrackerRowSkippable((uint8_t)GAME_OOT, &row));
@@ -631,7 +872,119 @@ static int CtvSkipLegsOoT(const uint16_t ootIds[3]) {
     // Back to the authored world: one skipped, one untouched.
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
     CTV_ASSERT(summary.skipped == 1 && summary.obtained == 1);
+    Combo_TrackerOoTSkipJournalClear();
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 0);
+    ComboContext_Init(); // unpaired again, as the sections after this one expect
     return TEST_PASS;
+}
+
+/**
+ * #1294: both far skips survive a .redsave commit and load. MM's lands in the
+ * frozen MM half the commit stores as Tier-3 and the load brings back; OoT's
+ * rides the journal in Tier-1, and OoT's load seam replays it over the .sav's
+ * older tracker data (re-authoring the world stands in for that .sav load).
+ * The OoT journal also refuses a far skip once full, writing nothing.
+ */
+static int CtvFarSkipRedsaveBody(const ComboMMTrackerDesc* desc, const std::vector<uint8_t>& shadowWorld,
+                                 uint32_t ootSeed, uint16_t ootIds[3]) {
+    const uint16_t kShadowOpen = 3;
+    const ComboMMTrackerDesc realMM = *desc; // by value: the stand-in below re-registers the descriptor
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFE12Au;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED129Au;
+    Combo_TrackerOoTSkipJournalClear();
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    CTV_ASSERT(Context_ArmShadowAsFrozen(GAME_MM, 0) == 1);
+
+    // MM's far skip, OoT playing its randomizer file (the OoT adapter's skip seam).
+    Context_SetCurrentGame(GAME_OOT);
+    (void)OoT_TrackerAdapter_TestSkipSeam(1);
+    const bool mmFar = Combo_TrackerSetSkipped((uint8_t)GAME_MM, kShadowOpen, true);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    CTV_ASSERT(mmFar);
+    // OoT's far skip, MM playing, after OoT departed from its randomizer file.
+    CtvOoTDepart(1);
+    CtvMMPlaysBegin(realMM);
+    const bool ootFar = Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], true);
+    CtvMMPlaysEnd(realMM);
+    CTV_ASSERT(ootFar);
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1);
+
+    // The commit (an MM-side save), then nothing survives but the file.
+    mgr.SetSaveDirectory(rsbs::test::ScratchDir("rsbs_test_combo_tracker_view_far_skip").string());
+    mgr.ResetSlotSessionState();
+    mgr.DeleteSave(0); // an erase is what unlatches the slot for this session's write
+    CTV_ASSERT(mgr.Save(0));
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    OoT_TrackerAdapter_TestReleaseWorld();
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 0);
+
+    // The load.
+    Context_InvalidateSessionOnSlotLoad();
+    CTV_ASSERT(mgr.LoadSlot(0) == RSBS_LOAD_OK);
+    const uint8_t* mmHalf = (const uint8_t*)Context_GetMMSaveContext();
+    const int mmByte = mmHalf != NULL ? (int)CtvSkipByte(mmHalf, desc, kShadowOpen) : -1;
+    CTV_ASSERT(OoT_TrackerAdapter_TestAuthorWorld(ootSeed, ootIds) == 3); // OoT's .sav: without the far skip
+    ComboTrackerCheckRow row;
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && !row.skipped);
+    Context_SetCurrentGame(GAME_OOT); // OoT's load seam runs while OoT is played
+    const int replayed = OoT_TrackerAdapter_ReplaySkipJournal();
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row));
+    printf("[TEST] combo-tracker-view #1294 redsave round trip: MM half skip byte=%d, OoT journal=%d, replayed=%d, "
+           "heapSkipped=%d\n",
+           mmByte, Combo_TrackerOoTSkipJournalCount(), replayed, (int)row.skipped);
+    CTV_ASSERT(mmByte == 1);
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalCount() == 1 && CtvJournalValue(ootIds[1]) == 1);
+    CTV_ASSERT(replayed == 1 && row.skipped);
+    CTV_ASSERT(OoT_TrackerAdapter_ReplaySkipJournal() == 0); // already applied: nothing changes
+
+    // A full journal refuses a far skip and writes nothing.
+    Combo_TrackerOoTSkipJournalClear();
+    for (uint16_t i = 0; i < (uint16_t)RSBS_TRACKER_SKIP_JOURNAL_OOT_CAP; i++) {
+        CTV_ASSERT(Combo_TrackerOoTSkipJournalPut((uint16_t)(0x7000u + i), true, false));
+    }
+    CTV_ASSERT(!Combo_TrackerOoTSkipJournalPut(0x6FFFu, true, false));
+    CTV_ASSERT(Combo_TrackerOoTSkipJournalPut(0x7000u, false, false)); // a present entry is still rewritten
+    CtvOoTDepart(1);                                                   // paired by the load's Tier-1
+    CtvMMPlaysBegin(realMM);
+    CTV_ASSERT(Combo_TrackerSkipWritable((uint8_t)GAME_OOT)); // the pane takes writes...
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && row.skipped);
+    const bool overFull = Combo_TrackerSetSkipped((uint8_t)GAME_OOT, ootIds[1], false); // ...but not this one
+    CtvMMPlaysEnd(realMM);
+    CTV_ASSERT(!overFull);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_OOT, (int)ootIds[1], &row) && row.skipped);
+    Combo_TrackerOoTSkipJournalClear();
+    return TEST_PASS;
+}
+
+static int CtvFarSkipRedsave(const ComboMMTrackerDesc* desc, const std::vector<uint8_t>& shadowWorld, uint32_t ootSeed,
+                             uint16_t ootIds[3]) {
+    const GameId prevGame = Context_GetCurrentGame();
+    const ComboMMTrackerDesc realMM = *desc;
+    // The commit stores, and the load restores, the OoT half too: put it back after.
+    std::vector<uint8_t> ootBackup((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    const uint8_t* ootResident = (const uint8_t*)Context_GetOoTSaveContext();
+    if (ootResident != NULL) {
+        memcpy(ootBackup.data(), ootResident, ootBackup.size());
+    }
+    const int result = CtvFarSkipRedsaveBody(&realMM, shadowWorld, ootSeed, ootIds);
+    sCtvLive = NULL;
+    Combo_Tracker_RegisterMM(&realMM); // whatever a failed leg left registered
+    rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+    mgr.DeleteSave(0);
+    mgr.ResetSlotSessionState();
+    mgr.SetSaveDirectory("Save");
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    OoT_TrackerAdapter_TestAvailableSeam(-1);
+    ComboContext_Init();
+    Context_ClearAllFrozenStates();
+    Context_UpdateShadowCopy(GAME_OOT, ootBackup.data(), ootBackup.size());
+    Context_UpdateShadowCopy(GAME_MM, shadowWorld.data(), shadowWorld.size());
+    CTV_ASSERT(OoT_TrackerAdapter_TestAuthorWorld(ootSeed, ootIds) == 3); // the authored world the later legs read
+    Context_SetCurrentGame(prevGame);
+    return result;
 }
 
 // The OoT-side listing seam (TrackerAdapterSingleExe.cpp, #1126): -1 production,
@@ -1240,6 +1593,9 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     if (residentShadow != NULL) {
         memcpy(shadowBackup.data(), residentShadow, shadowBackup.size());
     }
+    // #1294's legs arm and consume the MM half: put its frozen flag back too.
+    const bool mmWasFrozen = Context_HasFrozenState(GAME_MM) != 0;
+    const uint16_t mmReturnEntrance = Context_GetFrozenReturnEntrance(GAME_MM);
 
     // All-zero shadow first: must read as "no data", never as a vanilla save.
     std::vector<uint8_t> blob((size_t)MM_SAVE_CONTEXT_SIZE, 0);
@@ -1391,7 +1747,14 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // ---- 5c. #458 U5: OoT's skip toggle, live panel only --------------------
     const int ootSkip = CtvSkipLegsOoT(ootIds);
     (void)OoT_TrackerAdapter_TestSkipSeam(-1); // production again, whatever the legs did
+    sCtvLive = NULL;
+    MM_TrackerAdapter_Register(); // #1294's legs stand in for MM's play state through the descriptor
     if (ootSkip != TEST_PASS) {
+        sCtvU5Failures++;
+    }
+
+    // ---- 5c'. #1294: both far skips through a .redsave commit and load -------
+    if (CtvFarSkipRedsave(Combo_Tracker_GetMMDesc(), blob, kOoTSeed, ootIds) != TEST_PASS) {
         sCtvU5Failures++;
     }
 
@@ -1503,7 +1866,11 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // ---- Leave global state clean -----------------------------------------
     // Adapters stay registered (the production state); the shadow goes back to
     // exactly the bytes this row inherited.
+    Context_ClearFrozenState(GAME_MM);
     Context_UpdateShadowCopy(GAME_MM, shadowBackup.data(), shadowBackup.size());
+    if (mmWasFrozen) {
+        (void)Context_ArmShadowAsFrozen(GAME_MM, mmReturnEntrance);
+    }
     Context_SetCurrentGame(prevGame);
 
     if (u4Failures != 0) {
@@ -1520,7 +1887,8 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         return TEST_FAIL;
     }
     if (sCtvU5Failures != 0) {
-        printf("[TEST] FAIL: %d of the two #458 U5 skip-toggle halves (MM, OoT 5c) failed\n", sCtvU5Failures);
+        printf("[TEST] FAIL: %d of the #458 U5 / #1294 skip-toggle sections (MM, OoT 5c, far round trip 5c') failed\n",
+               sCtvU5Failures);
         return TEST_FAIL;
     }
     printf("[TEST] PASS: adapters recover authored MM shadow + OoT heap worlds, label staleness honestly, and "

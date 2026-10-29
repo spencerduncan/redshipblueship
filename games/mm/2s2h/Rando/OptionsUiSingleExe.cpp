@@ -940,6 +940,9 @@ const MMRandoTrickId kBoundTricks[] = {
     // part 3. Logic/Regions/StoneTowerTemple.cpp — the eight Zora-gated
     // pre-Twinmold floating rupees.
     MMRT_ISTT_RUPEES_GORON,
+    // #1306. Logic/Regions/Central.cpp — East Clock Town's Astral Observatory
+    // exit (backflip over the Bombers' Hideout guard without the Bombers' Code).
+    MMRT_BOMBER_BACKFLIP,
     // part 3. Logic/Regions/Central.cpp — North Clock Town's two Tingle maps.
     MMRT_NCT_TINGLE,
     // #697 third pass. Logic/Regions/GreatBayTemple.cpp — Green Pipe 3's five

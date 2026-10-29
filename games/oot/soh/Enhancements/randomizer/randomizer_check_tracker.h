@@ -66,6 +66,8 @@ void RecalculateAvailableChecks(RandomizerRegion startingRegion = RR_ROOT);
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Schedule a recalculation for the next draw (#990); see the definition.
 void ArmAvailableChecksRecalc();
+// Re-sort every area at OoT's next arrival (#1294); see the definition.
+void DeferAllOrdering();
 #endif
 void LoadFromPreset(nlohmann::json info);
 } // namespace CheckTracker

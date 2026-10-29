@@ -24,6 +24,12 @@ option(USE_LLD_LINKER "Use LLVM's lld-link instead of MSVC linker (faster linkin
 # when this is ON; an operator must supply a room id and connect explicitly.
 option(RSBS_NETPLAY "Build the netplay grant relay client (experimental, ADR 0007)" OFF)
 
+# Linker map for the single executable (#1303). Default ON so CI release and
+# playtest builds emit redship.map beside the binary without needing a manual
+# CMAKE_EXE_LINKER_FLAGS cache entry; crash tracebacks print module+0xOFFSET
+# frames (#1199) that resolve against this map.
+option(RSBS_EMIT_LINK_MAP "Emit redship.map when linking the redship executable (#1303)" ON)
+
 # Always enable position-independent code - required for shared library builds
 # This repo is specifically for the unified combo project (shared libraries only)
 # For standalone executables, use upstream SoH/2Ship repos instead

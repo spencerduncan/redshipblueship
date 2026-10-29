@@ -475,6 +475,8 @@ set_target_properties(redship PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+option(RSBS_EMIT_LINK_MAP "Emit redship.map when linking the redship executable (#1303)" ON)
+
 # Platform-specific settings
 if(MSVC)
     set_target_properties(redship PROPERTIES
@@ -491,10 +493,21 @@ if(MSVC)
     # space, not committed memory, and applies to every thread created with
     # a default stack size.
     target_link_options(redship PRIVATE /STACK:8777216)
+    if(RSBS_EMIT_LINK_MAP)
+        # Crash tracebacks print redship.exe+0xOFFSET (#1199), which resolves
+        # against redship.map (#1303). Put /MAP on the redship target rather
+        # than relying on a local CMAKE_EXE_LINKER_FLAGS cache entry so CI
+        # builds emit ${CMAKE_BINARY_DIR}/redship.map while ZAPD_OoT/ZAPD_MM
+        # and CPack's player zip stay untouched.
+        target_link_options(redship PRIVATE /MAP)
+    endif()
 endif()
 
 if(UNIX AND NOT APPLE)
     target_link_options(redship PRIVATE -rdynamic)
+    if(RSBS_EMIT_LINK_MAP)
+        target_link_options(redship PRIVATE "-Wl,-Map=${CMAKE_BINARY_DIR}/redship.map")
+    endif()
 endif()
 
 # ============================================================================
@@ -2933,6 +2946,11 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the graph is retired, skips client-free ones, restores the statics only
     # Destroy used to restore, and drops every per-actor ObjectExtension entry.
     redship_add_test(NAME MMAbandonedSessionStatics COMMAND redship --test mm-abandoned-session-statics)
+    # #1308: MM_Actor_Delete and the per-actor update/draw canary validate
+    # actor->overlayEntry against &gActorOverlayTable[actor->id] before touching
+    # overlayEntry->numLoaded, repairing float-corrupted pointers (0x456EE46C)
+    # and logging the culprit and victim actor IDs.
+    redship_add_test(NAME MMActorOverlayEntryGuard COMMAND redship --test mm-actor-overlay-entry-guard)
     # #664: an F10 from either game's game-over screen revives the departing bar
     # to that game's continue value -- or, mid fairy revive, to the spent fairy's
     # refill -- before the freeze (OoT_Combo_ReviveDeadHealthForFreeze and MM's
@@ -3097,6 +3115,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1296: ShuffleFairies_FairyExists checks the actor in ACTORCAT_ITEMACTION
+    # rather than &actor (its own local pointer), and VB_SPAWN_GOSSIP_STONE_FAIRY
+    # relies on it to suppress a duplicate spawn while the fairy lives.
+    redship_add_test(NAME ShuffledFairyExists COMMAND redship --test shuffled-fairy-exists
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and
@@ -3241,6 +3266,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         COMMAND ${CMAKE_COMMAND}
                 -DWORK_DIR=${CMAKE_BINARY_DIR}
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckBuildIdentityDirty.cmake)
+    # #1303: CI release and playtest builds emit redship.map beside the binary
+    # (when RSBS_EMIT_LINK_MAP is ON, its default), assert it names
+    # Context_GetCurrentGame, upload it as its own artifact outside the player
+    # zip, and attach it to the GitHub Release. CMake/CheckLinkMapConfig.cmake.
+    redship_add_test(NAME LinkMapConfig
+        COMMAND ${CMAKE_COMMAND}
+                -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+                -DBINARY_DIR=${CMAKE_BINARY_DIR}
+                -DEMIT_LINK_MAP=${RSBS_EMIT_LINK_MAP}
+                "-DRED_LINK_OPTIONS=$<JOIN:$<TARGET_PROPERTY:redship,LINK_OPTIONS>,|>"
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckLinkMapConfig.cmake)
 
     # #785: a moon crash in a paired MM half restores the last whole .redsave
     # commit (the file as last saved, vanilla's flash reload; OoTMM's default

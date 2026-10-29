@@ -1693,6 +1693,30 @@ void RestoreMMShadow() {
 }
 
 /**
+ * The tracker states' MM half is ARMED, as a paired file's is while Ocarina of
+ * Time is played (a departure freeze, a load or the creation arms it), so MM's
+ * far pane takes the skip toggle and draws its skip column (#1294). DisarmMMShadow
+ * puts back the frozen flag the harness had, with RestoreMMShadow's bytes.
+ */
+bool gSnapshotMMWasFrozen = false;
+uint16_t gSnapshotMMReturnEntrance = 0;
+
+void ArmMMShadow() {
+    gSnapshotMMWasFrozen = Context_HasFrozenState(GAME_MM) != 0;
+    gSnapshotMMReturnEntrance = Context_GetFrozenReturnEntrance(GAME_MM);
+    (void)Context_ArmShadowAsFrozen(GAME_MM, 0);
+}
+
+void DisarmMMShadow() {
+    Context_ClearFrozenState(GAME_MM); // zeroes the half; RestoreMMShadow then puts the bytes back
+    RestoreMMShadow();
+    if (gSnapshotMMWasFrozen) {
+        (void)Context_ArmShadowAsFrozen(GAME_MM, gSnapshotMMReturnEntrance);
+    }
+    gSnapshotMMWasFrozen = false;
+}
+
+/**
  * The unified Item Tracker overlay's states (#458 U2). "live": Ocarina of Time
  * played live (its item adapter wrapped with a live source holding the adapter's
  * "live" world: the Hookshot and the Song of Time), Majora's Mask from the
@@ -1921,6 +1945,9 @@ const ComboOoTTrackerOps kSnapshotOoTOps = { SnapshotOoTSummary,
 // The skip buttons that synthetic world draws: one per check of the seed not yet
 // found (the skipped one and the two open ones), none on the saved one.
 constexpr int kSnapshotOoTSkipButtons = 3;
+// ...and MM's far pane (#1294): AuthorMMShadow's two open checks (B and C), none
+// on the found one (A).
+constexpr int kSnapshotMMSkipButtons = 2;
 // SoH's Check Tracker Settings keys the tracker's "hidden" state sets (#1128).
 constexpr const char* kSnapshotSavedHideKey = "gTrackers.CheckTracker.Saved.Hide";
 constexpr const char* kSnapshotCollectedHideKey = "gTrackers.CheckTracker.Collected.Hide";
@@ -2309,15 +2336,19 @@ void Session::BuildPageList() {
         // W6-AUDIO-SEQ (#1239): "mm-pane" brings the editor's Majora's Mask tab to the front (DrawMmSequencePane, after
         // SoH's sequence tabs): MM's bulk buttons over MM's own sequence tabs, Background Music first. One bulk button
         // is hovered the same way. Each state picks its tab through SohAudioEditor_ShowMmPaneForTest (EnterState).
+        // #1276: expectText is checked by Finish() on every scroll slice, and on mm-pane@scroll1 the top-of-window tab
+        // bar ("Audio Options") has scrolled out of InnerClipRect; only the window title ("Audio Editor") stays on
+        // screen across scroll views, while per-tab strings belong in stateText with stateContrast.
         PageSpec p;
         p.id = "window/Audio Editor";
         p.origin = Origin::SOH_REFERENCE;
         p.kind = Kind::WINDOW;
         p.window = "Audio Editor";
         p.states = { "", "mm-pane" };
-        p.expectText = { "Audio Options" };
+        p.expectText = { "Audio Editor" };
         p.stateText[""] = { "Disable Navi Call Audio", "MM Mute Carpenter Sounds", "MM Mute Crying Goron Child" };
         p.stateText["mm-pane"] = { "MM Randomize All Groups", "Termina Field" };
+        p.stateContrast = { { "", "mm-pane" }, { "mm-pane", "" } };
         p.paneHovers.push_back({ "mm-carpenter", "", "MM Mute Carpenter Sounds", false });
         p.paneHovers.push_back({ "mm-randomize-all", "mm-pane", "MM Randomize All Groups", false });
         p.needsRom = true;
@@ -3478,6 +3509,7 @@ void Session::EnterState(const PageSpec& p, const std::string& state) {
             AuthorPairing();
             AuthorCrossings();
             AuthorMMShadow();
+            ArmMMShadow(); // #1294: MM's far pane takes the skip toggle
             Context_SetCurrentGame(GAME_OOT);
             CVarSetInteger(kSnapshotAutoScrollKey, 0);
             Combo_Tracker_RegisterOoT(&kSnapshotOoTOps);
@@ -3548,7 +3580,7 @@ void Session::LeaveState(const PageSpec& p, const std::string& state) {
     if (p.kind == Kind::WINDOW && (state == "progress" || state == "crossings" || state == "hidden" ||
                                    state == "floating" || state == "bare-header")) {
         OoT_TrackerAdapter_Register();
-        RestoreMMShadow();
+        DisarmMMShadow();
         CVarClear(kSnapshotSavedHideKey);
         CVarClear(kSnapshotCollectedHideKey);
         CVarClear(kSnapshotWindowTypeKey);
@@ -4832,15 +4864,18 @@ void Session::CaptureWindowPage(const PageSpec& p) {
                      std::to_string(census.fields) + " fields and " + std::to_string(census.erasers) +
                      " eraser buttons to the combo_ui rect recorder; each game panel draws one of each");
             }
-            // The skip toggle (#458 U5): OoT's LIVE panel draws one button per
-            // check of the seed not yet found; MM's panel, the frozen shadow in
-            // this state, draws none although its authored save has open checks.
-            printf("[UI-SNAPSHOT] skip census %s (%s): %d skip buttons reported (want %d, all OoT's live panel)\n",
-                   p.id.c_str(), state.c_str(), census.skipButtons, kSnapshotOoTSkipButtons);
-            if (census.skipButtons != kSnapshotOoTSkipButtons) {
+            // The skip toggle (#458 U5, #1294): each pane draws one button per
+            // check of the seed not yet found, OoT's LIVE pane and MM's far pane
+            // (the armed paired half) alike.
+            const int wantSkips = kSnapshotOoTSkipButtons + kSnapshotMMSkipButtons;
+            printf("[UI-SNAPSHOT] skip census %s (%s): %d skip buttons reported (want %d: OoT's live pane %d, MM's far "
+                   "pane %d)\n",
+                   p.id.c_str(), state.c_str(), census.skipButtons, wantSkips, kSnapshotOoTSkipButtons,
+                   kSnapshotMMSkipButtons);
+            if (census.skipButtons != wantSkips) {
                 Fail(p.id + " (" + state + "): the Checks lists reported " + std::to_string(census.skipButtons) +
-                     " skip buttons; OoT's live panel draws " + std::to_string(kSnapshotOoTSkipButtons) +
-                     " and MM's snapshot panel none");
+                     " skip buttons; OoT's live pane draws " + std::to_string(kSnapshotOoTSkipButtons) +
+                     " and MM's far pane " + std::to_string(kSnapshotMMSkipButtons));
             }
         }
 
@@ -5427,6 +5462,11 @@ void Session::CheckStateText() {
     // the authoring and the "present" check fails; pick a string every state
     // draws and the "absent" check fails.
     for (const PageSpec& p : pages) {
+        if (p.kind == Kind::WINDOW && p.scroll && p.states.size() > 1 &&
+            p.expectText != std::vector<std::string>{ p.window }) {
+            Fail(p.id + ": a multi-state scrolling WINDOW spec's expectText must be { \"" + p.window +
+                 "\" } (its window title, which stays on screen on @scroll1+); put per-tab strings in stateText");
+        }
         for (const auto& [state, wants] : p.stateText) {
             bool any = false;
             StateText(captures, p.id, state, &any);

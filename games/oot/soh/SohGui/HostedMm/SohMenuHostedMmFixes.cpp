@@ -17,7 +17,7 @@
  *  - Camera Fixes: Fix Targeting Camera Snap.
  *  - Graphical Fixes: Fix Ammo Count Color, Fix Ikana Great Fairy Fountain Color, Fix Text Control Characters.
  *  - Audio Fixes: Fix Completed Heart Container Audio.
- *  - Glitch Restorations: Tatl ISG (restoration), labelled as ADR 0004 rules: held apart from SoH's Easy ISG (P2 in
+ *  - Glitch Restorations: Tatl ISG (Restoration), labelled as ADR 0004 rules: held apart from SoH's Easy ISG (P2 in
  *    kMustStayDistinct), which is a Cheat.
  *  - Misc Restorations: the six behaviour restorations.
  * Fix Console Crashes has no row: the single exe always keeps the crash fixes on (src/common/mm_stubs.c).
@@ -108,7 +108,7 @@ void AddMmAudioFixesRows(SohMenu& menu, WidgetPath& path) {
 
 /** Enhancements > Fixes > Glitch Restorations, at the end of the section. */
 void AddMmGlitchRestorationsRows(SohMenu& menu, WidgetPath& path) {
-    AddHostedMmWidget(menu, path, "Glitch Restorations", "Tatl ISG (restoration)", WIDGET_CVAR_CHECKBOX)
+    AddHostedMmWidget(menu, path, "Glitch Restorations", "Tatl ISG (Restoration)", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_RESTORATIONS_TATL_ISG)
         .Options(UIWidgets::CheckboxOptions().Tooltip(
             "Restores Navi's Infinite Sword Glitch from Ocarina of Time, performed with Tatl. Majora's Mask only."));

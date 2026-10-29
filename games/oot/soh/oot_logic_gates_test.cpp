@@ -55,15 +55,48 @@
  *     longshot must NOT reach its adult pots; with a bomb bag he must. Control:
  *     the Kokiri Sword alone still breaks a Goron City pot (no restriction).
  *
+ * #1277, Shuffle Climb ON as well (and Shuffle Open Chest ON, tricks forced
+ * off unless a leg names one; all restored): the ladders and the neighbouring
+ * gates Ship of Harkinian re-gated after our import base (bundle O5).
+ *  F. Kak Backyard (b6cdc6c49): no exit beyond the three ground-level ones
+ *     opens for an adult by day without Climb (the potion shop's back side is up
+ *     a ladder); one does with it. The watchtower jump to the rooftop is any age
+ *     under RT_UNINTUITIVE_JUMPS and closed without it.
+ *  G. DMC wall Piece of Heart (ec27775e8, the PoH clause): an adult with 3
+ *     hearts must NOT reach it without Climb; with Climb it must.
+ *  H. DC Armos Room -> Bomb Room Lower (fe5dce24b): a child with the bracelet
+ *     must NOT pass without Climb; with Climb it must.
+ *  I. Child Spirit "before climb" (fe5dce24b): its locked door leads to Sun On
+ *     Floor 1F, not 2F. A data leg.
+ *  J. Deku Tree 2F grass (fe5dce24b): a child with a sword searching from the
+ *     lobby must NOT cut the two 2F grass checks without Climb; with it, must.
+ *  K. Deku Tree map chest (743103fbe): not from the lobby floor without Climb,
+ *     not without Open Chest, reached with both.
+ *  L. GV waterfall alcove (09b0fdbc9 without its RT_HOOKSHOT_LADDERS clause):
+ *     the Longshot alone and the Hookshot plus Climb must NOT open it; the
+ *     Longshot plus Climb must.
+ *  M. SFM (ed4868f62): a child that never killed the Wolfos must NOT walk back
+ *     out through the gate; after a search opened it, and as adult, it must.
+ *  N. MQ DC torch room (848106039, CanClimbLadder read as HasItem(RG_CLIMB)): a
+ *     child with nothing must NOT reach the Dodongo room from the torch room
+ *     floor; with Climb, or with the bracelet, it must.
+ *  O. Jabu MQ near-boss chest (7be5a4fea): the slingshot without Open Chest
+ *     must NOT reach it; with Open Chest it must.
+ *  P. MQ Spirit child doors (688913270): under RT_HOVER_BOOST_SIMPLE each door
+ *     needs one key more (1 -> 2, 2 -> 3); without the trick one key still opens
+ *     the first.
+ *
  * Every "must NOT" leg is paired with a "must" leg on the same save plus one
  * thing, so a location that is never reachable (a vacuous probe) fails too.
  * Each probe sets logic->CurrentRegionKey to its region, as ProcessRegion does.
  */
 
+#include <array>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 #include <libultraship/bridge.h>
 
@@ -71,6 +104,7 @@
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/static_data.h"
 #include "soh/Enhancements/randomizer/location_access.h"
+#include "soh/Enhancements/randomizer/entrance.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/settings.h"
@@ -279,6 +313,436 @@ void ExpectCarpenterRow(const Carpenter& carpenter) {
     }
 }
 
+// ---- #1277: Shuffle Climb legs (F..P) --------------------------------------
+// The ladders SoH re-gated after our import base (bundle O5). Every probe runs
+// the real lambdas RegionTable_Init built, under Shuffle Climb ON with
+// RAND_INF_CAN_CLIMB withheld unless the leg grants it.
+
+void GiveClimb() {
+    logic->SetRandoInf(RAND_INF_CAN_CLIMB, true);
+}
+void GiveOpenChest() {
+    logic->SetRandoInf(RAND_INF_CAN_OPEN_CHEST, true);
+}
+void GiveKokiriSword() {
+    logic->ApplyItemEffect(Rando::StaticData::RetrieveItem(RG_KOKIRI_SWORD), true);
+}
+void GiveSlingshot() {
+    logic->ApplyItemEffect(Rando::StaticData::RetrieveItem(RG_PROGRESSIVE_SLINGSHOT), true);
+}
+/** ITEM_HOOKSHOT's slot holding the hookshot or the longshot. */
+void GiveHookshot(bool longshot) {
+    logic->SetInventory(ITEM_HOOKSHOT, longshot ? ITEM_LONGSHOT : ITEM_HOOKSHOT);
+}
+
+/** ResetLogic, plus the Shuffle Climb / Shuffle Open Chest abilities withheld. */
+void ResetClimbLogic() {
+    ResetLogic();
+    logic->SetRandoInf(RAND_INF_CAN_CLIMB, false);
+    logic->SetRandoInf(RAND_INF_CAN_OPEN_CHEST, false);
+}
+
+bool AnyAccess(const Region* region) {
+    return region->childDay || region->childNight || region->adultDay || region->adultNight;
+}
+
+/** One exit's own lambda, for one age, by day or by night. -1 when the region
+ *  has no exit to `to` (the probe would evaluate nothing). */
+int ExitOpen(RandomizerRegion from, RandomizerRegion to, bool adult) {
+    for (Rando::Entrance& exit : RegionTable(from)->exits) {
+        if (exit.GetConnectedRegionKey() != to) {
+            continue;
+        }
+        logic->CurrentRegionKey = from;
+        const bool day = exit.CheckConditionAtAgeTime(adult ? logic->IsAdult : logic->IsChild, logic->AtDay);
+        const bool night = exit.CheckConditionAtAgeTime(adult ? logic->IsAdult : logic->IsChild, logic->AtNight);
+        logic->CurrentRegionKey = RR_NONE;
+        return (day || night) ? 1 : 0;
+    }
+    return -1;
+}
+
+void ExpectExit(const char* leg, RandomizerRegion from, RandomizerRegion to, bool adult, bool expected,
+                const char* why) {
+    const int got = ExitOpen(from, to, adult);
+    if (got < 0) {
+        GateFail("%s: region %d has no exit to region %d, so this probe evaluates nothing", leg, (int)from, (int)to);
+        return;
+    }
+    if ((got == 1) != expected) {
+        GateFail("%s: %s (expected %s, got %s)", leg, why, expected ? "open" : "closed", got ? "open" : "closed");
+        return;
+    }
+    printf("[TEST]   ok: %s: %s\n", leg, expected ? "open" : "closed");
+}
+
+/** ChildReaches for either age (day and night). */
+int AgeReaches(RandomizerRegion regionKey, RandomizerCheck rc, bool adult) {
+    Region* region = RegionTable(regionKey);
+    const LocationAccess* loc = region != nullptr ? FindLocation(region, rc) : nullptr;
+    if (loc == nullptr) {
+        return -1;
+    }
+    const bool saved[4] = { region->childDay, region->childNight, region->adultDay, region->adultNight };
+    region->childDay = !adult;
+    region->childNight = !adult;
+    region->adultDay = adult;
+    region->adultNight = adult;
+    logic->CurrentRegionKey = regionKey;
+    while (region->UpdateEvents()) {}
+    logic->CurrentCheckKey = rc;
+    const bool met = loc->ConditionsMet(region, false);
+    logic->CurrentCheckKey = RC_UNKNOWN_CHECK;
+    logic->CurrentRegionKey = RR_NONE;
+    region->childDay = saved[0];
+    region->childNight = saved[1];
+    region->adultDay = saved[2];
+    region->adultNight = saved[3];
+    return met ? 1 : 0;
+}
+
+void ExpectAt(const char* leg, RandomizerRegion regionKey, RandomizerCheck rc, bool adult, bool expected,
+              const char* why) {
+    const int got = AgeReaches(regionKey, rc, adult);
+    if (got < 0) {
+        GateFail("%s: location %d is not in region %d, so this probe evaluates nothing", leg, (int)rc, (int)regionKey);
+        return;
+    }
+    if ((got == 1) != expected) {
+        GateFail("%s: %s (expected %s, got %s)", leg, why, expected ? "reachable" : "unreachable",
+                 got ? "reachable" : "unreachable");
+        return;
+    }
+    printf("[TEST]   ok: %s: %s\n", leg, expected ? "reachable" : "unreachable");
+}
+
+/**
+ * A one-age search confined to the start region's scene: every region's access
+ * is cleared, the start gets the age (day and night), and access spreads through
+ * the exits' own lambdas while each reached region fires its events, to a
+ * fixpoint (3drando/fill.cpp's ProcessRegion / ProcessExits, without time
+ * travel). With rc == RC_UNKNOWN_CHECK it answers whether `targetRegion` was
+ * reached; otherwise whether a reached region of the scene holding `rc` meets
+ * its condition (-1 when no region of the scene holds `rc`). Access is restored.
+ */
+int SceneSearch(RandomizerRegion start, bool adult, RandomizerRegion targetRegion, RandomizerCheck rc) {
+    std::vector<std::array<bool, 4>> saved(RR_MAX);
+    for (int r = RR_NONE + 1; r < RR_MAX; r++) {
+        Region* region = RegionTable((RandomizerRegion)r);
+        saved[r] = { region->childDay, region->childNight, region->adultDay, region->adultNight };
+        region->childDay = region->childNight = region->adultDay = region->adultNight = false;
+    }
+    Region* first = RegionTable(start);
+    const SceneID scene = first->scene;
+    first->childDay = first->childNight = !adult;
+    first->adultDay = first->adultNight = adult;
+
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        for (int r = RR_NONE + 1; r < RR_MAX; r++) {
+            Region* region = RegionTable((RandomizerRegion)r);
+            if (!AnyAccess(region)) {
+                continue;
+            }
+            logic->CurrentRegionKey = (RandomizerRegion)r;
+            while (region->UpdateEvents()) {
+                changed = true;
+            }
+            for (Rando::Entrance& exit : region->exits) {
+                if (exit.GetConnectedRegionKey() == RR_NONE) {
+                    continue;
+                }
+                Region* to = exit.GetConnectedRegion();
+                if (to->scene != scene) {
+                    continue;
+                }
+                bool* const from[4] = { &region->childDay, &region->childNight, &region->adultDay,
+                                        &region->adultNight };
+                bool* const into[4] = { &to->childDay, &to->childNight, &to->adultDay, &to->adultNight };
+                for (int i = 0; i < 4; i++) {
+                    if (!*from[i] || *into[i]) {
+                        continue;
+                    }
+                    if (exit.CheckConditionAtAgeTime(i < 2 ? logic->IsChild : logic->IsAdult,
+                                                     (i % 2) == 0 ? logic->AtDay : logic->AtNight)) {
+                        *into[i] = true;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    int result = 0;
+    if (rc == RC_UNKNOWN_CHECK) {
+        result = AnyAccess(RegionTable(targetRegion)) ? 1 : 0;
+    } else {
+        bool held = false;
+        for (int r = RR_NONE + 1; r < RR_MAX && result == 0; r++) {
+            Region* region = RegionTable((RandomizerRegion)r);
+            const LocationAccess* loc = region->scene == scene ? FindLocation(region, rc) : nullptr;
+            if (loc == nullptr) {
+                continue;
+            }
+            held = true;
+            if (!AnyAccess(region)) {
+                continue;
+            }
+            logic->CurrentRegionKey = (RandomizerRegion)r;
+            logic->CurrentCheckKey = rc;
+            result = loc->ConditionsMet(region, false) ? 1 : 0;
+            logic->CurrentCheckKey = RC_UNKNOWN_CHECK;
+        }
+        if (!held) {
+            result = -1;
+        }
+    }
+    logic->CurrentRegionKey = RR_NONE;
+
+    for (int r = RR_NONE + 1; r < RR_MAX; r++) {
+        Region* region = RegionTable((RandomizerRegion)r);
+        region->childDay = saved[r][0];
+        region->childNight = saved[r][1];
+        region->adultDay = saved[r][2];
+        region->adultNight = saved[r][3];
+    }
+    return result;
+}
+
+void ExpectSearch(const char* leg, RandomizerRegion start, bool adult, RandomizerRegion targetRegion,
+                  RandomizerCheck rc, bool expected, const char* why) {
+    const int got = SceneSearch(start, adult, targetRegion, rc);
+    if (got < 0) {
+        GateFail("%s: no region of the start's scene holds location %d, so this probe evaluates nothing", leg, (int)rc);
+        return;
+    }
+    if ((got == 1) != expected) {
+        GateFail("%s: %s (expected %s, got %s)", leg, why, expected ? "reachable" : "unreachable",
+                 got ? "reachable" : "unreachable");
+        return;
+    }
+    printf("[TEST]   ok: %s: %s\n", leg, expected ? "reachable" : "unreachable");
+}
+
+/**
+ * Leg F's question: does any exit of Kak Backyard other than its three
+ * ground-level ones (the village, the open grotto, Granny's shop door) open for
+ * an adult by day? Those others lead to the potion shop's back side, up the
+ * backyard ladder. -1 when the backyard has no such exit.
+ */
+int KakBackyardLadderSideOpen() {
+    int found = 0;
+    int open = 0;
+    for (Rando::Entrance& exit : RegionTable(RR_KAK_BACKYARD)->exits) {
+        const RandomizerRegion to = exit.GetConnectedRegionKey();
+        if (to == RR_KAKARIKO_VILLAGE || to == RR_KAK_OPEN_GROTTO || to == RR_KAK_ODD_POTION_BUILDING ||
+            to == RR_NONE) {
+            continue;
+        }
+        found++;
+        logic->CurrentRegionKey = RR_KAK_BACKYARD;
+        if (exit.CheckConditionAtAgeTime(logic->IsAdult, logic->AtDay)) {
+            open++;
+        }
+        logic->CurrentRegionKey = RR_NONE;
+    }
+    return found == 0 ? -1 : (open > 0 ? 1 : 0);
+}
+
+bool RegionHasExitTo(RandomizerRegion from, RandomizerRegion to) {
+    for (Rando::Entrance& exit : RegionTable(from)->exits) {
+        if (exit.GetConnectedRegionKey() == to) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void RunShuffleClimbLegs(const std::shared_ptr<Rando::Context>& randoCtx) {
+    const uint8_t savedShuffleClimb = randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Get();
+    const uint8_t savedShuffleOpenChest = randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Get();
+    const uint8_t savedUnintuitive = randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Get();
+    const uint8_t savedHoverBoost = randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Get();
+    randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Set(1);
+    randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Set(1);
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(0);
+    randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Set(0);
+
+    // ---- F: the Kak backyard ladder to the potion shop's back (SoH b6cdc6c49)
+    ResetClimbLogic();
+    const int f1 = KakBackyardLadderSideOpen();
+    if (f1 < 0) {
+        GateFail("F1 Kak backyard: no exit beyond the ground-level three, so the probe evaluates nothing");
+    } else if (f1 != 0) {
+        GateFail("F1 Kak backyard, adult by day, no Climb: the potion shop's back side opens from the backyard "
+                 "without climbing its ladder (#1277)");
+    } else {
+        printf("[TEST]   ok: F1 Kak backyard ladder, adult by day, no Climb: closed\n");
+    }
+    GiveClimb();
+    if (KakBackyardLadderSideOpen() != 1) {
+        GateFail("F2 Kak backyard, adult by day, with Climb: the potion shop's back side stays closed");
+    } else {
+        printf("[TEST]   ok: F2 Kak backyard ladder, adult by day, with Climb: open\n");
+    }
+    // The watchtower jump to the rooftop is any age under the trick (same commit).
+    ResetClimbLogic();
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(1);
+    ExpectExit("F3 Kak watchtower to rooftop, adult, unintuitive jumps", RR_KAK_WATCHTOWER, RR_KAK_ROOFTOP, true, true,
+               "the trick's watchtower jump to the rooftop is child-only");
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(0);
+    ExpectExit("F4 Kak watchtower to rooftop, adult, no trick", RR_KAK_WATCHTOWER, RR_KAK_ROOFTOP, true, false,
+               "the watchtower jump is in logic without the trick");
+
+    // ---- G: the DMC wall Piece of Heart needs Climb (SoH ec27775e8, PoH clause)
+    ResetClimbLogic();
+    if (logic->Hearts() < 3) {
+        GateFail("G: Logic::Reset left %d hearts, so the heat term fails and the legs are vacuous",
+                 (int)logic->Hearts());
+    }
+    ExpectAt("G1 DMC wall PoH, adult with 3 hearts, no Climb", RR_DMC_UPPER_LOCAL, RC_DMC_WALL_FREESTANDING_POH, true,
+             false, "the wall alcove is in logic without climbing down to it (#1277)");
+    GiveClimb();
+    ExpectAt("G2 DMC wall PoH, adult with 3 hearts and Climb", RR_DMC_UPPER_LOCAL, RC_DMC_WALL_FREESTANDING_POH, true,
+             true, "the wall alcove is out of logic with Climb and the hearts");
+
+    // ---- H: DC Armos Room to Bomb Room Lower (SoH fe5dce24b) ---------------
+    ResetClimbLogic();
+    GiveGrab();
+    ExpectExit("H1 DC Armos Room to Bomb Room Lower, child with bracelet, no Climb", RR_DODONGOS_CAVERN_ARMOS_ROOM,
+               RR_DODONGOS_CAVERN_BOMB_ROOM_LOWER, false, false,
+               "a child with the bracelet passes the ladder without Climb (#1277)");
+    GiveClimb();
+    ExpectExit("H2 DC Armos Room to Bomb Room Lower, child with bracelet and Climb", RR_DODONGOS_CAVERN_ARMOS_ROOM,
+               RR_DODONGOS_CAVERN_BOMB_ROOM_LOWER, false, true, "a child with bracelet and Climb cannot pass");
+
+    // ---- I: the Child Spirit locked door leads to Sun On Floor 1F (SoH fe5dce24b)
+    if (RegionHasExitTo(RR_SPIRIT_TEMPLE_CHILD_BOXES, RR_SPIRIT_TEMPLE_SUN_ON_FLOOR_2F) ||
+        !RegionHasExitTo(RR_SPIRIT_TEMPLE_CHILD_BOXES, RR_SPIRIT_TEMPLE_SUN_ON_FLOOR_1F)) {
+        GateFail("I Child Spirit before climb: the locked door leads to Sun On Floor 2F, past the climb, instead of "
+                 "1F (#1277)");
+    } else {
+        printf("[TEST]   ok: I Child Spirit before climb: the locked door leads to Sun On Floor 1F\n");
+    }
+
+    // ---- J: the Deku Tree 2F grass is on 2F (SoH fe5dce24b) ----------------
+    // The two grass checks after LOBBY_GRASS_3 (the fix renames them 2F_GRASS_1/2;
+    // the enum values do not move).
+    for (int i = 1; i <= 2; i++) {
+        const RandomizerCheck grass = (RandomizerCheck)(RC_DEKU_TREE_LOBBY_GRASS_3 + i);
+        char leg[96];
+        ResetClimbLogic();
+        GiveKokiriSword();
+        snprintf(leg, sizeof(leg), "J%d Deku Tree 2F grass %d, child with a sword, no Climb", i * 2 - 1, i);
+        ExpectSearch(leg, RR_DEKU_TREE_LOBBY, false, RR_NONE, grass, false,
+                     "grass on the 2F ledge is cut from the lobby floor without climbing (#1277)");
+        GiveClimb();
+        snprintf(leg, sizeof(leg), "J%d Deku Tree 2F grass %d, child with a sword and Climb", i * 2, i);
+        ExpectSearch(leg, RR_DEKU_TREE_LOBBY, false, RR_NONE, grass, true, "the 2F grass is out of reach with Climb");
+    }
+
+    // ---- K: the Deku Tree map chest is on 2F and needs Open Chest (SoH 743103fbe)
+    ResetClimbLogic();
+    GiveOpenChest();
+    ExpectSearch("K1 Deku Tree map chest, child with Open Chest, no Climb", RR_DEKU_TREE_LOBBY, false, RR_NONE,
+                 RC_DEKU_TREE_MAP_CHEST, false, "the 2F map chest is listed on the lobby floor (#1277)");
+    ResetClimbLogic();
+    GiveClimb();
+    ExpectSearch("K2 Deku Tree map chest, child with Climb, no Open Chest", RR_DEKU_TREE_LOBBY, false, RR_NONE,
+                 RC_DEKU_TREE_MAP_CHEST, false, "the 2F map chest ignores Shuffle Open Chest (#1277)");
+    GiveOpenChest();
+    ExpectSearch("K3 Deku Tree map chest, child with Climb and Open Chest", RR_DEKU_TREE_LOBBY, false, RR_NONE,
+                 RC_DEKU_TREE_MAP_CHEST, true, "the map chest is out of reach with Climb and Open Chest");
+
+    // ---- L: the GV waterfall alcove needs the Longshot AND Climb (SoH 09b0fdbc9,
+    // without its RT_HOOKSHOT_LADDERS clause) -------------------------------------
+    ResetClimbLogic();
+    GiveHookshot(true);
+    ExpectExit("L1 GV waterfall alcove, adult with Longshot, no Climb", RR_GV_UPPER_STREAM, RR_GV_WATERFALL_ALCOVE,
+               true, false, "the Longshot alone reaches the alcove up the ladder (#1277)");
+    ResetClimbLogic();
+    GiveHookshot(false);
+    GiveClimb();
+    ExpectExit("L2 GV waterfall alcove, adult with Hookshot and Climb", RR_GV_UPPER_STREAM, RR_GV_WATERFALL_ALCOVE,
+               true, false, "the Hookshot cannot reach the alcove's ladder, but logic says it can (#1277)");
+    ResetClimbLogic();
+    GiveHookshot(true);
+    GiveClimb();
+    ExpectExit("L3 GV waterfall alcove, adult with Longshot and Climb", RR_GV_UPPER_STREAM, RR_GV_WATERFALL_ALCOVE,
+               true, true, "the Longshot and Climb cannot reach the alcove");
+
+    // ---- M: a child leaves SFM only through the gate it opened (SoH ed4868f62)
+    ResetClimbLogic();
+    ExpectExit("M1 SFM to entryway, child who never killed the Wolfos", RR_SACRED_FOREST_MEADOW, RR_SFM_ENTRYWAY, false,
+               false, "a child walks back through the Wolfos gate it never opened (#1277)");
+    GiveKokiriSword();
+    if (SceneSearch(RR_SFM_ENTRYWAY, false, RR_SACRED_FOREST_MEADOW, RC_UNKNOWN_CHECK) != 1) {
+        GateFail("M2 setup: a child with the Kokiri Sword does not reach the meadow from the entryway");
+    }
+    // The search fired the entryway's events, and they stay set in logic.
+    ExpectExit("M2 SFM to entryway, child who killed the Wolfos", RR_SACRED_FOREST_MEADOW, RR_SFM_ENTRYWAY, false, true,
+               "the opened Wolfos gate does not let the child back out");
+    ResetClimbLogic();
+    ExpectExit("M3 SFM to entryway, adult", RR_SACRED_FOREST_MEADOW, RR_SFM_ENTRYWAY, true, true,
+               "an adult cannot walk out of the meadow");
+
+    // ---- N: the MQ DC torch room's ladder to the entrance-side bridge (SoH
+    // 848106039, CanClimbLadder read as HasItem(RG_CLIMB): RT_HOOKSHOT_LADDERS is
+    // not ported) ------------------------------------------------------------
+    ResetClimbLogic();
+    ExpectSearch("N1 MQ DC torch room, child with nothing", RR_DODONGOS_CAVERN_MQ_TORCH_PUZZLE_LOWER, false,
+                 RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_UNKNOWN_CHECK, false,
+                 "the Dodongo room is reached from the torch room floor without climbing (#1277)");
+    GiveClimb();
+    ExpectSearch("N2 MQ DC torch room, child with Climb", RR_DODONGOS_CAVERN_MQ_TORCH_PUZZLE_LOWER, false,
+                 RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_UNKNOWN_CHECK, true,
+                 "a child with Climb cannot reach the Dodongo room from the torch room");
+    ResetClimbLogic();
+    GiveGrab();
+    ExpectSearch("N3 MQ DC torch room, child with the bracelet", RR_DODONGOS_CAVERN_MQ_TORCH_PUZZLE_LOWER, false,
+                 RR_DODONGOS_CAVERN_MQ_DODONGO_ROOM, RC_UNKNOWN_CHECK, true,
+                 "a child with the bracelet cannot reach the Dodongo room from the torch room");
+
+    // ---- O: the Jabu MQ near-boss chest needs Open Chest (SoH 7be5a4fea) ---
+    ResetClimbLogic();
+    GiveSlingshot();
+    ExpectAt("O1 Jabu MQ near-boss chest, child with slingshot, no Open Chest", RR_JABU_JABUS_BELLY_MQ_NEAR_BOSS_ROOM,
+             RC_JABU_JABUS_BELLY_MQ_NEAR_BOSS_CHEST, false, false, "the chest ignores Shuffle Open Chest (#1277)");
+    GiveOpenChest();
+    ExpectAt("O2 Jabu MQ near-boss chest, child with slingshot and Open Chest", RR_JABU_JABUS_BELLY_MQ_NEAR_BOSS_ROOM,
+             RC_JABU_JABUS_BELLY_MQ_NEAR_BOSS_CHEST, false, true, "the chest is out of logic with the slingshot");
+
+    // ---- P: the MQ Spirit child doors under hover boosts (SoH 688913270) ---
+    // With the hover-boost trick a child can recoil past the jet and spend a key
+    // without Statue Room access, so each door needs one key more.
+    randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Set(1);
+    ResetClimbLogic();
+    logic->SetSmallKeyCount(SCENE_SPIRIT_TEMPLE, 1);
+    ExpectExit("P1 MQ Spirit to Under Like Like, child, 1 key, hover boosts", RR_SPIRIT_TEMPLE_MQ_1F_CHEST_SWITCH,
+               RR_SPIRIT_TEMPLE_MQ_UNDER_LIKE_LIKE, false, false,
+               "one key opens the door though a hover boost can waste it (#1277)");
+    logic->SetSmallKeyCount(SCENE_SPIRIT_TEMPLE, 2);
+    ExpectExit("P2 MQ Spirit to Under Like Like, child, 2 keys, hover boosts", RR_SPIRIT_TEMPLE_MQ_1F_CHEST_SWITCH,
+               RR_SPIRIT_TEMPLE_MQ_UNDER_LIKE_LIKE, false, true, "two keys do not open the door");
+    ExpectExit("P3 MQ Spirit to Statue Room Child, child, 2 keys, hover boosts", RR_SPIRIT_TEMPLE_MQ_SUN_ON_FLOOR,
+               RR_SPIRIT_TEMPLE_MQ_STATUE_ROOM_CHILD, false, false,
+               "two keys open the statue room door though a hover boost can waste one (#1277)");
+    logic->SetSmallKeyCount(SCENE_SPIRIT_TEMPLE, 3);
+    ExpectExit("P4 MQ Spirit to Statue Room Child, child, 3 keys, hover boosts", RR_SPIRIT_TEMPLE_MQ_SUN_ON_FLOOR,
+               RR_SPIRIT_TEMPLE_MQ_STATUE_ROOM_CHILD, false, true, "three keys do not open the door");
+    randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Set(0);
+    ResetClimbLogic();
+    logic->SetSmallKeyCount(SCENE_SPIRIT_TEMPLE, 1);
+    ExpectExit("P5 MQ Spirit to Under Like Like, child, 1 key, no hover boosts", RR_SPIRIT_TEMPLE_MQ_1F_CHEST_SWITCH,
+               RR_SPIRIT_TEMPLE_MQ_UNDER_LIKE_LIKE, false, true, "without the trick one key no longer opens the door");
+
+    randoCtx->GetOption(RSK_SHUFFLE_CLIMB).Set(savedShuffleClimb);
+    randoCtx->GetOption(RSK_SHUFFLE_OPEN_CHEST).Set(savedShuffleOpenChest);
+    randoCtx->GetTrickOption(RT_UNINTUITIVE_JUMPS).Set(savedUnintuitive);
+    randoCtx->GetTrickOption(RT_HOVER_BOOST_SIMPLE).Set(savedHoverBoost);
+}
+
 } // namespace
 
 extern "C" int OoT_LogicGates_RunHeadless(void) {
@@ -433,6 +897,8 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     Expect("F8 Goron City pot, Kokiri Sword only", RR_GORON_CITY, RC_GC_LOWER_STAIRCASE_POT_1, true,
            "the sword no longer breaks a pot in a scene that allows it");
 
+    // ---- F..P: the Shuffle Climb ladders (#1277, SoH bundle O5) -------------
+    RunShuffleClimbLegs(randoCtx);
     // ---- restore -------------------------------------------------------------
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(savedLogicRules);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(savedShuffleSpeak);

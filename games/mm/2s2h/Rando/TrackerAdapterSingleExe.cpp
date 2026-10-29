@@ -1,8 +1,9 @@
 /**
  * TrackerAdapterSingleExe.cpp — MM's combo-tracker adapter: the offset
  * descriptor over the frozen MM shadow blob, plus the check-name resolver
- * (#458; ADR 0002), and the skip toggle's write into MM's live save (#458 U5),
- * which is made here because common code only reads MM's save (ADR 0008).
+ * (#458; ADR 0002), and the skip toggle's write into MM's live save (#458 U5)
+ * and, for the far pane while OoT is played, into the frozen MM half (#1294),
+ * which are made here because common code only reads MM's save (ADR 0008).
  *
  * This is the ONE translation unit where the combo tracker's MM half may see
  * MM's layout: the byte offsets of ShipSaveInfo's rando check table inside
@@ -320,6 +321,24 @@ bool MMTrackerSetLiveSkipped(uint16_t checkId, bool skipped) {
     return MMTrackerSetSkippedIn(&gSaveContext, checkId, skipped);
 }
 
+/**
+ * The descriptor's setShadowSkipped (#1294): the far pane's write, the same byte
+ * in the FROZEN MM half while Ocarina of Time plays the paired file. That half is
+ * the one the next commit stores as the .redsave's Tier-3 and MM's arrival
+ * consumes into gSaveContext (Combo_ConsumeFrozenState), and nothing else
+ * rewrites it while OoT runs, so the skip is MM's own from here on, as if MM's
+ * tracker had taken it before the departure. Context_GetFrozenMMSaveContextForWrite
+ * answers only while the half is armed; MMTrackerSetSkippedIn refuses an unmarked
+ * or non-rando half and a check its button is not drawn on.
+ */
+bool MMTrackerSetShadowSkipped(uint16_t checkId, bool skipped) {
+    if (Context_GetCurrentGame() != GAME_OOT || !Combo_ForeignPairingActive()) {
+        return false;
+    }
+    static_assert(sizeof(SaveContext) <= MM_SAVE_CONTEXT_SIZE, "the frozen MM half holds a whole SaveContext");
+    return MMTrackerSetSkippedIn(static_cast<SaveContext*>(Context_GetFrozenMMSaveContextForWrite()), checkId, skipped);
+}
+
 } // namespace
 
 // ---- #1129: reachability ----------------------------------------------------
@@ -522,6 +541,7 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.liveAvailable = MMTrackerLiveAvailable;
     desc.logicText = MMTrackerCheckLogic;
     desc.currentArea = MMTrackerCurrentArea;
+    desc.setShadowSkipped = MMTrackerSetShadowSkipped;
 
     Combo_Tracker_RegisterMM(&desc);
 }

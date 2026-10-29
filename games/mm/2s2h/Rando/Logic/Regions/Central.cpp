@@ -101,7 +101,11 @@ static RegisterShipInitFunc initFunc([]() {
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(TERMINA_FIELD, 7),                ENTRANCE(EAST_CLOCK_TOWN, 0), true),
             EXIT(ENTRANCE(SOUTH_CLOCK_TOWN, 7),             ENTRANCE(EAST_CLOCK_TOWN, 1), true), // To lower
-            EXIT(ENTRANCE(ASTRAL_OBSERVATORY, 0),           ENTRANCE(EAST_CLOCK_TOWN, 2), CAN_USE_PROJECTILE),
+            // #1306 — The East Clock Town hideout guard requires the 5-digit Bombers' Code
+            // (RE_BOMBER_CODE: hide-and-seek on any day, or MMRT_BOMBER_GUESS), not a projectile.
+            // MMRT_BOMBER_BACKFLIP ("Backflip over the Bomber guarding the hideout.") bypasses the
+            // guard directly without learning the code or granting RC_CLOCK_TOWN_BOMBERS_NOTEBOOK.
+            EXIT(ENTRANCE(ASTRAL_OBSERVATORY, 0),           ENTRANCE(EAST_CLOCK_TOWN, 2), RANDO_EVENTS[RE_BOMBER_CODE] || MM_TRICK(MMRT_BOMBER_BACKFLIP)),
             EXIT(ENTRANCE(SOUTH_CLOCK_TOWN, 2),             ENTRANCE(EAST_CLOCK_TOWN, 3), true), // To upper
             EXIT(ENTRANCE(TREASURE_CHEST_SHOP, 0),          ENTRANCE(EAST_CLOCK_TOWN, 4), BEFORE(TIME_NIGHT1_PM_10_00) || BETWEEN(TIME_DAY2_AM_06_00, TIME_NIGHT2_PM_10_00) || BETWEEN(TIME_DAY3_AM_06_00, TIME_NIGHT3_PM_10_00)),
             EXIT(ENTRANCE(NORTH_CLOCK_TOWN, 1),             ENTRANCE(EAST_CLOCK_TOWN, 5), true),
@@ -211,9 +215,10 @@ static RegisterShipInitFunc initFunc([]() {
             // term the graph cannot currently express — a kind (3) / graph-shape follow-up, filed as such
             // rather than papered over here. That the distinction is real to the reference project shows
             // in the sibling MMRT_BOMBER_BACKFLIP, whose text ends "Does not grant access to the Bomber's
-            // Notebook check when entering ECT from the Bombers Hideout": it is NOT bound to this event
-            // and must not be, because this event is what the notebook reads and this graph would hand it
-            // the notebook anyway.
+            // Notebook check when entering ECT from the Bombers Hideout": it is bound on the
+            // ENTRANCE(ASTRAL_OBSERVATORY, 0) exit in RR_CLOCK_TOWN_EAST (#1306), NOT to this event,
+            // because this event is what the notebook reads and binding it here would hand it the
+            // notebook too.
             EVENT(RE_BOMBER_CODE,
                 MM_TRICK(MMRT_BOMBER_GUESS) ||
                 (RANDO_EVENTS[RE_BOMBERS_NORTH_DAY1] && RANDO_EVENTS[RE_BOMBERS_WEST_DAY1] && RANDO_EVENTS[RE_BOMBERS_EAST_DAY1]) ||

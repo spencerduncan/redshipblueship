@@ -41,7 +41,8 @@ void RegionTable_Init_GerudoValley() {
     }, {
         //Exits
         Entrance(RR_GV_UPPER_STREAM_WATER, []{return true;}),
-        Entrance(RR_GV_WATERFALL_ALCOVE,   []{return (logic->CanUse(RG_HOOKSHOT) && logic->HasItem(RG_CLIMB)) || logic->CanUse(RG_LONGSHOT) || CanPlantBean(RR_GV_UPPER_STREAM, RG_GERUDO_VALLEY_BEAN_SOUL);}),
+        //SoH 09b0fdbc9 also accepts the Longshot with RT_HOOKSHOT_LADDERS in place of Climb; that trick is not ported.
+        Entrance(RR_GV_WATERFALL_ALCOVE,   []{return (logic->CanUse(RG_LONGSHOT) && logic->HasItem(RG_CLIMB)) || CanPlantBean(RR_GV_UPPER_STREAM, RG_GERUDO_VALLEY_BEAN_SOUL);}),
     });
 
     areaTable[RR_GV_UPPER_STREAM_WATER] = Region("GV Upper Stream Water", SCENE_GERUDO_VALLEY, {}, {}, {
