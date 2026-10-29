@@ -330,8 +330,10 @@ extern "C" int MM_ActorOverlayEntryGuard_RunHeadless(void) {
         okuta->actor.id = ACTOR_EN_OKUTA;
         okuta->actor.overlayEntry = &gActorOverlayTable[ACTOR_EN_OKUTA];
 
-        // Sanity-check the layout: `&okuta->bodyPartsPos[-69].z` must point at `&victim->overlayEntry`.
-        check(reinterpret_cast<void*>(&okuta->bodyPartsPos[-69].z) == reinterpret_cast<void*>(&victim->overlayEntry),
+        // Sanity-check the layout: `okuta + kUnderflowZFromOkuta` (`&okuta->bodyPartsPos[-69].z`)
+        // must point at `&victim->overlayEntry`.
+        check(reinterpret_cast<void*>(reinterpret_cast<u8*>(okuta) + kUnderflowZFromOkuta) ==
+                  reinterpret_cast<void*>(&victim->overlayEntry),
               "Case 5a precondition: &okuta->bodyPartsPos[-69].z must alias &victim->overlayEntry");
 
         EnOkuta_PostLimbDraw(&play, 18, nullptr, nullptr, &okuta->actor);

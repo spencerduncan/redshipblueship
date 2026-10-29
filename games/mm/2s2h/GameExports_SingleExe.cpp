@@ -1997,16 +1997,18 @@ extern "C" void MM_IntegrationGameplayFrameTick(void) {
 // HOW A COLLIDING PATH RESOLVES. oot.o2r and mm.o2r already collide on 151
 // object names, 14 overlays and the three gameplay_*_keep archives
 // (docs/resource-namespace-audit.md), and soh.o2r/2ship.o2r collided on 595
-// paths (docs/asset-collision-analysis.md, #595). A mod introduces no new class
-// of collision: it is resolved by the same mechanism, which is
-// Combo_EnsureGameArchivesLoaded re-adding the ARRIVING game's base archives and
-// then its mods on every switch (rsbs/src/main.cpp). An MM mod that ships an
-// OoT-owned path therefore owns it only while MM is the active game, and the
-// first Combo_EnsureGameArchivesLoaded(GAME_OOT) hands it back to
-// oot.o2r/oot-mq.o2r/soh.o2r — every OoT-owned path is in one of those by
-// definition. The partition in (1) is what keeps that guarantee: it is the thing
-// that stops an OoT mod being registered under GAME_MM, which WOULD survive the
-// switch and shadow MM permanently.
+// paths (docs/asset-collision-analysis.md, #595). For canonical paths that
+// both base archives carry, Combo_EnsureGameArchivesLoaded re-adding the
+// ARRIVING game's base archives and then its mods on every switch
+// (rsbs/src/main.cpp) hands ownership back to the arriving game. However, user
+// mods also ship `alt/` paths (such as `alt/objects/object_okuta/gOctorokSkel`
+// in 3DS/HD packs) that base archives NEVER carry, so re-adding base archives
+// alone leaves the departing game's `alt/` mod entries in `mFileToArchive`
+// (#1308). Combo_EnsureGameArchivesLoaded therefore evicts the departing game's
+// registered mod archives (`EvictOtherGameModArchives`) before mounting the
+// arriving game's stack, and re-mounts them when switching back. The partition
+// in (1) is what keeps that guarantee: it stops an OoT mod from being
+// registered under GAME_MM, which would survive eviction and shadow MM.
 //
 // WHICH archives, and in what order, is MM's enabled mod set (#706,
 // src/common/mm_mod_set.h): the archives under mods/mm the player has not turned

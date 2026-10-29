@@ -22,6 +22,7 @@
 #include <exception>
 #include <filesystem>
 #include <string>
+#include <unordered_set>
 
 #include "game.h"
 #include "game_lifecycle.h"
@@ -45,6 +46,7 @@
 #include <SDL2/SDL_messagebox.h>
 #include <ship/Context.h>
 #include <ship/resource/ResourceManager.h>
+#include <ship/resource/archive/Archive.h>
 #include <ship/resource/archive/ArchiveManager.h>
 
 // ============================================================================
@@ -137,9 +139,10 @@ static void MountCuratedArchive(Ship::ArchiveManager& archiveManager, GameId hos
     }
 }
 
+static void EvictOtherGameModArchives(Ship::ArchiveManager& archiveManager, GameId targetGame);
 static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targetGame);
 
-// Not static: declared in src/common/mod_archives.h so the #593 lock
+// Not static: declared in src/common/mod_archives.h so the #593/#1308 lock
 // (src/common/tests/test_curated_archive_order.c) can drive THIS function
 // rather than a copy of it.
 extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
@@ -149,6 +152,15 @@ extern "C" void Combo_EnsureGameArchivesLoaded(GameId targetGame) {
     auto archiveManager = ctx->GetResourceManager()->GetArchiveManager();
     if (!archiveManager)
         return;
+
+    // #1308: evict the departing game's user mod archives before mounting the
+    // arriving game's stack. Re-adding the arriving game's base archives only
+    // reclaims paths those base archives actually ship (`objects/...`), leaving
+    // mod-only paths such as `alt/objects/object_okuta/gOctorokSkel` in
+    // `mFileToArchive` where `ResourceMgr_LoadSkeletonByName` with `AltAssets`
+    // enabled picks up the other game's modded asset (e.g. OoT's 38-limb 3DS
+    // Octorok skeleton inside MM's 16-limb EnOkuta).
+    EvictOtherGameModArchives(*archiveManager, targetGame);
 
     struct ArchiveEntry {
         const char* filename;
@@ -229,6 +241,64 @@ extern "C" void Combo_MountCuratedArchive(GameId host) {
     ReapplyModArchives(*archiveManager, host);
 }
 
+static void EvictOtherGameModArchives(Ship::ArchiveManager& archiveManager, GameId targetGame) {
+    const GameId otherGame = Game_GetOther(targetGame);
+    if (otherGame == GAME_NONE) {
+        return;
+    }
+
+    const int otherModCount = Combo_GetModArchiveCount(otherGame);
+    if (otherModCount <= 0) {
+        return;
+    }
+
+    std::unordered_set<std::string> targetMods;
+    const int targetModCount = Combo_GetModArchiveCount(targetGame);
+    for (int i = 0; i < targetModCount; i++) {
+        const char* path = Combo_GetModArchive(targetGame, i);
+        if (path != nullptr && path[0] != '\0') {
+            targetMods.insert(path);
+        }
+    }
+
+    std::unordered_set<std::string> otherMods;
+    for (int i = 0; i < otherModCount; i++) {
+        const char* path = Combo_GetModArchive(otherGame, i);
+        if (path != nullptr && path[0] != '\0' && targetMods.count(path) == 0) {
+            otherMods.insert(path);
+        }
+    }
+    if (otherMods.empty()) {
+        return;
+    }
+
+    auto currentArchives = archiveManager.GetArchives();
+    if (!currentArchives) {
+        return;
+    }
+
+    auto keptArchives = std::make_shared<std::vector<std::shared_ptr<Ship::Archive>>>();
+    keptArchives->reserve(currentArchives->size());
+    size_t evicted = 0;
+    for (const auto& archive : *currentArchives) {
+        if (!archive) {
+            continue;
+        }
+        if (otherMods.count(archive->GetPath()) > 0) {
+            printf("[RSBS] Evicting %s mod archive on switch to %s: %s\n", Game_ToString(otherGame),
+                   Game_ToString(targetGame), archive->GetPath().c_str());
+            archive->Unload();
+            evicted++;
+            continue;
+        }
+        keptArchives->push_back(archive);
+    }
+
+    if (evicted > 0) {
+        archiveManager.SetArchives(keptArchives);
+    }
+}
+
 static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targetGame) {
     // #593: put the target game's mod archives back on top.
     //
@@ -242,9 +312,12 @@ static void ReapplyModArchives(Ship::ArchiveManager& archiveManager, GameId targ
     // and MM on its second arrival. Re-apply here so the post-switch mount
     // order matches the post-boot one.
     //
-    // Only the TARGET game's mods: the base archives just re-added are the
-    // target's, so the target's mods are exactly what got clobbered. The other
-    // game's mods are still mounted above ITS base archives and are untouched.
+    // Only the TARGET game's mods are mounted here; the OTHER game's mods were
+    // evicted above by EvictOtherGameModArchives (#1308) because user mods can
+    // ship `alt/` paths that base archives never carry (so re-adding the target
+    // game's base archives alone would not overwrite them in mFileToArchive).
+    // When the other game becomes the target on a later switch, this loop
+    // re-mounts its registered mods from Combo_GetModArchive.
     //
     // The registry (src/common/mod_archives.h) is fed by each port at mount
     // time, so this replays the player's ACTUAL enabled set in the player's
