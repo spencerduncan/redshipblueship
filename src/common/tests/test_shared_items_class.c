@@ -296,6 +296,21 @@ TestResult SicCoverageAndTraps(uint8_t origin, int expectedRealNonFillRows) {
     // event or draw-only row upstream turns this red until someone decides it.
     SIC_ASSERT(realNonFill == expectedRealNonFillRows,
                "the real rows that are not fill items are exactly the adjudicated sentinel / event / draw-only rows");
+    if (origin == (uint8_t)GAME_OOT) {
+        // OoT bean souls (RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL = 194 through
+        // RG_ZORAS_RIVER_BEAN_SOUL = 203) are progression items with major chest grade.
+        for (uint16_t id = 194; id <= 203; id++) {
+            const SharedItem item = SicItem(origin, id);
+            ComboItemClassRow direct = { RSBS_FILL_CLASS_NONE, 0u, 0u, 0u, RSBS_CHEST_GRADE_NONE };
+            SIC_ASSERT(src->classify(id, &direct) == 1, "bean soul is a fill item");
+            SIC_ASSERT(Combo_ItemClassOf(item) == RSBS_FILL_CLASS_PROGRESSION,
+                       "bean soul classifies as RSBS_FILL_CLASS_PROGRESSION");
+            SIC_ASSERT(direct.chestGrade == RSBS_CHEST_GRADE_MAJOR,
+                       "bean soul direct chest grade is RSBS_CHEST_GRADE_MAJOR");
+            SIC_ASSERT(Combo_ItemChestGrade(item) == RSBS_CHEST_GRADE_MAJOR,
+                       "bean soul stored chest grade is RSBS_CHEST_GRADE_MAJOR");
+        }
+    }
     if (origin == (uint8_t)GAME_MM) {
         SIC_ASSERT(trapsTheFillCallsAdvancement >= 1,
                    "MM's RI_TRAP is non-junk to MM's own fill, so the trap-first rule decides at least one row");
