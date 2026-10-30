@@ -1,3 +1,89 @@
+# Release notes: v0.4.1-alpha ("Deckard Bravo")
+
+**Status:** released. The release is cut as the tag `v0.4.1-alpha` on the commit that merges this text (the version
+bump, the release workflow's title and these notes), whose code is `main` at `4b68e319` and whose docs are that commit.
+**Version:** `v0.4.1-alpha`, codename "Deckard Bravo" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `z`
+bump: bugfix collection, stability improvements, and gameplay refinements without a new `oot.otr` (the archive version,
+`project(Ship VERSION 9.1.1)`, is unchanged), so it keeps the film character "Deckard" and advances the NATO phonetic code word
+from Alfa to Bravo. A build's window title reads `RedShipBlueShip v0.4.1-alpha+<commit> (Deckard Bravo)`, and `redship --version`
+prints the same first line. Saves written by this version remain version 5 and seeds come from generator 2.
+**Last release:** `v0.4.0-alpha` ("Deckard Alfa"), tagged 2026-10-28 at `37768b04` (code tip `347ba755`). Its notes
+follow this section.
+**Merged up to:** `main` at `4b68e319` (2026-10-29) for the code, 22 commits after the tag: pull requests #1285 to
+#1320.
+**Covers:** everything merged after `37768b04`. Numbers in parentheses are pull requests; issues are written "issue
+#N".
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.4.1-alpha) carries
+`redshipblueship-v0.4.1-alpha-windows.zip` and `redshipblueship-v0.4.1-alpha-linux.AppImage` once the tag's
+`generate-builds` run finishes.
+
+---
+
+## Since v0.4.0-alpha
+
+### Read this first
+
+- **This is the second alpha release.** It addresses stability, pause-save persistence, cross-game mod handling, and
+  tracker usability discovered following the `v0.4.0-alpha` milestone.
+- **Majora's Mask pause-save keeps its entrance and respawn across reloads** (#1317, issues #1298, #1302). Backported
+  2Ship2Harkinian's pause-save entrance and respawn persistence (2Ship commits `16ef59bae`, `96611c3b3`). When saving
+  via the pause menu in Termina and reloading, Link now reliably returns to the exact entrance and respawn state
+  where the save occurred, rather than defaulting to generic daytime scene spawns.
+- **Menu Reset and Ctrl+R reset Majora's Mask while running** (#1315, issue #1274). The menu header's red Reset button
+  and the Ctrl+R shortcut now dispatch to Majora's Mask's reset handler (`MM_gGameState`) when Termina is active,
+  resolving the issue where resets were ignored outside Hyrule.
+- **Cross-game mod eviction, actor overlay bounds, and UAF prevention** (#1311, #1319, #1320, issue #1308). Switching
+  between Hyrule and Termina now evicts departing game mod archives from the active `ArchiveManager` to prevent
+  conflicting textures, models, and scripts. `FileAltExists` and `UnloadOriginalWhenAltExists` verify that alt assets
+  belong to currently mounted archives before attempting alt-replacement or eviction, preventing use-after-free
+  crashes. `MM_Actor_Delete` validates actor overlay entries against table bounds with a per-actor canary, and
+  `EnOkuta` and `SkelAnime` enforce limb count bounds against model definitions.
+- **Moon crash New Cycle trade item crash fix** (#1307). Fixed a crash during New Cycle moon crashes with Skip Story
+  Cutscenes enabled when a trade item or bottled drink was assigned to a C or D-pad button.
+- **Moon crash respawn lands in South Clock Town** (#1288, issue #1278). After the moon falls, a paired file now
+  consistently respawns at South Clock Town spawn 0 (`0xD800`, the Song of Time and crossing spawn), avoiding an
+  unintended jump into the Happy Mask Salesman's Clock Tower interior cutscene (`0xC030`).
+- **Paired-world creation per-attempt budget rises to 60 s** (#1285). The per-attempt generation floor was raised from
+  30 s to 60 s (2500 fill rounds per attempt, 5000 per creation event; overlay ceiling 180 s), giving complex seeds
+  ample headroom to complete generation without spurious timeouts.
+- **Tycoon's Wallet holds 999 rupees in Majora's Mask** (#1297). Termina now recognizes Ocarina of Time's Tycoon's
+  Wallet, displaying a full 3-digit counter (up to 999) with a purple rupee icon.
+- **Full Wallets fills shared wallet when receiving a far game wallet** (#1304). Under Full Wallets, finding the other
+  game's wallet now properly tops off the shared wallet to capacity.
+- **Foreign item graphics in shops and get-item cutscenes** (#1295, #1310, issue #1299). Ocarina of Time shops and
+  get-item cutscenes now display Majora's Mask clock items using the Clock Tower clock model instead of a placeholder '?'
+  stand-in (#1295). Termina shops and get-item cutscenes display Ocarina of Time boss souls as tinted flames (#1310).
+
+### Randomizer and logic
+
+- **Hookshot Ladders trick backported** (#1318). Backported `RT_HOOKSHOT_LADDERS` and the logic helpers
+  `CanClimbLadder` and `CanClimbHighLadder` from upstream Ship of Harkinian into Ocarina of Time logic.
+- **Shuffle Climb ladder re-gating** (#1291). With Shuffle Climb enabled, OoT logic and the Check Tracker now enforce
+  Climb requirements on ladders re-gated in upstream SoH.
+- **Scene-dependent item usability logic** (#1290). OoT logic now checks item usability within specific scenes, such as
+  requiring weapons permitted indoors before considering house pots reachable under Shuffle Grab.
+- **Shuffled fairy check behavior** (#1292). Shuffled fairies in OoT now behave strictly as item checks without
+  providing an unintended health or magic refill upon collection; vanilla fairies continue to heal and refill.
+- **Gossip Stone and Sun's Song fairy double-spawns prevented** (#1312, issue #1296). Playing an Ocarina song at a
+  Gossip Stone or Sun's Song at a fairy spot while its shuffled fairy is already active no longer spawns a duplicate.
+- **Astral Observatory access logic** (#1314, issue #1306). MM logic now strictly requires the Bombers' Code or the
+  Backflip Over Bomber Guard trick to enter the Astral Observatory from East Clock Town.
+
+### Trackers and UI
+
+- **Check Tracker improvements** (#1293, #1309). Skipped checks now sink to the bottom following SoH's sorting order,
+  and the far pane correctly marks checks skipped across both games (#1309). Added a "Scroll to Current Area" button
+  and a dedicated visibility toggle for "Only Show Current Area" (#1293).
+- **Tatl ISG title casing and Audio Editor MM scroll** (#1316, issue #1276). Title-cased "Tatl ISG (Restoration)" and
+  preserved scroll captures in the Audio Editor's MM pane.
+
+### Build and Diagnostics
+
+- **Release map files** (#1313, issue #1303). CI builds now emit `redship.map` as build artifacts and attach them to
+  releases to assist in diagnostic and crash dump analysis.
+
+---
+
 # Release notes: v0.4.0-alpha ("Deckard Alfa")
 
 **Status:** released. The release is cut as the tag `v0.4.0-alpha` on the commit that merges this text (the version
