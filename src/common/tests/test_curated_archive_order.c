@@ -81,6 +81,15 @@
 
 #include "../mod_archives.h"
 
+extern "C" {
+void OTRExtScanner();
+uint8_t ResourceMgr_FileExists(const char* filePath);
+uint8_t ResourceMgr_FileAltExists(const char* filePath);
+void ResourceMgr_UnloadOriginalWhenAltExists(const char* resName);
+int OoT_RegisterModelResourceFactoriesHeadless(void);
+void Combo_ExtensionCache_Erase(const char* key);
+}
+
 namespace {
 
 // Below this, an "archive" is not a plausibly-generated curated archive and
@@ -405,6 +414,205 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
             break;
         }
 
+        // ---- Regression check (#1308 follow-up): Use-After-Free guard
+        // when switching games with alt/ mod archives.
+        OoT_RegisterModelResourceFactoriesHeadless();
+        auto loader = ctx->GetResourceManager()->GetResourceLoader();
+        loader->RegisterResourceFactory(std::make_shared<Fast::ResourceFactoryXMLDisplayListV0>(), RESOURCE_FORMAT_XML,
+                                        "DisplayList", static_cast<uint32_t>(Fast::ResourceType::DisplayList), 0);
+        const bool priorAltAssets = ctx->GetResourceManager()->IsAltAssetsEnabled();
+        ctx->GetResourceManager()->SetAltAssetsEnabled(true);
+
+        const char* kFallbackDL = "objects/object_bosskey/gBossKeyIconShadowTempleDL";
+        const std::filesystem::path looseMod1308 = std::filesystem::current_path() / "rsbs_test_mod_1308_alt";
+
+        auto cleanup1308 = [&]() {
+            Combo_ExtensionCache_Erase("alt/portVersion");
+            Combo_ExtensionCache_Erase((std::string("alt/") + kFallbackDL).c_str());
+            ctx->GetResourceManager()->UnloadResource(kFallbackDL);
+            ctx->GetResourceManager()->UnloadResource(std::string("alt/") + kFallbackDL);
+            std::filesystem::remove_all(looseMod1308, ec);
+            ctx->GetResourceManager()->SetAltAssetsEnabled(priorAltAssets);
+        };
+
+        // ROM-free verification (#1308 follow-up): ensure kFallbackDL is owned by soh.o2r in OoT (not oot.o2r):
+        auto fallbackOwnerOoT = archiveManager->GetArchiveFromFile(kFallbackDL);
+        if (fallbackOwnerOoT == nullptr || fallbackOwnerOoT->GetPath().find("soh.o2r") == std::string::npos) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: precondition — fallback asset %s not owned by soh.o2r (owner: %s)\n",
+                    kFallbackDL, fallbackOwnerOoT != nullptr ? fallbackOwnerOoT->GetPath().c_str() : "null");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        std::filesystem::remove_all(looseMod1308, ec);
+        std::filesystem::create_directories(looseMod1308 / "alt", ec);
+        const std::filesystem::path dummyAltFile = looseMod1308 / "alt" / "portVersion";
+        {
+            FILE* f = fopen(dummyAltFile.string().c_str(), "wb");
+            if (f != nullptr) {
+                fputs("1308", f);
+                fclose(f);
+            }
+        }
+        const std::filesystem::path dummyAltDL = looseMod1308 / "alt" / kFallbackDL;
+        std::filesystem::create_directories(dummyAltDL.parent_path(), ec);
+        {
+            FILE* f = fopen(dummyAltDL.string().c_str(), "wb");
+            if (f != nullptr) {
+                char dummyBuf[64] = "1308";
+                fwrite(dummyBuf, 1, sizeof(dummyBuf), f);
+                fclose(f);
+            }
+        }
+        const std::string looseMod1308Str = looseMod1308.generic_string();
+
+        if (archiveManager->AddArchive(looseMod1308Str) == nullptr) {
+            fprintf(stderr, "[mod-survives-switch] FAIL: could not mount loose mod archive %s (#1308)\n",
+                    looseMod1308Str.c_str());
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        Combo_RegisterModArchive(GAME_OOT, looseMod1308Str.c_str());
+        OTRExtScanner();
+
+        // While OoT mod is mounted:
+        Combo_EnsureGameArchivesLoaded(GAME_OOT);
+        if (ResourceMgr_FileAltExists("portVersion") != 1) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(\"portVersion\") != 1 in OoT (#1308)\n");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        if (ResourceMgr_FileExists("alt/portVersion") != 1) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileExists(\"alt/portVersion\") != 1 in OoT (#1308)\n");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        if (ResourceMgr_FileAltExists(kFallbackDL) != 1) {
+            fprintf(stderr, "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(%s) != 1 in OoT (#1308)\n",
+                    kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Leg (a): While looseMod1308 is mounted in GAME_OOT, ResourceMgr_FileAltExists(kFallbackDL) is 1.
+        // alt/ fails to parse as a valid binary and LoadResource falls back to base asset.
+        // Calling ResourceMgr_UnloadOriginalWhenAltExists must not unload the cached fallback resource!
+        ctx->GetResourceManager()->UnloadResource(kFallbackDL);
+        ctx->GetResourceManager()->UnloadResource(std::string("alt/") + kFallbackDL);
+        auto res1 = ctx->GetResourceManager()->LoadResource(kFallbackDL);
+        if (res1 == nullptr) {
+            fprintf(stderr, "[mod-survives-switch] FAIL: LoadResource(%s) in OoT returned null (#1308)\n", kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        ResourceMgr_UnloadOriginalWhenAltExists(kFallbackDL);
+        auto res2 = ctx->GetResourceManager()->LoadResource(kFallbackDL);
+        if (res2 == nullptr || res1.get() != res2.get()) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_UnloadOriginalWhenAltExists unloaded cached fallback "
+                    "resource %s while alt asset was negative-cached (#1308)\n",
+                    kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Switch to GAME_MM (which evicts the OoT mod archive):
+        Combo_EnsureGameArchivesLoaded(GAME_MM);
+
+        // ROM-free verification (#1308 follow-up): ensure kFallbackDL remains owned by soh.o2r in MM:
+        auto fallbackOwnerMM = archiveManager->GetArchiveFromFile(kFallbackDL);
+        if (fallbackOwnerMM == nullptr || fallbackOwnerMM->GetPath().find("soh.o2r") == std::string::npos) {
+            fprintf(stderr, "[mod-survives-switch] FAIL: fallback asset %s not owned by soh.o2r in MM (owner: %s)\n",
+                    kFallbackDL, fallbackOwnerMM != nullptr ? fallbackOwnerMM->GetPath().c_str() : "null");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Assert that ResourceMgr_FileAltExists and ResourceMgr_FileExists return 0 even though ExtensionCache still
+        // holds the key:
+        if (ResourceMgr_FileAltExists("portVersion") != 0) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(\"portVersion\") != 0 in MM after eviction "
+                    "(#1308)\n");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        if (ResourceMgr_FileExists("alt/portVersion") != 0) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileExists(\"alt/portVersion\") != 0 in MM after eviction "
+                    "(#1308)\n");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        if (ResourceMgr_FileAltExists(kFallbackDL) != 0) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(%s) != 0 in MM after eviction (#1308)\n",
+                    kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Leg (b): In MM after mod eviction, ResourceMgr_FileAltExists is 0.
+        // Calling ResourceMgr_UnloadOriginalWhenAltExists must not unload the cached resource.
+        ResourceMgr_UnloadOriginalWhenAltExists("portVersion");
+        auto resMm1 = ctx->GetResourceManager()->LoadResource(kFallbackDL);
+        if (resMm1 == nullptr) {
+            fprintf(stderr, "[mod-survives-switch] FAIL: LoadResource(%s) in MM returned null (#1308)\n", kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        ResourceMgr_UnloadOriginalWhenAltExists(kFallbackDL);
+        auto resMm2 = ctx->GetResourceManager()->LoadResource(kFallbackDL);
+        if (resMm2 == nullptr || resMm1.get() != resMm2.get()) {
+            fprintf(
+                stderr,
+                "[mod-survives-switch] FAIL: ResourceMgr_UnloadOriginalWhenAltExists unloaded cached resource %s in "
+                "MM after alt mod eviction (#1308)\n",
+                kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Switch back to GAME_OOT:
+        Combo_EnsureGameArchivesLoaded(GAME_OOT);
+        if (ResourceMgr_FileAltExists("portVersion") != 1) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(\"portVersion\") did not return 1 after "
+                    "switch back to OoT (#1308)\n");
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+        if (ResourceMgr_FileAltExists(kFallbackDL) != 1) {
+            fprintf(stderr,
+                    "[mod-survives-switch] FAIL: ResourceMgr_FileAltExists(%s) did not return 1 after switch back to "
+                    "OoT (#1308)\n",
+                    kFallbackDL);
+            rc = 1;
+            cleanup1308();
+            break;
+        }
+
+        // Clean up temporary loose mod directory, unmount/unload test paths, restore AltAssets, and erase synthetic
+        // cache keys:
+        cleanup1308();
+
         // ---- Negative control: no registered mods, base must win -----------
         // Same sequence, empty registry. If this ALSO reported the mod as
         // owner, the assertion above would be measuring something incidental
@@ -435,7 +643,10 @@ extern "C" int ModArchiveSurvivesSwitch_RunHeadless(const char* baseArchive, con
     archiveManager->SetArchives(archiveSnapshot);
     Combo_ClearModArchives(GAME_OOT);
     Combo_ClearModArchives(GAME_MM);
+    Combo_ExtensionCache_Erase("alt/portVersion");
+    Combo_ExtensionCache_Erase("alt/objects/object_bosskey/gBossKeyIconShadowTempleDL");
     std::filesystem::remove(modPath, ec);
+    std::filesystem::remove_all(std::filesystem::current_path() / "rsbs_test_mod_1308_alt", ec);
 
     if (rc == 0) {
         printf("[mod-survives-switch] PASS: a registered mod archive still wins after the switch-time base "
