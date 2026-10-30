@@ -316,13 +316,39 @@ extern "C" size_t Combo_ExtensionCache_Size(void) {
     return ExtensionCache.size();
 }
 
+extern "C" void Combo_ExtensionCache_Erase(const char* key) {
+    if (key == nullptr) {
+        return;
+    }
+    std::string path = key;
+    if (path.substr(0, 7) == "__OTR__") {
+        path = path.substr(7);
+    }
+    ExtensionCache.erase(path);
+}
+
 extern "C" uint8_t ResourceMgr_FileExists(const char* filePath) {
     std::string path = filePath;
     if (path.substr(0, 7) == "__OTR__") {
         path = path.substr(7);
     }
 
-    return ExtensionCache.contains(path);
+    auto it = ExtensionCache.find(path);
+    if (it == ExtensionCache.end()) {
+        return 0;
+    }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1308: ExtensionCache is a process-wide map that retains scanned keys across
+    // cross-game switches. After departing game mod archives are evicted, verify
+    // the path is actually present in a currently mounted archive.
+    auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
+        return 0;
+    }
+#endif
+
+    return 1;
 }
 
 extern "C" uint8_t ResourceMgr_FileAltExists(const char* filePath) {
@@ -335,17 +361,66 @@ extern "C" uint8_t ResourceMgr_FileAltExists(const char* filePath) {
         path = "alt/" + path;
     }
 
-    return ExtensionCache.contains(path);
+    auto it = ExtensionCache.find(path);
+    if (it == ExtensionCache.end()) {
+        return 0;
+    }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1308: ExtensionCache retains keys from unmounted mod archives across switches.
+    // Verify ArchiveManager currently mounts an archive carrying this alt asset.
+    auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
+        return 0;
+    }
+#endif
+
+    return 1;
 }
 
 extern "C" bool ResourceMgr_IsAltAssetsEnabled() {
     return Ship::Context::GetInstance()->GetResourceManager()->IsAltAssetsEnabled();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+namespace {
+class RsbsResourceManagerAccessor : public Ship::ResourceManager {
+  public:
+    using Ship::ResourceManager::CheckCache;
+    using Ship::ResourceManager::GetCachedResource;
+};
+using RsbsCacheLine = decltype(static_cast<RsbsResourceManagerAccessor*>(nullptr)->CheckCache(std::string(), false));
+using RsbsResourceLoadError = std::variant_alternative_t<0, RsbsCacheLine>;
+constexpr auto RsbsResourceLoadError_NotCached = static_cast<RsbsResourceLoadError>(1);
+} // namespace
+#endif
+
 // Unloads a resource if an alternate version exists when alt assets are enabled
 // The resource is only removed from the internal cache to prevent it from used in the next resource lookup
 extern "C" void ResourceMgr_UnloadOriginalWhenAltExists(const char* resName) {
     if (ResourceMgr_IsAltAssetsEnabled() && ResourceMgr_FileAltExists((char*)resName)) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1308: Prevent Use-After-Free crashes. If the alt/ asset was already loaded into
+        // cache (not dirty), or was already attempted and negative-cached (e.g. NotFound,
+        // so LoadResource fell back to the base asset), do NOT unload the base resource.
+        auto resMgr = Ship::Context::GetInstance()->GetResourceManager();
+        std::string altPath = resName != nullptr ? resName : "";
+        if (altPath.substr(0, 7) == "__OTR__") {
+            altPath = altPath.substr(7);
+        }
+        if (altPath.substr(0, 4) != "alt/") {
+            altPath = "alt/" + altPath;
+        }
+        auto accessor = static_cast<RsbsResourceManagerAccessor*>(resMgr.get());
+        auto altCacheLine = accessor->CheckCache(altPath, true);
+        if (accessor->GetCachedResource(altCacheLine) != nullptr) {
+            return;
+        }
+        if (std::holds_alternative<RsbsResourceLoadError>(altCacheLine) &&
+            std::get<RsbsResourceLoadError>(altCacheLine) != RsbsResourceLoadError_NotCached) {
+            return;
+        }
+#endif
         ResourceMgr_UnloadResource((char*)resName);
     }
 }
