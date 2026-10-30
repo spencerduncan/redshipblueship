@@ -21,14 +21,14 @@
 
 #define RSBS_VERSION_MAJOR 0
 #define RSBS_VERSION_MINOR 4
-#define RSBS_VERSION_PATCH 0
+#define RSBS_VERSION_PATCH 1
 #define RSBS_VERSION_STAGE "alpha"
-#define RSBS_VERSION_CODENAME "Deckard Alfa"
+#define RSBS_VERSION_CODENAME "Deckard Bravo"
 
 #define RSBS_STRINGIFY_(x) #x
 #define RSBS_STRINGIFY(x) RSBS_STRINGIFY_(x)
 
-/* "v0.4.0-alpha" — must equal the git release tag. */
+/* "v0.4.1-alpha" — must equal the git release tag. */
 #define RSBS_VERSION_STRING                                                                           \
     "v" RSBS_STRINGIFY(RSBS_VERSION_MAJOR) "." RSBS_STRINGIFY(RSBS_VERSION_MINOR) "." RSBS_STRINGIFY( \
         RSBS_VERSION_PATCH) "-" RSBS_VERSION_STAGE
