@@ -27,7 +27,6 @@ FaultClient OoT_sGraphFaultClient;
 CfbInfo OoT_sGraphCfbInfos[3];
 FaultClient sGraphUcodeFaultClient;
 
-void OoT_Skybox_Setup(PlayState* play, SkyboxContext* skyboxCtx, s16 skyboxId);
 void OoT_PadMgr_ThreadEntry(PadMgr* padMgr);
 
 // Set by z_play.c; nulled by the cross-game graph reset below so a retired
@@ -470,12 +469,6 @@ extern AudioMgr gAudioMgr;
 
 extern void ProcessSaveStateRequests(void);
 
-// Once-only skybox pre-setup flag (see the comment at its use in OoT_RunFrame).
-// File-scope so a cross-game graph reset can re-arm it: the pre-loaded skybox
-// data lives in the system arena, which is re-initialized (0xAB-filled) when
-// Main() runs again on re-entry after a game switch.
-static bool sHasSetupSkybox = false;
-
 /**
  * Cross-game switch support: retire the suspended graph coroutine.
  *
@@ -501,7 +494,6 @@ void OoT_Graph_ResetRunFrameContext(void) {
     runFrameContext.ovl = NULL;
     OoT_gGameState = NULL;
     OoT_gPlayState = NULL;
-    sHasSetupSkybox = false;
 }
 
 static void OoT_RunFrame() {
@@ -536,14 +528,6 @@ static void OoT_RunFrame() {
             OoT_Fault_AddHungupAndCrashImpl("GAME CLASS MALLOC FAILED", faultMsg);
         }
         OoT_GameState_Init(OoT_gGameState, runFrameContext.ovl->init, &runFrameContext.gfxCtx);
-
-        // Setup the normal skybox once before entering any game states to avoid the 0xabababab crash.
-        // The crash is due to certain skyboxes not loading all the data they need from OoT_Skybox_Setup.
-        if (!sHasSetupSkybox) {
-            PlayState* play = (PlayState*)OoT_gGameState;
-            OoT_Skybox_Setup(play, &play->skyboxCtx, SKYBOX_NORMAL_SKY);
-            sHasSetupSkybox = true;
-        }
 
         uint64_t freq = GetFrequency();
 

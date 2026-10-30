@@ -824,7 +824,8 @@ void DrawQuest(ItemTrackerItem item) {
 
 void DrawItem(ItemTrackerItem item) {
 
-    uint32_t actualItemId = GameInteractor::IsSaveLoaded() ? INV_CONTENT(item.id) : ITEM_NONE;
+    uint32_t actualItemId =
+        GameInteractor::IsSaveLoaded() && item.id < ARRAY_COUNT(OoT_gItemSlots) ? INV_CONTENT(item.id) : ITEM_NONE;
     float iconSize = static_cast<float>(CVarGetInteger(CVAR_TRACKER_ITEM("IconSize"), 36));
     bool hasItem = actualItemId != ITEM_NONE;
     std::string itemName = "";
@@ -857,7 +858,7 @@ void DrawItem(ItemTrackerItem item) {
         case ITEM_BRACELET:
         case ITEM_GAUNTLETS_SILVER:
         case ITEM_GAUNTLETS_GOLD:
-            actualItemId = CUR_UPG_VALUE(UPG_STRENGTH) == 3   ? ITEM_GAUNTLETS_GOLD
+            actualItemId = CUR_UPG_VALUE(UPG_STRENGTH) >= 3   ? ITEM_GAUNTLETS_GOLD
                            : CUR_UPG_VALUE(UPG_STRENGTH) == 2 ? ITEM_GAUNTLETS_SILVER
                                                               : ITEM_BRACELET;
             hasItem = CUR_UPG_VALUE(UPG_STRENGTH) > 0;
