@@ -342,12 +342,9 @@ extern "C" uint8_t ResourceMgr_FileExists(const char* filePath) {
     // #1308: ExtensionCache is a process-wide map that retains scanned keys across
     // cross-game switches. After departing game mod archives are evicted, verify
     // the path is actually present in a currently mounted archive.
-    auto ctx = Ship::Context::GetInstance();
-    if (ctx && ctx->GetResourceManager() && ctx->GetResourceManager()->GetArchiveManager()) {
-        auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
-        if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
-            return 0;
-        }
+    auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
+        return 0;
     }
 #endif
 
@@ -372,12 +369,9 @@ extern "C" uint8_t ResourceMgr_FileAltExists(const char* filePath) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #1308: ExtensionCache retains keys from unmounted mod archives across switches.
     // Verify ArchiveManager currently mounts an archive carrying this alt asset.
-    auto ctx = Ship::Context::GetInstance();
-    if (ctx && ctx->GetResourceManager() && ctx->GetResourceManager()->GetArchiveManager()) {
-        auto archiveMgr = ctx->GetResourceManager()->GetArchiveManager();
-        if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
-            return 0;
-        }
+    auto archiveMgr = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager();
+    if (!archiveMgr->HasFile(path) && !archiveMgr->HasFile(it->second.path)) {
+        return 0;
     }
 #endif
 
@@ -409,25 +403,22 @@ extern "C" void ResourceMgr_UnloadOriginalWhenAltExists(const char* resName) {
         // #1308: Prevent Use-After-Free crashes. If the alt/ asset was already loaded into
         // cache (not dirty), or was already attempted and negative-cached (e.g. NotFound,
         // so LoadResource fell back to the base asset), do NOT unload the base resource.
-        auto ctx = Ship::Context::GetInstance();
-        auto resMgr = ctx ? ctx->GetResourceManager() : nullptr;
-        if (resMgr != nullptr) {
-            std::string altPath = resName != nullptr ? resName : "";
-            if (altPath.substr(0, 7) == "__OTR__") {
-                altPath = altPath.substr(7);
-            }
-            if (altPath.substr(0, 4) != "alt/") {
-                altPath = "alt/" + altPath;
-            }
-            auto accessor = static_cast<RsbsResourceManagerAccessor*>(resMgr.get());
-            auto altCacheLine = accessor->CheckCache(altPath, true);
-            if (accessor->GetCachedResource(altCacheLine) != nullptr) {
-                return;
-            }
-            if (std::holds_alternative<RsbsResourceLoadError>(altCacheLine) &&
-                std::get<RsbsResourceLoadError>(altCacheLine) != RsbsResourceLoadError_NotCached) {
-                return;
-            }
+        auto resMgr = Ship::Context::GetInstance()->GetResourceManager();
+        std::string altPath = resName != nullptr ? resName : "";
+        if (altPath.substr(0, 7) == "__OTR__") {
+            altPath = altPath.substr(7);
+        }
+        if (altPath.substr(0, 4) != "alt/") {
+            altPath = "alt/" + altPath;
+        }
+        auto accessor = static_cast<RsbsResourceManagerAccessor*>(resMgr.get());
+        auto altCacheLine = accessor->CheckCache(altPath, true);
+        if (accessor->GetCachedResource(altCacheLine) != nullptr) {
+            return;
+        }
+        if (std::holds_alternative<RsbsResourceLoadError>(altCacheLine) &&
+            std::get<RsbsResourceLoadError>(altCacheLine) != RsbsResourceLoadError_NotCached) {
+            return;
         }
 #endif
         ResourceMgr_UnloadResource((char*)resName);
