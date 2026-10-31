@@ -91,11 +91,18 @@ static_assert((unsigned)RC_MAX <= RSBS_TRACKER_AVAIL_MM_CAP,
               "MM's RC_MAX outgrew the tracker availability capture (context.h): raise RSBS_TRACKER_AVAIL_MM_CAP with "
               "the record size and RSBS_SAVE_VERSION");
 
-// Every flag the descriptor names must live inside one row's stride.
+// Every flag the descriptor names must live inside one row's stride, and adding
+// RandoSaveCheck.seen at byte 9 (the 1-byte alignment gap before u16 price at
+// byte 10) must not grow RandoSaveCheck past 12 bytes.
+static_assert(sizeof(RandoSaveCheck) == 12 && offsetof(RandoSaveCheck, seen) == 9 &&
+                  offsetof(RandoSaveCheck, price) == 10,
+              "RandoSaveCheck.seen must occupy the alignment byte before price without changing row size");
 static_assert(offsetof(RandoSaveCheck, shuffled) < sizeof(RandoSaveCheck) &&
                   offsetof(RandoSaveCheck, obtained) < sizeof(RandoSaveCheck) &&
-                  offsetof(RandoSaveCheck, skipped) < sizeof(RandoSaveCheck),
-              "RandoSaveCheck flag offsets must stay within the row stride");
+                  offsetof(RandoSaveCheck, skipped) < sizeof(RandoSaveCheck) &&
+                  offsetof(RandoSaveCheck, seen) < sizeof(RandoSaveCheck) &&
+                  offsetof(RandoSaveCheck, price) + sizeof(u16) <= sizeof(RandoSaveCheck),
+              "RandoSaveCheck flag and price offsets must stay within the row stride");
 
 namespace {
 
@@ -252,6 +259,22 @@ const char* MMTrackerPlacedItemName(const void* save, uint16_t checkId, uint8_t*
         *outGame = (uint8_t)GAME_MM;
     }
     return item->second.name;
+}
+
+/**
+ * Whether check `checkId` carries a purchase price in RandoSaveCheck.price to
+ * print once identified (seen >= RCSEEN_IDENTIFIED): MM's shop slots
+ * (RCTYPE_SHOP) and Tingle's map offers (RCTYPE_TINGLE_SHOP).
+ */
+bool MMTrackerCanBePurchased(uint16_t checkId) {
+    if (checkId == (uint16_t)RC_UNKNOWN || checkId >= (uint16_t)RC_MAX) {
+        return false;
+    }
+    const auto check = Rando::StaticData::Checks.find((RandoCheckId)checkId);
+    if (check == Rando::StaticData::Checks.end()) {
+        return false;
+    }
+    return check->second.randoCheckType == RCTYPE_SHOP || check->second.randoCheckType == RCTYPE_TINGLE_SHOP;
 }
 
 // The reachability lock's stand-ins (MM_TrackerAdapter_TestLiveSeam and
@@ -542,6 +565,9 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.logicText = MMTrackerCheckLogic;
     desc.currentArea = MMTrackerCurrentArea;
     desc.setShadowSkipped = MMTrackerSetShadowSkipped;
+    desc.seenOffset = (uint32_t)offsetof(RandoSaveCheck, seen);
+    desc.priceOffset = (uint32_t)offsetof(RandoSaveCheck, price);
+    desc.canBePurchased = MMTrackerCanBePurchased;
 
     Combo_Tracker_RegisterMM(&desc);
 }

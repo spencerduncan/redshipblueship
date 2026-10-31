@@ -14,6 +14,12 @@ void OnFileLoad();
 RandoCheckId GetObjectRandoCheckId(void* actor);
 void SetObjectRandoCheckId(const void* object, RandoCheckId rc);
 
+// Record that check `rc` has been observed (`RCSEEN_SEEN`, e.g. on a shop shelf or
+// named in dialogue without a price) or inspected (`RCSEEN_IDENTIFIED`, e.g. a shop
+// or Tingle offer that shows its price). Monotonic: never downgrades an identified
+// check back to seen, and ignores unshuffled or out-of-range checks.
+void MarkCheckSeen(RandoCheckId rc, RandoCheckSeen level);
+
 // #800: a shop slot may host a foreign (OoT) item while physically holding MM's
 // junk cover. Both defined in EnGirlA.cpp; outside a paired world they are the
 // native answers unchanged.

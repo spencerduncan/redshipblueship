@@ -29,6 +29,7 @@ void Rando::ActorBehavior::InitEnScopenutsBehavior() {
     });
 
     COND_ID_HOOK(OnOpenText, 0x1631, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_TERMINA_FIELD_GROTTO_SCRUB, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         RandoItemId randoItemId = RANDO_SAVE_CHECKS[RC_TERMINA_FIELD_GROTTO_SCRUB].randoItemId;
         entry.msg = "Please! I'll sell you %y{{itemName}}%w if you just keep this place a secret...\xE0";

@@ -40,6 +40,16 @@ static const std::vector<std::string> flavorTexts = {
 // give on purchase, and its stock (once for the whole game).
 // ----------------------------------------------------------------------------
 
+void Rando::ActorBehavior::MarkCheckSeen(RandoCheckId rc, RandoCheckSeen level) {
+    if (rc <= RC_UNKNOWN || rc >= RC_MAX) {
+        return;
+    }
+    RandoSaveCheck& check = RANDO_SAVE_CHECKS[rc];
+    if (check.shuffled && check.seen < (u8)level) {
+        check.seen = (u8)level;
+    }
+}
+
 std::string Rando::ActorBehavior::ShopOfferedItemName(RandoCheckId rc, const std::string& nativeName,
                                                       bool withArticle) {
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -273,10 +283,12 @@ void EnGirlA_RandoInit(EnGirlA* enGirlA, PlayState* play) {
     } else {
         enGirlA->isOutOfStock = false;
         enGirlA->actor.draw = EnGirlA_RandoDrawFunc;
+        Rando::ActorBehavior::MarkCheckSeen((RandoCheckId)enGirlA->actor.world.rot.z, RCSEEN_SEEN);
     }
 }
 
 void renameStolenBombBag(u16* textId, bool* loadFromMessageTable) {
+    Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
     auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
     entry.msg = "Tonight's special, stolen from the Bomb Shop: %r{{itemName}}%w. Check it out!\x19\xA8";
     CustomMessage::Replace(&entry.msg, "{{itemName}}",
@@ -286,6 +298,7 @@ void renameStolenBombBag(u16* textId, bool* loadFromMessageTable) {
 }
 
 void renameSpecialBargain(u16* textId, bool* loadFromMessageTable) {
+    Rando::ActorBehavior::MarkCheckSeen(RC_CURIOSITY_SHOP_SPECIAL_ITEM, RCSEEN_SEEN);
     auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
     entry.msg = "Tonight's bargain: %r{{itemName}}%w. Check it out!\x19\xA8";
     CustomMessage::Replace(&entry.msg, "{{itemName}}", EnGirlA_RandoItemName(RC_CURIOSITY_SHOP_SPECIAL_ITEM));
@@ -432,6 +445,9 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         if (randoCheckId != RC_UNKNOWN && RANDO_SAVE_CHECKS[randoCheckId].shuffled) {
             enGirlA->actor.world.rot.z = randoCheckId;
             enGirlA->mainActionFunc = EnGirlA_RandoInit;
+            if (!Rando::ActorBehavior::ShopShelfSlotSold(randoCheckId)) {
+                Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_SEEN);
+            }
         }
     });
 
@@ -443,6 +459,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
             return;
         }
 
+        Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_IDENTIFIED);
         auto randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
@@ -472,6 +489,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
             return;
         }
 
+        Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_IDENTIFIED);
         auto randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
@@ -494,6 +512,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
             return;
         }
 
+        Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_IDENTIFIED);
         auto randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
 
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
@@ -518,6 +537,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
             return;
         }
 
+        Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "I used this to make %r{{itemName}}%w, take it!\x19";
         const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
@@ -543,6 +563,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
 
     // Bomb Shop "We're expecting new stock" (hint)
     COND_ID_HOOK(OnOpenText, 0x648, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
         auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM];
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg =
@@ -557,6 +578,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
 
     // Bomb Shop "We should have had..."
     COND_ID_HOOK(OnOpenText, 0x64A, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "Thanks to a mishap, we did not receive our %r{{itemName}}%w stock. Maybe next time...\x19\xA8";
         CustomMessage::Replace(&entry.msg, "{{itemName}}",
@@ -567,6 +589,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
 
     // Bomb Shop "I thought we could finally sell"
     COND_ID_HOOK(OnOpenText, 0x660, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
         auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM];
 
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
@@ -582,7 +605,7 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
 
     // Bomb Shop "We just got a larger bomb bag in stock"
     COND_ID_HOOK(OnOpenText, 0x649, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
-
+        Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "We just got some new stock: %r{{itemName}}%w.\x19\xA8";
         CustomMessage::Replace(&entry.msg, "{{itemName}}",

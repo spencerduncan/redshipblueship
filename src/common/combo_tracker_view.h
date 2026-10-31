@@ -121,16 +121,17 @@ typedef struct {
  *     SAVED, then the heap skip flag is SKIPPED, RCSHOW_SEEN and
  *     RCSHOW_IDENTIFIED are SEEN, RCSHOW_SCUMMED is SCUMMED, RCSHOW_UNCHECKED
  *     is UNCHECKED.
- *   - MM has only its obtained and skipped flags, so the view maps them:
- *     obtained is COLLECTED, skipped is SKIPPED, anything else UNCHECKED. MM
- *     never produces SEEN, SCUMMED or SAVED.
+ *   - MM has its obtained, skipped and seen (RandoCheckSeen: seen = 1,
+ *     identified = 2) bytes, so the view maps them: obtained is COLLECTED,
+ *     skipped is SKIPPED, seen != 0 is SEEN, anything else UNCHECKED. MM
+ *     never produces SCUMMED or SAVED.
  *
  * `obtained` on the row is exactly COLLECTED or SAVED, so the older projection
  * and this one never disagree.
  */
 typedef enum {
     COMBO_TRACKER_CHECK_UNCHECKED = 0,
-    COMBO_TRACKER_CHECK_SEEN = 1,      // the item there is known, not collected (OoT only)
+    COMBO_TRACKER_CHECK_SEEN = 1,      // the item there is known, not collected
     COMBO_TRACKER_CHECK_SCUMMED = 2,   // collected, then the game reloaded without saving (OoT only)
     COMBO_TRACKER_CHECK_SKIPPED = 3,   // the player marked it skipped
     COMBO_TRACKER_CHECK_COLLECTED = 4, // obtained (OoT: not saved yet; MM: its obtained flag)
@@ -185,9 +186,10 @@ typedef enum {
  * A found check is never available (both trackers drop it from the set).
  *
  * PRICE (#1166). `hasPrice` is whether the row prints a price after its item,
- * as SoH's DrawLocation prints " - <price>" (or the price alone) beside an
- * identified check it can sell (ItemLocation::CanBePurchased, SoH 2ba368e7e);
- * `price` is that price, 0 otherwise. OoT only: MM's tracker prints none.
+ * as SoH's DrawLocation and MM's CheckTracker print " - <price>" (or the price
+ * alone) beside an identified check that can be purchased (OoT:
+ * ItemLocation::CanBePurchased, SoH 2ba368e7e; MM: RCTYPE_SHOP /
+ * RCTYPE_TINGLE_SHOP); `price` is that price, 0 otherwise.
  *
  * END OF DUNGEON (#1279). `endOfDungeon` is whether the check is a dungeon's
  * last reward, which SoH's Check Tracker sorts below the area's other open
@@ -298,12 +300,12 @@ typedef struct ComboMMTrackerDesc {
     // key (ComboTrackerCheckRow.areaKey). Defined in the MM TU, which owns the
     // scene table. May itself be NULL: rows then carry no area.
     const char* (*areaName)(uint16_t checkId, uint16_t* outKey);
-    // The item an obtained check's row names (#458 U4), read from `save` (the
-    // live save or the shadow, whichever the view picked; same layout), with
-    // its game in `*outGame`: the crossed OoT item for a check that hosts one,
-    // as MM's own check tracker names it (#796), else the item MM's table
-    // stores there. NULL when there is nothing to name. The view calls it only
-    // for obtained rows. May itself be NULL: rows then name no item.
+    // The item an obtained or seen check's row names (#458 U4), read from
+    // `save` (the live save or the shadow, whichever the view picked; same
+    // layout), with its game in `*outGame`: the crossed OoT item for a check
+    // that hosts one, as MM's own check tracker names it (#796), else the item
+    // MM's table stores there. NULL when there is nothing to name. May itself
+    // be NULL: rows then name no item.
     const char* (*placedItemName)(const void* save, uint16_t checkId, uint8_t* outGame);
     // MM's live save, laid out exactly like the shadow blob (every offset above
     // applies to it), or NULL when it must not be read: the MM TU answers
@@ -359,6 +361,14 @@ typedef struct ComboMMTrackerDesc {
     // adapter's skipWritable answers). May itself be NULL: MM's far panel then
     // offers no toggle.
     bool (*setShadowSkipped)(uint16_t checkId, bool skipped);
+    // Seen/identified shop item tracking: `seenOffset` is offsetof(RandoSaveCheck,
+    // seen) (u8: 0 = unchecked, 1 = seen, 2 = identified); `priceOffset` is
+    // offsetof(RandoSaveCheck, price) (u16). Both are optional (0 = unregistered).
+    // `canBePurchased` answers whether check `checkId` carries a purchase price
+    // when identified (RCTYPE_SHOP or RCTYPE_TINGLE_SHOP); may be NULL.
+    uint32_t seenOffset;
+    uint32_t priceOffset;
+    bool (*canBePurchased)(uint16_t checkId);
 } ComboMMTrackerDesc;
 
 /**

@@ -22,6 +22,7 @@ void EnAkindonuts_ReplacePurchaseMessage(RandoCheckId randoCheckId, RandoInf ran
         return;
     }
 
+    Rando::ActorBehavior::MarkCheckSeen(randoCheckId, RCSEEN_SEEN);
     auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
     entry.msg = "I'll sell you %g{{item}}%w for %r{{rupees}} Rupees%w!\xE0";
 
@@ -106,6 +107,7 @@ void Rando::ActorBehavior::InitEnAkindonutsBehavior() {
             return;
         }
 
+        Rando::ActorBehavior::MarkCheckSeen(RC_SOUTHERN_SWAMP_SCRUB_BEANS, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "I sell %g{{item}} %wand %gMagic Beans %wto Deku Scrubs, but recently I've been thinking about "
                     "relocating to a new area.\xE0";
