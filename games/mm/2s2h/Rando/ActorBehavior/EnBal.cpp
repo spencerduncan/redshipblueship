@@ -61,6 +61,8 @@ static bool TingleRefusesMapSale(RandoCheckId rc) {
 void OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
     RandoCheckId randoCheckId1 = tingleMap[MM_gPlayState->sceneId][0];
     RandoCheckId randoCheckId2 = tingleMap[MM_gPlayState->sceneId][1];
+    Rando::ActorBehavior::MarkCheckSeen(randoCheckId1, RCSEEN_IDENTIFIED);
+    Rando::ActorBehavior::MarkCheckSeen(randoCheckId2, RCSEEN_IDENTIFIED);
 
     auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
     entry.autoFormat = false;

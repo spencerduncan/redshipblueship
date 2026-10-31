@@ -462,6 +462,102 @@ static int CtvOoTSeenRows(void) {
     return TEST_PASS;
 }
 
+/**
+ * MM seen (`RCSEEN_SEEN` = 1) and identified (`RCSEEN_IDENTIFIED` = 2) rows over
+ * the authored shadow: a shop slot seen on its shelf names its item with no
+ * price; once identified (inspected), a purchasable check (RCTYPE_SHOP /
+ * RCTYPE_TINGLE_SHOP) also prints its price, a non-purchasable check does not,
+ * a crossing host names the crossed OoT item, and skipping a seen check turns
+ * its status to SKIPPED while keeping its revealed item and price.
+ */
+static int CtvMMSeenRows(const ComboMMTrackerDesc* desc, const std::vector<uint8_t>& baseBlob) {
+    CTV_ASSERT(desc->seenOffset != 0 && desc->seenOffset < desc->checkStride);
+    CTV_ASSERT(desc->priceOffset != 0 && desc->priceOffset + 2 <= desc->checkStride);
+    CTV_ASSERT(desc->checkStride == 12); // RandoSaveCheck.seen occupies offset 9 without growing the 12-byte row
+    CTV_ASSERT(desc->canBePurchased != NULL);
+
+    uint16_t shopId = 0;
+    uint16_t nonShopId = 0;
+    for (uint32_t id = 10; id < desc->checkCount && (shopId == 0 || nonShopId == 0); id++) {
+        if (desc->checkName((uint16_t)id) == NULL) {
+            continue;
+        }
+        if (desc->canBePurchased((uint16_t)id)) {
+            if (shopId == 0) {
+                shopId = (uint16_t)id;
+            }
+        } else if (nonShopId == 0) {
+            nonShopId = (uint16_t)id;
+        }
+    }
+    CTV_ASSERT(shopId != 0 && nonShopId != 0);
+
+    std::vector<uint8_t> work = baseBlob;
+    uint8_t* shopRow = work.data() + desc->checkTableOffset + (size_t)shopId * desc->checkStride;
+    shopRow[desc->shuffledOffset] = 1;
+    shopRow[desc->seenOffset] = 1; // RCSEEN_SEEN
+    const uint16_t kShopPrice = 80;
+    memcpy(shopRow + desc->priceOffset, &kShopPrice, sizeof(kShopPrice));
+    CTV_ASSERT(MM_TrackerAdapter_TestSetStoredItem(work.data(), shopId, "Lens of Truth") == 1);
+
+    uint8_t* nonShopRow = work.data() + desc->checkTableOffset + (size_t)nonShopId * desc->checkStride;
+    nonShopRow[desc->shuffledOffset] = 1;
+    nonShopRow[desc->seenOffset] = 2; // RCSEEN_IDENTIFIED on a non-purchasable check
+    CTV_ASSERT(MM_TrackerAdapter_TestSetStoredItem(work.data(), nonShopId, "Lens of Truth") == 1);
+    Context_UpdateShadowCopy(GAME_MM, work.data(), work.size());
+
+    ComboTrackerCheckRow row;
+    // 1. Seen shop slot: status is SEEN, item is named, price is not shown yet.
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)shopId, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SEEN && !row.obtained && !row.skipped);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(row.placedItemGame == (uint8_t)GAME_MM);
+    CTV_ASSERT(!row.hasPrice && row.price == 0);
+
+    // 2. Identified shop slot: status is SEEN, item and price are both shown.
+    shopRow[desc->seenOffset] = 2; // RCSEEN_IDENTIFIED
+    Context_UpdateShadowCopy(GAME_MM, work.data(), work.size());
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)shopId, &row));
+    printf("[TEST] combo-tracker-view MM seen rows: shopId=%u status=%u item=\"%s\" hasPrice=%d price=%u\n",
+           (unsigned)shopId, (unsigned)row.status, row.placedItemName != NULL ? row.placedItemName : "(null)",
+           (int)row.hasPrice, (unsigned)row.price);
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SEEN);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(row.placedItemGame == (uint8_t)GAME_MM);
+    CTV_ASSERT(row.hasPrice && row.price == kShopPrice);
+
+    // 3. Crossing host on an identified MM shop slot: names the crossed OoT item + price.
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0xC0FFEE97u;
+    gComboCtx.sharedRandoSettingsHash = 0x5EED0497u;
+    SharedItem crossedOoT;
+    CTV_ASSERT(TestNamedItem((uint8_t)GAME_OOT, "Kokiri Sword", &crossedOoT));
+    CTV_ASSERT(Combo_SetForeignPlacement(shopId, crossedOoT) >= 0);
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)shopId, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SEEN);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Kokiri Sword") == 0);
+    CTV_ASSERT(row.placedItemGame == (uint8_t)GAME_OOT);
+    CTV_ASSERT(row.hasPrice && row.price == kShopPrice);
+    ComboContext_Init();
+
+    // 4. Skipping an identified shop slot: status becomes SKIPPED, item + price stay revealed.
+    shopRow[desc->skippedOffset] = 1;
+    Context_UpdateShadowCopy(GAME_MM, work.data(), work.size());
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)shopId, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SKIPPED && row.skipped);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(row.hasPrice && row.price == kShopPrice);
+
+    // 5. Non-purchasable check even at seen=2: names item, never prints "- 0".
+    CTV_ASSERT(Combo_TrackerCheckAt((uint8_t)GAME_MM, (int)nonShopId, &row));
+    CTV_ASSERT(row.status == COMBO_TRACKER_CHECK_SEEN);
+    CTV_ASSERT(row.placedItemName != NULL && strcmp(row.placedItemName, "Lens of Truth") == 0);
+    CTV_ASSERT(!row.hasPrice && row.price == 0);
+
+    Context_UpdateShadowCopy(GAME_MM, baseBlob.data(), baseBlob.size());
+    return TEST_PASS;
+}
+
 // ---- #458 U5, #1294: the skip toggle, on both panes ---------------------------
 
 // Failed U5 halves (MM, OoT), reported together at the end of the row.
@@ -1660,6 +1756,9 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
     // reports: the row fails at the end either way.
     int u4Failures = 0;
     if (CtvMMRowsU4(desc, blob, kShuffledA, kObtainedB, kSkippedC) != TEST_PASS) {
+        u4Failures++;
+    }
+    if (CtvMMSeenRows(desc, blob) != TEST_PASS) {
         u4Failures++;
     }
 

@@ -142,6 +142,7 @@ void Rando::ActorBehavior::InitEnGoBehavior() {
     });
 
     COND_ID_HOOK(OnOpenText, 0x0C83, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_GORON_VILLAGE_MEDIGORON, RCSEEN_SEEN);
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         Audio_PlaySfx(NA_SE_EN_GOLON_WAKE_UP); // Original script plays this as part of the text.
         entry.msg = "If you can %rdestroy%w the boulder\n";

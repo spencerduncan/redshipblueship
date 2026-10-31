@@ -402,6 +402,21 @@ void CheckTrackerDrawNonLogicalList() {
 #else
                         ImGui::Text("(%s)", Rando::StaticData::Items[randoSaveCheck.randoItemId].name);
 #endif
+                    } else if (randoSaveCheck.seen != RCSEEN_UNCHECKED) {
+                        ImGui::SameLine();
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        const std::string seenName = ObtainedItemTrackerName(randoCheckId, randoSaveCheck);
+                        const char* itemName = seenName.c_str();
+#else
+                        const char* itemName = Rando::StaticData::Items[randoSaveCheck.randoItemId].name;
+#endif
+                        if (randoSaveCheck.seen >= RCSEEN_IDENTIFIED &&
+                            (randoStaticCheck.randoCheckType == RCTYPE_SHOP ||
+                             randoStaticCheck.randoCheckType == RCTYPE_TINGLE_SHOP)) {
+                            ImGui::Text("(%s - %u)", itemName, (unsigned)randoSaveCheck.price);
+                        } else {
+                            ImGui::Text("(%s)", itemName);
+                        }
                     } else if (randoSaveCheck.skipped) {
                         ImGui::SameLine();
                         ImGui::Text("(Skipped)");

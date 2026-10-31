@@ -37,6 +37,7 @@ void EnTab_OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
     std::string itemPrice1 = "20";
     // #800: a slot hosting a foreign item names it, and is sold for good once delivered.
     if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_MILK)) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_MILK_BAR_PURCHASE_MILK, RCSEEN_IDENTIFIED);
         itemName1 = Rando::ActorBehavior::ShopOfferedItemName(RC_MILK_BAR_PURCHASE_MILK,
                                                               Rando::StaticData::Items[riMilkPurchase].name, false);
         itemPrice1 = std::to_string(milkPurchaseCheck.price);
@@ -45,6 +46,7 @@ void EnTab_OnOpenShopText(u16* textId, bool* loadFromMessageTable) {
     std::string itemName2 = "Chateau Romani";
     std::string itemPrice2 = "200";
     if (!Rando::ActorBehavior::ShopCounterSlotSold(RC_MILK_BAR_PURCHASE_CHATEAU)) {
+        Rando::ActorBehavior::MarkCheckSeen(RC_MILK_BAR_PURCHASE_CHATEAU, RCSEEN_IDENTIFIED);
         itemName2 = Rando::ActorBehavior::ShopOfferedItemName(
             RC_MILK_BAR_PURCHASE_CHATEAU, Rando::StaticData::Items[riChateauPurchase].name, false);
         itemPrice2 = std::to_string(chateauPurchaseCheck.price);

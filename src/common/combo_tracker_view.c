@@ -51,7 +51,9 @@ void Combo_Tracker_RegisterMM(const ComboMMTrackerDesc* desc) {
         (uint64_t)desc->checkTableOffset + (uint64_t)desc->checkCount * (uint64_t)desc->checkStride;
     if (desc->checkStride == 0 || desc->checkCount == 0 || tableEnd > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         desc->shuffledOffset >= desc->checkStride || desc->obtainedOffset >= desc->checkStride ||
-        desc->skippedOffset >= desc->checkStride || desc->newfLen > sizeof(desc->newf) ||
+        desc->skippedOffset >= desc->checkStride || (desc->seenOffset != 0 && desc->seenOffset >= desc->checkStride) ||
+        (desc->priceOffset != 0 && (uint64_t)desc->priceOffset + 2 > (uint64_t)desc->checkStride) ||
+        desc->newfLen > sizeof(desc->newf) ||
         (uint64_t)desc->newfOffset + desc->newfLen > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->saveTypeOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE ||
         (uint64_t)desc->finalSeedOffset + 4 > (uint64_t)MM_SAVE_CONTEXT_SIZE) {
@@ -174,6 +176,12 @@ static int FrozenAvailableCount(uint8_t game) {
 static uint32_t MMBlobReadU32(const uint8_t* blob, uint32_t offset) {
     uint32_t v;
     memcpy(&v, blob + offset, sizeof(v)); // offsets may be unaligned in principle
+    return v;
+}
+
+static uint16_t MMRowReadU16(const uint8_t* row, uint32_t offset) {
+    uint16_t v;
+    memcpy(&v, row + offset, sizeof(v));
     return v;
 }
 
@@ -352,25 +360,39 @@ bool Combo_TrackerCheckAt(uint8_t game, int index, ComboTrackerCheckRow* out) {
             return false;
         }
         const uint8_t* row = blob + sMMDesc.checkTableOffset + (size_t)index * sMMDesc.checkStride;
+        const uint8_t seen = (sMMDesc.seenOffset != 0) ? row[sMMDesc.seenOffset] : 0;
         out->checkId = (uint16_t)index;
         out->name = (sMMDesc.checkName != NULL) ? sMMDesc.checkName((uint16_t)index) : NULL;
         out->shuffled = row[sMMDesc.shuffledOffset] != 0;
         out->obtained = row[sMMDesc.obtainedOffset] != 0;
         out->skipped = row[sMMDesc.skippedOffset] != 0;
-        // #458 U4. MM's status is its two flags and nothing more (the header's
-        // ComboTrackerCheckStatus): obtained wins, as in MM's own tracker.
+        // #458 U4. MM's status is its obtained, skipped and seen bytes (the
+        // header's ComboTrackerCheckStatus): obtained wins, then skipped, then seen.
         out->status = out->obtained  ? (uint8_t)COMBO_TRACKER_CHECK_COLLECTED
                       : out->skipped ? (uint8_t)COMBO_TRACKER_CHECK_SKIPPED
+                      : seen != 0    ? (uint8_t)COMBO_TRACKER_CHECK_SEEN
                                      : (uint8_t)COMBO_TRACKER_CHECK_UNCHECKED;
         if (sMMDesc.areaName != NULL) {
             out->areaName = sMMDesc.areaName((uint16_t)index, &out->areaKey);
         }
-        // Only a found check names its item, as MM's tracker prints one only
-        // beside an obtained check; the MM TU reads it from this same save.
+        // A found or seen check names its item from this same save; an identified
+        // purchasable check (seen >= 2) also prints its price.
         if (out->obtained && sMMDesc.placedItemName != NULL) {
             uint8_t itemGame = (uint8_t)GAME_NONE;
             out->placedItemName = sMMDesc.placedItemName(blob, (uint16_t)index, &itemGame);
             out->placedItemGame = (out->placedItemName != NULL) ? itemGame : (uint8_t)GAME_NONE;
+        } else if (seen != 0 && sMMDesc.placedItemName != NULL) {
+            ComboTrackerSeenItem seenItem;
+            memset(&seenItem, 0, sizeof(seenItem));
+            seenItem.game = (uint8_t)GAME_MM;
+            seenItem.saleKind = (uint8_t)COMBO_TRACKER_SALE_NONE;
+            seenItem.identified = seen >= 2;
+            seenItem.listed = out->shuffled;
+            seenItem.canBePurchased = sMMDesc.canBePurchased != NULL && sMMDesc.canBePurchased((uint16_t)index);
+            seenItem.itemGame = (uint8_t)GAME_NONE;
+            seenItem.itemName = sMMDesc.placedItemName(blob, (uint16_t)index, &seenItem.itemGame);
+            seenItem.price = (sMMDesc.priceOffset != 0) ? MMRowReadU16(row, sMMDesc.priceOffset) : 0;
+            Combo_TrackerNameSeenItem(&seenItem, out);
         }
         // #1129: the live in-logic set or the departure capture, by the pick above.
         if (MMBlobReadU32(blob, sMMDesc.saveTypeOffset) == sMMDesc.saveTypeRando) {

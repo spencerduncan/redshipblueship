@@ -266,11 +266,12 @@ that the paragraph above does not describe; this note is the binding text for th
   whole row in OoT's TU (`TrackerAdapterSingleExe.cpp`, `ProjectStatus`, with SoH's own precedence), and
   the view zeroes the row before calling it, so a field an adapter leaves alone reads as "none". The same
   member fills the row's area, short name and found item.
-- **MM's status is mapped in common code from the flags already projected** (`Combo_TrackerCheckAt`):
-  `obtained` is `COLLECTED`, else `skipped` is `SKIPPED`, else `UNCHECKED`. No new MM byte is read or
-  interpreted for it; it re-labels two values the descriptor already locates, and MM never produces
-  `SEEN`, `SCUMMED` or `SAVED`. MM's area name and found item come through the new descriptor callbacks
-  `areaName` and `placedItemName`, defined in the MM TU, as the paragraph above describes.
+- **MM's status is mapped in common code from the bytes the descriptor locates** (`Combo_TrackerCheckAt`):
+  `obtained` is `COLLECTED`, else `skipped` is `SKIPPED`, else `seen != 0` (`RandoSaveCheck.seen` at
+  `seenOffset`, occupying the 1-byte alignment gap at offset 9 before `u16 price` at offset 10) is `SEEN`,
+  else `UNCHECKED`. MM never produces `SCUMMED` or `SAVED`. MM's area name, found/seen item and purchasability
+  come through the descriptor callbacks `areaName`, `placedItemName` and `canBePurchased` (plus `priceOffset`),
+  defined in the MM TU, as the paragraph above describes.
 An item row's `have`, `count` and `max` are the same kind of projection, derived from each game's save
 layout inside that game's TU.
 

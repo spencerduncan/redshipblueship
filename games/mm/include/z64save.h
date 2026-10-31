@@ -374,6 +374,12 @@ typedef enum {
     SAVETYPE_RANDO,
 } SaveType;
 
+typedef enum RandoCheckSeen {
+    RCSEEN_UNCHECKED = 0,
+    RCSEEN_SEEN = 1,
+    RCSEEN_IDENTIFIED = 2,
+} RandoCheckSeen;
+
 typedef struct RandoSaveCheck {
     RandoItemId randoItemId;
     bool shuffled;
@@ -381,6 +387,7 @@ typedef struct RandoSaveCheck {
     bool cycleObtained;
     bool obtained;
     bool skipped;
+    u8 seen;
     u16 price; // Only applicable for shops/merchants
 } RandoSaveCheck;
 
