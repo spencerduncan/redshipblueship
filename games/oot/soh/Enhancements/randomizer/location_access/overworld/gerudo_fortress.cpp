@@ -197,7 +197,7 @@ void RegionTable_Init_GerudoFortress() {
 
     areaTable[RR_GF_ABOVE_JAIL] = Region("GF Above Jail", SCENE_GERUDOS_FORTRESS, {}, {
         //Locations
-        LOCATION(RC_GF_ABOVE_JAIL_CRATE, true),
+        LOCATION(RC_GF_ABOVE_JAIL_CRATE, logic->IsAdult),
     }, {
         //Exits
         //you don't take fall damage if you land on the rock with the flag on for some reason
