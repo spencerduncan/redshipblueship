@@ -43,6 +43,7 @@ void BuildHintStoneMessage(uint16_t* textId, bool* loadFromMessageTable) {
     }
     if (stoneHint == RH_NONE) {
         msg = CustomMessage("INVALID STONE. PARAMS: " + std::to_string(hintParams));
+        msg.AutoFormat();
     } else {
         msg = OTRGlobals::Instance->gRandoContext->GetHint(stoneHint)->GetHintMessage(MF_AUTO_FORMAT);
     }

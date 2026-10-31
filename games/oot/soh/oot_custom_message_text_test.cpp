@@ -46,10 +46,17 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/static_data.h"
 
+extern "C" {
+#include <variables.h>
+extern PlayState* OoT_gPlayState;
+}
+
 // 3drando/menu.cpp: the headless generation bridge every rando row uses.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
 // Messages/ItemMessages.cpp: dungeon map `rg`'s get-item text, raw English.
 extern "C" int OoT_Rando_MapMessageText(uint16_t rg, char* out, size_t cap);
+// Messages/ItemMessages.cpp: TEXT_RANDOMIZER_CUSTOM_ITEM OnOpenText handler.
+void BuildItemMessage(u16* textId, bool* loadFromMessageTable);
 
 namespace {
 
@@ -161,6 +168,44 @@ extern "C" int OoT_CustomMessageReplaceTest_Run(void) {
                "map icon exactly once\n",
                CmtPrintable(r3).c_str());
         failures++;
+    }
+
+    // R4. BuildItemMessage for RG_CRAWL auto-formats its custom message in all three languages (ends with MESSAGE_END
+    // 0x02 and expands color/newline codes instead of leaving raw %r/%w/& without a MESSAGE_END terminator).
+    {
+        auto play = std::make_unique<PlayState>();
+        auto player = std::make_unique<Player>();
+        play->actorCtx.actorLists[ACTORCAT_PLAYER].head = &player->actor;
+        player->getItemEntry.getItemId = RG_CRAWL;
+
+        PlayState* prevPlay = OoT_gPlayState;
+        const u8 prevLang = gSaveContext.language;
+        OoT_gPlayState = play.get();
+
+        const u8 langs[] = { LANGUAGE_ENG, LANGUAGE_GER, LANGUAGE_FRA };
+        using namespace std::literals::string_literals;
+        const std::string end = CustomMessage::MESSAGE_END();
+        const std::string red = CustomMessage::COLOR(QM_RED);
+        const std::string white = CustomMessage::COLOR(QM_WHITE);
+        for (const u8 lang : langs) {
+            gSaveContext.language = lang;
+            u16 textId = TEXT_RANDOMIZER_CUSTOM_ITEM;
+            bool loadFromMessageTable = true;
+            BuildItemMessage(&textId, &loadFromMessageTable);
+            const std::string raw(play->msgCtx.font.msgBuf, static_cast<size_t>(play->msgCtx.msgLength));
+            if (loadFromMessageTable || raw.size() < end.size() ||
+                raw.compare(raw.size() - end.size(), end.size(), end) != 0 || raw.find('%') != std::string::npos ||
+                raw.find('&') != std::string::npos || raw.find(red) == std::string::npos ||
+                raw.find(white) == std::string::npos) {
+                printf("[TEST] FAIL R4 (lang=%u): RG_CRAWL BuildItemMessage produced \"%s\" (missing AutoFormat / "
+                       "MESSAGE_END terminator)\n",
+                       (unsigned)lang, CmtPrintable(raw).c_str());
+                failures++;
+            }
+        }
+
+        gSaveContext.language = prevLang;
+        OoT_gPlayState = prevPlay;
     }
 
     if (failures != 0) {

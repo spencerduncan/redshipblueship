@@ -458,6 +458,7 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
         msg = CustomMessage("You got the %rAbility to Crawl%w!&The power of kneecaps is yours!",
                             "Du erhältst die %rFähigkeit zu kriechen%w!&Die Macht der Kniescheiben gehört dir!",
                             "Vous obtenez la %rCapacité à Ramper%w!", TEXTBOX_TYPE_BLUE);
+        msg.AutoFormat();
     } else {
         BuildCustomItemMessage(player, msg);
     }
