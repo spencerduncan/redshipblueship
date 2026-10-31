@@ -189,8 +189,9 @@ struct PaneState {
     bool showHidden = false;
     bool onlyAvailable = false;
     bool seeded = false;
-    ComboPaneAreaToggle area; // #1131: Only Show Current Area, seeded from its key whenever the key changes
-    ComboAreaScroll scroll;   // #1131: the scroll to the current area this pane owes
+    ComboPaneAreaToggle area;    // #1131: Only Show Current Area, seeded from its key whenever the key changes
+    ComboPaneAreaToggle skipped; // Hide Skipped Checks, seeded from gTrackers.CheckTracker.Skipped.Hide
+    ComboAreaScroll scroll;      // #1131: the scroll to the current area this pane owes
 };
 
 PaneState& Pane(uint8_t game) {
@@ -202,6 +203,7 @@ PaneState& Pane(uint8_t game) {
         pane.seeded = true;
     }
     ComboPaneAreaToggleSeed(pane.area, ComboReadTrackerNavKeys().onlyCurrentArea);
+    ComboPaneAreaToggleSeed(pane.skipped, CVarGetInteger("gTrackers.CheckTracker.Skipped.Hide", 0) != 0);
     return pane;
 }
 
@@ -356,6 +358,7 @@ void DrawCheckRow(uint8_t game, const ComboTrackerCheckRow& row, const CheckList
 void DrawCheckList(uint8_t game, PaneState& pane, int expandAll, bool availableChecks, bool showLogic) {
     const char* search = pane.search;
     ComboCheckHideOptions hide = ComboReadCheckHideOptions(pane.showHidden);
+    hide.hideStatus[COMBO_TRACKER_CHECK_SKIPPED] = pane.skipped.onlyCurrentArea;
     hide.onlyAvailable = availableChecks && pane.onlyAvailable;
     ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);
     std::vector<ComboTrackerAreaRows> areas;
@@ -501,6 +504,10 @@ void DrawGamePanel(uint8_t game, const char* title, const ComboTrackerIdentity& 
     if (availableToggle) {
         const ComboUiWidgetOpts tip = { "When active, this game's unavailable checks will be hidden.", false, nullptr };
         listChanged = Ui().Checkbox("Only Show Available Checks", &pane.onlyAvailable, &tip) || listChanged;
+    }
+    if (header.hideSkippedToggle) {
+        const ComboUiWidgetOpts tip = { "When active, this game's skipped checks will be hidden.", false, nullptr };
+        listChanged = Ui().Checkbox("Hide Skipped Checks", &pane.skipped.onlyCurrentArea, &tip) || listChanged;
     }
     // #1131: Only Show Current Area, this pane's own (ruling D12), as MM's tracker
     // offers Only Show Current Scene; #1287: behind its own visibility key, as
@@ -754,7 +761,9 @@ void CollectCheckAreas(uint8_t game, const char* search, bool keepFiltered, std:
         // #1129: like `total`, the whole area, whatever the search hides.
         if (row.availabilityKnown) {
             area.availabilityKnown = true;
-            area.available += row.available ? 1 : 0;
+            if (row.available && !row.obtained && !row.skipped) {
+                area.available++;
+            }
         }
         if (filter.IsActive()) {
             // What SoH's ShouldShowCheck searches (ComboCheckRowSearchText).
@@ -873,14 +882,16 @@ ComboCheckHeaderOptions ComboReadCheckHeaderOptions() {
     header.showLogic = CVarGetInteger("gTrackers.CheckTracker.ShowLogic", 0) != 0;
     // #1287: the pane's own checkbox's visibility, beside SoH's in Tracker Header Visibility.
     header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE, 1) != 0;
+    header.hideSkippedToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_HIDE_SKIPPED_TOGGLE_VISIBLE, 1) != 0;
     return header;
 }
 
 bool ComboCheckHeaderPresent(const ComboCheckHeaderOptions& header) {
     // SoH's DrawElement: headerPresent, from the same five keys, and (#1287) the
-    // pane's own Only Show Current Area checkbox, which draws behind its own key.
+    // pane's own Only Show Current Area and Hide Skipped Checks checkboxes.
     return header.hiddenItemsToggle || (header.availableChecks && header.availableChecksToggle) ||
-           header.expandCollapseButtons || header.searchInput || header.checkTotals || header.onlyCurrentAreaToggle;
+           header.expandCollapseButtons || header.searchInput || header.checkTotals || header.onlyCurrentAreaToggle ||
+           header.hideSkippedToggle;
 }
 
 ComboTrackerNavKeys ComboReadTrackerNavKeys() {

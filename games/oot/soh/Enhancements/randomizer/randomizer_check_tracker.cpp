@@ -346,7 +346,7 @@ void RecalculateAreaTotals(RandomizerCheckArea rcArea) {
             areaChecksGotten[rcArea]++;
         }
 
-        if (itemLoc->IsAvailable() && !IsCheckHidden(rc)) {
+        if (itemLoc->IsAvailable() && !itemLoc->GetIsSkipped() && !IsCheckHidden(rc)) {
             areaChecksAvailable[rcArea]++;
         }
     }
@@ -2510,7 +2510,8 @@ static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
         areaChecksAvailable[rcArea] = 0;
         for (auto& rc : vec) {
             Rando::ItemLocation* itemLocation = ctx->GetItemLocation(rc);
-            if (itemLocation->IsAvailable() && IsVisibleInCheckTracker(rc) && !IsCheckHidden(rc)) {
+            if (itemLocation->IsAvailable() && !itemLocation->GetIsSkipped() && IsVisibleInCheckTracker(rc) &&
+                !IsCheckHidden(rc)) {
                 areaChecksAvailable[rcArea]++;
             }
         }
@@ -2623,10 +2624,13 @@ void CheckTrackerSettingsWindow::DrawElement() {
         UIWidgets::CVarCheckbox("Check Totals", CVAR_TRACKER_CHECK("CheckTotalsVisible"),
                                 UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
 #ifdef RSBS_SINGLE_EXECUTABLE
-        // #1287: the unified window's own header control, each pane's Only Show
-        // Current Area checkbox, gets its visibility row beside SoH's.
+        // #1287: the unified window's own header controls, each pane's Only Show
+        // Current Area and Hide Skipped Checks checkboxes, get their visibility
+        // rows beside SoH's.
         UIWidgets::CVarCheckbox("Only Show Current Area Toggle",
                                 RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,
+                                UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
+        UIWidgets::CVarCheckbox("Hide Skipped Checks Toggle", RSBS_CVAR_COMBO_CHECKS_HIDE_SKIPPED_TOGGLE_VISIBLE,
                                 UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true));
 #endif
 

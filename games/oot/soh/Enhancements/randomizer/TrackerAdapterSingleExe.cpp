@@ -274,13 +274,12 @@ bool OoTTrackerSummary(ComboTrackerGameSummary* out) {
             continue; // not on SoH's Check Tracker's list (see OoTCheckListed)
         }
         shuffled++;
-        if (availLive && loc->IsAvailable()) {
-            available++;
-        }
         if (StatusObtained(loc->GetCheckStatus())) {
             obtained++;
         } else if (loc->GetIsSkipped()) {
             skipped++;
+        } else if (availLive && loc->IsAvailable()) {
+            available++;
         }
     }
 

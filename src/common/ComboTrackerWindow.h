@@ -349,6 +349,9 @@ struct ComboCheckHeaderOptions {
     // its own in SoH's Tracker Header Visibility group, as each of SoH's header
     // controls is: gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible (on).
     bool onlyCurrentAreaToggle = true;
+    // The pane's own Hide Skipped Checks checkbox, behind
+    // gCombo.Tracker.Checks.HideSkippedToggleVisible (on).
+    bool hideSkippedToggle = true;
 };
 
 ComboCheckHeaderOptions ComboReadCheckHeaderOptions();

@@ -824,24 +824,32 @@ int LockAvailBody(void) {
     row.available = false;
     CTW_ASSERT(!ComboCheckRowHidden(row, opts));
 
-    // The list: 0x11 (area 3) and 0x12 (area 7) available.
+    // The list: 0x11 (area 3, unchecked) and 0x12 (area 7, skipped) in logic.
+    // 0x12's row keeps row.available == true (for its lock glyph), while area 7's
+    // available count excludes skipped checks (areas[1].available == 0).
     sCtwAvailableIds = { 0x11, 0x12 };
     Combo_Tracker_RegisterOoT(&kCtwAvailOps);
     opts = ComboCheckHideOptions();
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
     CTW_ASSERT(CtwDrawn(areas) == "3:11,13 7:12,10");
     CTW_ASSERT(areas.size() == 2 && areas[0].availabilityKnown && areas[0].available == 1 &&
-               areas[1].availabilityKnown && areas[1].available == 1);
+               areas[1].availabilityKnown && areas[1].available == 0);
+    CTW_ASSERT(areas[1].rows.size() == 2 && areas[1].rows[0].checkId == 0x12 && areas[1].rows[0].available);
+    // Under Only Show Available, area 7 has no unskipped available checks left
+    // (areas[1].available == 0), so its header is hidden, even under Show Hidden Items.
     opts.onlyAvailable = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
     printf("[TEST] combo-tracker-window #1129: Only Show Available draws \"%s\"\n", CtwDrawn(areas).c_str());
-    CTW_ASSERT(CtwDrawn(areas) == "3:11 7:12");
-    CTW_ASSERT(areas[1].total == 2 && areas[1].done == 2); // the area's totals stay whole
-    // An area with none available goes (SoH's area loop), even under Show Hidden Items.
-    sCtwAvailableIds = { 0x11 };
+    CTW_ASSERT(CtwDrawn(areas) == "3:11");
+    CTW_ASSERT(areas[0].total == 2 && areas[0].done == 0 && areas[0].available == 1);
     opts.showHidden = true;
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
     CTW_ASSERT(CtwDrawn(areas) == "3:11");
+    // With both 0x11 (unchecked) and 0x13 (seen, unskipped) available in area 3,
+    // areas[0].available counts both.
+    sCtwAvailableIds = { 0x11, 0x13 };
+    ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
+    CTW_ASSERT(CtwDrawn(areas) == "3:11,13" && areas[0].available == 2);
     // A world whose availability is not known: nothing goes.
     Combo_Tracker_RegisterOoT(&kCtwOps);
     ComboCollectVisibleCheckAreas((uint8_t)GAME_OOT, "", opts, areas);
@@ -1498,7 +1506,8 @@ int LockL5(void) {
     CTW_ASSERT(ComboCheckRowSearchText((uint8_t)GAME_OOT, row) == "Shop Item 1 KF Shop Item 1 Kokiri Forest");
 
     // SoH's headerPresent: the separator under the header (and the pane's own
-    // Only Show Current Area toggle with it) only while a header control shows.
+    // Only Show Current Area and Hide Skipped Checks toggles with it) only while
+    // a header control shows.
     ComboCheckHeaderOptions header;
     const bool byDefault = ComboCheckHeaderPresent(header);
     header.hiddenItemsToggle = false;
@@ -1508,6 +1517,7 @@ int LockL5(void) {
     header.availableChecks = false;
     header.availableChecksToggle = true; // shown only with Enable Available Checks
     header.onlyCurrentAreaToggle = false;
+    header.hideSkippedToggle = false;
     const bool noneShown = ComboCheckHeaderPresent(header);
     header.availableChecks = true;
     const bool availableShown = ComboCheckHeaderPresent(header);
@@ -1519,33 +1529,51 @@ int LockL5(void) {
            (int)byDefault, (int)noneShown, (int)availableShown, (int)totalsShown);
     CTW_ASSERT(byDefault && !noneShown && availableShown && totalsShown);
 
-    // #1287: the pane's own Only Show Current Area checkbox has a visibility key
-    // of its own, on by default, and no longer rides with SoH's controls: with
-    // every one of them hidden it still draws, and the header (its separator)
-    // with it; hidden by its own key, it goes while SoH's controls stay.
+    // #1287: the pane's own Only Show Current Area and Hide Skipped Checks
+    // checkboxes each have a visibility key of their own, on by default, and do
+    // not ride with SoH's controls: with every one of them hidden they still
+    // draw, and the header (its separator) with them; hidden by their own keys,
+    // they go while SoH's controls stay.
     {
         const char* const kToggleKey = "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible";
+        const char* const kSkippedKey = "gCombo.Tracker.Checks.HideSkippedToggleVisible";
         const bool existed = CVarExists(kToggleKey);
         const int32_t value = CVarGetInteger(kToggleKey, 0);
+        const bool skippedExisted = CVarExists(kSkippedKey);
+        const int32_t skippedValue = CVarGetInteger(kSkippedKey, 0);
         CVarClear(kToggleKey);
+        CVarClear(kSkippedKey);
         const bool readDefault = ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        const bool skippedDefault = ComboReadCheckHeaderOptions().hideSkippedToggle;
         CVarSetInteger(kToggleKey, 0);
+        CVarSetInteger(kSkippedKey, 0);
         const bool readOff = !ComboReadCheckHeaderOptions().onlyCurrentAreaToggle;
+        const bool skippedOff = !ComboReadCheckHeaderOptions().hideSkippedToggle;
         if (existed) {
             CVarSetInteger(kToggleKey, value);
         } else {
             CVarClear(kToggleKey);
         }
+        if (skippedExisted) {
+            CVarSetInteger(kSkippedKey, skippedValue);
+        } else {
+            CVarClear(kSkippedKey);
+        }
         ComboCheckHeaderOptions bare;
         bare.hiddenItemsToggle = false;
         bare.searchInput = false;
         bare.checkTotals = false;
+        bare.hideSkippedToggle = false;
         const bool toggleAlone = ComboCheckHeaderPresent(bare);
+        bare.onlyCurrentAreaToggle = false;
+        bare.hideSkippedToggle = true;
+        const bool skippedAlone = ComboCheckHeaderPresent(bare);
         printf("[TEST] combo-tracker-window #1287: Only Show Current Area Toggle reads on by default %d, off when set "
-               "%d; with every SoH control hidden the header is present %d\n",
-               (int)readDefault, (int)readOff, (int)toggleAlone);
-        CTW_ASSERT(ComboCheckHeaderOptions().onlyCurrentAreaToggle);
-        CTW_ASSERT(readDefault && readOff && toggleAlone);
+               "%d; Hide Skipped Checks Toggle default %d, off %d; alone %d / %d\n",
+               (int)readDefault, (int)readOff, (int)skippedDefault, (int)skippedOff, (int)toggleAlone,
+               (int)skippedAlone);
+        CTW_ASSERT(ComboCheckHeaderOptions().onlyCurrentAreaToggle && ComboCheckHeaderOptions().hideSkippedToggle);
+        CTW_ASSERT(readDefault && readOff && skippedDefault && skippedOff && toggleAlone && skippedAlone);
     }
 
 #ifdef RSBS_SOURCE_DIR
@@ -1560,12 +1588,16 @@ int LockL5(void) {
     CTW_ASSERT(drawRow.find("SQUARE_O") == std::string::npos);
     CTW_ASSERT(win.find("if (headerPresent) {\n        ImGui::Separator();") != std::string::npos);
     CTW_ASSERT(win.find("haystack = ComboCheckRowSearchText(game, row);") != std::string::npos);
-    // #1287: the checkbox is drawn behind its own key, and the key is read.
+    // #1287: the checkboxes are drawn behind their own keys, and the keys are read.
     const std::string areaToggle = CtwSlice(win, "if (header.onlyCurrentAreaToggle) {", "\n    }");
     CTW_ASSERT(!areaToggle.empty() && areaToggle.find("\"Only Show Current Area\"") != std::string::npos);
+    const std::string skippedToggle = CtwSlice(win, "if (header.hideSkippedToggle) {", "\n    }");
+    CTW_ASSERT(!skippedToggle.empty() && skippedToggle.find("\"Hide Skipped Checks\"") != std::string::npos);
     CTW_ASSERT(win.find("header.onlyCurrentAreaToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_"
                         "TOGGLE_VISIBLE, 1) != 0;") != std::string::npos);
-    // ...and its row sits in SoH's Check Tracker Settings, Tracker Header
+    CTW_ASSERT(win.find("header.hideSkippedToggle = CVarGetInteger(RSBS_CVAR_COMBO_CHECKS_HIDE_SKIPPED_TOGGLE_VISIBLE, "
+                        "1) != 0;") != std::string::npos);
+    // ...and their rows sit in SoH's Check Tracker Settings, Tracker Header
     // Visibility, right after SoH's Check Totals row (single-exe fenced).
     const std::string settings = CtwSource("games/oot/soh/Enhancements/randomizer/randomizer_check_tracker.cpp");
     const std::string visibility =
@@ -1573,11 +1605,16 @@ int LockL5(void) {
     const size_t totalsRow = visibility.find("UIWidgets::CVarCheckbox(\"Check Totals\"");
     const size_t toggleRow = visibility.find("UIWidgets::CVarCheckbox(\"Only Show Current Area Toggle\",");
     const size_t toggleKey = visibility.find("RSBS_CVAR_COMBO_CHECKS_ONLY_CURRENT_AREA_TOGGLE_VISIBLE,");
+    const size_t skippedRow = visibility.find("UIWidgets::CVarCheckbox(\"Hide Skipped Checks Toggle\",");
+    const size_t skippedKey = visibility.find("RSBS_CVAR_COMBO_CHECKS_HIDE_SKIPPED_TOGGLE_VISIBLE,");
     printf("[TEST] combo-tracker-window #1287: Tracker Header Visibility holds Check Totals at %d, the Only Show "
-           "Current Area Toggle at %d\n",
-           totalsRow == std::string::npos ? -1 : (int)totalsRow, toggleRow == std::string::npos ? -1 : (int)toggleRow);
+           "Current Area Toggle at %d, the Hide Skipped Checks Toggle at %d\n",
+           totalsRow == std::string::npos ? -1 : (int)totalsRow, toggleRow == std::string::npos ? -1 : (int)toggleRow,
+           skippedRow == std::string::npos ? -1 : (int)skippedRow);
     CTW_ASSERT(totalsRow != std::string::npos && toggleRow != std::string::npos && totalsRow < toggleRow);
     CTW_ASSERT(toggleKey != std::string::npos && toggleRow < toggleKey);
+    CTW_ASSERT(skippedRow != std::string::npos && skippedKey != std::string::npos && toggleKey < skippedRow &&
+               skippedRow < skippedKey);
 
     // SoH's two toggle rows are the ones that open the unified windows: their
     // .CVar and .WindowName are SoH's own literals, unchanged, which the
