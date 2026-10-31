@@ -14,6 +14,7 @@ import time
 import unittest
 from datetime import timedelta
 from pathlib import Path
+from unittest import mock
 
 from wavetest import dead_pid, load_script, wavelib as w
 
@@ -98,6 +99,35 @@ class PidLivenessTest(unittest.TestCase):
         self.assertFalse(w.pid_alive(None))
         self.assertFalse(w.pid_alive(0))
         self.assertFalse(w.pid_alive(-5))
+
+    def test_posix_probe_falls_back_to_ps_without_proc(self):
+        def fake_ps(stdout: str):
+            return subprocess.CompletedProcess(["ps"], 0, stdout=stdout, stderr="")
+
+        with (
+            mock.patch.object(w.os, "kill", return_value=None),
+            mock.patch.object(w.Path, "read_text", side_effect=FileNotFoundError),
+        ):
+            with mock.patch.object(w.subprocess, "run", return_value=fake_ps("Ss   Sat Oct 31 00:12:01 2026\n")) as run:
+                self.assertEqual(w._posix_probe(4242), (True, "posix:Sat_Oct_31_00:12:01_2026"))
+                run.assert_called_once_with(
+                    ["ps", "-o", "stat=", "-o", "lstart=", "-p", "4242"],
+                    capture_output=True,
+                    text=True,
+                )
+            with mock.patch.object(w.subprocess, "run", return_value=fake_ps("Z+   Sat Oct 31 00:12:01 2026\n")):
+                self.assertEqual(w._posix_probe(4242), (False, None))
+            with mock.patch.object(w.subprocess, "run", return_value=fake_ps("")):
+                self.assertEqual(w._posix_probe(4242), (False, None))
+            with mock.patch.object(w.subprocess, "run", side_effect=FileNotFoundError):
+                self.assertEqual(w._posix_probe(4242), (True, None))
+
+        with (
+            mock.patch.object(w.os, "kill", side_effect=PermissionError),
+            mock.patch.object(w.Path, "read_text", side_effect=PermissionError),
+            mock.patch.object(w.subprocess, "run", return_value=fake_ps("")),
+        ):
+            self.assertEqual(w._posix_probe(4242), (True, None))
 
 
 class LockProtocolTest(unittest.TestCase):
