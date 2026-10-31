@@ -1005,8 +1005,11 @@ int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, co
  * 2 = the per-side crossing bound lifted (operator ruling 2026-10-27: the
  *     shared-item outbox's Tier-5 overflow; a side no longer fills at 64
  *     crossings, which moved seed-digest-shopsanity's MM placements).
+ * 3 = upstream OoT/MM randomizer pool, logic, and Ship_Random off-by-one
+ *     backports (SoH #6180/#6176/#6334/#7117/#7274/#7085/location logic,
+ *     2S2H #1777/#1472/region logic).
  */
-#define RSBS_GENERATOR_VERSION 2u
+#define RSBS_GENERATOR_VERSION 3u
 
 /**
  * The fingerprint formula at an explicit generator version:

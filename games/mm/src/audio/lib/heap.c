@@ -633,6 +633,14 @@ void* MM_AudioHeap_AllocCached(s32 tableType, size_t size, s32 cache, s32 id) {
         return temporaryAddr;
     }
 
+    // SOH [Bugfix] Bound entries[] (see MM_AudioHeap_AllocPermanent); CACHE_EITHER falls back to temporary.
+    if (loadedCache->persistent.numEntries >= ARRAY_COUNT(loadedCache->persistent.entries)) {
+        if (cache == CACHE_EITHER) {
+            return MM_AudioHeap_AllocCached(tableType, size, CACHE_TEMPORARY, id);
+        }
+        return NULL;
+    }
+
     persistentAddr = MM_AudioHeap_Alloc(&loadedCache->persistent.pool, size);
     loadedCache->persistent.entries[loadedCache->persistent.numEntries].addr = persistentAddr;
 
@@ -1105,6 +1113,12 @@ void* MM_AudioHeap_SearchPermanentCache(s32 tableType, s32 id) {
 void* MM_AudioHeap_AllocPermanent(s32 tableType, s32 id, size_t size) {
     void* addr;
     s32 index = gAudioCtx.permanentPool.count;
+
+    // SOH [Bugfix] Bound permanentEntries: large custom-music packs overflowed it and corrupted
+    // gAudioCtx (crashed the audio thread). Refuse rather than corrupt memory; callers handle NULL.
+    if (index >= ARRAY_COUNT(gAudioCtx.permanentEntries)) {
+        return NULL;
+    }
 
     addr = MM_AudioHeap_Alloc(&gAudioCtx.permanentPool, size);
     gAudioCtx.permanentEntries[index].addr = addr;

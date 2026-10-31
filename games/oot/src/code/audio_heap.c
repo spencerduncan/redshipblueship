@@ -534,6 +534,13 @@ void* OoT_AudioHeap_AllocCached(s32 tableType, ptrdiff_t size, s32 cache, s32 id
         return ret;
     }
 
+    if (loadedPool->persistent.numEntries >= ARRAY_COUNT(loadedPool->persistent.entries)) {
+        if (cache == CACHE_EITHER) {
+            return OoT_AudioHeap_AllocCached(tableType, size, CACHE_TEMPORARY, id);
+        }
+        return NULL;
+    }
+
     mem = OoT_AudioHeap_Alloc(&loadedPool->persistent.pool, size);
     loadedPool->persistent.entries[loadedPool->persistent.numEntries].ptr = mem;
 
@@ -1010,6 +1017,9 @@ void* OoT_AudioHeap_AllocPermanent(s32 tableType, s32 id, size_t size) {
     s32 index;
 
     index = gAudioContext.permanentPool.count;
+    if (index >= ARRAY_COUNT(gAudioContext.permanentCache)) {
+        return NULL;
+    }
 
     ret = OoT_AudioHeap_Alloc(&gAudioContext.permanentPool, size);
     gAudioContext.permanentCache[index].ptr = ret;
@@ -1134,6 +1144,9 @@ SampleCacheEntry* OoT_AudioHeap_AllocTemporarySampleCacheEntry(size_t size) {
     }
 
     if (index == -1) {
+        if (pool->size >= ARRAY_COUNT(pool->entries)) {
+            return NULL;
+        }
         index = pool->size++;
     }
 
@@ -1210,6 +1223,9 @@ SampleCacheEntry* OoT_AudioHeap_AllocPersistentSampleCacheEntry(size_t size) {
     void* mem;
 
     pool = &gAudioContext.persistentSampleCache;
+    if (pool->size >= ARRAY_COUNT(pool->entries)) {
+        return NULL;
+    }
     mem = OoT_AudioHeap_Alloc(&pool->pool, size);
     if (mem == NULL) {
         return NULL;

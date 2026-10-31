@@ -6,6 +6,7 @@
 
 #include "z_en_nb.h"
 #include "objects/object_nb/object_nb.h"
+#include "2s2h/GameInteractor/GameInteractor.h"
 
 #define FLAGS                                                                                  \
     (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED | \
@@ -496,8 +497,10 @@ s32 func_80BC01DC(Actor* thisx, PlayState* play) {
             // fallthrough
         case ENNB_BEHAVIOUR_5:
             if (!CHECK_EVENTINF(EVENTINF_42)) {
-                gSaveContext.save.time = CLOCK_TIME(8, 0);
-                Sram_IncrementDay();
+                if (GameInteractor_Should(VB_SCARECROW_DANCE_SET_TIME, true)) {
+                    gSaveContext.save.time = CLOCK_TIME(8, 0);
+                    Sram_IncrementDay();
+                }
             } else {
                 Environment_SetTimeJump(120.0f);
             }

@@ -1371,7 +1371,12 @@ void OTRGlobals::Initialize(bool tolerateInvalidGameArchives) {
     }
 }
 
+extern std::thread randoThread;
+
 OTRGlobals::~OTRGlobals() {
+    if (randoThread.joinable()) {
+        randoThread.join();
+    }
 }
 
 void OTRGlobals::ScaleImGui() {
@@ -2333,6 +2338,9 @@ extern "C" void SaveManager_ThreadPoolWait() {
 }
 
 extern "C" void DeinitOTR() {
+    if (randoThread.joinable()) {
+        randoThread.join();
+    }
     SaveManager_ThreadPoolWait();
     OTRAudio_Exit();
     if (CVarGetInteger(CVAR_REMOTE_CROWD_CONTROL("Enabled"), 0)) {
