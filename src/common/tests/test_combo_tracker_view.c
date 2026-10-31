@@ -1254,6 +1254,17 @@ static int CtvAvailMMBody(std::vector<uint8_t>& live) {
     CTV_ASSERT(summary.availabilityKnown && summary.available == 1);
     CTV_ASSERT(a == 1 && c == 0 && obtained == 0);
     CTV_ASSERT(calls == 1); // one computation for the summary and the three rows
+    // Skipping an in-logic check drops summary.available while keeping the row's
+    // own available bit (its lock glyph); unskipping restores summary.available.
+    const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    CTV_ASSERT(desc != NULL);
+    live[desc->checkTableOffset + (size_t)kA * desc->checkStride + desc->skippedOffset] = 1;
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 0 && summary.skipped == 1);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kA) == 1);
+    live[desc->checkTableOffset + (size_t)kA * desc->checkStride + desc->skippedOffset] = 0;
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 1 && summary.skipped == 0);
     // The rows follow the set: dropped by the seam, recomputed with 17 in logic.
     const uint16_t inLogicC[1] = { kC };
     (void)MM_TrackerAdapter_TestInLogicSeam(1, inLogicC, 1);
@@ -1296,6 +1307,17 @@ static int CtvAvailMMBody(std::vector<uint8_t>& live) {
     CTV_ASSERT(summary.availabilityKnown && summary.available == 2);
     CTV_ASSERT(sa == 1 && sc == 1 && so == 0);
     CTV_ASSERT(staleCalls == 0); // the stale pane never crawls
+    // A skip on the STALE shadow drops summary.available while keeping the row's
+    // captured available bit; unskipping restores summary.available.
+    live[desc->checkTableOffset + (size_t)kC * desc->checkStride + desc->skippedOffset] = 1;
+    Context_UpdateShadowCopy(GAME_MM, live.data(), live.size());
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 1 && summary.skipped == 1);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_MM, kC) == 1);
+    live[desc->checkTableOffset + (size_t)kC * desc->checkStride + desc->skippedOffset] = 0;
+    Context_UpdateShadowCopy(GAME_MM, live.data(), live.size());
+    Combo_TrackerGameSummary((uint8_t)GAME_MM, &summary);
+    CTV_ASSERT(summary.availabilityKnown && summary.available == 2 && summary.skipped == 0);
     // No file played at the departure (the seam's 0): the capture stands.
     Context_SetCurrentGame(GAME_MM);
     MM_TrackerAdapter_TestLiveSeam(0);
@@ -1414,9 +1436,17 @@ static int CtvAvailOoTBody(const uint16_t ootIds[3]) {
            "skipped=%d\n",
            summary.availabilityKnown ? 1 : 0, summary.available, CtvAvail((uint8_t)GAME_OOT, saved),
            CtvAvail((uint8_t)GAME_OOT, untouched), CtvAvail((uint8_t)GAME_OOT, skipped));
-    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.availabilityKnown && summary.available == 2);
+    // `skipped` is in logic on its row (CtvAvail == 1), and excluded from summary.available.
+    CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_LIVE && summary.availabilityKnown && summary.available == 1);
     CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, saved) == 0);
     CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 1);
+    // Unskipping `skipped` adds it back to summary.available; skipping it again drops it.
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, skipped, false));
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.available == 2 && CtvAvail((uint8_t)GAME_OOT, skipped) == 1);
+    CTV_ASSERT(Combo_TrackerSetSkipped((uint8_t)GAME_OOT, skipped, true));
+    Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
+    CTV_ASSERT(summary.available == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 1);
     // The bit follows the heap.
     CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 0) == 1);
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
@@ -1433,16 +1463,18 @@ static int CtvAvailOoTBody(const uint16_t ootIds[3]) {
     (void)OoT_TrackerAdapter_TestSkipSeam(1);
 
     // ---- B. STALE: the departure capture --------------------------------------------
-    OoT_TrackerAdapter_CaptureAvailability(); // untouched available, the other two not
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 1) == 0);
+    OoT_TrackerAdapter_CaptureAvailability(); // untouched and skipped in logic at departure
     Context_SetCurrentGame(GAME_MM);
-    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 1) == 0); // the heap moves on; the pane must not
+    CTV_ASSERT(OoT_TrackerAdapter_TestSetAvailable(skipped, 0) == 1); // the heap moves on; the pane must not
     Combo_TrackerGameSummary((uint8_t)GAME_OOT, &summary);
     printf("[TEST] combo-tracker-view #1129 OoT B (STALE after a capture): freshness=%u known=%d available=%d; rows "
            "untouched=%d skipped=%d\n",
            (unsigned)summary.freshness, summary.availabilityKnown ? 1 : 0, summary.available,
            CtvAvail((uint8_t)GAME_OOT, untouched), CtvAvail((uint8_t)GAME_OOT, skipped));
+    // `skipped` was captured in logic (row CtvAvail == 1), and is excluded from summary.available.
     CTV_ASSERT(summary.freshness == COMBO_TRACKER_FRESH_STALE && summary.availabilityKnown && summary.available == 1);
-    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 0);
+    CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, untouched) == 1 && CtvAvail((uint8_t)GAME_OOT, skipped) == 1);
     CTV_ASSERT(CtvAvail((uint8_t)GAME_OOT, saved) == 0);
     // A departure with no randomizer file played leaves the capture...
     Context_SetCurrentGame(GAME_OOT);

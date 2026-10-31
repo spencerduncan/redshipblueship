@@ -152,17 +152,20 @@ int Combo_TrackerFrozenAvailability(uint8_t game, uint16_t checkId) {
     return (store[checkId >> 3] >> (checkId & 7u)) & 1;
 }
 
-/** How many ids `game`'s capture marks available, or -1 with no capture. */
-static int FrozenAvailableCount(uint8_t game) {
-    uint16_t* count = NULL;
-    uint32_t cap = 0;
-    const uint8_t* store = FrozenRecord(game, &count, &cap);
-    if (store == NULL || *count == 0) {
+/** How many listed, unobtained, unskipped OoT checks the departure capture marks available, or -1 with no capture. */
+static int OoTStaleAvailableCount(void) {
+    if (gComboCtx.trackerAvailCountOoT == 0 || sOoTOps == NULL) {
         return -1;
     }
+    const int count = sOoTOps->checkCount();
     int n = 0;
-    for (uint32_t i = 0; i < ((uint32_t)*count + 7u) / 8u; i++) {
-        for (uint8_t b = store[i]; b != 0; b &= (uint8_t)(b - 1u)) {
+    for (int i = 0; i < count; i++) {
+        ComboTrackerCheckRow row;
+        if (!sOoTOps->checkAt(i, &row)) {
+            break;
+        }
+        if (row.shuffled && !row.obtained && !row.skipped &&
+            Combo_TrackerFrozenAvailability((uint8_t)GAME_OOT, row.checkId) == 1) {
             n++;
         }
     }
@@ -293,13 +296,12 @@ static void MMSummary(ComboTrackerGameSummary* out) {
             continue;
         }
         out->shuffled++;
-        if (out->availabilityKnown && MMAvailability(freshness, (uint16_t)i) == 1) {
-            out->available++;
-        }
         if (row[sMMDesc.obtainedOffset] != 0) {
             out->obtained++;
         } else if (row[sMMDesc.skippedOffset] != 0) {
             out->skipped++;
+        } else if (out->availabilityKnown && MMAvailability(freshness, (uint16_t)i) == 1) {
+            out->available++;
         }
     }
 }
@@ -329,7 +331,7 @@ void Combo_TrackerGameSummary(uint8_t game, ComboTrackerGameSummary* out) {
         if (out->freshness == COMBO_TRACKER_FRESH_STALE) {
             // The snapshot's reachability is the departure capture (#1129), not
             // whatever the suspended heap's bits say: the adapter answers only live.
-            const int captured = FrozenAvailableCount((uint8_t)GAME_OOT);
+            const int captured = OoTStaleAvailableCount();
             out->availabilityKnown = captured >= 0;
             out->available = captured >= 0 ? captured : 0;
         }

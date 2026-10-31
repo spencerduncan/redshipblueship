@@ -269,10 +269,13 @@ const struct {
     { "gCombo.Tracker.Checks.AutoScrollToCurrentArea", true },
     { "gCombo.Tracker.Checks.OnlyShowCurrentArea", false },
 };
-// #1287: a Checks key drawn by SoH's own Check Tracker Settings window (its
+// #1287: Checks keys drawn by SoH's own Check Tracker Settings window (its
 // Tracker Header Visibility group, which the page embeds) rather than as a page
-// row; ComboTrackerWindow pins that row in randomizer_check_tracker.cpp.
-const char* kCheckTrackerSettingsWindowKey = "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible";
+// row; ComboTrackerWindow pins those rows in randomizer_check_tracker.cpp.
+const char* const kCheckTrackerSettingsWindowKeys[] = {
+    "gCombo.Tracker.Checks.OnlyCurrentAreaToggleVisible",
+    "gCombo.Tracker.Checks.HideSkippedToggleVisible",
+};
 
 // ---- Leg 3: SoH's own tracker pages, as AddMenuRandomizer registers them ----
 // AddMenuRandomizer() as a whole cannot run ROM-free, so these are its two
@@ -654,11 +657,17 @@ extern "C" int OoT_MenuComboSection_RunHeadless(void) {
                                 "the %s row is under \"%s\", not SoH's Check Tracker Settings separator", key, section);
                 }
             }
-            const int expectedRows = std::string(key) == kCheckTrackerSettingsWindowKey ? 0 : 1;
+            bool inSettingsWindow = false;
+            for (const char* wKey : kCheckTrackerSettingsWindowKeys) {
+                if (std::string(key) == wKey) {
+                    inSettingsWindow = true;
+                }
+            }
+            const int expectedRows = inSettingsWindow ? 0 : 1;
             COMBO_CHECK(rows == expectedRows, "Randomizer / Check Tracker holds %d rows writing %s, expected %d", rows,
                         key, expectedRows);
         }
-        COMBO_CHECK(checkKeys == 3, "the manifest holds %zu %s* keys, expected three (#1131, #1287)", checkKeys,
+        COMBO_CHECK(checkKeys == 4, "the manifest holds %zu %s* keys, expected four (#1131, #1287)", checkKeys,
                     kCheckTrackerKeyPrefix);
 
         // The Cross-Game Spoiler's toggle, moved from Combo > Windows: under its
