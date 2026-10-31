@@ -437,6 +437,7 @@ static const uint16_t kNutCap[4] = { 0, 20, 30, 40 };
  */
 typedef struct {
     const char* name;
+    const char* slotKey;
     uint8_t countKind;
     uint8_t tierKind; // RSBS_SHARED_RES_NONE when the row has no tier
     const uint16_t* tierCaps;
@@ -456,7 +457,7 @@ typedef struct {
 } SharedRowDef;
 
 static const SharedRowDef kSharedRows[] = {
-    { "Rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Rupees", "rupees", RSBS_SHARED_RES_RUPEES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false, 0 },
     // The tier shows with each game's own ceiling (both tier 3s hold 999 since
     // #1283) rather than as a rupee max.
     // Tier 0 is the child's wallet every file starts with, so the row is held
@@ -464,36 +465,40 @@ static const SharedRowDef kSharedRows[] = {
     // row outside wallet shuffle. The pool carries no "no wallet yet" state
     // (wallet shuffle's flag is per game, not pooled), so under wallet shuffle
     // the per-game row is the authority for whether a wallet is held.
-    { "Wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true, true },
+    { "Wallet", "wallet", RSBS_SHARED_RES_WALLET_TIER, RSBS_SHARED_RES_NONE, NULL, 3, 1, true, true, 0 },
     // Whole hearts (5 hearts and 2 pieces reads 5); the row after it carries
     // the pieces.
-    { "Hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
-      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false, false },
+    { "Hearts", "hearts", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL,
+      (uint16_t)(RSBS_SHARED_RES_MAX_HEALTH_QUARTERS / 16u), 16, false, false, 0 },
     // #1159: the pieces toward the next heart, n/4. Health is one quantity for
     // the pair (Combo_MakeHealthQuarters: 4 units a piece, 16 a heart), so four
     // pieces make a heart whichever game each was found in; both native rows
     // count their own game's pieces only (OoT's a lifetime n/36).
-    { "Heart Pieces", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL, 4, 4, false, false, 16 },
-    { "Double Defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
-    { "Magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
-    { "Arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false, false },
-    { "Bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false, false },
+    { "Heart Pieces", "heart_pieces", RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_NONE, NULL, 4, 4, false, false,
+      16 },
+    { "Double Defense", "double_defense", RSBS_SHARED_RES_DOUBLE_DEFENSE, RSBS_SHARED_RES_NONE, NULL, 0, 1, false,
+      false, 0 },
+    { "Magic", "magic", RSBS_SHARED_RES_MAGIC_LEVEL, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true, 0 },
+    { "Arrows", "arrows", RSBS_SHARED_RES_ARROW_COUNT, RSBS_SHARED_RES_QUIVER_TIER, kQuiverCap, 0, 1, false, false, 0 },
+    { "Bombs", "bombs", RSBS_SHARED_RES_BOMB_COUNT, RSBS_SHARED_RES_BOMB_BAG_TIER, kBombBagCap, 0, 1, false, false, 0 },
     // The bombchu cap is per game (see the shims), not a shared kind.
-    { "Bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
-    { "Deku Sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false },
-    { "Deku Nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false },
-    { "Hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true },
+    { "Bombchus", "bombchus", RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false, 0 },
+    { "Deku Sticks", "sticks", RSBS_SHARED_RES_STICK_COUNT, RSBS_SHARED_RES_STICK_TIER, kStickCap, 0, 1, false, false,
+      0 },
+    { "Deku Nuts", "nuts", RSBS_SHARED_RES_NUT_COUNT, RSBS_SHARED_RES_NUT_TIER, kNutCap, 0, 1, false, false, 0 },
+    { "Hookshot", "hookshot", RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_NONE, NULL, 2, 1, false, true, 0 },
     // The shared Kokiri Sword (#886): a row only in a world whose frozen record
     // turns the rule on (Combo_SharedResourceKindArmed). One item, so it draws
     // as the sword itself with no number.
-    { "Kokiri Sword", RSBS_SHARED_RES_KOKIRI_SWORD, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, true },
+    { "Kokiri Sword", "sword_kokiri", RSBS_SHARED_RES_KOKIRI_SWORD, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, true, 0 },
     // #970: how many bottles the pair holds, up to OoT's four; a row only in a
     // world whose frozen Shared Bottles rule shares the count. What each bottle
     // holds is each game's own, so the per-game bottle rows stay.
-    { "Bottles", RSBS_SHARED_RES_BOTTLE_COUNT, RSBS_SHARED_RES_NONE, NULL, 4, 1, false, false },
+    { "Bottles", "bottles", RSBS_SHARED_RES_BOTTLE_COUNT, RSBS_SHARED_RES_NONE, NULL, 4, 1, false, false, 0 },
     // No "Ocarina" row: #879 retired the Shared Ocarina rule, and the kind is
     // never armed.
-    { "Triforce Pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false, false },
+    { "Triforce Pieces", "triforce_pieces", RSBS_SHARED_RES_TRIFORCE_PIECES, RSBS_SHARED_RES_NONE, NULL, 0, 1, false,
+      false, 0 },
 };
 #define SHARED_ROW_DEF_COUNT ((int)(sizeof(kSharedRows) / sizeof(kSharedRows[0])))
 
@@ -539,27 +544,28 @@ const char* Combo_ItemSharedLabel(void) {
 typedef struct {
     uint32_t family; // the family slot (an RSBS_XITEM_* family bit or an RSBS_XFAMILY_SLOT_*)
     const char* name;
+    const char* slotKey;
 } SharedFamilyRowDef;
 
 static const SharedFamilyRowDef kSharedFamilyRows[] = {
-    { RSBS_XITEM_SHARED_LENS, "Lens of Truth" },         // #1065
-    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song" },    // #1066
-    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms" }, // #1066
-    { RSBS_XITEM_SHARED_SONG_TIME, "Song of Time" },     // #1069
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth", "lens" },                // #1065
+    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song", "song_epona" },     // #1066
+    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms", "song_storms" }, // #1066
+    { RSBS_XITEM_SHARED_SONG_TIME, "Song of Time", "song_time" },       // #1069
     // #1067: the five ocarina buttons, in MM's tracker order.
-    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button" },
-    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows" },   // #968
-    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows" },     // #968
-    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows" }, // #968
-    { RSBS_XITEM_SHARED_GORON, "Goron Mask" },         // #978
-    { RSBS_XITEM_SHARED_ZORA, "Zora Mask" },           // #978
-    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood" },         // #978
-    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask" },       // #978
-    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth" },      // #978
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button", "ocarina_btn_a" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button", "ocarina_btn_c_down" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button", "ocarina_btn_c_right" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button", "ocarina_btn_c_left" },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button", "ocarina_btn_c_up" },
+    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows", "arrow_fire" },    // #968
+    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows", "arrow_ice" },       // #968
+    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows", "arrow_light" }, // #968
+    { RSBS_XITEM_SHARED_GORON, "Goron Mask", "mask_goron" },          // #978
+    { RSBS_XITEM_SHARED_ZORA, "Zora Mask", "mask_zora" },             // #978
+    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood", "mask_bunny" },          // #978
+    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask", "mask_keaton" },       // #978
+    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth", "mask_truth" },       // #978
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
 
@@ -655,6 +661,7 @@ static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* o
     }
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
+    out->slotKey = def->slotKey;
     out->have = have;
     out->sharedFamily = def->family;
     out->freshness = COMBO_TRACKER_FRESH_STALE;
@@ -679,6 +686,7 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     memset(out, 0, sizeof(*out));
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
+    out->slotKey = def->slotKey;
     out->iconKey = NULL; // the icon game's own, below; NULL draws the row as text
     out->iconKeyFaded = NULL;
     // An ammo count is bounded by its capacity tier, so it follows the live game only
@@ -734,4 +742,214 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
     }
     out->freshness = COMBO_TRACKER_FRESH_STALE;
     return true;
+}
+
+// ============================================================================
+// Addressable item catalog (for the Customizable Item Tracker)
+// ============================================================================
+
+static bool CatalogFamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out) {
+    if (FamilyRowOf(game, family, out)) {
+        return true;
+    }
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL) {
+        return false;
+    }
+    const int n = ops->catalogCount();
+    for (int i = 0; i < n; i++) {
+        memset(out, 0, sizeof(*out));
+        if (ops->catalogRowAt(NULL, i, out) && (out->sharedFamily & family) != 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int Combo_ItemCatalogCount(uint8_t game) {
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL) {
+        return 0;
+    }
+    const int n = ops->catalogCount();
+    return n > 0 ? n : 0;
+}
+
+bool Combo_ItemCatalogRowAt(uint8_t game, int catalogIndex, ComboItemRow* out) {
+    if (out == NULL || catalogIndex < 0) {
+        return false;
+    }
+    const ComboItemOps* ops = NULL;
+    uint8_t freshness = COMBO_TRACKER_FRESH_UNAVAILABLE;
+    const void* src = PickSource(game, &ops, &freshness);
+    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL || catalogIndex >= ops->catalogCount()) {
+        return false;
+    }
+    ComboItemRow row;
+    memset(&row, 0, sizeof(row));
+    if (!ops->catalogRowAt(src, catalogIndex, &row) || row.group == NULL || row.name == NULL) {
+        return false;
+    }
+    row.freshness = freshness;
+    // Custom groups never omit or dim a slot when a family or tier is shared:
+    // instead, while a save is loaded and the family/tier is armed, reflect
+    // whether the pair holds it (pool || live).
+    if (src != NULL) {
+        if (row.sharedFamily != 0u && (Combo_SharedFamiliesArmed() & row.sharedFamily) != 0u) {
+            if ((Combo_SharedFamiliesOwned() & row.sharedFamily) != 0u) {
+                row.have = true;
+            } else {
+                ComboItemRow own;
+                for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
+                    if (FamilyRowOf(g, row.sharedFamily, &own) && own.have) {
+                        row.have = true;
+                    }
+                }
+            }
+        }
+        if (row.sharedKind != (uint8_t)RSBS_SHARED_RES_NONE &&
+            Combo_ItemSharedFreshness() != COMBO_TRACKER_FRESH_UNAVAILABLE &&
+            Combo_SharedResourceKindArmed(row.sharedKind)) {
+            const SharedTierRead read = ReadSharedTier(row.sharedKind);
+            if (read.tier > 0) {
+                row.have = true;
+            }
+        }
+    }
+    *out = row;
+    return true;
+}
+
+bool Combo_ItemCatalogRowByKey(uint8_t game, const char* slotKey, ComboItemRow* out) {
+    if (slotKey == NULL || slotKey[0] == '\0' || out == NULL) {
+        return false;
+    }
+    const int n = Combo_ItemCatalogCount(game);
+    for (int i = 0; i < n; i++) {
+        ComboItemRow row;
+        if (Combo_ItemCatalogRowAt(game, i, &row) && row.slotKey != NULL && strcmp(row.slotKey, slotKey) == 0) {
+            *out = row;
+            return true;
+        }
+    }
+    return false;
+}
+
+int Combo_ItemSharedCatalogCount(void) {
+    return SHARED_ROW_DEF_COUNT + SHARED_FAMILY_ROW_DEF_COUNT;
+}
+
+bool Combo_ItemSharedCatalogRowAt(int catalogIndex, uint8_t iconGame, ComboItemRow* out) {
+    if (out == NULL || catalogIndex < 0 || catalogIndex >= Combo_ItemSharedCatalogCount()) {
+        return false;
+    }
+    if (iconGame != (uint8_t)GAME_OOT && iconGame != (uint8_t)GAME_MM) {
+        iconGame = (Context_GetCurrentGame() == GAME_MM) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+    }
+    const uint8_t otherGame = (iconGame == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+    const bool hasPool = Combo_ItemSharedFreshness() != COMBO_TRACKER_FRESH_UNAVAILABLE;
+
+    if (catalogIndex < SHARED_ROW_DEF_COUNT) {
+        const SharedRowDef* def = &kSharedRows[catalogIndex];
+        memset(out, 0, sizeof(*out));
+        out->group = COMBO_ITEM_SHARED_GROUP;
+        out->name = def->name;
+        out->slotKey = def->slotKey;
+        uint16_t iconTier = (def->remainderOf != 0u) ? (uint16_t)COMBO_ITEM_SHARED_ICON_HEART_PIECE : 1u;
+        if (hasPool) {
+            uint16_t value = (def->tierKind != RSBS_SHARED_RES_NONE) ? SharedValue(def->countKind)
+                                                                     : SharedColumnValue(def->countKind);
+            if (def->remainderOf != 0u) {
+                value = (uint16_t)(value % def->remainderOf);
+            }
+            out->count = (int)(value / def->unitsPerCount);
+            iconTier = (def->remainderOf != 0u) ? (uint16_t)COMBO_ITEM_SHARED_ICON_HEART_PIECE : (uint16_t)out->count;
+            if (def->tierKind != RSBS_SHARED_RES_NONE) {
+                const SharedTierRead read = ReadSharedTier(def->tierKind);
+                uint16_t tier = read.tier > 3 ? 3 : read.tier;
+                if (read.live) {
+                    uint16_t liveAmmo = 0;
+                    out->count = LiveSharedRead(def->countKind, &liveAmmo) ? (int)liveAmmo : read.liveCount;
+                }
+                out->have = tier > 0;
+                out->max = (int)def->tierCaps[tier];
+                out->capacityMax = (int)def->tierCaps[3];
+                iconTier = tier;
+            } else {
+                if (def->countKind == (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD) {
+                    out->count = (int)ReadSharedTier(def->countKind).tier;
+                    iconTier = (uint16_t)out->count;
+                }
+                out->have = def->heldAtZero || out->count > 0;
+                out->max = (int)def->fixedMax;
+                if (def->countKind == (uint8_t)RSBS_SHARED_RES_HOOKSHOT_TIER && out->count > 0) {
+                    out->identifier = out->count >= 2 ? 'L' : 'H';
+                }
+                if (def->countKind == (uint8_t)RSBS_SHARED_RES_TRIFORCE_PIECES) {
+                    out->countKind = (uint8_t)COMBO_ITEM_COUNT_KIND_TRIFORCE;
+                    out->max = (int)Combo_TriforceHuntRequired();
+                    out->capacityMax = (int)Combo_TriforceHuntTotal();
+                }
+            }
+        } else {
+            out->have = false;
+            out->count = 0;
+            out->max = (int)def->fixedMax;
+        }
+        out->iconNumber = def->tierIcon ? -1 : 0;
+        const ComboItemOps* ops = Combo_Item_GetOps(iconGame);
+        if (ops != NULL && ops->sharedIcon != NULL) {
+            ops->sharedIcon(def->countKind, iconTier, out);
+        }
+        if (out->iconKey == NULL) {
+            const ComboItemOps* otherOps = Combo_Item_GetOps(otherGame);
+            if (otherOps != NULL && otherOps->sharedIcon != NULL) {
+                otherOps->sharedIcon(def->countKind, iconTier, out);
+            }
+        }
+        out->freshness = hasPool ? COMBO_TRACKER_FRESH_STALE : COMBO_TRACKER_FRESH_UNAVAILABLE;
+        return true;
+    }
+
+    const SharedFamilyRowDef* def = &kSharedFamilyRows[catalogIndex - SHARED_ROW_DEF_COUNT];
+    bool have = hasPool && (Combo_SharedFamiliesOwned() & def->family) != 0u;
+    ComboItemRow own;
+    if (hasPool) {
+        for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
+            if (FamilyRowOf(g, def->family, &own) && own.have) {
+                have = true;
+            }
+        }
+    }
+    memset(out, 0, sizeof(*out));
+    if (CatalogFamilyRowOf(iconGame, def->family, &own) || CatalogFamilyRowOf(otherGame, def->family, &own)) {
+        out->iconKey = own.iconKey;
+        out->iconKeyFaded = own.iconKeyFaded;
+        out->iconAspect = own.iconAspect;
+        out->fadedAlpha = own.fadedAlpha;
+        out->iconTint = own.iconTint;
+    }
+    out->group = COMBO_ITEM_SHARED_GROUP;
+    out->name = def->name;
+    out->slotKey = def->slotKey;
+    out->have = have;
+    out->sharedFamily = def->family;
+    out->freshness = hasPool ? COMBO_TRACKER_FRESH_STALE : COMBO_TRACKER_FRESH_UNAVAILABLE;
+    return true;
+}
+
+bool Combo_ItemSharedCatalogRowByKey(const char* slotKey, uint8_t iconGame, ComboItemRow* out) {
+    if (slotKey == NULL || slotKey[0] == '\0' || out == NULL) {
+        return false;
+    }
+    const int n = Combo_ItemSharedCatalogCount();
+    for (int i = 0; i < n; i++) {
+        ComboItemRow row;
+        if (Combo_ItemSharedCatalogRowAt(i, iconGame, &row) && row.slotKey != NULL &&
+            strcmp(row.slotKey, slotKey) == 0) {
+            *out = row;
+            return true;
+        }
+    }
+    return false;
 }

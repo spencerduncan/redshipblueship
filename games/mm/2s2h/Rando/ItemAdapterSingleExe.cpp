@@ -233,121 +233,125 @@ constexpr uint32_t kMMTintNight = 0x80B3FFFFu;
 
 struct MMItemRowDef {
     const char* group;
+    const char* slotKey;
     MMItemRowKind kind;
     uint8_t item;      // vanilla ItemId of the slot's base item
     uint32_t data;     // upgrade type, fixed cap or quest bit
     RandoItemId rando; // naming item for the Rando-keyed rows
 };
 
-#define MMI_SLOT(group, item) \
-    { group, MMRK_SLOT, (uint8_t)(item), 0, RI_UNKNOWN }
-#define MMI_AMMO(item, upg) \
-    { "Inventory", MMRK_SLOT_AMMO, (uint8_t)(item), (uint32_t)(upg), RI_UNKNOWN }
-#define MMI_FIXED(item, cap) \
-    { "Inventory", MMRK_SLOT_FIXED, (uint8_t)(item), (uint32_t)(cap), RI_UNKNOWN }
-#define MMI_QUEST(group, bit, rando) \
-    { group, MMRK_QUEST, 0, (uint32_t)(bit), rando }
-#define MMI_KIND(group, kind, rando) \
-    { group, kind, 0, 0, rando }
-#define MMI_FAIRY(temple) \
-    { "Stray Fairies", MMRK_FAIRY, 0, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_STRAY_FAIRY }
-#define MMI_DUNGEON(temple, kind) \
-    { "Dungeon", MMRK_DUNGEON_ITEM, DUNGEON_##kind, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_##kind }
-#define MMI_KEYS(temple, keys) \
-    { "Dungeon", MMRK_SMALL_KEY, keys, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_SMALL_KEY }
+#define MMI_SLOT(group, slotKey, item) \
+    { group, slotKey, MMRK_SLOT, (uint8_t)(item), 0, RI_UNKNOWN }
+#define MMI_AMMO(slotKey, item, upg) \
+    { "Inventory", slotKey, MMRK_SLOT_AMMO, (uint8_t)(item), (uint32_t)(upg), RI_UNKNOWN }
+#define MMI_FIXED(slotKey, item, cap) \
+    { "Inventory", slotKey, MMRK_SLOT_FIXED, (uint8_t)(item), (uint32_t)(cap), RI_UNKNOWN }
+#define MMI_QUEST(group, slotKey, bit, rando) \
+    { group, slotKey, MMRK_QUEST, 0, (uint32_t)(bit), rando }
+#define MMI_KIND(group, slotKey, kind, rando) \
+    { group, slotKey, kind, 0, 0, rando }
+#define MMI_FAIRY(slotKey, temple) \
+    { "Stray Fairies", slotKey, MMRK_FAIRY, 0, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_STRAY_FAIRY }
+#define MMI_DUNGEON(slotKey, temple, kind)                                                            \
+    {                                                                                                 \
+        "Dungeon", slotKey, MMRK_DUNGEON_ITEM, DUNGEON_##kind, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, \
+            RI_##temple##_##kind                                                                      \
+    }
+#define MMI_KEYS(slotKey, temple, keys) \
+    { "Dungeon", slotKey, MMRK_SMALL_KEY, keys, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_SMALL_KEY }
 
 const MMItemRowDef kMMItemRows[] = {
     // Inventory: the item slots of the native "Inventory" group, in slot order
-    MMI_SLOT("Inventory", ITEM_OCARINA_OF_TIME),
-    MMI_AMMO(ITEM_BOW, UPG_QUIVER),
-    MMI_SLOT("Inventory", ITEM_ARROW_FIRE),
-    MMI_SLOT("Inventory", ITEM_ARROW_ICE),
-    MMI_SLOT("Inventory", ITEM_ARROW_LIGHT),
-    MMI_AMMO(ITEM_BOMB, UPG_BOMB_BAG),
-    { "Inventory", MMRK_SLOT_BOMBCHU, (uint8_t)ITEM_BOMBCHU, 0, RI_UNKNOWN },
-    MMI_AMMO(ITEM_DEKU_STICK, UPG_DEKU_STICKS),
-    MMI_AMMO(ITEM_DEKU_NUT, UPG_DEKU_NUTS),
-    MMI_FIXED(ITEM_MAGIC_BEANS, 20), // z_parameter.c Item_Give: at most 20
-    MMI_FIXED(ITEM_POWDER_KEG, 1),   // z_parameter.c Inventory_ChangeAmmo: at most 1
-    MMI_SLOT("Inventory", ITEM_PICTOGRAPH_BOX),
-    MMI_SLOT("Inventory", ITEM_LENS_OF_TRUTH),
-    MMI_SLOT("Inventory", ITEM_HOOKSHOT),
-    MMI_SLOT("Inventory", ITEM_SWORD_GREAT_FAIRY),
-    { "Inventory", MMRK_BOTTLES, (uint8_t)ITEM_BOTTLE, 6, RI_BOTTLE_EMPTY },
+    MMI_SLOT("Inventory", "ocarina", ITEM_OCARINA_OF_TIME),
+    MMI_AMMO("bow", ITEM_BOW, UPG_QUIVER),
+    MMI_SLOT("Inventory", "arrow_fire", ITEM_ARROW_FIRE),
+    MMI_SLOT("Inventory", "arrow_ice", ITEM_ARROW_ICE),
+    MMI_SLOT("Inventory", "arrow_light", ITEM_ARROW_LIGHT),
+    MMI_AMMO("bombs", ITEM_BOMB, UPG_BOMB_BAG),
+    { "Inventory", "bombchus", MMRK_SLOT_BOMBCHU, (uint8_t)ITEM_BOMBCHU, 0, RI_UNKNOWN },
+    MMI_AMMO("sticks", ITEM_DEKU_STICK, UPG_DEKU_STICKS),
+    MMI_AMMO("nuts", ITEM_DEKU_NUT, UPG_DEKU_NUTS),
+    MMI_FIXED("beans", ITEM_MAGIC_BEANS, 20),    // z_parameter.c Item_Give: at most 20
+    MMI_FIXED("powder_keg", ITEM_POWDER_KEG, 1), // z_parameter.c Inventory_ChangeAmmo: at most 1
+    MMI_SLOT("Inventory", "pictobox", ITEM_PICTOGRAPH_BOX),
+    MMI_SLOT("Inventory", "lens", ITEM_LENS_OF_TRUTH),
+    MMI_SLOT("Inventory", "hookshot", ITEM_HOOKSHOT),
+    MMI_SLOT("Inventory", "great_fairy_sword", ITEM_SWORD_GREAT_FAIRY),
+    { "Inventory", "bottles", MMRK_BOTTLES, (uint8_t)ITEM_BOTTLE, 6, RI_BOTTLE_EMPTY },
     // Masks: the native "Masks" group, in slot order
-    MMI_SLOT("Masks", ITEM_MASK_POSTMAN),
-    MMI_SLOT("Masks", ITEM_MASK_ALL_NIGHT),
-    MMI_SLOT("Masks", ITEM_MASK_BLAST),
-    MMI_SLOT("Masks", ITEM_MASK_STONE),
-    MMI_SLOT("Masks", ITEM_MASK_GREAT_FAIRY),
-    MMI_SLOT("Masks", ITEM_MASK_DEKU),
-    MMI_SLOT("Masks", ITEM_MASK_KEATON),
-    MMI_SLOT("Masks", ITEM_MASK_BREMEN),
-    MMI_SLOT("Masks", ITEM_MASK_BUNNY),
-    MMI_SLOT("Masks", ITEM_MASK_DON_GERO),
-    MMI_SLOT("Masks", ITEM_MASK_SCENTS),
-    MMI_SLOT("Masks", ITEM_MASK_GORON),
-    MMI_SLOT("Masks", ITEM_MASK_ROMANI),
-    MMI_SLOT("Masks", ITEM_MASK_CIRCUS_LEADER),
-    MMI_SLOT("Masks", ITEM_MASK_KAFEIS_MASK),
-    MMI_SLOT("Masks", ITEM_MASK_COUPLE),
-    MMI_SLOT("Masks", ITEM_MASK_TRUTH),
-    MMI_SLOT("Masks", ITEM_MASK_ZORA),
-    MMI_SLOT("Masks", ITEM_MASK_KAMARO),
-    MMI_SLOT("Masks", ITEM_MASK_GIBDO),
-    MMI_SLOT("Masks", ITEM_MASK_GARO),
-    MMI_SLOT("Masks", ITEM_MASK_CAPTAIN),
-    MMI_SLOT("Masks", ITEM_MASK_GIANT),
-    MMI_SLOT("Masks", ITEM_MASK_FIERCE_DEITY),
+    MMI_SLOT("Masks", "mask_postman", ITEM_MASK_POSTMAN),
+    MMI_SLOT("Masks", "mask_all_night", ITEM_MASK_ALL_NIGHT),
+    MMI_SLOT("Masks", "mask_blast", ITEM_MASK_BLAST),
+    MMI_SLOT("Masks", "mask_stone", ITEM_MASK_STONE),
+    MMI_SLOT("Masks", "mask_great_fairy", ITEM_MASK_GREAT_FAIRY),
+    MMI_SLOT("Masks", "mask_deku", ITEM_MASK_DEKU),
+    MMI_SLOT("Masks", "mask_keaton", ITEM_MASK_KEATON),
+    MMI_SLOT("Masks", "mask_bremen", ITEM_MASK_BREMEN),
+    MMI_SLOT("Masks", "mask_bunny", ITEM_MASK_BUNNY),
+    MMI_SLOT("Masks", "mask_don_gero", ITEM_MASK_DON_GERO),
+    MMI_SLOT("Masks", "mask_scents", ITEM_MASK_SCENTS),
+    MMI_SLOT("Masks", "mask_goron", ITEM_MASK_GORON),
+    MMI_SLOT("Masks", "mask_romani", ITEM_MASK_ROMANI),
+    MMI_SLOT("Masks", "mask_troupe_leader", ITEM_MASK_CIRCUS_LEADER),
+    MMI_SLOT("Masks", "mask_kafei", ITEM_MASK_KAFEIS_MASK),
+    MMI_SLOT("Masks", "mask_couples", ITEM_MASK_COUPLE),
+    MMI_SLOT("Masks", "mask_truth", ITEM_MASK_TRUTH),
+    MMI_SLOT("Masks", "mask_zora", ITEM_MASK_ZORA),
+    MMI_SLOT("Masks", "mask_kamaro", ITEM_MASK_KAMARO),
+    MMI_SLOT("Masks", "mask_gibdo", ITEM_MASK_GIBDO),
+    MMI_SLOT("Masks", "mask_garo", ITEM_MASK_GARO),
+    MMI_SLOT("Masks", "mask_captain", ITEM_MASK_CAPTAIN),
+    MMI_SLOT("Masks", "mask_giant", ITEM_MASK_GIANT),
+    MMI_SLOT("Masks", "mask_fierce_deity", ITEM_MASK_FIERCE_DEITY),
     // Songs: the native "Songs" group, in its order
-    MMI_QUEST("Songs", QUEST_SONG_TIME, RI_SONG_TIME),
-    MMI_QUEST("Songs", QUEST_SONG_HEALING, RI_SONG_HEALING),
-    MMI_QUEST("Songs", QUEST_SONG_EPONA, RI_SONG_EPONA),
-    MMI_QUEST("Songs", QUEST_SONG_SOARING, RI_SONG_SOARING),
-    MMI_QUEST("Songs", QUEST_SONG_STORMS, RI_SONG_STORMS),
-    MMI_QUEST("Songs", QUEST_SONG_SONATA, RI_SONG_SONATA),
-    MMI_KIND("Songs", MMRK_LULLABY, RI_SONG_LULLABY),
-    MMI_QUEST("Songs", QUEST_SONG_BOSSA_NOVA, RI_SONG_NOVA),
-    MMI_QUEST("Songs", QUEST_SONG_ELEGY, RI_SONG_ELEGY),
-    MMI_QUEST("Songs", QUEST_SONG_OATH, RI_SONG_OATH),
+    MMI_QUEST("Songs", "song_time", QUEST_SONG_TIME, RI_SONG_TIME),
+    MMI_QUEST("Songs", "song_healing", QUEST_SONG_HEALING, RI_SONG_HEALING),
+    MMI_QUEST("Songs", "song_epona", QUEST_SONG_EPONA, RI_SONG_EPONA),
+    MMI_QUEST("Songs", "song_soaring", QUEST_SONG_SOARING, RI_SONG_SOARING),
+    MMI_QUEST("Songs", "song_storms", QUEST_SONG_STORMS, RI_SONG_STORMS),
+    MMI_QUEST("Songs", "song_sonata", QUEST_SONG_SONATA, RI_SONG_SONATA),
+    MMI_KIND("Songs", "song_lullaby", MMRK_LULLABY, RI_SONG_LULLABY),
+    MMI_QUEST("Songs", "song_bossa_nova", QUEST_SONG_BOSSA_NOVA, RI_SONG_NOVA),
+    MMI_QUEST("Songs", "song_elegy", QUEST_SONG_ELEGY, RI_SONG_ELEGY),
+    MMI_QUEST("Songs", "song_oath", QUEST_SONG_OATH, RI_SONG_OATH),
     // Quest: the native "Quest" group, in its order
-    MMI_QUEST("Quest", QUEST_REMAINS_ODOLWA, RI_REMAINS_ODOLWA),
-    MMI_QUEST("Quest", QUEST_REMAINS_GOHT, RI_REMAINS_GOHT),
-    MMI_QUEST("Quest", QUEST_REMAINS_GYORG, RI_REMAINS_GYORG),
-    MMI_QUEST("Quest", QUEST_REMAINS_TWINMOLD, RI_REMAINS_TWINMOLD),
-    MMI_QUEST("Quest", QUEST_BOMBERS_NOTEBOOK, RI_BOMBERS_NOTEBOOK),
-    MMI_KIND("Quest", MMRK_SWORD, RI_SWORD_KOKIRI),
-    MMI_KIND("Quest", MMRK_SHIELD, RI_SHIELD_HERO),
-    MMI_KIND("Quest", MMRK_MAGIC, RI_SINGLE_MAGIC),
-    MMI_KIND("Quest", MMRK_DOUBLE_DEFENSE, RI_DOUBLE_DEFENSE),
-    MMI_KIND("Quest", MMRK_WALLET, RI_WALLET_ADULT),
-    MMI_KIND("Quest", MMRK_HEART_PIECES, RI_HEART_PIECE),
+    MMI_QUEST("Quest", "remains_odolwa", QUEST_REMAINS_ODOLWA, RI_REMAINS_ODOLWA),
+    MMI_QUEST("Quest", "remains_goht", QUEST_REMAINS_GOHT, RI_REMAINS_GOHT),
+    MMI_QUEST("Quest", "remains_gyorg", QUEST_REMAINS_GYORG, RI_REMAINS_GYORG),
+    MMI_QUEST("Quest", "remains_twinmold", QUEST_REMAINS_TWINMOLD, RI_REMAINS_TWINMOLD),
+    MMI_QUEST("Quest", "bombers_notebook", QUEST_BOMBERS_NOTEBOOK, RI_BOMBERS_NOTEBOOK),
+    MMI_KIND("Quest", "sword", MMRK_SWORD, RI_SWORD_KOKIRI),
+    MMI_KIND("Quest", "shield", MMRK_SHIELD, RI_SHIELD_HERO),
+    MMI_KIND("Quest", "magic", MMRK_MAGIC, RI_SINGLE_MAGIC),
+    MMI_KIND("Quest", "double_defense", MMRK_DOUBLE_DEFENSE, RI_DOUBLE_DEFENSE),
+    MMI_KIND("Quest", "wallet", MMRK_WALLET, RI_WALLET_ADULT),
+    MMI_KIND("Quest", "heart_pieces", MMRK_HEART_PIECES, RI_HEART_PIECE),
     // Tokens, Stray Fairies and Dungeon (#1140): the rest of MM's default preset
     // (ItemTrackerSettings.cpp ApplyDefaultItemPreset), in its order.
-    { "Tokens", MMRK_TOKENS, 0, 16, RI_GS_TOKEN_SWAMP },
-    { "Tokens", MMRK_TOKENS, 0, 0, RI_GS_TOKEN_OCEAN },
-    MMI_KIND("Stray Fairies", MMRK_FAIRY_CLOCK_TOWN, RI_CLOCK_TOWN_STRAY_FAIRY),
-    MMI_FAIRY(WOODFALL),
-    MMI_FAIRY(SNOWHEAD),
-    MMI_FAIRY(GREAT_BAY),
-    MMI_FAIRY(STONE_TOWER),
+    { "Tokens", "tokens_swamp", MMRK_TOKENS, 0, 16, RI_GS_TOKEN_SWAMP },
+    { "Tokens", "tokens_ocean", MMRK_TOKENS, 0, 0, RI_GS_TOKEN_OCEAN },
+    MMI_KIND("Stray Fairies", "fairy_clock_town", MMRK_FAIRY_CLOCK_TOWN, RI_CLOCK_TOWN_STRAY_FAIRY),
+    MMI_FAIRY("fairy_woodfall", WOODFALL),
+    MMI_FAIRY("fairy_snowhead", SNOWHEAD),
+    MMI_FAIRY("fairy_great_bay", GREAT_BAY),
+    MMI_FAIRY("fairy_stone_tower", STONE_TOWER),
     // Dungeon, 4 wide: one column per temple, one line per item kind.
-    MMI_DUNGEON(WOODFALL, BOSS_KEY),
-    MMI_DUNGEON(SNOWHEAD, BOSS_KEY),
-    MMI_DUNGEON(GREAT_BAY, BOSS_KEY),
-    MMI_DUNGEON(STONE_TOWER, BOSS_KEY),
-    MMI_KEYS(WOODFALL, 1),
-    MMI_KEYS(SNOWHEAD, 3),
-    MMI_KEYS(GREAT_BAY, 1),
-    MMI_KEYS(STONE_TOWER, 4),
-    MMI_DUNGEON(WOODFALL, MAP),
-    MMI_DUNGEON(SNOWHEAD, MAP),
-    MMI_DUNGEON(GREAT_BAY, MAP),
-    MMI_DUNGEON(STONE_TOWER, MAP),
-    MMI_DUNGEON(WOODFALL, COMPASS),
-    MMI_DUNGEON(SNOWHEAD, COMPASS),
-    MMI_DUNGEON(GREAT_BAY, COMPASS),
-    MMI_DUNGEON(STONE_TOWER, COMPASS),
+    MMI_DUNGEON("boss_key_woodfall", WOODFALL, BOSS_KEY),
+    MMI_DUNGEON("boss_key_snowhead", SNOWHEAD, BOSS_KEY),
+    MMI_DUNGEON("boss_key_great_bay", GREAT_BAY, BOSS_KEY),
+    MMI_DUNGEON("boss_key_stone_tower", STONE_TOWER, BOSS_KEY),
+    MMI_KEYS("small_key_woodfall", WOODFALL, 1),
+    MMI_KEYS("small_key_snowhead", SNOWHEAD, 3),
+    MMI_KEYS("small_key_great_bay", GREAT_BAY, 1),
+    MMI_KEYS("small_key_stone_tower", STONE_TOWER, 4),
+    MMI_DUNGEON("map_woodfall", WOODFALL, MAP),
+    MMI_DUNGEON("map_snowhead", SNOWHEAD, MAP),
+    MMI_DUNGEON("map_great_bay", GREAT_BAY, MAP),
+    MMI_DUNGEON("map_stone_tower", STONE_TOWER, MAP),
+    MMI_DUNGEON("compass_woodfall", WOODFALL, COMPASS),
+    MMI_DUNGEON("compass_snowhead", SNOWHEAD, COMPASS),
+    MMI_DUNGEON("compass_great_bay", GREAT_BAY, COMPASS),
+    MMI_DUNGEON("compass_stone_tower", STONE_TOWER, COMPASS),
 };
 
 #undef MMI_SLOT
@@ -391,7 +395,11 @@ bool MMItemDeriveButton(const SaveContext* src, int button, ComboItemRow* out) {
     if (button < 0 || button >= kMMButtonRowCount || !MMItemButtonRowsShown(src)) {
         return false;
     }
+    static const char* const kButtonSlotKeys[kMMButtonRowCount] = { "ocarina_btn_a", "ocarina_btn_c_down",
+                                                                    "ocarina_btn_c_right", "ocarina_btn_c_left",
+                                                                    "ocarina_btn_c_up" };
     out->group = kMMButtonGroup;
+    out->slotKey = kButtonSlotKeys[button];
     MMItemFillRando(out, (RandoItemId)(RI_OCARINA_BUTTON_A + button));
     out->iconTint = (button == 0) ? kMMButtonTintA : kMMButtonTintC;
     out->have = MMItemButtonHeld(src, button);
@@ -431,6 +439,7 @@ uint8_t MMItemSharedTierKindOf(uint32_t upg) {
 
 bool MMItemDerive(const SaveContext* src, const MMItemRowDef& def, ComboItemRow* out) {
     out->group = def.group;
+    out->slotKey = def.slotKey;
     if (std::strcmp(def.group, "Songs") == 0) {
         out->iconAspect = 32.0f / 46.0f; // GetImageObject: a song's texture is 32 wide in the 46 px cell
     }
@@ -609,6 +618,8 @@ int MMItemButtonRows(const SaveContext* src) {
 // Boss Souls, in MM's order (ItemTrackerSettings.cpp); Majora last, so Triforce Hunt drops the tail.
 const RandoItemId kMMBossSouls[] = { RI_SOUL_BOSS_ODOLWA, RI_SOUL_BOSS_GOHT, RI_SOUL_BOSS_GYORG, RI_SOUL_BOSS_TWINMOLD,
                                      RI_SOUL_BOSS_MAJORA };
+const char* const kMMBossSoulSlotKeys[] = { "boss_soul_odolwa", "boss_soul_goht", "boss_soul_gyorg",
+                                            "boss_soul_twinmold", "boss_soul_majora" };
 
 int MMItemBossSoulRows(const SaveContext* src) {
     if (!MMItemOptionOn(src, RO_SHUFFLE_BOSS_SOULS)) {
@@ -618,6 +629,7 @@ int MMItemBossSoulRows(const SaveContext* src) {
 }
 
 bool MMItemDeriveBossSoul(const SaveContext* src, int i, ComboItemRow* out) {
+    out->slotKey = kMMBossSoulSlotKeys[i];
     MMItemFillRando(out, kMMBossSouls[i]);
     out->have = MMItemRandoInf(src, SOUL_RI_TO_RANDO_INF(kMMBossSouls[i]));
     return true;
@@ -634,6 +646,7 @@ int MMItemEnemySoulRows(const SaveContext* src) {
 }
 
 bool MMItemDeriveEnemySouls(const SaveContext* src, int, ComboItemRow* out) {
+    out->slotKey = "enemy_souls";
     MMItemFillRando(out, RI_SOUL_ENEMY_ALIEN); // every enemy soul shares the skull icon
     out->name = "Enemy Souls";
     int held = 0;
@@ -648,15 +661,21 @@ bool MMItemDeriveEnemySouls(const SaveContext* src, int, ComboItemRow* out) {
 
 // Owl Statues, in MM's order, with the owl each activates (GiveItem.cpp Sram_ActivateOwl).
 struct MMItemOwl {
+    const char* slotKey;
     RandoItemId rando;
     uint8_t warp;
 };
 const MMItemOwl kMMOwls[] = {
-    { RI_OWL_CLOCK_TOWN_SOUTH, OWL_WARP_CLOCK_TOWN },       { RI_OWL_MILK_ROAD, OWL_WARP_MILK_ROAD },
-    { RI_OWL_SOUTHERN_SWAMP, OWL_WARP_SOUTHERN_SWAMP },     { RI_OWL_WOODFALL, OWL_WARP_WOODFALL },
-    { RI_OWL_MOUNTAIN_VILLAGE, OWL_WARP_MOUNTAIN_VILLAGE }, { RI_OWL_SNOWHEAD, OWL_WARP_SNOWHEAD },
-    { RI_OWL_GREAT_BAY_COAST, OWL_WARP_GREAT_BAY_COAST },   { RI_OWL_ZORA_CAPE, OWL_WARP_ZORA_CAPE },
-    { RI_OWL_IKANA_CANYON, OWL_WARP_IKANA_CANYON },         { RI_OWL_STONE_TOWER, OWL_WARP_STONE_TOWER },
+    { "owl_clock_town", RI_OWL_CLOCK_TOWN_SOUTH, OWL_WARP_CLOCK_TOWN },
+    { "owl_milk_road", RI_OWL_MILK_ROAD, OWL_WARP_MILK_ROAD },
+    { "owl_southern_swamp", RI_OWL_SOUTHERN_SWAMP, OWL_WARP_SOUTHERN_SWAMP },
+    { "owl_woodfall", RI_OWL_WOODFALL, OWL_WARP_WOODFALL },
+    { "owl_mountain_village", RI_OWL_MOUNTAIN_VILLAGE, OWL_WARP_MOUNTAIN_VILLAGE },
+    { "owl_snowhead", RI_OWL_SNOWHEAD, OWL_WARP_SNOWHEAD },
+    { "owl_great_bay", RI_OWL_GREAT_BAY_COAST, OWL_WARP_GREAT_BAY_COAST },
+    { "owl_zora_cape", RI_OWL_ZORA_CAPE, OWL_WARP_ZORA_CAPE },
+    { "owl_ikana_canyon", RI_OWL_IKANA_CANYON, OWL_WARP_IKANA_CANYON },
+    { "owl_stone_tower", RI_OWL_STONE_TOWER, OWL_WARP_STONE_TOWER },
 };
 
 int MMItemOwlRows(const SaveContext* src) {
@@ -664,6 +683,7 @@ int MMItemOwlRows(const SaveContext* src) {
 }
 
 bool MMItemDeriveOwl(const SaveContext* src, int i, ComboItemRow* out) {
+    out->slotKey = kMMOwls[i].slotKey;
     MMItemFillRando(out, kMMOwls[i].rando);
     out->iconAspect = 46.0f / 24.0f; // MM's tracker: the owl face drawn 24 px tall in its 46 px cell
     out->have = GET_OWL_STATUE_ACTIVATED(kMMOwls[i].warp) != 0;
@@ -674,12 +694,15 @@ bool MMItemDeriveOwl(const SaveContext* src, int i, ComboItemRow* out) {
 // (GiveItem.cpp, ClockShuffle's half-day index).
 const RandoItemId kMMHalfDays[] = { RI_TIME_DAY_1,   RI_TIME_NIGHT_1, RI_TIME_DAY_2,
                                     RI_TIME_NIGHT_2, RI_TIME_DAY_3,   RI_TIME_NIGHT_3 };
+const char* const kMMHalfDaySlotKeys[] = { "time_day_1",   "time_night_1", "time_day_2",
+                                           "time_night_2", "time_day_3",   "time_night_3" };
 
 int MMItemTimeRows(const SaveContext* src) {
     return MMItemOptionOn(src, RO_CLOCK_SHUFFLE) ? (int)(sizeof(kMMHalfDays) / sizeof(kMMHalfDays[0])) : 0;
 }
 
 bool MMItemDeriveHalfDay(const SaveContext* src, int i, ComboItemRow* out) {
+    out->slotKey = kMMHalfDaySlotKeys[i];
     MMItemFillRando(out, kMMHalfDays[i]);
     out->iconTint = (i % 2 == 0) ? kMMTintDay : kMMTintNight;
     out->have = MMItemRandoInf(src, RANDO_INF_OBTAINED_CLOCK_DAY_1 + i);
@@ -691,6 +714,7 @@ int MMItemMiscRows(const SaveContext* src) {
 }
 
 bool MMItemDeriveSwim(const SaveContext* src, int, ComboItemRow* out) {
+    out->slotKey = "ability_swim";
     MMItemFillRando(out, RI_ABILITY_SWIM); // the Zora Mask's icon, GetIconTexturePath's pick
     out->have = MMItemRandoInf(src, RANDO_INF_OBTAINED_SWIM);
     return true;
@@ -820,6 +844,129 @@ bool MMItemRowAt(const void* buf, int index, ComboItemRow* out) {
     }
     out->sharedFamily = MMItemSharedFamily(kMMItemRows[index]);
     return true;
+}
+
+constexpr int kMMBossSoulCatalogCount = (int)(sizeof(kMMBossSouls) / sizeof(kMMBossSouls[0]));
+constexpr int kMMOwlCatalogCount = (int)(sizeof(kMMOwls) / sizeof(kMMOwls[0]));
+constexpr int kMMTimeCatalogCount = (int)(sizeof(kMMHalfDays) / sizeof(kMMHalfDays[0]));
+constexpr int kMMCatalogRowCount =
+    kMMItemRowCount + kMMButtonRowCount + kMMBossSoulCatalogCount + 1 + kMMOwlCatalogCount + kMMTimeCatalogCount + 1;
+
+int MMItemCatalogCount(void) {
+    return kMMCatalogRowCount;
+}
+
+bool MMItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
+    if (out == nullptr || catalogIndex < 0 || catalogIndex >= kMMCatalogRowCount) {
+        return false;
+    }
+    const bool hasSave = MMItemAligned(buf) && MMItemHasSave(buf);
+    SaveContext emptySave{};
+    if (!hasSave) {
+        std::memset(emptySave.save.saveInfo.inventory.items, ITEM_NONE,
+                    sizeof(emptySave.save.saveInfo.inventory.items));
+        std::memset(emptySave.save.saveInfo.inventory.dungeonKeys, -1,
+                    sizeof(emptySave.save.saveInfo.inventory.dungeonKeys));
+    }
+    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : &emptySave;
+    const uint8_t freshness = out->freshness;
+    std::memset(out, 0, sizeof(*out));
+    out->freshness = freshness;
+
+    if (catalogIndex < kMMItemRowCount) {
+        if (!MMItemDerive(src, kMMItemRows[catalogIndex], out)) {
+            return false;
+        }
+        out->sharedFamily = MMItemSharedFamily(kMMItemRows[catalogIndex]);
+        if (!hasSave) {
+            out->have = false;
+            out->count = 0;
+            out->held = 0;
+        }
+        return true;
+    }
+    catalogIndex -= kMMItemRowCount;
+
+    if (catalogIndex < kMMButtonRowCount) {
+        static const char* const kButtonSlotKeys[kMMButtonRowCount] = { "ocarina_btn_a", "ocarina_btn_c_down",
+                                                                        "ocarina_btn_c_right", "ocarina_btn_c_left",
+                                                                        "ocarina_btn_c_up" };
+        static const uint32_t kSlots[kMMButtonRowCount] = {
+            RSBS_XITEM_SHARED_OCARINA_BUTTONS, RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT,
+            RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, RSBS_XFAMILY_SLOT_OCARINA_C_UP
+        };
+        out->group = kMMButtonGroup;
+        out->slotKey = kButtonSlotKeys[catalogIndex];
+        MMItemFillRando(out, (RandoItemId)(RI_OCARINA_BUTTON_A + catalogIndex));
+        out->iconTint = (catalogIndex == 0) ? kMMButtonTintA : kMMButtonTintC;
+        out->sharedFamily = kSlots[catalogIndex];
+        out->have = hasSave ? (MMItemButtonRowsShown(src) ? MMItemButtonHeld(src, catalogIndex) : true) : false;
+        return true;
+    }
+    catalogIndex -= kMMButtonRowCount;
+
+    if (catalogIndex < kMMBossSoulCatalogCount) {
+        out->group = "Boss Souls";
+        MMItemDeriveBossSoul(src, catalogIndex, out);
+        // 2Ship !IsItemObtainable: when a save is loaded and Boss Souls (or
+        // Majora's Soul under Triforce Hunt) are not shuffled in the pool,
+        // draw the soul as held so custom "Key Items" grids stay complete.
+        if (!hasSave) {
+            out->have = false;
+        } else if (catalogIndex >= MMItemBossSoulRows(src)) {
+            out->have = true;
+        }
+        return true;
+    }
+    catalogIndex -= kMMBossSoulCatalogCount;
+
+    if (catalogIndex == 0) {
+        out->group = "Enemy Souls";
+        MMItemDeriveEnemySouls(src, 0, out);
+        if (!hasSave) {
+            out->have = false;
+            out->count = 0;
+        } else if (MMItemEnemySoulRows(src) == 0) {
+            out->have = true;
+            out->count = kMMEnemySoulCount;
+        }
+        return true;
+    }
+    catalogIndex -= 1;
+
+    if (catalogIndex < kMMOwlCatalogCount) {
+        out->group = "Owl Statues";
+        MMItemDeriveOwl(src, catalogIndex, out);
+        if (!hasSave) {
+            out->have = false;
+        }
+        return true;
+    }
+    catalogIndex -= kMMOwlCatalogCount;
+
+    if (catalogIndex < kMMTimeCatalogCount) {
+        out->group = "Time";
+        MMItemDeriveHalfDay(src, catalogIndex, out);
+        if (!hasSave) {
+            out->have = false;
+        } else if (MMItemTimeRows(src) == 0) {
+            out->have = true;
+        }
+        return true;
+    }
+    catalogIndex -= kMMTimeCatalogCount;
+
+    if (catalogIndex == 0) {
+        out->group = "Misc";
+        MMItemDeriveSwim(src, 0, out);
+        if (!hasSave) {
+            out->have = false;
+        } else if (MMItemMiscRows(src) == 0) {
+            out->have = true;
+        }
+        return true;
+    }
+    return false;
 }
 
 } // namespace
@@ -1023,8 +1170,8 @@ bool MMItemSharedLive(const void* srcv, uint8_t kind, uint16_t* out) {
 
 extern "C" void MM_ItemAdapter_Register(void) {
     static const ComboItemOps kOps = {
-        MMItemCount,  MMItemRowAt,      MMItemHasSave,  MMItemLiveSave,   MMItemPaused,
-        &kMMItemGrid, MMItemSharedIcon, MMItemCountFor, MMItemSharedLive,
+        MMItemCount,      MMItemRowAt,    MMItemHasSave,    MMItemLiveSave,     MMItemPaused,       &kMMItemGrid,
+        MMItemSharedIcon, MMItemCountFor, MMItemSharedLive, MMItemCatalogCount, MMItemCatalogRowAt,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_MM, &kOps);
 }

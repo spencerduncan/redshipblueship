@@ -2187,6 +2187,70 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         return TEST_FAIL;
     }
 
+    // ---- 8b. Customizable groups, "Key Items" Dungeon Solver preset, & JSON persistence ----
+    {
+        Combo_TrackerWindow_Init();
+        std::vector<ComboGui::ComboItemTrackerGroup> mmAvail;
+        std::vector<ComboGui::ComboItemTrackerGroup> ootAvail;
+        std::vector<ComboGui::ComboItemTrackerGroup> sharedAvail;
+        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_MM, mmAvail);
+        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_OOT, ootAvail);
+        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_SHARED, sharedAvail);
+        CITW_ASSERT(!mmAvail.empty() && mmAvail[0].name == "Key Items" && mmAvail[0].columns == 6 &&
+                    mmAvail[0].slots.size() == 27);
+        CITW_ASSERT(!ootAvail.empty() && ootAvail[0].name == "Key Items" && ootAvail[0].columns == 5 &&
+                    ootAvail[0].slots.size() == 50);
+        CITW_ASSERT(sharedAvail.size() >= 4 && sharedAvail[0].slots.size() == 32);
+
+        // Verify all 27 MM "Key Items" solver slots resolve cleanly, including Boss Souls & Stray Fairies.
+        std::vector<ComboItemRow> mmKeyRows;
+        ComboGui::ComboItemTrackerResolveGroupRows(mmAvail[0], (int)GAME_MM, false, mmKeyRows);
+        CITW_ASSERT(mmKeyRows.size() == 27);
+        CITW_ASSERT(mmKeyRows[0].customOwnLine && mmKeyRows[0].customCols == 6);
+        CITW_ASSERT(!mmKeyRows[1].customOwnLine && mmKeyRows[1].customCols == 6);
+
+        // Verify multi-group per-group column widths in ComboItemIconLayout (6-wide "Key Items" + 4-wide group).
+        ComboGui::ComboItemTrackerGroup fourWide;
+        fourWide.name = "Custom4";
+        fourWide.section = ComboGui::COMBO_ITEM_SECTION_MM;
+        fourWide.columns = 4;
+        for (int i = 0; i < 5; i++) {
+            fourWide.slots.push_back(mmAvail[0].slots[(size_t)i]);
+        }
+        ComboGui::ComboItemTrackerResolveGroupRows(fourWide, (int)GAME_MM, false, mmKeyRows);
+        CITW_ASSERT(mmKeyRows.size() == 32);
+        std::vector<ComboGui::ComboItemGridCell> customCells;
+        ComboGui::ComboItemIconLayout(mmKeyRows, *Combo_ItemGridStyle(GAME_MM), customCells);
+        CITW_ASSERT(customCells.size() == 32);
+        // 27 items in 6 columns take lines 0..4 (27th item at line 4, col 2).
+        CITW_ASSERT(customCells[26].line == 4 && customCells[26].column == 2);
+        // The 4-wide group starts on line 5, col 0, and its 5th item wraps to line 6, col 0.
+        CITW_ASSERT(customCells[27].line == 5 && customCells[27].column == 0);
+        CITW_ASSERT(customCells[30].line == 5 && customCells[30].column == 3);
+        CITW_ASSERT(customCells[31].line == 6 && customCells[31].column == 0);
+
+        // Apply MM and OoT Solver Presets and verify JSON round-trip persistence.
+        ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_MM);
+        ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_OOT);
+        const ComboGui::ComboItemTrackerLayout& liveLayout = ComboGui::ComboItemTrackerGetLayout();
+        CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
+        CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
+        const std::string jsonStr = ComboGui::ComboItemTrackerLayoutToJson(liveLayout);
+        CITW_ASSERT(!jsonStr.empty());
+        ComboGui::ComboItemTrackerLayout roundTripped{};
+        CITW_ASSERT(ComboGui::ComboItemTrackerLayoutFromJson(jsonStr, roundTripped));
+        CITW_ASSERT(roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM] &&
+                    roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
+        CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size() ==
+                    liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size());
+        CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size() ==
+                    liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size());
+
+        // Restore default layout so no state leaks.
+        ComboGui::ComboItemTrackerRestoreDefaultLayout(-1);
+        CITW_ASSERT(!ComboGui::ComboItemTrackerGetLayout().customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
+    }
+
 #ifdef RSBS_SOURCE_DIR
     {
         auto slurp = [](const char* rel) {

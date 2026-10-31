@@ -320,6 +320,7 @@ enum RowKind : uint8_t {
 
 struct RowDef {
     const char* group;
+    const char* slotKey;
     RowKind kind;
     uint8_t item;     // ITEM_* for inventory rows and icon lookup
     uint32_t data;    // upgrade type, bit mask, quest bit, bottle index or fixed cap
@@ -328,22 +329,22 @@ struct RowDef {
     const char* keyFaded;
 };
 
-#define INV(item) \
-    { "Inventory", RK_INV, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
-#define INV_AMMO(item, upg) \
-    { "Inventory", RK_INV_AMMO, (uint8_t)(item), (uint32_t)(upg), nullptr, nullptr, nullptr }
-#define INV_FIXED(item, cap) \
-    { "Inventory", RK_INV_FIXED, (uint8_t)(item), (uint32_t)(cap), nullptr, nullptr, nullptr }
-#define INV_NAMED(item, emptyName) \
-    { "Inventory", RK_INV, (uint8_t)(item), 0, emptyName, nullptr, nullptr }
-#define BOTTLE(n) \
-    { "Inventory", RK_BOTTLE, (uint8_t)ITEM_BOTTLE, (uint32_t)(n), "Bottle", nullptr, nullptr }
-#define EQUIP(id, mask, name) \
-    { "Equipment", RK_EQUIP, (uint8_t)(id), (uint32_t)(mask), name, #id, #id "_Faded" }
-#define QUEST(group, id, name) \
-    { group, RK_QUEST, 0, (uint32_t)(id), name, #id, #id "_Faded" }
-#define MISC(kind, item) \
-    { "Misc", kind, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
+#define INV(slotKey, item) \
+    { "Inventory", slotKey, RK_INV, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
+#define INV_AMMO(slotKey, item, upg) \
+    { "Inventory", slotKey, RK_INV_AMMO, (uint8_t)(item), (uint32_t)(upg), nullptr, nullptr, nullptr }
+#define INV_FIXED(slotKey, item, cap) \
+    { "Inventory", slotKey, RK_INV_FIXED, (uint8_t)(item), (uint32_t)(cap), nullptr, nullptr, nullptr }
+#define INV_NAMED(slotKey, item, emptyName) \
+    { "Inventory", slotKey, RK_INV, (uint8_t)(item), 0, emptyName, nullptr, nullptr }
+#define BOTTLE(slotKey, n) \
+    { "Inventory", slotKey, RK_BOTTLE, (uint8_t)ITEM_BOTTLE, (uint32_t)(n), "Bottle", nullptr, nullptr }
+#define EQUIP(slotKey, id, mask, name) \
+    { "Equipment", slotKey, RK_EQUIP, (uint8_t)(id), (uint32_t)(mask), name, #id, #id "_Faded" }
+#define QUEST(group, slotKey, id, name) \
+    { group, slotKey, RK_QUEST, 0, (uint32_t)(id), name, #id, #id "_Faded" }
+#define MISC(slotKey, kind, item) \
+    { "Misc", slotKey, kind, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
 
 // Order and membership follow the native tracker's default sections; the
 // setting-dependent sections (dungeon items, Greg, triforce pieces, boss and
@@ -351,77 +352,77 @@ struct RowDef {
 // action shuffle) are left out of v1.
 const RowDef kRows[] = {
     // Inventory (inventoryItems)
-    INV_AMMO(ITEM_STICK, UPG_STICKS),
-    INV_AMMO(ITEM_NUT, UPG_NUTS),
-    INV_AMMO(ITEM_BOMB, UPG_BOMB_BAG),
-    INV_AMMO(ITEM_BOW, UPG_QUIVER),
-    INV(ITEM_ARROW_FIRE),
-    INV(ITEM_DINS_FIRE),
-    INV_AMMO(ITEM_SLINGSHOT, UPG_BULLET_BAG),
-    INV(ITEM_OCARINA_FAIRY),
-    INV_FIXED(ITEM_BOMBCHU, 50),
-    INV(ITEM_HOOKSHOT),
-    INV(ITEM_ARROW_ICE),
-    INV(ITEM_FARORES_WIND),
-    INV(ITEM_BOOMERANG),
-    INV(ITEM_LENS),
-    INV_FIXED(ITEM_BEAN, 10),
-    INV(ITEM_HAMMER),
-    INV(ITEM_ARROW_LIGHT),
-    INV(ITEM_NAYRUS_LOVE),
-    BOTTLE(0),
-    BOTTLE(1),
-    BOTTLE(2),
-    BOTTLE(3),
-    INV_NAMED(ITEM_POCKET_EGG, "Adult Trade Item"),
-    INV_NAMED(ITEM_MASK_KEATON, "Child Trade Item"),
+    INV_AMMO("sticks", ITEM_STICK, UPG_STICKS),
+    INV_AMMO("nuts", ITEM_NUT, UPG_NUTS),
+    INV_AMMO("bombs", ITEM_BOMB, UPG_BOMB_BAG),
+    INV_AMMO("bow", ITEM_BOW, UPG_QUIVER),
+    INV("arrow_fire", ITEM_ARROW_FIRE),
+    INV("dins_fire", ITEM_DINS_FIRE),
+    INV_AMMO("slingshot", ITEM_SLINGSHOT, UPG_BULLET_BAG),
+    INV("ocarina", ITEM_OCARINA_FAIRY),
+    INV_FIXED("bombchus", ITEM_BOMBCHU, 50),
+    INV("hookshot", ITEM_HOOKSHOT),
+    INV("arrow_ice", ITEM_ARROW_ICE),
+    INV("farores_wind", ITEM_FARORES_WIND),
+    INV("boomerang", ITEM_BOOMERANG),
+    INV("lens", ITEM_LENS),
+    INV_FIXED("beans", ITEM_BEAN, 10),
+    INV("hammer", ITEM_HAMMER),
+    INV("arrow_light", ITEM_ARROW_LIGHT),
+    INV("nayrus_love", ITEM_NAYRUS_LOVE),
+    BOTTLE("bottle_1", 0),
+    BOTTLE("bottle_2", 1),
+    BOTTLE("bottle_3", 2),
+    BOTTLE("bottle_4", 3),
+    INV_NAMED("trade_adult", ITEM_POCKET_EGG, "Adult Trade Item"),
+    INV_NAMED("trade_child", ITEM_MASK_KEATON, "Child Trade Item"),
     // Equipment (equipmentItems): the owned-equipment bits the native rows test
-    EQUIP(ITEM_SWORD_KOKIRI, 1 << 0, "Kokiri Sword"),
-    EQUIP(ITEM_SWORD_MASTER, 1 << 1, "Master Sword"),
-    EQUIP(ITEM_SWORD_BGS, 1 << 2, "Biggoron's Sword"),
-    EQUIP(ITEM_TUNIC_KOKIRI, 1 << 8, "Kokiri Tunic"),
-    EQUIP(ITEM_TUNIC_GORON, 1 << 9, "Goron Tunic"),
-    EQUIP(ITEM_TUNIC_ZORA, 1 << 10, "Zora Tunic"),
-    EQUIP(ITEM_SHIELD_DEKU, 1 << 4, "Deku Shield"),
-    EQUIP(ITEM_SHIELD_HYLIAN, 1 << 5, "Hylian Shield"),
-    EQUIP(ITEM_SHIELD_MIRROR, 1 << 6, "Mirror Shield"),
-    EQUIP(ITEM_BOOTS_KOKIRI, 1 << 12, "Kokiri Boots"),
-    EQUIP(ITEM_BOOTS_IRON, 1 << 13, "Iron Boots"),
-    EQUIP(ITEM_BOOTS_HOVER, 1 << 14, "Hover Boots"),
+    EQUIP("sword_kokiri", ITEM_SWORD_KOKIRI, 1 << 0, "Kokiri Sword"),
+    EQUIP("sword_master", ITEM_SWORD_MASTER, 1 << 1, "Master Sword"),
+    EQUIP("sword_bgs", ITEM_SWORD_BGS, 1 << 2, "Biggoron's Sword"),
+    EQUIP("tunic_kokiri", ITEM_TUNIC_KOKIRI, 1 << 8, "Kokiri Tunic"),
+    EQUIP("tunic_goron", ITEM_TUNIC_GORON, 1 << 9, "Goron Tunic"),
+    EQUIP("tunic_zora", ITEM_TUNIC_ZORA, 1 << 10, "Zora Tunic"),
+    EQUIP("shield_deku", ITEM_SHIELD_DEKU, 1 << 4, "Deku Shield"),
+    EQUIP("shield_hylian", ITEM_SHIELD_HYLIAN, 1 << 5, "Hylian Shield"),
+    EQUIP("shield_mirror", ITEM_SHIELD_MIRROR, 1 << 6, "Mirror Shield"),
+    EQUIP("boots_kokiri", ITEM_BOOTS_KOKIRI, 1 << 12, "Kokiri Boots"),
+    EQUIP("boots_iron", ITEM_BOOTS_IRON, 1 << 13, "Iron Boots"),
+    EQUIP("boots_hover", ITEM_BOOTS_HOVER, 1 << 14, "Hover Boots"),
     // Misc (miscItems)
-    MISC(RK_STRENGTH, ITEM_BRACELET),
-    MISC(RK_SCALE, ITEM_SCALE_SILVER),
-    MISC(RK_WALLET, ITEM_WALLET_ADULT),
-    MISC(RK_HEART_CONT, ITEM_HEART_CONTAINER),
-    MISC(RK_HEART_PIECE, ITEM_HEART_PIECE),
-    MISC(RK_MAGIC, ITEM_MAGIC_SMALL),
-    QUEST("Misc", QUEST_GERUDO_CARD, "Gerudo's Card"),
-    { "Misc", RK_TOKENS, 0, (uint32_t)QUEST_SKULL_TOKEN, "Gold Skulltula Tokens", "QUEST_SKULL_TOKEN",
+    MISC("strength", RK_STRENGTH, ITEM_BRACELET),
+    MISC("scale", RK_SCALE, ITEM_SCALE_SILVER),
+    MISC("wallet", RK_WALLET, ITEM_WALLET_ADULT),
+    MISC("heart_containers", RK_HEART_CONT, ITEM_HEART_CONTAINER),
+    MISC("heart_pieces", RK_HEART_PIECE, ITEM_HEART_PIECE),
+    MISC("magic", RK_MAGIC, ITEM_MAGIC_SMALL),
+    QUEST("Misc", "gerudo_card", QUEST_GERUDO_CARD, "Gerudo's Card"),
+    { "Misc", "gs_tokens", RK_TOKENS, 0, (uint32_t)QUEST_SKULL_TOKEN, "Gold Skulltula Tokens", "QUEST_SKULL_TOKEN",
       "QUEST_SKULL_TOKEN_Faded" },
-    QUEST("Misc", QUEST_STONE_OF_AGONY, "Stone of Agony"),
+    QUEST("Misc", "stone_of_agony", QUEST_STONE_OF_AGONY, "Stone of Agony"),
     // Dungeon rewards (dungeonRewardStones, dungeonRewardMedallions)
-    QUEST("Dungeon Rewards", QUEST_KOKIRI_EMERALD, "Kokiri's Emerald"),
-    QUEST("Dungeon Rewards", QUEST_GORON_RUBY, "Goron's Ruby"),
-    QUEST("Dungeon Rewards", QUEST_ZORA_SAPPHIRE, "Zora's Sapphire"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_FOREST, "Forest Medallion"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_FIRE, "Fire Medallion"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_WATER, "Water Medallion"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_SPIRIT, "Spirit Medallion"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_SHADOW, "Shadow Medallion"),
-    QUEST("Dungeon Rewards", QUEST_MEDALLION_LIGHT, "Light Medallion"),
+    QUEST("Dungeon Rewards", "emerald", QUEST_KOKIRI_EMERALD, "Kokiri's Emerald"),
+    QUEST("Dungeon Rewards", "ruby", QUEST_GORON_RUBY, "Goron's Ruby"),
+    QUEST("Dungeon Rewards", "sapphire", QUEST_ZORA_SAPPHIRE, "Zora's Sapphire"),
+    QUEST("Dungeon Rewards", "medallion_forest", QUEST_MEDALLION_FOREST, "Forest Medallion"),
+    QUEST("Dungeon Rewards", "medallion_fire", QUEST_MEDALLION_FIRE, "Fire Medallion"),
+    QUEST("Dungeon Rewards", "medallion_water", QUEST_MEDALLION_WATER, "Water Medallion"),
+    QUEST("Dungeon Rewards", "medallion_spirit", QUEST_MEDALLION_SPIRIT, "Spirit Medallion"),
+    QUEST("Dungeon Rewards", "medallion_shadow", QUEST_MEDALLION_SHADOW, "Shadow Medallion"),
+    QUEST("Dungeon Rewards", "medallion_light", QUEST_MEDALLION_LIGHT, "Light Medallion"),
     // Songs (songItems)
-    QUEST("Songs", QUEST_SONG_LULLABY, "Zelda's Lullaby"),
-    QUEST("Songs", QUEST_SONG_EPONA, "Epona's Song"),
-    QUEST("Songs", QUEST_SONG_SARIA, "Saria's Song"),
-    QUEST("Songs", QUEST_SONG_SUN, "Sun's Song"),
-    QUEST("Songs", QUEST_SONG_TIME, "Song of Time"),
-    QUEST("Songs", QUEST_SONG_STORMS, "Song of Storms"),
-    QUEST("Songs", QUEST_SONG_MINUET, "Minuet of Forest"),
-    QUEST("Songs", QUEST_SONG_BOLERO, "Bolero of Fire"),
-    QUEST("Songs", QUEST_SONG_SERENADE, "Serenade of Water"),
-    QUEST("Songs", QUEST_SONG_REQUIEM, "Requiem of Spirit"),
-    QUEST("Songs", QUEST_SONG_NOCTURNE, "Nocturne of Shadow"),
-    QUEST("Songs", QUEST_SONG_PRELUDE, "Prelude of Light"),
+    QUEST("Songs", "song_lullaby", QUEST_SONG_LULLABY, "Zelda's Lullaby"),
+    QUEST("Songs", "song_epona", QUEST_SONG_EPONA, "Epona's Song"),
+    QUEST("Songs", "song_saria", QUEST_SONG_SARIA, "Saria's Song"),
+    QUEST("Songs", "song_sun", QUEST_SONG_SUN, "Sun's Song"),
+    QUEST("Songs", "song_time", QUEST_SONG_TIME, "Song of Time"),
+    QUEST("Songs", "song_storms", QUEST_SONG_STORMS, "Song of Storms"),
+    QUEST("Songs", "song_minuet", QUEST_SONG_MINUET, "Minuet of Forest"),
+    QUEST("Songs", "song_bolero", QUEST_SONG_BOLERO, "Bolero of Fire"),
+    QUEST("Songs", "song_serenade", QUEST_SONG_SERENADE, "Serenade of Water"),
+    QUEST("Songs", "song_requiem", QUEST_SONG_REQUIEM, "Requiem of Spirit"),
+    QUEST("Songs", "song_nocturne", QUEST_SONG_NOCTURNE, "Nocturne of Shadow"),
+    QUEST("Songs", "song_prelude", QUEST_SONG_PRELUDE, "Prelude of Light"),
 };
 
 #undef INV
@@ -473,6 +474,7 @@ uint8_t SharedTierKindOf(uint32_t upg) {
 
 bool Derive(const SaveContext* src, const RowDef& def, ComboItemRow* out) {
     out->group = def.group;
+    out->slotKey = def.slotKey;
     switch (def.kind) {
         case RK_INV:
             FillSlot(out, InvContentOf(src, def.item), def);
@@ -588,79 +590,80 @@ enum DungeonCellKind : uint8_t { DC_PAD, DC_SMALL_KEY, DC_BOSS_KEY, DC_MAP, DC_C
 struct DungeonCell {
     DungeonCellKind kind;
     uint8_t scene; // the dungeonItems / dungeonKeys index (Ganon's boss key: SCENE_GANONS_TOWER)
+    const char* slotKey;
     const char* name;
     const char* label; // SoH's short name over the icon (DrawDungeonItem), or NULL
 };
 
-#define DSK(scene, dname, label) \
-    { DC_SMALL_KEY, (uint8_t)(scene), dname " Small Key", label }
-#define DBK(scene, dname) \
-    { DC_BOSS_KEY, (uint8_t)(scene), dname " Boss Key", nullptr }
-#define DMAP(scene, dname, label) \
-    { DC_MAP, (uint8_t)(scene), dname " Map", label }
-#define DCOMP(scene, dname) \
-    { DC_COMPASS, (uint8_t)(scene), dname " Compass", nullptr }
+#define DSK(slotKey, scene, dname, label) \
+    { DC_SMALL_KEY, (uint8_t)(scene), slotKey, dname " Small Key", label }
+#define DBK(slotKey, scene, dname) \
+    { DC_BOSS_KEY, (uint8_t)(scene), slotKey, dname " Boss Key", nullptr }
+#define DMAP(slotKey, scene, dname, label) \
+    { DC_MAP, (uint8_t)(scene), slotKey, dname " Map", label }
+#define DCOMP(slotKey, scene, dname) \
+    { DC_COMPASS, (uint8_t)(scene), slotKey, dname " Compass", nullptr }
 #define DPAD \
-    { DC_PAD, 0, "", nullptr }
+    { DC_PAD, 0, nullptr, "", nullptr }
 
 // GetDungeonItemsVector(itemTrackerDungeonsWithMapsCompact): six dungeons a block, column-major, an
 // ITEM_NONE blank under a shorter column, Thieves' Hideout patched into cell 35 (UpdateVectors).
 const DungeonCell kDungeonWithMaps[] = {
-    DSK(SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
-    DSK(SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
-    DSK(SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
-    DSK(SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
-    DSK(SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
-    DSK(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
-    DBK(SCENE_FOREST_TEMPLE, "Forest Temple"),
-    DBK(SCENE_FIRE_TEMPLE, "Fire Temple"),
-    DBK(SCENE_WATER_TEMPLE, "Water Temple"),
-    DBK(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
-    DBK(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
-    DMAP(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", nullptr),
-    DMAP(SCENE_FOREST_TEMPLE, "Forest Temple", nullptr),
-    DMAP(SCENE_FIRE_TEMPLE, "Fire Temple", nullptr),
-    DMAP(SCENE_WATER_TEMPLE, "Water Temple", nullptr),
-    DMAP(SCENE_SPIRIT_TEMPLE, "Spirit Temple", nullptr),
-    DMAP(SCENE_SHADOW_TEMPLE, "Shadow Temple", nullptr),
-    DCOMP(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well"),
-    DCOMP(SCENE_FOREST_TEMPLE, "Forest Temple"),
-    DCOMP(SCENE_FIRE_TEMPLE, "Fire Temple"),
-    DCOMP(SCENE_WATER_TEMPLE, "Water Temple"),
-    DCOMP(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
-    DCOMP(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DSK("small_key_forest", SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
+    DSK("small_key_fire", SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
+    DSK("small_key_water", SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
+    DSK("small_key_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
+    DSK("small_key_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
+    DSK("small_key_botw", SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
+    DBK("boss_key_forest", SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DBK("boss_key_fire", SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DBK("boss_key_water", SCENE_WATER_TEMPLE, "Water Temple"),
+    DBK("boss_key_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DBK("boss_key_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DMAP("map_botw", SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", nullptr),
+    DMAP("map_forest", SCENE_FOREST_TEMPLE, "Forest Temple", nullptr),
+    DMAP("map_fire", SCENE_FIRE_TEMPLE, "Fire Temple", nullptr),
+    DMAP("map_water", SCENE_WATER_TEMPLE, "Water Temple", nullptr),
+    DMAP("map_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple", nullptr),
+    DMAP("map_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple", nullptr),
+    DCOMP("compass_botw", SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well"),
+    DCOMP("compass_forest", SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DCOMP("compass_fire", SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DCOMP("compass_water", SCENE_WATER_TEMPLE, "Water Temple"),
+    DCOMP("compass_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DCOMP("compass_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple"),
     DPAD,
-    DMAP(SCENE_DEKU_TREE, "Deku Tree", "DEKU"),
-    DMAP(SCENE_DODONGOS_CAVERN, "Dodongo's Cavern", "DCVN"),
-    DMAP(SCENE_JABU_JABU, "Jabu-Jabu's Belly", "JABU"),
-    DMAP(SCENE_ICE_CAVERN, "Ice Cavern", "ICE"),
-    DSK(SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
-    DSK(SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
-    DCOMP(SCENE_DEKU_TREE, "Deku Tree"),
-    DCOMP(SCENE_DODONGOS_CAVERN, "Dodongo's Cavern"),
-    DCOMP(SCENE_JABU_JABU, "Jabu-Jabu's Belly"),
-    DCOMP(SCENE_ICE_CAVERN, "Ice Cavern"),
-    DBK(SCENE_GANONS_TOWER, "Ganon's Castle"),
-    DSK(SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
+    DMAP("map_deku", SCENE_DEKU_TREE, "Deku Tree", "DEKU"),
+    DMAP("map_dodongo", SCENE_DODONGOS_CAVERN, "Dodongo's Cavern", "DCVN"),
+    DMAP("map_jabu", SCENE_JABU_JABU, "Jabu-Jabu's Belly", "JABU"),
+    DMAP("map_ice", SCENE_ICE_CAVERN, "Ice Cavern", "ICE"),
+    DSK("small_key_ganon", SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
+    DSK("small_key_gtg", SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
+    DCOMP("compass_deku", SCENE_DEKU_TREE, "Deku Tree"),
+    DCOMP("compass_dodongo", SCENE_DODONGOS_CAVERN, "Dodongo's Cavern"),
+    DCOMP("compass_jabu", SCENE_JABU_JABU, "Jabu-Jabu's Belly"),
+    DCOMP("compass_ice", SCENE_ICE_CAVERN, "Ice Cavern"),
+    DBK("boss_key_ganon", SCENE_GANONS_TOWER, "Ganon's Castle"),
+    DSK("small_key_hideout", SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
 };
 
 // GetDungeonItemsVector(itemTrackerDungeonsCompact): the keys alone, the last three dungeons a block of three.
 const DungeonCell kDungeonKeysOnly[] = {
-    DSK(SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
-    DSK(SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
-    DSK(SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
-    DSK(SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
-    DSK(SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
-    DSK(SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
-    DBK(SCENE_FOREST_TEMPLE, "Forest Temple"),
-    DBK(SCENE_FIRE_TEMPLE, "Fire Temple"),
-    DBK(SCENE_WATER_TEMPLE, "Water Temple"),
-    DBK(SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
-    DBK(SCENE_SHADOW_TEMPLE, "Shadow Temple"),
-    DBK(SCENE_GANONS_TOWER, "Ganon's Castle"),
-    DSK(SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
-    DSK(SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
-    DSK(SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
+    DSK("small_key_forest", SCENE_FOREST_TEMPLE, "Forest Temple", "FRST"),
+    DSK("small_key_fire", SCENE_FIRE_TEMPLE, "Fire Temple", "FIRE"),
+    DSK("small_key_water", SCENE_WATER_TEMPLE, "Water Temple", "WATR"),
+    DSK("small_key_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple", "SPRT"),
+    DSK("small_key_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple", "SHDW"),
+    DSK("small_key_ganon", SCENE_INSIDE_GANONS_CASTLE, "Ganon's Castle", "GANON"),
+    DBK("boss_key_forest", SCENE_FOREST_TEMPLE, "Forest Temple"),
+    DBK("boss_key_fire", SCENE_FIRE_TEMPLE, "Fire Temple"),
+    DBK("boss_key_water", SCENE_WATER_TEMPLE, "Water Temple"),
+    DBK("boss_key_spirit", SCENE_SPIRIT_TEMPLE, "Spirit Temple"),
+    DBK("boss_key_shadow", SCENE_SHADOW_TEMPLE, "Shadow Temple"),
+    DBK("boss_key_ganon", SCENE_GANONS_TOWER, "Ganon's Castle"),
+    DSK("small_key_botw", SCENE_BOTTOM_OF_THE_WELL, "Bottom of the Well", "BOTW"),
+    DSK("small_key_gtg", SCENE_GERUDO_TRAINING_GROUND, "Gerudo Training Ground", "GTG"),
+    DSK("small_key_hideout", SCENE_THIEVES_HIDEOUT, "Thieves' Hideout", "HIDE"),
 };
 
 #undef DSK
@@ -729,6 +732,7 @@ int OoTItemKeyMax(const SaveContext* src, uint8_t scene) {
  *  the boss key, map and compass are bit (item - ITEM_KEY_BOSS) of dungeonItems. */
 void DeriveDungeonCell(const SaveContext* src, const DungeonCell& cell, const char* group, ComboItemRow* out) {
     out->group = group;
+    out->slotKey = cell.slotKey;
     out->name = cell.name;
     out->label = cell.label;
     switch (cell.kind) {
@@ -767,6 +771,7 @@ void DeriveDungeonCell(const SaveContext* src, const DungeonCell& cell, const ch
 // ---- the groups a randomizer file shows by its frozen options (#1142) --------------
 
 struct FlagRow {
+    const char* slotKey;
     const char* name;
     const char* label; // SoH's short name over the icon, or NULL
     RandomizerInf flag;
@@ -775,87 +780,94 @@ struct FlagRow {
     uint32_t family; // the shared-family slot this row is OoT's copy of (foreign_items.h), or 0
 };
 
-#define FLAG_ROW(name, label, flag, icon) \
-    { name, label, flag, #icon, #icon "_Faded", 0u }
+#define FLAG_ROW(slotKey, name, label, flag, icon) \
+    { slotKey, name, label, flag, #icon, #icon "_Faded", 0u }
 
-const FlagRow kGregRows[] = { FLAG_ROW("Greg the Green Rupee", nullptr, RAND_INF_GREG_FOUND, ITEM_RUPEE_GREEN) };
-const FlagRow kFishingPoleRows[] = { FLAG_ROW("Fishing Pole", nullptr, RAND_INF_FISHING_POLE_FOUND,
+const FlagRow kGregRows[] = { FLAG_ROW("greg", "Greg the Green Rupee", nullptr, RAND_INF_GREG_FOUND,
+                                       ITEM_RUPEE_GREEN) };
+const FlagRow kFishingPoleRows[] = { FLAG_ROW("fishing_pole", "Fishing Pole", nullptr, RAND_INF_FISHING_POLE_FOUND,
                                               ITEM_FISHING_POLE) };
 // beanSoulItems, drawn with the Magic Bean (ITEM_TRACKER_ITEM_CUSTOM) and itemTrackerBeanShortNames.
 const FlagRow kBeanSoulRows[] = {
-    FLAG_ROW("Death Mountain Crater Bean Soul", "DMC", RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Death Mountain Trail Bean Soul", "DMT", RAND_INF_DEATH_MOUNTAIN_TRAIL_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Desert Colossus Bean Soul", "DC", RAND_INF_DESERT_COLOSSUS_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Gerudo Valley Bean Soul", "GV", RAND_INF_GERUDO_VALLEY_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Graveyard Bean Soul", "GY", RAND_INF_GRAVEYARD_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Kokiri Forest Bean Soul", "KF", RAND_INF_KOKIRI_FOREST_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Lake Hylia Bean Soul", "LA", RAND_INF_LAKE_HYLIA_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Lost Woods Bridge Bean Soul", "LWB", RAND_INF_LOST_WOODS_BRIDGE_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Lost Woods Theatre Bean Soul", "LWT", RAND_INF_LOST_WOODS_BEAN_SOUL, ITEM_BEAN),
-    FLAG_ROW("Zora's River Bean Soul", "ZR", RAND_INF_ZORAS_RIVER_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_dmc", "Death Mountain Crater Bean Soul", "DMC", RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL,
+             ITEM_BEAN),
+    FLAG_ROW("bean_soul_dmt", "Death Mountain Trail Bean Soul", "DMT", RAND_INF_DEATH_MOUNTAIN_TRAIL_BEAN_SOUL,
+             ITEM_BEAN),
+    FLAG_ROW("bean_soul_dc", "Desert Colossus Bean Soul", "DC", RAND_INF_DESERT_COLOSSUS_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_gv", "Gerudo Valley Bean Soul", "GV", RAND_INF_GERUDO_VALLEY_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_gy", "Graveyard Bean Soul", "GY", RAND_INF_GRAVEYARD_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_kf", "Kokiri Forest Bean Soul", "KF", RAND_INF_KOKIRI_FOREST_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_lh", "Lake Hylia Bean Soul", "LA", RAND_INF_LAKE_HYLIA_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_lwb", "Lost Woods Bridge Bean Soul", "LWB", RAND_INF_LOST_WOODS_BRIDGE_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_lwt", "Lost Woods Theatre Bean Soul", "LWT", RAND_INF_LOST_WOODS_BEAN_SOUL, ITEM_BEAN),
+    FLAG_ROW("bean_soul_zr", "Zora's River Bean Soul", "ZR", RAND_INF_ZORAS_RIVER_BEAN_SOUL, ITEM_BEAN),
 };
 // bossSoulItems and itemTrackerBossShortNames; Ganon's is held unless the file shuffles it (OoTItemFlagHeld).
 const FlagRow kBossSoulRows[] = {
-    FLAG_ROW("Gohma's Soul", "GOHMA", RAND_INF_GOHMA_SOUL, RG_GOHMA_SOUL),
-    FLAG_ROW("King Dodongo's Soul", "KD", RAND_INF_KING_DODONGO_SOUL, RG_KING_DODONGO_SOUL),
-    FLAG_ROW("Barinade's Soul", "BARI", RAND_INF_BARINADE_SOUL, RG_BARINADE_SOUL),
-    FLAG_ROW("Phantom Ganon's Soul", "PG", RAND_INF_PHANTOM_GANON_SOUL, RG_PHANTOM_GANON_SOUL),
-    FLAG_ROW("Volvagia's Soul", "VOLV", RAND_INF_VOLVAGIA_SOUL, RG_VOLVAGIA_SOUL),
-    FLAG_ROW("Morpha's Soul", "MORPH", RAND_INF_MORPHA_SOUL, RG_MORPHA_SOUL),
-    FLAG_ROW("Bongo Bongo's Soul", "BONGO", RAND_INF_BONGO_BONGO_SOUL, RG_BONGO_BONGO_SOUL),
-    FLAG_ROW("Twinrova's Soul", "TWIN", RAND_INF_TWINROVA_SOUL, RG_TWINROVA_SOUL),
-    FLAG_ROW("Ganon's Soul", "GANON", RAND_INF_GANON_SOUL, RG_GANON_SOUL),
+    FLAG_ROW("boss_soul_gohma", "Gohma's Soul", "GOHMA", RAND_INF_GOHMA_SOUL, RG_GOHMA_SOUL),
+    FLAG_ROW("boss_soul_kd", "King Dodongo's Soul", "KD", RAND_INF_KING_DODONGO_SOUL, RG_KING_DODONGO_SOUL),
+    FLAG_ROW("boss_soul_bari", "Barinade's Soul", "BARI", RAND_INF_BARINADE_SOUL, RG_BARINADE_SOUL),
+    FLAG_ROW("boss_soul_pg", "Phantom Ganon's Soul", "PG", RAND_INF_PHANTOM_GANON_SOUL, RG_PHANTOM_GANON_SOUL),
+    FLAG_ROW("boss_soul_volv", "Volvagia's Soul", "VOLV", RAND_INF_VOLVAGIA_SOUL, RG_VOLVAGIA_SOUL),
+    FLAG_ROW("boss_soul_morph", "Morpha's Soul", "MORPH", RAND_INF_MORPHA_SOUL, RG_MORPHA_SOUL),
+    FLAG_ROW("boss_soul_bongo", "Bongo Bongo's Soul", "BONGO", RAND_INF_BONGO_BONGO_SOUL, RG_BONGO_BONGO_SOUL),
+    FLAG_ROW("boss_soul_twin", "Twinrova's Soul", "TWIN", RAND_INF_TWINROVA_SOUL, RG_TWINROVA_SOUL),
+    FLAG_ROW("boss_soul_ganon", "Ganon's Soul", "GANON", RAND_INF_GANON_SOUL, RG_GANON_SOUL),
 };
 // jabbernutItems (jabbernutMapping: the Deku Nut) and itemTrackerJabberNutShortNames.
 const FlagRow kJabberNutRows[] = {
-    FLAG_ROW("Deku Jabber Nut", "DEKU", RAND_INF_CAN_SPEAK_DEKU, RG_SPEAK_DEKU),
-    FLAG_ROW("Gerudo Jabber Nut", "GERUDO", RAND_INF_CAN_SPEAK_GERUDO, RG_SPEAK_GERUDO),
-    FLAG_ROW("Goron Jabber Nut", "GORON", RAND_INF_CAN_SPEAK_GORON, RG_SPEAK_GORON),
-    FLAG_ROW("Hylian Jabber Nut", "HYLIAN", RAND_INF_CAN_SPEAK_HYLIAN, RG_SPEAK_HYLIAN),
-    FLAG_ROW("Kokiri Jabber Nut", "KOKIRI", RAND_INF_CAN_SPEAK_KOKIRI, RG_SPEAK_KOKIRI),
-    FLAG_ROW("Zora Jabber Nut", "ZORA", RAND_INF_CAN_SPEAK_ZORA, RG_SPEAK_ZORA),
+    FLAG_ROW("jabber_deku", "Deku Jabber Nut", "DEKU", RAND_INF_CAN_SPEAK_DEKU, RG_SPEAK_DEKU),
+    FLAG_ROW("jabber_gerudo", "Gerudo Jabber Nut", "GERUDO", RAND_INF_CAN_SPEAK_GERUDO, RG_SPEAK_GERUDO),
+    FLAG_ROW("jabber_goron", "Goron Jabber Nut", "GORON", RAND_INF_CAN_SPEAK_GORON, RG_SPEAK_GORON),
+    FLAG_ROW("jabber_hylian", "Hylian Jabber Nut", "HYLIAN", RAND_INF_CAN_SPEAK_HYLIAN, RG_SPEAK_HYLIAN),
+    FLAG_ROW("jabber_kokiri", "Kokiri Jabber Nut", "KOKIRI", RAND_INF_CAN_SPEAK_KOKIRI, RG_SPEAK_KOKIRI),
+    FLAG_ROW("jabber_zora", "Zora Jabber Nut", "ZORA", RAND_INF_CAN_SPEAK_ZORA, RG_SPEAK_ZORA),
 };
 // ocarinaButtonItems, drawn with the Ocarina of Time, and itemTrackerOcarinaButtonShortNames. Each is OoT's
 // copy of a Shared Ocarina Buttons family slot (#1067), as MM's rows are.
 const FlagRow kOcarinaButtonRows[] = {
-    { "Ocarina A Button", "A", RAND_INF_HAS_OCARINA_A, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
+    { "ocarina_btn_a", "Ocarina A Button", "A", RAND_INF_HAS_OCARINA_A, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
       RSBS_XITEM_SHARED_OCARINA_BUTTONS },
-    { "Ocarina C Up Button", "C-U", RAND_INF_HAS_OCARINA_C_UP, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
-      RSBS_XFAMILY_SLOT_OCARINA_C_UP },
-    { "Ocarina C Down Button", "C-D", RAND_INF_HAS_OCARINA_C_DOWN, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
-      RSBS_XFAMILY_SLOT_OCARINA_C_DOWN },
-    { "Ocarina C Left Button", "C-L", RAND_INF_HAS_OCARINA_C_LEFT, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
-      RSBS_XFAMILY_SLOT_OCARINA_C_LEFT },
-    { "Ocarina C Right Button", "C-R", RAND_INF_HAS_OCARINA_C_RIGHT, "ITEM_OCARINA_TIME", "ITEM_OCARINA_TIME_Faded",
-      RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT },
+    { "ocarina_btn_c_up", "Ocarina C Up Button", "C-U", RAND_INF_HAS_OCARINA_C_UP, "ITEM_OCARINA_TIME",
+      "ITEM_OCARINA_TIME_Faded", RSBS_XFAMILY_SLOT_OCARINA_C_UP },
+    { "ocarina_btn_c_down", "Ocarina C Down Button", "C-D", RAND_INF_HAS_OCARINA_C_DOWN, "ITEM_OCARINA_TIME",
+      "ITEM_OCARINA_TIME_Faded", RSBS_XFAMILY_SLOT_OCARINA_C_DOWN },
+    { "ocarina_btn_c_left", "Ocarina C Left Button", "C-L", RAND_INF_HAS_OCARINA_C_LEFT, "ITEM_OCARINA_TIME",
+      "ITEM_OCARINA_TIME_Faded", RSBS_XFAMILY_SLOT_OCARINA_C_LEFT },
+    { "ocarina_btn_c_right", "Ocarina C Right Button", "C-R", RAND_INF_HAS_OCARINA_C_RIGHT, "ITEM_OCARINA_TIME",
+      "ITEM_OCARINA_TIME_Faded", RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT },
 };
 // overworldKeyItems, drawn with the small key, and itemTrackerOverworldKeyShortNames.
 const FlagRow kOverworldKeyRows[] = {
-    FLAG_ROW("Guard House Key", "GUARD", RAND_INF_GUARD_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Market Bazaar Key", "MKBAZ", RAND_INF_MARKET_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Market Potion Shop Key", "MKPOT", RAND_INF_MARKET_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Mask Shop Key", "MASK", RAND_INF_MASK_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Market Shooting Gallery Key", "MKSHO", RAND_INF_MARKET_SHOOTING_GALLERY_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Bombchu Bowling Key", "BOWL", RAND_INF_BOMBCHU_BOWLING_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Treasure Chest Game Building Key", "TREASU", RAND_INF_TREASURE_CHEST_GAME_BUILDING_KEY_OBTAINED,
+    FLAG_ROW("ow_key_guard", "Guard House Key", "GUARD", RAND_INF_GUARD_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_mkbaz", "Market Bazaar Key", "MKBAZ", RAND_INF_MARKET_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_mkpot", "Market Potion Shop Key", "MKPOT", RAND_INF_MARKET_POTION_SHOP_KEY_OBTAINED,
              ITEM_KEY_SMALL),
-    FLAG_ROW("Bombchu Shop Key", "CHUSHO", RAND_INF_BOMBCHU_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Richards House Key", "RICH", RAND_INF_RICHARDS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Alley House Key", "ALLEY", RAND_INF_ALLEY_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Kak Bazaar Key", "KAKBAZ", RAND_INF_KAK_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Kak Potion Shop Key", "KAKPO", RAND_INF_KAK_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Boss House Key", "BOSS", RAND_INF_BOSS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Granny's Potion Shop Key", "GRANNY", RAND_INF_GRANNYS_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Skulltula House Key", "SKULL", RAND_INF_SKULLTULA_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Impa's House Key", "IMPAS", RAND_INF_IMPAS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Windmill Key", "WIND", RAND_INF_WINDMILL_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Kak Shooting Gallery Key", "KAKSHO", RAND_INF_KAK_SHOOTING_GALLERY_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Dampe's Hut Key", "DAMPES", RAND_INF_DAMPES_HUT_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Talon's House Key", "TALONS", RAND_INF_TALONS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Stables Key", "STABLE", RAND_INF_STABLES_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Back Tower Key", "TOWER", RAND_INF_BACK_TOWER_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Hylia Lab Key", "LAB", RAND_INF_HYLIA_LAB_KEY_OBTAINED, ITEM_KEY_SMALL),
-    FLAG_ROW("Fishing Hole Key", "FISH", RAND_INF_FISHING_HOLE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_mask", "Mask Shop Key", "MASK", RAND_INF_MASK_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_mksho", "Market Shooting Gallery Key", "MKSHO", RAND_INF_MARKET_SHOOTING_GALLERY_KEY_OBTAINED,
+             ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_bowl", "Bombchu Bowling Key", "BOWL", RAND_INF_BOMBCHU_BOWLING_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_treasu", "Treasure Chest Game Building Key", "TREASU",
+             RAND_INF_TREASURE_CHEST_GAME_BUILDING_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_chusho", "Bombchu Shop Key", "CHUSHO", RAND_INF_BOMBCHU_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_rich", "Richards House Key", "RICH", RAND_INF_RICHARDS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_alley", "Alley House Key", "ALLEY", RAND_INF_ALLEY_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_kakbaz", "Kak Bazaar Key", "KAKBAZ", RAND_INF_KAK_BAZAAR_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_kakpo", "Kak Potion Shop Key", "KAKPO", RAND_INF_KAK_POTION_SHOP_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_boss", "Boss House Key", "BOSS", RAND_INF_BOSS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_granny", "Granny's Potion Shop Key", "GRANNY", RAND_INF_GRANNYS_POTION_SHOP_KEY_OBTAINED,
+             ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_skull", "Skulltula House Key", "SKULL", RAND_INF_SKULLTULA_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_impas", "Impa's House Key", "IMPAS", RAND_INF_IMPAS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_wind", "Windmill Key", "WIND", RAND_INF_WINDMILL_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_kaksho", "Kak Shooting Gallery Key", "KAKSHO", RAND_INF_KAK_SHOOTING_GALLERY_KEY_OBTAINED,
+             ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_dampes", "Dampe's Hut Key", "DAMPES", RAND_INF_DAMPES_HUT_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_talons", "Talon's House Key", "TALONS", RAND_INF_TALONS_HOUSE_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_stable", "Stables Key", "STABLE", RAND_INF_STABLES_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_tower", "Back Tower Key", "TOWER", RAND_INF_BACK_TOWER_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_lab", "Hylia Lab Key", "LAB", RAND_INF_HYLIA_LAB_KEY_OBTAINED, ITEM_KEY_SMALL),
+    FLAG_ROW("ow_key_fish", "Fishing Hole Key", "FISH", RAND_INF_FISHING_HOLE_KEY_OBTAINED, ITEM_KEY_SMALL),
 };
 
 #undef FLAG_ROW
@@ -926,6 +938,7 @@ bool OoTItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
         if (index < g.count) {
             const FlagRow& row = g.rows[index];
             out->group = g.group;
+            out->slotKey = row.slotKey;
             out->name = row.name;
             out->label = row.label;
             out->iconKey = row.key;
@@ -1026,6 +1039,96 @@ bool OoTItemRowAt(const void* buf, int index, ComboItemRow* out) {
         return true;
     }
     return OoTItemDeriveGated(src, index - kDungeonKeysOnlyCount, out);
+}
+
+constexpr int kDungeonCatalogCount = kDungeonWithMapsCount - 1; // 35 non-pad cells in kDungeonWithMaps
+constexpr int kGatedCatalogCount =
+    (int)(sizeof(kGregRows) / sizeof(kGregRows[0])) + (int)(sizeof(kFishingPoleRows) / sizeof(kFishingPoleRows[0])) +
+    (int)(sizeof(kBeanSoulRows) / sizeof(kBeanSoulRows[0])) + (int)(sizeof(kBossSoulRows) / sizeof(kBossSoulRows[0])) +
+    (int)(sizeof(kJabberNutRows) / sizeof(kJabberNutRows[0])) +
+    (int)(sizeof(kOcarinaButtonRows) / sizeof(kOcarinaButtonRows[0])) +
+    (int)(sizeof(kOverworldKeyRows) / sizeof(kOverworldKeyRows[0]));
+constexpr int kCatalogRowCount = kRowCount + kDungeonCatalogCount + kGatedCatalogCount;
+
+int OoTItemCatalogCount(void) {
+    return kCatalogRowCount;
+}
+
+bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
+    if (out == nullptr || catalogIndex < 0 || catalogIndex >= kCatalogRowCount) {
+        return false;
+    }
+    const bool hasSave = Aligned(buf) && OoTItemHasSave(buf);
+    SaveContext emptySave{};
+    if (!hasSave) {
+        std::memset(emptySave.inventory.items, ITEM_NONE, sizeof(emptySave.inventory.items));
+        std::memset(emptySave.inventory.dungeonKeys, 0xFF, sizeof(emptySave.inventory.dungeonKeys));
+    }
+    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : &emptySave;
+    const uint8_t freshness = out->freshness;
+    std::memset(out, 0, sizeof(*out));
+    out->freshness = freshness;
+
+    if (catalogIndex < kRowCount) {
+        if (!Derive(src, kRows[catalogIndex], out)) {
+            return false;
+        }
+        out->sharedFamily = OoTItemSharedFamily(kRows[catalogIndex]);
+        if (!hasSave) {
+            out->have = false;
+            out->count = 0;
+        }
+        return true;
+    }
+    catalogIndex -= kRowCount;
+
+    if (catalogIndex < kDungeonCatalogCount) {
+        int seen = 0;
+        for (int i = 0; i < kDungeonWithMapsCount; i++) {
+            if (kDungeonWithMaps[i].kind == DC_PAD) {
+                continue;
+            }
+            if (seen++ == catalogIndex) {
+                DeriveDungeonCell(src, kDungeonWithMaps[i], "Dungeon Items", out);
+                if (!hasSave) {
+                    out->have = false;
+                    out->count = 0;
+                    out->held = 0;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+    catalogIndex -= kDungeonCatalogCount;
+
+    const OoTItemSeed seed = OoTItemSeedRead();
+    for (const GatedGroup& g : kGatedGroups) {
+        if (catalogIndex < g.count) {
+            const FlagRow& row = g.rows[catalogIndex];
+            out->group = g.group;
+            out->slotKey = row.slotKey;
+            out->name = row.name;
+            out->label = row.label;
+            out->iconKey = row.key;
+            out->iconKeyFaded = row.faded;
+            out->sharedFamily = row.family;
+            if (!hasSave) {
+                out->have = false;
+            } else if (OoTItemGroupShown(src, seed, g)) {
+                out->have = OoTItemFlagHeld(src, seed, row);
+            } else {
+                // When a save is loaded and the shuffle option for a gated group
+                // (Boss Souls, Ocarina Buttons, Bean Souls, Jabber Nuts, Fishing
+                // Pole, Overworld Keys) is off, the item is unshuffled and held by
+                // default (matching 2Ship's !IsItemObtainable behavior).
+                out->have = g.option != RSK_NONE;
+            }
+            return true;
+        }
+        catalogIndex -= g.count;
+    }
+    return false;
 }
 
 } // namespace
@@ -1238,8 +1341,8 @@ extern "C" void OoT_ItemAdapter_Register(void) {
         kComboItemSohGrid.lineGapPx,    OoTItemGroupOwnLine,
     };
     static const ComboItemOps kOps = {
-        OoTItemCount,  OoTItemRowAt,      OoTItemHasSave,  OoTItemLiveSave,   OoTItemPaused,
-        &kOoTItemGrid, OoTItemSharedIcon, OoTItemCountFor, OoTItemSharedLive,
+        OoTItemCount,      OoTItemRowAt,    OoTItemHasSave,    OoTItemLiveSave,     OoTItemPaused,       &kOoTItemGrid,
+        OoTItemSharedIcon, OoTItemCountFor, OoTItemSharedLive, OoTItemCatalogCount, OoTItemCatalogRowAt,
     };
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, &kOps);
 }

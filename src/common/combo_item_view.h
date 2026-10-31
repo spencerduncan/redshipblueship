@@ -122,6 +122,11 @@ typedef struct {
                        // TRIFORCE: the hunt's total pieces
     int held;          // KEYS: the keys in hand (SoH's currentAmmo); `count` is the keys collected
     char identifier;   // the letter SoH's Hookshot Identifier draws on the icon ('H', 'L'); 0: none
+    // Customizable Item Tracker slot addressing and per-group layout:
+    const char*
+        slotKey; // stable, seed-independent item slug within its origin ("bow", "remains_odolwa", ...); NULL: none
+    uint8_t customCols; // 0: use the section's ComboItemGridStyle; 1..12: custom group's column width
+    bool customOwnLine; // true on the first slot of a custom group so ComboItemIconLayout starts a fresh line
 } ComboItemRow;
 
 /** What a row's `count` and `max` are, for SoH's count settings (#1143). */
@@ -218,6 +223,19 @@ typedef struct ComboItemOps {
     // Shared column shows a find made since the last save or crossing. May be NULL:
     // the column is then the pool alone.
     bool (*sharedLive)(const void* src, uint8_t kind, uint16_t* out);
+    // Full addressable catalog for the Customizable Item Tracker: every item this
+    // adapter can track, regardless of whether a save is loaded or whether gated
+    // shuffle options are on in the current seed. May be NULL.
+    int (*catalogCount)(void);
+    // Fill `out` for catalog item `catalogIndex` (0 .. catalogCount()-1). When
+    // `src` is NULL (no save loaded, or settings preview), fills static metadata
+    // (`group`, `name`, `label`, `slotKey`, `iconKey`, `iconKeyFaded`, `iconAspect`,
+    // `fadedAlpha`, `iconTint`, `countKind`, `max`) with `have = false`. When `src`
+    // is non-NULL, derives live/shadow ownership from `src`, and if the item belongs
+    // to a shuffle-gated group whose option is OFF in `src`, sets `out->have = true`
+    // (matching 2Ship's !IsItemObtainable rule so custom "Key Items" dungeon solver
+    // grids show unshuffled Boss Souls as obtained rather than missing).
+    bool (*catalogRowAt)(const void* src, int catalogIndex, ComboItemRow* out);
 } ComboItemOps;
 
 /**
@@ -329,6 +347,36 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
 /** The Shared section's grid: SoH's icons, four a line, so the pool stands as a
  *  column beside the two games' grids (#458 U3). */
 extern const ComboItemGridStyle kComboItemSharedGrid;
+
+// ============================================================================
+// Addressable item catalog (for the Customizable Item Tracker)
+// ============================================================================
+
+/** Total addressable catalog items for `game` (GAME_OOT or GAME_MM), regardless
+ *  of whether a save is loaded or whether gated options are on; 0 if unregistered. */
+int Combo_ItemCatalogCount(uint8_t game);
+
+/** Fill `out` with `game`'s catalog item `catalogIndex` (0 .. Combo_ItemCatalogCount(game)-1).
+ *  Uses the active live/shadow save when available (with unshuffled gated items
+ *  resolved as `have = true`), or static metadata with `have = false` when no
+ *  save is available. Never omits shared items so custom grids keep alignment. */
+bool Combo_ItemCatalogRowAt(uint8_t game, int catalogIndex, ComboItemRow* out);
+
+/** Fill `out` with `game`'s catalog item matching `slotKey` (e.g. "bow",
+ *  "remains_odolwa", "boss_soul_odolwa"). False if `slotKey` is NULL or unknown. */
+bool Combo_ItemCatalogRowByKey(uint8_t game, const char* slotKey, ComboItemRow* out);
+
+/** Total addressable catalog items in the Shared pool (resources + shared families). */
+int Combo_ItemSharedCatalogCount(void);
+
+/** Fill `out` with shared catalog item `catalogIndex` (0 .. Combo_ItemSharedCatalogCount()-1),
+ *  using `iconGame`'s icons (GAME_OOT or GAME_MM). Works both with and without an
+ *  active save/pool so the settings editor can preview all shared slots. */
+bool Combo_ItemSharedCatalogRowAt(int catalogIndex, uint8_t iconGame, ComboItemRow* out);
+
+/** Fill `out` with the shared catalog item matching `slotKey` (e.g. "rupees",
+ *  "lens", "ocarina_btn_a"). False if `slotKey` is NULL or unknown. */
+bool Combo_ItemSharedCatalogRowByKey(const char* slotKey, uint8_t iconGame, ComboItemRow* out);
 
 #ifdef __cplusplus
 }

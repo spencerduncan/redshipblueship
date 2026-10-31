@@ -14,14 +14,17 @@
 
 #include "ComboItemTrackerWindow.h"
 
+#include <algorithm>
 #include <cfloat>
 #include <cstdio>
 #include <cstring>
 
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <nlohmann/json.hpp>
 #include <fast/resource/ResourceType.h>
 #include <ship/Context.h>
+#include <ship/config/Config.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
 #include <ship/window/Window.h>
@@ -42,6 +45,11 @@ const ComboUiTable& Ui() {
 
 // Set by ComboItemTrackerResetPosition, consumed by the next floating draw (UI thread only).
 bool gResetPositionRequested = false;
+
+// Active customizable groups & layout across the 3 overlay columns.
+ComboItemTrackerLayout gCustomLayout;
+
+void CollectCustomSectionRows(int section, int sharedIconGame, std::vector<ComboItemRow>& out);
 
 // SoH's default overlay background (BeginFloatingWindows reads BgColor.Value
 // with { 0, 0, 0, 0 }): clear, so only the icons show over the game.
@@ -502,6 +510,12 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, i
         out.freshness = Combo_ItemSharedFreshness();
         out.note = Combo_ItemSharedLabel();
         out.grid = &kComboItemSharedGrid;
+        if (gCustomLayout.customEnabled[section]) {
+            if (out.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE) {
+                CollectCustomSectionRows(section, sharedIconGame, out.rows);
+            }
+            return;
+        }
         const int count = Combo_ItemSharedCount();
         for (int i = 0; i < count; i++) {
             const bool ok = (sharedIconGame == (int)GAME_OOT || sharedIconGame == (int)GAME_MM)
@@ -519,6 +533,12 @@ void ComboItemTrackerCollectSection(int section, ComboItemTrackerSection& out, i
     out.freshness = Combo_ItemFreshness(game);
     out.note = Combo_ItemFreshnessLabel(game, out.freshness);
     out.grid = Combo_ItemGridStyle(game);
+    if (gCustomLayout.customEnabled[section]) {
+        if (out.freshness != COMBO_TRACKER_FRESH_UNAVAILABLE) {
+            CollectCustomSectionRows(section, sharedIconGame, out.rows);
+        }
+        return;
+    }
     // #1141: a group the player hid is left out: MM's under its own key, OoT's
     // under SoH's DisplayType.<Section>.
     const ComboItemTrackerKeys keys = ComboReadItemTrackerKeys();
@@ -550,8 +570,9 @@ void ComboItemGridLayout(const std::vector<ComboItemRow>& rows, int columns, std
     int column = columns;
     const char* group = nullptr;
     for (const ComboItemRow& row : rows) {
-        const bool newGroup =
-            group == nullptr || row.group == nullptr || strcmp(row.group, group) != 0; // groups are never NULL
+        const bool newGroup = row.customCols > 0 ? (line < 0 || row.customOwnLine)
+                                                 : (group == nullptr || row.group == nullptr ||
+                                                    strcmp(row.group, group) != 0); // groups are never NULL
         if (column >= columns || newGroup) {
             line++;
             column = 0;
@@ -598,6 +619,18 @@ void ComboItemIconLayout(const std::vector<ComboItemRow>& rows, const ComboItemG
     const char* group = nullptr;
     bool groupOwnLine = false; // the previous row's group takes lines of its own (#1141)
     for (const ComboItemRow& row : rows) {
+        if (row.customCols > 0) {
+            if (line < 0 || row.customOwnLine || column >= (int)row.customCols) {
+                columns = (int)row.customCols;
+                line++;
+                column = 0;
+            }
+            out.push_back({ line, column });
+            column++;
+            group = row.group;
+            groupOwnLine = true;
+            continue;
+        }
         const bool newGroup = group == nullptr || row.group == nullptr || strcmp(row.group, group) != 0;
         const bool ownLine = grid.groupOwnLine != nullptr && row.group != nullptr && grid.groupOwnLine(row.group);
         if (line < 0 || (grid.groupLines && newGroup) || (newGroup && (ownLine || groupOwnLine))) {
@@ -1106,6 +1139,663 @@ void ComboItemTrackerWindow::DrawElement() {
     ImGui::EndTable();
 }
 
+// ============================================================================
+// Customizable Groups & Layout (2Ship-style Group & Slot Editor)
+// ============================================================================
+
+namespace {
+
+constexpr const char* kCustomLayoutConfigBlock = "ComboItemTrackerLayout";
+
+ComboItemTrackerSlot MakeSlot(uint8_t origin, const char* key) {
+    ComboItemTrackerSlot s;
+    if (key == nullptr || std::strcmp(key, "pad") == 0 || key[0] == '\0') {
+        s.origin = COMBO_SLOT_PAD;
+        s.key = "pad";
+    } else {
+        s.origin = origin;
+        s.key = key;
+    }
+    return s;
+}
+
+ComboItemTrackerGroup MakeMmKeyItemsGroup() {
+    ComboItemTrackerGroup g;
+    g.name = "Key Items";
+    g.section = COMBO_ITEM_SECTION_MM;
+    g.columns = 6;
+    g.autoHideUnshuffled = false;
+    static const char* const kSlots[] = {
+        // Woodfall Temple: Remains, Sonata, Boss Key, Small Key, Boss Soul, Stray Fairy
+        "remains_odolwa",
+        "song_sonata",
+        "boss_key_woodfall",
+        "small_key_woodfall",
+        "boss_soul_odolwa",
+        "fairy_woodfall",
+        // Snowhead Temple: Remains, Lullaby, Boss Key, Small Key, Boss Soul, Stray Fairy
+        "remains_goht",
+        "song_lullaby",
+        "boss_key_snowhead",
+        "small_key_snowhead",
+        "boss_soul_goht",
+        "fairy_snowhead",
+        // Great Bay Temple: Remains, Bossa Nova, Boss Key, Small Key, Boss Soul, Stray Fairy
+        "remains_gyorg",
+        "song_bossa_nova",
+        "boss_key_great_bay",
+        "small_key_great_bay",
+        "boss_soul_gyorg",
+        "fairy_great_bay",
+        // Stone Tower Temple: Remains, Elegy, Boss Key, Small Key, Boss Soul, Stray Fairy
+        "remains_twinmold",
+        "song_elegy",
+        "boss_key_stone_tower",
+        "small_key_stone_tower",
+        "boss_soul_twinmold",
+        "fairy_stone_tower",
+        // Endgame / Clock Town: Oath to Order, Majora's Soul, Clock Town Stray Fairy
+        "song_oath",
+        "boss_soul_majora",
+        "fairy_clock_town",
+    };
+    for (const char* k : kSlots) {
+        g.slots.push_back(MakeSlot(COMBO_SLOT_MM, k));
+    }
+    return g;
+}
+
+ComboItemTrackerGroup MakeOotKeyItemsGroup() {
+    ComboItemTrackerGroup g;
+    g.name = "Key Items";
+    g.section = COMBO_ITEM_SECTION_OOT;
+    g.columns = 5;
+    g.autoHideUnshuffled = false;
+    static const char* const kSlots[] = {
+        // Deku Tree: Emerald, Minuet, Pad, Pad, Gohma's Soul
+        "emerald",
+        "song_minuet",
+        "pad",
+        "pad",
+        "boss_soul_gohma",
+        // Dodongo's Cavern: Ruby, Bolero, Pad, Pad, King Dodongo's Soul
+        "ruby",
+        "song_bolero",
+        "pad",
+        "pad",
+        "boss_soul_kd",
+        // Jabu-Jabu's Belly: Sapphire, Serenade, Pad, Pad, Barinade's Soul
+        "sapphire",
+        "song_serenade",
+        "pad",
+        "pad",
+        "boss_soul_bari",
+        // Forest Temple: Medallion, Minuet, Small Key, Boss Key, Phantom Ganon's Soul
+        "medallion_forest",
+        "song_minuet",
+        "small_key_forest",
+        "boss_key_forest",
+        "boss_soul_pg",
+        // Fire Temple: Medallion, Bolero, Small Key, Boss Key, Volvagia's Soul
+        "medallion_fire",
+        "song_bolero",
+        "small_key_fire",
+        "boss_key_fire",
+        "boss_soul_volv",
+        // Water Temple: Medallion, Serenade, Small Key, Boss Key, Morpha's Soul
+        "medallion_water",
+        "song_serenade",
+        "small_key_water",
+        "boss_key_water",
+        "boss_soul_morph",
+        // Spirit Temple: Medallion, Requiem, Small Key, Boss Key, Twinrova's Soul
+        "medallion_spirit",
+        "song_requiem",
+        "small_key_spirit",
+        "boss_key_spirit",
+        "boss_soul_twin",
+        // Shadow Temple: Medallion, Nocturne, Small Key, Boss Key, Bongo Bongo's Soul
+        "medallion_shadow",
+        "song_nocturne",
+        "small_key_shadow",
+        "boss_key_shadow",
+        "boss_soul_bongo",
+        // Light / Ganon's Castle: Medallion, Prelude, Small Key, Boss Key, Ganon's Soul
+        "medallion_light",
+        "song_prelude",
+        "small_key_ganon",
+        "boss_key_ganon",
+        "boss_soul_ganon",
+        // Mini-Dungeons: BotW, GTG, Thieves' Hideout, Gerudo Card, Light Arrows
+        "small_key_botw",
+        "small_key_gtg",
+        "small_key_hideout",
+        "gerudo_card",
+        "arrow_light",
+    };
+    for (const char* k : kSlots) {
+        g.slots.push_back(MakeSlot(COMBO_SLOT_OOT, k));
+    }
+    return g;
+}
+
+bool IsGatedGroupName(uint8_t game, const char* groupName) {
+    if (groupName == nullptr) {
+        return false;
+    }
+    if (game == (uint8_t)GAME_MM) {
+        static const char* const kMmGated[] = {
+            "Ocarina Buttons", "Boss Souls", "Enemy Souls", "Owl Statues", "Time", "Misc",
+        };
+        for (const char* g : kMmGated) {
+            if (std::strcmp(groupName, g) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+    static const char* const kOotGated[] = {
+        "Greg", "Fishing Pole", "Bean Souls", "Boss Souls", "Jabber Nuts", "Ocarina Buttons", "Overworld Keys",
+    };
+    for (const char* g : kOotGated) {
+        if (std::strcmp(groupName, g) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void BuildCatalogGroupsForGame(int section, std::vector<ComboItemTrackerGroup>& out, bool includeDungeonTable) {
+    const uint8_t game = section == COMBO_ITEM_SECTION_MM ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+    const uint8_t origin = section == COMBO_ITEM_SECTION_MM ? (uint8_t)COMBO_SLOT_MM : (uint8_t)COMBO_SLOT_OOT;
+    const ComboItemGridStyle* grid = Combo_ItemGridStyle(game);
+    const int count = Combo_ItemCatalogCount(game);
+    for (int i = 0; i < count; i++) {
+        ComboItemRow row{};
+        if (!Combo_ItemCatalogRowAt(game, i, &row) || row.group == nullptr || row.slotKey == nullptr) {
+            continue;
+        }
+        if (!includeDungeonTable && game == (uint8_t)GAME_OOT && std::strcmp(row.group, "Dungeon Items") == 0) {
+            continue;
+        }
+        ComboItemTrackerGroup* target = nullptr;
+        for (ComboItemTrackerGroup& existing : out) {
+            if (existing.name == row.group) {
+                target = &existing;
+                break;
+            }
+        }
+        if (target == nullptr) {
+            ComboItemTrackerGroup g;
+            g.name = row.group;
+            g.section = section;
+            g.columns = (grid != nullptr && grid->groupColumns != nullptr) ? grid->groupColumns(row.group)
+                        : (grid != nullptr && grid->columns > 0)           ? grid->columns
+                                                                           : 6;
+            g.autoHideUnshuffled = IsGatedGroupName(game, row.group);
+            out.push_back(std::move(g));
+            target = &out.back();
+        }
+        // Preserve SoH's 24th-cell spacer in "Dungeon Items" so its 6x6 compact table aligns.
+        if (game == (uint8_t)GAME_OOT && target->name == "Dungeon Items" && target->slots.size() == 23) {
+            target->slots.push_back(MakeSlot(COMBO_SLOT_PAD, "pad"));
+        }
+        target->slots.push_back(MakeSlot(origin, row.slotKey));
+    }
+}
+
+bool IsGameSlotActiveInSeed(uint8_t game, const std::string& slotKey) {
+    const int count = Combo_ItemCount(game);
+    ComboItemRow row{};
+    for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
+        if (row.slotKey != nullptr && slotKey == row.slotKey) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool IsSharedSlotActiveInSeed(const std::string& slotKey) {
+    const int count = Combo_ItemSharedCount();
+    ComboItemRow row{};
+    for (int i = 0; i < count && Combo_ItemSharedRowAt(i, &row); i++) {
+        if (row.slotKey != nullptr && slotKey == row.slotKey) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void CollectCustomSectionRows(int section, int sharedIconGame, std::vector<ComboItemRow>& out) {
+    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+        for (const ComboItemTrackerGroup& group : gCustomLayout.activeGroups[s]) {
+            if (group.section != section) {
+                continue;
+            }
+            ComboItemTrackerResolveGroupRows(group, sharedIconGame, true, out);
+        }
+    }
+}
+
+} // namespace
+
+void ComboItemTrackerDefaultActiveGroups(int section, std::vector<ComboItemTrackerGroup>& out) {
+    out.clear();
+    if (section == COMBO_ITEM_SECTION_SHARED) {
+        ComboItemTrackerGroup g;
+        g.name = COMBO_ITEM_SHARED_GROUP;
+        g.section = COMBO_ITEM_SECTION_SHARED;
+        g.columns = kComboItemSharedGrid.columns;
+        g.autoHideUnshuffled = true;
+        const int count = Combo_ItemSharedCatalogCount();
+        for (int i = 0; i < count; i++) {
+            ComboItemRow row{};
+            if (Combo_ItemSharedCatalogRowAt(i, (uint8_t)GAME_OOT, &row) && row.slotKey != nullptr) {
+                g.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, row.slotKey));
+            }
+        }
+        out.push_back(std::move(g));
+        return;
+    }
+    if (section == COMBO_ITEM_SECTION_MM || section == COMBO_ITEM_SECTION_OOT) {
+        BuildCatalogGroupsForGame(section, out, section == COMBO_ITEM_SECTION_MM);
+    }
+}
+
+void ComboItemTrackerAvailableGroups(int section, std::vector<ComboItemTrackerGroup>& out) {
+    out.clear();
+    if (section == COMBO_ITEM_SECTION_MM) {
+        out.push_back(MakeMmKeyItemsGroup());
+        BuildCatalogGroupsForGame(COMBO_ITEM_SECTION_MM, out, true);
+        return;
+    }
+    if (section == COMBO_ITEM_SECTION_OOT) {
+        out.push_back(MakeOotKeyItemsGroup());
+        BuildCatalogGroupsForGame(COMBO_ITEM_SECTION_OOT, out, true);
+        // Also provide the keys-only compact dungeon group in Available Groups.
+        ComboItemTrackerGroup keysOnly;
+        keysOnly.name = "Dungeon Keys";
+        keysOnly.section = COMBO_ITEM_SECTION_OOT;
+        keysOnly.columns = 6;
+        keysOnly.autoHideUnshuffled = false;
+        static const char* const kKeysOnlySlots[] = {
+            "small_key_forest", "small_key_fire",  "small_key_water", "small_key_spirit", "small_key_shadow",
+            "small_key_ganon",  "boss_key_forest", "boss_key_fire",   "boss_key_water",   "boss_key_spirit",
+            "boss_key_shadow",  "boss_key_ganon",  "small_key_botw",  "small_key_gtg",    "small_key_hideout",
+        };
+        for (const char* k : kKeysOnlySlots) {
+            keysOnly.slots.push_back(MakeSlot(COMBO_SLOT_OOT, k));
+        }
+        out.push_back(std::move(keysOnly));
+        return;
+    }
+    if (section == COMBO_ITEM_SECTION_SHARED) {
+        ComboItemTrackerDefaultActiveGroups(COMBO_ITEM_SECTION_SHARED, out);
+        ComboItemTrackerGroup resources;
+        resources.name = "Shared Resources & Gear";
+        resources.section = COMBO_ITEM_SECTION_SHARED;
+        resources.columns = 4;
+        resources.autoHideUnshuffled = false;
+        static const char* const kResSlots[] = {
+            "rupees",   "wallet", "hearts", "heart_pieces", "double_defense", "magic",   "arrows",          "bombs",
+            "bombchus", "sticks", "nuts",   "hookshot",     "sword_kokiri",   "bottles", "triforce_pieces",
+        };
+        for (const char* k : kResSlots) {
+            resources.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, k));
+        }
+        out.push_back(std::move(resources));
+
+        ComboItemTrackerGroup songsAndBtns;
+        songsAndBtns.name = "Shared Songs & Buttons";
+        songsAndBtns.section = COMBO_ITEM_SECTION_SHARED;
+        songsAndBtns.columns = 4;
+        songsAndBtns.autoHideUnshuffled = false;
+        static const char* const kSongBtnSlots[] = {
+            "song_epona",         "song_storms",         "song_time",          "ocarina_btn_a",
+            "ocarina_btn_c_down", "ocarina_btn_c_right", "ocarina_btn_c_left", "ocarina_btn_c_up",
+        };
+        for (const char* k : kSongBtnSlots) {
+            songsAndBtns.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, k));
+        }
+        out.push_back(std::move(songsAndBtns));
+
+        ComboItemTrackerGroup masksAndArrows;
+        masksAndArrows.name = "Shared Masks & Arrows";
+        masksAndArrows.section = COMBO_ITEM_SECTION_SHARED;
+        masksAndArrows.columns = 4;
+        masksAndArrows.autoHideUnshuffled = false;
+        static const char* const kMaskArrowSlots[] = {
+            "lens",      "arrow_fire", "arrow_ice",   "arrow_light", "mask_goron",
+            "mask_zora", "mask_bunny", "mask_keaton", "mask_truth",
+        };
+        for (const char* k : kMaskArrowSlots) {
+            masksAndArrows.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, k));
+        }
+        out.push_back(std::move(masksAndArrows));
+    }
+}
+
+void ComboItemTrackerApplySolverPreset(int section) {
+    if (section == COMBO_ITEM_SECTION_MM) {
+        std::vector<ComboItemTrackerGroup> catalog;
+        BuildCatalogGroupsForGame(COMBO_ITEM_SECTION_MM, catalog, true);
+        auto findCat = [&](const char* name) -> const ComboItemTrackerGroup* {
+            for (const auto& g : catalog) {
+                if (g.name == name) {
+                    return &g;
+                }
+            }
+            return nullptr;
+        };
+
+        std::vector<ComboItemTrackerGroup> groups;
+        // 1. Time (auto-hidden when Clock Shuffle is off; 6 wide at the top when on, matching 2Ship screenshot)
+        if (const auto* timeGrp = findCat("Time")) {
+            groups.push_back(*timeGrp);
+        }
+        // 2. Key Items (Dungeon Solver: 6 wide [Remains, Song, Boss Key, Small Key, Boss Soul, Stray Fairy])
+        groups.push_back(MakeMmKeyItemsGroup());
+        // 3. Inventory (with non-dungeon Quest upgrades appended, matching the 2Ship screenshot)
+        if (const auto* invGrp = findCat("Inventory")) {
+            ComboItemTrackerGroup inv = *invGrp;
+            inv.columns = 6;
+            static const char* const kQuestUpgrades[] = {
+                "bombers_notebook", "wallet", "sword", "shield", "magic", "double_defense", "heart_pieces",
+            };
+            for (const char* k : kQuestUpgrades) {
+                inv.slots.push_back(MakeSlot(COMBO_SLOT_MM, k));
+            }
+            groups.push_back(std::move(inv));
+        }
+        // 4. Masks
+        if (const auto* masksGrp = findCat("Masks")) {
+            groups.push_back(*masksGrp);
+        }
+        // 5. Remaining utility Songs (Time, Healing, Epona, Soaring, Storms)
+        {
+            ComboItemTrackerGroup songs;
+            songs.name = "Songs";
+            songs.section = COMBO_ITEM_SECTION_MM;
+            songs.columns = 5;
+            songs.autoHideUnshuffled = false;
+            for (const char* k : { "song_time", "song_healing", "song_epona", "song_soaring", "song_storms" }) {
+                songs.slots.push_back(MakeSlot(COMBO_SLOT_MM, k));
+            }
+            groups.push_back(std::move(songs));
+        }
+        // 6. Tokens & Remaining Gated Groups (Ocarina Buttons, Owl Statues, Enemy Souls, Misc)
+        for (const char* name : { "Tokens", "Ocarina Buttons", "Owl Statues", "Enemy Souls", "Misc" }) {
+            if (const auto* g = findCat(name)) {
+                groups.push_back(*g);
+            }
+        }
+        gCustomLayout.customEnabled[COMBO_ITEM_SECTION_MM] = true;
+        gCustomLayout.activeGroups[COMBO_ITEM_SECTION_MM] = std::move(groups);
+        ComboItemTrackerSaveLayoutToConfig();
+        return;
+    }
+
+    if (section == COMBO_ITEM_SECTION_OOT) {
+        std::vector<ComboItemTrackerGroup> catalog;
+        BuildCatalogGroupsForGame(COMBO_ITEM_SECTION_OOT, catalog, true);
+        auto findCat = [&](const char* name) -> const ComboItemTrackerGroup* {
+            for (const auto& g : catalog) {
+                if (g.name == name) {
+                    return &g;
+                }
+            }
+            return nullptr;
+        };
+
+        std::vector<ComboItemTrackerGroup> groups;
+        // 1. Key Items (Dungeon Solver: 5 wide [Reward, Warp Song, Small Key, Boss Key, Boss Soul])
+        groups.push_back(MakeOotKeyItemsGroup());
+        // 2. Inventory
+        if (const auto* invGrp = findCat("Inventory")) {
+            groups.push_back(*invGrp);
+        }
+        // 3. Equipment & Misc
+        if (const auto* eqGrp = findCat("Equipment")) {
+            groups.push_back(*eqGrp);
+        }
+        if (const auto* miscGrp = findCat("Misc")) {
+            groups.push_back(*miscGrp);
+        }
+        // 4. Non-warp Songs
+        {
+            ComboItemTrackerGroup songs;
+            songs.name = "Songs";
+            songs.section = COMBO_ITEM_SECTION_OOT;
+            songs.columns = 6;
+            songs.autoHideUnshuffled = false;
+            for (const char* k :
+                 { "song_lullaby", "song_epona", "song_saria", "song_sun", "song_time", "song_storms" }) {
+                songs.slots.push_back(MakeSlot(COMBO_SLOT_OOT, k));
+            }
+            groups.push_back(std::move(songs));
+        }
+        // 5. Gated Groups (auto-hidden unless shuffled)
+        for (const char* name :
+             { "Greg", "Fishing Pole", "Bean Souls", "Jabber Nuts", "Ocarina Buttons", "Overworld Keys" }) {
+            if (const auto* g = findCat(name)) {
+                groups.push_back(*g);
+            }
+        }
+        gCustomLayout.customEnabled[COMBO_ITEM_SECTION_OOT] = true;
+        gCustomLayout.activeGroups[COMBO_ITEM_SECTION_OOT] = std::move(groups);
+        ComboItemTrackerSaveLayoutToConfig();
+    }
+}
+
+bool ComboItemTrackerResolveSlot(const ComboItemTrackerSlot& slot, int sharedIconGame, ComboItemRow* out) {
+    if (out == nullptr) {
+        return false;
+    }
+    *out = ComboItemRow{};
+    if (slot.origin == COMBO_SLOT_PAD || slot.key.empty() || slot.key == "pad") {
+        out->name = "";
+        out->group = "";
+        out->slotKey = "pad";
+        out->pad = true;
+        return true;
+    }
+    if (slot.origin == COMBO_SLOT_OOT) {
+        return Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, slot.key.c_str(), out);
+    }
+    if (slot.origin == COMBO_SLOT_MM) {
+        return Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, slot.key.c_str(), out);
+    }
+    if (slot.origin == COMBO_SLOT_SHARED) {
+        const uint8_t iconGame = (sharedIconGame == (int)GAME_OOT || sharedIconGame == (int)GAME_MM)
+                                     ? (uint8_t)sharedIconGame
+                                     : (uint8_t)Context_GetCurrentGame();
+        return Combo_ItemSharedCatalogRowByKey(slot.key.c_str(), iconGame, out);
+    }
+    return false;
+}
+
+void ComboItemTrackerResolveGroupRows(const ComboItemTrackerGroup& group, int sharedIconGame, bool filterActive,
+                                      std::vector<ComboItemRow>& out) {
+    if (group.slots.empty()) {
+        return;
+    }
+    if (filterActive && group.autoHideUnshuffled) {
+        bool anyGameSlot = false;
+        bool anyActiveGameSlot = false;
+        for (const ComboItemTrackerSlot& slot : group.slots) {
+            if (slot.origin == COMBO_SLOT_OOT || slot.origin == COMBO_SLOT_MM) {
+                anyGameSlot = true;
+                const uint8_t game = slot.origin == COMBO_SLOT_MM ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+                if (IsGameSlotActiveInSeed(game, slot.key)) {
+                    anyActiveGameSlot = true;
+                    break;
+                }
+            }
+        }
+        if (anyGameSlot && !anyActiveGameSlot) {
+            return;
+        }
+    }
+
+    const int cols = group.columns < kComboItemTrackerGroupColumnsMin   ? kComboItemTrackerGroupColumnsMin
+                     : group.columns > kComboItemTrackerGroupColumnsMax ? kComboItemTrackerGroupColumnsMax
+                                                                        : group.columns;
+    bool firstInGroup = true;
+    for (const ComboItemTrackerSlot& slot : group.slots) {
+        if (filterActive && group.autoHideUnshuffled && slot.origin == COMBO_SLOT_SHARED) {
+            if (!IsSharedSlotActiveInSeed(slot.key)) {
+                continue;
+            }
+        }
+        ComboItemRow row{};
+        if (!ComboItemTrackerResolveSlot(slot, sharedIconGame, &row)) {
+            continue;
+        }
+        row.customCols = (uint8_t)cols;
+        row.customOwnLine = firstInGroup;
+        firstInGroup = false;
+        out.push_back(row);
+    }
+}
+
+const ComboItemTrackerLayout& ComboItemTrackerGetLayout() {
+    return gCustomLayout;
+}
+
+void ComboItemTrackerSetLayout(const ComboItemTrackerLayout& layout) {
+    gCustomLayout = layout;
+}
+
+void ComboItemTrackerRestoreDefaultLayout(int section) {
+    if (section < 0) {
+        gCustomLayout = ComboItemTrackerLayout{};
+    } else if (section >= 0 && section < COMBO_ITEM_SECTION_COUNT) {
+        gCustomLayout.customEnabled[section] = false;
+        gCustomLayout.activeGroups[section].clear();
+    }
+    ComboItemTrackerSaveLayoutToConfig();
+}
+
+std::string ComboItemTrackerLayoutToJson(const ComboItemTrackerLayout& layout) {
+    nlohmann::json root = nlohmann::json::object();
+    root["version"] = 1;
+    nlohmann::json enabledArr = nlohmann::json::array();
+    nlohmann::json sectionsArr = nlohmann::json::array();
+    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+        enabledArr.push_back(layout.customEnabled[s]);
+        nlohmann::json groupsArr = nlohmann::json::array();
+        for (const ComboItemTrackerGroup& g : layout.activeGroups[s]) {
+            nlohmann::json gj = nlohmann::json::object();
+            gj["name"] = g.name;
+            gj["section"] = g.section;
+            gj["columns"] = g.columns;
+            gj["autoHideUnshuffled"] = g.autoHideUnshuffled;
+            nlohmann::json slotsArr = nlohmann::json::array();
+            for (const ComboItemTrackerSlot& slot : g.slots) {
+                nlohmann::json sj = nlohmann::json::object();
+                sj["origin"] = slot.origin;
+                sj["key"] = slot.key;
+                slotsArr.push_back(std::move(sj));
+            }
+            gj["slots"] = std::move(slotsArr);
+            groupsArr.push_back(std::move(gj));
+        }
+        sectionsArr.push_back(std::move(groupsArr));
+    }
+    root["customEnabled"] = std::move(enabledArr);
+    root["activeGroups"] = std::move(sectionsArr);
+    return root.dump();
+}
+
+bool ComboItemTrackerLayoutFromJson(const std::string& jsonStr, ComboItemTrackerLayout& out) {
+    if (jsonStr.empty()) {
+        return false;
+    }
+    const nlohmann::json root = nlohmann::json::parse(jsonStr, nullptr, false);
+    if (root.is_discarded() || !root.is_object()) {
+        return false;
+    }
+    ComboItemTrackerLayout parsed{};
+    if (root.contains("customEnabled") && root["customEnabled"].is_array()) {
+        const auto& arr = root["customEnabled"];
+        for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < arr.size(); s++) {
+            if (arr[(size_t)s].is_boolean()) {
+                parsed.customEnabled[s] = arr[(size_t)s].get<bool>();
+            }
+        }
+    }
+    if (root.contains("activeGroups") && root["activeGroups"].is_array()) {
+        const auto& secArr = root["activeGroups"];
+        for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < secArr.size(); s++) {
+            if (!secArr[(size_t)s].is_array()) {
+                continue;
+            }
+            for (const auto& gj : secArr[(size_t)s]) {
+                if (!gj.is_object()) {
+                    continue;
+                }
+                ComboItemTrackerGroup g;
+                g.name = gj.value("name", std::string("Group"));
+                g.section = std::clamp(gj.value("section", s), 0, COMBO_ITEM_SECTION_COUNT - 1);
+                g.columns = std::clamp(gj.value("columns", 6), kComboItemTrackerGroupColumnsMin,
+                                       kComboItemTrackerGroupColumnsMax);
+                g.autoHideUnshuffled = gj.value("autoHideUnshuffled", false);
+                if (gj.contains("slots") && gj["slots"].is_array()) {
+                    for (const auto& sj : gj["slots"]) {
+                        if (!sj.is_object()) {
+                            continue;
+                        }
+                        ComboItemTrackerSlot slot;
+                        slot.origin = (uint8_t)std::clamp(sj.value("origin", 0), 0, 3);
+                        slot.key = sj.value("key", std::string("pad"));
+                        g.slots.push_back(std::move(slot));
+                    }
+                }
+                parsed.activeGroups[s].push_back(std::move(g));
+            }
+        }
+    }
+    out = std::move(parsed);
+    return true;
+}
+
+bool ComboItemTrackerLoadLayoutFromConfig() {
+    auto ctx = Ship::Context::GetInstance();
+    auto cfg = ctx != nullptr ? ctx->GetConfig() : nullptr;
+    if (cfg == nullptr) {
+        return false;
+    }
+    const auto& nested = cfg->GetNestedJson();
+    if (!nested.is_object() || !nested.contains(kCustomLayoutConfigBlock)) {
+        return false;
+    }
+    const auto& block = nested[kCustomLayoutConfigBlock];
+    if (!block.is_object()) {
+        return false;
+    }
+    ComboItemTrackerLayout loaded;
+    if (!ComboItemTrackerLayoutFromJson(block.dump(), loaded)) {
+        return false;
+    }
+    gCustomLayout = std::move(loaded);
+    return true;
+}
+
+bool ComboItemTrackerSaveLayoutToConfig() {
+    auto ctx = Ship::Context::GetInstance();
+    auto cfg = ctx != nullptr ? ctx->GetConfig() : nullptr;
+    if (cfg == nullptr) {
+        return false;
+    }
+    const nlohmann::json block = nlohmann::json::parse(ComboItemTrackerLayoutToJson(gCustomLayout), nullptr, false);
+    if (block.is_discarded()) {
+        return false;
+    }
+    cfg->SetBlock(kCustomLayoutConfigBlock, block);
+    cfg->Save();
+    return true;
+}
+
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {
     if (gui == nullptr) {
         return;
@@ -1115,6 +1805,7 @@ void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {
     if (ComboItemTrackerCarryRetiredKeys() > 0) {
         gui->SaveConsoleVariablesNextFrame();
     }
+    ComboItemTrackerLoadLayoutFromConfig();
     // Idempotence, the #457 guard (AddGuiWindow rejects duplicates silently).
     if (gui->GetGuiWindow(kComboItemTrackerWindowName) != nullptr) {
         return;
