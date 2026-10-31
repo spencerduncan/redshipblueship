@@ -219,19 +219,35 @@ def _win_probe(pid: int) -> tuple[bool, str | None]:
 
 
 def _posix_probe(pid: int) -> tuple[bool, str | None]:
+    eperm = False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False, None
     except PermissionError:
-        pass  # exists, owned by someone else
+        eperm = True  # exists, owned by someone else
     except OSError:
         return False, None
     stat = Path(f"/proc/{pid}/stat")
     try:
         raw = stat.read_text()
     except OSError:
-        return True, None
+        # No /proc (macOS, BSD): kill(pid, 0) succeeds on a zombie, so ask ps.
+        try:
+            out = subprocess.run(
+                ["ps", "-o", "stat=", "-o", "lstart=", "-p", str(pid)],
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+        except OSError:
+            return True, None
+        if not out:
+            return eperm, None
+        state, *start = out.split(None, 1)
+        if state.startswith(("Z", "X")):
+            return False, None
+        token = f"posix:{'_'.join(start[0].split())}" if start else None
+        return True, token
     # Field 2 (comm) may contain spaces and parentheses; everything after the
     # LAST ')' is space-separated starting at field 3 (state).
     rest = raw[raw.rfind(")") + 2 :].split()
