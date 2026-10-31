@@ -112,10 +112,6 @@ jobs:
         retention-days: 3
 
   build-macos:
-    # DISABLED: macOS build is currently broken - see GitHub issue for tracking
-    # Error: OoT shared library not linking against libultraship properly
-    # Re-enable once issue is resolved
-    if: false
     needs: generate-rsbs-otr
     runs-on: macos-14
     steps:
@@ -180,7 +176,8 @@ jobs:
     - name: Build SoH
       run: |
         export PATH="/usr/lib/ccache:/opt/homebrew/opt/ccache/libexec:/usr/local/opt/ccache/libexec:$PATH"
-        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_REMOTE_CONTROL=1
+        export PKG_CONFIG_PATH="/opt/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_PREFIX_PATH=/opt/local -DBUILD_REMOTE_CONTROL=1
         cmake --build build-cmake --config Release --parallel 10
         (cd build-cmake && cpack)
 

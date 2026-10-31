@@ -592,7 +592,11 @@ add_custom_target(CreateOSXIcons
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Creating OSX icons ..."
     )
-add_dependencies(soh CreateOSXIcons)
+if(SINGLE_EXECUTABLE_BUILD)
+    add_dependencies(redship CreateOSXIcons)
+else()
+    add_dependencies(soh CreateOSXIcons)
+endif()
 
 install(TARGETS ZAPD_OoT DESTINATION ${CMAKE_BINARY_DIR}/assets)
 
@@ -600,9 +604,17 @@ set(PROGRAM_PERMISSIONS_EXECUTE OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECU
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION ./assets/)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/extractor/" DESTINATION ./assets/)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION ./assets/xml)
+install(FILES "${CMAKE_BINARY_DIR}/mm/2ship.o2r" DESTINATION ../Resources COMPONENT ship)
 
-# Rename the installed soh binary to drop the macos suffix
-INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/soh-macos \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+if(SINGLE_EXECUTABLE_BUILD)
+    # Rename the installed redship binary to match CFBundleExecutable (soh) in Info.plist
+    INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/redship \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+else()
+    # Rename the installed soh binary to drop the macos suffix
+    INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/soh-macos \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+endif()
 
 install(CODE "
     include(BundleUtilities)
