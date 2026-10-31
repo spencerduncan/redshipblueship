@@ -995,6 +995,9 @@ inline bool CanKillEnemy(ActorId EnemyId) {
             return HAS_ITEM(ITEM_BOW);
         case ACTOR_EN_THIEFBIRD: // Takkuri
             return (CAN_USE_PROJECTILE || CAN_BE_GORON || CAN_BE_ZORA || CAN_USE_EXPLOSIVE || CAN_USE_SWORD);
+        case ACTOR_EN_DEATH: // Gomess
+            return (CAN_USE_SWORD || HAS_ITEM(ITEM_BOW) || HAS_ITEM(ITEM_HOOKSHOT) || CAN_BE_ZORA || CAN_BE_GORON ||
+                    (CAN_BE_DEKU && HAS_MAGIC));
         case ACTOR_BOSS_07: // Majora (Mask -> Incarnation -> Wrath: one actor, three consecutive phases)
             // Authored from the fight's own damage tables and damage handlers in
             // games/mm/src/overlays/actors/ovl_Boss_07/z_boss_07.c. Two facts from that source shape this row:

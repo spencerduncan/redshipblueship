@@ -524,7 +524,10 @@ size_t CustomMessage::FindNEWLINE(std::string& str, size_t lastNewline) const {
 
 bool CustomMessage::AddBreakString(std::string& str, size_t pos, std::string breakString) const {
     if (str[pos] == ' ' || str[pos] == '&') {
-        str.replace(pos, 1, breakString);
+        // don't add a break next to an existing newline
+        if (str[pos] != ' ' || (str[pos + 1] != '&' && str[pos + 1] != NEWLINE()[0])) {
+            str.replace(pos, 1, breakString);
+        }
         return false;
     } else {
         if (pos <= str.size() - 1) {
@@ -533,7 +536,10 @@ bool CustomMessage::AddBreakString(std::string& str, size_t pos, std::string bre
                 return false;
                 // otherwise, if it is a line break or space, replace it
             } else if (str[pos + 1] == ' ' || str[pos + 1] == '&') {
-                str.replace(pos + 1, 1, breakString);
+                // don't add a break next to an existing newline
+                if (str[pos + 1] != ' ' || (str[pos + 2] != '&' && str[pos + 2] != NEWLINE()[0])) {
+                    str.replace(pos + 1, 1, breakString);
+                }
                 return false;
             }
         }

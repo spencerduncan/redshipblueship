@@ -379,6 +379,7 @@ void BuildTriforcePieceMessage(CustomMessage& msg) {
 
 void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
     int16_t rgid;
+    ItemID icon = ITEM_NONE;
     msg = CustomMessage("You found [[article]][[color]][[name]]%w!",
                         "Du erhältst [[article]][[color]][[name]]%w gefunden!",
                         "Vous avez trouvé [[article]][[color]][[name]]%w!", TEXTBOX_TYPE_BLUE);
@@ -387,6 +388,14 @@ void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
     } else {
         rgid = player->getItemId;
     }
+    // Icon Overrides
+    switch (rgid) {
+        case RG_GREG_RUPEE:
+            icon = ITEM_MASK_GORON;
+            break;
+        default:
+            break;
+    }
     CustomMessage name =
         CustomMessage(Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(rgid)).GetName(), TEXTBOX_TYPE_BLUE);
     CustomMessage article = CustomMessage(
@@ -394,7 +403,11 @@ void BuildCustomItemMessage(Player* player, CustomMessage& msg) {
     msg.Replace("[[article]]", article);
     msg.Replace("[[color]]", Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(rgid)).GetColor());
     msg.Replace("[[name]]", name);
-    msg.AutoFormat();
+    if (icon != ITEM_NONE) {
+        msg.AutoFormat(icon);
+    } else {
+        msg.AutoFormat();
+    }
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE

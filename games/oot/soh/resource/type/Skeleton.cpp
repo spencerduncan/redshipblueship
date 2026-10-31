@@ -93,20 +93,22 @@ void SkeletonPatcher::RegisterSkeleton(std::string& path, SkelAnime* skelAnime) 
         }
     }
 
+    for (auto& skel : skeletons) {
+        if (skel.skelAnime == skelAnime) {
+            skel.vanillaSkeletonPath = info.vanillaSkeletonPath;
+            skel.isLocalPlayer = info.isLocalPlayer;
+#ifdef RSBS_SINGLE_EXECUTABLE
+            skel.game = info.game;
+#endif
+            return;
+        }
+    }
+
     skeletons.push_back(info);
 }
 
 void SkeletonPatcher::UnregisterSkeleton(SkelAnime* skelAnime) {
-
-    // TODO: Should probably just use a dictionary here...
-    for (size_t i = 0; i < skeletons.size(); i++) {
-        auto skel = skeletons[i];
-
-        if (skel.skelAnime == skelAnime) {
-            skeletons.erase(skeletons.begin() + i);
-            break;
-        }
-    }
+    std::erase_if(skeletons, [skelAnime](const SkeletonPatchInfo& skel) { return skel.skelAnime == skelAnime; });
 }
 void SkeletonPatcher::ClearSkeletons() {
     skeletons.clear();

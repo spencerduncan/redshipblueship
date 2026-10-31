@@ -94,6 +94,9 @@ uint8_t Option::GetOptionIndex() const {
 }
 
 const std::string& Option::GetOptionText(size_t index) const {
+    if (index >= options.size()) {
+        index = options.size() - 1;
+    }
     return options[index];
 }
 
@@ -319,8 +322,12 @@ void Option::AddWidget(WidgetPath& path) {
                           if (info.type == WIDGET_CVAR_SLIDER_INT) {
                               UIWidgets::IntSliderOptions* sliderOpts =
                                   (UIWidgets::IntSliderOptions*)info.options.get();
+                              size_t maxIndex = this->options.size() - 1;
+                              sliderOpts->Max(static_cast<int32_t>(maxIndex));
+                              if (this->GetOptionIndex() > maxIndex) {
+                                  CVarSetInteger(cvarName.c_str(), static_cast<int32_t>(maxIndex));
+                              }
                               sliderOpts->Format(this->GetOptionText(this->GetOptionIndex()).c_str());
-                              sliderOpts->Max(this->options.size() - 1);
                           }
                       })
                       .CVar(cvarName.c_str())

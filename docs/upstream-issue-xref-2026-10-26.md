@@ -6,6 +6,18 @@
 `b30a286c5` (2026-10-24), libultraship `port-maintenance` `da6daf1a` (unchanged since 2026-10-12). Nothing is reported
 upstream; the clones are reference material only.
 
+> **Status update (2026-10-30, PRs `#1177`–`#1325` + current backport wave):** Nearly all open issues and fix families identified below have now been resolved on `main` or in the current backport wave (see [`upstream-backport-audit-2026-10.md`](upstream-backport-audit-2026-10.md#changed-since-the-finder-snapshot) for full bundle tables):
+> - **Family 1 — Hint generation (#1162):** Resolved by `#1181` (`2f262f492`, `af485bf64`, `0dcd52e5c`), `#1207` (`983d04d36`), and current-wave O3 hint fixes (`18bf4b315`, `317454574`, `c3ffaa918`, `99e60b81f`, `ba08197d3`, `49aa33038`, `98ec5519c`, `ea76550fc`).
+> - **Family 2 — Shuffle Speak logic clauses (#1168, #1182):** Resolved by `#1178` (`0702b11b9`, `c906c71f7`, `1413ceb33`, `63597ec63`), `#1205` (`2bc50f605`), `#1226` (`c63f57850`), and current-wave O4/O3 speak fixes (`ea76550fc`, `e6947c733`, `a393f48c7`, `a547d51ab`).
+> - **Family 3 — Item-table bounds (#983/#984 siblings):** Resolved by `#1323` (`7a7f942b8`, `29c7e7568`, `5ecff16bd`, `e9ef09eee`, `92afa8144`) and current-wave O11 fixes (`e4f019f56`, `02c7632a3`).
+> - **Family 5 — MM skeleton registration (#1063 family):** Resolved by `#1177` (`bbc76212f`), `#1197` (`a221a8c08`), and current-wave M1 skeleton unregistration and deduplication (`26146e975`, `f86e04b4d`, `d6ac2550b`). (Family 4 LUS texture-cache fork PR remains deferred.)
+> - **Family 6 — Check tracker pricing, hover logic, and area scroll (#1161, #1166, #1131):** Resolved by `#1180` (`2845baad6`, `2ba368e7e`, `6bf5ec514`), `#1188`, `#1293` (`079f44bae`), `#1309`, and `#1325`.
+> - **Family 7 — MM logic holes (#1170 family) & bombchu accounting (#1164 siblings):** Resolved by `#1178` (`cc5d87143`, `9b699dee1`), `#1323` (`9224b9f48`, `bcc562a3e`, `d80a5cf2e`, `f237dd293`, `180318962`, `c0c746334`, `e07b6f731`, plus O8 `cc63cc4ab`, `c42004bc4`), and current-wave M3/O8 fixes (`a960c7f44`, `99204fb69`, `483849b97`; `b39664f88` verified not applicable under RSBS single-bag bomb-bag pool / `#737` contract).
+> - **Family 8 — Enhanced models between games (#1172):** Resolved by `#1213` (`5d96fd84f` MM dungeon key models + OoT mask/fairy/heart chest categories).
+> - **Family 9 — Item tracker rows, settings, and counting (#1141, #1142, #1143, #1158):** Resolved by `#1192`, `#1202`, `#1249`, and `#1263`.
+> - **Family 10 — Aiming reticles (#1173):** Resolved by `#1212` (`6340ad3d5` / `fb8126780` + MM hookshot/bow reticle parity) and current-wave O21 fixes (`86fdb9bfe`, `6a9567b36`).
+> - **Other cross-referenced issues:** `#1167` and `#1171` (cross-game setup display list and song notes in `#1185`), `#1169` (stale docs removed in `#1193`), `#1159`/`#1160`/`#1163` (shared resources in `#1184`, `#1186`, `#1263`, `#1297`, `#1304`), and `#966`/`#1133` (Combo header retirement and hosted MM enhancements/settings in `#1242`–`#1271`).
+
 ## Method
 
 The 52 open issues (all operator-filed) were matched against the 2026-10-18 backport audit's record of every upstream

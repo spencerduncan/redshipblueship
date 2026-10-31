@@ -23,6 +23,11 @@ void RegisterHyperEnemies() {
             return;
         }
 
+        if (MM_gPlayState->sceneId == SCENE_SYATEKI_MIZU || // Town Shooting Gallery
+            MM_gPlayState->sceneId == SCENE_SYATEKI_MORI) { // Swamp Shooting Gallery
+            return;
+        }
+
         if (actor->update != NULL) {
             // Everywhere we need to disable the collision checks already checks if frameAdvance is enabled, so we abuse
             // that temporarily. This doesn't have any _known_ side effects :)

@@ -458,8 +458,12 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             }
             break;
         case VB_PLAY_NABOORU_CAPTURED_CS:
-            if (*should == true && CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
-                OoT_Flags_SetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA);
+            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
+                // we're only here if GetItem is Silver Gauntlets
+                // either it's randomiser, or we're about to enter (or skip) the Nabooru Capture
+                if (!IS_RANDO) {
+                    OoT_Flags_SetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA);
+                }
                 *should = false;
             }
             break;
@@ -840,6 +844,15 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                     OoT_Actor_Kill(&ik->actor);
                 }
                 *should = false;
+            }
+            break;
+        }
+        case VB_SHOULD_OSSAN_CANCEL: {
+            // In shop B means cancel, prevent advancing as if mashing A
+            if (CVarGetInteger(CVAR_ENHANCEMENT("SkipText"), 0)) {
+                Input* input = va_arg(args, Input*);
+                if (!*should)
+                    *should = CHECK_BTN_ALL(input->cur.button, BTN_B);
             }
             break;
         }

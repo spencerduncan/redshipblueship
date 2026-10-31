@@ -595,15 +595,15 @@ void RegionTable_Init_SpiritTemple() {
 
     areaTable[RR_SPIRIT_TEMPLE_MQ_GIBDO_GRAVES] = Region("Spirit Temple MQ Gibdo Graves", SCENE_SPIRIT_TEMPLE, {
         //Events
-        EventAccess(LOGIC_SPIRIT_MQ_GIBDOS_CLEARED, []{return logic->HasItem(RG_POWER_BRACELET) &&
+        EventAccess(LOGIC_SPIRIT_MQ_GIBDOS_CLEARED, []{return logic->HasItem(RG_POWER_BRACELET) && // possible to trigger switch without pulling grave, but too precise for RT_VISIBLE_COLLISION
                                                              ((logic->CanUse(RG_BOMBCHU_5) && logic->CanHitEyeTargets()) || logic->CanUse(RG_HOVER_BOOTS)/* || (IsAdult && CanBunnyJump())*/)
                                                              && logic->CanKillEnemy(RE_GIBDO, ED_CLOSE, true, 3);}),
     }, {}, {
         //Exits
         Entrance(RR_SPIRIT_TEMPLE_MQ_CHILD_SIDE_HUB, []{return true;}),
-        Entrance(RR_SPIRIT_TEMPLE_MQ_GIBDO_POTS,     []{return logic->HasItem(RG_POWER_BRACELET) &&
-                                                               (logic->CanUse(RG_BOMBCHU_5) && logic->CanHitEyeTargets()) ||
-                                                               logic->CanUse(RG_HOVER_BOOTS)/* || (IsAdult && CanBunnyJump())*/;}),
+        Entrance(RR_SPIRIT_TEMPLE_MQ_GIBDO_POTS,     []{return logic->HasItem(RG_POWER_BRACELET) && // possible to trigger switch without pulling grave, but too precise for RT_VISIBLE_COLLISION
+                                                               ((logic->CanUse(RG_BOMBCHU_5) && logic->CanHitEyeTargets()) ||
+                                                               logic->CanUse(RG_HOVER_BOOTS)/* || (IsAdult && CanBunnyJump())*/);}),
     });
 
     areaTable[RR_SPIRIT_TEMPLE_MQ_GIBDO_POTS] = Region("Spirit Temple MQ Gibdo Pots", SCENE_SPIRIT_TEMPLE, {}, {
@@ -835,7 +835,7 @@ void RegionTable_Init_SpiritTemple() {
 
     areaTable[RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND] = Region("Spirit Temple MQ Outer Right Hand", SCENE_SPIRIT_TEMPLE, {
         //Events
-        EventAccess(LOGIC_SPIRIT_NABOORU_KIDNAPPED, []{return SpiritShared(RR_SPIRIT_TEMPLE_OUTER_RIGHT_HAND, []{return logic->HasItem(RG_OPEN_CHEST);});}),
+        EventAccess(LOGIC_SPIRIT_NABOORU_KIDNAPPED, []{return SpiritShared(RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND, []{return logic->HasItem(RG_OPEN_CHEST);});}),
     }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST, SpiritShared(RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND, []{return logic->HasItem(RG_OPEN_CHEST);})),

@@ -32,6 +32,8 @@ static std::map<int32_t, const char*> languages = {
     { LANGUAGE_FRA, "French" },
     { LANGUAGE_JPN, "Japanese" },
 };
+void UpdateMenuTricks();
+void UpdateMenuLocations();
 
 // ============================================================================
 // ADR 0004 section 5 capability gating (#497 step 3)
