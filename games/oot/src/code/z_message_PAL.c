@@ -2309,7 +2309,12 @@ void OoT_Message_Decode(PlayState* play) {
     // #endregion
 
     while (true) {
-        phi_s1 = temp_s2 = msgCtx->msgBufDecoded[decodedBufPos] = font->msgBuf[msgCtx->msgBufPos];
+        if (decodedBufPos >= (s16)(ARRAY_COUNT(msgCtx->msgBufDecoded) - 4) ||
+            msgCtx->msgBufPos >= (s16)ARRAY_COUNT(font->msgBuf)) {
+            phi_s1 = temp_s2 = msgCtx->msgBufDecoded[decodedBufPos] = MESSAGE_END;
+        } else {
+            phi_s1 = temp_s2 = msgCtx->msgBufDecoded[decodedBufPos] = font->msgBuf[msgCtx->msgBufPos];
+        }
 
         // Don't require input for credits textboxes in randomizer
         if (CVarGetInteger(CVAR_ENHANCEMENT("NoInputForCredits"), 0) &&
