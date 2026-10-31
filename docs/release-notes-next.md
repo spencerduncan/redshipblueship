@@ -1,7 +1,74 @@
+# Release notes: v0.4.2-alpha ("Deckard Charlie")
+
+**Status:** released. The release is cut as the tag `v0.4.2-alpha` on the commit that merges this text (the version
+bump, the release workflow's title and these notes), whose code is `main` at `2bf5d33c` and whose docs are that commit.
+**Version:** `v0.4.2-alpha`, codename "Deckard Charlie" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `z`
+bump: bugfix collection, stability improvements, and gameplay refinements without a new `oot.otr` (the archive version,
+`project(Ship VERSION 9.1.1)`, is unchanged), so it keeps the film character "Deckard" and advances the NATO phonetic code word
+from Bravo to Charlie. A build's window title reads `RedShipBlueShip v0.4.2-alpha+<commit> (Deckard Charlie)`, and `redship --version`
+prints the same first line. Saves written by this version remain version 5; seeds come from generator 3 (bumping `RSBS_GENERATOR_VERSION` from 2u to 3u due to upstream pool and logic backports).
+**Last release:** `v0.4.1-alpha` ("Deckard Bravo"), tagged 2026-10-30 at `c36ad916` (code tip `4b68e319`). Its notes
+follow this section.
+**Merged up to:** `main` at `2bf5d33c` (2026-10-31) for the code, 4 commits after the tag: pull requests #1322 to
+#1325.
+**Covers:** everything merged after `c36ad916`. Numbers in parentheses are pull requests; issues are written "issue
+#N".
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.4.2-alpha) carries
+`redshipblueship-v0.4.2-alpha-windows.zip` and `redshipblueship-v0.4.2-alpha-linux.AppImage` once the tag's
+`generate-builds` run finishes.
+
+---
+
+## Since v0.4.1-alpha
+
+### Read this first
+
+- **This is the third alpha release.** It incorporates critical crash, bounds, and audio backports from upstream Ship of Harkinian and 2Ship2Harkinian, restores Ocarina of Time Bean Souls item classification, adds MM shop and merchant item inspection tracking to the Check Tracker, auto-formats custom item messages, and advances the seed generator to version 3.
+- **Upstream SoH and 2S2H stability, bounds, and audio backports** (#1323). Backported Tier 1 zero-golden-move stability fixes from upstream:
+  - Removed premature `(PlayState*)OoT_gGameState` cast in `OoT_RunFrame`; zero-initialized `skyboxCtx` arrays in `OoT_Skybox_Init` and populated `SKYBOX_OVERCAST_SUNSET` segment 1 in `OoT_Skybox_Setup` (SoH #7045).
+  - Bounds-checked `Item_GetSlot` against `OoT_gItemSlots` and `OoT_sExtraItemBases`, guarding `OoT_Item_Give` and `OoT_Item_CheckObtainability` (SoH #7021).
+  - Guarded `INV_CONTENT(item.id)` with bounds check in `randomizer_item_tracker.cpp` (SoH #7103) and extended `sGauntletColors` in `z_player_lib.c` for RBA strength values 4-7 (SoH #6359).
+  - Guarded inventory slot mapping and upgrade bounds in `debugSaveEditor.cpp` (SoH #6958).
+  - Properly joined `randoThread` on exit in `OTRGlobals::~OTRGlobals` and `DeinitOTR` (SoH #7296).
+  - Compared `originalIndex` against `dungeons[j].bossDoor` in `Entrance_Init` for boss room savewarp handling under dungeon entrance randomization (SoH #6676).
+  - Initialized `realId` in `OoT_AudioLoad_AsyncLoadInner`, bounds-checked `fontId` in `OoT_AudioLoad_IsFontLoadComplete` / `SetFontLoadStatus`, and bounded persistent, permanent, and sample cache allocations in both OoT and MM audio heaps (SoH #7105, #6916, #6932).
+  - Guarded unversioned `oot_save.sav` size in `SaveManager::ConvertFromUnversioned` and defaulted missing `filenameLanguage` (SoH #7090, #6157).
+  - Guarded against null parent actor dereference in `EnAttackNiw` (2S2H #1935).
+  - Added `EnOt_Reset` to `En_Ot_Profile` to clear static seahorse actor pointers across scene resets (2S2H #1469).
+  - Gated Anju's grandmother story day-advance behind `VB_SCARECROW_DANCE_SET_TIME` so Clock Shuffle redirects to the next owned half-day instead of softlocking (2S2H #1479).
+  - Prevented unsigned integer wraparound on narrower-than-4:3 aspect ratios in extended aspect ratio calculations (2S2H #1846).
+  - Cleaned up pointer arithmetic in `MM_AnimTaskQueue_AddLoadPlayerFrame` using `(const uint8_t*)animData` (2S2H #1965).
+  - Guarded Deku bubble `EnArrow` dereferences against `ACTOR_ARMS_HOOK` in `z_player_lib.c` (2S2H #1849).
+  - Enabled `OBJECT_GI_SHIELD_2` alongside `OBJECT_RR` for Like Like Trap shield drops in `Traps.cpp` (2S2H #1857).
+- **OoT Bean Soul item table entries restored** (#1322). Restored the 10 missing OoT Bean Soul rows in `games/oot/soh/Enhancements/randomizer/item_list.cpp` under `// Misc.`, matching upstream SoH. Bean souls were previously default-constructed in `itemTable`, causing them to be treated as unpopulated gap items; they are now properly classified as `RSBS_FILL_CLASS_PROGRESSION` with `RSBS_CHEST_GRADE_MAJOR`.
+- **Auto-format `RG_CRAWL` message and guard `OoT_Message_Decode` bounds** (#1324). Auto-formatted custom get-item message for `RG_CRAWL` across English, German, and French, expanding color/newline formatting codes and ensuring a `MESSAGE_END` terminator is always written. Guarded `OoT_Message_Decode` in `z_message_PAL.c` against buffer overruns by injecting `MESSAGE_END` when buffer positions approach capacity.
+- **Track observed and identified MM shop and merchant items in Check Tracker** (#1325). The Check Tracker now tracks whether Majora's Mask shop and merchant checks have been seen or identified before purchase:
+  - Added `RandoCheckSeen` state (`RCSEEN_UNCHECKED`, `RCSEEN_SEEN`, `RCSEEN_IDENTIFIED`) stored in byte offset 9 of `RandoSaveCheck` (utilizing a former 1-byte alignment gap to keep struct size at 12 bytes and `.redsave` format unchanged).
+  - Town and area shop items (`EnGirlA`) are marked seen upon shop initialization and shopkeeper dialogue, and identified when inspected on shelves.
+  - Tingle map purchases (`EnBal`), Milk Bar drinks (`EnTab`), and Gorman Brothers milk (`EnIn`) are marked identified upon opening their purchase dialog.
+  - Business Scrubs (`EnAkindonuts`, `EnScopenuts`) and the Powder Keg Goron (`EnGo`) mark checks seen when naming their offered item in dialogue.
+  - The Check Tracker displays identified items with their name and price `(<itemName> - <price>)`, and seen items with their name `(<itemName>)`.
+
+### Randomizer and logic
+
+- **Upstream SoH and 2S2H pool and logic backports** (#1323).
+  - Added missing `RG_FARORES_WIND` and scarce `RG_NAYRUS_LOVE` to item pool generation (SoH #6180, #6176).
+  - Fixed map/compass pool generation passing explicit `count=1` to `AddFixedItemToPool` when not starting with maps/compasses, avoiding excess junk padding (SoH #6334).
+  - Fixed inverted `IsBombchus(ignore, true)` check in `UpdateToFD` and progressive Bombchu bag handling in `Logic::ApplyItemEffect` (SoH #7117, #7274).
+  - Always populate `destinationIndex` when `entrance->GetReverse() != nullptr` in `EntranceShuffle` (SoH #7085).
+  - Backported OoT location access fixes across Forest Temple, Zora's River, Ganon's Castle, Spirit Temple, Water Temple, Gerudo Fortress, and Bottom of the Well (SoH #6248, #6154, #6314, #6254, #6275, #6251, #6818, #6247, #7324, #6674, #6743).
+  - Fixed `Ship_Random` off-by-one upper bounds and `lower_bound` -> `upper_bound` in MM logic and starting items (2S2H #1777).
+  - Extracted `Rando::GetComputedStartingItems` and filtered computed starting items (clocks, maps, songs, wallets) from the shuffled MM pool in `GeneratePools` (2S2H #1472).
+  - Backported MM region logic fixes across Snowhead Temple, South, Spider Houses, Termina Field, West, Woodfall Temple, and Central (2S2H #1860, #1503, #1515, #1483, #1727).
+- **Seed generator version bumped to 3** (#1323). Because upstream pool, logic, and `Ship_Random` backports alter item placement and determinism digests across seeds, `RSBS_GENERATOR_VERSION` was bumped from 2 to 3, and golden test digests were re-pinned.
+
+---
+
 # Release notes: v0.4.1-alpha ("Deckard Bravo")
 
 **Status:** released. The release is cut as the tag `v0.4.1-alpha` on the commit that merges this text (the version
 bump, the release workflow's title and these notes), whose code is `main` at `4b68e319` and whose docs are that commit.
+The next release's draft starts above this section when something merges after the tag.
 **Version:** `v0.4.1-alpha`, codename "Deckard Bravo" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `z`
 bump: bugfix collection, stability improvements, and gameplay refinements without a new `oot.otr` (the archive version,
 `project(Ship VERSION 9.1.1)`, is unchanged), so it keeps the film character "Deckard" and advances the NATO phonetic code word
