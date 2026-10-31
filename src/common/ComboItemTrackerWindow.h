@@ -643,6 +643,75 @@ struct ComboItemTrackerFit {
 ComboItemTrackerFit ComboItemTrackerFitBoxes(const std::vector<ComboItemSectionBox>& boxes, float availWidth,
                                              float availHeight, const ComboItemTrackerFit* previous = nullptr);
 
+// ============================================================================
+// Customizable Groups & Layout (2Ship-style Group & Slot Editor)
+// ============================================================================
+
+/** Which catalog a custom group slot resolves from. */
+enum ComboItemSlotOrigin : uint8_t {
+    COMBO_SLOT_PAD = 0,
+    COMBO_SLOT_OOT = 1,
+    COMBO_SLOT_MM = 2,
+    COMBO_SLOT_SHARED = 3,
+};
+
+/** One slot in a customizable item tracker group, addressed by origin + stable slotKey. */
+struct ComboItemTrackerSlot {
+    uint8_t origin = COMBO_SLOT_PAD;
+    std::string key;
+};
+
+inline constexpr int kComboItemTrackerGroupColumnsMin = 1;
+inline constexpr int kComboItemTrackerGroupColumnsMax = 12;
+
+/** A customizable group of item slots assigned to one of the 3 overlay columns. */
+struct ComboItemTrackerGroup {
+    std::string name;
+    int section = COMBO_ITEM_SECTION_OOT; // COMBO_ITEM_SECTION_OOT, _MM, or _SHARED
+    int columns = 6;                      // 1..12
+    bool autoHideUnshuffled = false;      // Hide group when none of its slots belong to an active shuffle option
+    std::vector<ComboItemTrackerSlot> slots;
+};
+
+/** Complete customizable layout state across all three overlay columns. */
+struct ComboItemTrackerLayout {
+    bool customEnabled[COMBO_ITEM_SECTION_COUNT] = { false, false, false };
+    std::vector<ComboItemTrackerGroup> activeGroups[COMBO_ITEM_SECTION_COUNT];
+};
+
+/** Populate `out` with the palette of Available Groups for `section` (including the "Key Items" dungeon solver group).
+ */
+void ComboItemTrackerAvailableGroups(int section, std::vector<ComboItemTrackerGroup>& out);
+
+/** Populate `out` with the default Active Groups for `section`. */
+void ComboItemTrackerDefaultActiveGroups(int section, std::vector<ComboItemTrackerGroup>& out);
+
+/** Apply the one-click "Key Items" Dungeon Solver layout preset to `section` (and persist to Config if available). */
+void ComboItemTrackerApplySolverPreset(int section);
+
+/** Resolve a single `slot` into `out` via the origin's static/live catalog. */
+bool ComboItemTrackerResolveSlot(const ComboItemTrackerSlot& slot, int sharedIconGame, ComboItemRow* out);
+
+/** Append the resolved rows of `group` to `out`, stamping `customCols` and `customOwnLine`.
+ *  When `filterActive` is true, honours `group.autoHideUnshuffled` against the active seed. */
+void ComboItemTrackerResolveGroupRows(const ComboItemTrackerGroup& group, int sharedIconGame, bool filterActive,
+                                      std::vector<ComboItemRow>& out);
+
+/** Get or replace the in-memory customizable layout. */
+const ComboItemTrackerLayout& ComboItemTrackerGetLayout();
+void ComboItemTrackerSetLayout(const ComboItemTrackerLayout& layout);
+
+/** Restore default groups for `section` (or all sections when `section < 0`). */
+void ComboItemTrackerRestoreDefaultLayout(int section = -1);
+
+/** Serialize / deserialize `ComboItemTrackerLayout` to / from JSON. */
+std::string ComboItemTrackerLayoutToJson(const ComboItemTrackerLayout& layout);
+bool ComboItemTrackerLayoutFromJson(const std::string& jsonStr, ComboItemTrackerLayout& out);
+
+/** Load / save the customizable layout from / to `Ship::Context::GetInstance()->GetConfig()`. */
+bool ComboItemTrackerLoadLayoutFromConfig();
+bool ComboItemTrackerSaveLayoutToConfig();
+
 } // namespace ComboGui
 
 #endif // __cplusplus

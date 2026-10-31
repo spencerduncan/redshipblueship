@@ -1972,6 +1972,67 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             result = TEST_FAIL;
             break;
         }
+
+        // ---- 5d. Origin-tagged catalog addressing for custom groups ------------
+        {
+            Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
+            Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+            sCivLive = NULL;
+            sCivMMLive = NULL;
+            const std::vector<uint8_t> zeroOot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+            const std::vector<uint8_t> zeroMm((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+            Context_UpdateShadowCopy(GAME_OOT, zeroOot.data(), zeroOot.size());
+            Context_UpdateShadowCopy(GAME_MM, zeroMm.data(), zeroMm.size());
+            Context_SetCurrentGame(GAME_NONE);
+
+            const int ootCatCount = Combo_ItemCatalogCount((uint8_t)GAME_OOT);
+            const int mmCatCount = Combo_ItemCatalogCount((uint8_t)GAME_MM);
+            const int sharedCatCount = Combo_ItemSharedCatalogCount();
+            CIV_ASSERT(ootCatCount == 157);
+            CIV_ASSERT(mmCatCount == 112);
+            CIV_ASSERT(sharedCatCount == 32);
+
+            for (int i = 0; i < ootCatCount; i++) {
+                ComboItemRow r = {};
+                ComboItemRow byKey = {};
+                CIV_ASSERT(Combo_ItemCatalogRowAt((uint8_t)GAME_OOT, i, &r));
+                CIV_ASSERT(r.slotKey != NULL && r.slotKey[0] != '\0' && r.name != NULL);
+                CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, r.slotKey, &byKey));
+                CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0);
+            }
+            for (int i = 0; i < mmCatCount; i++) {
+                ComboItemRow r = {};
+                ComboItemRow byKey = {};
+                CIV_ASSERT(Combo_ItemCatalogRowAt((uint8_t)GAME_MM, i, &r));
+                CIV_ASSERT(r.slotKey != NULL && r.slotKey[0] != '\0' && r.name != NULL);
+                CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, r.slotKey, &byKey));
+                CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0);
+            }
+            for (int i = 0; i < sharedCatCount; i++) {
+                ComboItemRow r = {};
+                ComboItemRow byKey = {};
+                CIV_ASSERT(Combo_ItemSharedCatalogRowAt(i, (uint8_t)GAME_OOT, &r));
+                CIV_ASSERT(r.slotKey != NULL && r.slotKey[0] != '\0' && r.name != NULL && r.iconKey != NULL);
+                CIV_ASSERT(Combo_ItemSharedCatalogRowByKey(r.slotKey, (uint8_t)GAME_MM, &byKey));
+                CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0 && byKey.iconKey != NULL);
+            }
+
+            // With no save loaded, unshuffled gated items (Boss Souls) report have == false.
+            ComboItemRow odolwa = {};
+            ComboItemRow gohma = {};
+            CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, "boss_soul_odolwa", &odolwa) && !odolwa.have);
+            CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, "boss_soul_gohma", &gohma) && !gohma.have);
+
+            // With a started save loaded and Boss Souls shuffle off, Boss Souls report have == true.
+            std::vector<uint8_t> startedOot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+            std::vector<uint8_t> startedMm((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+            OoT_ItemAdapter_TestAuthorSave(startedOot.data(), startedOot.size(), 0);
+            MM_ItemAdapter_TestAuthorSave(startedMm.data(), startedMm.size(), 0);
+            Context_UpdateShadowCopy(GAME_OOT, startedOot.data(), startedOot.size());
+            Context_UpdateShadowCopy(GAME_MM, startedMm.data(), startedMm.size());
+            CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, "boss_soul_odolwa", &odolwa) && odolwa.have);
+            CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, "boss_soul_gohma", &gohma) && gohma.have);
+        }
     } while (0);
 
     // ---- 6. put state back (watermarks: reset, not restored; see header) ---

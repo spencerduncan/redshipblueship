@@ -22,6 +22,13 @@
 #include "soh/util.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include <cstring>
+#include "ComboItemTrackerWindow.h"
+#include "combo_ui.h"
+#include "context.h"
+#endif
+
 extern "C" {
 #include <z64.h>
 #include "variables.h"
@@ -2279,6 +2286,481 @@ void ItemTrackerSettingsWindow::DrawElement() {
         ImGui::PopStyleVar(1);
         ImGui::EndTable();
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    {
+        struct ComboSlotDragPayload {
+            uint8_t origin;
+            char key[64];
+            int sourceGroup; // -1 when dragged from Available Groups, >= 0 when dragged from Active Groups
+            int sourceSlot;
+        };
+
+        static int sSelectedSection = ComboGui::COMBO_ITEM_SECTION_MM;
+        static char sNewGroupName[64] = "";
+        static ComboGui::ComboItemIconLoadMemo sEditorIconMemo;
+        static ComboGui::ComboItemTrackerSlot sPopupAvailSlot;
+
+        ImGui::SeparatorText("Customize Groups & Layout");
+        ImGui::TextWrapped(
+            "Click or drag & drop individual items, or use the corner buttons to add/remove entire groups.");
+
+        static const char* const kSectionTabNames[ComboGui::COMBO_ITEM_SECTION_COUNT] = {
+            "Ocarina of Time",
+            "Majora's Mask",
+            "Shared",
+        };
+        if (ImGui::BeginTabBar("##ComboTrackerCustomizeTabs")) {
+            for (int sec = 0; sec < ComboGui::COMBO_ITEM_SECTION_COUNT; sec++) {
+                if (ImGui::BeginTabItem(kSectionTabNames[sec])) {
+                    sSelectedSection = sec;
+                    ImGui::EndTabItem();
+                }
+            }
+            ImGui::EndTabBar();
+        }
+
+        ComboGui::ComboItemTrackerLayout layout = ComboGui::ComboItemTrackerGetLayout();
+        std::vector<ComboGui::ComboItemTrackerGroup>& activeGroups = layout.activeGroups[sSelectedSection];
+        if (!layout.customEnabled[sSelectedSection] && activeGroups.empty()) {
+            ComboGui::ComboItemTrackerDefaultActiveGroups(sSelectedSection, activeGroups);
+        }
+        bool layoutDirty = false;
+        auto markDirty = [&]() {
+            layout.customEnabled[sSelectedSection] = true;
+            layoutDirty = true;
+        };
+
+        // Top toolbar: Restore Default Groups | Load "Key Items" Dungeon Solver Preset | New Group input
+        if (UIWidgets::Button("Restore Default Groups",
+                              UIWidgets::ButtonOptions()
+                                  .Size(UIWidgets::Sizes::Inline)
+                                  .Color(THEME_COLOR)
+                                  .Tooltip("Reset this column back to the default Item Tracker groups."))) {
+            ComboGui::ComboItemTrackerRestoreDefaultLayout(sSelectedSection);
+            layout = ComboGui::ComboItemTrackerGetLayout();
+            ComboGui::ComboItemTrackerDefaultActiveGroups(sSelectedSection, layout.activeGroups[sSelectedSection]);
+        }
+        if (sSelectedSection == ComboGui::COMBO_ITEM_SECTION_MM ||
+            sSelectedSection == ComboGui::COMBO_ITEM_SECTION_OOT) {
+            ImGui::SameLine();
+            if (UIWidgets::Button("Load \"Key Items\" Dungeon Solver Preset",
+                                  UIWidgets::ButtonOptions()
+                                      .Size(UIWidgets::Sizes::Inline)
+                                      .Color(THEME_COLOR)
+                                      .Tooltip("Organize dungeon rewards/remains, warp songs, boss keys, small keys, "
+                                               "boss souls, and stray "
+                                               "fairies into a unified 'Key Items' solver table."))) {
+                ComboGui::ComboItemTrackerApplySolverPreset(sSelectedSection);
+                layout = ComboGui::ComboItemTrackerGetLayout();
+            }
+        }
+
+        ImGui::SetNextItemWidth(220.0f);
+        ImGui::InputTextWithHint("##ComboNewGroupName", "Enter new group name", sNewGroupName, sizeof(sNewGroupName));
+        ImGui::SameLine();
+        if (UIWidgets::Button("+##ComboCreateGroupBtn", UIWidgets::ButtonOptions()
+                                                            .Size(ImVec2(32.0f, 0.0f))
+                                                            .Color(UIWidgets::Colors::Green)
+                                                            .Tooltip("Create a new custom group in Active Groups."))) {
+            ComboGui::ComboItemTrackerGroup newGrp;
+            newGrp.name = sNewGroupName[0] != '\0' ? sNewGroupName : "Custom Group";
+            newGrp.section = sSelectedSection;
+            newGrp.columns = 6;
+            newGrp.autoHideUnshuffled = false;
+            layout.activeGroups[sSelectedSection].push_back(std::move(newGrp));
+            sNewGroupName[0] = '\0';
+            markDirty();
+        }
+        ImGui::SameLine();
+        if (UIWidgets::Button("Add Blank Spacer##ComboAddSpacerTop",
+                              UIWidgets::ButtonOptions()
+                                  .Size(UIWidgets::Sizes::Inline)
+                                  .Color(THEME_COLOR)
+                                  .Tooltip("Append a blank alignment spacer cell to the first active group."))) {
+            if (!layout.activeGroups[sSelectedSection].empty()) {
+                ComboGui::ComboItemTrackerSlot padSlot;
+                padSlot.origin = ComboGui::COMBO_SLOT_PAD;
+                padSlot.key = "pad";
+                layout.activeGroups[sSelectedSection].front().slots.push_back(std::move(padSlot));
+                markDirty();
+            }
+        }
+
+        auto drawSlotCell = [&](const ComboGui::ComboItemTrackerSlot& slot, const char* btnId) -> bool {
+            constexpr float kCellPx = 38.0f;
+            ComboItemRow row{};
+            ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &row);
+            if (!row.pad) {
+                std::vector<ComboItemRow> one(1, row);
+                ComboGui::ComboItemTrackerLoadIcons(one, ComboUi_Get()->HasImage,
+                                                    ComboGui::ComboItemLoadIconByPath, (int)Context_GetCurrentGame(),
+                                                    sEditorIconMemo);
+            }
+            const ImVec2 cellMin = ImGui::GetCursorScreenPos();
+            const bool clicked = ImGui::InvisibleButton(btnId, ImVec2(kCellPx, kCellPx));
+            const ImVec2 cellMax(cellMin.x + kCellPx, cellMin.y + kCellPx);
+            if (ImGui::IsItemHovered()) {
+                ImGui::GetWindowDrawList()->AddRectFilled(cellMin, cellMax, IM_COL32(255, 255, 255, 35), 4.0f);
+            }
+            if (row.pad) {
+                ImGui::GetWindowDrawList()->AddRect(cellMin, cellMax, IM_COL32(160, 160, 160, 90), 4.0f);
+            } else {
+                const char* iconKey = row.iconKey != nullptr ? row.iconKey : row.iconKeyFaded;
+                const ComboGui::ComboItemIconRect fit = ComboGui::ComboItemIconFit(kCellPx, row.iconAspect);
+                const ImVec2 savedCursor = ImGui::GetCursorScreenPos();
+                ImGui::SetCursorScreenPos(ImVec2(cellMin.x + fit.x, cellMin.y + fit.y));
+                const bool drawn =
+                    iconKey != nullptr && ComboUi_Get()->Image(iconKey, fit.w, fit.h, row.iconTint);
+                if (!drawn && row.name != nullptr) {
+                    ImGui::PushClipRect(cellMin, cellMax, true);
+                    ImGui::SetCursorScreenPos(cellMin);
+                    ImGui::TextUnformatted(row.name);
+                    ImGui::PopClipRect();
+                }
+                if (row.label != nullptr) {
+                    ImGui::SetCursorScreenPos(ImVec2(cellMin.x + 2.0f, cellMin.y + 1.0f));
+                    ComboUi_Get()->ToneText(row.label, COMBO_UI_TONE_WHITE);
+                }
+                ImGui::SetCursorScreenPos(savedCursor);
+            }
+            return clicked;
+        };
+
+        auto applySlotDrop = [&](int dstGroupIdx, int dstSlotIdx, const ComboSlotDragPayload& payload) {
+            std::vector<ComboGui::ComboItemTrackerGroup>& groups = layout.activeGroups[sSelectedSection];
+            if (dstGroupIdx < 0 || (size_t)dstGroupIdx >= groups.size()) {
+                return;
+            }
+            ComboGui::ComboItemTrackerSlot dropped;
+            dropped.origin = payload.origin;
+            dropped.key = payload.key;
+
+            if (payload.sourceGroup >= 0 && (size_t)payload.sourceGroup < groups.size()) {
+                auto& srcSlots = groups[(size_t)payload.sourceGroup].slots;
+                if (payload.sourceSlot >= 0 && (size_t)payload.sourceSlot < srcSlots.size()) {
+                    srcSlots.erase(srcSlots.begin() + payload.sourceSlot);
+                    if (payload.sourceGroup == dstGroupIdx && payload.sourceSlot < dstSlotIdx) {
+                        dstSlotIdx--;
+                    }
+                }
+            }
+            auto& dstSlots = groups[(size_t)dstGroupIdx].slots;
+            if (dstSlotIdx < 0 || (size_t)dstSlotIdx > dstSlots.size()) {
+                dstSlots.push_back(std::move(dropped));
+            } else {
+                dstSlots.insert(dstSlots.begin() + dstSlotIdx, std::move(dropped));
+            }
+            markDirty();
+        };
+
+        if (ImGui::BeginTable("##ComboTrackerTwoPaneTable", 2,
+                              ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable |
+                                  ImGuiTableFlags_SizingStretchSame)) {
+            ImGui::TableSetupColumn("Available Groups", ImGuiTableColumnFlags_WidthStretch, 0.48f);
+            ImGui::TableSetupColumn("Active Groups", ImGuiTableColumnFlags_WidthStretch, 0.52f);
+            ImGui::TableHeadersRow();
+            ImGui::TableNextRow();
+
+            // ---- Left Pane: Available Groups ------------------------------------------------
+            ImGui::TableNextColumn();
+            if (ImGui::BeginChild("ComboAvailableGroupsPane", ImVec2(0.0f, 520.0f), false)) {
+                std::vector<ComboGui::ComboItemTrackerGroup> availGroups;
+                ComboGui::ComboItemTrackerAvailableGroups(sSelectedSection, availGroups);
+                for (size_t agIdx = 0; agIdx < availGroups.size(); agIdx++) {
+                    const ComboGui::ComboItemTrackerGroup& availGrp = availGroups[agIdx];
+                    ImGui::PushID((int)agIdx);
+                    ImGui::SeparatorText(availGrp.name.c_str());
+                    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 34.0f);
+                    if (UIWidgets::Button("+##AddEntireGroup",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(28.0f, 24.0f))
+                                              .Color(UIWidgets::Colors::Green)
+                                              .Tooltip("Add this entire group to Active Groups."))) {
+                        layout.activeGroups[sSelectedSection].push_back(availGrp);
+                        markDirty();
+                    }
+
+                    const int cols = availGrp.columns > 0 ? availGrp.columns : 6;
+                    for (size_t sIdx = 0; sIdx < availGrp.slots.size(); sIdx++) {
+                        if (sIdx % (size_t)cols != 0) {
+                            ImGui::SameLine(0.0f, 6.0f);
+                        }
+                        const ComboGui::ComboItemTrackerSlot& slot = availGrp.slots[sIdx];
+                        char btnId[64];
+                        std::snprintf(btnId, sizeof(btnId), "##AvailSlot_%zu_%zu", agIdx, sIdx);
+                        if (drawSlotCell(slot, btnId)) {
+                            sPopupAvailSlot = slot;
+                            ImGui::OpenPopup("##AddSlotToActiveGroupPopup");
+                        }
+                        ComboItemRow tipRow{};
+                        ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &tipRow);
+                        if (tipRow.pad) {
+                            UIWidgets::Tooltip("Blank Spacer (click or drag to add)");
+                        } else if (tipRow.name != nullptr && tipRow.name[0] != '\0') {
+                            UIWidgets::Tooltip(tipRow.name);
+                        }
+                        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                            ComboSlotDragPayload payload{};
+                            payload.origin = slot.origin;
+                            std::snprintf(payload.key, sizeof(payload.key), "%s", slot.key.c_str());
+                            payload.sourceGroup = -1;
+                            payload.sourceSlot = -1;
+                            ImGui::SetDragDropPayload("COMBO_TRACKER_SLOT", &payload, sizeof(payload));
+                            ImGui::TextUnformatted(tipRow.name != nullptr && tipRow.name[0] != '\0' ? tipRow.name
+                                                                                                    : "Blank Spacer");
+                            ImGui::EndDragDropSource();
+                        }
+                    }
+                    if (ImGui::BeginPopup("##AddSlotToActiveGroupPopup")) {
+                        ImGui::TextUnformatted("Add to Active Group:");
+                        ImGui::Separator();
+                        auto& curActive = layout.activeGroups[sSelectedSection];
+                        if (curActive.empty()) {
+                            if (ImGui::Selectable("Create 'Custom Group' and add")) {
+                                ComboGui::ComboItemTrackerGroup g;
+                                g.name = "Custom Group";
+                                g.section = sSelectedSection;
+                                g.columns = 6;
+                                g.slots.push_back(sPopupAvailSlot);
+                                curActive.push_back(std::move(g));
+                                markDirty();
+                            }
+                        } else {
+                            for (size_t dstIdx = 0; dstIdx < curActive.size(); dstIdx++) {
+                                char itemLabel[128];
+                                std::snprintf(itemLabel, sizeof(itemLabel), "%s##AddTarget_%zu",
+                                              curActive[dstIdx].name.c_str(), dstIdx);
+                                if (ImGui::Selectable(itemLabel)) {
+                                    curActive[dstIdx].slots.push_back(sPopupAvailSlot);
+                                    markDirty();
+                                }
+                            }
+                        }
+                        ImGui::EndPopup();
+                    }
+                    ImGui::PopID();
+                }
+            }
+            ImGui::EndChild();
+
+            // ---- Right Pane: Active Groups --------------------------------------------------
+            ImGui::TableNextColumn();
+            if (ImGui::BeginChild("ComboActiveGroupsPane", ImVec2(0.0f, 520.0f), false)) {
+                std::vector<ComboGui::ComboItemTrackerGroup>& groups = layout.activeGroups[sSelectedSection];
+                int removeGroupIdx = -1;
+                int swapGroupA = -1;
+                int swapGroupB = -1;
+                int moveToSectionIdx = -1;
+                int moveToSectionTarget = -1;
+
+                for (size_t gIdx = 0; gIdx < groups.size(); gIdx++) {
+                    ComboGui::ComboItemTrackerGroup& grp = groups[gIdx];
+                    ImGui::PushID((int)gIdx);
+
+                    ImGui::SeparatorText(grp.name.c_str());
+                    if (ImGui::BeginDragDropTarget()) {
+                        if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("COMBO_TRACKER_SLOT")) {
+                            if (pl->DataSize == sizeof(ComboSlotDragPayload)) {
+                                applySlotDrop((int)gIdx, (int)grp.slots.size(),
+                                              *static_cast<const ComboSlotDragPayload*>(pl->Data));
+                            }
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 102.0f);
+                    ImGui::BeginDisabled(gIdx == 0);
+                    if (UIWidgets::Button("^##MoveGroupUp",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(28.0f, 24.0f))
+                                              .Color(THEME_COLOR)
+                                              .Tooltip("Move group up"))) {
+                        swapGroupA = (int)gIdx;
+                        swapGroupB = (int)gIdx - 1;
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::SameLine(0.0f, 4.0f);
+                    ImGui::BeginDisabled(gIdx + 1 >= groups.size());
+                    if (UIWidgets::Button("v##MoveGroupDown",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(28.0f, 24.0f))
+                                              .Color(THEME_COLOR)
+                                              .Tooltip("Move group down"))) {
+                        swapGroupA = (int)gIdx;
+                        swapGroupB = (int)gIdx + 1;
+                    }
+                    ImGui::EndDisabled();
+                    ImGui::SameLine(0.0f, 4.0f);
+                    if (UIWidgets::Button("...##GroupOptionsBtn",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(32.0f, 24.0f))
+                                              .Color(UIWidgets::Colors::Gray)
+                                              .Tooltip("Configure group name, columns, section, or remove group"))) {
+                        ImGui::OpenPopup("##ComboGroupOptionsPopup");
+                    }
+
+                    if (ImGui::BeginPopup("##ComboGroupOptionsPopup")) {
+                        char nameBuf[64];
+                        std::snprintf(nameBuf, sizeof(nameBuf), "%s", grp.name.c_str());
+                        ImGui::SetNextItemWidth(200.0f);
+                        if (ImGui::InputText("##GroupNameInput", nameBuf, sizeof(nameBuf))) {
+                            grp.name = nameBuf;
+                            markDirty();
+                        }
+
+                        // Columns: 1..12 with - / + buttons matching 2Ship's group options popup
+                        if (UIWidgets::Button("-##ColMinus",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
+                            if (grp.columns > ComboGui::kComboItemTrackerGroupColumnsMin) {
+                                grp.columns--;
+                                markDirty();
+                            }
+                        }
+                        ImGui::SameLine();
+                        ImGui::SetNextItemWidth(140.0f);
+                        if (ImGui::SliderInt("##GroupColsSlider", &grp.columns,
+                                             ComboGui::kComboItemTrackerGroupColumnsMin,
+                                             ComboGui::kComboItemTrackerGroupColumnsMax, "Columns: %d")) {
+                            markDirty();
+                        }
+                        ImGui::SameLine();
+                        if (UIWidgets::Button("+##ColPlus",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
+                            if (grp.columns < ComboGui::kComboItemTrackerGroupColumnsMax) {
+                                grp.columns++;
+                                markDirty();
+                            }
+                        }
+
+                        // Column assignment selector (Ocarina of Time / Majora's Mask / Shared)
+                        ImGui::SetNextItemWidth(200.0f);
+                        int secChoice = grp.section;
+                        if (ImGui::Combo("Column##GroupSectionCombo", &secChoice, kSectionTabNames,
+                                         ComboGui::COMBO_ITEM_SECTION_COUNT)) {
+                            if (secChoice != sSelectedSection && secChoice >= 0 &&
+                                secChoice < ComboGui::COMBO_ITEM_SECTION_COUNT) {
+                                moveToSectionIdx = (int)gIdx;
+                                moveToSectionTarget = secChoice;
+                            }
+                        }
+
+                        if (ImGui::Checkbox("Auto-hide when unshuffled", &grp.autoHideUnshuffled)) {
+                            markDirty();
+                        }
+                        if (UIWidgets::Button("Add Blank Spacer",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(200.0f, 0.0f)).Color(THEME_COLOR))) {
+                            ComboGui::ComboItemTrackerSlot padSlot;
+                            padSlot.origin = ComboGui::COMBO_SLOT_PAD;
+                            padSlot.key = "pad";
+                            grp.slots.push_back(std::move(padSlot));
+                            markDirty();
+                        }
+                        if (UIWidgets::Button("Remove Group",
+                                              UIWidgets::ButtonOptions()
+                                                  .Size(ImVec2(200.0f, 0.0f))
+                                                  .Color(UIWidgets::Colors::Red))) {
+                            removeGroupIdx = (int)gIdx;
+                            ImGui::CloseCurrentPopup();
+                        }
+                        ImGui::EndPopup();
+                    }
+
+                    const int cols = grp.columns > 0 ? grp.columns : 6;
+                    if (grp.slots.empty()) {
+                        ImGui::Button("Empty group - drag & drop items here", ImVec2(-1.0f, 40.0f));
+                        if (ImGui::BeginDragDropTarget()) {
+                            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("COMBO_TRACKER_SLOT")) {
+                                if (pl->DataSize == sizeof(ComboSlotDragPayload)) {
+                                    applySlotDrop((int)gIdx, 0,
+                                                  *static_cast<const ComboSlotDragPayload*>(pl->Data));
+                                }
+                            }
+                            ImGui::EndDragDropTarget();
+                        }
+                    } else {
+                        int removeSlotIdx = -1;
+                        for (size_t sIdx = 0; sIdx < grp.slots.size(); sIdx++) {
+                            if (sIdx % (size_t)cols != 0) {
+                                ImGui::SameLine(0.0f, 6.0f);
+                            }
+                            const ComboGui::ComboItemTrackerSlot& slot = grp.slots[sIdx];
+                            char btnId[64];
+                            std::snprintf(btnId, sizeof(btnId), "##ActiveSlot_%zu_%zu", gIdx, sIdx);
+                            if (drawSlotCell(slot, btnId)) {
+                                removeSlotIdx = (int)sIdx;
+                            }
+                            ComboItemRow tipRow{};
+                            ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &tipRow);
+                            if (tipRow.pad) {
+                                UIWidgets::Tooltip("Blank Spacer (click to remove, drag to reorder)");
+                            } else if (tipRow.name != nullptr && tipRow.name[0] != '\0') {
+                                UIWidgets::Tooltip(tipRow.name);
+                            }
+                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+                                ComboSlotDragPayload payload{};
+                                payload.origin = slot.origin;
+                                std::snprintf(payload.key, sizeof(payload.key), "%s", slot.key.c_str());
+                                payload.sourceGroup = (int)gIdx;
+                                payload.sourceSlot = (int)sIdx;
+                                ImGui::SetDragDropPayload("COMBO_TRACKER_SLOT", &payload, sizeof(payload));
+                                ImGui::TextUnformatted(tipRow.name != nullptr && tipRow.name[0] != '\0'
+                                                           ? tipRow.name
+                                                           : "Blank Spacer");
+                                ImGui::EndDragDropSource();
+                            }
+                            if (ImGui::BeginDragDropTarget()) {
+                                if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("COMBO_TRACKER_SLOT")) {
+                                    if (pl->DataSize == sizeof(ComboSlotDragPayload)) {
+                                        applySlotDrop((int)gIdx, (int)sIdx,
+                                                      *static_cast<const ComboSlotDragPayload*>(pl->Data));
+                                    }
+                                }
+                                ImGui::EndDragDropTarget();
+                            }
+                        }
+                        if (removeSlotIdx >= 0 && (size_t)removeSlotIdx < grp.slots.size()) {
+                            grp.slots.erase(grp.slots.begin() + removeSlotIdx);
+                            markDirty();
+                        }
+                    }
+
+                    ImGui::PopID();
+                }
+
+                if (swapGroupA >= 0 && swapGroupB >= 0 && (size_t)swapGroupA < groups.size() &&
+                    (size_t)swapGroupB < groups.size()) {
+                    std::swap(groups[(size_t)swapGroupA], groups[(size_t)swapGroupB]);
+                    markDirty();
+                }
+                if (moveToSectionIdx >= 0 && (size_t)moveToSectionIdx < groups.size() && moveToSectionTarget >= 0 &&
+                    moveToSectionTarget < ComboGui::COMBO_ITEM_SECTION_COUNT) {
+                    if (!layout.customEnabled[moveToSectionTarget] &&
+                        layout.activeGroups[moveToSectionTarget].empty()) {
+                        ComboGui::ComboItemTrackerDefaultActiveGroups(moveToSectionTarget,
+                                                                      layout.activeGroups[moveToSectionTarget]);
+                    }
+                    ComboGui::ComboItemTrackerGroup moved = std::move(groups[(size_t)moveToSectionIdx]);
+                    moved.section = moveToSectionTarget;
+                    groups.erase(groups.begin() + moveToSectionIdx);
+                    layout.activeGroups[moveToSectionTarget].push_back(std::move(moved));
+                    layout.customEnabled[moveToSectionTarget] = true;
+                    markDirty();
+                } else if (removeGroupIdx >= 0 && (size_t)removeGroupIdx < groups.size()) {
+                    groups.erase(groups.begin() + removeGroupIdx);
+                    markDirty();
+                }
+            }
+            ImGui::EndChild();
+
+            ImGui::EndTable();
+        }
+
+        if (layoutDirty) {
+            ComboGui::ComboItemTrackerSetLayout(layout);
+            ComboGui::ComboItemTrackerSaveLayoutToConfig();
+        }
+    }
+#endif
 }
 
 void ItemTrackerWindow::InitElement() {
