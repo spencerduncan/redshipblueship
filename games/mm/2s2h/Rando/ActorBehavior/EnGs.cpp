@@ -505,7 +505,7 @@ void Rando::ActorBehavior::InitEnGsBehavior() {
                 entry.msg = "Foolish... Come back later when you have more sense.";
             }
         } else {
-            entry.msg = flavorText[Ship_Random(0, flavorText.size() - 1)];
+            entry.msg = flavorText[Ship_Random(0, flavorText.size())];
         }
 
         CustomMessage::LoadCustomMessageIntoFont(entry);

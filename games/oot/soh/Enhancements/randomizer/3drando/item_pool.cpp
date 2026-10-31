@@ -181,7 +181,8 @@ void GenerateItemPool() {
     AddItemToPool(RG_ICE_ARROWS, 2, 1, 1, 1);
     AddItemToPool(RG_LIGHT_ARROWS, 2, 1, 1, 1);
     AddItemToPool(RG_DINS_FIRE, 2, 1, 1, 1);
-    AddItemToPool(RG_NAYRUS_LOVE, 2, 1, 0, 0);
+    AddItemToPool(RG_FARORES_WIND, 2, 1, 1, 0);
+    AddItemToPool(RG_NAYRUS_LOVE, 2, 1, 1, 0);
     AddItemToPool(RG_GREG_RUPEE, 1, 1, 1, 1);
     AddItemToPool(RG_PROGRESSIVE_HOOKSHOT, 2, 2, 2, 2);
     AddItemToPool(RG_HYLIAN_SHIELD, 1, 1, 1, 1);
@@ -852,11 +853,11 @@ void GenerateItemPool() {
     } else if (ctx->GetOption(RSK_SHUFFLE_MAPANDCOMPASS).IsNot(RO_DUNGEON_ITEM_LOC_STARTWITH)) {
         for (auto dungeon : ctx->GetDungeons()->GetDungeonList()) {
             if (dungeon->GetMap() != RG_NONE) {
-                AddFixedItemToPool(dungeon->GetMap(), false);
+                AddFixedItemToPool(dungeon->GetMap(), 1, false);
             }
 
             if (dungeon->GetCompass() != RG_NONE) {
-                AddFixedItemToPool(dungeon->GetCompass(), false);
+                AddFixedItemToPool(dungeon->GetCompass(), 1, false);
             }
         }
     }

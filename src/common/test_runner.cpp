@@ -2175,7 +2175,7 @@ TestResult Test_RandoShopCrossingsMM(void) {
     CVarSetInteger(kShopCvars[3], 1); // #800 pass 2: Tingle's map slots host crossings too
     // RSBS_SHOP_CROSSING_SEED overrides the pinned seed, for re-pinning by scan.
     const char* seedEnv = std::getenv("RSBS_SHOP_CROSSING_SEED");
-    const char* seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : "RSBSSHOPS1";
+    const char* seed = (seedEnv != nullptr && seedEnv[0] != '\0') ? seedEnv : "RSBSSHOPS2";
     const char* digestPath = "rsbs_shop_crossings_digest.txt";
     std::remove(digestPath);
     const int ootRc = Rando_HeadlessSeedDeterminismDigest(seed, digestPath);
@@ -2268,7 +2268,7 @@ extern "C" int Rando_TestStaticHintsThatDrew(void);
 extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
 extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
-static const uint32_t kStaticHintTextDigest = 0x5FF229EFu;
+static const uint32_t kStaticHintTextDigest = 0x4713C528u;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 

@@ -339,17 +339,16 @@ void OoT_AudioLoad_InitSampleDmaBuffers(s32 arg0) {
 }
 
 s32 OoT_AudioLoad_IsFontLoadComplete(s32 fontId) {
-    return true;
     if (fontId == 0xFF) {
         return true;
-
-    } else if (gAudioContext.fontLoadStatus[fontId] >= 2) {
-        return true;
-    } else if (gAudioContext.fontLoadStatus[OoT_AudioLoad_GetRealTableIndex(FONT_TABLE, fontId)] >= 2) {
-        return true;
-    } else {
-        return false;
     }
+    // Resolve indirection (identity for FONT_TABLE today, but kept for parity with other tables).
+    fontId = (s32)OoT_AudioLoad_GetRealTableIndex(FONT_TABLE, (u32)fontId);
+    if ((size_t)fontId >= fontMapSize) {
+        // No entry in the font map — SAF sequence with no associated soundfont, treat as ready.
+        return true;
+    }
+    return gAudioContext.fontLoadStatus[fontId] >= 2;
 }
 
 s32 OoT_AudioLoad_IsSeqLoadComplete(s32 seqId) {
@@ -377,7 +376,7 @@ s32 OoT_AudioLoad_IsSampleLoadComplete(s32 sampleBankId) {
 }
 
 void OoT_AudioLoad_SetFontLoadStatus(s32 fontId, s32 status) {
-    if ((fontId != 0xFF) && (gAudioContext.fontLoadStatus[fontId] != 5)) {
+    if ((fontId != 0xFF) && ((size_t)fontId < fontMapSize) && (gAudioContext.fontLoadStatus[fontId] != 5)) {
         gAudioContext.fontLoadStatus[fontId] = status;
     }
 }
@@ -1049,6 +1048,8 @@ void* OoT_AudioLoad_AsyncLoadInner(s32 tableType, s32 id, s32 nChunks, s32 retDa
     s32 status;
     u32 temp_v0;
     u32 realId;
+
+    realId = OoT_AudioLoad_GetRealTableIndex(tableType, id);
 
     switch (tableType) {
         case SEQUENCE_TABLE:
