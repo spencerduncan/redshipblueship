@@ -11,6 +11,7 @@
 #include "soh/Enhancements/randomizer/randomizer_check_objects.h"
 #include "soh/Enhancements/randomizer/randomizer_entrance_tracker.h"
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -101,8 +102,16 @@ static void WriteShuffledEntrance(std::string sphereString, Entrance* entrance) 
     int16_t destinationIndex = -1;
     int16_t replacementIndex = entrance->GetReplacement()->GetIndex();
     int16_t replacementDestinationIndex = -1;
-    std::string name = EntranceTracker::GetEntranceData(originalIndex)->source;
-    std::string text = EntranceTracker::GetEntranceData(replacementIndex)->destination;
+    const EntranceData* sourceData = EntranceTracker::GetEntranceData(originalIndex);
+    const EntranceData* destinationData = EntranceTracker::GetEntranceData(replacementIndex);
+    if (sourceData == nullptr || destinationData == nullptr) {
+        SPDLOG_ERROR("WriteShuffledEntrance: missing entrance data for index {} (override {})", originalIndex,
+                     replacementIndex);
+        assert(false);
+        return;
+    }
+    std::string name = sourceData->source;
+    std::string text = destinationData->destination;
 
     // Track the reverse destination, useful for savewarp handling
     if (entrance->GetReverse() != nullptr) {
@@ -167,7 +176,7 @@ std::string RemoveLineBreaks(std::string s) {
 static void WriteExcludedLocations() {
     auto ctx = Rando::Context::GetInstance();
 
-    for (size_t i = 0; i < Rando::Settings::GetInstance()->GetExcludeLocationsOptions().size() - 1; i++) {
+    for (size_t i = 0; i < Rando::Settings::GetInstance()->GetExcludeLocationsOptions().size(); i++) {
         for (const auto& location : Rando::Settings::GetInstance()->GetExcludeLocationsOptions()[i]) {
             if (ctx->GetLocationOption(static_cast<RandomizerCheck>(location->GetKey())).Get() == RO_LOCATION_INCLUDE) {
                 continue;

@@ -6,6 +6,7 @@ extern "C" {
 #include "variables.h"
 #include "functions.h"
 
+#include "overlays/actors/ovl_En_Mkk/z_en_mkk.h"
 #include "overlays/actors/ovl_En_Slime/z_en_slime.h"
 #include "overlays/actors/ovl_En_Sw/z_en_sw.h"
 }
@@ -23,9 +24,7 @@ std::unordered_map<int16_t, std::tuple<RandoCheckId, ActorType, EnemyDropType>> 
     { ACTOR_EN_VM,          { RC_ENEMY_DROP_BEAMOS, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_BOSS_05,        { RC_ENEMY_DROP_BIO_DEKU_BABA, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_BB,          { RC_ENEMY_DROP_BLUE_BUBBLE, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
-    // Boes do call drop collectible code, but only the ones in an unused grotto reach that point. We could add an init
-    // hook to EnMkk to set unk_14C to a non-MM_zero value, but the kill type works for now.
-    { ACTOR_EN_MKK,         { RC_ENEMY_DROP_BOE, ACTORCAT_ENEMY, DROP_TYPE_KILL } },
+    { ACTOR_EN_MKK,         { RC_ENEMY_DROP_BOE, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_SLIME,       { RC_ENEMY_DROP_CHUCHU, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     // Captain Keeta dies in a cutscene, so that drop is handled specially below.
     { ACTOR_EN_FAMOS,       { RC_ENEMY_DROP_DEATH_ARMOS, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
@@ -155,6 +154,13 @@ void Rando::ActorBehavior::InitEnemyDropBehavior() {
         u32 params = va_arg(args, u32);
         if (SpawnNormalEnemyDrop(position, params)) {
             *should = false;
+        }
+    });
+
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_MKK, shouldRegister, [](Actor* actor) {
+        if (!RANDO_SAVE_CHECKS[RC_ENEMY_DROP_BOE].cycleObtained) {
+            EnMkk* enMkk = (EnMkk*)actor;
+            enMkk->unk_14C = 1; // Enable drop code only normally reachable with JP grotto Boes
         }
     });
 

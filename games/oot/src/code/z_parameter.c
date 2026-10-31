@@ -819,7 +819,10 @@ void func_80082850(PlayState* play, s16 maxAlpha) {
 // Restores swordless state when using the custom value for temp B and then clears temp B
 void Interface_RandoRestoreSwordless(void) {
     if (IS_RANDO && gSaveContext.buttonStatus[0] == SWORDLESS_STATUS) {
-        gSaveContext.equips.buttonItems[0] = ITEM_NONE;
+        u8 bItem = gSaveContext.equips.buttonItems[0];
+        if (!((bItem >= ITEM_SWORD_KOKIRI && bItem <= ITEM_SWORD_BGS) || bItem == ITEM_SWORD_KNIFE)) {
+            gSaveContext.equips.buttonItems[0] = ITEM_NONE;
+        }
         gSaveContext.buttonStatus[0] = BTN_ENABLED;
     }
 }
@@ -5351,15 +5354,17 @@ void OoT_Interface_Draw(PlayState* play) {
                                 interfaceCtx->counterDigits[3] -= 10;
                             }
 
+                            svar3 = 16;
                             if (interfaceCtx->counterDigits[2] != 0) {
                                 OVERLAY_DISP = Gfx_TextureI8(
                                     OVERLAY_DISP, ((u8*)((u8*)digitTextures[interfaceCtx->counterDigits[2]])), 8, 16,
-                                    PosX_SKC + 8, PosY_SKC, 8, 16, 1 << 10, 1 << 10);
+                                    PosX_SKC + 16, PosY_SKC, 8, 16, 1 << 10, 1 << 10);
+                                svar3 = 24;
                             }
 
                             OVERLAY_DISP =
                                 Gfx_TextureI8(OVERLAY_DISP, ((u8*)digitTextures[interfaceCtx->counterDigits[3]]), 8, 16,
-                                              PosX_SKC + 16, PosY_SKC, 8, 16, 1 << 10, 1 << 10);
+                                              PosX_SKC + svar3, PosY_SKC, 8, 16, 1 << 10, 1 << 10);
                         }
                         break;
                     default:

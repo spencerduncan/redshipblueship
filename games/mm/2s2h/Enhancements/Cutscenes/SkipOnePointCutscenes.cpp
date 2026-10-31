@@ -66,6 +66,12 @@ void RegisterSkipOnePointCutscenes() {
                     *should = false;
                 }
                 break;
+            case ACTOR_BG_F40_BLOCK:
+                // Play the cutscene for one block in Stone tower for a glitch
+                if (!(MM_gPlayState->sceneId == SCENE_F40 && actor->params == (s16)0xCE3C)) {
+                    *should = false;
+                }
+                break;
             case ACTOR_BG_SPDWEB: // Spider Web
             case ACTOR_DOOR_SHUTTER:
             case ACTOR_BG_NUMA_HANA: // Big wooden flower in Woodfall Temple
@@ -91,7 +97,6 @@ void RegisterSkipOnePointCutscenes() {
             case ACTOR_EN_SW:
             case ACTOR_OBJ_CHAN:
             case ACTOR_EN_MM:
-            case ACTOR_BG_F40_BLOCK:
             case ACTOR_EN_BAL:
             case ACTOR_BG_TOBIRA01:
             case ACTOR_OBJ_BIGICICLE:

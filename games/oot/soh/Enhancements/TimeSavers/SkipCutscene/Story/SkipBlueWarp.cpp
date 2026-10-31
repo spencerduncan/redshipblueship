@@ -142,6 +142,7 @@ void RegisterShouldPlayBlueWarp() {
                        gSaveContext.chamberCutsceneNum == CHAMBER_CS_WATER) {
                 // Normally set in the blue warp cutscene
                 gSaveContext.dayTime = gSaveContext.skyboxTime = 0x4800;
+                gSaveContext.nightFlag = 0;
                 OoT_Flags_SetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER);
 
                 gSaveContext.entranceIndex = ENTR_LAKE_HYLIA_WATER_TEMPLE_BLUE_WARP;
@@ -159,9 +160,15 @@ void RegisterShouldPlayBlueWarp() {
             }
 
             if (isBlueWarpCutscene) {
+                // Skip bypasses Chamber of Sages, which would have cleared heat timer
+                if (gSaveContext.timerState <= TIMER_STATE_ENV_HAZARD_TICK) {
+                    gSaveContext.timerState = TIMER_STATE_OFF;
+                }
+
                 if (gSaveContext.entranceIndex != ENTR_LAKE_HYLIA_WATER_TEMPLE_BLUE_WARP) {
                     // Normally set in the blue warp cutscene
                     gSaveContext.dayTime = gSaveContext.skyboxTime = 0x8000;
+                    gSaveContext.nightFlag = 0;
                 }
 
                 *should = false;
@@ -170,8 +177,7 @@ void RegisterShouldPlayBlueWarp() {
 
             // This is outside the above condition because we want to handle both first and following visits to the blue
             // warp. Jabu's blue warp doesn't call VB_PLAY_BLUE_WARP_CS without Ruto
-            if ((sEnteredBlueWarp || gSaveContext.entranceIndex == ENTR_ZORAS_FOUNTAIN_JABU_JABU_BLUE_WARP) &&
-                overrideBlueWarpDestinations) {
+            if (sEnteredBlueWarp && overrideBlueWarpDestinations) {
                 Entrance_OverrideBlueWarp();
             }
         }

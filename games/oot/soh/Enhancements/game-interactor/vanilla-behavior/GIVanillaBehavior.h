@@ -264,6 +264,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // this->actor.xzDistToPlayer < 130.0f
+    // ```
+    // #### `args`
+    // - None
+    VB_BUSINESS_SCRUB_SPEAK,
+
+    // #### `result`
+    // ```c
     // true
     // ```
     // #### `args`
@@ -1396,6 +1404,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_SEND_MALON_HOME,
+
+    // #### `result`
+    // ```c
     // CHECK_QUEST_ITEM(QUEST_KOKIRI_EMERALD)
     // ```
     // #### `args`
@@ -1864,6 +1880,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // this->ageProperties->unk_24 <= ySurface
+    // ```
+    // #### `args`
+    // - `Player*`
+    VB_PLAYER_SPAWN_SWIMMING,
+
+    // #### `result`
+    // ```c
     // item == ITEM_SAW
     // ```
     // #### `args`
@@ -2049,6 +2073,14 @@ typedef enum {
     // #### `args`
     // - `*VBFishingData`
     VB_SHOULD_GIVE_VANILLA_FISHING_PRIZE,
+
+    // #### `result`
+    // ```c
+    // CHECK_BTN_ALL(input->press.button, BTN_B)
+    // ```
+    // #### `args`
+    // - `*Input`
+    VB_SHOULD_OSSAN_CANCEL,
 
     // #### `result`
     // ```c

@@ -1408,7 +1408,7 @@ Priority P0, effort M (21 commits: Sx15 Mx5 Lx1).
 | `56d96dc6b` | #1909 | Merge pull request #1909 from HarbourMasters/develop-battler (partially ported) | M | port-with-adaptation | A bundle of 5.0.1 fixes, several of them rando-correctness: - #1904: the Blast Mask check is granted when Sakon is killed or ignored. |
 | `99204fb69` | #1488 | Fixes for suns song usage in time shuffle (#1488) | S | port-with-adaptation | Under time shuffle, an unowned-time skip now clears an active Sun's Song fast-time state and sets the correct day number. |
 | `c0c746334` | #1472 | Use computed starting items for pool removal (#1472) | S | port-with-adaptation | With Shuffle Time on and no starting time item chosen, GrantStartingItems grants a fallback half-day, but GeneratePools never removes it, so the pool carries a duplic ... |
-| `b39664f88` | #1839 | Always shuffle first bomb bag (#1839) | S | port-with-adaptation | Makes the Bomb Shop's first bomb bag always shuffled, like the second, so both progressive bomb bags always enter the pool whatever Shuffle Shops is set to. |
+| `b39664f88` | #1839 | Always shuffle first bomb bag (#1839) | S | skip (not applicable) | Makes the Bomb Shop's first bomb bag always shuffled, like the second; intentionally skipped in RSBS because the single-bag shared bomb-bag pool and `#737` fixed-content contract pin MM's default unshuffled-shop exceptions to `RC_CURIOSITY_SHOP_SPECIAL_ITEM` and `RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM`. |
 | `e07b6f731` | #1777 | Merge pull request #1777 from garrettjoecox/fix-ship-random-usage | S | port-with-adaptation | Off-by-one fixes after Ship_Random became exclusive: the last element could never be picked in hints, shuffles, the random starting half-day and weighted junk placement. |
 | `1e57e04d4` | #1497 | Fix glitchless not handling force junk items corretly (#1497) | S | port |  |
 | `f1dee0072` | #1500 | Fix a glitchless gen issue, tweak logging, and tweak metrics (#1500) | S | port |  |
@@ -1746,40 +1746,40 @@ Three read-only agents checked 47 claims that decide the top bundles' priority, 
 
 | Bundle | Upstream sha | Verdict | Our evidence | Note |
 |---|---|---|---|---|
-| O26 | SoH f00f5b625 | ABSENT | `games/oot/CMakeLists.txt:48-56, :592-596`; `build-cmake/build.ninja` | OoT objects compile with `/Oi /Gy /W3` and no `/O2`; MM and libultraship get `-O2`. `NDEBUG` still reaches OoT. |
-| O11 | SoH 5ecff16bd | ABSENT | `games/oot/src/code/graph.c:540-546`; `z_vr_box.c:455-470` | The first gamestate (TitleSetup) is cast to PlayState for `OoT_Skybox_Setup`; the overrun repeats on every switch back into OoT. |
+| O26 | SoH f00f5b625 | ABSENT -> PRESENT (current wave) | `games/oot/CMakeLists.txt:48-56, :592-596`; `build-cmake/build.ninja` | OoT objects compile with `/Oi /Gy /W3` and no `/O2`; MM and libultraship get `-O2`. `NDEBUG` still reaches OoT. |
+| O11 | SoH 5ecff16bd | ABSENT -> PRESENT (#1323) | `games/oot/src/code/graph.c:540-546`; `z_vr_box.c:455-470` | The first gamestate (TitleSetup) is cast to PlayState for `OoT_Skybox_Setup`; the overrun repeats on every switch back into OoT. |
 | O11 | SoH e9268c446 / f2c34d8c1 | ABSENT / PARTIAL | `games/oot/src/code/z_room.c:416-418` | The camId guard exists only under NoRestrictItems or CrowdControl; no `AlwaysOnFixes.cpp` anywhere. |
 | O11 | SoH 0a946e5b9 | PRESENT (stronger) | `z_kaleido_scope_PAL.c:1003` | `gItemAgeReqs[ITEM_NONE + 1]` from PR #985. |
-| O11 | SoH 29c7e7568 | ABSENT | `games/oot/src/code/z_parameter.c:1897-1899, :2475` | `SLOT()` indexes the unsized `OoT_gItemSlots` with any id; #1048 sized `sItemActions`, not this. |
-| O11 | SoH 7a7f942b8 | ABSENT | `randomizer_item_tracker.cpp:827, :648` | `INV_CONTENT(item.id)` with no bound, fed `RG_` ids; the 2026-10-18 verifier filed it as ported. |
+| O11 | SoH 29c7e7568 | ABSENT -> PRESENT (#1323) | `games/oot/src/code/z_parameter.c:1897-1899, :2475` | `SLOT()` indexes the unsized `OoT_gItemSlots` with any id; #1048 sized `sItemActions`, not this. |
+| O11 | SoH 7a7f942b8 | ABSENT -> PRESENT (#1323) | `randomizer_item_tracker.cpp:827, :648` | `INV_CONTENT(item.id)` with no bound, fed `RG_` ids; the 2026-10-18 verifier filed it as ported. |
 | O12 | SoH b6bf97e2f | ABSENT (both games) | `audio_synthesis.c:899-903`; `soh/mixer.c:107,111`; MM `synthesis.c:1209-1227` | ADPCM load pad and `ROUND_DOWN_16` unchanged. |
-| O12 | SoH 4e39d06ac | ABSENT (both games) | `audio_heap.c:1012-1021`; MM `heap.c:1107-1110` | `permanentCache[32]`, unbounded write. |
-| O12 | SoH fdb7e194c / 945f70222 / b9bcc5e90 | ABSENT | `audio_load.c:341-342, :379-381, :1042-1055`; `audio_playback.c:98,124` | 945f70222 is OoT-only (MM `load.c:805` assigns `realId`); the audio thread reads CVars in five places. |
-| O1 | SoH 9991a95ab | ABSENT | `3drando/item_pool.cpp:855, :859` | `AddFixedItemToPool(..., false)`: the `false` is the count. |
-| O1 | SoH c360b2dee / 0f948efb5 | ABSENT | `item_pool.cpp:183-184` | No Farore's Wind row; Nayru's Love still `2, 1, 0, 0`. |
-| O1 | SoH 60205ec0b | ABSENT | `item_list.cpp` (no `BEAN_SOUL`); `draw.cpp:953`; `item_pool.cpp:564-575` | Rows missing outright while the souls are still added to the pool. |
-| O1 | SoH 65c7c3e4a | ABSENT | `item_pool.cpp:889-892`; `shared_items.h:744-748` | No assertion breaks on a port; prose and the `SqpShippedShape` fixture go stale. |
-| O3 | SoH 2f262f492 / af485bf64 | ABSENT | `3drando/hints.cpp:525, :470-471`; `hint.cpp:254` | Off-by-one on `junkIdx`; required trials in an unused local; `namesTemp` reset per location. |
-| O3 | SoH 0dcd52e5c / ea76550fc | ABSENT | `Messages/StaticHints.cpp:186-192`; `death_mountain_trail.cpp:60` | Both reached develop through the merge `35a2ce4bf`. |
-| O4 | SoH 0702b11b9 / c906c71f7 / 1413ceb33 / 2bc50f605 | ABSENT | `haunted_wasteland.cpp:26`; `lon_lon_ranch.cpp:14`; `thieves_hideout.cpp:15,33,57,71`; `location_list.cpp:223-224` | The Thieves' Hideout speak events exist; only the rows need switching. |
-| O6 | SoH 5e802f232 / 78e3683ef / 6f01d68c3 / 04eb8d160 | ABSENT | `zoras_river.cpp:64`; `dodongos_cavern.cpp:63-64`; `ganons_castle.cpp:35,358`; `forest_temple.cpp:110` | Each a one-line region-table error; the MQ twins already have the right form. |
-| O7 | SoH bdccc868b / fe78ae21a | ABSENT | `entrance.cpp:1710-1714`; `randomizer_entrance.c:152,165,209` | The boss-door savewarp match never fires (`index` is a stale Hyrule Field loop variable). |
-| O8 | SoH cc63cc4ab / c42004bc4 | ABSENT | `3drando/fill.cpp:474, :479`; `logic.cpp:2298-2301` | Missing `!`; packs grant chus without the bag checks. |
-| O9 | SoH a7cd6c811 / 69a7cdb17 | PARTIAL / ABSENT | `randomizer.cpp:3476, :3558-3579`; `OTRGlobals.cpp:2310-2331` | The file select reaps a finished worker (#1044) but nothing waits on load, and `DeinitOTR` never joins the thread. |
+| O12 | SoH 4e39d06ac | ABSENT -> PRESENT (#1323) | `audio_heap.c:1012-1021`; MM `heap.c:1107-1110` | `permanentCache[32]`, unbounded write. |
+| O12 | SoH fdb7e194c / 945f70222 / b9bcc5e90 | ABSENT -> PARTIAL (#1323: fdb7e194c, 945f70222) | `audio_load.c:341-342, :379-381, :1042-1055`; `audio_playback.c:98,124` | 945f70222 is OoT-only (MM `load.c:805` assigns `realId`); the audio thread reads CVars in five places. |
+| O1 | SoH 9991a95ab | ABSENT -> PRESENT (#1323) | `3drando/item_pool.cpp:855, :859` | `AddFixedItemToPool(..., false)`: the `false` is the count. |
+| O1 | SoH c360b2dee / 0f948efb5 | ABSENT -> PRESENT (#1323) | `item_pool.cpp:183-184` | No Farore's Wind row; Nayru's Love still `2, 1, 0, 0`. |
+| O1 | SoH 60205ec0b | ABSENT -> PRESENT (#1322) | `item_list.cpp` (no `BEAN_SOUL`); `draw.cpp:953`; `item_pool.cpp:564-575` | Rows missing outright while the souls are still added to the pool. |
+| O1 | SoH 65c7c3e4a | ABSENT -> PRESENT (#1223) | `item_pool.cpp:889-892`; `shared_items.h:744-748` | No assertion breaks on a port; prose and the `SqpShippedShape` fixture go stale. |
+| O3 | SoH 2f262f492 / af485bf64 | ABSENT -> PRESENT (#1181) | `3drando/hints.cpp:525, :470-471`; `hint.cpp:254` | Off-by-one on `junkIdx`; required trials in an unused local; `namesTemp` reset per location. |
+| O3 | SoH 0dcd52e5c / ea76550fc | ABSENT -> PRESENT (#1181, current wave) | `Messages/StaticHints.cpp:186-192`; `death_mountain_trail.cpp:60` | Both reached develop through the merge `35a2ce4bf`. |
+| O4 | SoH 0702b11b9 / c906c71f7 / 1413ceb33 / 2bc50f605 | ABSENT -> PRESENT (#1178, #1205) | `haunted_wasteland.cpp:26`; `lon_lon_ranch.cpp:14`; `thieves_hideout.cpp:15,33,57,71`; `location_list.cpp:223-224` | The Thieves' Hideout speak events exist; only the rows need switching. |
+| O6 | SoH 5e802f232 / 78e3683ef / 6f01d68c3 / 04eb8d160 | ABSENT -> PRESENT (#1323, current wave) | `zoras_river.cpp:64`; `dodongos_cavern.cpp:63-64`; `ganons_castle.cpp:35,358`; `forest_temple.cpp:110` | Each a one-line region-table error; the MQ twins already have the right form. |
+| O7 | SoH bdccc868b / fe78ae21a | ABSENT -> PRESENT (#1323) | `entrance.cpp:1710-1714`; `randomizer_entrance.c:152,165,209` | The boss-door savewarp match never fires (`index` is a stale Hyrule Field loop variable). |
+| O8 | SoH cc63cc4ab / c42004bc4 | ABSENT -> PRESENT (#1323) | `3drando/fill.cpp:474, :479`; `logic.cpp:2298-2301` | Missing `!`; packs grant chus without the bag checks. |
+| O9 | SoH a7cd6c811 / 69a7cdb17 | PARTIAL / ABSENT -> PRESENT (#1323, current wave) | `randomizer.cpp:3476, :3558-3579`; `OTRGlobals.cpp:2310-2331` | The file select reaps a finished worker (#1044) but nothing waits on load, and `DeinitOTR` never joins the thread. |
 | O20 | SoH 38e684fda | PRESENT | `Messages/MerchantMessages.cpp:237` | PR #1074 reads `RSK_SCRUB_TEXT_HINT`; nothing to port. |
-| O26 | SoH 87db67588 | ABSENT | `logic.cpp:1795,1806,1877,1925`; `fill.cpp:458,603` | Four `std::map` lookups with `.at()`; no early skip, no bitset. |
+| O26 | SoH 87db67588 | ABSENT -> PRESENT (current wave) | `logic.cpp:1795,1806,1877,1925`; `fill.cpp:458,603` | Four `std::map` lookups with `.at()`; no early skip, no bitset. |
 | O18 | SoH 2a335b1cd | PARTIAL | `ConfigMigrators.h:1550-1559`; `z_player.c:7159-7171` | The v6 updater writes `gCheats.SpeedModifier.*`; nothing reads it; a pre-v6 config loses the settings. |
 | L1 | LUS 62d22224 / c5a5a934 / f7600e02 / 67861a90 / 46bdbdd1 | ABSENT | `libultraship/src/fast/interpreter.cpp:408-479, :483-808, :249-255, :4547-4559`; `gfx_opengl.cpp:930` | None of the five is in the fork. |
 | L1 | LUS a93ee524 | PARTIAL | `gfx_opengl.h:105-120`; `interpreter.cpp:65` | The vector half is fork `477633a`; `TEXTURE_CACHE_MAX_SIZE` is still 500. |
 | L2 | LUS d4f9b849 / 766a6bad / 7cb10226 / 7f2baa10 | ABSENT | `Config.cpp:213-217`; `CrashHandler.cpp:205-207`; `WasapiAudioPlayer.cpp:76-164` | In-place config write; `exit(1)` in the POSIX signal handler; no WASAPI destructor or mutex, and `Release()` does `delete this` under a `shared_ptr`. |
 | L3 | LUS 8a67fa4b / 61bf1fbe | ABSENT | `Gui.cpp:200-207`; `gfx_dxgi.cpp:509-511` | No `SetGamepadMode`; the background-joystick hint is set unconditionally (RSBS overrides it for tests only). |
 | LB | fork pin | see note | gitlink `fcbbc18c` (2026-10-21) | Contained only in `origin/claude/unload-filter-owner`, 22 ahead of the fork's `main` (`6db32f6`, 2026-01-17); remote refs as of 2026-10-21, no fetch run. The worktree's submodule was not initialised; the main checkout's copy at the same sha was read. |
-| M1 | 2S2H 26146e975 / f86e04b4d / d6ac2550b | ABSENT | MM `z_player.c:13506`; `z_en_test3.c:559`; `games/oot/soh/resource/type/Skeleton.cpp:62-104` | MM Link registers into OoT's patcher and dangles until `ClearSkeletons`; neither patcher dedupes; PR #1092 touched neither file. |
-| M2 | 2S2H bb1c03b60 / 5edc11259 / 16ef59bae / c2f50b3cc / 7f3c8327f / 385f5c075 | ABSENT | `z_en_ot.c:63-73`; `z_en_attack_niw.c:400`; `z_en_test4.c:61-128`; `z_sram_NES.c:1641`; `z_en_nb.c:500`; `BenPortHudSingleExe.cpp:67`; `z_player_lib.c:2487,2552` | The live single-exe HUD copy wraps; the owl-save and Deku-hookshot cases have low reach today. |
-| M3 | 2S2H cc5d87143 / 9b699dee1 / 9224b9f48 / bcc562a3e / d80a5cf2e / f237dd293 | ABSENT | `Central.cpp:403`; `TimeLogic.cpp:62`; `SnowheadTemple.cpp:41`; `South.cpp:288`; six `CAN_USE_PROJECTILE` rows; `TerminaField.cpp:123,184` | Every logic row the finder named. |
+| M1 | 2S2H 26146e975 / f86e04b4d / d6ac2550b | ABSENT -> PRESENT (current wave) | MM `z_player.c:13506`; `z_en_test3.c:559`; `games/oot/soh/resource/type/Skeleton.cpp:62-104` | MM Link registers into OoT's patcher and dangles until `ClearSkeletons`; neither patcher dedupes; PR #1092 touched neither file. |
+| M2 | 2S2H bb1c03b60 / 5edc11259 / 16ef59bae / c2f50b3cc / 7f3c8327f / 385f5c075 | ABSENT -> PRESENT (#1317, #1323) | `z_en_ot.c:63-73`; `z_en_attack_niw.c:400`; `z_en_test4.c:61-128`; `z_sram_NES.c:1641`; `z_en_nb.c:500`; `BenPortHudSingleExe.cpp:67`; `z_player_lib.c:2487,2552` | The live single-exe HUD copy wraps; the owl-save and Deku-hookshot cases have low reach today. |
+| M3 | 2S2H cc5d87143 / 9b699dee1 / 9224b9f48 / bcc562a3e / d80a5cf2e / f237dd293 | ABSENT -> PRESENT (#1178, #1323) | `Central.cpp:403`; `TimeLogic.cpp:62`; `SnowheadTemple.cpp:41`; `South.cpp:288`; six `CAN_USE_PROJECTILE` rows; `TerminaField.cpp:123,184` | Every logic row the finder named. |
 | M3 | 2S2H 29e30e6b4 | ABSENT | `Rando/Types.h:3162-3163`; `z64save.h:389` | Inserts `RE_MAIL_LETTER_TO_KAFEI` mid-enum; `randoEvents` is `u8[RE_MAX]` in the raw MM tier, so append instead. |
-| M3 | 2S2H e07b6f731 | ABSENT | `ShipUtils.cpp:331-343`; `StartingItems.cpp:59`; `EnGs.cpp:169,211,508` | `Ship_Random` is exclusive and the call sites pass `size - 1`: Night 3 is never the random start, the last hint is never picked. |
-| M4 | 2S2H cb0bab40d / 5fa55eb05 / 99ff06284 | ABSENT | `EnGirlA.cpp:183-194`; `Traps.cpp:378`; `GeneratePools.cpp:44-48`; `z64save.h:456` | Exclusions are a per-ordinal bitset here, not names. |
+| M3 | 2S2H e07b6f731 | ABSENT -> PRESENT (#1323) | `ShipUtils.cpp:331-343`; `StartingItems.cpp:59`; `EnGs.cpp:169,211,508` | `Ship_Random` is exclusive and the call sites pass `size - 1`: Night 3 is never the random start, the last hint is never picked. |
+| M4 | 2S2H cb0bab40d / 5fa55eb05 / 99ff06284 | ABSENT -> PARTIAL (#1323: 5fa55eb05; current wave: cb0bab40d shop half) | `EnGirlA.cpp:183-194`; `Traps.cpp:378`; `GeneratePools.cpp:44-48`; `z64save.h:456` | Exclusions are a per-ordinal bitset here, not names. |
 | M5 | 2S2H 4661df2e6 (precedent) | PRESENT | `fabe7d33` (#1125); `Types.h:2300-2353`; `src/common/save.h:61` | 53 `RC_` ids and `RO_SHUFFLE_TREE_DROPS` appended, the Gorman trees left out, no `RSBS_SAVE_VERSION` bump. |
 | M7 | RO growth precedent | see note | `git log -S 'RO_'`; `z64save.h:424`; `combo_mm_options_view.h:352-360` | Only `fabe7d33` ever appended an `RO_` id; #1047 and #1102 chose separate appended fields instead. |
 | M10 | 2S2H b1edee5ff | ABSENT | `z_common_data.c:35`; `z_sram_NES.c:2089,2097`; `mm_save_manager_stubs.c:59-64` | MM always plays Switch targeting; nothing maps OoT's `zTargetSetting`. |
@@ -1797,9 +1797,40 @@ Three read-only agents checked 47 claims that decide the top bundles' priority, 
 | SoH `38e684fda` (Fixed scrub text checking merchant hint setting (#6378)) | covered by PR #1074 (`ab767fd9`): the scrub's offer textbox follows Scrub Hint Text | O20 |
 | 2S2H `31f902da3` ([Enhancement] Save Game on Moon Crash (#1480)) | decided against by PR #1102 (`ab4ecc6a`): Moon Crash Behavior with Last Save as the default and New Cycle opt-in, the OoTMM way; no save-on-crash mode | M16 |
 | 2S2H `22518984e` (Remove Gorman Track trees from shuffle (#1511)) | included in PR #1125 (`fabe7d33`): the 25 Gorman Track trees were never added | M5 |
-| SoH `7a7f942b8` (Fix item tracker fishing pole & roc's feather (#7103)) | the opposite move: the 2026-10-18 verifier filed it as ported, but the `INV_CONTENT(item.id)` bound is absent and the read is live (`randomizer_item_tracker.cpp:827,648`); it is in O11 | O11 |
+| SoH `7a7f942b8` (Fix item tracker fishing pole & roc's feather (#7103)) | the opposite move: the 2026-10-18 verifier filed it as ported, but the `INV_CONTENT(item.id)` bound is absent and the read is live (`randomizer_item_tracker.cpp:827,648`); it is in O11 (since ported in #1323) | O11 |
 
 Three later PRs changed the frame rather than a record: #1082, #1093, #1079 and #1119 established the MM enhancement hosting pattern that the 2S2H finder records call a "liveness decision" (so those prerequisites are now "follow the pattern"); #1091 made frame interpolation work in MM through the shared gfx processor (so O17 and M15 are plain ports); and #1125 is the precedent, and the warning, for MM save-tier growth (M5, M6, M7).
+
+### Landed between 7c1aecf9 and 2026-10-30 (PRs #1177–#1325 + current backport wave)
+
+Between the `7c1aecf9` audit baseline and 2026-10-30, PRs `#1177` through `#1325` and the current backport wave landed the following upstream commits across the bundles above:
+
+| Bundle | Landed on `main` (PRs `#1177`–`#1325`) | Landed in current backport wave |
+|---|---|---|
+| **O1** | `60205ec0b` (#1322), `65c7c3e4a` (#1223), `9991a95ab` + `c360b2dee` + `0f948efb5` (#1323) | — |
+| **O2** | — | `d67dcb92f`, `7effe2891`, `29b9b4a5a`, `b15ac97de`, `585530f68`, `371ef6f84`, `04ccd608b` (current wave) |
+| **O3** | `2f262f492`, `af485bf64`, `0dcd52e5c` (#1181); `983d04d36` (#1181, #1207) | `18bf4b315`, `317454574`, `c3ffaa918`, `99e60b81f`, `ba08197d3`, `49aa33038`, `98ec5519c`, `ea76550fc` (current wave) |
+| **O4** | `0702b11b9`, `c906c71f7`, `1413ceb33`, `63597ec63` (#1178); `2bc50f605` (#1205); `c63f57850` (#1226) | `e6947c733`, `a393f48c7`, `a547d51ab` (current wave) |
+| **O5 / O28** | `743103fbe`, `b6cdc6c49`, `fe5dce24b`, `ec27775e8`, `848106039`, `09b0fdbc9`, `ed4868f62`, `688913270`, `7be5a4fea` (#1291); `60ec65592` (#1318) | — |
+| **O6** | `041295f05`, `2bfae47b7` (#1290); `04eb8d160`, `5e802f232`, `6f01d68c3`, `7eb5acf22`, `e987cdae2`, `1e1ba54cf`, `210c5d588`, `293adcf9e`, `f3d881144`, `abcb3ad94`, `adf31d5eb` (#1323) | `ff0209e76`, `f04b570d2`, `78e3683ef`, `c3c80df37`, `94a02dd53`, `45b932159`, `19df71112` (current wave) |
+| **O7** | `fe78ae21a`, `bdccc868b` (#1323) | — |
+| **O8** | `cc63cc4ab`, `c42004bc4` (#1323) | `483849b97` (current wave) |
+| **O9** | `69a7cdb17`, `4c43ef030`, `eab279c0b` (#1323) | `a7cd6c811`, `e4b6f1ab8` (current wave) |
+| **O10** | `5875ed880` / `7cdf69b20` (#1211) | `a35f33118`, `4a875dca4`, `b83ca39c9`, `b043cdf40` (current wave) |
+| **O11** | `5ecff16bd`, `29c7e7568`, `7a7f942b8`, `e9ef09eee`, `92afa8144` (#1323) | `e4f019f56`, `02c7632a3` (current wave) |
+| **O12** | `4e39d06ac` (OoT & MM), `fdb7e194c`, `945f70222` (#1323) | — |
+| **O13** | `7cfab16ba` (#1292, #1312) | `d54a69833` (current wave) |
+| **O14** | — | `e6d6b6d7d`, `f31172c64`, `07414fd72`, `6e6fee887`, `a1aa04681`, `1133ae221`, `3a12eeaa7`, `de170e974` (current wave) |
+| **O15 / M1** | `bbc76212f` (#1177), `a221a8c08` (#1197) | `26146e975`, `f86e04b4d`, `d6ac2550b` (current wave) |
+| **O19 / M18** | `#1180` (`2845baad6`, `2ba368e7e`, `6bf5ec514`), `#1188`, `#1192`, `#1202`, `#1249`, `#1263`, `#1293` (`079f44bae`), `#1309`, `#1325` | — |
+| **O20** | `983d04d36` (#1207), `31ac33a7a` (#1324) | — |
+| **O21** | `fb8126780` / `6340ad3d5` (#1212) | `86fdb9bfe`, `6a9567b36` (current wave) |
+| **O26** | — | `f00f5b625`, `87db67588`, `b939163c3`, `e447143e4` (current wave) |
+| **L2** | `0be75d87f` (#1199), `c429f3595` (#1319), `4b68e3197` (#1320) | — |
+| **M2** | `16ef59bae` + `96611c3b3` (#1317); `bb1c03b60`, `5edc11259`, `385f5c075`, `c2f50b3cc`, `b2872844e`, `7f3c8327f` (#1323) | `86d78d17f`, `5c35f92ef` (current wave) |
+| **M3** | `cc5d87143`, `9b699dee1` (#1178); `9224b9f48`, `bcc562a3e`, `d80a5cf2e`, `f237dd293`, `180318962`, `c0c746334`, `e07b6f731` (#1323) | `a960c7f44`, `99204fb69` (current wave; `b39664f88` verified not applicable under RSBS single-bag bomb-bag pool / `#737` contract) |
+| **M4** | `5fa55eb05` (#1323) | `cb0bab40d` (shop half), `c03a59dae` (current wave) |
+| **M10 / M12 / M14 / M15 / M16 / M17** | `#1213` (`5d96fd84f`), `#1242`–`#1271` (hosted MM Enhancements, Audio Editor, Cosmetics, Mirrored World `007667bdb`), `#1297` (`6eda20817` 999-rupee Tycoon wallet) | `b3dcb18a9`, `3d3a01887`, `dfa4a6a95`, `38cee8c92`, `63fde12a1` (current wave) |
 
 ## Do not port
 

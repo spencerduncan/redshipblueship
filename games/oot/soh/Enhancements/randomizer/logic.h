@@ -1,8 +1,10 @@
 #pragma once
 
+#include <array>
+#include <stdint.h>
+
 #include "randomizerTypes.h"
 #include "SeedContext.h"
-#include <stdint.h>
 
 namespace Rando {
 
@@ -152,10 +154,10 @@ class Logic {
     void SetSaveContext(SaveContext* context);
     void InitSaveContext();
     void NewSaveContext();
-    static std::map<uint32_t, uint32_t> RandoGetToQuestItem;
-    static std::map<uint32_t, uint32_t> RandoGetToDungeonScene;
-    static std::map<RandomizerGet, uint32_t> RandoGetToEquipFlag;
-    static std::map<RandomizerGet, uint32_t> RandoGetToRandInf;
+    static const std::array<uint32_t, RG_MAX> RandoGetToQuestItem;
+    static const std::array<uint32_t, RG_MAX> RandoGetToDungeonScene;
+    static const std::array<uint32_t, RG_MAX> RandoGetToEquipFlag;
+    static const std::array<uint32_t, RG_MAX> RandoGetToRandInf;
     bool IsReverseAccessPossible();
     bool SpiritEastToSwitch();
     bool SpiritWestToSkull();

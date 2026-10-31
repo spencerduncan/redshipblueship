@@ -1,4 +1,4 @@
-﻿#include <libultraship/bridge.h>
+#include <libultraship/bridge.h>
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/enhancementTypes.h"
@@ -290,6 +290,12 @@ void RandomizerOnFlagSetHandler(int16_t flagType, int16_t flag) {
 
     if (flagType == FLAG_EVENT_CHECK_INF && flag == EVENTCHKINF_OBTAINED_ZELDAS_LETTER) {
         Flags_SetRandomizerInf(RAND_INF_ZELDAS_LETTER);
+    }
+
+    if (flagType == FLAG_EVENT_CHECK_INF && flag == EVENTCHKINF_TALON_RETURNED_FROM_CASTLE) {
+        if (OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_POCKET_EGG)) {
+            Flags_SetRandomizerInf(RAND_INF_TALON_SENT_MALON_HOME);
+        }
     }
 
     RandomizerCheck rc = GetRandomizerCheckFromFlag(flagType, flag);
@@ -696,6 +702,10 @@ void RandomizerOnItemReceiveHandler(GetItemEntry receivedItemEntry) {
         randomizerQueuedItemEntry = GET_ITEM_NONE;
     }
 
+    if (receivedItemEntry.modIndex == MOD_NONE && receivedItemEntry.itemId == ITEM_SONG_EPONA) {
+        OoT_Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
+    }
+
     if (receivedItemEntry.modIndex == MOD_NONE &&
         (receivedItemEntry.itemId == ITEM_HEART_PIECE || receivedItemEntry.itemId == ITEM_HEART_PIECE_2 ||
          receivedItemEntry.itemId == ITEM_HEART_CONTAINER)) {
@@ -707,25 +717,29 @@ void RandomizerOnItemReceiveHandler(GetItemEntry receivedItemEntry) {
         }
     }
 
-    if (loc->GetRandomizerCheck() == RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST &&
-        !CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
-        static uint32_t updateHook;
-        updateHook = GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>([]() {
-            Player* player = GET_PLAYER(OoT_gPlayState);
-            if (player == NULL || OoT_Player_InBlockingCsMode(OoT_gPlayState, player) ||
-                player->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS || player->stateFlags1 & PLAYER_STATE1_GETTING_ITEM ||
-                player->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR) {
-                return;
-            }
+    if (loc->GetRandomizerCheck() == RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST) {
+        if (!CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
+            static uint32_t updateHook;
+            updateHook = GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>([]() {
+                Player* player = GET_PLAYER(OoT_gPlayState);
+                if (player == NULL || OoT_Player_InBlockingCsMode(OoT_gPlayState, player) ||
+                    player->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS ||
+                    player->stateFlags1 & PLAYER_STATE1_GETTING_ITEM ||
+                    player->stateFlags1 & PLAYER_STATE1_CARRYING_ACTOR) {
+                    return;
+                }
 
-            OoT_gPlayState->nextEntranceIndex = ENTR_DESERT_COLOSSUS_EAST_EXIT;
-            OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
-            gSaveContext.nextCutsceneIndex = 0xFFF1;
-            OoT_gPlayState->transitionType = TRANS_TYPE_SANDSTORM_END;
-            GET_PLAYER(OoT_gPlayState)->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
-            OoT_Player_TryCsAction(OoT_gPlayState, NULL, 8);
-            GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPlayerUpdate>(updateHook);
-        });
+                OoT_gPlayState->nextEntranceIndex = ENTR_DESERT_COLOSSUS_EAST_EXIT;
+                OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+                gSaveContext.nextCutsceneIndex = 0xFFF1;
+                OoT_gPlayState->transitionType = TRANS_TYPE_SANDSTORM_END;
+                GET_PLAYER(OoT_gPlayState)->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
+                OoT_Player_TryCsAction(OoT_gPlayState, NULL, 8);
+                GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPlayerUpdate>(updateHook);
+            });
+        } else {
+            OoT_Flags_SetEventChkInf(EVENTCHKINF_NABOORU_CAPTURED_BY_TWINROVA);
+        }
     }
 }
 
@@ -1343,6 +1357,13 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                 *should = true;
             }
             break;
+        case VB_MALON_RETURN_FROM_CASTLE:
+            *should = OoT_Flags_GetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE) &&
+                      OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_POCKET_EGG);
+            break;
+        case VB_SEND_MALON_HOME:
+            *should = Flags_GetRandomizerInf(RAND_INF_TALON_SENT_MALON_HOME);
+            break;
         case VB_MIDO_CONSIDER_DEKU_TREE_DEAD:
             *should = OoT_Flags_GetEventChkInf(EVENTCHKINF_OBTAINED_KOKIRI_EMERALD_DEKU_TREE_DEAD);
             break;
@@ -1902,8 +1923,8 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             break;
         }
         case VB_OFFER_BLUE_POTION: {
-            // Always offer blue potion when adult trade is off
-            *should |= RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE) == RO_GENERIC_OFF;
+            *should |= RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE) == RO_GENERIC_OFF &&
+                       INV_CONTENT(ITEM_CLAIM_CHECK) == ITEM_CLAIM_CHECK;
             break;
         }
         case VB_OKARINA_TAG_COMPLETE: {
@@ -2067,6 +2088,17 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             *should = false;
             break;
         }
+        case VB_PLAYER_SPAWN_SWIMMING: {
+            // Don't swim as adult coming from Domain to Lake with low water.
+            // Caused by waterbox first frame y surface always being -1313.0f
+            Player* player = va_arg(args, Player*);
+            if (OoT_gPlayState->sceneNum == SCENE_LAKE_HYLIA && LINK_IS_ADULT &&
+                !OoT_Flags_GetEventChkInf(EVENTCHKINF_RAISED_LAKE_HYLIA_WATER) && player->actor.world.pos.y > -1550.0f &&
+                player->actor.world.pos.y < -1500.0f) {
+                *should = false;
+            }
+            break;
+        }
         case VB_BE_ELIGIBLE_FOR_RAINBOW_BRIDGE: {
             *should = MeetsRainbowBridgeRequirements();
             break;
@@ -2149,12 +2181,6 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
         }
         case VB_RENDER_RUPEE_COUNTER: {
             if (!Flags_GetRandomizerInf(RAND_INF_HAS_WALLET) || Flags_GetRandomizerInf(RAND_INF_HAS_INFINITE_MONEY)) {
-                *should = false;
-            }
-            break;
-        }
-        case VB_REVERT_SPOILING_ITEMS: {
-            if (RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE)) {
                 *should = false;
             }
             break;
@@ -3197,6 +3223,13 @@ static void RandomizerRegisterHooks() {
     static uint32_t onExitGameHook = 0;
     static uint32_t onKaleidoUpdateHook = 0;
     static uint32_t onCuccoOrChickenHatchHook = 0;
+
+    // register this outside OnLoadGame as VB is invoked before OnLoadGame
+    COND_VB_SHOULD(VB_REVERT_SPOILING_ITEMS, true, {
+        if (IS_RANDO && RAND_GET_OPTION(RSK_SHUFFLE_ADULT_TRADE)) {
+            *should = false;
+        }
+    });
 
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnLoadGame>([](int32_t fileNum) {
         ShipInit::Init("IS_RANDO");

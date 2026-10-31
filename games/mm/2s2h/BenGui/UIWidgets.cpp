@@ -1183,7 +1183,7 @@ void DrawFlagArray32(const std::string& name, uint32_t& flags, Colors color) {
         }
         if (ImGui::IsItemHovered()) {
             std::string label = fmt::format("0x{:02X} ({})", flagIndex, flagIndex);
-            ImGui::SetTooltip(label.c_str());
+            ImGui::SetTooltip("%s", label.c_str());
         }
         ImGui::PopStyleVar();
         PopStyleCheckbox();
@@ -1213,7 +1213,7 @@ void DrawFlagArray16(const std::string& name, uint16_t& flags, Colors color) {
         }
         if (ImGui::IsItemHovered()) {
             std::string label = fmt::format("0x{:02X} ({})", flagIndex, flagIndex);
-            ImGui::SetTooltip(label.c_str());
+            ImGui::SetTooltip("%s", label.c_str());
         }
         ImGui::PopStyleVar();
         PopStyleCheckbox();
@@ -1247,7 +1247,7 @@ void DrawFlagTableArray16(const FlagTable& flagTable, uint16_t& flags) {
             if (!label.size()) {
                 label = fmt::format("0x{:02X} ({})", flagIndex, flagIndex);
             }
-            ImGui::SetTooltip(label.c_str());
+            ImGui::SetTooltip("%s", label.c_str());
         }
         ImGui::PopStyleVar();
         PopStyleCheckbox();
@@ -1281,7 +1281,7 @@ void DrawFlagTableArray8(const FlagTable& flagTable, uint16_t row, uint8_t& flag
             if (!label.size()) {
                 label = fmt::format("0x{:02X} ({})", flagIndex, flagIndex);
             }
-            ImGui::SetTooltip(label.c_str());
+            ImGui::SetTooltip("%s", label.c_str());
         }
         ImGui::PopStyleVar();
         PopStyleCheckbox();
@@ -1313,7 +1313,7 @@ void DrawFlagTableArray8Mask(const FlagTable& flagTable, uint16_t row, uint8_t& 
         if (ImGui::IsItemHovered()) {
             std::string label = WrappedText(flagEntry.description, 60).c_str();
             label += fmt::format("{}0x{:02X} ({})", label.size() ? "\n" : "", bitMask, flagIndex);
-            ImGui::SetTooltip(label.c_str());
+            ImGui::SetTooltip("%s", label.c_str());
         }
         ImGui::PopStyleVar();
         PopStyleCheckbox();

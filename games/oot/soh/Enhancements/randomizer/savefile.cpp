@@ -28,6 +28,8 @@ void GiveLinkRupees(int numOfRupees) {
         maxRupeeCount = 200;
     } else if (CUR_UPG_VALUE(UPG_WALLET) == 2) {
         maxRupeeCount = 500;
+    } else if (CUR_UPG_VALUE(UPG_WALLET) == 3) {
+        maxRupeeCount = 999;
     }
 
     int newRupeeCount = gSaveContext.rupees;
@@ -281,7 +283,9 @@ void SetStartingItems() {
     }
 
     if (Randomizer_GetSettingValue(RSK_STARTING_OCARINA)) {
-        INV_CONTENT(ITEM_OCARINA_FAIRY) = ITEM_OCARINA_FAIRY;
+        INV_CONTENT(ITEM_OCARINA_FAIRY) = Randomizer_GetSettingValue(RSK_STARTING_OCARINA) == RO_STARTING_OCARINA_FAIRY
+                                              ? ITEM_OCARINA_FAIRY
+                                              : ITEM_OCARINA_TIME;
     }
 
     if (Randomizer_GetSettingValue(RSK_STARTING_STICKS) && !Randomizer_GetSettingValue(RSK_SHUFFLE_DEKU_STICK_BAG)) {
@@ -296,10 +300,6 @@ void SetStartingItems() {
         } else {
             gSaveContext.inventory.equipment |= 1 << 1;
         }
-    }
-
-    if (Randomizer_GetSettingValue(RSK_FULL_WALLETS)) {
-        GiveLinkRupees(9001);
     }
 
     if (Randomizer_GetSettingValue(RSK_SHUFFLE_MAPANDCOMPASS) == RO_DUNGEON_ITEM_LOC_STARTWITH) {
@@ -468,6 +468,10 @@ extern "C" void Randomizer_InitSaveFile() {
     // Give Link's pocket item
     GiveLinksPocketItem();
 
+    if (Randomizer_GetSettingValue(RSK_FULL_WALLETS)) {
+        GiveLinkRupees(9001);
+    }
+
     // Remove One Time Scrubs with Scrubsanity off
     if (Randomizer_GetSettingValue(RSK_SHUFFLE_SCRUBS) == RO_SCRUBS_OFF) {
         Flags_SetItemGetInf(ITEMGETINF_DEKU_SCRUB_HEART_PIECE);
@@ -508,9 +512,9 @@ extern "C" void Randomizer_InitSaveFile() {
         GetItemEntry getItemEntry = Randomizer_GetItemFromKnownCheck(RC_SONG_FROM_IMPA, (GetItemID)RG_ZELDAS_LULLABY);
         StartingItemGive(getItemEntry, RC_SONG_FROM_IMPA);
         getItemEntry = Randomizer_GetItemFromKnownCheck(RC_HC_MALON_EGG, (GetItemID)RG_WEIRD_EGG);
-        StartingItemGive(getItemEntry, RC_HC_ZELDAS_LETTER);
-        getItemEntry = Randomizer_GetItemFromKnownCheck(RC_HC_ZELDAS_LETTER, (GetItemID)RG_ZELDAS_LETTER);
         StartingItemGive(getItemEntry, RC_HC_MALON_EGG);
+        getItemEntry = Randomizer_GetItemFromKnownCheck(RC_HC_ZELDAS_LETTER, (GetItemID)RG_ZELDAS_LETTER);
+        StartingItemGive(getItemEntry, RC_HC_ZELDAS_LETTER);
 
         // Malon/Talon back at ranch.
         OoT_Flags_SetEventChkInf(EVENTCHKINF_OBTAINED_POCKET_EGG);
@@ -540,10 +544,6 @@ extern "C" void Randomizer_InitSaveFile() {
     }
 
     HIGH_SCORE(HS_POE_POINTS) = 1000 - (100 * Randomizer_GetSettingValue(RSK_BIG_POE_COUNT));
-
-    if (Randomizer_GetSettingValue(RSK_SKIP_EPONA_RACE)) {
-        OoT_Flags_SetEventChkInf(EVENTCHKINF_EPONA_OBTAINED);
-    }
 
     // Open lowest Vanilla Fire Temple locked door (to prevent key logic lockouts).
     // Not done on Keysanity since this lockout is a non-issue when Fire Keys can be found outside the temple.

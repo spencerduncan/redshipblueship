@@ -510,9 +510,9 @@ void RegionTable_Init_ForestTemple() {
     areaTable[RR_FOREST_TEMPLE_MQ_LOWER_BLOCK_PUZZLE] = Region("Forest Temple MQ Lower Block Puzzle", SCENE_FOREST_TEMPLE, {
         //Events
         //It is barely possible to get this as child with master + hovers, but it's tight without bunny speed
-        EventAccess(LOGIC_FOREST_CAN_TWIST_HALLWAY,     []{return (ctx->GetTrickOption(RT_FOREST_MQ_JS_HALLWAY_SWITCH) && logic->CanUse(RG_HOVER_BOOTS) && 
-                                                                   (logic->IsAdult && logic->CanJumpslash()) || 
-                                                                   (logic->CanUse(RG_STICKS) || logic->CanUse(RG_BIGGORON_SWORD) || (logic->Get(LOGIC_FOREST_MQ_BLOCK_ROOM_TARGETS) && logic->CanUse(RG_MASTER_SWORD))));}),
+        EventAccess(LOGIC_FOREST_CAN_TWIST_HALLWAY,     []{return ctx->GetTrickOption(RT_FOREST_MQ_JS_HALLWAY_SWITCH) && (logic->CanUse(RG_HOVER_BOOTS) && 
+                                                                  ((logic->IsAdult && logic->CanJumpslash()) || 
+                                                                   (logic->CanUse(RG_STICKS) || logic->CanUse(RG_BIGGORON_SWORD) || (logic->Get(LOGIC_FOREST_MQ_BLOCK_ROOM_TARGETS) && logic->CanUse(RG_MASTER_SWORD)))));}),
     }, {}, {
         //Exits
         Entrance(RR_FOREST_TEMPLE_MQ_BLOCK_PUZZLE_FLOOR,  []{return true;}),

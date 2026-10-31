@@ -6659,32 +6659,35 @@ void func_8083C8DC(Player* this, PlayState* play, s16 arg2) {
     func_8083C858(this, play);
 }
 
-s32 func_8083C910(PlayState* play, Player* this, f32 arg2) {
-    WaterBox* sp2C;
-    f32 sp28;
+/**
+ * @return false if player starting movement is swimming, otherwise true
+ */
+s32 Player_SetStartingMovement(PlayState* play, Player* this, f32 arg2) {
+    WaterBox* waterbox;
+    f32 ySurface;
 
-    sp28 = this->actor.world.pos.y;
-    if (OoT_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &sp28, &sp2C) !=
-        0) {
-        sp28 -= this->actor.world.pos.y;
-        if (this->ageProperties->unk_24 <= sp28) {
+    ySurface = this->actor.world.pos.y;
+    if (OoT_WaterBox_GetSurface1(play, &play->colCtx, this->actor.world.pos.x, this->actor.world.pos.z, &ySurface,
+                             &waterbox)) {
+        ySurface -= this->actor.world.pos.y;
+        if (GameInteractor_Should(VB_PLAYER_SPAWN_SWIMMING, this->ageProperties->unk_24 <= ySurface, this)) {
             Player_SetupAction(play, this, Player_Action_8084D7C4, 0);
             Player_AnimChangeLoopSlowMorph(play, this, &gPlayerAnim_link_swimer_swim);
             this->stateFlags1 |= PLAYER_STATE1_IN_WATER | PLAYER_STATE1_IN_CUTSCENE;
             this->av2.actionVar2 = 20;
             this->linearVelocity = 2.0f;
             Player_SetBootData(play, this);
-            return 0;
+            return false;
         }
     }
 
     func_80838E70(play, this, arg2, this->actor.shape.rot.y);
     this->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
-    return 1;
+    return true;
 }
 
 void Player_StartMode_Idle(PlayState* play, Player* this) {
-    if (func_8083C910(play, this, 180.0f)) {
+    if (Player_SetStartingMovement(play, this, 180.0f)) {
         this->av2.actionVar2 = -20;
     }
 }
@@ -6692,7 +6695,7 @@ void Player_StartMode_Idle(PlayState* play, Player* this) {
 void Player_StartMode_MoveForwardSlow(PlayState* play, Player* this) {
     this->linearVelocity = 2.0f;
     gSaveContext.entranceSpeed = 2.0f;
-    if (func_8083C910(play, this, 120.0f)) {
+    if (Player_SetStartingMovement(play, this, 120.0f)) {
         this->av2.actionVar2 = -15;
     }
 }
@@ -6704,7 +6707,7 @@ void Player_StartMode_MoveForward(PlayState* play, Player* this) {
 
     this->linearVelocity = gSaveContext.entranceSpeed;
 
-    if (func_8083C910(play, this, 800.0f)) {
+    if (Player_SetStartingMovement(play, this, 800.0f)) {
         this->av2.actionVar2 = -80 / this->linearVelocity;
         if (this->av2.actionVar2 < -20) {
             this->av2.actionVar2 = -20;
@@ -14338,13 +14341,15 @@ s32 func_8084DFF4(PlayState* play, Player* this) {
         play->msgCtx.msgMode = MSGMODE_TEXT_DONE;
     } else {
         if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_CLOSING) {
-            if (GameInteractor_Should(VB_PLAY_NABOORU_CAPTURED_CS, this->getItemId == GI_GAUNTLETS_SILVER)) {
-                play->nextEntranceIndex = ENTR_DESERT_COLOSSUS_EAST_EXIT;
-                play->transitionTrigger = TRANS_TRIGGER_START;
-                gSaveContext.nextCutsceneIndex = 0xFFF1;
-                play->transitionType = TRANS_TYPE_SANDSTORM_END;
-                this->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
-                OoT_Player_TryCsAction(play, NULL, 8);
+            if (this->getItemId == GI_GAUNTLETS_SILVER) {
+                if (GameInteractor_Should(VB_PLAY_NABOORU_CAPTURED_CS, true)) {
+                    play->nextEntranceIndex = ENTR_DESERT_COLOSSUS_EAST_EXIT;
+                    play->transitionTrigger = TRANS_TRIGGER_START;
+                    gSaveContext.nextCutsceneIndex = 0xFFF1;
+                    play->transitionType = TRANS_TYPE_SANDSTORM_END;
+                    this->stateFlags1 &= ~PLAYER_STATE1_IN_CUTSCENE;
+                    OoT_Player_TryCsAction(play, NULL, 8);
+                }
             }
 
             // Set unk_862 to 0 early to not have the game draw non-custom colored models for a split second.

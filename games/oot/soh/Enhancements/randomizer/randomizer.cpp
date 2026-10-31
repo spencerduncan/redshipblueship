@@ -1,4 +1,5 @@
 #include "randomizer.h"
+#include <atomic>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <variables.h>
@@ -68,7 +69,7 @@ std::set<RandomizerCheck> spoilerExcludedLocations;
 std::set<RandomizerTrick> enabledTricks;
 std::set<RandomizerTrick> enabledGlitches;
 
-u8 generated;
+static std::atomic<bool> randoGenerating;
 char* seedString;
 
 bool Rando_HandleSpoilerDrop(char* filePath) {
@@ -449,9 +450,7 @@ ItemObtainability Randomizer::GetItemObtainabilityFromRandomizerGet(RandomizerGe
                 case RO_BOMBCHU_BAG_NONE:
                     return CANT_OBTAIN_MISC;
                 case RO_BOMBCHU_BAG_SINGLE:
-                    return INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU
-                               ? (infiniteUpgrades != RO_INF_UPGRADES_OFF ? CAN_OBTAIN : CANT_OBTAIN_ALREADY_HAVE)
-                               : CAN_OBTAIN;
+                    return CAN_OBTAIN;
                 case RO_BOMBCHU_BAG_PROGRESSIVE:
                     if (Flags_GetRandomizerInf(RAND_INF_HAS_INFINITE_BOMBCHUS)) {
                         return CANT_OBTAIN_ALREADY_HAVE;
@@ -3510,8 +3509,6 @@ void Rando_ReadMenuExcludesAndTricks(std::set<RandomizerCheck>& excludedLocation
 }
 
 void GenerateRandomizerImgui(std::string seed = "") {
-    CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 1);
-    Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
     auto ctx = Rando::Context::GetInstance();
 
     // #560: this function IS the thread entry, and nothing above it catches, so any
@@ -3540,10 +3537,7 @@ void GenerateRandomizerImgui(std::string seed = "") {
         ctx->SetSeedGenerated(false);
     }
 
-    CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 0);
     Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
-
-    generated = 1;
 
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnGenerationCompletion>();
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -3553,29 +3547,37 @@ void GenerateRandomizerImgui(std::string seed = "") {
     // writes its seed package and stages it (OoT_SeedPackage_FileSelectTick).
     OoT_SeedPackage_MarkWorkerFinished();
 #endif
+
+    CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 0);
+    randoGenerating = false;
+}
+
+bool IsRandoGenerating() {
+    return randoGenerating || CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0) != 0;
 }
 
 bool GenerateRandomizer(std::string seed /*= ""*/) {
-    if (generated) {
-        generated = 0;
-        randoThread.join();
+    if (IsRandoGenerating()) {
+        return false;
     }
-    if (CVarGetInteger(CVAR_GENERAL("RandoGenerating"), 0) == 0) {
-        randoThread = std::thread(&GenerateRandomizerImgui, seed);
-
-        return true;
-    }
-    return false;
+    WaitForRandoGeneration();
+    randoGenerating = true;
+    CVarSetInteger(CVAR_GENERAL("RandoGenerating"), 1);
+    randoThread = std::thread(&GenerateRandomizerImgui, seed);
+    return true;
 }
 
 static bool locationsTabOpen = false;
 static bool tricksTabOpen = false;
 
-void JoinRandoGenerationThread() {
-    if (generated) {
-        generated = 0;
+void WaitForRandoGeneration() {
+    if (randoThread.joinable()) {
         randoThread.join();
     }
+}
+
+void JoinRandoGenerationThread() {
+    WaitForRandoGeneration();
 }
 
 // OTRGlobals.h puts most of its C entry points inside `#ifndef __cplusplus`, so a
@@ -3645,13 +3647,13 @@ static int RunFullInitSeedTest(const char* seedStr) {
         return 20;
     }
 
-    // GenerateRandomizerImgui sets `generated` as its last act; poll it the way
-    // the file-select gamestate does.
+    // GenerateRandomizerImgui clears `randoGenerating` as its last act; poll it
+    // the way the file-select gamestate does.
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(150);
-    while (!generated && std::chrono::steady_clock::now() < deadline) {
+    while (IsRandoGenerating() && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    const bool completed = generated != 0;
+    const bool completed = !IsRandoGenerating();
 
     // Say WHY before the join, not after. The join below is mandatory — a
     // joinable std::thread left alive would std::terminate in randoThread's
@@ -3666,14 +3668,7 @@ static int RunFullInitSeedTest(const char* seedStr) {
                         "this is the last line before the CTest timeout, the fill itself is hung\n");
         fflush(stderr);
     }
-    if (randoThread.joinable()) {
-        randoThread.join();
-    }
-    // Cleared only AFTER the join: while the worker is alive it can still store
-    // 1 here, and a store racing ours would leave a stale 1 behind — which is
-    // exactly what makes a later GenerateRandomizer() join an already-joined
-    // thread.
-    generated = 0;
+    WaitForRandoGeneration();
     if (!completed) {
         return 21;
     }
@@ -3822,6 +3817,41 @@ static std::unordered_map<RandomizerGet, GameplayStatTimestamp> randomizerGetToS
     { RG_BACK_TOWER_KEY, TIMESTAMP_FOUND_BACK_TOWER_KEY },
     { RG_HYLIA_LAB_KEY, TIMESTAMP_FOUND_HYLIA_LAB_KEY },
     { RG_FISHING_HOLE_KEY, TIMESTAMP_FOUND_FISHING_HOLE_KEY },
+
+    { RG_GREG_RUPEE, TIMESTAMP_FOUND_GREG },
+
+    { RG_CHILD_WALLET, TIMESTAMP_FOUND_CHILD_WALLET },
+    { RG_TYCOON_WALLET, TIMESTAMP_FOUND_TYCOON_WALLET },
+
+    { RG_DEKU_STICK_BAG, TIMESTAMP_FOUND_DEKU_STICK_BAG },
+    { RG_DEKU_NUT_BAG, TIMESTAMP_FOUND_DEKU_NUT_BAG },
+
+    { RG_POWER_BRACELET, TIMESTAMP_FOUND_GRAB },
+    { RG_CLIMB, TIMESTAMP_FOUND_CLIMB },
+    { RG_CRAWL, TIMESTAMP_FOUND_CRAWL },
+    { RG_OPEN_CHEST, TIMESTAMP_FOUND_OPEN_CHESTS },
+
+    { RG_SPEAK_DEKU, TIMESTAMP_FOUND_SPEAK_DEKU },
+    { RG_SPEAK_GERUDO, TIMESTAMP_FOUND_SPEAK_GERUDO },
+    { RG_SPEAK_GORON, TIMESTAMP_FOUND_SPEAK_GORON },
+    { RG_SPEAK_HYLIAN, TIMESTAMP_FOUND_SPEAK_HYLIAN },
+    { RG_SPEAK_KOKIRI, TIMESTAMP_FOUND_SPEAK_KOKIRI },
+    { RG_SPEAK_ZORA, TIMESTAMP_FOUND_SPEAK_ZORA },
+
+    { RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL, TIMESTAMP_FOUND_DMC_BEAN_SOUL },
+    { RG_DEATH_MOUNTAIN_TRAIL_BEAN_SOUL, TIMESTAMP_FOUND_DMT_BEAN_SOUL },
+    { RG_DESERT_COLOSSUS_BEAN_SOUL, TIMESTAMP_FOUND_COLOSSUS_BEAN_SOUL },
+    { RG_GERUDO_VALLEY_BEAN_SOUL, TIMESTAMP_FOUND_GV_BEAN_SOUL },
+    { RG_GRAVEYARD_BEAN_SOUL, TIMESTAMP_FOUND_GY_BEAN_SOUL },
+    { RG_KOKIRI_FOREST_BEAN_SOUL, TIMESTAMP_FOUND_KF_BEAN_SOUL },
+    { RG_LAKE_HYLIA_BEAN_SOUL, TIMESTAMP_FOUND_LH_BEAN_SOUL },
+    { RG_LOST_WOODS_BRIDGE_BEAN_SOUL, TIMESTAMP_FOUND_LW_BRIDGE_BEAN_SOUL },
+    { RG_LOST_WOODS_BEAN_SOUL, TIMESTAMP_FOUND_LW_MEADOW_BEAN_SOUL },
+    { RG_ZORAS_RIVER_BEAN_SOUL, TIMESTAMP_FOUND_ZR_BEAN_SOUL },
+
+    { RG_SKELETON_KEY, TIMESTAMP_FOUND_SKELETON_KEY },
+
+    { RG_ROCS_FEATHER, TIMESTAMP_FOUND_ROCS_FEATHER },
 };
 
 // Gameplay stat tracking: Update time the item was acquired
@@ -3835,41 +3865,27 @@ void Randomizer_GameplayStats_SetTimestamp(uint16_t item) {
         time = 1;
     }
 
-    // Use ITEM_KEY_BOSS to timestamp Ganon's boss key
+    int16_t timestampItem = -1;
     if (item == RG_GANONS_CASTLE_BOSS_KEY) {
-        gSaveContext.ship.stats.itemTimestamp[ITEM_KEY_BOSS] = time;
-        return;
+        timestampItem = ITEM_KEY_BOSS;
+    } else if (item == RG_MASTER_SWORD) {
+        timestampItem = ITEM_SWORD_MASTER;
+    } else if (item >= RG_EMPTY_BOTTLE && item <= RG_BOTTLE_WITH_BIG_POE) {
+        timestampItem = ITEM_BOTTLE;
+    } else if ((item >= RG_BOMBCHU_5 && item <= RG_BOMBCHU_20) || item == RG_PROGRESSIVE_BOMBCHU_BAG) {
+        timestampItem = ITEM_BOMBCHU;
+    } else if (item == RG_MAGIC_SINGLE) {
+        timestampItem = ITEM_SINGLE_MAGIC;
+    } else if (item == RG_DOUBLE_DEFENSE) {
+        timestampItem = ITEM_DOUBLE_DEFENSE;
+    } else if (item >= RG_KEATON_MASK && item <= RG_MASK_OF_TRUTH) {
+        timestampItem = ITEM_MASK_KEATON + (item - RG_KEATON_MASK);
+    } else if (randomizerGetToStatsTimeStamp.contains((RandomizerGet)item)) {
+        timestampItem = randomizerGetToStatsTimeStamp[(RandomizerGet)item];
     }
 
-    if (randomizerGetToStatsTimeStamp.contains((RandomizerGet)item)) {
-        gSaveContext.ship.stats.itemTimestamp[randomizerGetToStatsTimeStamp[(RandomizerGet)item]] = time;
-        return;
-    }
-
-    // Count any bottled item as a bottle
-    if (item >= RG_EMPTY_BOTTLE && item <= RG_BOTTLE_WITH_BIG_POE) {
-        if (gSaveContext.ship.stats.itemTimestamp[ITEM_BOTTLE] == 0) {
-            gSaveContext.ship.stats.itemTimestamp[ITEM_BOTTLE] = time;
-        }
-        return;
-    }
-
-    // Count any bombchu pack as bombchus
-    if ((item >= RG_BOMBCHU_5 && item <= RG_BOMBCHU_20) || item == RG_PROGRESSIVE_BOMBCHU_BAG) {
-        if (gSaveContext.ship.stats.itemTimestamp[ITEM_BOMBCHU] = 0) {
-            gSaveContext.ship.stats.itemTimestamp[ITEM_BOMBCHU] = time;
-        }
-        return;
-    }
-
-    if (item == RG_MAGIC_SINGLE) {
-        gSaveContext.ship.stats.itemTimestamp[ITEM_SINGLE_MAGIC] = time;
-        return;
-    }
-
-    if (item == RG_DOUBLE_DEFENSE) {
-        gSaveContext.ship.stats.itemTimestamp[ITEM_DOUBLE_DEFENSE] = time;
-        return;
+    if (timestampItem != -1 && gSaveContext.ship.stats.itemTimestamp[timestampItem] == 0) {
+        gSaveContext.ship.stats.itemTimestamp[timestampItem] = time;
     }
 }
 
@@ -4139,7 +4155,6 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
         case RG_GREG_RUPEE:
             OoT_Rupees_ChangeBy(1);
             Flags_SetRandomizerInf(RAND_INF_GREG_FOUND);
-            gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_FOUND_GREG] = static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);
             break;
         case RG_TRIFORCE_PIECE:
             gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected++;

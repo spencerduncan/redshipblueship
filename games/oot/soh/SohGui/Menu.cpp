@@ -114,7 +114,9 @@ void Menu::UpdateWindowBackendObjects() {
 
     availableWindowBackends = Ship::Context::GetInstance()->GetWindow()->GetAvailableWindowBackends();
     for (auto& backend : *availableWindowBackends) {
-        availableWindowBackendsMap[backend] = windowBackendsMap.at(backend);
+        if (auto it = windowBackendsMap.find(backend); it != windowBackendsMap.end()) {
+            availableWindowBackendsMap[backend] = it->second;
+        }
     }
 }
 

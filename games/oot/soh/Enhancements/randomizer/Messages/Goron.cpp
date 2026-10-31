@@ -89,7 +89,7 @@ void BuildGoronMessage(uint16_t* textId, bool* loadFromMessageTable) {
     CustomMessage msg = FireTempleGoronMessages[choice];
     msg.Replace("[[days]]", std::to_string(gSaveContext.totalDays));
     msg.Replace("[[a_btn]]", std::to_string(gSaveContext.ship.stats.count[COUNT_BUTTON_PRESSES_A]));
-    msg.AutoFormat();
+    msg.Format();
     msg.LoadIntoFont();
     *loadFromMessageTable = false;
 }

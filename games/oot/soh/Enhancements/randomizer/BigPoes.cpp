@@ -27,13 +27,20 @@ void RegisterBigPoeHooks() {
         *should = false;
     });
     COND_VB_SHOULD(VB_SELL_POES_TO_POE_COLLECTOR, IS_RANDO, {
-        if (!Flags_GetRandomizerInf(RAND_INF_10_BIG_POES) && HIGH_SCORE(HS_POE_POINTS) >= 1000 &&
-            !(GET_PLAYER(OoT_gPlayState)->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS)) {
-            EnGb* enGb = va_arg(args, EnGb*);
-            enGb->textId = 0x70F8;
-            OoT_Message_ContinueTextbox(OoT_gPlayState, enGb->textId);
-            enGb->actionFunc = func_80A2FB40;
-            *should = false;
+        if (!Flags_GetRandomizerInf(RAND_INF_10_BIG_POES) && HIGH_SCORE(HS_POE_POINTS) >= 1000) {
+            if (GET_PLAYER(OoT_gPlayState)->stateFlags1 & PLAYER_STATE1_IN_ITEM_CS) {
+                // Handing over bottled big poe pays out on exactly 1000 points.
+                // Drop to 900 so its +100 lands on payout.
+                if (func_8002F368(OoT_gPlayState) == EXCH_ITEM_BIG_POE) {
+                    HIGH_SCORE(HS_POE_POINTS) = 900;
+                }
+            } else {
+                EnGb* enGb = va_arg(args, EnGb*);
+                enGb->textId = 0x70F8;
+                OoT_Message_ContinueTextbox(OoT_gPlayState, enGb->textId);
+                enGb->actionFunc = func_80A2FB40;
+                *should = false;
+            }
         }
     });
     COND_VB_SHOULD(VB_GIVE_ITEM_FROM_POE_COLLECTOR, IS_RANDO, {

@@ -464,13 +464,10 @@ void func_80B14AF4(EnTa* this, PlayState* play) {
 
 void OoT_func_80B14B6C(EnTa* this, PlayState* play) {
     if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
-        s16 csCamIdx = OnePointCutscene_Init(play, 4175, -99, &this->actor, MAIN_CAM);
+        OnePointCutscene_Init(play, 4175, -99, &this->actor, MAIN_CAM);
         EnTa_SetupAction(this, func_80B14AF4, EnTa_AnimRepeatCurrent);
         this->unk_2CC = 5;
         OoT_Flags_SetEventChkInf(EVENTCHKINF_TALON_RETURNED_FROM_CASTLE);
-        if (GameInteractor_Should(VB_PLAY_ONEPOINT_ACTOR_CS, true, this)) {
-            OnePointCutscene_EndCutscene(play, csCamIdx);
-        }
         OoT_Animation_PlayOnce(&this->skelAnime, &gTalonRunTransitionAnim);
         this->currentAnimation = &gTalonRunAnim;
     }

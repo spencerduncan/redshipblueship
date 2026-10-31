@@ -236,15 +236,18 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
         return;
     }
 #endif
-    RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId, (RandoCheckId)enGirlA->actor.world.rot.z);
+    RandoCheckId randoCheckId = (RandoCheckId)enGirlA->actor.world.rot.z;
+    RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId);
     randoSaveCheck.obtained = true;
     MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
     if (randoItemId == RI_TRAP) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-        RollTrapType((RandoCheckId)enGirlA->actor.world.rot.z); // #1047: the check decides the trap
+        RollTrapType(randoCheckId); // #1047: the check decides the trap
 #else
         RollTrapType();
 #endif
+    } else if (randoItemId == RI_JUNK) {
+        randoItemId = Rando::CurrentJunkItem();
     }
     Rando::GiveItem(randoItemId);
 }

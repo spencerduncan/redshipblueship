@@ -56,6 +56,7 @@ void SwitchAge() {
         gSaveContext.respawn[RESPAWN_MODE_DOWN].roomIndex = OoT_gPlayState->roomCtx.curRoom.num;
         gSaveContext.respawn[RESPAWN_MODE_DOWN].pos = player->actor.world.pos;
         gSaveContext.respawn[RESPAWN_MODE_DOWN].yaw = player->actor.shape.rot.y;
+        gSaveContext.entranceSpeed = 0.0f;
 
         if (OoT_gPlayState->roomCtx.curRoom.behaviorType2 < 4) {
             gSaveContext.respawn[RESPAWN_MODE_DOWN].playerParams = 0x0DFF;
@@ -80,9 +81,13 @@ void SwitchAge() {
     }
 
     static HOOK_ID hookId = 0;
+    if (hookId != 0) {
+        GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnVanillaBehavior>(hookId);
+    }
     hookId = REGISTER_VB_SHOULD(VB_INFLICT_VOID_DAMAGE, {
         *should = false;
         GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnVanillaBehavior>(hookId);
+        hookId = 0;
     });
 }
 

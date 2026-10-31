@@ -590,6 +590,7 @@ if(MSVC)
                 /Od
             >
             $<$<CONFIG:Release>:
+                /O2;
                 /Oi;
                 /Gy;
                 /W3
