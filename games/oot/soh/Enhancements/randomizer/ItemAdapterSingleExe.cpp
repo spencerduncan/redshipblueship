@@ -126,7 +126,7 @@ unsigned sOoTItemTestOptions = 0u;
  * ROM-free lock stands in for it (OoT_ItemAdapter_TestOverrideOptions).
  */
 struct OoTItemSeed {
-    std::shared_ptr<Rando::Context> ctx; // null under the test override, or with no seed loaded
+    Rando::Context* ctx; // null under the test override, or with no seed loaded
 
     /** Option `key`; 0 (off) with no context. */
     uint8_t Option(RandomizerSettingKey key) const;
@@ -135,7 +135,7 @@ struct OoTItemSeed {
 };
 
 OoTItemSeed OoTItemSeedRead(void) {
-    return OoTItemSeed{ sOoTItemTestOptionsOn ? nullptr : Rando::Context::GetInstance() };
+    return OoTItemSeed{ sOoTItemTestOptionsOn ? nullptr : Rando::Context::GetInstance().get() };
 }
 
 bool OoTItemSeed::DungeonMQ(uint8_t scene) const {
@@ -145,8 +145,8 @@ bool OoTItemSeed::DungeonMQ(uint8_t scene) const {
     if (ctx == nullptr) {
         return false;
     }
-    const std::shared_ptr<Rando::Dungeons> dungeons = ctx->GetDungeons();
-    const Rando::DungeonInfo* dungeon = dungeons != nullptr ? dungeons->GetDungeonFromScene(scene) : nullptr;
+    Rando::Dungeons* dungeons = ctx->GetDungeons().get();
+    Rando::DungeonInfo* dungeon = dungeons != nullptr ? dungeons->GetDungeonFromScene(scene) : nullptr;
     return dungeon != nullptr && dungeon->IsMQ();
 }
 
@@ -1054,17 +1054,23 @@ int OoTItemCatalogCount(void) {
     return kCatalogRowCount;
 }
 
+const SaveContext* OoTEmptyCatalogSave(void) {
+    static SaveContext sEmptySave{};
+    static bool sInitialized = false;
+    if (!sInitialized) {
+        std::memset(sEmptySave.inventory.items, ITEM_NONE, sizeof(sEmptySave.inventory.items));
+        std::memset(sEmptySave.inventory.dungeonKeys, 0xFF, sizeof(sEmptySave.inventory.dungeonKeys));
+        sInitialized = true;
+    }
+    return &sEmptySave;
+}
+
 bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
     if (out == nullptr || catalogIndex < 0 || catalogIndex >= kCatalogRowCount) {
         return false;
     }
     const bool hasSave = Aligned(buf) && OoTItemHasSave(buf);
-    SaveContext emptySave{};
-    if (!hasSave) {
-        std::memset(emptySave.inventory.items, ITEM_NONE, sizeof(emptySave.inventory.items));
-        std::memset(emptySave.inventory.dungeonKeys, 0xFF, sizeof(emptySave.inventory.dungeonKeys));
-    }
-    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : &emptySave;
+    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : OoTEmptyCatalogSave();
     const uint8_t freshness = out->freshness;
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
@@ -1083,26 +1089,19 @@ bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
     catalogIndex -= kRowCount;
 
     if (catalogIndex < kDungeonCatalogCount) {
-        int seen = 0;
-        for (int i = 0; i < kDungeonWithMapsCount; i++) {
-            if (kDungeonWithMaps[i].kind == DC_PAD) {
-                continue;
-            }
-            if (seen++ == catalogIndex) {
-                DeriveDungeonCell(src, kDungeonWithMaps[i], "Dungeon Items", out);
-                if (!hasSave) {
-                    out->have = false;
-                    out->count = 0;
-                    out->held = 0;
-                }
-                return true;
-            }
+        // Cell 23 is the single DC_PAD in kDungeonWithMaps.
+        const int cellIndex = catalogIndex < 23 ? catalogIndex : catalogIndex + 1;
+        DeriveDungeonCell(src, kDungeonWithMaps[cellIndex], "Dungeon Items", out);
+        if (!hasSave) {
+            out->have = false;
+            out->count = 0;
+            out->held = 0;
         }
-        return false;
+        return true;
     }
     catalogIndex -= kDungeonCatalogCount;
 
-    const OoTItemSeed seed = OoTItemSeedRead();
+    const OoTItemSeed seed = hasSave ? OoTItemSeedRead() : OoTItemSeed{ nullptr };
     for (const GatedGroup& g : kGatedGroups) {
         if (catalogIndex < g.count) {
             const FlagRow& row = g.rows[catalogIndex];
