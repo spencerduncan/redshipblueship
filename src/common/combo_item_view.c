@@ -229,7 +229,7 @@ static bool LiveCopyOf(uint8_t kind, uint16_t* outTier, int* outCount) {
     if (src == NULL || freshness != COMBO_TRACKER_FRESH_LIVE) {
         return false;
     }
-    const int rows = ItemRowCount(ops, src);
+    const int rows = ops->count();
     for (int i = 0; i < rows; i++) {
         ComboItemRow row;
         memset(&row, 0, sizeof(row));
@@ -310,12 +310,33 @@ static int AdapterIndexOf(const ComboItemOps* ops, const void* src, int index) {
     if (drawnShared == 0u) {
         return (index < n) ? index : -1; // every rule off: the adapter's rows exactly
     }
+    static const ComboItemOps* sLastOps = NULL;
+    static const void* sLastSrc = NULL;
+    static int sLastN = -1;
+    static uint32_t sLastDrawnShared = 0u;
+    static int sLastIndex = -1;
+    static int sLastAdapterIndex = -1;
+
     int seen = 0;
-    for (int i = 0; i < n; i++) {
+    int start = 0;
+    if (index > 0 && ops == sLastOps && src == sLastSrc && n == sLastN && drawnShared == sLastDrawnShared &&
+        index == sLastIndex + 1 && sLastAdapterIndex >= 0) {
+        seen = index;
+        start = sLastAdapterIndex + 1;
+    }
+    for (int i = start; i < n; i++) {
         if (!RowLeftOut(ops, src, i, drawnShared) && seen++ == index) {
+            sLastOps = ops;
+            sLastSrc = src;
+            sLastN = n;
+            sLastDrawnShared = drawnShared;
+            sLastIndex = index;
+            sLastAdapterIndex = i;
             return i;
         }
     }
+    sLastIndex = -1;
+    sLastAdapterIndex = -1;
     return -1;
 }
 
@@ -643,9 +664,12 @@ static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* o
     }
     bool have = (Combo_SharedFamiliesOwned() & def->family) != 0u;
     ComboItemRow own;
-    for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
-        if (FamilyRowOf(g, def->family, &own) && own.have) {
-            have = true;
+    if (!have) {
+        for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
+            if (FamilyRowOf(g, def->family, &own) && own.have) {
+                have = true;
+                break;
+            }
         }
     }
     memset(out, 0, sizeof(*out));
@@ -795,19 +819,18 @@ bool Combo_ItemCatalogRowAt(uint8_t game, int catalogIndex, ComboItemRow* out) {
     // instead, while a save is loaded and the family/tier is armed, reflect
     // whether the pair holds it (pool || live).
     if (src != NULL) {
-        if (row.sharedFamily != 0u && (Combo_SharedFamiliesArmed() & row.sharedFamily) != 0u) {
+        if (!row.have && row.sharedFamily != 0u && (Combo_SharedFamiliesArmed() & row.sharedFamily) != 0u) {
             if ((Combo_SharedFamiliesOwned() & row.sharedFamily) != 0u) {
                 row.have = true;
             } else {
+                const uint8_t otherGame = (game == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
                 ComboItemRow own;
-                for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
-                    if (FamilyRowOf(g, row.sharedFamily, &own) && own.have) {
-                        row.have = true;
-                    }
+                if (FamilyRowOf(otherGame, row.sharedFamily, &own) && own.have) {
+                    row.have = true;
                 }
             }
         }
-        if (row.sharedKind != (uint8_t)RSBS_SHARED_RES_NONE &&
+        if (!row.have && row.sharedKind != (uint8_t)RSBS_SHARED_RES_NONE &&
             Combo_ItemSharedFreshness() != COMBO_TRACKER_FRESH_UNAVAILABLE &&
             Combo_SharedResourceKindArmed(row.sharedKind)) {
             const SharedTierRead read = ReadSharedTier(row.sharedKind);
@@ -824,7 +847,41 @@ bool Combo_ItemCatalogRowByKey(uint8_t game, const char* slotKey, ComboItemRow* 
     if (slotKey == NULL || slotKey[0] == '\0' || out == NULL) {
         return false;
     }
-    const int n = Combo_ItemCatalogCount(game);
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL) {
+        return false;
+    }
+    const int n = ops->catalogCount();
+    if (n <= 0) {
+        return false;
+    }
+    enum { kCatalogKeyCacheMax = 256 };
+    typedef struct {
+        const ComboItemOps* ops;
+        bool (*catalogRowAt)(const void*, int, ComboItemRow*);
+        int count;
+        const char* keys[kCatalogKeyCacheMax];
+    } CatalogKeyCache;
+    static CatalogKeyCache sCache[2];
+    CatalogKeyCache* cache = (game == (uint8_t)GAME_OOT) ? &sCache[0] : (game == (uint8_t)GAME_MM) ? &sCache[1] : NULL;
+    if (cache != NULL && n <= kCatalogKeyCacheMax) {
+        if (cache->ops != ops || cache->catalogRowAt != ops->catalogRowAt || cache->count != n) {
+            cache->ops = ops;
+            cache->catalogRowAt = ops->catalogRowAt;
+            cache->count = n;
+            for (int i = 0; i < n; i++) {
+                ComboItemRow row;
+                memset(&row, 0, sizeof(row));
+                cache->keys[i] = ops->catalogRowAt(NULL, i, &row) ? row.slotKey : NULL;
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            if (cache->keys[i] != NULL && strcmp(cache->keys[i], slotKey) == 0) {
+                return Combo_ItemCatalogRowAt(game, i, out);
+            }
+        }
+        return false;
+    }
     for (int i = 0; i < n; i++) {
         ComboItemRow row;
         if (Combo_ItemCatalogRowAt(game, i, &row) && row.slotKey != NULL && strcmp(row.slotKey, slotKey) == 0) {
@@ -914,10 +971,11 @@ bool Combo_ItemSharedCatalogRowAt(int catalogIndex, uint8_t iconGame, ComboItemR
     const SharedFamilyRowDef* def = &kSharedFamilyRows[catalogIndex - SHARED_ROW_DEF_COUNT];
     bool have = hasPool && (Combo_SharedFamiliesOwned() & def->family) != 0u;
     ComboItemRow own;
-    if (hasPool) {
+    if (hasPool && !have) {
         for (uint8_t g = (uint8_t)GAME_OOT; g <= (uint8_t)GAME_MM; g++) {
             if (FamilyRowOf(g, def->family, &own) && own.have) {
                 have = true;
+                break;
             }
         }
     }
@@ -942,13 +1000,14 @@ bool Combo_ItemSharedCatalogRowByKey(const char* slotKey, uint8_t iconGame, Comb
     if (slotKey == NULL || slotKey[0] == '\0' || out == NULL) {
         return false;
     }
-    const int n = Combo_ItemSharedCatalogCount();
-    for (int i = 0; i < n; i++) {
-        ComboItemRow row;
-        if (Combo_ItemSharedCatalogRowAt(i, iconGame, &row) && row.slotKey != NULL &&
-            strcmp(row.slotKey, slotKey) == 0) {
-            *out = row;
-            return true;
+    for (int i = 0; i < SHARED_ROW_DEF_COUNT; i++) {
+        if (kSharedRows[i].slotKey != NULL && strcmp(kSharedRows[i].slotKey, slotKey) == 0) {
+            return Combo_ItemSharedCatalogRowAt(i, iconGame, out);
+        }
+    }
+    for (int i = 0; i < SHARED_FAMILY_ROW_DEF_COUNT; i++) {
+        if (kSharedFamilyRows[i].slotKey != NULL && strcmp(kSharedFamilyRows[i].slotKey, slotKey) == 0) {
+            return Combo_ItemSharedCatalogRowAt(SHARED_ROW_DEF_COUNT + i, iconGame, out);
         }
     }
     return false;

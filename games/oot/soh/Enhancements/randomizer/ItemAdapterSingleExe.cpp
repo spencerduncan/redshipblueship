@@ -126,7 +126,7 @@ unsigned sOoTItemTestOptions = 0u;
  * ROM-free lock stands in for it (OoT_ItemAdapter_TestOverrideOptions).
  */
 struct OoTItemSeed {
-    std::shared_ptr<Rando::Context> ctx; // null under the test override, or with no seed loaded
+    Rando::Context* ctx; // null under the test override, or with no seed loaded
 
     /** Option `key`; 0 (off) with no context. */
     uint8_t Option(RandomizerSettingKey key) const;
@@ -135,7 +135,7 @@ struct OoTItemSeed {
 };
 
 OoTItemSeed OoTItemSeedRead(void) {
-    return OoTItemSeed{ sOoTItemTestOptionsOn ? nullptr : Rando::Context::GetInstance() };
+    return OoTItemSeed{ sOoTItemTestOptionsOn ? nullptr : Rando::Context::GetInstance().get() };
 }
 
 bool OoTItemSeed::DungeonMQ(uint8_t scene) const {
@@ -145,8 +145,8 @@ bool OoTItemSeed::DungeonMQ(uint8_t scene) const {
     if (ctx == nullptr) {
         return false;
     }
-    const std::shared_ptr<Rando::Dungeons> dungeons = ctx->GetDungeons();
-    const Rando::DungeonInfo* dungeon = dungeons != nullptr ? dungeons->GetDungeonFromScene(scene) : nullptr;
+    Rando::Dungeons* dungeons = ctx->GetDungeons().get();
+    Rando::DungeonInfo* dungeon = dungeons != nullptr ? dungeons->GetDungeonFromScene(scene) : nullptr;
     return dungeon != nullptr && dungeon->IsMQ();
 }
 
@@ -216,8 +216,7 @@ struct ItemKey {
     const char* name;
 };
 
-#define IK(id, name) \
-    { (uint8_t)(id), #id, #id "_Faded", name }
+#define IK(id, name) { (uint8_t)(id), #id, #id "_Faded", name }
 
 const ItemKey kItemKeys[] = {
     IK(ITEM_STICK, "Deku Sticks"),
@@ -329,8 +328,7 @@ struct RowDef {
     const char* keyFaded;
 };
 
-#define INV(slotKey, item) \
-    { "Inventory", slotKey, RK_INV, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
+#define INV(slotKey, item) { "Inventory", slotKey, RK_INV, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
 #define INV_AMMO(slotKey, item, upg) \
     { "Inventory", slotKey, RK_INV_AMMO, (uint8_t)(item), (uint32_t)(upg), nullptr, nullptr, nullptr }
 #define INV_FIXED(slotKey, item, cap) \
@@ -341,10 +339,8 @@ struct RowDef {
     { "Inventory", slotKey, RK_BOTTLE, (uint8_t)ITEM_BOTTLE, (uint32_t)(n), "Bottle", nullptr, nullptr }
 #define EQUIP(slotKey, id, mask, name) \
     { "Equipment", slotKey, RK_EQUIP, (uint8_t)(id), (uint32_t)(mask), name, #id, #id "_Faded" }
-#define QUEST(group, slotKey, id, name) \
-    { group, slotKey, RK_QUEST, 0, (uint32_t)(id), name, #id, #id "_Faded" }
-#define MISC(slotKey, kind, item) \
-    { "Misc", slotKey, kind, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
+#define QUEST(group, slotKey, id, name) { group, slotKey, RK_QUEST, 0, (uint32_t)(id), name, #id, #id "_Faded" }
+#define MISC(slotKey, kind, item) { "Misc", slotKey, kind, (uint8_t)(item), 0, nullptr, nullptr, nullptr }
 
 // Order and membership follow the native tracker's default sections; the
 // setting-dependent sections (dungeon items, Greg, triforce pieces, boss and
@@ -595,16 +591,11 @@ struct DungeonCell {
     const char* label; // SoH's short name over the icon (DrawDungeonItem), or NULL
 };
 
-#define DSK(slotKey, scene, dname, label) \
-    { DC_SMALL_KEY, (uint8_t)(scene), slotKey, dname " Small Key", label }
-#define DBK(slotKey, scene, dname) \
-    { DC_BOSS_KEY, (uint8_t)(scene), slotKey, dname " Boss Key", nullptr }
-#define DMAP(slotKey, scene, dname, label) \
-    { DC_MAP, (uint8_t)(scene), slotKey, dname " Map", label }
-#define DCOMP(slotKey, scene, dname) \
-    { DC_COMPASS, (uint8_t)(scene), slotKey, dname " Compass", nullptr }
-#define DPAD \
-    { DC_PAD, 0, nullptr, "", nullptr }
+#define DSK(slotKey, scene, dname, label) { DC_SMALL_KEY, (uint8_t)(scene), slotKey, dname " Small Key", label }
+#define DBK(slotKey, scene, dname) { DC_BOSS_KEY, (uint8_t)(scene), slotKey, dname " Boss Key", nullptr }
+#define DMAP(slotKey, scene, dname, label) { DC_MAP, (uint8_t)(scene), slotKey, dname " Map", label }
+#define DCOMP(slotKey, scene, dname) { DC_COMPASS, (uint8_t)(scene), slotKey, dname " Compass", nullptr }
+#define DPAD { DC_PAD, 0, nullptr, "", nullptr }
 
 // GetDungeonItemsVector(itemTrackerDungeonsWithMapsCompact): six dungeons a block, column-major, an
 // ITEM_NONE blank under a shorter column, Thieves' Hideout patched into cell 35 (UpdateVectors).
@@ -780,8 +771,7 @@ struct FlagRow {
     uint32_t family; // the shared-family slot this row is OoT's copy of (foreign_items.h), or 0
 };
 
-#define FLAG_ROW(slotKey, name, label, flag, icon) \
-    { slotKey, name, label, flag, #icon, #icon "_Faded", 0u }
+#define FLAG_ROW(slotKey, name, label, flag, icon) { slotKey, name, label, flag, #icon, #icon "_Faded", 0u }
 
 const FlagRow kGregRows[] = { FLAG_ROW("greg", "Greg the Green Rupee", nullptr, RAND_INF_GREG_FOUND,
                                        ITEM_RUPEE_GREEN) };
@@ -880,8 +870,7 @@ struct GatedGroup {
     RandomizerSettingKey option;
 };
 
-#define GATED(group, rows, option) \
-    { group, rows, (int)(sizeof(rows) / sizeof(rows[0])), option }
+#define GATED(group, rows, option) { group, rows, (int)(sizeof(rows) / sizeof(rows[0])), option }
 
 // SoH's main-window order (UpdateVectors): Greg, then the fishing pole, the bean souls, the boss souls, the
 // jabber nuts, the ocarina buttons and the overworld keys. The strings are the contract with the overlay's
@@ -1054,17 +1043,23 @@ int OoTItemCatalogCount(void) {
     return kCatalogRowCount;
 }
 
+const SaveContext* OoTEmptyCatalogSave(void) {
+    static SaveContext sEmptySave{};
+    static bool sInitialized = false;
+    if (!sInitialized) {
+        std::memset(sEmptySave.inventory.items, ITEM_NONE, sizeof(sEmptySave.inventory.items));
+        std::memset(sEmptySave.inventory.dungeonKeys, 0xFF, sizeof(sEmptySave.inventory.dungeonKeys));
+        sInitialized = true;
+    }
+    return &sEmptySave;
+}
+
 bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
     if (out == nullptr || catalogIndex < 0 || catalogIndex >= kCatalogRowCount) {
         return false;
     }
     const bool hasSave = Aligned(buf) && OoTItemHasSave(buf);
-    SaveContext emptySave{};
-    if (!hasSave) {
-        std::memset(emptySave.inventory.items, ITEM_NONE, sizeof(emptySave.inventory.items));
-        std::memset(emptySave.inventory.dungeonKeys, 0xFF, sizeof(emptySave.inventory.dungeonKeys));
-    }
-    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : &emptySave;
+    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : OoTEmptyCatalogSave();
     const uint8_t freshness = out->freshness;
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;
@@ -1083,26 +1078,19 @@ bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
     catalogIndex -= kRowCount;
 
     if (catalogIndex < kDungeonCatalogCount) {
-        int seen = 0;
-        for (int i = 0; i < kDungeonWithMapsCount; i++) {
-            if (kDungeonWithMaps[i].kind == DC_PAD) {
-                continue;
-            }
-            if (seen++ == catalogIndex) {
-                DeriveDungeonCell(src, kDungeonWithMaps[i], "Dungeon Items", out);
-                if (!hasSave) {
-                    out->have = false;
-                    out->count = 0;
-                    out->held = 0;
-                }
-                return true;
-            }
+        // Cell 23 is the single DC_PAD in kDungeonWithMaps.
+        const int cellIndex = catalogIndex < 23 ? catalogIndex : catalogIndex + 1;
+        DeriveDungeonCell(src, kDungeonWithMaps[cellIndex], "Dungeon Items", out);
+        if (!hasSave) {
+            out->have = false;
+            out->count = 0;
+            out->held = 0;
         }
-        return false;
+        return true;
     }
     catalogIndex -= kDungeonCatalogCount;
 
-    const OoTItemSeed seed = OoTItemSeedRead();
+    const OoTItemSeed seed = hasSave ? OoTItemSeedRead() : OoTItemSeed{ nullptr };
     for (const GatedGroup& g : kGatedGroups) {
         if (catalogIndex < g.count) {
             const FlagRow& row = g.rows[catalogIndex];

@@ -1344,35 +1344,114 @@ void BuildCatalogGroupsForGame(int section, std::vector<ComboItemTrackerGroup>& 
     }
 }
 
-bool IsGameSlotActiveInSeed(uint8_t game, const std::string& slotKey) {
-    const int count = Combo_ItemCount(game);
-    ComboItemRow row{};
-    for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
-        if (row.slotKey != nullptr && slotKey == row.slotKey) {
-            return true;
-        }
-    }
-    return false;
-}
+struct ActiveSeedSlotCache {
+    bool gameLoaded[2] = { false, false };
+    std::vector<const char*> gameKeys[2];
+    bool sharedLoaded = false;
+    std::vector<const char*> sharedKeys;
 
-bool IsSharedSlotActiveInSeed(const std::string& slotKey) {
-    const int count = Combo_ItemSharedCount();
-    ComboItemRow row{};
-    for (int i = 0; i < count && Combo_ItemSharedRowAt(i, &row); i++) {
-        if (row.slotKey != nullptr && slotKey == row.slotKey) {
-            return true;
+    const std::vector<const char*>& ForGame(uint8_t game) {
+        const int idx = (game == (uint8_t)GAME_MM) ? 1 : 0;
+        if (!gameLoaded[idx]) {
+            gameLoaded[idx] = true;
+            const int count = Combo_ItemCount(game);
+            gameKeys[idx].reserve((size_t)(count > 0 ? count : 0));
+            ComboItemRow row{};
+            for (int i = 0; i < count && Combo_ItemRowAt(game, i, &row); i++) {
+                if (row.slotKey != nullptr) {
+                    gameKeys[idx].push_back(row.slotKey);
+                }
+            }
+        }
+        return gameKeys[idx];
+    }
+
+    bool IsGameSlotActive(uint8_t game, const std::string& slotKey) {
+        for (const char* k : ForGame(game)) {
+            if (slotKey == k) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const std::vector<const char*>& ForShared() {
+        if (!sharedLoaded) {
+            sharedLoaded = true;
+            const int count = Combo_ItemSharedCount();
+            sharedKeys.reserve((size_t)(count > 0 ? count : 0));
+            ComboItemRow row{};
+            for (int i = 0; i < count && Combo_ItemSharedRowAt(i, &row); i++) {
+                if (row.slotKey != nullptr) {
+                    sharedKeys.push_back(row.slotKey);
+                }
+            }
+        }
+        return sharedKeys;
+    }
+
+    bool IsSharedSlotActive(const std::string& slotKey) {
+        for (const char* k : ForShared()) {
+            if (slotKey == k) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+void ResolveGroupRowsWithCache(const ComboItemTrackerGroup& group, int sharedIconGame, bool filterActive,
+                               ActiveSeedSlotCache& cache, std::vector<ComboItemRow>& out) {
+    if (group.slots.empty()) {
+        return;
+    }
+    if (filterActive && group.autoHideUnshuffled) {
+        bool anyGameSlot = false;
+        bool anyActiveGameSlot = false;
+        for (const ComboItemTrackerSlot& slot : group.slots) {
+            if (slot.origin == COMBO_SLOT_OOT || slot.origin == COMBO_SLOT_MM) {
+                anyGameSlot = true;
+                const uint8_t game = slot.origin == COMBO_SLOT_MM ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+                if (cache.IsGameSlotActive(game, slot.key)) {
+                    anyActiveGameSlot = true;
+                    break;
+                }
+            }
+        }
+        if (anyGameSlot && !anyActiveGameSlot) {
+            return;
         }
     }
-    return false;
+
+    const int cols = group.columns < kComboItemTrackerGroupColumnsMin   ? kComboItemTrackerGroupColumnsMin
+                     : group.columns > kComboItemTrackerGroupColumnsMax ? kComboItemTrackerGroupColumnsMax
+                                                                        : group.columns;
+    bool firstInGroup = true;
+    for (const ComboItemTrackerSlot& slot : group.slots) {
+        if (filterActive && group.autoHideUnshuffled && slot.origin == COMBO_SLOT_SHARED) {
+            if (!cache.IsSharedSlotActive(slot.key)) {
+                continue;
+            }
+        }
+        ComboItemRow row{};
+        if (!ComboItemTrackerResolveSlot(slot, sharedIconGame, &row)) {
+            continue;
+        }
+        row.customCols = (uint8_t)cols;
+        row.customOwnLine = firstInGroup;
+        firstInGroup = false;
+        out.push_back(row);
+    }
 }
 
 void CollectCustomSectionRows(int section, int sharedIconGame, std::vector<ComboItemRow>& out) {
+    ActiveSeedSlotCache cache;
     for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
         for (const ComboItemTrackerGroup& group : gCustomLayout.activeGroups[s]) {
             if (group.section != section) {
                 continue;
             }
-            ComboItemTrackerResolveGroupRows(group, sharedIconGame, true, out);
+            ResolveGroupRowsWithCache(group, sharedIconGame, true, cache, out);
         }
     }
 }
@@ -1616,46 +1695,8 @@ bool ComboItemTrackerResolveSlot(const ComboItemTrackerSlot& slot, int sharedIco
 
 void ComboItemTrackerResolveGroupRows(const ComboItemTrackerGroup& group, int sharedIconGame, bool filterActive,
                                       std::vector<ComboItemRow>& out) {
-    if (group.slots.empty()) {
-        return;
-    }
-    if (filterActive && group.autoHideUnshuffled) {
-        bool anyGameSlot = false;
-        bool anyActiveGameSlot = false;
-        for (const ComboItemTrackerSlot& slot : group.slots) {
-            if (slot.origin == COMBO_SLOT_OOT || slot.origin == COMBO_SLOT_MM) {
-                anyGameSlot = true;
-                const uint8_t game = slot.origin == COMBO_SLOT_MM ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
-                if (IsGameSlotActiveInSeed(game, slot.key)) {
-                    anyActiveGameSlot = true;
-                    break;
-                }
-            }
-        }
-        if (anyGameSlot && !anyActiveGameSlot) {
-            return;
-        }
-    }
-
-    const int cols = group.columns < kComboItemTrackerGroupColumnsMin   ? kComboItemTrackerGroupColumnsMin
-                     : group.columns > kComboItemTrackerGroupColumnsMax ? kComboItemTrackerGroupColumnsMax
-                                                                        : group.columns;
-    bool firstInGroup = true;
-    for (const ComboItemTrackerSlot& slot : group.slots) {
-        if (filterActive && group.autoHideUnshuffled && slot.origin == COMBO_SLOT_SHARED) {
-            if (!IsSharedSlotActiveInSeed(slot.key)) {
-                continue;
-            }
-        }
-        ComboItemRow row{};
-        if (!ComboItemTrackerResolveSlot(slot, sharedIconGame, &row)) {
-            continue;
-        }
-        row.customCols = (uint8_t)cols;
-        row.customOwnLine = firstInGroup;
-        firstInGroup = false;
-        out.push_back(row);
-    }
+    ActiveSeedSlotCache cache;
+    ResolveGroupRowsWithCache(group, sharedIconGame, filterActive, cache, out);
 }
 
 const ComboItemTrackerLayout& ComboItemTrackerGetLayout() {
