@@ -2293,7 +2293,9 @@ u8 OoT_Item_Give(PlayState* play, u8 item) {
         for (i = 1; i < ARRAY_COUNT(gSaveContext.equips.buttonItems); i++) {
             if (gSaveContext.equips.buttonItems[i] == ITEM_OCARINA_FAIRY) {
                 gSaveContext.equips.buttonItems[i] = ITEM_OCARINA_TIME;
-                Interface_LoadItemIcon1(play, i);
+                if (play != NULL) {
+                    Interface_LoadItemIcon1(play, i);
+                }
             }
         }
 

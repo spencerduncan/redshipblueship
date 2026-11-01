@@ -91,6 +91,7 @@ void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t randoItemId, in
 //                                   MM's arrival point is in.
 int OoT_Rando_Foreign_RecordPickup(uint16_t rc);
 int OoT_Rando_Foreign_TestSetObtained(uint16_t rc, int obtained);
+int OoT_ForeignItem_TestNullPlayUpgradeGives(void);
 void MM_ConsumeSharedItems(void);
 int MM_ForeignItem_TestPendingCount(void);
 uint16_t MM_ForeignItem_TestPendingAt(int index);
@@ -362,6 +363,13 @@ TestResult Test_ForeignItemGive(void) {
     // The pairing key round-tripped with it (it rides the same record).
     FI_ASSERT(Combo_ForeignPairingActive());
     mgr.DeleteSave(0);
+
+    // ------------------------------------------------------------------
+    // NULL-play in-place C/D-pad upgrade gives (ITEM_OCARINA_TIME,
+    // ITEM_LONGSHOT) do not dereference play when upgrading an equipped
+    // Fairy Ocarina or Hookshot on cross-game arrival into OoT.
+    // ------------------------------------------------------------------
+    FI_ASSERT(OoT_ForeignItem_TestNullPlayUpgradeGives() == 1);
 
     // Leave global state clean for any subsequent test.
     Context_ClearAllFrozenStates();

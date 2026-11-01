@@ -471,3 +471,95 @@ extern "C" int OoT_LoadReconcile_RunHeadless(void) {
     printf("[TEST] PASS: loading a paired file reconciles OoT's live save with the shared pool\n");
     return 0;
 }
+
+/**
+ * ROM-free lock for NULL-play in-place C/D-pad button upgrades inside
+ * OoT_Item_Give (called by OoT_ForeignItem_Give with play == NULL during
+ * cross-game arrival into OoT).
+ *
+ * Regression: ITEM_OCARINA_TIME upgraded gSaveContext.equips.buttonItems[i]
+ * from ITEM_OCARINA_FAIRY to ITEM_OCARINA_TIME and called
+ * Interface_LoadItemIcon1(play, i) without `if (play != NULL)` (z_parameter.c),
+ * crashing with 0xc0000005 on arrival whenever the Fairy Ocarina was equipped.
+ */
+extern "C" int OoT_ForeignItem_TestNullPlayUpgradeGives(void) {
+    if (GameInteractor::Instance == nullptr) {
+        GameInteractor::Instance = new GameInteractor();
+    }
+    ItemTableManager* const savedItemTables = ItemTableManager::Instance;
+    std::unique_ptr<ItemTableManager> harnessItemTables;
+    if (ItemTableManager::Instance == nullptr) {
+        harnessItemTables = std::make_unique<ItemTableManager>();
+        harnessItemTables->AddItemTable(MOD_NONE);
+        ItemTableManager::Instance = harnessItemTables.get();
+    }
+
+    HooksAside<GameInteractor::OnItemReceive> receive;
+    HooksAside<GameInteractor::OnTimestamp> timestamp;
+
+    int failures = 0;
+
+    // 1. Child Link on arrival: Fairy Ocarina and Hookshot on live C-buttons
+    //    and archived adultEquips C-buttons.
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    gSaveContext.fileNum = 0;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
+    gSaveContext.linkAge = LINK_AGE_CHILD;
+    gSaveContext.inventory.items[SLOT_OCARINA] = ITEM_OCARINA_FAIRY;
+    gSaveContext.inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
+    gSaveContext.equips.buttonItems[1] = ITEM_OCARINA_FAIRY;
+    gSaveContext.equips.buttonItems[2] = ITEM_HOOKSHOT;
+    gSaveContext.adultEquips.buttonItems[3] = ITEM_OCARINA_FAIRY;
+    gSaveContext.adultEquips.buttonItems[1] = ITEM_HOOKSHOT;
+
+    OoT_Item_Give(nullptr, ITEM_OCARINA_TIME);
+    OoT_Item_Give(nullptr, ITEM_LONGSHOT);
+
+    if (gSaveContext.inventory.items[SLOT_OCARINA] != ITEM_OCARINA_TIME ||
+        gSaveContext.equips.buttonItems[1] != ITEM_OCARINA_TIME ||
+        gSaveContext.adultEquips.buttonItems[3] != ITEM_OCARINA_TIME) {
+        printf("[TEST] FAIL: NULL-play ITEM_OCARINA_TIME give as child did not upgrade inventory/equips/adultEquips\n");
+        failures++;
+    }
+    if (gSaveContext.inventory.items[SLOT_HOOKSHOT] != ITEM_LONGSHOT ||
+        gSaveContext.equips.buttonItems[2] != ITEM_LONGSHOT ||
+        gSaveContext.adultEquips.buttonItems[1] != ITEM_LONGSHOT) {
+        printf("[TEST] FAIL: NULL-play ITEM_LONGSHOT give as child did not upgrade inventory/equips/adultEquips\n");
+        failures++;
+    }
+
+    // 2. Adult Link: Fairy Ocarina and Hookshot on live C-buttons and archived
+    //    childEquips C-buttons.
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    gSaveContext.fileNum = 0;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
+    gSaveContext.linkAge = LINK_AGE_ADULT;
+    gSaveContext.inventory.items[SLOT_OCARINA] = ITEM_OCARINA_FAIRY;
+    gSaveContext.inventory.items[SLOT_HOOKSHOT] = ITEM_HOOKSHOT;
+    gSaveContext.equips.buttonItems[2] = ITEM_OCARINA_FAIRY;
+    gSaveContext.equips.buttonItems[3] = ITEM_HOOKSHOT;
+    gSaveContext.childEquips.buttonItems[1] = ITEM_OCARINA_FAIRY;
+    gSaveContext.childEquips.buttonItems[2] = ITEM_HOOKSHOT;
+
+    OoT_Item_Give(nullptr, ITEM_OCARINA_TIME);
+    OoT_Item_Give(nullptr, ITEM_LONGSHOT);
+
+    if (gSaveContext.inventory.items[SLOT_OCARINA] != ITEM_OCARINA_TIME ||
+        gSaveContext.equips.buttonItems[2] != ITEM_OCARINA_TIME ||
+        gSaveContext.childEquips.buttonItems[1] != ITEM_OCARINA_TIME) {
+        printf("[TEST] FAIL: NULL-play ITEM_OCARINA_TIME give as adult did not upgrade inventory/equips/childEquips\n");
+        failures++;
+    }
+    if (gSaveContext.inventory.items[SLOT_HOOKSHOT] != ITEM_LONGSHOT ||
+        gSaveContext.equips.buttonItems[3] != ITEM_LONGSHOT ||
+        gSaveContext.childEquips.buttonItems[2] != ITEM_LONGSHOT) {
+        printf("[TEST] FAIL: NULL-play ITEM_LONGSHOT give as adult did not upgrade inventory/equips/childEquips\n");
+        failures++;
+    }
+
+    memset(&gSaveContext, 0, sizeof(SaveContext));
+    ItemTableManager::Instance = savedItemTables;
+    return failures == 0 ? 1 : 0;
+}
