@@ -113,7 +113,7 @@ jobs:
 
   build-macos:
     needs: generate-rsbs-otr
-    runs-on: macos-15
+    runs-on: macos-14
     steps:
     - name: Git Checkout
       uses: actions/checkout@v4
@@ -128,11 +128,11 @@ jobs:
       with:
         create-symlink: true
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-15-ccache-${{ github.ref }}
+        key: ${{ runner.os }}-14-ccache-${{ github.ref }}
         restore-keys: |
-          ${{ runner.os }}-15-ccache-${{ github.ref }}
-          ${{ runner.os }}-15-ccache-refs/heads/main
-          ${{ runner.os }}-15-ccache
+          ${{ runner.os }}-14-ccache-${{ github.ref }}
+          ${{ runner.os }}-14-ccache-refs/heads/main
+          ${{ runner.os }}-14-ccache
     # Needed to apply sudo for macports cache restore
     - name: Install gtar wrapper
       run: |
@@ -143,9 +143,9 @@ jobs:
       id: restore-cache-macports
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-15-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
+        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         restore-keys: |
-          ${{ runner.os }}-15-macports-v1-
+          ${{ runner.os }}-14-macports-v1-
         path: /opt/local/
     # Updated PATH applies to the next step and onwards
     - name: Install MacPorts (if necessary)
@@ -154,8 +154,8 @@ jobs:
           echo "MacPorts already installed"
         else
           echo "Installing MacPorts"
-          wget https://github.com/macports/macports-base/releases/download/v2.11.5/MacPorts-2.11.5-15-Sequoia.pkg
-          sudo installer -pkg ./MacPorts-2.11.5-15-Sequoia.pkg -target /
+          wget https://github.com/macports/macports-base/releases/download/v2.11.5/MacPorts-2.11.5-14-Sonoma.pkg
+          sudo installer -pkg ./MacPorts-2.11.5-14-Sonoma.pkg -target /
         fi
         echo "/opt/local/bin:/opt/local/sbin" >> "$GITHUB_PATH"
     - name: Install dependencies
@@ -194,7 +194,7 @@ jobs:
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ runner.os }}-15-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
+        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         path: /opt/local/
 
   odr-declaration-gate:
