@@ -1149,7 +1149,7 @@ void DrawItem(ItemTrackerItem item) {
         case RG_DAMPES_HUT_KEY:
             actualItemId = item.id;
             hasItem = Flags_GetRandomizerInf(RAND_INF_DAMPES_HUT_KEY_OBTAINED);
-            itemName = "Dampé's Hut Key";
+            itemName = "Damp├⌐'s Hut Key";
             break;
         case RG_TALONS_HOUSE_KEY:
             actualItemId = item.id;
@@ -2386,13 +2386,15 @@ void ItemTrackerSettingsWindow::DrawElement() {
             }
         }
 
-        auto drawSlotCell = [&](const ComboGui::ComboItemTrackerSlot& slot, const char* btnId) -> bool {
+        std::vector<ComboItemRow> oneSlotRow(1);
+        auto drawSlotCell = [&](const ComboGui::ComboItemTrackerSlot& slot, const char* btnId,
+                                ComboItemRow& row) -> bool {
             constexpr float kCellPx = 38.0f;
-            ComboItemRow row{};
+            row = ComboItemRow{};
             ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &row);
             if (!row.pad) {
-                std::vector<ComboItemRow> one(1, row);
-                ComboGui::ComboItemTrackerLoadIcons(one, ComboUi_Get()->HasImage,
+                oneSlotRow[0] = row;
+                ComboGui::ComboItemTrackerLoadIcons(oneSlotRow, ComboUi_Get()->HasImage,
                                                     ComboGui::ComboItemLoadIconByPath, (int)Context_GetCurrentGame(),
                                                     sEditorIconMemo);
             }
@@ -2488,12 +2490,11 @@ void ItemTrackerSettingsWindow::DrawElement() {
                         const ComboGui::ComboItemTrackerSlot& slot = availGrp.slots[sIdx];
                         char btnId[64];
                         std::snprintf(btnId, sizeof(btnId), "##AvailSlot_%zu_%zu", agIdx, sIdx);
-                        if (drawSlotCell(slot, btnId)) {
+                        ComboItemRow tipRow{};
+                        if (drawSlotCell(slot, btnId, tipRow)) {
                             sPopupAvailSlot = slot;
                             ImGui::OpenPopup("##AddSlotToActiveGroupPopup");
                         }
-                        ComboItemRow tipRow{};
-                        ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &tipRow);
                         if (tipRow.pad) {
                             UIWidgets::Tooltip("Blank Spacer (click or drag to add)");
                         } else if (tipRow.name != nullptr && tipRow.name[0] != '\0') {
@@ -2686,11 +2687,10 @@ void ItemTrackerSettingsWindow::DrawElement() {
                             const ComboGui::ComboItemTrackerSlot& slot = grp.slots[sIdx];
                             char btnId[64];
                             std::snprintf(btnId, sizeof(btnId), "##ActiveSlot_%zu_%zu", gIdx, sIdx);
-                            if (drawSlotCell(slot, btnId)) {
+                            ComboItemRow tipRow{};
+                            if (drawSlotCell(slot, btnId, tipRow)) {
                                 removeSlotIdx = (int)sIdx;
                             }
-                            ComboItemRow tipRow{};
-                            ComboGui::ComboItemTrackerResolveSlot(slot, (int)GAME_OOT, &tipRow);
                             if (tipRow.pad) {
                                 UIWidgets::Tooltip("Blank Spacer (click to remove, drag to reorder)");
                             } else if (tipRow.name != nullptr && tipRow.name[0] != '\0') {

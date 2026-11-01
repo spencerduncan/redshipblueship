@@ -157,10 +157,33 @@ const char* MMItemVanillaName(uint32_t itemId) {
     return (itemId < sNames.size() && sNames[itemId] != nullptr) ? sNames[itemId] : "Unknown Item";
 }
 
-/** MM's display name for a Rando item (never inserts into the table). */
+/** MM's display name and icon path for a Rando item, cached once from
+ *  StaticData::Items so per-frame row derivation avoids std::map lookups. */
+struct MMCachedRandoMeta {
+    std::array<const char*, RI_MAX> names{};
+    std::array<const char*, RI_MAX> icons{};
+};
+
+const MMCachedRandoMeta& MMRandoMetaTable(void) {
+    static MMCachedRandoMeta sMeta{};
+    static bool sBuilt = false;
+    if (!sBuilt) {
+        for (const auto& [randoItemId, item] : Rando::StaticData::Items) {
+            const size_t idx = (size_t)randoItemId;
+            if (idx < RI_MAX) {
+                sMeta.names[idx] = item.name;
+                sMeta.icons[idx] = Rando::StaticData::GetIconTexturePath(randoItemId);
+            }
+        }
+        sBuilt = true;
+    }
+    return sMeta;
+}
+
 const char* MMItemRandoName(RandoItemId randoItemId) {
-    const auto it = Rando::StaticData::Items.find(randoItemId);
-    return (it != Rando::StaticData::Items.end() && it->second.name != nullptr) ? it->second.name : "Unknown Item";
+    const auto& meta = MMRandoMetaTable();
+    const size_t idx = (size_t)randoItemId;
+    return (idx < RI_MAX && meta.names[idx] != nullptr) ? meta.names[idx] : "Unknown Item";
 }
 
 /** The icon resource path MM's tracker draws for a vanilla item, or NULL. */
@@ -171,10 +194,9 @@ const char* MMItemIcon(uint32_t itemId) {
 
 /** The icon resource path MM's tracker draws for a Rando item. */
 const char* MMItemRandoIcon(RandoItemId randoItemId) {
-    if (Rando::StaticData::Items.count(randoItemId) == 0) {
-        return nullptr;
-    }
-    return Rando::StaticData::GetIconTexturePath(randoItemId);
+    const auto& meta = MMRandoMetaTable();
+    const size_t idx = (size_t)randoItemId;
+    return (idx < RI_MAX) ? meta.icons[idx] : nullptr;
 }
 
 // MM's tracker draws an item not held as the same icon at 40% alpha
@@ -856,19 +878,25 @@ int MMItemCatalogCount(void) {
     return kMMCatalogRowCount;
 }
 
+const SaveContext* MMEmptyCatalogSave(void) {
+    static SaveContext sEmptySave{};
+    static bool sInitialized = false;
+    if (!sInitialized) {
+        std::memset(sEmptySave.save.saveInfo.inventory.items, ITEM_NONE,
+                    sizeof(sEmptySave.save.saveInfo.inventory.items));
+        std::memset(sEmptySave.save.saveInfo.inventory.dungeonKeys, -1,
+                    sizeof(sEmptySave.save.saveInfo.inventory.dungeonKeys));
+        sInitialized = true;
+    }
+    return &sEmptySave;
+}
+
 bool MMItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
     if (out == nullptr || catalogIndex < 0 || catalogIndex >= kMMCatalogRowCount) {
         return false;
     }
     const bool hasSave = MMItemAligned(buf) && MMItemHasSave(buf);
-    SaveContext emptySave{};
-    if (!hasSave) {
-        std::memset(emptySave.save.saveInfo.inventory.items, ITEM_NONE,
-                    sizeof(emptySave.save.saveInfo.inventory.items));
-        std::memset(emptySave.save.saveInfo.inventory.dungeonKeys, -1,
-                    sizeof(emptySave.save.saveInfo.inventory.dungeonKeys));
-    }
-    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : &emptySave;
+    const SaveContext* src = hasSave ? static_cast<const SaveContext*>(buf) : MMEmptyCatalogSave();
     const uint8_t freshness = out->freshness;
     std::memset(out, 0, sizeof(*out));
     out->freshness = freshness;

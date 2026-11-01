@@ -1,7 +1,52 @@
+# Release notes: v0.4.3-alpha ("Deckard Delta")
+
+**Status:** released. The release is cut as the tag `v0.4.3-alpha` on the commit that merges this text (the version
+bump, the release workflow's title and these notes), whose code is `main` at `25dcb287` and whose docs are that commit.
+**Version:** `v0.4.3-alpha`, codename "Deckard Delta" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `z`
+bump: bugfix collection, stability improvements, and gameplay refinements without a new `oot.otr` (the archive version,
+`project(Ship VERSION 9.1.1)`, is unchanged), so it keeps the film character "Deckard" and advances the NATO phonetic code word
+from Charlie to Delta. A build's window title reads `RedShipBlueShip v0.4.3-alpha+<commit> (Deckard Delta)`, and `redship --version`
+prints the same first line. Saves written by this version remain version 5; seeds come from generator 3.
+**Last release:** `v0.4.2-alpha` ("Deckard Charlie"), tagged 2026-10-31 at `43386c12` (code tip `2bf5d33c`). Its notes
+follow this section.
+**Merged up to:** `main` at `25dcb287` (2026-10-31) for the code, 4 commits after the tag: pull requests #1327 to
+#1330.
+**Covers:** everything merged after `43386c12`. Numbers in parentheses are pull requests; issues are written "issue
+#N".
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.4.3-alpha) carries
+`redshipblueship-v0.4.3-alpha-windows.zip` and `redshipblueship-v0.4.3-alpha-linux.AppImage` once the tag's
+`generate-builds` run finishes.
+
+---
+
+## Since v0.4.2-alpha
+
+### Read this first
+
+- **This is the fourth alpha release.** It introduces a 2Ship-style customizable 3-column Item Tracker layout editor with dungeon solver presets, excludes skipped checks from available totals in the Check Tracker with a new "Hide Skipped" toggle, and integrates extensive Ship of Harkinian and 2Ship2Harkinian upstream backport waves across performance, savefile, menus, hints, messages, cutscene skips, actors, skeletons, and logic.
+- **Customizable 3-column Item Tracker layout engine and two-pane editor** (#1328). Adds a flexible layout engine and two-pane group/slot customization editor for the unified 3-column (Ocarina of Time, Majora's Mask, Shared) Item Tracker:
+  - Origin-tagged catalog addressing: all 157 OoT, 112 MM, and 32 Shared item rows are tagged with stable `slotKey` identifiers (along with blank `"pad"` grid spacers). Unshuffled gated items (e.g. Boss Souls) resolve as collected when a save is loaded so solver grids stay aligned and illuminated. Custom per-game slots remain visible even when an item is shared in the active seed.
+  - Multi-group 3-column layout engine: supports an ordered list of custom Active Groups per column with configurable 1..12 column widths, section assignments, and auto-hide unshuffled toggles. Includes built-in "Key Items" (Dungeon Solver) presets for both MM (6-wide [Remains, Song, Boss Key, Small Key, Boss Soul, Stray Fairy] rows per temple + [Oath to Order, Majora's Soul, Clock Town Stray Fairy]) and OoT (5-wide [Reward, Warp Song, Small Key, Boss Key, Boss Soul] rows per dungeon). Custom layouts persist under `ComboItemTrackerLayout` in the Ship JSON configuration.
+  - Two-pane Group & Slot Editor UI under Item Tracker Settings: provides Available Groups and Active Groups customization panes with column target tabs, drag-and-drop onto slots/headers/empty groups, click-to-add popups, click-to-remove, group reorder/rename controls, column width sliders, section assignment controls, "Restore Default Groups", and "Load 'Key Items' Dungeon Solver Preset".
+- **Check Tracker excludes skipped checks from available totals and adds "Hide Skipped" toggle** (#1329).
+  - Excludes skipped checks from per-game `available` counts (OoT live, OoT stale/frozen capture, and MM live/stale) and per-area `available` totals while preserving individual row in-logic reachability status.
+  - Adds a per-pane "Hide Skipped Checks" toggle in the unified Check Tracker header (backed by `gTrackers.CheckTracker.Skipped.Hide`).
+  - Adds `RSBS_CVAR_COMBO_CHECKS_HIDE_SKIPPED_TOGGLE_VISIBLE` (`"gCombo.Tracker.Checks.HideSkippedToggleVisible"`) exposed under Check Tracker Settings > Tracker Header Visibility.
+- **Extensive upstream SoH & 2S2H backport waves (O26, O2, O3, O4, O6, O8, O9, O10, O11, O13, O14, O21, M1, M2, M3, M4, M10, M15)** (#1327).
+  - **Performance & Extractor (O26):** enabled `/O2` optimization for OoT x64 Release builds under MSVC (SoH #7188); optimized logic search with `std::array<uint32_t, RG_MAX>`, early-exit `AddCheckToLogic`, `std::bitset<RC_MAX>` in `ReachabilitySearch`, avoided `GetAreas()` copies in `FindIfBarren`/`CalculateBarren`, and increased `Fill()` retries to 10 (SoH #7369); fixed ROM extraction paths and working directories (SoH #7252, #6243).
+  - **Savefile, Stats, Thread Join & Menus (O2, O8, O9, O10, O21):** capped Tycoon's Wallet at 999 rupees in `GiveLinkRupees` (SoH #6227); fixed `RSK_STARTING_OCARINA` granting Fairy Ocarina (SoH #6706); fixed `RSK_FULL_WALLETS` initialization order (SoH #6358); fixed Malon Egg and Zelda's Letter swap in `StartingItemGive` (SoH #6921); removed premature `EVENTCHKINF_EPONA_OBTAINED` (SoH #6846); synced preset tricks and locations in `SohGui` (SoH #7157); guarded C-button equip (SoH #7222); recorded 26 rando item gameplay-stat timestamps including `RG_CRAWL` (SoH #6883); guarded Bombchu timestamps, single Bombchu bag refills, and carrot HUD dimming (SoH #6717, #6371); improved rando generation thread-join safety (`IsRandoGenerating`, `WaitForRandoGeneration`, `JoinRandoGenerationThread`) (SoH #7136, #6786); guarded `Option::GetSelectedOptionText` clamping, `UIWidgets::Combobox`, `windowBackendsMap`, `SetSpoilerLoaded(false)` placement, and fixed spoiler log item-pool crash (SoH #7062, #6806, #6263, #7127).
+  - **Runtime Hooks, Cutscene Skips & Actors (O4, O11, O13, O14):** added Ruto blue warp skip flags (SoH #6350); fixed Deku Tree blue warp age-switch crash (SoH #6258); added Master Sword pull swordless recovery on time travel (SoH #7112); added fast chest animation hook (SoH #6751); fixed Goron Link tunic shop buy behavior (SoH #6330); added skip-text hold guard (SoH #6873); added Forest Temple Poe sisters cutscene skip (SoH #6887); added vanilla behaviors `VB_BUSINESS_SCRUB_SPEAK` and `VB_SEND_MALON_HOME` (SoH #6255, #6299); fixed Malon castle hint text and Talon sleeping check (SoH #6308, #7211); cleaned up `SwitchAge` and forest stage actor guards (SoH #7286); added Big Poe target hook (SoH #7230).
+  - **Hints, Messages & Region Logic (O3, O6):** added Ganon's Boss Key static hint condition (SoH #6546); fixed Goron Ruby message (SoH #6331); restored French accents and plural item messages (SoH #6295, #6332); added owl flight `RG_SPEAK_KOKIRI` logic (SoH #6912); backported dungeon and overworld region logic fixes across Dodongo's Cavern, Forest Temple, Shadow Temple, Spirit Temple, Water Temple, Death Mountain Trail, and Lake Hylia (SoH #7283, #7181, #7107, #6691); fixed Ganondorf boss-door spoiler log entry (SoH #6363); added Nabooru Iron Knuckle hook (SoH #7295); fixed vanilla shop and scrub prices and owl entrance destinations (SoH #6284).
+  - **Majora's Mask Skeletons, Crash/UB, Logic & Enhancements (M1, M2, M3, M4, M10, M15):** unregister MM Player and Kafei skeletons on destroy and deduplicate `SkeletonPatcher` (2S2H #1980, #1800, #1689); bounded file-select loop and ensured ImGui format string safety (2S2H #1843, #1644); revised MM enemy soul and drop logic (2S2H #1454); reset Sun's Song state under Clock Shuffle (2S2H #1488); converted `RI_JUNK` on MM shop purchase (2S2H #1811); reverted pot, crate, barrel, and grass custom textures after check obtain (2S2H #1810); tuned Goron rolling speed threshold (2S2H #1834); excluded Hyper Enemies from shooting gallery (2S2H #1867); guarded Stone Tower block cutscenes (2S2H #1855); fixed shadow and Deku Baba frame interpolation (2S2H #1771, #1832).
+- **POSIX process probe falls back to `ps` without `/proc`** (#1330). On macOS and BSD platforms without `/proc`, process liveness probing now falls back to `ps -o stat= -o lstart= -p <pid>` to detect zombie processes and reap tokens, fixing heartbeat timeouts when child processes exit.
+
+---
+
 # Release notes: v0.4.2-alpha ("Deckard Charlie")
 
 **Status:** released. The release is cut as the tag `v0.4.2-alpha` on the commit that merges this text (the version
 bump, the release workflow's title and these notes), whose code is `main` at `2bf5d33c` and whose docs are that commit.
+The next release's draft starts above this section when something merges after the tag.
 **Version:** `v0.4.2-alpha`, codename "Deckard Charlie" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `z`
 bump: bugfix collection, stability improvements, and gameplay refinements without a new `oot.otr` (the archive version,
 `project(Ship VERSION 9.1.1)`, is unchanged), so it keeps the film character "Deckard" and advances the NATO phonetic code word
