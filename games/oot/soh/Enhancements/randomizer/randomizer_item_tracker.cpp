@@ -1149,7 +1149,7 @@ void DrawItem(ItemTrackerItem item) {
         case RG_DAMPES_HUT_KEY:
             actualItemId = item.id;
             hasItem = Flags_GetRandomizerInf(RAND_INF_DAMPES_HUT_KEY_OBTAINED);
-            itemName = "Dampé's Hut Key";
+            itemName = "Damp├⌐'s Hut Key";
             break;
         case RG_TALONS_HOUSE_KEY:
             actualItemId = item.id;
@@ -2411,7 +2411,8 @@ void ItemTrackerSettingsWindow::DrawElement() {
                 const ComboGui::ComboItemIconRect fit = ComboGui::ComboItemIconFit(kCellPx, row.iconAspect);
                 const ImVec2 savedCursor = ImGui::GetCursorScreenPos();
                 ImGui::SetCursorScreenPos(ImVec2(cellMin.x + fit.x, cellMin.y + fit.y));
-                const bool drawn = iconKey != nullptr && ComboUi_Get()->Image(iconKey, fit.w, fit.h, row.iconTint);
+                const bool drawn =
+                    iconKey != nullptr && ComboUi_Get()->Image(iconKey, fit.w, fit.h, row.iconTint);
                 if (!drawn && row.name != nullptr) {
                     ImGui::PushClipRect(cellMin, cellMax, true);
                     ImGui::SetCursorScreenPos(cellMin);
@@ -2570,20 +2571,22 @@ void ItemTrackerSettingsWindow::DrawElement() {
 
                     ImGui::SameLine(ImGui::GetWindowContentRegionMax().x - 102.0f);
                     ImGui::BeginDisabled(gIdx == 0);
-                    if (UIWidgets::Button("^##MoveGroupUp", UIWidgets::ButtonOptions()
-                                                                .Size(ImVec2(28.0f, 24.0f))
-                                                                .Color(THEME_COLOR)
-                                                                .Tooltip("Move group up"))) {
+                    if (UIWidgets::Button("^##MoveGroupUp",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(28.0f, 24.0f))
+                                              .Color(THEME_COLOR)
+                                              .Tooltip("Move group up"))) {
                         swapGroupA = (int)gIdx;
                         swapGroupB = (int)gIdx - 1;
                     }
                     ImGui::EndDisabled();
                     ImGui::SameLine(0.0f, 4.0f);
                     ImGui::BeginDisabled(gIdx + 1 >= groups.size());
-                    if (UIWidgets::Button("v##MoveGroupDown", UIWidgets::ButtonOptions()
-                                                                  .Size(ImVec2(28.0f, 24.0f))
-                                                                  .Color(THEME_COLOR)
-                                                                  .Tooltip("Move group down"))) {
+                    if (UIWidgets::Button("v##MoveGroupDown",
+                                          UIWidgets::ButtonOptions()
+                                              .Size(ImVec2(28.0f, 24.0f))
+                                              .Color(THEME_COLOR)
+                                              .Tooltip("Move group down"))) {
                         swapGroupA = (int)gIdx;
                         swapGroupB = (int)gIdx + 1;
                     }
@@ -2607,9 +2610,8 @@ void ItemTrackerSettingsWindow::DrawElement() {
                         }
 
                         // Columns: 1..12 with - / + buttons matching 2Ship's group options popup
-                        if (UIWidgets::Button(
-                                "-##ColMinus",
-                                UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
+                        if (UIWidgets::Button("-##ColMinus",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
                             if (grp.columns > ComboGui::kComboItemTrackerGroupColumnsMin) {
                                 grp.columns--;
                                 markDirty();
@@ -2623,9 +2625,8 @@ void ItemTrackerSettingsWindow::DrawElement() {
                             markDirty();
                         }
                         ImGui::SameLine();
-                        if (UIWidgets::Button(
-                                "+##ColPlus",
-                                UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
+                        if (UIWidgets::Button("+##ColPlus",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(26.0f, 0.0f)).Color(THEME_COLOR))) {
                             if (grp.columns < ComboGui::kComboItemTrackerGroupColumnsMax) {
                                 grp.columns++;
                                 markDirty();
@@ -2647,18 +2648,18 @@ void ItemTrackerSettingsWindow::DrawElement() {
                         if (ImGui::Checkbox("Auto-hide when unshuffled", &grp.autoHideUnshuffled)) {
                             markDirty();
                         }
-                        if (UIWidgets::Button(
-                                "Add Blank Spacer",
-                                UIWidgets::ButtonOptions().Size(ImVec2(200.0f, 0.0f)).Color(THEME_COLOR))) {
+                        if (UIWidgets::Button("Add Blank Spacer",
+                                              UIWidgets::ButtonOptions().Size(ImVec2(200.0f, 0.0f)).Color(THEME_COLOR))) {
                             ComboGui::ComboItemTrackerSlot padSlot;
                             padSlot.origin = ComboGui::COMBO_SLOT_PAD;
                             padSlot.key = "pad";
                             grp.slots.push_back(std::move(padSlot));
                             markDirty();
                         }
-                        if (UIWidgets::Button(
-                                "Remove Group",
-                                UIWidgets::ButtonOptions().Size(ImVec2(200.0f, 0.0f)).Color(UIWidgets::Colors::Red))) {
+                        if (UIWidgets::Button("Remove Group",
+                                              UIWidgets::ButtonOptions()
+                                                  .Size(ImVec2(200.0f, 0.0f))
+                                                  .Color(UIWidgets::Colors::Red))) {
                             removeGroupIdx = (int)gIdx;
                             ImGui::CloseCurrentPopup();
                         }
@@ -2671,7 +2672,8 @@ void ItemTrackerSettingsWindow::DrawElement() {
                         if (ImGui::BeginDragDropTarget()) {
                             if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("COMBO_TRACKER_SLOT")) {
                                 if (pl->DataSize == sizeof(ComboSlotDragPayload)) {
-                                    applySlotDrop((int)gIdx, 0, *static_cast<const ComboSlotDragPayload*>(pl->Data));
+                                    applySlotDrop((int)gIdx, 0,
+                                                  *static_cast<const ComboSlotDragPayload*>(pl->Data));
                                 }
                             }
                             ImGui::EndDragDropTarget();
@@ -2701,8 +2703,9 @@ void ItemTrackerSettingsWindow::DrawElement() {
                                 payload.sourceGroup = (int)gIdx;
                                 payload.sourceSlot = (int)sIdx;
                                 ImGui::SetDragDropPayload("COMBO_TRACKER_SLOT", &payload, sizeof(payload));
-                                ImGui::TextUnformatted(
-                                    tipRow.name != nullptr && tipRow.name[0] != '\0' ? tipRow.name : "Blank Spacer");
+                                ImGui::TextUnformatted(tipRow.name != nullptr && tipRow.name[0] != '\0'
+                                                           ? tipRow.name
+                                                           : "Blank Spacer");
                                 ImGui::EndDragDropSource();
                             }
                             if (ImGui::BeginDragDropTarget()) {

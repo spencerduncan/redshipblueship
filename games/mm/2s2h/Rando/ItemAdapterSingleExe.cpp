@@ -262,19 +262,22 @@ struct MMItemRowDef {
     RandoItemId rando; // naming item for the Rando-keyed rows
 };
 
-#define MMI_SLOT(group, slotKey, item) { group, slotKey, MMRK_SLOT, (uint8_t)(item), 0, RI_UNKNOWN }
+#define MMI_SLOT(group, slotKey, item) \
+    { group, slotKey, MMRK_SLOT, (uint8_t)(item), 0, RI_UNKNOWN }
 #define MMI_AMMO(slotKey, item, upg) \
     { "Inventory", slotKey, MMRK_SLOT_AMMO, (uint8_t)(item), (uint32_t)(upg), RI_UNKNOWN }
 #define MMI_FIXED(slotKey, item, cap) \
     { "Inventory", slotKey, MMRK_SLOT_FIXED, (uint8_t)(item), (uint32_t)(cap), RI_UNKNOWN }
-#define MMI_QUEST(group, slotKey, bit, rando) { group, slotKey, MMRK_QUEST, 0, (uint32_t)(bit), rando }
-#define MMI_KIND(group, slotKey, kind, rando) { group, slotKey, kind, 0, 0, rando }
+#define MMI_QUEST(group, slotKey, bit, rando) \
+    { group, slotKey, MMRK_QUEST, 0, (uint32_t)(bit), rando }
+#define MMI_KIND(group, slotKey, kind, rando) \
+    { group, slotKey, kind, 0, 0, rando }
 #define MMI_FAIRY(slotKey, temple) \
     { "Stray Fairies", slotKey, MMRK_FAIRY, 0, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_STRAY_FAIRY }
-#define MMI_DUNGEON(slotKey, temple, kind)                                                                      \
-    {                                                                                                           \
-        "Dungeon",           slotKey, MMRK_DUNGEON_ITEM, DUNGEON_##kind, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, \
-        RI_##temple##_##kind                                                                                    \
+#define MMI_DUNGEON(slotKey, temple, kind)                                                            \
+    {                                                                                                 \
+        "Dungeon", slotKey, MMRK_DUNGEON_ITEM, DUNGEON_##kind, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, \
+            RI_##temple##_##kind                                                                      \
     }
 #define MMI_KEYS(slotKey, temple, keys) \
     { "Dungeon", slotKey, MMRK_SMALL_KEY, keys, DUNGEON_SCENE_INDEX_##temple##_TEMPLE, RI_##temple##_SMALL_KEY }
