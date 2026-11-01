@@ -424,9 +424,6 @@ find_package(Ogg REQUIRED)
 find_package(Vorbis REQUIRED)
 find_package(opusfile CONFIG QUIET)
 if(NOT opusfile_FOUND)
-    find_package(OpusFile QUIET)
-endif()
-if(NOT opusfile_FOUND AND NOT OpusFile_FOUND AND NOT TARGET Opusfile::Opusfile)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(opusfile REQUIRED IMPORTED_TARGET opusfile)
 endif()
@@ -453,8 +450,7 @@ set(REDSHIP_LIBRARY_DEPS
     Vorbis::vorbis
     Vorbis::vorbisfile
     $<TARGET_NAME_IF_EXISTS:OpusFile::opusfile>
-    $<TARGET_NAME_IF_EXISTS:Opusfile::Opusfile>
-    $<$<AND:$<NOT:$<TARGET_EXISTS:OpusFile::opusfile>>,$<NOT:$<TARGET_EXISTS:Opusfile::Opusfile>>>:PkgConfig::opusfile>
+    $<$<NOT:$<TARGET_EXISTS:OpusFile::opusfile>>:PkgConfig::opusfile>
 )
 
 # SDL2_net is needed by OoT's Network.cpp when BUILD_REMOTE_CONTROL is enabled.
