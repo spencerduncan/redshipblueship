@@ -7,7 +7,7 @@
 #   OPUSFILE_LIBRARIES   - Full list of libraries to link (opusfile, opus, ogg)
 
 # Use pkg-config to find opusfile if available
-find_package(PkgConf)
+find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
     pkg_check_modules(PC_OPUSFILE QUIET opusfile)
 endif()
@@ -48,12 +48,14 @@ find_package_handle_standard_args(OpusFile
 
 # Define an imported target if everything is found
 if (OPUSFILE_FOUND)
-    add_library(Opusfile::Opusfile INTERFACE IMPORTED)
+    if (NOT TARGET Opusfile::Opusfile)
+        add_library(Opusfile::Opusfile INTERFACE IMPORTED)
 
-    set_target_properties(Opusfile::Opusfile PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${OPUSFILE_INCLUDE_DIR}"
-        INTERFACE_LINK_LIBRARIES "${OPUSFILE_LIBRARY};${OPUS_LIBRARY};${OGG_LIBRARY}"
-    )
+        set_target_properties(Opusfile::Opusfile PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${OPUSFILE_INCLUDE_DIR}"
+            INTERFACE_LINK_LIBRARIES "${OPUSFILE_LIBRARY};${OPUS_LIBRARY};${OGG_LIBRARY}"
+        )
+    endif()
 
     # Optionally expose the include and libraries separately
     set(OPUSFILE_LIBRARIES ${OPUSFILE_LIBRARY} ${OPUS_LIBRARY} ${OGG_LIBRARY})
