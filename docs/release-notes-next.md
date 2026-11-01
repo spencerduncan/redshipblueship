@@ -1,3 +1,9 @@
+# Release notes: v0.4.4-alpha ("Deckard Echo")
+
+Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.
+
+Can you tell I ran out of tokens? I'm typing my own release notes for my alpha. Yes I know the readme is slop I'll fix it eventually nerds.
+
 # Release notes: v0.4.3-alpha ("Deckard Delta")
 
 **Status:** released. The release is cut as the tag `v0.4.3-alpha` on the commit that merges this text (the version
