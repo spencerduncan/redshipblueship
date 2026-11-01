@@ -19,5 +19,7 @@ extern OSThread* __osRunningThread;
 /* Internal functions */
 void __osDequeueThread(OSThread** queue, OSThread* thread);
 void __osDispatchThread(void);
+s32 __osDisableInt(void);
+void __osRestoreInt(s32);
 
 #endif /* RSBS_LIBULTRA_OS_H */
