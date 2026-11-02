@@ -113,19 +113,26 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // FinalizeSettings, so nothing downstream reads No Logic; it reads settings
     // only and consumes no RNG. Every generation in this build is a paired creation
     // (the gate below refuses any other), as for #973's block.
+    //
+    // The combo record is resolved once, here, for this block and #768's below:
+    // the resolver reads only the gCombo keys, which FinalizeSettings never
+    // writes, so both blocks see the record the creation freeze resolves.
+    ComboSettingsRecord rsbsComboPreview;
+    Combo_ResolveComboSettings(&rsbsComboPreview);
     sRsbsPairedLogicPinned = 0;
     {
-        ComboSettingsRecord rsbsRungPreview;
-        Combo_ResolveComboSettings(&rsbsRungPreview);
-        const bool rsbsProvingRung = rsbsRungPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE ||
-                                     rsbsRungPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
+        const bool rsbsProvingRung = rsbsComboPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE ||
+                                     rsbsComboPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
         if (rsbsProvingRung && ctx->GetOption(RSK_LOGIC_RULES).IsNot(RO_LOGIC_GLITCHLESS)) {
             SPDLOG_WARN("Paired world: OoT's Logic {} is generated as \"Glitchless\": the paired world's proof runs "
                         "over OoT's logic, which \"No Logic\" answers true everywhere, and combo rung {} claims a "
                         "proof; OoT No Logic waits for the combo Logic row (#1350)",
-                        (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRungPreview.logicRung);
-            fprintf(stderr, "[OoT] Logic: %u generated as \"Glitchless\" under combo rung %u (#1350)\n",
-                    (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRungPreview.logicRung);
+                        (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsComboPreview.logicRung);
+            fprintf(stderr,
+                    "[OoT] Logic: %u generated as \"Glitchless\" under combo rung %u: No Logic is not available for "
+                    "paired worlds until the combo Logic row lands, because the pair's proof runs over OoT's logic "
+                    "(#1350)\n",
+                    (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsComboPreview.logicRung);
             ctx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
             sRsbsPairedLogicPinned = 1;
         }
@@ -144,11 +151,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     // door, and Ganon is OoT's win in the proof and in play. Decided here,
     // before the settings string is hashed, so the settings hash, the seed, the
     // spoiler and the save all describe the world that is generated. The goal is
-    // read through the one resolver the creation freeze below uses; nothing here
-    // consumes the RNG.
+    // read through the one resolver the creation freeze below uses (resolved
+    // once above, for #1350's block too); nothing here consumes the RNG.
     {
-        ComboSettingsRecord rsbsGoalPreview;
-        Combo_ResolveComboSettings(&rsbsGoalPreview);
+        const ComboSettingsRecord& rsbsGoalPreview = rsbsComboPreview;
         if (!Combo_GoalKeepsOwnHuntWin(rsbsGoalPreview.goal) &&
             ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_WIN)) {
             ctx->GetOption(RSK_TRIFORCE_HUNT).Set(RO_TRIFORCE_HUNT_GBK);
