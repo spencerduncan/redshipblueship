@@ -234,8 +234,8 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
  * (#639), (e) re-apply the sound mode DERIVED from the restored save's
  * options.audioSetting, which lives outside gSaveContext and so cannot ride
  * the restore memcpy (#483, audit #482 row M5), and (f) spawn a restored half
- * that carries a pause-save entrance at that entrance, and clear the pause-save
- * pair whenever it does not use it (#1348).
+ * that carries a pause-save pair (isOwlSave and an in-range entrance) at that
+ * entrance, and clear the pair whenever it does not use it (#1348).
  */
 extern "C" int MM_StartupRestore_RunHeadless(void) {
     printf("[TEST] mm-startup-restore: startup consumption restores the frozen save post-wipe\n");
@@ -475,8 +475,9 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     // the load restores the pair. The arrival must spawn at that entrance and
     // leave the pair for MM_Player_Init, which forces the standing start and
     // clears it. Before #1348 the arrival overwrote it with the crossing
-    // entrance. A temple entrance, because on default settings that is the
-    // only pause save whose entrance differs from the crossing's.
+    // entrance. A temple entrance, because with Pause Menu Save or Autosave on
+    // and Remember Save Location off, that is the only pause save whose
+    // entrance differs from the crossing's.
     const s32 kPauseSaveEntrance = ENTRANCE(WOODFALL_TEMPLE, 0);
     RESUME_ASSERT(kPauseSaveEntrance != kArrival, "the pause-save leg cannot tell its entrance from the crossing's");
     StageFrozenPauseSaveHalf(kArrival, kPauseSaveEntrance, true);
@@ -503,6 +504,24 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
                   "a half with no pause-save entrance did not arrive at the crossing entrance (#1348)");
     RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
                   "the walked-out leg left a pause-save pair behind (#1348)");
+
+    // Every commit that records an entrance sets isOwlSave with it, and 2Ship's
+    // own load reads the entrance only for an owl save. A restored half with an
+    // in-range entrance but no isOwlSave is damaged, not a pause save: a zeroed
+    // field reads as ENTRANCE(MAYORS_RESIDENCE, 0), and that must not steer the
+    // arrival. It arrives at the crossing entrance and the stray entrance is
+    // cleared, so MM_Player_Init does not force a standing start for it.
+    const s32 kZeroedPauseSaveEntrance = ENTRANCE(MAYORS_RESIDENCE, 0);
+    RESUME_ASSERT(kZeroedPauseSaveEntrance == 0 && kZeroedPauseSaveEntrance != kArrival,
+                  "the zeroed-field leg's entrance is not the in-range 0 it means to test");
+    StageFrozenPauseSaveHalf(kArrival, kZeroedPauseSaveEntrance, false);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    RESUME_ASSERT(gSaveContext.save.day == 2, "the zeroed-field leg did not restore its frozen half");
+    RESUME_ASSERT(gSaveContext.save.entrance == kArrival,
+                  "a restored entrance without isOwlSave steered the arrival away from the crossing (#1348)");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
+                  "the zeroed-field leg left its stray pause-save entrance set (#1348)");
 
     // Only a RESTORED half carries a save's entrance. With no frozen half the
     // arrival spawns on the boot chain's bootstrap at the crossing entrance,
