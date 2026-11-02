@@ -25,8 +25,7 @@
  * crashing, against a libultraship without the fix.
  */
 
-// gfx_rendering_api.h names ImTextureID, which imgui.h defines; interpreter.h does not include it itself.
-#include <imgui.h>
+// interpreter.h is self-contained: gfx_rendering_api.h includes LUS's patched imconfig.h, which defines ImTextureID.
 #include <fast/interpreter.h>
 
 #include <cstdint>
@@ -145,8 +144,10 @@ class TcfnStubRapi final : public Fast::GfxRenderingAPI {
     }
     void SetSrgbMode() override {
     }
+    // LUS's imconfig.h makes ImTextureID the macro `void*`, not a typedef, so `ImTextureID{}` does not parse;
+    // `{}` value-initializes whatever the return type is.
     ImTextureID GetTextureById(int id) override {
-        return ImTextureID{};
+        return {};
     }
 };
 
