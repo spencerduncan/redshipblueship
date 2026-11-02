@@ -40,6 +40,9 @@
  *     it now asserts the residue is genuinely present, and poisons it by hand.
  *   - LEG 13 is new: `expand` must harvest own-origin placements, and did not.
  *   - LEG 14 is new: the two always-shuffled shop checks must be placeable hosts.
+ *   - LEG 16 is new (ADR 0010 answer O2): the reset-time guard `expand` applies.
+ *     Legs 3-15 run with the paired default start's Song of Time kit, under
+ *     which the guard is off (see the note after leg 2).
  *   - leg 5 parked the whole region graph into a function-local and restored it
  *     after four early-returning assertions. It is a scope guard now.
  *
@@ -109,10 +112,13 @@ extern "C" int MM_ComboLogicEngine_RunHeadless(void) {
 #include "2s2h/Rando/Rando.h"
 #include "2s2h/Rando/CheckTracker/CheckTracker.h"
 #include "2s2h/Rando/Logic/Logic.h"
+#include "2s2h/Rando/Logic/ResetTimeGuard.h"
 #include "2s2h/Rando/StaticData/StaticData.h"
 
 #include "combo_logic.h"
+#include "combo_mm_options_view.h" // RSBS_MM_MOON_CRASH_*, MM_Rando_FrozenMoonCrash (leg 16)
 #include "context.h"
+#include "foreign_items.h" // RSBS_XITEM_SHARED_SONG_TIME, Combo_FreezeComboSettingsEx (leg 16)
 #include "mm_game_hooks.h"
 
 extern "C" {
@@ -132,6 +138,7 @@ void MM_ComboLogic_BracketCounters(int* outBeginRefusals, int* outEndCalls, int*
 void MM_ComboLogic_ResetCounters(void);
 int MM_ComboLogic_SnapshotLive(void);
 int MM_ComboLogic_HeldPlacementCount(void);
+int MM_ComboLogic_TestRoundRegions(uint16_t* outRegions, uint64_t* outTimeSlices, int cap);
 }
 
 namespace {
@@ -330,6 +337,111 @@ struct PlacementsGuard {
     }
 };
 
+// ============================================================================
+// Leg 16's helpers: the reset-time guard (ADR 0010 answer O2)
+// ============================================================================
+
+/** Restores the combo record on scope exit. Leg 16 freezes cross-game item
+ *  rules into it (the Shared Song of Time rule is one of the two frozen records
+ *  MM_Rando_FrozenMoonCrash reads), and that record is process-global. */
+struct ComboCtxGuard {
+    std::unique_ptr<ComboContext> saved = std::make_unique<ComboContext>();
+    ComboCtxGuard() {
+        memcpy(saved.get(), &gComboCtx, sizeof(ComboContext));
+    }
+    ~ComboCtxGuard() {
+        memcpy(&gComboCtx, saved.get(), sizeof(ComboContext));
+    }
+    ComboCtxGuard(const ComboCtxGuard&) = delete;
+    ComboCtxGuard& operator=(const ComboCtxGuard&) = delete;
+};
+
+/** Freeze the default combo settings with exactly @p crossItemFlags as the
+ *  cross-game item rules, the way a creation event does (mm_paired_start_test.cpp
+ *  freezes the same way). */
+void FreezeCrossItemRules(uint32_t crossItemFlags) {
+    ComboSettingsRecord rec;
+    Combo_ComboSettingsDefaults(&rec);
+    ComboItemRulesRecord rules;
+    memset(&rules, 0, sizeof(rules));
+    rules.crossItemFlags = crossItemFlags;
+    (void)Combo_FreezeComboSettingsEx(&rec, &rules);
+}
+
+/** The live save's Song of Time kit: the Ocarina (always held), the song when
+ *  @p song, and the ocarina buttons in @p buttons (bit i =
+ *  RANDO_INF_OBTAINED_OCARINA_BUTTON_A + i: 0 A, 1 C-Down, 2 C-Right, 3 C-Left,
+ *  4 C-Up). randoInf is written directly: Flags_SetRandoInf dispatches hooks. */
+void SetResetKit(bool song, unsigned buttons) {
+    INV_CONTENT(ITEM_OCARINA_OF_TIME) = ITEM_OCARINA_OF_TIME;
+    if (song) {
+        SET_QUEST_ITEM(QUEST_SONG_TIME);
+    } else {
+        REMOVE_QUEST_ITEM(QUEST_SONG_TIME);
+    }
+    for (int i = 0; i < 5; i++) {
+        const int flag = RANDO_INF_OBTAINED_OCARINA_BUTTON_A + i;
+        u16& word = gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4];
+        if ((buttons & (1u << i)) != 0u) {
+            word |= (u16)(1u << (flag & 0xF));
+        } else {
+            word &= (u16) ~(1u << (flag & 0xF));
+        }
+    }
+}
+
+constexpr unsigned kAllOcarinaButtons = 0x1Fu;
+// The Song of Time's notes (Logic.h, canPlaySong): A, C-Down, C-Right.
+constexpr unsigned kSongOfTimeButtons = 0x07u;
+
+/** One round in RunRound's call order that keeps the WHOLE reached-host list and
+ *  the round's region set, because leg 16 asserts on ids, not counts. */
+struct GuardObservation {
+    int beganOk = 0;
+    int crossingOpen = 0;
+    std::set<uint16_t> hosts;
+    std::set<uint16_t> regions;
+};
+
+GuardObservation GuardRound(const std::vector<uint16_t>& assume) {
+    GuardObservation obs;
+    if (!gEngine->snapshot(gEngine->self)) {
+        return obs;
+    }
+    obs.beganOk = gEngine->beginQuery(gEngine->self);
+    if (obs.beganOk) {
+        for (uint16_t id : assume) {
+            gEngine->assumeOwnItem(gEngine->self, id);
+        }
+        for (int i = 0; i < RSBS_COMBO_LOGIC_MAX_ROUND_ITERATIONS; ++i) {
+            if (!gEngine->expand(gEngine->self)) {
+                break;
+            }
+        }
+        obs.crossingOpen = gEngine->crossingOpen(gEngine->self) ? 1 : 0;
+        const int hostTotal = gEngine->reachedEmptyHosts(gEngine->self, nullptr, 0);
+        if (hostTotal > 0) {
+            std::vector<uint16_t> buf((size_t)hostTotal, 0);
+            gEngine->reachedEmptyHosts(gEngine->self, buf.data(), hostTotal);
+            obs.hosts.insert(buf.begin(), buf.end());
+        }
+        const int regionTotal = MM_ComboLogic_TestRoundRegions(nullptr, nullptr, 0);
+        if (regionTotal > 0) {
+            std::vector<uint16_t> buf((size_t)regionTotal, 0);
+            MM_ComboLogic_TestRoundRegions(buf.data(), nullptr, regionTotal);
+            obs.regions.insert(buf.begin(), buf.end());
+        }
+    }
+    gEngine->restore(gEngine->self);
+    gEngine->endQuery(gEngine->self);
+    return obs;
+}
+
+// NOT `small`: Windows' rpcndr.h defines `small` as `char` (leg 3's note).
+bool IsSubset(const std::set<uint16_t>& part, const std::set<uint16_t>& whole) {
+    return std::includes(whole.begin(), whole.end(), part.begin(), part.end());
+}
+
 int RunLegs() {
     // ---- Leg 1: the engine is REGISTERED, and its vtable has no holes --------
     // This is also the registrar-elision lock: MM's engine publishes itself from
@@ -361,6 +473,21 @@ int RunLegs() {
     MM_ComboLogic_ResetCounters();
     gEngine->clearPlacements(gEngine->self);
     MM_ComboLogic_SetHostPool(nullptr, 0); // the default: the graph's check set
+
+    // THE CONTRACT LEGS' SONG OF TIME (ADR 0010 answer O2). This row's save is
+    // static-init zeros: it knows no Song of Time and holds no ocarina button,
+    // and its randoSaveMoonCrash reads 0, "Last Save". Under that pair the
+    // reset-time guard `expand` applies (Rando/Logic/ResetTimeGuard.h) holds MM's
+    // answer to the arrival nook, and every leg below would be a question about
+    // four checks. They lock the engine's contract over MM's whole graph, so they
+    // run with the kit the paired default start holds (the Ocarina and the Song
+    // of Time, and every button while MM's button shuffle is off), under which
+    // the guard is off, on the Moon too. No region condition reads the song or a
+    // button outside CAN_PLAY_SONG and the hookshot-gated scarecrow, so nothing
+    // else moves; leg 8's RI_OCARINA_BUTTON_A copy is now already held, like its
+    // second copy. The outer bracket puts the bytes back. Leg 16 is the guard's
+    // own lock, and seeds the kit and both frozen records itself.
+    SetResetKit(true, kAllOcarinaButtons);
 
     // ---- Leg 3: the host enumerators, order, truncation, and the ID SPACE ----
     //
@@ -1308,6 +1435,266 @@ int RunLegs() {
         }
         CE_ASSERT(trackerSet == expected, 15,
                   "the tracker's in-logic set differs from the shared crawl restricted to shuffled-and-unobtained");
+    }
+
+    // ---- Leg 16: THE RESET-TIME GUARD (ADR 0010 answer O2) ------------------
+    //
+    // MM's graph assumed a free reset to Day 1 everywhere (inherited from 2Ship).
+    // Under "Moon Crash Behavior" = "Last Save" with MM's ocarina buttons
+    // shuffled, the paired start's Song of Time is held but unplayable, and a
+    // fill that walked out of the arrival area could ask for late-cycle items
+    // before the ones that unlock them. Rando/Logic/ResetTimeGuard.h holds the
+    // expressions (OoTMM's can_reset_time / can_reset_time_on_moon); this leg
+    // locks what `expand` makes of them, over the real graph:
+    //   16a the default start (song, every button, Last Save) is UNCHANGED: the
+    //       round equals the raw crawl over the same save;
+    //   16b buttons shuffled + Last Save: the arrival nook only, the crossing
+    //       still open, the roof REGION in and its checks out, and the Check
+    //       Tracker lists exactly the round's hosts (one guard, one answer);
+    //   16c New Cycle: the full set back, with no button;
+    //   16d the Song of Time's three buttons assumed: the full set back (two of
+    //       the three are not enough);
+    //   16e the same buttons PLACED on nook hosts are harvested and the guard
+    //       lifts (the fill's way out of the nook); 16f placed outside the nook
+    //       they are never reached and the nook holds;
+    //   16g Shared Song of Time (New Cycle forced, no song): the Moon's trials
+    //       and the Fierce Deity Mask wait for the song, Majora's lair does not.
+    // Both frozen records MM_Rando_FrozenMoonCrash reads are seeded explicitly:
+    // the MM half's randoSaveMoonCrash and the combo record's cross-item rules.
+    {
+        SaveGuard leg16Save;
+        ComboCtxGuard leg16Combo;
+        PlacementsGuard leg16Placements;
+        CE_ASSERT(MM_ComboLogic_HeldPlacementCount() == 0, 16, "leg 16 started with placements already held");
+
+        const s32 arrival = ENTRANCE(SOUTH_CLOCK_TOWN, 0);
+        const uint16_t heartPiece = (uint16_t)RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART;
+        const uint16_t roofPot = (uint16_t)RC_CLOCK_TOWER_ROOF_POT_01;
+        const std::vector<uint16_t> songOfTimeButtonIds = { (uint16_t)RI_OCARINA_BUTTON_C_RIGHT,
+                                                            (uint16_t)RI_OCARINA_BUTTON_A,
+                                                            (uint16_t)RI_OCARINA_BUTTON_C_DOWN };
+
+        // ---- 16a: the default start is unchanged.
+        FreezeCrossItemRules(0u);
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_RESET;
+        RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] = RO_GENERIC_OFF;
+        SetResetKit(true, kAllOcarinaButtons);
+        CE_ASSERT(MM_Rando_FrozenMoonCrash() == RSBS_MM_MOON_CRASH_RESET, 16,
+                  "the seeded records do not read as Last Save - every sub-leg below would measure the wrong file");
+        CE_ASSERT(Rando::Logic::MmCanResetTime() && Rando::Logic::MmCanResetTimeOnMoon(), 16,
+                  "the paired default start (Ocarina, Song of Time, every button) cannot reset time");
+        const GuardObservation defaults = GuardRound({});
+        std::set<uint16_t> unguarded;
+        {
+            // The raw graph's answer over the same save, outside the engine (the
+            // crawl's RANDO_EVENTS writes are undone by leg16Save).
+            const Rando::Logic::ReachabilityCrawl raw = Rando::Logic::CrawlReachableRegions(arrival);
+            const std::set<RandoCheckId> rawChecks = Rando::Logic::EvaluateReachableChecks(raw);
+            for (uint16_t host : AllHostList()) {
+                if (rawChecks.count((RandoCheckId)host) != 0) {
+                    unguarded.insert(host);
+                }
+            }
+        }
+        CE_ASSERT(defaults.beganOk != 0, 16, "beginQuery refused in 16a");
+        CE_ASSERT(defaults.hosts == unguarded, 16,
+                  "the default start's round differs from the raw crawl over the same save - the reset-time guard "
+                  "moved a world it must not touch (the goldens' profiles all hold the song and every button)");
+        CE_ASSERT(defaults.crossingOpen == 1 && defaults.hosts.count(roofPot) != 0, 16,
+                  "the default start does not reach the crossing and the Clock Tower roof - 16b's roof claim would "
+                  "be vacuous");
+
+        // ---- 16b: buttons shuffled + Last Save -> the arrival nook only.
+        RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] = RO_GENERIC_YES;
+        SetResetKit(true, 0u);
+        CE_ASSERT(!Rando::Logic::MmCanResetTime(), 16,
+                  "the Song of Time is held but unplayable under Last Save, and MmCanResetTime says time can reset");
+        const GuardObservation nook = GuardRound({});
+        printf("[TEST] mm-combo-logic-engine: leg 16: default start %zu hosts; buttons shuffled + Last Save %zu hosts "
+               "in %zu regions\n",
+               defaults.hosts.size(), nook.hosts.size(), nook.regions.size());
+        CE_ASSERT(nook.beganOk != 0, 16, "beginQuery refused in 16b");
+        CE_ASSERT(nook.crossingOpen == 1, 16,
+                  "the reset-time guard CLOSED the MM->OoT crossing - the tower interior is in the nook, and the "
+                  "return trip carries no reset term (OoTMM's tower door is `true`)");
+        CE_ASSERT(nook.hosts.count(heartPiece) != 0, 16,
+                  "the platform heart piece is not reached from the arrival - the nook itself is not being reached");
+        for (uint16_t host : nook.hosts) {
+            CE_ASSERT(Rando::Logic::IsResetTimeNookCheck((RandoCheckId)host), 16,
+                      "a check outside the arrival nook was reached with no way to reset time under Last Save - the "
+                      "fill may require it before the items that make the cycle survivable");
+        }
+        for (uint16_t region : nook.regions) {
+            CE_ASSERT(Rando::Logic::IsResetTimeNookRegion((RandoRegionId)region), 16,
+                      "a region outside the arrival nook is in the round's region set with no way to reset time");
+        }
+        CE_ASSERT(nook.regions.count((uint16_t)RR_CLOCK_TOWER_ROOF) != 0 && nook.hosts.count(roofPot) == 0, 16,
+                  "the Clock Tower roof should stay reachable as a REGION (from the platform after midnight) while its "
+                  "checks wait for a reset, as OoTMM gates them");
+        CE_ASSERT(nook.hosts.size() < defaults.hosts.size(), 16, "the nook is not smaller than the full set");
+        {
+            // The Check Tracker answers from the same guard. Every host marked
+            // shuffled, so its in-logic set is comparable id for id.
+            std::vector<uint16_t> marked;
+            for (uint16_t host : AllHostList()) {
+                if (!RANDO_SAVE_CHECKS[host].shuffled) {
+                    RANDO_SAVE_CHECKS[host].shuffled = true;
+                    marked.push_back(host);
+                }
+            }
+            std::set<uint16_t> tracker;
+            for (RandoCheckId id : Rando::CheckTracker::ComputeChecksInLogic(arrival)) {
+                if (!RANDO_SAVE_CHECKS[id].obtained) {
+                    tracker.insert((uint16_t)id);
+                }
+            }
+            for (uint16_t host : marked) {
+                RANDO_SAVE_CHECKS[host].shuffled = false;
+            }
+            CE_ASSERT(tracker == nook.hosts, 16,
+                      "the MM Check Tracker's in-logic set differs from the fill's round under the reset-time guard - "
+                      "the two must apply one guard to one crawl");
+        }
+
+        // ---- 16c: New Cycle -> the full set, with no button.
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
+        CE_ASSERT(Rando::Logic::MmCanResetTime(), 16, "a New Cycle moon crash does not count as a reset");
+        const GuardObservation cycle = GuardRound({});
+        CE_ASSERT(cycle.crossingOpen == 1 && cycle.hosts.size() > nook.hosts.size() &&
+                      IsSubset(nook.hosts, cycle.hosts) && cycle.hosts.count(roofPot) != 0,
+                  16, "New Cycle did not lift the nook - the crash is then the free reset 2Ship's logic assumes");
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_RESET;
+
+        // ---- 16d: C-Right, A and C-Down assumed -> the full set. Two of the
+        // three are not enough.
+        SetResetKit(true, kSongOfTimeButtons & ~0x02u); // A and C-Right, no C-Down
+        CE_ASSERT(!Rando::Logic::MmCanResetTime(), 16, "two of the Song of Time's three buttons count as a reset");
+        SetResetKit(true, kSongOfTimeButtons);
+        CE_ASSERT(Rando::Logic::MmCanResetTime(), 16, "the song with exactly its three buttons does not count");
+        SetResetKit(true, 0u);
+        const GuardObservation assumed = GuardRound(songOfTimeButtonIds);
+        CE_ASSERT(assumed.crossingOpen == 1 && assumed.hosts.size() > nook.hosts.size() &&
+                      IsSubset(nook.hosts, assumed.hosts) && assumed.hosts.count(roofPot) != 0,
+                  16,
+                  "assuming the Song of Time's three buttons did not lift the nook - the guard does not read the "
+                  "round's items, so the fill could never open MM under a button shuffle");
+
+        // ---- 16e: the buttons PLACED on nook hosts are harvested, and the
+        // guard lifts in the same round.
+        const std::vector<uint16_t> nookHosts(nook.hosts.begin(), nook.hosts.end());
+        CE_ASSERT(nookHosts.size() >= songOfTimeButtonIds.size(), 16,
+                  "fewer nook hosts than the Song of Time has buttons - 16e cannot place them");
+        {
+            const int harvestsBefore = MM_ComboLogic_HarvestCount();
+            for (size_t i = 0; i < songOfTimeButtonIds.size(); ++i) {
+                SharedItem button;
+                button.originGame = (uint8_t)GAME_MM;
+                button.flags = 0;
+                button.id = songOfTimeButtonIds[i];
+                CE_ASSERT(gEngine->place(gEngine->self, nookHosts[i], button) != 0, 16,
+                          "place refused a button on a nook host");
+            }
+            const GuardObservation placedInNook = GuardRound({});
+            const int harvested = MM_ComboLogic_HarvestCount() - harvestsBefore;
+            printf("[TEST] mm-combo-logic-engine: leg 16e: buttons placed in the nook -> %zu hosts (assumed %zu, "
+                   "less the 3 held), harvested %d\n",
+                   placedInNook.hosts.size(), assumed.hosts.size(), harvested);
+            CE_ASSERT(harvested == (int)songOfTimeButtonIds.size(), 16,
+                      "the buttons placed on nook hosts were not all harvested");
+            CE_ASSERT(placedInNook.hosts.size() + songOfTimeButtonIds.size() == assumed.hosts.size(), 16,
+                      "harvesting the Song of Time's buttons from the nook did not reach what assuming them reaches "
+                      "(less the three held hosts) - the guard did not lift inside the round");
+            gEngine->clearPlacements(gEngine->self);
+        }
+
+        // ---- 16f: the same buttons on hosts OUTSIDE the nook: never reached,
+        // nothing harvested, the nook holds.
+        {
+            std::vector<uint16_t> outside;
+            for (uint16_t host : cycle.hosts) {
+                if (nook.hosts.count(host) == 0) {
+                    outside.push_back(host);
+                }
+            }
+            CE_ASSERT(outside.size() >= songOfTimeButtonIds.size(), 16,
+                      "fewer hosts outside the nook than the Song of Time has buttons");
+            const int harvestsBefore = MM_ComboLogic_HarvestCount();
+            for (size_t i = 0; i < songOfTimeButtonIds.size(); ++i) {
+                SharedItem button;
+                button.originGame = (uint8_t)GAME_MM;
+                button.flags = 0;
+                button.id = songOfTimeButtonIds[i];
+                CE_ASSERT(gEngine->place(gEngine->self, outside[i], button) != 0, 16,
+                          "place refused a button on a host outside the nook");
+            }
+            const GuardObservation placedOutside = GuardRound({});
+            CE_ASSERT(MM_ComboLogic_HarvestCount() == harvestsBefore && placedOutside.hosts == nook.hosts &&
+                          placedOutside.crossingOpen == 1,
+                      16,
+                      "buttons placed OUTSIDE the nook were reached under Last Save with no playable Song of Time - "
+                      "the unbeatable-seed shape O2 closes");
+            gEngine->clearPlacements(gEngine->self);
+        }
+
+        // ---- 16g: Shared Song of Time. The rule forces New Cycle over the MM
+        // half's Last Save, and MM starts without the song: time resets, but not
+        // on the Moon, where the clock is stopped.
+        FreezeCrossItemRules(RSBS_XITEM_SHARED_SONG_TIME);
+        gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_RESET;
+        RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] = RO_GENERIC_OFF;
+        SetResetKit(false, kAllOcarinaButtons);
+        CE_ASSERT(
+            MM_Rando_FrozenMoonCrash() == RSBS_MM_MOON_CRASH_CYCLE, 16,
+            "the frozen Shared Song of Time rule did not force New Cycle (Foreign.cpp, MM_Rando_FrozenMoonCrash)");
+        CE_ASSERT(Rando::Logic::MmCanResetTime() && !Rando::Logic::MmCanResetTimeOnMoon(), 16,
+                  "under Shared Song of Time with no song, time must reset off the Moon and not on it");
+        {
+            // The Fierce Deity Mask (RR_MOON) needs twenty masks to reach in a
+            // round, so its half is asserted on the guard function directly.
+            Rando::Logic::ReachabilityCrawl moon;
+            moon.reachableRegions = { RR_MOON, RR_MAX };
+            moon.regionTimeStates[RR_MOON] = Rando::Logic::InitialTimeState();
+            moon.regionTimeStates[RR_MAX] = Rando::Logic::InitialTimeState();
+            std::set<RandoCheckId> moonChecks = { RC_MOON_FIERCE_DEITY_MASK, RC_STARTING_ITEM_DEKU_MASK };
+            const bool pruned = Rando::Logic::ApplyResetTimeGuard(moon, moonChecks);
+            CE_ASSERT(pruned && moonChecks.count(RC_MOON_FIERCE_DEITY_MASK) == 0 &&
+                          moonChecks.count(RC_STARTING_ITEM_DEKU_MASK) != 0 && moon.reachableRegions.size() == 2,
+                      16,
+                      "the guard did not hold back the Fierce Deity Mask (and only it) with no playable Song of Time "
+                      "(OoTMM gates it on can_reset_time_on_moon)");
+        }
+        {
+            // The Moon is far behind Oath and the remains, so the round reaches
+            // a trial and the lair through synthetic edges, as leg 12 does.
+            RegionExitsGuard southGuard(RR_CLOCK_TOWN_SOUTH);
+            Rando::Logic::Regions[RR_CLOCK_TOWN_SOUTH].exits[ENTRANCE(MOON_ZORA_TRIAL, 0)] =
+                Rando::Logic::RandoRegionExit{ ONE_WAY_EXIT, [] { return true; },
+                                               std::string("synthetic (mm-combo-logic-engine leg 16)") };
+            Rando::Logic::Regions[RR_CLOCK_TOWN_SOUTH].exits[ENTRANCE(MAJORAS_LAIR, 0)] =
+                Rando::Logic::RandoRegionExit{ ONE_WAY_EXIT, [] { return true; },
+                                               std::string("synthetic (mm-combo-logic-engine leg 16)") };
+
+            const GuardObservation noSong = GuardRound({});
+            CE_ASSERT(noSong.beganOk != 0 && noSong.crossingOpen == 1 && noSong.hosts.count(roofPot) != 0, 16,
+                      "under Shared Song of Time the forced New Cycle did not open MM's world");
+            CE_ASSERT(noSong.regions.count((uint16_t)RR_MOON_ZORA_TRIAL) == 0 &&
+                          noSong.hosts.count((uint16_t)RC_MOON_TRIAL_ZORA_PIECE_OF_HEART) == 0,
+                      16,
+                      "a Moon trial was reached with no playable Song of Time - New Cycle cannot reset time on the "
+                      "Moon, so the player could not bring its items back");
+            CE_ASSERT(noSong.regions.count((uint16_t)RR_MOON_MAJORAS_LAIR) != 0, 16,
+                      "Majora's lair was held back with no playable Song of Time - OoTMM's Moon Boss exit carries no "
+                      "reset term, and beating Majora with the goal unmet is itself a new cycle (ADR 0010 D1)");
+
+            SET_QUEST_ITEM(QUEST_SONG_TIME);
+            CE_ASSERT(Rando::Logic::MmCanResetTimeOnMoon(), 16, "the song with every button is not playable");
+            const GuardObservation withSong = GuardRound({});
+            CE_ASSERT(withSong.regions.count((uint16_t)RR_MOON_ZORA_TRIAL) != 0 &&
+                          withSong.hosts.count((uint16_t)RC_MOON_TRIAL_ZORA_PIECE_OF_HEART) != 0,
+                      16,
+                      "the Moon trial did not come back once the Song of Time is playable - 16g's red half is "
+                      "measuring the synthetic edge, not the guard");
+        }
     }
 
     return 0;
