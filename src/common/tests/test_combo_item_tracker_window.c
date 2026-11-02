@@ -95,7 +95,8 @@
  *    layout and the block back on every exit). The block reader takes wrong
  *    types, nulls and out-of-range numbers without throwing, rejects any other
  *    version, and survives Config's flatten / unflatten; a source scan holds
- *    where the editor and the overlay write, and a vendored string's bytes.
+ *    where the editor, the overlay and the exit write, and a vendored string's
+ *    bytes.
  *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
  * @no-data, @live and @snapshot beside SoH's window/Item Tracker, and #1143's
@@ -117,6 +118,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -2213,11 +2215,19 @@ int CitwLockCustomLayout(void) {
                 liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size());
 
     // #1349: an edit that has not settled is not written (the overlay's Draw()
-    // asks every frame; a keystroke or a slider frame restarts the clock).
+    // asks every frame; a keystroke or a slider frame restarts the clock). Only a
+    // stall of the whole settle time between the two calls lets that flush write,
+    // and then the claim is not the leg's to make (the guard puts the block back).
+    const auto armedAt = std::chrono::steady_clock::now();
     ComboGui::ComboItemTrackerRequestLayoutSave();
-    CITW_ASSERT(!ComboGui::ComboItemTrackerFlushLayoutSave());
-    CITW_ASSERT(ComboGui::ComboItemTrackerLayoutSavePending());
-    CITW_ASSERT(guard.BlockUnchanged());
+    const bool unsettledWrote = ComboGui::ComboItemTrackerFlushLayoutSave();
+    const std::chrono::duration<double> armedFor = std::chrono::steady_clock::now() - armedAt;
+    const bool stalled = armedFor.count() >= ComboGui::kComboItemTrackerLayoutSaveSettleSeconds;
+    if (!stalled) {
+        CITW_ASSERT(!unsettledWrote);
+        CITW_ASSERT(ComboGui::ComboItemTrackerLayoutSavePending());
+        CITW_ASSERT(guard.BlockUnchanged());
+    }
 
     // Restore default layout so no state leaks.
     ComboGui::ComboItemTrackerRestoreDefaultLayout(-1);
@@ -2229,7 +2239,7 @@ int CitwLockCustomLayout(void) {
     CITW_ASSERT(!ComboGui::ComboItemTrackerFlushLayoutSave(true));
     CITW_ASSERT(!ComboGui::ComboItemTrackerFlushLayoutSave());
     // The whole leg wrote nothing to the tree's config.
-    CITW_ASSERT(guard.BlockUnchanged());
+    CITW_ASSERT(stalled || guard.BlockUnchanged());
     printf("[TEST] combo-item-tracker-window: custom layout leg in memory, config untouched PASS (#1349)\n");
     return TEST_PASS;
 }
@@ -2375,7 +2385,8 @@ int CitwLockLayoutSaveSites(void) {
     };
     const std::string window = slurp("/src/common/ComboItemTrackerWindow.cpp");
     const std::string editor = slurp("/games/oot/soh/Enhancements/randomizer/randomizer_item_tracker.cpp");
-    CITW_ASSERT(!window.empty() && !editor.empty());
+    const std::string exports = slurp("/games/oot/soh/GameExports_SingleExe.cpp");
+    CITW_ASSERT(!window.empty() && !editor.empty() && !exports.empty());
     // The editor arms the write and never writes per edit (a keystroke, a slider frame).
     CITW_ASSERT(editor.find("ComboGui::ComboItemTrackerRequestLayoutSave();") != std::string::npos);
     CITW_ASSERT(editor.find("ComboItemTrackerSaveLayoutToConfig") == std::string::npos);
@@ -2385,8 +2396,18 @@ int CitwLockLayoutSaveSites(void) {
     const size_t flush = window.find("ComboItemTrackerFlushLayoutSave();", draw);
     const size_t gate = window.find("if (!CVarGetInteger(kComboItemTrackerVisibilityCVar, 0))", draw);
     CITW_ASSERT(flush != std::string::npos && gate != std::string::npos && flush < gate);
-    // The reader's reads are typed: nlohmann's value() throws on a type mismatch.
-    CITW_ASSERT(window.find(".value(") == std::string::npos);
+    // The exit forces an unsettled write before OoT tears the config down, so an edit made just before quitting
+    // is kept.
+    const size_t shutdownAt = exports.find("void OoT_Game_Shutdown(void) {");
+    CITW_ASSERT(shutdownAt != std::string::npos);
+    const size_t exitFlush = exports.find("ComboGui::ComboItemTrackerFlushLayoutSave(true);", shutdownAt);
+    const size_t deinit = exports.find("DeinitOTR();", shutdownAt);
+    CITW_ASSERT(exitFlush != std::string::npos && deinit != std::string::npos && exitFlush < deinit);
+    // The reader's reads are typed: nlohmann's value(key, default) throws on a type mismatch. An argument-less
+    // .value() (std::optional's) is not that call.
+    for (size_t at = window.find(".value("); at != std::string::npos; at = window.find(".value(", at + 1)) {
+        CITW_ASSERT(window.compare(at + 7, 1, ")") == 0);
+    }
     // #1334 turned this name into a UTF-8 -> CP437 round trip (two box-drawing characters for the e acute);
     // SoH's own bytes are back.
     CITW_ASSERT(editor.find("itemName = \"Damp\xC3\xA9's Hut Key\";") != std::string::npos);

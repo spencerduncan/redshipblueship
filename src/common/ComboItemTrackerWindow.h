@@ -731,8 +731,10 @@ bool ComboItemTrackerSaveLayoutToConfig();
  * overlay's Draw(), which Gui runs every frame whether or not the overlay
  * shows, flushes it once the edits have settled for
  * kComboItemTrackerLayoutSaveSettleSeconds, so a run of edits is one write.
- * `force` writes an armed layout at once. Flush returns whether it wrote;
- * Cancel drops an armed write (the in-memory layout is kept).
+ * `force` writes an armed layout at once; OoT_Game_Shutdown forces it before
+ * the config is torn down, so an edit made just before quitting is kept.
+ * Flush returns whether it wrote; Cancel drops an armed write (the in-memory
+ * layout is kept).
  */
 inline constexpr double kComboItemTrackerLayoutSaveSettleSeconds = 1.0;
 void ComboItemTrackerRequestLayoutSave();
