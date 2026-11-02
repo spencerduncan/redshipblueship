@@ -12,7 +12,11 @@ ctypes.windll at module scope and would raise on the Linux runner.
 """
 
 import ast
+import os
 import re
+import shutil
+import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -903,5 +907,143 @@ def test_link_map_emitted_verified_and_shipped_outside_player_zip():
     )
     assert '"redshipblueship-${RELEASE_TAG}-linux.map"' in assets_block.group(1), (
         "#1303: create-release must attach redshipblueship-${RELEASE_TAG}-linux.map to the GitHub Release"
+    )
+
+
+# Release identity (2026-11-02, after v0.4.4-alpha). The GitHub Release title
+# names the codename, as the window title does ("RedShipBlueShip v0.4.4-alpha
+# (Deckard Echo)"); v0.4.1-alpha to v0.4.3-alpha were titled "(alpha)" because
+# the workflow put the stage word there. The release notes name the seed
+# generator version from RSBS_GENERATOR_VERSION; the template said "version 2"
+# after #1323 made it 3. And rsbs_version.h's "must equal the git release tag"
+# comment, which #1335 dropped, names the version the header builds. The two
+# create-release steps are run as written (bash, as GitHub runs them), not
+# pattern-matched, so a broken sed fails here before a release does.
+RSBS_VERSION_H = REPO_ROOT / "src" / "common" / "rsbs_version.h"
+FOREIGN_ITEMS_H = REPO_ROOT / "src" / "common" / "foreign_items.h"
+RELEASE_NOTES_TEMPLATE = REPO_ROOT / ".github" / "release-notes-template.md"
+
+
+def _c_define(text, name):
+    m = re.search(rf'^#define[ \t]+{name}[ \t]+"?([^"\n]*?)"?[ \t]*$', text, re.MULTILINE)
+    assert m, f"no #define {name}"
+    return m.group(1)
+
+
+def _rsbs_version_tag(header_text):
+    parts = [_c_define(header_text, f"RSBS_VERSION_{f}") for f in ("MAJOR", "MINOR", "PATCH", "STAGE")]
+    return "v{}.{}.{}-{}".format(*parts)
+
+
+def _workflow_step_script(step_name):
+    """The dedented `run: |` script of the generate-builds.yml step `step_name`."""
+    lines = GENERATE_BUILDS_YML.read_text(encoding="utf-8").splitlines()
+
+    def indent(line):
+        return len(line) - len(line.lstrip())
+
+    starts = [i for i, line in enumerate(lines) if line.strip() == f"- name: {step_name}"]
+    assert len(starts) == 1, f"generate-builds.yml must have exactly one step named {step_name!r}"
+    step_indent = indent(lines[starts[0]])
+    for j in range(starts[0] + 1, len(lines)):
+        if lines[j].strip() and indent(lines[j]) <= step_indent:
+            break
+        if lines[j].strip() == "run: |":
+            body = []
+            for line in lines[j + 1 :]:
+                if line.strip() and indent(line) <= indent(lines[j]):
+                    break
+                body.append(line)
+            return textwrap.dedent("\n".join(body)) + "\n"
+    raise AssertionError(f"step {step_name!r} has no `run: |` script")
+
+
+def _bash():
+    # RSBS_TEST_BASH names a bash to use (Git Bash on Windows); otherwise the
+    # steps run only where bash is the system's own, as on the CI runner.
+    override = os.environ.get("RSBS_TEST_BASH")
+    if override:
+        return override
+    if os.name == "nt":
+        pytest.skip("runs generate-builds.yml's bash steps; set RSBS_TEST_BASH to Git Bash to run it on Windows")
+    found = shutil.which("bash")
+    if not found:
+        pytest.skip("bash not found")
+    return found
+
+
+def _run_step(script, cwd, **env):
+    # GitHub's default for `run:` on Linux: bash --noprofile --norc -eo pipefail {0}.
+    return subprocess.run(
+        [_bash(), "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
+        cwd=cwd,
+        env=dict(os.environ, **env),
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_release_tag_check_exports_the_codename(tmp_path):
+    script = _workflow_step_script("Check release tag equals RSBS_VERSION_STRING")
+    header = RSBS_VERSION_H.read_text(encoding="utf-8")
+    tag = _rsbs_version_tag(header)
+    codename = _c_define(header, "RSBS_VERSION_CODENAME")
+    assert codename, "RSBS_VERSION_CODENAME must not be empty: the release title names it"
+    (tmp_path / "src" / "common").mkdir(parents=True)
+    shutil.copyfile(RSBS_VERSION_H, tmp_path / "src" / "common" / "rsbs_version.h")
+
+    github_env = tmp_path / "github_env"
+    github_env.write_text("", encoding="utf-8")
+    ok = _run_step(script, tmp_path, RELEASE_TAG=tag, GITHUB_ENV=github_env.as_posix())
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    assert f"RSBS_VERSION_CODENAME={codename}\n" in github_env.read_text(encoding="utf-8"), (
+        "the tag check must export the header's codename for the release title"
+    )
+
+    github_env.write_text("", encoding="utf-8")
+    wrong = _run_step(script, tmp_path, RELEASE_TAG=tag + "-wrong", GITHUB_ENV=github_env.as_posix())
+    assert wrong.returncode != 0, "a tag other than RSBS_VERSION_STRING must be refused"
+    assert github_env.read_text(encoding="utf-8") == "", "a refused tag must export nothing"
+
+    release_job = GENERATE_BUILDS_YML.read_text(encoding="utf-8").split("  create-release:", 1)[1]
+    titles = re.findall(r'--title "([^"]*)"', release_job.split("  monotonicity-probe:", 1)[0])
+    assert titles == ["RedShipBlueShip ${RELEASE_TAG} (${RSBS_VERSION_CODENAME})"], (
+        f"create-release must title the release 'RedShipBlueShip vX.Y.Z-<stage> (<codename>)', found {titles}"
+    )
+
+
+def test_release_notes_render_fills_the_generator_version(tmp_path):
+    script = _workflow_step_script("Render release notes")
+    generator = _c_define(FOREIGN_ITEMS_H.read_text(encoding="utf-8"), "RSBS_GENERATOR_VERSION").rstrip("uU")
+    assert generator.isdigit(), f"RSBS_GENERATOR_VERSION must be a plain integer literal, found {generator!r}"
+    template = RELEASE_NOTES_TEMPLATE.read_text(encoding="utf-8")
+    assert "{{GENERATOR_VERSION}}" in template, "the release notes must name the generator version from the header"
+    assert not re.search(r"generator is version \d", template), (
+        "the release notes template must not hard-code the seed generator version"
+    )
+
+    (tmp_path / ".github").mkdir()
+    (tmp_path / "src" / "common").mkdir(parents=True)
+    shutil.copyfile(RELEASE_NOTES_TEMPLATE, tmp_path / ".github" / "release-notes-template.md")
+    shutil.copyfile(FOREIGN_ITEMS_H, tmp_path / "src" / "common" / "foreign_items.h")
+    ok = _run_step(script, tmp_path, RELEASE_TAG="v9.8.7-test")
+    assert ok.returncode == 0, ok.stdout + ok.stderr
+    notes = (tmp_path / "release-notes.md").read_text(encoding="utf-8")
+    assert f"seed generator is version {generator}:" in notes
+    assert "redshipblueship-v9.8.7-test-windows.zip" in notes
+    assert "{{" not in notes
+
+    # A placeholder the step does not know fails the step instead of shipping.
+    (tmp_path / ".github" / "release-notes-template.md").write_text(template + "\n{{UNKNOWN}}\n", encoding="utf-8")
+    unfilled = _run_step(script, tmp_path, RELEASE_TAG="v9.8.7-test")
+    assert unfilled.returncode != 0, "an unfilled {{...}} placeholder must fail the release notes step"
+
+
+def test_rsbs_version_tag_comment_names_the_built_version():
+    header = RSBS_VERSION_H.read_text(encoding="utf-8")
+    m = re.search(r'/\* "(v[^"]+)" — must equal the git release tag\. \*/\n#define RSBS_VERSION_STRING\b', header)
+    assert m, 'rsbs_version.h must keep /* "vX.Y.Z-<stage>" — must equal the git release tag. */ on RSBS_VERSION_STRING'
+    assert m.group(1) == _rsbs_version_tag(header), (
+        f"the tag comment names {m.group(1)} but the header builds {_rsbs_version_tag(header)}: update it with the bump"
     )
 

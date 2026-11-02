@@ -996,13 +996,16 @@ jobs:
     # RSBS_VERSION_STRING, "v<MAJOR>.<MINOR>.<PATCH>-<STAGE>". Otherwise the
     # release would ship a build whose window title and --version name another
     # version, so refuse it before anything is published.
+    # tools/tests/test_repo_invariants.py runs this step's script against the
+    # header (test_release_tag_check_exports_the_codename).
     - name: Check release tag equals RSBS_VERSION_STRING
       run: |
         HDR=src/common/rsbs_version.h
         field() { sed -n "s/^#define RSBS_VERSION_$1[[:space:]]\{1,\}//p" "$HDR" | tr -d '"\r' | sed 's/[[:space:]]*$//'; }
         MAJOR="$(field MAJOR)"; MINOR="$(field MINOR)"; PATCH="$(field PATCH)"; STAGE="$(field STAGE)"
-        if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ] || [ -z "$STAGE" ]; then
-          echo "::error::could not read RSBS_VERSION_MAJOR/MINOR/PATCH/STAGE from ${HDR}"
+        CODENAME="$(field CODENAME)"
+        if [ -z "$MAJOR" ] || [ -z "$MINOR" ] || [ -z "$PATCH" ] || [ -z "$STAGE" ] || [ -z "$CODENAME" ]; then
+          echo "::error::could not read RSBS_VERSION_MAJOR/MINOR/PATCH/STAGE/CODENAME from ${HDR}"
           exit 1
         fi
         EXPECTED="v${MAJOR}.${MINOR}.${PATCH}-${STAGE}"
@@ -1010,9 +1013,10 @@ jobs:
           echo "::error::release tag '${RELEASE_TAG}' does not equal RSBS_VERSION_STRING '${EXPECTED}' (${HDR})"
           exit 1
         fi
-        echo "Release tag ${RELEASE_TAG} equals RSBS_VERSION_STRING."
-        # The release title names the stage the header carries ("alpha").
-        echo "STAGE=${STAGE}" >> "$GITHUB_ENV"
+        echo "Release tag ${RELEASE_TAG} equals RSBS_VERSION_STRING (${CODENAME})."
+        # The release title names the codename the header carries, as the
+        # window title does: "RedShipBlueShip v0.4.4-alpha (Deckard Echo)".
+        echo "RSBS_VERSION_CODENAME=${CODENAME}" >> "$GITHUB_ENV"
     - name: Download Linux build
       uses: actions/download-artifact@v4
       with:
@@ -1041,8 +1045,22 @@ jobs:
         # extracted so PR testers get a browsable tree); re-zip it for release.
         (cd rsbs-windows && zip -qr "../redshipblueship-${RELEASE_TAG}-windows.zip" .)
         mv redship-map-windows/redship.map "redshipblueship-${RELEASE_TAG}-windows.map"
+    # The notes name the seed generator version a package must match, read from
+    # RSBS_GENERATOR_VERSION (src/common/foreign_items.h) so it never goes
+    # stale. tools/tests/test_repo_invariants.py runs this step's script
+    # (test_release_notes_render_fills_the_generator_version).
     - name: Render release notes
-      run: sed "s/{{TAG}}/${RELEASE_TAG}/g" .github/release-notes-template.md > release-notes.md
+      run: |
+        GEN="$(sed -n 's/^#define RSBS_GENERATOR_VERSION[[:space:]]\{1,\}\([0-9]\{1,\}\)[uU]\{0,1\}\([[:space:]].*\)\{0,1\}$/\1/p' src/common/foreign_items.h | tr -d '\r')"
+        if [ -z "${GEN}" ]; then
+          echo "::error::could not read RSBS_GENERATOR_VERSION from src/common/foreign_items.h"
+          exit 1
+        fi
+        sed -e "s/{{TAG}}/${RELEASE_TAG}/g" -e "s/{{GENERATOR_VERSION}}/${GEN}/g" .github/release-notes-template.md > release-notes.md
+        if grep -n '{{' release-notes.md; then
+          echo "::error::release-notes.md still has a {{...}} placeholder"
+          exit 1
+        fi
     - name: Create GitHub Release
       env:
         GH_TOKEN: ${{ github.token }}
@@ -1062,7 +1080,7 @@ jobs:
           gh release create "${RELEASE_TAG}" "${ASSETS[@]}" \
             --repo "${GITHUB_REPOSITORY}" \
             --target "${GITHUB_SHA}" \
-            --title "RedShipBlueShip ${RELEASE_TAG} (${STAGE})" \
+            --title "RedShipBlueShip ${RELEASE_TAG} (${RSBS_VERSION_CODENAME})" \
             --notes-file release-notes.md \
             --prerelease
         fi
