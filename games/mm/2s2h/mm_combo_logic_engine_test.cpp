@@ -482,11 +482,16 @@ int RunLegs() {
     // four checks. They lock the engine's contract over MM's whole graph, so they
     // run with the kit the paired default start holds (the Ocarina and the Song
     // of Time, and every button while MM's button shuffle is off), under which
-    // the guard is off, on the Moon too. No region condition reads the song or a
-    // button outside CAN_PLAY_SONG and the hookshot-gated scarecrow, so nothing
-    // else moves; leg 8's RI_OCARINA_BUTTON_A copy is now already held, like its
-    // second copy. The outer bracket puts the bytes back. Leg 16 is the guard's
-    // own lock, and seeds the kit and both frozen records itself.
+    // the guard is off, on the Moon too. The kit also opens what reads it beyond
+    // the guard: CAN_PLAY_SONG(TIME), and four checks that read the Ocarina or
+    // canPlaySong directly (RC_DEKU_KINGS_CHAMBER_MONKEY, South.cpp:43;
+    // RC_GREAT_BAY_COAST_NEW_WAVE_BOSSA_NOVA, West.cpp:222;
+    // RC_MILK_BAR_CIRCUS_LEADER_MASK, Central.cpp:408-413;
+    // RC_ZORA_HALL_EVANS_PIECE_OF_HEART, West.cpp:361). So legs 3-15 can reach a
+    // few more hosts than they did on a bare save; no assertion in them depends
+    // on those counts. Leg 8's RI_OCARINA_BUTTON_A copy is now already held,
+    // like its second copy. The outer bracket puts the bytes back. Leg 16 is the
+    // guard's own lock, and seeds the kit and both frozen records itself.
     SetResetKit(true, kAllOcarinaButtons);
 
     // ---- Leg 3: the host enumerators, order, truncation, and the ID SPACE ----
@@ -828,8 +833,10 @@ int RunLegs() {
                bare.reachedHosts, prevReached, kSaveOnlyGrants.size());
         // NON-VACUITY. `>=` alone is satisfied by an engine whose assume does
         // nothing at all, which is precisely the failure a monotonicity lock is
-        // most likely to hide. Measured on this tree: 424 reached hosts bare,
-        // 489 after the nine grants. Asserting STRICT growth over the set is what
+        // most likely to hide. Measured on a bare save before #645 seeded the
+        // reset kit: 424 reached hosts bare, 489 after the nine grants. The kit
+        // can add a few hosts to both and already holds RI_OCARINA_BUTTON_A, so
+        // the printf above is the live measurement. Asserting STRICT growth is what
         // makes every `>=` above mean something; if a future settings change makes
         // these nine items inert, re-state this with grants that are not, rather
         // than deleting it.
