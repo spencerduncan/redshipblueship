@@ -5212,6 +5212,20 @@ TestResult Test_OtrReaddReleasesHandle(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1352: the Fast3D texture cache must leave no mRenderingState.mTextures slot on a
+// node it frees (TextureCacheClear, TextureCacheDelete, LRU eviction), or GfxSpTri1
+// writes sampler state through the freed node, and must not rehash while it fills.
+// Body in its own TU, src/common/tests/test_texture_cache_freed_node.cpp
+// (fast/interpreter.h brings in the whole LUS GBI): a standalone Fast::Interpreter
+// over a stub rendering API. ROM-free, archive-free and display-free; no context.
+extern "C" int TextureCacheFreedNode_RunHeadless(void);
+TestResult Test_TextureCacheFreedNode(void) {
+    printf("[TEST] texture-cache-freed-node: the texture cache leaves no slot on a node it freed (#1352)\n");
+    int rc = TextureCacheFreedNode_RunHeadless();
+    printf("[TEST] %s: texture cache freed node rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -8067,6 +8081,8 @@ const TestDescriptor gTests[] = {
     { "archive-add-dedup", "Re-adding a mounted archive path mounts nothing new (#987)", Test_ArchiveAddDedup },
     { "otr-readd-releases-handle", "A re-added .otr releases the MPQ of the copy it replaced (#1190)",
       Test_OtrReaddReleasesHandle },
+    { "texture-cache-freed-node", "The texture cache leaves no slot on a node it freed (#1352)",
+      Test_TextureCacheFreedNode },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
