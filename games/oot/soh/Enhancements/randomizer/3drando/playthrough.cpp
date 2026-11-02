@@ -1,5 +1,6 @@
 #include "playthrough.hpp"
 
+#include <atomic>
 #include <libultraship/libultraship.h>
 #include "fill.hpp"
 #include "../location_access.h"
@@ -42,7 +43,16 @@ constexpr int kRsbsFoldExcludeGroups = RSG_EXCLUDES_GANONS_CASTLE - RSG_EXCLUDES
 uint32_t sRsbsFoldTotalLines = 0;
 uint32_t sRsbsFoldExcludeLines[kRsbsFoldExcludeGroups] = {};
 int sRsbsFoldRuns = 0;
+// #1350: 1 while the last generation began with OoT's Logic authored as anything
+// but Glitchless and generated it Glitchless (the paired pin in Playthrough_Init).
+// Written by the Generate worker, read on the game thread after the worker is
+// joined (SeedPackageSingleExe.cpp) and by the rando-mask-quest-paired row.
+std::atomic<int> sRsbsPairedLogicPinned{ 0 };
 } // namespace
+
+extern "C" int OoT_Rando_PairedLogicRulesPinned(void) {
+    return sRsbsPairedLogicPinned.load();
+}
 
 // Returns how many folds have run in this process (0 = none yet) and fills the
 // total option-line count plus, for up to `groupCap` groups in RSG_EXCLUDES_*
@@ -82,6 +92,45 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     Regions::AccessReset();
     StopPerformanceTimer(PT_REGION_RESET);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1350: OoT's Logic "No Logic" makes every OoT condition true (location_access.h's
+    // EventAccess::ConditionsMet and LocationAccess::GetConditionsMet, entrance.cpp's
+    // Entrance::GetConditionsMet answer true unless the rules are Glitchless), and a
+    // paired world's proof runs over those same conditions: the OoT engine's expand
+    // is this port's ReachabilitySearch, its crossingOpen reads RR_MARKET_MASK_SHOP's
+    // child access and its goalReached the reached Triforce host
+    // (ComboLogicEngineOoT.cpp). Under No Logic, OoT's reachability, the arrival gate
+    // and OoT's goal are all true before a single item is placed, the world carries a
+    // proving rung, and Combo_Logic_UnprovedHalves finds nothing to warn about: a
+    // world claimed beatable that nothing proved. Until the combo Logic row lands (a
+    // rung a player lowers to `none`, under which no proof is claimed), a paired
+    // world under a proving rung is generated Glitchless. Only the context's value
+    // moves, never the CVar, so the menu keeps the player's choice, and the settings
+    // hash, the seed, the spoiler and the save (SaveManager writes the context's
+    // options) all describe the world that is generated. Generation only: a file
+    // created with No Logic before this pin restores its own saved value
+    // (SaveManager's randoSettings) and plays as it was made. Decided before
+    // FinalizeSettings, so nothing downstream reads No Logic; it reads settings
+    // only and consumes no RNG. Every generation in this build is a paired creation
+    // (the gate below refuses any other), as for #973's block.
+    sRsbsPairedLogicPinned = 0;
+    {
+        ComboSettingsRecord rsbsRungPreview;
+        Combo_ResolveComboSettings(&rsbsRungPreview);
+        const bool rsbsProvingRung = rsbsRungPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE ||
+                                     rsbsRungPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
+        if (rsbsProvingRung && ctx->GetOption(RSK_LOGIC_RULES).IsNot(RO_LOGIC_GLITCHLESS)) {
+            SPDLOG_WARN("Paired world: OoT's Logic {} is generated as \"Glitchless\": the paired world's proof runs "
+                        "over OoT's logic, which \"No Logic\" answers true everywhere, and combo rung {} claims a "
+                        "proof; OoT No Logic waits for the combo Logic row (#1350)",
+                        (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRungPreview.logicRung);
+            fprintf(stderr, "[OoT] Logic: %u generated as \"Glitchless\" under combo rung %u (#1350)\n",
+                    (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRungPreview.logicRung);
+            ctx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
+            sRsbsPairedLogicPinned = 1;
+        }
+    }
+#endif
     ctx->FinalizeSettings(excludedLocations, enabledTricks);
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #768: in a paired world the frozen combo goal is the only win condition
