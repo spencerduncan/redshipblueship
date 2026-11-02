@@ -148,8 +148,8 @@ follow this section.
   after a Termina save opens in Hyrule, as in OoTMM; the first crossing into Termina after the reload returns to where
   you pause-saved (temple saves return to the temple). Corrected 2026-11-02: these notes first said the reload itself
   returned to the exact entrance and respawn of the save, which is not so for a paired file. The return on the first
-  crossing comes with a later change that is not in `v0.4.4-alpha`; until it merges, that crossing arrives in South
-  Clock Town, as every crossing does.
+  crossing comes with PR #1353 (issue #1348), which is not in `v0.4.4-alpha`; until it merges, that crossing arrives
+  in South Clock Town, as every crossing does.
 - **Menu Reset and Ctrl+R reset Majora's Mask while running** (#1315, issue #1274). The menu header's red Reset button
   and the Ctrl+R shortcut now dispatch to Majora's Mask's reset handler (`MM_gGameState`) when Termina is active,
   resolving the issue where resets were ignored outside Hyrule.

@@ -973,7 +973,8 @@ def _bash():
 
 
 def _run_step(script, cwd, **env):
-    # GitHub's default for `run:` on Linux: bash --noprofile --norc -eo pipefail {0}.
+    # Stricter than the step itself: with no `shell:` set, GitHub runs `run:` on Linux as
+    # `bash -e {0}` (no pipefail); `-eo pipefail` is the explicit `shell: bash` form.
     return subprocess.run(
         [_bash(), "--noprofile", "--norc", "-eo", "pipefail", "-c", script],
         cwd=cwd,
