@@ -208,7 +208,9 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
         Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
 #endif
     }
-    return availableChecks[Ship_Random(0, availableChecks.size() - 1)];
+    // Ship_Random's upper bound is exclusive, so size(), as upstream e07b6f731 has
+    // it: any candidate, the last included (#1351). FreeStonePick keeps size() - 1.
+    return availableChecks[Ship_Random(0, availableChecks.size())];
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE

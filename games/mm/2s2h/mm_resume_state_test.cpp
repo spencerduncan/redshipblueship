@@ -47,6 +47,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include <ship/Context.h>
 
@@ -107,6 +108,9 @@ s32 MM_EnInvadepoh_DestroyStaticsDirtyForTest(void);
 // GameExports_SingleExe.cpp: MM's registered lifecycle. The row drives its
 // suspend, the call GameRunner makes on every departure from MM.
 GameOps* MM_GetGameOps(void);
+// games/oot/soh/oot_ztarget_mirror_test.cpp: freeze an OoT half whose
+// Z-targeting mode is Hold (1) or Switch (0), as OoT's departure does (#1351).
+void OoT_ZTargetMirrorTest_FreezeOoTHalf(int hold);
 }
 
 extern "C" u8* MM_gSystemHeap;
@@ -215,9 +219,11 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
  * cutscene/game-mode state reset, (c) clear the startup slot, (d) on a first
  * entry (no frozen state) re-author the new-file clock over the title-demo
  * bootstrap the boot chain hands it, while leaving the rest of that save alone
- * (#639), and (e) re-apply the sound mode DERIVED from the restored save's
+ * (#639), (e) re-apply the sound mode DERIVED from the restored save's
  * options.audioSetting, which lives outside gSaveContext and so cannot ride
- * the restore memcpy (#483, audit #482 row M5).
+ * the restore memcpy (#483, audit #482 row M5), and (f) take OoT's Z-targeting
+ * mode over the one the restored half carries, keeping MM's own when OoT has no
+ * frozen half (#1351).
  */
 extern "C" int MM_StartupRestore_RunHeadless(void) {
     printf("[TEST] mm-startup-restore: startup consumption restores the frozen save post-wipe\n");
@@ -444,6 +450,54 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(sSoundMode == SOUNDMODE_MONO, "out-of-range restored audioSetting was applied anyway (#483)");
     RESUME_ASSERT(SeqCmdsQueuedSince(seqCmdPosBeforeCorrupt) == 0,
                   "out-of-range restored audioSetting still queued a seq command (#483)");
+
+    // One targeting mode (#1351). MM picks Hold targeting from
+    // options.zTargetSetting, and its only UI writer is its own file select,
+    // which a cross-game session never reaches: before this, MM played Switch
+    // whatever the player chose at OoT's file select. Each leg's MM half carries
+    // the OTHER mode, so an arrival that never mirrors fails it. OoT's frozen half
+    // is this leg's own; whatever an earlier row left there is put back after.
+    {
+        const bool ootWasFrozen = Context_HasFrozenState(GAME_OOT) != 0;
+        const uint16_t ootPriorEntrance = Context_GetFrozenReturnEntrance(GAME_OOT);
+        std::vector<uint8_t> ootPrior(OOT_SAVE_CONTEXT_SIZE, 0);
+        if (const void* shadow = Context_GetOoTSaveContext()) {
+            memcpy(ootPrior.data(), shadow, ootPrior.size());
+        }
+
+        for (int hold = 0; hold < 2; hold++) {
+            memset(&gSaveContext, 0, sizeof(gSaveContext));
+            gSaveContext.options.zTargetSetting = (u8)(1 - hold);
+            Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+            OoT_ZTargetMirrorTest_FreezeOoTHalf(hold);
+            memset(&gSaveContext, 0, sizeof(gSaveContext)); // the boot chain's wipe
+            Combo_SetStartupEntrance(kArrival);
+            MM_Play_ConsumeStartupEntrance();
+            printf("[TEST] mm-startup-restore: OoT plays %s, the MM half carried %s: MM arrives with zTargetSetting "
+                   "%d\n",
+                   hold ? "Hold" : "Switch", hold ? "Switch" : "Hold", (int)gSaveContext.options.zTargetSetting);
+            RESUME_ASSERT(gSaveContext.options.zTargetSetting == hold,
+                          "MM arrived with the Z-targeting mode its own half carried, not OoT's (#1351)");
+        }
+
+        // No OoT half (an MM-only boot): nothing to mirror, MM keeps its own.
+        Context_ClearFrozenState(GAME_OOT);
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        gSaveContext.options.zTargetSetting = 1;
+        Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        Combo_SetStartupEntrance(kArrival);
+        MM_Play_ConsumeStartupEntrance();
+        RESUME_ASSERT(gSaveContext.options.zTargetSetting == 1,
+                      "with no OoT half the arrival still overwrote MM's own Z-targeting mode (#1351)");
+
+        Context_ClearFrozenState(GAME_OOT);
+        if (ootWasFrozen) {
+            Context_FreezeState(GAME_OOT, ootPriorEntrance, ootPrior.data(), ootPrior.size());
+        } else {
+            Context_UpdateShadowCopy(GAME_OOT, ootPrior.data(), ootPrior.size());
+        }
+    }
 
     // Leave clean global state for later tests.
     Combo_ClearFrozenState("mm");

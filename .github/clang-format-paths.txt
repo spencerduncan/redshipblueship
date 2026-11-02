@@ -91,6 +91,7 @@ games/mm/2s2h/Enhancements/Audio/AudioEditorSingleExe.cpp
 games/mm/2s2h/mm_notification_binding_test.cpp
 games/mm/2s2h/mm_notification_bridge.cpp
 games/mm/2s2h/mm_resume_state_test.cpp
+games/oot/soh/oot_ztarget_mirror_test.cpp
 games/mm/2s2h/mm_save_manager_stubs.c
 games/mm/2s2h/mm_shipinit_driver_test.cpp
 games/mm/2s2h/MmDevToolsSingleExe.cpp
