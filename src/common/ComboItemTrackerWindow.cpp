@@ -4,7 +4,8 @@
  *        each game's section as that game's own icon grid (#458 U3).
  *
  * See ComboItemTrackerWindow.h for the contract. The file keeps no state of its
- * own (bar one flag, the Move to Default Position request, consumed by the next draw):
+ * own (bar the Move to Default Position request, consumed by the next draw, and
+ * the custom layout with its deferred config write, #1328/#1349):
  * every section is collected from combo_item_view.h on every frame, so a
  * game switch, a save or a load shows on the next frame; the numbers carried
  * between frames (each section's measured header height, the fit last drawn)
@@ -16,6 +17,8 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <chrono>
+#include <climits>
 #include <cstdio>
 #include <cstring>
 
@@ -48,6 +51,10 @@ bool gResetPositionRequested = false;
 
 // Active customizable groups & layout across the 3 overlay columns.
 ComboItemTrackerLayout gCustomLayout;
+
+// The deferred layout write (#1349): armed by an edit, flushed by Draw() once the edits settle (UI thread only).
+bool gLayoutSavePending = false;
+std::chrono::steady_clock::time_point gLayoutSaveRequestedAt;
 
 void CollectCustomSectionRows(int section, int sharedIconGame, std::vector<ComboItemRow>& out);
 
@@ -983,6 +990,11 @@ ComboItemTrackerFit ComboItemTrackerFitBoxes(const std::vector<ComboItemSectionB
 }
 
 void ComboItemTrackerWindow::Draw() {
+    // #1349: the layout editor's settled edits are written here, first, so the
+    // write happens whether or not the overlay shows (Gui runs every window's
+    // Draw each frame). No ImGui call: the headless lock drives Draw() without
+    // a context.
+    ComboItemTrackerFlushLayoutSave();
     // Read the visibility CVar LIVE rather than the ctor-latched IsVisible()
     // (#489 cause 1), as the Combo Tracker does.
     if (!CVarGetInteger(kComboItemTrackerVisibilityCVar, 0)) {
@@ -1144,8 +1156,6 @@ void ComboItemTrackerWindow::DrawElement() {
 // ============================================================================
 
 namespace {
-
-constexpr const char* kCustomLayoutConfigBlock = "ComboItemTrackerLayout";
 
 ComboItemTrackerSlot MakeSlot(uint8_t origin, const char* key) {
     ComboItemTrackerSlot s;
@@ -1610,7 +1620,7 @@ void ComboItemTrackerApplySolverPreset(int section) {
         }
         gCustomLayout.customEnabled[COMBO_ITEM_SECTION_MM] = true;
         gCustomLayout.activeGroups[COMBO_ITEM_SECTION_MM] = std::move(groups);
-        ComboItemTrackerSaveLayoutToConfig();
+        ComboItemTrackerRequestLayoutSave();
         return;
     }
 
@@ -1662,7 +1672,7 @@ void ComboItemTrackerApplySolverPreset(int section) {
         }
         gCustomLayout.customEnabled[COMBO_ITEM_SECTION_OOT] = true;
         gCustomLayout.activeGroups[COMBO_ITEM_SECTION_OOT] = std::move(groups);
-        ComboItemTrackerSaveLayoutToConfig();
+        ComboItemTrackerRequestLayoutSave();
     }
 }
 
@@ -1714,12 +1724,110 @@ void ComboItemTrackerRestoreDefaultLayout(int section) {
         gCustomLayout.customEnabled[section] = false;
         gCustomLayout.activeGroups[section].clear();
     }
-    ComboItemTrackerSaveLayoutToConfig();
+    ComboItemTrackerRequestLayoutSave();
 }
+
+namespace {
+
+// #1349: typed reads. nlohmann's value() throws type_error.302 when the key holds
+// another type ("columns": "6", "name": null), and the boot path that reads the
+// block (RegisterComboItemTrackerWindow) catches nothing, so one hand-edited or
+// damaged field ended every launch. A field of the wrong type takes its default.
+int LayoutJsonInt(const nlohmann::json& obj, const char* key, int fallback) {
+    const auto it = obj.find(key);
+    if (it == obj.end()) {
+        return fallback;
+    }
+    if (it->is_number_unsigned()) {
+        const uint64_t v = it->get<uint64_t>();
+        return v > (uint64_t)INT_MAX ? INT_MAX : (int)v;
+    }
+    if (it->is_number_integer()) {
+        const int64_t v = it->get<int64_t>();
+        return v > INT_MAX ? INT_MAX : (v < INT_MIN ? INT_MIN : (int)v);
+    }
+    return fallback; // floats included: 1e300 has no int to clamp from
+}
+
+bool LayoutJsonBool(const nlohmann::json& obj, const char* key, bool fallback) {
+    const auto it = obj.find(key);
+    return it != obj.end() && it->is_boolean() ? it->get<bool>() : fallback;
+}
+
+std::string LayoutJsonString(const nlohmann::json& obj, const char* key, const char* fallback) {
+    const auto it = obj.find(key);
+    return it != obj.end() && it->is_string() ? it->get<std::string>() : std::string(fallback);
+}
+
+// The array under `key`, or null when it is missing or not an array.
+const nlohmann::json* LayoutJsonArray(const nlohmann::json& obj, const char* key) {
+    const auto it = obj.find(key);
+    return it != obj.end() && it->is_array() ? &*it : nullptr;
+}
+
+// The one reader, for a parsed string and for the config's block alike. Config
+// stores the block flattened, so an empty list comes back from disk as null
+// (activeGroups [[], [...], []] reads [null, [...], null]): a non-array list is
+// an empty one, as it always was.
+bool LayoutFromJsonValue(const nlohmann::json& root, ComboItemTrackerLayout& out) {
+    if (!root.is_object() || LayoutJsonInt(root, "version", 0) != kComboItemTrackerLayoutVersion) {
+        return false; // another format (or none) is rejected, never misread
+    }
+    ComboItemTrackerLayout parsed{};
+    try {
+        if (const nlohmann::json* arr = LayoutJsonArray(root, "customEnabled")) {
+            for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < arr->size(); s++) {
+                const nlohmann::json& v = (*arr)[(size_t)s];
+                parsed.customEnabled[s] = v.is_boolean() && v.get<bool>();
+            }
+        }
+        if (const nlohmann::json* secArr = LayoutJsonArray(root, "activeGroups")) {
+            for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < secArr->size(); s++) {
+                const nlohmann::json& groups = (*secArr)[(size_t)s];
+                if (!groups.is_array()) {
+                    continue;
+                }
+                for (const nlohmann::json& gj : groups) {
+                    if (!gj.is_object()) {
+                        continue;
+                    }
+                    ComboItemTrackerGroup g;
+                    g.name = LayoutJsonString(gj, "name", "Group");
+                    g.section = std::clamp(LayoutJsonInt(gj, "section", s), 0, COMBO_ITEM_SECTION_COUNT - 1);
+                    g.columns = std::clamp(LayoutJsonInt(gj, "columns", 6), kComboItemTrackerGroupColumnsMin,
+                                           kComboItemTrackerGroupColumnsMax);
+                    g.autoHideUnshuffled = LayoutJsonBool(gj, "autoHideUnshuffled", false);
+                    if (const nlohmann::json* slots = LayoutJsonArray(gj, "slots")) {
+                        for (const nlohmann::json& sj : *slots) {
+                            if (!sj.is_object()) {
+                                continue;
+                            }
+                            ComboItemTrackerSlot slot;
+                            slot.origin = (uint8_t)std::clamp(LayoutJsonInt(sj, "origin", COMBO_SLOT_PAD), 0,
+                                                              (int)COMBO_SLOT_SHARED);
+                            slot.key = LayoutJsonString(sj, "key", "pad");
+                            g.slots.push_back(std::move(slot));
+                        }
+                    }
+                    parsed.activeGroups[s].push_back(std::move(g));
+                }
+            }
+        }
+    } catch (const nlohmann::json::exception&) {
+        // The reads above are typed, so nothing here throws; should a later edit
+        // reach for value() again, a bad block still falls back to the defaults
+        // instead of ending the boot that reads it.
+        return false;
+    }
+    out = std::move(parsed);
+    return true;
+}
+
+} // namespace
 
 std::string ComboItemTrackerLayoutToJson(const ComboItemTrackerLayout& layout) {
     nlohmann::json root = nlohmann::json::object();
-    root["version"] = 1;
+    root["version"] = kComboItemTrackerLayoutVersion;
     nlohmann::json enabledArr = nlohmann::json::array();
     nlohmann::json sectionsArr = nlohmann::json::array();
     for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
@@ -1745,7 +1853,8 @@ std::string ComboItemTrackerLayoutToJson(const ComboItemTrackerLayout& layout) {
     }
     root["customEnabled"] = std::move(enabledArr);
     root["activeGroups"] = std::move(sectionsArr);
-    return root.dump();
+    // A name that is not valid UTF-8 is written with U+FFFD rather than thrown on (type_error.316).
+    return root.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 bool ComboItemTrackerLayoutFromJson(const std::string& jsonStr, ComboItemTrackerLayout& out) {
@@ -1753,51 +1862,10 @@ bool ComboItemTrackerLayoutFromJson(const std::string& jsonStr, ComboItemTracker
         return false;
     }
     const nlohmann::json root = nlohmann::json::parse(jsonStr, nullptr, false);
-    if (root.is_discarded() || !root.is_object()) {
+    if (root.is_discarded()) {
         return false;
     }
-    ComboItemTrackerLayout parsed{};
-    if (root.contains("customEnabled") && root["customEnabled"].is_array()) {
-        const auto& arr = root["customEnabled"];
-        for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < arr.size(); s++) {
-            if (arr[(size_t)s].is_boolean()) {
-                parsed.customEnabled[s] = arr[(size_t)s].get<bool>();
-            }
-        }
-    }
-    if (root.contains("activeGroups") && root["activeGroups"].is_array()) {
-        const auto& secArr = root["activeGroups"];
-        for (int s = 0; s < COMBO_ITEM_SECTION_COUNT && (size_t)s < secArr.size(); s++) {
-            if (!secArr[(size_t)s].is_array()) {
-                continue;
-            }
-            for (const auto& gj : secArr[(size_t)s]) {
-                if (!gj.is_object()) {
-                    continue;
-                }
-                ComboItemTrackerGroup g;
-                g.name = gj.value("name", std::string("Group"));
-                g.section = std::clamp(gj.value("section", s), 0, COMBO_ITEM_SECTION_COUNT - 1);
-                g.columns = std::clamp(gj.value("columns", 6), kComboItemTrackerGroupColumnsMin,
-                                       kComboItemTrackerGroupColumnsMax);
-                g.autoHideUnshuffled = gj.value("autoHideUnshuffled", false);
-                if (gj.contains("slots") && gj["slots"].is_array()) {
-                    for (const auto& sj : gj["slots"]) {
-                        if (!sj.is_object()) {
-                            continue;
-                        }
-                        ComboItemTrackerSlot slot;
-                        slot.origin = (uint8_t)std::clamp(sj.value("origin", 0), 0, 3);
-                        slot.key = sj.value("key", std::string("pad"));
-                        g.slots.push_back(std::move(slot));
-                    }
-                }
-                parsed.activeGroups[s].push_back(std::move(g));
-            }
-        }
-    }
-    out = std::move(parsed);
-    return true;
+    return LayoutFromJsonValue(root, out);
 }
 
 bool ComboItemTrackerLoadLayoutFromConfig() {
@@ -1806,16 +1874,17 @@ bool ComboItemTrackerLoadLayoutFromConfig() {
     if (cfg == nullptr) {
         return false;
     }
-    const auto& nested = cfg->GetNestedJson();
-    if (!nested.is_object() || !nested.contains(kCustomLayoutConfigBlock)) {
+    const nlohmann::json nested = cfg->GetNestedJson();
+    if (!nested.is_object()) {
         return false;
     }
-    const auto& block = nested[kCustomLayoutConfigBlock];
-    if (!block.is_object()) {
+    const auto block = nested.find(kComboItemTrackerLayoutConfigBlock);
+    if (block == nested.end()) {
         return false;
     }
+    // Read in place: no dump, so no string in the block can throw on the way (#1349).
     ComboItemTrackerLayout loaded;
-    if (!ComboItemTrackerLayoutFromJson(block.dump(), loaded)) {
+    if (!LayoutFromJsonValue(*block, loaded)) {
         return false;
     }
     gCustomLayout = std::move(loaded);
@@ -1823,6 +1892,7 @@ bool ComboItemTrackerLoadLayoutFromConfig() {
 }
 
 bool ComboItemTrackerSaveLayoutToConfig() {
+    gLayoutSavePending = false; // this write is the one an armed request was waiting for
     auto ctx = Ship::Context::GetInstance();
     auto cfg = ctx != nullptr ? ctx->GetConfig() : nullptr;
     if (cfg == nullptr) {
@@ -1832,9 +1902,35 @@ bool ComboItemTrackerSaveLayoutToConfig() {
     if (block.is_discarded()) {
         return false;
     }
-    cfg->SetBlock(kCustomLayoutConfigBlock, block);
-    cfg->Save();
+    // SetBlock writes the file itself; a Save() after it wrote the whole config a second time.
+    cfg->SetBlock(kComboItemTrackerLayoutConfigBlock, block);
     return true;
+}
+
+void ComboItemTrackerRequestLayoutSave() {
+    gLayoutSavePending = true;
+    gLayoutSaveRequestedAt = std::chrono::steady_clock::now();
+}
+
+bool ComboItemTrackerLayoutSavePending() {
+    return gLayoutSavePending;
+}
+
+bool ComboItemTrackerFlushLayoutSave(bool force) {
+    if (!gLayoutSavePending) {
+        return false;
+    }
+    if (!force) {
+        const std::chrono::duration<double> settled = std::chrono::steady_clock::now() - gLayoutSaveRequestedAt;
+        if (settled.count() < kComboItemTrackerLayoutSaveSettleSeconds) {
+            return false;
+        }
+    }
+    return ComboItemTrackerSaveLayoutToConfig();
+}
+
+void ComboItemTrackerCancelLayoutSave() {
+    gLayoutSavePending = false;
 }
 
 void RegisterComboItemTrackerWindow(std::shared_ptr<Ship::Gui> gui) {
