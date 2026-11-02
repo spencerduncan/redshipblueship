@@ -682,6 +682,10 @@ static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* o
         out->iconAspect = own.iconAspect;
         out->fadedAlpha = own.fadedAlpha;
         out->iconTint = own.iconTint;
+        // #1347: the short name drawn over that icon travels with it. OoT's five
+        // buttons are one Ocarina of Time icon told apart only by SoH's "A",
+        // "C-U"... over it; MM's tinted glyphs carry none.
+        out->label = own.label;
     }
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
@@ -986,6 +990,7 @@ bool Combo_ItemSharedCatalogRowAt(int catalogIndex, uint8_t iconGame, ComboItemR
         out->iconAspect = own.iconAspect;
         out->fadedAlpha = own.fadedAlpha;
         out->iconTint = own.iconTint;
+        out->label = own.label; // #1347: the name over the icon, as SharedFamilyRowAt
     }
     out->group = COMBO_ITEM_SHARED_GROUP;
     out->name = def->name;
