@@ -41,8 +41,9 @@
  *      Items down the right.
  *
  *   4. A ROW SHOWS THE WRONG STATE. Unpaired: a capability-blocked row is
- *      disabled with SoH's disabled tooltip around the table's own reason, and
- *      every other row is live. Frozen: every row and Reset are disabled with
+ *      disabled with SoH's disabled tooltip around the table's own reason, MM's
+ *      Logic around "Set by [Both Games] Logic" (#1367), and every other row
+ *      is live. Frozen: every row and Reset are disabled with
  *      "Already Decided". The name stays the row's own in every state, across
  *      two draw passes (ApplyPresentation runs from a PreFunc with its own name
  *      as the base, so a non-idempotent call would compound).
@@ -101,6 +102,7 @@
 
 #include "combo_mm_locations_view.h"
 #include "combo_mm_options_page.h"
+#include "combo_settings_view.h" // COMBO_LOGIC_SET_BY_COMBO_REASON (#1367)
 #include "context.h"
 #include "foreign_items.h"
 
@@ -480,6 +482,13 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                                TooltipShown(*row->info) == SohDisabledShape(COMBO_MM_OPTIONS_FROZEN_REASON),
                            "frozen: option %s is %s with tooltip \"%s\"", desc->name,
                            IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
+            } else if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
+                // #1367: MM's Logic follows [Both Games] Logic: SoH's disabled
+                // row with the rule as its reason.
+                MMRP_CHECK(IsDisabled(*row->info) &&
+                               TooltipShown(*row->info) == SohDisabledShape(COMBO_LOGIC_SET_BY_COMBO_REASON),
+                           "option %s is %s with tooltip \"%s\"; [Both Games] Logic sets it (#1367)", desc->name,
+                           IsDisabled(*row->info) ? "disabled" : "LIVE", TooltipShown(*row->info).c_str());
             } else if (blocked) {
                 MMRP_CHECK(IsDisabled(*row->info) && TooltipShown(*row->info) == SohDisabledShape(desc->disabledReason),
                            "blocked option %s is %s with tooltip \"%s\"", desc->name,
@@ -532,7 +541,9 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                 clock = d;
             }
             const bool live = d->liveness == COMBO_MM_LIVENESS_LIVE || d->liveness == COMBO_MM_LIVENESS_GENERATION_ONLY;
-            if (!live) {
+            // #1367: MM's Logic shows [Both Games] Logic's value, not its key, so
+            // it cannot stand for a row that stages its key.
+            if (!live || Combo_MMOptionsPage_OptionSetByCombo(d)) {
                 continue;
             }
             if (d->widget == COMBO_MM_WIDGET_CHECKBOX && checkbox == nullptr) {

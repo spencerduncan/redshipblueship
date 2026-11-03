@@ -122,6 +122,7 @@ using namespace UIWidgets;
 // never disagree with the record about what this world's rules are.
 static int32_t comboRuleDirection;
 static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
+static int32_t comboRuleLogic;             // #1367: ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*)
 static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
 static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
 static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
@@ -166,6 +167,16 @@ static const std::map<int32_t, const char*> comboRuleGoalOptions = {
     { (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT, "Triforce Hunt" },
     { (int32_t)RSBS_COMBO_GOAL_BEAT_OOT, "Ganon" },
     { (int32_t)RSBS_COMBO_GOAL_BEAT_MM, "Majora" },
+};
+
+// The three pinned RSBS_COMBO_RUNG_* enumerators (1..3, static_asserted in
+// foreign_items.h), named in OoTMM's own words for its `logic` setting (#1367,
+// operator ruling 2026-11-02): allLocations, beatable, none. As the goal's map,
+// a std::map lists them in enumerator order, the reverse of OoTMM's.
+static const std::map<int32_t, const char*> comboRuleLogicOptions = {
+    { (int32_t)RSBS_COMBO_RUNG_NONE, "No Logic" },
+    { (int32_t)RSBS_COMBO_RUNG_BEATABLE, "Beatable Only" },
+    { (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE, "All Locations" },
 };
 
 // The disabled tooltip of every rule row once the world is frozen, rebuilt by
@@ -363,6 +374,38 @@ static void ComboRuleGoalPreFunc(WidgetInfo& info) {
         options->comboMap[comboRuleGoal] = unknownLabel;
         comboRuleUnknownGoal = comboRuleGoal;
         comboRuleUnknownGoalTaught = true;
+    }
+
+    ComboRuleApplyDecided(info, decided);
+}
+
+// A rung the logic row's combo map had to be taught about at runtime: the goal
+// row's guard, for the same reason (a frozen record from a later build can carry
+// a rung this build has no label for).
+static int32_t comboRuleUnknownLogic = 0;
+static bool comboRuleUnknownLogicTaught = false;
+
+/**
+ * The logic row's per-frame refresh (#1367): the goal row's, over the rung. The
+ * value is shown as what it is ("Unknown (n)") rather than clamped to a label,
+ * because a clamp would display a rung the world was not built at.
+ */
+static void ComboRuleLogicPreFunc(WidgetInfo& info) {
+    ComboSettingsRecord shown;
+    const bool decided = ComboRuleShownRecord(&shown);
+    comboRuleLogic = (int32_t)shown.logicRung;
+
+    auto options = std::static_pointer_cast<ComboboxOptions>(info.options);
+    if (comboRuleUnknownLogicTaught && comboRuleUnknownLogic != comboRuleLogic) {
+        options->comboMap.erase(comboRuleUnknownLogic);
+        comboRuleUnknownLogicTaught = false;
+    }
+    if (!options->comboMap.contains(comboRuleLogic)) {
+        static char unknownLabel[32];
+        snprintf(unknownLabel, sizeof(unknownLabel), "Unknown (%d)", (int)comboRuleLogic);
+        options->comboMap[comboRuleLogic] = unknownLabel;
+        comboRuleUnknownLogic = comboRuleLogic;
+        comboRuleUnknownLogicTaught = true;
     }
 
     ComboRuleApplyDecided(info, decided);
@@ -596,6 +639,24 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                               "created with this goal yet.\n"
                               "Ganon: Defeat Ganon. Majora's Mask may be unfinishable.\n"
                               "Majora: Defeat Majora. Ocarina of Time may be unfinishable."));
+
+    // The pair's logic (#1367, operator ruling 2026-11-02): OoTMM's `logic`, its
+    // values and their meaning, one row for both games. Each game's own Logic row
+    // (Randomizer > General, MM Randomizer) follows it read-only. Its own group,
+    // SoH's "Logic" header, beside the goal it proves.
+    menu.AddWidget(path, "Logic", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_LOGIC), WIDGET_COMBOBOX)
+        .ValuePointer(&comboRuleLogic)
+        .PreFunc(ComboRuleLogicPreFunc)
+        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_LOGIC, comboRuleLogic); })
+        .Options(ComboboxOptions()
+                     .ComboMap(comboRuleLogicOptions)
+                     .Tooltip("Chooses how the seed is checked before you play it, for both games at once. Each "
+                              "game's own Logic setting follows this one.\n\n"
+                              "All Locations: The goal can be met, and every item placed across both games can be "
+                              "reached.\n"
+                              "Beatable Only: The goal can be met. Some locations may be unreachable.\n"
+                              "No Logic: Items are placed without any check. The seed may be unbeatable."));
 
     menu.AddWidget(path, "Item Crossing", WIDGET_SEPARATOR_TEXT);
 

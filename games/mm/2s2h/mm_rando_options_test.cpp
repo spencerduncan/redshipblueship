@@ -62,9 +62,11 @@
  *
  * Drives the REAL `Rando::Foreign::ResolvePairedProfile()` — the same function
  * OnFileCreate calls, not a re-derivation — over a zeroed MM SaveContext, with
- * no fill and no display. It asserts the profile, the logic default's
- * honour-an-explicit-choice rule, and the FREEZE semantics the #564 ruling
- * made mandatory:
+ * no fill and no display. It asserts the profile, the paired MM Logic
+ * derived from [Both Games] Logic (#1367: Glitchless under a proving rung, No
+ * Logic under No Logic, whatever MM's own key holds, while a world created
+ * before keeps its own), and the FREEZE semantics the #564 ruling made
+ * mandatory:
  *
  *  - an unstamped (legacy) pair freezes its profile at resolution;
  *  - a stamped pair REFUSES a divergent resolution (throws, never overwrites
@@ -80,8 +82,8 @@
  * assertion of the form "set a CVar, generate, observe it in the save" passes
  * TODAY — that path has always worked — and proves nothing about the profile
  * being chosen rather than defaulted. What is asserted instead is behavior
- * that was not true before: explicit choices survive the pin, divergence
- * refuses, and every generation input moves the digest.
+ * that was not true before: the rung decides MM's Logic, divergence refuses,
+ * and every generation input moves the digest.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -102,10 +104,13 @@
 // src/common — outside any extern "C" block; these headers manage their own
 // linkage (matching Foreign.cpp).
 #include "combo_mm_options_view.h"
+#include "combo_settings_view.h" // COMBO_SETTING_LOGIC: [Both Games] Logic (#1367)
 #include "foreign_items.h"
 
 extern "C" {
 #include "variables.h"
+// Foreign.cpp (#1367): the stamp a world created before [Both Games] Logic carried.
+uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void);
 // SPIDER_HOUSE_TOKENS_REQUIRED — the vanilla token requirement the derived
 // correction falls back to.
 #include "overlays/actors/ovl_En_Sth/z_en_sth.h"
@@ -707,17 +712,47 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                     summary.mmProfileDigest);
     }
 
+    // ---- paired, MM's own Logic explicitly chosen: [Both Games] Logic wins ---
+    // #1367 (operator ruling 2026-11-02): a paired world's strictness is ONE
+    // [Both Games] choice and MM's Logic row follows it. Before, an explicit MM
+    // choice was honoured (#499 step 3), but the paired fill never read it (the
+    // combo rung decides the proof), so Nearly No Logic only re-seeded a world
+    // still proved Beatable. Now an explicit NEARLY NO LOGIC changes nothing at
+    // the default rung: the same Glitchless profile and the same stamp, with the
+    // stamp still in place (no throw). Counterfactual: restore the "honour
+    // explicit" pin and Fail(90) goes red.
+    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
+    {
+        bool threw = false;
+        uint32_t explicitDigest = 0;
+        try {
+            explicitDigest = Rando::Foreign::ResolvePairedProfile(true);
+        } catch (const std::exception&) {
+            threw = true;
+        }
+        if (threw || RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_GLITCHLESS || explicitDigest != defaultDigest ||
+            MM_Rando_ComputeProfileStamp() != defaultDigest) {
+            return Fail(90,
+                        "an explicit MM Nearly No Logic decided a paired world (threw %d, RO_LOGIC %u, digest %08X "
+                        "vs the default %08X); [Both Games] Logic decides it (#1367)",
+                        threw ? 1 : 0, (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC], explicitDigest, defaultDigest);
+        }
+        if (MM_Rando_PairedLogicShown() != RO_LOGIC_GLITCHLESS) {
+            return Fail(91, "MM's Logic row shows %d under Beatable Only with Nearly No Logic in its key; it must "
+                            "show what the world is made with (Glitchless)",
+                        MM_Rando_PairedLogicShown());
+        }
+    }
+
     // ---- STAMPED pair + divergent inputs: REFUSED, never re-stamped --------
     // The freeze lock itself (#564 V8: the digest acquires comparators).
-    // gComboCtx still carries defaultDigest; choosing a different logic mode
-    // now models a post-creation edit reaching generation. The resolution must
-    // THROW (OnFileCreate's catch turns that into the vanilla revert — no
-    // divergent world is authored) and must NOT self-heal the stamp. Revert
-    // the compare in ResolvePairedProfile and both halves go red. (Nearly No
-    // Logic here because the default is now Glitchless — an explicit
-    // Glitchless choice would RESOLVE identically to the frozen default and
-    // diverge nothing.)
-    CVarSetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_NEARLY_NO_LOGIC);
+    // gComboCtx still carries defaultDigest; turning a shuffle on now models a
+    // post-creation edit reaching generation. The resolution must THROW
+    // (OnFileCreate's catch turns that into the vanilla revert — no divergent
+    // world is authored) and must NOT self-heal the stamp. Revert the compare
+    // in ResolvePairedProfile and both halves go red. (A shuffle, not MM's
+    // Logic, since #1367: MM's Logic no longer diverges a paired profile.)
+    CVarSetInteger(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar, RO_GENERIC_ON);
     {
         bool refused = false;
         try {
@@ -735,27 +770,75 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                         defaultDigest, gComboCtx.mmProfileDigest);
         }
     }
+    CVarClear(Rando::StaticData::Options[RO_SHUFFLE_COWS].cvar);
 
-    // ---- paired, logic explicitly chosen: the choice survives --------------
-    // This is the behaviour #499 step 3 asked for and the reason the pin moved
-    // from "unless already extreme" to "unless the player chose". Under ADR
-    // 0010 increment 1.1 the leg doubles as the "choosing away the proof is
-    // legitimate" lock: an explicit NEARLY NO LOGIC choice — a no-logic mode,
-    // exactly what the flipped Glitchless default would otherwise override —
-    // must survive the pin and move the digest. Counterfactual: make the pin
-    // unconditional (a law instead of a default) and Fail(60) goes red. A
-    // fresh carrier: this is a NEW creation under the chosen logic. (The CVar
-    // still holds NNL from the divergence leg above.)
+    // ---- paired, [Both Games] Logic "No Logic": MM's Logic derives No Logic --
+    // #1367: the base rung makes the MM half No Logic at creation, whatever MM's
+    // own key holds (it still holds Nearly No Logic: it folds into No Logic),
+    // and that is a different world: a different stamp. A fresh carrier: this
+    // is a NEW creation. Counterfactual: drop the derivation and Fail(60) goes red.
     restampUnfrozenCarrier();
-    const uint32_t chosenDigest = Rando::Foreign::ResolvePairedProfile(true);
-    if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_NEARLY_NO_LOGIC) {
-        return Fail(60, "an explicitly chosen no-logic RO_LOGIC was overridden by the paired Glitchless pin "
-                        "(got %u) — choosing away the proof is legitimate (ADR 0010 increment 1.1)",
-                    (unsigned)RANDO_SAVE_OPTIONS[RO_LOGIC]);
+    if (Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_NONE) != 1) {
+        return Fail(92, "[Both Games] Logic \"No Logic\" could not be authored before a creation");
     }
-    if (chosenDigest == defaultDigest) {
-        return Fail(61, "changing the profile did not change its digest — two different MM worlds would carry one "
-                        "identity");
+    const uint32_t noLogicDigest = Rando::Foreign::ResolvePairedProfile(true);
+    const uint32_t noLogicMm = RANDO_SAVE_OPTIONS[RO_LOGIC];
+    const int noLogicShown = MM_Rando_PairedLogicShown();
+    const uint32_t noLogicStamp = MM_Rando_ComputeProfileStamp();
+    Combo_ComboSettingClear(COMBO_SETTING_LOGIC);
+    printf("[TEST] mm-paired-profile #1367: rung No Logic -> MM Logic %u (row shows %d), digest %08X (stamp %08X); "
+           "rung Beatable Only -> %08X\n",
+           (unsigned)noLogicMm, noLogicShown, noLogicDigest, noLogicStamp, defaultDigest);
+    if (noLogicMm != RO_LOGIC_NO_LOGIC || noLogicShown != RO_LOGIC_NO_LOGIC) {
+        return Fail(60, "[Both Games] Logic \"No Logic\" created MM Logic %u (row shows %d), not No Logic (#1367)",
+                    (unsigned)noLogicMm, noLogicShown);
+    }
+    if (noLogicDigest == defaultDigest || noLogicStamp != noLogicDigest) {
+        return Fail(61, "the No Logic world's MM stamp %08X equals the Beatable Only one, or the creation stamp "
+                        "%08X disagrees with the resolution — two different MM worlds would carry one identity",
+                    noLogicDigest, noLogicStamp);
+    }
+
+    // ---- a world created BEFORE #1367 keeps its own MM Logic -----------------
+    // Such a world stamped MM's own row (explicit Nearly No Logic here) at rung
+    // Beatable. The compare's second candidate matches it while the key holds
+    // its Logic, and a re-resolution against its stamp keeps that Logic; with
+    // the key cleared it does not match (the load restore writes it back,
+    // paired-load-restore leg 2f). A NEW world's stamp still matches with the
+    // stale key in place.
+    {
+        const uint32_t legacyDigest = MM_Rando_ComputeLegacyProfileStampForTest();
+        const bool legacyMatches = MM_Rando_ProfileStampMatches(legacyDigest) != 0;
+        const bool newMatches = MM_Rando_ProfileStampMatches(defaultDigest) != 0;
+        restampUnfrozenCarrier();
+        gComboCtx.mmProfileDigest = legacyDigest;
+        bool threw = false;
+        try {
+            Rando::Foreign::ResolvePairedProfile(true);
+        } catch (const std::exception&) {
+            threw = true;
+        }
+        const uint32_t legacyMm = RANDO_SAVE_OPTIONS[RO_LOGIC];
+        const int legacyShown = MM_Rando_PairedLogicShown();
+        CVarClear(Rando::StaticData::Options[RO_LOGIC].cvar);
+        const bool legacyMatchesCleared = MM_Rando_ProfileStampMatches(legacyDigest) != 0;
+        printf("[TEST] mm-paired-profile #1367 legacy: stamp %08X matches %d (new world's %d), re-resolved MM Logic "
+               "%u (threw %d), row shows %d; with the key cleared it matches %d\n",
+               legacyDigest, legacyMatches ? 1 : 0, newMatches ? 1 : 0, (unsigned)legacyMm, threw ? 1 : 0,
+               legacyShown, legacyMatchesCleared ? 1 : 0);
+        if (legacyDigest == defaultDigest || !legacyMatches || !newMatches) {
+            return Fail(93, "the compare does not accept both a pre-#1367 world with its own MM Logic and a new "
+                            "world under the same keys; existing files would be refused");
+        }
+        if (threw || legacyMm != RO_LOGIC_NEARLY_NO_LOGIC || legacyShown != RO_LOGIC_NEARLY_NO_LOGIC) {
+            return Fail(94, "a pre-#1367 world re-resolved with MM Logic %u (threw %d, row shows %d), not its own "
+                            "Nearly No Logic",
+                        (unsigned)legacyMm, threw ? 1 : 0, legacyShown);
+        }
+        if (legacyMatchesCleared) {
+            return Fail(95, "a pre-#1367 world's stamp matched with MM's Logic key cleared: the second candidate is "
+                            "not keyed on the world's own Logic");
+        }
     }
 
     // ---- a flipped shuffle row also moves the digest -----------------------
@@ -851,8 +934,9 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
 
-    printf("[TEST] PASS: the paired profile honours an explicit choice, freezes at creation, refuses divergence "
-           "without self-healing, and its widened digest moves with every generation input\n");
+    printf("[TEST] PASS: the paired profile derives MM's Logic from [Both Games] Logic, freezes at creation, keeps a "
+           "pre-#1367 world's own Logic, refuses divergence without self-healing, and its widened digest moves with "
+           "every generation input\n");
     return 0;
 }
 

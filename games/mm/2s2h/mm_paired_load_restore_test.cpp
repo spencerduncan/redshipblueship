@@ -46,6 +46,14 @@
  *                   comboFlags bit, one toast names "Goal, Crossing
  *                   Direction" and nothing else, the slot is writable, and
  *                   the arrival gate does not refuse
+ *   leg 1b - #1367: a world created at [Both Games] Logic "No Logic" (a NEW
+ *           world: MM's Logic derived No Logic from the rung, the key never
+ *           set), loaded by a session staged back at Beatable Only
+ *                -> the rung is put back into gCombo.Rando.Logic and the rules
+ *                   toast names "Logic"; the MM profile, whose only difference
+ *                   was the rung's derived MM Logic, matches again with no MM key
+ *                   written and no empty "Restored for Majora's Mask" toast; the
+ *                   arrival gate does not refuse
  *   leg 2 - one MM trick and one MM option changed, same load
  *                -> the MM profile digest matches the file again, both keys hold
  *                   the file's values, a toast names both rows, and the arrival
@@ -78,13 +86,22 @@
  *           ever ran), unchanged and with a trick changed -> REFUSED at the
  *           file select ("This file has no Majora's Mask world", #836), the
  *           Save Files page says the same, and the open path's load refuses too
- *   leg 4 - a record field no key authors (the logic rung, only another build
- *           can write it) -> REFUSED at the file select in player words ("File
- *           made by another build"), the page says the same, the open path's
- *           load refuses, nothing is committed or quarantined; an unpaired
- *           arrival with no refused slot posts nothing (the control). The old
- *           arrival half ("Termina stays un-randomized" after a refused load)
- *           is gone with the leg it checked: a refused file is never opened
+ *   leg 2f - #1367: a world created BEFORE [Both Games] Logic with MM's own
+ *           Logic explicitly Nearly No Logic (its stamp and half hold it), loaded
+ *           by a session whose MM Logic key is unset
+ *                -> the file's MM Logic is put back into its key and the toast
+ *                   names "Logic", the live profile matches the file through the
+ *                   second candidate (MM_Rando_ProfileStampMatches), MM's Logic
+ *                   row shows the world's own value, and the arrival gate does
+ *                   not refuse: existing worlds keep loading
+ *   leg 4 - a record field no key authors (spare1, only another build can
+ *           write it; the logic rung was this leg's field until #1367 keyed
+ *           it) -> REFUSED at the file select in player words ("File made by
+ *           another build"), the page says the same, the open path's load
+ *           refuses, nothing is committed or quarantined; an unpaired arrival
+ *           with no refused slot posts nothing (the control). The old arrival
+ *           half ("Termina stays un-randomized" after a refused load) is gone
+ *           with the leg it checked: a refused file is never opened
  *   leg 5 - a restore whose after-check fails (forced through the test hooks;
  *           unreachable by construction today) -> the file select ACCEPTED it
  *           and the load refuses (the backstop's trigger, #836): every key it
@@ -166,6 +183,8 @@
 extern "C" {
 #include "variables.h"
 int MM_Rando_GateCrossGameArrival(void);
+// Foreign.cpp (#1367): the stamp a world created before [Both Games] Logic carried.
+uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void);
 }
 
 namespace {
@@ -177,6 +196,9 @@ inline const char* kScratchSaveDir() {
 const char* const kToastSentinel = "rsbs781-no-toast-was-emitted";
 constexpr uint32_t kSeed = 0x0781C0DEu;
 constexpr uint32_t kSettingsHash = 0x5E770781u;
+// #1367: the MM Logic the last CreatePairedFile authored into the half (the live
+// save is scribbled after the commit).
+uint32_t sCreatedMmLogic = 0;
 
 int Fail(int code, const char* fmt, ...) {
     va_list args;
@@ -259,18 +281,23 @@ void Relaunch() {
  * @p emptyMmHalf the MM shadow stays all-zero instead: a file saved before
  * Majora's Mask ever ran.
  */
-int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride) {
+int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride, bool legacyMmLogic = false) {
     Relaunch();
     RsbsSave_DeleteSave(kSlot); // erasing arms the slot for its first write (#533)
 
     gComboCtx.sourceIsRando = true;
     gComboCtx.sharedRandoSeed = kSeed;
     gComboCtx.sharedRandoSettingsHash = kSettingsHash;
-    gComboCtx.mmProfileDigest = MM_Rando_ComputeProfileStamp();
+    // #1367: @p legacyMmLogic stamps what a creation before [Both Games] Logic
+    // stamped (MM's own Logic row honoured), and ResolvePairedProfile below then
+    // authors the half with that world's own MM Logic.
+    gComboCtx.mmProfileDigest =
+        legacyMmLogic ? MM_Rando_ComputeLegacyProfileStampForTest() : MM_Rando_ComputeProfileStamp();
 
     if (!emptyMmHalf) {
         gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
         Rando::Foreign::ResolvePairedProfile(/*paired=*/true);
+        sCreatedMmLogic = RANDO_SAVE_OPTIONS[RO_LOGIC]; // #1367: read before the scribble below
         // THIS pair's world: the seed the master seed derives from the options
         // just resolved into the half (rung 0), as OnFileCreate stamps it. The
         // arrival's pair-membership check (#564 V11) refuses any other seed.
@@ -644,6 +671,147 @@ int LegCrossGameRules() {
     }
     if (gate != 0 || RsbsSave_IsSlotWritable(kSlot) != 1) {
         return Fail(17, "leg 1: the arrival gate refused a file that loaded");
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 1b (#1367): a No Logic world loaded by a session staged at Beatable Only.
+// ---------------------------------------------------------------------------
+int LegLogicRung() {
+    ClearAuthoredKeys();
+    if (Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_NONE) != 1) {
+        return Fail(110, "leg 1b setup: could not author [Both Games] Logic \"No Logic\" for the file");
+    }
+    const ComboMMOptionDesc* logicRow = Combo_MMOptionById((uint16_t)RO_LOGIC);
+    if (logicRow == nullptr || Combo_MMOptionIsExplicit(logicRow)) {
+        return Fail(111, "leg 1b setup: no MM Logic row, or its key is set");
+    }
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    // The creation derived MM's Logic from the rung (the key was never set).
+    const uint32_t fileLogic = sCreatedMmLogic;
+    const uint8_t fileRung = gComboCtx.comboSettings.logicRung;
+    const uint32_t fileDigest = gComboCtx.mmProfileDigest;
+
+    // Back at the title screen the player puts [Both Games] Logic back to its default.
+    Relaunch();
+    Combo_ComboSettingClear(COMBO_SETTING_LOGIC);
+    const bool liveMatchedBefore = MM_Rando_ProfileStampMatches(fileDigest) != 0;
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const int32_t rungNow = Combo_ComboSettingResolved(COMBO_SETTING_LOGIC);
+    const bool matches = MM_Rando_ProfileStampMatches(gComboCtx.mmProfileDigest) != 0;
+    const bool mmKeyWritten = Combo_MMOptionIsExplicit(logicRow);
+    const Toast toast = LastToast();
+    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
+    printf("[TEST] leg 1b OBSERVED: file MM Logic %u at rung %u; live matched before the load %d; load rc=%d "
+           "paired=%d rung key now %d profile matches %d MM Logic key written %d toast=%s%s%s%s arrivalGate=%d\n",
+           (unsigned)fileLogic, (unsigned)fileRung, liveMatchedBefore ? 1 : 0, rc, paired ? 1 : 0, (int)rungNow,
+           matches ? 1 : 0, mmKeyWritten ? 1 : 0, toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "",
+           toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
+
+    if (fileRung != (uint8_t)RSBS_COMBO_RUNG_NONE || fileLogic != (uint32_t)RO_LOGIC_NO_LOGIC) {
+        return Fail(112,
+                    "leg 1b: a world created at [Both Games] Logic \"No Logic\" froze rung %u with MM Logic %u; "
+                    "MM's Logic must derive No Logic from the rung at creation (#1367)",
+                    (unsigned)fileRung, (unsigned)fileLogic);
+    }
+    if (liveMatchedBefore) {
+        return Fail(113, "leg 1b setup: the session staged at Beatable Only already matched the No Logic world's "
+                         "MM profile, so the rung derivation is not in the identity");
+    }
+    if (!paired || gComboCtx.comboSettings.logicRung != (uint8_t)RSBS_COMBO_RUNG_NONE ||
+        rungNow != (int32_t)RSBS_COMBO_RUNG_NONE) {
+        return Fail(114, "leg 1b: the load did not pair with the file's rung restored into its key (rung key %d)",
+                    (int)rungNow);
+    }
+    if (!matches || mmKeyWritten) {
+        return Fail(115,
+                    "leg 1b: after the load the live MM profile %s the file's, and the MM Logic key %s; the "
+                    "restored rung alone must make them agree",
+                    matches ? "matches" : "does NOT match", mmKeyWritten ? "was written" : "is unset");
+    }
+    if (!toast.any || !PlrContains(toast.prefix, "Restored from file") || !PlrContains(toast.message, "Logic") ||
+        !FitsOneLine(toast)) {
+        return Fail(116,
+                    "leg 1b: the last toast is not the rules toast naming \"Logic\" (prefix '%s', message '%s'); "
+                    "an MM toast with nothing in it would come last",
+                    toast.prefix.c_str(), toast.message.c_str());
+    }
+    if (gate != 0 || RsbsSave_IsSlotWritable(kSlot) != 1) {
+        return Fail(117, "leg 1b: the arrival gate refused a No Logic file that loaded");
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Leg 2f (#1367): a world created before [Both Games] Logic, with its own MM Logic.
+// ---------------------------------------------------------------------------
+int LegLegacyMmLogic() {
+    ClearAuthoredKeys();
+    const ComboMMOptionDesc* logicRow = Combo_MMOptionById((uint16_t)RO_LOGIC);
+    if (logicRow == nullptr) {
+        return Fail(120, "leg 2f setup: no MM Logic row");
+    }
+    Combo_MMOptionSetValue(logicRow, RO_LOGIC_NEARLY_NO_LOGIC);
+    if (Combo_MMOptionGetValue(logicRow) != RO_LOGIC_NEARLY_NO_LOGIC) {
+        return Fail(121, "leg 2f setup: could not author MM's Logic for the file");
+    }
+    if (int rc = CreatePairedFile(false, nullptr, /*legacyMmLogic=*/true)) {
+        return rc;
+    }
+    const uint32_t fileLogic = sCreatedMmLogic;
+    const uint32_t fileDigest = gComboCtx.mmProfileDigest;
+
+    // A later session: MM's Logic key was never set (or was cleared).
+    Relaunch();
+    Combo_MMOptionClear(logicRow);
+    const bool liveMatchedBefore = MM_Rando_ProfileStampMatches(fileDigest) != 0;
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const bool matches = MM_Rando_ProfileStampMatches(gComboCtx.mmProfileDigest) != 0;
+    const int32_t keyNow = Combo_MMOptionGetValue(logicRow);
+    const int shown = MM_Rando_PairedLogicShown();
+    const Toast toast = LastToast();
+    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
+    printf("[TEST] leg 2f OBSERVED: legacy file MM Logic %u (stamp %08X, today's creation stamp %08X); live matched "
+           "before the load %d; load rc=%d paired=%d profile matches %d MM Logic key %d row shows %d toast=%s%s%s%s "
+           "arrivalGate=%d\n",
+           (unsigned)fileLogic, (unsigned)fileDigest, (unsigned)MM_Rando_ComputeProfileStamp(),
+           liveMatchedBefore ? 1 : 0, rc, paired ? 1 : 0, matches ? 1 : 0, (int)keyNow, shown,
+           toast.any ? "'" : "(none)", toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "",
+           toast.any ? toast.message.c_str() : "", gate);
+
+    if (fileLogic != (uint32_t)RO_LOGIC_NEARLY_NO_LOGIC) {
+        return Fail(122,
+                    "leg 2f: the legacy world's half holds MM Logic %u, not its own Nearly No Logic; "
+                    "ResolvePairedProfile must re-resolve a pre-#1367 stamp with MM's own row",
+                    (unsigned)fileLogic);
+    }
+    if (liveMatchedBefore) {
+        return Fail(123, "leg 2f setup: the legacy world's stamp matched with MM's Logic key unset");
+    }
+    if (!paired || gComboCtx.mmProfileDigest != fileDigest) {
+        return Fail(124, "leg 2f: a world created before [Both Games] Logic did not load paired — every such file "
+                         "with an explicit MM Logic would be refused (#1367)");
+    }
+    if (!matches || keyNow != RO_LOGIC_NEARLY_NO_LOGIC || shown != RO_LOGIC_NEARLY_NO_LOGIC) {
+        return Fail(125,
+                    "leg 2f: after the load the profile %s, the MM Logic key holds %d and the row shows %d; "
+                    "the file's own Nearly No Logic must be back in the key and shown",
+                    matches ? "matches" : "does NOT match", (int)keyNow, shown);
+    }
+    if (!toast.any || !PlrContains(toast.prefix, "Restored") || !PlrContains(toast.message, "Logic") ||
+        !FitsOneLine(toast)) {
+        return Fail(126, "leg 2f: no toast names the restored MM Logic (prefix '%s', message '%s')",
+                    toast.prefix.c_str(), toast.message.c_str());
+    }
+    if (gate != 0 || RsbsSave_IsSlotWritable(kSlot) != 1) {
+        return Fail(127, "leg 2f: the arrival gate refused a pre-#1367 file that loaded");
     }
     return 0;
 }
@@ -1030,7 +1198,9 @@ int LegUnrestorableRule() {
 
     ComboSettingsRecord foreign;
     Combo_ResolveComboSettings(&foreign);
-    foreign.logicRung = (uint8_t)(foreign.logicRung + 1u); // only a different build can have written this
+    // spare1: no key authors it, so only a different build can have written it
+    // (the logic rung was this leg's field until #1367 gave it a key).
+    foreign.spare1 = 1u;
     if (int rc = CreatePairedFile(false, &foreign)) {
         return rc;
     }
@@ -1046,7 +1216,7 @@ int LegUnrestorableRule() {
         RsbsSave_IsSlotWritable(kSlot) != 0) {
         return Fail(40, "leg 4: a rule no key can restore was not refused and latched at the file select");
     }
-    if (probe.words != "File made by another build" || PlrContains(probe.words, "logicRung") || !probe.moved.empty()) {
+    if (probe.words != "File made by another build" || PlrContains(probe.words, "spare1") || !probe.moved.empty()) {
         return Fail(43, "leg 4: the refusal's words are '%s' (want player words), or the probe moved %s",
                     probe.words.c_str(), probe.moved.empty() ? "nothing" : probe.moved.c_str());
     }
@@ -1578,9 +1748,13 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // observed state; the first failure is the row's result.
     int rc = 0;
     int (*const legs[])() = {
-        LegCrossGameRules,     LegMmProfile,        LegMmTrickOnly,  LegMmManyTricks,
-        LegMmTrapTypes,        LegMmExcludedChecks, LegRoundTrip,    LegUnrestorableRule,
-        LegRollback,           LegProbeRefusals,    LegProbeAccepts, LegProbeMmHalfNotThisPairs,
+        LegCrossGameRules,     LegLogicRung,
+        LegMmProfile,          LegMmTrickOnly,
+        LegMmManyTricks,       LegMmTrapTypes,
+        LegMmExcludedChecks,   LegLegacyMmLogic,
+        LegRoundTrip,          LegUnrestorableRule,
+        LegRollback,           LegProbeRefusals,
+        LegProbeAccepts,       LegProbeMmHalfNotThisPairs,
         LegProbeOtherOoTWorld,
     };
     for (auto leg : legs) {

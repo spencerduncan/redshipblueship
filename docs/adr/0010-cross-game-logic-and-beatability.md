@@ -244,7 +244,9 @@ OR. Two halves of one answer, per the operator (2026-07-31, answering O1):
 A player who wants both halves finishable *by guarantee* selects `beat-both`.
 Per-half strictness beyond the goal ("all locations reachable") remains each
 half's own existing axis (`RSK_ALL_LOCATIONS_REACHABLE`; OoTMM's
-`allLocations` analogue) and composes with any GOAL.
+`allLocations` analogue) and composes with any GOAL. *(Amended 2026-11-02,
+#1367: strictness is the pair's, one `[Both Games] Logic` choice that both
+halves' own Logic settings follow. See the amendment of that date.)*
 
 ## Decision 2 — One bag: items leave origin pools, and cross-game progression is base behavior
 
@@ -856,7 +858,7 @@ bidirectional), license mechanics (→ D10).)
 | O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | **Accepted**: the increment-3 epic sizes the carve, against `reserved[132]` under the append-only second-block rule and the 64-byte floor [corrected 2026-08-04, #584: the live figure is `reserved[124]`, not 132 — the #569 and #581 carves landed after this answer was ratified; the append-only rule and the 64-byte floor are unaffected, and this correction does not reopen O7's answer] |
 | O8 | **Shared-item classification authority**: one owner per shared item's junk/progression/renewable classification (OoTMM's `SHARED_BOMBCHU` two-settings wart is the cautionary tale) | **Accepted**: a single-owner classification table, one owner per shared item, living in the sanctioned ADR 0002 TU pair (`src/common/shared_items.h` / `src/common/shared_items.c`, deliberately free of game headers) — never a per-game duplicate that can disagree with itself |
 | O10 | **Combo triforce-hunt accounting**: one shared piece count across both worlds (a shared-resource-style carrier) vs per-half counts ANDed/ORed; both engines' existing piece machinery is the substrate | **Decided: ONE shared triforce piece count across both worlds**, carried shared-resource-style — not per-half composition. Both engines' existing piece machinery (OoT `RSK_TRIFORCE_HUNT_PIECES_*`, MM `RO_TRIFORCE_PIECES_*`) is the substrate feeding that one combo-level count |
-| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1) |
+| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1). *Amended 2026-11-02 (#1367): strictness is now surfaced as a rung, the pair's `[Both Games] Logic`; its default stays `beatable(T = ∅)` (Beatable Only) until the All Locations proof and its golden re-pin land in their own lane.* |
 
 ### Still open (tracked; neither blocks increment 1)
 
@@ -2587,3 +2589,45 @@ seed created within the old budget is created identically within the new one).
 What it costs: a seed the old budget refused now runs up to twice as long before
 it is created or refused, about 60 s per attempt on the reference machine and up
 to 180 s at three times the reference round cost. Locked by `GenBudgetFloor`.
+
+### 2026-11-02 -- §1.2 / O11: strictness is the pair's `[Both Games] Logic` (#1367)
+
+Operator ruling: a paired world's logic strictness is ONE `[Both Games]` choice,
+with OoTMM's `logic` names and values, mapped onto the pinned rungs with no
+record format change: **All Locations** = `all-reachable` (3), **Beatable Only**
+= `beatable` (2), **No Logic** = `none` (1). §1.2's "per-half strictness remains
+each half's own axis" is superseded: the pair's rung decides, and each half's own
+Logic setting follows it.
+
+- **The row.** `gCombo.Rando.Logic` (`COMBO_SETTING_LOGIC`), Randomizer >
+  Cross-Game, under its own "Logic" header after Win Condition. The resolver
+  overlays it on `ComboSettingsRecord.logicRung` (record byte 9); an unset key
+  resolves Beatable Only, the rung every earlier world froze, so no fingerprint
+  and no golden of a default world moves. A load that meets a session staged at
+  another rung puts the file's rung back into the key (`kRestorable`), as for the
+  goal; before, the rung had no key and such a file was refused as "File made by
+  another build".
+- **OoT.** `Playthrough_Init` derives `RSK_LOGIC_RULES` and
+  `RSK_ALL_LOCATIONS_REACHABLE` from the rung before `FinalizeSettings`: a
+  proving rung (Beatable Only, All Locations) generates Glitchless with All
+  Locations Reachable on (#1350's pin, and SoH's default, which the settings hash
+  folds); No Logic generates No Logic with it off. The CVars are never written;
+  the two rows on Randomizer > General are greyed with what decides them, and the
+  trick lists follow the rung.
+- **MM.** `ResolveProfileValues` derives `RO_LOGIC` from the rung at creation:
+  Glitchless under a proving rung, No Logic under No Logic. Nearly No Logic folds
+  into No Logic and Vanilla is not a paired world's logic. MM's own row is shown
+  read-only ("Set by [Both Games] Logic") with the derived value. A world created
+  before this took `RO_LOGIC` from MM's own row (an explicit choice honoured); the
+  arrival gate, the load's classification and the load restore's after-check ask
+  `MM_Rando_ProfileStampMatches`, which also accepts that resolution, so such a
+  world keeps loading with its own MM Logic put back into the key.
+- **Beatable Only keeps today's algorithm** (a full assumed fill). The default
+  stays Beatable Only here; the flip to All Locations, which re-seeds every new
+  world, is its own lane with the golden re-pin, as is the real All Locations
+  proof over every location in both games (today's `all-reachable` checks every
+  host the combined fill placed, combo_logic.h).
+- **Moved golden.** `GoldenSeedDigestMMNearlyNoLogic` pinned the explicit MM
+  Nearly No Logic choice this ruling folds away: under Beatable Only that profile
+  now generates the default world. It needs a re-pin or retirement (or to be
+  re-pointed at `gCombo.Rando.Logic=1`) by its own decision.

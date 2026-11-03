@@ -1150,8 +1150,8 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
                          slot, fields);
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_IDENTITY;
-            // A field no key authors (logicRung, an unallocated comboFlags bit,
-            // spare1) is one only another build writes; a divergence of keyed
+            // A field no key authors (an unallocated comboFlags bit, spare1;
+            // logicRung has a key since #1367) is one only another build writes; a divergence of keyed
             // rules alone reaches here only when the store could not take them.
             v.identityToast = Combo_ComboSettingsUnrestorableBits(&combo.comboItemRules, comboDiverged) != 0u
                                   ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
@@ -1483,7 +1483,12 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, restoredRules, 0);
     }
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
-        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
+        // #1367: the MM profile can be restored with no key written, when the
+        // only difference was the rung the rules restore above already put back
+        // (MM's Logic follows [Both Games] Logic). Nothing to name, no toast.
+        if (restoredMmCount > 0) {
+            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
+        }
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
         // The legacy entry only: the open path refused this file above. The
         // legacy load ACCEPTS the file, so it posts no toast: a "Refused:" toast

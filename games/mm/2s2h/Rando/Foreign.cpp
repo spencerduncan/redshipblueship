@@ -162,12 +162,54 @@ static std::string MMOptionsString(const uint32_t* options) {
 // cannot drift apart — they are one computation.
 // ---------------------------------------------------------------------------
 
+/** Where a paired profile's RO_LOGIC comes from (#1367). */
+enum class PairedLogicSource {
+    /** The pair's [Both Games] Logic (operator ruling 2026-11-02): the combo
+     *  rung decides and MM's own Logic row is not read. Every creation since
+     *  #1367, and the first candidate every compare tries. */
+    ComboRung,
+    /** MM's own Logic row, as every paired world created before #1367 resolved
+     *  it: an explicit choice honoured, Glitchless when unset. Never a creation's
+     *  source; a compare's second candidate, so those worlds keep loading. */
+    Authored,
+};
+
+/** The RO_LOGIC a paired world is created with at combo rung @p rung (#1367):
+ *  Glitchless under a proving rung (All Locations, Beatable Only), No Logic
+ *  under the base rung. Nearly No Logic folds into No Logic, and Vanilla is not
+ *  a paired world's logic: it is a shuffle setting, and under it MM's pool
+ *  generation drops the Forced Junk Checks (Logic/GeneratePools.cpp). */
+static uint32_t PairedLogicForRung(uint8_t rung) {
+    return Combo_LogicRungProves(rung) ? (uint32_t)RO_LOGIC_GLITCHLESS : (uint32_t)RO_LOGIC_NO_LOGIC;
+}
+
+/** The pair's rung as the creation freezes it: the one resolver
+ *  (Combo_ResolveComboSettings), which reads gCombo.Rando.Logic. A creation, an
+ *  arrival and a load all read it the same way; while a world is frozen the key
+ *  holds the world's own rung (the writers refuse, and a load restores it before
+ *  the MM profile is restored). */
+static uint8_t ResolvedComboRung() {
+    ComboSettingsRecord rec;
+    Combo_ResolveComboSettings(&rec);
+    return rec.logicRung;
+}
+
+/** RO_LOGIC as MM's own row resolved it before #1367: the key's value when the
+ *  player set it, else Glitchless (ADR 0010 increment 1.1's default). */
+static uint32_t AuthoredPairedLogic() {
+    const auto& row = Rando::StaticData::Options[RO_LOGIC];
+    return Combo_CVarIsExplicitInt(row.cvar) ? (uint32_t)CVarGetInteger(row.cvar, row.defaultValue)
+                                             : (uint32_t)RO_LOGIC_GLITCHLESS;
+}
+
 /** Resolve the full option profile from the CVars into `values` (RO_MAX
  *  entries), with no side effects: the generic copy, the skulltula
- *  correction, and — paired only — the RO_LOGIC default pin. This is the
+ *  correction, and — paired only — the paired logic (#1367: from the combo
+ *  rung, or from MM's own row for @p logic Authored). This is the
  *  resolution OnFileCreate has always performed; extracting it is what lets
  *  the creation event run it without an MM save to write into. */
-static void ResolveProfileValues(uint32_t* values, bool paired) {
+static void ResolveProfileValues(uint32_t* values, bool paired,
+                                 PairedLogicSource logic = PairedLogicSource::ComboRung) {
     // (1) The generic copy: every registered option's CVar, with the
     // StaticData row's default as the fallback — what makes the pane's CVars
     // the (pre-creation) authoring surface.
@@ -186,33 +228,29 @@ static void ResolveProfileValues(uint32_t* values, bool paired) {
         return;
     }
 
-    // (3) The logic pin, a DEFAULT rather than a law (#499 step 3), FLIPPED
-    // Nearly No Logic -> Glitchless by ADR 0010 increment 1.1 (superseding
-    // the #426/ADR 0004 §4.1a "no raised profile ships" consequence, and per
-    // accepted answer O11 mirroring Ship of Harkinian's own Glitchless
-    // default): the paired MM world must be BEATABLE by MM's own logic under
-    // its authored goal parameters, and the dead-end-rate concern that
-    // motivated the old NNL default is answered by the attempt ladder
-    // (increment 1.2), not ignored. Still pinned explicitly rather than
-    // falling through to the StaticData default, so an upstream default drift
-    // can never silently change the paired world's rules.
+    // (3) The paired logic. #1367 (operator ruling 2026-11-02): a paired world's
+    // strictness is ONE [Both Games] choice, the combo rung, and MM's own Logic
+    // row follows it: Glitchless under a proving rung, No Logic under the base
+    // rung (PairedLogicForRung). MM's RO_LOGIC never decided the proof of a
+    // paired world (OnFileCreate returns into the single-bag fill before its
+    // RO_LOGIC dispatch; the combo rung decides there), so an explicit No Logic,
+    // Nearly No Logic or Vanilla only re-seeded a world still proved at the
+    // rung, and Vanilla also dropped the Forced Junk Checks. Derived inside the
+    // shared resolution, so the creation stamp and every compare see one value
+    // (#564 V3), and never written to the CVar.
     //
-    // EXISTENCE, not "is the value already extreme" — only existence
-    // distinguishes "the player chose this" from "nobody ever touched the
-    // key". An explicit choice of ANY mode, including a no-logic one, is
-    // honoured: choosing away the proof is legitimate and is recorded in the
-    // frozen identity like everything else. Because the pin runs inside the
-    // shared resolution, the RESOLVED value is what both the creation stamp
-    // and the arrival compare see (#564 V3): nothing after creation depends
-    // on CVar existence except through this one resolution, and a mid-gap
-    // flip of the key is a detected divergence, not a silently honored
-    // choice.
-    if (!Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_LOGIC].cvar)) {
-        SPDLOG_INFO("Paired profile resolution: no explicit MM logic choice; defaulting to Glitchless (ADR 0010)");
-        values[RO_LOGIC] = RO_LOGIC_GLITCHLESS;
-    } else {
-        SPDLOG_INFO("Paired profile resolution: honouring explicit MM logic choice ({})", (unsigned)values[RO_LOGIC]);
+    // Before #1367 this was a DEFAULT rather than a law (#499 step 3; ADR 0010
+    // increment 1.1 flipped it from Nearly No Logic to Glitchless): an explicit
+    // choice of any mode was honoured. Worlds frozen that way keep loading: the
+    // compares try this resolution second (PairedLogicSource::Authored,
+    // MM_Rando_ProfileStampMatches), and the load restore puts the file's own
+    // value back into the key.
+    if (logic == PairedLogicSource::Authored) {
+        values[RO_LOGIC] = AuthoredPairedLogic();
+        return;
     }
+    const uint8_t rung = ResolvedComboRung();
+    values[RO_LOGIC] = PairedLogicForRung(rung);
 }
 
 /** Resolve the frozen TRICK set from the `gRando.Tricks.*` CVars into `tricks`
@@ -506,9 +544,33 @@ uint32_t ResolvePairedProfile(bool paired) {
     // under the frozen MM rules", a question about the rules alone;
     // MixPairedFinalSeed() folds the master seed separately for the different
     // question of "which world does this seed derive".
-    const uint32_t digest = DigestFromIdentity(ProfileIdentityString(
-        values.data(), tricks.data(), trapTypes, moonCrash,
-        gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, ResolveKeepItemsResetFromCVar()));
+    const uint8_t keepItemsReset = ResolveKeepItemsResetFromCVar();
+    uint32_t digest = DigestFromIdentity(
+        ProfileIdentityString(values.data(), tricks.data(), trapTypes, moonCrash,
+                              gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, keepItemsReset));
+    if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
+        // #1367: a world stamped before [Both Games] Logic took RO_LOGIC from MM's
+        // own row (PairedLogicSource::Authored). Re-resolved under that rule, the
+        // same inputs give that world's own stamp, and its half is resolved with
+        // its own logic; any other mismatch still refuses below.
+        const uint32_t authored = AuthoredPairedLogic();
+        if (authored != values[RO_LOGIC]) {
+            std::vector<uint32_t> legacy(values);
+            legacy[RO_LOGIC] = authored;
+            const uint32_t legacyDigest = DigestFromIdentity(
+                ProfileIdentityString(legacy.data(), tricks.data(), trapTypes, moonCrash,
+                                      gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, keepItemsReset));
+            if (legacyDigest == gComboCtx.mmProfileDigest) {
+                fprintf(stderr,
+                        "[MM] profile: the stamp %08X is a world created before [Both Games] Logic; its own MM Logic "
+                        "%u is kept (#1367)\n",
+                        (unsigned)legacyDigest, (unsigned)authored);
+                values[RO_LOGIC] = authored;
+                RANDO_SAVE_OPTIONS[RO_LOGIC] = authored;
+                digest = legacyDigest;
+            }
+        }
+    }
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
         // NEVER self-heal (overwrite the stamp with the divergent profile) and
         // NEVER generate under it. Throwing lands in OnFileCreate's catch,
@@ -964,9 +1026,14 @@ bool ForeignOutboxFullFor(RandoCheckId randoCheckId) {
 // gate (MM_Rando_PairOnCrossGameArrival) recomputes it to compare against
 // that stamp before any generation dispatch.
 // ============================================================================
-extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
+namespace {
+
+/** The profile digest the CVars resolve to with the paired logic taken from
+ *  @p logic: MM_Rando_ComputeProfileStamp's computation, with the source named
+ *  so a compare can try both (#1367). */
+uint32_t ComputeProfileStampFor(Rando::Foreign::PairedLogicSource logic) {
     std::vector<uint32_t> values(RO_MAX, 0);
-    Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true, logic);
     // The trick set is resolved from the CVars here as well, NOT read from the
     // save: this function is the CREATION-side computation (OoT's
     // Playthrough_Init calls it before any MM save exists) and the arrival-side
@@ -982,6 +1049,54 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
     return Rando::Foreign::DigestFromIdentity(Rando::Foreign::ProfileIdentityString(
         values.data(), tricks.data(), ResolveTrapTypesFromCVars(), Rando::Foreign::ResolveMoonCrashFromCVar(),
         excluded.data(), Rando::Foreign::ResolveKeepItemsResetFromCVar()));
+}
+
+/** Do MM's own Logic row and the combo rung give a paired world different
+ *  RO_LOGIC values? Only then is the Authored candidate a different digest. */
+bool PairedLogicCandidatesDiffer() {
+    return Rando::Foreign::AuthoredPairedLogic() !=
+           Rando::Foreign::PairedLogicForRung(Rando::Foreign::ResolvedComboRung());
+}
+
+} // namespace
+
+extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
+    // What a creation stamps: the paired logic from the combo rung (#1367).
+    return ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung);
+}
+
+extern "C" int MM_Rando_ProfileStampMatches(uint32_t frozenDigest) {
+    if (frozenDigest == 0) {
+        return 0;
+    }
+    if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung) == frozenDigest) {
+        return 1;
+    }
+    // #1367: a world stamped before [Both Games] Logic took RO_LOGIC from MM's
+    // own row. Every other input is the same in both candidates, so this one
+    // matches only a world whose own logic the key holds (put back by the load
+    // restore when it differed), never a different profile.
+    return PairedLogicCandidatesDiffer() &&
+                   ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored) == frozenDigest
+               ? 1
+               : 0;
+}
+
+/** TEST BRIDGE (#1367): the stamp a creation before [Both Games] Logic made from
+ *  the same CVars (MM's own Logic row honoured), so paired-load-restore can author
+ *  such a world. Declared in that row only. */
+extern "C" uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void) {
+    return ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored);
+}
+
+extern "C" int MM_Rando_PairedLogicShown(void) {
+    if (Combo_MMProfileFrozen() && PairedLogicCandidatesDiffer() &&
+        ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung) != gComboCtx.mmProfileDigest &&
+        ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored) == gComboCtx.mmProfileDigest) {
+        // A world created before [Both Games] Logic, with its own MM Logic.
+        return (int)Rando::Foreign::AuthoredPairedLogic();
+    }
+    return (int)Rando::Foreign::PairedLogicForRung(Rando::Foreign::ResolvedComboRung());
 }
 
 // ============================================================================
@@ -1071,10 +1186,13 @@ namespace {
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
                            std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
                            uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
-    const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
-    if (liveDigest == frozenDigest) {
+    // #1367: either paired-logic candidate (MM_Rando_ProfileStampMatches), so a
+    // world created before [Both Games] Logic matches while the key holds its own
+    // MM Logic.
+    if (MM_Rando_ProfileStampMatches(frozenDigest) != 0) {
         return RSBS_MM_PROFILE_LOAD_MATCHES;
     }
+    const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
 
     if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
         fprintf(stderr,
@@ -1317,8 +1435,11 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
                 fileList.c_str(), excludedPrior.c_str());
     }
 
+    // The arrival's own question (#1367: either paired-logic candidate). A world
+    // created before [Both Games] Logic with an explicit MM Logic matches here
+    // because the loop above put that Logic back into its key.
     const uint32_t after = MM_Rando_ComputeProfileStamp();
-    if (after != frozenDigest || gForceProfileRestoreVerifyFail) {
+    if (MM_Rando_ProfileStampMatches(frozenDigest) == 0 || gForceProfileRestoreVerifyFail) {
         // Unreachable while ResolveProfileValues and the save write agree; named
         // rather than trusted, because the arrival gate would refuse this file.
         fprintf(stderr,

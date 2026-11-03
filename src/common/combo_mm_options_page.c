@@ -11,9 +11,11 @@
 
 #include "ComboSettingsWindow.h"     // Combo_ComboSettingsWindow_Init: the tier-4 twin's bring-up
 #include "combo_mm_locations_view.h" // MM_RandoLocationsUi_Register: the third table
+#include "combo_settings_view.h"     // COMBO_LOGIC_SET_BY_COMBO_REASON (#1367)
 #include "context.h"                 // Context_GetCurrentGame, for the suspended note
 
 #include <stdio.h>
+#include <string.h> // strcmp: the row a [Both Games] rule decides (#1367)
 
 void Combo_MMOptionsPages_Init(void) {
     // Both tables are built MM-side from namespace-scope std::maps in other
@@ -74,12 +76,33 @@ const char* Combo_RandoPages_FrozenNote(uint32_t fingerprint, char* buf, size_t 
     return buf;
 }
 
+bool Combo_MMOptionsPage_OptionSetByCombo(const ComboMMOptionDesc* desc) {
+    return desc != NULL && desc->name != NULL && strcmp(desc->name, COMBO_MM_OPTION_NAME_LOGIC) == 0;
+}
+
+int32_t Combo_MMOptionsPage_OptionShownValue(const ComboMMOptionDesc* desc) {
+    if (desc == NULL) {
+        return 0;
+    }
+    // #1367: MM's Logic follows the pair's [Both Games] Logic, so the row shows
+    // what a paired world is (or was) made with, never the key: a value left
+    // there from before is not read for a paired world.
+    if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
+        return (int32_t)MM_Rando_PairedLogicShown();
+    }
+    return Combo_MMOptionGetValue(desc);
+}
+
 ComboMMRowState Combo_MMOptionsPage_OptionState(const ComboMMOptionDesc* desc, const char** reason) {
     const char* why = "";
     ComboMMRowState state = COMBO_MM_ROW_LIVE;
     if (Combo_MMProfileFrozen()) {
         state = COMBO_MM_ROW_FROZEN;
         why = COMBO_MM_OPTIONS_FROZEN_REASON;
+    } else if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
+        // #1367 (operator ruling 2026-11-02): read-only, set by the pair's row.
+        state = COMBO_MM_ROW_SET_BY_COMBO;
+        why = COMBO_LOGIC_SET_BY_COMBO_REASON;
     } else if (desc != NULL &&
                (desc->liveness == COMBO_MM_LIVENESS_PARTIAL || desc->liveness == COMBO_MM_LIVENESS_DORMANT)) {
         // ADR 0004 section 5: the behaviour is absent, so the control would flip

@@ -58,6 +58,7 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, "Shared Bunny Hood" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, "Shared Keaton Mask" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
+    { RSBS_CVAR_COMBO_RANDO_LOGIC, "Logic" }, // #1367: OoTMM's `logic`, under its own name
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -123,6 +124,9 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (int32_t)defaults.direction;
         case COMBO_SETTING_GOAL:
             return (int32_t)defaults.goal;
+        case COMBO_SETTING_LOGIC:
+            // #1367: Beatable Only, the rung every world before the key froze.
+            return (int32_t)defaults.logicRung;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             // A BIT of the defaults record, read the way its siblings read their
             // fields: one definition of "what ships" (#886).
@@ -170,6 +174,12 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             return value == (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH || value == (int32_t)RSBS_COMBO_GOAL_BEAT_EITHER ||
                    value == (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT || value == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT ||
                    value == (int32_t)RSBS_COMBO_GOAL_BEAT_MM;
+        case COMBO_SETTING_LOGIC:
+            // #1367: the three pinned rungs and nothing else. 0 is a legacy
+            // record's "unset"; a value past the table is a rung this build has
+            // no fill for.
+            return value == (int32_t)RSBS_COMBO_RUNG_NONE || value == (int32_t)RSBS_COMBO_RUNG_BEATABLE ||
+                   value == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
         case COMBO_SETTING_SHARED_SHIELDS:         // #1068: one crossItemFlags bit, the same rule
         case COMBO_SETTING_SHARED_LENS:            // #1065: likewise
@@ -326,6 +336,22 @@ const char* Combo_ComboSettingSharedMarker(void) {
     return "[Both Games]";
 }
 
+uint8_t Combo_ComboSettingsLogicRungShown(void) {
+    // The frozen record's own rung while a world is decided, as the Cross-Game
+    // rows show the frozen record; else what the next creation resolves. A
+    // frozen rung outside the pinned space (a later build's) is never shown as
+    // a rung this build would run.
+    if (Combo_ComboSettingsFrozen()) {
+        const uint8_t frozen = gComboCtx.comboSettings.logicRung;
+        return Combo_ComboSettingValueValid(COMBO_SETTING_LOGIC, (int32_t)frozen)
+                   ? frozen
+                   : (uint8_t)Combo_ComboSettingDefault(COMBO_SETTING_LOGIC);
+    }
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    return live.logicRung;
+}
+
 const char* Combo_ComboDirectionName(uint8_t direction) {
     switch (direction) {
         case (uint8_t)RSBS_COMBO_DIR_OFF:
@@ -353,6 +379,10 @@ struct Restorable {
 };
 const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
+    // #1367: the logic rung has a key now, so a file made at one rung and met by
+    // a session staged at another puts its own rung back, like the goal. Every
+    // world made before the key froze Beatable Only, the key's default.
+    { RSBS_COMBO_DIVERGE_LOGIC_RUNG, COMBO_SETTING_LOGIC },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
@@ -393,6 +423,8 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
             return (int32_t)frozen->direction;
         case COMBO_SETTING_GOAL:
             return (int32_t)frozen->goal;
+        case COMBO_SETTING_LOGIC:
+            return (int32_t)frozen->logicRung; // #1367
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             return (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u ? 1 : 0;
         case COMBO_SETTING_SHARED_SHIELDS:

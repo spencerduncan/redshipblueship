@@ -6959,7 +6959,9 @@ int MM_Rando_GateCrossGameArrival(void) {
     // ------------------------------------------------------------------------
     if (gComboCtx.mmProfileDigest != 0) {
         const uint32_t arrivalDigest = MM_Rando_ComputeProfileStamp();
-        if (arrivalDigest != gComboCtx.mmProfileDigest) {
+        // #1367: either paired-logic candidate, so a world created before
+        // [Both Games] Logic with its own MM Logic still arrives.
+        if (MM_Rando_ProfileStampMatches(gComboCtx.mmProfileDigest) == 0) {
             const int slot = RsbsSave_GetActiveSlot();
             fprintf(stderr,
                     "[MM] pairing: REFUSED — the MM option profile resolved at this arrival (%08X) does not match "

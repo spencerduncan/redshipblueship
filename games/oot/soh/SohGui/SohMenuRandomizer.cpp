@@ -15,6 +15,8 @@ extern "C" {
 #include "soh/Notification/Notification.h"
 #include "pairing_refusal_toast.h" // src/common — RSBS_REFUSAL_TOAST_PREFIX, the refusal toasts' one prefix
 #include "seed_package.h"          // src/common — #1044: the seed package Generate writes and a file binds
+#include "combo_settings_view.h"   // src/common — #1367: the rung [Both Games] Logic shows
+#include "foreign_items.h"         // src/common — #1367: Combo_LogicRungProves
 #endif
 
 namespace SohGui {
@@ -31,6 +33,19 @@ static const std::map<int32_t, const char*> skipGetItemAnimationOptions = {
 static bool locationsDirty = true;
 static bool tricksDirty = true;
 static char seedString[MAX_SEED_STRING_SIZE];
+
+// Whether the trick lists draw (SoH: whenever Logic is not "No Logic").
+static bool TricksPageLogicOn() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1367: every world here is paired, and OoT's Logic is derived from the pair's
+    // [Both Games] Logic (3drando/playthrough.cpp), never from the LogicRules CVar,
+    // which the read-only Logic row no longer writes. So the lists follow the rung
+    // the next world is generated at, or the loaded world's.
+    return Combo_LogicRungProves(Combo_ComboSettingsLogicRungShown());
+#else
+    return CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC;
+#endif
+}
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // RSBS (#1044): THE SEED PACKAGE ROWS of Randomizer > General, in the shape of the
@@ -366,7 +381,7 @@ void DrawTricksMenu(WidgetInfo& info) {
     UIWidgets::PushStyleInput(THEME_COLOR);
     trickSearch.Draw("Filter (inc,-exc)", 490.0f);
     UIWidgets::PopStyleInput();
-    if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC) {
+    if (TricksPageLogicOn()) {
         ImGui::SameLine();
         if (UIWidgets::Button("Disable All", UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(ImVec2(250.f, 0.f)))) {
             for (int i = 0; i < RT_MAX; i++) {
@@ -425,7 +440,7 @@ void DrawTricksMenu(WidgetInfo& info) {
         ImGui::PopItemFlag();
         ImGui::TableNextRow();
 
-        if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC) {
+        if (TricksPageLogicOn()) {
             // COLUMN 1 - DISABLED TRICKS
             ImGui::TableNextColumn();
             // window->DC.CurrLineTextBaseOffset = 0.0f;

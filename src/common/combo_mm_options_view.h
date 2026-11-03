@@ -302,12 +302,37 @@ bool Combo_MMProfileFrozen(void);
  * recomputes it to compare against that stamp (#498/#564 phase 2 step 9).
  *
  * The identity covers every generation input the digest guards: the 47
- * resolved option values (including the paired RO_LOGIC default pin),
- * gRando.ExcludedChecks, and the paired start (#564 V4 — a digest narrower
- * than the generator's input set is vacuous; since #879 the paired start is the
- * combo's own constant, never 2Ship's StartingItems config block).
+ * resolved option values (including the paired RO_LOGIC, derived from the
+ * combo rung since #1367), gRando.ExcludedChecks, and the paired start (#564 V4
+ * — a digest narrower than the generator's input set is vacuous; since #879 the
+ * paired start is the combo's own constant, never 2Ship's StartingItems config
+ * block).
  */
 uint32_t MM_Rando_ComputeProfileStamp(void);
+
+/**
+ * THE COMPARE (#1367): 1 when the CVars resolve to @p frozenDigest, 0 otherwise
+ * (and for 0, "no stamp"). The arrival gate, the load's classification and the
+ * load restore's after-check ask this rather than comparing
+ * MM_Rando_ComputeProfileStamp, because a paired world's RO_LOGIC has had two
+ * resolutions: from the combo rung ([Both Games] Logic, every creation since
+ * #1367, MM_Rando_ComputeProfileStamp), and from MM's own Logic row (an explicit
+ * choice honoured, Glitchless when unset: every world before). The second
+ * candidate differs from the first in RO_LOGIC alone, so it matches only a world
+ * whose own MM Logic the key holds, never a different profile. DEFINED MM-SIDE
+ * (games/mm/2s2h/Rando/Foreign.cpp).
+ */
+int MM_Rando_ProfileStampMatches(uint32_t frozenDigest);
+
+/**
+ * The RO_LOGIC value MM's Logic row shows (#1367): while the profile is frozen,
+ * the world's own (MM's own row's value for a world created before [Both Games]
+ * Logic, MM_Rando_ProfileStampMatches' second candidate), else the value the
+ * next creation derives from the combo rung: Glitchless under All Locations and
+ * Beatable Only, No Logic under No Logic. Never Vanilla for a world created
+ * since #1367. DEFINED MM-SIDE (games/mm/2s2h/Rando/Foreign.cpp).
+ */
+int MM_Rando_PairedLogicShown(void);
 
 /**
  * Publish MM's frozen profile as GIVE CAPABILITIES (ADR 0011 O8's

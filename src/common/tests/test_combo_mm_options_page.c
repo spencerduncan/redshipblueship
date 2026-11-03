@@ -70,6 +70,7 @@
 #include "../combo_mm_options_page.h"
 #include "../combo_mm_options_view.h"
 #include "../combo_mm_tricks_view.h"
+#include "../combo_settings_view.h" // COMBO_LOGIC_SET_BY_COMBO_REASON (#1367)
 #include "../combo_ui.h"
 #include "../context.h"
 #include "../foreign_items.h"
@@ -178,12 +179,27 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
     {
         ComboContext_Init();
         CMOP_ASSERT(!Combo_MMProfileFrozen());
+        int setByCombo = 0;
         for (int i = 0; i < optionCount; i++) {
             const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
             const char* reason = NULL;
             const ComboMMRowState state = Combo_MMOptionsPage_OptionState(d, &reason);
             const bool gated = d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT;
             CMOP_ASSERT(reason != NULL);
+            // #1367: MM's Logic follows [Both Games] Logic, read-only with the
+            // rule as its reason; it is no capability block.
+            if (strcmp(d->name, COMBO_MM_OPTION_NAME_LOGIC) == 0) {
+                setByCombo++;
+                if (!Combo_MMOptionsPage_OptionSetByCombo(d) || state != COMBO_MM_ROW_SET_BY_COMBO ||
+                    strcmp(reason, COMBO_LOGIC_SET_BY_COMBO_REASON) != 0) {
+                    printf("[TEST] FAIL: MM's Logic row has page state %d with reason \"%s\", expected SET_BY_COMBO "
+                           "with \"%s\" (#1367)\n",
+                           (int)state, reason, COMBO_LOGIC_SET_BY_COMBO_REASON);
+                    return TEST_FAIL;
+                }
+                continue;
+            }
+            CMOP_ASSERT(!Combo_MMOptionsPage_OptionSetByCombo(d));
             if (gated != (state == COMBO_MM_ROW_BLOCKED) || (!gated && state != COMBO_MM_ROW_LIVE)) {
                 printf("[TEST] FAIL: option %s (liveness %u) has page state %d\n", d->name, (unsigned)d->liveness,
                        (int)state);
@@ -191,6 +207,7 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
             }
             CMOP_ASSERT(gated ? strcmp(reason, d->disabledReason) == 0 && reason[0] != '\0' : reason[0] == '\0');
         }
+        CMOP_ASSERT(setByCombo == 1);
         int live = 0;
         int blockedReserved = 0;
         int blockedUnbound = 0;

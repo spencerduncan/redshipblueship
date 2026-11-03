@@ -367,12 +367,13 @@ TestResult Test_ComboSettingsFormat(void) {
     // just READ, precisely because a check that read gComboCtx would be checking
     // the world the load is about to replace.
     //
-    // The diverged field is the logic rung, which no key authors: since #781 a
-    // divergence a key CAN author is restored into the key at load (frozen wins,
-    // ComboSettingsAuthoring leg 7 and paired-load-restore), and in the AllTests
-    // process a CVar store exists, so a direction divergence here would be
-    // restored rather than refused and would leave the key written for the rows
-    // after this one.
+    // The diverged field is spare1, which no key authors (the logic rung was
+    // this leg's field until #1367 gave it a key): since #781 a divergence a key
+    // CAN author is restored into the key at load (frozen wins,
+    // ComboSettingsAuthoring legs 7 and 11 and paired-load-restore), and in the
+    // AllTests process a CVar store exists, so a direction divergence here would
+    // be restored rather than refused and would leave the key written for the
+    // rows after this one.
     {
         rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
         mgr.SetSaveDirectory(kComboSettingsTestDir());
@@ -383,8 +384,7 @@ TestResult Test_ComboSettingsFormat(void) {
         ComboSettingsArmPairing(0x51EED001u, 0x5E77A120u, 0x11FEDCBBu);
         ComboSettingsRecord divergent;
         Combo_ResolveComboSettings(&divergent);
-        divergent.logicRung =
-            (uint8_t)(divergent.logicRung + 1u); // no key authors it; the session resolves the default
+        divergent.spare1 = 1u; // no key authors it; only another build can have written it
         Combo_FreezeComboSettings(&divergent);
         CS_ASSERT(mgr.Save(0), "Save(0) failed for the divergent-record leg");
 
@@ -1968,6 +1968,154 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         ComboContext_Init();
         printf("[TEST] (10) #879: no setting is the shared ocarina, a stale key authors nothing, and an older world "
                "with the bit set still compares healthy\n");
+    }
+
+    // ---- (11) The pair's Logic (#1367, operator ruling 2026-11-02) ----------
+    // OoTMM's `logic` on the pinned rungs: key -> resolver -> record byte 9 ->
+    // the fingerprint; an existing world (every one froze Beatable Only) loads
+    // unchanged under an untouched key and has its rung put back under a key
+    // staged at another; and the shown rung and the proving predicate both games'
+    // derivations ask.
+    {
+        ComboContext_Init(); // nothing frozen, so the clears below are not refused
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CS_ASSERT(Combo_ComboSettingClear((ComboSettingId)i) == 1, "(11) clear every key first");
+        }
+        CS_ASSERT(strcmp(Combo_ComboSettingKey(COMBO_SETTING_LOGIC), RSBS_CVAR_COMBO_RANDO_LOGIC) == 0 &&
+                      strcmp(Combo_ComboSettingLabel(COMBO_SETTING_LOGIC), "Logic") == 0,
+                  "(11) the logic setting is gCombo.Rando.Logic, labelled \"Logic\" (OoTMM's name)");
+        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE &&
+                      Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)defaults.logicRung,
+                  "(11) the logic default must stay Beatable Only, the rung every earlier world froze (the flip "
+                  "to All Locations is its own lane, with the golden re-pin)");
+        struct LogicProbe {
+            int32_t value;
+            bool valid;
+        };
+        static const LogicProbe kLogicProbes[] = {
+            { 0, false }, // a legacy record's "unset", never a choice
+            { (int32_t)RSBS_COMBO_RUNG_NONE, true },
+            { (int32_t)RSBS_COMBO_RUNG_BEATABLE, true },
+            { (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE, true },
+            { 4, false }, // one past the table: never a new rung
+            { -1, false },
+            { 255, false },
+        };
+        for (const LogicProbe& p : kLogicProbes) {
+            if (Combo_ComboSettingValueValid(COMBO_SETTING_LOGIC, p.value) != p.valid) {
+                printf("[TEST] FAIL: (11) logic %d judged %s, expected %s\n", (int)p.value,
+                       p.valid ? "INVALID" : "valid", p.valid ? "valid" : "INVALID");
+                return TEST_FAIL;
+            }
+        }
+        CS_ASSERT(!Combo_LogicRungProves(0) && !Combo_LogicRungProves((uint8_t)RSBS_COMBO_RUNG_NONE) &&
+                      Combo_LogicRungProves((uint8_t)RSBS_COMBO_RUNG_BEATABLE) &&
+                      Combo_LogicRungProves((uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE) && !Combo_LogicRungProves(4),
+                  "(11) only Beatable Only and All Locations claim a proof");
+
+        // Nothing authored: the shipped record, byte 9 = 2, and its fingerprint.
+        ComboSettingsRecord unset;
+        Combo_ResolveComboSettings(&unset);
+        CS_ASSERT(ComboSettingsRecordsEqual(unset, defaults) &&
+                      Combo_ComboSettingsLogicRungShown() == (uint8_t)RSBS_COMBO_RUNG_BEATABLE,
+                  "(11) an unset logic key must resolve the shipped record (Beatable Only)");
+
+        // Each authored rung reaches record byte 9 and moves the fingerprint.
+        const uint32_t unsetFingerprint = Combo_ComputeComboSettingsHash(&unset, kSettingsHash, kProfileDigest);
+        for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE }) {
+            CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)rung) == 1,
+                      "(11) an in-space rung must be authorable while nothing is frozen");
+            ComboSettingsRecord authoredRung;
+            Combo_ResolveComboSettings(&authoredRung);
+            uint8_t rungCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
+            Combo_ComboSettingsCanonical(&authoredRung, rungCanon);
+            CS_ASSERT(authoredRung.logicRung == rung && rungCanon[9] == rung,
+                      "(11) the authored rung did not reach record byte 9");
+            CS_ASSERT(Combo_ComboSettingsLogicRungShown() == rung, "(11) the shown rung is not the authored one");
+            CS_ASSERT(Combo_ComputeComboSettingsHash(&authoredRung, kSettingsHash, kProfileDigest) != unsetFingerprint,
+                      "(11) a different rung must change the world's fingerprint");
+        }
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, 4) == 0 &&
+                      Combo_ComboSettingSet(COMBO_SETTING_LOGIC, 0) == 0,
+                  "(11) the writer must refuse a rung outside the pinned table");
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_LOGIC), 7); // out of band: a hand-edited config
+        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
+                  "(11) an out-of-space stored rung must resolve to the shipped default, never a new rung");
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_LOGIC) == 1, "(11) clear the out-of-space rung");
+
+        // An EXISTING world: frozen Beatable Only, met by an untouched key. Nothing
+        // diverges, so nothing is refused or restored.
+        ComboSettingsArmPairing(0xA07A1367u, kSettingsHash, kProfileDigest);
+        ComboSettingsRecord existing;
+        Combo_ComboSettingsDefaults(&existing);
+        Combo_FreezeComboSettings(&existing);
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0,
+                  "(11) an existing (Beatable Only) world must compare healthy with the logic key unset");
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_NONE) == 0,
+                  "(11) the logic writer must refuse once the world is frozen");
+
+        // The same world met by a key staged at No Logic (out of band, as a
+        // session that walked away would leave it): the compare names the rung,
+        // as a session divergence, and the load can put the file's rung back.
+        CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_LOGIC), (int32_t)RSBS_COMBO_RUNG_NONE);
+        CS_ASSERT(Combo_ComboSettingsLogicRungShown() == (uint8_t)RSBS_COMBO_RUNG_BEATABLE,
+                  "(11) while frozen the shown rung is the world's, not the key's");
+        const uint32_t rungBits = Combo_ComboSettingsDivergence();
+        CS_ASSERT(rungBits == RSBS_COMBO_DIVERGE_LOGIC_RUNG && !Combo_ComboSettingsDivergenceIsDamage(rungBits),
+                  "(11) a staged rung against an existing world must diverge as exactly logicRung, not damage");
+        CS_ASSERT(
+            (Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_LOGIC_RUNG) != 0 &&
+                Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, rungBits) == 0u &&
+                Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, rungBits) == 1,
+            "(11) the load cannot restore the file's rung: every existing world would be refused as another "
+            "build's the moment a player stages a different Logic");
+        char restoredRung[96];
+        CS_ASSERT(Combo_ComboSettingsRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, rungBits,
+                                                 restoredRung, sizeof(restoredRung), NULL) == 1 &&
+                      strcmp(restoredRung, "Logic") == 0,
+                  "(11) the restore did not write the file's rung back under its label");
+        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE &&
+                      Combo_ComboSettingsDivergence() == 0,
+                  "(11) after the restore the key must hold the file's rung and the pair must compare healthy");
+
+        // ...and through the .redsave: an existing world saved, the session staged
+        // at All Locations, the load restores Beatable Only and refuses nothing.
+        std::error_code ec;
+        std::filesystem::remove_all(kComboSettingsLoadTestDir(), ec);
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kComboSettingsLoadTestDir());
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
+            CVarClear(Combo_ComboSettingKey((ComboSettingId)i));
+        }
+        ComboContext_Init();
+        ComboSettingsSeedShadows(0x13u);
+        ComboSettingsArmPairing(0xA07A1367u, 0x5E771367u, 0x11FE1367u);
+        Combo_FreezeComboSettings(NULL); // what an existing world froze: the resolver with the key unset
+        CS_ASSERT(gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE,
+                  "(11) the existing world froze Beatable Only");
+        CS_ASSERT(mgr.Save(0), "(11) Save(0) failed for the rung-restore leg");
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE) == 1,
+                  "(11) authoring resumes once the identity is dropped");
+        CS_ASSERT(mgr.Load(0), "(11) an existing Beatable Only file was REFUSED under a session staged at All "
+                               "Locations; its rung must be restored, not called another build's");
+        CS_ASSERT(Combo_ComboSettingsFrozen() &&
+                      gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE &&
+                      Combo_ComboSettingResolved(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE &&
+                      Combo_ComboSettingsDivergence() == 0,
+                  "(11) after the load the record and the key must both be the file's Beatable Only");
+        CS_ASSERT(RsbsSave_HasSave(0) == 1 && RsbsSave_HasQuarantine(0) == 0 && RsbsSave_IsSlotWritable(0) == 1,
+                  "(11) a rung restore must keep, arm and not quarantine the file");
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        mgr.SetSaveDirectory(kComboSettingsTestDir());
+        ComboContext_Init();
+        CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_LOGIC) == 1, "(11) clear the logic key");
+        printf("[TEST] (11) #1367: the Logic key authors byte 9 over the three pinned rungs (default Beatable Only), "
+               "an existing world loads unchanged, and a staged rung is put back at load\n");
     }
 
     // ---- Cleanup: leave the process-global store and context clean ---------
