@@ -37,8 +37,10 @@
  * The bridges cannot drive the hook (it needs a live stone in a play state), so
  * the row checks the rest from EnGs.cpp's source (RSBS_SOURCE_DIR): the free
  * stone's hook sets its text from FreeStoneHintText alone, and FreeStoneHintText
- * seeds the variant with GetRandomCheck's own stone-seed expression; mutated
- * copies of the source must each fail that check, in the row.
+ * seeds the variant with GetRandomCheck's own stone-seed expression; and the
+ * purchasable hint's pick spans every candidate, the last included (#1351:
+ * Ship_Random's upper bound is exclusive); mutated copies of the source must
+ * each fail that check, in the row.
  *
  * Linkage note: #included into test_runner.cpp at file scope (compiled as C++).
  */
@@ -233,6 +235,11 @@ const char* const kFhEnGs = "games/mm/2s2h/Rando/ActorBehavior/EnGs.cpp";
 const char* const kFhSeedLine = "uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);";
 const char* const kFhPickSeed = "return FreeStonePick(availableChecks, seed);";
 const char* const kFhPickStream = "Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + stoneSeed);";
+// #1351: the purchasable hint's pick (GetRandomCheck(true), frame-seeded) passes
+// the full size, since Ship_Random's upper bound is exclusive (ShipUtils.cpp);
+// size() - 1 never picked the last candidate. FreeStonePick keeps size() - 1 on
+// purpose (its comment; the free-stone digest pins it).
+const char* const kFhPurchasedPick = "return availableChecks[Ship_Random(0, availableChecks.size())];";
 // #1047: the single-exe GossipStoneSeed converts the float sum through int32_t,
 // which is defined for a negative sum; upstream's direct float-to-uint32_t
 // conversion (kept under #else) is not, and x86-64 happens to wrap it, so no
@@ -321,6 +328,9 @@ std::string FhWiringProblem(const std::string& text) {
     if (!FhHasLine(pick, kFhSeedLine) || !FhHasLine(pick, kFhPickSeed)) {
         return "GetRandomCheck's free-stone seed is no longer the expression FreeStoneHintText copies";
     }
+    if (!FhHasLine(pick, kFhPurchasedPick)) {
+        return "GetRandomCheck's purchasable pick no longer spans every candidate (the last one is never named)";
+    }
     // The first GossipStoneSeed is the single-exe one (upstream's follows under
     // #else), and it must be the defined conversion.
     size_t seedAt = 0;
@@ -402,6 +412,8 @@ bool FhCheckWiring() {
           "return sceneId + homePos.x + homePos.z;" },
         { "the bridge off FreeStoneHintTextSeeded", kFhBridgeCall,
           "const std::string msg = GossipHintText((RandoCheckId)randoCheckId, false);" },
+        { "the purchasable pick back on size() - 1", kFhPurchasedPick,
+          "return availableChecks[Ship_Random(0, availableChecks.size() - 1)];" },
     };
     for (const FhMutant& m : mutants) {
         const std::string mutated = FhMutate(text, m.from, m.to);
@@ -411,7 +423,8 @@ bool FhCheckWiring() {
         }
     }
     printf("[TEST]   from source: the free stone's hook sets its text from FreeStoneHintText, whose stone seed is "
-           "GetRandomCheck's; %zu counterfactuals each fail the check\n",
+           "GetRandomCheck's, and the purchasable pick spans every candidate; %zu counterfactuals each fail the "
+           "check\n",
            sizeof(mutants) / sizeof(mutants[0]));
     return true;
 #endif

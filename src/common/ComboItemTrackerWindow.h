@@ -686,7 +686,8 @@ void ComboItemTrackerAvailableGroups(int section, std::vector<ComboItemTrackerGr
 /** Populate `out` with the default Active Groups for `section`. */
 void ComboItemTrackerDefaultActiveGroups(int section, std::vector<ComboItemTrackerGroup>& out);
 
-/** Apply the one-click "Key Items" Dungeon Solver layout preset to `section` (and persist to Config if available). */
+/** Apply the one-click "Key Items" Dungeon Solver layout preset to `section`; the config write is deferred
+ *  (ComboItemTrackerRequestLayoutSave, #1349). */
 void ComboItemTrackerApplySolverPreset(int section);
 
 /** Resolve a single `slot` into `out` via the origin's static/live catalog. */
@@ -701,16 +702,45 @@ void ComboItemTrackerResolveGroupRows(const ComboItemTrackerGroup& group, int sh
 const ComboItemTrackerLayout& ComboItemTrackerGetLayout();
 void ComboItemTrackerSetLayout(const ComboItemTrackerLayout& layout);
 
-/** Restore default groups for `section` (or all sections when `section < 0`). */
+/** Restore default groups for `section` (or all sections when `section < 0`); the config write is deferred
+ *  (ComboItemTrackerRequestLayoutSave, #1349). */
 void ComboItemTrackerRestoreDefaultLayout(int section = -1);
 
-/** Serialize / deserialize `ComboItemTrackerLayout` to / from JSON. */
+/** The config block that holds the layout, and the one format version this build reads and writes. */
+inline constexpr const char* kComboItemTrackerLayoutConfigBlock = "ComboItemTrackerLayout";
+inline constexpr int kComboItemTrackerLayoutVersion = 1;
+
+/**
+ * Serialize / deserialize `ComboItemTrackerLayout` to / from JSON. The reader
+ * never throws (#1349): a field of the wrong type or null takes its default, a
+ * non-array list is empty, and a block whose `version` is not
+ * kComboItemTrackerLayoutVersion (or is missing) is rejected (false, `out`
+ * untouched) rather than misread. The boot path reads the block through it.
+ */
 std::string ComboItemTrackerLayoutToJson(const ComboItemTrackerLayout& layout);
 bool ComboItemTrackerLayoutFromJson(const std::string& jsonStr, ComboItemTrackerLayout& out);
 
-/** Load / save the customizable layout from / to `Ship::Context::GetInstance()->GetConfig()`. */
+/** Load / save the customizable layout from / to `Ship::Context::GetInstance()->GetConfig()`. Saving writes the
+ *  file at once and drops any deferred write; editors arm a deferred one instead (below). */
 bool ComboItemTrackerLoadLayoutFromConfig();
 bool ComboItemTrackerSaveLayoutToConfig();
+
+/**
+ * The deferred layout write (#1349). An edit (a keystroke in a group name, a
+ * frame of a dragged slider, a preset) arms it and restarts its clock; the
+ * overlay's Draw(), which Gui runs every frame whether or not the overlay
+ * shows, flushes it once the edits have settled for
+ * kComboItemTrackerLayoutSaveSettleSeconds, so a run of edits is one write.
+ * `force` writes an armed layout at once; OoT_Game_Shutdown forces it before
+ * the config is torn down, so an edit made just before quitting is kept.
+ * Flush returns whether it wrote; Cancel drops an armed write (the in-memory
+ * layout is kept).
+ */
+inline constexpr double kComboItemTrackerLayoutSaveSettleSeconds = 1.0;
+void ComboItemTrackerRequestLayoutSave();
+bool ComboItemTrackerLayoutSavePending();
+bool ComboItemTrackerFlushLayoutSave(bool force = false);
+void ComboItemTrackerCancelLayoutSave();
 
 } // namespace ComboGui
 

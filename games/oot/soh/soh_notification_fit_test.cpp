@@ -72,7 +72,9 @@
  *     through its production emitter: the failure ("Not created:", PR #749, also
  *     printed as the calibration: #749 measured it at 800 px in the 832-px
  *     window), the shortfall ("Fewer cross-game items:") and the three goal
- *     warnings ("Not proven:"). Width and the copy contract, like any toast;
+ *     warnings ("Not proven:"); and Generate's OoT Logic pin ("No Logic:",
+ *     #1350), which has no ui page yet. Width and the copy contract, like any
+ *     toast;
  *   - #881: the paired-file load's "Restored from file:" and "Restored for
  *     Majora's Mask:" toasts through RsbsSave_EmitLoadToast, at 640 x 480 (the
  *     window a config with no size opens: libultraship's default) and 832 x 600,
@@ -123,6 +125,8 @@
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason);
 extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested);
 extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves);
+// #1350: Generate's toast for OoT's No Logic generated Glitchless (ForeignItemsSingleExe.cpp).
+extern "C" void OoT_Creation_EmitLogicPinToast(void);
 // #865: the pickup toast for an MM item found at an OoT check (hook_handlers.cpp),
 // and the MM items that may cross (MM's classification and its id space).
 extern "C" void OoT_Rando_Foreign_EmitPickupToast(SharedItem item);
@@ -684,6 +688,9 @@ extern "C" int OoT_NotificationFit_RunHeadless(const char* fontPath) {
                 OoT_Creation_EmitGoalWarningToast(halves);
                 failures += CheckOne(run, "creation goal-warning toast", scale, Class::OTHER);
             }
+            // #1350: Generate's note that OoT's No Logic was generated Glitchless.
+            OoT_Creation_EmitLogicPinToast();
+            failures += CheckOne(run, "OoT No Logic pin toast", scale, Class::OTHER);
 
             MM_Rando_EmitPairingRefusalToast(RSBS_PAIRING_REFUSAL_MM_OPTIONS, nullptr);
             failures += CheckOne(run, "MM-options refusal", scale);

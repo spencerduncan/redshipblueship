@@ -53,6 +53,7 @@ u8 sMotionBlurStatus;
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include "2s2h/Enhancements/Graphics/Graphics.h"
+#include "2s2h/Enhancements/Saving/SavingEnhancements.h"
 #include "2s2h/DeveloperTools/CollisionViewer.h"
 #include "2s2h/framebuffer_effects.h"
 #include <string.h>
@@ -2600,7 +2601,46 @@ void MM_Play_ConsumeStartupEntrance(void) {
         // vanilla post-intro grant belongs to everyone else.
         MM_Play_GrantComboArrivalIntroRewards();
     }
-    gSaveContext.save.entrance = startupEntrance;
+    // THE PAUSE-SAVE ENTRANCE OF A RELOADED HALF (#1348). A Pause Menu Save and
+    // the Autosave set isOwlSave and shipSaveInfo.pauseSaveEntrance BEFORE their
+    // commit and clear them right after it (MM_Combo_EndPauseSaveCommit,
+    // HandleAutoSave), so the .redsave records the pair while a half frozen by
+    // walking out of MM always carries -1; the moon-crash reset clears it too,
+    // and an owl-statue save never sets the entrance. A restored isOwlSave with
+    // an entrance in range therefore means exactly one thing: the first arrival
+    // after a load whose last MM save was a pause save or an autosave. Spawn
+    // there, as 2Ship's own load does (MM_Sram_OpenSave, z_sram_NES.c, which
+    // reads pauseSaveEntrance only inside its isOwlSave branch); MM_Player_Init
+    // then forces the standing start and clears the pair (z_player.c), and with
+    // Remember Save Location on, the OnSaveLoad re-dispatch at the end of this
+    // function restores the saved respawn data (LoadRespawnData). Pause Menu
+    // Save and Autosave both default to off, so on default settings no save
+    // records the pair and nothing changes. With either on and Remember Save
+    // Location off, only temple saves change: every other pause save records
+    // ENTRANCE(SOUTH_CLOCK_TOWN, 0), the crossing entrance. With Remember Save
+    // Location on, the recorded entrance is the last one Link went through
+    // before the save.
+    //
+    // Range-checked, not merely compared with -1: the restored blob is not
+    // guaranteed sane, and an s32 outside 0..0xFFFF is no entrance. Gated on
+    // isOwlSave, because every commit that records an entrance sets it too, and
+    // a damaged half with a zeroed field (pauseSaveEntrance 0 is the Mayor's
+    // Residence) must not steer the arrival. Gated on hadFrozenState: only a
+    // restored half can carry a save's entrance; the bootstrap and a refused
+    // pairing spawn at the crossing.
+    //
+    // When the pair is NOT used it is cleared here, before the re-dispatch, so
+    // SavingEnhancements' OnSaveLoad hook does not seed Remember Save Location
+    // from a stale entrance and MM_Player_Init does not force a standing start for
+    // a save this arrival ignored. Same clear the commit sites use.
+    const s32 pauseSaveEntrance = gSaveContext.save.shipSaveInfo.pauseSaveEntrance;
+    if (hadFrozenState && gSaveContext.save.isOwlSave && (pauseSaveEntrance >= 0) && (pauseSaveEntrance <= 0xFFFF)) {
+        gSaveContext.save.entrance = pauseSaveEntrance;
+    } else {
+        gSaveContext.save.entrance = startupEntrance;
+        gSaveContext.save.isOwlSave = false;
+        SavingEnhancements_ClearSaveEntranceInfo();
+    }
     // On a first MM entry this Play_Init is reached through MM's
     // title-screen boot (TitleSetup_SetupTitleScreen), so the save
     // still carries the title-demo cutscene state: cutsceneIndex

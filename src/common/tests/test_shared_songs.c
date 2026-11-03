@@ -21,7 +21,10 @@
  *   (the ids the two games place the songs as), and through both games' REAL
  *   harvest and apply shims a song learnt in either game is known, and so
  *   playable on the ocarina, in the other at arrival; each rule carries only
- *   its own song; with the rules off nothing is carried.
+ *   its own song; with the rules off nothing is carried. Under Skip Epona Race,
+ *   OoT knowing Epona's Song is OoT having Epona (#1351): the shared song's
+ *   arrival apply, the arrival's consume and the load seam each set the flag
+ *   the summons read, and nothing else does.
  *
  *   shared-songs-bag (CTest SharedSongsBag, rando tier) -- THE SHARED ROWS. A
  *   real paired generation with both keys on and OoT's songs shuffled anywhere
@@ -88,6 +91,12 @@ int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int
 int OoT_SharedSongsTest_WorldCopies(int rg);
 int OoT_SharedSongsTest_OtherVanillaSongsAtHome(const int* sharedRgs, int sharedCount);
 int OoT_SharedSongsTest_VanillaSongCount(void);
+void OoT_SharedSongsTest_EponaBegin(void);
+void OoT_SharedSongsTest_EponaEnd(void);
+void OoT_SharedSongsTest_SetEponaFile(int rando, int skip);
+int OoT_SharedSongsTest_EponaObtained(void);
+void OoT_ConsumeSharedItems(void);
+void OoT_ApplySharedResourcesAtFileLoad(void);
 #ifdef __cplusplus
 }
 #endif
@@ -513,6 +522,77 @@ TestResult Test_SharedSongsMerge(void) {
     SS_CHECK(Combo_SharedFamiliesOwned() == 0u && MM_SharedSongsTest_Held(0) == 0 && MM_SharedSongsTest_Held(1) == 0,
              "with the rules off a song learnt in Hyrule reached Termina (pool %08X)",
              (unsigned)Combo_SharedFamiliesOwned());
+
+    // ---- (5) Skip Epona Race: knowing Epona's Song is having Epona (#1351) ---
+    // Every summon reads EVENTCHKINF_EPONA_OBTAINED. Since #1327 only OoT's
+    // item-receive handler set it, and only for a queued check's give, so a song
+    // that reached OoT any other way never called Epona.
+    OoT_SharedSongsTest_EponaBegin();
+    {
+        // (5a) Shared Epona's Song learnt in Termina: OoT's arrival apply teaches
+        // the song and, through the family's give, frees Epona.
+        SsFreezeWorld(&bothOn);
+        SsForgetAll();
+        MM_SharedSwordTest_ArmLive();
+        MM_SharedSongsTest_SetHeld(0, 1);
+        MM_HarvestSharedResources();
+        OoT_SharedSwordTest_ArmLive();
+        OoT_SharedSongsTest_SetEponaFile(1, 1);
+        OoT_ApplySharedResources();
+        printf("[TEST] (5a) Skip Epona Race, Epona's Song learnt in Termina: OoT knows it %d, Epona %d\n",
+               OoT_SharedSongsTest_Held(0), OoT_SharedSongsTest_EponaObtained());
+        SS_CHECK(OoT_SharedSongsTest_Held(0) == 1 && OoT_SharedSongsTest_EponaObtained() == 1,
+                 "under Skip Epona Race the shared Epona's Song reached OoT without Epona: the song cannot summon her");
+
+        // (5b) The song already known with no family carrying it (Start with
+        // Epona's Song, or an OoT Epona's Song redeemed from an MM check): the
+        // arrival's consume frees Epona, and so does the load seam.
+        SsFreezeWorld(NULL);
+        SsForgetAll();
+        OoT_SharedSwordTest_ArmLive();
+        OoT_SharedSongsTest_SetEponaFile(1, 1);
+        OoT_SharedSongsTest_SetHeld(0, 1);
+        const int before = OoT_SharedSongsTest_EponaObtained();
+        OoT_ConsumeSharedItems();
+        const int atArrival = OoT_SharedSongsTest_EponaObtained();
+        OoT_SharedSongsTest_SetEponaFile(1, 1);
+        OoT_ApplySharedResourcesAtFileLoad();
+        const int atLoad = OoT_SharedSongsTest_EponaObtained();
+        printf("[TEST] (5b) Skip Epona Race, Epona's Song already known: Epona before %d, after the arrival %d, after "
+               "the load %d\n",
+               before, atArrival, atLoad);
+        SS_CHECK(before == 0, "the leg did not start without Epona: the two checks below would pass vacuously");
+        SS_CHECK(atArrival == 1, "an OoT arrival with Epona's Song known under Skip Epona Race did not free Epona");
+        SS_CHECK(atLoad == 1, "a file load with Epona's Song known under Skip Epona Race did not free Epona");
+
+        // (5c) Nothing else frees her: Don't Skip with the song, Skip without it,
+        // Skip with only the Song of Storms, and a vanilla file with the song.
+        struct EponaNotOwed {
+            const char* what;
+            int rando;
+            int skip;
+            int song; // -1 none, else OoT_SharedSongsTest_SetHeld's song
+        };
+        const EponaNotOwed notOwed[] = {
+            { "Don't Skip with Epona's Song", 1, 0, 0 },
+            { "Skip Epona Race without Epona's Song", 1, 1, -1 },
+            { "Skip Epona Race with only the Song of Storms", 1, 1, 1 },
+            { "a vanilla file with Epona's Song", 0, 1, 0 },
+        };
+        for (const EponaNotOwed& c : notOwed) {
+            SsFreezeWorld(NULL);
+            SsForgetAll();
+            OoT_SharedSwordTest_ArmLive();
+            OoT_SharedSongsTest_SetEponaFile(c.rando, c.skip);
+            if (c.song >= 0) {
+                OoT_SharedSongsTest_SetHeld(c.song, 1);
+            }
+            OoT_ConsumeSharedItems();
+            OoT_ApplySharedResourcesAtFileLoad();
+            SS_CHECK(OoT_SharedSongsTest_EponaObtained() == 0, "%s freed Epona: only the race does that there", c.what);
+        }
+    }
+    OoT_SharedSongsTest_EponaEnd();
 
     SsForgetAll();
     ComboContext_Init();

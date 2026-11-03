@@ -4038,6 +4038,36 @@ extern "C" int MM_Combo_GameOverExitToOoT(void) {
     return 1;
 }
 
+// games/oot/soh/GameExports_SingleExe.cpp: the Z-targeting mode OoT's frozen half
+// carries (0 Switch, 1 Hold), or -1 when OoT has no frozen half.
+extern "C" int OoT_Combo_FrozenZTargetSetting(void);
+
+/**
+ * ONE TARGETING MODE (#1351). MM picks Hold targeting from
+ * options.zTargetSetting (z_player.c), but in single-exe nothing ever sets it
+ * to Hold: z_common_data.c and MM_Sram_InitSram's no-flash default both author
+ * Switch (0), and MM's file select, its only UI writer, is never reached. The
+ * player chooses the mode once, at OoT's file select, and the paired file is
+ * one game, so MM takes OoT's. Upstream 2S2H keeps the mode in config instead
+ * (b1edee5ff, 6bf849276).
+ *
+ * Run after the frozen MM half is applied, which brings whatever mode MM last
+ * had: at the arrival (MM_Rando_HydrateCrossGameArrival, right after
+ * Combo_ConsumeFrozenState) and on resume. OoT with no frozen half (an MM-only
+ * boot) leaves MM's own mode. Returns the mode written, or -1 when none was.
+ */
+extern "C" int MM_Combo_MirrorOoTZTargetSetting(void) {
+    const int ootMode = OoT_Combo_FrozenZTargetSetting();
+    if (ootMode < 0) {
+        return -1;
+    }
+    if (gSaveContext.options.zTargetSetting != (u8)ootMode) {
+        fprintf(stderr, "[MM] Z-targeting: %s, as OoT's file has it (#1351)\n", ootMode != 0 ? "Hold" : "Switch");
+    }
+    gSaveContext.options.zTargetSetting = (u8)ootMode;
+    return ootMode;
+}
+
 /**
  * Resume MM after being suspended for a game switch (issue #170, #270).
  * - Re-arms the system arena for the cold gamestate-chain boot (see
@@ -4087,6 +4117,9 @@ void MM_Game_Resume(void) {
             hasStartup ? Combo_GetStartupEntranceForGame("mm") : Context_GetFrozenReturnEntrance(GAME_MM);
         gSaveContext.save.entrance = targetEntrance;
         fprintf(stderr, "[MM] Resume entrance: 0x%04X (startup=%u)\n", targetEntrance, hasStartup);
+        // #1351: OoT's targeting mode over the restored half's. The arrival
+        // writes it again after the boot chain's wipe.
+        MM_Combo_MirrorOoTZTargetSetting();
     }
 
     // Reinitialize audio message queues for clean state (issue #270).
@@ -7118,8 +7151,14 @@ static int MM_Rando_RefuseIfNotPairMember(const uint32_t* options, uint32_t fina
  * @param hadFrozenState nonzero when Combo_ConsumeFrozenState applied a blob.
  * @param refused        nonzero when the gate above refused, so the consume was
  *        deliberately skipped and this function must not re-report it.
+ *
+ * First, for every arrival (refused, unpaired and vanilla included), MM takes
+ * OoT's Z-targeting mode over whatever the applied half or the boot chain left
+ * (#1351, MM_Combo_MirrorOoTZTargetSetting). This is the first point after the
+ * consume, and the mode is a preference, not world state.
  */
 void MM_Rando_HydrateCrossGameArrival(int hadFrozenState, int refused) {
+    MM_Combo_MirrorOoTZTargetSetting();
     if (refused) {
         // The gate already surfaced the reason and latched the slot. MM plays
         // the boot chain's vanilla bootstrap, and z_play.c's !hadFrozenState leg

@@ -192,6 +192,10 @@ set(REDSHIP_COMMON_SOURCES
     # The otr-readd-releases-handle row's body (#1190), its own TU because
     # StormLib's header brings in <windows.h>. Test tooling only. APPENDED.
     ${CMAKE_SOURCE_DIR}/src/common/tests/test_otr_readd_releases_handle.cpp
+    # The texture-cache-freed-node row's body (#1352), its own TU because
+    # libultraship's fast/interpreter.h brings in the whole LUS GBI. Test
+    # tooling only. APPENDED.
+    ${CMAKE_SOURCE_DIR}/src/common/tests/test_texture_cache_freed_node.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1009,6 +1013,13 @@ if(BUILD_TESTING)
     # StormLib, re-added eight times; the process's open handle count must grow
     # by less than eight. ROM-free and archive-free.
     redship_add_test(NAME OtrReaddReleasesHandle COMMAND redship --test otr-readd-releases-handle)
+    # #1352: the Fast3D texture cache frees map nodes (TextureCacheClear,
+    # TextureCacheDelete, LRU eviction) that mRenderingState.mTextures may still
+    # point at, and GfxSpTri1 then writes sampler state through the freed node.
+    # A standalone Fast::Interpreter over a stub rendering API drives each free
+    # and requires the slots to read null, and the bucket count to stay fixed
+    # while the cache fills (the LRU holds map iterators). ROM-free, no display.
+    redship_add_test(NAME TextureCacheFreedNode COMMAND redship --test texture-cache-freed-node)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture

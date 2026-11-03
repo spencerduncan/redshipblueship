@@ -1,3 +1,9 @@
+# Release notes: v0.4.4-alpha ("Deckard Echo")
+
+Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.
+
+Can you tell I ran out of tokens? I'm typing my own release notes for my alpha. Yes I know the readme is slop I'll fix it eventually nerds.
+
 # Release notes: v0.4.3-alpha ("Deckard Delta")
 
 **Status:** released. The release is cut as the tag `v0.4.3-alpha` on the commit that merges this text (the version
@@ -137,10 +143,13 @@ follow this section.
 
 - **This is the second alpha release.** It addresses stability, pause-save persistence, cross-game mod handling, and
   tracker usability discovered following the `v0.4.0-alpha` milestone.
-- **Majora's Mask pause-save keeps its entrance and respawn across reloads** (#1317, issues #1298, #1302). Backported
-  2Ship2Harkinian's pause-save entrance and respawn persistence (2Ship commits `16ef59bae`, `96611c3b3`). When saving
-  via the pause menu in Termina and reloading, Link now reliably returns to the exact entrance and respawn state
-  where the save occurred, rather than defaulting to generic daytime scene spawns.
+- **Majora's Mask pause-save keeps its entrance and respawn** (#1317, issues #1298, #1302). Backported
+  2Ship2Harkinian's pause-save entrance and respawn persistence (2Ship commits `16ef59bae`, `96611c3b3`). A reload
+  after a Termina save opens in Hyrule, as in OoTMM; the first crossing into Termina after the reload arrives at the
+  entrance the save recorded: a temple save returns to the temple, and with Remember Save Location on any pause save
+  or autosave returns to its place (otherwise to South Clock Town). Corrected 2026-11-02: these notes first said the
+  reload itself returned to the exact entrance and respawn of the save, which is not so for a paired file. The return
+  on the first crossing comes with PR #1353 (issue #1348), merged after `v0.4.4-alpha`.
 - **Menu Reset and Ctrl+R reset Majora's Mask while running** (#1315, issue #1274). The menu header's red Reset button
   and the Ctrl+R shortcut now dispatch to Majora's Mask's reset handler (`MM_gGameState`) when Termina is active,
   resolving the issue where resets were ignored outside Hyrule.
