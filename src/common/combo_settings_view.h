@@ -135,6 +135,11 @@ typedef enum {
     COMBO_SETTING_SHARED_MASK_BUNNY,  // gCombo.Rando.SharedMaskBunny -> RSBS_XITEM_SHARED_BUNNY
     COMBO_SETTING_SHARED_MASK_KEATON, // gCombo.Rando.SharedMaskKeaton -> RSBS_XITEM_SHARED_KEATON
     COMBO_SETTING_SHARED_MASK_TRUTH,  // gCombo.Rando.SharedMaskTruth -> RSBS_XITEM_SHARED_TRUTH
+    // #1369 (operator ruling 2026-11-02). The lens's shape, 0 or 1, but the one
+    // item rule that ships ON, and SHUFFLE-GATED: its bit freezes only while a
+    // game shuffles swim (Combo_ComboItemRulesApplyCreationShuffles), so the
+    // resolver never sets it and an unshuffled world keeps its all-clear record.
+    COMBO_SETTING_SHARED_SWIM, // gCombo.Rando.SharedSwim -> RSBS_XITEM_SHARED_SWIM
     COMBO_SETTING_COUNT
 } ComboSettingId;
 

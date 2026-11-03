@@ -11,6 +11,17 @@
 #include "../../OTRGlobals.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip #1369 (GameExports_SingleExe.cpp): under the frozen Shared Swim
+// rule the bronze tier is its own pool row (RG_BRONZE_SCALE, item_pool.cpp), so a
+// Progressive Scale starts at the silver scale.
+extern "C" bool OoT_SharedSwimSplitsScale(void);
+#else
+static bool OoT_SharedSwimSplitsScale(void) {
+    return false;
+}
+#endif
+
 namespace Rando {
 Item::Item()
     : randomizerGet(RG_NONE), type(ITEMTYPE_ITEM), getItemId(GI_NONE), advancement(false), hintKey(RHT_NONE),
@@ -329,7 +340,7 @@ std::shared_ptr<GetItemEntry> Item::GetGIEntry() const { // NOLINT(*-no-recursio
             }
             break;
         case RG_PROGRESSIVE_SCALE:
-            if (!logic->CheckRandoInf(RAND_INF_CAN_SWIM)) {
+            if (!logic->CheckRandoInf(RAND_INF_CAN_SWIM) && !OoT_SharedSwimSplitsScale()) {
                 actual = RG_BRONZE_SCALE;
                 break;
             }

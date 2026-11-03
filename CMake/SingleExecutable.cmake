@@ -813,6 +813,14 @@ if(BUILD_TESTING)
     # row each, and a button found in one game owned in the other on arrival.
     redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
     redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
+    # #1369: the Shared Swim rule (operator ruling 2026-11-02): ships on, frozen
+    # only while a game shuffles swim (CVar store, display-free bring-up); OoT's
+    # standalone bronze tier and MM's Ability to Swim registered and composed into
+    # one shared row, MM's sites taking the pair's one shuffle; and swim (and a
+    # coupled MM's button) found in one game held in the other on arrival. ROM-free.
+    redship_add_test(NAME SharedSwimRule COMMAND redship --test shared-swim-rule)
+    redship_add_test(NAME SharedSwimPairs COMMAND redship --test shared-swim-pairs)
+    redship_add_test(NAME SharedSwimArrival COMMAND redship --test shared-swim-arrival)
     # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
     # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
     # the freeze, the fingerprint and the load restore; then both games' arrows

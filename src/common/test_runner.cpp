@@ -14,6 +14,7 @@
 #include "gen_budget.h"           // ADR 0010 inc. 2: the #582 fill budget + progress surface
 #include "gen_progress_overlay.h" // #582: the on-screen creation-progress surface
 #include "save.h"                 // the #533 slot-session surface the creation/arrival legs reset
+#include "cvar_shared_keys.h"     // #1369: the armed-caps golden turns Shared Swim off by its key
 
 #include "integration_test_hooks.h"
 #include "headless_crash.h"
@@ -794,6 +795,10 @@ extern "C" {
 // pairs, the bag makes each one shared row, and a button found in one game is
 // owned in the other on arrival. FILE SCOPE for the same reason as its neighbours.
 #include "tests/test_shared_ocarina_buttons.c"
+// The Shared Swim rule and the pair's one Shuffle Swim / Shuffle Ocarina Buttons
+// (#1369): the gated freeze, both games' swim as one family, the coupling at MM's
+// sites, and the arrival through both games' real shims. FILE SCOPE likewise.
+#include "tests/test_shared_swim.c"
 
 // Netplay grant-relay loopback locks (ADR 0007, #460). Guarded: with
 // RSBS_NETPLAY=OFF (the default) the relay sources are not in the build at all,
@@ -3611,20 +3616,27 @@ TestResult Test_RandoArmedCapsDigest(void) {
     for (const char* cvar : kArming) {
         CVarSetInteger(cvar, 1);
     }
-
-    const int rc = Rando_HeadlessSeedDeterminismDigest("RSBSUNIFIED1", digestOut);
-    if (rc != 0) {
+    // #1369: this golden pins the armed MM profile with every Cross-Game Rule off,
+    // the world it pinned before the rules existed. Shared Swim ships ON and would
+    // freeze here, where MM shuffles swim (and OoT's swim would be generated
+    // shuffled too); its own rows lock that world (SharedSwimRule, -Pairs).
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_SHARED_SWIM, 0);
+    auto clearArming = [&]() {
         for (const char* cvar : kArming) {
             CVarClear(cvar);
         }
+        CVarClear(RSBS_CVAR_COMBO_RANDO_SHARED_SWIM);
+    };
+
+    const int rc = Rando_HeadlessSeedDeterminismDigest("RSBSUNIFIED1", digestOut);
+    if (rc != 0) {
+        clearArming();
         printf("[TEST] FAIL: armed-profile determinism digest rc=%d\n", rc);
         return TEST_FAIL;
     }
     if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ||
         Combo_ForeignGiveCaps((uint8_t)GAME_MM) != (uint16_t)RSBS_GIVECAP_ALL_V1) {
-        for (const char* cvar : kArming) {
-            CVarClear(cvar);
-        }
+        clearArming();
         printf("[TEST] FAIL: the armed profile published caps=%04X (published=%d); expected every family (%04X) - "
                "this golden would pin a world that is not the armed one\n",
                (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM),
@@ -3638,9 +3650,7 @@ TestResult Test_RandoArmedCapsDigest(void) {
     std::vector<uint16_t> ootItems(8192, 0), ootFlags(8192, 0), mmItems(8192, 0), mmFlags(8192, 0);
     const int ootRows = OoT_ComboLogic_ExportPool(0, ootItems.data(), nullptr, ootFlags.data(), 8192);
     const int mmRows = MM_ComboLogic_TestPairedPool(mmItems.data(), mmFlags.data(), 8192);
-    for (const char* cvar : kArming) {
-        CVarClear(cvar);
-    }
+    clearArming();
     if (ootRows <= 0 || mmRows <= 0 || ootRows > 8192 || mmRows > 8192) {
         printf("[TEST] FAIL: the pools could not be read (OoT %d, MM %d rows)\n", ootRows, mmRows);
         return TEST_FAIL;
@@ -7128,6 +7138,21 @@ TestResult Test_SharedLensRule(void) {
     return SharedLensRule_Run();
 }
 
+// #1369: the Shared Swim rule row reads and writes its tier-4 keys, the same
+// bring-up as shared-lens-rule.
+TestResult Test_SharedSwimRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return SharedSwimRule_Run();
+}
+
 // #1066: the shared songs' rule rows, the same bring-up as shared-lens-rule.
 TestResult Test_SharedSongsRule(void) {
     auto ctx = CreateHarnessStyleContext();
@@ -8292,6 +8317,21 @@ const TestDescriptor gTests[] = {
       "With the Shared Ocarina Buttons rule on, a button found in one game is owned in the other on arrival; a game "
       "whose own shuffle is off shares nothing; off, nothing crosses (#1067)",
       Test_SharedOcarinaButtonsArrival },
+    // #1369: the Shared Swim rule and the pair's one Shuffle Swim / Shuffle
+    // Ocarina Buttons. The rule row needs the CVar store; the other two are
+    // ROM-free, as the buttons rows.
+    { "shared-swim-rule",
+      "The Shared Swim rule ships on and freezes only while a game shuffles swim, the coupled-buttons marker only with "
+      "the buttons rule and a button shuffle, and a load reads the gated bit as the file decided it (#1369)",
+      Test_SharedSwimRule },
+    { "shared-swim-pairs",
+      "Both games register their swim as the Shared Swim family, the bag pairs them into one row both solvers credit, "
+      "and MM's sites take the pair's one shuffle from the frozen record (#1369)",
+      Test_SharedSwimPairs },
+    { "shared-swim-arrival",
+      "With the Shared Swim rule on, swim found in one game is held in the other on arrival, and a coupled MM shares "
+      "the button it found; off, nothing crosses (#1369)",
+      Test_SharedSwimArrival },
     // #968: Shared Fire, Ice and Light Arrows on the same mechanism.
     { "shared-arrows-rule",
       "Shared Fire, Ice and Light Arrows are three Cross-Game Rules, off by default, frozen at creation into the "
