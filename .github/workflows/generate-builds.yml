@@ -52,9 +52,30 @@ on:
         description: 'Release tag to cut, e.g. v0.4.4-alpha (must equal RSBS_VERSION_STRING)'
         required: true
         type: string
+# CONCURRENCY (#1377). Only a pull request's run is ever cancelled in progress:
+# a newer push to the PR makes the older head's build worthless. A push to
+# main, to a release/v* branch or of a v* tag, and a dispatch, always run to
+# the end. Main's run is the only one that saves the macOS ccache, the MacPorts
+# tree and the Windows sccache, and a cold macOS build takes about 4.5 hours.
+# With cancel-in-progress on every event, each merge cancelled the running main
+# build, so those caches were never written and every macOS build started cold.
+#
+# The group names the event as well as the ref:
+#   - pushes to main share one group, so they queue and main builds one commit
+#     at a time. GitHub keeps one PENDING run per group: a newer push replaces
+#     a queued run that has not started yet (it shows as cancelled), never the
+#     run in progress. Builds stay bounded to one main run, which keeps macOS
+#     minutes and cache saves (see #177 under build-windows) in check.
+#   - a dispatch (the manual release path) never shares a group with a push,
+#     so a merge can never replace a queued release.
+#   - each pull request, release branch and tag has a ref, and so a group, of
+#     its own.
+# tools/tests/test_required_checks.py evaluates these expressions for every
+# workflow and fails if any run on main, a release branch or a tag could be
+# cancelled in progress.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
 
   # Is this pull request provably docs-only? (#1373)
@@ -228,6 +249,12 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
+        # Saved on main only, like the Windows sccache (#177). Main's run is
+        # never cancelled (#1377, the concurrency block at the top), so it
+        # writes this cache, and a pull request restores it through the
+        # refs/heads/main restore-key below. A per-PR save would add quota
+        # churn that can evict main's entries for a gain that shrinks once
+        # main is warm; revisit with the ccache numbers of a finished macOS run.
         save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-ccache-${{ github.ref }}
         restore-keys: |
