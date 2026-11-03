@@ -1092,8 +1092,8 @@ void WithholdHost(void* self, uint16_t hostCheck) {
 // runs the pre-flight over the profile's real pools and prints every location it
 // cannot reach by name; an entry belongs here only when that print names a check
 // whose unreachability is a fact of the settings (and the reason says which).
-// #1367 R5 ran the PRODUCTION pre-flight over twelve profiles (the eight golden
-// profiles; plentiful, armed and maximal with every location category shuffled;
+// #1367 R5 ran the PRODUCTION pre-flight over thirteen profiles (the seven golden
+// profiles that fill; plentiful, armed and maximal with every location category shuffled;
 // the beat-oot, beat-mm and beat-either goals): it reached every MM check in
 // every one, so this list stays empty. The one it missed before (the West Clock
 // Town bank's heart piece: the Giant's Wallet) was the shared wallet counted in

@@ -1239,9 +1239,9 @@ void OoT_ComboLogic_WithholdHost(void* self, uint16_t hostCheck) {
 // runs the pre-flight over the profile's real pools and prints every location it
 // cannot reach by name; an entry belongs here only when that print names a
 // location whose unreachability is a fact of the settings (and the reason says
-// which). #1367 R5 ran the PRODUCTION pre-flight over twelve profiles (the eight
-// golden profiles; plentiful, armed and maximal; the beat-oot, beat-mm and
-// beat-either goals): it reached every OoT location in every one, so this list
+// which). #1367 R5 ran the PRODUCTION pre-flight over thirteen profiles (the seven
+// golden profiles that fill; plentiful, armed and maximal; the beat-oot, beat-mm
+// and beat-either goals): it reached every OoT location in every one, so this list
 // stays empty. The three it missed before (the 300-rupee Market and Kakariko
 // Potion Shop and Zora shop items: the Giant's Wallet) were the shared wallet
 // counted in one game only, fixed by THE SHARED-QUANTITY CREDIT (combo_logic.h),

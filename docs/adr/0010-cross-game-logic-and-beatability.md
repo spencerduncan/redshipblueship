@@ -2710,9 +2710,11 @@ golden re-pinned; seed packages written by generator 3 are refused, as designed)
   unit grades, and a bottle's contents are its own game's. The credit applies on
   every proving rung, so Beatable Only worlds move too.
 - **The audit.** With the credit, the production pre-flight reached every location
-  of both games on twelve profiles (the eight golden profiles; plentiful, armed,
-  and maximal with every MM location category shuffled, 2254 MM checks; beat-oot,
-  beat-mm, beat-either). Both curated exclusion lists stay empty.
+  of both games on thirteen profiles (the seven golden profiles that fill:
+  default, profile-v1, entrances, excludes-tricks, shopsanity, direction-forward
+  and #978's all-masks; plentiful, armed, and maximal with every MM location
+  category shuffled, 2254 MM checks; beat-oot, beat-mm, beat-either), and the
+  ladder golden's seed proved too. Both curated exclusion lists stay empty.
 - **The goal at the pre-flight.** A goal the pre-flight's widest reach does not
   prove is refused at once, `RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE`
   ("goal-unreachable"), no ladder rung, with the failed half named; Generate's
