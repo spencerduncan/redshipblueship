@@ -191,6 +191,8 @@ games/oot/soh/SohGui/CreationProgressOverlay.cpp
 games/oot/soh/SohGui/CreationProgressOverlay.h
 games/oot/soh/Enhancements/randomizer/ComboLogicEngineOoT.cpp
 games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp
+games/mm/2s2h/Rando/Logic/ResetTimeGuard.cpp
+games/mm/2s2h/Rando/Logic/ResetTimeGuard.h
 games/mm/2s2h/mm_combo_logic_engine_test.cpp
 games/mm/2s2h/mm_tracker_in_logic_test.cpp
 games/mm/2s2h/mm_logic_gates_test.cpp

@@ -1943,8 +1943,15 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    shape 4). The bag builder never admits one (THE BAG COMPOSITION RULE);
 //    rendering a foreign trap is out of scope this increment.
 //  - THE CROSSING EDGE'S TIME-OF-DAY TERMS (answer O2's Day-1 re-stamp and
-//    reset-time guard). Those are authored inside the engines, behind
-//    `crossingOpen`; the coordinator only reads the resulting fact.
+//    reset-time guard). Authored inside MM's engine, and NOT behind
+//    `crossingOpen`. The re-stamp is MM's crawl seeding the arrival with every
+//    owned time slice; the reset-time guard holds MM's WHOLE reached set (its
+//    regions and checks, so its harvest and its goal too) to the arrival area
+//    until the file can go back to Day 1 (games/mm/2s2h/Rando/Logic/
+//    ResetTimeGuard.h, after OoTMM's can_reset_time). `crossingOpen` stays the
+//    plain region fact in both directions: the tower interior is inside that
+//    area, so the guard never closes the crossing. The coordinator authors
+//    none of it and reads the engines' answers.
 
 #ifdef __cplusplus
 }

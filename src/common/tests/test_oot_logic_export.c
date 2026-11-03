@@ -148,6 +148,10 @@ extern char gSaveContext[];
 // Rando::Logic::Regions and refuses beginQuery while that map is empty. See the
 // re-scoping note at that leg.
 void MM_Rando_InitCore(void);
+// MM's save in the state the creation seam leaves it (games/mm/2s2h/Rando/
+// ComboLogicEngineSingleExe.cpp): a fresh save, the shipped profile, the paired
+// start granted. Writes the unified buffer, so the composed-round leg brackets it.
+int MM_ComboLogic_ApplyShippedProfile(void);
 // MM's own diagnostics surface (games/mm/2s2h/Rando/ComboLogicEngineSingleExe.cpp),
 // so the composed round can say whether MM's side actually ran rather than
 // inferring it.
@@ -888,14 +892,38 @@ TestResult OoTLogicExport_Run(void) {
     //     "nothing is reachable", which is indistinguishable from a world in which
     //     nothing is). This process booted OoT, so nothing has run MM's bring-up.
     //     It is asset-free and once-guarded.
+    //   - MM_ComboLogic_ApplyShippedProfile(). MM's engine answers from the live
+    //     save, and both ports overlay one unified buffer, so without it MM would
+    //     read OoT's save bytes as its own. That save knows no playable Song of
+    //     Time, and under the default "Last Save" moon crash the reset-time guard
+    //     (ADR 0010 answer O2, games/mm/2s2h/Rando/Logic/ResetTimeGuard.h) holds
+    //     MM's whole answer to the four-check arrival nook. The beat-oot fill below
+    //     then has no MM host for an OoT item and dead-ends, as it should on such a
+    //     save. A creation hands MM's engine the paired start (the Ocarina, the Song
+    //     of Time and, with MM's button shuffle off, every button), under which the
+    //     guard is off, so this leg runs on that state, as the combo-logic-measure,
+    //     -multiplicity and -monotonicity rows do.
     //   - the save/digest assertions AFTER the round are what make bringing MM up
-    //     here safe to assert rather than hope: OoT's unified save buffer must come
-    //     back byte-identical and the world digest unchanged.
+    //     here safe to assert rather than hope: the round must leave the unified
+    //     buffer byte-identical to the profile-applied state, OoT's save is then put
+    //     back, and the world digest must be unchanged.
     const ComboLogicEngine* priorMm = Combo_Logic_GetEngine(GAME_MM);
     const bool usingRealMm = (priorMm != nullptr);
+    // Heap, not the stack: the unified buffer is OOT_SAVE_CONTEXT_SIZE bytes.
+    std::vector<unsigned char> saveAfterProfile;
     if (usingRealMm) {
         MM_Rando_InitCore();
-        printf("[TEST] oot-logic-export: composed round will use MM's REAL registered engine\n");
+        const int mmLogicMode = MM_ComboLogic_ApplyShippedProfile();
+        saveAfterProfile.assign((const unsigned char*)gSaveContext,
+                                (const unsigned char*)gSaveContext + OOT_SAVE_CONTEXT_SIZE);
+        // A premise check, not a property of the round: the profile MUST move the
+        // buffer, or the post-round comparison below says nothing the one against
+        // OoT's save did not.
+        OLE_ASSERT(memcmp(saveBefore, saveAfterProfile.data(), sizeof(saveBefore)) != 0,
+                   "applying MM's shipped profile changed no byte of the unified save buffer");
+        printf("[TEST] oot-logic-export: composed round will use MM's REAL registered engine, on MM's save as the "
+               "creation seam leaves it (RO_LOGIC=%d, paired start granted)\n",
+               mmLogicMode);
     } else {
         printf("[TEST] oot-logic-export: no MM engine registered - composed round falls back to this file's stub\n");
         OLE_ASSERT(Combo_Logic_RegisterEngine(GAME_MM, &kMmStubEngine), "the MM stub would not register");
@@ -1025,6 +1053,16 @@ TestResult OoTLogicExport_Run(void) {
 
     OLE_ASSERT(OoT_ComboLogic_TestLogicIsAttachedToLiveSave() == 1,
                "the composed round left Logic detached from the live save");
+    if (usingRealMm) {
+        // The rounds and fills must hand the buffer back as the profile left it;
+        // nothing in them restores it from a copy. Then OoT's save is put back,
+        // which is construction, not a claim, so the comparison after it only
+        // carries weight on the stub path.
+        OLE_ASSERT(memcmp(saveAfterProfile.data(), gSaveContext, saveAfterProfile.size()) == 0,
+                   "the composed round and the fills did not return the unified save buffer to the state MM's "
+                   "shipped profile left it in");
+        memcpy(gSaveContext, saveBefore, sizeof(saveBefore));
+    }
     OLE_ASSERT(memcmp(saveBefore, gSaveContext, sizeof(saveBefore)) == 0, "the composed round wrote the player's save");
     OLE_ASSERT(OoT_ComboLogic_TestWorldDigest() == worldDigest0, "the composed round moved a placement");
 
