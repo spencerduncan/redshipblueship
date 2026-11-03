@@ -27,8 +27,9 @@
  *      EXACTLY MM's descriptor table: one row per descriptor, of the widget type
  *      the descriptor names, under the name the page derives from its label (the
  *      "##MMRando" id suffix on checkboxes and comboboxes, SoH's "Name: %d" on
- *      sliders), plus the seven trap-type rows (#1101 lane R4: Freeze, Blast,
- *      Shock, Jinx, Wallet, Like Like and Time Traps, each a "##MMRando"
+ *      sliders), plus the twelve trap-type rows (#1101 lane R4: Freeze, Blast,
+ *      Shock, Jinx, Wallet, Like Like and Time Traps, then #1424's Fire, Drain,
+ *      Anti-Magic, Knockback and Rupoor Traps, each a "##MMRando"
  *      checkbox over its gRando.Traps.* key, spelled here, directly after Trap
  *      Count in Trap Count's column, as MM's own Items tab drew its "Toggle Trap
  *      Types"), and nothing else interactive but Reset.
@@ -77,11 +78,11 @@
  *      host amendment). The trick list applies the lockout itself, as SoH's
  *      DrawTricksMenu does.
  *
- *   9. A TRAP-TYPE ROW WRITES AROUND THE GATE (#1101 lane R4). Each of the seven
+ *   9. A TRAP-TYPE ROW WRITES AROUND THE GATE (#1101 lane R4). Each of the twelve
  *      rows refreshes from the model and offers its edit to the gated trap-type
  *      writer: an unfrozen edit lands in its own gRando.Traps.* key and no
  *      other, a frozen one is refused and the next draw restores the model's
- *      value, and Reset clears all seven with the options and tricks.
+ *      value, and Reset clears all twelve with the options and tricks.
  *
  *  10. MM LOCATIONS IS NOT SOH'S LOCATIONS IN SHAPE (#1101 lane R3). One column,
  *      the gray status note (the model's sentence unpaired, frozen and under
@@ -216,7 +217,7 @@ FlatRow* FindByName(std::vector<FlatRow>& rows, const std::string& name) {
     return nullptr;
 }
 
-/** The seven trap-type rows (#1101 lane R4), spelled independently of the table:
+/** The twelve trap-type rows (#1101 lane R4; #1424), spelled independently of the table:
  *  MM's own labels (Rando/Menu.cpp's "Toggle Trap Types") and the keys Traps.cpp
  *  freezes, in MM's TrapTypes order. */
 struct TrapRow {
@@ -224,10 +225,19 @@ struct TrapRow {
     const char* cvar;
 };
 const TrapRow kTrapRows[] = {
-    { "Freeze Traps", "gRando.Traps.Freeze" }, { "Blast Traps", "gRando.Traps.Blast" },
-    { "Shock Traps", "gRando.Traps.Shock" },   { "Jinx Traps", "gRando.Traps.Jinx" },
-    { "Wallet Traps", "gRando.Traps.Wallet" }, { "Like Like Traps", "gRando.Traps.Enemy" },
+    { "Freeze Traps", "gRando.Traps.Freeze" },
+    { "Blast Traps", "gRando.Traps.Blast" },
+    { "Shock Traps", "gRando.Traps.Shock" },
+    { "Jinx Traps", "gRando.Traps.Jinx" },
+    { "Wallet Traps", "gRando.Traps.Wallet" },
+    { "Like Like Traps", "gRando.Traps.Enemy" },
     { "Time Traps", "gRando.Traps.Time" },
+    // #1424: OoTMM's trap types, appended after MM's own seven.
+    { "Fire Traps", "gRando.Traps.Fire" },
+    { "Drain Traps", "gRando.Traps.Drain" },
+    { "Anti-Magic Traps", "gRando.Traps.AntiMagic" },
+    { "Knockback Traps", "gRando.Traps.Knockback" },
+    { "Rupoor Traps", "gRando.Traps.Rupoor" },
 };
 constexpr int kTrapRowCount = (int)(sizeof(kTrapRows) / sizeof(kTrapRows[0]));
 
@@ -341,8 +351,8 @@ extern "C" int OoT_MenuMmRandomizerPages_RunHeadless(void) {
                    "the options page holds %d interactive rows, expected the %d descriptors, the %d trap types and "
                    "Reset: an option is lost or doubled",
                    interactive, count, kTrapRowCount);
-        // The seven trap-type rows (#1101 lane R4): the model's table is those
-        // seven, in MM's order, and each is one checkbox after Trap Count.
+        // The trap-type rows (#1101 lane R4; twelve since #1424): the model's
+        // table is those, in MM's order, and each is one checkbox after Trap Count.
         MMRP_CHECK(Combo_MMTrapTypeCount() == kTrapRowCount, "the trap-type table holds %d rows, expected %d",
                    Combo_MMTrapTypeCount(), kTrapRowCount);
         for (int t = 0; t < kTrapRowCount; t++) {

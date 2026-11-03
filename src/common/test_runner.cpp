@@ -662,7 +662,8 @@ extern "C" {
 // #575 H1: the shared hint area vocabulary, both adapters and MM's table
 #include "tests/test_combo_area.c"
 #include "tests/test_foolish_hints.c"
-#include "tests/test_playtime_frozen.c" // #1047: stone seeds and trap types are pure functions of the world
+#include "tests/test_playtime_frozen.c"  // #1047: stone seeds and trap types are pure functions of the world
+#include "tests/test_trap_type_parity.c" // #1424: every OoTMM trap type works in both games
 // #1060: SoH's Skip Get Item Animations drives MM's get-item presentation
 #include "tests/test_mm_get_item_presentation.c"
 #include "tests/test_mm_unique_key_models.c"    // #1172: MM's dungeon keys draw 2S2H's dungeon key models
@@ -7350,6 +7351,17 @@ TestResult Test_MmTrapRollFrozen(void) {
     return MmTrapRollFrozen_Run();
 }
 
+// #1424: the parity row sets SoH's ExtraTraps.* CVars, which live on the
+// Ship::Context singleton, so it needs the same display-free bring-up.
+TestResult Test_TrapTypeParity(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: the display-free shared bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return TrapTypeParity_Run();
+}
+
 // #1060: the row sets SoH's and MM's get-item CVars, which live on the
 // Ship::Context singleton, so it needs the same display-free bring-up.
 TestResult Test_MmGetItemPresentation(void) {
@@ -8275,6 +8287,10 @@ const TestDescriptor gTests[] = {
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
+    { "trap-type-parity",
+      "Every OoTMM trap type works in both games, its save half reaches the shared pool, and no existing roll moved "
+      "(#1424)",
+      Test_TrapTypeParity },
     // #1060: SoH's Skip Get Item Animations decides MM's get-item presentation.
     { "mm-get-item-presentation", "SoH's Skip Get Item Animations decides MM's get-item presentation (#1060)",
       Test_MmGetItemPresentation },

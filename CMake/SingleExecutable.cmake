@@ -660,6 +660,12 @@ if(BUILD_TESTING)
     redship_add_test(NAME MmTrapRollFrozenTwoProcesses
         COMMAND ${CMAKE_COMMAND} -DREDSHIP_EXE=$<TARGET_FILE:redship> -DTEST_NAME=mm-trap-roll-frozen
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckPureTwoRuns.cmake)
+    # #1424: every OoTMM trap type (Ice, Fire, Shock, Drain, Anti-Magic, Knockback,
+    # Rupoor) works in both games. The appended types keep SoH's and MM's own at
+    # their places (so no existing roll moves), each new save half reaches the
+    # shared pool through both games' real harvest shims, Fire spares Goron Link,
+    # and MM's roll reads the frozen set's high byte.
+    redship_add_test(NAME TrapTypeParity COMMAND redship --test trap-type-parity)
     # #1060: SoH's "Skip Get Item Animations" decides MM's get-item presentation
     # too. Every MM reader goes through Rando::StaticData::SkipGetItemCutsceneTier,
     # which maps SoH Off/Junk Items/All Items onto MM's Never/Junk Items Only/Always

@@ -27,7 +27,8 @@
  *   5. creation (Rando::Foreign::ResolvePairedProfile) freezes the set the
  *      CVars ask for into the save;
  *   6. the trap-type rows author that set (#1101 lane R4): through the gated
- *      writer the MM Randomizer page's seven rows use, each type alone is
+ *      writer the MM Randomizer page's rows use (twelve since #1424, whose
+ *      five land in the set's high byte), each type alone is
  *      the set creation freezes and gives the profile digest a value of its
  *      own; a frozen profile refuses the write; Reset clears the set.
  *
@@ -55,7 +56,7 @@ void MM_Rando_Hints_TestSetCheck(uint16_t randoCheckId, uint16_t randoItemId, in
 int MM_HintArea_TestCheckRow(uint16_t id, int* outIsEnemyDrop);
 int MM_HintArea_TestCheckIdMax(void);
 // Traps.cpp (#1047)
-int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint8_t mask, uint16_t randoCheckId, uint64_t streamSeed);
+int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint16_t mask, uint16_t randoCheckId, uint64_t streamSeed);
 const char* MM_Rando_Traps_TestCVarName(int type);
 int MM_Rando_Traps_TestTypeCount(void);
 int MM_Rando_Traps_TestCreationFreezes(void);
@@ -172,12 +173,13 @@ static TestResult MmTrapRollFrozen_Run(void) {
     printf("[TEST] mm-trap-roll-frozen: a trap's type is a pure function of the frozen world and the check "
            "(#1047)\n");
     const int typeCount = MM_Rando_Traps_TestTypeCount();
-    if (typeCount <= 1 || typeCount > 8) {
+    // #1424: the frozen set is two bytes (randoSaveTrapTypes, randoSaveTrapTypesHi).
+    if (typeCount <= 1 || typeCount > 16) {
         printf("[TEST] FAIL: %d trap types\n", typeCount);
         return TEST_FAIL;
     }
-    const uint8_t fullMask = (uint8_t)((1u << typeCount) - 1u);
-    const uint8_t freezeOnly = 1u; // TRAP_FREEZE is type 0
+    const uint16_t fullMask = (uint16_t)((1u << typeCount) - 1u);
+    const uint16_t freezeOnly = 1u; // TRAP_FREEZE is type 0
     const int idMax = MM_HintArea_TestCheckIdMax();
 
     // Every live CVar on, for the whole row: none of it may reach a roll.
@@ -200,9 +202,9 @@ static TestResult MmTrapRollFrozen_Run(void) {
             streamMoved += a != b ? 1 : 0;
             outOfSet += (a < 0 || a >= typeCount) ? 1 : 0;
             fullTypes.insert(a);
-            line += (char)('0' + a);
-            const int odd = 0x55 & fullMask;
-            const int c = MM_Rando_Traps_TestRoll(worldSeed, (uint8_t)odd, (uint16_t)id, 0x77ull);
+            line += "0123456789ABCDEF"[a & 0xF]; // one hex digit per roll: sixteen types fit
+            const int odd = 0x5555 & fullMask;
+            const int c = MM_Rando_Traps_TestRoll(worldSeed, (uint16_t)odd, (uint16_t)id, 0x77ull);
             outOfSet += (c < 0 || c >= typeCount || !(odd & (1 << c))) ? 1 : 0;
             cvarLeaks += MM_Rando_Traps_TestRoll(worldSeed, freezeOnly, (uint16_t)id, 0x99ull) != 0 ? 1 : 0;
             notFreeze += MM_Rando_Traps_TestRoll(worldSeed, 0, (uint16_t)id, 0xABull) != 0 ? 1 : 0;
