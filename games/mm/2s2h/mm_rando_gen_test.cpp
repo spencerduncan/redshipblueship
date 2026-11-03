@@ -3198,11 +3198,14 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         return up;
     }
 
+    // #978: five, for the all-masks golden's five shared-mask keys. The mask phases
+    // P4 (#979) and P5 (#980) add their options to that profile and widen this.
+    static constexpr int kGoldenCVarCap = 5;
     struct GoldenSeed {
         const char* golden;
         const char* ootSeed;
-        const char* cvars[3]; // the settings the golden row passes in RSBS_DIAG_CVARS, values below
-        int values[3];
+        const char* cvars[kGoldenCVarCap]; // the settings the golden row passes in RSBS_DIAG_CVARS, values below
+        int values[kGoldenCVarCap];
         int injectedRungs;    // the paired-attempt golden's pre-fill rung
         int expectedAttempts; // ladder attempts until the world was created
     };
@@ -3229,6 +3232,14 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
           0, 1 },
         { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
           0, 1 },
+        // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS).
+        { "seed-digest-all-masks",
+          "RSBSUNIFIED1",
+          { "gCombo.Rando.SharedMaskGoron", "gCombo.Rando.SharedMaskZora", "gCombo.Rando.SharedMaskBunny",
+            "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth" },
+          { 1, 1, 1, 1, 1 },
+          0,
+          1 },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };
@@ -3242,7 +3253,7 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
 
     int rc = 0;
     for (const GoldenSeed& g : kGoldens) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < kGoldenCVarCap; ++i) {
             if (g.cvars[i] != nullptr) {
                 CVarSetInteger(g.cvars[i], g.values[i]);
             }
@@ -3254,7 +3265,7 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         // The OoT settings stay set until MM's half has run, as they do for the
         // golden row (RSBS_DIAG_CVARS lives for the whole process there).
         auto clearSettings = [&g]() {
-            for (int i = 0; i < 3; ++i) {
+            for (int i = 0; i < kGoldenCVarCap; ++i) {
                 if (g.cvars[i] != nullptr) {
                     CVarClear(g.cvars[i]);
                 }
