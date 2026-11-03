@@ -384,7 +384,7 @@ not. Every other golden moved `comboSettingsHash` only.
 Version 3 (2026-10-31, #1323): upstream OoT/MM pool, logic and `Ship_Random`
 backports; every world moved.
 
-Version 4 (2026-11-02, #1367 R5): `[Both Games] Logic` defaults to All Locations
+Version 4 (2026-11-02, #1367 R5, PR #1392): `[Both Games] Logic` defaults to All Locations
 (record byte 9: `r2` -> `r3`, which moves `comboSettings`, `comboSettingsHash` and,
 in `seed-digest-armed-caps`, `armedTrimSeed`), and THE SHARED-QUANTITY CREDIT
 (`combo_logic.h`) credits each copy of a shared tier family to both games' logic,

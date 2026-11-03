@@ -2643,7 +2643,7 @@ Logic setting follows it.
   (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run (done by R5,
   below; the unread file is deleted there).
 
-### 2026-11-02 -- O11: All Locations is the default (#1367 R5)
+### 2026-11-02 -- O11: All Locations is the default (#1367 R5, PR #1392)
 
 Operator-approved: the shipped `[Both Games] Logic` is **All Locations**
 (`all-reachable(T = ∅)`, record byte 9 = 3), following OoTMM, whose `logic`

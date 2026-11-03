@@ -1143,7 +1143,7 @@ int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, co
  * 3 = upstream OoT/MM randomizer pool, logic, and Ship_Random off-by-one
  *     backports (SoH #6180/#6176/#6334/#7117/#7274/#7085/location logic,
  *     2S2H #1777/#1472/region logic).
- * 4 = [Both Games] Logic defaults to All Locations (#1367 R5, OoTMM's default):
+ * 4 = [Both Games] Logic defaults to All Locations (#1367 R5, PR #1392; OoTMM's default):
  *     every new default world is proved over every location of both games, and
  *     the proof credits a shared tier family's copies to both games' logic (the
  *     shared-quantity credit), which moves every proving rung's placements.
