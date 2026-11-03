@@ -345,9 +345,13 @@ typedef struct ComboMMTrackerDesc {
     // (areaName's *outKey): the scene MM is played in, the one MM's own check
     // tracker scrolls to on OnSceneInit and filters by under Only Show Current
     // Scene (CheckTracker.cpp), through Play_GetOriginalSceneId; in a grotto,
-    // the scene it was entered from, since a grotto's checks are listed there.
-    // False with no MM play state. The view calls it only while MM is the
-    // active game (Combo_TrackerCurrentArea). May itself be NULL: no area.
+    // the scene it was entered from, since a grotto's checks are listed there,
+    // except Lone Peak Shrine, whose checks are listed under the grotto scene
+    // itself and which answers that (#1189). False unless MM plays a
+    // randomizer file (#1189, ruling D11, as OoT's op): no MM play state, MM's
+    // title demo and file select, a vanilla file. The view calls it only while
+    // MM is the active game (Combo_TrackerCurrentArea). May itself be NULL: no
+    // area.
     bool (*currentArea)(uint16_t* outKey);
     // The far pane's skip write (#1294), MM's own op: the same byte as
     // setLiveSkipped, in the FROZEN MM half (Context_GetFrozenMMSaveContextForWrite)
@@ -547,9 +551,22 @@ const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId);
  * inactive game answers the area kept from its last live answer (its last
  * frame of play, since the window asks every frame), never its adapter, whose
  * state belongs to the other game then. A game never asked while active, or
- * whose last live answer was "none", answers false.
+ * whose last live answer was "none", answers false, and so does every game once
+ * the session has ended since (Combo_TrackerResetCurrentAreas).
  */
 bool Combo_TrackerCurrentArea(uint8_t game, uint16_t* outKey);
+
+/**
+ * Forget both games' kept areas (#1189): a kept area belongs to the file it came
+ * from, so the pane of a game not played since answers none rather than another
+ * file's area (play file 1 in Termina, load file 2 in Hyrule: MM's pane under
+ * Only Show Current Area kept filtering to file 1's scene). Called by
+ * Context_InvalidateSessionState, the one path a slot load, OoT's return to
+ * title, MM's from a paired file and a new file all take; never by a cross-game
+ * arrival, whose title chain that function's callers skip, so the far pane keeps
+ * the area its game left.
+ */
+void Combo_TrackerResetCurrentAreas(void);
 
 // ============================================================================
 // Reachability of the INACTIVE game (#1129, ruling D6: captured at the freeze)
