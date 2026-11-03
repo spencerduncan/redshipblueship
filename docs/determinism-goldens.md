@@ -235,10 +235,10 @@ The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
 `blastMaskCooldown`) is a value, not an on/off option, so the profile leaves it
 at Default.
 
-Against `seed-digest-default`, the seed, `settingsHash`, `placementHash` and the
-rest of OoT's world at Generate do not move, because the rules are combo settings
-and OoT's settings string does not fold them. What moved when #978 pinned the
-five shared masks:
+Against `seed-digest-default`, the five shared masks leave the seed, `settingsHash`,
+`placementHash` and the rest of OoT's world at Generate where they were, because
+the rules are combo settings and OoT's settings string does not fold them. What
+moved when #978 pinned the five shared masks:
 
 * `comboSettingsHash` (`FADB7B21` to `2769D409` at generator 4), which folds the
   five rule bits;
@@ -253,11 +253,23 @@ creates on ladder attempt 1 in one batch attempt of 263 rounds.
 
 #979 re-pins it with the two Blast Mask keys, also at generator version 4 (#1392
 bumped the version to 4 in the same release window; this re-pin does not bump
-it again). The Blast Mask (OoT) rule adds the Blast Mask to OoT's pool and the shared rule pairs
-it with MM's Blast Mask, keeping the OoT row and trimming the MM one, so against
-the five-mask pin `comboSettingsHash` moves (two more rule bits) and so do
-`bagTrimmedMM`, the bag's seed and rounds and everything placed after them. The
-re-pin commit names the fields and values that moved. Rule 6 does not bump
+it again). The Blast Mask (OoT) rule adds the Blast Mask to OoT's pool and the
+shared rule pairs it with MM's Blast Mask, keeping the OoT row and trimming the MM
+one. Against the five-mask pin, measured:
+
+* `comboSettingsHash` (`2769D409` to `3DFE31F1`), which folds the two more rule
+  bits; `comboSettings` does not carry the item rules and stays;
+* `placementHash` (`568A4F87` to `B6E7890B`): unlike the shared masks, this rule
+  changes OoT's own pool at Generate (the creation freezes before Fill), so OoT's
+  world at Generate moves. The Blast Mask takes a junk item's place, so
+  `placedCount` stays 277, and `settingsHash` stays;
+* `bagTrimmedMM` (34 to 35): the sixth shared pair. `bagRows` stays 261 (OoT's
+  Blast Mask row in, MM's trimmed out);
+* the bag's seed and every placement, crossing, hint and foolish area after it
+  (`crossingsInOoT` 54 to 40, `crossingsInMM` 31 to 20).
+
+It still creates on ladder attempt 1 in one batch attempt of 263 rounds. The
+re-pin commit names every field and value that moved. Rule 6 does not bump
 `RSBS_GENERATOR_VERSION` for it: the world moved because this profile's inputs
 changed, and the two new bits are folded into `comboSettingsHash` already, so no
 two builds make different worlds behind one fingerprint. No world the profile
