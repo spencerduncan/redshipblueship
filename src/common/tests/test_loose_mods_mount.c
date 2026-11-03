@@ -27,10 +27,10 @@
  * that mounts packed archives and then the loose layer, which the shipping init leg
  * of UpdateModFiles also calls with its enabled set. So removing the OoT loose call
  * turns FAIL(4) red (observed for PR #732's review; before that review each caller
- * had its own loose call and the init leg's was unlocked). STILL UNLOCKED: that the
- * init leg calls MountOoTModLayers at all — nothing drives UpdateModFiles(true),
- * which reads the player's real mods root and the enabled-mods CVar — the same
- * residual #670's seam documents for the packed pair.
+ * had its own loose call and the init leg's was unlocked). That the init leg calls
+ * MountOoTModLayers at all is locked since #1196 by the OoTModSet row, whose
+ * OoT_UpdateModFilesHeadless runs everything UpdateModFiles(true) does once the two
+ * mods roots are resolved; only that resolution (Combo_ModsRootForGame) stays unlocked.
  *
  * WHAT WAS MISSING. libultraship can serve a directory as an archive — FolderArchive,
  * constructed by ArchiveManager::AddArchive for a path with no extension — but no
