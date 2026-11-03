@@ -1304,8 +1304,11 @@ bool IsGatedGroupName(uint8_t game, const char* groupName) {
         }
         return false;
     }
+    // #1369: SoH's ability rows (Roc's Feather, Swim, Grab, Climb, Crawl, Open
+    // Chest), each shown only while its own shuffle is on.
     static const char* const kOotGated[] = {
-        "Greg", "Fishing Pole", "Bean Souls", "Boss Souls", "Jabber Nuts", "Ocarina Buttons", "Overworld Keys",
+        "Greg",        "Fishing Pole",    "Bean Souls",     "Boss Souls",
+        "Jabber Nuts", "Ocarina Buttons", "Overworld Keys", "Abilities",
     };
     for (const char* g : kOotGated) {
         if (std::strcmp(groupName, g) == 0) {
@@ -1561,6 +1564,16 @@ void ComboItemTrackerAvailableGroups(int section, std::vector<ComboItemTrackerGr
             masksAndArrows.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, k));
         }
         out.push_back(std::move(masksAndArrows));
+
+        // #1369: the Shared Swim row (combo_item_view.c kSharedFamilyRows), so a
+        // custom Shared layout can place it.
+        ComboItemTrackerGroup abilities;
+        abilities.name = "Shared Abilities";
+        abilities.section = COMBO_ITEM_SECTION_SHARED;
+        abilities.columns = 4;
+        abilities.autoHideUnshuffled = false;
+        abilities.slots.push_back(MakeSlot(COMBO_SLOT_SHARED, "ability_swim"));
+        out.push_back(std::move(abilities));
     }
 }
 
