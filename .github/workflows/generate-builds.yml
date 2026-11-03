@@ -61,15 +61,21 @@ on:
 # build, so those caches were never written and every macOS build started cold.
 #
 # The group names the event as well as the ref:
-#   - pushes to main share one group, so they queue and main builds one commit
-#     at a time. GitHub keeps one PENDING run per group: a newer push replaces
-#     a queued run that has not started yet (it shows as cancelled), never the
-#     run in progress. Builds stay bounded to one main run, which keeps macOS
-#     minutes and cache saves (see #177 under build-windows) in check.
+#   - pushes to main share one group, so they queue and main builds one pushed
+#     commit at a time. GitHub keeps one PENDING run per group: a newer push
+#     replaces a queued run that has not started yet (it shows as cancelled),
+#     never the run in progress. Builds stay bounded to one main push run at a
+#     time, which keeps macOS minutes and cache saves (see #177 under
+#     build-windows) in check. A dispatch on main has a group of its own, so it
+#     can run beside that push run.
 #   - a dispatch (the manual release path) never shares a group with a push,
 #     so a merge can never replace a queued release.
 #   - each pull request, release branch and tag has a ref, and so a group, of
-#     its own.
+#     its own. Trigger each release once: a second push to the same release/v*
+#     branch now queues behind the first instead of cancelling it, and its
+#     create-release can find the release made and re-upload its own build over
+#     the assets (the tag stays on the first commit). A tag push and a dispatch
+#     on that tag ref are in different groups and can both reach create-release.
 # tools/tests/test_required_checks.py evaluates these expressions for every
 # workflow and fails if any run on main, a release branch or a tag could be
 # cancelled in progress.
