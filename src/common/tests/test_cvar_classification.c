@@ -1623,6 +1623,33 @@ TestResult Test_CVarClassification(void) {
             }
         }
 
+        // (3e-2) #1426: SoH's Disable Crit Wiggle is ADOPTED by Majora's Mask. The key is a shared-intent entry (so
+        // the marker pass labels SoH's row "[Both Games]"), MM's camera reads SoH's spelling where its low-health
+        // wiggle is (games/mm/src/code/z_camera.c, as OoT's z_camera.c does), and OoT still reads it. Red on a tree
+        // where MM's wiggle reads no key: the row would claim both games and move only one.
+        {
+            constexpr const char* kCritWiggleKey = "gEnhancements.DisableCritWiggle";
+            bool shared = false;
+            for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+                shared = shared || strcmp(RSBS::kSharedIntentKeys[i], kCritWiggleKey) == 0;
+            }
+            CVARCLASS_CHECK(shared, "(3e-2) #1426: gEnhancements.DisableCritWiggle is not in RSBS::kSharedIntentKeys, "
+                                    "so SoH's Disable Crit Wiggle row drives Majora's Mask unmarked");
+            std::ifstream cameraFile(sourceRoot / "games" / "mm" / "src" / "code" / "z_camera.c", std::ios::binary);
+            const std::string cameraText((std::istreambuf_iterator<char>(cameraFile)),
+                                         std::istreambuf_iterator<char>());
+            CVARCLASS_CHECK(!cameraText.empty(), "(3e-2) #1426: could not read games/mm/src/code/z_camera.c");
+            const std::vector<std::string> cameraTree = { CvarClassStripComments(cameraText) };
+            CVARCLASS_CHECK(CvarClassTreeContainsExactKey(cameraTree, kCritWiggleKey),
+                            "(3e-2) #1426: MM's z_camera.c does not read SoH's \"gEnhancements.DisableCritWiggle\", "
+                            "so the low-health camera wiggle ignores the shared Disable Crit Wiggle row in Majora's "
+                            "Mask");
+            CVARCLASS_CHECK(CvarClassTreeContainsLiteral(ootTree, "DisableCritWiggle"),
+                            "(3e-2) #1426: nothing under games/oot reads \"DisableCritWiggle\" any more (OoT's "
+                            "z_camera.c and SoH's row reach it through CVAR_ENHANCEMENT)");
+            printf("[TEST] (3e-2) Disable Crit Wiggle is one shared-intent key, read by both games' cameras\n");
+        }
+
         // (3f) The canonical keys are actually read by OoT. Catches a typo in
         // the manifest that would otherwise make every check above pass while
         // pointing at a key nothing uses. Skips Volume.Ambience, which is an
