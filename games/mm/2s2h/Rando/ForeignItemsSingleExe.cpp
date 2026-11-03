@@ -94,6 +94,7 @@
 #include "Rando/Rando.h"
 #include "Rando/Types.h"
 #include "Rando/StaticData/StaticData.h"
+#include "Rando/MiscBehavior/ClockShuffle.h" // #1415: a crossed half-day's flag index
 // The arrival toast (#494), sent through MM_Notify_Emit — the explicit #427
 // item-1 bridge to OoT's shared overlay. MM's own BenGui/Notification.cpp is
 // excluded from single-exe builds and Notification::Emit is deliberately NOT
@@ -155,6 +156,48 @@ int sPendingCount = 0;
  */
 bool IsGiveableItemId(uint16_t riId) {
     return riId != (uint16_t)RI_UNKNOWN && riId != (uint16_t)RI_NONE && riId < (uint16_t)RI_MAX;
+}
+
+/**
+ * #1415: a half-day found in Ocarina of Time is owned from the moment the
+ * arrival redeems it, not from the first gameplay frame.
+ *
+ * MM_Play_ConsumeStartupEntrance redeems the shared items (MM_ConsumeSharedItems,
+ * z_play.c:2775) and THEN re-dispatches OnSaveLoad (z_play.c:2794), whose
+ * ClockShuffle::OnFileLoad moves a new cycle's clock (day 0, 05:59) to the
+ * earliest owned half-day (CorrectInitialTime). The give itself waits for the
+ * first gameplay frame (the deferral above), so a half-day the player found in
+ * Hyrule was not owned yet when the start was picked: a file starting on Day 3
+ * with Day 2 found in Hyrule began its first MM cycle at Dawn of the Third Day,
+ * and nothing moved the clock back. OoTMM writes the half-day at the pickup
+ * (addItemClockMm, item_add.c), before Play_FixupSpawnTime reads it.
+ *
+ * So the flag is written here, at the redemption, and the give is still queued:
+ * Rando::GiveItem's RI_TIME_* branch is this same single flag write, so at the
+ * drain it changes nothing and only the toast of a sourced grant remains. The
+ * flag is written directly rather than through an early Rando::GiveItem: that
+ * is the one give for every id, and most of its branches need the play state
+ * the deferral waits for, so the early part stays these six ids. The index
+ * comes from GetHalfDayIndexFromClockItem, never from `riId - RI_TIME_DAY_1`
+ * (the item enum runs D1 D2 D3 N1 N2 N3, the flag enum D1 N1 D2 N2 D3 N3). The
+ * OnFlagSet handlers this dispatches filter by flag type and read no play state.
+ *
+ * The six concrete ids are the whole set. A clock crosses only under
+ * RSBS_GIVECAP_CLOCKS, which arms in the RANDOM clock mode alone
+ * (MM_Rando_PublishProfileGiveCaps, Foreign.cpp), and that mode's pool holds the
+ * six concrete rows, never RI_TIME_PROGRESSIVE (GeneratePools.cpp). For any
+ * other id GetHalfDayIndexFromClockItem answers INVALID and nothing is written.
+ *
+ * A mid-cycle arrival is unchanged: CorrectInitialTime acts only on day 0 at
+ * 05:59, so an owned earlier half-day never rewinds a running cycle (OoTMM's
+ * Play_FixupSpawnTime has the same rule).
+ */
+void OwnCrossedHalfDay(uint16_t riId) {
+    const int halfDay = Rando::ClockItems::GetHalfDayIndexFromClockItem((RandoItemId)riId);
+    if (halfDay == Rando::ClockItems::INVALID) {
+        return;
+    }
+    Flags_SetRandoInf(RANDO_INF_OBTAINED_CLOCK_DAY_1 + halfDay);
 }
 
 /**
@@ -273,6 +316,10 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce) {
         GiveNow(riId, announce != 0);
         return 1;
     }
+
+    // #1415: before the capacity check, so the half-day is owned even if the
+    // queue below ever refused the give (only its toast would be lost).
+    OwnCrossedHalfDay(riId);
 
     if (sPendingCount >= (int)RSBS_SHARED_ITEM_LOGICAL_CAP) {
         // Unreachable while the queue is sized to the durable array (one
@@ -445,6 +492,12 @@ extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
 // with the song's ItemId, and Item_GiveImpl's song branch sets one quest bit
 // without reading `play` (z_parameter.c). The quest bits are NOT put back here:
 // they are what that row reads, and it restores them itself.
+//
+// #1415 (games/mm/2s2h/mm_clock_shuffle_first_arrival_test.cpp, CTest
+// MMClockShuffleFirstArrival): the six concrete half-days are admitted too.
+// Rando::GiveItem's RI_TIME_* branch is a single RANDO_INF flag write with no
+// play read. Their flags are not put back either: that row reads them and
+// restores the save itself.
 // ============================================================================
 
 namespace {
@@ -454,6 +507,12 @@ bool IsStandInDrainableId(uint16_t riId) {
         case RI_SONG_SONATA:
         case RI_SONG_HEALING:
         case RI_SONG_SOARING:
+        case RI_TIME_DAY_1:
+        case RI_TIME_NIGHT_1:
+        case RI_TIME_DAY_2:
+        case RI_TIME_NIGHT_2:
+        case RI_TIME_DAY_3:
+        case RI_TIME_NIGHT_3:
             return true;
         default:
             return false;

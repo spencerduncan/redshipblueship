@@ -1502,8 +1502,18 @@ if(BUILD_TESTING)
     # falls at the end of the last owned one (OoTMM's rule). Drives the real
     # ClockShuffle EnTest4 pre-update hook, the Scarecrow and time-left VB hooks
     # and the ownership query; pins the retired Final Hours Start Time row.
+    # #1415 adds the hook's guard (EVENTINF_17, not Doggy Racetrack state) and
+    # the six half-day items' flags.
     # Pure (no display, no ROM); restores everything it touches.
     redship_add_test(NAME MMClockShuffleFinalHours COMMAND redship --test mm-clock-shuffle-final-hours)
+    # Shuffle Time's first MM arrival (#1415, games/mm/2s2h/
+    # mm_clock_shuffle_first_arrival_test.cpp): a half-day found in Ocarina of
+    # Time is owned when MM's arrival picks the cycle's starting half-day, a
+    # running cycle is not rewound, the first frame's drain moves nothing and
+    # toasts only a sourced grant. Drives the real MM_Play_ConsumeStartupEntrance
+    # after the boot chain's OnSaveLoad disarm, with MM_Rando_InitCore's OnSaveLoad
+    # handler registered. Pure (no display, no ROM); restores what it touches.
+    redship_add_test(NAME MMClockShuffleFirstArrival COMMAND redship --test mm-clock-shuffle-first-arrival)
     # The same class a third time (#1071): the nine song-teacher hooks under
     # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
     # forced on under IS_RANDO because they ARE the rando hand-off for those

@@ -335,6 +335,13 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // EnTest4 pre-update hook and the VB hooks over a stand-in play state, and
 // restores everything it touches. Returns 0 on pass, non-zero on fail.
 int MM_ClockShuffleFinalHours_RunHeadless(void);
+// Shuffle Time's first MM arrival (games/mm/2s2h/mm_clock_shuffle_first_arrival_test.cpp,
+// #1415): a half-day found in Ocarina of Time is owned when the arrival's
+// OnSaveLoad re-dispatch picks the cycle's starting half-day. Drives the real
+// MM_Play_ConsumeStartupEntrance after the boot chain's OnSaveLoad disarm, and
+// the first gameplay frame's drain over a stand-in play state; restores
+// everything it touches. Returns 0 on pass, non-zero on fail.
+int MM_ClockShuffleFirstArrival_RunHeadless(void);
 // The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
 // #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
 // file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
@@ -6570,6 +6577,24 @@ static TestResult Test_MMClockShuffleFinalHours(void) {
     return MM_ClockShuffleFinalHours_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1415. Same display-free shared bring-up as mm-clock-shuffle-final-hours,
+// for two reasons: the row drives MM_Rando_InitCore, whose ShipInit registrars
+// read the CVar store, and its sourced grant's arrival toast reaches the
+// overlay's Emit, which reads it too; the overlay is muted so no toast reaches
+// OoT's audio. It restores what it touches and leaves the ClockShuffle hooks
+// disarmed; it must stay after mm-registrar-coverage in the table.
+static TestResult Test_MMClockShuffleFirstArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = MM_ClockShuffleFirstArrival_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
+}
+
 // #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
 // registrars it arms read CVars through the Ship::Context singleton. It restores
 // the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
@@ -8829,6 +8854,13 @@ const TestDescriptor gTests[] = {
     { "mm-clock-shuffle-final-hours",
       "Shuffle Time hands out no unowned Final Hours; the moon falls at the last owned half-day (#1229)",
       Test_MMClockShuffleFinalHours },
+    // Shuffle Time's first MM arrival (#1415): a half-day found in Hyrule is
+    // owned when the arrival picks the cycle's start. It drives MM_Rando_InitCore,
+    // so it MUST stay after mm-registrar-coverage (that row needs the registries
+    // empty before its own MM_Rando_Init); it restores everything else it touches.
+    { "mm-clock-shuffle-first-arrival",
+      "A half-day found in Hyrule is owned when MM's first arrival picks the cycle's start (#1415)",
+      Test_MMClockShuffleFirstArrival },
     // The same elided-registrar class again (#1071): the nine song-teacher
     // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
     // everything it touches, so it has no ordering constraints.
