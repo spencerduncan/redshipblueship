@@ -203,9 +203,23 @@ void MM_ArrowIce_Draw(Actor* thisx, PlayState* play) {
         // Draw blue effect over the screen when arrow hits
         if (this->blueingEffectMagnitude > 0.0f) {
             POLY_XLU_DISP = Gfx_SetupDL57(POLY_XLU_DISP);
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#1272 item 2): a changed Ice Arrow Secondary tints the hit flash, as it does in Hyrule.
+            Color_RGB8 flash;
+            if (MM_CosmeticEditor_ArrowHitFlash(COSMETIC_ELEMENT_ICE_ARROW_SECONDARY, this->blueingEffectMagnitude,
+                                                &flash)) {
+                gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, flash.r, flash.g, flash.b,
+                                (s32)(150.0f * this->blueingEffectMagnitude) & 0xFF);
+            } else {
+                gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, (s32)(this->blueingEffectMagnitude * 10.0f) & 0xFF,
+                                (s32)(50.0f * this->blueingEffectMagnitude) & 0xFF,
+                                (s32)(150.0f * this->blueingEffectMagnitude) & 0xFF);
+            }
+#else
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, (s32)(this->blueingEffectMagnitude * 10.0f) & 0xFF,
                             (s32)(50.0f * this->blueingEffectMagnitude) & 0xFF,
                             (s32)(150.0f * this->blueingEffectMagnitude) & 0xFF);
+#endif
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);
             MM_gSPDisplayList(POLY_XLU_DISP++, D_0E000000_TO_SEGMENTED(fillRect));

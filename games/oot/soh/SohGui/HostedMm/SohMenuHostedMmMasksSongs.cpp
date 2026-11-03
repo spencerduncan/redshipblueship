@@ -7,10 +7,11 @@
  * their keys, and every provider but Pause Owl Warp's was left out of the link (games/mm/CMakeLists.txt carves them
  * into ship__Enh_registrars beside this change). Each row binds its RSBS_CVAR_MM_* define
  * (src/common/cvar_shared_keys.h) and SoH's page calls each function below in one line:
- *  - Items > Ocarina: a "Majora's Mask" block after SoH's ocarina rows (Pause Owl Warp, Enable Sun's Song, Zora Eggs
- * for Bossa Nova, Faster Song Playback, Skip Soaring Cutscene, Underwater Ocarina). Underwater Ocarina is a Player key
- * in 2Ship; its row belongs with the Ocarina. SoH's Fast Ocarina Playback is Faster Song Playback's nearest relative,
- *    not its twin: SoH skips the replay of the notes, MM cuts the wait after the song and the Elegy statues' fade.
+ *  - Items > Ocarina: Faster Song Playback directly after SoH's Fast Ocarina Playback, its nearest relative (#1272 item
+ * 6, the hosting rule's "beside its nearest relative"), not its twin: SoH skips the replay of the notes, MM cuts the
+ * wait after the song and the Elegy statues' fade, so the keys stay apart and the row keeps its own label. Then a
+ * "Majora's Mask" block after SoH's ocarina rows (Pause Owl Warp, Enable Sun's Song, Zora Eggs for Bossa Nova, Skip
+ * Soaring Cutscene, Underwater Ocarina). Underwater Ocarina is a Player key in 2Ship; its row belongs with the Ocarina.
  *  - Items > Masks: a "Majora's Mask" block after SoH's mask rows (the eight 2Ship Masks options). None has an SoH
  * twin.
  *
@@ -37,6 +38,14 @@ namespace SohGui {
 
 using namespace UIWidgets;
 
+/** Items > Ocarina, directly after SoH's Fast Ocarina Playback (#1272 item 6). */
+void AddMmFasterSongPlaybackRow(SohMenu& menu, WidgetPath& path) {
+    AddHostedMmWidget(menu, path, "Ocarina", "Faster Song Playback", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_SONGS_FASTER_SONG_PLAYBACK)
+        .Options(CheckboxOptions().Tooltip(
+            "Speeds up the playback of songs, the Elegy of Emptiness statues included. Majora's Mask only."));
+}
+
 /** Items > Ocarina, at the end of the section. */
 void AddMmOcarinaRows(SohMenu& menu, WidgetPath& path) {
     AddHostedMmBlock(menu, path);
@@ -55,10 +64,6 @@ void AddMmOcarinaRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_SONGS_ZORA_EGG_COUNT)
         .Options(IntSliderOptions().Min(1).Max(7).DefaultValue(7).Format("%d").Tooltip(
             "Sets how many Zora Eggs unlock the New Wave Bossa Nova. Majora's Mask only."));
-    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Faster Song Playback", WIDGET_CVAR_CHECKBOX)
-        .CVar(RSBS_CVAR_MM_SONGS_FASTER_SONG_PLAYBACK)
-        .Options(CheckboxOptions().Tooltip(
-            "Speeds up the playback of songs, the Elegy of Emptiness statues included. Majora's Mask only."));
     AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Skip Soaring Cutscene", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_SONGS_SKIP_SOARING_CUTSCENE)
         .Options(

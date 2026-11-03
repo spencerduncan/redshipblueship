@@ -30,11 +30,14 @@
  *   (5) the arming predicate follows the FROZEN bit, and nothing is armed
  *       before a world exists;
  *   (6) THE POOLS STAY WHOLE, on or off: the kind's quantity policy is
- *       KEEP_ALL even when armed, and neither game's REGISTERED item-class
- *       source maps its pool sword (OoT's RG_KOKIRI_SWORD, MM's
- *       RI_PROGRESSIVE_SWORD) to the kind. Trimming could not be right here:
- *       OoT's sword reaches tier 1 and MM's chain tier 3, and the shared-quantity
- *       rule keeps a family with unequal ceilings whole (shared_items.h), which
+ *       KEEP_ALL even when armed. Since #1145 both games' REGISTERED item-class
+ *       sources map their pool sword (OoT's RG_KOKIRI_SWORD, MM's
+ *       RI_PROGRESSIVE_SWORD) to the kind, so a far game's sword steps the pool
+ *       at its pickup (SharedTierPickup leg K); the tag moves no class (each
+ *       sword answers PROGRESSION, as its own source does) and the REAL composer,
+ *       trim on, keeps all four copies. Trimming could not be right here: OoT's
+ *       sword reaches tier 1 and MM's chain tier 3, and the shared-quantity rule
+ *       keeps a family with unequal ceilings whole (shared_items.h), which
  *       Combo_SharedQuantityTierBudget answers -1 for exactly this shape;
  *   (7) THE COST OF KEEPING THEM WHOLE, stated rather than hidden: MM's pool
  *       sword is PROGRESSIVE and resolves from the sword MM holds, so once OoT's
@@ -256,6 +259,7 @@ TestResult Test_SharedKokiriSword(void) {
                   (unsigned)policy.policy, Combo_SharedQuantityPolicyName(policy.policy));
 
         int kindOf[2] = { -2, -2 };
+        int classOf[2] = { -2, -2 };
         const uint8_t origins[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
         const int ids[2] = { OoT_SharedSwordTest_PoolSwordId(), MM_SharedSwordTest_PoolSwordId() };
         SKS_CHECK(OoT_ComboLogic_TestEnsureItemTableTransient() == 0, "OoT's item table did not come up");
@@ -267,18 +271,57 @@ TestResult Test_SharedKokiriSword(void) {
             SKS_CHECK(rv == 1, "%s's pool sword (id %d) is not a fill item to its registered source (rv %d)",
                       g == 0 ? "OoT" : "MM", ids[g], rv);
             kindOf[g] = (rv == 1) ? (int)row.sharedKind : -1;
-            SKS_CHECK(kindOf[g] != (int)RSBS_SHARED_RES_KOKIRI_SWORD,
-                      "%s's pool sword maps to the Kokiri Sword kind: the trim would now count it",
-                      g == 0 ? "OoT" : "MM");
+            SKS_CHECK(kindOf[g] == (int)RSBS_SHARED_RES_KOKIRI_SWORD,
+                      "%s's pool sword feeds kind %d, not the Kokiri Sword's: its pickup in the other game cannot "
+                      "step the pool (#1145)",
+                      g == 0 ? "OoT" : "MM", kindOf[g]);
+            // The tag must move no class: the owner's reconciled answer is the
+            // source's own, so no placement golden can move through it.
+            SharedItem item;
+            item.originGame = origins[g];
+            item.flags = 0;
+            item.id = (uint16_t)(ids[g] >= 0 ? ids[g] : 0);
+            classOf[g] = (int)Combo_ItemClassOf(item);
+            SKS_CHECK(rv == 1 && classOf[g] == (int)RSBS_FILL_CLASS_PROGRESSION &&
+                          classOf[g] == (int)Combo_ItemClassSourceOf(item),
+                      "%s's pool sword answers class %s (its source says %s); the tag must leave it PROGRESSION",
+                      g == 0 ? "OoT" : "MM", Combo_ItemClassName((uint8_t)classOf[g]),
+                      Combo_ItemClassName(Combo_ItemClassSourceOf(item)));
         }
+
+        // The REAL composer, trim on, over OoT's sword and MM's three copies.
+        ComboLogicPoolRow rows[4];
+        memset(rows, 0, sizeof(rows));
+        for (int i = 0; i < 4; ++i) {
+            const int id = (i == 0) ? ids[0] : ids[1];
+            rows[i].item.originGame = (i == 0) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+            rows[i].item.id = (uint16_t)(id >= 0 ? id : 0);
+        }
+        ComboLogicComposeRequest creq;
+        memset(&creq, 0, sizeof(creq));
+        creq.rows = rows;
+        creq.rowCount = 4;
+        creq.trimSeed = 0x1145u;
+        creq.startingHealthOoT = 0x30u;
+        creq.startingHealthMM = 0x30u;
+        ComboLogicBagItem bag[8];
+        ComboLogicComposeResult cres;
+        memset(&cres, 0, sizeof(cres));
+        const int cst = Combo_Logic_ComposeBag(&creq, bag, 8, NULL, &cres);
+        const int trimmed = (cst == RSBS_COMBO_LOGIC_OK) ? Combo_Logic_ComposeTrimmedCount() : -1;
 
         const ComboSharedQuantityPolicy swordShape = { (uint8_t)RSBS_SHARED_QTY_TRIM_TO_SHARED_MAX,
                                                        (uint8_t)RSBS_SHARED_QTY_BUDGET_TIER, 0u, 1u, 3u };
         const int budget = Combo_SharedQuantityTierBudget(&swordShape, 1, 3);
-        printf("[TEST] (6) on: policy %s, pool-sword kinds OoT %d MM %d, a 1/3-ceiling trim budget %d "
-               "(expected keep-all, not %u, not %u, -1)\n",
-               Combo_SharedQuantityPolicyName(policy.policy), kindOf[0], kindOf[1], budget,
-               (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD, (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD);
+        printf("[TEST] (6) on: policy %s, pool-sword kinds OoT %d MM %d, classes OoT %s MM %s, composed bag %d of 4 "
+               "with %d trimmed, a 1/3-ceiling trim budget %d (expected keep-all, %u, %u, progression, progression, "
+               "4, 0, -1)\n",
+               Combo_SharedQuantityPolicyName(policy.policy), kindOf[0], kindOf[1],
+               Combo_ItemClassName((uint8_t)classOf[0]), Combo_ItemClassName((uint8_t)classOf[1]), cres.bagCount,
+               trimmed, budget, (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD, (unsigned)RSBS_SHARED_RES_KOKIRI_SWORD);
+        SKS_CHECK(cst == RSBS_COMBO_LOGIC_OK && cres.bagCount == 4 && trimmed == 0,
+                  "the composer kept %d of the four pool swords (%d trimmed, status %s): the pools must stay whole",
+                  cres.bagCount, trimmed, Combo_Logic_StatusName(cst));
         SKS_CHECK(budget == -1,
                   "a sword trim with ceilings OoT 1 / MM 3 over 1 + 3 copies budgets %d; the unequal-ceiling rule "
                   "keeps such a family whole (-1)",

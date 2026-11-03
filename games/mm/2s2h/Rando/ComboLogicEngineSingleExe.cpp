@@ -2233,6 +2233,14 @@ uint8_t MMFillClassSharedKind(RandoItemId ri) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RI_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #1145: MM's pool sword, so OoT's pickup of it steps the shared sword
+        // (armed only by the frozen Shared Kokiri Sword bit). Only its first copy
+        // is the Kokiri Sword: OoT's step shim asks Combo_SharedPickupStepAdmitted,
+        // and a later copy crosses to become MM's Razor or Gilded Sword. Its class
+        // stays PROGRESSION and the kind is KEEP_ALL, so the pool and the bag do not
+        // move. RI_SWORD_KOKIRI is not tagged: no MM pool places it.
+        case RI_PROGRESSIVE_SWORD:
+            return RSBS_SHARED_RES_KOKIRI_SWORD;
         // #970: a bottle, whatever it holds (MM's six bottle checks). The policy
         // trims only while the frozen Shared Bottles rule arms the kind.
         case RI_BOTTLE_EMPTY:

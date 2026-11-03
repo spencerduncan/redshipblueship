@@ -148,14 +148,36 @@ typedef enum {
      *  "Already Decided" and a capability reason send a player looking in
      *  different places. */
     COMBO_MM_ROW_FROZEN,
+    /** Decided by a [Both Games] rule (#1367): read-only, and the reason names
+     *  the rule (COMBO_LOGIC_SET_BY_COMBO_REASON). Not a capability block: the
+     *  behaviour exists, the pair's row chooses it, so the group's "not
+     *  available in this build" note does not count it. Appended. */
+    COMBO_MM_ROW_SET_BY_COMBO,
 } ComboMMRowState;
+
+/** The MM option whose value the pair's [Both Games] Logic decides (#1367), by
+ *  its StaticData name (ComboMMOptionDesc::name, which the MMRandoOptions lock
+ *  holds equal to MM's own row). */
+#define COMBO_MM_OPTION_NAME_LOGIC "RO_LOGIC"
+
+/** True for the option row a [Both Games] rule decides (#1367: MM's Logic). */
+bool Combo_MMOptionsPage_OptionSetByCombo(const ComboMMOptionDesc* desc);
 
 /**
  * The option row's state, and its reason in @p reason (never NULL on return;
  * "" when LIVE; @p reason may be NULL). Frozen wins over a capability block:
  * once the world exists the row's value is the world's, whatever its capability.
+ * Unfrozen, a row a [Both Games] rule decides is SET_BY_COMBO (#1367).
  */
 ComboMMRowState Combo_MMOptionsPage_OptionState(const ComboMMOptionDesc* desc, const char** reason);
+
+/**
+ * The value an option row shows: Combo_MMOptionGetValue (its key, or its
+ * default), except for a row a [Both Games] rule decides, which shows what that
+ * rule resolves to (#1367: MM's Logic shows MM_Rando_PairedLogicShown, never a
+ * value left in its key). 0 for NULL.
+ */
+int32_t Combo_MMOptionsPage_OptionShownValue(const ComboMMOptionDesc* desc);
 
 /** The trick row's state and reason, by the same rule. A reserved or unbound
  *  trick is BLOCKED with the table's reason. */

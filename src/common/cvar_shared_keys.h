@@ -157,6 +157,12 @@
  * RSBS_COMBO_GOAL_* enumerators, DEFAULT beat-both (1), so a player who leaves
  * it alone resolves to the same twelve record bytes as before it existed. */
 #define RSBS_CVAR_COMBO_RANDO_GOAL "gCombo.Rando.Goal"
+/* #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
+ * `logic` (All Locations / Beatable Only / No Logic) on the pinned
+ * RSBS_COMBO_RUNG_* enumerators (3 / 2 / 1). DEFAULT Beatable Only (2), the
+ * rung every world before it froze, so a player who leaves it alone resolves to
+ * the same twelve record bytes. Both games' own Logic rows follow it. */
+#define RSBS_CVAR_COMBO_RANDO_LOGIC "gCombo.Rando.Logic"
 /* #886: one Kokiri Sword across both games. Boolean (0/1), DEFAULT 0, so every
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
@@ -448,6 +454,13 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // widget, in the excluded Rando/Menu.cpp, never drew). Both bool, default off. ChestSizeDependsStoneOfAgony stays
     // OoT-only: MM has no Stone of Agony.
     { "gRando.CSMC", "gEnhancements.ChestSizeAndTextureMatchContents", false },
+    // #1272 item 5 (migrated by ConfigVersion10Updater): SoH's "Disable Auto-Centering in First-Person View". Both
+    // bool, default off, read per frame by each game's first-person camera (OoT z_player.c, MM z_player.c). W6-CAM-AIM
+    // held them apart for gating, but MM's extra gate is its own Gyro Aiming, which still suppresses MM's auto-centre
+    // beside the shared switch; under the one-game model one switch now means one thing in both games. W6-CAM-AIM's MM
+    // row wrote the MM spelling, so version 10 carries a stored value across.
+    { "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", "gSettings.DisableFirstPersonAutoCenterView",
+      false },
 };
 
 /**
@@ -533,8 +546,9 @@ struct DistinctPair {
 // W6-MASKS-SONGS
 // W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
 // Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
-// Playback is only the nearest relative of Faster Song Playback); Underwater Ocarina is a Player key whose row belongs
-// with the Ocarina. PersistentBunnyHood.State is the TU's internal toggle and has no row.
+// Playback is only the nearest relative of Faster Song Playback, whose row sits directly after it since #1272 item 6);
+// Underwater Ocarina is a Player key whose row belongs with the Ocarina. PersistentBunnyHood.State is the TU's internal
+// toggle and has no row.
 #define RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING "gEnhancements.Masks.EquipWhileSwimming"
 #define RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG "gEnhancements.Masks.BlastMaskKeg"
 #define RSBS_CVAR_MM_MASKS_FAST_TRANSFORMATION "gEnhancements.Masks.FastTransformation"
@@ -704,10 +718,10 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_AUTOSAVE_INTERVAL "gEnhancements.Saving.AutosaveInterval"
 
 // W6-CAM-AIM (#1236): MM's aiming and camera inversion / sensitivity keys and its shield Y inversion. Held apart from
-// SoH's (P3, P7 and the three first-person rows beside P3 in kMustStayDistinct), so each has an MM row beside its SoH
+// SoH's (P3, P7 and the two first-person rows beside P3 in kMustStayDistinct), so each has an MM row beside its SoH
 // twin in SoH's Bindings window, Camera Controls panel (SohInputEditorWindow.cpp). MM reads the three *_INVERT_Y
-// aiming and camera keys with default 1 (inverted), and their rows declare that default.
-#define RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView"
+// aiming and camera keys with default 1 (inverted), and their rows declare that default. The first-person
+// auto-centering switch converged onto SoH's key instead (#1272 item 5, kConvergedKeys), so it has no define.
 #define RSBS_CVAR_MM_CAMERA_FP_INVERT_X "gEnhancements.Camera.FirstPerson.InvertX"
 #define RSBS_CVAR_MM_CAMERA_FP_INVERT_Y "gEnhancements.Camera.FirstPerson.InvertY"
 #define RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X "gEnhancements.Camera.FirstPerson.SensitivityX"
@@ -746,13 +760,10 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "Different axis decomposition: OoT splits by context (free-look / aiming / shield / Z-aim), MM by "
       "input device (right stick / gyro / first-person). No 1:1 mapping — OoT has no gyro axis, MM has no "
       "shield-aim axis. Merging drops settings on both sides." },
-    // W6-CAM-AIM: the three first-person switches the inventory covered only by its Camera category claim. Each
-    // matches SoH's twin in value space (bool, default off) and JSON shape (int), but not in gating.
-    { "P3 first-person auto-centering", RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
-      "gSettings.DisableFirstPersonAutoCenterView",
-      "Same bool, different gating: MM's view never auto-centers while its own Gyro Aiming is on (z_player.c "
-      "reads it OR GyroEnabled, and 2Ship's row is disabled then), while SoH reads its key alone and clamps the "
-      "pitch itself. Each game keeps its own row in the Bindings window." },
+    // W6-CAM-AIM: the first-person switches the inventory covered only by its Camera category claim. Each matches
+    // SoH's twin in value space (bool, default off) and JSON shape (int), but not in gating. (The third, first-person
+    // auto-centering, converged under #1272 item 5: there the gating difference is MM's own Gyro Aiming, which keeps
+    // suppressing MM's auto-centre beside the one shared switch, so one switch means one thing in both games.)
     { "P3 right-stick aiming switch", RSBS_CVAR_MM_CAMERA_FP_RIGHT_STICK_ENABLED, "gSettings.Controls.RightStickAim",
       "Same bool, different gating: SoH's switch also feeds the right stick into Z-target weapon aiming and uses "
       "SoH's own aiming inversion and sensitivity; MM's switch gates a separate right-stick inversion and "
@@ -885,7 +896,8 @@ inline constexpr TranslatedKey kTranslatedKeys[] = {
       kCosmeticTranslationWhy },
     // W6-COS-B (#1239): MM's hearts and magic meter, off SoH's Consumables rows, and Human Link's tunic and hair, off
     // SoH's Kokiri Tunic (the canonical key, BUG 1's fix) and Hair. MM's beating hearts, Chateau magic and its other
-    // forms' colours have no twin: they are MM rows.
+    // forms' colours have no twin: they are MM rows. (#1272 item 1: the beating hearts follow SoH's Hearts and DD
+    // Hearts while their own rows are unchanged; a fallback of an MM row's element, so no row here.)
     { 1239, "gCosmetic.Hearts.Normal.Color", "gCosmetics.Consumable.Hearts.Value", kCosmeticTranslator,
       kCosmeticTranslationWhy },
     { 1239, "gCosmetic.Hearts.Border.Color", "gCosmetics.Consumable.HeartBorder.Value", kCosmeticTranslator,
@@ -1131,7 +1143,6 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_SKIP_SOT_CUTSCENES)                               \
     X(RSBS_CVAR_MM_AUTOSAVE_INTERVAL)                                \
     /* W6-CAM-AIM */                                                 \
-    X(RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER)                    \
     X(RSBS_CVAR_MM_CAMERA_FP_INVERT_X)                               \
     X(RSBS_CVAR_MM_CAMERA_FP_INVERT_Y)                               \
     X(RSBS_CVAR_MM_CAMERA_FP_SENSITIVITY_X)                          \
@@ -1239,8 +1250,8 @@ inline constexpr TwoShipDoNotImport kTwoShipDoNotImport[] = {
       "RSBS_CVAR_MM_AUDIO_EXCLUDED_PREFIX (W6-AUDIO-SEQ)" },
     { "gHudEditor.", true, "MM's HUD placement family (W6-HUD-A, W6-HUD-B): a family import is a follow-up" },
     { "gCosmetic.", true,
-      "MM's cosmetic colour family (W6-COS-A, W6-COS-B, W6-COS-C), translated onto SoH's twins where one exists: a "
-      "family import is a follow-up" },
+      "MM's cosmetic colour family (W6-COS-A, W6-COS-B, W6-COS-C) is never copied raw: the import carries each changed "
+      "element colour where the single exe reads it, onto SoH's twin row or MM's own row (#1272 item 3)" },
     { "gColors.", true, "INTENTIONAL (W6-HUD-A): 2Ship's HUD editor colours are read by no draw" },
 };
 inline constexpr std::size_t kTwoShipDoNotImportCount = sizeof(kTwoShipDoNotImport) / sizeof(kTwoShipDoNotImport[0]);
@@ -1422,6 +1433,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_GOAL, ComboKeyClass::Identity,
       "ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*, ADR 0010 D1): the expression the creation's proof must "
       "satisfy" },
+    { RSBS_CVAR_COMBO_RANDO_LOGIC, ComboKeyClass::Identity,
+      "ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*, #1367): the rung the creation's proof runs at, and the "
+      "logic both games' own rows derive from" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
@@ -1922,11 +1936,11 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
 // right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
-// Introductions), and #1239 one (the fairy's call). 32 + 11 + 4 + 1 + 1 = 49. Pinning the count makes a silently
-// dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 49, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering). 32 + 11 + 4 + 1 + 1
+// + 1 = 50. Pinning the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
                                         "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
-                                        "+ #1239 (1) = 49");
+                                        "+ #1239 (1) + #1272 (1) = 50");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to
@@ -1948,8 +1962,8 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Nineteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
+// Twenty identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
@@ -1965,9 +1979,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 39, "nineteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+static_assert(kComboKeyCount == 40, "twenty gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
                                     "twelve gCombo.Tracker.Items.* preferences + four gCombo.Tracker.Checks.* "
-                                    "preferences = 39");
+                                    "preferences = 40");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

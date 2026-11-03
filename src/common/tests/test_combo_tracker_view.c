@@ -110,9 +110,13 @@
  *    in, as an area key of its own rows: OoT's is SoH's Check Tracker's
  *    currentArea (authored through a seam) while OoT plays a randomizer file; MM's
  *    is the scene MM is played in (a stand-in for MM's play state), and a grotto
- *    keeps the scene it was entered from, where MM's tracker lists its checks.
- *    The active game's answer is live; the inactive game answers the area kept
- *    from its last live answer, never its adapter. See CtvNavOoT and CtvNavMM.
+ *    keeps the scene it was entered from, where MM's tracker lists its checks,
+ *    except Lone Peak Shrine, whose checks are listed under the grotto scene
+ *    itself (#1189); both answer only while their game plays a randomizer file
+ *    (#1189, ruling D11). The active game's answer is live; the inactive game
+ *    answers the area kept from its last live answer, never its adapter, until
+ *    the session ends (a slot load, either game's return to title, a new file:
+ *    #1189), which forgets both. See CtvNavOoT, CtvNavMM and CtvNavSession.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as
  * C++), but every symbol it drives is extern-C. It needs the display-free
@@ -1521,6 +1525,10 @@ extern "C" int OoT_TrackerAdapter_TestSetCurrentArea(int area);
 extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId);
 extern "C" int MM_TrackerAdapter_TestCheckScene(uint16_t checkId);
 extern "C" int MM_TrackerAdapter_TestGrottoScene(void);
+// #1189: MM played in one room of a scene (the grotto scene's rooms), and Lone
+// Peak Shrine's room and one of its checks.
+extern "C" void MM_TrackerAdapter_TestSceneRoomSeam(int sceneId, int room);
+extern "C" int MM_TrackerAdapter_TestLonePeakShrine(int* outRoom);
 
 static int sCtvNavFailures = 0;
 
@@ -1578,8 +1586,10 @@ static int CtvNavOoT(const uint16_t ootIds[3]) {
 /**
  * MM through the real descriptor: the area of the scene MM is played in is the
  * area key MM's rows carry for a check of that scene; a grotto keeps the scene
- * it was entered from; with no play state there is none; while OoT is played MM
- * answers the area kept from its last live answer.
+ * it was entered from, but Lone Peak Shrine answers the area its own rows carry
+ * (#1189); with no play state, or no randomizer file (#1189, ruling D11), there
+ * is none; while OoT is played MM answers the area kept from its last live
+ * answer. MM plays a randomizer file (the live seam) unless a leg says otherwise.
  */
 static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
     CTV_ASSERT(desc->areaName != NULL);
@@ -1611,6 +1621,7 @@ static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
     CTV_ASSERT(sceneA >= 0 && sceneB >= 0 && keyA != keyB);
 
     Context_SetCurrentGame(GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(1);     // MM plays a randomizer file
     MM_TrackerAdapter_TestSceneSeam(0, 0); // no MM play state
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
     MM_TrackerAdapter_TestSceneSeam(1, sceneA);
@@ -1625,11 +1636,68 @@ static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyB);
     Context_SetCurrentGame(GAME_MM);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    // #1189: a frame with no play state inside one file (the Day Telop between two
+    // play states at dawn, which respawns the player in the grotto the day ended
+    // in) answers none and keeps the scene the grotto was entered from. A gate on
+    // MMPlaysRandoFile alone forgot it there, and the grotto answered none. With
+    // no play state MMPlaysRandoFile is false in production, so the telop frame
+    // sets both seams.
+    MM_TrackerAdapter_TestSceneSeam(1, grotto); // entered from scene A
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestSceneSeam(0, 0); // the Day Telop: no play state...
+    MM_TrackerAdapter_TestLiveSeam(0);     // ...so no randomizer file is played either
+    const int inTelop = CtvArea((uint8_t)GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(1);
+    MM_TrackerAdapter_TestSceneSeam(1, grotto); // respawned in the grotto
+    const int afterTelop = CtvArea((uint8_t)GAME_MM);
+    printf("[TEST] combo-tracker-view #1189 MM: with no play state the area is %d; the grotto after it %d (scene A's "
+           "area %d)\n",
+           inTelop, afterTelop, keyA);
+    CTV_ASSERT(inTelop == -1 && afterTelop == keyA);
     // A grotto with no scene before it (a file loaded inside one): none.
-    MM_TrackerAdapter_TestSceneSeam(0, 0);
+    MM_TrackerAdapter_TestSceneSeam(-1, 0);
     MM_TrackerAdapter_TestSceneSeam(1, grotto);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
+
+    // #1189: Lone Peak Shrine, the one grotto room whose checks MM's tracker lists
+    // under the grotto scene itself, answers the area its own rows carry, so Only
+    // Show Current Area keeps them and the scroll lands on them, never on the scene
+    // the shrine opens from; the next grotto still answers the scene it was
+    // entered from. Before #1189 the shrine answered scene A.
+    int lonePeakRoom = -1;
+    const int lonePeakCheck = MM_TrackerAdapter_TestLonePeakShrine(&lonePeakRoom);
+    uint16_t lonePeakRowKey = 0;
+    CTV_ASSERT(lonePeakCheck > 0 && (uint32_t)lonePeakCheck < desc->checkCount);
+    CTV_ASSERT(desc->areaName((uint16_t)lonePeakCheck, &lonePeakRowKey) != NULL);
+    MM_TrackerAdapter_TestSceneSeam(1, sceneA);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestSceneRoomSeam(grotto, lonePeakRoom);
+    const int inShrine = CtvArea((uint8_t)GAME_MM);
+    MM_TrackerAdapter_TestSceneRoomSeam(grotto, lonePeakRoom + 1); // another grotto room
+    const int inOtherGrotto = CtvArea((uint8_t)GAME_MM);
+    printf("[TEST] combo-tracker-view #1189 MM: Lone Peak Shrine (room %d) answers %d, its rows carry %d; another "
+           "grotto entered from scene %d answers %d\n",
+           lonePeakRoom, inShrine, (int)lonePeakRowKey, sceneA, inOtherGrotto);
+    CTV_ASSERT(inShrine == (int)lonePeakRowKey && inShrine != keyA);
+    CTV_ASSERT(inOtherGrotto == keyA);
+
+    // #1189, ruling D11: a randomizer file only, as OoT's op. A play state on any
+    // other save (MM's title demo, a vanilla file) has no area whatever scene MM
+    // plays, and such a frame forgets the scene a grotto was entered from. Before
+    // #1189 the vanilla frame answered scene A.
+    MM_TrackerAdapter_TestSceneSeam(1, sceneA);
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestLiveSeam(0);
+    const int noRandoFile = CtvArea((uint8_t)GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(1);
+    MM_TrackerAdapter_TestSceneSeam(1, grotto);
+    const int grottoAfter = CtvArea((uint8_t)GAME_MM);
+    printf("[TEST] combo-tracker-view #1189 MM: with no randomizer file the area is %d; a grotto after it %d\n",
+           noRandoFile, grottoAfter);
+    CTV_ASSERT(noRandoFile == -1 && grottoAfter == -1);
+
     // The production op with no play state in this tier: none.
+    MM_TrackerAdapter_TestLiveSeam(-1);
     MM_TrackerAdapter_TestSceneSeam(-1, 0);
     CTV_ASSERT(desc->currentArea != NULL);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
@@ -1639,7 +1707,122 @@ static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
 static int CtvNavMM(const ComboMMTrackerDesc* desc) {
     const GameId prevGame = Context_GetCurrentGame();
     const int result = CtvNavMMBody(desc);
+    MM_TrackerAdapter_TestLiveSeam(-1);
     MM_TrackerAdapter_TestSceneSeam(-1, 0);
+    Context_SetCurrentGame(prevGame);
+    return result;
+}
+
+/**
+ * #1189: a kept area belongs to the file it came from. Each way a session ends
+ * (Context_InvalidateSessionState: a slot load, OoT's return to title, a new file,
+ * MM's return to title from a paired file) forgets both kept areas, so the pane
+ * of the game not being played answers none until that game is played again,
+ * never the previous file's area. Before #1189 the kept area outlived all four.
+ */
+static int CtvNavSessionBody(const ComboMMTrackerDesc* desc) {
+    CTV_ASSERT(desc != NULL && desc->areaName != NULL);
+    // An MM scene whose rows carry its own key, as CtvNavMMBody finds one.
+    const int grotto = MM_TrackerAdapter_TestGrottoScene();
+    int mmScene = -1;
+    int mmKey = -1;
+    for (uint32_t id = 1; id < desc->checkCount && mmScene < 0; id++) {
+        const int scene = MM_TrackerAdapter_TestCheckScene((uint16_t)id);
+        uint16_t key = 0;
+        if (scene >= 0 && scene != grotto && desc->areaName((uint16_t)id, &key) != NULL &&
+            (key & 0xFFu) == ((unsigned)scene & 0xFFu)) {
+            mmScene = scene;
+            mmKey = (int)key;
+        }
+    }
+    CTV_ASSERT(mmScene >= 0);
+    // An OoT area key (a RandomizerCheckArea), as SoH's currentArea holds one.
+    const int ootKey = 2;
+    (void)OoT_TrackerAdapter_TestSkipSeam(1); // OoT plays a randomizer file
+    MM_TrackerAdapter_TestLiveSeam(1);        // ...and so does MM
+
+    // Each entry, from a frame with both areas kept and the game named playing.
+    struct SessionEnd {
+        const char* name;
+        GameId playing;
+    };
+    const SessionEnd ends[] = {
+        { "slot load", GAME_OOT },
+        { "OoT return to title", GAME_OOT },
+        { "new file", GAME_OOT },
+        { "MM return to title", GAME_MM },
+    };
+    for (int i = 0; i < (int)(sizeof(ends) / sizeof(ends[0])); i++) {
+        Context_SetCurrentGame(GAME_MM);
+        MM_TrackerAdapter_TestSceneSeam(1, mmScene);
+        CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == mmKey);
+        Context_SetCurrentGame(GAME_OOT);
+        (void)OoT_TrackerAdapter_TestSetCurrentArea(ootKey);
+        CTV_ASSERT(CtvArea((uint8_t)GAME_OOT) == ootKey);
+        Context_SetCurrentGame(ends[i].playing);
+        const uint8_t farGame = ends[i].playing == GAME_OOT ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        const int farKey = farGame == (uint8_t)GAME_MM ? mmKey : ootKey;
+        CTV_ASSERT(CtvArea(farGame) == farKey); // kept: the far pane's area, as its game left it
+        int invalidated = 1;
+        switch (i) {
+            case 0:
+                Context_InvalidateSessionOnSlotLoad();
+                break;
+            case 1:
+                invalidated = Context_InvalidateSessionOnReturnToTitle();
+                break;
+            case 2:
+                Context_InvalidateSessionOnNewGame(0, 0);
+                break;
+            default:
+                // MM's twin retires only a paired file's session: one is resident.
+                gComboCtx.sourceIsRando = true;
+                gComboCtx.sharedRandoSeed = 0x5EED1189u;
+                gComboCtx.sharedRandoSettingsHash = 0x5E771189u;
+                RsbsSave_SetActiveSlot(0);
+                invalidated = Context_InvalidateSessionOnMMReturnToTitle();
+                break;
+        }
+        const int after = CtvArea(farGame);
+        printf("[TEST] combo-tracker-view #1189: %s (%s playing) retired the session %d; the far pane's kept area "
+               "%d is now %d\n",
+               ends[i].name, Game_ToString(ends[i].playing), invalidated, farKey, after);
+        CTV_ASSERT(invalidated == 1 && after == -1);
+        // Played again, the game answers its area again.
+        Context_SetCurrentGame((GameId)farGame);
+        CTV_ASSERT(CtvArea(farGame) == farKey);
+    }
+    return TEST_PASS;
+}
+
+static int CtvNavSession(const ComboMMTrackerDesc* desc) {
+    const GameId prevGame = Context_GetCurrentGame();
+    const int prevSlot = RsbsSave_GetActiveSlot();
+    // The session's end clears both halves: put back what this row and the rows
+    // after it inherit (the row's own cleanup restores the MM half).
+    std::vector<uint8_t> ootBackup((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    const uint8_t* ootResident = (const uint8_t*)Context_GetOoTSaveContext();
+    if (ootResident != NULL) {
+        memcpy(ootBackup.data(), ootResident, ootBackup.size());
+    }
+    const bool ootWasFrozen = Context_HasFrozenState(GAME_OOT) != 0;
+    const uint16_t ootReturnEntrance = Context_GetFrozenReturnEntrance(GAME_OOT);
+    const int prevOoTArea = OoT_TrackerAdapter_TestSetCurrentArea(-1);
+
+    const int result = CtvNavSessionBody(desc);
+
+    (void)OoT_TrackerAdapter_TestSetCurrentArea(prevOoTArea);
+    (void)OoT_TrackerAdapter_TestSkipSeam(-1);
+    MM_TrackerAdapter_TestLiveSeam(-1);
+    MM_TrackerAdapter_TestSceneSeam(-1, 0);
+    Combo_TrackerResetCurrentAreas();
+    ComboContext_Init();
+    Context_ClearFrozenState(GAME_OOT);
+    Context_UpdateShadowCopy(GAME_OOT, ootBackup.data(), ootBackup.size());
+    if (ootWasFrozen) {
+        (void)Context_ArmShadowAsFrozen(GAME_OOT, ootReturnEntrance);
+    }
+    RsbsSave_SetActiveSlot(prevSlot);
     Context_SetCurrentGame(prevGame);
     return result;
 }
@@ -1994,6 +2177,13 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         }
     }
 
+    // ---- 8. #1189: a session's end forgets both kept current areas -----------
+    // Last, because a session's end clears both halves and the crossing tables:
+    // the cleanup below restores the MM half, CtvNavSession the OoT half.
+    if (CtvNavSession(Combo_Tracker_GetMMDesc()) != TEST_PASS) {
+        sCtvNavFailures++;
+    }
+
     // ---- Leave global state clean -----------------------------------------
     // Adapters stay registered (the production state); the shadow goes back to
     // exactly the bytes this row inherited.
@@ -2014,7 +2204,8 @@ extern "C" int Combo_TrackerView_RunHeadless(void) {
         return TEST_FAIL;
     }
     if (sCtvNavFailures != 0) {
-        printf("[TEST] FAIL: %d of the two #1131 current-area halves (MM 4d, OoT 5e) failed\n", sCtvNavFailures);
+        printf("[TEST] FAIL: %d of the #1131/#1189 current-area sections (MM 4d, OoT 5e, session end 8) failed\n",
+               sCtvNavFailures);
         return TEST_FAIL;
     }
     if (sCtvU5Failures != 0) {

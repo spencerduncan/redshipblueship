@@ -466,10 +466,27 @@ bool Combo_CreditSharedResource(uint8_t kind, uint16_t amount);
  *  feeds: the four ammo tiers minus sticks and nuts (OoT's apply blocks those
  *  at tier 0 under Shuffle Deku Stick/Nut Bag, OoT_SharedAmmoGrantBlocked, and
  *  only OoT's own give opens that gate, so their items must keep crossing),
- *  the wallet, magic, double defense, health, the hookshot and the bottle
- *  count. The arming gate is not consulted here: the step is (so a disarmed
- *  kind's item still crosses). */
+ *  the wallet, magic, double defense, health, the hookshot, the bottle count
+ *  and (#1145) the Kokiri Sword, whose MM copies are further gated by
+ *  Combo_SharedPickupStepAdmitted. The arming gate is not consulted here: the
+ *  step is (so a disarmed kind's item still crosses). */
 bool Combo_SharedResourceStepsAtPickup(uint8_t kind);
+
+/**
+ * May a pickup of @p item step @p kind NOW? (#1145) Asked by each game's step
+ * shim AFTER step 1's harvest and before the step, so a copy the finder already
+ * holds this visit counts.
+ *
+ * False only for MM's sword while the pool already holds the Kokiri Sword. MM's
+ * pool sword is PROGRESSIVE (Kokiri, then Razor, then Gilded; ConvertItem.cpp
+ * resolves each copy from the sword MM holds), and only its FIRST copy is the
+ * sword the pool shares. Once the pool holds 1, a further MM copy is MM's next
+ * tier, which only MM's own give can make, so it must cross as before. Stepped
+ * instead, it would be absorbed at the cap and MM would never reach its Razor or
+ * Gilded Sword. OoT's Kokiri Sword is the whole of OoT's chain, so a copy at the
+ * cap is absorbed like any tier's (true). True for every other kind.
+ */
+bool Combo_SharedPickupStepAdmitted(SharedItem item, uint8_t kind);
 
 /**
  * STEP (step 2 above). Raise the pool's slot for a MONOTONIC @p kind by one

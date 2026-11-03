@@ -45,9 +45,14 @@ on:
       - '.gitignore'
   workflow_dispatch:
 
+# A newer push to the same claude/** branch cancels the older push's run. A
+# dispatch is never cancelled in progress and has a group of its own, so a
+# dispatch on main runs to the end like every other run on main (#1377, see
+# generate-builds.yml). Only claude/** pushes reach this workflow, so `push`
+# names nothing else.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   link-check:

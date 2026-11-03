@@ -78,6 +78,7 @@ void AddMmAudioFixesRows(SohMenu& menu, WidgetPath& path);
 void AddMmGlitchRestorationsRows(SohMenu& menu, WidgetPath& path);
 void AddMmMiscRestorationsRows(SohMenu& menu, WidgetPath& path);
 // W6-MASKS-SONGS (#1236, #1240): MM's Ocarina and Masks rows (HostedMm/SohMenuHostedMmMasksSongs.cpp).
+void AddMmFasterSongPlaybackRow(SohMenu& menu, WidgetPath& path); // #1272 item 6: after Fast Ocarina Playback
 void AddMmOcarinaRows(SohMenu& menu, WidgetPath& path);
 void AddMmMasksRows(SohMenu& menu, WidgetPath& path);
 
@@ -900,6 +901,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Fast Ocarina Playback", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FastOcarinaPlayback"))
         .Options(CheckboxOptions().Tooltip("Skip the part where the Ocarina Playback is called when you play a song."));
+    AddMmFasterSongPlaybackRow(*this, path);
     AddWidget(path, "Time Travel with Song of Time", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_ENHANCEMENT("TimeTravel"))
         .Options(ComboboxOptions()

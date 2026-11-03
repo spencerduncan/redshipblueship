@@ -30,6 +30,14 @@ The fix gives each required name exactly ONE producer:
 These tests lock that structure, run the required-check script against every
 combination of results, run the docs-only job's step against real merge
 commits, and run the classifier against a table of change sets.
+
+They also lock every workflow's concurrency (#1377). generate-builds.yml used
+cancel-in-progress on every event, so each merge to main cancelled the running
+main build, and the macOS caches that only main saves were never written (a
+cold macOS build takes about 4.5 hours). The lock evaluates each concurrency
+block for a table of sample runs and fails if any run could cancel, in
+progress, a run on main, a release branch or a tag, while a pull request's
+newer push must still cancel its older run.
 """
 
 import importlib.util
@@ -593,3 +601,472 @@ def test_classifier_cli_writes_github_output(tmp_path, stdin, expected):
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert output.read_text(encoding="utf-8") == f"docs_only={expected}\n"
+
+
+# --- concurrency: no run on main, a release branch or a tag is cancelled in progress (#1377) ----
+#
+# GitHub cancels by group name, across every workflow in the repository, and it
+# reads `cancel-in-progress` from the NEW run: a new run with it true cancels
+# the run in progress in its group. So the lock evaluates every concurrency
+# block (workflow and job level) for every sample run its workflow fires on, and
+# checks every pair of runs both ways.
+
+# Two runs of each kind, A and B, which differ only in sha and run id: a pair of
+# one kind asks whether a second such run cancels the first, a pair of two kinds
+# asks the same across events and refs.
+_RUN_KINDS = (
+    ("pull_request", "refs/pull/101/merge"),
+    ("pull_request", "refs/pull/102/merge"),
+    ("push", "refs/heads/main"),
+    ("push", "refs/heads/release/v0.4.4-alpha"),
+    ("push", "refs/tags/v0.4.4-alpha"),
+    ("push", "refs/heads/claude/lane-a"),
+    ("workflow_dispatch", "refs/heads/main"),
+    ("workflow_dispatch", "refs/tags/v0.4.4-alpha"),
+    ("workflow_dispatch", "refs/heads/claude/lane-a"),
+)
+
+
+def _sample_run(event, ref, copy):
+    serial = 2 * _RUN_KINDS.index((event, ref)) + "AB".index(copy) + 1
+    pull = re.fullmatch(r"refs/pull/(\d+)/merge", ref)
+    ref_name = re.sub(r"^refs/(heads/|tags/|pull/)", "", ref)
+    return {
+        "label": f"{event} on {ref} (run {copy})",
+        # Context names are matched ignoring case, so the keys are lower case.
+        "context": {
+            "github.event_name": event,
+            "github.ref": ref,
+            "github.ref_name": ref_name,
+            "github.sha": f"{serial:040x}",
+            "github.run_id": str(9000 + serial),
+            "github.run_number": str(serial),
+            "github.head_ref": f"claude/pr-{pull.group(1)}" if pull else "",
+            "github.base_ref": "main" if pull else "",
+            "github.event.repository.default_branch": "main",
+            "github.event.pull_request.number": int(pull.group(1)) if pull else None,
+        },
+    }
+
+
+def _sample_runs():
+    return [_sample_run(event, ref, copy) for event, ref in _RUN_KINDS for copy in "AB"]
+
+
+def _protected(run):
+    """A run that must never be cancelled in progress: one on main, a release branch or a tag."""
+    ref = run["context"]["github.ref"]
+    return ref == "refs/heads/main" or ref.startswith("refs/heads/release/") or ref.startswith("refs/tags/")
+
+
+_EXPR_TOKEN = re.compile(
+    r"\s*(?:(?P<string>'(?:[^']|'')*')|(?P<op>==|!=|&&|\|\||[!(),])|(?P<number>\d+)"
+    r"|(?P<name>[A-Za-z_][\w-]*(?:\.[A-Za-z_][\w-]*)*))"
+)
+
+
+def _text(value):
+    """A value as GitHub splices it into text."""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return str(value)
+
+
+def _truthy(value):
+    return value not in (None, False, 0, "")
+
+
+def _same(left, right):
+    if isinstance(left, str) and isinstance(right, str):
+        # GitHub compares strings ignoring case.
+        return left.lower() == right.lower()
+    if type(left) is type(right):
+        return left == right
+    raise ValueError(f"the concurrency lock does not compare {left!r} with {right!r}")
+
+
+class _Expression:
+    """One GitHub Actions expression, for the subset a concurrency block needs: string, number, true, false and
+    null literals, contexts, ==, !=, !, &&, ||, parentheses, startsWith, endsWith and contains. Anything else
+    raises ValueError, so the lock never guesses what a run would do."""
+
+    FUNCTIONS = {
+        "startswith": lambda text, prefix: _text(text).lower().startswith(_text(prefix).lower()),
+        "endswith": lambda text, suffix: _text(text).lower().endswith(_text(suffix).lower()),
+        "contains": lambda text, part: _text(part).lower() in _text(text).lower(),
+    }
+
+    def __init__(self, text, context):
+        self.text = text.strip()
+        self.context = context
+        self.tokens = []
+        pos = 0
+        while pos < len(self.text):
+            match = _EXPR_TOKEN.match(self.text, pos)
+            if not match:
+                self._fail()
+            self.tokens.append((match.lastgroup, match.group(match.lastgroup)))
+            pos = match.end()
+        self.pos = 0
+
+    def evaluate(self):
+        value = self._or()
+        if self.pos != len(self.tokens):
+            self._fail()
+        return value
+
+    def _fail(self):
+        raise ValueError(f"the concurrency lock cannot read ${{{{ {self.text} }}}}")
+
+    def _peek(self):
+        return self.tokens[self.pos] if self.pos < len(self.tokens) else (None, None)
+
+    def _take(self, op=None):
+        token = self._peek()
+        if token[0] is None or (op is not None and token != ("op", op)):
+            self._fail()
+        self.pos += 1
+        return token
+
+    def _or(self):
+        value = self._and()
+        while self._peek() == ("op", "||"):
+            self._take()
+            right = self._and()
+            value = value if _truthy(value) else right
+        return value
+
+    def _and(self):
+        value = self._compare()
+        while self._peek() == ("op", "&&"):
+            self._take()
+            right = self._compare()
+            value = right if _truthy(value) else value
+        return value
+
+    def _compare(self):
+        value = self._unary()
+        while self._peek() in (("op", "=="), ("op", "!=")):
+            op = self._take()[1]
+            same = _same(value, self._unary())
+            value = same if op == "==" else not same
+        return value
+
+    def _unary(self):
+        # `!` binds tighter than == and != in GitHub's grammar.
+        if self._peek() == ("op", "!"):
+            self._take()
+            return not _truthy(self._unary())
+        return self._primary()
+
+    def _primary(self):
+        kind, text = self._take()
+        if (kind, text) == ("op", "("):
+            value = self._or()
+            self._take(")")
+            return value
+        if kind == "string":
+            return text[1:-1].replace("''", "'")
+        if kind == "number":
+            return int(text)
+        if kind != "name":
+            self._fail()
+        lowered = text.lower()
+        if lowered in ("true", "false"):
+            return lowered == "true"
+        if lowered == "null":
+            return None
+        if self._peek() == ("op", "("):
+            function = self.FUNCTIONS.get(lowered)
+            if function is None:
+                raise ValueError(f"the concurrency lock does not know the function {text}()")
+            self._take("(")
+            args = [self._or()]
+            while self._peek() == ("op", ","):
+                self._take()
+                args.append(self._or())
+            self._take(")")
+            if len(args) != 2:
+                self._fail()
+            return function(*args)
+        if lowered.startswith("inputs."):
+            # Dispatch inputs: empty on every other event, and the samples give none.
+            return self.context.get(lowered, "")
+        if lowered not in self.context:
+            raise ValueError(f"the concurrency lock has no sample value for `{text}`; add one to _sample_run")
+        return self.context[lowered]
+
+
+_INTERPOLATION = re.compile(r"\$\{\{(.*?)\}\}", re.DOTALL)
+
+
+def _evaluate_field(value, context):
+    """A concurrency field as GitHub reads it: a YAML scalar as it is, a lone ${{ }} as that expression's value,
+    and text with ${{ }} parts as text with each part's value spliced in."""
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    parts = list(_INTERPOLATION.finditer(text))
+    if len(parts) == 1 and parts[0].span() == (0, len(text)):
+        return _Expression(parts[0].group(1), context).evaluate()
+    spliced = _INTERPOLATION.sub(lambda m: _text(_Expression(m.group(1), context).evaluate()), text)
+    if "${{" in spliced:
+        raise ValueError(f"the concurrency lock found an unclosed expression in {value!r}")
+    return spliced
+
+
+def _concurrency_of(block, context):
+    """(group, cancel-in-progress) of one concurrency block for one run. The group is lower-cased: GitHub matches
+    group names ignoring case."""
+    if isinstance(block, str):
+        block = {"group": block}
+    group = _evaluate_field(block["group"], context)
+    cancel = _evaluate_field(block.get("cancel-in-progress", False), context)
+    if not isinstance(cancel, bool):
+        raise ValueError(f"cancel-in-progress {block.get('cancel-in-progress')!r} gave {cancel!r}, not a boolean")
+    return _text(group).lower(), cancel
+
+
+def _filter_regex(pattern):
+    """A branch or tag filter pattern as a regex: `*` stays inside one path segment, `**` crosses segments. The
+    rest of GitHub's filter syntax is refused rather than guessed at."""
+    if any(c in pattern for c in "?+[]!"):
+        raise ValueError(f"the concurrency lock does not read the filter pattern {pattern!r}")
+    return "".join(
+        ".*" if part == "**" else "[^/]*" if part == "*" else re.escape(part)
+        for part in re.split(r"(\*\*|\*)", pattern)
+    )
+
+
+def _filter_list(config, key):
+    values = config.get(key)
+    return [values] if isinstance(values, str) else values
+
+
+def _push_fires(config, ref):
+    """Whether a push trigger with these filters runs for a push of `ref`. Path filters are ignored: the run may
+    happen, so it counts."""
+    config = config or {}
+    for kind, other, prefix in (("branches", "tags", "refs/heads/"), ("tags", "branches", "refs/tags/")):
+        if not ref.startswith(prefix):
+            continue
+        name = ref[len(prefix) :]
+        include, ignore = _filter_list(config, kind), _filter_list(config, f"{kind}-ignore")
+        if include is not None:
+            return any(re.fullmatch(_filter_regex(p), name) for p in include)
+        if ignore is not None:
+            return not any(re.fullmatch(_filter_regex(p), name) for p in ignore)
+        # Filters for the other kind of ref only: GitHub never runs the workflow for this kind.
+        return config.get(other) is None and config.get(f"{other}-ignore") is None
+    return False
+
+
+def _fires(workflow, run):
+    on = _triggers(workflow)
+    event = run["context"]["github.event_name"]
+    if event not in on:
+        return False
+    return _push_fires(on[event], run["context"]["github.ref"]) if event == "push" else True
+
+
+def _run_context(workflow, file_name, run):
+    # github.workflow is the workflow's name, or its path when it has none.
+    name = workflow.get("name") or f".github/workflows/{file_name}"
+    return dict(run["context"], **{"github.workflow": str(name)})
+
+
+def _cancellation_violations(workflows):
+    """Every way one sample run could cancel, in progress, a run on main, a release branch or a tag, as text."""
+    seats = []
+    for file_name, workflow in workflows:
+        workflow = workflow or {}
+        blocks = [(file_name, workflow["concurrency"])] if "concurrency" in workflow else []
+        blocks += [
+            (f"{file_name} job {job_id}", job["concurrency"])
+            for job_id, job in (workflow.get("jobs") or {}).items()
+            if "concurrency" in (job or {})
+        ]
+        for where, block in blocks:
+            for run in _sample_runs():
+                if _fires(workflow, run):
+                    group, cancel = _concurrency_of(block, _run_context(workflow, file_name, run))
+                    seats.append((where, run, group, cancel))
+    found = []
+    for new_where, new_run, group, cancel in seats:
+        if not cancel:
+            continue
+        for old_where, old_run, old_group, _ in seats:
+            if (old_where, old_run["label"]) == (new_where, new_run["label"]):
+                continue
+            if old_group == group and _protected(old_run):
+                found.append(
+                    f"{new_run['label']} [{new_where}] cancels {old_run['label']} [{old_where}] (group {group!r})"
+                )
+    return found
+
+
+def test_no_run_on_main_a_release_branch_or_a_tag_is_cancelled_in_progress():
+    violations = _cancellation_violations((path.name, _load(path)) for path in _workflow_files())
+    assert not violations, (
+        "#1377: these runs would cancel, in progress, a run on main, a release branch or a tag:\n  "
+        + "\n  ".join(violations)
+        + "\nMain's run is the only one that saves the macOS and Windows build caches, and a cold macOS build takes "
+        "about 4.5 hours, so a main run that is cancelled never writes them. Use `cancel-in-progress: "
+        "${{ github.event_name == 'pull_request' }}` with a group that names the event and the ref"
+    )
+
+
+def _generate_builds_concurrency(event, ref, copy="A"):
+    workflow = _load(GENERATE_BUILDS)
+    run = _sample_run(event, ref, copy)
+    return _concurrency_of(workflow["concurrency"], _run_context(workflow, GENERATE_BUILDS.name, run))
+
+
+def test_generate_builds_still_cancels_a_superseded_pull_request_run():
+    first = _generate_builds_concurrency("pull_request", "refs/pull/101/merge", "A")
+    newer = _generate_builds_concurrency("pull_request", "refs/pull/101/merge", "B")
+    other = _generate_builds_concurrency("pull_request", "refs/pull/102/merge", "A")
+    assert newer[1] is True, "#1377: a newer push to a pull request must still cancel the older head's run"
+    assert newer[0] == first[0], "#1377: two runs of one pull request must share a group, or the cancel finds nothing"
+    assert other[0] != first[0], "two pull requests must never share a group: one would cancel the other's run"
+
+
+def test_generate_builds_queues_main_pushes_and_keeps_dispatches_apart():
+    first = _generate_builds_concurrency("push", "refs/heads/main", "A")
+    newer = _generate_builds_concurrency("push", "refs/heads/main", "B")
+    assert newer == first and newer[1] is False, (
+        "#1377: pushes to main must share one group and never cancel: they queue, so main builds one commit at a "
+        f"time and the run in progress always finishes and saves its caches. Found {first} then {newer}"
+    )
+    pushes = {_generate_builds_concurrency(event, ref)[0] for event, ref in _RUN_KINDS if event == "push"}
+    for event, ref in _RUN_KINDS:
+        if event == "workflow_dispatch":
+            group = _generate_builds_concurrency(event, ref)[0]
+            assert group not in pushes, (
+                f"#1377: a dispatch on {ref} shares group {group!r} with a push. GitHub keeps one pending run per "
+                "group, so a merge to main could replace a queued release dispatch"
+            )
+
+
+# A workflow that runs on everything the lock protects, and on pull requests.
+_CONCURRENCY_MUTANT = """\
+name: Mutant
+on:
+  push:
+    branches: [main, 'release/v*']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'true'
+"""
+
+
+@pytest.mark.parametrize(
+    "group, cancel, cancels_a_protected_run",
+    [
+        # Before #1377: every merge cancelled the running main build.
+        ("${{ github.workflow }}-${{ github.ref }}", True, True),
+        # One group for every ref: a pull request's push cancels the running main build.
+        ("${{ github.workflow }}", "${{ github.event_name == 'pull_request' }}", True),
+        # Spares main pushes, but a dispatch or a second push of a tag still cancels.
+        ("${{ github.workflow }}-${{ github.ref }}", "${{ github.ref != 'refs/heads/main' }}", True),
+        # The fix, and shapes that are just as safe.
+        (
+            "${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}",
+            "${{ github.event_name == 'pull_request' }}",
+            False,
+        ),
+        ("${{ github.workflow }}-${{ github.ref }}", "${{ github.event_name == 'pull_request' }}", False),
+        ("${{ github.workflow }}-${{ github.ref }}", "${{ startsWith(github.ref, 'refs/pull/') }}", False),
+        ("${{ github.workflow }}-${{ github.ref }}", False, False),
+        ("${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}", True, True),
+    ],
+)
+def test_cancellation_lock_catches_runs_that_cancel_main_or_a_tag(group, cancel, cancels_a_protected_run):
+    workflow = yaml.safe_load(_CONCURRENCY_MUTANT)
+    workflow["concurrency"] = {"group": group, "cancel-in-progress": cancel}
+    found = _cancellation_violations([("mutant.yml", workflow)])
+    assert bool(found) == cancels_a_protected_run, (
+        f"group {group!r} with cancel-in-progress {cancel!r}: expected "
+        f"{'a cancelled' if cancels_a_protected_run else 'no cancelled'} protected run, the lock found {found}"
+    )
+
+
+def test_cancellation_lock_reads_job_level_concurrency():
+    workflow = yaml.safe_load(_CONCURRENCY_MUTANT)
+    workflow["jobs"]["build"]["concurrency"] = {"group": "macos-${{ github.ref }}", "cancel-in-progress": True}
+    found = _cancellation_violations([("mutant.yml", workflow)])
+    expected = "push on refs/heads/main (run B) [mutant.yml job build] cancels push on refs/heads/main (run A)"
+    assert any(v.startswith(expected) for v in found), found
+
+
+def test_cancellation_lock_matches_groups_across_workflows():
+    # Groups are repository-wide: a pull-request-only workflow that cancels in
+    # a group a main workflow also uses cancels main's run.
+    main_workflow = yaml.safe_load(_CONCURRENCY_MUTANT)
+    main_workflow["concurrency"] = {"group": "shared", "cancel-in-progress": False}
+    # Upper case on purpose: GitHub matches group names ignoring case.
+    lint = yaml.safe_load(
+        "name: Lint\non:\n  pull_request:\nconcurrency:\n  group: SHARED\n  cancel-in-progress: true\n"
+    )
+    found = _cancellation_violations([("main.yml", main_workflow), ("lint.yml", lint)])
+    expected = (
+        "pull_request on refs/pull/101/merge (run A) [lint.yml] cancels push on refs/heads/main (run A) [main.yml]"
+    )
+    assert any(v.startswith(expected) for v in found), found
+
+
+@pytest.mark.parametrize(
+    "expression, value",
+    [
+        ("${{ github.event_name == 'PUSH' }}", True),
+        ("${{ github.event_name != 'push' }}", False),
+        ("${{ !startsWith(github.ref, 'refs/tags/') && github.ref == 'refs/heads/main' }}", True),
+        ("${{ !github.head_ref == true }}", True),
+        ("${{ github.event.pull_request.number || github.ref }}", "refs/heads/main"),
+        ("${{ github.base_ref && 'pr' || 'branch' }}", "branch"),
+        ("${{ contains(github.ref, 'HEADS') }}", True),
+        ("x-${{ github.ref_name }}-${{ inputs.release_tag }}", "x-main-"),
+        ("${{ 'it''s' }}", "it's"),
+    ],
+)
+def test_concurrency_lock_evaluates_expressions(expression, value):
+    assert _evaluate_field(expression, _sample_run("push", "refs/heads/main", "A")["context"]) == value
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        {"group": "${{ hashFiles('x') }}"},
+        {"group": "${{ matrix.os }}"},
+        {"group": "${{ github.ref == 1 }}"},
+        {"group": "${{ github.ref ~ 'x' }}"},
+        {"group": "${{ github.ref"},
+        {"group": "${{ startsWith(github.ref) }}"},
+        {"group": "g", "cancel-in-progress": "${{ github.ref }}"},
+    ],
+)
+def test_concurrency_lock_refuses_what_it_cannot_read(block):
+    with pytest.raises(ValueError):
+        _concurrency_of(block, _sample_run("push", "refs/heads/main", "A")["context"])
+
+
+def test_cancellation_lock_reads_push_filters_like_github():
+    on_branches = {"branches": ["main", "release/v*"]}
+    assert _push_fires(on_branches, "refs/heads/main")
+    assert _push_fires(on_branches, "refs/heads/release/v0.4.4-alpha")
+    assert not _push_fires(on_branches, "refs/heads/release/v1/x"), "`*` must not cross a /"
+    assert not _push_fires(on_branches, "refs/tags/v0.4.4-alpha"), "branch filters alone never run for a tag"
+    assert _push_fires({"branches": ["claude/**"]}, "refs/heads/claude/a/b")
+    assert _push_fires({"tags": ["v*"]}, "refs/tags/v1") and not _push_fires({"tags": ["v*"]}, "refs/heads/main")
+    assert _push_fires(None, "refs/heads/anything") and _push_fires(None, "refs/tags/anything")
+    assert _push_fires({"paths-ignore": ["docs/**"]}, "refs/heads/main")
+    assert not _push_fires({"branches-ignore": ["main"]}, "refs/heads/main")
+    with pytest.raises(ValueError):
+        _push_fires({"branches": ["!main"]}, "refs/heads/main")

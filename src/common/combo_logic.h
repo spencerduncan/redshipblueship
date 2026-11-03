@@ -1894,7 +1894,10 @@ typedef struct {
  * (`RSK_ALL_LOCATIONS_REACHABLE`, MM's analogue). Neither half's setting enforced
  * it in a paired world (SoH's ALR is read only by OoT's own early stop, which a
  * paired world never runs), so nothing did; the operator's ruling (2026-11-02)
- * moves strictness to the pair, as OoTMM has it.
+ * moves strictness to the pair, as OoTMM has it. #1367 authors that rung as the
+ * pair's one [Both Games] Logic (`gCombo.Rando.Logic`, the record's `logicRung`),
+ * and each half's own Logic now follows it at creation (OoT's All Locations
+ * Reachable stays on under both proving rungs and off under `none`).
  *
  * DETERMINISM: the whole result is a pure function of (`bag` contents — flags
  * included — and order, `goal`, `logicRung`, `seed`, `maxAttempts`, the two
