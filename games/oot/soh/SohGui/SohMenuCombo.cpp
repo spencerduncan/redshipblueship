@@ -670,8 +670,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
-                     .Tooltip("Chooses what ends the paired game; the seed guarantees you can reach it. A final "
-                              "boss defeated before the goal is met sends you back into its game.\n\n"
+                     .Tooltip("The paired game ends when the goal is met; the seed guarantees you can reach it. "
+                              "A final boss defeated before then sends you back into its game.\n\n"
                               "Ganon & Majora: Defeat both, in any order. Both games are finishable.\n"
                               "Any Final Boss: Defeat either. The other game may be unfinishable.\n"
                               "Triforce Hunt: Collect Triforce Pieces from both games. You win on holding the "
