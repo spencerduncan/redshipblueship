@@ -1615,7 +1615,7 @@ state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#
 
 **What you see.** On a build with PR #1392, Randomizer > General > Seed Package > Load seed package on a package exported by any earlier build is refused ("Seed package from another generator") and stages nothing. The same seed and settings also show a different fingerprint at file select, and make a different world, than on an older build.
 
-**Why.** PR #1392 makes All Locations the default `[Both Games] Logic` (OoTMM's default) and counts a shared tier family's copies (the wallet, magic, quivers, bomb bags, stick and nut capacity, Double Defense) in both games' logic, which moves every world, so the seed generator's version went from 3 to 4, as the determinism rules require (`docs/determinism-goldens.md`, rule 6). A package records the generator version that made it, and a build loads only its own.
+**Why.** PR #1392 makes All Locations the default `[Both Games] Logic` (OoTMM's default) and counts a shared tier family's copies (the wallet, magic, quivers, bomb bags and Double Defense, and stick and nut capacity when both games' pools hold it) in both games' logic, which moves every world, so the seed generator's version went from 3 to 4, as the determinism rules require (`docs/determinism-goldens.md`, rule 6). A package records the generator version that made it, and a build loads only its own.
 
 **What to do.** Generate the seed again from the same seed and settings on the new build.
 

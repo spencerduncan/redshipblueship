@@ -53,7 +53,8 @@ with it (see "The package path" below).
 in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
 pins nothing. This profile shuffles every interior and the overworld on the same
 seed and dispatch as `seed-digest-default` (132 overrides; the single bag places on
-its first attempt in 266 rounds (258 before #974 added the mask shop's masks), far from the fill's wall clock, so the golden does
+its first attempt in 268 rounds at generator 4 (266 at generator 3, 258 before #974
+added the mask shop's masks), far from the fill's wall clock, so the golden does
 not ride machine speed). A heavier profile with dungeon entrances shuffled too was
 measured first and rejected: on this seed its single bag hit the 30 s per-attempt
 budget of the time (1250 rounds, before the 2026-10-28 floor of 60 s), and a
@@ -202,15 +203,20 @@ this golden. Before re-pinning, read the `[golden-profile]` log lines, which nam
 every OoT key and every MM key, and correct the ids in the table instead if they
 no longer name the same checks.
 
-All four are created on ladder attempt 1 in 266 rounds against the 2500-round
-per-attempt budget. `GoldenSeedsRoundBudget` checks three of them again, the ones
-that `RSBS_DIAG_CVARS` alone describes. Because every golden on `RSBSUNIFIED1`
-creates on attempt 1 in the same number of rounds, that row ties each entry to
-its golden by `bagSeed` as well, which folds the frozen identity (both games'
-settings hashes and the combo settings) and so differs per profile: an entry
-whose settings were dropped would generate the default world and fail on its
-bag seed. The excludes-and-tricks profile also needs the harness's sets, so its
-own golden row is where its creation inside the budget is checked.
+Every profile in the table is created on ladder attempt 1 against the 2500-round
+per-attempt budget. At generator 4 the excludes-and-tricks, Shop Shuffle and
+forward-direction profiles each fill in one batch attempt of 268 rounds;
+`seed-digest-beatable-only` takes two batch attempts, 531 rounds, and
+`seed-digest-no-logic` runs no round at all. `GoldenSeedsRoundBudget` checks the
+Shop Shuffle, forward-direction and Beatable Only profiles again, the ones that
+`RSBS_DIAG_CVARS` alone describes and that run a round. Round counts do not tell
+the profiles apart: `seed-digest-default` also takes two batch attempts (516
+rounds), and the other All Locations goldens mostly take 268. So that row ties
+each entry to its golden by `bagSeed` as well, which folds the frozen identity
+(both games' settings hashes and the combo settings) and so differs per profile:
+an entry whose settings were dropped would generate the default world and fail
+on its bag seed. The excludes-and-tricks profile also needs the harness's sets,
+so its own golden row is where its creation inside the budget is checked.
 
 ### The all-masks profile (#978)
 
@@ -224,14 +230,16 @@ Against `seed-digest-default`, the seed, `settingsHash`, `placementHash` and the
 rest of OoT's world at Generate do not move, because the rules are combo settings
 and OoT's settings string does not fold them. What moves:
 
-* `comboSettingsHash` (`04491853` to `010CA409`), which folds the five rule bits;
+* `comboSettingsHash` (`FADB7B21` to `2769D409` at generator 4), which folds the
+  five rule bits;
 * `bagRows` (266 to 261) and `bagTrimmedMM` (29 to 34): five shared pairs, each
   keeping its OoT row and trimming its MM row to filler;
 * the bag's seed and rounds, and every placement, crossing, hint and foolish area
   after them.
 
 When it was pinned (generator version 3) it created on ladder attempt 1 in 262
-rounds.
+rounds. Re-pinned at generator version 4 (All Locations by default, #1367 R5), it
+creates on ladder attempt 1 in one batch attempt of 263 rounds.
 
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
 this golden with its five keys and requires the frozen `crossItemFlags` to be

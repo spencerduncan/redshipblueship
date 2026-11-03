@@ -14,9 +14,10 @@
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
   generate the seed again. Saved files are not affected.
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
-  each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for magic, quivers,
-  bomb bags, Deku Stick and Nut capacity and Double Defense. Before this, All Locations refused every seed, because the
-  300-rupee shop items and the West Clock Town bank's heart piece looked unreachable.
+  each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
+  magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
+  Before this, All Locations refused every seed, because the 300-rupee shop items and the West Clock Town bank's heart
+  piece looked unreachable.
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
 

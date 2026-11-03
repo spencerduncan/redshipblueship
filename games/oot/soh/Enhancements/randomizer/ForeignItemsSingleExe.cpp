@@ -905,19 +905,6 @@ extern "C" void OoT_Creation_EmitLogicPinToast(void) {
 }
 
 /**
- * THE ALL LOCATIONS REFUSAL (combo_logic.h ABI 8): Generate's toast when the
- * single bag's pre-flight found locations no seed can reach under the chosen
- * settings (RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE), in place of the generic
- * "Not generated: try a new seed or other options." line, because no new seed
- * fixes it: only other settings do.
- * Same shape as the toasts above (one line, the default colours, muted).
- *
- * THE COPY names the first location when it fits the overlay's one line (53
- * characters at 832 px, docs/ui-style-guide.md R-N8), and otherwise only the
- * count; the stderr lines the coordinator and the single bag printed name every
- * one. @return the number of unreachable locations named by the coordinator.
- */
-/**
  * The unreachable line after a prefix of @p prefixChars characters (its separating
  * space included), within the overlay's 53: one name, "Name is unreachable." or
  * "Name and N more are unreachable." (one colon on the line: the prefix's), else
@@ -970,6 +957,19 @@ static int CreationFailureReasonFromOwnFill(void) {
                : 0;
 }
 
+/**
+ * THE ALL LOCATIONS REFUSAL (combo_logic.h ABI 8): Generate's toast when the
+ * single bag's pre-flight found locations no seed can reach under the chosen
+ * settings (RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE), in place of the generic
+ * "Not generated: try a new seed or other options." line, because no new seed
+ * fixes it: only other settings do.
+ * Same shape as the toasts above (one line, the default colours, muted).
+ *
+ * THE COPY names the first location when it fits the overlay's one line (53
+ * characters at 832 px, docs/ui-style-guide.md R-N8), and otherwise only the
+ * count; the stderr lines the coordinator and the single bag printed name every
+ * one. @return the number of unreachable locations named by the coordinator.
+ */
 extern "C" int OoT_Creation_EmitUnreachableToast(void) {
     int count = 0;
     const std::string message = AllLocationsUnreachableLine(sizeof("Not generated:"), &count);

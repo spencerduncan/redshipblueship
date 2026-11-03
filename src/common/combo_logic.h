@@ -989,9 +989,10 @@ typedef struct {
      *  family (`item` is the row's own item, as for any row); originGame
      *  GAME_NONE on every other row. Every round over the tables (the fill's, or
      *  an exposed one after it) hands it to the far engine through the exchange.
-     *  Never persisted, never in the placement digest (it is a function of the
-     *  bag), and never on a HYDRATED row: the crossing store is for play, and no
-     *  round runs over it. */
+     *  Never persisted and never in the placement digest (it is a function of
+     *  the bag). The crossing store names none, so a row hydrated from it carries
+     *  none; Combo_Logic_HydrateTables keeps a credit only when the given row
+     *  names one (a lock that copies the filled tables out and back). */
     SharedItem credit;
 } ComboLogicPlacement;
 
