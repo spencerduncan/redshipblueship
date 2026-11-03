@@ -3230,6 +3230,11 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         // world (GoldenSeedDigestMMNearlyNoLogic now compares it with that golden).
         { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
           0, 1 },
+        // #1367 R5: the default is All Locations, so Beatable Only, the default before
+        // it, has its own golden. seed-digest-no-logic has no entry: No Logic runs no
+        // round, so there is no round budget to fit (its golden row pins the world).
+        { "seed-digest-beatable-only", "RSBSUNIFIED1", { "gCombo.Rando.Logic", nullptr, nullptr }, { 2, 0, 0 }, 0,
+          1 },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };

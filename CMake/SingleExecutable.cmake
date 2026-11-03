@@ -2020,8 +2020,9 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity
-    # and direction-forward, the ladder world; #982's mm-nearly-no-logic is the
-    # default world since #1367) still creates on
+    # and direction-forward, #1367 R5's beatable-only, the ladder world; #982's
+    # mm-nearly-no-logic is the default world since #1367, and the no-logic golden
+    # runs no round, so it has no budget to fit) still creates on
     # its pinned attempt inside the shipped round budget, and its bagSeed,
     # bagRounds and mmPairedAttempt match the golden's when the golden is in the
     # tree (bagSeed tells the profiles apart; #982).
@@ -2288,6 +2289,14 @@ if(BUILD_TESTING)
         # Combo direction FORWARD (OoT items into MM checks only): every profile
         # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
         "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
+        # #1367 R5: [Both Games] Logic defaults to All Locations, so every golden
+        # above is an All Locations world. The other two rungs get one golden each
+        # on the same seed and dispatch: Beatable Only (the default before R5; the
+        # same algorithm without the pre-flight and the every-location exit term)
+        # and No Logic (no round at all: every REQUIRED row drawn from every empty
+        # host, OoT generated No Logic with All Locations Reachable off).
+        "GoldenSeedDigestBeatableOnly|seed-digest-beatable-only|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Logic=2"
+        "GoldenSeedDigestNoLogic|seed-digest-no-logic|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Logic=1"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -2351,10 +2360,10 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
     # #1367: MM's own Logic row set to Nearly No Logic. Until #1367 the paired
     # profile honoured that choice and this row pinned its own world
-    # (seed-digest-mm-nearly-no-logic, #982). A paired world's MM Logic now
-    # derives from [Both Games] Logic (Glitchless under the default Beatable
-    # Only), so the key must not reach the world: the digest must equal
-    # seed-digest-default exactly. Outside REDSHIP_GOLDEN_DIGESTS for the reason
+    # (seed-digest-mm-nearly-no-logic, #982; the file is retired, #1367 R5). A
+    # paired world's MM Logic now derives from [Both Games] Logic (Glitchless
+    # under the default All Locations), so the key must not reach the world: the
+    # digest must equal seed-digest-default exactly. Outside REDSHIP_GOLDEN_DIGESTS for the reason
     # the host-scale variant is: a regen from this run would re-pin the default
     # golden from a profile whose whole claim is that it changes nothing.
     redship_add_test(NAME GoldenSeedDigestMMNearlyNoLogic
