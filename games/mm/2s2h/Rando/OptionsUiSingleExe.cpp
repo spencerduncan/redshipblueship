@@ -265,7 +265,7 @@ const OptionUi kOptionUi[] = {
     // group, so the triforce rows lead Win Condition as SoH's Triforce Hunt does.
     { RO_LOGIC, COMBO_MM_GROUP_LOGIC, COMBO_MM_WIDGET_COMBO,
       "Logic",
-      "Glitchless guarantees a beatable seed; No Logic and Nearly No Logic place freely; Vanilla does not shuffle.",
+      "Follows [Both Games] Logic: Glitchless under All Locations and Beatable Only, No Logic under No Logic.",
       0, 0, kLogicLabels, UI_COUNT(kLogicLabels),
       COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_ACCESS_DUNGEONS, COMBO_MM_GROUP_AREA_ACCESS, COMBO_MM_WIDGET_COMBO,

@@ -183,12 +183,23 @@ static uint32_t PairedLogicForRung(uint8_t rung) {
     return Combo_LogicRungProves(rung) ? (uint32_t)RO_LOGIC_GLITCHLESS : (uint32_t)RO_LOGIC_NO_LOGIC;
 }
 
+/** The rung a load-time classification asks at instead of the key, or -1 for
+ *  the key (#1367). Set only for the length of one
+ *  MM_Rando_ClassifyProfileForLoadAtRung call: the file-select probe classifies
+ *  BEFORE the load's rules restore writes the file's own rung into
+ *  gCombo.Rando.Logic, so it asks at the rung that write will leave. Per thread,
+ *  so a Generate worker stamping a creation meanwhile still reads the key. */
+static thread_local int sClassifyRungOverride = -1;
+
 /** The pair's rung as the creation freezes it: the one resolver
  *  (Combo_ResolveComboSettings), which reads gCombo.Rando.Logic. A creation, an
  *  arrival and a load all read it the same way; while a world is frozen the key
  *  holds the world's own rung (the writers refuse, and a load restores it before
  *  the MM profile is restored). */
 static uint8_t ResolvedComboRung() {
+    if (sClassifyRungOverride >= 0) {
+        return (uint8_t)sClassifyRungOverride;
+    }
     ComboSettingsRecord rec;
     Combo_ResolveComboSettings(&rec);
     return rec.logicRung;
@@ -1269,6 +1280,18 @@ extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalf
     uint8_t fileKeepItems = 0;
     return ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps, fileMoonCrash,
                                   fileExcluded, fileKeepItems);
+}
+
+extern "C" int MM_Rando_ClassifyProfileForLoadAtRung(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
+                                                     int fileRung) {
+    // #1367: only a rung this build runs. The rules check refuses a file holding
+    // any other before the probe asks, so anything else reads the key.
+    const bool pinned = fileRung == (int)RSBS_COMBO_RUNG_NONE || fileRung == (int)RSBS_COMBO_RUNG_BEATABLE ||
+                        fileRung == (int)RSBS_COMBO_RUNG_ALL_REACHABLE;
+    Rando::Foreign::sClassifyRungOverride = pinned ? fileRung : -1;
+    const int classified = MM_Rando_ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest);
+    Rando::Foreign::sClassifyRungOverride = -1;
+    return classified;
 }
 
 extern "C" int MM_Rando_ClassifyHalfForPair(const void* mmHalf, size_t mmHalfSize, uint32_t masterSeed,

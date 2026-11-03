@@ -2621,13 +2621,21 @@ Logic setting follows it.
   before this took `RO_LOGIC` from MM's own row (an explicit choice honoured); the
   arrival gate, the load's classification and the load restore's after-check ask
   `MM_Rando_ProfileStampMatches`, which also accepts that resolution, so such a
-  world keeps loading with its own MM Logic put back into the key.
+  world keeps loading with its own MM Logic put back into the key. Because MM's
+  Logic now follows a combo key, the load restores the file's rung BEFORE the MM
+  profile, and the file-select probe classifies the MM profile at the file's rung
+  (`MM_Rando_ClassifyProfileForLoadAtRung`), not the session's, so the probe and
+  the load ask about the same state; a load whose MM restore finds the profile
+  already matching (the rung alone put it back) is accepted.
 - **Beatable Only keeps today's algorithm** (a full assumed fill). The default
   stays Beatable Only here; the flip to All Locations, which re-seeds every new
   world, is its own lane with the golden re-pin, as is the real All Locations
   proof over every location in both games (today's `all-reachable` checks every
   host the combined fill placed, combo_logic.h).
-- **Moved golden.** `GoldenSeedDigestMMNearlyNoLogic` pinned the explicit MM
+- **Retired golden.** `GoldenSeedDigestMMNearlyNoLogic` pinned the explicit MM
   Nearly No Logic choice this ruling folds away: under Beatable Only that profile
-  now generates the default world. It needs a re-pin or retirement (or to be
-  re-pointed at `gCombo.Rando.Logic=1`) by its own decision.
+  now generates the default world. The row now compares that profile with
+  `seed-digest-default` (MM's own Logic key must not reach a paired world), its
+  `seed-digest-mm-nearly-no-logic.txt` is read by no row, and its
+  `GoldenSeedsRoundBudget` entry is gone. A No Logic golden
+  (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run.

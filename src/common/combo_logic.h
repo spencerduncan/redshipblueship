@@ -1807,12 +1807,14 @@ typedef struct {
  *
  * The all-reachable rung's obligation is deliberately over PLACED hosts and not
  * over every location in either world. "Every location reachable" is each half's
- * own existing strictness axis (`RSK_ALL_LOCATIONS_REACHABLE` and MM's
- * analogue), which ADR 0010 §1.2 explicitly keeps per-half and composes with any
- * GOAL; the pair-level obligation this rung adds on top is that nothing the
- * SINGLE BAG distributed ended up somewhere the player cannot stand. Widening it
- * to "every host in both worlds" would duplicate that per-half axis at the pair
- * level, which §1.2 kept per-half deliberately. (`allEmptyHosts` could now
+ * own generation setting (`RSK_ALL_LOCATIONS_REACHABLE` and MM's analogue). ADR
+ * 0010 §1.2 kept that axis per-half until #1367 (2026-11-02) made strictness the
+ * pair's one [Both Games] Logic, which each half's own Logic now follows (OoT's
+ * All Locations Reachable stays on under both proving rungs). The pair-level
+ * obligation this rung adds on top is that nothing the SINGLE BAG distributed
+ * ended up somewhere the player cannot stand. Widening it to "every host in both
+ * worlds" is the real All Locations proof, owed to its own lane with the golden
+ * re-pin (ADR 0010, amendment of 2026-11-02). (`allEmptyHosts` could now
  * enumerate the wider set — it exists for the `none` rung — so the narrow
  * reading is a decision here, not a limitation of the surface.)
  *

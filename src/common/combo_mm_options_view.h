@@ -436,10 +436,23 @@ enum {
  * The pure half of MM_Rando_RestoreProfileForLoad (#836): the same
  * classification, with NOTHING written. MATCHES, RESTORABLE (the restore below
  * would write the file's options and tricks back) or UNRESTORABLE. The
- * file-select probe asks this, so it refuses exactly the files whose MM profile
- * the load could not restore. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ * file-select probe asks this (through MM_Rando_ClassifyProfileForLoadAtRung),
+ * so it refuses exactly the files whose MM profile the load could not restore.
+ * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
  */
 int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest);
+
+/**
+ * MM_Rando_ClassifyProfileForLoad at the FILE's logic rung (#1367). A paired
+ * world's MM Logic derives from [Both Games] Logic, and the load restores the
+ * file's rung into gCombo.Rando.Logic before it restores the MM profile, so the
+ * file-select probe, which runs first, asks at @p fileRung (the record's
+ * logicRung, when the rules restore will write it) rather than at the session's
+ * key: the probe and the load's restore then classify the same live state. -1,
+ * or a value outside the three pinned RSBS_COMBO_RUNG_* rungs, reads the key.
+ * Writes nothing. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
+ */
+int MM_Rando_ClassifyProfileForLoadAtRung(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, int fileRung);
 
 /** Outcomes of MM_Rando_ClassifyHalfForPair. */
 enum {

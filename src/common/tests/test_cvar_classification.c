@@ -2295,7 +2295,8 @@ TestResult Test_CVarClassification(void) {
             // (cvar_shared_keys.h static_asserts it): every key under the
             // identity sub-namespace is Identity, and there are exactly the
             // direction ADR 0011 increment 2 introduced (its pool sizes and
-            // item classes were retired by #801 and #834), the goal, #886's
+            // item classes were retired by #801 and #834), the goal, #1367's
+            // logic rung, #886's
             // Shared Kokiri Sword, a BIT of the same frozen record and therefore
             // identity for the same reason, and #1068's Shared Shields, #1065's
             // Shared Lens of Truth, #1066's two shared songs, #1067's Shared
@@ -2313,9 +2314,10 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 18,
-                            "exactly eighteen tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
-                            "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, the Shared "
+            CVARCLASS_CHECK(identityKeys == 19,
+                            "exactly nineteen tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+                            "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, [Both Games] "
+                            "Logic, #1367, the Shared "
                             "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, Shared "
                             "Epona's Song and Song of Storms, #1066, the Shared Ocarina Buttons, #1067, the "
                             "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "

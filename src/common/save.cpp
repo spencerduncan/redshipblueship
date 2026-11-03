@@ -1151,8 +1151,9 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             v.outcome = RSBS_LOAD_REFUSED;
             v.reason = RSBS_REFUSE_IDENTITY;
             // A field no key authors (an unallocated comboFlags bit, spare1;
-            // logicRung has a key since #1367) is one only another build writes; a divergence of keyed
-            // rules alone reaches here only when the store could not take them.
+            // logicRung has a key since #1367) is one only another build
+            // writes; a divergence of keyed rules alone reaches here only when
+            // the store could not take them.
             v.identityToast = Combo_ComboSettingsUnrestorableBits(&combo.comboItemRules, comboDiverged) != 0u
                                   ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
                                   : RSBS_LOAD_TOAST_REFUSED_RULES;
@@ -1212,7 +1213,16 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
     if (combo.sourceIsRando && combo.sharedRandoSettingsHash != 0 && combo.mmProfileDigest != 0 &&
         Combo_ComboSettingStoreAvailable()) {
         v.mmProfileChecked = true;
-        v.mmProfile = MM_Rando_ClassifyProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest);
+        // #1367: a paired world's MM Logic derives from [Both Games] Logic, and
+        // the load puts the file's rung back into that key BEFORE it restores the
+        // MM profile. Classified at the rung the load will leave, so this probe
+        // and the load's restore ask about the same live state: a world met by a
+        // session staged at another rung is neither refused here for a mismatch
+        // the rules restore clears, nor accepted for a match it breaks.
+        const int classifyRung =
+            (v.comboDiverged & RSBS_COMBO_DIVERGE_LOGIC_RUNG) != 0u ? (int)combo.comboSettings.logicRung : -1;
+        v.mmProfile = MM_Rando_ClassifyProfileForLoadAtRung(data.mmBlob.data(), data.mmBlob.size(),
+                                                            combo.mmProfileDigest, classifyRung);
         if (openKind != kOpenLegacy && v.mmProfile == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
             // #836 P4: an MM profile the file cannot restore used to load with a
             // warning toast, and the first crossing was then refused.
@@ -1393,7 +1403,11 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     if (v.mmProfileChecked && v.mmProfile != RSBS_MM_PROFILE_LOAD_MATCHES) {
         mmProfileOutcome = MM_Rando_RestoreProfileForLoad(data.mmBlob.data(), data.mmBlob.size(), combo.mmProfileDigest,
                                                           restoredMm, sizeof(restoredMm), &restoredMmCount);
-        if (openKind != kOpenLegacy && mmProfileOutcome != RSBS_MM_PROFILE_LOAD_RESTORED) {
+        // MATCHES is a success as well: the live profile IS the file's, with no
+        // MM key left to write (#1367: MM's paired Logic follows the rung the
+        // rules restore above put back).
+        if (openKind != kOpenLegacy && mmProfileOutcome != RSBS_MM_PROFILE_LOAD_RESTORED &&
+            mmProfileOutcome != RSBS_MM_PROFILE_LOAD_MATCHES) {
             // The probe found the profile restorable and the restore did not
             // take (its own after-check put its keys back): the backstop's
             // trigger. The rules this load restored go back too.
@@ -1483,12 +1497,7 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
         RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_RULES_RESTORED, restoredRules, 0);
     }
     if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_RESTORED) {
-        // #1367: the MM profile can be restored with no key written, when the
-        // only difference was the rung the rules restore above already put back
-        // (MM's Logic follows [Both Games] Logic). Nothing to name, no toast.
-        if (restoredMmCount > 0) {
-            RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
-        }
+        RsbsSave_EmitLoadToast(RSBS_LOAD_TOAST_MM_RESTORED, restoredMm, restoredMmCount);
     } else if (mmProfileOutcome == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
         // The legacy entry only: the open path refused this file above. The
         // legacy load ACCEPTS the file, so it posts no toast: a "Refused:" toast

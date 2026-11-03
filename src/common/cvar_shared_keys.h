@@ -1948,8 +1948,8 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Eighteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
+// Nineteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
@@ -1965,9 +1965,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 38, "eighteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+static_assert(kComboKeyCount == 39, "nineteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
                                     "twelve gCombo.Tracker.Items.* preferences + four gCombo.Tracker.Checks.* "
-                                    "preferences = 38");
+                                    "preferences = 39");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

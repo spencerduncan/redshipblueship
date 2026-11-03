@@ -3225,8 +3225,9 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
           { 1, 4, 2 },
           0,
           1 },
-        { "seed-digest-mm-nearly-no-logic", "RSBSUNIFIED1", { "gRando.Options.RO_LOGIC", nullptr, nullptr }, { 2, 0, 0 },
-          0, 1 },
+        // #982's seed-digest-mm-nearly-no-logic left with #1367: an explicit MM Logic
+        // no longer reaches a paired world, so its profile generates the default
+        // world (GoldenSeedDigestMMNearlyNoLogic now compares it with that golden).
         { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
           0, 1 },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
