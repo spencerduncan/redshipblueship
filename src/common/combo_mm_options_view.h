@@ -347,8 +347,22 @@ int MM_Rando_PairedLogicShown(void);
  *        RANDO_SAVE_OPTIONS instead — the hydrate publish, for a later process
  *        that never generated and whose CVars are therefore not this world's
  *        rules.
+ *
+ * #1369: the swim and ocarina-button bits also arm under the pair's one shuffle
+ * of that item (Combo_ComboSharedShuffleCoupled), read from the FROZEN combo
+ * record, so a creation publishes again once its record is frozen.
  */
 void MM_Rando_PublishProfileGiveCaps(int fromSave);
+
+/**
+ * MM's OWN swim and ocarina-button shuffles (#1369), as RSBS_GIVECAP_SWIM /
+ * RSBS_GIVECAP_OCARINA_BUTTONS bits: MM's options alone, with no pair coupling
+ * and nothing published (a Vanilla-logic MM shuffles neither). The creation
+ * reads it before the freeze, to shuffle OoT's copy of an item only MM shuffles
+ * and to decide whether a shuffle-gated rule freezes
+ * (Combo_ComboItemRulesApplyCreationShuffles). @p fromSave as above.
+ */
+uint32_t MM_Rando_ResolveOwnShuffleCaps(int fromSave);
 
 /**
  * MM's HALF of the combo triforce hunt (ADR 0010 answer O10; the rule is at

@@ -34,6 +34,15 @@
  * and, with E's checks shuffled too, the rule calls exactly {A, E} foolish and
  * the stones name both of them.
  *
+ * NO LOGIC CLAIMS NOTHING (logic-rung lane R4, PR #1371). With that same world
+ * FROZEN at the shipped rung (beatable) the stones still name a foolish area;
+ * frozen at rung `none`, Combo_ComboLogicClaimsAllowed is false and every one of
+ * the 512 stones speaks the plain item hint, none a foolish one (OoTMM drops
+ * every importance claim under logic 'none'). The two other claim sites, OoT's
+ * foolish marking and the paired spoiler's logicWarning header line, need a
+ * generated world, so the row checks from source that each asks the same
+ * predicate, with a counterfactual per site.
+ *
  * The bridges cannot drive the hook (it needs a live stone in a play state), so
  * the row checks the rest from EnGs.cpp's source (RSBS_SOURCE_DIR): the free
  * stone's hook sets its text from FreeStoneHintText alone, and FreeStoneHintText
@@ -48,6 +57,7 @@
 #include "../combo_area.h"
 #include "../context.h"
 #include "../crossing_store.h"
+#include "../foreign_items.h" // Combo_ComboLogicClaimsAllowed, the frozen record (the No Logic leg)
 #include "../game.h"
 #include "../shared_items.h"
 #include "../test_runner.h"
@@ -217,6 +227,61 @@ bool FhRunTwoFoolishAreas(const ComboArea areas[5], uint16_t lensCheck) {
     if (namesA == 0 || namesE == 0) {
         printf("[TEST] FAIL: one of two foolish areas is never named\n");
         return false;
+    }
+    return true;
+}
+
+/** No Logic claims nothing (R4): the authored world, frozen at a record older
+ *  than the rung field (0), at the shipped rung and at `none`. The first two keep
+ *  the foolish variant (the counter-check that makes the third non-vacuous); `none`
+ *  refuses the claim and every stone speaks the item hint. The caller's
+ *  ComboContext_Init clears the frozen record after. */
+bool FhRunNoLogic(uint16_t lensCheck) {
+    char itemText[512];
+    if (MM_Rando_Hints_TestGossipText(lensCheck, 0, itemText, (int)sizeof(itemText)) <= 0) {
+        printf("[TEST] FAIL: the stone has no item hint for check %u\n", (unsigned)lensCheck);
+        return false;
+    }
+    if (!Combo_ComboLogicClaimsAllowed()) {
+        printf("[TEST] FAIL: with no frozen combo record the logic claims are refused, so a world that has no "
+               "record yet would lose its foolish hints\n");
+        return false;
+    }
+    const uint8_t rungs[3] = { 0u, (uint8_t)RSBS_COMBO_RUNG_BEATABLE, (uint8_t)RSBS_COMBO_RUNG_NONE };
+    for (const uint8_t rung : rungs) {
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        rec.logicRung = rung;
+        Combo_FreezeComboSettings(&rec);
+        const bool allowed = Combo_ComboLogicClaimsAllowed();
+        int foolish = 0;
+        int itemHints = 0;
+        for (uint32_t seed = 0; seed < 512; seed++) {
+            char text[512];
+            if (MM_Rando_Hints_TestFreeStoneText(lensCheck, seed, text, (int)sizeof(text)) <= 0) {
+                printf("[TEST] FAIL: frozen at rung %u, stone seed %u said nothing\n", (unsigned)rung, (unsigned)seed);
+                return false;
+            }
+            if (strstr(text, "foolish") != nullptr) {
+                foolish++;
+            } else if (strcmp(text, itemText) == 0) {
+                itemHints++;
+            }
+        }
+        printf("[TEST]   frozen at rung %u: logic claims %s; 512 stone seeds: %d foolish, %d the item hint\n",
+               (unsigned)rung, allowed ? "allowed" : "refused", foolish, itemHints);
+        if (rung == (uint8_t)RSBS_COMBO_RUNG_NONE) {
+            if (allowed || foolish != 0 || itemHints != 512) {
+                printf("[TEST] FAIL: under No Logic a stone still claims an area is foolish (or the claim is not "
+                       "refused); nothing was proved, so every stone must speak the item hint\n");
+                return false;
+            }
+        } else if (!allowed || foolish == 0) {
+            printf("[TEST] FAIL: frozen at rung %u the stones no longer name a foolish area, so the No Logic leg "
+                   "would prove nothing\n",
+                   (unsigned)rung);
+            return false;
+        }
     }
     return true;
 }
@@ -430,11 +495,87 @@ bool FhCheckWiring() {
 #endif
 }
 
+// ---- No Logic claims nothing: the claim sites, from source (R4) -------------
+// MM's stone is checked by value (FhRunNoLogic). OoT's foolish marking and the
+// paired spoiler's header line run only in a generated world, so the row checks
+// that each asks Combo_ComboLogicClaimsAllowed, and that what the gate guards
+// (OoT's early return, the spoiler's logicWarning) follows it.
+
+const char* const kFhClaimGate = "if (!Combo_ComboLogicClaimsAllowed()) {";
+
+struct FhClaimSite {
+    const char* file;
+    const char* head;    // the function's first line
+    const char* guarded; // a line within the next three after the gate starts with this
+};
+
+const FhClaimSite kFhClaimSites[] = {
+    { "games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp",
+      "extern \"C\" int OoT_HintArea_MarkPairedFoolish(void) {", "return 0;" },
+    { "games/mm/2s2h/Rando/HintFoolishSingleExe.cpp",
+      "std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {", "return \"\";" },
+    { "games/mm/2s2h/Rando/Foreign.cpp",
+      "extern \"C\" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {",
+      "doc[\"logicWarning\"] =" },
+};
+
+/** "" when `text` (the source of `site.file`) gates its claim on the predicate. */
+std::string FhClaimSiteProblem(const FhClaimSite& site, const std::string& text) {
+    const std::vector<std::string> block = FhBlock(FhLines(text), site.head, "}");
+    if (block.empty()) {
+        return std::string("\"") + site.head + "\" was not found";
+    }
+    for (size_t i = 0; i < block.size(); i++) {
+        if (block[i] != kFhClaimGate) {
+            continue;
+        }
+        for (size_t j = i + 1; j < block.size() && j <= i + 3; j++) {
+            if (block[j].rfind(site.guarded, 0) == 0) {
+                return "";
+            }
+        }
+        return std::string("the No Logic gate does not guard \"") + site.guarded + "\"";
+    }
+    return std::string("the function does not ask \"") + kFhClaimGate + "\"";
+}
+
+bool FhCheckClaimSites() {
+#ifndef RSBS_SOURCE_DIR
+    printf("[TEST] FAIL: RSBS_SOURCE_DIR is undefined: the No Logic claim sites cannot be checked\n");
+    return false;
+#else
+    for (const FhClaimSite& site : kFhClaimSites) {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + "/" + site.file, std::ios::binary);
+        if (!in.good()) {
+            printf("[TEST] FAIL: cannot read %s\n", site.file);
+            return false;
+        }
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const std::string problem = FhClaimSiteProblem(site, text);
+        if (!problem.empty()) {
+            printf("[TEST] FAIL: %s: %s\n", site.file, problem.c_str());
+            return false;
+        }
+        // Counterfactual: the gate gone, the check must fail.
+        const std::string mutated = FhMutate(text, kFhClaimGate, "if (false) {");
+        if (mutated.empty() || FhClaimSiteProblem(site, mutated).empty()) {
+            printf("[TEST] FAIL: the No Logic claim-site check is vacuous for %s: it passes with the gate gone\n",
+                   site.file);
+            return false;
+        }
+    }
+    printf("[TEST]   from source: OoT's foolish marking, MM's free stone and the spoiler's logicWarning each ask "
+           "Combo_ComboLogicClaimsAllowed; %zu counterfactuals each fail the check\n",
+           sizeof(kFhClaimSites) / sizeof(kFhClaimSites[0]));
+    return true;
+#endif
+}
+
 } // namespace
 
 TestResult Test_MmFoolishStoneHint(void) {
     printf("[TEST] mm-foolish-stone-hint: MM's free gossip stone names a foolish area in MM's voice (#575 H5a)\n");
-    if (!FhCheckWiring()) {
+    if (!FhCheckWiring() || !FhCheckClaimSites()) {
         return TEST_FAIL;
     }
     const int idMax = MM_HintArea_TestCheckIdMax();
@@ -547,6 +688,9 @@ TestResult Test_MmFoolishStoneHint(void) {
             MM_Rando_Hints_TestSetCheck(id, riJunk, 1, 0, NULL, NULL, NULL);
         }
         ok = FhRunTwoFoolishAreas(areas, lensCheck);
+    }
+    if (ok) {
+        ok = FhRunNoLogic(lensCheck);
     }
 
     for (const FhPrior& p : priors) {

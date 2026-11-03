@@ -366,10 +366,34 @@ static inline bool Combo_LogicRungProves(uint8_t rung) {
  */
 #define RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD 0x02u
 
+/**
+ * ONE SHUFFLE OCARINA BUTTONS FOR THE PAIR (#1369; operator ruling 2026-11-02, a
+ * deliberate divergence from OoTMM, whose sharedOcarinaButtons stays inert unless
+ * both games shuffle the buttons). NO KEY AUTHORS IT: the creation event sets it
+ * (Combo_ComboItemRulesApplyCreationShuffles) exactly when the Shared Ocarina
+ * Buttons rule freezes on AND at least one game shuffles its buttons, and the
+ * frozen bit then makes each game shuffle them (Combo_ComboSharedShuffleCoupled).
+ *
+ * WHY A MARKER AND NOT THE RULE BIT ALONE. Worlds created before this ruling
+ * hold RSBS_XITEM_SHARED_OCARINA_BUTTONS with one game shuffling and the other
+ * holding all five buttons from creation. Coupling those on load would make the
+ * second game's five creation buttons shared items nobody found. The marker is
+ * what tells a coupled world from one of those, so a world written before it
+ * keeps the inert-unless-both behaviour it was generated under.
+ *
+ * Clear (every world before #1369, and every world without the rule or without
+ * a button shuffle), NOTHING changes: the canonical bytes and the fingerprint
+ * are exactly what they were. A session never resolves it; every compare reads it
+ * as the file decided it (Combo_ComboSettingsDivergenceForEx), and the
+ * fingerprint pins it.
+ */
+#define RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS 0x04u
+
 /** Every comboFlags bit ALLOCATED at formatVersion 1. The shipped default is 0
  *  — "reproduce today's world exactly" is the binding constraint on every
  *  default in this file, and every flag here changes a world. */
-#define RSBS_COMBO_FLAGS_ALL_V1 (RSBS_COMBO_FLAG_SHARED_OCARINA | RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD)
+#define RSBS_COMBO_FLAGS_ALL_V1 \
+    (RSBS_COMBO_FLAG_SHARED_OCARINA | RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD | RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS)
 
 // The pinning lock. A renumbering is a RED BUILD rather than a silently
 // re-read save — the same shape RSBS_SHARED_RES_* carries, and the reason
@@ -395,10 +419,10 @@ RSBS_CTX_STATIC_ASSERT(RSBS_ITEMCLASS_PROGRESSION == 0x0001u && RSBS_ITEMCLASS_S
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
                        "decision 1.2.1)");
 RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD == 0x02u &&
-                           RSBS_COMBO_FLAGS_ALL_V1 == 0x03u,
+                           RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS == 0x04u && RSBS_COMBO_FLAGS_ALL_V1 == 0x07u,
                        "RSBS_COMBO_FLAG_* bit positions are .redsave format: pinned, append-only, "
                        "allocate the next free bit and never re-point an allocated one (ADR 0011 "
-                       "decision 1.2.1, amended 2026-09-16 for #668 and 2026-10-10 for #886)");
+                       "decision 1.2.1, amended 2026-09-16 for #668, 2026-10-10 for #886 and 2026-11-02 for #1369)");
 
 // ============================================================================
 // The cross-game ITEM RULES (#976, epic #975 P1): ComboItemRulesRecord's value
@@ -494,6 +518,25 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
 // paired start drops the song (Rando::Foreign::PairedStartingItemsForWorld) and
 // the moon crash is a New Cycle (MM_Rando_FrozenMoonCrash).
 #define RSBS_XITEM_SHARED_SONG_TIME 0x04000000u
+// #1369: swim (operator ruling 2026-11-02; OoTMM's bronzeScale with sharedScales,
+// as one Cross-Game Rules row), a shared-pair family: OoT's standalone
+// RG_BRONZE_SCALE and MM's RI_ABILITY_SWIM, each registered by its game.
+// SHUFFLE-GATED (RSBS_XITEM_SHUFFLE_GATED below): its key ships ON, but the
+// creation freezes the bit only while at least one game shuffles swim, so a
+// world nobody shuffles swim in keeps its all-clear record and its fingerprint.
+// Frozen on, it also makes ONE Shuffle Swim for the pair: swim is shuffled in
+// both games (Combo_ComboSharedShuffleCoupled), and OoT's Progressive Scale
+// gives silver and gold only, its bronze tier being the standalone row.
+#define RSBS_XITEM_SHARED_SWIM 0x08000000u
+
+/** The SHUFFLE-GATED rules (#1369): a key authors the rule, but the creation
+ *  freezes the bit only while some game shuffles the rule's item
+ *  (Combo_ComboItemRulesApplyCreationShuffles). Combo_ResolveComboItemRules never
+ *  sets one (a session cannot see the shuffles), and every compare reads one as
+ *  the file decided it, against its key (Combo_ComboItemRulesLiveForFile): a key
+ *  on beside a file that froze the bit off is the rule inert at creation, not a
+ *  divergence. */
+#define RSBS_XITEM_SHUFFLE_GATED (RSBS_XITEM_SHARED_SWIM)
 
 /** The FAMILY SLOT of the shared-shields rule's second pair, the two Mirror
  *  Shields: a bit of gComboCtx.sharedFamilyOwned that no rule can ever occupy
@@ -517,7 +560,8 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
  *  other bit was written by a later build (Combo_ComboItemRulesValid). */
 #define RSBS_XITEM_ALL_V1                                                                                  \
     (0x001FFFFFu | RSBS_XITEM_SHARED_LENS | RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | \
-     RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS | RSBS_XITEM_SHARED_SONG_TIME)
+     RSBS_XITEM_SHARED_OCARINA_BUTTONS | RSBS_XITEM_SHARED_SHIELDS | RSBS_XITEM_SHARED_SONG_TIME |         \
+     RSBS_XITEM_SHARED_SWIM)
 
 /** The bits that are SHARED-PAIR FAMILIES: the bit is both the rule and the
  *  family's bit in gComboCtx.sharedFamilyOwned. */
@@ -527,7 +571,7 @@ RSBS_CTX_STATIC_ASSERT(RSBS_COMBO_FLAG_SHARED_OCARINA == 0x01u && RSBS_COMBO_FLA
      RSBS_XITEM_SHARED_GERUDO | RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY | RSBS_XITEM_SHARED_ARROW_FIRE | \
      RSBS_XITEM_SHARED_ARROW_ICE | RSBS_XITEM_SHARED_ARROW_LIGHT | RSBS_XITEM_SHARED_LENS |                         \
      RSBS_XITEM_SHARED_SONG_EPONA | RSBS_XITEM_SHARED_SONG_STORMS | RSBS_XITEM_SHARED_OCARINA_BUTTONS |             \
-     RSBS_XITEM_SHARED_SHIELDS | RSBS_XITEM_SHARED_SONG_TIME)
+     RSBS_XITEM_SHARED_SHIELDS | RSBS_XITEM_SHARED_SONG_TIME | RSBS_XITEM_SHARED_SWIM)
 
 /** The FAMILY SLOTS that are not family rule bits: a rule with more than one
  *  pair (#1068's two shields, #1067's five buttons) owns its first pair at its
@@ -566,17 +610,19 @@ RSBS_CTX_STATIC_ASSERT(
         RSBS_XITEM_SHARED_LENS == 0x200000u && RSBS_XITEM_SHARED_SONG_EPONA == 0x400000u &&
         RSBS_XITEM_SHARED_SONG_STORMS == 0x800000u && RSBS_XITEM_SHARED_OCARINA_BUTTONS == 0x01000000u &&
         RSBS_XITEM_SHARED_SHIELDS == 0x02000000u && RSBS_XITEM_SHARED_SONG_TIME == 0x04000000u &&
-        RSBS_XITEM_ALL_V1 == 0x07FFFFFFu && (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
-        (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u && RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u &&
-        (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u && RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u &&
-        RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u && RSBS_XFAMILY_SLOT_OCARINA_C_LEFT == 0x80u &&
-        RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT == 0x100u && (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_FAMILY_MASK) == 0u &&
+        RSBS_XITEM_SHARED_SWIM == 0x08000000u && RSBS_XITEM_ALL_V1 == 0x0FFFFFFFu &&
+        (RSBS_XITEM_FAMILY_MASK & ~RSBS_XITEM_ALL_V1) == 0u &&
+        (RSBS_XITEM_SHUFFLE_GATED & ~RSBS_XITEM_FAMILY_MASK) == 0u && (RSBS_XITEM_ALL_V1 & 0x80000000u) == 0u &&
+        RSBS_XFAMILY_SLOT_MIRROR_SHIELD == 0x80000000u && (RSBS_XITEM_ALL_V1 & RSBS_XFAMILY_SLOT_MIRROR_SHIELD) == 0u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_UP == 0x20u && RSBS_XFAMILY_SLOT_OCARINA_C_DOWN == 0x40u &&
+        RSBS_XFAMILY_SLOT_OCARINA_C_LEFT == 0x80u && RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT == 0x100u &&
+        (RSBS_XFAMILY_SLOTS_EXTRA & RSBS_XITEM_FAMILY_MASK) == 0u &&
         ((RSBS_XFAMILY_SLOTS_EXTRA & ~RSBS_XFAMILY_SLOT_MIRROR_SHIELD) &
          ~(RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_KAMARO_MASK_OOT |
            RSBS_XITEM_GERUDO_MASK_MM | RSBS_XITEM_SKULL_MASK_MM | RSBS_XITEM_SPOOKY_MASK_MM)) == 0u,
     "RSBS_XITEM_* bit positions and the extra family slots are .redsave format: pinned, append-only, allocate the "
     "next free bit and never re-point an allocated one; an extra slot is bit 31 or an extension rule's bit, never a "
-    "family's (ADR 0011's 2026-10-18 amendment, #976, #1065, #1066, #1067, #1068, #1069)");
+    "family's (ADR 0011's 2026-10-18 amendment, #976, #1065, #1066, #1067, #1068, #1069, #1369)");
 RSBS_CTX_STATIC_ASSERT(RSBS_BLAST_COOLDOWN_DEFAULT == 0u && RSBS_BLAST_COOLDOWN_INSTANT == 1u &&
                            RSBS_BLAST_COOLDOWN_VERY_LONG == 5u,
                        "RSBS_BLAST_COOLDOWN_* values are .redsave format: pinned, append-only, and DEFAULT stays 0 "
@@ -632,6 +678,60 @@ bool Combo_ComboCrossItemRule(uint32_t bit);
 /** The FROZEN Blast Mask cooldown (RSBS_BLAST_COOLDOWN_*); DEFAULT while
  *  nothing is frozen. */
 uint8_t Combo_ComboBlastMaskCooldown(void);
+
+/**
+ * ONE SHUFFLE FOR THE PAIR (#1369; operator ruling 2026-11-02): does this world
+ * shuffle @p giveCap's item in BOTH games, whatever each game's own option says?
+ * @p giveCap is RSBS_GIVECAP_SWIM or RSBS_GIVECAP_OCARINA_BUTTONS; any other
+ * value is false.
+ *   - Swim: RSBS_XITEM_SHARED_SWIM is frozen on (it freezes only while a game
+ *     shuffles swim, so the bit alone says the pair shuffles it).
+ *   - Ocarina buttons: RSBS_XITEM_SHARED_OCARINA_BUTTONS AND
+ *     RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS are frozen on (a world created
+ *     before the ruling has the rule without the marker and stays inert unless
+ *     both games shuffle, as it was generated).
+ *
+ * THE #1069 PATTERN. Read from the FROZEN record only (false while unfrozen),
+ * and applied at each game's use sites, ORed into that game's own frozen option:
+ * neither game's profile identity reads the other game's settings or a rule
+ * (MM_Rando_ComputeProfileStamp runs before the combo freeze). A game whose own
+ * settings cannot shuffle the item (MM on Vanilla logic, which places nothing
+ * without a check for it) leaves this out of its own predicate.
+ */
+bool Combo_ComboSharedShuffleCoupled(uint32_t giveCap);
+
+/**
+ * The shuffles the AUTHORED rules would make one for the pair, as
+ * RSBS_GIVECAP_SWIM / RSBS_GIVECAP_OCARINA_BUTTONS bits: the session's keys
+ * (Combo_ComboItemRulesAuthored), before any world is frozen. OoT's paired
+ * creation reads it to shuffle OoT's copy when only MM shuffles it (#1369).
+ */
+uint32_t Combo_ComboCouplingAuthored(void);
+
+/**
+ * THE CREATION'S SHUFFLE-GATED DECISIONS (#1369), applied to the two records a
+ * creation event is about to freeze. @p shuffled is the OR of both games' own
+ * shuffles, as RSBS_GIVECAP_SWIM / RSBS_GIVECAP_OCARINA_BUTTONS bits.
+ *   - RSBS_XITEM_SHARED_SWIM is set exactly when its key resolves on and swim is
+ *     shuffled somewhere, and cleared otherwise: the rule ships on, and a world
+ *     nobody shuffles swim in keeps its all-clear record and its fingerprint.
+ *   - RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS is set exactly when @p rules holds
+ *     RSBS_XITEM_SHARED_OCARINA_BUTTONS and the buttons are shuffled somewhere.
+ * NULL records are ignored. Pure: reads the keys, writes only the two records.
+ */
+void Combo_ComboItemRulesApplyCreationShuffles(ComboSettingsRecord* settings, ComboItemRulesRecord* rules,
+                                               uint32_t shuffled);
+
+/**
+ * A LIVE RESOLUTION AS @p frozen's FILE READS IT (#1369): @p live gains every
+ * RSBS_XITEM_SHUFFLE_GATED bit @p frozen holds whose key resolves on now. The
+ * resolver never sets a gated bit, so after this a file that froze it on agrees
+ * with a session whose key is on, differs from one whose key is off (a keyed,
+ * restorable divergence), and a file that froze it off (the rule inert at
+ * creation) agrees with either. Every compare of a frozen record against the
+ * session goes through it. NULL @p frozen is all clear.
+ */
+void Combo_ComboItemRulesLiveForFile(const ComboItemRulesRecord* frozen, ComboItemRulesRecord* live);
 
 /** Bytes canonical() writes for an item-rules record. */
 #define RSBS_COMBO_ITEM_RULES_CANONICAL_LEN 8u
@@ -852,6 +952,25 @@ bool Combo_ForeignCreationGateHolds(bool crossingsRequestedPreFill);
  * default will report corruption as normal (ADR 0011 decision 4.2).
  */
 bool Combo_ComboSettingsFrozen(void);
+
+/**
+ * MAY THIS WORLD MAKE A LOGIC-DERIVED CLAIM? False when the FROZEN record's logic
+ * rung is RSBS_COMBO_RUNG_NONE (No Logic): the coordinator distributed the bag
+ * and proved nothing, so no hint may tell the player an area is not needed and
+ * the spoiler must say the seed may be unbeatable. That is OoTMM's rule under
+ * logic 'none' (spoiler.ts drops every importance suffix, the hintImportance
+ * setting is hidden, analysis-foolish.ts runs no foolish analysis).
+ *
+ * Each claim site asks before it speaks: OoT_HintArea_MarkPairedFoolish, MM's
+ * free stone (Rando::HintFoolish::FreeStoneText) and the paired spoiler's
+ * logicWarning (MM_Rando_AugmentSpoilerWithPairedHalf). The foolish RULE
+ * (combo_area.h, Combo_Area_ComputeFoolish) stays a pure function of the
+ * placements and free of this record, which is why the predicate lives here.
+ *
+ * True with no frozen record and under every proving rung, so no proved world
+ * changes. Locked by MmFoolishStoneHint's No Logic leg.
+ */
+bool Combo_ComboLogicClaimsAllowed(void);
 
 /** The resolved direction: the frozen record's when frozen, else the shipped
  *  default. Increment 4 is where each placement pass NO-OPS on an unarmed

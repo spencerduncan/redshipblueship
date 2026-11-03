@@ -88,6 +88,10 @@ set(REDSHIP_COMMON_SOURCES
     # singleton and the read must be guarded on its existence.
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.cpp
+    # The paired half of a preset's Rando Settings block (#1368): MM's options,
+    # trap types, tricks and excluded checks and the Cross-Game rules, captured
+    # beside gRandoSettings and applied through each key's own writer.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_preset_profile.cpp
     # The combo-logic coordinator (ADR 0010 increment 3, #645; O4 = composition):
     # the union bag, the two origin-keyed placement tables and the round loop,
     # over a registered per-game engine vtable. Game-header-free like
@@ -809,6 +813,14 @@ if(BUILD_TESTING)
     # row each, and a button found in one game owned in the other on arrival.
     redship_add_test(NAME SharedOcarinaButtonsPairs COMMAND redship --test shared-ocarina-buttons-pairs)
     redship_add_test(NAME SharedOcarinaButtonsArrival COMMAND redship --test shared-ocarina-buttons-arrival)
+    # #1369: the Shared Swim rule (operator ruling 2026-11-02): ships on, frozen
+    # only while a game shuffles swim (CVar store, display-free bring-up); OoT's
+    # standalone bronze tier and MM's Ability to Swim registered and composed into
+    # one shared row, MM's sites taking the pair's one shuffle; and swim (and a
+    # coupled MM's button) found in one game held in the other on arrival. ROM-free.
+    redship_add_test(NAME SharedSwimRule COMMAND redship --test shared-swim-rule)
+    redship_add_test(NAME SharedSwimPairs COMMAND redship --test shared-swim-pairs)
+    redship_add_test(NAME SharedSwimArrival COMMAND redship --test shared-swim-arrival)
     # #968: Shared Fire, Ice and Light Arrows, three more families on the lens's
     # rows (#976 reserved their bits): the three keys (off by default, 0 or 1),
     # the freeze, the fingerprint and the load restore; then both games' arrows

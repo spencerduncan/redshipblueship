@@ -1587,6 +1587,72 @@ TestResult ComboLogicMeasure_Run(void) {
     }
 
     // ==================================================================
+    // M3e: THE ALL LOCATIONS RUNG (ABI 8) over a world whose MM half is WHOLE.
+    // ==================================================================
+    // The measurement bag's MM half is a stride sample, so an All Locations fill
+    // over it could only refuse: the MM rows left out are in no world at all (MM
+    // empties nothing; approximation D), and the pre-flight would name every
+    // location they open. So this fill carries the sample's OoT rows (the rest of
+    // OoT's progression stays natively placed and harvested, as everywhere in this
+    // row) and EVERY MM row of the composed bag: MM's half is production's.
+    //
+    // THE LOCK is the coordinator's own argument, not a number about the profile:
+    // when the pre-flight holds (every location of both games reached with every
+    // REQUIRED row assumed), the All Locations fill PROVES — the GOAL, every placed
+    // host and every location, in the exit round. When it does not hold, the fill
+    // is refused AT ONCE (no attempt, one round), naming the locations, and that
+    // list is printed in full: it is the audit the curated exclusion lists in both
+    // engines are built from (ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp,
+    // "THE CURATED EXCLUSIONS"). The per-profile audit is also the
+    // combo-logic-bag-composition rows' B8 (shipped, plentiful, armed).
+    {
+        std::vector<ComboLogicBagItem> allLocBag;
+        for (const ComboLogicBagItem& b : bag) {
+            if (b.item.originGame == (uint8_t)GAME_OOT) {
+                allLocBag.push_back(b);
+            }
+        }
+        int mmRows = 0;
+        for (const ComboLogicBagItem& b : composed.bag) {
+            if (b.item.originGame == (uint8_t)GAME_MM) {
+                allLocBag.push_back(b);
+                mmRows++;
+            }
+        }
+        const FillMeasurement allLoc =
+            RunTimedFill("all-locations/beat-both", allLocBag.data(), (int)allLocBag.size(), RSBS_COMBO_GOAL_BEAT_BOTH,
+                         RSBS_COMBO_RUNG_ALL_REACHABLE, kSeedA, fillAttempts);
+        char names[2048];
+        const int unreachable = Combo_Logic_FormatUnreachable(names, sizeof(names), 32);
+        printf("[TEST] combo-logic-measure: M3e ALL LOCATIONS profile=%s bag=%d (OoT %d sampled + MM %d whole): "
+               "status=%s locations=%d unreachable=%d allLocationsReached=%d allHostsReached=%d goalProven=%d\n",
+               profile, (int)allLocBag.size(), (int)allLocBag.size() - mmRows, mmRows,
+               Combo_Logic_StatusName(allLoc.status), allLoc.res.locationsChecked, unreachable,
+               allLoc.res.allLocationsReached ? 1 : 0, allLoc.res.allHostsReached ? 1 : 0,
+               allLoc.res.goalProven ? 1 : 0);
+        if (unreachable > 0) {
+            printf("[TEST] combo-logic-measure: M3e UNREACHABLE on profile %s (%d): %s\n", profile, unreachable, names);
+        }
+        CLM_ASSERT(allLoc.res.locationsChecked > 0, "M3e: the All Locations pre-flight captured no location");
+        if (allLoc.status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) {
+            CLM_ASSERT(allLoc.res.attempts == 0 && allLoc.res.rounds == 1 && allLoc.res.placed == 0 && unreachable > 0,
+                       "M3e: a pre-flight refusal is AT ONCE (no attempt, one round, nothing placed) and names its "
+                       "locations");
+            printf("[TEST] combo-logic-measure: M3e NOTE: profile %s is NOT All-Locations-provable as composed; the "
+                   "names above are the curated-exclusion audit (each needs a settings reason before it is listed)\n",
+                   profile);
+        } else {
+            CLM_ASSERT(allLoc.status == RSBS_COMBO_LOGIC_OK,
+                       "M3e: the pre-flight held, so the All Locations fill must prove (the final round reaches what "
+                       "the pre-flight reached)");
+            CLM_ASSERT(allLoc.res.goalProven && allLoc.res.allLocationsReached && allLoc.res.allHostsReached &&
+                           allLoc.res.locationsUnreachable == 0,
+                       "M3e: the GOAL, every placed host and every location of both games held in the exit round");
+        }
+        Combo_Logic_ResetPlacements();
+    }
+
+    // ==================================================================
     // THE #582 ARITHMETIC. Measurement, then extrapolation, labelled.
     // ==================================================================
     const double measuredFillMs = beatEitherA.wallMs;
@@ -2217,6 +2283,52 @@ TestResult ComboLogicBagComposition_Run(void) {
                    "B4: with MM's whole check pool for 20 rows, EVERY surplus row is placed and none is dropped");
         CLB_ASSERT(res.placed == res.requiredPlaced + res.surplusPlaced, "B4: the coordinator placed bag rows only");
         Combo_Logic_ResetPlacements();
+    }
+
+    // ---- B8: THE ALL LOCATIONS AUDIT (ABI 8) --------------------------------
+    // The All Locations pre-flight over this profile's REAL pools: OoT's world as its
+    // native fill placed it (every OoT progression item in a host, harvested by
+    // OoT's own search, which is the reach of every OoT REQUIRED row assumed) and
+    // every MM REQUIRED row assumed, over MM's GeneratePools check pool. It is the
+    // question a paired creation under the All Locations rung asks before placing
+    // anything, and its answer is a fact of the settings. PRINTED IN FULL, one line
+    // per location: this is the audit the curated exclusion lists are built from
+    // (an entry needs a settings reason; ComboLogicEngineOoT.cpp and
+    // ComboLogicEngineSingleExe.cpp, "THE CURATED EXCLUSIONS"). APPROXIMATION: OoT's
+    // native junk and renewables are in its world here, where a paired creation's
+    // pre-flight has OoT's general-pass hosts empty, so OoT's half of this audit can
+    // only under-report. Asserted: a named verdict, both engines listing locations,
+    // OoT's crossing open, and the record agreeing with the counts.
+    {
+        CLB_ASSERT(oot->allLocations != nullptr && mm->allLocations != nullptr,
+                   "B8: both real engines publish ABI 8's allLocations (no host-table fallback for a real world)");
+        MM_ComboLogic_SetHostPool(c.mmChecks.data(), (int)c.mmChecks.size());
+        ComboLogicPreflightResult pre;
+        memset(&pre, 0, sizeof(pre));
+        const int preStatus =
+            Combo_Logic_RunAllLocationsPreflight(mmRequired.empty() ? nullptr : mmRequired.data(),
+                                                 (int)mmRequired.size(), RSBS_COMBO_GOAL_BEAT_BOTH, 0u, &pre);
+        printf("[TEST] combo-logic-bag-composition: B8 ALL LOCATIONS profile=%s: %s — OoT %d of %d and MM %d of %d "
+               "locations reached with every MM REQUIRED row (%d) assumed; OoT crossing %d, beat-both %d\n",
+               profile, Combo_Logic_StatusName(preStatus), pre.locationsOoT - pre.unreachableOoT, pre.locationsOoT,
+               pre.locationsMM - pre.unreachableMM, pre.locationsMM, pre.assumed, pre.crossingOpenOoT,
+               pre.goalExpression);
+        ComboLogicHostRef ref;
+        for (int i = 0; Combo_Logic_UnreachableLocationAt(i, &ref); ++i) {
+            const char* name = Combo_DescribeCheckName(ref.hostGame, ref.hostCheck);
+            printf("[TEST] combo-logic-bag-composition: B8 UNREACHABLE profile=%s %s %u %s\n", profile,
+                   Game_ToString((GameId)ref.hostGame), (unsigned)ref.hostCheck, name != nullptr ? name : "(no name)");
+        }
+        CLB_ASSERT(preStatus == RSBS_COMBO_LOGIC_OK || preStatus == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                   "B8: the All Locations pre-flight returns a named verdict over the real engines");
+        CLB_ASSERT(pre.locationsOoT > 0 && pre.locationsMM > 0,
+                   "B8: both engines list their locations (OoT's ctx->allLocations, MM's check pool)");
+        CLB_ASSERT(pre.crossingOpenOoT == 1, "B8: OoT's crossing opens with the world's progression in reach");
+        CLB_ASSERT(Combo_Logic_UnreachableLocationCount() == pre.unreachableOoT + pre.unreachableMM &&
+                       (preStatus == RSBS_COMBO_LOGIC_OK) == (Combo_Logic_UnreachableLocationCount() == 0),
+                   "B8: the named list is exactly the locations the verdict counts");
+        CLB_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == 0,
+                   "B8: the pre-flight placed nothing");
     }
 
     // S4 for B3/B4, BEFORE B5 deliberately changes the live save: the rounds and

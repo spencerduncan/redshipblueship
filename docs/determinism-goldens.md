@@ -716,9 +716,9 @@ stripped) or exists on one leg only, and it reports each moved field by name.
 This covers worlds no golden pins. It also answers the question a world-moving
 PR raises: when both legs are red against the old golden, do they agree on the
 new world? If they do, a re-pin from either platform is valid for the other. The
-job runs even when a leg is red, and is skipped only when a leg never ran. It is
-not a required check, so a docs-only PR, which skips this workflow, is
-unaffected.
+job runs even when a leg is red, and is skipped only when a leg never ran, as on
+a docs-only PR, where generate-builds' `docs-only` job skips both build legs. It
+is not a required check, so a docs-only PR is unaffected.
 
 **A per-platform golden may be added only when a platform difference has been
 measured, and this page must then say which field differs and why.** Adding one to

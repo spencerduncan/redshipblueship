@@ -89,6 +89,7 @@
  */
 
 #include "../combo_logic.h"
+#include "../combo_single_bag.h" // Combo_SingleBag_StatusIsWorldDeadEnd: which refusals may climb the ladder
 #include "../context.h"
 #include "../shared_items.h"
 #include "../test_runner.h"
@@ -210,6 +211,13 @@ struct ClEngine {
     /** `snapshot` refuses, having captured nothing. That side must then get no
      *  `beginQuery`, no `endQuery` and no `restore`. */
     bool refuseSnapshot;
+    /** ABI 8: install `allLocations`, listing every authored host EXCEPT the host
+     *  indices in `notLocation` — the stub's CURATED EXCLUSIONS (a host its world
+     *  makes unreachable by construction, left out of the All Locations obligation).
+     *  Clear, the vtable entry is NULL and the coordinator's fallback (the host
+     *  table) stands in, which is every world authored before ABI 8. */
+    bool withAllLocations;
+    uint32_t notLocation;
     ClFault fault;
 
     // --- live state ------------------------------------------------------
@@ -654,6 +662,24 @@ void ClRestore(void* self) {
     e->placedCount = e->restoreDropsPlacements ? 0 : e->snapPlaced;
 }
 
+/** ABI 8's `allLocations`: every authored host not in `notLocation`, ascending (the
+ *  order contract), the TOTAL returned. Legal outside a round, so it touches no
+ *  round state and sets no trap. */
+int ClAllLocations(void* self, uint16_t* out, int cap) {
+    ClEngine* e = (ClEngine*)self;
+    int total = 0;
+    for (int i = 0; i < e->hostCount; ++i) {
+        if ((e->notLocation & (1u << i)) != 0u) {
+            continue;
+        }
+        if (out != NULL && total < cap) {
+            out[total] = e->hostId[i];
+        }
+        total++;
+    }
+    return total;
+}
+
 void ClFillVtable(ComboLogicEngine* vt, ClEngine* e) {
     memset(vt, 0, sizeof(*vt));
     vt->abiVersion = RSBS_COMBO_LOGIC_ENGINE_ABI;
@@ -670,6 +696,9 @@ void ClFillVtable(ComboLogicEngine* vt, ClEngine* e) {
     vt->clearPlacements = ClClearPlacements;
     vt->endQuery = ClEndQuery;
     vt->withholdHost = ClWithholdHost;
+    if (e->withAllLocations) {
+        vt->allLocations = ClAllLocations;
+    }
     if (e->withSnapshot) {
         vt->snapshot = ClSnapshot;
         vt->restore = ClRestore;
@@ -1428,6 +1457,7 @@ TestResult Test_ComboLogicFill(void) {
     uint32_t digestA = 0u;
     uint32_t digestB = 0u;
     uint32_t digestOther = 0u;
+    int roundsA = 0;
     {
         ClBuildFillWorld(true);
         CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x5EED1234u, &res) ==
@@ -1437,7 +1467,10 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(res.goalProven && !res.proofSkipped, "the beatable rung must have evaluated the exit condition");
         CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == bagCount,
                   "the two tables together must hold the whole bag");
+        CL_ASSERT(!res.allLocationsReached && res.locationsChecked == 0,
+                  "`beatable` captures no location list and claims no All Locations proof");
         digestA = res.placementDigest;
+        roundsA = res.rounds;
         CL_ASSERT(digestA != 0u, "the digest must cover something");
 
         ClBuildFillWorld(true);
@@ -1652,7 +1685,9 @@ TestResult Test_ComboLogicFill(void) {
 
     // --- the all-reachable rung adds a real obligation --------------------
     // An engine that OFFERS a host it does not reach. `beatable` cannot see it
-    // (the goal still proves); `all-reachable` must refuse it.
+    // (the goal still proves); `all-reachable` must refuse it — and since ABI 8 it
+    // refuses AT ONCE, by name, in its pre-flight: the stub has no `allLocations`,
+    // so its host table stands in, and host 10 is a location no seed can reach.
     {
         ComboLogicBagItem one[1];
         one[0] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
@@ -1664,12 +1699,135 @@ TestResult Test_ComboLogicFill(void) {
         CL_ASSERT(res.goalProven && !res.allHostsReached, "and it reports honestly that a placed host was not reached");
 
         ClBuildOfferUnreachedWorld();
+        const int rc = ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 7u, &res);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "`all-reachable` must refuse the same world: its obligation is strictly stronger, and a location "
+                  "no seed can reach is refused by the pre-flight");
+        CL_ASSERT(res.attempts == 0 && res.rounds == 1 && res.placed == 0,
+                  "refused AT ONCE: one pre-flight round, no batch attempt, nothing placed (no ladder of retries "
+                  "over a fact of the settings)");
+        CL_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == 0,
+                  "and the tables the pre-flight emptied stay empty");
+        CL_ASSERT(gClOoT.beginCalls == 1 && gClMM.beginCalls == 1, "exactly one round was opened on each engine");
+        ComboLogicHostRef ref;
+        memset(&ref, 0, sizeof(ref));
+        CL_ASSERT(Combo_Logic_UnreachableLocationCount() == 1 && Combo_Logic_UnreachableLocationAt(0, &ref) &&
+                      ref.hostGame == (uint8_t)GAME_OOT && ref.hostCheck == 10,
+                  "the refusal NAMES the location: OoT host 10, and nothing else");
+        CL_ASSERT(!Combo_Logic_UnreachableLocationAt(1, &ref), "and there is exactly one");
+        CL_ASSERT(res.locationsChecked == 1 && res.locationsUnreachable == 1,
+                  "the result counts the one location captured and the one missed");
+        char names[160];
+        CL_ASSERT(Combo_Logic_FormatUnreachable(names, sizeof(names), 4) == 1 && names[0] != '\0',
+                  "the name line is never empty: a location its game cannot name reads '<game> location <id>'");
+        printf("[TEST]   all-reachable refusal names: %s\n", names);
+        CL_ASSERT(!Combo_SingleBag_StatusIsWorldDeadEnd(rc, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE),
+                  "a pre-flight refusal is never a ladder rung: another seed cannot reach the location either");
+        CL_ASSERT(!Combo_SingleBag_StatusIsWorldDeadEnd(RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED,
+                                                        (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE),
+                  "and neither is NOT_ALL_REACHED: after a pre-flight that held, only an engine fault misses one");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+
+        // THE NARROW OBLIGATION IS STILL THERE: the same world with host 10 CURATED
+        // out of the location list (its game says no seed reaches it) passes the
+        // pre-flight, and the offered-but-unreached host it is handed then fails
+        // the final round's placed-host term: NOT_ALL_REACHED, over every roll-back.
+        ClBuildOfferUnreachedWorld();
+        gClOoT.withAllLocations = true;
+        gClOoT.notLocation = 1u << 0;
+        ClInstall();
         CL_ASSERT(ClRunFill(one, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 7u, &res) ==
                       RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED,
-                  "`all-reachable` must refuse the same world: its obligation is strictly stronger");
+                  "a placed host that is never reached still fails `all-reachable`");
         CL_ASSERT(res.attempts == RSBS_COMBO_LOGIC_FILL_RETRIES,
                   "and the batch roll-backs must be real roll-backs: every attempt must have re-placed, not "
                   "dead-ended on the previous attempt's leftovers");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // --- ALL LOCATIONS (ABI 8): every location of BOTH games, whatever the GOAL --
+    // The fill world's MM host 24 needs the Bow, which no bag carries: a location no
+    // seed can reach. So the pre-flight refuses, naming MM 24, under beat-both AND
+    // under beat-oot (OoTMM: every location in both games, whatever the goal). With
+    // host 24 curated out, the same world PROVES, with every location reached, and
+    // places exactly as `beatable` does (the pre-flight draws no RNG). With OoT's
+    // crossing shut, every MM location is unreached (the arrival gate).
+    {
+        ClBuildFillWorld(true);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u,
+                            &res) == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "All Locations must refuse a world with a location no seed can reach");
+        ComboLogicHostRef ref;
+        memset(&ref, 0, sizeof(ref));
+        CL_ASSERT(Combo_Logic_UnreachableLocationCount() == 1 && Combo_Logic_UnreachableLocationAt(0, &ref) &&
+                      ref.hostGame == (uint8_t)GAME_MM && ref.hostCheck == 24,
+                  "and name it: MM host 24 (the Bow's), and only it");
+        CL_ASSERT(res.locationsChecked == 12 && res.attempts == 0 && res.placed == 0,
+                  "twelve locations captured (six per side), refused before any attempt");
+
+        ClBuildFillWorld(true);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_OOT, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u,
+                            &res) == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "WHATEVER THE GOAL: under beat-oot a Termina location no seed can reach still refuses");
+
+        ClBuildFillWorld(true);
+        gClMM.withAllLocations = true;
+        gClMM.notLocation = 1u << 4; // host 24: MM's curated exclusion
+        ClInstall();
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u,
+                            &res) == RSBS_COMBO_LOGIC_OK,
+                  "with the unreachable location curated out, All Locations proves the world");
+        CL_ASSERT(res.goalProven && res.allLocationsReached && res.allHostsReached,
+                  "the GOAL, every placed host AND every location held in the exit round");
+        CL_ASSERT(res.locationsChecked == 11 && res.locationsUnreachable == 0 &&
+                      Combo_Logic_UnreachableLocationCount() == 0,
+                  "eleven locations captured (the curated one left out), none missed");
+        CL_ASSERT(res.placementDigest == digestA && res.rounds == roundsA + 1,
+                  "the pre-flight draws no RNG and places nothing: the world is `beatable`'s, plus one round");
+        CL_ASSERT(!Combo_Logic_GetPlacement(GAME_MM, 24, NULL),
+                  "the curated location received no bag row: it is never reached, so never a candidate, and only "
+                  "its game's own filler lands there");
+        CL_ASSERT(Combo_Logic_UnprovedHalves(&res) == 0u, "and the world names no unproved half");
+
+        ClBuildFillWorld(true);
+        gClOoT.crossingRequires = ClBit(&gClOoT, kOotBoots); // in no bag: the crossing never opens
+        gClMM.withAllLocations = true;
+        gClMM.notLocation = 1u << 4;
+        ClInstall();
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_OOT, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u,
+                            &res) == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "with OoT's crossing shut, Termina's locations are unreachable, whatever MM's own graph says");
+        int mmMissed = 0;
+        for (int i = 0; Combo_Logic_UnreachableLocationAt(i, &ref); ++i) {
+            mmMissed += (ref.hostGame == (uint8_t)GAME_MM) ? 1 : 0;
+        }
+        CL_ASSERT(Combo_Logic_UnreachableLocationCount() == 5 && mmMissed == 5,
+                  "every one of MM's five locations is named, and no OoT one (the arrival gate)");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // --- No Logic: running out of hosts is a CAPACITY refusal, not a rung -----
+    // `none` draws from every empty host in one attempt, so ERR_NO_CANDIDATE there
+    // says both pools together are smaller than the bag; no seed has more hosts.
+    {
+        ComboLogicBagItem two[2];
+        two[0] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
+        two[1] = ClBagItem((uint8_t)GAME_OOT, kOotSword, RSBS_ITEMCLASS_PROGRESSION);
+        ClBuildUnreachedOnlyWorld(); // one free host in both worlds together
+        const int rc = ClRunFill(two, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_NONE, 11u, &res);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE && res.attempts == 1 && res.rounds == 0,
+                  "two REQUIRED rows over one free host: `none` runs out, in its one attempt, with no round");
+        CL_ASSERT(!Combo_SingleBag_StatusIsWorldDeadEnd(rc, (uint8_t)RSBS_COMBO_RUNG_NONE),
+                  "under No Logic that is a REFUSAL: the ladder must not re-seed ten times over a capacity fact");
+        CL_ASSERT(Combo_SingleBag_StatusIsWorldDeadEnd(rc, (uint8_t)RSBS_COMBO_RUNG_BEATABLE) &&
+                      Combo_SingleBag_StatusIsWorldDeadEnd(rc, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE),
+                  "while under a proving rung the same status is the seed's dead end, a rung (the red half)");
+        CL_ASSERT(Combo_SingleBag_StatusIsWorldDeadEnd(RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE,
+                                                       (uint8_t)RSBS_COMBO_RUNG_BEATABLE),
+                  "GOAL_UNPROVABLE stays a rung");
+        CL_ASSERT(
+            !Combo_SingleBag_StatusIsWorldDeadEnd(RSBS_COMBO_LOGIC_ERR_ABORTED, (uint8_t)RSBS_COMBO_RUNG_BEATABLE),
+            "a budget stop never is one");
         CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
     }
 
@@ -2559,9 +2717,9 @@ void ClCountCrossings(int* intoOoT, int* intoMM, bool* ootForeignOnly41) {
 }
 
 TestResult ClProductionRulesLeg(void) {
-    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 7u,
-              "P0: this build speaks ABI 7 (5: the production wiring's hostAcceptsForeign; 6: the round's forbidden "
-              "hosts; 7: the shared pair)");
+    CL_ASSERT(RSBS_COMBO_LOGIC_ENGINE_ABI == 8u,
+              "P0: this build speaks ABI 8 (5: the production wiring's hostAcceptsForeign; 6: the round's forbidden "
+              "hosts; 7: the shared pair; 8: All Locations' allLocations)");
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
     const uint16_t oItems[4] = { kOotSword, kOotHook, kOotLens, kOotBoots };
@@ -3059,9 +3217,22 @@ TestResult Test_ComboLogicBagModel(void) {
                                            ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0),
                                            ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0) };
         ComboLogicFillResult res;
+        // ABI 8: host 10 is a LOCATION no seed reaches, so All Locations refuses this
+        // world outright (the red half) ...
+        CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 3u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "all-reachable refuses a world whose location 10 no seed reaches");
+        // ... and with host 10 CURATED out of the location list (OoTMM's
+        // removeLocations), the rule under test here applies: it is still a host,
+        // and the surplus may not go there.
+        gClOoT.withAllLocations = true;
+        gClOoT.notLocation = 1u << 0;
+        ClInstall();
         CL_ASSERT(ClRunFill(bag, 3, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 3u, &res) ==
                       RSBS_COMBO_LOGIC_OK,
                   "all-reachable with surplus must succeed");
+        CL_ASSERT(res.allLocationsReached && res.locationsChecked == 1,
+                  "every location (host 11; host 10 curated out) was reached");
         CL_ASSERT(res.requiredPlaced == 1 && res.surplusPlaced == 0 && res.surplusDropped == 2,
                   "the one reached host takes the required row, and the surplus rows are DROPPED rather than put on "
                   "the unreached host");

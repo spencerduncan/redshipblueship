@@ -124,8 +124,16 @@ extern "C" {
  *  coordinator hands the other half to the other engine through the crossing
  *  exchange gate. So an engine may now be granted one of its own ids from a host
  *  of the OTHER game that holds an OWN-origin item there, which no ABI-6 engine
- *  was told could happen. The number moves for the meaning, as it did at 3. */
-#define RSBS_COMBO_LOGIC_ENGINE_ABI 7u
+ *  was told could happen. The number moves for the meaning, as it did at 3.
+ *
+ *  8 (2026-11-02, the All Locations rung): the vtable gains ONE more OPTIONAL
+ *  trailing pointer, `allLocations`, and `checkReached` must now answer for every
+ *  id that enumeration lists, not only for hosts. RSBS_COMBO_RUNG_ALL_REACHABLE
+ *  stops meaning "every PLACED host reached" and means OoTMM's "every location in
+ *  BOTH games reached, whatever the GOAL". An ABI-7 engine was never asked for its
+ *  locations, so its silence would be read as a host-only list, which is exactly
+ *  the narrow reading this ABI retires. */
+#define RSBS_COMBO_LOGIC_ENGINE_ABI 8u
 
 // ============================================================================
 // Status codes — DIAGNOSTICS, NOT FORMAT
@@ -175,7 +183,12 @@ extern "C" {
  *  CONDITION (ADR 0010 D4), so this is a fill failure, not a warning. */
 #define RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE 7
 /** Under RSBS_COMBO_RUNG_ALL_REACHABLE only: the GOAL was provable but some
- *  placed host was not reached in the final round. */
+ *  placed host, or some LOCATION (`allLocations`), was not reached in the final
+ *  round. After a pre-flight that held (RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE
+ *  below), a complete assumed fill makes every REQUIRED row collectible, so the
+ *  final round's reach equals the pre-flight's and this cannot happen with two
+ *  monotone engines. It is therefore NOT a fact of the seed, and the attempt ladder
+ *  never climbs a rung on it (Combo_SingleBag_StatusIsWorldDeadEnd). */
 #define RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED 8
 /** A fixed capacity was exceeded: the bag size (RSBS_COMBO_LOGIC_BAG_CAP),
  *  placements on one host game (RSBS_COMBO_LOGIC_PLACEMENT_CAP), or the hosts one
@@ -193,6 +206,16 @@ extern "C" {
  *  attempt ladder can refuse to climb a rung on it. The tables hold whatever the
  *  interrupted attempt had placed; a caller discards them. */
 #define RSBS_COMBO_LOGIC_ERR_ABORTED 11
+/** Under RSBS_COMBO_RUNG_ALL_REACHABLE only: THE PRE-FLIGHT (Combo_Logic_RunAllLocationsPreflight)
+ *  found locations no seed can reach. One round with EVERY REQUIRED row assumed and
+ *  nothing placed is the widest reach any fill of this bag can have (OoTMM's
+ *  validate with assumedItems = allItems), so a location it does not reach is
+ *  unreachable BY CONSTRUCTION under these settings: a fact fixed at Generate,
+ *  never a fact of the seed. The fill refuses AT ONCE, before placing anything
+ *  (`attempts` 0, `rounds` 1), and the unreachable locations are named
+ *  (Combo_Logic_UnreachableLocationAt, Combo_Logic_FormatUnreachable). No ladder
+ *  rung: another seed cannot reach them either. */
+#define RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE 12
 
 /** Its name ("ok", "no-engine", ...), or "(unknown)". Never NULL. */
 const char* Combo_Logic_StatusName(int status);
@@ -876,6 +899,34 @@ typedef struct ComboLogicEngine {
      * that forbids nothing never calls it.
      */
     void (*withholdHost)(void* self, uint16_t hostCheck);
+
+    /**
+     * OPTIONAL (ABI 8, the All Locations rung). EVERY LOCATION of this engine's
+     * world that RSBS_COMBO_RUNG_ALL_REACHABLE requires reachable — OoTMM's
+     * "every location in both games", whatever the GOAL. Wider than the hosts:
+     * a location may already hold its item (a restricted pass's, a vanilla shop
+     * slot's, a user-excluded check's junk) and still counts.
+     *   OoT: `ctx->allLocations`, the list SoH's ValidateEntrances walks.
+     *   MM:  the host pool MM_ComboLogic_SetHostPool was handed (GeneratePools'
+     *        check pool), or the graph's check set when none was.
+     * Each engine OMITS its curated exclusions here: locations its own settings
+     * make unreachable by construction (OoTMM's removeLocations, transform.ts).
+     * An omitted location is never a candidate under a proving rung either (a
+     * candidate must be reached), so it only ever receives its game's own filler.
+     *
+     * `checkReached` MUST answer for every id listed, inside a round.
+     *
+     * CALLED OUTSIDE ANY ROUND, once per fill, at the pre-flight: a pure
+     * enumeration of the engine's own tables and settings, like `allEmptyHosts`.
+     * ORDER IS A CONTRACT (a stable order that is a function of those tables).
+     * Same truncation rule: at most `cap` written, the TOTAL returned; a total
+     * above RSBS_COMBO_LOGIC_HOST_CAP is refused (ERR_CAPACITY), never truncated.
+     *
+     * NULL: the engine's own host table stands in — `allEmptyHosts` asked at the
+     * pre-flight, when both tables are empty, so every host this engine offers.
+     * Never called under any other rung.
+     */
+    int (*allLocations)(void* self, uint16_t* out, int cap);
 } ComboLogicEngine;
 
 /**
@@ -1156,6 +1207,15 @@ typedef struct {
     int triforcePiecesOoT;
     int triforcePiecesMM;
     int triforcePieces;
+    /** ABI 8: was every LOCATION the fill's pre-flight captured (`allLocations`)
+     *  reached in this round, MM's behind the arrival gate? 1 / 0, and -1 when the
+     *  round was not asked (every round but the All Locations rung's pre-flight,
+     *  final and confirming rounds — Combo_Logic_RunRound never asks). Evaluated
+     *  inside the round for the reason `allHostsReached` is. */
+    int allLocationsReached;
+    /** How many of those locations were NOT reached (0 when not asked); the list is
+     *  Combo_Logic_UnreachableLocationAt's. */
+    int locationsUnreached;
 } ComboLogicRoundResult;
 
 /**
@@ -1671,6 +1731,8 @@ bool Combo_Logic_ComposeTrimmedAt(int index, int* outPoolIndex);
 #define RSBS_COMBO_FILL_STAGE_ROUND 0   /**< a round for one REQUIRED row is about to run */
 #define RSBS_COMBO_FILL_STAGE_PROOF 1   /**< the exit-condition round is about to run */
 #define RSBS_COMBO_FILL_STAGE_SURPLUS 2 /**< the surplus phase is about to run */
+/** The All Locations rung's pre-flight round is about to run (ABI 8). */
+#define RSBS_COMBO_FILL_STAGE_PREFLIGHT 3
 
 typedef struct {
     int stage;          // RSBS_COMBO_FILL_STAGE_*
@@ -1761,6 +1823,10 @@ typedef struct {
     //     fill reads them, so they move no placement.
     int goalOoT;
     int goalMM;
+    // --- THE ALL LOCATIONS RUNG (ABI 8). All 0 / false under every other rung. ---
+    bool allLocationsReached; // the exit condition's every-location term held
+    int locationsChecked;     // locations the pre-flight captured, both games together
+    int locationsUnreachable; // locations the pre-flight (or the failing proof round) did not reach
 } ComboLogicFillResult;
 
 /**
@@ -1801,22 +1867,37 @@ typedef struct {
  *                                   hosts, then a final round with nothing
  *                                   assumed in which the GOAL expression must
  *                                   hold.
- *   RSBS_COMBO_RUNG_ALL_REACHABLE - the same, plus: every host the COMBO FILL
- *                                   placed on must be reached in that final
- *                                   round.
+ *   RSBS_COMBO_RUNG_ALL_REACHABLE - OoTMM's "All Locations" (ABI 8): FIRST one
+ *                                   PRE-FLIGHT round over empty tables with
+ *                                   every REQUIRED row assumed
+ *                                   (Combo_Logic_RunAllLocationsPreflight); a
+ *                                   location it does not reach is refused AT
+ *                                   ONCE (ERR_LOCATIONS_UNREACHABLE, nothing
+ *                                   placed, the locations named). Then the
+ *                                   `beatable` fill, whose exit condition is
+ *                                   the GOAL AND every placed host AND every
+ *                                   location the pre-flight captured, in BOTH
+ *                                   games (MM's behind the arrival gate),
+ *                                   WHATEVER THE GOAL: under `beat-oot` every
+ *                                   Termina location must still be reachable.
  *
- * The all-reachable rung's obligation is deliberately over PLACED hosts and not
- * over every location in either world. "Every location reachable" is each half's
- * own generation setting (`RSK_ALL_LOCATIONS_REACHABLE` and MM's analogue). ADR
- * 0010 §1.2 kept that axis per-half until #1367 (2026-11-02) made strictness the
- * pair's one [Both Games] Logic, which each half's own Logic now follows (OoT's
- * All Locations Reachable stays on under both proving rungs). The pair-level
- * obligation this rung adds on top is that nothing the SINGLE BAG distributed
- * ended up somewhere the player cannot stand. Widening it to "every host in both
- * worlds" is the real All Locations proof, owed to its own lane with the golden
- * re-pin (ADR 0010, amendment of 2026-11-02). (`allEmptyHosts` could now
- * enumerate the wider set — it exists for the `none` rung — so the narrow
- * reading is a decision here, not a limitation of the surface.)
+ * WHY THE PRE-FLIGHT AND NOT A DIAGNOSTIC ROUND AFTER A FAILURE. After a complete
+ * assumed fill every REQUIRED row is collectible (each was placed where the rows
+ * after it, assumed, reach), so the final round's reach EQUALS the reach with every
+ * REQUIRED row assumed and nothing placed. A location that round misses is missed
+ * by every seed: it is a fact of the settings, fixed at Generate, and burning the
+ * attempt ladder on it would only repeat it ten times. So it is asked once, before
+ * anything is placed, and the answer is a refusal that names the locations.
+ *
+ * This replaces the ABI-7 reading, under which the obligation was over PLACED hosts
+ * only and "every location" was left to each half's own setting
+ * (`RSK_ALL_LOCATIONS_REACHABLE`, MM's analogue). Neither half's setting enforced
+ * it in a paired world (SoH's ALR is read only by OoT's own early stop, which a
+ * paired world never runs), so nothing did; the operator's ruling (2026-11-02)
+ * moves strictness to the pair, as OoTMM has it. #1367 authors that rung as the
+ * pair's one [Both Games] Logic (`gCombo.Rando.Logic`, the record's `logicRung`),
+ * and each half's own Logic now follows it at creation (OoT's All Locations
+ * Reachable stays on under both proving rungs and off under `none`).
  *
  * DETERMINISM: the whole result is a pure function of (`bag` contents — flags
  * included — and order, `goal`, `logicRung`, `seed`, `maxAttempts`, the two
@@ -1845,9 +1926,62 @@ typedef struct {
  * Combo_Logic_PlacementCount / Combo_Logic_PlacementDigest, which are about the
  * tables; the result struct is about the call.
  *
+ * THE ALL LOCATIONS PRE-FLIGHT IS NOT AN ATTEMPT, but it does EMPTY the tables (its
+ * round must see none of them): a fill refused there reports `attempts` 0,
+ * `placed` 0 and `rounds` 1, and the tables are empty, not whatever they held.
+ *
  * @return the status, also written to `out->status` when `out` is non-NULL.
  */
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out);
+
+/** What THE PRE-FLIGHT saw (ABI 8). Diagnostics, not format. */
+typedef struct {
+    int status;         // RSBS_COMBO_LOGIC_OK, _ERR_LOCATIONS_UNREACHABLE, or a refusal
+    int locationsOoT;   // locations captured per game (`allLocations`, or the host table)
+    int locationsMM;    //
+    int unreachableOoT; // ... and how many of them the round did not reach
+    int unreachableMM;  //   (every MM one, when OoT's crossing stayed closed)
+    int assumed;        // REQUIRED rows assumed (every non-SURPLUS bag row)
+    int crossingOpenOoT;
+    int goalExpression; // the GOAL with every REQUIRED row assumed; -1 unevaluated (reporting only)
+} ComboLogicPreflightResult;
+
+/**
+ * THE ALL LOCATIONS PRE-FLIGHT, on its own (RSBS_COMBO_RUNG_ALL_REACHABLE runs it
+ * first; the measurement path runs it to audit a profile). Empties both tables
+ * (Combo_Logic_ResetPlacements), captures each engine's `allLocations` (or its host
+ * table), and runs ONE round with every non-SURPLUS row of `bag` assumed — shared
+ * pairs in both engines, as any round seeds them — reading every captured location
+ * through `checkReached`, MM's behind the arrival gate. Records the unreachable ones
+ * for Combo_Logic_UnreachableLocationAt and logs them by name.
+ *
+ * Nothing is placed and no RNG is drawn. A pure function of (bag, engines).
+ *
+ * @return RSBS_COMBO_LOGIC_OK when every location was reached,
+ *         RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE when one was not, or the
+ *         round's own refusal (no engine, a bad request, capacity, an engine
+ *         defect). Also written to `out->status` when `out` is non-NULL.
+ */
+int Combo_Logic_RunAllLocationsPreflight(const ComboLogicBagItem* bag, int bagCount, uint8_t goal,
+                                         uint16_t triforceRequired, ComboLogicPreflightResult* out);
+
+/** How many locations the latest location-evaluating round (the pre-flight, or an
+ *  All Locations proof round that failed) did not reach. Reset by every
+ *  Combo_Logic_RunFill that gets past its request checks. */
+int Combo_Logic_UnreachableLocationCount(void);
+
+/** The `index`-th of them, in capture order (OoT's first, each engine's own stable
+ *  order). False out of range. */
+bool Combo_Logic_UnreachableLocationAt(int index, ComboLogicHostRef* out);
+
+/**
+ * Those locations as one line of names, through each game's describer
+ * (Combo_DescribeCheckName): "Name A, Name B and 3 more". At most `maxNames` names;
+ * a location its game cannot name reads "<game> location <id>". Always
+ * NUL-terminated when `cap` > 0, truncated rather than overrun.
+ * @return the number of unreachable locations (the whole list, not just the named).
+ */
+int Combo_Logic_FormatUnreachable(char* out, size_t cap, int maxNames);
 
 /** Combo_Logic_UnprovedHalves' bits: a half whose goal carries no proof. */
 #define RSBS_COMBO_HALF_OOT 0x1u

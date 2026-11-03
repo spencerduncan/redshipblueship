@@ -1213,6 +1213,79 @@ void OoT_ComboLogic_WithholdHost(void* self, uint16_t hostCheck) {
     }
 }
 
+// ============================================================================
+// THE ALL LOCATIONS RUNG (combo_logic.h ABI 8, `allLocations`)
+// ============================================================================
+//
+// OoT's locations are `ctx->allLocations`: the list SoH's own ValidateEntrances
+// walks for "All Locations Reachable", built per fill attempt by
+// Context::GenerateLocationPool from the settings (shuffled pots, grass, crates
+// and the rest join it as their shuffles are on). Wider than this engine's hosts:
+// a shop slot holding its vanilla stock, a song location holding a song, a
+// user-excluded location holding junk are all locations and must all be reached.
+//
+// THE CURATED EXCLUSIONS, OoT's half of OoTMM's removeLocations (transform.ts
+// ~1368-1580): a location listed here, while its condition holds for this
+// world's settings, is left out of `allLocations`, so the All Locations
+// pre-flight does not demand it. It is still a host and still never a candidate
+// under a proving rung (a candidate must be reached), so it only ever receives
+// OoT's own filler from the remainder pass: OoTMM's "junk those locations". Only
+// the All Locations rung reads this list, so it moves no default world.
+//
+// EVERY ENTRY CARRIES ITS REASON. The list starts EMPTY on purpose: no entry is
+// added on a guess. The audit is combo-logic-measure's ALL LOCATIONS leg, which
+// runs the pre-flight over the profile's real pools and prints every location it
+// cannot reach by name; an entry belongs here only when that print names a
+// location whose unreachability is a fact of the settings (and the reason says
+// which).
+struct OoTCuratedExclusion {
+    RandomizerCheck check;
+    bool (*applies)();  // over this world's settings (ctx options); nullptr = always
+    const char* reason; // why no seed can reach it under those settings
+};
+
+const std::vector<OoTCuratedExclusion>& OoTCuratedExclusions() {
+    static const std::vector<OoTCuratedExclusion> kList = {};
+    return kList;
+}
+
+bool OoTComboLogicCuratedUnreachable(RandomizerCheck rc) {
+    for (const OoTCuratedExclusion& entry : OoTCuratedExclusions()) {
+        if (entry.check == rc && (entry.applies == nullptr || entry.applies())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * `allLocations` (ABI 8): `ctx->allLocations` restricted to real rows, minus the
+ * curated exclusions, in ASCENDING `RC_*` order (a function of the location table
+ * and the settings alone, the order contract). Legal OUTSIDE a round: it reads the
+ * pool and the settings, never `sInQuery`, the simulated inventory or the reached
+ * marks. `checkReached` answers for every id it lists (`IsAddedToPool`, which the
+ * round's ReachabilitySearch sets for every location of the graph it reaches).
+ */
+int OoT_ComboLogic_AllLocations(void* self, uint16_t* out, int cap) {
+    (void)self;
+    if (!OoTComboLogicReady()) {
+        return 0;
+    }
+    const std::vector<bool>& owned = OoTComboLogicOwnedHosts();
+    int total = 0;
+    for (int i = 1; i < kOoTCheckIdSpace; ++i) {
+        const RandomizerCheck rc = (RandomizerCheck)i;
+        if (!owned[(size_t)i] || !OoTComboLogicIsRealCheck(rc) || OoTComboLogicCuratedUnreachable(rc)) {
+            continue;
+        }
+        if (out != nullptr && total < cap) {
+            out[total] = (uint16_t)rc;
+        }
+        ++total;
+    }
+    return total;
+}
+
 const ComboLogicEngine kOoTComboLogicEngine = {
     /* abiVersion        */ RSBS_COMBO_LOGIC_ENGINE_ABI,
     /* self              */ nullptr,
@@ -1232,6 +1305,7 @@ const ComboLogicEngine kOoTComboLogicEngine = {
     /* triforcePieces    */ OoT_ComboLogic_TriforcePieces,
     /* hostAcceptsForeign*/ OoT_ComboLogic_HostAcceptsForeign,
     /* withholdHost      */ OoT_ComboLogic_WithholdHost,
+    /* allLocations      */ OoT_ComboLogic_AllLocations,
 };
 
 struct OoTComboLogicRegistrar {

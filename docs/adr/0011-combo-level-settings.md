@@ -2010,3 +2010,60 @@ world's, #597) or a session the package outlived still binds the frozen record.
 The arrival and load compares (decision 4.3, "frozen wins at load") are
 unchanged. A loaded package's record is checked against its identity and its
 fingerprint against this generator's formula before anything is applied.
+
+### 2026-11-02 -- The "Shared Swim" rule, a shuffle-gated bit, and one shuffle for the pair (#1369)
+
+Operator ruling 2026-11-02: swim is shared across both games, and one Shuffle
+Swim setting drives both; the same coupling applies to Shuffle Ocarina Buttons
+under Shared Ocarina Buttons (a deliberate divergence from OoTMM, whose
+`sharedOcarinaButtons` stays inert unless both games shuffle the buttons). One
+Cross-Game Rules row, "[Both Games] Shared Swim", key `gCombo.Rando.SharedSwim`
+(0 or 1, IDENTITY), the one item rule that ships ON.
+
+- **The bit.** `RSBS_XITEM_SHARED_SWIM` 0x08000000, a family: OoT's standalone
+  `RG_BRONZE_SCALE` (`RAND_INF_CAN_SWIM`) and MM's `RI_ABILITY_SWIM`
+  (`RANDO_INF_OBTAINED_SWIM`), each registered by its game. Under the frozen
+  rule OoT's pool replaces Progressive Scale's extra bronze copy with the
+  standalone row, and Progressive Scale gives silver and gold only (its give,
+  its logic credit, and a scale's logic needing the swim flag). The bag pairs
+  the two only while both are pooled; otherwise each copy stays its own game's.
+- **Shuffle-gated.** The key ships on, but the bit freezes only while some game
+  shuffles swim (`Combo_ComboItemRulesApplyCreationShuffles`, called by the
+  creation before the freeze). `Combo_ResolveComboItemRules` never sets a gated
+  bit (`RSBS_XITEM_SHUFFLE_GATED`), so with nothing authored it is still the
+  all-clear record, and every compare reads a gated bit as the file decided it
+  against its key (`Combo_ComboItemRulesLiveForFile`): a key on beside a file
+  that froze it off is the rule inert at creation, not a divergence; a key off
+  beside a file that froze it on is a keyed, restorable divergence; a restore
+  never writes the gated key of a file that froze it off. A world nobody
+  shuffles swim in keeps its record and fingerprint, so no golden moves.
+- **One shuffle for the pair (the #1069 pattern).** The frozen bit says swim is
+  shuffled in both games (`Combo_ComboSharedShuffleCoupled`). OoT's creation
+  generates OoT's `RSK_SHUFFLE_SWIM` on when the key is on and MM shuffles swim
+  by its own options (the paired shaping #973 does for the Mask Quest, before
+  the settings hash). MM's identity never reads the rule: each MM site ORs the
+  frozen coupling into MM's own frozen option (`Rando::Foreign::ShuffleSwimForWorld`:
+  the respawn-on-water gate, the computed start, the pool, the give-capability
+  publish, the tracker rows, the member). A Vanilla-logic MM, which places
+  nothing without a check of its own, keeps its own unshuffled swim and the
+  pair is not built.
+- **The buttons marker.** `comboFlags` bit 0x04,
+  `RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS`, set by the creation exactly when the
+  Shared Ocarina Buttons rule freezes on and some game shuffles its buttons. No
+  key authors it; the session compare reads it as the file's, and the
+  fingerprint pins it. It is what tells a coupled world from one created before
+  this ruling (rule on, one game holding all five buttons from creation), which
+  keeps the inert-unless-both behaviour it was generated under. Coupled, OoT's
+  `RSK_SHUFFLE_OCARINA_BUTTONS` is generated on when only MM shuffles, and MM's
+  sites read `Rando::Foreign::ShuffleOcarinaButtonsForWorld`.
+- **Tracker.** OoT's adapter gains SoH's ability rows (Roc's Feather, Swim,
+  Grab, Climb, Crawl, Open Chest), each under its own option, as one "Abilities"
+  group with no DisplayType key; Swim is OoT's copy of the family, as MM's
+  Ability to Swim is, so the frozen rule draws it once, in the Shared column.
+  The Shared Ocarina Buttons rows take MM's tinted button glyph in both games
+  (a per-family icon-game preference over MM's static catalog), with OoT's
+  labelled ocarina as the fallback.
+
+Locked by `CrossItemRulesRecord`, `SharedSwimRule`, `SharedSwimPairs`,
+`SharedSwimArrival`, `ComboItemView`, `ComboSettingsRows`, `ComboSettingsFormat`
+and `CVarClassification`.

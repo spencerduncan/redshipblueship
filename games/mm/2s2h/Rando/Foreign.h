@@ -53,6 +53,24 @@ std::vector<RandoItemId> PairedStartingItems();
  *  start, the measurement bridges) reads this one. */
 std::vector<RandoItemId> PairedStartingItemsForWorld();
 
+/** ONE SHUFFLE FOR THE PAIR (#1369; operator ruling 2026-11-02): does this MM world
+ *  shuffle the swim ability? Its own frozen RO_SHUFFLE_SWIM, or the frozen Shared
+ *  Swim rule (Combo_ComboSharedShuffleCoupled), which freezes only while a game
+ *  shuffles swim and then shuffles it in both, unless MM's logic is Vanilla: Vanilla
+ *  places nothing without a check of its own (Menu.cpp incompatibleWithVanilla),
+ *  so a Vanilla MM keeps its own unshuffled swim and the pair is not built.
+ *  @p options is a frozen option array (RANDO_SAVE_OPTIONS, or a creation-time
+ *  resolution of the profile). The #1069 pattern: the profile identity never reads
+ *  the rule; every MM site that asks "is swim shuffled" asks here instead
+ *  (Player.cpp's gate, StartingItems.cpp, GeneratePools.cpp, the give-capability
+ *  publish, the tracker rows and the Shared Swim member). */
+bool ShuffleSwimForWorld(const uint32_t* options);
+
+/** The same for the ocarina buttons under the frozen Shared Ocarina Buttons rule
+ *  and its coupled marker (#1369; a world created before the marker keeps its own
+ *  RO_SHUFFLE_OCARINA_BUTTONS alone). */
+bool ShuffleOcarinaButtonsForWorld(const uint32_t* options);
+
 /** Resolve MM's randomizer option profile into RANDO_SAVE_OPTIONS and, for a
  *  paired world, CHECK it against the creation-frozen identity
  *  (#499 steps 2-4; ADR 0009 claim 3; #498/#564 phase 2).
@@ -230,7 +248,8 @@ void RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<Ra
  *  a world that dead-ended (PR #743 review). Thrown by RunPairedSingleBagFill for
  *  every status Combo_SingleBag_StatusIsWorldDeadEnd rejects: no frozen identity,
  *  OoT not at its general-pass point, a missing engine, a capacity overflow, an
- *  engine that refused or broke monotonicity. None of those is a property of the
+ *  engine that refused or broke monotonicity, No Logic out of free hosts, or the
+ *  All Locations pre-flight's named locations. None of those is a property of the
  *  attempt's seed, so no re-seed can fix it; OnFileCreate's ladder catches this
  *  type BEFORE its generic dead-end catch and fails the creation at once with this
  *  reason, instead of re-running GeneratePools nine more times and reporting an

@@ -231,6 +231,34 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         fprintf(stderr, "[OoT] Mask Shop Hint: generated off (#973)\n");
         ctx->GetOption(RSK_MASK_SHOP_HINT).Set(RO_GENERIC_OFF);
     }
+    // #1369 (operator ruling 2026-11-02): ONE Shuffle Swim for the pair under the
+    // Shared Swim rule, and ONE Shuffle Ocarina Buttons under Shared Ocarina
+    // Buttons (a deliberate divergence from OoTMM). When the rule's key is on and
+    // MM shuffles the item by its own options while OoT does not, OoT's copy is
+    // generated shuffled too, here for #768's reason: before the settings string is
+    // hashed, so every OoT reader of the option (the pool, the start, the logic,
+    // the gates, both trackers, the spoiler) agrees and the saved seed carries it.
+    // MM takes the pair's shuffle from the frozen record instead
+    // (Rando::Foreign::ShuffleSwimForWorld), so its profile identity stays its own.
+    {
+        const uint32_t rsbsCoupled = Combo_ComboCouplingAuthored();
+        const uint32_t rsbsMmOwn = MM_Rando_ResolveOwnShuffleCaps(/*fromSave=*/0);
+        if ((rsbsCoupled & rsbsMmOwn & RSBS_GIVECAP_SWIM) != 0u &&
+            ctx->GetOption(RSK_SHUFFLE_SWIM).Is(RO_GENERIC_OFF)) {
+            SPDLOG_WARN("Paired world: OoT's Shuffle Swim is generated on: Majora's Mask shuffles swim and the Shared "
+                        "Swim rule makes one Shuffle Swim for the pair (#1369)");
+            fprintf(stderr, "[OoT] Shuffle Swim: generated on, for the pair's Shared Swim (#1369)\n");
+            ctx->GetOption(RSK_SHUFFLE_SWIM).Set(RO_GENERIC_ON);
+        }
+        if ((rsbsCoupled & rsbsMmOwn & RSBS_GIVECAP_OCARINA_BUTTONS) != 0u &&
+            ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Is(RO_GENERIC_OFF)) {
+            SPDLOG_WARN("Paired world: OoT's Shuffle Ocarina Buttons is generated on: Majora's Mask shuffles its "
+                        "buttons and the Shared Ocarina Buttons rule makes one shuffle for the pair (#1369)");
+            fprintf(stderr, "[OoT] Shuffle Ocarina Buttons: generated on, for the pair's Shared Ocarina Buttons "
+                            "(#1369)\n");
+            ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).Set(RO_GENERIC_ON);
+        }
+    }
 #endif
     // once the settings have been finalized turn them into a string for hashing
     std::string settingsStr;
@@ -454,7 +482,26 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
         // fingerprint folds them (every rule off reproduces today's hash).
         ComboItemRulesRecord comboItemRules;
         Combo_ResolveComboItemRules(&comboItemRules);
+        // #1369: the shuffle-gated rules decide from the two games' own shuffles
+        // (OoT's after the paired shaping above, MM's own options): Shared Swim
+        // freezes only where swim is shuffled, and the coupled-buttons marker only
+        // where the Shared Ocarina Buttons rule meets a button shuffle. A world
+        // nobody shuffles either in freezes exactly what it did before.
+        {
+            uint32_t rsbsShuffled = MM_Rando_ResolveOwnShuffleCaps(/*fromSave=*/0);
+            if (ctx->GetOption(RSK_SHUFFLE_SWIM).IsNot(RO_GENERIC_OFF)) {
+                rsbsShuffled |= RSBS_GIVECAP_SWIM;
+            }
+            if (ctx->GetOption(RSK_SHUFFLE_OCARINA_BUTTONS).IsNot(RO_GENERIC_OFF)) {
+                rsbsShuffled |= RSBS_GIVECAP_OCARINA_BUTTONS;
+            }
+            Combo_ComboItemRulesApplyCreationShuffles(&comboSettings, &comboItemRules, rsbsShuffled);
+        }
         Combo_FreezeComboSettingsEx(&comboSettings, &comboItemRules);
+        // #1369: publish MM's give capabilities again, now that the record they
+        // read the pair's one shuffle from is this world's (the publish above may
+        // have read the last file's record).
+        MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
         // #1284: the pair's ONE fill-wallets rule (OoTMM's fillWallets), from
         // OoT's Full Wallets, frozen in the same act so MM's wallet pickup step
         // reads the pair's answer, never OoT's seed settings. A creation record:

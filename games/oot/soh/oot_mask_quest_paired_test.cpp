@@ -44,7 +44,9 @@
  *      Logic is overridden and reported (M6b); and neither the generation nor
  *      the read-only Logic / All Locations Reachable rows' callbacks write
  *      either key (M6c). Rung 3's own fill outcome is printed, not asserted:
- *      the All Locations proof is its own lane.
+ *      #1371's All Locations pre-flight may refuse this profile, naming the
+ *      locations it cannot reach (its curated exclusions are still empty), and
+ *      the derivation runs before the fill either way.
  * Every check runs and reports, and the row fails if any did, so one red run
  * shows every leg a change breaks.
  *

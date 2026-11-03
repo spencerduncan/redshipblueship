@@ -194,16 +194,29 @@ TestResult Test_CrossItemRulesRecord(void) {
     // spelled as a literal: .redsave format): each ALLOCATED (a record holding
     // it is valid and the bit has a name) and a FAMILY (the lens pair; the two
     // song pairs; the A buttons; the Hylian/Hero's pair; the two Songs of Time).
-    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x07FFFFFFu,
-              "RSBS_XITEM_ALL_V1 is %08X, expected 07FFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
-              "Shared Epona's Song and Song of Storms, #1067's Shared Ocarina Buttons, #1068's Shared Shields and "
-              "#1069's Shared Song of Time)",
+    XIR_CHECK(RSBS_XITEM_ALL_V1 == 0x0FFFFFFFu,
+              "RSBS_XITEM_ALL_V1 is %08X, expected 0FFFFFFF (#976's 21 bits, #1065's Shared Lens of Truth, #1066's "
+              "Shared Epona's Song and Song of Storms, #1067's Shared Ocarina Buttons, #1068's Shared Shields, "
+              "#1069's Shared Song of Time and #1369's Shared Swim)",
               (unsigned)RSBS_XITEM_ALL_V1);
-    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x07EFF81Fu,
-              "RSBS_XITEM_FAMILY_MASK is %08X, expected 07EFF81F (the five shared masks, the six shared extensions, "
-              "the three arrows, the lens, the two songs, the shared ocarina buttons, the shared shields and the "
-              "shared Song of Time; not the extensions, not the bottles)",
+    XIR_CHECK(RSBS_XITEM_FAMILY_MASK == 0x0FEFF81Fu,
+              "RSBS_XITEM_FAMILY_MASK is %08X, expected 0FEFF81F (the five shared masks, the six shared extensions, "
+              "the three arrows, the lens, the two songs, the shared ocarina buttons, the shared shields, the "
+              "shared Song of Time and the shared swim; not the extensions, not the bottles)",
               (unsigned)RSBS_XITEM_FAMILY_MASK);
+    {
+        // #1369: the Shared Swim bit (0x08000000, spelled as a literal: .redsave
+        // format) is allocated, named, a family, and the one SHUFFLE-GATED rule.
+        ComboItemRulesRecord swim;
+        memset(&swim, 0, sizeof(swim));
+        swim.crossItemFlags = 0x08000000u;
+        XIR_CHECK(RSBS_XITEM_SHARED_SWIM == 0x08000000u && Combo_ComboItemRulesValid(&swim) &&
+                      strcmp(Combo_ComboItemRuleName(0x08000000u), "sharedSwim") == 0 &&
+                      RSBS_XITEM_SHUFFLE_GATED == 0x08000000u &&
+                      Combo_SharedFamilySlotsArmedBy(0x08000000u) == 0x08000000u,
+                  "the Shared Swim rule is not bit 08000000, valid, named sharedSwim, the shuffle-gated set and its "
+                  "own family slot (#1369)");
+    }
     {
         ComboItemRulesRecord songOfTime;
         memset(&songOfTime, 0, sizeof(songOfTime));

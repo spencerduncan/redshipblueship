@@ -5339,7 +5339,8 @@ int MM_SharedButtonFlag(uint16_t nativeId) {
 }
 
 bool MM_SharedButtonHeld(uint16_t nativeId) {
-    if (!IS_RANDO || RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_OFF) {
+    // #1369: the note gate's own test, the pair's one button shuffle included.
+    if (!IS_RANDO || !Rando::Foreign::ShuffleOcarinaButtonsForWorld(RANDO_SAVE_OPTIONS)) {
         return false;
     }
     const int flag = MM_SharedButtonFlag(nativeId);
@@ -5391,6 +5392,63 @@ struct MMSharedOcarinaButtonRegistrar {
     }
 };
 const MMSharedOcarinaButtonRegistrar gMMSharedOcarinaButtonRegistrar;
+} // namespace
+
+// ============================================================================
+// The Shared Swim family (#1369; operator ruling 2026-11-02)
+// ============================================================================
+//
+// MM's copy of the pair's one swim: RI_ABILITY_SWIM, owned as
+// RANDO_INF_OBTAINED_SWIM, the flag MM's own give writes (GiveItem.cpp) and the
+// respawn-on-water gate reads (Rando/ActorBehavior/Player.cpp).
+//
+// HELD only while this MM world shuffles swim, the gate's own test
+// (Rando::Foreign::ShuffleSwimForWorld: MM's option or the pair's one shuffle):
+// an MM that does not starts with the ability (StartingItems.cpp) and found
+// nothing. The GIVE writes the flag directly, as the buttons' does. POOLED is
+// RSBS_GIVECAP_SWIM, the word that arms MM's swim row into the bag, which the
+// pair's one shuffle arms too (MM_Rando_PublishProfileGiveCaps).
+
+namespace {
+
+bool MM_SharedSwimHeld(uint16_t nativeId) {
+    (void)nativeId;
+    if (!IS_RANDO || !Rando::Foreign::ShuffleSwimForWorld(RANDO_SAVE_OPTIONS)) {
+        return false;
+    }
+    const int flag = RANDO_INF_OBTAINED_SWIM;
+    return (gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void MM_SharedSwimGive(uint16_t nativeId) {
+    (void)nativeId;
+    const int flag = RANDO_INF_OBTAINED_SWIM;
+    gSaveContext.save.shipSaveInfo.rando.randoInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+bool MM_SharedSwimPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return Combo_ForeignGiveCapsArm((uint8_t)GAME_MM, RSBS_GIVECAP_SWIM);
+}
+
+} // namespace
+
+/** Register MM's copy of the Shared Swim family (#1369). Idempotent; the static
+ *  registrar below runs it at start-up, and the locks re-run it after a row that
+ *  cleared the registry. */
+extern "C" void MM_RegisterSharedSwimFamily(void) {
+    const ComboSharedFamilyMember swim = { (uint16_t)RI_ABILITY_SWIM, MM_SharedSwimHeld, MM_SharedSwimGive,
+                                           MM_SharedSwimPooled };
+    Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_SWIM, &swim);
+}
+
+namespace {
+struct MMSharedSwimRegistrar {
+    MMSharedSwimRegistrar() {
+        MM_RegisterSharedSwimFamily();
+    }
+};
+const MMSharedSwimRegistrar gMMSharedSwimRegistrar;
 } // namespace
 
 static uint16_t MM_ReadHealthQuarters(void) {

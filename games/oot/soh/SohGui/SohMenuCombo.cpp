@@ -129,6 +129,7 @@ static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_
 static bool comboRuleSharedSongEpona;      // #1066: the item rules' RSBS_XITEM_SHARED_SONG_EPONA bit
 static bool comboRuleSharedSongStorms;     // #1066: the item rules' RSBS_XITEM_SHARED_SONG_STORMS bit
 static bool comboRuleSharedOcarinaButtons; // #1067: ComboItemRulesRecord.crossItemFlags' shared-buttons bit
+static bool comboRuleSharedSwim;           // #1369: the item rules' RSBS_XITEM_SHARED_SWIM bit (shuffle-gated)
 static bool comboRuleSharedSongTime;       // #1069: the item rules' RSBS_XITEM_SHARED_SONG_TIME bit
 static bool comboRuleSharedArrowFire;      // #968: the item rules' RSBS_XITEM_SHARED_ARROW_FIRE bit
 static bool comboRuleSharedArrowIce;       // #968: the item rules' RSBS_XITEM_SHARED_ARROW_ICE bit
@@ -944,11 +945,13 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Callback([](WidgetInfo& info) {
             Combo_ComboSettingSet(COMBO_SETTING_SHARED_OCARINA_BUTTONS, comboRuleSharedOcarinaButtons ? 1 : 0);
         })
+        // #1369 (operator ruling 2026-11-02): with it on, Shuffle Ocarina Buttons
+        // in either game shuffles them in both, a deliberate divergence from
+        // OoTMM, whose rule does nothing unless both games shuffle the buttons.
         .Options(CheckboxOptions().Tooltip(
             "Makes each ocarina button one item across both games: finding the A or a C button in either game gives "
-            "it to you in the other. It only matters when both games shuffle their ocarina buttons. A game that does "
-            "not shuffle them already has all five, so there is nothing to share there. The ocarina itself stays each "
-            "game's own."));
+            "it to you in the other. Shuffling the ocarina buttons in either game shuffles them in both. The ocarina "
+            "itself stays each game's own."));
 
     // The Shared Bottles (#970, default off; a count up to OoT's four with the
     // contents per game, a deliberate divergence from OoTMM's sharedBottles,
@@ -970,6 +973,28 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "in either game gives you an empty bottle in the other. What is in each bottle stays that game's own. "
             "Only four bottles are placed across both games (Ruto's Letter, when it is shuffled, is one of them), "
             "so Majora's Mask's fifth and sixth bottle slots stay empty."));
+
+    // The Shared Swim (#1369; operator ruling 2026-11-02, OoTMM's bronzeScale with
+    // sharedScales as one row). The one rule that ships ON, and its bit freezes
+    // only while a game shuffles swim, so the row shows the key before a world
+    // exists and the frozen bit after: a world nobody shuffled swim in reads OFF.
+    // Otherwise the Shared Shields row's pattern.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_SWIM), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedSwim)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleSharedSwim = decided ? (shown.crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_SWIM) != 0u
+                                          : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_SWIM) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SHARED_SWIM, comboRuleSharedSwim ? 1 : 0); })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the ability to swim one item across both games: finding it in either game lets you swim in both. "
+            "Shuffling swim in either game shuffles it in both. In Ocarina of Time the ability is the Bronze Scale, "
+            "and the Progressive Scale then gives the Silver and Golden Scales only. It does nothing when neither "
+            "game shuffles swim."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

@@ -202,17 +202,29 @@ void Combo_SingleBag_TestSetPostFillProbe(ComboSingleBagPostFillProbe probe, voi
 void Combo_SingleBag_Forget(void);
 
 /**
- * Is `status` (a Combo_SingleBag_Run return) a DETERMINISTIC WORLD DEAD END, the
- * only kind of failure the attempt ladder may climb a rung on (PR #743 review)?
- * True for RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE, _GOAL_UNPROVABLE and
- * _NOT_ALL_REACHED: facts about the world this attempt's seed drew, which another
- * seed can change. False for OK, for ERR_ABORTED (a budget stop, never a rung,
- * #581 section 2a) and for every refusal and engine defect (BAD_REQUEST,
- * NO_ENGINE, UNSUPPORTED_GOAL, NON_MONOTONE, NO_FIXPOINT, CAPACITY,
- * ENGINE_REFUSED): none of those depends on the seed, so re-seeding only repeats
- * it and then misreports the failure as an exhausted ladder.
+ * Is `status` (a Combo_SingleBag_Run return under the frozen `rung`) a
+ * DETERMINISTIC WORLD DEAD END, the only kind of failure the attempt ladder may
+ * climb a rung on (PR #743 review)?
+ * True for RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE, and for _NO_CANDIDATE under a
+ * PROVING rung: facts about the world this attempt's seed drew, which another seed
+ * can change. False for OK, for ERR_ABORTED (a budget stop, never a rung, #581
+ * section 2a), for every refusal and engine defect (BAD_REQUEST, NO_ENGINE,
+ * UNSUPPORTED_GOAL, NON_MONOTONE, NO_FIXPOINT, CAPACITY, ENGINE_REFUSED), and:
+ *   - _NO_CANDIDATE under RSBS_COMBO_RUNG_NONE: that rung draws from every empty
+ *     host in one attempt, so running out is a CAPACITY fact about both pools;
+ *   - _LOCATIONS_UNREACHABLE: the All Locations pre-flight (ABI 8) found locations
+ *     the settings make unreachable, fixed at Generate;
+ *   - _NOT_ALL_REACHED: after that pre-flight held, only an engine fault misses a
+ *     location in the final round.
+ * None of those depends on the seed, so re-seeding only repeats it and then
+ * misreports the failure as an exhausted ladder.
  */
-bool Combo_SingleBag_StatusIsWorldDeadEnd(int status);
+bool Combo_SingleBag_StatusIsWorldDeadEnd(int status, uint8_t rung);
+
+/** Forget the last Combo_SingleBag_Run's report (zero it), so a caller that reads
+ *  it after a generation can tell "this generation's fill said X" from a previous
+ *  generation's leftover. Generate's completion calls it before MM's half runs. */
+void Combo_SingleBag_ClearLastReport(void);
 
 // ----------------------------------------------------------------------------
 // The two ports' halves (implemented in each game's engine TU; declared here so
