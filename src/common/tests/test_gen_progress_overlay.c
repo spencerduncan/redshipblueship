@@ -69,6 +69,14 @@
  *     burned. Have Combo_GenProgress_GenerationElapsedMs() return the raw clock
  *     and this goes red.
  *
+ *  8. THE FILL IS SHOWN IN ROUNDS (#1286). With the single bag's rounds noted,
+ *     the MM_FILL creep is rounds over the per-attempt ROUND budget (the stop's
+ *     own quantity) and the second line says "fill budget N% used", even with
+ *     the attempt's clock past its time estimate: the operator's 464-of-2500
+ *     shape must creep 464/2500 of the attempt's slice, where a time reading
+ *     gives the whole slice. Put the creep back on elapsed/estimate and the share
+ *     is 1.0 and this goes red. A re-roll and leaving MM_FILL drop the rounds.
+ *
  * Deliberately absent: anything about appearance, and anything about the
  * gSaveContext paint bracket. That one needs a real creation AND a real renderer,
  * and it is locked by combo-creation-event's leg 10c, which registers a GuiWindow
@@ -464,6 +472,82 @@ TestResult Test_GenProgressOverlay(void) {
     GPO_ASSERT(Combo_GenProgress_PresentationMs() == 0u);
     GPO_ASSERT(Combo_GenProgress_GenerationElapsedMs() <= Combo_GenProgress_ElapsedMs());
     printf("[TEST] credit: a second creation starts at 0ms presented, so generation == wall with nothing on screen\n");
+    Combo_GenProgress_End(true);
+
+    // ------------------------------------------------------------------
+    // 8 — THE FILL IS SHOWN IN ROUNDS, NOT AGAINST A TIME ESTIMATE (#1286).
+    //     The operator's heaviest paired seed: its fill ran 464 rounds of its
+    //     budget while the creation's clock ran past the attempt's estimate,
+    //     and the overlay read as a near miss. With rounds noted, the creep
+    //     and the line must say how much of the ROUND budget the fill spent,
+    //     whatever the attempt's clock says.
+    // ------------------------------------------------------------------
+    GpoResetObservers();
+    ComboGenOverlay_Reset();
+    ComboGenOverlay_SetPainter(&GpoPainter);
+    Combo_GenProgress_Begin();
+    Combo_GenProgress_SetMaxAttempts(10);
+    Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, 1, NULL);
+    {
+        const float base = ComboGenOverlay_View()->fraction;
+        const uint32_t estimateMs = ComboGenOverlay_View()->budgetMs;
+        char line[96];
+        GPO_ASSERT(estimateMs > 0);
+        // Before the fill notes a round, the line is the seconds alone: the time
+        // estimate is not a limit (#950), so it is not printed as one.
+        GPO_ASSERT(ComboGenOverlay_View()->roundBudget == 0);
+        ComboGenOverlay_FormatStatusLine(ComboGenOverlay_View(), line, sizeof(line));
+        GPO_ASSERT(strstr(line, "s elapsed") != NULL);
+        GPO_ASSERT(strstr(line, "up to") == NULL && strstr(line, "%") == NULL);
+
+        // The attempt's clock is PAST its estimate, which a time reading takes as
+        // the whole attempt's slice spent; the rounds are 464 of 2500.
+        ComboGenOverlay_NoteRounds(464u, 2500u);
+        GPO_ASSERT(ComboGenOverlay_View()->roundsRun == 464u && ComboGenOverlay_View()->roundBudget == 2500u);
+        GPO_ASSERT(ComboGenOverlay_Heartbeat(estimateMs + 5000u));
+        const float atOperatorsRounds = ComboGenOverlay_View()->fraction;
+        ComboGenOverlay_FormatStatusLine(ComboGenOverlay_View(), line, sizeof(line));
+        printf("[TEST] rounds: 464 of 2500 with the attempt clock %ums past a %ums estimate paints \"%s\"\n", 5000u,
+               (unsigned)estimateMs, line);
+        GPO_ASSERT(strstr(line, "fill budget 18% used") != NULL);
+        GPO_ASSERT(strstr(line, "up to") == NULL);
+
+        // The whole budget spent: the attempt's full creep, the yardstick.
+        ComboGenOverlay_NoteRounds(2500u, 2500u);
+        GPO_ASSERT(ComboGenOverlay_Heartbeat(estimateMs + 5000u + RSBS_GENOVERLAY_REPAINT_INTERVAL_MS));
+        const float atFullBudget = ComboGenOverlay_View()->fraction;
+        ComboGenOverlay_FormatStatusLine(ComboGenOverlay_View(), line, sizeof(line));
+        GPO_ASSERT(strstr(line, "fill budget 100% used") != NULL);
+        GPO_ASSERT(atFullBudget > atOperatorsRounds && atOperatorsRounds > base);
+
+        // THE ASSERTION #1286 EXISTS FOR: the creep at 464 rounds is 464/2500 of
+        // the attempt's full creep, not the full creep a clock past its estimate
+        // gives. Divide by the estimate again and the share is 1.0 and this is red.
+        const float share = (atOperatorsRounds - base) / (atFullBudget - base);
+        printf("[TEST] rounds: the creep at 464 rounds is %.4f of the attempt's full creep (464/2500 = %.4f)\n",
+               (double)share, 464.0 / 2500.0);
+        GPO_ASSERT(share > 0.17f && share < 0.20f);
+
+        // A re-roll's fill starts from round zero: the next attempt's report drops
+        // the last attempt's rounds, so its line cannot show their share.
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, 2, NULL);
+        GPO_ASSERT(ComboGenOverlay_View()->roundsRun == 0u && ComboGenOverlay_View()->roundBudget == 0u);
+        GPO_ASSERT(ComboGenOverlay_View()->fraction >= atFullBudget);
+        // A stage caption of the SAME attempt keeps them.
+        ComboGenOverlay_NoteRounds(10u, 2500u);
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, 2, "Placing the extra copies");
+        GPO_ASSERT(ComboGenOverlay_View()->roundsRun == 10u && ComboGenOverlay_View()->roundBudget == 2500u);
+        // Leaving MM_FILL drops them, and outside MM_FILL a note is ignored.
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_CROSSINGS, 0, NULL);
+        GPO_ASSERT(ComboGenOverlay_View()->roundBudget == 0u);
+        ComboGenOverlay_NoteRounds(10u, 2500u);
+        GPO_ASSERT(ComboGenOverlay_View()->roundBudget == 0u);
+    }
+    for (int i = 1; i < sPaintedCount; i++) {
+        GPO_ASSERT(sPaintedFractions[i] >= sPaintedFractions[i - 1]);
+    }
+    printf("[TEST] rounds: the creep and the line read the round budget; a re-roll and leaving the fill drop the "
+           "rounds\n");
     Combo_GenProgress_End(true);
 
     // Leave the channel as it was found: these slots are process-global and

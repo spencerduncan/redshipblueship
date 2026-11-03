@@ -1221,11 +1221,11 @@ extern "C" int OoT_PairedGen_CompleteWorld(void) {
     if (!digestOk) {
         fprintf(stderr, "[OoT] paired completion: the world's digest could not be written; the package carries none\n");
     }
-    fprintf(stderr,
-            "[OoT] paired completion: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the "
-            "spoiler join, the digest) took %ums (#582); steps %s\n",
-            Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
-    fflush(stderr);
+    // Mirrored into the session log (#1286), beside the session's own COMPLETE line.
+    Combo_GenProgress_LogLine(
+        "[OoT] paired completion: the OoT-side tail after MM's half returned (crossings, OoT's remainder, the "
+        "spoiler join, the digest) took %ums (#582); steps %s",
+        Combo_GenProgress_ElapsedMs() - ootTailStartMs, sCreationSequence);
     Combo_GenProgress_End(true);
     sCompletedUnprovedHalves = unprovedHalves;
     sCompletedGoal = frozenGoal;

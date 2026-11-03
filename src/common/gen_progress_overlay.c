@@ -234,6 +234,15 @@ void ComboGenOverlay_OnProgress(const ComboGenProgress* progress) {
         sView.state = (uint8_t)RSBS_GENOVERLAY_SHOWN;
     }
 
+    // The noted rounds belong to ONE ladder attempt's fill (#1286): a report
+    // outside MM_FILL, or of another attempt (a re-roll starts its fill from round
+    // zero), drops them, so the next attempt's line cannot show the last one's
+    // share. A report of the SAME attempt (the fill's own stage captions) keeps
+    // them.
+    if (progress->phase != (uint8_t)RSBS_GENPHASE_MM_FILL || progress->attempt != sView.attempt) {
+        sView.roundsRun = 0;
+        sView.roundBudget = 0;
+    }
     sView.phase = progress->phase;
     sView.attempt = progress->attempt;
     sView.maxAttempts = progress->maxAttempts;
@@ -269,19 +278,30 @@ bool ComboGenOverlay_Heartbeat(uint32_t attemptElapsedMs) {
     // invent a clock of its own. It is displayed, never decided with.
     sView.elapsedMs = Combo_GenProgress_ElapsedMs();
 
-    // WITHIN-PHASE CREEP. Two shapes, both monotone in the caller's clock and
-    // both strictly below the next band's start:
+    // WITHIN-PHASE CREEP. Three shapes, all monotone in their own count and
+    // all strictly below the next band's start:
     //
-    // (a) MM's fill, where a real budget exists: the attempt's own band times
-    //     elapsed/budget, held just under the next attempt's base so a re-roll
-    //     never has to move the bar backwards.
-    // (b) everything else, where no total exists at all: an asymptote,
+    // (a) MM's fill with a round budget noted (#1286): the attempt's own band
+    //     times rounds run / round budget, the quantity the per-attempt stop
+    //     compares (#950), held just under the next attempt's base so a re-roll
+    //     never has to move the bar backwards. The bar then says how much of the
+    //     attempt's budget the fill has spent, whatever the clock says.
+    // (b) MM's fill with no round budget noted: MM's own fill loop
+    //     (GlitchlessLogic.cpp's heartbeat, which the paired single bag does not
+    //     reach) and a fill run with no per-attempt round budget. The same band
+    //     times elapsed / the attempt's time ESTIMATE, which is display-only since
+    //     #950. On the paired path the bag notes its rounds before every
+    //     heartbeat, from round zero, and MM's own pass over its leftovers after
+    //     the bag sends no heartbeat, so the bag's last noted rounds stay on
+    //     screen until the next report.
+    // (c) everything else, where no total exists at all: an asymptote,
     //     t/(t+3000), which rises fast enough to look alive and provably never
     //     reaches the next phase's weight. An asymptote rather than a
     //     "pretend 30 seconds" linear ramp, because the latter would either
     //     saturate and freeze or overshoot into the next phase's band.
-    if (sView.phase == (uint8_t)RSBS_GENPHASE_MM_FILL && sView.budgetMs > 0) {
-        float ratio = (float)attemptElapsedMs / (float)sView.budgetMs;
+    if (sView.phase == (uint8_t)RSBS_GENPHASE_MM_FILL && (sView.roundBudget > 0 || sView.budgetMs > 0)) {
+        float ratio = (sView.roundBudget > 0) ? (float)sView.roundsRun / (float)sView.roundBudget
+                                              : (float)attemptElapsedMs / (float)sView.budgetMs;
         if (ratio > 1.0f) {
             ratio = 1.0f;
         }
@@ -300,4 +320,36 @@ bool ComboGenOverlay_Heartbeat(uint32_t attemptElapsedMs) {
     sLastPaintValid = true;
     Paint();
     return true;
+}
+
+void ComboGenOverlay_NoteRounds(uint32_t roundsRun, uint32_t roundBudget) {
+    // Only a fill on screen has rounds to show; anything else (a headless
+    // creation, a report that already left MM_FILL) keeps the view as it is.
+    if (sView.state != (uint8_t)RSBS_GENOVERLAY_SHOWN || sView.phase != (uint8_t)RSBS_GENPHASE_MM_FILL) {
+        return;
+    }
+    sView.roundsRun = roundsRun;
+    sView.roundBudget = roundBudget;
+}
+
+void ComboGenOverlay_FormatStatusLine(const ComboGenOverlayView* view, char* out, size_t outSize) {
+    if (out == NULL || outSize == 0) {
+        return;
+    }
+    if (view == NULL) {
+        out[0] = '\0';
+        return;
+    }
+    const double seconds = (double)view->elapsedMs / 1000.0;
+    if (view->roundBudget > 0) {
+        // Whole percent, rounded down and capped at 100, so the line never claims
+        // more of the budget than the rounds spent; the stop fires at 100.
+        uint64_t percent = ((uint64_t)view->roundsRun * 100u) / (uint64_t)view->roundBudget;
+        if (percent > 100u) {
+            percent = 100u;
+        }
+        snprintf(out, outSize, "%.1f s elapsed (fill budget %u%% used)", seconds, (unsigned)percent);
+    } else {
+        snprintf(out, outSize, "%.1f s elapsed", seconds);
+    }
 }

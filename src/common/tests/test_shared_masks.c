@@ -34,7 +34,11 @@
  *   half), each is placed exactly once over both games as a shared pair, MM's
  *   own world holds no second copy, and the GOAL is still proven. Then OoT's
  *   logic answers HasItem for each of the five masks from its ownership flag
- *   (Keaton, Bunny, Goron and Zora had no case and fell to assert(false)).
+ *   (Keaton, Bunny, Goron and Zora had no case and fell to assert(false)). Then
+ *   the two FORCED-HOST legs: the only Goron Mask forced onto an OoT check
+ *   (Combo_Logic_TestSetForcedPlacements) still proves MM's goal, through
+ *   Snowhead, and the only Zora Mask through Great Bay; withholding that OoT
+ *   check, or the temple's boss remains, unproves it.
  *
  *   shared-masks-bunny-boost (CTest SharedMasksBunnyBoost, redship tier) --
  *   #969. With the shared Bunny Hood rule FROZEN on, OoT's Bunny Hood behaves
@@ -94,6 +98,7 @@ int OoT_BunnyHoodEffectMode(void);
 int Rando_HeadlessSeedTest(const char* seedStr);
 int MM_Rando_HeadlessPairedHalf(void);
 int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
+int MM_ComboLogic_TestFixedContents(int remainsOnly, uint16_t* outItems, uint16_t* outChecks, int cap);
 #ifdef __cplusplus
 }
 #endif
@@ -217,6 +222,190 @@ void SmArmMM() {
     for (int m = 0; m < kSmMaskCount; m++) {
         MM_SharedMasksTest_SetHeld(m, 0);
     }
+}
+
+/** The check of @p game its describer names exactly @p name, or 0. */
+uint16_t SmCheckNamed(uint8_t game, const char* name) {
+    for (uint32_t c = 1; c < 0x10000u; c++) {
+        const char* n = Combo_DescribeCheckName(game, (uint16_t)c);
+        if (n != NULL && strcmp(n, name) == 0) {
+            return (uint16_t)c;
+        }
+    }
+    return 0;
+}
+
+/** MM's check holding the boss remains whose name contains @p boss ("Goht",
+ *  "Gyorg"), or 0. The shipped profile leaves the remains unshuffled, so each is
+ *  a FIXED content of its temple's boss check, which MM's rounds grant when the
+ *  check is reached (#737, A7). */
+uint16_t SmRemainsCheck(const char* boss) {
+    const int total = MM_ComboLogic_TestFixedContents(1, NULL, NULL, 0);
+    if (total <= 0) {
+        return 0;
+    }
+    std::vector<uint16_t> items((size_t)total);
+    std::vector<uint16_t> checks((size_t)total);
+    MM_ComboLogic_TestFixedContents(1, items.data(), checks.data(), total);
+    for (int i = 0; i < total; i++) {
+        SharedItem remains;
+        memset(&remains, 0, sizeof(remains));
+        remains.originGame = (uint8_t)GAME_MM;
+        remains.id = items[(size_t)i];
+        const char* name = Combo_DescribeItemName(remains);
+        if (name != NULL && strstr(name, boss) != NULL) {
+            return checks[(size_t)i];
+        }
+    }
+    return 0;
+}
+
+/** One round over the coordinator's tables as they stand, under the frozen GOAL,
+ *  with @p forbidden's contents withheld (ABI 6; NULL and 0 withhold nothing). */
+int SmRound(const ComboLogicHostRef* forbidden, int forbiddenCount, ComboLogicRoundResult* out) {
+    ComboLogicRoundRequest req;
+    memset(&req, 0, sizeof(req));
+    req.goal = gComboCtx.comboSettings.goal;
+    req.forbidden = forbidden;
+    req.forbiddenCount = forbiddenCount;
+    memset(out, 0, sizeof(*out));
+    return Combo_Logic_RunRound(&req, out);
+}
+
+/**
+ * #978's forced-host lock for one mask: with its shared rule frozen on, the ONE
+ * Goron (or Zora) Mask in the world is forced onto OoT check @p ootHostName
+ * (Combo_Logic_TestSetForcedPlacements, the debug-seed seam), MM's half of the
+ * creation is re-run over the same OoT world, and MM's half still proves its goal
+ * through @p temple. The fill must prove the GOAL with MM's half proved; the pair
+ * must sit on that OoT check as the host's own half with MM's beside it, with no
+ * other copy in either game; and three rounds over the finished tables read the
+ * proof: MM's goal holds as placed, fails with that one OoT host withheld (MM's
+ * proof runs through the OoT-hosted mask), and fails with @p boss's remains
+ * withheld (the goal runs through @p temple: under the shipped profile the moon
+ * needs all four remains, unshuffled, each behind its temple's boss).
+ *
+ * Runs over the OoT world the bag leg generated, which waits at its general pass:
+ * MM's half and the fill run again on the same frozen identity, exactly as
+ * combo-single-bag's direction and class legs re-run them.
+ */
+void SmForcedHostLeg(int mask, const char* ootHostName, const char* boss, const char* temple) {
+    const char* const maskName = kSmMasks[mask].itemName;
+    uint16_t ootId = 0;
+    uint16_t mmId = 0;
+    if (!Combo_SharedFamilyMemberId(GAME_OOT, kSmMasks[mask].bit, &ootId) ||
+        !Combo_SharedFamilyMemberId(GAME_MM, kSmMasks[mask].bit, &mmId)) {
+        SM_CHECK(false, "the %s family is not registered in both games", kSmMasks[mask].ruleName);
+        return;
+    }
+    const uint16_t host = SmCheckNamed((uint8_t)GAME_OOT, ootHostName);
+    const uint16_t remainsCheck = SmRemainsCheck(boss);
+    const char* remainsName = (remainsCheck != 0) ? Combo_DescribeCheckName((uint8_t)GAME_MM, remainsCheck) : NULL;
+    printf("[TEST] shared-masks-bag: forced %s: OoT host '%s' is check %u; %s's remains sit on MM check %u ('%s')\n",
+           maskName, ootHostName, (unsigned)host, boss, (unsigned)remainsCheck,
+           remainsName != NULL ? remainsName : "(none)");
+    SM_CHECK(host != 0, "no OoT check is named '%s'", ootHostName);
+    SM_CHECK(remainsCheck != 0,
+             "no fixed MM boss-remains check holds %s's remains: the shipped profile no longer leaves the remains "
+             "unshuffled, so this leg cannot name %s's boss",
+             boss, temple);
+    if (host == 0 || remainsCheck == 0) {
+        return;
+    }
+
+    // The bag's shared row is the EARLIER pool position, and OoT's pool rows come
+    // first (combo_single_bag.c), so the row the force claims is OoT's half.
+    ComboLogicForcedPlacement row;
+    memset(&row, 0, sizeof(row));
+    row.hostGame = (uint8_t)GAME_OOT;
+    row.hostCheck = host;
+    row.item.originGame = (uint8_t)GAME_OOT;
+    row.item.id = ootId;
+    struct ForcedClear {
+        ~ForcedClear() {
+            Combo_Logic_TestSetForcedPlacements(NULL, 0);
+        }
+    } forcedClear;
+    if (Combo_Logic_TestSetForcedPlacements(&row, 1) != 1) {
+        SM_CHECK(false, "the forced row for the %s was not accepted", maskName);
+        return;
+    }
+    Combo_Logic_ResetPlacements(); // back to the general pass, as combo-single-bag's re-runs do
+    const int mmHalf = MM_Rando_HeadlessPairedHalf();
+    const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+    printf("[TEST] shared-masks-bag: forced %s: MM half rc=%d, fill %s, goal proven %d (OoT half %d, MM half %d), "
+           "%d placed\n",
+           maskName, mmHalf, Combo_Logic_StatusName(bag.status), bag.fill.goalProven ? 1 : 0, bag.fill.goalOoT,
+           bag.fill.goalMM, bag.fill.placed);
+    SM_CHECK(mmHalf == 0 && bag.status == RSBS_COMBO_LOGIC_OK && bag.fill.goalProven && bag.fill.goalMM == 1,
+             "with the only %s forced onto OoT's %s the fill did not prove the GOAL with MM's half proved (rc %d, "
+             "%s, MM half %d)",
+             maskName, ootHostName, mmHalf, Combo_Logic_StatusName(bag.status), bag.fill.goalMM);
+    if (mmHalf != 0 || bag.status != RSBS_COMBO_LOGIC_OK) {
+        return;
+    }
+
+    // The placement: the host's own half with MM's beside it, and no other copy.
+    ComboLogicPlacement p;
+    memset(&p, 0, sizeof(p));
+    const bool onHost = Combo_Logic_GetPlacement(GAME_OOT, host, &p);
+    SM_CHECK(onHost && p.item.originGame == (uint8_t)GAME_OOT && p.item.id == ootId &&
+                 p.pair.originGame == (uint8_t)GAME_MM && p.pair.id == mmId,
+             "OoT's %s holds %s %u:%u (pair %u:%u), expected the %s as the shared pair (OoT %u, MM %u)", ootHostName,
+             onHost ? "item" : "nothing", (unsigned)p.item.originGame, (unsigned)p.item.id, (unsigned)p.pair.originGame,
+             (unsigned)p.pair.id, maskName, (unsigned)ootId, (unsigned)mmId);
+    int copies = 0;
+    for (GameId g : { GAME_OOT, GAME_MM }) {
+        for (int i = 0; i < Combo_Logic_PlacementCount(g); i++) {
+            ComboLogicPlacement q;
+            if (!Combo_Logic_PlacementAt(g, i, &q)) {
+                continue;
+            }
+            copies += ((q.item.originGame == (uint8_t)GAME_OOT && q.item.id == ootId) ||
+                       (q.item.originGame == (uint8_t)GAME_MM && q.item.id == mmId))
+                          ? 1
+                          : 0;
+        }
+    }
+    const int shuffledTotal = MM_ComboLogic_TestShuffledItems(NULL, NULL, 0);
+    std::vector<uint16_t> items((size_t)(shuffledTotal > 0 ? shuffledTotal : 1));
+    const int shuffled = MM_ComboLogic_TestShuffledItems(items.data(), NULL, (int)items.size());
+    int mmChecks = 0;
+    for (int i = 0; i < shuffled && i < (int)items.size(); i++) {
+        mmChecks += (items[(size_t)i] == mmId) ? 1 : 0;
+    }
+    SM_CHECK(copies == 1 && shuffled > 0 && mmChecks == 0,
+             "the world holds %d coordinator placement(s) of the %s and MM's own world %d check(s) of it: expected the "
+             "one forced row and nothing in Termina",
+             copies, maskName, mmChecks);
+
+    // The proof, read three ways over the finished tables.
+    ComboLogicRoundResult asPlaced;
+    const int asPlacedRc = SmRound(NULL, 0, &asPlaced);
+    ComboLogicHostRef withheld;
+    memset(&withheld, 0, sizeof(withheld));
+    withheld.hostGame = (uint8_t)GAME_OOT;
+    withheld.hostCheck = host;
+    ComboLogicRoundResult noMask;
+    const int noMaskRc = SmRound(&withheld, 1, &noMask);
+    withheld.hostGame = (uint8_t)GAME_MM;
+    withheld.hostCheck = remainsCheck;
+    ComboLogicRoundResult noRemains;
+    const int noRemainsRc = SmRound(&withheld, 1, &noRemains);
+    printf("[TEST] shared-masks-bag: forced %s: MM's goal as placed %d; with OoT's %s withheld %d; with %s's remains "
+           "withheld %d\n",
+           maskName, asPlaced.goalMM, ootHostName, noMask.goalMM, boss, noRemains.goalMM);
+    SM_CHECK(asPlacedRc == RSBS_COMBO_LOGIC_OK && asPlaced.goalMM == 1,
+             "the finished world's round does not prove MM's goal (%s, goalMM %d)", Combo_Logic_StatusName(asPlacedRc),
+             asPlaced.goalMM);
+    SM_CHECK(noMaskRc == RSBS_COMBO_LOGIC_OK && noMask.goalMM == 0,
+             "MM's goal still holds with OoT's %s withheld (%s, goalMM %d): the %s there is not what MM's proof runs "
+             "through, so this world does not test the shared pair's credit in MM",
+             ootHostName, Combo_Logic_StatusName(noMaskRc), noMask.goalMM, maskName);
+    SM_CHECK(noRemainsRc == RSBS_COMBO_LOGIC_OK && noRemains.goalMM == 0,
+             "MM's goal still holds with %s's remains withheld (%s, goalMM %d): the goal no longer runs through %s, so "
+             "this leg no longer proves %s",
+             boss, Combo_Logic_StatusName(noRemainsRc), noRemains.goalMM, temple, temple);
 }
 
 } // namespace
@@ -749,6 +938,13 @@ TestResult SharedMasksBag_Run(void) {
                  "case for it",
                  without, with, kSmMasks[m].itemName);
     }
+
+    // The forced-host legs (#978's Lock): a world whose only Goron Mask sits on an
+    // OoT check still proves Snowhead in MM's half, and the mirror case for the
+    // Zora Mask and Great Bay. Two of Mido's chests: hosts a fresh file reaches at
+    // once, so the fill can always build the rest of the world around them.
+    SmForcedHostLeg(0, "KF Mido Top Left Chest", "Goht", "Snowhead");
+    SmForcedHostLeg(1, "KF Mido Top Right Chest", "Gyorg", "Great Bay");
 
     printf("[TEST] shared-masks-bag: %s\n", sSmFailures == 0 ? "PASS" : "FAIL");
     return sSmFailures == 0 ? TEST_PASS : TEST_FAIL;
