@@ -500,8 +500,8 @@ generation (`settingsHash`, `placementHash`, `placedCount`) did not.
 with the Blast Mask keys added to its profile (an input change, not a bump; see
 "The all-masks profile").
 
-The OoTMM defaults (2026-11-03; #1428, #1425, #1427), still version 4. Three
-default changes re-pinned together, because each one moves every golden:
+The OoTMM defaults (2026-11-03, PR #1436; #1428, #1425, #1427), still version 4.
+Three default changes re-pinned together, because each one moves every golden:
 
 * #1428: Rainbow Bridge defaults to Medallions (all six) and Ganon's Boss Key to
   Start With;

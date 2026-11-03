@@ -12,8 +12,8 @@
   back into the row ("Restored from file: Logic"), and your next new file uses that until you change the row back.
 - **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
-  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1428, #1425, #1427) are
-  part of generator 4 too.
+  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436) are part of
+  generator 4 too.
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
   each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
   magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
@@ -21,16 +21,15 @@
   piece looked unreachable.
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
-- **Ocarina of Time's goal gates follow OoTMM** (issue #1428). Rainbow Bridge now defaults to Medallions with all six
-  required (OoTMM's "Opens when you have all Medallions"), not Vanilla. Ganon's Boss Key defaults to Start With, the
-  closest Ship of Harkinian value to OoTMM's "Removed": you hold the key from the start, so the door to Ganondorf
-  opens, and the Tower Boss Key Chest holds a random item that the Check Tracker lists and counts. The Light Arrow
-  Cutscene is unchanged (the Shadow and Spirit Medallions). With Triforce Hunt on, the hunt still gives you Ganon's
-  Boss Key: Start With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner,
-  Standard, Advanced and Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new
-  defaults. This changes every new world, and a seed package from an earlier build is refused. Saved files keep the
-  gates they were made with.
-- **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1429, issue
+- **Ocarina of Time's goal gates follow OoTMM** (#1436, issue #1428). Rainbow Bridge now defaults to Medallions with all
+  six required (OoTMM's "Opens when you have all Medallions"), not Vanilla. Ganon's Boss Key defaults to Start With, the
+  closest Ship of Harkinian value to OoTMM's "Removed": you hold the key from the start, so the door to Ganondorf opens,
+  and the Tower Boss Key Chest holds a random item that the Check Tracker lists and counts. The Light Arrow Cutscene is
+  unchanged (the Shadow and Spirit Medallions). With Triforce Hunt on, the hunt still gives you Ganon's Boss Key: Start
+  With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner, Standard, Advanced and
+  Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new defaults. This changes every new
+  world, and a seed package from an earlier build is refused. Saved files keep the gates they were made with.
+- **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1436, issue
   #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
   Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
   the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
@@ -41,11 +40,11 @@
 
 ### Majora's Mask randomizer
 
-- **Shop Prices and Tingle Prices** (#1427). Randomizer > MM Randomizer has OoTMM's two price rows under Shuffle Shops
-  & Merchants: Vanilla (the default), Affordable (10 Rupees), Weighted Random and Random (0 to 500 Rupees, Weighted
-  Random favouring low prices). Until now every shuffled shop slot and Tingle map cost a random 0 to 199 Rupees; by
-  default they now cost their vanilla price. Logic asks for the wallet that holds the price, so the All-Night Mask
-  (500 Rupees) needs the Giant's Wallet. The Milk Bar and Gorman's milk keep their vanilla prices, as in OoTMM.
+- **Shop Prices and Tingle Prices** (#1436, issue #1427). Randomizer > MM Randomizer has OoTMM's two price rows under
+  Shuffle Shops & Merchants: Vanilla (the default), Affordable (10 Rupees), Weighted Random and Random (0 to 500 Rupees,
+  Weighted Random favouring low prices). Until now every shuffled shop slot and Tingle map cost a random 0 to 199
+  Rupees; by default they now cost their vanilla price. Logic asks for the wallet that holds the price, so the All-Night
+  Mask (500 Rupees) needs the Giant's Wallet. The Milk Bar and Gorman's milk keep their vanilla prices, as in OoTMM.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
