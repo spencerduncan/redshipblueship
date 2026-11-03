@@ -67,6 +67,15 @@
  *      MMRT_DEKU_STICK_FIGHTING off, killable with it on, and a no-stick control
  *      that proves the rest of the save satisfies nothing. RED before the gate on
  *      every row.
+ *  (k) #1368, UNBOUND REASONS: every unbound key carries one of #697's classes
+ *      (needs an Ocarina of Time item used in Majora's Mask, needs entrance
+ *      randomizer, already covered by MM logic, no such requirement, area not
+ *      mapped yet) and reads its class's wording, never the generic "Not Yet
+ *      Supported by Logic"; a bound or reserved key carries no class; the
+ *      per-class counts are pinned; the keys OoTMM opens with an "X in MM" item
+ *      (Stone of Agony, tunics, short hookshot, scales, strength) sit in the
+ *      item class and name the item; and an item-class key is still refused by
+ *      the writer.
  *
  * Deliberately NOT asserted: that any particular unbound key does something.
  * 84 of the 86 keys are declared and consulted by nothing in this PR (part 2
@@ -457,6 +466,124 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
         }
     }
 
+    // ---- (k) #1368: every unbound key names its real blocker ----------------
+    // #697 recorded, key by key, why each live-capable key has no binding. The
+    // row says so instead of a generic "not yet": each unbound descriptor
+    // carries one class, each class its own wording, and the counts are pinned
+    // for the same reason the reserved count is: binding a key, or appending
+    // one, is a deliberate edit here.
+    {
+        static const char* const kGenericReason = "Not Yet Supported by Logic";
+        auto startsWith = [](const std::string& s, const char* prefix) { return s.rfind(prefix, 0) == 0; };
+        auto endsWith = [](const std::string& s, const char* suffix) {
+            const size_t n = strlen(suffix);
+            return s.size() >= n && s.compare(s.size() - n, n, suffix) == 0;
+        };
+        int perClass[COMBO_MM_TRICK_UNBOUND_CLASS_COUNT] = {};
+        for (int i = 0; i < descCount; i++) {
+            const ComboMMTrickDesc* desc = Combo_MMTrickAt(i);
+            const bool unbound = !desc->bound && !desc->reserved;
+            if (desc->unboundClass >= (uint8_t)COMBO_MM_TRICK_UNBOUND_CLASS_COUNT) {
+                return Fail(67, "descriptor '%s' carries unbound class %u, outside the enum", desc->name,
+                            (unsigned)desc->unboundClass);
+            }
+            if (unbound != (desc->unboundClass != (uint8_t)COMBO_MM_TRICK_UNBOUND_NONE)) {
+                return Fail(68,
+                            "descriptor '%s': bound=%d reserved=%d but unbound class %u — an unbound key needs a "
+                            "kUnboundTricks row, and a bound or reserved one must not carry a class",
+                            desc->name, desc->bound ? 1 : 0, desc->reserved ? 1 : 0, (unsigned)desc->unboundClass);
+            }
+            if (!unbound) {
+                continue;
+            }
+            perClass[desc->unboundClass]++;
+            const std::string reason = desc->disabledReason != NULL ? desc->disabledReason : "";
+            if (reason == kGenericReason) {
+                return Fail(69, "unbound key '%s' still reads '%s'", desc->name, kGenericReason);
+            }
+            bool shaped = false;
+            switch ((ComboMMTrickUnboundClass)desc->unboundClass) {
+                case COMBO_MM_TRICK_UNBOUND_OOT_ITEM:
+                    // Names the item, in the reserved rows' wording.
+                    shaped = startsWith(reason, "Needs ") && endsWith(reason, COMBO_MM_TRICK_REASON_OOT_ITEM_SUFFIX) &&
+                             reason.size() > strlen("Needs ") + strlen(COMBO_MM_TRICK_REASON_OOT_ITEM_SUFFIX);
+                    break;
+                case COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO:
+                    shaped = startsWith(reason, COMBO_MM_TRICK_REASON_ENTRANCE_RANDO);
+                    break;
+                case COMBO_MM_TRICK_UNBOUND_COVERED:
+                    shaped = reason == COMBO_MM_TRICK_REASON_COVERED;
+                    break;
+                case COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM:
+                    shaped = reason == COMBO_MM_TRICK_REASON_NO_SUCH_TERM;
+                    break;
+                case COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA:
+                    shaped = reason == COMBO_MM_TRICK_REASON_UNMAPPED_AREA;
+                    break;
+                default:
+                    break;
+            }
+            if (!shaped) {
+                return Fail(70, "unbound key '%s' (class %u) reads '%s', not its class's wording", desc->name,
+                            (unsigned)desc->unboundClass, reason.c_str());
+            }
+        }
+        // #697's third pass, less MMRT_BOMBER_BACKFLIP (bound by #1306), with
+        // the Stone of Agony and the tunics moved from "no such term" to the
+        // item class under the follow-OoTMM ruling (stoneAgonyMm, tunic*Mm).
+        static const int kExpectedPerClass[COMBO_MM_TRICK_UNBOUND_CLASS_COUNT] = {
+            0,  // NONE (not counted)
+            13, // OOT_ITEM: Stone of Agony, tunics, 6 short hookshot, 2 scales, Golden Gauntlets, 2 dive/boots
+            2,  // ENTRANCE_RANDO: Clock Tower wait, Snowhead stick run
+            4,  // COVERED: red boulder keg, two Ikana pillar routes, ISTT Chuchu-less
+            1,  // NO_SUCH_TERM: Majora as a time reset
+            8,  // UNMAPPED_AREA: five regions, three grottos
+        };
+        for (int c = 1; c < (int)COMBO_MM_TRICK_UNBOUND_CLASS_COUNT; c++) {
+            if (perClass[c] != kExpectedPerClass[c]) {
+                return Fail(71,
+                            "unbound class %d holds %d keys, expected %d — a key was bound or reclassified; update "
+                            "this count and say why in the commit",
+                            c, perClass[c], kExpectedPerClass[c]);
+            }
+        }
+        // The keys OoTMM opens with an "X in MM" item are in the item class and
+        // name it (not hidden), and one key per other class reads that class.
+        struct ReasonPin {
+            MMRandoTrickId id;
+            ComboMMTrickUnboundClass unboundClass;
+            const char* reason;
+        };
+        static const ReasonPin kPins[] = {
+            { MMRT_HIDDEN_GROTTOS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Stone of Agony From Ocarina of Time" },
+            { MMRT_TUNICS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Tunics From Ocarina of Time" },
+            { MMRT_HARD_HOOKSHOT, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+            { MMRT_GYORG_POTS_DIVE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Scales From Ocarina of Time" },
+            { MMRT_KEG_HOOKBUNNY, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Golden Gauntlets From Ocarina of Time" },
+            { MMRT_CLOCK_TOWER_WAIT, COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO, COMBO_MM_TRICK_REASON_ENTRANCE_RANDO },
+            { MMRT_KEG_RED_BOULDER, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
+            { MMRT_MAJORA_LOGIC, COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM, COMBO_MM_TRICK_REASON_NO_SUCH_TERM },
+            { MMRT_SOARING_ZORA, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+        };
+        for (const ReasonPin& pin : kPins) {
+            const ComboMMTrickDesc* desc = Combo_MMTrickById((uint16_t)pin.id);
+            if (desc == NULL || desc->unboundClass != (uint8_t)pin.unboundClass ||
+                strcmp(desc->disabledReason, pin.reason) != 0) {
+                return Fail(72, "'%s' reads class %u '%s', expected class %u '%s'",
+                            Rando::StaticData::Tricks.at(pin.id).name, desc != NULL ? (unsigned)desc->unboundClass : 0u,
+                            desc != NULL ? desc->disabledReason : "(no row)", (unsigned)pin.unboundClass, pin.reason);
+            }
+        }
+        // The reason is words, not a gate: an item-class row still refuses the
+        // writer, because nothing in this build consults the key.
+        const ComboMMTrickDesc* grottos = Combo_MMTrickById((uint16_t)MMRT_HIDDEN_GROTTOS);
+        CVarClear(grottos->cvar);
+        Combo_MMTrickSetValue(grottos, true);
+        if (CVarGetInteger(grottos->cvar, 0) != 0) {
+            return Fail(73, "the pane's writer armed '%s', an unbound key with an item reason", grottos->name);
+        }
+    }
+
     // ---- (f)/(i) the predicate reads the FROZEN SAVE, not the CVar ---------
     ResetSaveWithEmptyInventory();
     ClearAllTrickCVars();
@@ -668,9 +795,9 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
     ComboContext_Init();
     Context_SetCurrentGame(prevGame);
 
-    printf("[TEST] PASS: %d trick keys (20 reserved and inert), the descriptor mirror is exact, the predicate reads "
-           "the frozen save, the Powder Keg gate moves an explosive-only edge, and the trick set moves the profile "
-           "digest\n",
+    printf("[TEST] PASS: %d trick keys (20 reserved and inert), the descriptor mirror is exact, every unbound key "
+           "names its blocker, the predicate reads the frozen save, the Powder Keg gate moves an explosive-only edge, "
+           "and the trick set moves the profile digest\n",
            (int)MMRT_MAX);
     return 0;
 }

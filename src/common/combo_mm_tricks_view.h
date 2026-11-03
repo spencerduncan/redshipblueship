@@ -28,7 +28,9 @@
  *      `bound == false` — the key exists but no region condition consults it
  *        yet (#578 part 2 authors the bindings). A control that flips a CVar and
  *        changes nothing is ADR 0004 §5's vacuous gate; the table refuses to
- *        describe one as enabled.
+ *        describe one as enabled. WHY it is unbound is `unboundClass` (#1368):
+ *        one of the classes #697 recorded for every such key, so the row names
+ *        its real blocker instead of a generic "not yet".
  *    `disabledReason` is non-empty EXACTLY when `reserved || !bound`, and the
  *    lock asserts both directions.
  *
@@ -57,6 +59,45 @@ extern "C" {
 /** The most tag chips one trick carries: its one difficulty rung plus the three
  *  flag tags (Experimental, Glitch, OoT Items). */
 #define COMBO_MM_TRICK_MAX_CHIPS 4
+
+/**
+ * Why a live-capable trick (not reserved) has no binding (#1368), as #697
+ * recorded it key by key. A row's `disabledReason` names the blocker in its
+ * class's words; `mm-trick-table` holds each class to that wording and pins the
+ * per-class counts. APPENDED, never reordered.
+ */
+typedef enum {
+    /** The row is bound, or reserved (a reserved row carries its own reason). */
+    COMBO_MM_TRICK_UNBOUND_NONE = 0,
+    /** Every leg needs an Ocarina of Time item used in Majora's Mask, which
+     *  OoTMM opens with an "X in MM" setting (stoneAgonyMm, shortHookshotMm,
+     *  tunicGoronMm/tunicZoraMm, scalesMm, strengthMm). The reason names the
+     *  item. Not hidden: the key becomes bindable with that item. */
+    COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
+    /** Every leg needs an entrance shuffle MM's logic does not have. */
+    COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO,
+    /** MM's logic already allows what the trick allows, so a binding could
+     *  never change a verdict. */
+    COMBO_MM_TRICK_UNBOUND_COVERED,
+    /** MM's logic has no term for what the trick relaxes. */
+    COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM,
+    /** The trick's leg lands in an area (a region or a grotto) MM's logic does
+     *  not map yet. */
+    COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA,
+    COMBO_MM_TRICK_UNBOUND_CLASS_COUNT
+} ComboMMTrickUnboundClass;
+
+/** The reason a class's rows read, for the classes whose reason is one sentence
+ *  (an item-class row names its own item; an entrance-class row may add the
+ *  alternative to the shuffle after this prefix). Title Case fragments in
+ *  SoH's disabledMap style, like the reserved rows' reasons. */
+#define COMBO_MM_TRICK_REASON_ENTRANCE_RANDO "Needs Entrance Randomizer"
+#define COMBO_MM_TRICK_REASON_COVERED "Already Covered by MM Logic"
+#define COMBO_MM_TRICK_REASON_NO_SUCH_TERM "No Such Requirement in MM Logic"
+#define COMBO_MM_TRICK_REASON_UNMAPPED_AREA "Area Not Yet Mapped in MM Logic"
+/** How every item-class reason ends: the reserved rows' wording ("Needs Hover
+ *  Boots From Ocarina of Time"). */
+#define COMBO_MM_TRICK_REASON_OOT_ITEM_SUFFIX " From Ocarina of Time"
 
 /**
  * One trick, as the pane renders it. Mirrors MM's `RandoStaticTrick` row; the
@@ -89,6 +130,9 @@ typedef struct {
     /** Operator-facing explanation; EMPTY (never NULL) exactly when the row is
      *  enabled, i.e. when `bound && !reserved`. */
     const char* disabledReason;
+    /** ComboMMTrickUnboundClass: NONE exactly when the row is bound or
+     *  reserved, else why the key has no binding (#1368). */
+    uint8_t unboundClass;
 } ComboMMTrickDesc;
 
 /**

@@ -970,6 +970,93 @@ bool IsBoundTrick(MMRandoTrickId mmRandoTrickId) {
     return false;
 }
 
+// WHY EACH LIVE-CAPABLE KEY THAT IS NOT IN kBoundTricks HAS NO BINDING (#1368).
+// One row per key, the reason #697's third pass recorded for it, in id order.
+// Every row was "Not Yet Supported by Logic" before; the reason now names the
+// real blocker. Under the follow-OoTMM ruling a key OoTMM opens with an "X in MM"
+// setting is in the item class (stoneAgonyMm data.ts:1908, shortHookshotMm :1970,
+// tunicGoronMm/tunicZoraMm, scalesMm and strengthMm in :2106-2214) and stays
+// visible: it becomes bindable once that item is usable in MM.
+//
+// `mm-trick-table` leg (k) holds every unbound descriptor to a class, each class
+// to its wording, and the per-class counts, so binding a key here (or adding one)
+// is a deliberate edit of the counts rather than a silent drift.
+struct UnboundTrick {
+    MMRandoTrickId id;
+    ComboMMTrickUnboundClass unboundClass;
+    const char* reason;
+};
+
+const UnboundTrick kUnboundTricks[] = {
+    // OoTMM's stoneAgonyMm: no Stone of Agony term without it.
+    { MMRT_HIDDEN_GROTTOS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Stone of Agony From Ocarina of Time" },
+    // OoTMM's tunicGoronMm / tunicZoraMm: has_tunic_* || trick(MM_TUNICS).
+    { MMRT_TUNICS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Tunics From Ocarina of Time" },
+    // Inverted Stone Tower Temple's center bridge, not a region here.
+    { MMRT_ISTT_EYEGORE, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // The Death Armos switch ledge, not a region here.
+    { MMRT_ISTT_ENTRY_JUMP, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // OoTMM's shortHookshotMm: can_hookshot only differs from can_hookshot_short
+    // under it, and MM has one Hookshot.
+    { MMRT_HARD_HOOKSHOT, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    { MMRT_PFI_BOAT_HOOK, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // trick_sht_hot_water_er: has_hot_water_er || has_hot_water_farore.
+    { MMRT_SHT_STICKS_RUN, COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO,
+      COMBO_MM_TRICK_REASON_ENTRANCE_RANDO " or Farore's Wind From Ocarina of Time" },
+    // OoTMM's "Center Level 4" has no region of its own here.
+    { MMRT_SHT_PILLARLESS, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // can_reset_time_impl's Majora leg: MM's logic has no time-reset predicate.
+    { MMRT_MAJORA_LOGIC, COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM, COMBO_MM_TRICK_REASON_NO_SUCH_TERM },
+    // Inside a grotto MM's logic does not map to its entrance (#578 section 3).
+    { MMRT_GBC_COW_LIKELIKE_ELEVATOR, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // can_enter_zora_door's leg is short_hook_anywhere (can_hookshot_short &&
+    // hookshotAnywhereMm), so the short hookshot first. ESCAPE_CAGE,
+    // GBT_FAIRY2_HOOK and KEG_TRIAL_HEATLESS below are the same.
+    { MMRT_ZORA_HALL_DOORS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // That edge is already unconditional here.
+    { MMRT_IKANA_PILLAR_ENTRANCE_FLOAT, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
+    { MMRT_IKANA_PILLAR_ENTRANCE_JUMP, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
+    // Only matters with the Chuchu soul shuffled; the Wizzrobe-room edge here
+    // has no Chuchu-soul term.
+    { MMRT_ISTT_CHUCHU_LESS, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
+    // short_hook_anywhere, as Zora Hall's doors.
+    { MMRT_ESCAPE_CAGE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    { MMRT_GBT_FAIRY2_HOOK, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // ER-only: setting(erMoon).
+    { MMRT_CLOCK_TOWER_WAIT, COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO, COMBO_MM_TRICK_REASON_ENTRANCE_RANDO },
+    // Grotto mapping, as the cow grotto above.
+    { MMRT_BIO_BABA_CHU, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    { MMRT_BIO_BABA_LUCK, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // Needs the perch region.
+    { MMRT_SOARING_ZORA, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // OoTMM's scalesMm: can_dive_* needs the scales.
+    { MMRT_GYORG_POTS_DIVE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Scales From Ocarina of Time" },
+    { MMRT_STT_POT_BOMBCHU_DIVE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Scales From Ocarina of Time" },
+    // Needs an inn-roof region; a disjunct on the midnight meeting alone is
+    // unreachable under the inn's stay rules.
+    { MMRT_STOCK_POT_WAIT, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
+    // access_keg_trial's leg is short_hook_anywhere.
+    { MMRT_KEG_TRIAL_HEATLESS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // OoTMM's kegStrength3 (strengthMm): the Golden Gauntlets.
+    { MMRT_KEG_HOOKBUNNY, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Golden Gauntlets From Ocarina of Time" },
+    // The keg implies Goron here, and Goron already breaks red boulders.
+    { MMRT_KEG_RED_BOULDER, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
+    // The trick sits only on the Iron Boots / Zora Tunic / big-dive leg.
+    { MMRT_GBT_BABA_ENTRY_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
+      "Needs Iron Boots or Golden Scale From Ocarina of Time" },
+    { MMRT_CAPE_LIKE_LIKE_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
+      "Needs Iron Boots or Golden Scale From Ocarina of Time" },
+};
+
+const UnboundTrick* FindUnboundTrick(MMRandoTrickId mmRandoTrickId) {
+    for (const UnboundTrick& unbound : kUnboundTricks) {
+        if (unbound.id == mmRandoTrickId) {
+            return &unbound;
+        }
+    }
+    return nullptr;
+}
+
 /** A tag's chip colour, named as a combo_ui palette tone. The rungs MM shares
  *  with SoH take SoH's colours (tricks.cpp's Tricks::GetTagColor: Novice green,
  *  Intermediate orange, Advanced blue, Expert red, Experimental light blue,
@@ -1041,11 +1128,15 @@ std::vector<ComboMMTrickDesc>& TrickDescriptorTable() {
             // region-file pass can bind these at all until increment 3.
             desc.disabledReason = row.reservedReason;
         } else if (!desc.bound) {
-            // Player-facing (UI parity M6): the tracking issue (#578 part 3)
-            // stays in this comment, out of the text a player reads, and the
+            // Player-facing (UI parity M6): the tracking issues (#697, #1368)
+            // stay in this comment, out of the text a player reads, and the
             // reason is a Title Case fragment in SoH's disabledMap style (R-S2:
             // "Not Available on DirectX"), pinned by ComboMMOptionsPage leg 7.
-            desc.disabledReason = "Not Yet Supported by Logic";
+            // A key with no kUnboundTricks row keeps the generic reason and no
+            // class, which mm-trick-table leg (k) turns red.
+            const UnboundTrick* unbound = FindUnboundTrick(mmRandoTrickId);
+            desc.unboundClass = (uint8_t)(unbound != nullptr ? unbound->unboundClass : COMBO_MM_TRICK_UNBOUND_NONE);
+            desc.disabledReason = unbound != nullptr ? unbound->reason : "Not Yet Supported by Logic";
         } else {
             desc.disabledReason = "";
         }
