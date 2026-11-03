@@ -2164,7 +2164,17 @@ int CitwLockCustomLayout(void) {
                 mmAvail[0].slots.size() == 27);
     CITW_ASSERT(!ootAvail.empty() && ootAvail[0].name == "Key Items" && ootAvail[0].columns == 5 &&
                 ootAvail[0].slots.size() == 50);
-    CITW_ASSERT(sharedAvail.size() >= 4 && sharedAvail[0].slots.size() == 32);
+    // #1369: the Shared Swim slot joins the shared catalog (33) and gets a "Shared Abilities" group of its own.
+    CITW_ASSERT(sharedAvail.size() >= 5 && sharedAvail[0].slots.size() == 33);
+    CITW_ASSERT(sharedAvail.back().name == "Shared Abilities" && sharedAvail.back().slots.size() == 1);
+    {
+        // OoT's catalog gives SoH's ability rows a group of their own, hidden in a seed that does not shuffle them.
+        bool abilities = false;
+        for (const auto& g : ootAvail) {
+            abilities = abilities || (g.name == "Abilities" && g.slots.size() == 6 && g.autoHideUnshuffled);
+        }
+        CITW_ASSERT(abilities);
+    }
 
     // Verify all 27 MM "Key Items" solver slots resolve cleanly, including Boss Souls & Stray Fairies.
     std::vector<ComboItemRow> mmKeyRows;

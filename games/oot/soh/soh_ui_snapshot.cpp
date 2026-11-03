@@ -1778,8 +1778,8 @@ const struct {
 bool gSnapshotItemSetMMDungeon = false; // the key-counts state turned MM's Dungeon group on
 
 // #1347: a world created with Shared Ocarina Buttons on, both games shuffling the buttons, with each game live in turn,
-// so the Shared column's five buttons can be judged in each game's own icons without a playthrough: SoH's Ocarina of
-// Time with its short names over it ("A", "C-U", ...) while OoT runs, MM's tinted button glyphs while MM runs.
+// so the Shared column's five buttons can be judged without a playthrough. Since #1369 (operator ruling 2026-11-02)
+// both states draw MM's tinted button glyphs, the one look of a button in both games.
 constexpr const char* kItemTrackerSharedButtonsOoT = "shared-buttons-oot";
 constexpr const char* kItemTrackerSharedButtonsMM = "shared-buttons-mm";
 // MM's world holds A and C-Right (bit i of A, C-Down, C-Right, C-Left, C-Up); OoT's tracker world holds A and C-Left,
@@ -2628,9 +2628,12 @@ void Session::BuildPageList() {
                 // its row name (marker and label) in the first state.
                 // ocarina-buttons: #1067's Shared Ocarina Buttons checkbox and its tooltip.
                 // bottles: #970's Shared Bottles checkbox and its tooltip.
-                p.hovers = { "direction",       "goal",    "kokiri-sword", "shields", "lens",
-                             "ocarina-buttons", "bottles", "frozen-goal" };
+                // swim: #1369's Shared Swim checkbox and its tooltip, by its row
+                // name in the first state, as the lens.
+                p.hovers = { "direction",       "goal",    "kokiri-sword", "shields",    "lens",
+                             "ocarina-buttons", "bottles", "swim",         "frozen-goal" };
                 p.hoverRows["lens"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Lens of Truth";
+                p.hoverRows["swim"] = std::string(Combo_ComboSettingSharedMarker()) + " Shared Swim";
                 // The status line's four sentences (ComboRuleStatusPreFunc in
                 // SohMenuCombo.cpp). Copied, deliberately: a rewording there
                 // turns this row red and the lane updates the words here.
@@ -2968,19 +2971,17 @@ void Session::BuildPageList() {
         p.checksResetPosition = true;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
-        // #1347: the Shared column's five buttons, once, in the live game's icons. ROM-rich, OoT's are its ocarina
-        // with SoH's short names over it, which the overlay draws only over an icon (MM's glyphs carry none);
-        // ROM-free every section is the text fallback, which names each button. "live" freezes no rule: no Shared
-        // button there.
+        // #1347: the Shared column's five buttons, once. #1369 (operator ruling 2026-11-02): ROM-rich, both states
+        // draw MM's tinted button glyphs, which carry no name over them (OoT's labelled ocarina is only the
+        // fallback when MM has no adapter), so the two states are one look and the OoT state no longer reads SoH's
+        // "C-D"/"C-U"; ROM-free every section is the text fallback, which names each button. "live" freezes no
+        // rule: no Shared button there.
         for (const char* s : { kItemTrackerSharedButtonsOoT, kItemTrackerSharedButtonsMM }) {
             p.stateImages[s] = 100;
             p.stateContrast[s] = "live";
             if (romFree) {
                 p.stateText[s] = { "C Down Button" };
             }
-        }
-        if (!romFree) {
-            p.stateText[kItemTrackerSharedButtonsOoT] = { "C-D", "C-U" };
         }
         // #927: no section says how fresh it is, and an empty one is its
         // header alone.

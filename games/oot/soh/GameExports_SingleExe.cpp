@@ -4038,6 +4038,80 @@ struct OoTSharedOcarinaButtonRegistrar {
 const OoTSharedOcarinaButtonRegistrar gOoTSharedOcarinaButtonRegistrar;
 } // namespace
 
+// ============================================================================
+// The Shared Swim family (#1369; operator ruling 2026-11-02)
+// ============================================================================
+//
+// OoT's copy of the pair's one swim: the standalone RG_BRONZE_SCALE row the
+// Shared Swim split puts in OoT's pool (item_pool.cpp). Ownership is
+// RAND_INF_CAN_SWIM, the flag OoT's own give of that row writes
+// (randomizerGetToRandInf) and the void-on-water gate reads (hook_handlers.cpp).
+//
+// HELD only while OoT's seed shuffles swim: a file without the shuffle is given
+// the flag at creation (savefile.cpp) and found nothing, so it has nothing to
+// share. Under the frozen rule OoT always shuffles swim (the paired creation
+// shapes OoT's option on when only MM shuffles it, playthrough.cpp). The GIVE
+// writes the flag directly, as the buttons' does. POOLED is the seed's own
+// option, the row the split adds.
+
+namespace {
+
+bool OoT_SharedSwimOptionOn(void) {
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetOption(RSK_SHUFFLE_SWIM).Get() != RO_GENERIC_OFF;
+}
+
+bool OoT_SharedSwimPooled(uint16_t nativeId) {
+    (void)nativeId;
+    return OoT_SharedSwimOptionOn();
+}
+
+bool OoT_SharedSwimHeld(uint16_t nativeId) {
+    (void)nativeId;
+    const int flag = (int)RAND_INF_CAN_SWIM;
+    return IS_RANDO && OoT_SharedSwimOptionOn() &&
+           (gSaveContext.ship.randomizerInf[flag >> 4] & (1 << (flag & 0xF))) != 0;
+}
+
+void OoT_SharedSwimGive(uint16_t nativeId) {
+    (void)nativeId;
+    const int flag = (int)RAND_INF_CAN_SWIM;
+    gSaveContext.ship.randomizerInf[flag >> 4] |= (u16)(1 << (flag & 0xF));
+}
+
+} // namespace
+
+/** Is the bronze tier its own pool row in this world (#1369)? The frozen Shared
+ *  Swim rule with OoT's seed shuffling swim. Then OoT's pool holds a standalone
+ *  RG_BRONZE_SCALE in place of Progressive Scale's extra bronze copy
+ *  (item_pool.cpp), and Progressive Scale gives silver and gold only: its give
+ *  (item.cpp) and the logic's crediting of it (logic.cpp) skip the swim flag, a
+ *  scale's logic needs the swim flag too, and the bronze row credits the swim
+ *  flag (Logic::ApplyItemEffect). Off (every world without the rule), all four
+ *  are SoH's own. The rule is read from the frozen record only, so the answer is
+ *  the world's, never a key's. */
+extern "C" bool OoT_SharedSwimSplitsScale(void) {
+    return Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SWIM) && OoT_SharedSwimOptionOn();
+}
+
+/** Register OoT's copy of the Shared Swim family (#1369). Idempotent; the static
+ *  registrar below runs it at start-up, and the locks re-run it after a row that
+ *  cleared the registry. */
+extern "C" void OoT_RegisterSharedSwimFamily(void) {
+    const ComboSharedFamilyMember swim = { (uint16_t)RG_BRONZE_SCALE, OoT_SharedSwimHeld, OoT_SharedSwimGive,
+                                           OoT_SharedSwimPooled };
+    Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SWIM, &swim);
+}
+
+namespace {
+struct OoTSharedSwimRegistrar {
+    OoTSharedSwimRegistrar() {
+        OoT_RegisterSharedSwimFamily();
+    }
+};
+const OoTSharedSwimRegistrar gOoTSharedSwimRegistrar;
+} // namespace
+
 /**
  * Would GRANTING this row's item be handing the player a shuffled CHECK the
  * seed placed elsewhere? Then the pool may not hand it over.

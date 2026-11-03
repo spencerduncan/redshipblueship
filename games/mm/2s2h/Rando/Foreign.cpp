@@ -442,6 +442,27 @@ std::vector<RandoItemId> PairedStartingItemsForWorld() {
     return items;
 }
 
+/** MM's own shuffle @p own, or the pair's one shuffle of @p giveCap's item from
+ *  the frozen combo record (#1369), which a Vanilla-logic MM cannot take: Vanilla
+ *  places nothing without a check of its own. */
+static bool CoupledShuffleForWorld(const uint32_t* options, RandoOptionId own, uint32_t giveCap) {
+    if (options == nullptr) {
+        return false;
+    }
+    if (options[own] != RO_GENERIC_NO) {
+        return true;
+    }
+    return Combo_ComboSharedShuffleCoupled(giveCap) && options[RO_LOGIC] != RO_LOGIC_VANILLA;
+}
+
+bool ShuffleSwimForWorld(const uint32_t* options) {
+    return CoupledShuffleForWorld(options, RO_SHUFFLE_SWIM, RSBS_GIVECAP_SWIM);
+}
+
+bool ShuffleOcarinaButtonsForWorld(const uint32_t* options) {
+    return CoupledShuffleForWorld(options, RO_SHUFFLE_OCARINA_BUTTONS, RSBS_GIVECAP_OCARINA_BUTTONS);
+}
+
 /** Hash the identity string, displacing 0: zero is the growth contract's
  *  "unset" for every field carved from reserved[] (context.h) — and now also
  *  the frozen-state predicate's "not frozen" — so a real profile hashing to 0
@@ -1405,10 +1426,14 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     if (values[RO_SHUFFLE_ENEMY_SOULS] != RO_GENERIC_OFF && values[RO_SHUFFLE_BOSS_SOULS] != RO_GENERIC_OFF) {
         caps |= RSBS_GIVECAP_SOULS;
     }
-    if (values[RO_SHUFFLE_OCARINA_BUTTONS] != RO_GENERIC_OFF) {
+    // #1369: the buttons and swim arm under the pair's one shuffle too, which the
+    // FROZEN combo record carries (the #1069 pattern). The creation publishes once
+    // before the freeze and again right after it (playthrough.cpp), so the word the
+    // bag reads is the frozen world's.
+    if (Rando::Foreign::ShuffleOcarinaButtonsForWorld(values.data())) {
         caps |= RSBS_GIVECAP_OCARINA_BUTTONS;
     }
-    if (values[RO_SHUFFLE_SWIM] != RO_GENERIC_OFF) {
+    if (Rando::Foreign::ShuffleSwimForWorld(values.data())) {
         caps |= RSBS_GIVECAP_SWIM;
     }
     // Clocks arm only in the RANDOM clock mode (#681 review). The capability
@@ -1426,6 +1451,38 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, caps);
     fprintf(stderr, "[MM] profile: give capabilities published from %s (caps=%04X)\n",
             fromSave != 0 ? "the save's frozen options" : "the creation-time resolution", (unsigned)caps);
+}
+
+// ============================================================================
+// MM's OWN swim and button shuffles (#1369; declared in
+// src/common/combo_mm_options_view.h): what MM's profile shuffles by its own
+// options alone, with no pair coupling and nothing published, as
+// RSBS_GIVECAP_SWIM / RSBS_GIVECAP_OCARINA_BUTTONS bits. The creation reads it
+// before the freeze, both to shuffle OoT's copy when only MM shuffles it and to
+// decide whether the shuffle-gated rules freeze; the publish above cannot answer
+// that, since it ORs in a frozen record that may still be the last file's. A
+// Vanilla-logic MM shuffles neither (Menu.cpp incompatibleWithVanilla).
+// ============================================================================
+extern "C" uint32_t MM_Rando_ResolveOwnShuffleCaps(int fromSave) {
+    std::vector<uint32_t> values(RO_MAX, 0);
+    if (fromSave != 0) {
+        for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+            values[randoOptionId] = RANDO_SAVE_OPTIONS[randoOptionId];
+        }
+    } else {
+        Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true);
+    }
+    if (values[RO_LOGIC] == RO_LOGIC_VANILLA) {
+        return 0u;
+    }
+    uint32_t caps = 0u;
+    if (values[RO_SHUFFLE_SWIM] != RO_GENERIC_NO) {
+        caps |= RSBS_GIVECAP_SWIM;
+    }
+    if (values[RO_SHUFFLE_OCARINA_BUTTONS] != RO_GENERIC_NO) {
+        caps |= RSBS_GIVECAP_OCARINA_BUTTONS;
+    }
+    return caps;
 }
 
 // ============================================================================

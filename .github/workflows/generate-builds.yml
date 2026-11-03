@@ -1,4 +1,22 @@
 name: generate-builds
+# REQUIRED STATUS CHECKS (#1373). The "basic" ruleset requires build-linux,
+# build-windows and build-macos (and clang-format, from clang-format.yml). In
+# this workflow each of those names belongs to ONE job, in the "Required status
+# checks" section at the bottom of the file: a small job with `if: always()`
+# that cannot be skipped and reports the outcome of the real build job
+# (job ids build-linux / build-windows / build-macos, displayed as "Linux
+# build" / "Windows build" / "macOS build"). It passes without a build only
+# when the `docs-only` job below proved the pull request touches nothing but
+# docs.
+#
+# This replaces docs-bypass.yml, whose stub jobs used the same names. On a PR
+# that changed docs AND code the stubs finished `skipped`, and GitHub counts a
+# job skipped by its `if` as a success for a required check. The real build-*
+# check runs only appear once generate-rsbs-otr finishes, so for 20-60 s every
+# required check read as satisfied, and #1321, #1325 and #1331 merged before
+# any build had run. Never give another job, here or in any other workflow,
+# one of the required names; tools/tests/test_required_checks.py fails if one
+# does.
 on:
   push:
     branches:
@@ -18,12 +36,13 @@ on:
       - 'docs/**'
       - 'LICENSE*'
       - '.gitignore'
+  # No path filter on pull_request (#1373). A workflow skipped by a path filter
+  # leaves its required checks "Expected" forever, so a docs-only PR could never
+  # merge. Instead every PR runs this workflow, and the `docs-only` job decides
+  # whether the heavy jobs run. Its patterns mirror the push paths-ignore list
+  # above (.github/scripts/classify-docs-only.py; the python-tests lock keeps
+  # the two equal).
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
   # Manual release path: creates the tag (via `gh release create --target`) at
   # the dispatched commit and publishes the release from that run's builds.
   # Exists because not every agent/CI credential is allowed to push v* tags.
@@ -38,7 +57,66 @@ concurrency:
   cancel-in-progress: true
 jobs:
 
+  # Is this pull request provably docs-only? (#1373)
+  #
+  # Runs on EVERY event and has no `if`, so it is never skipped. That matters
+  # because GitHub carries a skip down the whole `needs` chain: if this job were
+  # skipped on a push or a tag, every build job and create-release below would
+  # be skipped with it. On anything but a pull_request it answers
+  # docs_only=false without checking anything out.
+  #
+  # On a pull_request it diffs the merge commit GitHub tests (refs/pull/N/merge)
+  # against its first parent, the base branch tip. That is exactly what merging
+  # would change, whatever the PR branch is based on. The classifier answers
+  # true only for a non-empty change set made entirely of docs paths. A
+  # surprise, such as a merge commit whose second parent is not the PR head,
+  # answers false. If this job FAILS, generate-rsbs-otr is skipped (its
+  # implicit success() is false), every build is skipped with it, and the
+  # required-check jobs at the bottom go red: a failed check never reads as
+  # docs-only.
+  docs-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+    - name: Git Checkout (the PR merge commit and its two parents)
+      if: github.event_name == 'pull_request'
+      uses: actions/checkout@v4
+      with:
+        # Depth 2 fetches the merge commit and both of its parents. A sparse
+        # checkout clones with --filter=blob:none, which is enough:
+        # `git diff --name-only --no-renames` compares trees, never blobs.
+        fetch-depth: 2
+        sparse-checkout: .github/scripts
+    - name: Classify the change set
+      id: classify
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        if [ "${EVENT_NAME}" != "pull_request" ]; then
+          echo "${EVENT_NAME} event: not a pull request, so the builds run."
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        merged_head="$(git rev-parse --verify --quiet 'HEAD^2' || true)"
+        if [ "${merged_head}" != "${PR_HEAD_SHA}" ]; then
+          echo "::warning::HEAD^2 is '${merged_head}', not the PR head ${PR_HEAD_SHA}; treating the PR as code."
+          echo "docs_only=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # Into a file first, so a failing git diff stops the step before the
+        # classifier can answer from a partial list.
+        git diff -z --name-only --no-renames 'HEAD^1' HEAD > "${RUNNER_TEMP}/changed-paths"
+        python3 .github/scripts/classify-docs-only.py -z --github-output "$GITHUB_OUTPUT" < "${RUNNER_TEMP}/changed-paths"
+
   generate-rsbs-otr:
+    # Skipped on a docs-only PR, and every job that needs it is skipped with
+    # it. The required-check jobs at the bottom then pass without a build.
+    needs: docs-only
+    if: needs.docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     # Prebuilt CI image with cmake 3.26+, gcc-11, ccache, and SDL2/SDL2_net/
     # tinyxml2/libzip already compiled in (.github/docker/build-base.Dockerfile),
@@ -112,6 +190,9 @@ jobs:
         retention-days: 3
 
   build-macos:
+    # Not "build-macos": that required check is reported by the required-
+    # build-macos job at the bottom of this file (#1373).
+    name: macOS build
     needs: generate-rsbs-otr
     # Pinned, not macos-latest: the MacPorts installer is built per macOS
     # release (macos-latest moved to macOS 26 and the Sonoma package refused to
@@ -270,6 +351,9 @@ jobs:
       run: python3 .github/scripts/check-odr-declaration-collisions.py
 
   build-linux:
+    # Not "build-linux": that required check is reported by the required-
+    # build-linux job at the bottom of this file (#1373).
+    name: Linux build
     needs: generate-rsbs-otr
     runs-on: ubuntu-22.04
     # Prebuilt CI image (see generate-rsbs-otr above) — replaces the per-run
@@ -657,6 +741,10 @@ jobs:
     # degradation to ~26 min builds (65.89% hit rate) was 10GB cache-quota LRU
     # eviction caused by per-PR ~2.3GB sccache saves — fixed by the main-only
     # save policy on the "Configure sccache" step below.
+    #
+    # Not "build-windows": that required check is reported by the required-
+    # build-windows job at the bottom of this file (#1373).
+    name: Windows build
     needs: generate-rsbs-otr
     runs-on: windows-latest
     env:
@@ -926,10 +1014,9 @@ jobs:
   # one. It fails when any file differs or exists on one leg only.
   #
   # Cheap (a sparse checkout of one script and two small artifacts) and NOT a
-  # required check, so a docs-only PR, which skips this workflow and gets the
-  # required names from docs-bypass.yml, is unaffected. Skipped when a leg
-  # never ran; runs when a leg is red, because the diff still says whether
-  # the two OSes agree.
+  # required check. Skipped when a leg never ran, as on a docs-only PR, whose
+  # build legs the docs-only job skips; runs when a leg is red, because the
+  # diff still says whether the two OSes agree.
   # ==========================================================================
   digest-crossos-diff:
     needs: [build-linux, build-windows]
@@ -1160,3 +1247,117 @@ jobs:
       run: python3 .github/scripts/check-monotonicity-negations.py --self-test
     - name: Scan both logic graphs for player-state negations (ADR 0010 O6)
       run: python3 .github/scripts/check-monotonicity-negations.py
+
+  # ==========================================================================
+  # Required status checks (#1373)
+  #
+  # The "basic" ruleset requires the check names build-linux, build-windows and
+  # build-macos. Each one is produced by exactly one job in exactly one
+  # workflow: the job below. It reports the outcome of the real build job of
+  # the same id, which is displayed as "Linux build", "Windows build" or
+  # "macOS build" so that its own check run can never satisfy the requirement.
+  #
+  # `if: always()` is the point of these jobs. GitHub reports a job skipped by
+  # its `if`, or by a failed or skipped `needs`, as a success for a required
+  # check ("Use always() with needs for required checks that depend on other
+  # jobs", docs: troubleshooting required status checks). A job that always
+  # runs cannot be skipped, so it can only report what really happened:
+  #   - the build job succeeded                                 -> pass
+  #   - a pull_request the docs-only job PROVED docs-only
+  #     (job succeeded, docs_only=true), so the build skipped   -> pass, no build
+  #   - anything else: the build failed, was cancelled, or was
+  #     skipped because generate-rsbs-otr or docs-only failed   -> FAIL
+  # Until the real job finishes this job has no check run, so the required check
+  # reads "Expected" and the PR cannot merge. That closes the window #1331 merged
+  # through.
+  #
+  # The three jobs run the same script; only BUILD_JOB, BUILD_JOB_NAME and
+  # BUILD_RESULT differ. tools/tests/test_required_checks.py runs the script
+  # against every combination of results and locks the shape of these jobs.
+  # ==========================================================================
+  required-build-linux:
+    name: build-linux
+    needs: [docs-only, build-linux]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Report the Linux build's outcome
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        DOCS_ONLY_RESULT: ${{ needs.docs-only.result }}
+        DOCS_ONLY: ${{ needs.docs-only.outputs.docs_only }}
+        BUILD_JOB: build-linux
+        BUILD_JOB_NAME: Linux build
+        BUILD_RESULT: ${{ needs.build-linux.result }}
+      run: |
+        echo "${BUILD_JOB_NAME} (job ${BUILD_JOB}): '${BUILD_RESULT}'."
+        echo "docs-only job: '${DOCS_ONLY_RESULT}', docs_only='${DOCS_ONLY}'. Event: ${EVENT_NAME}."
+        if [ "${BUILD_RESULT}" = "success" ]; then
+          exit 0
+        fi
+        if [ "${EVENT_NAME}" = "pull_request" ] && [ "${DOCS_ONLY_RESULT}" = "success" ] \
+          && [ "${DOCS_ONLY}" = "true" ] && [ "${BUILD_RESULT}" = "skipped" ]; then
+          echo "Docs-only pull request: nothing to build."
+          exit 0
+        fi
+        echo "::error::${BUILD_JOB_NAME} (job ${BUILD_JOB}) concluded '${BUILD_RESULT}' and this is not a proven docs-only pull request. See that job's log."
+        exit 1
+
+  required-build-windows:
+    name: build-windows
+    needs: [docs-only, build-windows]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Report the Windows build's outcome
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        DOCS_ONLY_RESULT: ${{ needs.docs-only.result }}
+        DOCS_ONLY: ${{ needs.docs-only.outputs.docs_only }}
+        BUILD_JOB: build-windows
+        BUILD_JOB_NAME: Windows build
+        BUILD_RESULT: ${{ needs.build-windows.result }}
+      run: |
+        echo "${BUILD_JOB_NAME} (job ${BUILD_JOB}): '${BUILD_RESULT}'."
+        echo "docs-only job: '${DOCS_ONLY_RESULT}', docs_only='${DOCS_ONLY}'. Event: ${EVENT_NAME}."
+        if [ "${BUILD_RESULT}" = "success" ]; then
+          exit 0
+        fi
+        if [ "${EVENT_NAME}" = "pull_request" ] && [ "${DOCS_ONLY_RESULT}" = "success" ] \
+          && [ "${DOCS_ONLY}" = "true" ] && [ "${BUILD_RESULT}" = "skipped" ]; then
+          echo "Docs-only pull request: nothing to build."
+          exit 0
+        fi
+        echo "::error::${BUILD_JOB_NAME} (job ${BUILD_JOB}) concluded '${BUILD_RESULT}' and this is not a proven docs-only pull request. See that job's log."
+        exit 1
+
+  required-build-macos:
+    name: build-macos
+    needs: [docs-only, build-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - name: Report the macOS build's outcome
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        DOCS_ONLY_RESULT: ${{ needs.docs-only.result }}
+        DOCS_ONLY: ${{ needs.docs-only.outputs.docs_only }}
+        BUILD_JOB: build-macos
+        BUILD_JOB_NAME: macOS build
+        BUILD_RESULT: ${{ needs.build-macos.result }}
+      run: |
+        echo "${BUILD_JOB_NAME} (job ${BUILD_JOB}): '${BUILD_RESULT}'."
+        echo "docs-only job: '${DOCS_ONLY_RESULT}', docs_only='${DOCS_ONLY}'. Event: ${EVENT_NAME}."
+        if [ "${BUILD_RESULT}" = "success" ]; then
+          exit 0
+        fi
+        if [ "${EVENT_NAME}" = "pull_request" ] && [ "${DOCS_ONLY_RESULT}" = "success" ] \
+          && [ "${DOCS_ONLY}" = "true" ] && [ "${BUILD_RESULT}" = "skipped" ]; then
+          echo "Docs-only pull request: nothing to build."
+          exit 0
+        fi
+        echo "::error::${BUILD_JOB_NAME} (job ${BUILD_JOB}) concluded '${BUILD_RESULT}' and this is not a proven docs-only pull request. See that job's log."
+        exit 1
