@@ -110,6 +110,11 @@ uint64_t NextStoneDraw(uint64_t* state) {
 } // namespace
 
 std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {
+    // No Logic (combo rung `none`) proved nothing: the stone keeps its item hint
+    // and claims no area foolish (combo_area.h, Combo_Area_FoolishClaimsAllowed).
+    if (!Combo_Area_FoolishClaimsAllowed()) {
+        return "";
+    }
     ComboFoolishAreas foolish;
     if (Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &foolish) <= 0) {
         return "";

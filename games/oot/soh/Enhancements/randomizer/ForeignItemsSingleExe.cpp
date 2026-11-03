@@ -904,6 +904,41 @@ extern "C" void OoT_Creation_EmitLogicPinToast(void) {
     });
 }
 
+/**
+ * THE ALL LOCATIONS REFUSAL (combo_logic.h ABI 8): Generate's toast when the
+ * single bag's pre-flight found locations no seed can reach under the chosen
+ * settings (RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE), in place of the generic
+ * "Not generated: try a new seed or other options." line, because no new seed
+ * fixes it: only other settings do.
+ * Same shape as the toasts above (one line, the default colours, muted).
+ *
+ * THE COPY names the first location when it fits the overlay's one line (53
+ * characters at 832 px, docs/ui-style-guide.md R-N8), and otherwise only the
+ * count; the stderr lines the coordinator and the single bag printed name every
+ * one. @return the number of unreachable locations named by the coordinator.
+ */
+extern "C" int OoT_Creation_EmitUnreachableToast(void) {
+    static constexpr size_t kPrefixChars = sizeof("Not generated:"); // the prefix and its separating space
+    static constexpr size_t kLineChars = 53;
+    char first[96];
+    const int count = Combo_Logic_FormatUnreachable(first, sizeof(first), 1);
+    if (count <= 0) {
+        return 0;
+    }
+    // One name: "unreachable: Name.", or "unreachable: Name and N more." when there are several.
+    std::string message = std::string("unreachable: ") + first + ".";
+    if (kPrefixChars + message.size() > kLineChars) {
+        message = std::to_string(count) +
+                  (count == 1 ? " location can never be reached." : " locations can never be reached.");
+    }
+    Notification::Emit({
+        .prefix = "Not generated:",
+        .message = message,
+        .mute = true,
+    });
+    return count;
+}
+
 // The completed world, between this completion and the package it is written into.
 // Game-thread state like the bracket above.
 static std::atomic<bool> sPairedWorldComplete{ false };
@@ -1087,6 +1122,9 @@ extern "C" int OoT_PairedGen_CompleteWorld(void) {
     sCreationSequenceLen = 0;
     sCreationSequence[0] = 0;
     sCreationUnprovedHalves = RSBS_COMBO_HALF_NONE_YET;
+    // The fill's report describes THIS completion's fill or none (Generate's
+    // failure toast reads its status; ABI 8's All Locations refusal).
+    Combo_SingleBag_ClearLastReport();
     const int mmRc = MM_Rando_AuthorHalfAtCreation(-1, "", nullptr);
     CreationStep('M');
 

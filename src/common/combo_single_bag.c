@@ -156,6 +156,9 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
             case RSBS_COMBO_FILL_STAGE_SURPLUS:
                 snprintf(w->detail, sizeof(w->detail), "Placing the extra copies");
                 break;
+            case RSBS_COMBO_FILL_STAGE_PREFLIGHT:
+                snprintf(w->detail, sizeof(w->detail), "Checking every location in both worlds can be reached");
+                break;
             default:
                 snprintf(w->detail, sizeof(w->detail), "Placing item %d of %d in both worlds (round %d, batch %d)",
                          p->requiredPlaced + 1, p->requiredCount, p->rounds + 1, p->attempt);
@@ -416,6 +419,15 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
             fprintf(stderr, "[SingleBag] fill failed on ladder attempt %d: %s after %d batch attempt(s), %d rounds%s\n",
                     ladderAttempt + 1, Combo_Logic_StatusName(status), sReport.fill.attempts, sReport.fill.rounds,
                     watch.aborted ? " (the per-attempt round budget stopped it)" : "");
+            if (status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) {
+                // The All Locations pre-flight (ABI 8): a fact of the frozen settings,
+                // so the creation refuses with the names rather than re-seeding.
+                char names[512];
+                const int n = Combo_Logic_FormatUnreachable(names, sizeof(names), 8);
+                fprintf(stderr,
+                        "[SingleBag] All Locations: %d location(s) no seed can reach under these settings: %s\n", n,
+                        names);
+            }
             goto finish;
         }
         // TEST ONLY: H4's measurement point (#575), with both engines live over
@@ -497,15 +509,28 @@ finish:
     return status;
 }
 
-bool Combo_SingleBag_StatusIsWorldDeadEnd(int status) {
+bool Combo_SingleBag_StatusIsWorldDeadEnd(int status, uint8_t rung) {
     switch (status) {
+        // Under a PROVING rung a dead end is a fact of the order this seed drew. Under
+        // `none` the fill draws from EVERY empty host and runs one attempt, so running
+        // out is a capacity fact about the two pools (combo_logic.h on
+        // ERR_NO_CANDIDATE): no seed has more hosts, and climbing would only repeat it.
         case RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE:
+            return rung != (uint8_t)RSBS_COMBO_RUNG_NONE;
         case RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE:
-        case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED:
             return true;
+        // Never a rung (ABI 8): after the All Locations pre-flight held, a final round
+        // that misses a location is an engine fault, not a seed's; and the pre-flight's
+        // own refusal is a fact of the settings, fixed at Generate.
+        case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED:
+        case RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE:
         default:
             return false;
     }
+}
+
+void Combo_SingleBag_ClearLastReport(void) {
+    memset(&sReport, 0, sizeof(sReport));
 }
 
 void Combo_SingleBag_Forget(void) {
