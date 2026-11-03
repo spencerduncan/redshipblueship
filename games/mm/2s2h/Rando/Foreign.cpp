@@ -112,9 +112,11 @@ std::string PairedInputSeedString() {
 /** Options appended after the identity strings were frozen (#1121): each is folded
  *  only when it is not off, as a named term after the positional ones, so the
  *  strings every world created before the option existed hashed are unchanged
- *  with it off (its default) and still distinct with it on. */
+ *  with it off (its default) and still distinct with it on. The two price modes
+ *  (#1427) are off at RO_PRICES_VANILLA, their default. */
 static bool IsAppendedOption(RandoOptionId randoOptionId) {
-    return randoOptionId == RO_SHUFFLE_TREE_DROPS;
+    return randoOptionId == RO_SHUFFLE_TREE_DROPS || randoOptionId == RO_SHOP_PRICES ||
+           randoOptionId == RO_TINGLE_PRICES;
 }
 
 static void FoldAppendedOptions(std::string& s, const uint32_t* values) {

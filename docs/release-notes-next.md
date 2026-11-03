@@ -21,6 +21,14 @@
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
 
+### Majora's Mask randomizer
+
+- **Shop Prices and Tingle Prices** (#1427). Randomizer > MM Randomizer has OoTMM's two price rows under Shuffle Shops
+  & Merchants: Vanilla (the default), Affordable (10 Rupees), Weighted Random and Random (0 to 500 Rupees, Weighted
+  Random favouring low prices). Until now every shuffled shop slot and Tingle map cost a random 0 to 199 Rupees; by
+  default they now cost their vanilla price. Logic asks for the wallet that holds the price, so the All-Night Mask
+  (500 Rupees) needs the Giant's Wallet. The Milk Bar and Gorman's milk keep their vanilla prices, as in OoTMM.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.
