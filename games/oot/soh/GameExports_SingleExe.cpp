@@ -3383,6 +3383,40 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
     });
 }
 
+// ---- Skip Epona Race's Epona (#1351) ----------------------------------------
+//
+// Since #1327 (SoH 29b9b4a5a) Skip Epona Race no longer sets
+// EVENTCHKINF_EPONA_OBTAINED at creation. OoT's item-receive handler sets it
+// when Epona's Song is given for a QUEUED CHECK (hook_handlers.cpp,
+// RandomizerOnItemReceiveHandler, which returns first when none is queued). The
+// song also reaches OoT with no check queued: the Shared Epona's Song apply
+// (OoT_SharedSongGive), an OoT Epona's Song redeemed from a Majora's Mask check
+// (OoT_ConsumeSharedItems) and Start with Epona's Song (savefile.cpp's
+// OoT_Item_Give at creation). Every summon reads the flag (z_horse.c,
+// z_player.c), so without it the song never calls Epona. Under Skip Epona Race,
+// knowing the song IS having Epona: the option's own promise.
+
+static bool OoT_SkipEponaRaceOn(void) {
+    if (!IS_RANDO) {
+        return false;
+    }
+    const std::shared_ptr<Rando::Context> ctx = Rando::Context::GetInstance();
+    return ctx != nullptr && ctx->GetOption(RSK_SKIP_EPONA_RACE).Get() != RO_GENERIC_DONT_SKIP;
+}
+
+// Run at the load seam (OoT_ApplySharedResourcesAtFileLoad), at every arrival
+// (OoT_ConsumeSharedItems, the arrival's last give) and by the Shared Epona's
+// Song give. Idempotent. Written straight into the save, as the family gives
+// write theirs: Flags_SetEventChkInf would also fire the flag-set hooks, and
+// both seams run before gameplay.
+static void OoT_ReconcileEponaObtained(void) {
+    if (!OoT_SkipEponaRaceOn() || !CHECK_QUEST_ITEM(QUEST_SONG_EPONA) || GET_EVENTCHKINF(EVENTCHKINF_EPONA_OBTAINED)) {
+        return;
+    }
+    SET_EVENTCHKINF(EVENTCHKINF_EPONA_OBTAINED);
+    fprintf(stderr, "[OoT] Skip Epona Race: Epona's Song is known, so Epona is obtained (#1351)\n");
+}
+
 /**
  * Consumer hook (ADR 0002 / Lane A1). Award every un-redeemed OoT-origin shared
  * item and mark it redeemed. Called from OoT_Play_Init's presence-gated
@@ -3397,6 +3431,8 @@ static void OoT_AwardSharedItem(const SharedItem* item, void* ctx) {
  */
 extern "C" void OoT_ConsumeSharedItems(void) {
     Combo_RedeemSharedItemsForGame(GAME_OOT, OoT_AwardSharedItem, nullptr);
+    // #1351: after every give of the arrival (the apply runs first, z_play.c).
+    OoT_ReconcileEponaObtained();
 }
 
 // ============================================================================
@@ -3563,6 +3599,9 @@ static bool OoT_SharedSongHeld(uint16_t nativeId) {
 }
 static void OoT_SharedSongGive(uint16_t nativeId) {
     gSaveContext.inventory.questItems |= OoT_SharedSongQuestBit(nativeId);
+    if (nativeId == (uint16_t)RG_EPONAS_SONG) {
+        OoT_ReconcileEponaObtained(); // #1351: the song learnt in Termina calls Epona here too
+    }
 }
 
 // #1069: the Song of Time (OoTMM sharedSongTime). Item_Give(ITEM_SONG_TIME) only
@@ -4179,6 +4218,24 @@ static bool OoT_SaveIsLiveFile(void) {
 // file-select half into the player's slot. Same gate as the harvest.
 extern "C" int OoT_Combo_DepartureIsLiveFile(void) {
     return OoT_SaveIsLiveFile() ? 1 : 0;
+}
+
+// #1351: OoT's Z-targeting mode (0 Switch, 1 Hold) for Majora's Mask to mirror
+// (MM_Combo_MirrorOoTZTargetSetting). SoH keeps it in global.sav and in
+// gSaveContext, so OoT's frozen half carries it. Read from that FROZEN half,
+// never the live gSaveContext: the two games share that storage
+// (src/common/unified_save.c), and it holds MM's layout whenever MM asks. -1
+// when OoT has no frozen half (MM entered without leaving OoT: an MM-only boot,
+// a ROM-free row), so MM keeps its own.
+extern "C" int OoT_Combo_FrozenZTargetSetting(void) {
+    if (!Context_HasFrozenState(GAME_OOT)) {
+        return -1;
+    }
+    const SaveContext* oot = static_cast<const SaveContext*>(Context_GetOoTSaveContext());
+    if (oot == nullptr) {
+        return -1;
+    }
+    return oot->zTargetSetting != 0 ? 1 : 0;
 }
 
 /**
@@ -4879,6 +4936,9 @@ extern "C" void OoT_ApplySharedResourcesAtFileLoad(void) {
     sOoTApplyAtFileLoad = true;
     OoT_ApplySharedResources();
     sOoTApplyAtFileLoad = false;
+    // #1351: a file that already knows Epona's Song (Start with Epona's Song, or
+    // a save written before this fix) gets its Epona here.
+    OoT_ReconcileEponaObtained();
 }
 
 static bool sLastF10State = false;
