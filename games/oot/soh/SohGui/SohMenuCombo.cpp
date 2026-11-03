@@ -1041,6 +1041,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             comboRuleSharedMaskBlast = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BLAST)
                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_BLAST) != 0;
             if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_BLAST_MASK_OOT) == 0) {
+                // Shows off, the value the resolver freezes without the extension
+                // (Combo_ResolveComboItemRules drops the bit); the key keeps its value
+                // for when the extension comes back on.
+                comboRuleSharedMaskBlast = false;
                 info.options->disabled = true;
                 info.options->disabledTooltip = "This setting is disabled because: \n\n- Blast Mask (OoT) Is Off";
             }

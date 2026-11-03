@@ -2289,13 +2289,16 @@ if(BUILD_TESTING)
         # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
         "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
         # #978 (epic #975): EVERY MASK OPTION ON, the one golden the mask phases
-        # share. Today that is P2's five shared masks (OoTMM's sharedMaskGoron,
-        # sharedMaskZora, sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth): five
-        # shared pairs in the bag, five trimmed halves, and a comboSettingsHash no
-        # other golden has. P4 (#979) and P5 (#980) append their mask options to
-        # this line and re-pin this file, rather than adding a golden each. Same
-        # seed and dispatch as seed-digest-default.
-        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1"
+        # share. P2's five shared masks (OoTMM's sharedMaskGoron, sharedMaskZora,
+        # sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth) and, since P4's first
+        # piece (#979), the Blast Mask in OoT and its shared pair (OoTMM's
+        # blastMaskOot, sharedMaskBlast): six shared pairs in the bag, their
+        # trimmed halves, and a comboSettingsHash no other golden has. The Blast
+        # Mask Cooldown is a value, not an on/off option, and stays at Default.
+        # The rest of P4 (#979) and P5 (#980) append their mask options to this
+        # line and re-pin this file, rather than adding a golden each. Same seed
+        # and dispatch as seed-digest-default.
+        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 

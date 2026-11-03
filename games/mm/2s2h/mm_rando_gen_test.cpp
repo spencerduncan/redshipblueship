@@ -3198,9 +3198,10 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         return up;
     }
 
-    // #978: five, for the all-masks golden's five shared-mask keys. The mask phases
-    // P4 (#979) and P5 (#980) add their options to that profile and widen this.
-    static constexpr int kGoldenCVarCap = 5;
+    // #978: the all-masks golden's keys: five shared masks, then #979's Blast Mask
+    // in OoT and Shared Blast Mask. The rest of P4 (#979) and P5 (#980) add their
+    // options to that profile and widen this.
+    static constexpr int kGoldenCVarCap = 7;
     struct GoldenSeed {
         const char* golden;
         const char* ootSeed;
@@ -3237,16 +3238,18 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         // world (GoldenSeedDigestMMNearlyNoLogic now compares it with that golden).
         { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
           0, 1 },
-        // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS).
+        // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS);
+        // #979 added the Blast Mask in OoT and its shared pair (0000083F).
         { "seed-digest-all-masks",
           "RSBSUNIFIED1",
           { "gCombo.Rando.SharedMaskGoron", "gCombo.Rando.SharedMaskZora", "gCombo.Rando.SharedMaskBunny",
-            "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth" },
-          { 1, 1, 1, 1, 1 },
+            "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth", "gCombo.Rando.BlastMaskOoT",
+            "gCombo.Rando.SharedMaskBlast" },
+          { 1, 1, 1, 1, 1, 1, 1 },
           0,
           1,
           RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |
-              RSBS_XITEM_SHARED_TRUTH },
+              RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_SHARED_BLAST },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };

@@ -144,14 +144,24 @@ bool BlastMaskOnButtons() {
 }
 
 /** May a B press be the mask's this frame? OoT_Player_UpdateItems' own gate for
- *  the item buttons, plus OoTMM's (not on Epona, not holding or in a cutscene). */
+ *  the item buttons, plus OoTMM's (not on Epona, not holding or in a cutscene).
+ *  OoTMM takes the press inside Player_ProcessItemButtons, so the mask blasts
+ *  only where OoT processes the item buttons with B live: never hanging from or
+ *  climbing a ledge (those actions never update the items), and never where
+ *  z_parameter.c disables B for the player's state (swimming or diving, a
+ *  ladder or vine, a crawlspace). The player's own flags, not buttonStatus[0],
+ *  which also parks the B item (and a swordless child's marker) on Epona and
+ *  in the minigames. */
 bool PlayerFreeToBlast(PlayState* play, Player* player) {
     const uint32_t busy = PLAYER_STATE1_INPUT_DISABLED | PLAYER_STATE1_TALKING | PLAYER_STATE1_DEAD |
                           PLAYER_STATE1_GETTING_ITEM | PLAYER_STATE1_CARRYING_ACTOR | PLAYER_STATE1_FIRST_PERSON |
-                          PLAYER_STATE1_ON_HORSE | PLAYER_STATE1_IN_ITEM_CS | PLAYER_STATE1_IN_CUTSCENE;
-    return (player->stateFlags1 & busy) == 0u && player->rideActor == nullptr && gSaveContext.health != 0 &&
-           play->csCtx.state == CS_STATE_IDLE && player->csAction == 0 && play->shootingGalleryStatus == 0 &&
-           play->activeCamera == MAIN_CAM && play->transitionTrigger != TRANS_TRIGGER_START;
+                          PLAYER_STATE1_ON_HORSE | PLAYER_STATE1_IN_ITEM_CS | PLAYER_STATE1_IN_CUTSCENE |
+                          PLAYER_STATE1_HANGING_OFF_LEDGE | PLAYER_STATE1_CLIMBING_LEDGE |
+                          PLAYER_STATE1_CLIMBING_LADDER | PLAYER_STATE1_IN_WATER;
+    return (player->stateFlags1 & busy) == 0u && (player->stateFlags2 & PLAYER_STATE2_CRAWLING) == 0u &&
+           player->rideActor == nullptr && gSaveContext.health != 0 && play->csCtx.state == CS_STATE_IDLE &&
+           player->csAction == 0 && play->shootingGalleryStatus == 0 && play->activeCamera == MAIN_CAM &&
+           play->transitionTrigger != TRANS_TRIGGER_START;
 }
 
 /** One blast at Link's focus: OoT's own bomb with its fuse spent. */

@@ -778,7 +778,29 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
                "the writer refused a pre-creation Shared Bottles");
     // #979: the Shared Blast Mask's row is greyed while the Blast Mask (OoT) is off
-    // (OoTMM's cond), so the extension is authored ON for every row to be editable.
+    // (OoTMM's cond), with the extension's reason, and shows off, the value the
+    // resolver freezes without the extension, even with its own key authored on.
+    // The key is cleared after, so the later legs see the shared variant unauthored.
+    if (settingRow[COMBO_SETTING_SHARED_MASK_BLAST] != nullptr) {
+        WidgetInfo& sharedBlastRow = *settingRow[COMBO_SETTING_SHARED_MASK_BLAST];
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BLAST, 1) == 1,
+                   "the writer refused a pre-creation Shared Blast Mask");
+        RunPreFunc(sharedBlastRow);
+        const std::string tip =
+            sharedBlastRow.options->disabledTooltip != nullptr ? sharedBlastRow.options->disabledTooltip : "";
+        ROWS_CHECK(sharedBlastRow.options->disabled && tip.find("Blast Mask (OoT) Is Off") != std::string::npos,
+                   "the Shared Blast Mask row must be greyed with the reason \"Blast Mask (OoT) Is Off\" while its "
+                   "extension is off (disabled=%d, tooltip '%s')",
+                   sharedBlastRow.options->disabled ? 1 : 0, tip.c_str());
+        ROWS_CHECK(StagedBool(sharedBlastRow) == 0,
+                   "the Shared Blast Mask row staged %d with the Blast Mask (OoT) off; the resolver freezes it off, "
+                   "so the row must show off",
+                   StagedBool(sharedBlastRow));
+        Combo_ComboSettingClear(COMBO_SETTING_SHARED_MASK_BLAST);
+        printf("[TEST] leg 3a: with the Blast Mask (OoT) off the Shared Blast Mask row is greyed with the "
+               "extension's reason and shows off (#979)\n");
+    }
+    // Then the extension is authored ON for every row to be editable.
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1,
                "the writer refused a pre-creation Blast Mask (OoT)");
     // #1065: the lens is authored ON through its own row's Callback (the row's
@@ -926,6 +948,21 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]) == 0,
                "the frozen Shared Swim row staged %d; it must show the SAVE's OFF, not the key's ON",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]));
+    // #979: the Blast Mask's three rows show the frozen item rules (every rule off,
+    // the Default cooldown), not the authored Blast Mask (OoT) ON; the Shared Blast
+    // Mask row carries the decided reason, not its extension's.
+    ExpectDecided(*settingRow[COMBO_SETTING_BLAST_MASK_OOT], "the Blast Mask (OoT) row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_BLAST_MASK_OOT]) == 0,
+               "the frozen Blast Mask (OoT) row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_BLAST_MASK_OOT]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST], "the Shared Blast Mask row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST]) == 0,
+               "the frozen Shared Blast Mask row staged %d; it must show the SAVE's OFF",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST]));
+    ExpectDecided(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN], "the Blast Mask Cooldown row");
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]) == (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT,
+               "the frozen Blast Mask Cooldown row staged %d; it must show the SAVE's %d (Default)",
+               StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]), (int)RSBS_BLAST_COOLDOWN_DEFAULT);
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {

@@ -2080,8 +2080,11 @@ and `CVarClassification`.
 ### 2026-11-02 -- The Blast Mask in Ocarina of Time, its shared variant and its cooldown (#979)
 
 Epic #975 P4's first piece, OoTMM's `blastMaskOot`, `sharedMaskBlast` and
-`blastMaskCooldown`, all off or Default, so no world and no golden moves. A new
-"Cross-Game Masks" section (OoTMM's own, after Shared Items) holds three rows:
+`blastMaskCooldown`, all off or Default, so no default world moves. The one golden
+that moves is #978's all-masks profile (`seed-digest-all-masks`), which gains the
+two on/off keys and is re-pinned (`docs/determinism-goldens.md`, "The all-masks
+profile"). A new "Cross-Game Masks" section (OoTMM's own, after Shared Items)
+holds three rows:
 
 - **"[Both Games] Blast Mask (OoT)"**, key `gCombo.Rando.BlastMaskOoT` (0 or 1,
   IDENTITY), the reserved extension bit `RSBS_XITEM_BLAST_MASK_OOT` 0x20. Frozen
@@ -2093,9 +2096,9 @@ Epic #975 P4's first piece, OoTMM's `blastMaskOot`, `sharedMaskBlast` and
   1, IDENTITY), the reserved shared-extension bit `RSBS_XITEM_SHARED_BLAST`
   0x800, a family: OoT's `RG_BLAST_MASK` and MM's `RI_MASK_BLAST`. OoTMM shows it
   only while the extension is on (`cond`); here the row greys with that reason
-  and `Combo_ResolveComboItemRules` drops the bit while the extension key is
-  off, so the resolver never makes a record `Combo_ComboItemRulesValid`
-  refuses.
+  and shows off, and `Combo_ResolveComboItemRules` drops the bit while the
+  extension key is off, so the resolver never makes a record
+  `Combo_ComboItemRulesValid` refuses.
 - **"[Both Games] Blast Mask Cooldown"**, key `gCombo.Rando.BlastMaskCooldown`
   (0..5 on the pinned `RSBS_BLAST_COOLDOWN_*`, IDENTITY), the record's cooldown
   byte, which had no key until now; its divergence bit
@@ -2109,4 +2112,6 @@ Capacity spent: three `ComboSettingId`s, three identity keys (manifest 40 to
 43, identity 20 to 23), no new `RSBS_XITEM_*` bits, format bytes, divergence
 bits or shared-resource slots. Locked by `BlastMaskOoTRule`,
 `BlastMaskOoTItems`, `CrossItemRulesRecord`, `ComboSettingsRows`,
-`ComboSettingsAuthoring`, `SharedLensRule` and `CVarClassification`.
+`ComboSettingsAuthoring`, `SharedLensRule`, `CVarClassification`,
+`GoldenSeedDigestAllMasks` and `GoldenSeedsRoundBudget` (whose all-masks entry
+requires the frozen item rules `0000083F`).

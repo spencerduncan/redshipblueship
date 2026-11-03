@@ -38,7 +38,7 @@ void Randomizer_DrawRocsFeather(PlayState* play, GetItemEntry* getItemEntry);
 // archive (BlastMaskOoT.cpp; single-exe only).
 void Randomizer_DrawBlastMask(PlayState* play, GetItemEntry* getItemEntry);
 
-#define GET_ITEM_MYSTERY                                                                               \
+#define GET_ITEM_MYSTERY                                                                                 \
     {                                                                                                    \
         ITEM_NONE_FE, 0, 0, 0, 0, MOD_RANDOMIZER, MOD_RANDOMIZER, ITEM_NONE_FE, 0, false, ITEM_FROM_NPC, \
             ITEM_CATEGORY_JUNK, ITEM_NONE_FE, MOD_RANDOMIZER, (CustomDrawFunc)Randomizer_DrawMysteryItem \
