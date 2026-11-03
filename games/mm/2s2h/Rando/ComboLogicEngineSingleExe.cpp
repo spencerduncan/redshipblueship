@@ -2514,7 +2514,7 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         // Not a world dead end: a refusal to run (no frozen identity, OoT not at
         // its general-pass point), a missing engine, a capacity overflow, an
         // engine defect, No Logic running out of free hosts, or (ABI 8) the All
-        // Locations pre-flight finding locations no seed can reach. Another seed
+        // Locations pre-flight finding locations, or a goal, no seed can reach. Another seed
         // cannot change any of them, so this is NOT a ladder rung (PR #743
         // review): the ladder fails the creation at once with this reason.
         std::string why = std::string("single-bag fill refused: ") + Combo_Logic_StatusName(status);
@@ -2522,6 +2522,10 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
             char names[512];
             const int count = Combo_Logic_FormatUnreachable(names, sizeof(names), 8);
             why += " - " + std::to_string(count) + " location(s) no seed can reach under these settings: " + names;
+        } else if (status == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE) {
+            why += " - no seed can finish the goal under these settings (Ocarina of Time half " +
+                   std::to_string(report.fill.goalOoT) + ", Majora's Mask half " + std::to_string(report.fill.goalMM) +
+                   " with every required item assumed)";
         } else if (status == RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE) {
             why += " - No Logic: both worlds together hold fewer free checks than the bag's required items (" +
                    std::to_string(report.fill.requiredPlaced) + " placed before they ran out)";

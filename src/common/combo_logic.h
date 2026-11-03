@@ -216,6 +216,15 @@ extern "C" {
  *  (Combo_Logic_UnreachableLocationAt, Combo_Logic_FormatUnreachable). No ladder
  *  rung: another seed cannot reach them either. */
 #define RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE 12
+/** Under RSBS_COMBO_RUNG_ALL_REACHABLE only: THE PRE-FLIGHT reached every location
+ *  but the GOAL expression did not hold with every REQUIRED row assumed. That round
+ *  is the widest reach any fill of this bag can have, so no seed can prove the
+ *  goal under these settings: like ERR_LOCATIONS_UNREACHABLE, a fact fixed at
+ *  Generate. Refused AT ONCE (`attempts` 0, `rounds` 1, nothing placed), with the
+ *  halves that failed in the result's `goalOoT` / `goalMM`, instead of placing the
+ *  whole bag ten times to report ERR_GOAL_UNPROVABLE. No ladder rung. Checked
+ *  after the locations, so a world that misses both reports the named locations. */
+#define RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE 13
 
 /** Its name ("ok", "no-engine", ...), or "(unknown)". Never NULL. */
 const char* Combo_Logic_StatusName(int status);
@@ -1126,9 +1135,18 @@ int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required);
  *  the per-side crossing bound. Refused with HOME_ONLY (a shared pair has no
  *  single home). RAM only; not format. */
 #define RSBS_COMBO_BAG_SHARED_PAIR 0x0004u
+/** `ComboLogicBagItem.bagFlags`: this row is one copy of a SHARED TIER family
+ *  (THE SHARED-QUANTITY CREDIT, below): an ordinary row of its own origin that may
+ *  cross like any other, whose copy ALSO raises the other game's tier, so the
+ *  other game's engine is credited one copy of `pairId` (that game's own id for
+ *  the family) whenever this row's engine is. Refused together with
+ *  RSBS_COMBO_BAG_SHARED_PAIR (a shared pair is already credited in both). RAM
+ *  only; not format. */
+#define RSBS_COMBO_BAG_SHARED_CREDIT 0x0008u
 /** Every bag flag this build understands. A row carrying any other bit is
  *  refused (RSBS_COMBO_LOGIC_ERR_BAD_REQUEST) rather than silently ignored. */
-#define RSBS_COMBO_BAG_FLAGS_KNOWN (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY | RSBS_COMBO_BAG_SHARED_PAIR)
+#define RSBS_COMBO_BAG_FLAGS_KNOWN \
+    (RSBS_COMBO_BAG_SURPLUS | RSBS_COMBO_BAG_HOME_ONLY | RSBS_COMBO_BAG_SHARED_PAIR | RSBS_COMBO_BAG_SHARED_CREDIT)
 
 /** The assumed set / bag element: ONE COPY of an origin-tagged item, the class
  *  it was admitted under, and its bag flags. The class is CARRIED, not filtered
@@ -1137,9 +1155,9 @@ typedef struct {
     SharedItem item;    // originGame must be GAME_OOT or GAME_MM
     uint16_t itemClass; // one RSBS_ITEMCLASS_* bit, or 0 when the caller has none
     uint16_t bagFlags;  // RSBS_COMBO_BAG_* bits; 0 = a REQUIRED copy (the default)
-    /** RSBS_COMBO_BAG_SHARED_PAIR rows only: the OTHER game's id for this
-     *  family, in that game's id-space. Ignored, and may be anything, on every
-     *  other row. */
+    /** RSBS_COMBO_BAG_SHARED_PAIR and RSBS_COMBO_BAG_SHARED_CREDIT rows only: the
+     *  OTHER game's id for this family, in that game's id-space. Ignored, and may
+     *  be anything, on every other row. */
     uint16_t pairId;
 } ComboLogicBagItem;
 
@@ -1517,12 +1535,45 @@ int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, i
 //     item itself, or the dead pickup comes straight back through the per-game
 //     pass. The host the row would have needed is simply one more leftover host.
 //
-// THE PROOF under trimming. Each engine assumes only its own origin's kept
-// copies, and neither engine models the other game's contribution to a shared
-// quantity, so a trimmed family is UNDER-counted in each half's proof: the proof
-// stays sound (the player always holds at least what each engine assumed) and can
-// only get harder. The spread keeps each holder at least one copy for that
-// reason, and combo-logic-measure re-measures both GOALs over the trimmed bag.
+// THE PROOF under trimming. A TIER family the trim treats as one shared family
+// (equal ceilings: wallet, magic, quivers, bomb bags, stick and nut capacity,
+// double defense) is credited to BOTH engines: THE SHARED-QUANTITY CREDIT below.
+// Health and the bottle count are not (two unit grades, and a bottle's contents
+// are its own game's), so each engine assumes only its own origin's kept copies of
+// those, and they are UNDER-counted in each half's proof: the proof stays sound
+// (the player always holds at least what each engine assumed) and can only get
+// harder. The spread keeps each holder at least one copy for that reason, and
+// combo-logic-measure re-measures both GOALs over the trimmed bag.
+//
+// THE SHARED-QUANTITY CREDIT (#1367 R5). Before it, every trimmed tier family was
+// under-counted too, and under the All Locations rung that is not "harder", it is
+// a refusal of every world: the trim keeps two wallets for the pair, one per game,
+// so each engine saw one wallet, and OoT's 300-rupee shop items and MM's bank
+// heart piece (both the Giant's Wallet) read as unreachable by construction, on
+// every seed. OoTMM's shared wallet is one SHARED_WALLET item both games' logic
+// counts (packages/logic/src/world/transform.ts, sharedWallets); so it is here:
+//  1. WHICH FAMILIES. A TIER kind the trim kept as ONE shared family
+//     (Combo_SharedQuantityTierBudget >= 0: equal ceilings, so every kept copy of
+//     either origin raises the one shared tier; shared_items.h). Not under
+//     RSBS_COMBO_QUANTITY_KEEP_ALL (no family is formed), not health, not SLOTS.
+//  2. THE FAR ID. For each such kind and each game, the one id that game's POOL
+//     rows of the kind carry (its own progressive item). A game whose rows of the
+//     kind carry two ids is ambiguous and is credited nothing (the sound
+//     under-count), and so is a game with no row of the kind.
+//  3. THE FLAG. Every REQUIRED or SURPLUS bag row of such a kind that is not a
+//     shared pair carries RSBS_COMBO_BAG_SHARED_CREDIT and the far game's id in
+//     `pairId`. It is otherwise an ordinary row: it crosses, it is counted against
+//     the crossing bound, it is placed as its own item.
+//  4. SEED AND EXCHANGE. An assumed credit row is assumed in its own engine and
+//     its `pairId` in the other's, as a shared pair is. A PLACED one is credited
+//     to the far engine by the exchange, through the gate a crossing from its host
+//     uses (its own engine still harvests it, natively or as a crossing): the
+//     runtime steps the shared tier at pickup and applies it on arrival, so the
+//     far game holds the tier exactly when the player could carry it there. The
+//     exchange keys the credit on the placed item's (origin, id), from the rows
+//     the fill was handed, so placing a row loses none of it.
+// A pure function of the composed bag: no RNG, no host, and the placement digest
+// does not see it (no placement records a credit).
 //
 // `quantityFlags` RSBS_COMBO_QUANTITY_KEEP_ALL switches the trim off for the
 // whole call: the untrimmed bag, for the before/after measurement and for the
@@ -1698,7 +1749,8 @@ typedef struct {
     int bagCount; // rows admitted (REQUIRED + SURPLUS), even when refused for capacity
     int noOrigin; // rows whose origin names no game (refused; counted under no game)
     ComboLogicComposeCounts perGame[RSBS_FOREIGN_POOL_ORIGIN_COUNT]; // indexed by GameId
-    int sharedPairs; // shared-pair rows THE SHARED PAIR made (ABI 7); their trimmed halves count as TRIMMED
+    int sharedPairs;   // shared-pair rows THE SHARED PAIR made (ABI 7); their trimmed halves count as TRIMMED
+    int sharedCredits; // bag rows THE SHARED-QUANTITY CREDIT flagged (#1367 R5)
 } ComboLogicComposeResult;
 
 /**
@@ -1819,8 +1871,10 @@ typedef struct {
     // --- THE PROOF'S HALVES (ADR 0010 §1.2's creation warning). The last proving
     //     round's own per-half answers (1 proved, 0 not), whichever GOAL was the
     //     exit condition; -1 when no proving round held (every failure, a
-    //     pre-attempt refusal, and rung `none`). Reporting only: nothing in the
-    //     fill reads them, so they move no placement.
+    //     pre-attempt refusal, and rung `none`), except ERR_GOAL_UNREACHABLE,
+    //     which reports the pre-flight round's halves (the ones that failed are
+    //     0). Reporting only: nothing in the fill reads them, so they move no
+    //     placement.
     int goalOoT;
     int goalMM;
     // --- THE ALL LOCATIONS RUNG (ABI 8). All 0 / false under every other rung. ---
@@ -1873,7 +1927,9 @@ typedef struct {
  *                                   (Combo_Logic_RunAllLocationsPreflight); a
  *                                   location it does not reach is refused AT
  *                                   ONCE (ERR_LOCATIONS_UNREACHABLE, nothing
- *                                   placed, the locations named). Then the
+ *                                   placed, the locations named), and so is a
+ *                                   GOAL it does not reach
+ *                                   (ERR_GOAL_UNREACHABLE). Then the
  *                                   `beatable` fill, whose exit condition is
  *                                   the GOAL AND every placed host AND every
  *                                   location the pre-flight captured, in BOTH
@@ -1936,14 +1992,16 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
 /** What THE PRE-FLIGHT saw (ABI 8). Diagnostics, not format. */
 typedef struct {
-    int status;         // RSBS_COMBO_LOGIC_OK, _ERR_LOCATIONS_UNREACHABLE, or a refusal
+    int status;         // RSBS_COMBO_LOGIC_OK, _ERR_LOCATIONS_UNREACHABLE, _ERR_GOAL_UNREACHABLE, or a refusal
     int locationsOoT;   // locations captured per game (`allLocations`, or the host table)
     int locationsMM;    //
     int unreachableOoT; // ... and how many of them the round did not reach
     int unreachableMM;  //   (every MM one, when OoT's crossing stayed closed)
     int assumed;        // REQUIRED rows assumed (every non-SURPLUS bag row)
     int crossingOpenOoT;
-    int goalExpression; // the GOAL with every REQUIRED row assumed; -1 unevaluated (reporting only)
+    int goalExpression; // the GOAL with every REQUIRED row assumed; -1 unevaluated
+    int goalOoT;        // that round's own halves (1 reached, 0 not; MM's behind the arrival gate);
+    int goalMM;         //   -1 unevaluated. ERR_GOAL_UNREACHABLE names the failed ones from these
 } ComboLogicPreflightResult;
 
 /**
@@ -1957,10 +2015,12 @@ typedef struct {
  *
  * Nothing is placed and no RNG is drawn. A pure function of (bag, engines).
  *
- * @return RSBS_COMBO_LOGIC_OK when every location was reached,
- *         RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE when one was not, or the
- *         round's own refusal (no engine, a bad request, capacity, an engine
- *         defect). Also written to `out->status` when `out` is non-NULL.
+ * @return RSBS_COMBO_LOGIC_OK when every location was reached and the GOAL held,
+ *         RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE when a location was not,
+ *         RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE when every location was but the
+ *         GOAL was not, or the round's own refusal (no engine, a bad request,
+ *         capacity, an engine defect). Also written to `out->status` when `out`
+ *         is non-NULL.
  */
 int Combo_Logic_RunAllLocationsPreflight(const ComboLogicBagItem* bag, int bagCount, uint8_t goal,
                                          uint16_t triforceRequired, ComboLogicPreflightResult* out);
