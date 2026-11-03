@@ -2997,6 +2997,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # Needs the console variables only: ROM-free and display-free, the default
     # tier. MMModsMount proves the same set drives the real mount and the re-apply.
     redship_add_test(NAME MMModSet COMMAND redship --test mm-mod-set)
+    # OoT'S ENABLED MOD SET KEYED BY PATH (#1196): two archives with one file name in
+    # different folders both mount (each serves a path only it ships), are saved by
+    # their path under mods/ and survive a switch's eviction and re-apply; a list
+    # saved by file name before #1196 migrates to paths keeping its mods and order.
+    # Drives OoT_UpdateModFilesHeadless, the init leg of UpdateModFiles over a staged
+    # tree of zips the row writes itself: ROM-free and archive-free, the default tier.
+    redship_add_test(NAME OoTModSet COMMAND redship --test oot-mod-set)
     # A FOREIGN ITEM'S ICON IN MM'S GET-ITEM TEXTBOX (#607, Tier 2b of #494): every
     # OoT progression item answers a well-formed icon with an MM textbox branch,
     # unknown ids and half-answers fall back, and the REAL CustomMessage load, the

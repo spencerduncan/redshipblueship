@@ -2222,8 +2222,9 @@ void Session::BuildPageList() {
              { "Settings", "General" },
              // SoH's Mod Menu page, labelled OoT Mods since the operator's ruling of 2026-10-27 (its rows are SoH's).
              // Its Popout Mod Menu Window embeds OoT's mod menu while that window is not popped out, and the embedded
-             // menu throws in the harness's fresh config (GetEnabledModsFromCVar yields one empty name and DrawMods's
-             // filePaths.at("") throws), so EnterState draws SoH's row as its button only, never embedding that window.
+             // menu threw in the harness's fresh config until #1196 (GetEnabledModsFromCVar yielded one empty name and
+             // DrawMods's filePaths.at("") threw), so EnterState draws SoH's row as its button only, never embedding
+             // that window; it still does.
              { "Settings", "OoT Mods" },
          }) {
         PageSpec p = menuPage(h, s, Origin::SOH_REFERENCE);

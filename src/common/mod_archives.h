@@ -127,16 +127,20 @@
  *     MM Mods page over its own enabled/disabled lists (#706, mm_mod_set.h).
  *     Making MM read OoT's EnabledMods CVar would let a stale OoT list silently
  *     disable an MM mod, which is worse.
- *   - Registration bookkeeping. Both register only the archives their enabled
- *     set names, but OoT keys them by file-name STEM (so two same-stem archives
- *     in different subfolders collapse to one) and MM by the path inside
- *     `mods/mm` (so they stay two).
  *
- * The walk itself is NOT on that list any more: both globs take the same
- * directory_options and the same error_code discipline (see kModsWalkOptions).
- * PR #704 shipped a third, unstated divergence there — OoT followed directory
- * symlinks and MM did not, so the "a mod may ship as its own folder" installation
- * the docs bless worked under `mods/` and silently did nothing under `mods/mm/`.
+ * Registration bookkeeping is NOT on that list any more (#1196). Both register only
+ * the archives their enabled set names, and both key an archive by its path inside
+ * their half of the tree (OoT relative to `mods/`, MM relative to `mods/mm`), so two
+ * same-named archives in different subfolders are two mods on both sides. OoT keyed
+ * by file-name STEM until then, which collapsed them to one; a list it saved that
+ * way is migrated to paths once (ResolveOoTModSet,
+ * games/oot/soh/Enhancements/mod_menu.cpp).
+ *
+ * Nor is the walk itself: both globs take the same directory_options and the same
+ * error_code discipline (see kModsWalkOptions). PR #704 shipped another, unstated
+ * divergence there — OoT followed directory symlinks and MM did not, so the "a mod
+ * may ship as its own folder" installation the docs bless worked under `mods/` and
+ * silently did nothing under `mods/mm/`.
  *
  * ---------------------------------------------------------------------------
  * Loose (unpacked) asset folders (issue #705)
