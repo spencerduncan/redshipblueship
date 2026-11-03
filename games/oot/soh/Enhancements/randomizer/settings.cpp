@@ -11,7 +11,8 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-#include "static_data.h" // #702: PopulateExcludeLocationsOptions reads the location table
+#include "static_data.h"         // #702: PopulateExcludeLocationsOptions reads the location table
+#include "combo_settings_view.h" // src/common — #1389: whether [Both Games] Triforce Hunt sets the hunt rows
 #endif
 
 namespace Rando {
@@ -443,6 +444,24 @@ void Settings::CreateOptions() {
         }
     });
     OPT_U8(RSK_TRIFORCE_HUNT_PIECES_REQUIRED, "Triforce Hunt Required Pieces", {NumOpts(1, 100)}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("TriforceHuntRequiredPieces"), mOptionDescriptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED], WIDGET_CVAR_SLIDER_INT, 19);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1389: under the Triforce Hunt combo goal OoT's hunt is OoT's half of the
+    // [Both Games] Triforce Pieces / Triforce Goal rows (3drando/playthrough.cpp
+    // derives it), so the three rows are greyed with what decides them, as #1367
+    // did for Logic. Re-run when the goal row changes (SohMenuCombo.cpp).
+    OPT_CALLBACK(RSK_TRIFORCE_HUNT_PIECES_REQUIRED, {
+        if (Combo_ComboSettingsTriforceHuntShown()) {
+            static const char* const kSetBy = "This option is disabled because [Both Games] Triforce Pieces and Triforce Goal on Randomizer > Cross-Game set it under the Triforce Hunt goal: Ocarina of Time holds half of the pieces and half of the goal.";
+            mOptions[RSK_TRIFORCE_HUNT].Disable(kSetBy);
+            mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Disable(kSetBy);
+            mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Disable(kSetBy);
+        } else {
+            mOptions[RSK_TRIFORCE_HUNT].Enable();
+            mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Enable();
+            mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Enable();
+        }
+    });
+#endif
     OPT_U8(RSK_MQ_DUNGEON_RANDOM, "MQ Dungeon Setting", {"None", "Set Number", "Random", "Selection Only"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("MQDungeons"), mOptionDescriptions[RSK_MQ_DUNGEON_RANDOM], WIDGET_CVAR_COMBOBOX, RO_MQ_DUNGEONS_NONE, false, nullptr, IMFLAG_NONE);
     OPT_CALLBACK(RSK_MQ_DUNGEON_RANDOM, {
         switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("MQDungeons"), RO_MQ_DUNGEONS_NONE)) {

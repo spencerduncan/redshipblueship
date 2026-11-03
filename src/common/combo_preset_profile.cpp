@@ -102,7 +102,8 @@ bool OptionIsAuthorable(const ComboMMOptionDesc* desc) {
 /** Why the page will not let a player set @p desc (OptionIsAuthorable false). */
 const char* OptionRefusalReason(const ComboMMOptionDesc* desc) {
     if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
-        return COMBO_LOGIC_SET_BY_COMBO_REASON;
+        // [Both Games] Logic, or [Both Games] Triforce Hunt under its goal (#1389).
+        return Combo_MMOptionsPage_OptionSetByComboReason(desc);
     }
     return desc->disabledReason != NULL ? desc->disabledReason : "not available";
 }

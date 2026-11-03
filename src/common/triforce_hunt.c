@@ -10,7 +10,8 @@
 
 #include "triforce_hunt.h"
 
-#include "foreign_items.h" // RSBS_COMBO_GOAL_*, RSBS_COMBO_DIVERGE_TRIFORCE, Combo_ComboSettingsFrozen
+#include "combo_settings_view.h" // Combo_ComboSettingResolved: the [Both Games] rows' one reader (#1389)
+#include "foreign_items.h"       // RSBS_COMBO_GOAL_*, RSBS_COMBO_DIVERGE_TRIFORCE, Combo_ComboSettingsFrozen
 
 #include <stdio.h>
 #include <string.h>
@@ -27,17 +28,21 @@ const char* Combo_TriforceStatusName(int status) {
             return "over-cap";
         case RSBS_TRIFORCE_ERR_BAD_REQUEST:
             return "bad-request";
+        case RSBS_TRIFORCE_ERR_NO_GOAL:
+            return "no-goal";
+        case RSBS_TRIFORCE_ERR_GOAL_OVER_PIECES:
+            return "goal-over-pieces";
         default:
             return "(unknown)";
     }
 }
 
-/** One half on its own: off is (0, 0); on is 1 <= required <= total. */
+/** One half on its own: it never requires more than it holds, so a half that
+ *  holds nothing requires nothing. A half holding pieces with a zero share of
+ *  the requirement is coherent since #1389 (Combo_TriforceSplit gives MM's half
+ *  that share when the goal is 1): the requirement is one combo number. */
 static bool TriforceHalfCoherent(uint32_t total, uint32_t required) {
-    if (total == 0u) {
-        return required == 0u;
-    }
-    return required >= 1u && required <= total;
+    return required <= total;
 }
 
 /** THE RULE, over plain numbers, so the resolver and the stored-record check
@@ -54,7 +59,11 @@ static int TriforceValidate(uint32_t totalOoT, uint32_t requiredOoT, uint32_t to
         return RSBS_TRIFORCE_ERR_OVER_CAP;
     }
     // requiredOoT + requiredMM <= total follows from each half's own bound, so
-    // the combo requirement can never exceed the pieces the two pools hold.
+    // the combo requirement can never exceed the pieces the two pools hold. A
+    // requirement of zero would be a hunt won before its first piece.
+    if (requiredOoT + requiredMM == 0u) {
+        return RSBS_TRIFORCE_ERR_NO_GOAL;
+    }
     return RSBS_TRIFORCE_OK;
 }
 
@@ -94,6 +103,94 @@ uint16_t Combo_TriforceRecordRequired(const ComboTriforceRecord* rec) {
 
 uint16_t Combo_TriforceRecordTotal(const ComboTriforceRecord* rec) {
     return rec == NULL ? 0u : (uint16_t)((uint32_t)rec->totalOoT + (uint32_t)rec->totalMM);
+}
+
+void Combo_ResolveComboTriforce(uint16_t* outPieces, uint16_t* outGoal) {
+    // Through THE ONE READER, so an unset key and an out-of-space stored value
+    // are both the shipped default, with the reason logged once.
+    const int32_t pieces = Combo_ComboSettingResolved(COMBO_SETTING_TRIFORCE_PIECES);
+    int32_t goal = Combo_ComboSettingResolved(COMBO_SETTING_TRIFORCE_GOAL);
+    // Two keys, one constraint between them: OoTMM clamps its goal to its pieces,
+    // and so does this, so no pair of keys resolves to a hunt nobody can win.
+    if (goal > pieces) {
+        goal = pieces;
+    }
+    if (outPieces != NULL) {
+        *outPieces = (uint16_t)pieces;
+    }
+    if (outGoal != NULL) {
+        *outGoal = (uint16_t)goal;
+    }
+}
+
+int Combo_TriforceSplit(uint16_t pieces, uint16_t goal, ComboTriforceHalf* oot, ComboTriforceHalf* mm) {
+    if (oot != NULL) {
+        memset(oot, 0, sizeof(*oot));
+    }
+    if (mm != NULL) {
+        memset(mm, 0, sizeof(*mm));
+    }
+    if (oot == NULL || mm == NULL) {
+        return RSBS_TRIFORCE_ERR_BAD_REQUEST;
+    }
+    if (pieces == 0u) {
+        return RSBS_TRIFORCE_ERR_NO_PIECES;
+    }
+    if (goal == 0u) {
+        return RSBS_TRIFORCE_ERR_NO_GOAL;
+    }
+    if ((uint32_t)pieces > RSBS_TRIFORCE_COMBO_MAX) {
+        return RSBS_TRIFORCE_ERR_OVER_CAP;
+    }
+    if (goal > pieces) {
+        return RSBS_TRIFORCE_ERR_GOAL_OVER_PIECES;
+    }
+    // OoT takes the larger half of each number, inside its own option range;
+    // MM takes the rest. MM's half of the goal never exceeds its half of the
+    // pieces: uncapped, floor(goal/2) <= floor(pieces/2); capped (pieces > 200),
+    // MM holds pieces-100 >= pieces/2 pieces and requires goal-100 or
+    // floor(goal/2), both within it.
+    uint32_t totalOoT = ((uint32_t)pieces + 1u) / 2u;
+    if (totalOoT > RSBS_TRIFORCE_OOT_HALF_MAX) {
+        totalOoT = RSBS_TRIFORCE_OOT_HALF_MAX;
+    }
+    uint32_t requiredOoT = ((uint32_t)goal + 1u) / 2u;
+    if (requiredOoT > totalOoT) {
+        requiredOoT = totalOoT;
+    }
+    oot->total = (uint16_t)totalOoT;
+    oot->required = (uint16_t)requiredOoT;
+    mm->total = (uint16_t)((uint32_t)pieces - totalOoT);
+    mm->required = (uint16_t)((uint32_t)goal - requiredOoT);
+    return RSBS_TRIFORCE_OK;
+}
+
+uint32_t Combo_TriforceCountsDivergence(const ComboSettingsRecord* settings, const ComboTriforceRecord* rec) {
+    if (settings == NULL || rec == NULL || settings->formatVersion == 0 ||
+        settings->goal != (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT ||
+        Combo_TriforceRecordCheck(rec) != RSBS_TRIFORCE_OK) {
+        return 0u;
+    }
+    uint16_t pieces = 0;
+    uint16_t goal = 0;
+    Combo_ResolveComboTriforce(&pieces, &goal);
+    return (pieces != Combo_TriforceRecordTotal(rec) || goal != Combo_TriforceRecordRequired(rec))
+               ? RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS
+               : 0u;
+}
+
+void Combo_TriforceCountsShown(uint16_t* outPieces, uint16_t* outGoal) {
+    if (Combo_TriforceHuntArmed()) {
+        // The world's own numbers, as every other row shows the frozen record.
+        if (outPieces != NULL) {
+            *outPieces = Combo_TriforceHuntTotal();
+        }
+        if (outGoal != NULL) {
+            *outGoal = Combo_TriforceHuntRequired();
+        }
+        return;
+    }
+    Combo_ResolveComboTriforce(outPieces, outGoal);
 }
 
 int Combo_TriforceFreezeAtCreation(const ComboTriforceHalf* oot, const ComboTriforceHalf* mm) {
@@ -175,6 +272,14 @@ uint16_t Combo_TriforceHuntRequired(void) {
 
 uint16_t Combo_TriforceHuntTotal(void) {
     return Combo_TriforceHuntArmed() ? Combo_TriforceRecordTotal(&gComboCtx.comboTriforce) : 0u;
+}
+
+uint16_t Combo_TriforceHuntShownRequired(uint16_t ownRequired) {
+    return Combo_TriforceHuntArmed() ? Combo_TriforceHuntRequired() : ownRequired;
+}
+
+uint16_t Combo_TriforceHuntShownTotal(uint16_t ownTotal) {
+    return Combo_TriforceHuntArmed() ? Combo_TriforceHuntTotal() : ownTotal;
 }
 
 int Combo_TriforceHuntOnPieceGiven(GameId game, uint16_t countAfterGive, uint16_t ownRequired) {

@@ -2005,6 +2005,17 @@ int Combo_Logic_FormatUnreachable(char* out, size_t cap, int maxNames);
  */
 uint32_t Combo_Logic_UnprovedHalves(const ComboLogicFillResult* res);
 
+/**
+ * Combo_Logic_UnprovedHalves for a fill run under @p goal (#1389). Under
+ * RSBS_COMBO_GOAL_TRIFORCE_HUNT a PROVED fill names no half: its exit condition
+ * is the one shared piece count, and reaching it ends the paired game in
+ * whichever game the last piece is found, so neither game's own goal (a boss
+ * behind a door, or OoT's own requirement) is a condition of finishing it, and
+ * "may be unfinishable" would be the wrong sentence. Rung `none` still names
+ * both, as it proved nothing. Every other goal is Combo_Logic_UnprovedHalves.
+ */
+uint32_t Combo_Logic_UnprovedHalvesForGoal(const ComboLogicFillResult* res, uint8_t goal);
+
 /** How many SURPLUS rows were dropped by the fill attempt that BUILT THE CURRENT
  *  TABLES. The record lives and dies with the tables: Combo_Logic_ResetPlacements
  *  (which every attempt begins with) zeroes it, and a PRE-ATTEMPT REFUSAL touches
@@ -2060,9 +2071,9 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap);
 //    requirement the request carries (Combo_Logic_EvaluateTriforceHunt); the
 //    record, the shared count and the win arms live in triforce_hunt.h. It is
 //    refused only over an engine without the query, or with no requirement.
-//    The PRODUCTION caller does not pass the requirement yet, so a paired
-//    triforce-hunt creation is refused at Generate (playthrough.cpp) until the
-//    single bag carries the hunt.
+//    The production caller passes the frozen requirement since #1389
+//    (combo_single_bag.c), so a paired triforce-hunt world is generated and
+//    proved like any other.
 //  - THE SPOILER. One artifact for the pair is #564 V23 / audit P11; this
 //    coordinator exposes its tables and stops there (the creation event prints
 //    the crossing store into the one spoiler's combo section).

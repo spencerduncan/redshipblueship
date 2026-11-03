@@ -1330,6 +1330,13 @@ int Combo_FreezeLegacyComboSettings(void);
 /** A spare byte of the frozen item rules is nonzero, or differs: a record this
  *  build cannot fully read, from a later build (#976). */
 #define RSBS_COMBO_DIVERGE_ITEM_RULES_SPARE 0x10000u
+/** The [Both Games] Triforce Pieces / Triforce Goal rows (#1389) differ from the
+ *  pieces and goal a frozen triforce-hunt world's record describes
+ *  (Combo_TriforceCountsDivergence, triforce_hunt.h). A SESSION divergence, like
+ *  the goal: the two keys author it, so a load restores them from the file. Set
+ *  by the load's check; the arrival compares MM's half instead
+ *  (Combo_TriforceHalfDiverges), which these keys decide. */
+#define RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS 0x20000u
 
 /**
  * Which item-rule FIELDS differ between a frozen record and a live resolution,

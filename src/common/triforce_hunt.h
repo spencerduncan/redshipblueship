@@ -18,10 +18,11 @@
  * ComboLogicEngine vtable in combo_logic.h):
  *
  *   1. THE FROZEN RECORD. The requirement and the split of pieces between the
- *      two pools are decided ONCE, at creation, from each half's own settings
- *      (ComboTriforceRecord in context.h states the rule). After that each
- *      half's settings are inputs that were used, not a truth either game
- *      consults for the hunt.
+ *      two pools are decided ONCE, at creation (ComboTriforceRecord in
+ *      context.h states the rule). Since #1389 they come from the pair's two
+ *      [Both Games] rows, OoTMM's triforcePieces and triforceGoal, through
+ *      Combo_TriforceSplit, and each game generates its half from that split;
+ *      before it they were each half's own settings, summed.
  *   2. THE COUNT. RSBS_SHARED_RES_TRIFORCE_PIECES, a MONOTONIC shared resource
  *      (shared_resources.h): each game's own counter is a mirror of it. A
  *      collect in either game raises that game's counter; the suspend harvest
@@ -59,8 +60,19 @@ extern "C" {
 
 /** The largest combo total the pair can carry: OoT mirrors the count in its
  *  8-bit `triforcePiecesCollected`, so a larger total would wrap OoT's counter
- *  (the #726 class). MM's counter is 16-bit and is not the bound. */
+ *  (the #726 class). MM's counter is 16-bit and is not the bound. OoTMM's own
+ *  `triforcePieces` reaches 999; the [Both Games] rows stop here (#1389). */
 #define RSBS_TRIFORCE_COMBO_MAX 255u
+
+/** The [Both Games] rows' defaults (#1389): OoTMM's `triforcePieces` (30) and
+ *  `triforceGoal` (20). */
+#define RSBS_TRIFORCE_COMBO_DEFAULT_PIECES 30u
+#define RSBS_TRIFORCE_COMBO_DEFAULT_GOAL 20u
+
+/** The most pieces OoT's own half can hold: SoH's RSK_TRIFORCE_HUNT_PIECES_TOTAL
+ *  is a 1..100 option, so a larger OoT half could not be written into the
+ *  settings OoT generates from (Combo_TriforceSplit puts the rest in MM's). */
+#define RSBS_TRIFORCE_OOT_HALF_MAX 100u
 
 /** One half's own settings, as that half's resolver reads them. `total == 0`
  *  means that half's own hunt is off (and then `required` must be 0 too). RAM
@@ -77,13 +89,20 @@ typedef struct {
 /** Neither half's own hunt is on: a triforce-hunt world with no pieces in
  *  either pool can never be won. */
 #define RSBS_TRIFORCE_ERR_NO_PIECES 1
-/** A half is incoherent: its hunt is on with a zero requirement, it requires
- *  more than its own pool holds, or its hunt is off with a nonzero requirement. */
+/** A half is incoherent: it requires more than its own pool holds (a half
+ *  holding no pieces must require none). Since #1389 a half holding pieces may
+ *  require none: the requirement is ONE combo number, and the [Both Games]
+ *  split gives MM's half a zero share when the goal is 1. */
 #define RSBS_TRIFORCE_ERR_BAD_HALF 2
 /** The combo total exceeds RSBS_TRIFORCE_COMBO_MAX. */
 #define RSBS_TRIFORCE_ERR_OVER_CAP 3
 /** A NULL where a pointer is required. */
 #define RSBS_TRIFORCE_ERR_BAD_REQUEST 4
+/** Pieces, but no requirement at all (#1389): a hunt won at its start. */
+#define RSBS_TRIFORCE_ERR_NO_GOAL 5
+/** The [Both Games] goal asks for more pieces than the [Both Games] total
+ *  places (#1389). The resolver clamps; only a direct caller reaches this. */
+#define RSBS_TRIFORCE_ERR_GOAL_OVER_PIECES 6
 
 /** Its name ("ok", "no-pieces", ...), or "(unknown)". Never NULL. */
 const char* Combo_TriforceStatusName(int status);
@@ -108,6 +127,63 @@ bool Combo_TriforceRecordPresent(const ComboTriforceRecord* rec);
 /** The combo requirement / total a record describes (the sums). 0 for NULL. */
 uint16_t Combo_TriforceRecordRequired(const ComboTriforceRecord* rec);
 uint16_t Combo_TriforceRecordTotal(const ComboTriforceRecord* rec);
+
+// ---- The [Both Games] rows (#1389, OoTMM's triforcePieces / triforceGoal) ------
+//
+// OoTMM authors the hunt as TWO combo-level numbers, the pieces placed and the
+// pieces required, and that is what a paired world freezes now. The record above
+// is unchanged (no format change): it stores the two halves the numbers SPLIT
+// into, and each game generates its own half from the same split (OoT's
+// Playthrough_Init writes RSK_TRIFORCE_HUNT_PIECES_*, MM's paired profile
+// resolution writes RO_TRIFORCE_PIECES_*), so the per-half settings are no
+// longer inputs under the hunt: their rows are read-only, "Set by [Both Games]
+// Triforce Hunt", as #1372 did for Logic.
+
+/**
+ * The pair's ONE hunt as the [Both Games] rows author it: `gCombo.Rando.
+ * TriforcePieces` and `gCombo.Rando.TriforceGoal` through the combo settings
+ * resolver (each 1..RSBS_TRIFORCE_COMBO_MAX, an unset or out-of-space key its
+ * default), the goal clamped to the pieces: OoTMM's settings page caps its goal
+ * at its pieces the same way. Either pointer may be NULL.
+ */
+void Combo_ResolveComboTriforce(uint16_t* outPieces, uint16_t* outGoal);
+
+/**
+ * THE SPLIT (#1389): the two halves the combo `pieces` and `goal` freeze as.
+ *
+ *   OoT holds ceil(pieces / 2), capped at RSBS_TRIFORCE_OOT_HALF_MAX (OoT's own
+ *   option range); MM holds the rest. OoT requires ceil(goal / 2), capped at its
+ *   own half; MM requires the rest.
+ *
+ * So each half holds at least what it requires (goal <= pieces), OoT always
+ * holds a piece and requires one (OoT's options store total-1 and required-1),
+ * and MM's share of the goal is 0 only when the goal is 1. The default 30 / 20
+ * splits 15 / 10 and 15 / 10. Pure.
+ *
+ * @return RSBS_TRIFORCE_OK with both halves written; otherwise both zeroed and
+ *         BAD_REQUEST (a NULL), NO_PIECES (pieces 0), NO_GOAL (goal 0),
+ *         GOAL_OVER_PIECES (goal > pieces) or OVER_CAP (pieces past
+ *         RSBS_TRIFORCE_COMBO_MAX).
+ */
+int Combo_TriforceSplit(uint16_t pieces, uint16_t goal, ComboTriforceHalf* oot, ComboTriforceHalf* mm);
+
+/**
+ * Do the live [Both Games] rows (Combo_ResolveComboTriforce) differ from the
+ * pieces and goal a STORED triforce-hunt record describes? RSBS_COMBO_DIVERGE_
+ * TRIFORCE_COUNTS (foreign_items.h) when they do, 0 otherwise: for a record that
+ * is not a formatted triforce-hunt world's, or that fails its own check (that is
+ * RSBS_COMBO_DIVERGE_TRIFORCE's damage, not a session change). A SESSION bit:
+ * the two keys author it, so a load restores them from the record
+ * (Combo_ComboSettingsRestoreLiveEx) before MM's profile is compared.
+ */
+uint32_t Combo_TriforceCountsDivergence(const ComboSettingsRecord* settings, const ComboTriforceRecord* rec);
+
+/**
+ * The pieces and goal the [Both Games] rows show: the frozen record's sums while
+ * a frozen triforce-hunt world is resident, else what the next creation
+ * resolves. Either pointer may be NULL.
+ */
+void Combo_TriforceCountsShown(uint16_t* outPieces, uint16_t* outGoal);
 
 /**
  * THE CREATION FREEZE. Called by the creation event right after the combo
@@ -160,6 +236,17 @@ bool Combo_TriforceHuntArmed(void);
 /** The resident world's combo requirement / total; 0 when not armed. */
 uint16_t Combo_TriforceHuntRequired(void);
 uint16_t Combo_TriforceHuntTotal(void);
+
+/**
+ * What a game's own piece displays show (#1389): its pickup text, its
+ * completed-Triforce model, its pause screen and its item tracker. While the
+ * combo hunt is armed the count they show is the ONE combo count, so the
+ * requirement and the total beside it are the combo's, never the game's own
+ * share of them (a share would read "completed" halfway through the hunt);
+ * otherwise the game's own @p ownRequired / @p ownTotal, as upstream shows them.
+ */
+uint16_t Combo_TriforceHuntShownRequired(uint16_t ownRequired);
+uint16_t Combo_TriforceHuntShownTotal(uint16_t ownTotal);
 
 // ---- The win trigger ---------------------------------------------------------
 /** The give did not reach a requirement. */

@@ -27,6 +27,7 @@
 #include "combo_mm_options_view.h" // Combo_CVarIsExplicitInt: the same unset probe the MM pane uses
 #include "cvar_shared_keys.h"      // the RSBS_CVAR_COMBO_RANDO_* key literals
 #include "foreign_items.h"         // the pinned value spaces, the defaults, Combo_ComboSettingsFrozen
+#include "triforce_hunt.h"         // #1389: the Triforce Hunt rows' defaults and bound, the record's sums
 
 namespace {
 
@@ -60,6 +61,9 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SWIM, "Shared Swim" },
     { RSBS_CVAR_COMBO_RANDO_LOGIC, "Logic" }, // #1367: OoTMM's `logic`, under its own name
+    // #1389: OoTMM's `triforcePieces` and `triforceGoal`, under their own names.
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, "Triforce Pieces" },
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, "Triforce Goal" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -161,6 +165,13 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             // nobody shuffles swim in never freezes it), and only a world that
             // shuffles swim somewhere freezes the bit this key authors.
             return 1;
+        case COMBO_SETTING_TRIFORCE_PIECES:
+            // #1389: OoTMM's defaults. No record field holds them (the triforce
+            // record stores their split, and only under the hunt goal), so
+            // triforce_hunt.h is their one definition.
+            return (int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_PIECES;
+        case COMBO_SETTING_TRIFORCE_GOAL:
+            return (int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_GOAL;
         default:
             return 0;
     }
@@ -210,6 +221,13 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
             return value == 0 || value == 1;
+        case COMBO_SETTING_TRIFORCE_PIECES: // #1389
+        case COMBO_SETTING_TRIFORCE_GOAL:
+            // 1..255: a hunt places at least one piece and asks for at least one,
+            // and OoT's 8-bit counter mirrors the one count (OoTMM's 999 would
+            // wrap it). The goal's own bound, the pieces, is a relation between
+            // two keys: the resolver clamps it (Combo_ResolveComboTriforce).
+            return value >= 1 && value <= (int32_t)RSBS_TRIFORCE_COMBO_MAX;
         default:
             return false;
     }
@@ -362,6 +380,17 @@ uint8_t Combo_ComboSettingsLogicRungShown(void) {
     return live.logicRung;
 }
 
+bool Combo_ComboSettingsTriforceHuntShown(void) {
+    // The rung's rule (Combo_ComboSettingsLogicRungShown): the frozen record's
+    // goal while a world is decided, else the goal the next creation resolves.
+    if (Combo_ComboSettingsFrozen()) {
+        return gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+    }
+    ComboSettingsRecord live;
+    Combo_ResolveComboSettings(&live);
+    return live.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+}
+
 const char* Combo_ComboDirectionName(uint8_t direction) {
     switch (direction) {
         case (uint8_t)RSBS_COMBO_DIR_OFF:
@@ -393,6 +422,11 @@ const Restorable kRestorable[] = {
     // a session staged at another puts its own rung back, like the goal. Every
     // world made before the key froze Beatable Only, the key's default.
     { RSBS_COMBO_DIVERGE_LOGIC_RUNG, COMBO_SETTING_LOGIC },
+    // #1389: the Triforce Hunt's pieces and goal, beside the goal they serve.
+    // One divergence bit for both keys; each is written only when it differs.
+    // Their values are the file's triforce record's sums (FrozenValue).
+    { RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS, COMBO_SETTING_TRIFORCE_PIECES },
+    { RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS, COMBO_SETTING_TRIFORCE_GOAL },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },
     // The item rules (#976) diverge as ONE bit, crossItemFlags; each keyed rule
@@ -429,8 +463,15 @@ bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules) {
     return ((frozenFlags ^ live.crossItemFlags) & ~Combo_ComboItemRuleKeyedBits()) == 0u;
 }
 
-int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules, ComboSettingId id) {
+int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                    const ComboTriforceRecord* frozenTriforce, ComboSettingId id) {
     switch (id) {
+        case COMBO_SETTING_TRIFORCE_PIECES:
+            // #1389: the record's sums (Combo_TriforceRecordTotal is 0 for NULL,
+            // which is outside the key's space, so no record restores nothing).
+            return (int32_t)Combo_TriforceRecordTotal(frozenTriforce);
+        case COMBO_SETTING_TRIFORCE_GOAL:
+            return (int32_t)Combo_TriforceRecordRequired(frozenTriforce);
         case COMBO_SETTING_DIRECTION:
             return (int32_t)frozen->direction;
         case COMBO_SETTING_GOAL:
@@ -520,6 +561,11 @@ uint32_t Combo_ComboSettingsUnrestorableBits(const ComboItemRulesRecord* frozenR
 
 int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                       uint32_t divergedBits) {
+    return Combo_ComboSettingsCanRestoreLiveEx(frozen, frozenRules, nullptr, divergedBits);
+}
+
+int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                        const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits) {
     if (frozen == nullptr || divergedBits == 0) {
         return 0;
     }
@@ -536,7 +582,7 @@ int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const C
     // An item rule's value is one bit, 0 or 1, so it is always in its space.
     for (const Restorable& r : kRestorable) {
         if ((divergedBits & r.bit) != 0u &&
-            !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, frozenRules, r.id))) {
+            !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, frozenRules, frozenTriforce, r.id))) {
             return 0;
         }
     }
@@ -545,6 +591,12 @@ int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const C
 
 int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                    uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo) {
+    return Combo_ComboSettingsRestoreLiveEx(frozen, frozenRules, nullptr, divergedBits, names, len, undo);
+}
+
+int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                     const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits, char* names,
+                                     size_t len, ComboSettingsKeyUndo* undo) {
     if (names != nullptr && len > 0) {
         names[0] = '\0';
     }
@@ -553,7 +605,7 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
     }
     // The same answer the file-select probe got (#836), so the probe and the
     // load cannot disagree about whether the file can restore its rules.
-    if (Combo_ComboSettingsCanRestoreLive(frozen, frozenRules, divergedBits) == 0) {
+    if (Combo_ComboSettingsCanRestoreLiveEx(frozen, frozenRules, frozenTriforce, divergedBits) == 0) {
         return 0;
     }
 
@@ -562,12 +614,14 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
         if ((divergedBits & r.bit) == 0u) {
             continue;
         }
-        // One divergence bit covers every item rule (crossItemFlags): write only
-        // the keys whose rule actually differs, so a load names what it changed.
-        // Every differing rule is keyed (checked above), so this makes the
-        // resolver's crossItemFlags the file's exactly.
-        const int32_t value = FrozenValue(frozen, frozenRules, r.id);
-        if (r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS && Combo_ComboSettingResolved(r.id) == value) {
+        // One divergence bit covers every item rule (crossItemFlags), and one
+        // both Triforce Hunt numbers (#1389): write only the keys whose value
+        // actually differs, so a load names what it changed. Every differing
+        // rule is keyed (checked above), so this makes the resolver's
+        // crossItemFlags the file's exactly.
+        const int32_t value = FrozenValue(frozen, frozenRules, frozenTriforce, r.id);
+        if ((r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS || r.bit == RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS) &&
+            Combo_ComboSettingResolved(r.id) == value) {
             continue;
         }
         // #1369: a shuffle-gated rule the file froze OFF is the rule inert at

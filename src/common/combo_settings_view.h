@@ -145,6 +145,14 @@ typedef enum {
     // Beatable Only (2, the default every earlier world froze) and No Logic (1).
     // OoT's RSK_LOGIC_RULES and MM's RO_LOGIC derive from it at creation.
     COMBO_SETTING_LOGIC, // gCombo.Rando.Logic -> record.logicRung (RSBS_COMBO_RUNG_*)
+    // #1389: OoTMM's `triforcePieces` and `triforceGoal`, the pair's ONE Triforce
+    // Hunt (read only under the triforce-hunt goal). 1..RSBS_TRIFORCE_COMBO_MAX
+    // (255, OoT's 8-bit counter; OoTMM allows 999), defaults 30 and 20. Not fields
+    // of this record: they freeze as the two halves of ComboTriforceRecord
+    // (Combo_TriforceSplit, triforce_hunt.h), and both games' own piece settings
+    // derive from that split at creation.
+    COMBO_SETTING_TRIFORCE_PIECES, // gCombo.Rando.TriforcePieces -> comboTriforce totals (their sum)
+    COMBO_SETTING_TRIFORCE_GOAL,   // gCombo.Rando.TriforceGoal -> comboTriforce requirements (their sum)
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -295,6 +303,19 @@ const char* Combo_ComboDirectionName(uint8_t direction);
 uint8_t Combo_ComboSettingsLogicRungShown(void);
 
 /**
+ * THE PAIR'S TRIFORCE HUNT (#1389). Under the triforce-hunt goal the pieces and
+ * the requirement are the [Both Games] Triforce Pieces / Triforce Goal rows, and
+ * each game's own Triforce Hunt rows only follow them (OoTMM has no per-game
+ * hunt), so those rows are read-only with this reason. Never NULL.
+ */
+#define COMBO_TRIFORCE_SET_BY_COMBO_REASON "Set by [Both Games] Triforce Hunt"
+
+/** Is the goal the next world freezes, or the resident world's frozen goal,
+ *  the triforce hunt? What the per-game Triforce Hunt rows' read-only state
+ *  follows (#1389). */
+bool Combo_ComboSettingsTriforceHuntShown(void);
+
+/**
  * What a load-time restore wrote, so it can be put back exactly (#781): for
  * each rule, whether the restore wrote its key, and whether the key was SET
  * before (and to what) or unset.
@@ -314,7 +335,8 @@ typedef struct ComboSettingsKeyUndo {
  * arrival compare, which reads the same keys, then agrees with the file.
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
- * (Combo_ComboSettingsRestorableMask: goal, the logic rung since #1367, crossing
+ * (Combo_ComboSettingsRestorableMask: goal, the logic rung since #1367, the
+ * Triforce Hunt's pieces and goal since #1389 (through the Ex form), crossing
  * direction, the Shared Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
  * from the session has a key: today the Shared Shields, #1068, the Shared
  * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, the Shared Song
@@ -348,6 +370,20 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
  *  question (#836). */
 int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                       uint32_t divergedBits);
+
+/**
+ * The two above with the file's frozen triforce record too (#1389): the
+ * [Both Games] Triforce Pieces / Triforce Goal keys go back to the record's sums
+ * when @p divergedBits carries RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS. A NULL
+ * @p frozenTriforce leaves that bit unrestorable (its values read 0, outside the
+ * keys' space), which is what the two functions above are: these with NULL. The
+ * load path calls these.
+ */
+int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                     const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits, char* names,
+                                     size_t len, ComboSettingsKeyUndo* undo);
+int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                        const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits);
 
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */

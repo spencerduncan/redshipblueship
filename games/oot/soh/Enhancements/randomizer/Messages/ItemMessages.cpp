@@ -14,6 +14,7 @@
 #include <soh/ResourceManagerHelpers.h>
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "soh/Enhancements/randomizer/ForeignModelHostOoT.h" // the show-only get-item entry (#577 M4)
+#include "triforce_hunt.h" // src/common — #1389: the paired hunt's requirement, for the piece text
 #endif
 
 extern "C" {
@@ -335,6 +336,10 @@ void BuildIceTrapMessage(CustomMessage& msg) {
 void BuildTriforcePieceMessage(CustomMessage& msg) {
     uint8_t current = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected + 1;
     uint8_t required = OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1389: the counter is the paired hunt's one count, so is the requirement.
+    required = (uint8_t)Combo_TriforceHuntShownRequired(required);
+#endif
     uint8_t remaining = required - current;
     float percentageCollected = (float)current / (float)required;
 

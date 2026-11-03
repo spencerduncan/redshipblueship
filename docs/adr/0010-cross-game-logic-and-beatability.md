@@ -2641,3 +2641,50 @@ Logic setting follows it.
   `seed-digest-mm-nearly-no-logic.txt` is read by no row, and its
   `GoldenSeedsRoundBudget` entry is gone. A No Logic golden
   (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run.
+
+### 2026-11-02 -- O10: the hunt is the pair's `[Both Games] Triforce Pieces` / `Triforce Goal` (#1389)
+
+The paired Triforce Hunt is generated now. Following OoTMM (`triforcePieces`
+default 30, `triforceGoal` default 20), the hunt is two combo-level numbers, not
+each half's own settings summed (this amends the O10 rule above and §1.2's "the
+goal's parameters are each half's own authored settings" for this goal).
+
+- **Two keys.** `gCombo.Rando.TriforcePieces` and `gCombo.Rando.TriforceGoal`
+  (`COMBO_SETTING_TRIFORCE_PIECES` / `_GOAL`), rows under Win Condition on
+  Randomizer > Cross-Game shown while the goal is Triforce Hunt. Range 1..255:
+  OoT mirrors the one count in its 8-bit counter, so OoTMM's 999 is capped. The
+  goal resolves clamped to the pieces, as OoTMM's page caps it.
+- **The split, no format change.** `Combo_TriforceSplit` turns the two numbers
+  into the record's two halves: OoT holds ceil(pieces/2), capped at 100 (its own
+  option range), and requires ceil(goal/2) capped at its pieces; MM holds and
+  requires the rest. The record keeps its four bytes; its sums are the keys'
+  values. A half with pieces and a zero share of the requirement is coherent now
+  (MM's share of a goal of 1); a hunt requiring nothing is refused.
+- **Each game generates its half.** OoT's `Playthrough_Init` writes
+  `RSK_TRIFORCE_HUNT` ("Win"), `_PIECES_TOTAL` and `_PIECES_REQUIRED` from the
+  split before the settings hash; MM's paired resolution (`ResolveProfileValues`)
+  writes `RO_SHUFFLE_TRIFORCE_PIECES`, `_MAX` and `_REQUIRED` (off, at the
+  defaults, when MM holds no piece), so both identities fold the hunt. The
+  creation freeze checks that both games generate exactly the split. Under any
+  other goal nothing is derived and no world moves. Each game's own hunt rows are
+  read-only under the goal ("Set by [Both Games] Triforce Hunt"), as Logic's are.
+- **The bag carries it.** Both games' pieces are WORLD_EVENT rows, which no
+  record arms, so the production compose admits them HOME_ONLY: each game's
+  pieces are proof-counted bag rows on its own hosts. The single bag passes the
+  frozen requirement (`freq.triforceRequired`), and the Generate refusal above is
+  gone. A proved hunt names no unproved half (`Combo_Logic_UnprovedHalvesForGoal`):
+  the count ends the game, not either boss.
+- **Loading.** The two keys are restorable (`RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS`,
+  a session bit): a load puts the file's sums back before the MM profile, and the
+  file-select probe classifies MM's profile at the file's goal and counts
+  (`MM_Rando_ClassifyProfileForLoadAtFileRules`). No world created before this
+  had the hunt goal (Generate refused it), so none needs a legacy candidate.
+- **Displays.** Each game's own piece text, completed model, pause entry and
+  item tracker show the combo requirement (and total) while the hunt is armed
+  (`Combo_TriforceHuntShownRequired` / `_ShownTotal`), not the game's share.
+
+Locked by `ComboTriforceHunt` (T2's relaxed half, T11's split over every
+authorable pair), `ComboTriforceRows` (keys, clamp, freeze, the win from either
+game, the restore directly and through `SaveManager::Load`, MM's rows),
+`PairedTriforceBag` (rando: a real paired hunt places exactly 12 pieces, 6 on
+each game's own hosts, and proves 8), and `ComboSettingsRows` (the two sliders).

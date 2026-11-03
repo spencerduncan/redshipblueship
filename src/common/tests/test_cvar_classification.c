@@ -2501,10 +2501,10 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 20,
-                            "exactly twenty tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+            CVARCLASS_CHECK(identityKeys == 22,
+                            "exactly twenty-two tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, [Both Games] "
-                            "Logic, #1367, the Shared "
+                            "Logic, #1367, [Both Games] Triforce Pieces and Triforce Goal, #1389, the Shared "
                             "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, Shared "
                             "Epona's Song and Song of Storms, #1066, the Shared Ocarina Buttons, #1067, the "
                             "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "

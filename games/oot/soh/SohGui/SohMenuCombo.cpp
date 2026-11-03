@@ -79,8 +79,11 @@
 // gSaveContext.
 #include "combo_settings_view.h"
 #include "foreign_items.h"
+#include "triforce_hunt.h" // #1389: the Triforce Hunt rows' bound, defaults and shown counts
 // The status sentences every randomizer page of ours shares (#1101 decision 7).
 #include "combo_mm_options_page.h"
+// #1389: OoT's own Triforce Hunt rows re-run their greying when the goal changes.
+#include "soh/Enhancements/randomizer/settings.h"
 
 #include <cctype> // toupper, for the disabled reason's Title Case
 #include <cstdio> // snprintf, for the combo-rule status line and fingerprint
@@ -123,6 +126,8 @@ using namespace UIWidgets;
 static int32_t comboRuleDirection;
 static int32_t comboRuleGoal;              // ADR 0010 D1: ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*)
 static int32_t comboRuleLogic;             // #1367: ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*)
+static int32_t comboRuleTriforcePieces;    // #1389: the triforce record's total (its two halves' sum)
+static int32_t comboRuleTriforceGoal;      // #1389: the triforce record's requirement (its two halves' sum)
 static bool comboRuleSharedKokiriSword;    // #886: ComboSettingsRecord.comboFlags' shared-sword bit
 static bool comboRuleSharedShields;        // #1068: ComboItemRulesRecord.crossItemFlags' shared-shields bit
 static bool comboRuleSharedLens;           // #1065: the item rules' RSBS_XITEM_SHARED_LENS bit
@@ -413,6 +418,33 @@ static void ComboRuleLogicPreFunc(WidgetInfo& info) {
 }
 
 /**
+ * The Triforce Hunt rows' per-frame refresh (#1389): OoTMM's triforcePieces and
+ * triforceGoal, shown only while the goal row shows Triforce Hunt (as SoH hides
+ * its own piece sliders while its hunt is off). Their values are the frozen
+ * record's sums once a hunt world is decided, else what the next creation
+ * resolves (the goal clamped to the pieces), and the goal slider stops at the
+ * pieces, as OoTMM's does.
+ */
+static void ComboRuleTriforcePreFunc(WidgetInfo& info, bool goalRow) {
+    uint16_t pieces = 0;
+    uint16_t goal = 0;
+    Combo_TriforceCountsShown(&pieces, &goal);
+    comboRuleTriforcePieces = (int32_t)pieces;
+    comboRuleTriforceGoal = (int32_t)goal;
+    info.isHidden = !Combo_ComboSettingsTriforceHuntShown();
+    if (goalRow) {
+        std::static_pointer_cast<IntSliderOptions>(info.options)->Max(pieces > 0 ? (int32_t)pieces : 1);
+    }
+    ComboRuleApplyDecided(info, Combo_ComboSettingsFrozen());
+}
+
+/** OoT's own Triforce Hunt rows grey or come back with the goal (#1389): their
+ *  option callback (settings.cpp) asks the goal, and runs only when told. */
+static void ComboRuleRefreshOoTHuntRows() {
+    Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).RunCallback();
+}
+
+/**
  * The status line above the rows — ADR 0004 §6 state 4's "labelled with the
  * reason and with the identity it is frozen to", and the one place the state is
  * legible without hovering (a disabled widget's tooltip is not, and under a race
@@ -627,7 +659,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_GOAL), WIDGET_COMBOBOX)
         .ValuePointer(&comboRuleGoal)
         .PreFunc(ComboRuleGoalPreFunc)
-        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_GOAL, comboRuleGoal); })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_GOAL, comboRuleGoal);
+            ComboRuleRefreshOoTHuntRows(); // #1389
+        })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
                      .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. The paired "
@@ -636,10 +671,36 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                               "Ganon & Majora: Defeat both Ganon and Majora, in any order. Both games are "
                               "finishable.\n"
                               "Any Final Boss: Defeat either Ganon or Majora. The other game may be unfinishable.\n"
-                              "Triforce Hunt: Collect Triforce Pieces from both games. Paired worlds cannot be "
-                              "created with this goal yet.\n"
+                              "Triforce Hunt: Collect Triforce Pieces from both games. The game ends when you hold "
+                              "the Triforce Goal, in whichever game you find the last piece.\n"
                               "Ganon: Defeat Ganon. Majora's Mask may be unfinishable.\n"
                               "Majora: Defeat Majora. Ocarina of Time may be unfinishable."));
+    // The Triforce Hunt (#1389): OoTMM's triforcePieces and triforceGoal, its
+    // defaults (30, 20), one count across both games. Under the goal they ride,
+    // shown only while it is Triforce Hunt. 255 at most: Ocarina of Time counts
+    // the pieces in one byte (OoTMM allows 999).
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_TRIFORCE_PIECES) + ": %d", WIDGET_SLIDER_INT)
+        .ValuePointer(&comboRuleTriforcePieces)
+        .PreFunc([](WidgetInfo& info) { ComboRuleTriforcePreFunc(info, false); })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, comboRuleTriforcePieces); })
+        .Options(IntSliderOptions()
+                     .Min(1)
+                     .Max((int32_t)RSBS_TRIFORCE_COMBO_MAX)
+                     .DefaultValue((int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_PIECES)
+                     .Tooltip("How many Triforce Pieces are placed across both games: half in each, at most 100 in "
+                              "Ocarina of Time. At most 255, the most Ocarina of Time can count."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_TRIFORCE_GOAL) + ": %d", WIDGET_SLIDER_INT)
+        .ValuePointer(&comboRuleTriforceGoal)
+        .PreFunc([](WidgetInfo& info) { ComboRuleTriforcePreFunc(info, true); })
+        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, comboRuleTriforceGoal); })
+        .Options(IntSliderOptions()
+                     .Min(1)
+                     .Max((int32_t)RSBS_TRIFORCE_COMBO_MAX)
+                     .DefaultValue((int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_GOAL)
+                     .Tooltip("How many Triforce Pieces win the game. Pieces found in either game count together, "
+                              "and the game ends in whichever game you find the last one. Capped at Triforce "
+                              "Pieces."));
 
     // The pair's logic (#1367, operator ruling 2026-11-02): OoTMM's `logic`, its
     // values and their meaning, one row for both games. Each game's own Logic row

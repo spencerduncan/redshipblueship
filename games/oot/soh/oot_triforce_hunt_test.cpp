@@ -342,10 +342,10 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
     const uint8_t hunt = (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
 
     // ---- H1: authored "Ganon's Boss Key" under the combo hunt -> "Win" ------
-    // The generation itself may be refused later in Playthrough_Init (a paired
-    // triforce-hunt world is not carried by the single-bag fill yet); the mode
-    // is decided right after the settings are finalized, before any refusal,
-    // so the context holds the effective mode either way.
+    // The mode is decided right after the settings are finalized, before any
+    // later refusal, so the context holds the effective mode either way. (Since
+    // #1389 the creation is no longer refused, and the mode is the [Both Games]
+    // hunt's: OoT's half is generated as "Win" whatever OoT's own row says.)
     const int rc1 = GenerateAuthored(hunt, RO_TRIFORCE_HUNT_GBK, "RSBSHUNTGBK997");
     OTH_ASSERT(rc1 != -100, "H1: the authored combo goal did not reach the creation's resolver");
     auto ctx = Rando::Context::GetInstance();
@@ -358,8 +358,8 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
                "Ganon's Boss Key at RC_TRIFORCE_COMPLETED behind OoT's OWN requirement while the game grants it only "
                "at the COMBO requirement, as the paired game ends (#997)");
     // What the effective mode places: the fixed placements of OoT's item pool.
-    // The refused creation never reached Fill(), so no location pool exists
-    // yet: build it first, as VanillaFill and Fill do (fill.cpp), or the item
+    // A creation refused before Fill() leaves no location pool behind, so it is
+    // built first, as VanillaFill and Fill do (fill.cpp), or the item
     // pool's junk count (locCount - itemPool.size(), a size_t) wraps on an
     // empty pool and the junk loop never ends. RegionTable_Init comes first, as
     // it does there: it binds the world graph's `ctx` (location_access.cpp),

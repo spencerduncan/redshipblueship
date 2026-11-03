@@ -1047,6 +1047,8 @@ const char* Combo_ComboSettingsDivergenceFieldName(uint32_t bit) {
             return "blastMaskCooldown";
         case RSBS_COMBO_DIVERGE_ITEM_RULES_SPARE:
             return "itemRulesSpare";
+        case RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS:
+            return "triforceCounts";
         default:
             return "(unknown)";
     }
