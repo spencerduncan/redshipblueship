@@ -95,6 +95,34 @@ TITLESETUP_EXEMPT_SITES = {
 # transition and NO exempt marker at all.
 TITLESETUP_GAME_OVER_FILE = "games/mm/src/overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope_NES.c"
 
+# The same hazard from the port layer (#1378). games/mm/2s2h is where the
+# single exe's own MM code lives, and the scan above never read it: the console
+# reset (#1274) entered MM's title chain from there with no guard, and on a
+# vanilla file that crossed into MM it laundered MM's bootstrap into the file's
+# MM half exactly as #532 did. Both of the title chain's entry points count
+# there: ConsoleLogo_Init runs the logo and then enters MM_TitleSetup_Init
+# (ovl_title/z_title.c), so a transition into either authors the bootstrap.
+MM_2S2H = REPO_ROOT / "games" / "mm" / "2s2h"
+TITLE_CHAIN_TARGETS = ("MM_TitleSetup_Init", "ConsoleLogo_Init")
+# What makes such a transition safe: one of the exit reroutes above, or a
+# retire of the cross-game session ahead of it. The retire counts here, and
+# not in the games/mm/src scan, because the only 2s2h transitions are
+# deliberate returns to title (a reset), where ending the session IS the
+# correct outcome; an exit taken in play must keep the session instead, which
+# only the reroutes do.
+TITLE_CHAIN_2S2H_GUARDS = TITLESETUP_GUARDS + ("Context_InvalidateSessionOnReturnToTitle",)
+# 2s2h sources with a title-chain transition that the single exe never links,
+# each with the games/mm/CMakeLists.txt EXCLUDE regex that keeps it out (as
+# written in the CMake string). test_title_chain_2s2h_unlinked_sites_stay_unlinked
+# holds the exclusion in place, so this cannot become an escape hatch.
+TITLE_CHAIN_2S2H_UNLINKED = {
+    # 2Ship's own `reset` console command; MM_DebugConsole_Reset in
+    # GameExports_SingleExe.cpp is its single-exe replacement (#1274).
+    "games/mm/2s2h/DeveloperTools/DebugConsole.cpp": r"2s2h/DeveloperTools/.*\\.cpp$",
+}
+# The site #1378 guarded, pinned by name so the scan cannot go vacuous on it.
+TITLE_CHAIN_RESET_FILE = "games/mm/2s2h/GameExports_SingleExe.cpp"
+
 
 def _parse(path):
     return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -259,7 +287,7 @@ def _strip_comments(text):
     return "\n".join(out)
 
 
-def _guard_is_wired_above(lines, lineno):
+def _guard_is_wired_above(lines, lineno, guards=TITLESETUP_GUARDS):
     """True when a real CALL to one of the exit guards sits just above `lineno`.
 
     Comments are stripped (see _strip_comments) and the `extern` prototype is
@@ -269,7 +297,7 @@ def _guard_is_wired_above(lines, lineno):
     window = lines[max(0, lineno - 1 - TITLESETUP_LOOKBACK) : lineno]
     code = _strip_comments("\n".join(window))
     return any(
-        any(guard in stripped for guard in TITLESETUP_GUARDS)
+        any(guard in stripped for guard in guards)
         and not stripped.lstrip().startswith("extern")
         for stripped in code.splitlines()
     )
@@ -519,6 +547,108 @@ def test_titlesetup_guard_cannot_be_satisfied_by_a_comment():
             "}",
         ]
         assert _guard_is_wired_above(guarded_call, 3), f"{guard} must count as a real guard"
+
+
+def _title_chain_transitions_2s2h():
+    """Every `SET_NEXT_GAMESTATE` into MM's title chain in games/mm/2s2h CODE.
+
+    Read from comment-stripped text, unlike the games/mm/src scan: the reroute
+    docs in GameExports_SingleExe.cpp quote `SET_NEXT_GAMESTATE(MM_TitleSetup_Init)`
+    in prose. The whole file is stripped before the guard window is cut, so a
+    window that starts inside a doc comment cannot read that comment as code.
+
+    Yields (repo-relative posix path, 1-based line number, the file's
+    comment-stripped lines, the target named).
+    """
+    for path in sorted(p for p in MM_2S2H.rglob("*") if p.suffix in (".c", ".cpp", ".h")):
+        code = _strip_comments(path.read_text(encoding="utf-8", errors="replace")).splitlines()
+        rel = path.relative_to(REPO_ROOT).as_posix()
+        for lineno, line in enumerate(code, start=1):
+            if "SET_NEXT_GAMESTATE" not in line:
+                continue
+            for target in TITLE_CHAIN_TARGETS:
+                if target in line:
+                    yield rel, lineno, code, target
+
+
+def test_title_chain_transitions_in_2s2h_are_guarded():
+    """#1378: the port layer may not enter MM's title chain over a live session.
+
+    MM_DebugConsole_Reset (#1274) sent MM_gGameState to ConsoleLogo_Init with
+    no condition. MM's TitleSetup retires a PAIRED file's session itself, but a
+    vanilla OoT file that crossed into MM has no paired identity, so the
+    bootstrap was authored over the live MM half while the slot and OoT's frozen
+    blob stayed resident; the next F10 froze it as MM's shadow and OoT's next
+    save wrote it into Tier-3. A transition here passes when a guard from
+    TITLE_CHAIN_2S2H_GUARDS is called just above it, or when the file is one the
+    single exe never links (TITLE_CHAIN_2S2H_UNLINKED, held in place below).
+
+    Counterfactual: delete the Context_InvalidateSessionOnReturnToTitle() call
+    from MM_DebugConsole_Reset and this fails naming GameExports_SingleExe.cpp.
+    """
+    offenders = []
+    for rel, lineno, code, target in _title_chain_transitions_2s2h():
+        if rel in TITLE_CHAIN_2S2H_UNLINKED:
+            continue
+        if _guard_is_wired_above(code, lineno, TITLE_CHAIN_2S2H_GUARDS):
+            continue
+        offenders.append(f"{rel}:{lineno} ({target})")
+    assert not offenders, (
+        "title-chain transitions in games/mm/2s2h with no "
+        f"{' / '.join(TITLE_CHAIN_2S2H_GUARDS)} call just above them "
+        "(#532/#1378 -- MM's title authors a vanilla bootstrap over a live cross-game session): "
+        f"{offenders}"
+    )
+
+
+def test_title_chain_2s2h_scan_sees_the_reset():
+    """Guard against the guard: the 2s2h scan must see the site it was written for.
+
+    It must find MM_DebugConsole_Reset's ConsoleLogo_Init transition, read it as
+    guarded by the retire call and by nothing else (remove that one line and it
+    reads unguarded), and must NOT report the prose quotes of
+    `SET_NEXT_GAMESTATE(MM_TitleSetup_Init)` in the same file.
+    """
+    sites = [(lineno, code, target) for rel, lineno, code, target in _title_chain_transitions_2s2h()
+             if rel == TITLE_CHAIN_RESET_FILE]
+    assert [target for _, _, target in sites] == ["ConsoleLogo_Init"], (
+        f"expected exactly MM_DebugConsole_Reset's ConsoleLogo_Init transition in {TITLE_CHAIN_RESET_FILE}, "
+        f"found {[(lineno, target) for lineno, _, target in sites]}"
+    )
+    lineno, code, _ = sites[0]
+    assert _guard_is_wired_above(code, lineno, TITLE_CHAIN_2S2H_GUARDS), "the reset's transition must read as guarded"
+
+    retire = "Context_InvalidateSessionOnReturnToTitle"
+    without_retire = [line if retire not in line else "" for line in code]
+    assert not _guard_is_wired_above(without_retire, lineno, TITLE_CHAIN_2S2H_GUARDS), (
+        f"the reset's transition must be guarded by its {retire}() call, not by something else in the window"
+    )
+
+    found = {rel for rel, _, _, _ in _title_chain_transitions_2s2h()}
+    for rel in TITLE_CHAIN_2S2H_UNLINKED:
+        assert rel in found, f"TITLE_CHAIN_2S2H_UNLINKED names {rel}, which no longer has a title-chain transition"
+
+
+def test_title_chain_2s2h_unlinked_sites_stay_unlinked():
+    """An unlinked site is exempt only while the single exe really leaves it out.
+
+    Each entry must be removed by its EXCLUDE regex in games/mm/CMakeLists.txt
+    and named by no CMake line outside a comment (the DeveloperTools directory
+    is excluded wholesale and three of its files are re-added by name). If
+    either changes, the file's transition reaches the binary and must be
+    guarded instead.
+    """
+    cmake_code = [line.split("#", 1)[0] for line in MM_CMAKELISTS.read_text(encoding="utf-8").splitlines()]
+    for rel, exclude in TITLE_CHAIN_2S2H_UNLINKED.items():
+        assert any(f'EXCLUDE REGEX "{exclude}"' in line for line in cmake_code), (
+            f"{rel} is exempt from the title-chain scan as unlinked, but games/mm/CMakeLists.txt no longer has "
+            f'EXCLUDE REGEX "{exclude}"'
+        )
+        in_repo = rel[len("games/mm/"):]
+        cmake_regex = exclude.replace("\\\\", "\\")  # the CMake string's "\\." is the regex "\."
+        assert re.search(cmake_regex, in_repo), f"the EXCLUDE regex {exclude!r} does not match {in_repo}"
+        re_added = [line.strip() for line in cmake_code if in_repo in line]
+        assert not re_added, f"{rel} is exempt as unlinked, but games/mm/CMakeLists.txt names it: {re_added}"
 
 
 def _function_body(path, name):
