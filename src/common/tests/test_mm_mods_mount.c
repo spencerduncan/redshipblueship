@@ -72,12 +72,12 @@
  *      function UpdateModFiles's own loop iterates — and MountAndRegisterOoTMod, the
  *      same per-archive mount+register pair the init leg calls. The leg asserts OoT
  *      claims the root-level archive and registers NEITHER mods/mm archive under
- *      GAME_OOT. What the seam does NOT drive, and what therefore stays uncovered,
- *      is the init leg's menu bookkeeping around that call: the enabled-set filter
- *      and the stem-keyed `filePaths` map that collapses two same-stem archives in
- *      different subfolders to one registration. PR #704's docstring claimed the
- *      seam registered "exactly as the init leg does"; it does not, and the seam's
- *      own contract now says so.
+ *      GAME_OOT. What the seam does NOT drive is the init leg's menu bookkeeping
+ *      around that call: the enabled-set filter and its order. PR #704's docstring
+ *      claimed the seam registered "exactly as the init leg does"; it does not, and
+ *      the seam's own contract now says so. That bookkeeping (keyed by path since
+ *      #1196, so two same-named archives in different subfolders are two
+ *      registrations) is the OoTModSet row's, through OoT_UpdateModFilesHeadless.
  *   2. MM's real glob (MM_MountModArchivesHeadless -> MountMMModArchives) mounts
  *      the two staged mods/mm archives and NOT the root-level one, recurses into
  *      mods/mm/sub, ignores a non-archive file, sorts by file-name stem, and
