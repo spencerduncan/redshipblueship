@@ -16,6 +16,10 @@
 #include "soh/Enhancements/randomizer/randomizer_item_tracker.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/settings.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "soh/Notification/Notification.h"
+#include "combo_preset_profile.h" // #1368: the Rando Settings block carries the whole paired profile
+#endif
 
 namespace fs = std::filesystem;
 
@@ -86,6 +90,17 @@ void applyPreset(std::string presetName, std::vector<PresetSection> includeSecti
                 std::find(includeSections.begin(), includeSections.end(), i) == includeSections.end()) {
                 continue;
             }
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1368: the Rando Settings block is one paired profile, so while a paired world is decided none of it
+            // applies (gRandoSettings included), rather than whichever half no freeze gate guards.
+            if (i == PRESET_SECTION_RANDOMIZER) {
+                if (const std::string note = ComboPresetProfile_RefusalNote(); !note.empty()) {
+                    spdlog::warn("Preset '{}': Rando Settings not applied. {}", presetName, note);
+                    Notification::Emit({ .message = "Rando Settings not applied. " + note });
+                    continue;
+                }
+            }
+#endif
             if (i == PRESET_SECTION_TRACKERS) {
                 ItemTracker_LoadFromPreset(info.presetValues["blocks"][blockInfo[i].names[1]]["windows"]);
                 if (info.presetValues["blocks"][blockInfo[i].names[1]]["windows"].contains("Check Tracker")) {
@@ -105,6 +120,11 @@ void applyPreset(std::string presetName, std::vector<PresetSection> includeSecti
             }
 
             for (auto& item : section.items()) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                if (i == PRESET_SECTION_RANDOMIZER && item.key() == COMBO_PRESET_PAIRED_PROFILE_KEY) {
+                    continue; // not a CVar block: applied key by key below
+                }
+#endif
                 if (section[item.key()].is_null()) {
                     CVarClearBlock(item.key().c_str());
                 } else {
@@ -124,6 +144,15 @@ void applyPreset(std::string presetName, std::vector<PresetSection> includeSecti
                 }
             }
             if (i == PRESET_SECTION_RANDOMIZER) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #1368: MM's options, trap types, tricks and excluded checks and the Cross-Game rules, through their
+                // own writers (which refuse reserved and unbound tricks and out-of-space values). Saved at once: a
+                // later section's SetBlock reloads the CVar store from the config file.
+                if (section.contains(COMBO_PRESET_PAIRED_PROFILE_KEY)) {
+                    ComboPresetProfile_Apply(section[COMBO_PRESET_PAIRED_PROFILE_KEY], sectionStrategy == "merge");
+                    CVarSave();
+                }
+#endif
                 Rando::Settings::GetInstance()->UpdateAllOptions();
                 SohGui::UpdateMenuTricks();
                 SohGui::UpdateMenuLocations();
@@ -344,6 +373,13 @@ void DrawNewPresetPopup() {
                 }
             }
         }
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1368: the paired half of the Rando Settings block, beside gRandoSettings.
+        if (saveSection[PRESET_SECTION_RANDOMIZER]) {
+            presets[newPresetName].presetValues["blocks"][blockInfo[PRESET_SECTION_RANDOMIZER].names[1]]
+                                               [COMBO_PRESET_PAIRED_PROFILE_KEY] = ComboPresetProfile_Capture();
+        }
+#endif
         if (saveSection[PRESET_SECTION_TRACKERS]) {
             for (auto id : itemTrackerWindowIDs) {
                 auto window = ImGui::FindWindowByName(id);

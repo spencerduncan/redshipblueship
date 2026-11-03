@@ -1,7 +1,8 @@
 {
     "blocks": {
         "rando": {
-            "gRandoSettings": null
+            "gRandoSettings": null,
+            "pairedProfile": null
         }
     },
     "presetName": "Rando Seed Settings - Reset to Default",

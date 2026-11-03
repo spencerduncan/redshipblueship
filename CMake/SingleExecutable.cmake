@@ -88,6 +88,10 @@ set(REDSHIP_COMMON_SOURCES
     # singleton and the read must be guarded on its existence.
     ${CMAKE_SOURCE_DIR}/src/common/combo_settings_view.cpp
     ${CMAKE_SOURCE_DIR}/src/common/ComboSettingsWindow.cpp
+    # The paired half of a preset's Rando Settings block (#1368): MM's options,
+    # trap types, tricks and excluded checks and the Cross-Game rules, captured
+    # beside gRandoSettings and applied through each key's own writer.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_preset_profile.cpp
     # The combo-logic coordinator (ADR 0010 increment 3, #645; O4 = composition):
     # the union bag, the two origin-keyed placement tables and the round loop,
     # over a registered per-game engine vtable. Game-header-free like
