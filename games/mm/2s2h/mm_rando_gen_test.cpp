@@ -3316,7 +3316,7 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         if (gComboCtx.comboItemRules.crossItemFlags != g.itemRules) {
             fprintf(stderr,
                     "[MM-GOLDEN-ROUNDS] FAIL(12): golden seed %s froze item rules %08X, its profile names %08X — a "
-                    "key the profile sets did not reach the frozen world\n",
+                    "key the profile sets did not reach the frozen world, or a rule it does not name froze\n",
                     g.golden, (unsigned)gComboCtx.comboItemRules.crossItemFlags, (unsigned)g.itemRules);
             rc = 12;
             break;
