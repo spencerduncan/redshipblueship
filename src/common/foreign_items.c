@@ -202,6 +202,8 @@ const char* Combo_ComboItemRuleName(uint32_t bit) {
             return "sharedShields";
         case RSBS_XITEM_SHARED_SONG_TIME:
             return "sharedSongTime";
+        case RSBS_XITEM_SHARED_SWIM:
+            return "sharedSwim";
         default:
             return "(unknown)";
     }
@@ -246,11 +248,18 @@ void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
     // The cooldown and the spares keep their defaults: nothing authors them yet.
     // With no key set this is the shipped defaults byte for byte, so every world
     // whose player leaves the rules alone keeps its fingerprint.
+    //
+    // A SHUFFLE-GATED rule (#1369, Shared Swim, whose key ships on) is never set
+    // here: whether it freezes depends on the two games' shuffles, which a session
+    // cannot see. The creation adds it (Combo_ComboItemRulesApplyCreationShuffles)
+    // and every compare reads it as the file decided it
+    // (Combo_ComboItemRulesLiveForFile).
     if (out == NULL) {
         return;
     }
     Combo_ComboItemRulesDefaults(out);
-    out->crossItemFlags = Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_ALL_V1;
+    out->crossItemFlags =
+        Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_ALL_V1 & ~(uint32_t)RSBS_XITEM_SHUFFLE_GATED;
     if (!Combo_ComboItemRulesValid(out)) {
         // Unreachable while every keyed rule is a plain shared rule; a keyed
         // shared extension authored without its extension would land here.
@@ -273,6 +282,60 @@ bool Combo_ComboCrossItemRule(uint32_t bit) {
 uint8_t Combo_ComboBlastMaskCooldown(void) {
     return Combo_ComboSettingsFrozen() ? gComboCtx.comboItemRules.blastMaskCooldown
                                        : (uint8_t)RSBS_BLAST_COOLDOWN_DEFAULT;
+}
+
+bool Combo_ComboSharedShuffleCoupled(uint32_t giveCap) {
+    // The frozen record only: before a world exists there is nothing to couple,
+    // and after it the coupling is world identity (#1369).
+    switch (giveCap) {
+        case RSBS_GIVECAP_SWIM:
+            return Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SWIM);
+        case RSBS_GIVECAP_OCARINA_BUTTONS:
+            return Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_OCARINA_BUTTONS) &&
+                   (gComboCtx.comboSettings.comboFlags & (uint8_t)RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS) != 0u;
+        default:
+            return false;
+    }
+}
+
+uint32_t Combo_ComboCouplingAuthored(void) {
+    const uint32_t authored = Combo_ComboItemRulesAuthored();
+    uint32_t caps = 0u;
+    if ((authored & (uint32_t)RSBS_XITEM_SHARED_SWIM) != 0u) {
+        caps |= (uint32_t)RSBS_GIVECAP_SWIM;
+    }
+    if ((authored & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u) {
+        caps |= (uint32_t)RSBS_GIVECAP_OCARINA_BUTTONS;
+    }
+    return caps;
+}
+
+void Combo_ComboItemRulesApplyCreationShuffles(ComboSettingsRecord* settings, ComboItemRulesRecord* rules,
+                                               uint32_t shuffled) {
+    if (rules != NULL) {
+        // Shared Swim ships on but freezes only where swim is shuffled: a world
+        // nobody shuffles swim in keeps the all-clear record (and every golden).
+        const bool swimOn = (Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_SHARED_SWIM) != 0u &&
+                            (shuffled & (uint32_t)RSBS_GIVECAP_SWIM) != 0u;
+        rules->crossItemFlags = swimOn ? (rules->crossItemFlags | (uint32_t)RSBS_XITEM_SHARED_SWIM)
+                                       : (rules->crossItemFlags & ~(uint32_t)RSBS_XITEM_SHARED_SWIM);
+    }
+    if (settings != NULL) {
+        const bool coupled = rules != NULL &&
+                             (rules->crossItemFlags & (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS) != 0u &&
+                             (shuffled & (uint32_t)RSBS_GIVECAP_OCARINA_BUTTONS) != 0u;
+        settings->comboFlags =
+            coupled ? (uint8_t)(settings->comboFlags | (uint8_t)RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS)
+                    : (uint8_t)(settings->comboFlags & (uint8_t)~RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS);
+    }
+}
+
+void Combo_ComboItemRulesLiveForFile(const ComboItemRulesRecord* frozen, ComboItemRulesRecord* live) {
+    if (live == NULL) {
+        return;
+    }
+    const uint32_t frozenGated = (frozen != NULL) ? (frozen->crossItemFlags & (uint32_t)RSBS_XITEM_SHUFFLE_GATED) : 0u;
+    live->crossItemFlags |= frozenGated & Combo_ComboItemRulesAuthored();
 }
 
 void Combo_ComboItemRulesCanonical(const ComboItemRulesRecord* rec, uint8_t* out) {
@@ -831,7 +894,10 @@ uint32_t Combo_ComboSettingsDivergenceBetween(const ComboSettingsRecord* frozen,
     if ((flagsDelta & (uint8_t)RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD) != 0u) {
         bits |= RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD;
     }
-    if ((flagsDelta & (uint8_t)~RSBS_COMBO_FLAGS_ALL_V1) != 0u) {
+    // #1369's coupled-buttons marker has no rule name of its own (no key authors
+    // it; the session compare reads it as the file decided it), so a raw diff of
+    // it is reported at the byte, with the unallocated bits.
+    if ((flagsDelta & (uint8_t)(~RSBS_COMBO_FLAGS_ALL_V1 | RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS)) != 0u) {
         bits |= RSBS_COMBO_DIVERGE_COMBO_FLAGS;
     }
     if (frozen->spare1 != live->spare1) {
@@ -894,15 +960,23 @@ uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, c
     // fingerprint still pins it.
     live.comboFlags = (uint8_t)((live.comboFlags & (uint8_t)~RSBS_COMBO_FLAG_SHARED_OCARINA) |
                                 (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA));
+    // And the coupled-buttons marker (#1369): no key authors it either. The
+    // creation derives it from the Shared Ocarina Buttons rule (compared below)
+    // and the two games' button shuffles (each game's own profile), so the file's
+    // bit is the session's, and the fingerprint pins it.
+    live.comboFlags = (uint8_t)((live.comboFlags & (uint8_t)~RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS) |
+                                (frozen->comboFlags & (uint8_t)RSBS_COMBO_FLAG_COUPLED_OCARINA_BUTTONS));
     uint32_t bits = Combo_ComboSettingsDivergenceBetween(frozen, &live);
 
     // #976: the item rules against the session's. Deliberately NOT given the
     // pool-size treatment above (live := frozen): nothing in this build can
     // honour a rule that is on, so a file whose rules differ from what this
     // session would freeze is a different world, and one-game semantics refuses
-    // it by name rather than playing it with the rule silently off.
+    // it by name rather than playing it with the rule silently off. A
+    // shuffle-gated rule (#1369) is read as the file decided it, against its key.
     ComboItemRulesRecord liveRules;
     Combo_ResolveComboItemRules(&liveRules);
+    Combo_ComboItemRulesLiveForFile(frozenRules, &liveRules);
     if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
         bits |= Combo_ComboItemRulesDivergenceBetween(frozenRules, &liveRules);
     }

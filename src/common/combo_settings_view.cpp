@@ -58,6 +58,7 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BUNNY, "Shared Bunny Hood" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_KEATON, "Shared Keaton Mask" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SWIM, "Shared Swim" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -88,6 +89,7 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_MASK_BUNNY, RSBS_XITEM_SHARED_BUNNY },                // #978
     { COMBO_SETTING_SHARED_MASK_KEATON, RSBS_XITEM_SHARED_KEATON },              // #978
     { COMBO_SETTING_SHARED_MASK_TRUTH, RSBS_XITEM_SHARED_TRUTH },                // #978
+    { COMBO_SETTING_SHARED_SWIM, RSBS_XITEM_SHARED_SWIM },                       // #1369, shuffle-gated
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -148,6 +150,13 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             Combo_ComboItemRulesDefaults(&rulesDefaults);
             return (rulesDefaults.crossItemFlags & ItemRuleBitFor(id)) != 0u ? 1 : 0;
         }
+        case COMBO_SETTING_SHARED_SWIM:
+            // #1369 (operator ruling 2026-11-02): the one item rule that ships
+            // ON. Still the one definition of "what ships": its bit is
+            // shuffle-gated, so the defaults RECORD stays all clear (a world
+            // nobody shuffles swim in never freezes it), and only a world that
+            // shuffles swim somewhere freezes the bit this key authors.
+            return 1;
         default:
             return 0;
     }
@@ -186,6 +195,7 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_MASK_BUNNY:      // #978, the same
         case COMBO_SETTING_SHARED_MASK_KEATON:     // #978, the same
         case COMBO_SETTING_SHARED_MASK_TRUTH:      // #978, the same
+        case COMBO_SETTING_SHARED_SWIM:            // #1369, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -374,6 +384,7 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BUNNY },      // #978
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_KEATON },     // #978
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_TRUTH },      // #978
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SWIM },            // #1369
 };
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
@@ -383,6 +394,7 @@ const Restorable kRestorable[] = {
 bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules) {
     ComboItemRulesRecord live;
     Combo_ResolveComboItemRules(&live);
+    Combo_ComboItemRulesLiveForFile(frozenRules, &live); // #1369: a gated rule as the file decided it
     const uint32_t frozenFlags = (frozenRules != nullptr) ? frozenRules->crossItemFlags : 0u;
     return ((frozenFlags ^ live.crossItemFlags) & ~Combo_ComboItemRuleKeyedBits()) == 0u;
 }
@@ -410,6 +422,7 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_MASK_BUNNY:
         case COMBO_SETTING_SHARED_MASK_KEATON:
         case COMBO_SETTING_SHARED_MASK_TRUTH:
+        case COMBO_SETTING_SHARED_SWIM: // #1369
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         default:
@@ -523,6 +536,14 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
         // resolver's crossItemFlags the file's exactly.
         const int32_t value = FrozenValue(frozen, frozenRules, r.id);
         if (r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS && Combo_ComboSettingResolved(r.id) == value) {
+            continue;
+        }
+        // #1369: a shuffle-gated rule the file froze OFF is the rule inert at
+        // creation (no game shuffled its item), whatever the key said then; it
+        // agrees with a key either way (Combo_ComboItemRulesLiveForFile), so the
+        // key the player set is left alone.
+        if (r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS && value == 0 &&
+            (ItemRuleBitFor(r.id) & (uint32_t)RSBS_XITEM_SHUFFLE_GATED) != 0u) {
             continue;
         }
         RestoreKey(r.id, value, undo, restored);

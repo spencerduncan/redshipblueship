@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/Foreign.h" // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
 // RedShipBlueShip (#645 increment 3, lane K9): where RO_PLENTIFUL_ITEMS' copies
 // sit in the last `itemPool` this function returned — [from, to), both 0 when
 // plentiful added none — and that pool's final size, so a consumer can tell it is
@@ -208,12 +209,22 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
     }
 
     // Abilities
-    if (saveInfo.randoSaveOptions[RO_SHUFFLE_SWIM] == RO_GENERIC_YES) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #1369: swim and the buttons also enter the pool under the
+    // pair's one shuffle from the frozen combo record (StartingItems.cpp leaves
+    // them out of the start under the same test).
+    const bool rsbsShuffleSwim = Rando::Foreign::ShuffleSwimForWorld(saveInfo.randoSaveOptions);
+    const bool rsbsShuffleButtons = Rando::Foreign::ShuffleOcarinaButtonsForWorld(saveInfo.randoSaveOptions);
+#else
+    const bool rsbsShuffleSwim = saveInfo.randoSaveOptions[RO_SHUFFLE_SWIM] == RO_GENERIC_YES;
+    const bool rsbsShuffleButtons = saveInfo.randoSaveOptions[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_YES;
+#endif
+    if (rsbsShuffleSwim) {
         itemPool.push_back(RI_ABILITY_SWIM);
     }
 
     // Ocarina Buttons
-    if (saveInfo.randoSaveOptions[RO_SHUFFLE_OCARINA_BUTTONS] == RO_GENERIC_YES) {
+    if (rsbsShuffleButtons) {
         for (int i = RI_OCARINA_BUTTON_A; i <= RI_OCARINA_BUTTON_C_UP; i++) {
             itemPool.push_back((RandoItemId)i);
         }

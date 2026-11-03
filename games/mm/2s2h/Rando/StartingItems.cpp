@@ -3,6 +3,9 @@
 #include "2s2h/ShipUtils.h"
 #include <libultraship/libultraship.h>
 #include <libultraship/bridge/consolevariablebridge.h>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Foreign.h" // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
+#endif
 
 // Starting items is a dynamically sized list of strings, so we can't store it with the other options because it can't
 // fit in a CVar. We have to store it in various places
@@ -11,6 +14,21 @@
 // - In the config file, under CVars.gRando.StartingItems as an array of strings ["RI_OCARINA"...]
 
 namespace Rando {
+
+// RedShipBlueShip #1369: does this world shuffle `option`'s item? Swim and the
+// ocarina buttons also count the pair's one shuffle from the frozen combo record,
+// so an MM that does not shuffle them by its own options does not start with them.
+static bool RsbsWorldShuffles(const RandoSaveInfo& randoSaveInfo, RandoOptionId option) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (option == RO_SHUFFLE_SWIM) {
+        return Foreign::ShuffleSwimForWorld(randoSaveInfo.randoSaveOptions);
+    }
+    if (option == RO_SHUFFLE_OCARINA_BUTTONS) {
+        return Foreign::ShuffleOcarinaButtonsForWorld(randoSaveInfo.randoSaveOptions);
+    }
+#endif
+    return randoSaveInfo.randoSaveOptions[option] == RO_GENERIC_YES;
+}
 
 std::vector<RandoItemId> GetComputedStartingItems(RandoSaveInfo& randoSaveInfo) {
     std::vector<RandoItemId> startingItems;
@@ -28,7 +46,7 @@ std::vector<RandoItemId> GetComputedStartingItems(RandoSaveInfo& randoSaveInfo) 
         }
     }
 
-    if (randoSaveInfo.randoSaveOptions[RO_SHUFFLE_SWIM] != RO_GENERIC_YES) {
+    if (!RsbsWorldShuffles(randoSaveInfo, RO_SHUFFLE_SWIM)) {
         startingItems.push_back(RI_ABILITY_SWIM);
     }
 
@@ -38,7 +56,7 @@ std::vector<RandoItemId> GetComputedStartingItems(RandoSaveInfo& randoSaveInfo) 
         }
     }
 
-    if (randoSaveInfo.randoSaveOptions[RO_SHUFFLE_OCARINA_BUTTONS] != RO_GENERIC_YES) {
+    if (!RsbsWorldShuffles(randoSaveInfo, RO_SHUFFLE_OCARINA_BUTTONS)) {
         for (int i = RI_OCARINA_BUTTON_A; i <= RI_OCARINA_BUTTON_C_UP; i++) {
             startingItems.push_back((RandoItemId)i);
         }

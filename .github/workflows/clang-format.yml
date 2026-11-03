@@ -1,11 +1,16 @@
 name: clang-format
+# `clang-format` is one of the "basic" ruleset's required status checks, and
+# this job is the only job, in any workflow, with that name (#1373). It runs on
+# EVERY pull request, docs-only ones included. It has no `if`, no `needs` and
+# no path filter, so it is never skipped: it always does the real check.
+#
+# It used to be path-filtered, and docs-bypass.yml supplied a stub
+# `clang-format` job for docs-only PRs. On a PR that changed docs AND code that
+# stub finished `skipped`, which GitHub counts as a success for a required
+# check. Running the real check on a docs-only PR costs about a minute.
+# tools/tests/test_required_checks.py keeps this job unconditional.
 on:
   pull_request:
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE*'
-      - '.gitignore'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
