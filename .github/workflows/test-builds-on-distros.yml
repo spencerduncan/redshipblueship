@@ -1,9 +1,12 @@
 name: test-builds-on-distros
 on:
   workflow_dispatch:    # by request
+# Never cancelled in progress (#1377, see generate-builds.yml): every run is a
+# deliberate dispatch of twelve full builds, so a second dispatch on the same
+# ref waits for the first instead of throwing it away.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   build:
     strategy:
