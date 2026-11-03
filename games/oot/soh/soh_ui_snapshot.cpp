@@ -5119,7 +5119,8 @@ void Session::CaptureOverlay(const PageSpec& p) {
             continue;
         }
         // A fixed view, so the capture is the same picture every run: half way, the
-        // first of three attempts, 12.3 s of a 30 s budget.
+        // first of three attempts, 12.3 s in, 464 of a 2500-round fill budget spent
+        // (#1286: the line reads the round share, not a time estimate).
         ComboGenOverlayView view;
         memset(&view, 0, sizeof(view));
         view.state = (uint8_t)RSBS_GENOVERLAY_SHOWN;
@@ -5129,6 +5130,8 @@ void Session::CaptureOverlay(const PageSpec& p) {
         view.fraction = 0.5f;
         view.elapsedMs = 12300;
         view.budgetMs = 30000;
+        view.roundsRun = 464;
+        view.roundBudget = 2500;
         snprintf(view.caption, sizeof(view.caption), "Building the Majora's Mask world (attempt 1 of 3)");
         const bool overMenu = state == "over-menu";
         Capture c;
