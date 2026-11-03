@@ -1330,9 +1330,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
 
         // A file whose other differing rule only a later build authors: the key
         // alone cannot answer it, so nothing is written and the load refuses.
-        // (An extension: #978 keyed the five shared masks.)
+        // (An extension: #978 keyed the five shared masks and #979 the Blast Mask
+        // in OoT; the Stone Mask in OoT has no key yet.)
         ComboItemRulesRecord later = rulesOn;
-        later.crossItemFlags |= (uint32_t)RSBS_XITEM_BLAST_MASK_OOT;
+        later.crossItemFlags |= (uint32_t)RSBS_XITEM_STONE_MASK_OOT;
         Combo_FreezeComboSettingsEx(&rec, &later);
         CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS));
         const uint32_t laterBits = Combo_ComboSettingsDivergence();

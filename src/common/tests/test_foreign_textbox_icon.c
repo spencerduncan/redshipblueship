@@ -114,11 +114,21 @@ bool FtiContains(const char* haystack, const char* needle) {
     return haystack != nullptr && std::strstr(haystack, needle) != nullptr;
 }
 
+/** #979: the one OoT item whose icon is Majora's Mask's own BY DESIGN: the Blast
+ *  Mask OoT gains under OoTMM's blastMaskOot keeps MM's icon (OoT's pause menu
+ *  draws it from the curated half, MM's textbox from its own archive). Exact. */
+const char* const kFtiMmIconByDesign = "__OTR__icon_item_static_yar/gItemIconBlastMaskTex";
+
+bool FtiIsMmIconByDesign(const ComboTextboxIcon& icon) {
+    return icon.texture != nullptr && std::strcmp(icon.texture, kFtiMmIconByDesign) == 0;
+}
+
 /** The path a shape's texture must come from (OoT's archive layout). */
 bool FtiPathFitsShape(const ComboTextboxIcon& icon) {
     switch (icon.shape) {
         case COMBO_TEXTBOX_ICON_ITEM:
-            return FtiContains(icon.texture, "__OTR__textures/icon_item_static/gItemIcon") ||
+            return FtiIsMmIconByDesign(icon) ||
+                   FtiContains(icon.texture, "__OTR__textures/icon_item_static/gItemIcon") ||
                    FtiContains(icon.texture, "__OTR__textures/icon_item_static/gRocsFeatherTex") ||
                    FtiContains(icon.texture, "__OTR__textures/parameter_static/gBossSoul") ||
                    FtiContains(icon.texture, "__OTR__textures/parameter_static/gTriforcePiece");
@@ -247,7 +257,7 @@ TestResult Test_ForeignTextboxIcon(void) {
             failures++;
         }
         byShape[icon.shape]++;
-        if (!FtiPathFitsShape(icon) || FtiContains(icon.texture, "_yar")) {
+        if (!FtiPathFitsShape(icon) || (FtiContains(icon.texture, "_yar") && !FtiIsMmIconByDesign(icon))) {
             printf("[TEST]   shape/path disagree: RG %d \"%s\" shape %u %s\n", id, name != nullptr ? name : "?",
                    (unsigned)icon.shape, icon.texture);
             failures++;

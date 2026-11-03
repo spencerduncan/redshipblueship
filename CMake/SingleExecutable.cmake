@@ -3062,6 +3062,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME ForeignMaskRules COMMAND redship --test foreign-mask-rules)
     redship_add_test(NAME ForeignMaskPersistence COMMAND redship --test foreign-mask-persistence)
     redship_add_test(NAME OoTChildTradeCycle COMMAND redship --test oot-child-trade-cycle)
+    # THE BLAST MASK IN OCARINA OF TIME (#979, epic #975 P4; OoTMM blastMaskOot,
+    # sharedMaskBlast, blastMaskCooldown): the three Cross-Game Rules keys (off and
+    # Default by default, the shared one only with its extension, restored at
+    # load) and OoTMM's cooldown table; then the custom ItemID's table bounds,
+    # ownership and the child trade cycle gated by the frozen rule, the shared
+    # member's give, the shared pair's one bag row, and OoT's real logic crediting
+    # the mask as a child's explosive only under the rule. ROM-free.
+    redship_add_test(NAME BlastMaskOoTRule COMMAND redship --test blast-mask-oot-rule)
+    redship_add_test(NAME BlastMaskOoTItems COMMAND redship --test blast-mask-oot-items)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every

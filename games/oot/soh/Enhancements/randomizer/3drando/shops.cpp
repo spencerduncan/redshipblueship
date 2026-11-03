@@ -892,6 +892,12 @@ void InitTrickNames() {
         Text{ "Roc's Leg", "Roc's Leg", "Roc's Leg" },          // "Roc's Leg"
         Text{ "Roc's Fapper", "Roc's Fapper", "Roc's Fapper" }, // "Roc's Fapper"
     };
+    // [RSBS #979] Majora's Mask's Blast Mask in OoT.
+    trickNameTable[RG_BLAST_MASK] = {
+        Text{ "Bomb Mask", "Masque Bombe", "Bombenmaske" },
+        Text{ "Blast Hat", "Chapeau Explosif", "Explosionshut" },
+        Text{ "Boom Face", "Visage Boum", "Bumm-Gesicht" },
+    };
     trickNameTable[RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL] = {
         // TODO_TRANSLATE
         Text{ "Volcano Seed Spirit" },

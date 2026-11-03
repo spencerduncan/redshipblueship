@@ -536,7 +536,11 @@ TestResult Test_CrossItemRulesRecord(void) {
 
     // ---- (7) Divergence ----------------------------------------------------------
     {
-        const ComboItemRulesRecord on = XirOnRecord();
+        // The ON record plus a rule no key of this build authors (the Stone Mask
+        // in OoT; #978 keyed the shared masks and #979 the Blast Mask and its
+        // cooldown, so the ON record alone is restorable now).
+        ComboItemRulesRecord on = XirOnRecord();
+        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
         XirFreezeWorld(&on);
         const uint32_t bits = Combo_ComboSettingsDivergence();
         char fields[256];
@@ -546,12 +550,13 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
-        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0u,
-                  "no key authors the Blast Mask cooldown, so no load may claim to restore it");
-        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
+        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) != 0u,
+                  "#979 keyed the Blast Mask cooldown, so a load may restore it");
+        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) ==
+                          RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
-                  "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens, #1066's "
-                  "songs, #1067's ocarina buttons and #968's arrows have one), so no load may claim to restore them");
+                  "a frozen rule no key of this build authors (the Stone Mask in OoT) leaves crossItemFlags "
+                  "unrestorable, so no load may claim to restore it");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
@@ -608,10 +613,12 @@ TestResult Test_CrossItemRulesRecord(void) {
         ComboContext_Init();
         XIR_CHECK(mgr.Load(0), "the rules-off file must load");
 
-        // A later build's file: a rule on.
+        // A later build's file: a rule on that no key of this build authors (the
+        // Stone Mask in OoT, beside the ON record's keyed rules).
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
-        const ComboItemRulesRecord on = XirOnRecord();
+        ComboItemRulesRecord on = XirOnRecord();
+        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
         XirFreezeWorld(&on);
         XirSeedShadows(0x77u);
         XIR_CHECK(mgr.Save(0), "Save(0) failed for the rules-on file");

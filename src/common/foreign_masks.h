@@ -179,6 +179,34 @@ uint8_t Combo_ForeignMask_SlotCycle(uint8_t slot, uint8_t current, int nativeOwn
  */
 int Combo_ListCycle_Step(const uint8_t* owned, int n, int currentIndex, int dir);
 
+/**
+ * THE BLAST MASK'S COOLDOWN (#979; OoTMM blastMaskCooldown), in frames, for one
+ * RSBS_BLAST_COOLDOWN_* value of the frozen item rules: OoTMM's own table
+ * (packages/generator/src/oot/actors/Player.c, blastMaskDelay): Instant 1, Very
+ * Short 32 (~2 s), Short 128 (~6 s), Default 310 (~15 s, Majora's Mask's own
+ * `blastMaskTimer = 310`), Long 512 (~25 s), Very Long 1024 (~51 s). A value
+ * outside the pinned space reads as Default. Both games read it: OoT's Blast
+ * Mask (P4) and Majora's Mask's own (VB_SET_BLAST_MASK_COOLDOWN_TIMER).
+ */
+uint16_t Combo_BlastMaskCooldownFrames(uint8_t cooldown);
+
+/**
+ * The cooldown a blast arms: Combo_BlastMaskCooldownFrames(cooldown), or 0 when
+ * Majora's Mask's own No Blast Mask Cooldown enhancement (`noCooldown`, the
+ * player's key) is on. The enhancement is a player preference over the world's
+ * frozen cooldown, in both games, as it is over MM's vanilla one.
+ */
+uint16_t Combo_BlastMaskCooldownFor(uint8_t cooldown, int noCooldown);
+
+/**
+ * One frame of a worn Blast Mask (#979): the cooldown counts down by one, then a
+ * B press (`pressed`) fires a blast when the cooldown is spent, arming
+ * `armFrames`. Returns 1 when a blast fires this frame. OoTMM's order
+ * (Player_UpdateWrapper decrements, Player_BlastMask fires): with N frames armed
+ * a held B fires once every N frames, and with 0 (no cooldown) on every press.
+ */
+int Combo_BlastMask_Step(uint16_t* cooldownLeft, int pressed, uint16_t armFrames);
+
 #ifdef __cplusplus
 }
 #endif

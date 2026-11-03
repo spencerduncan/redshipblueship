@@ -145,6 +145,17 @@ typedef enum {
     // Beatable Only (2, the default every earlier world froze) and No Logic (1).
     // OoT's RSK_LOGIC_RULES and MM's RO_LOGIC derive from it at creation.
     COMBO_SETTING_LOGIC, // gCombo.Rando.Logic -> record.logicRung (RSBS_COMBO_RUNG_*)
+    // #979 (epic #975 P4): the Blast Mask in Ocarina of Time (OoTMM blastMaskOot)
+    // and the Shared Blast Mask (OoTMM sharedMaskBlast), the lens's shape: 0 or 1,
+    // default 0 each. The shared one is OoTMM's `cond` on the extension: the
+    // resolver drops it while the Blast Mask in OoT is off, so a world never
+    // freezes a shared extension without its extension.
+    COMBO_SETTING_BLAST_MASK_OOT,    // gCombo.Rando.BlastMaskOoT -> RSBS_XITEM_BLAST_MASK_OOT
+    COMBO_SETTING_SHARED_MASK_BLAST, // gCombo.Rando.SharedMaskBlast -> RSBS_XITEM_SHARED_BLAST
+    // #979: OoTMM's blastMaskCooldown, the item rules record's cooldown BYTE (not a
+    // bit), on the pinned RSBS_BLAST_COOLDOWN_* values 0..5; default 0 (Default,
+    // Majora's Mask's own cooldown), so an untouched world keeps its record.
+    COMBO_SETTING_BLAST_MASK_COOLDOWN, // gCombo.Rando.BlastMaskCooldown -> rules.blastMaskCooldown
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
