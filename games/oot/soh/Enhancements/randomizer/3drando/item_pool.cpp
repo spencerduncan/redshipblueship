@@ -22,6 +22,9 @@ std::vector<RandomizerGet> junkPool = {};
 // so the combo bag marks exactly this port's surplus (ComboLogicEngineOoT.cpp,
 // OoT_ComboLogic_PlentifulExtraCount). Written only here; read only there.
 std::vector<RandomizerGet> gRsbsComboPlentifulAdded = {};
+// #1369 (GameExports_SingleExe.cpp): is the frozen Shared Swim rule on in this
+// world, so the bronze tier is its own RG_BRONZE_SCALE row?
+extern "C" bool OoT_SharedSwimSplitsScale(void);
 #endif
 const std::array<RandomizerGet, 13> JunkPoolItems = {
     RG_BOMBS_5,  RG_BOMBS_10,  RG_BOMBS_20,  RG_DEKU_NUTS_5, RG_DEKU_STICK_1, RG_DEKU_SEEDS_30, RG_RECOVERY_HEART,
@@ -413,6 +416,16 @@ void GenerateItemPool() {
     }
 
     int bronzeScale = ctx->GetOption(RSK_SHUFFLE_SWIM) ? 1 : 0;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #1369: under the frozen Shared Swim rule the bronze tier is a
+    // standalone RG_BRONZE_SCALE row, OoT's copy of the Shared Swim family. The bag
+    // pairs it with MM's Ability to Swim when both are pooled, and otherwise it stays
+    // OoT's own swim; Progressive Scale then gives silver and gold only.
+    if (bronzeScale != 0 && OoT_SharedSwimSplitsScale()) {
+        AddItemToPool(RG_BRONZE_SCALE, 1, 1, 1, 1);
+        bronzeScale = 0;
+    }
+#endif
     AddItemToPool(RG_PROGRESSIVE_SCALE, 3 + bronzeScale, 2 + bronzeScale, 2 + bronzeScale, 2 + bronzeScale);
 
     if (ctx->GetOption(RSK_SHUFFLE_CLIMB)) {
