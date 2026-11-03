@@ -878,6 +878,45 @@ extern "C" int OoT_MenuCapabilityGating_RunHeadless(void) {
                found);
     }
 
+    // ---- Leg 9 (#1272 item 7): Network > Anchor is gated in the combined executable ----
+    // SoH's vendored Anchor client compiles into release builds and its page drew live, but a session over a paired
+    // file is unsound until #574. The page's two panels and its gray note ask SOH_MENU_CAP_ANCHOR_SESSIONS
+    // (Network/Anchor/Menu.cpp, compiled only under ENABLE_REMOTE_CONTROL, so this leg drives the capability rather
+    // than the page): it must read ABSENT here, with its own reason and #574 on the record, and grey a row SoH's way.
+    {
+        const uint32_t key = SohGui::SOH_MENU_CAP_ANCHOR_SESSIONS;
+        const std::string kAnchorReason = "Paired Worlds Not Supported Yet";
+        CAP_CHECK(!SohGui::SohMenu::CapabilityPresent(key),
+                  "SOH_MENU_CAP_ANCHOR_SESSIONS reads present in the combined executable: Network > Anchor would draw "
+                  "live over a paired file%s",
+                  "");
+        CAP_CHECK(std::string(SohGui::SohMenu::CapabilityReason(key)) == kAnchorReason,
+                  "the Anchor capability's reason is \"%s\"", SohGui::SohMenu::CapabilityReason(key));
+        CAP_CHECK(SohGui::SohMenu::CapabilityIssue(key) == 574u,
+                  "the Anchor capability records #%u, not #574 (multiworld over the combo)",
+                  SohGui::SohMenu::CapabilityIssue(key));
+        static bool anchorProbeValue = false;
+        CapabilityMenuProbe anchorProbe;
+        anchorProbe.AddMenuEntry("AnchorProbe", "gSettings.Menu.AnchorProbeSidebarSection");
+        anchorProbe.AddSidebarEntry("AnchorProbe", "Anchor", 1);
+        WidgetPath anchorPath = { "AnchorProbe", "Anchor", SECTION_COLUMN_1 };
+        anchorProbe.AddWidget(anchorPath, "Anchor Probe", WIDGET_CHECKBOX)
+            .ValuePointer(&anchorProbeValue)
+            .PreFunc(SohGui::SohMenu::CapabilityGate(key));
+        WidgetInfo* anchorRow = FindRow(anchorProbe.Entries().at("AnchorProbe").sidebars.at("Anchor"), "Anchor Probe");
+        CAP_CHECK(anchorRow != nullptr && anchorRow->options != nullptr, "the Anchor probe row did not register%s", "");
+        if (anchorRow != nullptr && anchorRow->options != nullptr) {
+            RunPreFunc(*anchorRow);
+            CAP_CHECK(anchorRow->options->disabled, "a row gated on the Anchor capability draws enabled%s", "");
+            CAP_CHECK(std::string(Tooltip(*anchorRow)) == SohShape(kAnchorReason),
+                      "a row gated on the Anchor capability carries the tooltip '%s'", Tooltip(*anchorRow));
+            CAP_CHECK(anchorRow->name == "Anchor Probe", "the Anchor gate renamed its row to '%s'",
+                      anchorRow->name.c_str());
+        }
+        printf("[TEST] leg 9: the Anchor capability reads absent in the combined executable, records #574 and greys "
+               "a row with SoH's tooltip\n");
+    }
+
     // Leave the process clean: the capability registry is process-global and
     // AllTests runs every dispatch entry in ONE process.
     SohGui::SohMenu::UnregisterCapability(kSyntheticKey);

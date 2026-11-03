@@ -226,8 +226,49 @@ void AnchorInstructionsMenu(WidgetInfo& info) {
 }
 
 #ifdef ENABLE_REMOTE_CONTROL
+#ifdef RSBS_SINGLE_EXECUTABLE
+/*
+ * RSBS (#1272 item 7): Anchor carries one Ocarina of Time seed and one save, knows nothing of a paired file, and ADR
+ * 0010's identity rule makes a session over the pair unsound until #574. So the page draws greyed, with SoH's disabled
+ * tooltip and one gray note, through the capability SOH_MENU_CAP_ANCHOR_SESSIONS (ADR 0004 section 5). A live
+ * connection is never stranded: a config that enabled Anchor elsewhere still connects at boot (OTRGlobals.cpp), so
+ * while Anchor is enabled the page stays usable and its Disable button works.
+ */
+static void DrawAnchorGated(WidgetInfo& info, void (*draw)(WidgetInfo&)) {
+    const uint32_t key = SohGui::SOH_MENU_CAP_ANCHOR_SESSIONS;
+    if (SohGui::SohMenu::CapabilityPresent(key) || Anchor::Instance->isEnabled) {
+        draw(info);
+        return;
+    }
+    ImGui::BeginGroup();
+    ImGui::BeginDisabled();
+    draw(info);
+    ImGui::EndDisabled();
+    ImGui::EndGroup();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+        const char* tooltip = SohGui::SohMenu::DisabledTooltip(SohGui::SohMenu::CapabilityReason(key));
+        ImGui::SetTooltip("%s", UIWidgets::WrappedText(tooltip).c_str());
+    }
+}
+#endif
+
 void RegisterAnchorMenu() {
     WidgetPath path = { "Network", "Anchor", SECTION_COLUMN_1 };
+#ifdef RSBS_SINGLE_EXECUTABLE
+    SohGui::mSohMenu->AddWidget(path, "Anchor Paired Worlds Note", WIDGET_TEXT)
+        .RaceDisable(false)
+        .HideInSearch(true)
+        .PreFunc(SohGui::SohMenu::CapabilityNote(SohGui::SOH_MENU_CAP_ANCHOR_SESSIONS,
+                                                 "Anchor does not support paired worlds yet."))
+        .Options(UIWidgets::TextOptions().Color(UIWidgets::Colors::Gray));
+    SohGui::mSohMenu->AddWidget(path, "AnchorMainMenu", WIDGET_CUSTOM)
+        .CustomFunction([](WidgetInfo& info) { DrawAnchorGated(info, AnchorMainMenu); })
+        .HideInSearch(true);
+    path.column = SECTION_COLUMN_2;
+    SohGui::mSohMenu->AddWidget(path, "AnchorAdminMenu", WIDGET_CUSTOM)
+        .CustomFunction([](WidgetInfo& info) { DrawAnchorGated(info, AnchorAdminMenu); })
+        .HideInSearch(true);
+#else
     SohGui::mSohMenu->AddWidget(path, "AnchorMainMenu", WIDGET_CUSTOM)
         .CustomFunction(AnchorMainMenu)
         .HideInSearch(true);
@@ -235,6 +276,7 @@ void RegisterAnchorMenu() {
     SohGui::mSohMenu->AddWidget(path, "AnchorAdminMenu", WIDGET_CUSTOM)
         .CustomFunction(AnchorAdminMenu)
         .HideInSearch(true);
+#endif
     SohGui::mSohMenu->AddWidget(path, "AnchorInstructionsMenu", WIDGET_CUSTOM)
         .CustomFunction(AnchorInstructionsMenu)
         .HideInSearch(true);

@@ -25,8 +25,10 @@
  *      (carrots, clock, hearts, magic, both timers, the minigame, rupee, key and skulltula counters) hides at "Hidden".
  *   3. HudEditor_OverrideNextElementMode(Vanilla), which Better Song of Double Time uses while it draws the clock,
  *      wins over a non-vanilla key; and no element active draws vanilla.
- *   4. An element with no row in the shared table (none since W6-HUD-B; the leg then checks nothing) draws vanilla
- *      even under a non-vanilla override: the reader never reads a key the shared menu does not write.
+ *   4. #1272 item 8: every element has a row in the shared table (W6-HUD-B), and an element id outside the table
+ *      (past either end) draws vanilla, unscaled and unmoved even under a Hidden override with B's keys set: the
+ *      reader's bounds guard never reads a row past hudEditorElements. (The leg used to look for a rowless element,
+ *      and found none to check once W6-HUD-B gave every element a row.)
  *   5. The presets: Hidden sets every table element Hidden, Widescreen gives each its widescreen mode, Vanilla clears
  *      every mode, and each clears every element's position and scale.
  * RED without the fix: leg 1 (the stand-in answers "vanilla" and leaves the rectangle as it was).
@@ -224,28 +226,46 @@ extern "C" int MM_HudEditorReader_RunHeadless(void) {
     }
     printf("[TEST] leg 3: the next-element override wins, and no active element draws vanilla\n");
 
-    // Leg 4: an element with no row in the shared table draws vanilla, even under a non-vanilla override.
-    int rowless = HUD_EDITOR_ELEMENT_NONE;
+    // Leg 4 (#1272 item 8): every element has a row since W6-HUD-B, so the old "an element with no row draws vanilla"
+    // found nothing to check. It now asserts that coverage, and drives the reader's bounds guard (ActiveRow) with ids
+    // outside the table, under a Hidden override and with B's keys set: each must draw vanilla, unscaled, its rectangle
+    // untouched, never reading a row past either end of hudEditorElements.
     for (int i = HUD_EDITOR_ELEMENT_B; i < HUD_EDITOR_ELEMENT_MAX; i++) {
         if (hudEditorElements[i].modeCvar == nullptr) {
-            rowless = i;
-            break;
+            printf("[TEST]       element %d\n", i);
+            failures += Fail("an element MM's HUD draws has no row in the shared table: its draw ignores the HUD "
+                             "Placement section");
         }
     }
-    if (rowless != HUD_EDITOR_ELEMENT_NONE) {
-        HudEditor_SetActiveElement((HudEditorElementID)rowless);
-        HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_HIDDEN);
-        if (HudEditor_ShouldOverrideDraw() || HudEditor_IsActiveElementHidden()) {
-            printf("[TEST]       element %d\n", rowless);
-            failures += Fail("an element with no row in the shared table is overridden: its draw sites would read "
-                             "keys nothing writes");
+    {
+        CVarSetInteger(bMode.c_str(), HUD_EDITOR_ELEMENT_MODE_MOVABLE_43);
+        CVarSetFloat(bScale.c_str(), 2.0f);
+        const int kOutOfRange[] = { HUD_EDITOR_ELEMENT_MAX, HUD_EDITOR_ELEMENT_MAX + 7, HUD_EDITOR_ELEMENT_NONE - 1 };
+        for (int id : kOutOfRange) {
+            HudEditor_SetActiveElement((HudEditorElementID)id);
+            HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_HIDDEN);
+            const bool overridden = HudEditor_ShouldOverrideDraw() || HudEditor_IsActiveElementHidden();
+            HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_NONE);
+            s16 left = 40;
+            s16 top = 30;
+            s16 width = 16;
+            s16 height = 16;
+            s16 dsdx = 1024;
+            s16 dtdy = 1024;
+            HudEditor_ModifyDrawValues(&left, &top, &width, &height, &dsdx, &dtdy);
+            if (overridden || !Near(HudEditor_GetActiveElementScale(), 1.0f) || left != 40 || top != 30 ||
+                width != 16 || height != 16 || dsdx != 1024 || dtdy != 1024) {
+                printf("[TEST]       id %d: rect (%d, %d) %dx%d steps %d/%d\n", id, left, top, width, height, dsdx,
+                       dtdy);
+                failures += Fail("an element id outside the table is overridden, scaled or moved: the reader read a "
+                                 "row past the end of hudEditorElements");
+            }
         }
-        HudEditor_OverrideNextElementMode(HUD_EDITOR_ELEMENT_MODE_NONE);
         HudEditor_SetActiveElement(HUD_EDITOR_ELEMENT_NONE);
-        printf("[TEST] leg 4: element %d, which has no row, draws vanilla\n", rowless);
-    } else {
-        printf("[TEST] leg 4: every element has a row; nothing to check\n");
+        CVarClear(bMode.c_str());
+        CVarClear(bScale.c_str());
     }
+    printf("[TEST] leg 4: every element has a row, and ids outside the table draw vanilla under a Hidden override\n");
 
     // Leg 5: the presets, over every element in the table.
     CVarSetInteger(bX.c_str(), 5);

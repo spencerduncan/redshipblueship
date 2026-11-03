@@ -1421,12 +1421,8 @@ static void DrawMmCameraRows(MmCameraRows block, const MmBeginGroupPanel& beginP
             UIWidgets::CVarCheckbox("MM Invert Aiming Y Axis", RSBS_CVAR_MM_CAMERA_FP_INVERT_Y,
                                     UIWidgets::CheckboxOptions().Color(THEME_COLOR).DefaultValue(true).Tooltip(tip));
             report("MM Invert Aiming Y Axis", tip);
-            tip = "Prevents the first-person view from auto-centering. Majora's Mask only.";
-            ImGui::BeginGroup();
-            UIWidgets::CVarCheckbox("MM Disable Auto-Centering in First-Person View",
-                                    RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
-                                    UIWidgets::CheckboxOptions().Color(THEME_COLOR).Tooltip(tip));
-            report("MM Disable Auto-Centering in First-Person View", tip);
+            // #1272 item 5: no MM auto-centering row. MM reads SoH's "Disable Auto-Centering in First-Person View"
+            // key (converged, RSBS::kConvergedKeys), so SoH's own row in this panel drives both games.
             tip = "Adjusts how fast the left stick turns the first-person view and weapon aiming sideways. Majora's "
                   "Mask only.";
             ImGui::BeginGroup();

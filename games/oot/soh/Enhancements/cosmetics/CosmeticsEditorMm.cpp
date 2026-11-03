@@ -70,16 +70,19 @@ const MmCosmeticRow kMmLinkRows[] = {
       "Changes the color of Kafei's hair. Majora's Mask only." },
 };
 // Link & Items tab, Consumables group: the hearts and magic meter colours SoH has no row for. SoH's Hearts, Heart
-// Border, DD Hearts, DD Heart Border, Magic, Magic Active and Magic Border colour MM's as well.
+// Border, DD Hearts, DD Heart Border, Magic, Magic Active and Magic Border colour MM's as well, and (#1272 item 1)
+// SoH's Hearts and DD Hearts colour MM's beating hearts until their own rows below are set, as in Ocarina of Time.
 const MmCosmeticRow kMmConsumableRows[] = {
     { "Beating Hearts",
       MM_COSMETIC_ROW_KEYS("Hearts.Beating"),
       { 255, 70, 50, 255 },
-      "Changes the color of the heart that beats at the end of the health meter. Majora's Mask only." },
+      "Changes the color of the heart that beats at the end of the health meter. Until it is set, the heart follows "
+      "Hearts. Majora's Mask only." },
     { "DD Beating Hearts",
       MM_COSMETIC_ROW_KEYS("Hearts.DDBeating"),
       { 200, 0, 0, 255 },
-      "Changes the color of the beating heart once Link has double defense. Majora's Mask only." },
+      "Changes the color of the beating heart once Link has double defense. Until it is set, the heart follows DD "
+      "Hearts. Majora's Mask only." },
     { "Chateau Magic",
       MM_COSMETIC_ROW_KEYS("Magic.Chateau"),
       { 0, 0, 200, 255 },
@@ -227,6 +230,46 @@ void CosmeticsEditor_DrawMmConsumableRows() {
 // W6-COS-C: the Effects tab's functions go here.
 void CosmeticsEditor_DrawMmTrailRows() {
     DrawMmCosmeticGroup("MM Trails", kMmTrailRows, sizeof(kMmTrailRows) / sizeof(kMmTrailRows[0]));
+}
+
+namespace {
+
+/** Every MM row table above, in draw order, for the read-only view below. */
+struct MmRowTable {
+    const MmCosmeticRow* rows;
+    int count;
+};
+const MmRowTable kMmRowTables[] = {
+    { kMmHudRows, (int)(sizeof(kMmHudRows) / sizeof(kMmHudRows[0])) },
+    { kMmLinkRows, (int)(sizeof(kMmLinkRows) / sizeof(kMmLinkRows[0])) },
+    { kMmConsumableRows, (int)(sizeof(kMmConsumableRows) / sizeof(kMmConsumableRows[0])) },
+    { kMmTrailRows, (int)(sizeof(kMmTrailRows) / sizeof(kMmTrailRows[0])) },
+};
+
+} // namespace
+
+extern "C" int CosmeticsEditor_MmRowCount(void) {
+    int count = 0;
+    for (const MmRowTable& table : kMmRowTables) {
+        count += table.count;
+    }
+    return count;
+}
+
+extern "C" int CosmeticsEditor_MmRowAt(int index, const char** label, const char** colorKey, const char** changedKey) {
+    if (index < 0) {
+        return 0;
+    }
+    for (const MmRowTable& table : kMmRowTables) {
+        if (index < table.count) {
+            *label = table.rows[index].label;
+            *colorKey = table.rows[index].colorKey;
+            *changedKey = table.rows[index].changedKey;
+            return 1;
+        }
+        index -= table.count;
+    }
+    return 0;
 }
 
 #endif // RSBS_SINGLE_EXECUTABLE

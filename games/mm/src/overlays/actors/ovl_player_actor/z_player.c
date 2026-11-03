@@ -13569,7 +13569,9 @@ s32 Ship_HandleFirstPersonAiming(PlayState* play, Player* this, s32 arg2) {
 
     if (!func_800B7128(this) && !func_8082EF20(this) && !arg2) { // First person without weapon
         var_s0 = stickY * 0xF0;
-        if (CVarGetInteger("gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", 0) ||
+        // RSBS (#1272 item 5): SoH's "Disable Auto-Centering in First-Person View" key, converged (one game); MM's own
+        // gyro gate stays beside it.
+        if (CVarGetInteger("gSettings.DisableFirstPersonAutoCenterView", 0) ||
             CVarGetInteger("gEnhancements.Camera.FirstPerson.GyroEnabled", 0)) {
             this->actor.focus.rot.x += var_s0 * 0.1f;
         } else {
