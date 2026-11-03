@@ -2658,8 +2658,10 @@ goal's parameters are each half's own authored settings" for this goal).
   into the record's two halves: OoT holds ceil(pieces/2), capped at 100 (its own
   option range), and requires ceil(goal/2) capped at its pieces; MM holds and
   requires the rest. The record keeps its four bytes; its sums are the keys'
-  values. A half with pieces and a zero share of the requirement is coherent now
-  (MM's share of a goal of 1); a hunt requiring nothing is refused.
+  values. MM's half with pieces and a zero share of the requirement is coherent
+  now (MM's share of a goal of 1); OoT's half never has one (its option stores
+  the value - 1, the split gives it at least 1), so those stored bytes stay
+  damage that disarms the hunt; a hunt requiring nothing is refused.
 - **Each game generates its half.** OoT's `Playthrough_Init` writes
   `RSK_TRIFORCE_HUNT` ("Win"), `_PIECES_TOTAL` and `_PIECES_REQUIRED` from the
   split before the settings hash; MM's paired resolution (`ResolveProfileValues`)

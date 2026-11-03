@@ -710,8 +710,9 @@ RSBS_CTX_STATIC_ASSERT(
  * their sum, and the combo requirement is the SUM OF THE TWO HALVES'
  * REQUIREMENTS. Combo_TriforceResolve (triforce_hunt.h) is the one statement of
  * the rule; it refuses a world with no pieces at all, a half asking for more
- * than it holds, no requirement at all, and a combo total past OoT's 8-bit
- * counter.
+ * than it holds, OoT's half holding pieces with no requirement (bytes no
+ * creation writes; only MM's half may hold a zero share, #1389), no
+ * requirement at all, and a combo total past OoT's 8-bit counter.
  *
  * WHERE THE HALVES COME FROM (#1389, amending ADR 0010 §1.2's "each half's own
  * authored settings"): the pair's two [Both Games] rows, OoTMM's

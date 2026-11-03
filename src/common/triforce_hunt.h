@@ -90,8 +90,10 @@ typedef struct {
  *  either pool can never be won. */
 #define RSBS_TRIFORCE_ERR_NO_PIECES 1
 /** A half is incoherent: it requires more than its own pool holds (a half
- *  holding no pieces must require none). Since #1389 a half holding pieces may
- *  require none: the requirement is ONE combo number, and the [Both Games]
+ *  holding no pieces must require none), or it is OoT's half holding pieces
+ *  with no requirement (no OoT setting and no split writes that: OoT's Required
+ *  Pieces option stores its value - 1). Since #1389 MM's half holding pieces
+ *  may require none: the requirement is ONE combo number, and the [Both Games]
  *  split gives MM's half a zero share when the goal is 1. */
 #define RSBS_TRIFORCE_ERR_BAD_HALF 2
 /** The combo total exceeds RSBS_TRIFORCE_COMBO_MAX. */

@@ -38,17 +38,26 @@ const char* Combo_TriforceStatusName(int status) {
 }
 
 /** One half on its own: it never requires more than it holds, so a half that
- *  holds nothing requires nothing. A half holding pieces with a zero share of
- *  the requirement is coherent since #1389 (Combo_TriforceSplit gives MM's half
- *  that share when the goal is 1): the requirement is one combo number. */
-static bool TriforceHalfCoherent(uint32_t total, uint32_t required) {
-    return required <= total;
+ *  holds nothing requires nothing. MM's half holding pieces with a zero share
+ *  of the requirement is coherent since #1389 (Combo_TriforceSplit gives MM's
+ *  half that share when the goal is 1): the requirement is one combo number.
+ *  OoT's half holding pieces never has a zero share: SoH's Required Pieces
+ *  option stores its value - 1, and the split gives OoT ceil(goal / 2) >= 1,
+ *  so no creation in any era writes OoT pieces with no requirement. Those bytes
+ *  are damage, and this check is the only guard OoT's half has (no arrival
+ *  compares it with OoT's settings, as MM's arrival does MM's half). */
+static bool TriforceHalfCoherent(uint32_t total, uint32_t required, bool zeroShareAllowed) {
+    if (total == 0u) {
+        return required == 0u;
+    }
+    return required <= total && (zeroShareAllowed || required >= 1u);
 }
 
 /** THE RULE, over plain numbers, so the resolver and the stored-record check
  *  cannot drift apart: they are one function. */
 static int TriforceValidate(uint32_t totalOoT, uint32_t requiredOoT, uint32_t totalMM, uint32_t requiredMM) {
-    if (!TriforceHalfCoherent(totalOoT, requiredOoT) || !TriforceHalfCoherent(totalMM, requiredMM)) {
+    if (!TriforceHalfCoherent(totalOoT, requiredOoT, /*zeroShareAllowed=*/false) ||
+        !TriforceHalfCoherent(totalMM, requiredMM, /*zeroShareAllowed=*/true)) {
         return RSBS_TRIFORCE_ERR_BAD_HALF;
     }
     const uint32_t total = totalOoT + totalMM;

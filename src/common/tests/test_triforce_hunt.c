@@ -427,12 +427,21 @@ TestResult Test_ComboTriforceHunt(void) {
         mm = TfHalf(5, 5);
         TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF,
                    "a half requiring more than its own pool holds must be refused");
-        // #1389: a half holding pieces with a ZERO share of the requirement is
+        // #1389: MM's half holding pieces with a ZERO share of the requirement is
         // coherent now (the [Both Games] split gives MM's half that share when the
-        // goal is 1); a hunt whose halves require nothing at all is not.
+        // goal is 1). OoT's half never is: SoH's Required Pieces option stores its
+        // value - 1 and the split gives OoT ceil(goal / 2) >= 1, so OoT pieces with
+        // no requirement are bytes no creation writes (combo-goal-ending E8/E9
+        // damage a record exactly so). A hunt requiring nothing at all is refused.
+        oot = TfHalf(10, 5);
+        ComboTriforceHalf mmZeroShare = TfHalf(5, 0);
+        TFH_ASSERT(Combo_TriforceResolve(&oot, &mmZeroShare, &r) == RSBS_TRIFORCE_OK &&
+                       Combo_TriforceRecordRequired(&r) == 5,
+                   "MM's half with pieces and a zero share of the requirement must resolve (#1389)");
         oot = TfHalf(10, 0);
-        TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_OK && Combo_TriforceRecordRequired(&r) == 5,
-                   "a half with pieces and a zero share of the requirement must resolve (#1389)");
+        TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF && TfRecordZero(&r),
+                   "OoT's half with pieces and no requirement must be refused: no OoT setting and no split writes it");
+        oot = TfHalf(0, 0);
         ComboTriforceHalf noGoal = TfHalf(5, 0);
         TFH_ASSERT(Combo_TriforceResolve(&oot, &noGoal, &r) == RSBS_TRIFORCE_ERR_NO_GOAL && TfRecordZero(&r),
                    "a hunt that requires no piece at all must be refused (it is won at its start)");
@@ -510,6 +519,21 @@ TestResult Test_ComboTriforceHunt(void) {
         TFH_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_TRIFORCE) != 0,
                    "the arrival refusal (Combo_ComboSettingsDivergence) does not carry the triforce bit");
         TFH_ASSERT(!Combo_TriforceHuntArmed(), "a damaged record must not arm the hunt");
+
+        // OoT's half holding pieces with no requirement: never written (#1389 left
+        // the zero share to MM's half alone), so damage that disarms the hunt.
+        gComboCtx.comboTriforce = good;
+        gComboCtx.comboTriforce.requiredOoT = 0;
+        TFH_ASSERT(Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) ==
+                           RSBS_COMBO_DIVERGE_TRIFORCE &&
+                       !Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == 0,
+                   "a stored record with OoT pieces and no OoT requirement must diverge and disarm the hunt");
+        // MM's zero share is a world the split writes (a goal of 1): it arms.
+        gComboCtx.comboTriforce = good;
+        gComboCtx.comboTriforce.requiredMM = 0;
+        TFH_ASSERT(Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) == 0 &&
+                       Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == good.requiredOoT,
+                   "a stored record with MM pieces and a zero MM share must arm the hunt (#1389)");
 
         // A hunt goal with no record at all.
         memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
