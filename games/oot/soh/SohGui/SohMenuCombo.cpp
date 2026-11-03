@@ -670,14 +670,12 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleGoalOptions)
-                     .Tooltip("Chooses which final boss the seed guarantees you can reach and defeat. The paired "
-                              "game ends when the goal is met. A final boss defeated before then sends you back "
-                              "into its game.\n\n"
-                              "Ganon & Majora: Defeat both Ganon and Majora, in any order. Both games are "
-                              "finishable.\n"
-                              "Any Final Boss: Defeat either Ganon or Majora. The other game may be unfinishable.\n"
-                              "Triforce Hunt: Collect Triforce Pieces from both games. The game ends when you hold "
-                              "the Triforce Goal, in whichever game you find the last piece.\n"
+                     .Tooltip("Chooses what ends the paired game; the seed guarantees you can reach it. A final "
+                              "boss defeated before the goal is met sends you back into its game.\n\n"
+                              "Ganon & Majora: Defeat both, in any order. Both games are finishable.\n"
+                              "Any Final Boss: Defeat either. The other game may be unfinishable.\n"
+                              "Triforce Hunt: Collect Triforce Pieces from both games. You win on holding the "
+                              "Triforce Goal, in whichever game you find the last piece.\n"
                               "Ganon: Defeat Ganon. Majora's Mask may be unfinishable.\n"
                               "Majora: Defeat Majora. Ocarina of Time may be unfinishable."));
     // The Triforce Hunt (#1389): OoTMM's triforcePieces and triforceGoal, its
