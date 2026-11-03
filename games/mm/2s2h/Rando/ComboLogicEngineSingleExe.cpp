@@ -289,7 +289,8 @@
 #include "Rando/Foreign.h" // Rando::Foreign::ResolvePairedProfile — measurement bridge only
 #include "Rando/StaticData/StaticData.h"
 #include "Rando/Logic/Logic.h"
-#include "2s2h/ShipUtils.h" // Ship_Random: MM's own pass over its leftover hosts (lane K11)
+#include "Rando/Logic/ResetTimeGuard.h" // ADR 0010 answer O2: the reset-time guard `expand` applies (A8)
+#include "2s2h/ShipUtils.h"             // Ship_Random: MM's own pass over its leftover hosts (lane K11)
 
 extern "C" {
 #include "variables.h"
@@ -718,8 +719,20 @@ int Expand(void* self) {
     while (grantedThisPass) {
         grantedThisPass = false;
 
-        const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(kMmArrivalEntrance);
-        const std::set<RandoCheckId> reached = Rando::Logic::EvaluateReachableChecks(crawl);
+        Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(kMmArrivalEntrance);
+        std::set<RandoCheckId> reached = Rando::Logic::EvaluateReachableChecks(crawl);
+
+        // --- A8 (ADR 0010 answer O2): THE RESET-TIME GUARD, before anything reads
+        // the answer. Under "Last Save" with the Song of Time unplayable (MM's
+        // Shuffle Ocarina Buttons), the round reaches only the arrival nook; with no
+        // playable song, not the Moon trials either. The MM Check Tracker applies
+        // the same function to the same crawl, so the fill and the tracker agree
+        // (Rando/Logic/ResetTimeGuard.h has the expressions and their OoTMM
+        // lineage). The crossing stays a region fact: the tower interior is in the
+        // nook. Monotone: the guard only lifts as the round's items grow, and the
+        // A6/A7 grants below read the guarded set, so a nook round credits nothing
+        // the player could not collect before a reset.
+        (void)Rando::Logic::ApplyResetTimeGuard(crawl, reached);
 
         // --- did MM's answer SHRINK relative to what this round last reported?
         bool shrank = false;
@@ -848,7 +861,10 @@ int CrossingOpen(void* self) {
     (void)self;
     // Audit §4.5: the MM->OoT crossing is an exit on RR_CLOCK_TOWER_INTERIOR, so
     // the observable is that region's reachability. A region FACT — no region
-    // file changes for increment 3 (audit amendment 3). Pure read.
+    // file changes for increment 3 (audit amendment 3). Pure read. ADR 0010
+    // answer O2's return direction is this fact with no reset term (OoTMM's
+    // tower door is `true` without indoor ER): the reset-time guard (A8) keeps
+    // the interior in its nook, so it never closes the crossing.
     return sRound.regions.find(RR_CLOCK_TOWER_INTERIOR) != sRound.regions.end() ? 1 : 0;
 }
 

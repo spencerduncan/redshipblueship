@@ -1,6 +1,7 @@
 
 #include "CheckTracker.h"
 #include "2s2h/Rando/Logic/Logic.h"
+#include "2s2h/Rando/Logic/ResetTimeGuard.h"
 #include "2s2h/ShipUtils.h"
 #include "2s2h/BenGui/UIWidgets.hpp"
 #include "2s2h/Rando/StaticData/StaticData.h"
@@ -472,11 +473,15 @@ std::set<RandoCheckId> ComputeChecksInLogic(s32 startEntrance) {
     memcpy(savedEvents, RANDO_EVENTS, sizeof(savedEvents));
 
     std::set<RandoCheckId> inLogic;
-    const Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(startEntrance);
+    Rando::Logic::ReachabilityCrawl crawl = Rando::Logic::CrawlReachableRegions(startEntrance);
+    std::set<RandoCheckId> reached = Rando::Logic::EvaluateReachableChecks(crawl);
+    // ADR 0010 answer O2: the reset-time guard, the same function the combo fill's engine applies to the same crawl
+    // (Rando/Logic/ResetTimeGuard.h), so a check the fill does not count on before a reset is not listed in logic.
+    (void)Rando::Logic::ApplyResetTimeGuard(crawl, reached);
 
     // The tracker's own semantics on top of the shared crawl: a check is "in logic" when its access lambda passes
     // AND it is shuffled AND not yet obtained.
-    for (RandoCheckId randoCheckId : Rando::Logic::EvaluateReachableChecks(crawl)) {
+    for (RandoCheckId randoCheckId : reached) {
         auto& randoSaveCheck = RANDO_SAVE_CHECKS[randoCheckId];
         if (randoSaveCheck.shuffled && !randoSaveCheck.obtained) {
             inLogic.insert(randoCheckId);
