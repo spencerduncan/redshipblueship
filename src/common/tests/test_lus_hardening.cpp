@@ -17,8 +17,12 @@
  *     one above the 48-bit user range, without reading it. It runs last: against a libultraship without the
  *     filter it dereferences a null Ship::Context, so the row fails by crashing there, after the other legs
  *     have printed their verdicts.
+ *   - audio-player-virtual-dtor (LUS-12, compile time): ~AudioPlayer is virtual, so deleting a player through an
+ *     AudioPlayer pointer runs the subclass destructor that stops the WASAPI stream and unregisters its device
+ *     callback. Audio's make_shared already records the subclass; this keeps any other owner safe. A
+ *     static_assert below holds it, so a libultraship without the change does not compile this file.
  * The DX11, DXGI, WASAPI and Windows crash-filter halves of the batch (LUS-6, LUS-10, LUS-12) run only on
- * Windows desktop paths the headless tiers never reach, so they have no leg here.
+ * Windows desktop paths the headless tiers never reach, so they have no runtime leg here.
  */
 
 // Config.h brings in the Windows SDK through ship/audio (WASAPI). Include it the way OTRGlobals.cpp and
@@ -30,6 +34,7 @@
 // interpreter.h is self-contained: gfx_rendering_api.h includes LUS's patched imconfig.h, which defines ImTextureID.
 #include <fast/interpreter.h>
 #include <ship/config/Config.h>
+#include <ship/audio/AudioPlayer.h>
 
 #include "../test_scratch.h"
 
@@ -42,6 +47,7 @@
 #include <set>
 #include <string>
 #include <system_error>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -370,6 +376,10 @@ int LhImageSignatureBoundsLeg() {
 #endif
     return failures;
 }
+
+// audio-player-virtual-dtor (LUS-12).
+static_assert(std::has_virtual_destructor_v<Ship::AudioPlayer>,
+              "~AudioPlayer must be virtual so a player deleted through its base runs the subclass destructor");
 
 } // namespace
 
