@@ -672,6 +672,11 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec);
  * under one-game semantics playing that file as if the rule were off is
  * corruption, not choice. A keyed rule that diverges is restored from the file
  * instead (frozen wins at load, #781).
+ *
+ * #979: a shared extension (RSBS_XITEM_SHARED_BLAST ...) whose extension key is
+ * off resolves off (OoTMM's `cond`), and the cooldown byte is the Blast Mask
+ * Cooldown key's (COMBO_SETTING_BLAST_MASK_COOLDOWN), so the result is always a
+ * record Combo_ComboItemRulesValid accepts.
  */
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out);
 

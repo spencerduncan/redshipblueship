@@ -27,8 +27,14 @@
 // #1369 (GameExports_SingleExe.cpp): under the frozen Shared Swim rule the bronze
 // tier is its own pool row (RG_BRONZE_SCALE), so Progressive Scale starts at silver.
 extern "C" bool OoT_SharedSwimSplitsScale(void);
+// #979 (BlastMaskOoT.cpp): is the frozen Blast Mask (OoT) rule on (OoTMM's
+// has_mask_blast: setting(blastMaskOot))?
+extern "C" bool OoT_BlastMaskOoTOn(void);
 #else
 static bool OoT_SharedSwimSplitsScale(void) {
+    return false;
+}
+static bool OoT_BlastMaskOoTOn(void) {
     return false;
 }
 #endif
@@ -449,6 +455,7 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_HYLIA_LAB_KEY:
         case RG_FISHING_HOLE_KEY:
         case RG_RUTOS_LETTER:
+        case RG_BLAST_MASK: // [RSBS #979]
             return CheckRandoInf(RandoGetToRandInf[itemName]);
             // Boss Keys
         case RG_FOREST_TEMPLE_BOSS_KEY:
@@ -900,6 +907,8 @@ bool Logic::CanUse(RandomizerGet itemName) {
         case RG_GORON_MASK:
         case RG_ZORA_MASK:
             return IsChild;
+        case RG_BLAST_MASK: // [RSBS #979] OoTMM's can_use_mask_blast: age_child_trade && has_mask_blast
+            return IsChild && OoT_BlastMaskOoTOn();
 
         // Songs
         case RG_ZELDAS_LULLABY:
@@ -1110,7 +1119,8 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
             switch (distance) {
                 case ED_CLOSE:
                     // hammer jumpslash cannot damage these, but hammer swing can
-                    killed = CanUse(RG_MEGATON_HAMMER);
+                    // [RSBS #979] OoTMM's get_past_skultullas counts can_use_mask_blast
+                    killed = CanUse(RG_MEGATON_HAMMER) || CanUse(RG_BLAST_MASK);
                     [[fallthrough]];
                 case ED_SHORT_JUMPSLASH:
                     killed = killed || CanUse(RG_KOKIRI_SWORD);
@@ -1238,7 +1248,8 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
         case RE_WALLMASTER:
             return CanJumpslash() || CanUse(RG_FAIRY_BOW) || CanUse(RG_FAIRY_SLINGSHOT) || CanUse(RG_BOMBCHU_5) ||
                    CanUse(RG_DINS_FIRE) ||
-                   (CanUse(RG_BOMB_BAG) && (CanUse(RG_NUTS) || CanUse(RG_HOOKSHOT) || CanUse(RG_BOOMERANG)));
+                   (CanUse(RG_BOMB_BAG) && (CanUse(RG_NUTS) || CanUse(RG_HOOKSHOT) || CanUse(RG_BOOMERANG))) ||
+                   (enemy != RE_WALLMASTER && CanUse(RG_BLAST_MASK)); // [RSBS #979] OoTMM's can_kill_wolfos
         case RE_GERUDO_WARRIOR:
             return CanJumpslash() || CanUse(RG_FAIRY_BOW) ||
                    (ctx->GetTrickOption(RT_GF_WARRIOR_WITH_DIFFICULT_WEAPON) &&
@@ -1266,7 +1277,8 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
             return CanJumpslash() || CanUse(RG_FAIRY_BOW) || CanUse(RG_FAIRY_SLINGSHOT) ||
                    (!timer && CanUse(RG_BOMBCHU_5));
         case RE_TORCH_SLUG:
-            return CanJumpslash() || HasExplosives() || CanUse(RG_FAIRY_BOW);
+            // [RSBS #979] OoTMM's can_kill_torch_slugs counts can_use_mask_blast
+            return CanJumpslash() || HasExplosives() || CanUse(RG_FAIRY_BOW) || CanUse(RG_BLAST_MASK);
         case RE_FREEZARD:
             return CanUse(RG_MASTER_SWORD) || CanUse(RG_BIGGORON_SWORD) || CanUse(RG_MEGATON_HAMMER) ||
                    CanUse(RG_STICKS) || HasExplosives() || CanUse(RG_HOOKSHOT) || CanUse(RG_DINS_FIRE) ||
@@ -1368,7 +1380,7 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
             // there's a restoration that allows beating them with mirror shield + some way to trigger their attack
             return HasFireSource();
         case RE_BEAMOS:
-            return HasExplosives();
+            return HasExplosives() || CanUse(RG_BLAST_MASK); // [RSBS #979] OoTMM's can_kill_beamos
         case RE_PURPLE_LEEVER:
             // dies on it's own, so this is the conditions to spawn it (killing 10 normal leevers)
             // Sticks and Ice arrows work but will need ammo capacity logic
@@ -1747,7 +1759,8 @@ bool Logic::CanHitSwitch(EnemyDistance distance, bool inWater) {
     switch (distance) {
         case ED_CLOSE:
         case ED_SHORT_JUMPSLASH:
-            hit = CanUse(RG_KOKIRI_SWORD) || CanUse(RG_MEGATON_HAMMER) || CanUse(RG_GIANTS_KNIFE);
+            hit = CanUse(RG_KOKIRI_SWORD) || CanUse(RG_MEGATON_HAMMER) || CanUse(RG_GIANTS_KNIFE) ||
+                  (distance == ED_CLOSE && CanUse(RG_BLAST_MASK)); // [RSBS #979] can_hit_crystal_switch_close
             [[fallthrough]];
         case ED_MASTER_SWORD_JUMPSLASH:
             hit = hit || CanUse(RG_MASTER_SWORD);
@@ -1859,7 +1872,9 @@ bool Logic::HasExplosives() {
 }
 
 bool Logic::BlastOrSmash() {
-    return HasExplosives() || CanUse(RG_MEGATON_HAMMER);
+    // [RSBS #979] OoTMM's has_explosives_or_hammer counts can_use_mask_blast (not
+    // HasExplosives, which grants ranged credit through HasProjectile/CanDamage).
+    return HasExplosives() || CanUse(RG_MEGATON_HAMMER) || CanUse(RG_BLAST_MASK);
 }
 
 bool Logic::CanSpawnSoilSkull(RandomizerGet bean) {
@@ -1873,7 +1888,7 @@ bool Logic::CanReflectNuts() {
 bool Logic::CanCutShrubs() {
     return CanUse(RG_KOKIRI_SWORD) || CanUse(RG_BOOMERANG) || HasExplosives() || CanUse(RG_MASTER_SWORD) ||
            CanUse(RG_MEGATON_HAMMER) || CanUse(RG_BIGGORON_SWORD) || CanUse(RG_GIANTS_KNIFE) ||
-           HasItem(RG_GORONS_BRACELET);
+           HasItem(RG_GORONS_BRACELET) || CanUse(RG_BLAST_MASK); // [RSBS #979] OoTMM's grass cutting
 }
 
 bool Logic::CanStunDeku() {
@@ -2183,6 +2198,7 @@ static constexpr std::pair<RandomizerGet, uint32_t> randInfTable[] = {
     { RG_BACK_TOWER_KEY, RAND_INF_BACK_TOWER_KEY_OBTAINED },
     { RG_HYLIA_LAB_KEY, RAND_INF_HYLIA_LAB_KEY_OBTAINED },
     { RG_FISHING_HOLE_KEY, RAND_INF_FISHING_HOLE_KEY_OBTAINED },
+    { RG_BLAST_MASK, RAND_INF_OBTAINED_BLAST_MASK }, // [RSBS #979]
 };
 const std::array<uint32_t, RG_MAX> Logic::RandoGetToRandInf = ToRandoGetArray(randInfTable, RAND_INF_MAX);
 
@@ -2611,6 +2627,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_BACK_TOWER_KEY:
                 case RG_HYLIA_LAB_KEY:
                 case RG_FISHING_HOLE_KEY:
+                case RG_BLAST_MASK: // [RSBS #979]
                     SetRandoInf(RandoGetToRandInf[randoGet], state);
                     break;
                 case RG_TRIFORCE_PIECE:

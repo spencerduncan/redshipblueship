@@ -136,3 +136,42 @@ int Combo_ListCycle_Step(const uint8_t* owned, int n, int currentIndex, int dir)
     }
     return -1;
 }
+
+uint16_t Combo_BlastMaskCooldownFrames(uint8_t cooldown) {
+    // OoTMM's blastMaskDelay(), value for value. DEFAULT is Majora's Mask's own
+    // 310 frames (z_player.c, `this->blastMaskTimer = 310`), so an all-clear
+    // record is today's MM exactly.
+    switch (cooldown) {
+        case RSBS_BLAST_COOLDOWN_INSTANT:
+            return 1u;
+        case RSBS_BLAST_COOLDOWN_VERY_SHORT:
+            return 32u;
+        case RSBS_BLAST_COOLDOWN_SHORT:
+            return 128u;
+        case RSBS_BLAST_COOLDOWN_LONG:
+            return 512u;
+        case RSBS_BLAST_COOLDOWN_VERY_LONG:
+            return 1024u;
+        case RSBS_BLAST_COOLDOWN_DEFAULT:
+        default:
+            return 310u;
+    }
+}
+
+uint16_t Combo_BlastMaskCooldownFor(uint8_t cooldown, int noCooldown) {
+    return noCooldown ? (uint16_t)0u : Combo_BlastMaskCooldownFrames(cooldown);
+}
+
+int Combo_BlastMask_Step(uint16_t* cooldownLeft, int pressed, uint16_t armFrames) {
+    if (cooldownLeft == NULL) {
+        return 0;
+    }
+    if (*cooldownLeft > 0u) {
+        (*cooldownLeft)--;
+    }
+    if (!pressed || *cooldownLeft != 0u) {
+        return 0;
+    }
+    *cooldownLeft = armFrames;
+    return 1;
+}

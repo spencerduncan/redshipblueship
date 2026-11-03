@@ -38,6 +38,10 @@ u16 OoT_gUpgradeCapacities[][4] = {
 u32 gGsFlagsMasks[] = { 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000 };
 u32 gGsFlagsShifts[] = { 0, 8, 16, 24 };
 
+// [RSBS #979] The Blast Mask's pause and C-button icon, by path (aligned as the
+// asset headers' names are).
+static const ALIGN_ASSET(2) char gRsbsBlastMaskIconTex[] = "__OTR__icon_item_static_yar/gItemIconBlastMaskTex";
+
 void* OoT_gItemIcons[] = {
     gItemIconDekuStickTex,
     gItemIconDekuNutTex,
@@ -198,7 +202,14 @@ void* OoT_gItemIcons[] = {
     "",
     // Start custom items
     gRocsFeatherTex,
+    // [RSBS #979] ITEM_MASK_BLAST: Majora's Mask's own icon, from the curated
+    // redship-oot.o2r (assets/crossgame/manifest.txt, icon_item_static_yar/).
+    gRsbsBlastMaskIconTex,
 };
+
+// [RSBS #979] The entry count, for the ROM-free `blast-mask-oot-items` row: the
+// variables.h declaration is sized, but only this TU sees the initializer.
+const u32 OoT_gItemIconsCount = ARRAY_COUNTU(OoT_gItemIcons);
 
 // Used to map item IDs to inventory slots
 u8 OoT_gItemSlots[] = {
