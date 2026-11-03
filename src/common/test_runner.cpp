@@ -9240,7 +9240,8 @@ const TestDescriptor gTests[] = {
       Test_SharedArrowsBag },
     { "shared-masks-bag",
       "With all five shared-mask rules on, the single bag holds one row per mask both solvers credit, each placed "
-      "once over both games, the GOAL is still proven, and OoT's logic reads each mask's ownership (#978)",
+      "once over both games, the GOAL is still proven, OoT's logic reads each mask's ownership, and the only Goron "
+      "or Zora Mask forced onto an OoT check still proves Snowhead or Great Bay in MM's half (#978)",
       Test_SharedMasksBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "

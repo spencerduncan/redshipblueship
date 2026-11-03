@@ -2020,8 +2020,8 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity
-    # and direction-forward, the ladder world; #982's mm-nearly-no-logic is the
-    # default world since #1367) still creates on
+    # and direction-forward, #978's all-masks, the ladder world; #982's
+    # mm-nearly-no-logic is the default world since #1367) still creates on
     # its pinned attempt inside the shipped round budget, and its bagSeed,
     # bagRounds and mmPairedAttempt match the golden's when the golden is in the
     # tree (bagSeed tells the profiles apart; #982).
@@ -2288,6 +2288,14 @@ if(BUILD_TESTING)
         # Combo direction FORWARD (OoT items into MM checks only): every profile
         # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
         "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
+        # #978 (epic #975): EVERY MASK OPTION ON, the one golden the mask phases
+        # share. Today that is P2's five shared masks (OoTMM's sharedMaskGoron,
+        # sharedMaskZora, sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth): five
+        # shared pairs in the bag, five trimmed halves, and a comboSettingsHash no
+        # other golden has. P4 (#979) and P5 (#980) append their mask options to
+        # this line and re-pin this file, rather than adding a golden each. Same
+        # seed and dispatch as seed-digest-default.
+        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -3049,6 +3057,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # #978: each shared mask's ONE bag row over a real paired generation: one copy
     # per mask, both solvers credit it, MM's world holds no second copy, the GOAL
     # proven, and OoT's logic answers HasItem for each mask from its ownership.
+    # Then the two forced-host legs (Combo_Logic_TestSetForcedPlacements): the only
+    # Goron Mask on an OoT check still proves MM's goal through Snowhead, and the
+    # only Zora Mask on an OoT check through Great Bay; withholding that one OoT
+    # host, or the temple's boss remains, unproves it.
     redship_add_test(NAME SharedMasksBag COMMAND redship --test shared-masks-bag
         LABEL rando
         TIMEOUT 600
