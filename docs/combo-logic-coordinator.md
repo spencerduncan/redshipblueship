@@ -277,11 +277,12 @@ a fill is discarded, not extended. Adding such a mode would change
 `ComboLogicFillRequest`, which increment 3 and its follow-up deliberately did not
 do.
 
-`RSBS_COMBO_GOAL_TRIFORCE_HUNT` **refuses** with
-`RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL`. Answer O10 rules one shared piece count
-across both worlds, that carrier does not exist, and per-half composition is what
-O10 rejected — so evaluating it as anything would ship a world whose stated goal
-is not the goal that was proved.
+`RSBS_COMBO_GOAL_TRIFORCE_HUNT` is a COUNT, not a boolean (answer O10): the
+round sums both engines' `triforcePieces` (MM's behind the arrival gate) against
+the frozen requirement the request carries, and the fill refuses it only over an
+engine without the query (`RSBS_COMBO_LOGIC_ERR_UNSUPPORTED_GOAL`) or with no
+requirement. The production caller passes the frozen requirement since #1389, so
+a paired triforce-hunt world is generated and proved like any other.
 
 ### 4.3 The creation budget counts rounds, not milliseconds (#950)
 
@@ -384,7 +385,7 @@ Not oversights. Each has an owner.
 | Any production wiring — no shipping TU registers an engine, no creation seam calls the fill | the two engine lanes, then a wiring lane |
 | The O7 boundary carve; the placement tables are RAM, not `gComboCtx.reserved[108]` | epic #645 item 2 (a carve taken here would freeze a layout before the decision that sizes it) |
 | The O8 single-owner classification table; `ComboLogicBagItem.itemClass` is carried from the caller and recorded on the placement, and the coordinator filters nothing by it | epic #645 item 5. Narrowing belongs to the pool DRAW (`Combo_ForeignPoolDrawFor`), which runs before the bag exists: the six membership criteria run FIRST and the bitset selects among survivors (ADR 0011 decision 3.1) — an ordering this file may not weaken |
-| The O10 shared triforce piece count | epic #645 item 5; until then triforce-hunt refuses |
+| ~~The O10 shared triforce piece count~~ | delivered: PR #740 (the count), #1389 (the [Both Games] rows and the bag carrying the hunt) |
 | One spoiler artifact for the pair | #564 V23 / audit P11 |
 | The attempt ladder (re-rolling the seed) | the layer above; the coordinator's retries are batch roll-backs within one seed |
 | OoT's restricted-pool passes and both games' junk `FastFill`s | per-game, audit amendment 2 |

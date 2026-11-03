@@ -42,14 +42,37 @@
  *      quarantined, and nothing is committed; the same world with the four
  *      zero bytes loads.
  *
+ *   T11 THE [Both Games] SPLIT (#1389): OoTMM's triforcePieces / triforceGoal
+ *      split into the record's two halves (OoT the larger half inside its own
+ *      1..100 range), for every pair the rows can author.
+ *
  * The real give arms themselves are locked in the rando tier
  * (rando-triforce-hunt-win), because both need a booted game.
+ *
+ * Two more rows live here (#1389):
+ *   combo-triforce-rows (redship tier, needs the CVar store): the two keys and
+ *     their clamp, a hunt frozen from them that either game wins at the goal,
+ *     the counts divergence and its restore from the file's record (directly
+ *     and through a real SaveManager::Load), MM's own hunt rows following the
+ *     [Both Games] rows only under the hunt goal, and a preset that carries
+ *     MM's own hunt under a boss goal applying whole over a session staged at
+ *     the hunt goal (R3b).
+ *   paired-triforce-bag (rando tier): a real paired generation under the hunt
+ *     succeeds, its frozen hunt is the rows', and the single bag places exactly
+ *     the rows' pieces, each game's half on its own hosts, proving the goal.
  */
 
 #include "../combo_logic.h"
+#include "../combo_mm_options_page.h" // #1389: MM's hunt rows under the [Both Games] goal
+#include "../combo_mm_options_view.h" // #1389: MM_Rando_ResolveTriforceHalf, the MM option table
+#include "../combo_preset_profile.h"  // #1389: a preset judges MM's hunt rows by the goal it carries
+#include "../combo_settings_view.h"   // #1389: the [Both Games] Triforce Hunt keys and their restore
+#include "../combo_single_bag.h"      // #1389: the paired-triforce-bag row's fill report
 #include "../context.h"
+#include "../cvar_shared_keys.h" // #1389: RSBS_CVAR_COMBO_RANDO_TRIFORCE_*
 #include "../foreign_items.h"
 #include "../save.h"
+#include "../shared_items.h" // #1389: Combo_ItemClassArmedBy, which names a piece in either game
 #include "../shared_resources.h"
 #include "../test_runner.h"
 #include "../triforce_hunt.h"
@@ -57,7 +80,10 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <string>
 #include <vector>
+
+#include <libultraship/bridge/consolevariablebridge.h>
 
 // The two games' shim-driving helpers (games/oot/soh/oot_triforce_hunt_test.cpp,
 // games/mm/2s2h/mm_triforce_hunt_test.cpp) and the real shims they drive
@@ -401,9 +427,26 @@ TestResult Test_ComboTriforceHunt(void) {
         mm = TfHalf(5, 5);
         TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF,
                    "a half requiring more than its own pool holds must be refused");
+        // #1389: MM's half holding pieces with a ZERO share of the requirement is
+        // coherent now (the [Both Games] split gives MM's half that share when the
+        // goal is 1). OoT's half never is: SoH's Required Pieces option stores its
+        // value - 1 and the split gives OoT ceil(goal / 2) >= 1, so OoT pieces with
+        // no requirement are bytes no creation writes (combo-goal-ending E8/E9
+        // damage a record exactly so). A hunt requiring nothing at all is refused.
+        oot = TfHalf(10, 5);
+        ComboTriforceHalf mmZeroShare = TfHalf(5, 0);
+        TFH_ASSERT(Combo_TriforceResolve(&oot, &mmZeroShare, &r) == RSBS_TRIFORCE_OK &&
+                       Combo_TriforceRecordRequired(&r) == 5,
+                   "MM's half with pieces and a zero share of the requirement must resolve (#1389)");
         oot = TfHalf(10, 0);
-        TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF,
-                   "a hunt that is on with a zero requirement must be refused");
+        TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF && TfRecordZero(&r),
+                   "OoT's half with pieces and no requirement must be refused: no OoT setting and no split writes it");
+        oot = TfHalf(0, 0);
+        ComboTriforceHalf noGoal = TfHalf(5, 0);
+        TFH_ASSERT(Combo_TriforceResolve(&oot, &noGoal, &r) == RSBS_TRIFORCE_ERR_NO_GOAL && TfRecordZero(&r),
+                   "a hunt that requires no piece at all must be refused (it is won at its start)");
+        TFH_ASSERT(strcmp(Combo_TriforceStatusName(RSBS_TRIFORCE_ERR_NO_GOAL), "no-goal") == 0,
+                   "the no-goal status is unnamed");
         oot = TfHalf(0, 3);
         TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_ERR_BAD_HALF,
                    "a hunt that is off with a nonzero requirement must be refused");
@@ -476,6 +519,21 @@ TestResult Test_ComboTriforceHunt(void) {
         TFH_ASSERT((Combo_ComboSettingsDivergence() & RSBS_COMBO_DIVERGE_TRIFORCE) != 0,
                    "the arrival refusal (Combo_ComboSettingsDivergence) does not carry the triforce bit");
         TFH_ASSERT(!Combo_TriforceHuntArmed(), "a damaged record must not arm the hunt");
+
+        // OoT's half holding pieces with no requirement: never written (#1389 left
+        // the zero share to MM's half alone), so damage that disarms the hunt.
+        gComboCtx.comboTriforce = good;
+        gComboCtx.comboTriforce.requiredOoT = 0;
+        TFH_ASSERT(Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) ==
+                           RSBS_COMBO_DIVERGE_TRIFORCE &&
+                       !Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == 0,
+                   "a stored record with OoT pieces and no OoT requirement must diverge and disarm the hunt");
+        // MM's zero share is a world the split writes (a goal of 1): it arms.
+        gComboCtx.comboTriforce = good;
+        gComboCtx.comboTriforce.requiredMM = 0;
+        TFH_ASSERT(Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) == 0 &&
+                       Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == good.requiredOoT,
+                   "a stored record with MM pieces and a zero MM share must arm the hunt (#1389)");
 
         // A hunt goal with no record at all.
         memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
@@ -803,8 +861,520 @@ TestResult Test_ComboTriforceHunt(void) {
         std::filesystem::remove_all(kTfLoadTestDir(), ec);
     }
 
+    // ---- T11: THE [Both Games] SPLIT (#1389) -----------------------------------
+    // OoTMM's triforcePieces / triforceGoal become the record's two halves: OoT
+    // the larger half of each number inside its own 1..100 range, MM the rest.
+    // Every split is a record the rule accepts, sums back to the two numbers, and
+    // gives OoT at least one piece and one requirement (OoT's options store
+    // value - 1).
+    {
+        struct SplitCase {
+            uint16_t pieces, goal;
+            uint16_t ootTotal, ootRequired, mmTotal, mmRequired;
+        };
+        const SplitCase kCases[] = {
+            { 30, 20, 15, 10, 15, 10 },       // OoTMM's defaults
+            { 1, 1, 1, 1, 0, 0 },             // one piece: OoT holds it, MM's hunt is off
+            { 2, 1, 1, 1, 1, 0 },             // goal 1: MM holds a piece and requires none
+            { 3, 3, 2, 2, 1, 1 },             // odd numbers: OoT takes the larger half
+            { 12, 8, 6, 4, 6, 4 },            // the rando-tier row's world
+            { 201, 201, 100, 100, 101, 101 }, // OoT's half capped at its option range
+            { 255, 255, 100, 100, 155, 155 }, // the cap: OoT's 8-bit counter
+            { 255, 1, 100, 1, 155, 0 },
+        };
+        for (const SplitCase& c : kCases) {
+            ComboTriforceHalf oot;
+            ComboTriforceHalf mm;
+            TFH_ASSERT(Combo_TriforceSplit(c.pieces, c.goal, &oot, &mm) == RSBS_TRIFORCE_OK,
+                       "a valid [Both Games] pair did not split");
+            if (oot.total != c.ootTotal || oot.required != c.ootRequired || mm.total != c.mmTotal ||
+                mm.required != c.mmRequired) {
+                printf("[TEST] FAIL: %u of %u split OoT %u of %u, MM %u of %u; expected OoT %u of %u, MM %u of %u\n",
+                       (unsigned)c.goal, (unsigned)c.pieces, (unsigned)oot.required, (unsigned)oot.total,
+                       (unsigned)mm.required, (unsigned)mm.total, (unsigned)c.ootRequired, (unsigned)c.ootTotal,
+                       (unsigned)c.mmRequired, (unsigned)c.mmTotal);
+                TFH_ASSERT(false, "the [Both Games] split drifted (#1389)");
+            }
+            ComboTriforceRecord r;
+            TFH_ASSERT(Combo_TriforceResolve(&oot, &mm, &r) == RSBS_TRIFORCE_OK &&
+                           Combo_TriforceRecordTotal(&r) == c.pieces && Combo_TriforceRecordRequired(&r) == c.goal,
+                       "a split is not a record the rule accepts, or does not sum back to the two numbers");
+        }
+        // Every pair the rows can author splits into a coherent record.
+        for (uint32_t pieces = 1; pieces <= RSBS_TRIFORCE_COMBO_MAX; pieces++) {
+            for (uint32_t goal = 1; goal <= pieces; goal++) {
+                ComboTriforceHalf oot;
+                ComboTriforceHalf mm;
+                ComboTriforceRecord r;
+                if (Combo_TriforceSplit((uint16_t)pieces, (uint16_t)goal, &oot, &mm) != RSBS_TRIFORCE_OK ||
+                    Combo_TriforceResolve(&oot, &mm, &r) != RSBS_TRIFORCE_OK || oot.total < 1 || oot.required < 1 ||
+                    oot.total > RSBS_TRIFORCE_OOT_HALF_MAX || Combo_TriforceRecordTotal(&r) != pieces ||
+                    Combo_TriforceRecordRequired(&r) != goal) {
+                    printf("[TEST] FAIL: %u of %u does not split into a coherent record\n", (unsigned)goal,
+                           (unsigned)pieces);
+                    TFH_ASSERT(false, "the split leaves an authorable pair without a record (#1389)");
+                }
+            }
+        }
+        ComboTriforceHalf oot;
+        ComboTriforceHalf mm;
+        TFH_ASSERT(Combo_TriforceSplit(0, 0, &oot, &mm) == RSBS_TRIFORCE_ERR_NO_PIECES &&
+                       Combo_TriforceSplit(5, 0, &oot, &mm) == RSBS_TRIFORCE_ERR_NO_GOAL &&
+                       Combo_TriforceSplit(5, 6, &oot, &mm) == RSBS_TRIFORCE_ERR_GOAL_OVER_PIECES &&
+                       Combo_TriforceSplit(256, 20, &oot, &mm) == RSBS_TRIFORCE_ERR_OVER_CAP &&
+                       Combo_TriforceSplit(5, 3, NULL, &mm) == RSBS_TRIFORCE_ERR_BAD_REQUEST,
+                   "the split must refuse what no [Both Games] row can author");
+        TFH_ASSERT(oot.total == 0 && oot.required == 0 && mm.total == 0 && mm.required == 0,
+                   "a refused split must leave both halves zero");
+        TFH_ASSERT(RSBS_TRIFORCE_COMBO_DEFAULT_PIECES == 30u && RSBS_TRIFORCE_COMBO_DEFAULT_GOAL == 20u,
+                   "the [Both Games] defaults are not OoTMM's 30 and 20");
+        TFH_ASSERT(RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS == 0x20000u &&
+                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS),
+                              "triforceCounts") == 0 &&
+                       !Combo_ComboSettingsDivergenceIsDamage(RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS),
+                   "the counts divergence must be the next contiguous bit, named, and a SESSION divergence");
+        printf("[TEST] T11: [Both Games] pieces / goal split into a coherent record for every authorable pair "
+               "(#1389)\n");
+    }
+
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     printf("[TEST] PASS: combo-triforce-hunt\n");
     return TEST_PASS;
+}
+
+// ============================================================================
+// combo-triforce-rows (#1389): the [Both Games] Triforce Hunt rows' keys, the
+// load restore that puts them back, and MM's read-only rows. Needs the CVar
+// store (test_runner.cpp brings one up, as for combo-settings-authoring).
+// ============================================================================
+
+namespace {
+
+/** The three keys this row writes, cleared on every exit. */
+void TfrClearKeys() {
+    CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL);
+}
+
+/** The MM option row named @p name (its StaticData name), or NULL. */
+const ComboMMOptionDesc* TfrMMOption(const char* name) {
+    for (int i = 0; i < Combo_MMOptionCount(); i++) {
+        const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+        if (d != NULL && d->name != NULL && strcmp(d->name, name) == 0) {
+            return d;
+        }
+    }
+    return NULL;
+}
+
+/** Does @p profile (a captured paired profile, the CVar tree as JSON) hold the
+ *  dotted key @p cvar? */
+bool TfrProfileHolds(const nlohmann::json& profile, const char* cvar) {
+    const nlohmann::json* node = &profile;
+    std::string key;
+    for (const char* p = cvar;; p++) {
+        if (*p != '.' && *p != '\0') {
+            key.push_back(*p);
+            continue;
+        }
+        if (!node->is_object() || !node->contains(key)) {
+            return false;
+        }
+        node = &node->at(key);
+        key.clear();
+        if (*p == '\0') {
+            return true;
+        }
+    }
+}
+
+} // namespace
+
+#define TFR_ASSERT(cond, msg)                                               \
+    do {                                                                    \
+        if (!(cond)) {                                                      \
+            printf("[TEST] FAIL: %s (%s:%d)\n", (msg), __FILE__, __LINE__); \
+            ComboContext_Init();                                            \
+            TfrClearKeys();                                                 \
+            return TEST_FAIL;                                               \
+        }                                                                   \
+    } while (0)
+
+TestResult ComboTriforceRows_Run(void) {
+    printf("[TEST] combo-triforce-rows: [Both Games] Triforce Pieces / Triforce Goal author the frozen hunt, a load "
+           "restores them, and MM's own hunt rows follow them under the hunt goal (#1389)\n");
+    TFR_ASSERT(Combo_ComboSettingStoreAvailable(), "fixture: no CVar store");
+    ComboContext_Init();
+    TfrClearKeys();
+
+    // ---- R1: the keys and their resolution ------------------------------------
+    {
+        uint16_t pieces = 0;
+        uint16_t goal = 0;
+        Combo_ResolveComboTriforce(&pieces, &goal);
+        TFR_ASSERT(pieces == 30 && goal == 20, "unset keys must resolve to OoTMM's 30 and 20");
+        TFR_ASSERT(strcmp(Combo_ComboSettingKey(COMBO_SETTING_TRIFORCE_PIECES), "gCombo.Rando.TriforcePieces") == 0 &&
+                       strcmp(Combo_ComboSettingKey(COMBO_SETTING_TRIFORCE_GOAL), "gCombo.Rando.TriforceGoal") == 0 &&
+                       strcmp(Combo_ComboSettingLabel(COMBO_SETTING_TRIFORCE_PIECES), "Triforce Pieces") == 0 &&
+                       strcmp(Combo_ComboSettingLabel(COMBO_SETTING_TRIFORCE_GOAL), "Triforce Goal") == 0,
+                   "the keys or labels are not OoTMM's names");
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 12) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 40) == 1,
+                   "the writers refused a pre-creation hunt");
+        Combo_ResolveComboTriforce(&pieces, &goal);
+        TFR_ASSERT(pieces == 12 && goal == 12, "a goal past the pieces must resolve clamped to them, as OoTMM's");
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 256) == 0 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 0) == 0,
+                   "a value outside 1..255 was written");
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, 999); // out of band: OoTMM's own maximum
+        Combo_ResolveComboTriforce(&pieces, &goal);
+        TFR_ASSERT(pieces == 30 && goal == 30,
+                   "an out-of-space pieces key must resolve to its default (the goal then clamps to it)");
+        TfrClearKeys();
+    }
+
+    // ---- R2: a frozen hunt from the rows, and the win from either game ----------
+    ComboTriforceRecord fileRecord;
+    ComboSettingsRecord fileSettings;
+    {
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 12) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 8) == 1,
+                   "fixture: the hunt keys");
+        TfFreezeWorld((uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT);
+        uint16_t pieces = 0;
+        uint16_t goal = 0;
+        Combo_ResolveComboTriforce(&pieces, &goal);
+        ComboTriforceHalf oot;
+        ComboTriforceHalf mm;
+        TFR_ASSERT(Combo_TriforceSplit(pieces, goal, &oot, &mm) == RSBS_TRIFORCE_OK &&
+                       Combo_TriforceFreezeAtCreation(&oot, &mm) == RSBS_TRIFORCE_OK,
+                   "the rows' split did not freeze");
+        TFR_ASSERT(Combo_TriforceHuntArmed() && Combo_TriforceHuntTotal() == 12 && Combo_TriforceHuntRequired() == 8,
+                   "the frozen hunt is not the rows' 8 of 12");
+        uint16_t shownPieces = 0;
+        uint16_t shownGoal = 0;
+        Combo_TriforceCountsShown(&shownPieces, &shownGoal);
+        TFR_ASSERT(shownPieces == 12 && shownGoal == 8, "the rows do not show the frozen hunt");
+        // The one decision both give arms call: the combo requirement, from
+        // either game; neither game's own share is a threshold.
+        TFR_ASSERT(Combo_TriforceHuntOnPieceGiven(GAME_OOT, 8, oot.required) == RSBS_TRIFORCE_WIN_COMBO &&
+                       Combo_TriforceHuntOnPieceGiven(GAME_MM, 8, mm.required) == RSBS_TRIFORCE_WIN_COMBO,
+                   "reaching the [Both Games] goal did not win in one of the games");
+        TFR_ASSERT(Combo_TriforceHuntOnPieceGiven(GAME_OOT, oot.required, oot.required) == RSBS_TRIFORCE_WIN_NONE &&
+                       Combo_TriforceHuntOnPieceGiven(GAME_MM, 7, mm.required) == RSBS_TRIFORCE_WIN_NONE,
+                   "a count short of the [Both Games] goal won");
+        TFR_ASSERT(Combo_TriforceCountsDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) == 0,
+                   "a world frozen from the session's own keys reads as divergent");
+        // A session whose keys walked away from the world (the writers refuse
+        // while frozen, so out of band here).
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, 40);
+        TFR_ASSERT(Combo_TriforceCountsDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce) ==
+                       RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS,
+                   "keys that differ from the frozen hunt must diverge as triforceCounts");
+        ComboSettingsRecord beatBoth = gComboCtx.comboSettings;
+        beatBoth.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH;
+        ComboTriforceRecord zero;
+        memset(&zero, 0, sizeof(zero));
+        TFR_ASSERT(Combo_TriforceCountsDivergence(&beatBoth, &zero) == 0,
+                   "a world under another goal must never diverge on the hunt's keys");
+        fileRecord = gComboCtx.comboTriforce;
+        fileSettings = gComboCtx.comboSettings;
+
+        // The restore: only with the file's triforce record, and exactly the
+        // key that differs.
+        const uint32_t bits = RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS;
+        TFR_ASSERT(
+            Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == 0u &&
+                Combo_ComboSettingsCanRestoreLiveEx(&fileSettings, &gComboCtx.comboItemRules, &fileRecord, bits) == 1 &&
+                Combo_ComboSettingsCanRestoreLive(&fileSettings, &gComboCtx.comboItemRules, bits) == 0,
+            "the counts must restore from the file's triforce record, and only with it");
+        char names[128];
+        ComboSettingsKeyUndo undo;
+        TFR_ASSERT(Combo_ComboSettingsRestoreLiveEx(&fileSettings, &gComboCtx.comboItemRules, &fileRecord, bits, names,
+                                                    sizeof(names), &undo) == 1 &&
+                       strcmp(names, "Triforce Pieces") == 0,
+                   "the restore did not put back exactly the Triforce Pieces key");
+        TFR_ASSERT(Combo_TriforceCountsDivergence(&fileSettings, &fileRecord) == 0,
+                   "after the restore the keys still diverge from the file");
+        Combo_ComboSettingsRestoreUndo(&undo);
+        TFR_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_TRIFORCE_PIECES) == 40,
+                   "the undo did not put the session's own key back");
+        printf("[TEST] R2: the rows freeze 8 of 12 (OoT %u of %u, MM %u of %u), either game wins at 8, and the "
+               "counts restore from the file's record\n",
+               (unsigned)oot.required, (unsigned)oot.total, (unsigned)mm.required, (unsigned)mm.total);
+    }
+
+    // ---- R3: MM's own hunt rows follow the [Both Games] rows under the goal -----
+    {
+        ComboContext_Init();
+        TfrClearKeys();
+        Combo_MMOptionsPages_Init();
+        const ComboMMOptionDesc* shuffleRow = TfrMMOption(COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE);
+        const ComboMMOptionDesc* maxRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_MAX);
+        const ComboMMOptionDesc* requiredRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_REQUIRED);
+        TFR_ASSERT(shuffleRow != NULL && maxRow != NULL && requiredRow != NULL,
+                   "MM's three Triforce Hunt rows are not named");
+        // MM's own hunt off (its keys at their defaults), whatever a row before
+        // this one left there.
+        CVarClear(shuffleRow->cvar);
+        CVarClear(maxRow->cvar);
+        CVarClear(requiredRow->cvar);
+        TFR_ASSERT(!Combo_MMOptionsPage_OptionSetByCombo(shuffleRow) && !Combo_MMOptionsPage_OptionSetByCombo(maxRow) &&
+                       !Combo_MMOptionsPage_OptionSetByCombo(requiredRow),
+                   "under the shipped goal MM's own hunt rows must stay MM's (#768)");
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 12) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 8) == 1,
+                   "fixture: the hunt keys");
+        const char* reason = NULL;
+        TFR_ASSERT(Combo_MMOptionsPage_OptionState(maxRow, &reason) == COMBO_MM_ROW_SET_BY_COMBO &&
+                       strcmp(reason, COMBO_TRIFORCE_SET_BY_COMBO_REASON) == 0,
+                   "under the hunt goal MM's Triforce Pieces Shuffled row is not set by [Both Games] Triforce Hunt");
+        TFR_ASSERT(Combo_MMOptionsPage_OptionShownValue(shuffleRow) == 1 &&
+                       Combo_MMOptionsPage_OptionShownValue(maxRow) == 6 &&
+                       Combo_MMOptionsPage_OptionShownValue(requiredRow) == 4,
+                   "MM's hunt rows do not show MM's half of 8 of 12 (on, 6 pieces, 4 required)");
+        uint16_t mmTotal = 0;
+        uint16_t mmRequired = 0;
+        MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &mmTotal, &mmRequired);
+        TFR_ASSERT(mmTotal == 6 && mmRequired == 4,
+                   "MM's paired resolution does not generate MM's half of the [Both Games] split");
+        // Under another goal MM's own rows are MM's hunt again.
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_BOTH) == 1,
+                   "fixture: the goal");
+        MM_Rando_ResolveTriforceHalf(/*fromSave=*/0, &mmTotal, &mmRequired);
+        TFR_ASSERT(mmTotal == 0 && mmRequired == 0,
+                   "under a boss goal MM's half moved with the [Both Games] rows (MM's own hunt is off)");
+        TfrClearKeys();
+        printf("[TEST] R3: MM's three hunt rows are set by [Both Games] Triforce Hunt under its goal and show MM's "
+               "half; under a boss goal they are MM's own\n");
+    }
+
+    // ---- R3b: a preset judges MM's hunt rows by the goal it carries -----------
+    // A profile captured under a boss goal with MM's own hunt on carries MM's
+    // three rows beside that goal (#768: they are MM's own there). Applied over
+    // a session staged at the hunt goal, the rows must be written and the goal
+    // put back to the boss goal. The Cross-Game rules apply first, so the rows
+    // are judged by the goal the profile leaves; judged by the session's hunt
+    // goal they were refused as set by [Both Games] Triforce Hunt (and, in an
+    // overwrite, cleared). A merge, so nothing else in the process is cleared.
+    {
+        ComboContext_Init();
+        TfrClearKeys();
+        Combo_MMOptionsPages_Init();
+        const ComboMMOptionDesc* shuffleRow = TfrMMOption(COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE);
+        const ComboMMOptionDesc* maxRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_MAX);
+        const ComboMMOptionDesc* requiredRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_REQUIRED);
+        TFR_ASSERT(shuffleRow != NULL && maxRow != NULL && requiredRow != NULL,
+                   "MM's three Triforce Hunt rows are not named");
+        TFR_ASSERT(ComboPresetProfile_RefusalNote().empty(), "fixture: an undecided session must take a preset");
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
+                   "fixture: the boss goal");
+        Combo_MMOptionSetValue(shuffleRow, 1);
+        Combo_MMOptionSetValue(maxRow, 10);
+        Combo_MMOptionSetValue(requiredRow, 7);
+        const nlohmann::json saved = nlohmann::json::parse(ComboPresetProfile_Capture().dump());
+        const bool captured = TfrProfileHolds(saved, shuffleRow->cvar) && TfrProfileHolds(saved, maxRow->cvar) &&
+                              TfrProfileHolds(saved, requiredRow->cvar) &&
+                              TfrProfileHolds(saved, Combo_ComboSettingKey(COMBO_SETTING_GOAL));
+        // The session walks to the hunt goal, MM's own rows back to unchosen.
+        Combo_MMOptionClear(shuffleRow);
+        Combo_MMOptionClear(maxRow);
+        Combo_MMOptionClear(requiredRow);
+        const bool stagedAtHunt =
+            Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1 &&
+            Combo_MMOptionsPage_OptionSetByCombo(maxRow);
+        const ComboPresetProfileReport report = ComboPresetProfile_Apply(saved, /*merge=*/true);
+        const int32_t goalAfter = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+        const bool rowsWritten = Combo_MMOptionIsExplicit(shuffleRow) && Combo_MMOptionIsExplicit(maxRow) &&
+                                 Combo_MMOptionIsExplicit(requiredRow) && Combo_MMOptionGetValue(shuffleRow) == 1 &&
+                                 Combo_MMOptionGetValue(maxRow) == 10 && Combo_MMOptionGetValue(requiredRow) == 7;
+        printf("[TEST] R3b: preset with goal %d and MM's hunt 7 of 10 over a session at the hunt goal: applied %d, "
+               "%d written, %d refused; goal after %d, MM's rows %s\n",
+               (int)RSBS_COMBO_GOAL_BEAT_MM, report.applied ? 1 : 0, report.written, report.refused, (int)goalAfter,
+               rowsWritten ? "written" : "NOT written");
+        Combo_MMOptionClear(shuffleRow);
+        Combo_MMOptionClear(maxRow);
+        Combo_MMOptionClear(requiredRow);
+        TfrClearKeys();
+        TFR_ASSERT(captured, "a preset captured under a boss goal did not carry MM's hunt rows beside its goal");
+        TFR_ASSERT(stagedAtHunt, "fixture: the session staged at the hunt goal does not set MM's hunt rows");
+        TFR_ASSERT(report.applied && report.refused == 0,
+                   "the preset's MM hunt rows were refused by the session's goal, not judged by the preset's own");
+        TFR_ASSERT(goalAfter == (int32_t)RSBS_COMBO_GOAL_BEAT_MM, "the preset did not put its own goal back");
+        TFR_ASSERT(rowsWritten, "the preset's MM hunt (7 of 10) did not reach MM's own rows");
+    }
+
+    // ---- R4: a .redsave load restores the file's counts ------------------------
+    // The same world, met by a session staged at other counts: frozen wins at
+    // load (#781), so the file's 8 of 12 go back into the keys instead of the
+    // file being refused, and the resident hunt is the file's.
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(kTfLoadTestDir(), ec);
+        rsbs::SaveManager& mgr = rsbs::SaveManager::Instance();
+        mgr.SetSaveDirectory(kTfLoadTestDir());
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1,
+                   "fixture: the goal");
+        TFR_ASSERT(TfWriteSlot(fileRecord), "fixture: Save(0) failed for the hunt world");
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, 50);
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, 30);
+        const bool loaded = mgr.Load(0);
+        const int32_t piecesAfter = Combo_ComboSettingResolved(COMBO_SETTING_TRIFORCE_PIECES);
+        const int32_t goalAfter = Combo_ComboSettingResolved(COMBO_SETTING_TRIFORCE_GOAL);
+        printf("[TEST] R4: load %s; keys after it %d of %d (file 8 of 12)\n", loaded ? "accepted" : "REFUSED",
+               (int)goalAfter, (int)piecesAfter);
+        RsbsSave_ResetSlotSessionState();
+        mgr.DeleteSave(0);
+        std::filesystem::remove_all(kTfLoadTestDir(), ec);
+        TFR_ASSERT(loaded, "a hunt world met by a session at other counts was refused instead of restored (#781)");
+        TFR_ASSERT(piecesAfter == 12 && goalAfter == 8, "the load did not put the file's counts back into the keys");
+        TFR_ASSERT(Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == 8 && Combo_TriforceHuntTotal() == 12,
+                   "the loaded world's hunt is not the file's");
+        (void)fileSettings;
+    }
+
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    TfrClearKeys();
+    printf("[TEST] PASS: combo-triforce-rows\n");
+    return TEST_PASS;
+}
+
+// ============================================================================
+// paired-triforce-bag (#1389, rando tier): a real paired triforce-hunt world.
+// ============================================================================
+
+extern "C" {
+int Rando_HeadlessSeedTest(const char* seedStr);
+int MM_Rando_HeadlessPairedHalf(void);
+int OoT_ComboLogic_ExportPool(int source, uint16_t* outItems, uint16_t* outHosts, uint16_t* outFlags, int cap);
+int MM_ComboLogic_TestShuffledItems(uint16_t* outItems, uint16_t* outChecks, int cap);
+}
+
+namespace {
+
+/** Is @p id of @p origin a Triforce Piece? Asked game-neutrally: both games tag
+ *  their piece, and only it, with the WORLD_EVENT family (shared_items.h). */
+bool TfbIsPiece(uint8_t origin, uint16_t id) {
+    SharedItem item;
+    memset(&item, 0, sizeof(item));
+    item.originGame = origin;
+    item.id = id;
+    return (Combo_ItemClassArmedBy(item) & RSBS_FILL_ARM_WORLD_EVENT) != 0u;
+}
+
+} // namespace
+
+TestResult PairedTriforceBag_Run(void) {
+    printf("[TEST] paired-triforce-bag: a paired world under the Triforce Hunt goal is generated, freezes the "
+           "[Both Games] 8 of 12, and the single bag places exactly 12 pieces, 6 on each game's own hosts, proving "
+           "the goal (#1389)\n");
+    int failures = 0;
+#define TFB_CHECK(cond, ...)                                     \
+    do {                                                         \
+        if (!(cond)) {                                           \
+            printf("[TEST] FAIL (%s:%d): ", __FILE__, __LINE__); \
+            printf(__VA_ARGS__);                                 \
+            printf("\n");                                        \
+            failures++;                                          \
+        }                                                        \
+    } while (0)
+
+    ComboContext_Init();
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT);
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, 12);
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, 8);
+
+    // ---- B1: Generate is no longer refused, and freezes the rows' hunt ---------
+    const int gen = Rando_HeadlessSeedTest("RSBSTRIFORCE1389");
+    TFB_CHECK(gen == 0,
+              "the paired generation under the Triforce Hunt goal failed (rc %d): Generate still refuses "
+              "the goal, or the fill could not carry it",
+              gen);
+    TFB_CHECK(Combo_ComboSettingsFrozen() && gComboCtx.comboSettings.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT,
+              "the creation did not freeze the Triforce Hunt goal");
+    TFB_CHECK(Combo_TriforceHuntArmed() && Combo_TriforceHuntTotal() == 12 && Combo_TriforceHuntRequired() == 8,
+              "the frozen hunt is %u of %u, expected the rows' 8 of 12", (unsigned)Combo_TriforceHuntRequired(),
+              (unsigned)Combo_TriforceHuntTotal());
+    TFB_CHECK(gComboCtx.comboTriforce.totalOoT == 6 && gComboCtx.comboTriforce.requiredOoT == 4 &&
+                  gComboCtx.comboTriforce.totalMM == 6 && gComboCtx.comboTriforce.requiredMM == 4,
+              "the frozen halves are OoT %u of %u, MM %u of %u; expected the split, 4 of 6 each",
+              (unsigned)gComboCtx.comboTriforce.requiredOoT, (unsigned)gComboCtx.comboTriforce.totalOoT,
+              (unsigned)gComboCtx.comboTriforce.requiredMM, (unsigned)gComboCtx.comboTriforce.totalMM);
+    const int mmHalf = (gen == 0) ? MM_Rando_HeadlessPairedHalf() : -1;
+    TFB_CHECK(mmHalf == 0, "MM's creation-time half did not produce a rando world (rc %d)", mmHalf);
+
+    if (gen == 0 && mmHalf == 0) {
+        // ---- B2: the fill carried the hunt and proved it -----------------------
+        const ComboSingleBagReport bag = *Combo_SingleBag_LastReport();
+        printf("[TEST] paired-triforce-bag: bag %d rows, %d placed, goal %u, proven %d, %d round(s)\n", bag.bagCount,
+               bag.fill.placed, (unsigned)bag.goal, bag.fill.goalProven ? 1 : 0, bag.fill.rounds);
+        TFB_CHECK(bag.status == RSBS_COMBO_LOGIC_OK && bag.fill.goalProven &&
+                      bag.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT,
+                  "the single-bag fill did not prove the Triforce Hunt goal (status %d)", bag.status);
+        TFB_CHECK(Combo_Logic_UnprovedHalvesForGoal(&bag.fill, bag.goal) == 0u,
+                  "a proved triforce-hunt world would warn that a game may be unfinishable");
+
+        // ---- B3: exactly the rows' pieces, each game's on its own hosts ----------
+        int placedOoT = 0;
+        int placedMM = 0;
+        int crossed = 0;
+        for (GameId host : { GAME_OOT, GAME_MM }) {
+            ComboLogicPlacement p;
+            for (int i = 0; i < Combo_Logic_PlacementCount(host); i++) {
+                if (!Combo_Logic_PlacementAt(host, i, &p) || !TfbIsPiece(p.item.originGame, p.item.id)) {
+                    continue;
+                }
+                if (p.item.originGame != (uint8_t)host) {
+                    crossed++;
+                } else if (host == GAME_OOT) {
+                    placedOoT++;
+                } else {
+                    placedMM++;
+                }
+            }
+        }
+        printf("[TEST] paired-triforce-bag: the bag placed %d OoT and %d MM piece(s), %d crossed\n", placedOoT,
+               placedMM, crossed);
+        TFB_CHECK(placedOoT == 6 && placedMM == 6 && crossed == 0,
+                  "the bag placed %d OoT and %d MM pieces (%d across games); expected 6 on each game's own hosts",
+                  placedOoT, placedMM, crossed);
+
+        // The two worlds hold no other piece: none was left to a junk pass.
+        std::vector<uint16_t> items(8192, 0);
+        const int ootHosted = OoT_ComboLogic_ExportPool(1, items.data(), nullptr, nullptr, (int)items.size());
+        int ootWorld = 0;
+        for (int i = 0; i < ootHosted && i < (int)items.size(); i++) {
+            ootWorld += TfbIsPiece((uint8_t)GAME_OOT, items[(size_t)i]) ? 1 : 0;
+        }
+        const int mmShuffled = MM_ComboLogic_TestShuffledItems(items.data(), nullptr, (int)items.size());
+        int mmWorld = 0;
+        for (int i = 0; i < mmShuffled && i < (int)items.size(); i++) {
+            mmWorld += TfbIsPiece((uint8_t)GAME_MM, items[(size_t)i]) ? 1 : 0;
+        }
+        printf("[TEST] paired-triforce-bag: OoT's world holds %d piece(s), MM's %d (expected 6 and 6)\n", ootWorld,
+               mmWorld);
+        TFB_CHECK(ootWorld == 6 && mmWorld == 6,
+                  "OoT's world holds %d pieces and MM's %d; expected exactly the bag's 6 each", ootWorld, mmWorld);
+
+        // ---- B4: the goal fires at 8 from either game ----------------------------
+        TFB_CHECK(Combo_TriforceHuntOnPieceGiven(GAME_OOT, 8, 4) == RSBS_TRIFORCE_WIN_COMBO &&
+                      Combo_TriforceHuntOnPieceGiven(GAME_MM, 8, 4) == RSBS_TRIFORCE_WIN_COMBO &&
+                      Combo_TriforceHuntOnPieceGiven(GAME_OOT, 4, 4) == RSBS_TRIFORCE_WIN_NONE &&
+                      Combo_TriforceHuntOnPieceGiven(GAME_MM, 7, 4) == RSBS_TRIFORCE_WIN_NONE,
+                  "the generated world does not end at 8 pieces from either game");
+    }
+
+    CVarClear(RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+#undef TFB_CHECK
+    printf("[TEST] paired-triforce-bag: %s\n", failures == 0 ? "PASS" : "FAIL");
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
 }

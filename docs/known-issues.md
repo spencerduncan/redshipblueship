@@ -251,8 +251,11 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   check is named by that check's Hyrule area ("is hidden on Death Mountain Trail"), by
   the static hints and by the gossip stones, which now draw such items after Termina's
   own checks ([#575](https://github.com/spencerduncan/redshipblueship/issues/575) H2, H3c).
-- **Triforce Hunt is not yet a paired goal.** The Goal row lists it, but generation
-  refuses it, and OoTMM's Triforce Quest is not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
+- ~~**Triforce Hunt is not yet a paired goal.**~~ RESOLVED ([#1389](https://github.com/spencerduncan/redshipblueship/issues/1389)):
+  a paired world is generated under it, with OoTMM's [Both Games] Triforce Pieces (default 30, at most 255, the most
+  Ocarina of Time's counter holds; OoTMM allows 999) and Triforce Goal (default 20). The pieces are split between the
+  two games' own checks, one count across both, and the game ends in whichever game the last one is found. OoTMM's
+  Triforce Quest is still not offered (PRs [#740](https://github.com/spencerduncan/redshipblueship/pull/740), [#760](https://github.com/spencerduncan/redshipblueship/pull/760), [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 - ~~**Some settings re-seed the world without changing a rule.**~~ RESOLVED: the pool-size
   sliders ([#801](https://github.com/spencerduncan/redshipblueship/issues/801)) and the
   "OoT Classes" / "MM Classes" rows ([#834](https://github.com/spencerduncan/redshipblueship/issues/834))

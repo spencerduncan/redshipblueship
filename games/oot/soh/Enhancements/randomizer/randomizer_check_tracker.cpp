@@ -667,9 +667,11 @@ void CheckTrackerLoadGame(int32_t fileNum) {
 
     RegionTable_Init();
 
-    if (Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get()) {
-        Rando::Context::GetInstance()->GetEntranceShuffler()->ApplyEntranceOverrides();
-    }
+    // SoH #6165: always, not only under entrance shuffle. The rebuilt graph's
+    // entrances must carry their indices (SetAllEntrancesData) for Available
+    // Checks to start where Link is (#1420). Without entrance shuffle there is
+    // no override, so this only stamps the entrances.
+    Rando::Context::GetInstance()->GetEntranceShuffler()->ApplyEntranceOverrides();
 
     recalculateAvailable = true;
 }
@@ -714,6 +716,14 @@ void CheckTrackerTransition(uint32_t sceneNum) {
                                                   OoT_gPlayState->nextEntranceIndex) != spoilingEntrances.end())) {
         SetAreaSpoiled(currentArea);
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1420: Available Checks start where Link is (ComputeAvailableChecks), so a
+    // new scene can change the set. The search runs at the next read (the combo
+    // tracker's OoT_CheckTracker_AvailabilityCurrent), not here.
+    if (enableAvailableChecks) {
+        recalculateAvailable = true;
+    }
+#endif
 }
 
 void CheckTrackerItemReceive(GetItemEntry giEntry) {
@@ -1629,8 +1639,15 @@ void LoadSettings() {
     showGerudoFortressKeys =
         IS_RANDO ? OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_GERUDO_KEYS) != RO_GERUDO_KEYS_VANILLA
                  : false;
+    // SoH #6447 (#1420): under Triforce Hunt the boss key is never placed
+    // (item_pool.cpp), so the tower chest holds a random item even with the
+    // greyed-out Ganon's Boss Key option left at Vanilla. The paired Triforce Hunt
+    // (#1389) writes OoT's own hunt as "Win" when it creates a file, so this option
+    // covers paired files too; until it lands, Generate refuses that goal.
     showGanonBossKey = IS_RANDO ? OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_GANONS_BOSS_KEY) !=
-                                      RO_GANON_BOSS_KEY_VANILLA
+                                          RO_GANON_BOSS_KEY_VANILLA ||
+                                      OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) !=
+                                          RO_TRIFORCE_HUNT_OFF
                                 : false;
     showOcarinas = IS_RANDO
                        ? OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_SHUFFLE_OCARINA) == RO_GENERIC_YES
@@ -2442,13 +2459,47 @@ extern "C" int OoT_CheckTracker_AvailabilityCurrent(void) {
 }
 #endif
 
-static void ComputeAvailableChecks(RandomizerRegion startingRegion);
+static void ComputeAvailableChecks(RandomizerRegion startingRegion, RandoAgeTime startingAgeTime);
 
-void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */) {
+// SoH #6165, #7300 (#1420): the region Link stands in, from the entrance the save
+// last used. An entrance the region graph does not know (a scene's other spawns,
+// e.g. ENTR_DEKU_TREE_0_1) steps back through the same scene's entrances to one
+// it knows (ENTR_DEKU_TREE_ENTRANCE). Root when none is found.
+static RandomizerRegion AvailableChecksStartingRegion(int32_t savedEntrance) {
+    if (savedEntrance < 0 || savedEntrance >= ENTR_MAX) {
+        return RR_ROOT;
+    }
+    int16_t entranceIndex = static_cast<int16_t>(savedEntrance);
+    const int8_t scene = gEntranceTable[entranceIndex].scene;
+    for (; entranceIndex >= 0 && gEntranceTable[entranceIndex].scene == scene; entranceIndex--) {
+        const auto entrance = Rando::EntranceShuffler::GetEntranceByIndex(entranceIndex);
+        if (entrance != nullptr) {
+            return entrance->GetOriginalConnectedRegionKey();
+        }
+    }
+    return RR_ROOT;
+}
+
+// SoH #6237 (#1420): Link's own age and time of day.
+static RandoAgeTime AvailableChecksStartingAgeTime() {
+    if (LINK_IS_CHILD && IS_DAY) {
+        return RAT_CHILD_DAY;
+    } else if (LINK_IS_CHILD && IS_NIGHT) {
+        return RAT_CHILD_NIGHT;
+    } else if (LINK_IS_ADULT && IS_DAY) {
+        return RAT_ADULT_DAY;
+    } else if (LINK_IS_ADULT && IS_NIGHT) {
+        return RAT_ADULT_NIGHT;
+    }
+    return RAT_NONE;
+}
+
+void RecalculateAvailableChecks(RandomizerRegion startingRegion /* = RR_ROOT */,
+                                RandoAgeTime startingAgeTime /* = RAT_NONE */) {
     if (!enableAvailableChecks || !GameInteractor::IsSaveLoaded()) {
         return;
     }
-    ComputeAvailableChecks(startingRegion);
+    ComputeAvailableChecks(startingRegion, startingAgeTime);
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -2465,7 +2516,7 @@ extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
     if (!enableAvailableChecks) {
         return -1;
     }
-    ComputeAvailableChecks(RR_ROOT);
+    ComputeAvailableChecks(RR_ROOT, RAT_NONE);
     return 1;
 }
 
@@ -2477,16 +2528,50 @@ extern "C" int RandoTest_CheckTrackerDrainPendingRecalc(void) {
 extern "C" void RandoTest_CheckTrackerLoadGame(int32_t fileNum) {
     CheckTrackerLoadGame(fileNum);
 }
+
+// TEST BRIDGE (#1420): LoadSettings alone, the show* statics IsCheckShuffled reads,
+// so a row can change an option on the heap and ask again.
+extern "C" void RandoTest_CheckTrackerLoadSettings(void) {
+    LoadSettings();
+}
+
+// TEST BRIDGES (#1420): where Available Checks starts. The region for a saved
+// entrance index, and the age and time for a link age and night flag (put back
+// before returning), as ComputeAvailableChecks resolves them.
+extern "C" int OoT_CheckTracker_TestStartingRegion(int32_t savedEntrance) {
+    return static_cast<int>(AvailableChecksStartingRegion(savedEntrance));
+}
+
+extern "C" int OoT_CheckTracker_TestStartingAgeTime(int32_t linkAge, int32_t nightFlag) {
+    const int32_t ageBefore = gSaveContext.linkAge;
+    const int32_t nightBefore = gSaveContext.nightFlag;
+    gSaveContext.linkAge = linkAge;
+    gSaveContext.nightFlag = nightFlag;
+    const RandoAgeTime ageTime = AvailableChecksStartingAgeTime();
+    gSaveContext.linkAge = ageBefore;
+    gSaveContext.nightFlag = nightBefore;
+    return static_cast<int>(ageTime);
+}
 #endif
 
 // The recalculation below RecalculateAvailableChecks' gate, split out (#994) so a
 // ROM-free row runs the real computation over a live save.
-static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
+static void ComputeAvailableChecks(RandomizerRegion startingRegion, RandoAgeTime startingAgeTime) {
     ResetPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
     StartPerformanceTimer(PT_RECALCULATE_AVAILABLE_CHECKS);
 
     const auto& ctx = Rando::Context::GetInstance();
     logic = ctx->GetLogic();
+
+    // SoH #6165, #6237, #7300 (#1420): also from where Link is, at his age and
+    // time of day. The search keeps Root in its pool, so Link's region only adds
+    // what root alone cannot reach (a one-way or shuffled entrance, a trick).
+    if (startingRegion == RR_ROOT) {
+        startingRegion = AvailableChecksStartingRegion(gSaveContext.entranceIndex);
+    }
+    if (startingAgeTime == RAT_NONE) {
+        startingAgeTime = AvailableChecksStartingAgeTime();
+    }
 
     std::vector<RandomizerCheck> targetLocations;
     targetLocations.reserve(RC_MAX);
@@ -2499,7 +2584,8 @@ static void ComputeAvailableChecks(RandomizerRegion startingRegion) {
         }
     }
 
-    std::vector<RandomizerCheck> availableChecks = ReachabilitySearch(targetLocations, RG_NONE, true, startingRegion);
+    std::vector<RandomizerCheck> availableChecks =
+        ReachabilitySearch(targetLocations, RG_NONE, true, startingRegion, startingAgeTime);
     for (auto& rc : availableChecks) {
         const auto& itemLocation = ctx->GetItemLocation(rc);
         itemLocation->SetAvailable(true);

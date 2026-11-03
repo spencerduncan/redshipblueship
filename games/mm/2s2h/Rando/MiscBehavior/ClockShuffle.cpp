@@ -374,8 +374,16 @@ void CheckAndSkipUnownedTime(Actor* timeActor) {
     // Get EnTest4 actor for state access
     EnTest4* enTest4 = (EnTest4*)timeActor;
 
-    // Skip if eventInf bit 0x0f is set (dog race)
-    if (gSaveContext.eventInf[0] & 0x0F) {
+    // RSBS (#1415): skip while a day/night transition cutscene or the moon crash
+    // is in progress (EnTest4 sets EVENTINF_17 when it starts either, and the
+    // transition's end clears it); OoTMM's EnTest4_Update tests the same bit
+    // before its time skip (En_Test4.c, BITMAP8_GET(gSave.eventInf, 0x0f): byte
+    // 1, bit 7). The guard used to read `eventInf[0] & 0x0F`, which is Doggy
+    // Racetrack state (race state in bits 0-2, the low bit of the race standing
+    // in bit 3), so an odd-placed race switched this gate off until the next
+    // departure, cycle reset or file load, and the clock ran into half-days the
+    // file does not own.
+    if (CHECK_EVENTINF(EVENTINF_17)) {
         return;
     }
 

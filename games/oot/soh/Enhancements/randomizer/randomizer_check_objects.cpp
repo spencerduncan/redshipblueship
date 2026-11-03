@@ -8,6 +8,9 @@
 #include "soh/OTRGlobals.h"
 #include "soh/cvar_prefixes.h"
 #include "fishsanity.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "foreign_items.h" // src/common: Combo_ResolveComboSettings, the [Both Games] goal (#1420)
+#endif
 
 std::map<RandomizerCheckArea, std::string> rcAreaNames = {
     { RCAREA_KOKIRI_FOREST, "Kokiri Forest" },
@@ -118,6 +121,18 @@ static constexpr int kShuffleGerudoCardDefault = RO_GENERIC_NO;
 
 void RandomizerCheckObjects::UpdateImGuiVisibility() {
     auto ctx = Rando::Context::GetInstance();
+    // SoH #6447 (#1420): under Triforce Hunt the boss key is never placed, so the
+    // Ganon's Tower boss key chest holds a random item and can be excluded.
+    bool triforceHunt =
+        CVarGetInteger(CVAR_RANDOMIZER_SETTING("TriforceHunt"), RO_TRIFORCE_HUNT_OFF) != RO_TRIFORCE_HUNT_OFF;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // The [Both Games] Triforce Hunt goal (#1389) runs OoT's own hunt whatever
+    // OoT's own row says, so it counts too; until the paired hunt lands, Generate
+    // refuses that goal. This reads the goal the next creation freezes.
+    ComboSettingsRecord comboRules;
+    Combo_ResolveComboSettings(&comboRules);
+    triforceHunt = triforceHunt || comboRules.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
+#endif
     for (auto& location : Rando::StaticData::GetLocationTable()) {
         auto itemLoc = ctx->GetItemLocation(location.GetRandomizerCheck());
         itemLoc->SetVisible(
@@ -237,7 +252,8 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
                  RO_DUNGEON_ITEM_LOC_VANILLA) &&
             (location.GetRCType() != RCTYPE_GANON_BOSS_KEY ||
              CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_SHIPPED_DEFAULT) !=
-                 RO_GANON_BOSS_KEY_VANILLA) && // vanilla ganon boss key
+                 RO_GANON_BOSS_KEY_VANILLA ||
+             triforceHunt) && // vanilla ganon boss key, unless Triforce Hunt leaves it out
             (location.GetRandomizerCheck() != RC_TOT_LIGHT_ARROWS_CUTSCENE ||
              (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_VANILLA) !=
                   RO_GANON_BOSS_KEY_LACS_DUNGEONS &&

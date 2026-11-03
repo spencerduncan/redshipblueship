@@ -14,6 +14,7 @@
 // in RegisterWindows passes, so the live Draw-time read below cannot drift
 // away from the CVar the window was registered under.
 #include "2s2h/TrackersGuiSingleExe.h"
+#include "triforce_hunt.h" // #1389: the paired hunt's requirement, for the piece count
 #endif
 
 extern "C" {
@@ -167,7 +168,13 @@ std::string GetItemCounts(TrackerItemType itemType, u32 itemId) {
             switch (itemId) {
                 case RI_TRIFORCE_PIECE: {
                     if (IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_TRIFORCE_PIECES]) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        // #1389: the counter is the paired hunt's one count, so is the requirement.
+                        auto max = (uint32_t)Combo_TriforceHuntShownRequired(
+                            (uint16_t)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]);
+#else
                         auto max = RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED];
+#endif
                         countStr = fmt::format(FORMAT_COUNT, gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces,
                                                max > 999 ? "1k" : std::to_string(max));
                     }

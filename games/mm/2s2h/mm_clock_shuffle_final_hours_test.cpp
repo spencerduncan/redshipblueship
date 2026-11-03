@@ -2,7 +2,8 @@
  * @file mm_clock_shuffle_final_hours_test.cpp
  * ROM-free, display-free lock for #1229: with Shuffle Time on, a half-day the
  * file does not own is never playable, and when no owned half-day is left the
- * moon crashes at the end of the last owned one (OoTMM's rule).
+ * moon crashes at the end of the last owned one (OoTMM's rule). Legs 7-9 lock
+ * #1415's second defect: the hook's guard is EVENTINF_17, not dog-race state.
  * CTest label "redship", row MMClockShuffleFinalHours in
  * CMake/SingleExecutable.cmake, dispatch "mm-clock-shuffle-final-hours" in
  * src/common/test_runner.cpp.
@@ -51,6 +52,20 @@
  *   5  The time-left text counts owned half-days only (no Final Hours term).
  *   6  The "Final Hours Start Time" row is retired: drawn dormant with the
  *      retirement reason, its stored byte kept and ignored.
+ *   7  #1415 (Leg A): a Doggy Racetrack result does not switch the gate off.
+ *      Days 2 and 3 owned, Day 3 at the edge of night, with eventInf[0] = 0x08,
+ *      0x0B and 0x18 (a finished race's state and an odd standing): the hook
+ *      sets up OoTMM's crash instant as in leg 2. Before the fix the guard read
+ *      `eventInf[0] & 0x0F` and returned, leaving the clock to run into Night 3.
+ *      0x10 (an even standing) is the control, green before and after.
+ *   8  #1415 (Leg B): EVENTINF_17 (eventInf[1] bit 7, a day/night transition or
+ *      the moon crash in progress, OoTMM's BITMAP8_GET(eventInf, 0x0f)) is the
+ *      guard: with it set the hook leaves the clock alone. Red before the fix,
+ *      which ignored it and set up the crash.
+ *   9  #1415 (Leg C): each of the six half-day items, given through
+ *      Rando::GiveItem, sets exactly the RANDO_INF flag
+ *      GetHalfDayIndexFromClockItem names (item enum D1 D2 D3 N1 N2 N3, flag
+ *      enum D1 N1 D2 N2 D3 N3), and that index is pinned per item here.
  *   Cleanup: the options and save type come back, OnFileLoad runs again and
  *   must leave 0 registrants, then the SaveContext image and MM_gPlayState
  *   are restored, so the row is order-free under --test all.
@@ -259,6 +274,90 @@ int RunLegs(EnTest4* test4) {
               "the Final Hours Start Time row is liveness %u with reason '%s'; with the window gone it must be "
               "drawn retired",
               (unsigned)row->liveness, row->disabledReason ? row->disabledReason : "(null)");
+
+    // ---- Leg 7 (#1415, Leg A): a dog-race result leaves the gate on --------
+    // eventInf[0] is Doggy Racetrack state: the race state in bits 0-2 and the
+    // standing (or the selected dog) from bit 3 (z64save.h). 0x08 is a 1st
+    // place, 0x0B a 1st place with the race ENDED, 0x18 a 3rd place. 0x10, a
+    // 2nd place, sets none of bits 0-3 and is the control.
+    FH_ASSERT(MM_gPlayState->envCtx.sceneTimeSpeed == 3 && !MM_Play_InCsMode(MM_gPlayState), 18,
+              "the stand-in play state has stopped time or is in a cutscene; ShouldSkipTime would return before the "
+              "guard under test matters");
+    const u8 kDogRaceStates[] = { 0x08, 0x0B, 0x18, 0x10 };
+    for (const u8 raceState : kDogRaceStates) {
+        SetOwnedHalfDays(kD2 | kD3);
+        StageClock(3, kEdgeOfNight);
+        StageTest4(test4);
+        gSaveContext.eventInf[0] = raceState;
+        const bool transitionInProgress = CHECK_EVENTINF(EVENTINF_17);
+        const bool shouldA = DriveTest4(test4);
+        gSaveContext.eventInf[0] = 0;
+        printf("[TEST] mm-clock-shuffle-final-hours: leg 7: eventInf[0]=0x%02X: day=%d time=0x%04X prevTime=0x%04X "
+               "daytimeIndex=%d\n",
+               (unsigned)raceState, (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time,
+               (unsigned)test4->prevTime, (int)test4->daytimeIndex);
+        FH_ASSERT(!transitionInProgress, 19,
+                  "eventInf[0]=0x%02X reads as EVENTINF_17; this leg would test the transition guard instead",
+                  (unsigned)raceState);
+        FH_ASSERT(shouldA, 20, "the ClockShuffle hook vetoed EnTest4's update");
+        FH_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.time == kDawn && test4->prevTime == kDawnPrev &&
+                      test4->daytimeIndex == THREEDAY_DAYTIME_NIGHT,
+                  21,
+                  "Days 2 and 3 owned, Day 3 at the edge of night, eventInf[0]=0x%02X (Doggy Racetrack state): "
+                  "expected the moon-crash setup (day 3, 06:00, prevTime 0x%04X, daytimeIndex NIGHT); a race "
+                  "result switched the Shuffle Time gate off and the clock runs into the unowned Night 3 (#1415)",
+                  (unsigned)raceState, (unsigned)kDawnPrev);
+    }
+
+    // ---- Leg 8 (#1415, Leg B): a transition in progress is the guard -------
+    SetOwnedHalfDays(kD2 | kD3);
+    StageClock(3, kEdgeOfNight);
+    StageTest4(test4);
+    gSaveContext.eventInf[1] |= 0x80; // EVENTINF_17: byte 1, bit 7
+    const bool transitionSet = CHECK_EVENTINF(EVENTINF_17);
+    const bool shouldB = DriveTest4(test4);
+    gSaveContext.eventInf[1] = 0;
+    printf("[TEST] mm-clock-shuffle-final-hours: leg 8: EVENTINF_17 set: day=%d time=0x%04X prevTime=0x%04X "
+           "daytimeIndex=%d\n",
+           (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time, (unsigned)test4->prevTime,
+           (int)test4->daytimeIndex);
+    FH_ASSERT(transitionSet, 22, "eventInf[1] bit 7 does not read as EVENTINF_17; the leg is not testing the guard");
+    FH_ASSERT(shouldB, 23, "the ClockShuffle hook vetoed EnTest4's update");
+    FH_ASSERT(gSaveContext.save.day == 3 && gSaveContext.save.time == kEdgeOfNight && test4->prevTime == kDawn &&
+                  test4->daytimeIndex == THREEDAY_DAYTIME_DAY,
+              24,
+              "with EVENTINF_17 set (a day/night transition or the moon crash in progress) the hook must leave the "
+              "clock alone, as OoTMM's EnTest4_Update does (#1415)");
+
+    // ---- Leg 9 (#1415, Leg C): each half-day item sets its own flag --------
+    // The item enum runs D1 D2 D3 N1 N2 N3 and the flag enum D1 N1 D2 N2 D3 N3,
+    // so the flag is pinned per item, not derived from the item's offset.
+    const struct {
+        RandoItemId item;
+        s32 flag;
+        const char* name;
+    } kHalfDayItems[] = {
+        { RI_TIME_DAY_1, RANDO_INF_OBTAINED_CLOCK_DAY_1, "Day 1" },
+        { RI_TIME_NIGHT_1, RANDO_INF_OBTAINED_CLOCK_NIGHT_1, "Night 1" },
+        { RI_TIME_DAY_2, RANDO_INF_OBTAINED_CLOCK_DAY_2, "Day 2" },
+        { RI_TIME_NIGHT_2, RANDO_INF_OBTAINED_CLOCK_NIGHT_2, "Night 2" },
+        { RI_TIME_DAY_3, RANDO_INF_OBTAINED_CLOCK_DAY_3, "Day 3" },
+        { RI_TIME_NIGHT_3, RANDO_INF_OBTAINED_CLOCK_NIGHT_3, "Night 3" },
+    };
+    for (const auto& half : kHalfDayItems) {
+        const int expectedIndex = half.flag - RANDO_INF_OBTAINED_CLOCK_DAY_1;
+        const int mapped = Rando::ClockItems::GetHalfDayIndexFromClockItem(half.item);
+        FH_ASSERT(mapped == expectedIndex, 25, "GetHalfDayIndexFromClockItem(Time (%s)) = %d, expected %d", half.name,
+                  mapped, expectedIndex);
+        SetOwnedHalfDays(0);
+        Rando::GiveItem(half.item);
+        const u8 owned = Rando::ClockItems::GetAllOwnedHalfDaysMask();
+        printf("[TEST] mm-clock-shuffle-final-hours: leg 9: Time (%s) owns mask 0x%02X\n", half.name, (unsigned)owned);
+        FH_ASSERT(owned == (u8)(1u << expectedIndex) && Flags_GetRandoInf(half.flag), 26,
+                  "giving Time (%s) owns mask 0x%02X, expected exactly 0x%02X (its own RANDO_INF flag)", half.name,
+                  (unsigned)owned, (unsigned)(1u << expectedIndex));
+    }
+    SetOwnedHalfDays(0);
     return 0;
 }
 
@@ -288,7 +387,7 @@ extern "C" int MM_ClockShuffleFinalHours_RunHeadless(void) {
     play->sceneId = SCENE_00KEIKOKU; // Termina Field: not on ClockShuffle's reload list
     MM_gPlayState = play;
     for (int i = 0; i < (int)ARRAY_COUNT(gSaveContext.eventInf); i++) {
-        gSaveContext.eventInf[i] = 0; // keeps the dog-race guard out of the way
+        gSaveContext.eventInf[i] = 0; // no transition in progress (EVENTINF_17 clear); legs 7 and 8 set their own
     }
     gSaveContext.save.isOwlSave = false;
 

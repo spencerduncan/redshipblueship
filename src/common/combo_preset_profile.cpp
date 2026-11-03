@@ -93,7 +93,9 @@ bool ReadInt(const json& value, int32_t* out) {
 /** The page's own test of an option row: PARTIAL and DORMANT rows are drawn
  *  disabled because setting them cannot change the world in this build, and
  *  MM's Logic is drawn read-only because [Both Games] Logic decides it (#1367;
- *  the profile carries that rule as gCombo.Rando.Logic instead). */
+ *  the profile carries that rule as gCombo.Rando.Logic instead), as are MM's
+ *  Triforce Hunt rows while the goal is the hunt (#1389; read from the goal the
+ *  session holds, which an apply has already set from the profile). */
 bool OptionIsAuthorable(const ComboMMOptionDesc* desc) {
     return desc->liveness != (uint8_t)COMBO_MM_LIVENESS_PARTIAL &&
            desc->liveness != (uint8_t)COMBO_MM_LIVENESS_DORMANT && !Combo_MMOptionsPage_OptionSetByCombo(desc);
@@ -102,7 +104,8 @@ bool OptionIsAuthorable(const ComboMMOptionDesc* desc) {
 /** Why the page will not let a player set @p desc (OptionIsAuthorable false). */
 const char* OptionRefusalReason(const ComboMMOptionDesc* desc) {
     if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
-        return COMBO_LOGIC_SET_BY_COMBO_REASON;
+        // [Both Games] Logic, or [Both Games] Triforce Hunt under its goal (#1389).
+        return Combo_MMOptionsPage_OptionSetByComboReason(desc);
     }
     return desc->disabledReason != NULL ? desc->disabledReason : "not available";
 }
@@ -245,8 +248,40 @@ ComboPresetProfileReport ComboPresetProfile_Apply(const json& profile, bool merg
     const bool clearAbsent = reset || !merge;
     std::set<std::string> known;
 
+    // ---- Cross-Game rules, FIRST (#1389) ----------------------------------------
+    // Whether an MM option row is authorable can depend on a rule: MM's three
+    // Triforce Hunt rows are set by [Both Games] Triforce Hunt while the goal is
+    // the hunt. The capture judged them by the goal it stored beside them, so
+    // the apply judges them by that same goal, the one the profile leaves, not
+    // by whatever goal the session held before it.
+    for (int id = 0; id < (int)COMBO_SETTING_COUNT; id++) {
+        const char* key = Combo_ComboSettingKey((ComboSettingId)id);
+        known.insert(key);
+        const json* value = Lookup(source, key);
+        int32_t v = 0;
+        if (value != nullptr && !ReadInt(*value, &v)) {
+            Refuse(report, key, "not an integer");
+            value = nullptr;
+        }
+        if (value != nullptr) {
+            // Combo_ComboSettingSet refuses an out-of-space value (and logs it).
+            if (Combo_ComboSettingSet((ComboSettingId)id, v)) {
+                report.written++;
+            } else {
+                report.refused++;
+                if (clearAbsent) {
+                    Combo_ComboSettingClear((ComboSettingId)id);
+                    report.cleared++;
+                }
+            }
+        } else if (clearAbsent) {
+            Combo_ComboSettingClear((ComboSettingId)id);
+            report.cleared++;
+        }
+    }
+
     // ---- MM options. #1367: MM's Logic is refused here, because the
-    //      Cross-Game rules below carry it as [Both Games] Logic, and the
+    //      Cross-Game rules above carry it as [Both Games] Logic, and the
     //      excluded-check writer reads the logic that rule derives (never
     //      Vanilla while a preset can apply), not MM's own key.
     for (int i = 0; i < Combo_MMOptionCount(); i++) {
@@ -361,33 +396,6 @@ ComboPresetProfileReport ComboPresetProfile_Apply(const json& profile, bool merg
     } else if (clearAbsent) {
         Combo_MMLocationsClearExcluded();
         report.cleared++;
-    }
-
-    // ---- Cross-Game rules ------------------------------------------------------
-    for (int id = 0; id < (int)COMBO_SETTING_COUNT; id++) {
-        const char* key = Combo_ComboSettingKey((ComboSettingId)id);
-        known.insert(key);
-        const json* value = Lookup(source, key);
-        int32_t v = 0;
-        if (value != nullptr && !ReadInt(*value, &v)) {
-            Refuse(report, key, "not an integer");
-            value = nullptr;
-        }
-        if (value != nullptr) {
-            // Combo_ComboSettingSet refuses an out-of-space value (and logs it).
-            if (Combo_ComboSettingSet((ComboSettingId)id, v)) {
-                report.written++;
-            } else {
-                report.refused++;
-                if (clearAbsent) {
-                    Combo_ComboSettingClear((ComboSettingId)id);
-                    report.cleared++;
-                }
-            }
-        } else if (clearAbsent) {
-            Combo_ComboSettingClear((ComboSettingId)id);
-            report.cleared++;
-        }
     }
 
     // ---- Anything else the profile holds is not ours to write -------------------

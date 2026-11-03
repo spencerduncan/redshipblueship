@@ -73,6 +73,7 @@
 // default", which is what the paired logic pin now turns on.
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h" // the trick labels the load-time restore names
+#include "triforce_hunt.h"        // #1389: the [Both Games] Triforce Hunt split MM's half follows
 
 #include <algorithm>
 #include <cstddef>
@@ -207,6 +208,64 @@ static uint8_t ResolvedComboRung() {
     return rec.logicRung;
 }
 
+/** The goal and Triforce Hunt counts a load-time classification asks at instead
+ *  of the keys, or -1 for the keys (#1389): sClassifyRungOverride's twins, set
+ *  only for the length of one MM_Rando_ClassifyProfileForLoadAtFileRules call. */
+static thread_local int sClassifyGoalOverride = -1;
+static thread_local int sClassifyPiecesOverride = -1;
+static thread_local int sClassifyTriforceGoalOverride = -1;
+
+/** The pair's goal as the creation freezes it (the rung's rule). */
+static uint8_t ResolvedComboGoal() {
+    if (sClassifyGoalOverride >= 0) {
+        return (uint8_t)sClassifyGoalOverride;
+    }
+    ComboSettingsRecord rec;
+    Combo_ResolveComboSettings(&rec);
+    return rec.goal;
+}
+
+/** The pair's Triforce Hunt counts as the creation freezes them (#1389). */
+static void ResolvedComboTriforce(uint16_t* pieces, uint16_t* goal) {
+    Combo_ResolveComboTriforce(pieces, goal);
+    if (sClassifyPiecesOverride >= 1 && sClassifyTriforceGoalOverride >= 1 &&
+        sClassifyTriforceGoalOverride <= sClassifyPiecesOverride) {
+        *pieces = (uint16_t)sClassifyPiecesOverride;
+        *goal = (uint16_t)sClassifyTriforceGoalOverride;
+    }
+}
+
+/**
+ * THE PAIR'S TRIFORCE HUNT (#1389; OoTMM's triforcePieces / triforceGoal). Under
+ * the triforce-hunt goal a paired world's MM hunt is MM's half of the [Both
+ * Games] split (Combo_TriforceSplit, the one rule OoT's Playthrough_Init and the
+ * creation freeze use too), whatever MM's own three rows hold: on, with MM's
+ * share of the pieces and of the goal; or, when MM holds no piece (one piece in
+ * all, which OoT holds), off with both counts at their defaults, so no inert key
+ * is folded into the identity. Under any other goal MM's own rows are MM's own
+ * hunt (#768) and nothing here runs, so no existing world's profile moves.
+ * Derived inside the shared resolution, so the creation stamp and every compare
+ * see one value, and never written to the CVars.
+ */
+static void ApplyPairedTriforce(uint32_t* values) {
+    if (ResolvedComboGoal() != (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) {
+        return;
+    }
+    uint16_t pieces = 0;
+    uint16_t goal = 0;
+    ResolvedComboTriforce(&pieces, &goal);
+    ComboTriforceHalf ootHalf;
+    ComboTriforceHalf mmHalf;
+    if (Combo_TriforceSplit(pieces, goal, &ootHalf, &mmHalf) != RSBS_TRIFORCE_OK) {
+        // Unreachable: the resolver yields 1 <= goal <= pieces <= 255.
+        return;
+    }
+    const bool on = mmHalf.total > 0;
+    values[RO_SHUFFLE_TRIFORCE_PIECES] = on ? (uint32_t)RO_GENERIC_YES : (uint32_t)RO_GENERIC_NO;
+    values[RO_TRIFORCE_PIECES_MAX] = on ? (uint32_t)mmHalf.total : (uint32_t)DEFAULT_TRIFORCE_PIECES_MAX;
+    values[RO_TRIFORCE_PIECES_REQUIRED] = on ? (uint32_t)mmHalf.required : (uint32_t)DEFAULT_TRIFORCE_PIECES_MAX;
+}
+
 /** RO_LOGIC as MM's own row resolved it before #1367: the key's value when the
  *  player set it, else Glitchless (ADR 0010 increment 1.1's default). */
 static uint32_t AuthoredPairedLogic() {
@@ -240,6 +299,10 @@ static void ResolveProfileValues(uint32_t* values, bool paired,
     if (!paired) {
         return;
     }
+
+    // (2b) #1389: the pair's Triforce Hunt, before the logic's early return so
+    // both logic candidates derive it (it is no part of either's question).
+    ApplyPairedTriforce(values);
 
     // (3) The paired logic. #1367 (operator ruling 2026-11-02): a paired world's
     // strictness is ONE [Both Games] choice, the combo rung, and MM's own Logic
@@ -1314,6 +1377,24 @@ extern "C" int MM_Rando_ClassifyProfileForLoadAtRung(const void* mmHalf, size_t 
     Rando::Foreign::sClassifyRungOverride = pinned ? fileRung : -1;
     const int classified = MM_Rando_ClassifyProfileForLoad(mmHalf, mmHalfSize, frozenDigest);
     Rando::Foreign::sClassifyRungOverride = -1;
+    return classified;
+}
+
+extern "C" int MM_Rando_ClassifyProfileForLoadAtFileRules(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
+                                                          int fileRung, int fileGoal, int filePieces,
+                                                          int fileTriforceGoal) {
+    // #1389: the goal and the Triforce Hunt counts the load will leave, as the
+    // rung (only values this build authors; anything else reads the keys).
+    const bool goalPinned = fileGoal >= (int)RSBS_COMBO_GOAL_BEAT_BOTH && fileGoal <= (int)RSBS_COMBO_GOAL_BEAT_MM;
+    const bool countsPinned = filePieces >= 1 && filePieces <= (int)RSBS_TRIFORCE_COMBO_MAX && fileTriforceGoal >= 1 &&
+                              fileTriforceGoal <= filePieces;
+    Rando::Foreign::sClassifyGoalOverride = goalPinned ? fileGoal : -1;
+    Rando::Foreign::sClassifyPiecesOverride = countsPinned ? filePieces : -1;
+    Rando::Foreign::sClassifyTriforceGoalOverride = countsPinned ? fileTriforceGoal : -1;
+    const int classified = MM_Rando_ClassifyProfileForLoadAtRung(mmHalf, mmHalfSize, frozenDigest, fileRung);
+    Rando::Foreign::sClassifyGoalOverride = -1;
+    Rando::Foreign::sClassifyPiecesOverride = -1;
+    Rando::Foreign::sClassifyTriforceGoalOverride = -1;
     return classified;
 }
 

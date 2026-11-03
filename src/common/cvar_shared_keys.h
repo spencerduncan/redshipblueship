@@ -164,6 +164,13 @@
  * earlier world froze, and those worlds restore their own rung at load. Both
  * games' own Logic rows follow it. */
 #define RSBS_CVAR_COMBO_RANDO_LOGIC "gCombo.Rando.Logic"
+/* #1389: the pair's ONE Triforce Hunt, OoTMM's `triforcePieces` and
+ * `triforceGoal` (1..255, OoT's 8-bit counter; DEFAULT 30 and 20). Read only
+ * under the triforce-hunt goal, where they freeze as the triforce record's two
+ * halves and both games' own piece settings follow them, so a world under any
+ * other goal resolves to the same record bytes whatever they hold. */
+#define RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES "gCombo.Rando.TriforcePieces"
+#define RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL "gCombo.Rando.TriforceGoal"
 /* #886: one Kokiri Sword across both games. Boolean (0/1), DEFAULT 0, so every
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
@@ -1449,6 +1456,12 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_LOGIC, ComboKeyClass::Identity,
       "ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*, #1367): the rung the creation's proof runs at, and the "
       "logic both games' own rows derive from" },
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, ComboKeyClass::Identity,
+      "ComboTriforceRecord's two totals (#1389, OoTMM triforcePieces): the pieces a triforce-hunt world places, "
+      "split between the two games' pools" },
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, ComboKeyClass::Identity,
+      "ComboTriforceRecord's two requirements (#1389, OoTMM triforceGoal): the pieces that win a triforce-hunt "
+      "world, in whichever game the last one is found" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
@@ -1984,8 +1997,9 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twenty-three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Twenty-five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
+// TriforcePieces and TriforceGoal (#1389),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
@@ -2002,9 +2016,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 43, "twenty-three gCombo.Rando.* identity keys + four gCombo.Windows.* "
+static_assert(kComboKeyCount == 45, "twenty-five gCombo.Rando.* identity keys + four gCombo.Windows.* "
                                     "preferences + twelve gCombo.Tracker.Items.* preferences + four "
-                                    "gCombo.Tracker.Checks.* preferences = 43");
+                                    "gCombo.Tracker.Checks.* preferences = 45");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

@@ -160,8 +160,21 @@ typedef enum {
  *  holds equal to MM's own row). */
 #define COMBO_MM_OPTION_NAME_LOGIC "RO_LOGIC"
 
-/** True for the option row a [Both Games] rule decides (#1367: MM's Logic). */
+/** The three MM options the pair's [Both Games] Triforce Hunt decides while the
+ *  goal is the triforce hunt (#1389), by their StaticData names. */
+#define COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE "RO_SHUFFLE_TRIFORCE_PIECES"
+#define COMBO_MM_OPTION_NAME_TRIFORCE_MAX "RO_TRIFORCE_PIECES_MAX"
+#define COMBO_MM_OPTION_NAME_TRIFORCE_REQUIRED "RO_TRIFORCE_PIECES_REQUIRED"
+
+/** True for the option row a [Both Games] rule decides (#1367: MM's Logic;
+ *  #1389: MM's three Triforce Hunt rows, while the goal the rows show is the
+ *  triforce hunt, Combo_ComboSettingsTriforceHuntShown). */
 bool Combo_MMOptionsPage_OptionSetByCombo(const ComboMMOptionDesc* desc);
+
+/** The reason a row Combo_MMOptionsPage_OptionSetByCombo names is read-only:
+ *  COMBO_LOGIC_SET_BY_COMBO_REASON or COMBO_TRIFORCE_SET_BY_COMBO_REASON
+ *  (combo_settings_view.h); "" for any other row. Never NULL. */
+const char* Combo_MMOptionsPage_OptionSetByComboReason(const ComboMMOptionDesc* desc);
 
 /**
  * The option row's state, and its reason in @p reason (never NULL on return;

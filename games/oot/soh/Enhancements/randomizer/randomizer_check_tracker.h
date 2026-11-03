@@ -62,7 +62,7 @@ void UpdateAllOrdering();
 void UpdateAllAreas();
 void RecalculateAllAreaTotals();
 void SpoilAreaFromCheck(RandomizerCheck rc);
-void RecalculateAvailableChecks(RandomizerRegion startingRegion = RR_ROOT);
+void RecalculateAvailableChecks(RandomizerRegion startingRegion = RR_ROOT, RandoAgeTime startingAgeTime = RAT_NONE);
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Schedule a recalculation for the next draw (#990); see the definition.
 void ArmAvailableChecksRecalc();
