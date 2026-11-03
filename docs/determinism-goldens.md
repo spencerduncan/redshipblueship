@@ -31,9 +31,17 @@ tests/golden/seed-digest-armed-caps.txt   # --test rando-armed-caps-digest, ever
 tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1
 tests/golden/seed-digest-excludes-tricks.txt     # --test rando-determinism, OoT and MM excludes and tricks (#982)
 tests/golden/seed-digest-shopsanity.txt          # --test rando-determinism, OoT Shop Shuffle with Balanced (drawn) prices (#982)
-tests/golden/seed-digest-mm-nearly-no-logic.txt  # RETIRED by #1367: no row reads it (see "The MM Logic variant")
 tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Direction=2 (#982)
+tests/golden/seed-digest-beatable-only.txt       # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=2 (#1367 R5)
+tests/golden/seed-digest-no-logic.txt            # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=1 (#1367 R5)
 ```
+
+Every golden without `gCombo.Rando.Logic` in its profile is an **All Locations**
+world: that is the shipped `[Both Games] Logic` since #1367 R5 (generator 4). The
+other two rungs have one golden each, `seed-digest-beatable-only` (the default
+before R5) and `seed-digest-no-logic` (no round: `bagRounds=0`). The file
+`seed-digest-mm-nearly-no-logic.txt`, which no row read after #1367, is deleted
+(see "The MM Logic variant").
 
 `GoldenSeedDigestPlayerPath` has no file of its own: it compares the player's path
 with `seed-digest-default.txt` (see "The player's path" below). Nor does
@@ -151,8 +159,10 @@ capabilities. Four more profiles, on the same seed and dispatch as
 |---|---|---|
 | `seed-digest-excludes-tricks` | OoT excludes 24, 44, 144, 194, 301 and tricks 1, 2, 16, 21, 24; MM excluded checks 26, 77, 211; MM tricks `MMRT_LENS`, `MMRT_SCT_NOTHING`, `MMRT_BANK_ONE_WALLET` | a fill with per-check exclusions and extra tricks in both games; `ootExcludedLocations` and `ootEnabledTricks` say the sets took |
 | `seed-digest-shopsanity` | Shop Shuffle "Specific Count", four items, prices "Balanced" | OoT's drawn prices (`ootPriceDigest`) and shop items in the pool |
-| `seed-digest-mm-nearly-no-logic` | MM logic Nearly No Logic, the explicit choice the paired profile honoured (`Foreign.cpp`) | RETIRED by #1367: a paired world's MM Logic derives from [Both Games] Logic, so this profile is the default world (see "The MM Logic variant") |
+| `seed-digest-mm-nearly-no-logic` | MM logic Nearly No Logic, the explicit choice the paired profile honoured (`Foreign.cpp`) | RETIRED by #1367 (the file deleted by #1367 R5): a paired world's MM Logic derives from [Both Games] Logic, so this profile is the default world (see "The MM Logic variant") |
 | `seed-digest-direction-forward` | combo direction FORWARD (OoT items into MM checks only) | a one-way bag: `crossingsInOoT=0`, `bagHomeOnly` non-zero |
+| `seed-digest-beatable-only` (#1367 R5) | `[Both Games] Logic` Beatable Only | the rung without the All Locations pre-flight and every-location exit term (`comboSettings=.../r2`) |
+| `seed-digest-no-logic` (#1367 R5) | `[Both Games] Logic` No Logic | the base rung: no round (`bagRounds=0`), every row drawn from every empty host, OoT generated No Logic with All Locations Reachable off (`comboSettings=.../r1`) |
 
 **How a profile names its sets.** The harness (`Rando_HeadlessSeedTest`,
 `ReadGoldenProfileSets` in `3drando/menu.cpp`) reads three variables:
@@ -336,12 +346,13 @@ different fingerprint at file select than the same seed created by the old one.
 
 What a bump moves, and what it must not:
 
-* **`comboSettingsHash`** moves in the seven goldens that carry it
+* **`comboSettingsHash`** moves in the nine goldens that carry it
   (`seed-digest-default`, `seed-digest-profile-v1`, `seed-digest-entrances`,
-  `seed-digest-armed-caps`, and three of the four #982 added:
+  `seed-digest-armed-caps`, three of the four #982 added:
   `seed-digest-excludes-tricks`, `seed-digest-shopsanity`,
-  `seed-digest-direction-forward`; the fourth, `seed-digest-mm-nearly-no-logic`,
-  was retired by #1367). `paired-attempt-digest` does not carry it. It
+  `seed-digest-direction-forward` (the fourth, `seed-digest-mm-nearly-no-logic`,
+  was retired by #1367), and #1367 R5's `seed-digest-beatable-only` and
+  `seed-digest-no-logic`). `paired-attempt-digest` does not carry it. It
   is an INPUT field, so the checker reports it under
   "INPUT fields moved". A bump with nothing else moving is that line alone.
 * **No placement moves.** The version is a label, not an entropy input. The
@@ -369,6 +380,18 @@ Tier-5 overflow; a side no longer fills at 64 crossings). `seed-digest-shopsanit
 was the one pinned world that reached 64 crossings on a side: its `mmPlacementHash`,
 `coordinatorDigest`, `mmHintDigest` and `mmFreeStoneDigest` moved, its crossings did
 not. Every other golden moved `comboSettingsHash` only.
+
+Version 3 (2026-10-31, #1323): upstream OoT/MM pool, logic and `Ship_Random`
+backports; every world moved.
+
+Version 4 (2026-11-02, #1367 R5): `[Both Games] Logic` defaults to All Locations
+(record byte 9: `r2` -> `r3`, which moves `comboSettings`, `comboSettingsHash` and,
+in `seed-digest-armed-caps`, `armedTrimSeed`), and THE SHARED-QUANTITY CREDIT
+(`combo_logic.h`) credits each copy of a shared tier family to both games' logic,
+which moves every proving rung's candidate sets (`armedBagDigest` folds the new
+bag flag). Every golden's bag, crossing, placement and hint lines moved; OoT's own
+generation (`settingsHash`, `placementHash`, `placedCount`) did not.
+`seed-digest-beatable-only` and `seed-digest-no-logic` were pinned at version 4.
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
@@ -745,12 +768,14 @@ digest files and sandbox never collide with `GoldenSeedDigestDefault`'s under
 Logic) and compares against `seed-digest-default.txt`. From #982 until #1367 the
 paired profile honoured an explicit MM Logic, and this row pinned its own world in
 `seed-digest-mm-nearly-no-logic.txt`. Since #1367 a paired world's MM Logic derives
-from [Both Games] Logic (Glitchless under the default Beatable Only, No Logic under
-No Logic), so the key must not reach the world and the digest must equal the
-default's exactly. Like the host-scale variant it sits outside
-`REDSHIP_GOLDEN_DIGESTS` and passes `-DRUN_TAG=seed-digest-mm-nearly-no-logic`.
-The old file is no longer read by any row. A No Logic golden
-(`gCombo.Rando.Logic=1`) is not pinned yet.
+from [Both Games] Logic (Glitchless under the proving rungs, All Locations by
+default since #1367 R5; No Logic under No Logic), so the key must not reach the
+world and the digest must equal the default's exactly. Like the host-scale variant
+it sits outside `REDSHIP_GOLDEN_DIGESTS` and passes
+`-DRUN_TAG=seed-digest-mm-nearly-no-logic`. The old file, read by no row since
+#1367, is deleted (#1367 R5), and the No Logic golden it left owed is
+`seed-digest-no-logic` (`gCombo.Rando.Logic=1`), in the table with
+`seed-digest-beatable-only`.
 
 `GoldenSeedsRoundBudget` (rando tier) creates each golden seed again under the
 shipped round budget and requires it on its pinned ladder attempt, with its

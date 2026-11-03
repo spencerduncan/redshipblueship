@@ -1230,14 +1230,22 @@ void OoT_ComboLogic_WithholdHost(void* self, uint16_t hostCheck) {
 // pre-flight does not demand it. It is still a host and still never a candidate
 // under a proving rung (a candidate must be reached), so it only ever receives
 // OoT's own filler from the remainder pass: OoTMM's "junk those locations". Only
-// the All Locations rung reads this list, so it moves no default world.
+// the All Locations rung reads this list, and that is the DEFAULT rung since #1367
+// R5, so an entry moves every default world that meets its condition (a golden
+// re-pin and an RSBS_GENERATOR_VERSION bump).
 //
 // EVERY ENTRY CARRIES ITS REASON. The list starts EMPTY on purpose: no entry is
 // added on a guess. The audit is combo-logic-measure's ALL LOCATIONS leg, which
 // runs the pre-flight over the profile's real pools and prints every location it
 // cannot reach by name; an entry belongs here only when that print names a
 // location whose unreachability is a fact of the settings (and the reason says
-// which).
+// which). #1367 R5 ran the PRODUCTION pre-flight over twelve profiles (the eight
+// golden profiles; plentiful, armed and maximal; the beat-oot, beat-mm and
+// beat-either goals): it reached every OoT location in every one, so this list
+// stays empty. The three it missed before (the 300-rupee Market and Kakariko
+// Potion Shop and Zora shop items: the Giant's Wallet) were the shared wallet
+// counted in one game only, fixed by THE SHARED-QUANTITY CREDIT (combo_logic.h),
+// not a fact of the settings.
 struct OoTCuratedExclusion {
     RandomizerCheck check;
     bool (*applies)();  // over this world's settings (ctx options); nullptr = always

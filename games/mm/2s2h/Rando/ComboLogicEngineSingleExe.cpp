@@ -1083,13 +1083,24 @@ void WithholdHost(void* self, uint16_t hostCheck) {
 // does not demand it. It still is a host, and it still is never a candidate under
 // a proving rung (a candidate must be reached), so it only ever receives MM's own
 // filler from the leftover pass: OoTMM's "junk those locations" by construction.
-// Only the All Locations rung reads this list, so it moves no default world.
+// Only the All Locations rung reads this list, and that is the DEFAULT rung since
+// #1367 R5, so an entry moves every default world that meets its condition (a
+// golden re-pin and an RSBS_GENERATOR_VERSION bump).
 //
 // EVERY ENTRY CARRIES ITS REASON. The list starts EMPTY on purpose: no entry is
 // added on a guess. The audit is combo-logic-measure's ALL LOCATIONS leg, which
 // runs the pre-flight over the profile's real pools and prints every location it
 // cannot reach by name; an entry belongs here only when that print names a check
 // whose unreachability is a fact of the settings (and the reason says which).
+// #1367 R5 ran the PRODUCTION pre-flight over twelve profiles (the eight golden
+// profiles; plentiful, armed and maximal with every location category shuffled;
+// the beat-oot, beat-mm and beat-either goals): it reached every MM check in
+// every one, so this list stays empty. The one it missed before (the West Clock
+// Town bank's heart piece: the Giant's Wallet) was the shared wallet counted in
+// one game only, fixed by THE SHARED-QUANTITY CREDIT (combo_logic.h). The
+// measurement rows' B8 and M3e still print it, because their OoT half is placed
+// natively and so credits MM nothing; that is their approximation, not the
+// settings.
 struct MmCuratedExclusion {
     RandoCheckId check;
     bool (*applies)();  // over the FROZEN profile (RANDO_SAVE_OPTIONS); nullptr = always
