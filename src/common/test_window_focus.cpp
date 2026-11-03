@@ -99,7 +99,8 @@ void TestWindowFocus_ArmForTestMode(const char* mode) {
 #endif
     // #1152: the operator's game controller. libultraship's Gui::ImGuiWMInit sets
     // SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" at normal priority for every
-    // process (Gui.cpp:200/206), which switches off SDL's focus gate
+    // process while gSettings.AllowBackgroundInputs is on, its default
+    // (Gui.cpp:204/212), which switches off SDL's focus gate
     // (SDL_PrivateJoystickShouldIgnoreEvent drops pad input while no SDL window of
     // the process holds the keyboard -- and a test window never does). An OVERRIDE
     // "0" set first makes that later call a refused no-op.
