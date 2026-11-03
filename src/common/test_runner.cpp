@@ -7706,6 +7706,36 @@ TestResult Test_RandoComboHuntOwnMode(void) {
     return OoT_ComboHuntOwnMode_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1389: the [Both Games] Triforce Hunt rows read and write their tier-4 keys and
+// a load restores them, so they need the CVar store: combo-settings-authoring's
+// bring-up. Assertions in tests/test_triforce_hunt.c.
+TestResult Test_ComboTriforceRows(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return ComboTriforceRows_Run();
+}
+
+// #1389: a real paired triforce-hunt world through the single bag. Same bring-up
+// as shared-lens-bag (a real paired generation and MM's creation-time half).
+TestResult Test_PairedTriforceBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ptbArg0[] = "redship";
+    static char* ptbArgv[] = { ptbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ptbArgv);
+    return PairedTriforceBag_Run();
+}
+
 // #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
 // Hint off, because the Happy Mask Shop's door leads to Termina. Same bring-up as
 // the row above (a real paired generation, then the registered OoT engine).
@@ -9219,6 +9249,17 @@ const TestDescriptor gTests[] = {
       "Under the combo triforce hunt a paired creation generates OoT's own \"Ganon's Boss Key\" hunt as \"Win\", "
       "so RC_TRIFORCE_COMPLETED never holds Ganon's Boss Key (#997)",
       Test_RandoComboHuntOwnMode },
+    // #1389: the [Both Games] Triforce Hunt rows (display-free, ROM-free, the CVar
+    // store) and a real paired triforce-hunt world (a generation; skipped by
+    // `--test all` below like its siblings).
+    { "combo-triforce-rows",
+      "[Both Games] Triforce Pieces / Triforce Goal: their keys and clamp, the hunt frozen from them won at the goal "
+      "from either game, the load restore of the file's counts, and MM's hunt rows set by them (#1389)",
+      Test_ComboTriforceRows },
+    { "paired-triforce-bag",
+      "A paired Triforce Hunt world is generated: the single bag places exactly the [Both Games] pieces, each game's "
+      "half on its own hosts, and proves the goal (#1389)",
+      Test_PairedTriforceBag },
     // #973. Needs a generation; skipped by `--test all` below like its siblings.
     { "rando-mask-quest-paired",
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
@@ -9753,6 +9794,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
+                strcmp(gTests[i].name, "paired-triforce-bag") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "tracker-availability-arrival") == 0 ||
                 strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||

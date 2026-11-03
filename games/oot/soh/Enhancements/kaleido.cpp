@@ -22,6 +22,9 @@ extern PlayState* OoT_gPlayState;
 #include "textures/icon_item_static/icon_item_static.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "triforce_hunt.h" // src/common — #1389: the paired hunt's requirement and total, for the pause entry
+#endif
 
 #include <sstream>
 
@@ -144,8 +147,14 @@ Kaleido::Kaleido() {
         mEntries.push_back(std::make_shared<KaleidoEntryIconCountRequired>(
             gTriforcePieceTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, Color_RGBA8{ 255, 255, 255, 255 },
             reinterpret_cast<int*>(&gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected),
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1389: the counter is the paired hunt's one count, so are these.
+            Combo_TriforceHuntShownRequired((uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1)),
+            Combo_TriforceHuntShownTotal((uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1))));
+#else
             ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1,
             ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1));
+#endif
     }
     if (ctx->GetOption(RSK_SKELETON_KEY)) {
         mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(

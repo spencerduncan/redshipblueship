@@ -2911,6 +2911,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1389: the [Both Games] Triforce Hunt rows (OoTMM's triforcePieces and
+    # triforceGoal). ComboTriforceRows is ROM-free with the CVar store: the keys
+    # and their clamp, the hunt frozen from them, the load restore of the file's
+    # counts and MM's hunt rows set by them. PairedTriforceBag is `rando`: a real
+    # paired triforce-hunt generation through the single bag.
+    redship_add_test(NAME ComboTriforceRows COMMAND redship --test combo-triforce-rows)
+    redship_add_test(NAME PairedTriforceBag COMMAND redship --test paired-triforce-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
     # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
     # (under both authored modes a player can arrive with), all eight OoT masks are

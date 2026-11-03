@@ -13,6 +13,7 @@
 #include "combo_mm_locations_view.h" // MM_RandoLocationsUi_Register: the third table
 #include "combo_settings_view.h"     // COMBO_LOGIC_SET_BY_COMBO_REASON (#1367)
 #include "context.h"                 // Context_GetCurrentGame, for the suspended note
+#include "triforce_hunt.h"           // #1389: the split MM's Triforce Hunt rows show under the hunt goal
 
 #include <stdio.h>
 #include <string.h> // strcmp: the row a [Both Games] rule decides (#1367)
@@ -76,13 +77,56 @@ const char* Combo_RandoPages_FrozenNote(uint32_t fingerprint, char* buf, size_t 
     return buf;
 }
 
+/** Is @p desc one of MM's three Triforce Hunt rows (#1389)? */
+static bool OptionIsTriforceRow(const ComboMMOptionDesc* desc) {
+    return desc != NULL && desc->name != NULL &&
+           (strcmp(desc->name, COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE) == 0 ||
+            strcmp(desc->name, COMBO_MM_OPTION_NAME_TRIFORCE_MAX) == 0 ||
+            strcmp(desc->name, COMBO_MM_OPTION_NAME_TRIFORCE_REQUIRED) == 0);
+}
+
 bool Combo_MMOptionsPage_OptionSetByCombo(const ComboMMOptionDesc* desc) {
-    return desc != NULL && desc->name != NULL && strcmp(desc->name, COMBO_MM_OPTION_NAME_LOGIC) == 0;
+    if (desc == NULL || desc->name == NULL) {
+        return false;
+    }
+    if (strcmp(desc->name, COMBO_MM_OPTION_NAME_LOGIC) == 0) {
+        return true;
+    }
+    // #1389: under the triforce-hunt goal MM's half of the hunt is the split of
+    // the [Both Games] rows (Foreign.cpp's paired resolution), so MM's own rows
+    // are read-only; under any other goal they are MM's own hunt again (#768).
+    return OptionIsTriforceRow(desc) && Combo_ComboSettingsTriforceHuntShown();
+}
+
+const char* Combo_MMOptionsPage_OptionSetByComboReason(const ComboMMOptionDesc* desc) {
+    if (!Combo_MMOptionsPage_OptionSetByCombo(desc)) {
+        return "";
+    }
+    return OptionIsTriforceRow(desc) ? COMBO_TRIFORCE_SET_BY_COMBO_REASON : COMBO_LOGIC_SET_BY_COMBO_REASON;
 }
 
 int32_t Combo_MMOptionsPage_OptionShownValue(const ComboMMOptionDesc* desc) {
     if (desc == NULL) {
         return 0;
+    }
+    if (Combo_MMOptionsPage_OptionSetByCombo(desc) && OptionIsTriforceRow(desc)) {
+        // #1389: MM's half of the [Both Games] split, the values MM's paired
+        // resolution writes (Foreign.cpp): the hunt shuffled with MM's share of
+        // the pieces and the goal, or, when MM holds no piece (one piece in all),
+        // off with both counts at their defaults.
+        uint16_t pieces = 0;
+        uint16_t goal = 0;
+        Combo_TriforceCountsShown(&pieces, &goal);
+        ComboTriforceHalf oot;
+        ComboTriforceHalf mm;
+        const bool split = Combo_TriforceSplit(pieces, goal, &oot, &mm) == RSBS_TRIFORCE_OK && mm.total > 0;
+        if (strcmp(desc->name, COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE) == 0) {
+            return split ? 1 : 0;
+        }
+        if (strcmp(desc->name, COMBO_MM_OPTION_NAME_TRIFORCE_MAX) == 0) {
+            return split ? (int32_t)mm.total : desc->defaultValue;
+        }
+        return split ? (int32_t)mm.required : desc->defaultValue;
     }
     // #1367: MM's Logic follows the pair's [Both Games] Logic, so the row shows
     // what a paired world is (or was) made with, never the key: a value left
@@ -100,9 +144,10 @@ ComboMMRowState Combo_MMOptionsPage_OptionState(const ComboMMOptionDesc* desc, c
         state = COMBO_MM_ROW_FROZEN;
         why = COMBO_MM_OPTIONS_FROZEN_REASON;
     } else if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
-        // #1367 (operator ruling 2026-11-02): read-only, set by the pair's row.
+        // #1367 (operator ruling 2026-11-02): read-only, set by the pair's row
+        // (Logic; the Triforce Hunt's three rows under its goal since #1389).
         state = COMBO_MM_ROW_SET_BY_COMBO;
-        why = COMBO_LOGIC_SET_BY_COMBO_REASON;
+        why = Combo_MMOptionsPage_OptionSetByComboReason(desc);
     } else if (desc != NULL &&
                (desc->liveness == COMBO_MM_LIVENESS_PARTIAL || desc->liveness == COMBO_MM_LIVENESS_DORMANT)) {
         // ADR 0004 section 5: the behaviour is absent, so the control would flip

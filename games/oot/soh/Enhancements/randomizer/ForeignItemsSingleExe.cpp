@@ -1267,8 +1267,9 @@ extern "C" int OoT_PairedGen_CompleteWorld(void) {
             crossings, bag->crossingsIntoMM, bag->crossingsIntoOoT, bag->fill.placed, bag->fill.surplusDropped,
             bag->fill.rounds, bag->wallMs);
     // Read off the fill before Forget drops its report: which halves the world is
-    // generated WITHOUT a proof for (none under beat-both).
-    const uint32_t unprovedHalves = Combo_Logic_UnprovedHalves(&bag->fill);
+    // generated WITHOUT a proof for (none under beat-both, and none under a proved
+    // triforce hunt, #1389: its count ends the game, not either half's goal).
+    const uint32_t unprovedHalves = Combo_Logic_UnprovedHalvesForGoal(&bag->fill, bag->goal);
     const unsigned frozenGoal = (unsigned)bag->goal;
     Combo_SingleBag_Forget();
     if (!tailOk) {

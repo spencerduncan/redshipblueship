@@ -6,6 +6,9 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "triforce_hunt.h" // src/common — #1389: the paired hunt's requirement, for the completed model
+#endif
 
 extern "C" {
 #include "z64.h"
@@ -431,6 +434,10 @@ extern "C" void Randomizer_DrawTriforcePieceGI(PlayState* play, GetItemEntry get
 
     uint8_t current = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected;
     uint8_t required = OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1389: the counter is the paired hunt's one count, so is the requirement.
+    required = (uint8_t)Combo_TriforceHuntShownRequired(required);
+#endif
 
     OoT_Matrix_Scale(triforcePieceScale, triforcePieceScale, triforcePieceScale, MTXMODE_APPLY);
 

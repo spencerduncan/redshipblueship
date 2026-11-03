@@ -12,6 +12,7 @@
 #include "2s2h/Rando/ForeignTextboxIcon.h" // #607: the origin game's icon inside the blue textbox
 #include "2s2h/Rando/ForeignModel.h"       // #577 M3: the origin game's get-item model
 #include "shared_items.h"                  // #1222: Combo_SharedItemCrossingHasRoom
+#include "triforce_hunt.h"                 // #1389: the paired hunt's requirement, for the piece text
 #include <set>
 // Lane 6 (#502): drain of the deferred cross-game give (ForeignItemsSingleExe.cpp).
 extern "C" int MM_ForeignItem_FlushPending(void);
@@ -266,8 +267,15 @@ void Rando::MiscBehavior::CheckQueue() {
                             randoItemId = Rando::CurrentJunkItem();
                         }
                         if (randoItemId == RI_TRIFORCE_PIECE) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                            // #1389: the counter is the paired hunt's one count, so is the requirement.
+                            if (gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces + 1 >=
+                                Combo_TriforceHuntShownRequired(
+                                    (uint16_t)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED])) {
+#else
                             if (gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces + 1 >=
                                 RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {
+#endif
                                 prefix = "You";
                                 message = "completed the Triforce";
                             }

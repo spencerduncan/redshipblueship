@@ -403,6 +403,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // #1367: [Both Games] Logic, a combobox over the three pinned
         // RSBS_COMBO_RUNG_* enumerators, the goal row's shape.
         { COMBO_SETTING_LOGIC, WIDGET_COMBOBOX, "" },
+        // #1389: OoTMM's triforcePieces and triforceGoal, SoH's "Name: %d"
+        // slider shape (its own Triforce Hunt sliders'), under the goal.
+        { COMBO_SETTING_TRIFORCE_PIECES, WIDGET_SLIDER_INT, ": %d" },
+        { COMBO_SETTING_TRIFORCE_GOAL, WIDGET_SLIDER_INT, ": %d" },
     };
 
     // Captured by its REGISTERED name, before any PreFunc runs: the status row
@@ -551,24 +555,87 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // outcome of the fill, not a setting, and moving either slider only re-seeded
     // the world (ADR 0011's 2026-09-27 note). Operator ruling 2026-09-30: the
     // rows go. Matched by LABEL TEXT rather than by id, so the check does not
-    // depend on the ids the fix removes, and every slider counts, because those
-    // two rows were the page's only sliders.
+    // depend on the ids the fix removes. Every slider counts: since #1389 the
+    // page's only sliders are the Triforce Hunt's two, under Win Condition.
     {
         int sliders = 0;
+        int triforceSliders = 0;
+        std::string section;
         for (PageRow& pageRow : rows) {
             const std::string& name = pageRow.first->name;
+            if (pageRow.first->type == WIDGET_SEPARATOR_TEXT) {
+                section = name;
+            }
             ROWS_CHECK(name.find("Max OoT Items") == std::string::npos &&
                            name.find("Max MM Items") == std::string::npos,
                        "the Cross-Game Rules page still offers the retired row '%s' (#801): it changes no rule and "
                        "only re-seeds the world",
                        name.c_str());
-            sliders += pageRow.first->type == WIDGET_SLIDER_INT ? 1 : 0;
+            if (pageRow.first->type != WIDGET_SLIDER_INT) {
+                continue;
+            }
+            sliders++;
+            const bool triforce = name == RowName(COMBO_SETTING_TRIFORCE_PIECES) + ": %d" ||
+                                  name == RowName(COMBO_SETTING_TRIFORCE_GOAL) + ": %d";
+            triforceSliders += triforce ? 1 : 0;
+            ROWS_CHECK(triforce && section == "Win Condition",
+                       "the slider '%s' under '%s' is not one of the Triforce Hunt's two under Win Condition (#1389)",
+                       name.c_str(), section.c_str());
         }
-        ROWS_CHECK(
-            sliders == 0,
-            "the Cross-Game Rules page has %d slider row(s); the only sliders were the retired pool sizes (#801)",
-            sliders);
-        printf("[TEST] leg 1c: no \"Max OoT Items\" / \"Max MM Items\" row and no slider on the page (#801)\n");
+        ROWS_CHECK(sliders == 2 && triforceSliders == 2,
+                   "the Cross-Game Rules page has %d slider row(s), %d of them the Triforce Hunt's; expected exactly "
+                   "[Both Games] Triforce Pieces and Triforce Goal (#1389) after #801 retired the pool sizes",
+                   sliders, triforceSliders);
+        printf("[TEST] leg 1c: no \"Max OoT Items\" / \"Max MM Items\" row; the page's sliders are the Triforce "
+               "Hunt's two (#801, #1389)\n");
+    }
+
+    // ---- Leg 1c2: the Triforce Hunt rows (#1389) ------------------------------
+    // OoTMM's triforcePieces / triforceGoal: defaults 30 and 20, 1..255 (OoT's
+    // 8-bit counter, OoTMM allows 999), shown only under the Triforce Hunt goal,
+    // the goal slider capped at the pieces, and the goal's tooltip no longer says
+    // a paired world cannot be created with it.
+    {
+        WidgetInfo* piecesRow = settingRow[COMBO_SETTING_TRIFORCE_PIECES];
+        WidgetInfo* goalCountRow = settingRow[COMBO_SETTING_TRIFORCE_GOAL];
+        ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_TRIFORCE_PIECES) == 30 &&
+                       Combo_ComboSettingDefault(COMBO_SETTING_TRIFORCE_GOAL) == 20,
+                   "the Triforce Hunt rows' defaults are %d and %d, expected OoTMM's 30 and 20",
+                   (int)Combo_ComboSettingDefault(COMBO_SETTING_TRIFORCE_PIECES),
+                   (int)Combo_ComboSettingDefault(COMBO_SETTING_TRIFORCE_GOAL));
+        ROWS_CHECK(Combo_ComboSettingValueValid(COMBO_SETTING_TRIFORCE_PIECES, 255) &&
+                       !Combo_ComboSettingValueValid(COMBO_SETTING_TRIFORCE_PIECES, 256) &&
+                       !Combo_ComboSettingValueValid(COMBO_SETTING_TRIFORCE_PIECES, 0) &&
+                       Combo_ComboSettingValueValid(COMBO_SETTING_TRIFORCE_GOAL, 1) &&
+                       !Combo_ComboSettingValueValid(COMBO_SETTING_TRIFORCE_GOAL, 0),
+                   "the Triforce Hunt rows' value space is not 1..255");
+        auto goalTooltipRow =
+            std::static_pointer_cast<UIWidgets::ComboboxOptions>(settingRow[COMBO_SETTING_GOAL]->options);
+        const std::string goalTooltip = goalTooltipRow->tooltip != nullptr ? goalTooltipRow->tooltip : "";
+        ROWS_CHECK(goalTooltip.find("cannot be created") == std::string::npos,
+                   "the goal row's tooltip still says a paired world cannot be created with Triforce Hunt (#1389)");
+        // Hidden under the shipped goal, shown under the hunt.
+        piecesRow->preFunc(*piecesRow);
+        ROWS_CHECK(piecesRow->isHidden, "the Triforce Pieces row is shown under the Ganon & Majora goal");
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 12) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 40) == 1,
+                   "the writers refused a pre-creation Triforce Hunt");
+        piecesRow->preFunc(*piecesRow);
+        goalCountRow->preFunc(*goalCountRow);
+        auto goalCountOptions = std::static_pointer_cast<UIWidgets::IntSliderOptions>(goalCountRow->options);
+        ROWS_CHECK(!piecesRow->isHidden && !goalCountRow->isHidden,
+                   "the Triforce Hunt rows are hidden under the Triforce Hunt goal");
+        ROWS_CHECK(StagedInt(*piecesRow) == 12 && StagedInt(*goalCountRow) == 12 && goalCountOptions->max == 12,
+                   "the rows show %d of %d (slider max %d); expected the goal clamped to the 12 pieces, as OoTMM's",
+                   StagedInt(*goalCountRow), StagedInt(*piecesRow), (int)goalCountOptions->max);
+        Combo_ComboSettingClear(COMBO_SETTING_TRIFORCE_GOAL);
+        Combo_ComboSettingClear(COMBO_SETTING_TRIFORCE_PIECES);
+        Combo_ComboSettingClear(COMBO_SETTING_GOAL);
+        piecesRow->preFunc(*piecesRow);
+        goalCountRow->preFunc(*goalCountRow);
+        printf("[TEST] leg 1c2: the Triforce Hunt rows default to 30 / 20 over 1..255, show only under the hunt "
+               "goal, and cap the goal at the pieces (#1389)\n");
     }
 
     // ---- Leg 1d: the "OoT Classes" / "MM Classes" rows are retired (#834) ---
@@ -1181,6 +1248,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
+                       // #1389: the Triforce Hunt's two keys, cleared by this leg's Reset.
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 40) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 25) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1 &&

@@ -484,6 +484,16 @@ uint32_t Combo_Logic_UnprovedHalves(const ComboLogicFillResult* res) {
     return halves;
 }
 
+uint32_t Combo_Logic_UnprovedHalvesForGoal(const ComboLogicFillResult* res, uint8_t goal) {
+    if (goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT && res != NULL && res->status == RSBS_COMBO_LOGIC_OK &&
+        !res->proofSkipped && res->goalProven) {
+        // The count was the exit condition and it held: the world ends there,
+        // whatever either half's own goal answered (combo_logic.h).
+        return 0u;
+    }
+    return Combo_Logic_UnprovedHalves(res);
+}
+
 int Combo_Logic_EvaluateTriforceHunt(int sharedPieces, uint16_t required) {
     if (sharedPieces < 0 || required == 0u) {
         // A half that could not answer, or a requirement that describes no hunt:

@@ -569,7 +569,10 @@ TestResult Test_ComboGoalEnding(void) {
     // the requirement reads 0), and a goal byte outside the pinned table: each
     // final boss ends its own game rather than none ever ending the world.
     CgFreezeWorld(hunt);
-    gComboCtx.comboTriforce.requiredOoT = 0; // hunt on with no requirement: a damaged record
+    // OoT's half holding pieces with no requirement: bytes no creation writes
+    // (OoT's option stores its value - 1; since #1389 only MM's half may hold a
+    // zero share), so a damaged record.
+    gComboCtx.comboTriforce.requiredOoT = 0;
     CG_ASSERT(Combo_GoalArmed() && !Combo_TriforceHuntArmed() && Combo_TriforceHuntRequired() == 0,
               "E8: the damaged triforce-hunt record did not disarm the hunt");
     CG_ASSERT(Combo_GoalAllowsCompletion(-1), "E8: an unevaluable goal must let a game mark itself complete");
@@ -626,7 +629,8 @@ TestResult Test_ComboGoalEnding(void) {
     CG_ASSERT(!Combo_GoalGeneratesOwnHuntAsWin(0) && !Combo_GoalGeneratesOwnHuntAsWin(6),
               "E9: a goal byte outside the pinned table must not rewrite a half's own hunt (#997)");
     CgFreezeWorld(hunt);
-    gComboCtx.comboTriforce.requiredOoT = 0; // damaged: the hunt disarms, the requirement reads 0
+    gComboCtx.comboTriforce.requiredOoT = 0; // damaged as E8: the hunt disarms, the requirement reads 0
+    CG_ASSERT(!Combo_TriforceHuntArmed(), "E9: the damaged triforce-hunt record did not disarm the hunt");
     CG_ASSERT(Combo_GoalOnTriforceHuntCompleted(GAME_OOT, 3) == RSBS_GOAL_ENDING_OWN,
               "E9: triforce-hunt with a damaged record: OoT's own hunt must fail open to its own ending");
     CgFreezeWorld((uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH);

@@ -140,7 +140,8 @@ void Settings::CreateOptionDescriptions() {
         "In a paired OoT + MM world the combo goal decides when the game ends. Under a boss goal, \"Win\" is "
         "generated as \"Ganon's Boss Key\": completing the hunt gives you Ganon's Castle Boss Key and the credits "
         "do not roll. Under the Triforce Hunt combo goal, \"Ganon's Boss Key\" is generated as \"Win\": the combo "
-        "hunt's pieces end the game."
+        "hunt's pieces end the game. Its pieces and goal are then OoT's half of [Both Games] Triforce Pieces and "
+        "Triforce Goal on Randomizer > Cross-Game, so these three rows are set there."
 #endif
         ;
     mOptionDescriptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL] =

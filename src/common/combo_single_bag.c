@@ -14,6 +14,7 @@
 #include "gen_progress_overlay.h"
 #include "shared_items.h"
 #include "shared_resources.h" // the shared-family registry THE SHARED PAIR reads (#976)
+#include "triforce_hunt.h"    // #1389: the frozen combo requirement a triforce-hunt fill proves
 
 #include <stdio.h>
 #include <string.h>
@@ -410,6 +411,12 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         freq.bagCount = sReport.bagCount;
         freq.goal = sReport.goal;
         freq.logicRung = sReport.rung;
+        // #1389: the frozen combo requirement the triforce-hunt GOAL is proved
+        // against (0 under every other goal, which the fill ignores). Both
+        // games' pieces are already bag rows: their WORLD_EVENT family is armed
+        // by no record, so the compose admits them HOME_ONLY (each game's
+        // pieces on its own hosts), and the proof counts them.
+        freq.triforceRequired = Combo_TriforceHuntRequired();
         freq.seed = sReport.seed;
         freq.maxAttempts = 0; // RSBS_COMBO_LOGIC_FILL_RETRIES batch roll-backs
         // Every crossing is delivered through one shared-item slot; bound each
