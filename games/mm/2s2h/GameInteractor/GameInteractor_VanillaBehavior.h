@@ -2158,6 +2158,19 @@ typedef enum {
     // #### `args`
     // - `*f32` (speed)
     VB_ZTARGET_SPEED_CHECK,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    // #### Notes
+    // RedShipBlueShip (#1426): Goron Link landing from a roll with no spikes out and not from a ground pound resets
+    // the spike charge (`this->av1.actionVar1 = 4`, func_80857AEC). Lenient Goron Spikes answers false, so the
+    // charge built before the jump is kept (OoTMM's lenientSpikes). Appended rather than sorted in, so no existing
+    // id moves.
+    VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING,
 } GIVanillaBehavior;
 
 #endif

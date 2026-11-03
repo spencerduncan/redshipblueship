@@ -12,8 +12,8 @@
  * wait after the song and the Elegy statues' fade, so the keys stay apart and the row keeps its own label. Then a
  * "Majora's Mask" block after SoH's ocarina rows (Pause Owl Warp, Enable Sun's Song, Zora Eggs for Bossa Nova, Skip
  * Soaring Cutscene, Underwater Ocarina). Underwater Ocarina is a Player key in 2Ship; its row belongs with the Ocarina.
- *  - Items > Masks: a "Majora's Mask" block after SoH's mask rows (the eight 2Ship Masks options). None has an SoH
- * twin.
+ *  - Items > Masks: a "Majora's Mask" block after SoH's mask rows (the eight 2Ship Masks options, then #1426's Lenient
+ * Goron Spikes, OoTMM's lenientSpikes). None has an SoH twin.
  *
  * CROSS-GAME MASKS (#975). None of the mask rows reads where a mask came from. A shared mask found in Hyrule is
  * credited to MM's own inventory slot through the pool, so Equippable While Swimming, Fast Transformation, Fierce
@@ -110,6 +110,12 @@ void AddMmMasksRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_MASKS_GORON_ROLLING_FAST_SPIKES)
         .Options(CheckboxOptions().Tooltip(
             "Speeds up the wind-up to a spiked Goron roll to near instant. Majora's Mask only."));
+    // #1426: OoTMM's lenientSpikes, on by default for a rando file (its reader's IS_RANDO default), as OoTMM ships it.
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Lenient Goron Spikes", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_MASKS_GORON_ROLLING_LENIENT_SPIKES)
+        .Options(CheckboxOptions().Tooltip(
+            "Lets Goron Link build up spikes at a lower rolling speed, keeps the build-up through a landing, and keeps "
+            "the spikes out however slowly he rolls. On by default in a randomizer file. Majora's Mask only."));
 }
 
 } // namespace SohGui
