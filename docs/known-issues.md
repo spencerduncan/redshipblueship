@@ -401,7 +401,7 @@ names. (Refreshed 2026-11-02 at `4f37bf18`, the code of `v0.4.4-alpha` plus PRs 
 - ~~[#1274](https://github.com/spencerduncan/redshipblueship/issues/1274)~~ (PR [#1315](https://github.com/spencerduncan/redshipblueship/pull/1315)): with Majora's Mask running, the Reset button in the menu header (the undo icon beside Quit, "Reset (Ctrl+R)") and Ctrl+R now reset Majora's Mask. Entry under "Majora's Mask specific".
 - No issue (PR [#1230](https://github.com/spencerduncan/redshipblueship/pull/1230)): under Shuffle Time the time-left text still counts every owned half-day from the start of the cycle, not only those left (cosmetic, not [#1229](https://github.com/spencerduncan/redshipblueship/issues/1229)).
 - No issue: the Combo Tracker's Saved Hide never hides a Majora's Mask check. Since PR [#1137](https://github.com/spencerduncan/redshipblueship/pull/1137) the Combo Tracker follows Check Tracker Settings' Hide options, but it gives every obtained Majora's Mask check the Collected state, never Saved, so Saved Hide alone leaves those checks showing, and Collected Hide hides them even when saved. Ocarina of Time's rows follow both options as its own Check Tracker does.
-- [#1145](https://github.com/spencerduncan/redshipblueship/issues/1145): with Shared Kokiri Sword on, Ocarina of Time's Kokiri Sword found in Termina still crosses and reaches Ocarina of Time at its next arrival, instead of stepping the shared sword at the pickup as the capacity upgrades do since PR [#1122](https://github.com/spencerduncan/redshipblueship/pull/1122). Nothing is lost; it arrives late.
+- ~~[#1145](https://github.com/spencerduncan/redshipblueship/issues/1145)~~ (PR [#1381](https://github.com/spencerduncan/redshipblueship/pull/1381)): with Shared Kokiri Sword on, a Kokiri Sword found in the other game now steps the shared sword at the pickup, as the capacity upgrades do since PR [#1122](https://github.com/spencerduncan/redshipblueship/pull/1122). Majora's Mask's sword does so only while neither game holds a sword. `v0.4.4-alpha` still crosses it, and it arrives late. Entry under "What the Shared Items rules do not do yet".
 - [#1127](https://github.com/spencerduncan/redshipblueship/issues/1127) (deferred): the Combo Tracker's Majora's Mask pane groups enemy drops and unconnected grottos differently from Majora's Mask's own Check Tracker.
 - [#1146](https://github.com/spencerduncan/redshipblueship/issues/1146) (filed by the #1129 lane): the Combo Tracker's pane for the game you are not playing keeps the reachable set captured when you left that game and does not refresh as you collect things in the other game. Its "Available" counts also count every listed check, where SoH's leave out the checks its Hide options hide, so with Hide options on they can read higher than SoH's Check Tracker.
 - No issue (PR [#1149](https://github.com/spencerduncan/redshipblueship/pull/1149)): at 1280x800 the Item Tracker overlay draws at about 72% of SoH's size, because Majora's Mask's section is 18 table lines long. The owl faces fit their cells since PR [#1202](https://github.com/spencerduncan/redshipblueship/pull/1202), and Majora's Mask's small keys follow SoH's Key Count Tracking since PR [#1249](https://github.com/spencerduncan/redshipblueship/pull/1249). Not measured again since the 3-column layout of PR [#1328](https://github.com/spencerduncan/redshipblueship/pull/1328).
@@ -1662,10 +1662,14 @@ Each Shared rule on Randomizer > Cross-Game (under Shared Items) is off by defau
   item, but Ocarina of Time's Check Tracker hides song checks under Off, so that check is not listed there.
 - **Not every far-game upgrade steps the shared pool at the pickup** (PR [#1122](https://github.com/spencerduncan/redshipblueship/pull/1122)). Since #1122 a capacity
   upgrade found in the other game (bomb bag, quiver, wallet, magic, Double Defense, heart pieces and containers,
-  hookshot, and bottles under Shared Bottles) raises your tier at once. Ocarina of Time's Progressive Deku Stick
-  and Nut upgrades found in Termina still cross and arrive at Ocarina of Time's next arrival, so Shuffle Deku
-  Stick/Nut Bag keeps gating sticks and nuts; so does Ocarina of Time's Kokiri Sword under Shared Kokiri Sword
-  ([#1145](https://github.com/spencerduncan/redshipblueship/issues/1145)), and the ocarina, which is never shared.
+  hookshot, and bottles under Shared Bottles) raises your tier at once, and since
+  [#1145](https://github.com/spencerduncan/redshipblueship/issues/1145) so does the Kokiri Sword under Shared Kokiri
+  Sword. Majora's Mask's sword does this only while the shared sword is still empty (neither game has handed you a
+  sword yet); a later copy still crosses, because Majora's Mask turns it into the Razor or Gilded Sword. Ocarina of
+  Time's Progressive Deku Stick and Nut upgrades found in Termina still cross and arrive at Ocarina of Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps
+  gating sticks and nuts. The ocarina is never shared. An upgrade raised at the pickup does not bring the other
+  game's give-time refill with it: a bomb bag that Majora's Mask gives fills your bombs, but one raised at the
+  pickup leaves the shared bomb count where it was.
 - **A surplus copy under the plentiful pool.** Ocarina of Time still shuffles a second copy of a shared Lens of Truth,
   magic arrow or mask when its item pool is plentiful.
 - **Shields.** With Shared Shields on, a Mirror Shield found in Termina before any Hero's Shield also gives Ocarina of
