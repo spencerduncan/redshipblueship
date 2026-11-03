@@ -253,9 +253,16 @@ void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
     // ASSEMBLED from the rule keys (Combo_ComboItemRulesAuthored: each key's
     // resolved 0/1, an out-of-space value already resolved to its default off),
     // never overlaid from a stored bitset, so a bit no key authors is never on.
-    // The cooldown and the spares keep their defaults: nothing authors them yet.
-    // With no key set this is the shipped defaults byte for byte, so every world
-    // whose player leaves the rules alone keeps its fingerprint.
+    // The cooldown is its own key's (#979, OoTMM blastMaskCooldown); the spares
+    // keep their defaults: nothing authors them. With no key set this is the
+    // shipped defaults byte for byte, so every world whose player leaves the rules
+    // alone keeps its fingerprint.
+    //
+    // A SHARED EXTENSION whose extension is off is dropped (#979): OoTMM's
+    // sharedMaskBlast has `cond: blastMaskOot`, and a setting whose condition is
+    // false is the default. So a Shared Blast Mask key left on after the Blast
+    // Mask in OoT is turned off resolves to off rather than to a record
+    // Combo_ComboItemRulesValid refuses (which would drop every rule with it).
     //
     // A SHUFFLE-GATED rule (#1369, Shared Swim, whose key ships on) is never set
     // here: whether it freezes depends on the two games' shuffles, which a session
@@ -268,9 +275,18 @@ void Combo_ResolveComboItemRules(ComboItemRulesRecord* out) {
     Combo_ComboItemRulesDefaults(out);
     out->crossItemFlags =
         Combo_ComboItemRulesAuthored() & (uint32_t)RSBS_XITEM_ALL_V1 & ~(uint32_t)RSBS_XITEM_SHUFFLE_GATED;
+    for (uint32_t b = 0; b < RSBS_XITEM_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        const uint32_t needs = Combo_ComboItemRuleRequires(bit);
+        if ((out->crossItemFlags & bit) != 0u && needs != 0u && (out->crossItemFlags & needs) == 0u) {
+            out->crossItemFlags &= ~bit; // #979: a shared extension without its extension is off
+        }
+    }
+    out->blastMaskCooldown = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_BLAST_MASK_COOLDOWN);
     if (!Combo_ComboItemRulesValid(out)) {
-        // Unreachable while every keyed rule is a plain shared rule; a keyed
-        // shared extension authored without its extension would land here.
+        // Unreachable: every keyed bit is allocated, a shared extension without
+        // its extension was dropped above, and the cooldown key resolves inside
+        // its pinned space (Combo_ComboSettingResolved).
         fprintf(stderr,
                 "[Combo] cross-game item rules %08X are not a world this build can create; resolving to every "
                 "rule off\n",

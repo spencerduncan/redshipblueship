@@ -25,6 +25,8 @@ std::vector<RandomizerGet> gRsbsComboPlentifulAdded = {};
 // #1369 (GameExports_SingleExe.cpp): is the frozen Shared Swim rule on in this
 // world, so the bronze tier is its own RG_BRONZE_SCALE row?
 extern "C" bool OoT_SharedSwimSplitsScale(void);
+// #979 (BlastMaskOoT.cpp): is the frozen Blast Mask (OoT) rule on in this world?
+extern "C" bool OoT_BlastMaskOoTOn(void);
 #endif
 const std::array<RandomizerGet, 13> JunkPoolItems = {
     RG_BOMBS_5,  RG_BOMBS_10,  RG_BOMBS_20,  RG_DEKU_NUTS_5, RG_DEKU_STICK_1, RG_DEKU_SEEDS_30, RG_RECOVERY_HEART,
@@ -414,6 +416,13 @@ void GenerateItemPool() {
     if (ctx->GetOption(RSK_ROCS_FEATHER)) {
         AddItemToPool(RG_ROCS_FEATHER, 2, 1, 1, 1);
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #979: OoTMM's blastMaskOot adds one Blast Mask to OoT's pool,
+    // the masks' counts, under the FROZEN rule (the creation freezes before Fill).
+    if (OoT_BlastMaskOoTOn()) {
+        AddItemToPool(RG_BLAST_MASK, 2, 1, 1, 1);
+    }
+#endif
 
     int bronzeScale = ctx->GetOption(RSK_SHUFFLE_SWIM) ? 1 : 0;
 #ifdef RSBS_SINGLE_EXECUTABLE
