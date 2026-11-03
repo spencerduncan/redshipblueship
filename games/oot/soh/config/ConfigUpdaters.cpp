@@ -26,6 +26,8 @@ ConfigVersion8Updater::ConfigVersion8Updater() : ConfigVersionUpdater(8) {
 }
 ConfigVersion9Updater::ConfigVersion9Updater() : ConfigVersionUpdater(9) {
 }
+ConfigVersion10Updater::ConfigVersion10Updater() : ConfigVersionUpdater(10) {
+}
 
 void ConfigVersion1Updater::Update(Ship::Config* conf) {
     if (conf->GetInt("Window.Width", 640) == 640) {
@@ -259,6 +261,28 @@ void ConfigVersion8Updater::Update(Ship::Config* conf) {
  */
 void ConfigVersion9Updater::Update(Ship::Config* conf) {
     for (Migration migration : version9Migrations) {
+        if (migration.action == MigrationAction::RenameIfAbsent) {
+            if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
+                                       CVarPresent(migration.to.value().c_str()))) {
+                CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+            }
+        } else if (migration.action == MigrationAction::Rename) {
+            CVarCopy(migration.from.c_str(), migration.to.value().c_str());
+        }
+        CVarClear(migration.from.c_str());
+    }
+}
+
+// ============================================================================
+// Version 10 — #1272 item 5: first-person auto-centering
+// ============================================================================
+
+/**
+ * One pure MM -> SoH rename, the key W6-CAM-AIM's MM row wrote: same shape and conflict rule as version 9 (OoT's value
+ * wins, the MM spelling is cleared either way).
+ */
+void ConfigVersion10Updater::Update(Ship::Config* conf) {
+    for (Migration migration : version10Migrations) {
         if (migration.action == MigrationAction::RenameIfAbsent) {
             if (ShouldAdoptLegacyValue(CVarPresent(migration.from.c_str()),
                                        CVarPresent(migration.to.value().c_str()))) {

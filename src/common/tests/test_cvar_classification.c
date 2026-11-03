@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -60,6 +61,10 @@ extern "C" int MM_CosmeticElement_Count(void);
 extern "C" int MM_CosmeticElement_At(int index, int* id, const char** mmColor, const char** mmChanged,
                                      const char** sohValue, const char** sohChanged, const char** sohFallbackValue,
                                      const char** sohFallbackChanged);
+// #1272 item 9: the MM rows of SoH's Cosmetics Editor, read through their view in
+// games/oot/soh/Enhancements/cosmetics/CosmeticsEditorMm.cpp (the colour family leg's writer half).
+extern "C" int CosmeticsEditor_MmRowCount(void);
+extern "C" int CosmeticsEditor_MmRowAt(int index, const char** label, const char** colorKey, const char** changedKey);
 
 #define CVARCLASS_CHECK(cond, msg)              \
     do {                                        \
@@ -466,7 +471,8 @@ namespace {
 /// derived from the manifest, deleting a manifest row would delete its own
 /// assertion and the lock would pass, which is exactly the regression it exists
 /// to catch. Every entry must stay in the manifest, in MM's readers (under the
-/// canonical spelling), in SoH's menu, and in ConfigVersion9Updater's table.
+/// canonical spelling), in SoH's menu, and in a migration table: version 9's, or
+/// a later version's for a row whose MM spelling a live row once wrote (#1272).
 struct CvarClassKeyGapRow {
     int issue;
     const char* legacy;
@@ -502,7 +508,18 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // (Audio/Sfx/DisableTatlCallAudio.cpp) read gAudioEditor.DisableTatlCallAudio, which nothing writes. Both bool,
     // default off.
     { 1239, "gAudioEditor.DisableTatlCallAudio", "gAudioEditor.DisableNaviCallAudio" },
+    // #1272 item 5: SoH's "Disable Auto-Centering in First-Person View" (Settings > Controls, Bindings window, Camera
+    // Controls). MM's first-person camera (z_player.c) read its own key, which W6-CAM-AIM's MM row wrote; converged
+    // under the one-game model, migrated by version 10. Both bool, default off.
+    { 1272, "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView",
+      "gSettings.DisableFirstPersonAutoCenterView" },
 };
+
+/// The migration table a key-gap row's stored MM spelling rides: version 9's for the #966 audit's rows, version 10's
+/// for #1272's (whose MM spelling a live MM row wrote after version 9 had already run on installs).
+[[maybe_unused]] const char* CvarClassKeyGapMigrationTable(int issue) {
+    return issue == 1272 ? "version10Migrations" : "version9Migrations";
+}
 
 /// One reader of a #966 key-gap key that has to be IN THE LINK, not just mapped. Mapping MM's reader onto SoH's key
 /// (PR #1046) is necessary and not sufficient: every one of these providers registers only through a file-scope
@@ -1090,6 +1107,12 @@ TestResult Test_CVarClassification(void) {
         // twin, whose pair is a kTranslatedKeys row of that translator (never a rename: SoH's child is .Value, MM's
         // .Color) and whose SoH key is an option SoH's Cosmetics Editor declares. Both directions: a cosmetics
         // translated row with no table element is a manifest entry nothing reads.
+        // #1272 item 1: an MM-only element may follow an SoH row while its own row is unchanged (the beating hearts
+        // follow SoH's Hearts and DD Hearts, as in Ocarina of Time); that fallback is an option SoH declares and never
+        // a translated row, since MM's own key is its MM row's. #1272 item 9: the writer half, both directions: every
+        // MM-only element's two keys are an MM row's in SoH's Cosmetics Editor (CosmeticsEditor_MmRowAt), and every MM
+        // row's keys are an MM-only element's, so no MM-only colour (the seven trails included) lacks a writer and no
+        // row writes a key nothing reads.
         {
             const std::string prefix = RSBS_CVAR_MM_COSMETIC_PREFIX;
             CVARCLASS_CHECK(prefix == "gCosmetic.",
@@ -1113,8 +1136,10 @@ TestResult Test_CVarClassification(void) {
                 return text.size() > n && text.compare(text.size() - n, n, suffix) == 0;
             };
             // SoH's twin pair: "gCosmetics.<id>.Value" beside "gCosmetics.<id>.Changed", <id> an option SoH declares,
-            // and the pair translated onto MM's key by this translator. Empty when it holds, else the breach.
-            auto twinBreach = [&](const std::string& mmColor, const char* value, const char* changed) -> std::string {
+            // and (for a twin, not for an MM-only element's fallback) the pair translated onto MM's key by this
+            // translator. Empty when it holds, else the breach.
+            auto twinBreach = [&](const std::string& mmColor, const char* value, const char* changed,
+                                  bool translatedRequired) -> std::string {
                 const std::string v = value;
                 const std::string stem = v.size() > 6 ? v.substr(0, v.size() - 6) : std::string();
                 if (v.rfind("gCosmetics.", 0) != 0 || !endsWith(v, ".Value") || changed == nullptr ||
@@ -1131,7 +1156,7 @@ TestResult Test_CVarClassification(void) {
                     translated = translated || (mmColor == key.mmKey && v == key.ootKey &&
                                                 strcmp(key.translator, RSBS::kCosmeticTranslator) == 0);
                 }
-                if (!translated) {
+                if (translatedRequired && !translated) {
                     return "no kTranslatedKeys row translates SoH's \"" + v + "\" onto MM's \"" + mmColor + "\"";
                 }
                 // W6-COS-B: SoH's twin may itself be a rename's canonical key when the rename is SoH-shaped on both
@@ -1149,6 +1174,7 @@ TestResult Test_CVarClassification(void) {
 
             std::vector<std::string> breaches;
             std::vector<std::pair<std::string, std::string>> tablePairs;
+            std::vector<std::pair<std::string, std::string>> mmOnlyKeys; // each MM-only element's .Color / .Changed
             bool seenId[256] = {};
             for (int i = 0; i < count; i++) {
                 int id = -1;
@@ -1189,18 +1215,23 @@ TestResult Test_CVarClassification(void) {
                                            "RSBS_CVAR_MM_COSMETIC_PREFIX");
                     }
                     if (fallbackValue != nullptr) {
-                        breaches.push_back("MM-only \"" + color + "\" has an SoH fallback twin");
+                        // #1272 item 1: the SoH row it follows while its own is unchanged, never a translated row.
+                        const std::string why = twinBreach(color, fallbackValue, fallbackChanged, false);
+                        if (!why.empty()) {
+                            breaches.push_back("MM-only \"" + color + "\"'s fallback: " + why);
+                        }
                     }
+                    mmOnlyKeys.push_back({ color, mmChanged });
                     continue;
                 }
-                std::string why = twinBreach(color, sohValue, sohChanged);
+                std::string why = twinBreach(color, sohValue, sohChanged, true);
                 if (why.empty()) {
                     tablePairs.push_back({ color, sohValue });
                 } else {
                     breaches.push_back(why);
                 }
                 if (fallbackValue != nullptr) {
-                    why = twinBreach(color, fallbackValue, fallbackChanged);
+                    why = twinBreach(color, fallbackValue, fallbackChanged, true);
                     if (why.empty()) {
                         tablePairs.push_back({ color, fallbackValue });
                     } else {
@@ -1222,6 +1253,40 @@ TestResult Test_CVarClassification(void) {
                                        "\" has no element in MM's colour table, so nothing reads it");
                 }
             }
+            // #1272 item 9: the writer half. A row is matched on both keys, so a row that writes .Color under one
+            // element's name and .Changed under another's is a breach too.
+            const int rowCount = CosmeticsEditor_MmRowCount();
+            std::vector<bool> written(mmOnlyKeys.size(), false);
+            for (int r = 0; r < rowCount; r++) {
+                const char* label = nullptr;
+                const char* colorKey = nullptr;
+                const char* changedKey = nullptr;
+                if (!CosmeticsEditor_MmRowAt(r, &label, &colorKey, &changedKey) || label == nullptr ||
+                    colorKey == nullptr || changedKey == nullptr) {
+                    breaches.push_back("MM row " + std::to_string(r) + " has no label or no key");
+                    continue;
+                }
+                bool reads = false;
+                for (std::size_t m = 0; m < mmOnlyKeys.size(); m++) {
+                    if (mmOnlyKeys[m].first == colorKey && mmOnlyKeys[m].second == changedKey) {
+                        reads = true;
+                        written[m] = true;
+                    }
+                }
+                if (!reads) {
+                    breaches.push_back(std::string("the MM row \"") + label + "\" writes \"" + colorKey + "\" / \"" +
+                                       changedKey + "\", which no MM-only element of MM's colour table reads");
+                }
+            }
+            for (std::size_t m = 0; m < mmOnlyKeys.size(); m++) {
+                if (!written[m]) {
+                    breaches.push_back("MM-only \"" + mmOnlyKeys[m].first +
+                                       "\" has no MM row in SoH's Cosmetics Editor (CosmeticsEditorMm.cpp), so nothing "
+                                       "in the single exe writes it");
+                }
+            }
+            CVARCLASS_CHECK(rowCount > 0 && !mmOnlyKeys.empty(),
+                            "#1272 item 9: no MM row or no MM-only element, so the writer half proved nothing");
             for (const std::string& b : breaches) {
                 printf("[TEST] FAIL: W6-COS-A colour family: %s.\n", b.c_str());
             }
@@ -1333,13 +1398,20 @@ TestResult Test_CVarClassification(void) {
         //     writes a key the reader does not read;
         //   - every element MM's HUD draws name (a HUD_EDITOR_ELEMENT_* token outside BenGui, which owns the enum and
         //     2Ship's unlinked window) is in the table (W6-HUD-B, #1239, retired the pending list: every element is);
-        //   - games/oot composes the keys from the prefix and never spells "gHudEditor." itself.
+        //   - games/oot composes the keys from the prefix and never spells "gHudEditor." itself;
+        //   - #1272 item 10: every element's vanilla position and widescreen mode are 2Ship's own, read from 2Ship's
+        //     HudEditor.cpp (its hudEditorElements table and its Widescreen preset), which stays in the tree though
+        //     the single exe does not compile it. The reader leg locks only the hearts' arithmetic, so a typo in any
+        //     other row's x, y or mode would otherwise pass.
         {
             struct CvarClassHudRow {
                 const char* id;
                 const char* key;
+                int x;
+                int y;
+                int ws;
             };
-#define CVARCLASS_HUD_ROW(id, key, label, x, y, ws) { #id, key },
+#define CVARCLASS_HUD_ROW(id, key, label, x, y, ws) { #id, key, x, y, ws },
             static const CvarClassHudRow kHudRows[] = { RSBS_MM_HUD_EDITOR_ELEMENTS(CVARCLASS_HUD_ROW) };
 #undef CVARCLASS_HUD_ROW
             struct CvarClassHudField {
@@ -1403,7 +1475,7 @@ TestResult Test_CVarClassification(void) {
                         known = known || name == row.id;
                     }
                     if (!known) {
-                        printf("[TEST] FAIL: (3d-3) games/mm/%s draws the HUD element %s, which is neither in "
+                        printf("[TEST] FAIL: (3d-3) games/mm/%s draws the HUD element %s, which is not in "
                                "RSBS_MM_HUD_EDITOR_ELEMENTS: its draw would ignore\n"
                                "[TEST]       the HUD Placement section. Add its row to "
                                "src/common/mm_hud_editor_elements.h.\n",
@@ -1416,6 +1488,110 @@ TestResult Test_CVarClassification(void) {
             CVARCLASS_CHECK(drawSiteTokens > 0, "(3d-3) found no HUD_EDITOR_ELEMENT_* draw site under games/mm: the "
                                                 "draw-site check passed vacuously");
 
+            // #1272 item 10: each row's x, y and widescreen mode against 2Ship's HudEditor.cpp.
+            {
+                std::string twoShip;
+                for (const CvarClassSourceFile& f : hudFiles) {
+                    if (f.relPath == "2s2h/BenGui/HudEditor.cpp") {
+                        twoShip = CvarClassStripComments(f.text);
+                    }
+                }
+                CVARCLASS_CHECK(!twoShip.empty(), "(3d-3) could not read 2Ship's games/mm/2s2h/BenGui/HudEditor.cpp, "
+                                                  "the source of every HUD element's vanilla position");
+                auto trim = [](std::string s) {
+                    const std::size_t b = s.find_first_not_of(" \t\r\n");
+                    const std::size_t e = s.find_last_not_of(" \t\r\n");
+                    return b == std::string::npos ? std::string() : s.substr(b, e - b + 1);
+                };
+                // 2Ship's table: HUD_EDITOR_ELEMENT(<id>, "<name>", "<key>", <x>, <y>, <r>, <g>, <b>, <a>).
+                struct TwoShipHudElement {
+                    std::string id;
+                    int x;
+                    int y;
+                };
+                std::vector<TwoShipHudElement> twoShipElements;
+                const std::string call = "HUD_EDITOR_ELEMENT(";
+                for (std::size_t p = twoShip.find(call); p != std::string::npos; p = twoShip.find(call, p + 1)) {
+                    const std::size_t open = p + call.size();
+                    const std::size_t close = twoShip.find(')', open);
+                    if (close == std::string::npos) {
+                        break;
+                    }
+                    std::vector<std::string> args;
+                    std::size_t start = open;
+                    for (std::size_t c = open; c <= close; c++) {
+                        if (c == close || twoShip[c] == ',') {
+                            args.push_back(trim(twoShip.substr(start, c - start)));
+                            start = c + 1;
+                        }
+                    }
+                    if (args.size() == 9) {
+                        twoShipElements.push_back({ args[0], std::atoi(args[3].c_str()), std::atoi(args[4].c_str()) });
+                    }
+                }
+                // 2Ship's Widescreen preset: hudEditorElements[<id>].modeCvar, HUD_EDITOR_ELEMENT_MODE_<mode>).
+                const std::size_t wsBegin = twoShip.find("case HudEditor::Presets::WIDESCREEN");
+                const std::size_t wsEnd =
+                    wsBegin == std::string::npos ? std::string::npos : twoShip.find("break;", wsBegin);
+                CVARCLASS_CHECK(wsBegin != std::string::npos && wsEnd != std::string::npos,
+                                "(3d-3) 2Ship's HudEditor.cpp has no Widescreen preset case to read the modes from");
+                const std::string wsCase = twoShip.substr(wsBegin, wsEnd - wsBegin);
+                auto twoShipWidescreenMode = [&](const std::string& id) -> int {
+                    const std::string at = "hudEditorElements[" + id + "].modeCvar";
+                    const std::size_t p = wsCase.find(at);
+                    if (p == std::string::npos) {
+                        return -1;
+                    }
+                    const std::string mode = "HUD_EDITOR_ELEMENT_MODE_";
+                    const std::size_t m = wsCase.find(mode, p + at.size());
+                    if (m == std::string::npos) {
+                        return -1;
+                    }
+                    std::size_t end = m + mode.size();
+                    while (end < wsCase.size() && CvarClassIsIdentChar(wsCase[end])) {
+                        end++;
+                    }
+                    const std::string name = wsCase.substr(m + mode.size(), end - m - mode.size());
+                    if (name == "VANILLA") {
+                        return RSBS_MM_HUD_MODE_VANILLA;
+                    }
+                    if (name == "HIDDEN") {
+                        return RSBS_MM_HUD_MODE_HIDDEN;
+                    }
+                    if (name == "MOVABLE_43") {
+                        return RSBS_MM_HUD_MODE_MOVABLE_43;
+                    }
+                    if (name == "MOVABLE_LEFT") {
+                        return RSBS_MM_HUD_MODE_MOVABLE_LEFT;
+                    }
+                    if (name == "MOVABLE_RIGHT") {
+                        return RSBS_MM_HUD_MODE_MOVABLE_RIGHT;
+                    }
+                    return -1;
+                };
+                CVARCLASS_CHECK((int)twoShipElements.size() >= hudRowCount,
+                                "(3d-3) read fewer HUD_EDITOR_ELEMENT rows from 2Ship's HudEditor.cpp than the table "
+                                "holds: the position check would pass vacuously");
+                for (const CvarClassHudRow& row : kHudRows) {
+                    const TwoShipHudElement* theirs = nullptr;
+                    for (const TwoShipHudElement& e : twoShipElements) {
+                        if (e.id == row.id) {
+                            theirs = &e;
+                        }
+                    }
+                    const int theirMode = twoShipWidescreenMode(row.id);
+                    if (theirs == nullptr || theirs->x != row.x || theirs->y != row.y || theirMode != row.ws) {
+                        printf("[TEST] FAIL: (3d-3) %s: RSBS_MM_HUD_EDITOR_ELEMENTS holds (%d, %d) and widescreen "
+                               "mode %d; 2Ship's HudEditor.cpp holds %s(%d, %d) and mode %d.\n"
+                               "[TEST]       The HUD Placement sliders would start from, and the Widescreen preset "
+                               "set, values 2Ship never had.\n",
+                               row.id, row.x, row.y, row.ws, theirs == nullptr ? "no row " : "",
+                               theirs == nullptr ? -1 : theirs->x, theirs == nullptr ? -1 : theirs->y, theirMode);
+                        return TEST_FAIL;
+                    }
+                }
+            }
+
             CVARCLASS_CHECK(!CvarClassTreeContainsLiteral(ootTree, RSBS_CVAR_MM_HUD_EDITOR_PREFIX),
                             "(3d-3) games/oot spells \"gHudEditor.\" as a literal; compose MM's HUD placement keys "
                             "from RSBS_CVAR_MM_HUD_EDITOR_PREFIX");
@@ -1427,7 +1603,8 @@ TestResult Test_CVarClassification(void) {
                                          "RSBS_CVAR_MM_HUD_EDITOR_PREFIX: the Majora's Mask HUD Placement section in "
                                          "SoH's Cosmetics Editor is missing, so no row writes MM's HUD placement keys");
             printf("[TEST] (3d-3) %d HUD-editor elements: each key composed from the prefix is the key MM's reader "
-                   "reads, and all %d draw-site element names are in the table\n",
+                   "reads, each position and widescreen mode is 2Ship's, and all %d draw-site element names are in "
+                   "the table\n",
                    hudRowCount, drawSiteTokens);
         }
 
@@ -1641,9 +1818,10 @@ TestResult Test_CVarClassification(void) {
                                        std::ios::binary);
             const std::string migrators((std::istreambuf_iterator<char>(migratorFile)),
                                         std::istreambuf_iterator<char>());
-            const std::size_t v9 = migrators.find("version9Migrations");
-            CVARCLASS_CHECK(v9 != std::string::npos, "ConfigMigrators.h has no version9Migrations table (#966)");
-            const std::string v9Text = migrators.substr(v9);
+            CVARCLASS_CHECK(migrators.find("version9Migrations = {") != std::string::npos,
+                            "ConfigMigrators.h has no version9Migrations table (#966)");
+            CVARCLASS_CHECK(migrators.find("version10Migrations = {") != std::string::npos,
+                            "ConfigMigrators.h has no version10Migrations table (#1272)");
 
             for (const CvarClassKeyGapRow& row : kCvarClassKeyGapRows) {
                 if (!CvarClassTreeContainsExactKey(mmTree, row.canonical)) {
@@ -1662,11 +1840,20 @@ TestResult Test_CVarClassification(void) {
                 }
                 const std::string legacyLiteral = std::string("\"") + row.legacy + "\"";
                 const std::string canonicalLiteral = std::string("\"") + row.canonical + "\"";
-                if (v9Text.find(legacyLiteral) == std::string::npos ||
-                    v9Text.find(canonicalLiteral) == std::string::npos) {
-                    printf("[TEST] FAIL: #%d: version9Migrations lacks \"%s\" -> \"%s\".\n"
+                // The row's own table only, from its name to the end of its initializer: a later table must not
+                // vouch for an earlier version's row (#1272).
+                const char* tableName = CvarClassKeyGapMigrationTable(row.issue);
+                const std::size_t tableAt = migrators.find(std::string(tableName) + " = {");
+                const std::size_t tableEnd =
+                    tableAt == std::string::npos ? std::string::npos : migrators.find("\n};", tableAt);
+                const std::string tableText = (tableAt == std::string::npos || tableEnd == std::string::npos)
+                                                  ? std::string()
+                                                  : migrators.substr(tableAt, tableEnd - tableAt);
+                if (tableText.find(legacyLiteral) == std::string::npos ||
+                    tableText.find(canonicalLiteral) == std::string::npos) {
+                    printf("[TEST] FAIL: #%d: %s lacks \"%s\" -> \"%s\".\n"
                            "[TEST]       A config storing the MM spelling would keep it and lose the setting.\n",
-                           row.issue, row.legacy, row.canonical);
+                           row.issue, tableName, row.legacy, row.canonical);
                     return TEST_FAIL;
                 }
             }
@@ -2038,9 +2225,9 @@ TestResult Test_CVarClassification(void) {
             };
 #define CAM_AIM_ROW(def, key, mmRead, rowDefault) \
     { #def, def, key, mmRead, rowDefault }
+            // (First-person auto-centering left this table under #1272 item 5: it converged onto SoH's key, so the
+            // key-gap rows above hold it and it has no MM row.)
             static const CamAimRow kCamAimRows[] = {
-                CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_DISABLE_AUTO_CENTER,
-                            "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", ", 0)", nullptr),
                 CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_INVERT_X, "gEnhancements.Camera.FirstPerson.InvertX", ", 0)",
                             nullptr),
                 CAM_AIM_ROW(RSBS_CVAR_MM_CAMERA_FP_INVERT_Y, "gEnhancements.Camera.FirstPerson.InvertY", ", 1)",

@@ -23,4 +23,13 @@ void CosmeticsEditor_DrawMmConsumableRows();
  * Effects group has no MM row: every half of MM's three magic arrows twins SoH's own. */
 void CosmeticsEditor_DrawMmTrailRows();
 
+/**
+ * #1272 items 3 and 9: the MM rows' read-only view, every table above in draw order. The classification lock's colour
+ * leg (3c-3) proves each MM-only element of MM's colour table has a writer here (and each row a reader there), and the
+ * 2Ship import carries a returning player's colours under the keys these rows write. Row @p index's label and its
+ * .Color / .Changed keys; 0 when @p index is out of range.
+ */
+extern "C" int CosmeticsEditor_MmRowCount(void);
+extern "C" int CosmeticsEditor_MmRowAt(int index, const char** label, const char** colorKey, const char** changedKey);
+
 #endif

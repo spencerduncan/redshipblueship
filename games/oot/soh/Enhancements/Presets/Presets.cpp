@@ -78,6 +78,39 @@ static BlockInfo blockInfo[PRESET_SECTION_MAX] = {
     { { CVAR_PREFIX_REMOTE }, ICON_FA_WIFI, { "Network", "network" } },
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1272, from #1233): Majora's Mask's own top-level families that W6 gave rows to sit outside SoH's prefixes, so a
+// preset saved or applied without them dropped those rows. Each joins the block of the pages that hold its rows: MM's
+// modes and fixes are Enhancements rows, its colours and HUD placement Cosmetics Editor rows. (gDisplayOverlay, MM's
+// In-Game Timer, stays out beside SoH's own timer display, gTimeDisplay, which no block carries; MM's Time Splits and
+// sequence-editor keys are gSettings.* and gAudioEditor.*, already SoH's blocks'.)
+[[maybe_unused]] static const bool sMmPresetFamiliesAdded = [] {
+    for (const char* family : { "gModes", "gFixes" }) {
+        blockInfo[PRESET_SECTION_ENHANCEMENTS].sections.push_back(family);
+    }
+    for (const char* family : { "gCosmetic", "gHudEditor" }) {
+        blockInfo[PRESET_SECTION_COSMETICS].sections.push_back(family);
+    }
+    return true;
+}();
+
+PresetSection Presets_BlockForCVar(const char* key) {
+    if (key == nullptr) {
+        return PRESET_SECTION_MAX;
+    }
+    const std::string full = key;
+    const std::string family = full.substr(0, full.find('.'));
+    for (int i = 0; i < PRESET_SECTION_MAX; i++) {
+        for (const std::string& section : blockInfo[i].sections) {
+            if (section == family) {
+                return (PresetSection)i;
+            }
+        }
+    }
+    return PRESET_SECTION_MAX;
+}
+#endif
+
 std::string FormatPresetPath(std::string name) {
     return fmt::format("{}/{}.json", presetFolder, name);
 }

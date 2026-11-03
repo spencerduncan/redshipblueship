@@ -1701,4 +1701,18 @@ std::vector<Migration> version9Migrations = {
     { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipEnemyCutscenes",
       "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
 };
+
+/**
+ * RSBS version 10 — #1272 item 5: first-person auto-centering.
+ *
+ * W6-CAM-AIM (#1243) gave MM's own auto-centering key a row in the Bindings window, so an install that has booted
+ * since then may hold the MM spelling; version 9 had already run there, so the row goes in a new version. Both bool,
+ * default off: a pure rename under the same conflict rule as versions 7 to 9 (OoT's value wins, the MM spelling is
+ * cleared either way). Mirrors the #1272 row at the end of RSBS::kConvergedKeys; test_cvar_classification fails when
+ * it is missing here.
+ */
+std::vector<Migration> version10Migrations = {
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView",
+      "gSettings.DisableFirstPersonAutoCenterView" },
+};
 } // namespace SOH

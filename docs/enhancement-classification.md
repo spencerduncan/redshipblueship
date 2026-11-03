@@ -79,18 +79,19 @@ brief, plus everything in the collision set:
 | `Saving` | 7 | ✅ all |
 | `Player` | 9 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
-| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and the three first-person switches per key since W6-CAM-AIM, §4; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
+| `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and two first-person switches per key since W6-CAM-AIM, §4, the third, auto-centering, converged onto SoH's key by #1272, §5.3; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
 | `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim |
-| **Subtotal** | **130** | |
+| `Masks` | 9 | ✅ all since W6-MASKS-SONGS (#1236): eight (O) rows and the internal `PersistentBunnyHood.State` in §6.1. Counted 10 before that lane counted the keys |
+| `Songs` | 7 | ✅ all since W6-MASKS-SONGS (#1236) and L7 (#1133): five (O) rows in §6.1, and Better Song of Double Time and Skip Song of Time Cutscenes hosted by L7 (§5.3's #1133 table) |
+| `Minigames` | 18 | ✅ all since W6-MINIGAMES (#1236): eighteen (O) rows in §6.1 |
+| `DifficultyOptions` | 12 | ✅ all: Hyper Enemies and Permanent Heart Loss converged (§5.3), Damage Multiplier held apart and hosted (§5.3, #1037), Goron Race with the minigames (§6.1), and since W6-MODES-DIFF (#1236) seven (O) rows and Delete File on Death (INTENTIONAL) in §6.1 |
+| `Cycle` | 8 | ✅ all since W6-CYCLE-CHEATS (#1236): six (O) rows and Do Not Reset Rupees / Consumables (INTENTIONAL) in §6.1 |
+| **Subtotal** | **184** | |
 
-**NOT classified at individual-setting level** — 55 MM keys across 6 categories:
-`Minigames` (18; per key in §6.1 since W6-MINIGAMES), `DifficultyOptions` (12), `Masks` (9; per key in §6.1 since W6-MASKS-SONGS), `Cycle` (8), `Songs` (7; per key in §6.1 and §5 since W6-MASKS-SONGS and L7). These
-are classified **(O) MM-only at the category level** on the strength of their contents —
-Bombers' hide-and-seek, Deku flower launches, three-day-cycle resets, Song of Double Time,
-transformation masks have no OoT counterpart by construction. The two rows inside them that
-*do* have OoT counterparts were pulled out and classified individually
-(`DifficultyOptions.HyperEnemies` → (S), `Cutscenes.*` → (S), see §5). Anyone extending this
-work should start there and confirm the remaining 53 really are (O).
+**NOT classified at individual-setting level:** none since the W6 lanes. Until then 55 MM keys in five categories
+(`Minigames`, `DifficultyOptions`, `Masks`, `Cycle`, `Songs`) were classified **(O) MM-only at the category level** on
+the strength of their contents, with the rows inside them that have OoT counterparts pulled out (§5). Each category now
+has a row per key (table above), and `Masks` counts 9 keys, not 10, so the total in scope is 184.
 
 Also not covered: OoT's 1570 `gCosmetics.*` keys (overwhelmingly auto-generated per-actor
 colour entries with no MM counterpart — MM has 3, all in the collision set and all
@@ -173,7 +174,13 @@ Editor drives MM through MM's colour lookup, `CosmeticEditor_GetChangedColor` (`
 ported from 2Ship's reader), which reads the CVars live in either game. Hosting decision (upstream-backport audit M14,
 #1239 option b): an element with an SoH twin reads the twin's `.Changed` / `.Value` (one colour for both games, a
 `kTranslatedKeys` pair, never a rename: the value children differ); an element with none is an MM row in SoH's editor.
-The classification lock's colour-family leg (3c-3) holds every element of the lookup's table to one or the other.
+The classification lock's colour-family leg (3c-3) holds every element of the lookup's table to one or the other, and
+(#1272 item 9) holds both directions between the MM-only elements and the MM rows that write them, so no MM-only colour
+lacks a writer. Since #1272 item 1 an MM-only element may follow an SoH row while its own row is unchanged (the beating
+hearts follow SoH's Hearts and DD Hearts, as Ocarina of Time's beating heart does); that fallback is never a translated
+row. Since #1272 item 2 the magic arrows' hit flash also follows SoH's Arrow Effects Secondary once it is changed, a
+sixth of each channel per unit of intensity as OoT draws it (`MM_CosmeticEditor_ArrowHitFlash`); unchanged, MM's own
+vanilla flash stays.
 
 | MM key (`gCosmetic.` + …, unless spelled in full) | Category | How SoH's Cosmetics Editor drives it |
 |---|---|---|
@@ -189,8 +196,8 @@ The classification lock's colour-family leg (3c-3) holds every element of the lo
 | `Hearts.Border` | translated | Link & Items tab, SoH's Heart Border (Advanced Mode) |
 | `Hearts.DD` | translated | Link & Items tab, SoH's DD Hearts |
 | `Hearts.DDBorder` | translated | Link & Items tab, SoH's DD Heart Border (Advanced Mode) |
-| `Hearts.Beating` | (O) MM-only | its own MM row, "Beating Hearts", in a Majora's Mask block after SoH's Consumables group (OoT's beating heart takes the Hearts colour) |
-| `Hearts.DDBeating` | (O) MM-only | its own MM row, "DD Beating Hearts", in the same block |
+| `Hearts.Beating` | (O) MM-only | its own MM row, "Beating Hearts", in a Majora's Mask block after SoH's Consumables group; until that row is set it follows SoH's Hearts, as OoT's beating heart does (#1272 item 1) |
+| `Hearts.DDBeating` | (O) MM-only | its own MM row, "DD Beating Hearts", in the same block; until set it follows SoH's DD Hearts (#1272 item 1) |
 | `Magic.Normal` | translated | Link & Items tab, SoH's Magic (`gCosmetics.Consumable.Magic`) |
 | `Magic.Active` | translated | Link & Items tab, SoH's Magic Active (Advanced Mode), the meter while magic drains |
 | `Magic.Border` | translated | Link & Items tab, SoH's Magic Border (Advanced Mode) |
@@ -323,8 +330,11 @@ in the excluded `BenMenu.cpp`, so nothing in the single exe wrote them, and thre
 default. Each key now has an MM-labelled row beside its SoH twin in SoH's Bindings window, Camera Controls panel
 (`SohInputEditorWindow.cpp`, `DrawMmCameraRows`), bound through its `RSBS_CVAR_MM_*` define; each row declares the
 default MM reads, and the sliders take 2Ship's ranges. The three first-person switches the §2 Camera claim covered only
-at category level were checked for convergence and each failed on gating, so they are held apart too (three
-`kMustStayDistinct` rows beside P3). The classification lock's (3f-5) holds every row.
+at category level were checked for convergence and each failed on gating, so they were held apart too (three
+`kMustStayDistinct` rows beside P3). #1272 item 5 converged the third, auto-centering, under the one-game model (§5.3
+Group E): MM's extra gate is only its own Gyro Aiming, which still applies beside the shared switch, so two rows
+for one switch had no reason left. Two `kMustStayDistinct` rows remain. The classification lock's (3f-5) holds every
+row.
 
 | MM key | MM default | Row (after its SoH twin) | Call |
 |---|---|---|---|
@@ -332,7 +342,7 @@ at category level were checked for convergence and each failed on gating, so the
 | `gEnhancements.Camera.FirstPerson.MoveInFirstPerson` | off | MM Allow moving while in first-person mode (shown while MM Right Stick Aiming is on) | (P) gating: SoH's `gSettings.MoveInFirstPerson` is read on its own; MM's needs its right-stick switch and never moves Link on Epona, the swamp boat or in the archery games |
 | `gEnhancements.Camera.FirstPerson.InvertX` | off | MM Invert Aiming X Axis | (P) P3 |
 | `gEnhancements.Camera.FirstPerson.InvertY` | **on (inverted)** | MM Invert Aiming Y Axis | (P) P3 |
-| `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | off | MM Disable Auto-Centering in First-Person View | (P) gating: MM never auto-centers while its Gyro Aiming is on (and 2Ship disables the row then); SoH's `gSettings.DisableFirstPersonAutoCenterView` has no such gate |
+| `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | off | none since #1272: SoH's Disable Auto-Centering in First-Person View drives both games | (S) converged onto `gSettings.DisableFirstPersonAutoCenterView` (§5.3 Group E, version 10 migration); MM still never auto-centers while its own Gyro Aiming is on |
 | `gEnhancements.Camera.FirstPerson.Sensitivity{X,Y}` | 100% | MM Aiming/First-Person Horizontal / Vertical Sensitivity (1-200%) | (P) P3: MM's applies to the left stick only, SoH's to every aiming input behind its own enable |
 | `gEnhancements.Camera.FirstPerson.RightStickInvertX` | off | MM Invert Right Stick Aiming X Axis (shown while MM Right Stick Aiming is on) | (P) P3: SoH has no separate right-stick axis |
 | `gEnhancements.Camera.FirstPerson.RightStickInvertY` | **on (inverted)** | MM Invert Right Stick Aiming Y Axis (likewise) | (P) P3 |
@@ -375,7 +385,7 @@ ten, which are (O) and listed in §6.1 W6-PLAYER; the coverage notes there hold 
 | MM key | MM default | Row (page > section) | Call |
 |---|---|---|---|
 | `gEnhancements.Player.ClimbSpeed` | 1x | MM Vine/Ladder Climb Speed (Skips & Speed-ups > Animations, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH adds +0-12, MM multiplies 1-5x; §5.3 group A's "both numeric" was wrong |
-| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`). SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, then the scarcer ammo first), and an OoT seed can force it on. MM's row converts Bomb drops to Bombchu drops once you have Bombchus: in the single exe a Bomb drop converts, at an even chance, only while `INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU` already holds, which is SoH's first clause (review H1 on #1246). The reason: the Bombchu count is a shared PROGRESSION quantity (`src/common/shared_items.h`). Under 2Ship's unguarded rule the pickup would set the Bombchu item in Termina (`z_parameter.c` Item_Give), the next harvest would carry the count into the pool, and `OoT_ApplySharedAmmoCount` would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them (`OoT_SharedAmmoGrantBlocked` stops that only when the seed's Bombchu Bag option is on). MM's rule still never weighs the scarcer ammo, so the keys are not converged: same bool and JSON shape, different rule. MMRegistrarCoverage's FAIL 22 holds the rule. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031). **2Ship import (W6-IMPORT, §6.3): an MM-only key.** Imported as MM's own key, never onto `gEnhancements.EnableBombchuDrops` |
+| `gEnhancements.Equipment.ChuDrops` | off | MM Enable Bombchu Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`). SoH's `gEnhancements.EnableBombchuDrops` weighs what Link carries (no Bombchu drops without Bombchus, then the scarcer ammo first), and an OoT seed can force it on. MM's row converts Bomb drops to Bombchu drops once you have Bombchus: in the single exe a Bomb drop converts, at an even chance, only while `INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU` already holds, which is SoH's first clause (review H1 on #1246). The reason: the Bombchu count is a shared PROGRESSION quantity (`src/common/shared_items.h`). Under 2Ship's unguarded rule the pickup would set the Bombchu item in Termina (`z_parameter.c` Item_Give), the next harvest would carry the count into the pool, and `OoT_ApplySharedAmmoCount` would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them (`OoT_SharedAmmoGrantBlocked` stops that only when the seed's Bombchu Bag option is on). MM's rule still never weighs the scarcer ammo, so the keys are not converged: same bool and JSON shape, different rule. MMRegistrarCoverage's FAIL 22 holds the rule. Its inline read of `gEnhancements.NewDrops` is SoH's own converged key (#1031). The 2Ship import carries it as MM's own key (this document's §6.3) |
 
 ## 5. (S) CONVERGE — the rename list for the settings-namespace ADR
 
@@ -563,6 +573,7 @@ default (off).
 | Prevent dropped ocarina inputs | `gEnhancements.DpadNoDropOcarinaInput` | `gEnhancements.Playback.NoDropOcarinaInput` | #1062 | Was P6. |
 | Containers Match Contents | `gEnhancements.ChestSizeAndTextureMatchContents` | `gRando.CSMC` | #1064 | The #966 audit table listed this OOT-ONLY with no MM reader; that was wrong, the reader is `gRando.CSMC` (chests, pots, grass, crates, barrels). `ChestSizeDependsStoneOfAgony` stays OoT-only (MM has no Stone of Agony). |
 | Disable Navi Call Audio | `gAudioEditor.DisableNaviCallAudio` | `gAudioEditor.DisableTatlCallAudio` | #1239 | Both bool, default off, and both skip the companion fairy's call sound (MM's `VB_PLAY_TATL_CALL_AUDIO`). SoH's row is left as SoH wrote it and now drives both games. |
+| Disable Auto-Centering in First-Person View | `gSettings.DisableFirstPersonAutoCenterView` | `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | #1272 | W6-CAM-AIM held it apart (P3, gating) with an MM row in the Bindings window. Both bool, default off; the gating difference is MM's own Gyro Aiming, which still suppresses MM's auto-centre beside the shared switch, so under the one-game model one switch means one thing in both games. The MM row is gone; SoH's row drives both games. That MM row wrote the MM spelling, so `ConfigVersion10Updater` carries a stored value across (version 9 had already run on those installs). |
 
 ## 6. (O) — only-in-one, by category
 
@@ -591,7 +602,7 @@ default (off).
 | `Songs.PauseOwlWarp` | 1 | (O). Row "Pause Owl Warp", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1240). `Songs/PauseOwlWarp.cpp` was already linked through the z_kaleido accessor; the row was MISSING |
 | `Songs.EnableSunsSong` | 1 | (O). Row "Enable Sun's Song", same block; `Songs/EnableSunsSong.cpp` linked. Makes the song playable without its quest bit, which is not a shared song (only Epona's Song and the Song of Storms are, #1066), and its notes stay behind the shared ocarina buttons |
 | `Songs.ZoraEggCount` | 1 | (O). Slider "Zora Eggs for Bossa Nova" (1-7, default 7), same block; `Songs/ZoraEggCount.cpp` linked |
-| `Songs.FasterSongPlayback` | 1 | (O). Row "Faster Song Playback", same block; `Songs/FasterSongPlayback.cpp` linked (play-state guards added). SoH's `gEnhancements.FastOcarinaPlayback` is its nearest relative, not a twin (SoH skips the replay of the notes; MM cuts the wait after the song and the Elegy statues' fade) |
+| `Songs.FasterSongPlayback` | 1 | (O). Row "Faster Song Playback", Items > Ocarina, directly after SoH's Fast Ocarina Playback since #1272 item 6 (it sat in the Majora's Mask block before); `Songs/FasterSongPlayback.cpp` linked (play-state guards added). SoH's `gEnhancements.FastOcarinaPlayback` is its nearest relative, not a twin (SoH skips the replay of the notes; MM cuts the wait after the song and the Elegy statues' fade), so the keys stay apart and the row keeps its own label |
 | `Songs.SkipSoaringCutscene` | 1 | (O). Row "Skip Soaring Cutscene", same block; `Songs/SkipSoaringCutscene.cpp` linked (play-state guard added). #1133 L7 may move it to Skips & Speed-ups > Cutscenes later |
 | `Songs.{BetterSongOfDoubleTime, SkipSoTCutscenes}` | 2 | (O). Rows hosted by L7 (#1133): see the #1133 hosted-rows table in §5.3 |
 | `Player.UnderwaterOcarina` | 1 | (O). Row "Underwater Ocarina", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1236); `Player/UnderwaterOcarina.cpp` linked (play-state guard added) |
@@ -781,7 +792,7 @@ that could share its key.
 | `gFixes.FixEponaStealingSword` | off | Fix Epona Stealing Sword (Gameplay Fixes) | (O) MM-only; `Fixes/FixEponaStealingSword.cpp` linked (play-state guard added) |
 | `gEnhancements.Fixes.FierceDeityZTargetMovement` | off | Fix Fierce Deity Z-Target Movement (Gameplay Fixes) | (O) MM-only; `Fixes/FierceDeityZTargetMovement.cpp` linked (guard added) |
 | `gEnhancements.Fixes.ConsoleCrashes` | on | none | INTENTIONAL: the single exe always keeps the crash fixes on. `src/common/mm_stubs.c`'s handler returns "not reset" and every call site takes its safe fallback; 2Ship's off mode is a soft reset through the console's "reset" command, which in the single exe is SoH's and resets Ocarina of Time, not the Majora's Mask state the crash came from |
-| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key. The 2Ship import (§6.3) carries it under this spelling and no longer replays the v1 rename, which moved the value onto a key nothing reads |
+| `gFixes.FixAmmoCountEnvColor` | off | Fix Ammo Count Color (Graphical Fixes) | (O) MM-only; row only, `z_parameter.c` reads it. The key keeps this spelling: 2Ship v1's rename to `gFixes.FixButtonEnvColor` (`ConfigUpdaters.cpp`) was never followed by MM's code, so the row never binds the renamed key. The 2Ship import carries it under this spelling (this document's §6.3) |
 | `gFixes.FixIkanaGreatFairyFountainColor` | off | Fix Ikana Great Fairy Fountain Color (Graphical Fixes) | (O) MM-only; row only, `z_kankyo.c` reads it |
 | `gEnhancements.Fixes.ControlCharacters` | off | Fix Text Control Characters (Graphical Fixes) | (O) MM-only; row only, `z_message_nes.c` reads it |
 | `gEnhancements.Fixes.CompletedHeartContainerAudio` | off | Fix Completed Heart Container Audio (Audio Fixes) | (O) MM-only; `Fixes/CompletedHeartContainerAudio.cpp` linked |
@@ -807,11 +818,15 @@ Dungeon/trade/age machinery with no MM counterpart: `gRandoSettings.*` (232),
 
 ### 6.3 The 2Ship config import (W6-IMPORT, #1240)
 
+This section is the one place the import is described; a row elsewhere says only that the import carries it. (The
+conflict rule below is ADR 0003's, from that ADR's own section 6.3, which is not this section.)
+
 The one-time import of a standalone 2Ship config (`games/oot/soh/config/TwoShipImport.cpp`) used to walk only
-`kConvergedKeys`, so a returning 2Ship player lost every MM-only setting. It now also adopts, as-is and under ADR 0003
-§6.3's conflict rule (a value already set in the combined config wins), every key on the compile-time list
+`kConvergedKeys`, so a returning 2Ship player lost every MM-only setting. It now also adopts, as-is and under ADR 0003's
+conflict rule (a value already set in the combined config wins), every key on the compile-time list
 `RSBS_TWOSHIP_IMPORT_KEYS` in `src/common/cvar_shared_keys.h`. Fixed at compile time because the import runs at boot
-before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys row hold both lists.
+before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys row hold both lists. Since #1272 item
+3 it also carries 2Ship's changed colours, each where the single exe reads it (TwoShipImportMmKeys leg 7).
 
 | Keys | Import |
 |---|---|
@@ -824,12 +839,16 @@ before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys 
 | `gEnhancements.Cutscenes.SkipGetItemCutscenes` | Not imported: translated from SoH's tiers (#1060) with no reverse translation; MM's 2 and 3 have no SoH value |
 | `gAudioEditor.LinkVoiceFreqMultiplier.{Enable, Scale}`, `gAudioEditor.RandomizeAllOn{NewScene, RandoGen}` | Not imported: translated from SoH's rows (#1239); the pitch pair would turn SoH's float leaf into a JSON parent |
 | INTENTIONAL keys with no row: Skip First Cycle, Skip to File Select, 3rd Save File Slot, Persistent Owl Saves, Disable Save Delay, Do Not Reset Rupees / Consumables, Delete File on Death, Authentic Logo, Fix Console Crashes, `gWindows.Timesplits.Settings`; the internal `Masks.PersistentBunnyHood.State` | Not imported: no row could change an imported value, and none acts in paired play |
-| Families `gAudioEditor.ReplacedSequences.*`, `gAudioEditor.Excluded.*`, `gHudEditor.*`, `gCosmetic.*` (its translated colours included), `gColors.*` | Not imported; a family import is a follow-up. A raw sequence copy would land MM's choices on SoH's own keys for the eleven sfxKeys both games name (W6-AUDIO-SEQ) |
+| `gCosmetic.<element>.Color` / `.Changed`, a colour 2Ship's editor changed (#1272 item 3) | An element with an SoH twin (§3.2's colour table, the first `kTranslatedKeys` row of its MM key) lands on SoH's Cosmetics Editor row, `.Value` and `.Changed`, so the one row colours both games; a fallback row (SoH's C Buttons) is never a target. An MM-only element lands on its own MM row's keys. An SoH or MM row already changed in the combined config keeps its colour |
+| Families `gAudioEditor.ReplacedSequences.*`, `gAudioEditor.Excluded.*`, `gHudEditor.*`, `gCosmetic.*` beyond its element colours, `gColors.*` | Not imported raw; a family import is a follow-up. A raw sequence copy would land MM's choices on SoH's own keys for the eleven sfxKeys both games name (W6-AUDIO-SEQ) |
 
 ## 7. Counts
 
 Scoped to the enhancement/cheat/cosmetic surface classified at **individual-setting level**
-(MM's 185 `gEnhancements.*` + `gCheats.*` keys, and their OoT counterparts):
+(MM's 185 `gEnhancements.*` + `gCheats.*` keys, and their OoT counterparts). These counts are the original inventory's
+(2026-07-21) and are not re-derived per row: since then the W6 lanes classified every key per row (§2, where the total
+reads 184 because `Masks` holds 9 keys, not the inventory's 10), and the #966 rows, #1239 and #1272 converged more keys
+than the 26 below.
 
 | Class | Rows | Notes |
 |---|---:|---|
