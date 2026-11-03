@@ -51,6 +51,7 @@
 #include "combo_mm_options_view.h"
 #include "combo_mm_tricks_view.h"
 #include "combo_settings_view.h"
+#include "ComboItemTrackerWindow.h" // ComboItemTrackerFlushLayoutSave: the exit writes an unsettled layout edit (#1349)
 // #750: OoT_RetireAbandonedSession resets the actor DB's clients and drops every
 // per-actor object extension of the session a departure abandons.
 #include "soh/ActorDB.h"
@@ -2963,6 +2964,9 @@ void OoT_Game_Resume(void) {
 void OoT_Game_Shutdown(void) {
     fprintf(stderr, "[OoT] Game_Shutdown called\n");
     fflush(stderr);
+    // #1349: the Item Tracker layout editor's write waits for edits to settle;
+    // one made just before quitting is written here, while the config still is.
+    ComboGui::ComboItemTrackerFlushLayoutSave(true);
     gAudioContextInitalized = false;
     DeinitOTR();
     OoT_Heaps_Free();

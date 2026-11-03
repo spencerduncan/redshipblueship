@@ -164,6 +164,22 @@ int LastQueuedSoundModeSince(u8 from) {
     return found;
 }
 
+/**
+ * Freeze an MM half carrying the given pause-save pair, as a .redsave load arms
+ * the half its last MM commit wrote (#1348), then apply the boot chain's wipe.
+ * The half is a real new file (MM_Sram_InitNewSave) at day 2, so a restore is
+ * observable: the arrival re-authors day 0 only on a first entry.
+ */
+void StageFrozenPauseSaveHalf(uint16_t returnEntrance, s32 pauseSaveEntrance, bool isOwlSave) {
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.day = 2;
+    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = pauseSaveEntrance;
+    gSaveContext.save.isOwlSave = isOwlSave;
+    Combo_FreezeState("mm", returnEntrance, &gSaveContext, sizeof(gSaveContext));
+    memset(&gSaveContext, 0, sizeof(gSaveContext)); // the boot chain's wipe
+}
+
 } // namespace
 
 /**
@@ -221,9 +237,11 @@ extern "C" int MM_ResumeArena_RunHeadless(void) {
  * bootstrap the boot chain hands it, while leaving the rest of that save alone
  * (#639), (e) re-apply the sound mode DERIVED from the restored save's
  * options.audioSetting, which lives outside gSaveContext and so cannot ride
- * the restore memcpy (#483, audit #482 row M5), and (f) take OoT's Z-targeting
- * mode over the one the restored half carries, keeping MM's own when OoT has no
- * frozen half (#1351).
+ * the restore memcpy (#483, audit #482 row M5), (f) spawn a restored half
+ * that carries a pause-save pair (isOwlSave and an in-range entrance) at that
+ * entrance, and clear the pair whenever it does not use it (#1348), and (g)
+ * take OoT's Z-targeting mode over the one the restored half carries, keeping
+ * MM's own when OoT has no frozen half (#1351).
  */
 extern "C" int MM_StartupRestore_RunHeadless(void) {
     printf("[TEST] mm-startup-restore: startup consumption restores the frozen save post-wipe\n");
@@ -323,8 +341,14 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(gSaveContext.shipSaveContext.lastTimeLog >= timestampBeforeArrival &&
                       gSaveContext.shipSaveContext.lastTimeLog - timestampBeforeArrival < 5000,
                   "shipSaveContext.lastTimeLog not a fresh plausible timestamp after restore (#617)");
-    // ...the arrival spawn is armed with plain-gameplay cutscene state...
+    // ...the arrival spawn is armed with plain-gameplay cutscene state. The 0x5A
+    // fill put pauseSaveEntrance at 0x5A5A5A5A, which is no entrance: the
+    // arrival's 0..0xFFFF range check (#1348) is what keeps this the crossing
+    // entrance, and the unused pause-save pair is cleared rather than left for
+    // MM_Player_Init and Remember Save Location to read...
     RESUME_ASSERT(gSaveContext.save.entrance == kArrival, "startup entrance not applied to save.entrance");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
+                  "an out-of-range restored pauseSaveEntrance was not cleared with isOwlSave at the arrival (#1348)");
     RESUME_ASSERT(gSaveContext.save.cutsceneIndex == 0, "cutsceneIndex not reset for arrival spawn");
     RESUME_ASSERT(gSaveContext.gameMode == GAMEMODE_NORMAL, "gameMode not reset for arrival spawn");
     // ...live gameplay state carried by the frozen blob is neutralized (#373).
@@ -450,6 +474,75 @@ extern "C" int MM_StartupRestore_RunHeadless(void) {
     RESUME_ASSERT(sSoundMode == SOUNDMODE_MONO, "out-of-range restored audioSetting was applied anyway (#483)");
     RESUME_ASSERT(SeqCmdsQueuedSince(seqCmdPosBeforeCorrupt) == 0,
                   "out-of-range restored audioSetting still queued a seq command (#483)");
+
+    // The pause-save entrance of a reloaded half (#1348). A Pause Menu Save or
+    // an autosave commits with isOwlSave set and pauseSaveEntrance at the save's
+    // entrance, and a .redsave load arms that half, so the first arrival after
+    // the load restores the pair. The arrival must spawn at that entrance and
+    // leave the pair for MM_Player_Init, which forces the standing start and
+    // clears it. Before #1348 the arrival overwrote it with the crossing
+    // entrance. A temple entrance, because with Pause Menu Save or Autosave on
+    // and Remember Save Location off, that is the only pause save whose
+    // entrance differs from the crossing's.
+    const s32 kPauseSaveEntrance = ENTRANCE(WOODFALL_TEMPLE, 0);
+    RESUME_ASSERT(kPauseSaveEntrance != kArrival, "the pause-save leg cannot tell its entrance from the crossing's");
+    StageFrozenPauseSaveHalf(kArrival, kPauseSaveEntrance, true);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    printf("[TEST] mm-startup-restore: pause-saved half arrives at entrance 0x%04X (pauseSaveEntrance %d, "
+           "isOwlSave %d)\n",
+           (unsigned)gSaveContext.save.entrance, (int)gSaveContext.save.shipSaveInfo.pauseSaveEntrance,
+           (int)gSaveContext.save.isOwlSave);
+    RESUME_ASSERT(gSaveContext.save.day == 2, "the pause-save leg did not restore its frozen half");
+    RESUME_ASSERT(gSaveContext.save.entrance == kPauseSaveEntrance,
+                  "the first arrival after a reload ignored the restored pause-save entrance (#1348)");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == kPauseSaveEntrance && gSaveContext.save.isOwlSave,
+                  "the arrival cleared the pause-save pair MM_Player_Init needs for the standing start (#1348)");
+    RESUME_ASSERT(!Combo_HasStartupEntrance(), "pause-save leg startup entrance not cleared");
+
+    // A half frozen by walking out of MM carries -1 (the commit sites clear the
+    // pair right after committing): that arrival is at the crossing entrance.
+    StageFrozenPauseSaveHalf(kArrival, -1, false);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    RESUME_ASSERT(gSaveContext.save.day == 2, "the walked-out leg did not restore its frozen half");
+    RESUME_ASSERT(gSaveContext.save.entrance == kArrival,
+                  "a half with no pause-save entrance did not arrive at the crossing entrance (#1348)");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
+                  "the walked-out leg left a pause-save pair behind (#1348)");
+
+    // Every commit that records an entrance sets isOwlSave with it, and 2Ship's
+    // own load reads the entrance only for an owl save. A restored half with an
+    // in-range entrance but no isOwlSave is damaged, not a pause save: a zeroed
+    // field reads as ENTRANCE(MAYORS_RESIDENCE, 0), and that must not steer the
+    // arrival. It arrives at the crossing entrance and the stray entrance is
+    // cleared, so MM_Player_Init does not force a standing start for it.
+    const s32 kZeroedPauseSaveEntrance = ENTRANCE(MAYORS_RESIDENCE, 0);
+    RESUME_ASSERT(kZeroedPauseSaveEntrance == 0 && kZeroedPauseSaveEntrance != kArrival,
+                  "the zeroed-field leg's entrance is not the in-range 0 it means to test");
+    StageFrozenPauseSaveHalf(kArrival, kZeroedPauseSaveEntrance, false);
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    RESUME_ASSERT(gSaveContext.save.day == 2, "the zeroed-field leg did not restore its frozen half");
+    RESUME_ASSERT(gSaveContext.save.entrance == kArrival,
+                  "a restored entrance without isOwlSave steered the arrival away from the crossing (#1348)");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
+                  "the zeroed-field leg left its stray pause-save entrance set (#1348)");
+
+    // Only a RESTORED half carries a save's entrance. With no frozen half the
+    // arrival spawns on the boot chain's bootstrap at the crossing entrance,
+    // whatever that save holds, and clears the pair it did not use.
+    Combo_ClearFrozenState("mm");
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    gSaveContext.save.shipSaveInfo.pauseSaveEntrance = kPauseSaveEntrance;
+    gSaveContext.save.isOwlSave = true;
+    Combo_SetStartupEntrance(kArrival);
+    MM_Play_ConsumeStartupEntrance();
+    RESUME_ASSERT(gSaveContext.save.entrance == kArrival,
+                  "an arrival with no frozen half spawned at a pause-save entrance (#1348)");
+    RESUME_ASSERT(gSaveContext.save.shipSaveInfo.pauseSaveEntrance == -1 && !gSaveContext.save.isOwlSave,
+                  "an arrival with no frozen half left the unused pause-save pair set (#1348)");
 
     // One targeting mode (#1351). MM picks Hold targeting from
     // options.zTargetSetting, and its only UI writer is its own file select,

@@ -65,6 +65,15 @@
  *    only while the frozen rule is on; and a live game's own tiers and counts
  *    reach the Shared row before the next harvest.
  *
+ * 5e. A SHARED BUTTON DRAWN WITH OoT's OCARINA IS NAMED (#1347). Under Shared
+ *    Ocarina Buttons, every Shared button row is read through both paths (the
+ *    column's Combo_ItemSharedRowAtWithIcons, the customizable tracker's
+ *    Combo_ItemSharedCatalogRowByKey) with both icon games, in three worlds:
+ *    both games shuffle the buttons, OoT alone, MM alone. Every row drawn with
+ *    OoT's Ocarina of Time carries SoH's short name (A, C-U, C-D, C-L, C-R), and
+ *    every row drawn with MM's glyph carries none. Which game lends the icon is
+ *    not pinned. The no-save catalog loop of 5d holds the same.
+ *
  * 6. STATE PUT BACK. The OoT shadow goes back to the bytes this row inherited
  *    (asserted byte-equal; a shadow that was absent comes back all-zero, which
  *    reads as absent by the zero-means-no-data rule), the context, the active
@@ -1833,6 +1842,130 @@ static int CivSharedHeartLegs(void) {
     return TEST_PASS;
 }
 
+// ---- a Shared button drawn with OoT's ocarina carries SoH's short name (#1347) ----
+//
+// Under Shared Ocarina Buttons each Shared button row borrows one game's own row's
+// icon. OoT's five are one icon, SoH's Ocarina of Time, told apart only by the
+// short name DrawItem writes over it (itemTrackerOcarinaButtonShortNames: A, C-U,
+// C-D, C-L, C-R; OoT's kOcarinaButtonRows). A Shared row that borrowed the icon
+// without the name was one of five identical bare ocarinas: what the Shared column
+// drew while OoT ran, and in Termina when only OoT shuffles the buttons (MM has no
+// row to lend). Which game lends the icon is an open decision this leg does NOT
+// pin; it holds only that the name travels with the icon it belongs to: a row
+// drawn with OoT's ocarina carries SoH's name, a row drawn with anything else (MM's
+// tinted glyph) carries none. RED before #1347: no Shared row carried a label.
+
+/** SoH's short name over each button's ocarina, by the Shared row's slot. */
+static const struct {
+    const char* slotKey;
+    const char* label;
+} kCivButtonLabels[5] = {
+    { "ocarina_btn_a", "A" },        { "ocarina_btn_c_down", "C-D" }, { "ocarina_btn_c_right", "C-R" },
+    { "ocarina_btn_c_left", "C-L" }, { "ocarina_btn_c_up", "C-U" },
+};
+
+/** SoH's short name for Shared slot `slotKey`, or NULL when the slot is no ocarina button. */
+static const char* CivButtonLabel(const char* slotKey) {
+    if (slotKey == NULL) {
+        return NULL;
+    }
+    for (const auto& b : kCivButtonLabels) {
+        if (strcmp(slotKey, b.slotKey) == 0) {
+            return b.label;
+        }
+    }
+    return NULL;
+}
+
+/** Does Shared row `r` carry the name its icon needs? Counts a row drawn with OoT's ocarina into `*ocarinas`. */
+static bool CivSharedRowLabelFits(const ComboItemRow& r, const char* path, int* ocarinas) {
+    const bool ocarina = r.iconKey != NULL && strcmp(r.iconKey, "ITEM_OCARINA_TIME") == 0;
+    const char* want = CivButtonLabel(r.slotKey);
+    bool ok = true;
+    if (ocarina) {
+        (*ocarinas)++;
+        ok = want != NULL && r.label != NULL && strcmp(r.label, want) == 0;
+    } else if (want != NULL) {
+        ok = r.label == NULL; // another game's icon: the name was made for OoT's ocarina only
+    }
+    if (!ok) {
+        printf("[TEST] combo-item-view: %s: Shared \"%s\" drawn with %s has label %s (want %s)\n", path,
+               r.slotKey != NULL ? r.slotKey : "(none)", r.iconKey != NULL ? r.iconKey : "(no icon)",
+               r.label != NULL ? r.label : "(none)", ocarina && want != NULL ? want : "(none)");
+    }
+    return ok;
+}
+
+static int CivSharedButtonLabelLegs(const ComboItemOps* ops, const ComboItemOps* mmOps) {
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    ComboContext_Init();
+    Combo_ResetSharedResourceWatermarks();
+    gComboCtx.sourceIsRando = true;
+    gComboCtx.sharedRandoSeed = 0x1347F00Du;
+    gComboCtx.sharedRandoSettingsHash = 0x1347CA5Eu;
+    gComboCtx.mmProfileDigest = 0x1347D16Eu;
+    ComboSettingsRecord rec;
+    Combo_ComboSettingsDefaults(&rec);
+    ComboItemRulesRecord rules;
+    memset(&rules, 0, sizeof(rules));
+    rules.crossItemFlags = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+    Combo_FreezeComboSettingsEx(&rec, &rules);
+    Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 1); // a Shared group to draw in
+    Context_SetCurrentGame(GAME_NONE);                                // both games from their frozen shadows
+
+    // OoT's tracker world, a randomizer file holding the A and C-Left buttons; MM's button world holding every
+    // button but C-Up. Each game's frozen shuffle option picks the world.
+    std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mm((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(oot.data(), oot.size(), 1) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+    static const struct {
+        const char* world;
+        bool ootShuffles;
+        bool mmShuffles;
+    } kWorlds[] = {
+        { "both games shuffle the buttons", true, true },
+        { "OoT alone shuffles them", true, false }, // Termina's Shared rows fall back to OoT's
+        { "MM alone shuffles them", false, true },
+    };
+    int ocarinas = 0;
+    for (const auto& w : kWorlds) {
+        OoT_ItemAdapter_TestOverrideOptions(1, w.ootShuffles ? kCivOptButtons : 0u);
+        CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(mm.data(), mm.size(), w.mmShuffles ? 1 : 0, 0x0Fu) == 1);
+        Context_UpdateShadowCopy(GAME_MM, mm.data(), mm.size());
+        for (uint8_t iconGame : { (uint8_t)GAME_OOT, (uint8_t)GAME_MM }) {
+            const char* icons = iconGame == (uint8_t)GAME_OOT ? "OoT" : "MM";
+            const int before = ocarinas;
+            // The default Shared column (Combo_ItemSharedRowAtWithIcons): its five button rows.
+            ComboItemRow r;
+            int buttons = 0;
+            const int n = Combo_ItemSharedCount();
+            for (int i = 0; i < n; i++) {
+                CIV_ASSERT(Combo_ItemSharedRowAtWithIcons(i, iconGame, &r));
+                if (CivButtonLabel(r.slotKey) != NULL) {
+                    buttons++;
+                    CIV_ASSERT(CivSharedRowLabelFits(r, "Shared column", &ocarinas));
+                }
+            }
+            // The customizable tracker's Shared slots (Combo_ItemSharedCatalogRowByKey).
+            for (const auto& b : kCivButtonLabels) {
+                CIV_ASSERT(Combo_ItemSharedCatalogRowByKey(b.slotKey, iconGame, &r));
+                CIV_ASSERT(CivSharedRowLabelFits(r, "Shared catalog slot", &ocarinas));
+            }
+            printf("[TEST] combo-item-view: Shared buttons, %s, %s icons: %d rows, %d of 10 reads drawn with OoT's "
+                   "ocarina, each named\n",
+                   w.world, icons, buttons, ocarinas - before);
+            CIV_ASSERT(buttons == 5);
+        }
+    }
+    // Not vacuous: some read drew OoT's ocarina (on main, none of those carried its name).
+    CIV_ASSERT(ocarinas > 0);
+    return TEST_PASS;
+}
+
 extern "C" int Combo_ItemView_RunHeadless(void) {
     printf("[TEST] combo-item-view: per-game item adapters over live/shadow buffers, the shared group (#458 U1)\n");
 
@@ -2008,14 +2141,23 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
                 CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, r.slotKey, &byKey));
                 CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0);
             }
+            // #1347: a slot drawn with OoT's ocarina carries SoH's short name (with no save, OoT's own catalog
+            // lends the buttons theirs), and one drawn with MM's glyph carries none.
+            int sharedOcarinas = 0;
             for (int i = 0; i < sharedCatCount; i++) {
                 ComboItemRow r = {};
                 ComboItemRow byKey = {};
                 CIV_ASSERT(Combo_ItemSharedCatalogRowAt(i, (uint8_t)GAME_OOT, &r));
                 CIV_ASSERT(r.slotKey != NULL && r.slotKey[0] != '\0' && r.name != NULL && r.iconKey != NULL);
+                CIV_ASSERT(CivSharedRowLabelFits(r, "Shared catalog, OoT icons, no save", &sharedOcarinas));
                 CIV_ASSERT(Combo_ItemSharedCatalogRowByKey(r.slotKey, (uint8_t)GAME_MM, &byKey));
                 CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0 && byKey.iconKey != NULL);
+                CIV_ASSERT(CivSharedRowLabelFits(byKey, "Shared catalog, MM icons, no save", &sharedOcarinas));
             }
+            printf("[TEST] combo-item-view: Shared catalog with no save: %d slots drawn with OoT's ocarina, each "
+                   "named\n",
+                   sharedOcarinas);
+            CIV_ASSERT(sharedOcarinas > 0);
 
             // With no save loaded, unshuffled gated items (Boss Souls) report have == false.
             ComboItemRow odolwa = {};
@@ -2032,6 +2174,16 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             Context_UpdateShadowCopy(GAME_MM, startedMm.data(), startedMm.size());
             CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, "boss_soul_odolwa", &odolwa) && odolwa.have);
             CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, "boss_soul_gohma", &gohma) && gohma.have);
+        }
+
+        // ---- 5e. a Shared button drawn with OoT's ocarina carries SoH's short name (#1347) --
+        const int buttonLabelResult = CivSharedButtonLabelLegs(ops, mmOps);
+        OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        if (buttonLabelResult != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
         }
     } while (0);
 
