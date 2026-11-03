@@ -1664,9 +1664,9 @@ Each Shared rule on Randomizer > Cross-Game (under Shared Items) is off by defau
   upgrade found in the other game (bomb bag, quiver, wallet, magic, Double Defense, heart pieces and containers,
   hookshot, and bottles under Shared Bottles) raises your tier at once, and since
   [#1145](https://github.com/spencerduncan/redshipblueship/issues/1145) so does the Kokiri Sword under Shared Kokiri
-  Sword. Majora's Mask's sword does this only while neither game holds a sword; a later copy still crosses, because
-  Majora's Mask turns it into the Razor or Gilded Sword. Ocarina of Time's Progressive Deku Stick and Nut upgrades
-  found in Termina still cross and arrive at Ocarina of Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps
+  Sword. Majora's Mask's sword does this only while the shared sword is still empty (neither game has handed you a
+  sword yet); a later copy still crosses, because Majora's Mask turns it into the Razor or Gilded Sword. Ocarina of
+  Time's Progressive Deku Stick and Nut upgrades found in Termina still cross and arrive at Ocarina of Time's next arrival, so Shuffle Deku Stick/Nut Bag keeps
   gating sticks and nuts. The ocarina is never shared. An upgrade raised at the pickup does not bring the other
   game's give-time refill with it: a bomb bag that Majora's Mask gives fills your bombs, but one raised at the
   pickup leaves the shared bomb count where it was.

@@ -344,10 +344,11 @@ bool Combo_ForeignPairingActive(void);
  * placed, and the kind's quantity policy is KEEP_ALL, so no sword is trimmed.
  * That has a cost, and it is stated here rather than hidden:
  *   - OoT's sword first: MM's pool sword is PROGRESSIVE and resolves from the
- *     sword MM holds (ConvertItem.cpp), so once OoT's sword has crossed, MM's
- *     next sword pickup is the RAZOR Sword, the Gilded Sword comes one pickup
- *     early, and MM's last sword copy is surplus (it resolves to junk). The
- *     share promotes MM's chain by one tier.
+ *     sword MM holds (ConvertItem.cpp), so once OoT's sword has reached the
+ *     pool (crossed, or stepped it at a pickup in Termina), MM's next sword
+ *     pickup is the RAZOR Sword, the Gilded Sword comes one pickup early, and
+ *     MM's last sword copy is surplus (it resolves to junk). The share promotes
+ *     MM's chain by one tier.
  *   - MM's sword first: OoT already owns the Kokiri Sword when it arrives, so
  *     OoT's own Kokiri Sword pickup is a duplicate (Item_Give sets a bit that
  *     is already set).
