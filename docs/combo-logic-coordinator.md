@@ -388,7 +388,7 @@ Not oversights. Each has an owner.
 | One spoiler artifact for the pair | #564 V23 / audit P11 |
 | The attempt ladder (re-rolling the seed) | the layer above; the coordinator's retries are batch roll-backs within one seed |
 | OoT's restricted-pool passes and both games' junk `FastFill`s | per-game, audit amendment 2 |
-| The crossing edge's Day-1 re-stamp and reset-time guard (answer O2) | authored inside the engines behind `crossingOpen`; the coordinator reads the resulting region fact |
+| The crossing edge's Day-1 re-stamp and reset-time guard (answer O2) | authored inside MM's engine, NOT behind `crossingOpen`: the re-stamp is MM's crawl seeding the arrival with every owned time slice, and the guard (`games/mm/2s2h/Rando/Logic/ResetTimeGuard.h`, after OoTMM's `can_reset_time`) holds MM's whole reached set to the arrival area in `expand` until the file can reset time. `crossingOpen` stays the plain region fact, which the guard never closes (the tower interior is in that area); the coordinator reads the engines' answers [corrected 2026-11-02: this row used to say the terms sat behind `crossingOpen`] |
 | The two §6.3 measurements — one linked round's cost against the #582 budget, and whether an assumed fill over MM's forward-authored graph converges | epic #645's first two work items. `Combo_Logic_RunRound` is public partly so they can be made |
 
 ## 7. What the locks prove, and what they do not
