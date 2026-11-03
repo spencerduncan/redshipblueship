@@ -1685,6 +1685,18 @@ if(BUILD_TESTING)
     # only the rando Context.
     redship_add_test(NAME OoTPriceRangeMinimum COMMAND redship --test oot-price-range-minimum)
 
+    # #1420 (SFX-26): Ship of Harkinian's tracker fixes, which reach the unified
+    # Check Tracker through its OoT pane. The Locations exclusion list offers the
+    # Ganon's Tower boss key chest under Triforce Hunt (OoT's own or the [Both
+    # Games] goal); Available Checks start from the saved entrance index (stepping
+    # back to the scene's known entrance, Root for a graph without entrance stamps)
+    # at Link's age and time; OoT's item pane reads the live save during the end
+    # credits; the Gerudo Fortress grotto doors and the owl drops carry SoH's names
+    # and groups; the pause screen lists the new shuffles. ROM-free; the
+    # display-free shared bring-up for the CVar store. The legs that need a
+    # generated world are in TrackerOoTPanelList (rando tier).
+    redship_add_test(NAME OoTTrackerSohFixes COMMAND redship --test oot-tracker-soh-fixes)
+
     # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
     # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
     # paired world MaskShopNightDoor.cpp gives it the day door's params before
@@ -2952,7 +2964,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #1126: the combo tracker's OoT panel lists what SoH's Check Tracker lists
     # (its total, an excluded location and an unshuffled shop slot left out), live
-    # and stale, on the same paired creation. `rando`: a generation.
+    # and stale, on the same paired creation. `rando`: a generation. #1420's
+    # paired legs follow on that file: the tower chest is a row under Triforce
+    # Hunt, the combo engine's round ignores Link's entrance, age and time, and
+    # Available Checks start from them.
     redship_add_test(NAME TrackerOoTPanelList COMMAND redship --test tracker-oot-panel-list
         LABEL rando
         TIMEOUT 600

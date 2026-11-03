@@ -102,8 +102,17 @@ namespace {
  * title screen, whose attract demo runs a play state over the debug save under
  * GAMEMODE_TITLE_SCREEN, and file select, which has no play state — the same
  * test GameInteractor::IsSaveLoaded makes before the native tracker reads.
+ *
+ * Also during OoT's end credits (#1420, SoH #7298's TrackerHasSave): they play
+ * the finished file under GAMEMODE_END_CREDITS, so a slot's file (fileNum 0-2,
+ * never the debug save's 0xFF) is still the live save. Without this the pane fell
+ * back to OoT's shadow, an older snapshot, marked stale. Only here: the
+ * shared-item harvest gate (Combo_SaveIsLiveFile) keeps GAMEMODE_NORMAL.
  */
 const void* OoTItemLiveSave(void) {
+    if (gSaveContext.gameMode == GAMEMODE_END_CREDITS && gSaveContext.fileNum >= 0 && gSaveContext.fileNum <= 2) {
+        return static_cast<const void*>(&gSaveContext);
+    }
     if (OoT_gPlayState == nullptr || gSaveContext.gameMode != GAMEMODE_NORMAL) {
         return nullptr;
     }
@@ -1585,6 +1594,31 @@ extern "C" int OoT_ItemAdapter_TestInvContent(const void* buf, int item) {
 /** OoT's gItemSlots length: an item id at or past it has no inventory slot. */
 extern "C" int OoT_ItemAdapter_TestItemSlotCount(void) {
     return (int)ARRAY_COUNT(OoT_gItemSlots);
+}
+
+/**
+ * #1420: what OoT's production liveSave answers with the live gSaveContext's
+ * game mode set to `which` (0 GAMEMODE_NORMAL, 1 GAMEMODE_TITLE_SCREEN, 2
+ * GAMEMODE_FILE_SELECT, 3 GAMEMODE_END_CREDITS) and its fileNum to `fileNum`,
+ * both put back before returning: 1 the live save, 0 none, -1 another pointer or
+ * an unknown `which`. The caller's process has no OoT play state.
+ */
+extern "C" int OoT_ItemAdapter_TestLiveSaveUnder(int which, int fileNum) {
+    static const s32 kModes[] = { GAMEMODE_NORMAL, GAMEMODE_TITLE_SCREEN, GAMEMODE_FILE_SELECT, GAMEMODE_END_CREDITS };
+    if (which < 0 || which >= (int)ARRAY_COUNT(kModes)) {
+        return -1;
+    }
+    const s32 modeBefore = gSaveContext.gameMode;
+    const s32 fileBefore = gSaveContext.fileNum;
+    gSaveContext.gameMode = kModes[which];
+    gSaveContext.fileNum = fileNum;
+    const void* live = OoTItemLiveSave();
+    gSaveContext.gameMode = modeBefore;
+    gSaveContext.fileNum = fileBefore;
+    if (live == nullptr) {
+        return 0;
+    }
+    return live == static_cast<const void*>(&gSaveContext) ? 1 : -1;
 }
 
 /**
