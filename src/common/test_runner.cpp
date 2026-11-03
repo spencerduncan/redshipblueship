@@ -526,6 +526,13 @@ int RandoTest_EntrancePinGenerated(void);
 // either slider order. ROM-free and display-free; body in
 // games/oot/soh/oot_price_range_test.cpp. Return 0 on pass.
 int OoTTest_PriceRangeMinimum(void);
+// #1420: Ship of Harkinian's tracker fixes in the unified tracker's OoT pane (the
+// tower chest under Triforce Hunt, where Available Checks starts, the credits item
+// pane, entrance names, the pause screen's list). ROM-free; the display-free shared
+// bring-up for the CVar store. Body in games/oot/soh/oot_tracker_soh_fixes_test.cpp;
+// returns its failure count. Wrapper: Test_OoTTrackerSohFixes, beside
+// twoship-import-mm-keys.
+int OoTTest_TrackerSohFixes(void);
 // #948: in a paired world the night Market's Happy Mask Shop door is a
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
@@ -1470,6 +1477,17 @@ static TestResult Test_TwoShipImportMmKeys(void) {
         return TEST_FAIL;
     }
     return OoT_TwoShipImport_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1420 (see the extern decl beside oot-price-range-minimum). The display-free shared bring-up, because leg 1 writes
+// and clears the randomizer's Triforce Hunt and Ganon's Boss Key keys and the [Both Games] goal (in memory only).
+static TestResult Test_OoTTrackerSohFixes(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OoTTest_TrackerSohFixes() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM new-save session guard (#564 V21; see the extern decl above). The display-free shared bring-up, because leg 7
@@ -7687,7 +7705,8 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void);
 extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
 extern "C" int MM_TrackerInLogic_RunArrival(void);
 extern "C" int MM_TrackerFillSuperset_RunMM(void);
-extern "C" int OoT_TrackerOoTPanelList_Run(void); // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerOoTPanelList_Run(void);   // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerSohFixes_RunPaired(void); // #1420, the same file, over the panel list's paired file
 static bool TrackerReachabilityBringUp(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -7722,12 +7741,18 @@ TestResult Test_TrackerFillSuperset(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 // #1126: the combo tracker's OoT panel against SoH's Check Tracker on one paired
-// creation save. Same bring-up as the rows above.
+// creation save. Same bring-up as the rows above. #1420's paired legs (the tower
+// chest row under Triforce Hunt, generation untouched, Available Checks from
+// Link's entrance, age and time) follow over the same file.
 TestResult Test_TrackerOoTPanelList(void) {
     if (!TrackerReachabilityBringUp()) {
         return TEST_FAIL;
     }
-    return OoT_TrackerOoTPanelList_Run() == 0 ? TEST_PASS : TEST_FAIL;
+    const int list = OoT_TrackerOoTPanelList_Run();
+    const int fixes = OoT_TrackerSohFixes_RunPaired();
+    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d)\n",
+           (list == 0 && fixes == 0) ? "PASS" : "FAIL", list, fixes);
+    return (list == 0 && fixes == 0) ? TEST_PASS : TEST_FAIL;
 }
 // #1168: the talking, grabbing and time gates ported from upstream, through each
 // game's real search (OoT's per-region event fixpoint and location question, MM's
@@ -8953,6 +8978,13 @@ const TestDescriptor gTests[] = {
     { "oot-price-range-minimum",
       "A Range price setting's tracker minimum is min(range 1, range 2) * 5 in either slider order (#999)",
       Test_OoTPriceRangeMinimum },
+    // #1420: ROM-free over a heap rando Context and the region graph; puts back every
+    // key, option and save field it changes.
+    { "oot-tracker-soh-fixes",
+      "SoH's tracker fixes in the OoT pane: the tower chest offered under Triforce Hunt, Available Checks start from "
+      "the saved entrance and Link's age and time, the credits item pane is live, the fortress grotto and owl rows, "
+      "and the pause screen's new entries (#1420)",
+      Test_OoTTrackerSohFixes },
     // #948: display-free and ROM-free, and order-free: it restores the current
     // game, the active slot and OoT_gPlayState, and clears the combo identity.
     { "oot-mask-shop-night-door",
@@ -9189,7 +9221,8 @@ const TestDescriptor gTests[] = {
     { "tracker-oot-panel-list",
       "On a paired creation save, the combo tracker's OoT panel lists what SoH's Check Tracker lists: its total, a "
       "shuffled chest, not an excluded location or an unshuffled shop slot, and the same list while MM is played "
-      "(#1126)",
+      "(#1126); the tower chest is a row under Triforce Hunt, generation ignores Link's state, and Available Checks "
+      "start from Link's entrance, age and time (#1420)",
       Test_TrackerOoTPanelList },
     // #1168. Each needs its game's real region graph; skipped by `--test all` below.
     { "oot-logic-gates",

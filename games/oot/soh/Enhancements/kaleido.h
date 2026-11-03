@@ -31,6 +31,12 @@ class KaleidoEntry {
     virtual void Update(PlayState* play) = 0;
     void SetYOffset(int yOffset);
     void SetSelected(bool val);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // The line of text, for the ROM-free lock (#1420, kaleido.cpp's test bridge).
+    const std::string& GetTextForTest() const {
+        return mText;
+    }
+#endif
 
   protected:
     int16_t mX = 0;
@@ -159,6 +165,10 @@ class Kaleido {
     Kaleido();
     void Draw(PlayState* play);
     void Update(PlayState* play);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // The entries' lines in list order, for the ROM-free lock (#1420).
+    std::vector<std::string> EntryTextsForTest() const;
+#endif
 
   private:
     std::vector<std::shared_ptr<KaleidoEntry>> mEntries;

@@ -563,7 +563,8 @@ void ProcessRegion(Region* region, GetAccessibleLocationsStruct& gals, Randomize
 std::vector<RandomizerCheck> ReachabilitySearch(const std::vector<RandomizerCheck>& targetLocations,
                                                 RandomizerGet ignore /* = RG_NONE*/,
                                                 bool calculatingAvailableChecks /* = false */,
-                                                RandomizerRegion startingRegion /* = RR_ROOT */) {
+                                                RandomizerRegion startingRegion /* = RR_ROOT */,
+                                                RandoAgeTime startingAgeTime /* = RAT_NONE */) {
     auto ctx = Rando::Context::GetInstance();
     GetAccessibleLocationsStruct gals(0);
     ResetLogic(ctx, gals, !calculatingAvailableChecks);
@@ -571,16 +572,33 @@ std::vector<RandomizerCheck> ReachabilitySearch(const std::vector<RandomizerChec
         gals.regionPool.insert(gals.regionPool.begin(), startingRegion);
 
         const auto& region = RegionTable(startingRegion);
-        if (ctx->GetOption(RSK_SELECTED_STARTING_AGE).Is(RO_AGE_CHILD)) {
+        // SoH #6237: the Check Tracker starts the search at Link's own age and time
+        // of day. RAT_NONE keeps the starting age's day (and its night where time
+        // passes), which is what every other caller gets.
+        if (startingAgeTime == RAT_CHILD_DAY) {
             region->childDay = true;
-        } else {
+            region->childNight = region->timePass;
+        } else if (startingAgeTime == RAT_CHILD_NIGHT) {
+            region->childNight = true;
+            region->childDay = region->timePass;
+        } else if (startingAgeTime == RAT_ADULT_DAY) {
             region->adultDay = true;
-        }
-        if (region->timePass) {
+            region->adultNight = region->timePass;
+        } else if (startingAgeTime == RAT_ADULT_NIGHT) {
+            region->adultNight = true;
+            region->adultDay = region->timePass;
+        } else {
             if (ctx->GetOption(RSK_SELECTED_STARTING_AGE).Is(RO_AGE_CHILD)) {
-                region->childNight = true;
+                region->childDay = true;
             } else {
-                region->adultNight = true;
+                region->adultDay = true;
+            }
+            if (region->timePass) {
+                if (ctx->GetOption(RSK_SELECTED_STARTING_AGE).Is(RO_AGE_CHILD)) {
+                    region->childNight = true;
+                } else {
+                    region->adultNight = true;
+                }
             }
         }
     }

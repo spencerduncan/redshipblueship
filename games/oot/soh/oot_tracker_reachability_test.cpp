@@ -54,6 +54,23 @@
  * (its vanilla branch would list vanilla-completion checks) and lists the
  * placed checks, as before.
  *
+ * OoT_TrackerSohFixes_RunPaired (row TrackerOoTPanelList, after the list legs,
+ * over the same paired file; #1420, SoH's tracker fixes). The display-free legs
+ * are the redship row OoTTrackerSohFixes (oot_tracker_soh_fixes_test.cpp).
+ *   F  SoH #6447: with Ganon's Boss Key at Vanilla, the Ganon's Tower boss key
+ *      chest is a tracker row exactly when Triforce Hunt is on (Win or Ganon's
+ *      Boss Key), the mode a paired Triforce Hunt world generates (#1389).
+ *   G  generation is untouched: the OoT combo engine's round (the generator's own
+ *      ReachabilitySearch(ctx->allLocations)) reaches the same set whatever
+ *      Link's saved entrance, age and night flag; the new age/time parameter is
+ *      inert when the search starts at Root (every generation caller); and
+ *      RAT_NONE from a region keeps the starting age's day, as before.
+ *   S  SoH #6165, #6237, #7300: after SoH's tracker load (which now stamps the
+ *      entrances whatever the entrance shuffle), Available Checks start where the
+ *      saved entrance index puts Link: a dungeon Root cannot reach at sphere zero
+ *      is reached at Link's age and time (child day, child night, adult day, adult
+ *      night), nothing Root reaches is lost, and an unknown index is Root again.
+ *
  * Every check runs and reports; the entry point returns the failure count.
  */
 
@@ -74,6 +91,7 @@
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/randomizer_check_tracker.h"
+#include "soh/Enhancements/randomizer/3drando/fill.hpp" // ReachabilitySearch (#1420's G legs)
 
 // At file scope, not inside an extern "C" block (see oot_shared_kokiri_sword_test.cpp).
 #include <z64.h>
@@ -111,6 +129,9 @@ void RandoTest_CheckTrackerSetEnableAvailable(int enabled);
 int RandoTest_CheckTrackerDrainPendingRecalc(void);
 // randomizer_check_tracker.cpp: CheckTrackerLoadGame, as its OnLoadGame hook runs it (#1126).
 void RandoTest_CheckTrackerLoadGame(int32_t fileNum);
+// randomizer_check_tracker.cpp (#1420): LoadSettings alone, and the region a saved entrance index names.
+void RandoTest_CheckTrackerLoadSettings(void);
+int OoT_CheckTracker_TestStartingRegion(int32_t savedEntrance);
 // TrackerAdapterSingleExe.cpp: the adapter's seams (#458 U5, #1126). The skip seam's
 // 2 is "a save is loaded, IS_RANDO read for real"; 0 is "no save is loaded".
 int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded);
@@ -616,6 +637,272 @@ extern "C" int OoT_TrackerOoTPanelList_Run(void) {
         printf("[TEST] PASS: tracker-oot-panel-list\n");
     } else {
         printf("[TEST] FAIL: tracker-oot-panel-list: %d check(s) failed\n", sFailures);
+    }
+    return sFailures;
+}
+
+namespace {
+
+// ---- #1420: SoH's tracker fixes over a paired file ------------------------------------
+
+/** What a search reached: each check's ItemLocation::IsAddedToPool, and each
+ *  region's four age/time bits, as of the last ReachabilitySearch. */
+struct TrrFootprint {
+    std::vector<uint8_t> checks;
+    std::vector<uint8_t> regions;
+    int reachedChecks = 0;
+
+    bool operator==(const TrrFootprint& other) const {
+        return checks == other.checks && regions == other.regions;
+    }
+};
+
+TrrFootprint TrrTakeFootprint() {
+    auto ctx = Rando::Context::GetInstance();
+    TrrFootprint print;
+    print.checks.resize(RC_MAX);
+    for (size_t rc = 0; rc < (size_t)RC_MAX; rc++) {
+        const bool reached = ctx->GetItemLocation(rc)->IsAddedToPool();
+        print.checks[rc] = reached ? 1 : 0;
+        print.reachedChecks += reached ? 1 : 0;
+    }
+    print.regions.resize(RR_MAX);
+    for (size_t rr = 0; rr < (size_t)RR_MAX; rr++) {
+        const Region* region = RegionTable(static_cast<RandomizerRegion>(rr));
+        print.regions[rr] = (uint8_t)((region->childDay ? 1 : 0) | (region->childNight ? 2 : 0) |
+                                      (region->adultDay ? 4 : 0) | (region->adultNight ? 8 : 0));
+    }
+    return print;
+}
+
+void TrrSetLink(int32_t entrance, int32_t age, int32_t night) {
+    gSaveContext.entranceIndex = entrance;
+    gSaveContext.linkAge = age;
+    gSaveContext.nightFlag = night;
+}
+
+/** One round of the OoT combo engine, the generator's own search
+ *  (ComboLogicEngineOoT's expand: ReachabilitySearch(ctx->allLocations)) to its
+ *  closure, and what it reached. False when the engine refused the round. */
+bool TrrEngineRound(TrrFootprint* out) {
+    const ComboLogicEngine* e = Combo_Logic_GetEngine(GAME_OOT);
+    if (e == nullptr) {
+        return false;
+    }
+    bool ran = false;
+    if (e->beginQuery(e->self) != 0) {
+        for (int i = 0; i < 16 && e->expand(e->self) != 0; i++) {}
+        *out = TrrTakeFootprint();
+        ran = true;
+    }
+    e->endQuery(e->self); // combo_logic.h: called even when beginQuery refused
+    return ran;
+}
+
+/** Turn Enable Available Checks on (it arms the recalculation with no play
+ *  state) and drain it as the next read would: ComputeAvailableChecks from the
+ *  live save's entrance, age and time. The available checks it found. */
+std::set<RandomizerCheck> TrrAvailableNow() {
+    std::set<RandomizerCheck> available;
+    if (!TrrEnableAndRecalc()) {
+        return available;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        if (TrrAvailable(rc)) {
+            available.insert(rc);
+        }
+    }
+    return available;
+}
+
+/** F (SoH #6447): the tower chest is a tracker row under Triforce Hunt. */
+void TrrGanonBossKeyRow() {
+    auto ctx = Rando::Context::GetInstance();
+    const uint8_t huntBefore = ctx->GetOption(RSK_TRIFORCE_HUNT).Get();
+    const uint8_t keyBefore = ctx->GetOption(RSK_GANONS_BOSS_KEY).Get();
+    auto rowWith = [&](uint8_t hunt) {
+        ctx->GetOption(RSK_GANONS_BOSS_KEY).Set(RO_GANON_BOSS_KEY_VANILLA);
+        ctx->GetOption(RSK_TRIFORCE_HUNT).Set(hunt);
+        RandoTest_CheckTrackerLoadSettings();
+        return CheckTracker::IsCheckShuffled(RC_GANONS_TOWER_BOSS_KEY_CHEST);
+    };
+    const bool off = rowWith(RO_TRIFORCE_HUNT_OFF);
+    const bool win = rowWith(RO_TRIFORCE_HUNT_WIN);
+    const bool gbk = rowWith(RO_TRIFORCE_HUNT_GBK);
+    printf("[TEST] F (Ganon's Boss Key Vanilla): tower chest row with no hunt %d, hunt Win %d, hunt Ganon's Boss Key "
+           "%d\n",
+           off ? 1 : 0, win ? 1 : 0, gbk ? 1 : 0);
+    TRR_CHECK(!off, "F: with no Triforce Hunt the tower chest is a row, though it holds Ganon's Boss Key (control)");
+    TRR_CHECK(win, "F: under Triforce Hunt (Win, the paired hunt's mode) the tower chest holds a random item but is "
+                   "no row, so the total and Available Checks are one short (SoH #6447)");
+    TRR_CHECK(gbk, "F: under Triforce Hunt (Ganon's Boss Key) the tower chest is no row");
+    ctx->GetOption(RSK_TRIFORCE_HUNT).Set(huntBefore);
+    ctx->GetOption(RSK_GANONS_BOSS_KEY).Set(keyBefore);
+    RandoTest_CheckTrackerLoadSettings();
+}
+
+/** G: generation reads none of Link's state, and the new parameter is inert where generation starts. */
+void TrrGenerationUntouched() {
+    auto ctx = Rando::Context::GetInstance();
+    TrrSetLink(-1, LINK_AGE_CHILD, 0);
+    TrrFootprint home;
+    const bool ranHome = TrrEngineRound(&home);
+    TrrSetLink(ENTR_FIRE_TEMPLE_ENTRANCE, LINK_AGE_ADULT, 1);
+    TrrFootprint away;
+    const bool ranAway = TrrEngineRound(&away);
+    printf(
+        "[TEST] G1 (combo engine round): ran %d/%d; reached %d checks with Link at no entrance as a child by day, %d "
+        "in the Fire Temple as an adult at night; identical %d\n",
+        ranHome ? 1 : 0, ranAway ? 1 : 0, home.reachedChecks, away.reachedChecks, home == away ? 1 : 0);
+    TRR_CHECK(ranHome && ranAway, "G1: the OoT combo engine refused a round");
+    TRR_CHECK(home.reachedChecks > 0 && home.checks[RC_KF_MIDOS_TOP_LEFT_CHEST] != 0,
+              "G1: the engine's round reached nothing, so the generation leg is vacuous");
+    TRR_CHECK(home == away, "G1: the generator's search reached a different set when Link's saved entrance, age or "
+                            "time changed (generation must not read them)");
+
+    std::vector<RandomizerCheck> targets;
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        targets.push_back(rc);
+    }
+    const std::vector<RandomizerCheck> rootDefault = ReachabilitySearch(targets, RG_NONE, true);
+    const TrrFootprint rootDefaultPrint = TrrTakeFootprint();
+    const std::vector<RandomizerCheck> rootAdultNight =
+        ReachabilitySearch(targets, RG_NONE, true, RR_ROOT, RAT_ADULT_NIGHT);
+    const TrrFootprint rootAdultNightPrint = TrrTakeFootprint();
+    printf("[TEST] G2: from Root %d found, with adult night %d; identical %d\n", (int)rootDefault.size(),
+           (int)rootAdultNight.size(),
+           (rootDefault == rootAdultNight && rootDefaultPrint == rootAdultNightPrint) ? 1 : 0);
+    TRR_CHECK(!rootDefault.empty(), "G2: the search from Root found nothing, so the parameter leg is vacuous");
+    TRR_CHECK(rootDefault == rootAdultNight && rootDefaultPrint == rootAdultNightPrint,
+              "G2: the age/time parameter changed a search that starts at Root (every generation caller's start)");
+
+    // G3: a region where time passes (Kokiri Forest) and one where it does not (the Fire Temple entryway).
+    for (const RandomizerRegion from : { RR_KOKIRI_FOREST, RR_FIRE_TEMPLE_ENTRYWAY }) {
+        const std::vector<RandomizerCheck> none = ReachabilitySearch(targets, RG_NONE, true, from, RAT_NONE);
+        const TrrFootprint nonePrint = TrrTakeFootprint();
+        const std::vector<RandomizerCheck> childDay = ReachabilitySearch(targets, RG_NONE, true, from, RAT_CHILD_DAY);
+        const TrrFootprint childDayPrint = TrrTakeFootprint();
+        const bool same = none == childDay && nonePrint == childDayPrint;
+        printf("[TEST] G3: from region %d with no age/time %d found, as a child by day %d; identical %d\n", (int)from,
+               (int)none.size(), (int)childDay.size(), same ? 1 : 0);
+        TRR_CHECK(same, "G3: with no age/time a search from a region no longer starts at the starting age's day (a "
+                        "child), as it did before the parameter");
+    }
+}
+
+/** S: Available Checks start where the saved entrance index puts Link, at his age and time. */
+void TrrStartFromLink() {
+    // The candidates: dungeons whose entryway a child holding nothing cannot reach from Root.
+    const int32_t kCandidates[] = {
+        ENTR_FIRE_TEMPLE_ENTRANCE,   ENTR_WATER_TEMPLE_ENTRANCE,         ENTR_SHADOW_TEMPLE_ENTRANCE,
+        ENTR_SPIRIT_TEMPLE_ENTRANCE, ENTR_FOREST_TEMPLE_ENTRANCE,        ENTR_GERUDO_TRAINING_GROUND_ENTRANCE,
+        ENTR_ICE_CAVERN_ENTRANCE,    ENTR_INSIDE_GANONS_CASTLE_ENTRANCE,
+    };
+    TrrSetLink(-1, LINK_AGE_CHILD, 0);
+    const std::set<RandomizerCheck> fromRoot = TrrAvailableNow();
+    int32_t entrance = -1;
+    RandomizerRegion region = RR_NONE;
+    for (const int32_t candidate : kCandidates) {
+        const RandomizerRegion named = static_cast<RandomizerRegion>(OoT_CheckTracker_TestStartingRegion(candidate));
+        if (named != RR_ROOT && !RegionTable(named)->HasAccess()) {
+            entrance = candidate;
+            region = named;
+            break;
+        }
+    }
+    printf("[TEST] S0: from Root %d available; first dungeon Root does not reach: entrance 0x%X, region %d\n",
+           (int)fromRoot.size(), (unsigned)entrance, (int)region);
+    TRR_CHECK(!fromRoot.empty(), "S0: nothing is available from Root, so the start legs are vacuous");
+    if (entrance < 0) {
+        TRR_CHECK(false, "S0: Root reaches every candidate dungeon at sphere zero, or the tracker load left the "
+                         "entrances unstamped, so the start legs are vacuous");
+        return;
+    }
+
+    struct AgeTime {
+        const char* name;
+        int32_t age;
+        int32_t night;
+    };
+    const AgeTime kAgeTimes[] = {
+        { "child day", LINK_AGE_CHILD, 0 },
+        { "child night", LINK_AGE_CHILD, 1 },
+        { "adult day", LINK_AGE_ADULT, 0 },
+        { "adult night", LINK_AGE_ADULT, 1 },
+    };
+    for (const AgeTime& at : kAgeTimes) {
+        TrrSetLink(entrance, at.age, at.night);
+        const std::set<RandomizerCheck> fromLink = TrrAvailableNow();
+        const Region* here = RegionTable(region);
+        const bool reachedAtLinks = at.age == LINK_AGE_CHILD ? (at.night ? here->childNight : here->childDay)
+                                                             : (at.night ? here->adultNight : here->adultDay);
+        int lost = 0;
+        for (const RandomizerCheck rc : fromRoot) {
+            if (fromLink.count(rc) == 0) {
+                if (lost < 10) {
+                    printf("[TEST]   S (%s): %s is available from Root but not with Link in the dungeon\n", at.name,
+                           TrrName(rc));
+                }
+                lost++;
+            }
+        }
+        printf("[TEST] S (%s): Link's region reached at his age and time %d; %d available (Root alone %d); lost %d\n",
+               at.name, reachedAtLinks ? 1 : 0, (int)fromLink.size(), (int)fromRoot.size(), lost);
+        TRR_CHECK(reachedAtLinks, "S: Available Checks did not start from the region the saved entrance index names, "
+                                  "at Link's age and time (SoH #6165, #6237)");
+        TRR_CHECK(lost == 0, "S: starting from Link's region lost a check Root alone makes available");
+    }
+
+    TrrSetLink(-1, LINK_AGE_CHILD, 0);
+    const std::set<RandomizerCheck> backHome = TrrAvailableNow();
+    const bool regionDropped = !RegionTable(region)->HasAccess();
+    printf("[TEST] S (no known entrance again): %d available, same as Root alone %d; the dungeon dropped %d\n",
+           (int)backHome.size(), backHome == fromRoot ? 1 : 0, regionDropped ? 1 : 0);
+    TRR_CHECK(backHome == fromRoot && regionDropped,
+              "S: with no known entrance the set is not Root's again, so the start came from leftover state");
+}
+
+} // namespace
+
+/**
+ * #1420 over the paired file the panel-list legs above created (row
+ * TrackerOoTPanelList). Returns the failure count.
+ */
+extern "C" int OoT_TrackerSohFixes_RunPaired(void) {
+    printf("[TEST] tracker-soh-fixes (paired file): the tower chest row under Triforce Hunt, generation untouched, "
+           "and Available Checks from Link's entrance, age and time (#1420)\n");
+    sFailures = 0;
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || !Combo_ForeignPairingActive() || gSaveContext.ship.quest.id != QUEST_RANDOMIZER) {
+        printf("[TEST] FAIL: tracker-soh-fixes: no paired randomizer file to drive (the panel-list legs make it)\n");
+        return 1;
+    }
+    TRR_CHECK(ctx->GetOption(RSK_SELECTED_STARTING_AGE).Is(RO_AGE_CHILD),
+              "the world does not start as a child, so G3 compares the wrong age");
+    const int32_t entranceBefore = gSaveContext.entranceIndex;
+    const int32_t ageBefore = gSaveContext.linkAge;
+    const int32_t nightBefore = gSaveContext.nightFlag;
+
+    TrrGanonBossKeyRow();
+
+    // SoH's tracker load, as its OnLoadGame hook runs it: the region graph rebuilt and its
+    // entrances stamped (0xFE: a slot SaveSection refuses, as in the panel-list legs).
+    const int32_t fileNum = gSaveContext.fileNum;
+    gSaveContext.fileNum = 0xFE;
+    RandoTest_CheckTrackerLoadGame(0);
+    gSaveContext.fileNum = fileNum;
+
+    TrrGenerationUntouched();
+    TrrStartFromLink();
+
+    TrrSetLink(entranceBefore, ageBefore, nightBefore);
+    TrrTrackerOff();
+    CheckTracker::Teardown();
+    if (sFailures == 0) {
+        printf("[TEST] PASS: tracker-soh-fixes (paired file)\n");
+    } else {
+        printf("[TEST] FAIL: tracker-soh-fixes (paired file): %d check(s) failed\n", sFailures);
     }
     return sFailures;
 }

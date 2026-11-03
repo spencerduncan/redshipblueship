@@ -263,3 +263,4 @@ games/oot/soh/SohGui/SohMenuComboSaveFiles.cpp
 games/oot/soh/oot_mask_quest_paired_test.cpp
 games/oot/soh/oot_tracker_reachability_test.cpp
 games/oot/soh/oot_logic_gates_test.cpp
+games/oot/soh/oot_tracker_soh_fixes_test.cpp
