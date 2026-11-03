@@ -11,7 +11,8 @@
  *   1. THE TABLE. Each OoTMM trap names a type in each game, and that type's
  *      key is the one the game reads. Both lists are APPEND-ONLY: SoH's ten and
  *      MM's seven come first, at the places they always had (a type's number is
- *      its place in the roll's list, and in MM its bit in every frozen set).
+ *      its place in the roll's list, and in MM its bit in every frozen set), and
+ *      MM's Fire and Knockback are 7 and 8, upstream 2Ship's numbers (#1452).
  *   2. OoT's ROLL IS STABLE. With only SoH's own types on, the list the roll
  *      draws from is exactly the list it always was, so a config that does not
  *      turn a new type on picks the same trap from the same seed; a new type
@@ -22,9 +23,11 @@
  *      each into the shared pool; a Rupoor never takes more than the wallet has.
  *   4. MM's SAVE HALVES THROUGH THE REAL HARVEST, likewise through
  *      MM_HarvestSharedResources; Anti-Magic also ends the Chateau Romani's
- *      endless magic, as OoTMM's does. Fire and Knockback are Link's reaction
- *      only and have no save half.
- *   5. FIRE SPARES GORON LINK, and only him (OoTMM's Player_IsGoronOrGoronTunic).
+ *      endless magic, as OoTMM's does, and a Rupoor never takes more than the
+ *      wallet has. Fire and Knockback are Link's reaction only and have no save
+ *      half.
+ *   5. MM's FIRE SPARES GORON LINK, and only him (OoTMM's
+ *      Player_IsGoronOrGoronTunic).
  *   6. MM's ROLL READS THE HIGH BYTE. A type of 8 or more (randoSaveTrapTypesHi)
  *      is drawn when it is in the frozen set, and bits no type owns change no roll.
  *
@@ -100,31 +103,42 @@ const int kTtpOoTDrain = 10;
 const int kTtpOoTAntiMagic = 11;
 const int kTtpOoTRupoor = 12;
 
-/** MM's seven trap keys and names, in TrapTypes order, then the five #1424 appended. */
+/** MM's seven trap keys and names, in TrapTypes order, then the five #1424
+ *  appended: Fire and Knockback first, at upstream 2Ship's numbers and keys
+ *  (254cc60e1, #1452: TRAP_FIRE = 7, TRAP_KNOCKBACK = 8), so a port of that
+ *  commit moves no frozen bit. */
 struct TtpMMType {
     const char* key;
     const char* label;
 };
 const TtpMMType kTtpMMTypes[] = {
-    { "gRando.Traps.Freeze", "Freeze Traps" },       { "gRando.Traps.Blast", "Blast Traps" },
-    { "gRando.Traps.Shock", "Shock Traps" },         { "gRando.Traps.Jinx", "Jinx Traps" },
-    { "gRando.Traps.Wallet", "Wallet Traps" },       { "gRando.Traps.Enemy", "Like Like Traps" },
-    { "gRando.Traps.Time", "Time Traps" },           { "gRando.Traps.Fire", "Fire Traps" },
-    { "gRando.Traps.Drain", "Drain Traps" },         { "gRando.Traps.AntiMagic", "Anti-Magic Traps" },
-    { "gRando.Traps.Knockback", "Knockback Traps" }, { "gRando.Traps.Rupoor", "Rupoor Traps" },
+    { "gRando.Traps.Freeze", "Freeze Traps" },
+    { "gRando.Traps.Blast", "Blast Traps" },
+    { "gRando.Traps.Shock", "Shock Traps" },
+    { "gRando.Traps.Jinx", "Jinx Traps" },
+    { "gRando.Traps.Wallet", "Wallet Traps" },
+    { "gRando.Traps.Enemy", "Like Like Traps" },
+    { "gRando.Traps.Time", "Time Traps" },
+    { "gRando.Traps.Fire", "Fire Traps" },
+    { "gRando.Traps.Knockback", "Knockback Traps" },
+    { "gRando.Traps.Drain", "Drain Traps" },
+    { "gRando.Traps.AntiMagic", "Anti-Magic Traps" },
+    { "gRando.Traps.Rupoor", "Rupoor Traps" },
 };
 const int kTtpMMOwnTypes = 7; // MM's own, before #1424
 const int kTtpMMTypeCount = (int)(sizeof(kTtpMMTypes) / sizeof(kTtpMMTypes[0]));
 const int kTtpMMFreeze = 0;
 const int kTtpMMFire = 7;
-const int kTtpMMDrain = 8;
-const int kTtpMMAntiMagic = 9;
-const int kTtpMMKnockback = 10;
+const int kTtpMMKnockback = 8;
+const int kTtpMMDrain = 9;
+const int kTtpMMAntiMagic = 10;
 const int kTtpMMRupoor = 11;
 
 /** OoTMM's trap list (traps.h, in its order) and the type that is each one in
- *  each game. OoT's Burn Traps are OoTMM's Fire Traps: vanilla's own Goron Tunic
- *  rule puts the flames out at once, OoTMM's exemption in effect. */
+ *  each game. OoT's Fire is SoH's own Burn Traps, which #1424 leaves as SoH
+ *  has it: OoTMM's Fire Trap skips Link in the Goron Tunic, while SoH's still
+ *  makes him flinch and burn briefly (vanilla's tunic rule only shortens the
+ *  flames). OoT's Knockback is SoH's, which throws Link backwards. */
 struct TtpOoTMMTrap {
     const char* name;
     int ootType;
@@ -357,6 +371,16 @@ void TtpLegMMHarvest() {
            TtpPool(RSBS_SHARED_RES_RUPEES));
     TTP_CHECK(rupoor == 1 && rupees == 40 && TtpPool(RSBS_SHARED_RES_RUPEES) == 40,
               "MM's Rupoor left %d rupees and the pool %d, expected 40 and 40", rupees,
+              TtpPool(RSBS_SHARED_RES_RUPEES));
+
+    // A Rupoor never takes more than the wallet holds (MM_HarvestSharedRupees
+    // clamps the count plus the accumulator at zero).
+    TtpFreshPool();
+    MM_TrapParityTest_ArmLive(0x50, 0x50, 0x30, 5, 0);
+    MM_HarvestSharedResources();
+    MM_Rando_Traps_TestApplySaveEffect(kTtpMMRupoor);
+    MM_HarvestSharedResources();
+    TTP_CHECK(TtpPool(RSBS_SHARED_RES_RUPEES) == 0, "an MM Rupoor at 5 rupees left the pool at %d, expected 0",
               TtpPool(RSBS_SHARED_RES_RUPEES));
 
     // Fire and Knockback are Link's reaction only, as are MM's own types.

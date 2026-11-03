@@ -27,8 +27,8 @@
  *   5. creation (Rando::Foreign::ResolvePairedProfile) freezes the set the
  *      CVars ask for into the save;
  *   6. the trap-type rows author that set (#1101 lane R4): through the gated
- *      writer the MM Randomizer page's rows use (twelve since #1424, whose
- *      five land in the set's high byte), each type alone is
+ *      writer the MM Randomizer page's rows use (twelve since #1424; types 8-11
+ *      land in the set's high byte), each type alone is
  *      the set creation freezes and gives the profile digest a value of its
  *      own; a frozen profile refuses the write; Reset clears the set.
  *

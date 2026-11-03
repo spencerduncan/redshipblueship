@@ -25,18 +25,16 @@ int roll = TRAP_FREEZE;
 const u16 timeSkipInterval = 4000;
 
 std::map<TrapTypes, const char*> trapToCvarMap = {
-    { TRAP_FREEZE, "gRando.Traps.Freeze" },
-    { TRAP_BLAST, "gRando.Traps.Blast" },
-    { TRAP_SHOCK, "gRando.Traps.Shock" },
-    { TRAP_JINX, "gRando.Traps.Jinx" },
-    { TRAP_WALLET, "gRando.Traps.Wallet" },
-    { TRAP_ENEMY, "gRando.Traps.Enemy" },
+    { TRAP_FREEZE, "gRando.Traps.Freeze" }, { TRAP_BLAST, "gRando.Traps.Blast" },
+    { TRAP_SHOCK, "gRando.Traps.Shock" },   { TRAP_JINX, "gRando.Traps.Jinx" },
+    { TRAP_WALLET, "gRando.Traps.Wallet" }, { TRAP_ENEMY, "gRando.Traps.Enemy" },
     { TRAP_TIME, "gRando.Traps.Time" },
-    // RedShipBlueShip (#1424): OoTMM's trap types MM lacked.
+    // RedShipBlueShip (#1424): OoTMM's trap types MM lacked (Fire and Knockback
+    // under upstream 2Ship's own keys, 254cc60e1).
     { TRAP_FIRE, "gRando.Traps.Fire" },
+    { TRAP_KNOCKBACK, "gRando.Traps.Knockback" },
     { TRAP_DRAIN, "gRando.Traps.Drain" },
     { TRAP_ANTI_MAGIC, "gRando.Traps.AntiMagic" },
-    { TRAP_KNOCKBACK, "gRando.Traps.Knockback" },
     { TRAP_RUPOOR, "gRando.Traps.Rupoor" },
 };
 
@@ -131,19 +129,9 @@ const char* TrapTypeCVar(int type) {
 const char* TrapTypeLabel(int type) {
     // Rando/Menu.cpp's names for the toggles (not built into the single exe).
     static const char* const kLabels[TRAP_MAX] = {
-        "Freeze Traps",
-        "Blast Traps",
-        "Shock Traps",
-        "Jinx Traps",
-        "Wallet Traps",
-        "Like Like Traps",
-        "Time Traps",
+        "Freeze Traps", "Blast Traps", "Shock Traps", "Jinx Traps", "Wallet Traps", "Like Like Traps", "Time Traps",
         // #1424: OoTMM's names for its trap settings, in the rows' "... Traps" form.
-        "Fire Traps",
-        "Drain Traps",
-        "Anti-Magic Traps",
-        "Knockback Traps",
-        "Rupoor Traps",
+        "Fire Traps", "Knockback Traps", "Drain Traps", "Anti-Magic Traps", "Rupoor Traps",
     };
     return type >= 0 && type < TRAP_MAX ? kLabels[type] : nullptr;
 }
@@ -364,9 +352,9 @@ std::map<TrapTypes, std::vector<std::string>> trapMessageList = {
     { TRAP_ENEMY, enemyTrapMessages },
     { TRAP_TIME, timeTrapMessages },
     { TRAP_FIRE, fireTrapMessages },
+    { TRAP_KNOCKBACK, knockbackTrapMessages },
     { TRAP_DRAIN, drainTrapMessages },
     { TRAP_ANTI_MAGIC, antiMagicTrapMessages },
-    { TRAP_KNOCKBACK, knockbackTrapMessages },
     { TRAP_RUPOOR, rupoorTrapMessages },
 };
 // clang-format on

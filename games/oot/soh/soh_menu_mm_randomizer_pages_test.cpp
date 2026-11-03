@@ -28,8 +28,8 @@
  *      the descriptor names, under the name the page derives from its label (the
  *      "##MMRando" id suffix on checkboxes and comboboxes, SoH's "Name: %d" on
  *      sliders), plus the twelve trap-type rows (#1101 lane R4: Freeze, Blast,
- *      Shock, Jinx, Wallet, Like Like and Time Traps, then #1424's Fire, Drain,
- *      Anti-Magic, Knockback and Rupoor Traps, each a "##MMRando"
+ *      Shock, Jinx, Wallet, Like Like and Time Traps, then #1424's Fire,
+ *      Knockback, Drain, Anti-Magic and Rupoor Traps, each a "##MMRando"
  *      checkbox over its gRando.Traps.* key, spelled here, directly after Trap
  *      Count in Trap Count's column, as MM's own Items tab drew its "Toggle Trap
  *      Types"), and nothing else interactive but Reset.
@@ -234,9 +234,9 @@ const TrapRow kTrapRows[] = {
     { "Time Traps", "gRando.Traps.Time" },
     // #1424: OoTMM's trap types, appended after MM's own seven.
     { "Fire Traps", "gRando.Traps.Fire" },
+    { "Knockback Traps", "gRando.Traps.Knockback" },
     { "Drain Traps", "gRando.Traps.Drain" },
     { "Anti-Magic Traps", "gRando.Traps.AntiMagic" },
-    { "Knockback Traps", "gRando.Traps.Knockback" },
     { "Rupoor Traps", "gRando.Traps.Rupoor" },
 };
 constexpr int kTrapRowCount = (int)(sizeof(kTrapRows) / sizeof(kTrapRows[0]));

@@ -1144,14 +1144,14 @@ int LegMmTrapTypes() {
 // ---------------------------------------------------------------------------
 int LegMmTrapTypesHigh() {
     const char* fire = TrapTypeCVar(TRAP_FIRE);     // bit 7: the low byte
-    const char* drain = TrapTypeCVar(TRAP_DRAIN);   // bit 8: the high byte
+    const char* drain = TrapTypeCVar(TRAP_DRAIN);   // bit 9: the high byte
     const char* rupoor = TrapTypeCVar(TRAP_RUPOOR); // bit 11: the high byte
     if (fire == nullptr || drain == nullptr || rupoor == nullptr) {
         return Fail(149, "leg 2d2 setup: no Fire, Drain or Rupoor trap key");
     }
 
     // A file whose MM half froze Drain and Rupoor (randoSaveTrapTypesHi only),
-    // loaded after the keys moved to Fire. The file's digest folded 0x900, so the
+    // loaded after the keys moved to Fire. The file's digest folded 0xA00, so the
     // load can only reproduce it from a half that kept the high byte.
     ClearAuthoredKeys();
     CVarSetInteger(drain, 1);

@@ -5,7 +5,9 @@
 // RedShipBlueShip (#1424): TRAP_FIRE onward are OoTMM's trap types MM lacked
 // (OoTMM packages/generator/src/common/traps.c). APPEND ONLY: a type's number is
 // its bit in the frozen set every written save holds (randoSaveTrapTypes, then
-// randoSaveTrapTypesHi) and its place in the roll's list.
+// randoSaveTrapTypesHi) and its place in the roll's list. Fire = 7 and
+// Knockback = 8 are upstream 2Ship's own numbers and keys (254cc60e1, #1452), so
+// porting that commit adds no type and moves no frozen bit.
 typedef enum {
     TRAP_FREEZE,
     TRAP_BLAST,
@@ -15,9 +17,9 @@ typedef enum {
     TRAP_ENEMY,
     TRAP_TIME,
     TRAP_FIRE,
+    TRAP_KNOCKBACK,
     TRAP_DRAIN,
     TRAP_ANTI_MAGIC,
-    TRAP_KNOCKBACK,
     TRAP_RUPOOR,
     TRAP_MAX
 } TrapTypes;

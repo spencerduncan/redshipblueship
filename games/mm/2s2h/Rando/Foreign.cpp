@@ -462,7 +462,7 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // identity (ADR 0004 §6 scope note), so silence here is not neutral.
     //
     //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
-    //    Wallet/Enemy/Time, and since #1424 Fire/Drain/AntiMagic/Knockback/
+    //    Wallet/Enemy/Time, and since #1424 Fire/Knockback/Drain/AntiMagic/
     //    Rupoor) ARE folded, as the trap-type set above (#1047): not
     //    a generation input, but world identity. The trap knobs that shape the
     //    fill (RO_SHUFFLE_TRAPS, RO_TRAP_AMOUNT, read by GeneratePools.cpp:281)

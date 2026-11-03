@@ -247,9 +247,10 @@ void Combo_MMOptionClear(const ComboMMOptionDesc* desc);
  * A SEPARATE TABLE, not twelve more option rows: the keys are `gRando.Traps.*`,
  * not `gRando.Options.RO_*`, so no RandoStaticOption row exists for them and
  * no RANDO_SAVE_OPTIONS slot holds them. They freeze as one bit set
- * (randoSaveTrapTypes, #1047, and randoSaveTrapTypesHi for the five types
- * OoTMM added, #1424) and fold into mmProfileDigest as that set, so they are
- * world identity exactly as the options are, behind the same gate.
+ * (randoSaveTrapTypes, #1047, and randoSaveTrapTypesHi for types 8 and up,
+ * four of the five OoTMM added, #1424) and fold into mmProfileDigest as that
+ * set, so they are world identity exactly as the options are, behind the same
+ * gate.
  *
  * Registered MM-side by MM_RandoOptionsUi_Register (Traps.cpp owns the keys and
  * the names), as flat data: this file holds no MM knowledge.

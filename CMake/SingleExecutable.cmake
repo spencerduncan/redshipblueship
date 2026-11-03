@@ -663,8 +663,8 @@ if(BUILD_TESTING)
     # #1424: every OoTMM trap type (Ice, Fire, Shock, Drain, Anti-Magic, Knockback,
     # Rupoor) works in both games. The appended types keep SoH's and MM's own at
     # their places (so no existing roll moves), each new save half reaches the
-    # shared pool through both games' real harvest shims, Fire spares Goron Link,
-    # and MM's roll reads the frozen set's high byte.
+    # shared pool through both games' real harvest shims, MM's Fire spares Goron
+    # Link, and MM's roll reads the frozen set's high byte.
     redship_add_test(NAME TrapTypeParity COMMAND redship --test trap-type-parity)
     # #1060: SoH's "Skip Get Item Animations" decides MM's get-item presentation
     # too. Every MM reader goes through Rando::StaticData::SkipGetItemCutsceneTier,
