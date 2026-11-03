@@ -5927,18 +5927,23 @@ static void MM_ApplySharedKind(uint8_t kind) {
             // Shared Kokiri Sword setting (#886). Only when MM holds NO sword: a
             // Razor or Gilded Sword is never replaced. Written as MM's own give
             // writes it (z_parameter.c: the equipment value, then the B button) for
-            // the human form's set, as 2Ship's RemoveItem does; no icon reload,
-            // because this runs before there is a PlayState and the arrival's
-            // interface init loads B's icon afterwards. With the option off
-            // Combo_ApplySharedResource returns false and nothing below runs. MM's
-            // pool sword is progressive and resolves from this value, so MM's next
-            // sword pickup is then the Razor Sword (the cost of keeping both pools
-            // whole, stated at RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
+            // the human form's set, as 2Ship's RemoveItem does. At an arrival this
+            // runs before there is a PlayState and the interface init loads B's
+            // icon afterwards; a pickup step (#1145, OoT's sword found in Termina)
+            // runs mid-play, so it reloads B's icon there as MM's own give does.
+            // With the option off Combo_ApplySharedResource returns false and
+            // nothing below runs. MM's pool sword is progressive and resolves from
+            // this value, so MM's next sword pickup is then the Razor Sword (the
+            // cost of keeping both pools whole, stated at
+            // RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD).
             uint16_t kokiriSword = MM_ReadKokiriSword();
             if (Combo_ApplySharedResource(GAME_MM, RSBS_SHARED_RES_KOKIRI_SWORD, MM_MAX_KOKIRI_SWORD, &kokiriSword) &&
                 kokiriSword >= 1u && GET_CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_NONE) {
                 SET_EQUIP_VALUE(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
                 BUTTON_ITEM_EQUIP(0, EQUIP_SLOT_B) = ITEM_SWORD_KOKIRI;
+                if (MM_gPlayState != NULL) {
+                    Interface_LoadItemIconImpl(MM_gPlayState, EQUIP_SLOT_B);
+                }
             }
             break;
         }
@@ -6060,16 +6065,24 @@ static void MM_FillWalletAfterStep(s32 tierBefore) {
  * it at once through the arrival's own block for the kind (MM_ApplySharedKind:
  * the tier before the quantity, the UPG_* write, the item slot, the ammo count
  * from the pool — never MM's own give's bomb-and-bombchu refill). Touches
- * gSaveContext only, so it is safe from MM_AwardSharedItem before
- * `MM_gPlayState = this`, exactly as the apply is.
+ * gSaveContext only (the sword's B icon only when MM_gPlayState is set, #1145),
+ * so it is safe from MM_AwardSharedItem before `MM_gPlayState = this`, exactly
+ * as the apply is.
  *
  * @return 1 when stepped (including a copy absorbed at the cap: nothing in
  *         Hyrule could hold it either); 0 (the caller crosses the item, as
  *         before) when the kind is disarmed by the frozen rules or has no cap
- *         here.
+ *         here, or (#1145) the item is MM's own sword redeemed from an older
+ *         save's crossing and the pool, after the harvest, already holds the
+ *         Kokiri Sword: MM's give makes it the Razor or Gilded Sword.
  */
 static int MM_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     MM_HarvestSharedKind(kind);
+    if (!Combo_SharedPickupStepAdmitted(*item, kind)) {
+        fprintf(stderr, "[MM] shared pickup step: %s id=%u is given, the pool already holds shared kind %u (#1145)\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)kind);
+        return 0;
+    }
     const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
     if (!Combo_StepSharedTier(kind, units, MM_SharedKindCap(kind))) {
         return 0; // the harvest alone changes nothing a later harvest would not

@@ -428,8 +428,8 @@ bool Combo_SharedResourceStepsAtPickup(uint8_t kind) {
     // apply blocks their grant at tier 0 under Shuffle Deku Stick/Nut Bag
     // (OoT_SharedAmmoGrantBlocked) because MM is born at tier 1 — OoT's own
     // give is the only thing that opens that gate, so the item must reach OoT
-    // as a crossing. NOT the ocarina (never armed), the triforce count or the
-    // Kokiri sword (no pool item feeds either kind).
+    // as a crossing. NOT the ocarina (never armed) or the triforce count (no
+    // pool item feeds it).
     switch (kind) {
         case RSBS_SHARED_RES_WALLET_TIER:
         case RSBS_SHARED_RES_HEALTH_QUARTERS:
@@ -439,10 +439,24 @@ bool Combo_SharedResourceStepsAtPickup(uint8_t kind) {
         case RSBS_SHARED_RES_BOMB_BAG_TIER:
         case RSBS_SHARED_RES_HOOKSHOT_TIER:
         case RSBS_SHARED_RES_BOTTLE_COUNT:
+        // #1145: OoT's RG_KOKIRI_SWORD and MM's RI_PROGRESSIVE_SWORD feed it.
+        // Armed only by the frozen Shared Kokiri Sword bit (the step's gate), and
+        // an MM copy only while the pool holds no sword (Combo_SharedPickupStepAdmitted).
+        case RSBS_SHARED_RES_KOKIRI_SWORD:
             return true;
         default:
             return false;
     }
+}
+
+bool Combo_SharedPickupStepAdmitted(SharedItem item, uint8_t kind) {
+    if (kind != (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD || item.originGame != (uint8_t)GAME_MM) {
+        return true;
+    }
+    // MM's progressive sword: only the copy that finds the pool empty is the
+    // shared Kokiri Sword. A never-shared slot reads as empty.
+    uint16_t held = 0u;
+    return !Combo_GetSharedResource(kind, &held) || held == 0u;
 }
 
 // The pool's ceiling for a stepped kind: the HIGHER of the two games' give

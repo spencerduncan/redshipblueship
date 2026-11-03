@@ -333,10 +333,16 @@ bool Combo_ForeignPairingActive(void);
  *     Gilded Sword, and an apply never takes a sword away (an MM apply leaves a
  *     Razor Sword alone).
  *
+ * FOUND IN THE OTHER GAME (#1145): both pool swords feed the kind, so a far
+ * game's sword steps the pool at its pickup and the finder holds the Kokiri
+ * Sword at once (Combo_SharedResourceStepsAtPickup). MM's sword steps only while
+ * the pool holds none; a later MM copy still crosses to become MM's Razor or
+ * Gilded Sword (Combo_SharedPickupStepAdmitted). Locked by SharedTierPickup (K).
+ *
  * THE POOLS STAY WHOLE, set or clear: OoT's RG_KOKIRI_SWORD and MM's three
  * RI_PROGRESSIVE_SWORD copies (MM's sword is a pool item since #879) are all
- * placed, and neither engine maps a sword to the kind. That has a cost, and it
- * is stated here rather than hidden:
+ * placed, and the kind's quantity policy is KEEP_ALL, so no sword is trimmed.
+ * That has a cost, and it is stated here rather than hidden:
  *   - OoT's sword first: MM's pool sword is PROGRESSIVE and resolves from the
  *     sword MM holds (ConvertItem.cpp), so once OoT's sword has crossed, MM's
  *     next sword pickup is the RAZOR Sword, the Gilded Sword comes one pickup

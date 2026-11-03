@@ -49,6 +49,24 @@
  *       MM's tier 3 with a 999 cap, all 800 rupees, a three-digit counter and
  *       an icon colour row for the tier; MM earns to 900 and OoT's next
  *       arrival holds 900, with nothing parked in the pool.
+ *   (K) #1145, the Kokiri Sword under Shared Kokiri Sword (the sword helpers of
+ *       the shared-kokiri-sword row):
+ *       (K1) OFF: MM's sword on an OoT check still CROSSES, no slot;
+ *       (K2) ON, pool empty: MM's sword picked up in Hyrule gives OoT the Kokiri
+ *            Sword at once, pool 1, no crossing; MM's swordless arrival holds the
+ *            Kokiri Sword on B with nothing queued, and MM's next sword is its
+ *            Razor Sword (only the first MM copy is the shared sword);
+ *       (K3) ON, HARVEST FIRST: OoT took its own sword this visit (nothing
+ *            harvested yet), then MM's sword: the harvest fills the pool, so the
+ *            MM copy CROSSES, and MM's arrival queues it as MM's own give, which
+ *            resolves to the Razor Sword;
+ *       (K4) the mirror: OoT's sword picked up in Termina gives swordless MM the
+ *            Kokiri Sword on B at once, pool 1, no crossing; OoT's next arrival
+ *            owns it with nothing to redeem;
+ *       (K5) OoT's sword in Termina while MM holds its Razor Sword: absorbed at
+ *            the cap, the Razor Sword kept, no crossing;
+ *       (K6) an older save's crossed MM sword redeemed at a swordless MM arrival
+ *            with the pool empty: stepped (the Kokiri Sword, pool 1), not queued.
  */
 
 #include <stdio.h>
@@ -109,9 +127,25 @@ int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 void MM_ForeignItem_TestResetPending(void);
 // #1284's carriage leg: the seed package's world record (seed_package.h).
 void OoT_SeedPackage_TestReapplyWorldRecord(void);
+// #1145: the shared-kokiri-sword row's helpers (oot_/mm_shared_kokiri_sword_test.cpp).
+void OoT_SharedSwordTest_SetOwned(int owned);
+int OoT_SharedSwordTest_Owned(void);
+int OoT_SharedSwordTest_PoolSwordId(void);
+void MM_SharedSwordTest_SetSword(int equipValue);
+int MM_SharedSwordTest_Sword(void);
+int MM_SharedSwordTest_BButton(void);
+int MM_SharedSwordTest_ItemFor(int equipValue);
+int MM_SharedSwordTest_ProgressiveSwordGives(void);
+int MM_SharedSwordTest_PoolSwordId(void);
 #ifdef __cplusplus
 }
 #endif
+
+// MM's EQUIP_VALUE_SWORD_* (games/mm/include/z64item.h), restated because this TU
+// includes no game header (ADR 0002).
+#define ST_MM_SWORD_NONE 0
+#define ST_MM_SWORD_KOKIRI 1
+#define ST_MM_SWORD_RAZOR 2
 
 static int sStFailures;
 
@@ -127,7 +161,7 @@ static int sStFailures;
 
 /** Arbitrary OoT RandomizerChecks to host MM items (the placement table stores
  *  them opaquely; one per leg so no leg reads another's host). */
-static const uint16_t kStOoTHost[6] = { 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136 };
+static const uint16_t kStOoTHost[9] = { 0x0131, 0x0132, 0x0133, 0x0134, 0x0135, 0x0136, 0x0137, 0x0138, 0x0139 };
 
 /** The pool's value for @p kind, or -1 when it has never been shared. */
 static int StPool(uint8_t kind) {
@@ -150,9 +184,9 @@ static int StOoTBottles(void) {
 }
 
 /** Freeze a paired world the way a creation event does, with the Shared
- *  Bottles rule on or off, and drop every watermark, outbox entry and queued
- *  MM give. */
-static void StFreezeWorld(bool sharedBottles) {
+ *  Bottles rule and the Shared Kokiri Sword bit on or off, and drop every
+ *  watermark, outbox entry and queued MM give. */
+static void StFreezeWorldWith(bool sharedBottles, bool sharedSword) {
     ComboContext_Init();
     Combo_ResetSharedResourceWatermarks();
     Combo_ClearSharedItemOutbox();
@@ -163,10 +197,17 @@ static void StFreezeWorld(bool sharedBottles) {
     gComboCtx.mmProfileDigest = 0x1120D16Eu;
     ComboSettingsRecord rec;
     Combo_ComboSettingsDefaults(&rec);
+    if (sharedSword) {
+        rec.comboFlags = (uint8_t)(rec.comboFlags | RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD);
+    }
     ComboItemRulesRecord rules;
     memset(&rules, 0, sizeof(rules));
     rules.crossItemFlags = sharedBottles ? (uint32_t)RSBS_XITEM_SHARED_BOTTLES : 0u;
     Combo_FreezeComboSettingsEx(&rec, &rules);
+}
+
+static void StFreezeWorld(bool sharedBottles) {
+    StFreezeWorldWith(sharedBottles, false);
 }
 
 static SharedItem StItem(GameId origin, int id) {
@@ -205,6 +246,19 @@ TestResult Test_SharedTierPickup(void) {
     const uint8_t kWallet = (uint8_t)RSBS_SHARED_RES_WALLET_TIER;
     const uint8_t kRupees = (uint8_t)RSBS_SHARED_RES_RUPEES;
     const uint8_t kBottles = (uint8_t)RSBS_SHARED_RES_BOTTLE_COUNT;
+    const SharedItem mmSword = StItem(GAME_MM, MM_SharedSwordTest_PoolSwordId());
+    const SharedItem ootSword = StItem(GAME_OOT, OoT_SharedSwordTest_PoolSwordId());
+    const uint8_t kSword = (uint8_t)RSBS_SHARED_RES_KOKIRI_SWORD;
+
+    // #1145: both pool swords feed the Kokiri Sword kind, one unit a copy.
+    ST_CHECK(Combo_ItemClassSharedKind(mmSword) == kSword && Combo_ItemClassSharedUnits(mmSword) == 1u,
+             "MM's pool sword feeds kind %u with %u unit(s), expected the Kokiri Sword's %u with 1",
+             (unsigned)Combo_ItemClassSharedKind(mmSword), (unsigned)Combo_ItemClassSharedUnits(mmSword),
+             (unsigned)kSword);
+    ST_CHECK(Combo_ItemClassSharedKind(ootSword) == kSword && Combo_ItemClassSharedUnits(ootSword) == 1u,
+             "OoT's Kokiri Sword feeds kind %u with %u unit(s), expected the Kokiri Sword's %u with 1",
+             (unsigned)Combo_ItemClassSharedKind(ootSword), (unsigned)Combo_ItemClassSharedUnits(ootSword),
+             (unsigned)kSword);
 
     // Both bags, both wallets and the bottle feed their kinds (true before the fix too).
     ST_CHECK(Combo_ItemClassSharedKind(mmBag) == kBag, "MM's bag feeds kind %u",
@@ -264,16 +318,17 @@ TestResult Test_SharedTierPickup(void) {
 
         // The allowlist: every monotonic kind some pool item feeds, minus the
         // stick and nut tiers (OoT's grant block at tier 0 under the bag shuffles
-        // is opened only by OoT's own give, so those items keep crossing).
+        // is opened only by OoT's own give, so those items keep crossing). The
+        // Kokiri Sword joined with #1145.
         static const uint8_t kSteps[] = {
             RSBS_SHARED_RES_WALLET_TIER,   RSBS_SHARED_RES_HEALTH_QUARTERS, RSBS_SHARED_RES_DOUBLE_DEFENSE,
             RSBS_SHARED_RES_MAGIC_LEVEL,   RSBS_SHARED_RES_QUIVER_TIER,     RSBS_SHARED_RES_BOMB_BAG_TIER,
-            RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_BOTTLE_COUNT,
+            RSBS_SHARED_RES_HOOKSHOT_TIER, RSBS_SHARED_RES_BOTTLE_COUNT,    RSBS_SHARED_RES_KOKIRI_SWORD,
         };
         static const uint8_t kNoSteps[] = {
-            RSBS_SHARED_RES_STICK_TIER,    RSBS_SHARED_RES_NUT_TIER,       RSBS_SHARED_RES_OCARINA_TIER,
-            RSBS_SHARED_RES_BOMBCHU_COUNT, RSBS_SHARED_RES_RUPEES,         RSBS_SHARED_RES_TRIFORCE_PIECES,
-            RSBS_SHARED_RES_KOKIRI_SWORD,  RSBS_SHARED_RES_HEALTH_CURRENT,
+            RSBS_SHARED_RES_STICK_TIER,     RSBS_SHARED_RES_NUT_TIER, RSBS_SHARED_RES_OCARINA_TIER,
+            RSBS_SHARED_RES_BOMBCHU_COUNT,  RSBS_SHARED_RES_RUPEES,   RSBS_SHARED_RES_TRIFORCE_PIECES,
+            RSBS_SHARED_RES_HEALTH_CURRENT,
         };
         for (size_t i = 0; i < sizeof(kSteps) / sizeof(kSteps[0]); i++) {
             ST_CHECK(Combo_SharedResourceStepsAtPickup(kSteps[i]), "kind %u is not stepped at pickup",
@@ -570,6 +625,204 @@ TestResult Test_SharedTierPickup(void) {
         ST_CHECK(StPool(kRupees) == 900, "the rupee pool reads %d after MM's departure, expected 900", StPool(kRupees));
         ST_CHECK(OoT_SharedWalletTest_Tier() == 3 && rupees == 900,
                  "OoT arrives at tier %d holding %d rupees, expected 3 and 900", OoT_SharedWalletTest_Tier(), rupees);
+    }
+
+    // ---- (K1) #1145, Shared Kokiri Sword OFF: MM's sword still crosses ------------
+    StFreezeWorldWith(false, false);
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[6], mmSword) >= 0, "could not place MM's sword on an OoT check");
+    OoT_SharedTierTest_ArmLive();
+    {
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[6]);
+        const int owned = OoT_SharedSwordTest_Owned();
+        const int crossings = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        printf("[TEST] (K1) Shared Kokiri Sword OFF, MM's sword picked up in Hyrule: pickup %d, OoT owns %d, pool %d, "
+               "MM crossings %d (expected 1, 0, -1, 1)\n",
+               recorded, owned, StPool(kSword), crossings);
+        ST_CHECK(recorded == 1 && owned == 0 && StPool(kSword) == -1,
+                 "with the option off MM's sword moved OoT's sword (%d) or the pool (%d)", owned, StPool(kSword));
+        ST_CHECK(crossings == 1, "with the option off MM's sword recorded %d crossing(s), expected 1", crossings);
+    }
+
+    // ---- (K2) ON, the pool empty: MM's sword in Hyrule steps it -------------------
+    StFreezeWorldWith(false, true);
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[7], mmSword) >= 0, "could not place MM's sword on an OoT check");
+    OoT_SharedTierTest_ArmLive(); // OoT holds no sword
+    OoT_HarvestSharedResources();
+    OoT_ApplySharedResources();
+    {
+        const bool mmAdmittedEmpty = Combo_SharedPickupStepAdmitted(mmSword, kSword);
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[7]);
+        const int owned = OoT_SharedSwordTest_Owned();
+        const int crossings = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        const bool mmAdmittedFull = Combo_SharedPickupStepAdmitted(mmSword, kSword);
+        const bool ootAdmittedFull = Combo_SharedPickupStepAdmitted(ootSword, kSword);
+        printf(
+            "[TEST] (K2) ON, pool empty, MM's sword picked up in Hyrule: pickup %d, OoT owns %d, pool %d, MM "
+            "crossings %d; an MM copy admitted with the pool empty %d / full %d, an OoT copy full %d (expected 1, 1, "
+            "1, 0; 1 / 0, 1)\n",
+            recorded, owned, StPool(kSword), crossings, mmAdmittedEmpty ? 1 : 0, mmAdmittedFull ? 1 : 0,
+            ootAdmittedFull ? 1 : 0);
+        ST_CHECK(recorded == 1, "the pickup core answered %d for MM's sword", recorded);
+        ST_CHECK(owned == 1 && StPool(kSword) == 1,
+                 "OoT owns the Kokiri Sword %d / pool %d after finding MM's sword, expected 1 / 1: the sword must be "
+                 "held where it is found, not after a round trip through Termina",
+                 owned, StPool(kSword));
+        ST_CHECK(crossings == 0, "MM's first sword recorded %d crossing(s): a stepped sword must not cross", crossings);
+        ST_CHECK(mmAdmittedEmpty && !mmAdmittedFull && ootAdmittedFull,
+                 "the admission answers MM empty %d / full %d, OoT full %d; expected 1 / 0, 1", mmAdmittedEmpty ? 1 : 0,
+                 mmAdmittedFull ? 1 : 0, ootAdmittedFull ? 1 : 0);
+        ST_CHECK(Combo_SharedPickupStepAdmitted(mmBag, kBag), "the sword's admission rule reached the bomb bag");
+    }
+    OoT_HarvestSharedResources(); // OoT departs
+    MM_SharedTierTest_ArmLive();  // MM arrives holding no sword
+    MM_SharedSwordTest_SetSword(ST_MM_SWORD_NONE);
+    MM_ApplySharedResources();
+    MM_ConsumeSharedItems();
+    {
+        const int sword = MM_SharedSwordTest_Sword();
+        const int bButton = MM_SharedSwordTest_BButton();
+        const int pending = MM_ForeignItem_TestPendingCount();
+        const int unredeemed = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false);
+        const int next = MM_SharedSwordTest_ProgressiveSwordGives();
+        printf(
+            "[TEST] (K2) MM's swordless arrival: sword %d, B 0x%02X, queued gives %d, unredeemed %d, MM's next sword "
+            "%d (expected 1, 0x%02X, 0, 0, 2)\n",
+            sword, (unsigned)bButton, pending, unredeemed, next,
+            (unsigned)MM_SharedSwordTest_ItemFor(ST_MM_SWORD_KOKIRI));
+        ST_CHECK(sword == ST_MM_SWORD_KOKIRI && bButton == MM_SharedSwordTest_ItemFor(ST_MM_SWORD_KOKIRI),
+                 "MM arrives holding sword %d with B 0x%02X, expected the pool's Kokiri Sword on B", sword,
+                 (unsigned)bButton);
+        ST_CHECK(pending == 0 && unredeemed == 0,
+                 "MM's arrival queued %d give(s) with %d crossing(s) unredeemed: the stepped sword reaches MM through "
+                 "the pool alone",
+                 pending, unredeemed);
+        ST_CHECK(next == ST_MM_SWORD_RAZOR,
+                 "MM's next sword pickup gives %d, expected the Razor Sword: only MM's first copy is the shared sword",
+                 next);
+    }
+
+    // ---- (K3) ON, harvest first: the pool fills, so MM's sword crosses ------------
+    StFreezeWorldWith(false, true);
+    ST_CHECK(Combo_SetForeignPlacementOoT(kStOoTHost[8], mmSword) >= 0, "could not place MM's sword on an OoT check");
+    OoT_SharedTierTest_ArmLive();
+    OoT_SharedSwordTest_SetOwned(1); // OoT took its own Kokiri Sword this visit: nothing harvested yet
+    {
+        const int poolBefore = StPool(kSword);
+        const int recorded = OoT_Rando_Foreign_RecordPickup(kStOoTHost[8]);
+        const int crossings = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/true);
+        printf("[TEST] (K3) ON, OoT holds its own unharvested sword, MM's sword picked up in Hyrule: pool before %d, "
+               "pickup %d, pool %d, MM crossings %d (expected -1, 1, 1, 1)\n",
+               poolBefore, recorded, StPool(kSword), crossings);
+        ST_CHECK(poolBefore == -1, "the pool held the sword (%d) before the harvest the leg exists for", poolBefore);
+        ST_CHECK(recorded == 1 && StPool(kSword) == 1, "pickup %d / pool %d, expected 1 / 1 (the harvest's sword)",
+                 recorded, StPool(kSword));
+        ST_CHECK(crossings == 1,
+                 "MM's sword recorded %d crossing(s) with the pool full after the harvest, expected 1: it is MM's "
+                 "Razor Sword, which only MM's give can make",
+                 crossings);
+    }
+    OoT_HarvestSharedResources(); // OoT departs
+    MM_SharedTierTest_ArmLive();
+    MM_SharedSwordTest_SetSword(ST_MM_SWORD_NONE);
+    MM_ApplySharedResources();
+    MM_ConsumeSharedItems();
+    {
+        const int sword = MM_SharedSwordTest_Sword();
+        const int pending = MM_ForeignItem_TestPendingCount();
+        const int unredeemed = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false);
+        const int queuedGives = MM_SharedSwordTest_ProgressiveSwordGives();
+        printf(
+            "[TEST] (K3) MM's arrival: sword %d, queued gives %d, unredeemed %d, the queued sword gives %d (expected "
+            "1, 1, 0, 2)\n",
+            sword, pending, unredeemed, queuedGives);
+        ST_CHECK(sword == ST_MM_SWORD_KOKIRI, "MM arrives holding sword %d, expected the pool's Kokiri Sword", sword);
+        ST_CHECK(
+            pending == 1 && unredeemed == 0,
+            "MM's arrival queued %d give(s) with %d unredeemed, expected the crossed sword queued as MM's own give",
+            pending, unredeemed);
+        ST_CHECK(queuedGives == ST_MM_SWORD_RAZOR, "the queued MM sword resolves to %d, expected the Razor Sword",
+                 queuedGives);
+    }
+    MM_ForeignItem_TestResetPending();
+
+    // ---- (K4) The mirror: OoT's sword in Termina ----------------------------------
+    StFreezeWorldWith(false, true);
+    const uint16_t mmHost2 = (uint16_t)MM_SharedTierTest_HostCheck(2);
+    ST_CHECK(Combo_SetForeignPlacement(mmHost2, ootSword) >= 0, "could not place OoT's sword on an MM check");
+    MM_SharedTierTest_ArmLive();
+    MM_SharedSwordTest_SetSword(ST_MM_SWORD_NONE);
+    MM_HarvestSharedResources();
+    MM_ApplySharedResources();
+    {
+        const int recorded = MM_Rando_Foreign_RecordPickup(mmHost2);
+        const int sword = MM_SharedSwordTest_Sword();
+        const int bButton = MM_SharedSwordTest_BButton();
+        const int crossings = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+        printf("[TEST] (K4) ON, swordless MM picks OoT's sword up in Termina: pickup %d, MM sword %d, B 0x%02X, pool "
+               "%d, OoT crossings %d (expected 1, 1, 0x%02X, 1, 0)\n",
+               recorded, sword, (unsigned)bButton, StPool(kSword), crossings,
+               (unsigned)MM_SharedSwordTest_ItemFor(ST_MM_SWORD_KOKIRI));
+        ST_CHECK(recorded == 1, "MM's pickup core answered %d for OoT's sword", recorded);
+        ST_CHECK(
+            sword == ST_MM_SWORD_KOKIRI && bButton == MM_SharedSwordTest_ItemFor(ST_MM_SWORD_KOKIRI) &&
+                StPool(kSword) == 1,
+            "MM holds sword %d (B 0x%02X), pool %d after finding OoT's sword, expected the Kokiri Sword on B and 1",
+            sword, (unsigned)bButton, StPool(kSword));
+        ST_CHECK(crossings == 0, "OoT's sword recorded %d OoT crossing(s): a stepped sword must not cross", crossings);
+    }
+    MM_HarvestSharedResources(); // MM departs
+    OoT_SharedTierTest_ArmLive();
+    OoT_ApplySharedResources();
+    OoT_ConsumeSharedItems();
+    {
+        const int owned = OoT_SharedSwordTest_Owned();
+        const int unredeemed = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/false);
+        printf("[TEST] (K4) OoT's next arrival: owns %d, unredeemed %d (expected 1, 0)\n", owned, unredeemed);
+        ST_CHECK(owned == 1 && unredeemed == 0, "OoT arrives owning %d with %d crossing(s) to redeem, expected 1 / 0",
+                 owned, unredeemed);
+    }
+
+    // ---- (K5) OoT's sword in Termina while MM holds its Razor Sword ---------------
+    StFreezeWorldWith(false, true);
+    const uint16_t mmHost3 = (uint16_t)MM_SharedTierTest_HostCheck(3);
+    ST_CHECK(Combo_SetForeignPlacement(mmHost3, ootSword) >= 0, "could not place OoT's sword on an MM check");
+    MM_SharedTierTest_ArmLive();
+    MM_SharedSwordTest_SetSword(ST_MM_SWORD_RAZOR);
+    {
+        const int recorded = MM_Rando_Foreign_RecordPickup(mmHost3);
+        const int sword = MM_SharedSwordTest_Sword();
+        const int bButton = MM_SharedSwordTest_BButton();
+        const int crossings = Combo_CountSharedItems(GAME_OOT, /*includeRedeemed=*/true);
+        printf("[TEST] (K5) ON, MM holds its Razor Sword, OoT's sword picked up in Termina: pickup %d, MM sword %d, "
+               "pool %d, OoT crossings %d (expected 1, 2, 1, 0)\n",
+               recorded, sword, StPool(kSword), crossings);
+        ST_CHECK(recorded == 1 && StPool(kSword) == 1, "pickup %d / pool %d at the cap, expected 1 / 1", recorded,
+                 StPool(kSword));
+        ST_CHECK(sword == ST_MM_SWORD_RAZOR && bButton == MM_SharedSwordTest_ItemFor(ST_MM_SWORD_RAZOR),
+                 "a sword absorbed at the cap replaced MM's Razor Sword (sword %d, B 0x%02X)", sword,
+                 (unsigned)bButton);
+        ST_CHECK(crossings == 0, "a sword absorbed at the cap recorded %d crossing(s)", crossings);
+    }
+
+    // ---- (K6) An older save's crossed MM sword, the pool empty --------------------
+    StFreezeWorldWith(false, true);
+    MM_SharedTierTest_ArmLive();
+    MM_SharedSwordTest_SetSword(ST_MM_SWORD_NONE);
+    ST_CHECK(Combo_RecordSharedItemCrossing(GAME_MM, mmSword.id) >= 0, "could not record the older save's crossing");
+    MM_ApplySharedResources();
+    MM_ConsumeSharedItems();
+    {
+        const int sword = MM_SharedSwordTest_Sword();
+        const int pending = MM_ForeignItem_TestPendingCount();
+        const int unredeemed = Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false);
+        printf("[TEST] (K6) an older save's crossed MM sword redeemed at a swordless MM arrival: sword %d, pool %d, "
+               "queued gives %d, unredeemed %d (expected 1, 1, 0, 0)\n",
+               sword, StPool(kSword), pending, unredeemed);
+        ST_CHECK(sword == ST_MM_SWORD_KOKIRI && StPool(kSword) == 1,
+                 "the redemption left MM's sword %d / pool %d, expected the Kokiri Sword stepped (1 / 1)", sword,
+                 StPool(kSword));
+        ST_CHECK(pending == 0 && unredeemed == 0, "the redemption queued %d give(s) with %d unredeemed", pending,
+                 unredeemed);
     }
 
     MM_ForeignItem_TestResetPending();
