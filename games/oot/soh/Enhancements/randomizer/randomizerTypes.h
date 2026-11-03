@@ -4743,6 +4743,10 @@ typedef enum {
 
     // Custom Items
     RG_ROCS_FEATHER,
+    // [RSBS #979] Majora's Mask's Blast Mask in OoT (OoTMM blastMaskOot): pooled
+    // only while the frozen Cross-Game Rule is on. Before the logic-only ids, which
+    // are never placed, so no placed id moves.
+    RG_BLAST_MASK,
 
     // Logic Only
     RG_STICKS,
@@ -6365,6 +6369,8 @@ typedef enum {
     // RedShipBlueShip: the area name of RA_TERMINA. Appended last so every
     // existing text key keeps its value.
     RHT_TERMINA,
+    // [RSBS #979] the hint text of RG_BLAST_MASK. Appended last, as RHT_TERMINA is.
+    RHT_BLAST_MASK,
     // MAX
     RHT_MAX,
 } RandomizerHintTextKey;
