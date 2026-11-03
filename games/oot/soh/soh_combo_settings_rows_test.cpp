@@ -376,6 +376,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_SONG_STORMS, WIDGET_CHECKBOX, "" },
         // #1067's Shared Ocarina Buttons: the same shape.
         { COMBO_SETTING_SHARED_OCARINA_BUTTONS, WIDGET_CHECKBOX, "" },
+        // #1369: the Shared Swim, the lens's shape (shuffle-gated, ships on).
+        { COMBO_SETTING_SHARED_SWIM, WIDGET_CHECKBOX, "" },
         // #1069: the Shared Song of Time, the lens's shape.
         { COMBO_SETTING_SHARED_SONG_TIME, WIDGET_CHECKBOX, "" },
         // #968: the three shared arrows, the lens's shape.
@@ -573,15 +575,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 16,
-                   "the Cross-Game Rules page has %d checkbox row(s); the sixteen expected are the Shared Kokiri Sword "
-                   "(#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song and "
-                   "Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
-                   "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970) and the Shared Goron, "
-                   "Zora, Keaton and Truth masks and Bunny Hood (#978), after #879 retired the Shared Ocarina",
+        ROWS_CHECK(checkboxes == 17,
+                   "the Cross-Game Rules page has %d checkbox row(s); the seventeen expected are the Shared Kokiri "
+                   "Sword (#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song "
+                   "and Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
+                   "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970), the Shared Goron, "
+                   "Zora, Keaton and Truth masks and Bunny Hood (#978) and the Shared Swim (#1369), after #879 "
+                   "retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 16 "
-               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 17 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -595,10 +598,24 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // merges and this leg pins it there.
     {
         static const char* const kOotmmSharedOrder[] = {
-            "Shared Fire Arrows",    "Shared Ice Arrows",   "Shared Light Arrows",    "Shared Epona's Song",
-            "Shared Song of Storms", "Shared Song of Time", "Shared Lens of Truth",   "Shared Goron Mask",
-            "Shared Zora Mask",      "Shared Bunny Hood",   "Shared Keaton Mask",     "Shared Mask of Truth",
-            "Shared Kokiri Sword",   "Shared Shields",      "Shared Ocarina Buttons", "Shared Bottles",
+            "Shared Fire Arrows",
+            "Shared Ice Arrows",
+            "Shared Light Arrows",
+            "Shared Epona's Song",
+            "Shared Song of Storms",
+            "Shared Song of Time",
+            "Shared Lens of Truth",
+            "Shared Goron Mask",
+            "Shared Zora Mask",
+            "Shared Bunny Hood",
+            "Shared Keaton Mask",
+            "Shared Mask of Truth",
+            "Shared Kokiri Sword",
+            "Shared Shields",
+            "Shared Ocarina Buttons",
+            "Shared Bottles",
+            // #1369: OoTMM's sharedScales follows its button and bottle rules.
+            "Shared Swim",
         };
         const int ranks = (int)(sizeof(kOotmmSharedOrder) / sizeof(kOotmmSharedOrder[0]));
         const std::string marker = std::string(Combo_ComboSettingSharedMarker()) + " ";
@@ -738,6 +755,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 1,
                "the Shared Bottles row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
+    // #1369: the Shared Swim is never written here, and still stages ON: the one
+    // rule that ships on shows its key's default before a world exists, though the
+    // resolver never sets its shuffle-gated bit.
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]) == 1,
+               "the Shared Swim row staged %d before creation, expected the shipped ON (#1369)",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]));
     if (lensRow != nullptr) {
         ROWS_CHECK(!lensRow->options->disabled, "the Shared Lens of Truth row is disabled before the creation event");
         ROWS_CHECK(StagedBool(*lensRow) == 1,
@@ -821,6 +844,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]) == 0,
                "the frozen Shared Bottles row staged %d; it must show the SAVE's OFF, not the CVar's ON",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_BOTTLES]));
+    // #1369: a world nobody shuffled swim in froze the Shared Swim bit OFF; the row
+    // shows that, not the key's shipped ON.
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_SWIM], "the Shared Swim row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]) == 0,
+               "the frozen Shared Swim row staged %d; it must show the SAVE's OFF, not the key's ON",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]));
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {
@@ -1051,7 +1080,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1 &&
+                       // Shared Swim ships ON, so only its non-default value proves Reset clears it.
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SWIM, 0) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

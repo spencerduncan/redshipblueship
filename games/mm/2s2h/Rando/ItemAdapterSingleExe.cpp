@@ -71,6 +71,7 @@
 
 #include "Rando/Rando.h"               // SaveContext (via variables.h), StaticData::Items, GetIconTexturePath
 #include "Rando/ActorBehavior/Souls.h" // SOUL_RI_TO_RANDO_INF
+#include "Rando/Foreign.h"             // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
 
 extern "C" {
 #include <macros.h>                            // CUR_CAPACITY
@@ -400,10 +401,10 @@ constexpr uint32_t kMMButtonTintA = 0x167ECBFFu;
 constexpr uint32_t kMMButtonTintC = 0xD6C417FFu;
 
 /** Does this file shuffle the ocarina buttons? The frozen option of a randomizer
- *  file, as the note gate reads it; the one place to change when the rows move
- *  to the Shared column. */
+ *  file, as the note gate reads it (#1369: the pair's one button shuffle
+ *  included); the one place to change when the rows move to the Shared column. */
 bool MMItemButtonRowsShown(const SaveContext* src) {
-    return IS_RANDO && RANDO_SAVE_OPTIONS[RO_SHUFFLE_OCARINA_BUTTONS] != 0;
+    return IS_RANDO && Rando::Foreign::ShuffleOcarinaButtonsForWorld(RANDO_SAVE_OPTIONS);
 }
 
 /** Does the buffer's save hold ocarina button `button` (0..4)? Flags_GetRandoInf's
@@ -732,13 +733,17 @@ bool MMItemDeriveHalfDay(const SaveContext* src, int i, ComboItemRow* out) {
 }
 
 int MMItemMiscRows(const SaveContext* src) {
-    return MMItemOptionOn(src, RO_SHUFFLE_SWIM) ? 1 : 0;
+    // #1369: the respawn gate's own test, the pair's one Shuffle Swim included.
+    return (IS_RANDO && Rando::Foreign::ShuffleSwimForWorld(RANDO_SAVE_OPTIONS)) ? 1 : 0;
 }
 
 bool MMItemDeriveSwim(const SaveContext* src, int, ComboItemRow* out) {
     out->slotKey = "ability_swim";
     MMItemFillRando(out, RI_ABILITY_SWIM); // the Zora Mask's icon, GetIconTexturePath's pick
     out->have = MMItemRandoInf(src, RANDO_INF_OBTAINED_SWIM);
+    // #1369: MM's copy of the Shared Swim family; under the frozen rule the view
+    // draws it once, in the Shared group, as OoT's Swim row is.
+    out->sharedFamily = RSBS_XITEM_SHARED_SWIM;
     return true;
 }
 

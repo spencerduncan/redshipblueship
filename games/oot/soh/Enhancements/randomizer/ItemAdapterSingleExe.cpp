@@ -35,7 +35,10 @@
  * Items" (itemTrackerDungeonsWithMapsCompact, 36 cells column-major with one
  * blank, Thieves' Hideout in cell 35) and "Dungeon Keys" (itemTrackerDungeons-
  * Compact, 15 cells). Then, through `countFor`, the groups a randomizer file
- * finds only under its frozen option, in SoH's main-window order: "Greg" (any
+ * finds only under its frozen option, in SoH's main-window order: SoH's ability
+ * rows, each under its own option, as one "Abilities" group that flows on from
+ * the rows before it (#1369: Roc's Feather, Swim, Grab, Climb, Crawl, Open
+ * Chest; no DisplayType key, as SoH has none for them), then "Greg" (any
  * randomizer file), "Fishing Pole", "Bean Souls", "Boss Souls", "Jabber Nuts",
  * "Ocarina Buttons", "Overworld Keys", each on a line of its own (OoTItemGrid).
  * OoT's options are not in the save buffer: they are the loaded seed's
@@ -171,6 +174,19 @@ uint8_t OoTItemSeed::Option(RandomizerSettingKey key) const {
                 return (b & (1u << 6)) != 0 ? 1 : 0;
             case RSK_GERUDO_FORTRESS:
                 return (uint8_t)((b >> 7) & 3u);
+            // #1369: SoH's ability shuffles, bits 9..14.
+            case RSK_SHUFFLE_SWIM:
+                return (b & (1u << 9)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_GRAB:
+                return (b & (1u << 10)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_CLIMB:
+                return (b & (1u << 11)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_CRAWL:
+                return (b & (1u << 12)) != 0 ? 1 : 0;
+            case RSK_SHUFFLE_OPEN_CHEST:
+                return (b & (1u << 13)) != 0 ? 1 : 0;
+            case RSK_ROCS_FEATHER:
+                return (b & (1u << 14)) != 0 ? 1 : 0;
             default:
                 return 0;
         }
@@ -870,6 +886,31 @@ const FlagRow kOverworldKeyRows[] = {
     FLAG_ROW("ow_key_fish", "Fishing Hole Key", "FISH", RAND_INF_FISHING_HOLE_KEY_OBTAINED, ITEM_KEY_SMALL),
 };
 
+// #1369: SoH's ability rows (randomizer_item_tracker.cpp rocsFeather, swimItems, grabItems, climbItems,
+// crawlItems, openChestItems). SoH appends each to its main window under its own option, after the dungeon items
+// and before Greg (UpdateVectors), and not under a DisplayType key, so these are one "Abilities" group that the
+// overlay always draws and that flows on from the rows before it. DrawItem names each over its icon by its
+// itemName ("Swim", "Grab", "Climb", "Crawl", "Open"); Roc's Feather, outside that RG range, carries none. Swim is
+// OoT's copy of the Shared Swim family, as MM's Ability to Swim is.
+struct AbilityRow {
+    FlagRow row;
+    RandomizerSettingKey option;
+};
+const AbilityRow kAbilityRows[] = {
+    { FLAG_ROW("rocs_feather", "Roc's Feather", nullptr, RAND_INF_OBTAINED_ROCS_FEATHER, RG_ROCS_FEATHER),
+      RSK_ROCS_FEATHER },
+    { { "ability_swim", "Swim", "Swim", RAND_INF_CAN_SWIM, "ITEM_SCALE_SILVER", "ITEM_SCALE_SILVER_Faded",
+        RSBS_XITEM_SHARED_SWIM },
+      RSK_SHUFFLE_SWIM },
+    { FLAG_ROW("ability_grab", "Grab", "Grab", RAND_INF_CAN_GRAB, RG_POWER_BRACELET), RSK_SHUFFLE_GRAB },
+    { FLAG_ROW("ability_climb", "Climb", "Climb", RAND_INF_CAN_CLIMB, RG_CLIMB), RSK_SHUFFLE_CLIMB },
+    { FLAG_ROW("ability_crawl", "Crawl", "Crawl", RAND_INF_CAN_CRAWL, RG_CRAWL), RSK_SHUFFLE_CRAWL },
+    { FLAG_ROW("ability_open_chest", "Open Chest", "Open", RAND_INF_CAN_OPEN_CHEST, RG_OPEN_CHEST),
+      RSK_SHUFFLE_OPEN_CHEST },
+};
+constexpr int kAbilityRowCount = (int)(sizeof(kAbilityRows) / sizeof(kAbilityRows[0]));
+constexpr const char* kAbilityGroup = "Abilities";
+
 #undef FLAG_ROW
 
 /** One gated group: its rows, shown while `option` is on (RSK_NONE: in any randomizer file). */
@@ -912,25 +953,57 @@ bool OoTItemFlagHeld(const SaveContext* src, const OoTItemSeed& seed, const Flag
     return RandInfOf(src, row.flag);
 }
 
-/** The gated rows this buffer shows. */
+/** Does the buffer's file show ability row `a` (#1369)? A randomizer file whose frozen option for it is on,
+ *  SoH's `IS_RANDO && RAND_GET_OPTION(...)`. */
+bool OoTItemAbilityShown(const SaveContext* src, const OoTItemSeed& seed, const AbilityRow& a) {
+    return IS_RANDO && seed.Option(a.option) != 0;
+}
+
+/** Fill `out` with ability row `a`'s display fields; `have` is the caller's. */
+void OoTItemFillAbility(const AbilityRow& a, ComboItemRow* out) {
+    out->group = kAbilityGroup;
+    out->slotKey = a.row.slotKey;
+    out->name = a.row.name;
+    out->label = a.row.label;
+    out->iconKey = a.row.key;
+    out->iconKeyFaded = a.row.faded;
+    out->sharedFamily = a.row.family;
+}
+
+/** The gated rows this buffer shows: the ability rows its options switch on (#1369), then the gated groups. */
 int OoTItemGatedRows(const SaveContext* src) {
     if (!IS_RANDO) {
         return 0; // a vanilla file shows none: no seed to read
     }
     const OoTItemSeed seed = OoTItemSeedRead();
     int n = 0;
+    for (const AbilityRow& a : kAbilityRows) {
+        n += OoTItemAbilityShown(src, seed, a) ? 1 : 0;
+    }
     for (const GatedGroup& g : kGatedGroups) {
         n += OoTItemGroupShown(src, seed, g) ? g.count : 0;
     }
     return n;
 }
 
-/** Gated row `index` (0-based over the groups shown), or false past the last. */
+/** Gated row `index` (0-based over the rows shown), or false past the last. */
 bool OoTItemDeriveGated(const SaveContext* src, int index, ComboItemRow* out) {
     if (!IS_RANDO) {
         return false;
     }
     const OoTItemSeed seed = OoTItemSeedRead();
+    // SoH's order: the abilities follow the dungeon items, before Greg (UpdateVectors).
+    for (const AbilityRow& a : kAbilityRows) {
+        if (!OoTItemAbilityShown(src, seed, a)) {
+            continue;
+        }
+        if (index == 0) {
+            OoTItemFillAbility(a, out);
+            out->have = RandInfOf(src, a.row.flag);
+            return true;
+        }
+        index--;
+    }
     for (const GatedGroup& g : kGatedGroups) {
         if (!OoTItemGroupShown(src, seed, g)) {
             continue;
@@ -1048,7 +1121,8 @@ constexpr int kGatedCatalogCount =
     (int)(sizeof(kJabberNutRows) / sizeof(kJabberNutRows[0])) +
     (int)(sizeof(kOcarinaButtonRows) / sizeof(kOcarinaButtonRows[0])) +
     (int)(sizeof(kOverworldKeyRows) / sizeof(kOverworldKeyRows[0]));
-constexpr int kCatalogRowCount = kRowCount + kDungeonCatalogCount + kGatedCatalogCount;
+// #1369: the ability rows come last in the catalog, so every earlier catalog index keeps its item.
+constexpr int kCatalogRowCount = kRowCount + kDungeonCatalogCount + kGatedCatalogCount + kAbilityRowCount;
 
 int OoTItemCatalogCount(void) {
     return kCatalogRowCount;
@@ -1126,6 +1200,22 @@ bool OoTItemCatalogRowAt(const void* buf, int catalogIndex, ComboItemRow* out) {
             return true;
         }
         catalogIndex -= g.count;
+    }
+
+    if (catalogIndex < kAbilityRowCount) {
+        const AbilityRow& a = kAbilityRows[catalogIndex];
+        OoTItemFillAbility(a, out);
+        if (!hasSave) {
+            out->have = false;
+        } else if (OoTItemAbilityShown(src, seed, a)) {
+            out->have = RandInfOf(src, a.row.flag);
+        } else {
+            // Not shuffled in the loaded file: an ability is the player's from the start (SoH's savefile.cpp
+            // sets the flag at creation), as the gated groups above read an unshuffled item. Roc's Feather is
+            // an item rather than an ability: without its option the seed has none.
+            out->have = a.option != RSK_ROCS_FEATHER;
+        }
+        return true;
     }
     return false;
 }
@@ -1426,7 +1516,9 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
  *   - the Longshot in the hookshot slot (the slot guard's in-range read);
  *   - the randomizer-inf flags of Gohma's and Twinrova's souls, the Kokiri Forest
  *     bean soul, the Zora jabber nut, the A and C-Left ocarina buttons, the Guard
- *     House and Fishing Hole keys, the fishing pole and Greg (not Ganon's soul).
+ *     House and Fishing Hole keys, the fishing pole and Greg (not Ganon's soul),
+ *     and (#1369) the swim and climb abilities (not grab, crawl, open chest or
+ *     Roc's Feather).
  * Returns 1, or 0 when `size` cannot hold a SaveContext or `buf` is misaligned.
  */
 extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando) {
@@ -1455,7 +1547,8 @@ extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, in
     for (RandomizerInf flag :
          { RAND_INF_GOHMA_SOUL, RAND_INF_TWINROVA_SOUL, RAND_INF_KOKIRI_FOREST_BEAN_SOUL, RAND_INF_CAN_SPEAK_ZORA,
            RAND_INF_HAS_OCARINA_A, RAND_INF_HAS_OCARINA_C_LEFT, RAND_INF_GUARD_HOUSE_KEY_OBTAINED,
-           RAND_INF_FISHING_HOLE_KEY_OBTAINED, RAND_INF_FISHING_POLE_FOUND, RAND_INF_GREG_FOUND }) {
+           RAND_INF_FISHING_HOLE_KEY_OBTAINED, RAND_INF_FISHING_POLE_FOUND, RAND_INF_GREG_FOUND, RAND_INF_CAN_SWIM,
+           RAND_INF_CAN_CLIMB }) {
         s->ship.randomizerInf[flag >> 4] |= (u16)(1u << (flag & 0xF));
     }
     return 1;
@@ -1468,7 +1561,9 @@ extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, in
  * 0 RSK_SHUFFLE_BEAN_SOULS, 1 RSK_SHUFFLE_BOSS_SOULS on, 2 RSK_SHUFFLE_BOSS_SOULS
  * on plus Ganon (with bit 1), 3 RSK_SHUFFLE_SPEAK, 4 RSK_SHUFFLE_OCARINA_BUTTONS,
  * 5 RSK_LOCK_OVERWORLD_DOORS, 6 RSK_SHUFFLE_FISHING_POLE, 7-8 RSK_GERUDO_FORTRESS
- * (RO_GF_CARPENTERS_*), and from bit 16 the seed's Master Quest dungeons, bit
+ * (RO_GF_CARPENTERS_*), 9 RSK_SHUFFLE_SWIM, 10 RSK_SHUFFLE_GRAB, 11
+ * RSK_SHUFFLE_CLIMB, 12 RSK_SHUFFLE_CRAWL, 13 RSK_SHUFFLE_OPEN_CHEST, 14
+ * RSK_ROCS_FEATHER (#1369), and from bit 16 the seed's Master Quest dungeons, bit
  * (16 + scene) per dungeon scene (the small-key maxes, #1263). Every read of the
  * seed goes through it while `enabled`, so the context is never consulted then.
  */

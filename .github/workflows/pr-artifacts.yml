@@ -52,6 +52,12 @@ jobs:
               run_id: context.payload.workflow_run.id,
             });
 
+            // A run that uploaded nothing at all is a docs-only PR's run:
+            // generate-builds now runs on every PR (#1373), and on a docs-only
+            // one its docs-only job skips every job that uploads. Leave the PR
+            // body alone instead of adding an empty "Build Artifacts" section.
+            if (allArtifacts.data.total_count === 0) return '';
+
             // Publish every generate-builds artifact except the raw port archives
             // (soh.o2r / 2ship.o2r), including redship-map-windows and
             // redship-map-linux beside rsbs-windows and rsbs-linux (#1303).
@@ -62,6 +68,7 @@ jobs:
               return acc;
             }, '### Build Artifacts');
       - id: 'add-to-pr'
+        if: steps.artifacts-text.outputs.result != ''
         uses: garrettjoecox/pr-section@4.0.0
         with:
           repo-token: '${{ secrets.GITHUB_TOKEN }}'

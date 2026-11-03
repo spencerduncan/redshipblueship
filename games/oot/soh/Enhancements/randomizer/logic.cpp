@@ -24,6 +24,13 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "static_data.h" // ComboLogicCounterMax reads the static location table
+// #1369 (GameExports_SingleExe.cpp): under the frozen Shared Swim rule the bronze
+// tier is its own pool row (RG_BRONZE_SCALE), so Progressive Scale starts at silver.
+extern "C" bool OoT_SharedSwimSplitsScale(void);
+#else
+static bool OoT_SharedSwimSplitsScale(void) {
+    return false;
+}
 #endif
 
 namespace Rando {
@@ -487,10 +494,12 @@ bool Logic::HasItem(RandomizerGet itemName) {
             // Scales
         case RG_BRONZE_SCALE:
             return CheckRandoInf(RAND_INF_CAN_SWIM);
+        // #1369: under the Shared Swim split a scale no longer implies the swim the
+        // bronze tier gave first, and a scale is no use to a Link who cannot swim.
         case RG_SILVER_SCALE:
-            return CurrentUpgrade(UPG_SCALE) >= 1;
+            return CurrentUpgrade(UPG_SCALE) >= 1 && (!OoT_SharedSwimSplitsScale() || CheckRandoInf(RAND_INF_CAN_SWIM));
         case RG_GOLDEN_SCALE:
-            return CurrentUpgrade(UPG_SCALE) >= 2;
+            return CurrentUpgrade(UPG_SCALE) >= 2 && (!OoT_SharedSwimSplitsScale() || CheckRandoInf(RAND_INF_CAN_SWIM));
         case RG_CLIMB:
             return CheckRandoInf(RAND_INF_CAN_CLIMB);
         case RG_CRAWL:
@@ -2310,6 +2319,9 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_CLIMB:
                     SetRandoInf(RAND_INF_CAN_CLIMB, state);
                     break;
+                case RG_BRONZE_SCALE: // #1369: the Shared Swim split's standalone bronze tier
+                    SetRandoInf(RAND_INF_CAN_SWIM, state);
+                    break;
                 case RG_CRAWL:
                     SetRandoInf(RAND_INF_CAN_CRAWL, state);
                     break;
@@ -2399,10 +2411,15 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 } break;
                 case RG_PROGRESSIVE_SCALE: {
                     auto currentLevel = CurrentUpgrade(UPG_SCALE);
-                    if (!CheckRandoInf(RAND_INF_CAN_SWIM) && state) {
+                    // #1369: under the Shared Swim split the bronze tier is its own row, so the
+                    // progressive row starts at silver and never touches the swim flag.
+                    const bool bronzeTier = !OoT_SharedSwimSplitsScale();
+                    if (bronzeTier && !CheckRandoInf(RAND_INF_CAN_SWIM) && state) {
                         SetRandoInf(RAND_INF_CAN_SWIM, true);
                     } else if (currentLevel == 0 && !state) {
-                        SetRandoInf(RAND_INF_CAN_SWIM, false);
+                        if (bronzeTier) {
+                            SetRandoInf(RAND_INF_CAN_SWIM, false);
+                        }
                     } else {
                         auto newLevel = currentLevel + (!state ? -1 : 1);
                         SetUpgrade(UPG_SCALE, RSBS_COMBO_CLAMP_LEVEL(UPG_SCALE, newLevel));
