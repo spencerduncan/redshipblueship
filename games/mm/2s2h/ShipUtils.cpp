@@ -37,7 +37,11 @@ extern TexturePtr gBombersNotebookPhotos[24];
     { enumValue, humanName },
 #define DEFINE_SCENE_UNSET(_enumValue)
 
-std::unordered_map<s16, const char*> sceneNames = {
+// static: OoT's soh/util.cpp defines a global `sceneNames` too. A global-namespace
+// variable's symbol carries no type on the Itanium ABI, so the macOS single
+// executable link failed with a duplicate `_sceneNames` (MSVC mangles the type
+// in, so Windows never saw it). Its only reader is Ship_GetSceneName below.
+static std::unordered_map<s16, const char*> sceneNames = {
 #include "tables/scene_table.h"
 };
 

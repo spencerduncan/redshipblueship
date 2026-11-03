@@ -1710,9 +1710,9 @@ and minimal worlds, and the shipped default, do not move (the golden rows are un
 
 ### macOS is not supported
 
-The macOS CI build is **disabled** (`.github/workflows/generate-builds.yml`,
-`build-macos`) due to an unresolved linker issue. No macOS artifacts are produced.
-Windows and Linux only.
+CI builds a macOS bundle (`build-macos` in `.github/workflows/generate-builds.yml`,
+artifact `rsbs-mac`, `RedShipBlueShip.dmg`, macOS 15 or later), but nobody has run it on a
+Mac yet and releases do not include it. Windows and Linux only.
 
 ### ~~MM mods and texture packs never load~~ — RESOLVED ([#670](https://github.com/spencerduncan/redshipblueship/issues/670), PRs [#704](https://github.com/spencerduncan/redshipblueship/pull/704), [#716](https://github.com/spencerduncan/redshipblueship/pull/716))
 
