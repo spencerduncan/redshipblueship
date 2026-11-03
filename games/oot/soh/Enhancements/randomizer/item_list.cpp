@@ -445,6 +445,11 @@ void Rando::StaticData::InitItemTable() {
     itemTable[RG_TRIFORCE_PIECE] =                      Item(RG_TRIFORCE_PIECE,                   Text{ "Triforce Piece", "Triforce Piece", "Triforce-Fragment" },                                                                     ITEMTYPE_ITEM,              0xDF,                 true,  LOGIC_TRIFORCE_PIECES,              RHT_TRIFORCE_PIECE,                    RG_TRIFORCE_PIECE,                    OBJECT_GI_BOMB_2,       GID_TRIFORCE_PIECE,   TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER, {"a ", "ein ", "un "});
     itemTable[RG_ROCS_FEATHER] =                        Item(RG_ROCS_FEATHER,                     Text{ "Roc's Feather", "Roc's Feather", "Roc's Feather" },                                                                           ITEMTYPE_ITEM,              0xE0,                 true,  LOGIC_ROCS_FEATHER,                 RHT_ROCS_FEATHER,                      RG_ROCS_FEATHER,                      OBJECT_GI_BOMB_2,       GID_ROCS_FEATHER,     TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER, {"a ", "ein ", "un "});
     itemTable[RG_ROCS_FEATHER].SetCustomDrawFunc(Randomizer_DrawRocsFeather);
+    // [RSBS #979] Majora's Mask's Blast Mask in OoT: a child trade mask, the eight masks' row shape.
+    itemTable[RG_BLAST_MASK] =                          Item(RG_BLAST_MASK,                       Text{ "Blast Mask", "Masque Explosif", "Explosionsmaske" },                                                                          ITEMTYPE_ITEM,              RG_BLAST_MASK,        true,  LOGIC_NONE,                         RHT_BLAST_MASK,                        RG_BLAST_MASK,                        OBJECT_GI_KI_TAN_MASK,  GID_MASK_KEATON,      TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER, {"the ", "die ", "le "});
+#ifdef RSBS_SINGLE_EXECUTABLE
+    itemTable[RG_BLAST_MASK].SetCustomDrawFunc(Randomizer_DrawBlastMask);
+#endif
 
     // clang-format on
 

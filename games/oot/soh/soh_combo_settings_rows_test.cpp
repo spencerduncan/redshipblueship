@@ -392,6 +392,11 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_SHARED_MASK_BUNNY, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_MASK_KEATON, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_MASK_TRUTH, WIDGET_CHECKBOX, "" },
+        // #979: the Blast Mask in OoT and its shared variant, the lens's shape, and
+        // the Blast Mask Cooldown, a combobox over the six pinned cooldowns.
+        { COMBO_SETTING_BLAST_MASK_OOT, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_BLAST, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_BLAST_MASK_COOLDOWN, WIDGET_COMBOBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -619,16 +624,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 17,
-                   "the Cross-Game Rules page has %d checkbox row(s); the seventeen expected are the Shared Kokiri "
+        ROWS_CHECK(checkboxes == 19,
+                   "the Cross-Game Rules page has %d checkbox row(s); the nineteen expected are the Shared Kokiri "
                    "Sword (#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song "
                    "and Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
                    "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970), the Shared Goron, "
-                   "Zora, Keaton and Truth masks and Bunny Hood (#978) and the Shared Swim (#1369), after #879 "
-                   "retired the Shared Ocarina",
+                   "Zora, Keaton and Truth masks and Bunny Hood (#978), the Shared Swim (#1369) and the Blast Mask "
+                   "(OoT) and Shared Blast Mask (#979), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 17 "
-               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 19 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369, #979)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -660,7 +665,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             "Shared Bottles",
             // #1369: OoTMM's sharedScales follows its button and bottle rules.
             "Shared Swim",
+            // #979: OoTMM's next section, Cross-Game Masks: the Blast Mask in OoT,
+            // then its shared variant (Stone and Kamaro follow as P4 adds them).
+            "Blast Mask (OoT)",
+            "Shared Blast Mask",
         };
+        // The first rank of OoTMM's Cross-Game Masks section (#979); every rank
+        // before it is a Shared Items rule.
+        const int kFirstCrossGameMaskRank = 17;
         const int ranks = (int)(sizeof(kOotmmSharedOrder) / sizeof(kOotmmSharedOrder[0]));
         const std::string marker = std::string(Combo_ComboSettingSharedMarker()) + " ";
         auto rankOf = [&](const std::string& name) {
@@ -694,9 +706,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                            "the Crossing Direction row sits under '%s', expected \"Item Crossing\"", section.c_str());
             } else if (row.type == WIDGET_CHECKBOX) {
                 sharedRows++;
-                ROWS_CHECK(section == "Shared Items", "the rule '%s' sits under '%s', expected \"Shared Items\"",
-                           row.name.c_str(), section.c_str());
                 const int rank = rankOf(row.name);
+                const char* const wantSection = rank >= kFirstCrossGameMaskRank ? "Cross-Game Masks" : "Shared Items";
+                ROWS_CHECK(section == wantSection, "the rule '%s' sits under '%s', expected \"%s\"", row.name.c_str(),
+                           section.c_str(), wantSection);
                 ROWS_CHECK(rank >= 0, "the rule '%s' has no place in OoTMM's order; add it to this leg's table",
                            row.name.c_str());
                 ROWS_CHECK(rank > lastRank, "the rule '%s' comes after '%s'; OoTMM lists it first", row.name.c_str(),
@@ -707,16 +720,18 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                 }
             }
         }
-        const std::vector<std::string> kSections = { "Win Condition", "Logic", "Item Crossing", "Shared Items" };
+        const std::vector<std::string> kSections = { "Win Condition", "Logic", "Item Crossing", "Shared Items",
+                                                     "Cross-Game Masks" };
         std::string got;
         for (const std::string& s : separators) {
             got += (got.empty() ? "" : ", ") + s;
         }
         ROWS_CHECK(separators == kSections,
-                   "the page's sections read [%s]; expected Win Condition, Logic, Item Crossing, Shared Items",
+                   "the page's sections read [%s]; expected Win Condition, Logic, Item Crossing, Shared Items, "
+                   "Cross-Game Masks",
                    got.c_str());
-        printf("[TEST] leg 1f: the page's sections are [%s] and its %d shared rule(s) sit under Shared Items in "
-               "OoTMM's order\n",
+        printf("[TEST] leg 1f: the page's sections are [%s] and its %d rule checkbox(es) sit under Shared Items and "
+               "Cross-Game Masks in OoTMM's order\n",
                got.c_str(), sharedRows);
     }
 
@@ -764,6 +779,32 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation Shared Ocarina Buttons");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_BOTTLES, 1) == 1,
                "the writer refused a pre-creation Shared Bottles");
+    // #979: the Shared Blast Mask's row is greyed while the Blast Mask (OoT) is off
+    // (OoTMM's cond), with the extension's reason, and shows off, the value the
+    // resolver freezes without the extension, even with its own key authored on.
+    // The key is cleared after, so the later legs see the shared variant unauthored.
+    if (settingRow[COMBO_SETTING_SHARED_MASK_BLAST] != nullptr) {
+        WidgetInfo& sharedBlastRow = *settingRow[COMBO_SETTING_SHARED_MASK_BLAST];
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BLAST, 1) == 1,
+                   "the writer refused a pre-creation Shared Blast Mask");
+        RunPreFunc(sharedBlastRow);
+        const std::string tip =
+            sharedBlastRow.options->disabledTooltip != nullptr ? sharedBlastRow.options->disabledTooltip : "";
+        ROWS_CHECK(sharedBlastRow.options->disabled && tip.find("Blast Mask (OoT) Is Off") != std::string::npos,
+                   "the Shared Blast Mask row must be greyed with the reason \"Blast Mask (OoT) Is Off\" while its "
+                   "extension is off (disabled=%d, tooltip '%s')",
+                   sharedBlastRow.options->disabled ? 1 : 0, tip.c_str());
+        ROWS_CHECK(StagedBool(sharedBlastRow) == 0,
+                   "the Shared Blast Mask row staged %d with the Blast Mask (OoT) off; the resolver freezes it off, "
+                   "so the row must show off",
+                   StagedBool(sharedBlastRow));
+        Combo_ComboSettingClear(COMBO_SETTING_SHARED_MASK_BLAST);
+        printf("[TEST] leg 3a: with the Blast Mask (OoT) off the Shared Blast Mask row is greyed with the "
+               "extension's reason and shows off (#979)\n");
+    }
+    // Then the extension is authored ON for every row to be editable.
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1,
+               "the writer refused a pre-creation Blast Mask (OoT)");
     // #1065: the lens is authored ON through its own row's Callback (the row's
     // only write path), so the PreFunc below must stage what the writer kept.
     WidgetInfo* lensRow = FindRow(rows, LensRowName());
@@ -910,6 +951,21 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]) == 0,
                "the frozen Shared Swim row staged %d; it must show the SAVE's OFF, not the key's ON",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_SWIM]));
+    // #979: the Blast Mask's three rows show the frozen item rules (every rule off,
+    // the Default cooldown), not the authored Blast Mask (OoT) ON; the Shared Blast
+    // Mask row carries the decided reason, not its extension's.
+    ExpectDecided(*settingRow[COMBO_SETTING_BLAST_MASK_OOT], "the Blast Mask (OoT) row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_BLAST_MASK_OOT]) == 0,
+               "the frozen Blast Mask (OoT) row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_BLAST_MASK_OOT]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST], "the Shared Blast Mask row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST]) == 0,
+               "the frozen Shared Blast Mask row staged %d; it must show the SAVE's OFF",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_BLAST]));
+    ExpectDecided(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN], "the Blast Mask Cooldown row");
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]) == (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT,
+               "the frozen Blast Mask Cooldown row staged %d; it must show the SAVE's %d (Default)",
+               StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]), (int)RSBS_BLAST_COOLDOWN_DEFAULT);
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {
@@ -1142,7 +1198,12 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1 &&
                        // Shared Swim ships ON, so only its non-default value proves Reset clears it.
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SWIM, 0) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SWIM, 0) == 1 &&
+                       // #979: the Blast Mask's three rows, the cooldown at a non-default value.
+                       Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BLAST, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_COOLDOWN, (int32_t)RSBS_BLAST_COOLDOWN_SHORT) ==
+                           1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

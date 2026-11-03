@@ -40,11 +40,16 @@
  *
  * The Blast Mask's list calls segment 0x09, where MM's Player_DrawBlastMask
  * binds a one-command list setting the env colour to opaque black while the
- * cooldown timer is 0 (MM's glow pass, a TextureAnimation and segment 0x08, is
- * not drawn: P4 owns the cooldown). OoT's Player binds segment 0x09 to the
- * mouth texture before its skeleton (OoT_Player_DrawImpl); the head limb, its
- * only reader, is drawn before this point, and every later draw that reads
- * segment 0x09 binds its own.
+ * cooldown timer is 0. While the cooldown runs (#979, BlastMaskOoT.cpp) it draws
+ * MM's glow pass instead, as Player_DrawBlastMask does: object_mask_bakuretu's
+ * DL_000440 under the two-layer texture scroll its TextureAnimation names
+ * (segment 0x08), then the mask itself through segment 0x09 in a translucent
+ * render mode, its env alpha the glow's complement (the last ten frames fade
+ * back). The glow list is curated (assets/crossgame/manifest.txt); a build whose
+ * half lacks it draws the mask without the glow, as before. OoT's Player binds
+ * segment 0x09 to the mouth texture before its skeleton (OoT_Player_DrawImpl);
+ * the head limb, its only reader, is drawn before this point, and every later
+ * draw that reads segment 0x09 binds its own.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -63,6 +68,7 @@
 #include "soh/ShipInit.hpp"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "ForeignMaskOoT.h"
+#include "BlastMaskOoT.h" // #979: the cooldown the Blast Mask's glow follows
 
 #include "context.h"       // src/common: Context_GetCurrentGame
 #include "foreign_masks.h" // src/common: the table and the equip rules
@@ -76,6 +82,12 @@ extern "C" {
 #include "variables.h"
 extern PlayState* OoT_gPlayState;
 }
+#include "align_asset_macro.h"
+
+// #979: MM's Blast Mask glow pass (MM z_player_lib.c, Player_DrawBlastMask),
+// curated for OoT (assets/crossgame/manifest.txt). Aligned as the asset headers'
+// names are.
+static const ALIGN_ASSET(2) char kBlastGlowDl[] = "__OTR__objects/object_mask_bakuretu/object_mask_bakuretu_DL_000440";
 
 namespace {
 
@@ -211,18 +223,46 @@ extern "C" void OoT_ForeignMask_DrawOnHead(PlayState* play, Player* player, int 
         return;
     }
 
+    // #979: the glow pass shows while the Blast Mask's cooldown runs, at MM's
+    // alpha (opaque until the last ten frames, which fade back to the mask).
+    const uint16_t cooldown = info->bindsSegment9 ? OoT_BlastMask_CooldownLeft() : 0u;
+    const bool glow = cooldown != 0u && PathMounted(kBlastGlowDl);
+    const u8 glowAlpha = !glow ? 0 : (cooldown <= 10u ? (u8)((cooldown / 10.0f) * 255.0f) : 255);
+
     OPEN_DISPS(play->state.gfxCtx);
 
     if (info->bindsSegment9) {
-        Gfx* noGlow = (Gfx*)Graph_Alloc(play->state.gfxCtx, 2 * sizeof(Gfx));
-        Gfx* g = noGlow;
-        gDPSetEnvColor(g++, 0, 0, 0, 255);
+        // MM's D_801C0BC0 (opaque black env) while ready; while the glow shows,
+        // D_801C0BD0's translucent render mode with the glow's complement as env
+        // alpha, so the mask fades under the glow.
+        Gfx* seg9 = (Gfx*)Graph_Alloc(play->state.gfxCtx, 3 * sizeof(Gfx));
+        Gfx* g = seg9;
+        if (glow) {
+            gDPSetRenderMode(g++,
+                             AA_EN | Z_CMP | Z_UPD | IM_RD | CLR_ON_CVG | CVG_DST_WRAP | ZMODE_XLU | FORCE_BL |
+                                 G_RM_FOG_SHADE_A,
+                             AA_EN | Z_CMP | Z_UPD | IM_RD | CLR_ON_CVG | CVG_DST_WRAP | ZMODE_XLU | FORCE_BL |
+                                 GBL_c2(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA));
+            gDPSetEnvColor(g++, 0, 0, 0, (u8)(255 - glowAlpha));
+        } else {
+            gDPSetEnvColor(g++, 0, 0, 0, 255);
+        }
         gSPEndDisplayList(g++);
-        gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)noGlow);
+        gSPSegment(POLY_OPA_DISP++, 0x09, (uintptr_t)seg9);
     }
     // The head list may leave another limb's matrix loaded: load the head
     // limb's own from the CPU stack.
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    if (glow) {
+        // The TextureAnimation's two layers (steps (1, 1) and (3, -2), 32x32),
+        // as MM's AnimatedMat_TwoLayerTexScroll scrolls them by gameplayFrames.
+        const s32 step = (s32)play->gameplayFrames;
+        gSPSegment(POLY_OPA_DISP++, 0x08,
+                   (uintptr_t)OoT_Gfx_TwoTexScroll(play->state.gfxCtx, 0, (u32)step, (u32)(-step), 32, 32, 1,
+                                                   (u32)(3 * step), (u32)(2 * step), 32, 32));
+        gDPSetEnvColor(POLY_OPA_DISP++, 0, 0, 0, glowAlpha);
+        gSPDisplayList(POLY_OPA_DISP++, (Gfx*)kBlastGlowDl);
+    }
     gSPDisplayList(POLY_OPA_DISP++, (Gfx*)dl);
 
     CLOSE_DISPS(play->state.gfxCtx);

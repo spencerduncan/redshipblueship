@@ -333,6 +333,26 @@ extern "C" int OoT_ForeignModel_DrawForOoTCheck(PlayState* play, uint16_t rc) {
     return 1;
 }
 
+/**
+ * #979: draw MM item `item`'s model under the current matrix, as the shelf does
+ * for a check (HostModelForItem: MM's descriptor or OoT's own row, every path
+ * mounted): 1 when drawn, 0 when there is none and the caller keeps its stand-in.
+ * The Blast Mask OoT gains under the Blast Mask (OoT) rule is shown as Majora's
+ * Mask's own Blast Mask (BlastMaskOoT.cpp, Randomizer_DrawBlastMask).
+ */
+extern "C" int OoT_ForeignModel_DrawForeignItem(PlayState* play, uint8_t originGame, uint16_t id) {
+    SharedItem item;
+    item.originGame = originGame;
+    item.flags = 0;
+    item.id = id;
+    ComboModel model;
+    if (play == nullptr || !HostModelForItem(item, &model)) {
+        return 0;
+    }
+    OoTHostModel_Draw(play, model);
+    return 1;
+}
+
 // ============================================================================
 // #577 M4: OoT'S GET-ITEM CUTSCENE SHOWS THE MM ITEM AND GIVES NOTHING
 // ============================================================================

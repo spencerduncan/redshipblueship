@@ -3667,6 +3667,23 @@ static_assert((int)RG_MASK_OF_TRUTH - (int)RG_KEATON_MASK == 7 &&
                       (int)RG_BUNNY_HOOD - (int)RG_KEATON_MASK,
               "the masks' RG_*, RAND_INF_* and ITEM_* ids must stay contiguous and in the same order");
 
+// #979: the Blast Mask OoT gains under the Blast Mask (OoT) rule (OoTMM
+// blastMaskOot), OoT's copy of the Shared Blast Mask family (sharedMaskBlast,
+// which requires it). OoT owns it through RAND_INF_OBTAINED_BLAST_MASK, and its
+// get-item also puts it in an empty child trade slot (randomizer.cpp); the give
+// does both, as the eight masks' give does.
+static bool OoT_SharedBlastMaskHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return Flags_GetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK) != 0;
+}
+static void OoT_SharedBlastMaskGive(uint16_t nativeId) {
+    (void)nativeId;
+    Flags_SetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK);
+    if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+        INV_CONTENT(ITEM_TRADE_CHILD) = ITEM_MASK_BLAST;
+    }
+}
+
 namespace {
 // Static-init registration, the ComboLogicEngine registrars' shape: this TU is
 // always linked (it holds the shims), and the registry is zero-initialised
@@ -3700,6 +3717,9 @@ struct OoTSharedFamilyRegistrar {
         const ComboSharedFamilyMember maskTruth = { (uint16_t)RG_MASK_OF_TRUTH, OoT_SharedMaskHeld,
                                                     OoT_SharedMaskGive };
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_TRUTH, &maskTruth);
+        const ComboSharedFamilyMember maskBlast = { (uint16_t)RG_BLAST_MASK, OoT_SharedBlastMaskHeld,
+                                                    OoT_SharedBlastMaskGive }; // #979
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_BLAST, &maskBlast);
     }
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;

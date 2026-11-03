@@ -231,6 +231,11 @@ extern "C" int OoT_ComboTextboxIcon(uint16_t id, ComboTextboxIcon* out) {
             return IconForTexture(gTriforcePieceTex, COMBO_TEXTBOX_ICON_ITEM, out);
         case RG_ROCS_FEATHER:
             return IconForTexture(gRocsFeatherTex, COMBO_TEXTBOX_ICON_ITEM, out);
+        case RG_BLAST_MASK:
+            // #979: Majora's Mask's own Blast Mask icon, the one OoT's pause menu
+            // shows (OoT_gItemIcons' custom row). MM draws it from its own archive.
+            return IconForTexture(static_cast<const char*>(OoT_gItemIcons[ITEM_MASK_BLAST]), COMBO_TEXTBOX_ICON_ITEM,
+                                  out);
         case RG_GREG_RUPEE:
             // SoH's gregMapping: the rupee counter icon in Greg green.
             *out = { kOoTRupeeCounterIconTex, (uint8_t)COMBO_TEXTBOX_ICON_RUPEE, 42, 169, 40 };
