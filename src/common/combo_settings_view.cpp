@@ -134,7 +134,7 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_GOAL:
             return (int32_t)defaults.goal;
         case COMBO_SETTING_LOGIC:
-            // #1367: Beatable Only, the rung every world before the key froze.
+            // #1367 R5: All Locations, OoTMM's default (Beatable Only before it).
             return (int32_t)defaults.logicRung;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             // A BIT of the defaults record, read the way its siblings read their
@@ -413,7 +413,8 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     // #1367: the logic rung has a key now, so a file made at one rung and met by
     // a session staged at another puts its own rung back, like the goal. Every
-    // world made before the key froze Beatable Only, the key's default.
+    // world made before the key froze Beatable Only, the key's default then; the
+    // default is All Locations since #1367 R5, and those worlds load as they were.
     { RSBS_COMBO_DIVERGE_LOGIC_RUNG, COMBO_SETTING_LOGIC },
     { RSBS_COMBO_DIVERGE_DIRECTION, COMBO_SETTING_DIRECTION },
     { RSBS_COMBO_DIVERGE_SHARED_KOKIRI_SWORD, COMBO_SETTING_SHARED_KOKIRI_SWORD },

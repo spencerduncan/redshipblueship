@@ -214,6 +214,8 @@ void Combo_SingleBag_Forget(void);
  *     host in one attempt, so running out is a CAPACITY fact about both pools;
  *   - _LOCATIONS_UNREACHABLE: the All Locations pre-flight (ABI 8) found locations
  *     the settings make unreachable, fixed at Generate;
+ *   - _GOAL_UNREACHABLE: that pre-flight reached every location but not the GOAL,
+ *     with every required item assumed, so no seed can finish it either;
  *   - _NOT_ALL_REACHED: after that pre-flight held, only an engine fault misses a
  *     location in the final round.
  * None of those depends on the seed, so re-seeding only repeats it and then

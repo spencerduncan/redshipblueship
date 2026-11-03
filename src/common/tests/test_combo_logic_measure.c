@@ -1604,7 +1604,12 @@ TestResult ComboLogicMeasure_Run(void) {
     // list is printed in full: it is the audit the curated exclusion lists in both
     // engines are built from (ComboLogicEngineOoT.cpp / ComboLogicEngineSingleExe.cpp,
     // "THE CURATED EXCLUSIONS"). The per-profile audit is also the
-    // combo-logic-bag-composition rows' B8 (shipped, plentiful, armed).
+    // combo-logic-bag-composition rows' B8 (shipped, plentiful, armed). Like B8 it
+    // can over-report a shared tier family's second tier in MM (#1367 R5): OoT's
+    // copies outside the sample are natively placed, not bag rows, so THE
+    // SHARED-QUANTITY CREDIT never hands them to MM (MM's bank heart piece reads
+    // unreachable here and not in production). So this lock stays the dichotomy;
+    // the production verdict is the golden rows' (All Locations is the default).
     {
         std::vector<ComboLogicBagItem> allLocBag;
         for (const ComboLogicBagItem& b : bag) {
@@ -1634,10 +1639,12 @@ TestResult ComboLogicMeasure_Run(void) {
             printf("[TEST] combo-logic-measure: M3e UNREACHABLE on profile %s (%d): %s\n", profile, unreachable, names);
         }
         CLM_ASSERT(allLoc.res.locationsChecked > 0, "M3e: the All Locations pre-flight captured no location");
-        if (allLoc.status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) {
-            CLM_ASSERT(allLoc.res.attempts == 0 && allLoc.res.rounds == 1 && allLoc.res.placed == 0 && unreachable > 0,
+        if (allLoc.status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE ||
+            allLoc.status == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE) {
+            CLM_ASSERT(allLoc.res.attempts == 0 && allLoc.res.rounds == 1 && allLoc.res.placed == 0 &&
+                           (unreachable > 0) == (allLoc.status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE),
                        "M3e: a pre-flight refusal is AT ONCE (no attempt, one round, nothing placed) and names its "
-                       "locations");
+                       "locations (or, for the goal's refusal, none)");
             printf("[TEST] combo-logic-measure: M3e NOTE: profile %s is NOT All-Locations-provable as composed; the "
                    "names above are the curated-exclusion audit (each needs a settings reason before it is listed)\n",
                    profile);
@@ -2297,8 +2304,15 @@ TestResult ComboLogicBagComposition_Run(void) {
     // ComboLogicEngineSingleExe.cpp, "THE CURATED EXCLUSIONS"). APPROXIMATION: OoT's
     // native junk and renewables are in its world here, where a paired creation's
     // pre-flight has OoT's general-pass hosts empty, so OoT's half of this audit can
-    // only under-report. Asserted: a named verdict, both engines listing locations,
-    // OoT's crossing open, and the record agreeing with the counts.
+    // only under-report. And MM's can OVER-report a shared tier family's second tier
+    // (#1367 R5): OoT's copies are natively placed here, not bag rows, so THE
+    // SHARED-QUANTITY CREDIT (combo_logic.h) never hands them to MM, and MM's bank
+    // heart piece (the Giant's Wallet) reads unreachable here while production's
+    // pre-flight, over the whole bag, reaches it. The production verdict is the
+    // golden rows' (every default world is All Locations since #1367 R5, and
+    // GoldenSeedsRoundBudget asserts each one creates). Asserted: a named verdict,
+    // both engines listing locations, OoT's crossing open, and the record agreeing
+    // with the counts.
     {
         CLB_ASSERT(oot->allLocations != nullptr && mm->allLocations != nullptr,
                    "B8: both real engines publish ABI 8's allLocations (no host-table fallback for a real world)");
@@ -2319,13 +2333,15 @@ TestResult ComboLogicBagComposition_Run(void) {
             printf("[TEST] combo-logic-bag-composition: B8 UNREACHABLE profile=%s %s %u %s\n", profile,
                    Game_ToString((GameId)ref.hostGame), (unsigned)ref.hostCheck, name != nullptr ? name : "(no name)");
         }
-        CLB_ASSERT(preStatus == RSBS_COMBO_LOGIC_OK || preStatus == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+        CLB_ASSERT(preStatus == RSBS_COMBO_LOGIC_OK || preStatus == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE ||
+                       preStatus == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE,
                    "B8: the All Locations pre-flight returns a named verdict over the real engines");
         CLB_ASSERT(pre.locationsOoT > 0 && pre.locationsMM > 0,
                    "B8: both engines list their locations (OoT's ctx->allLocations, MM's check pool)");
         CLB_ASSERT(pre.crossingOpenOoT == 1, "B8: OoT's crossing opens with the world's progression in reach");
         CLB_ASSERT(Combo_Logic_UnreachableLocationCount() == pre.unreachableOoT + pre.unreachableMM &&
-                       (preStatus == RSBS_COMBO_LOGIC_OK) == (Combo_Logic_UnreachableLocationCount() == 0),
+                       (preStatus == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) ==
+                           (Combo_Logic_UnreachableLocationCount() > 0),
                    "B8: the named list is exactly the locations the verdict counts");
         CLB_ASSERT(Combo_Logic_PlacementCount(GAME_OOT) + Combo_Logic_PlacementCount(GAME_MM) == 0,
                    "B8: the pre-flight placed nothing");

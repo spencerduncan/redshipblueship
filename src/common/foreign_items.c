@@ -51,13 +51,16 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out) {
     out->itemClassOoT = (uint16_t)RSBS_ITEMCLASS_ALL_V1;
     out->itemClassMM = (uint16_t)RSBS_ITEMCLASS_ALL_V1;
     // ADR 0010 D1 / answer O11: GOAL stays beat-both (OoTMM's own goal likewise
-    // defaults to 'both'), and the shipped rung is the strictest Ship of
-    // Harkinian ships — the proved, no-tricks rung, never the base `none`.
+    // defaults to 'both'). The shipped rung is All Locations since #1367 R5
+    // (operator-approved 2026-11-02): OoTMM's own `logic` default
+    // (packages/core/src/settings/data.ts), proved with no tricks, never the
+    // base `none`. Beatable Only was the default before it, and every world
+    // frozen then keeps its own rung (the load restores it, kRestorable).
     // Both are read by the single-bag fill at the creation event (ADR 0010
-    // increment 3); the goal is a player's choice since 2026-09-27, and this is
-    // the value an unset key resolves to.
+    // increment 3); goal and rung are the player's choice (2026-09-27, #1367),
+    // and these are the values an unset key resolves to.
     out->goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_BOTH;
-    out->logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
+    out->logicRung = (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
     // comboFlags stays 0 (#668): every allocated flag CHANGES a world, so the
     // "reproduce today's world exactly" rule makes the shipped default every bit
     // clear — which is also what a record written before the byte was spent
@@ -88,9 +91,10 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     // The goal is authored since 2026-09-27 (ADR 0010 D1's value list, OoTMM's
     // goals); its default is beat-both, so an unset key reproduces the record
     // exactly. logicRung is authored since #1367 (operator ruling 2026-11-02:
-    // the pair's one [Both Games] Logic, OoTMM's `logic`); its default is
-    // Beatable Only, the rung every earlier world froze, so an unset key
-    // reproduces the record exactly too.
+    // the pair's one [Both Games] Logic, OoTMM's `logic`); its default is All
+    // Locations since #1367 R5 (OoTMM's default), so an unset key reproduces the
+    // defaults record exactly too. Worlds frozen at the earlier Beatable Only
+    // default carry their rung in the record, which the load restores.
     //
     // poolSizeOoT / poolSizeMM keep their shipped defaults too: #801 retired
     // their keys. Under the single bag no rule reads a pool size, and both

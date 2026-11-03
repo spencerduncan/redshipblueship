@@ -669,7 +669,7 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                      .ComboMap(comboRuleLogicOptions)
                      .Tooltip("Chooses how the seed is checked before you play it, for both games at once. Each "
                               "game's own Logic setting follows this one.\n\n"
-                              "All Locations: The goal can be met, and every item placed across both games can be "
+                              "All Locations: The goal can be met, and every location in both games can be "
                               "reached.\n"
                               "Beatable Only: The goal can be met. Some locations may be unreachable.\n"
                               "No Logic: Items are placed without any check. The seed may be unbeatable."));

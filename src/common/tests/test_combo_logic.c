@@ -934,6 +934,57 @@ void ClBuildWideHostWorld(int ootHosts, int mmHosts) {
     ClInstall();
 }
 
+/** THE SHARED-QUANTITY CREDIT's family ids (#1367 R5): one progressive tier item
+ *  per game, the wallet's shape. */
+const uint16_t kOotTier = 106;
+const uint16_t kMmTier = 206;
+
+/**
+ * THE SHARED-QUANTITY CREDIT WORLD (#1367 R5): the shape that refused every
+ * production world under All Locations before the credit. The pair keeps TWO copies
+ * of a shared tier family, one per game (the trim's spread), and each game has a
+ * location that wants the family's SECOND tier (OoT host 12, MM host 22: the
+ * Giant's Wallet shops and bank). On the player's side every kept copy raises the
+ * one shared tier, so both are reachable; a proof that credits each copy to its own
+ * game only sees one tier on each side. Every host is a location (`allLocations`).
+ * Both goals are unconditional, so the locations alone decide the verdict.
+ */
+void ClBuildCreditWorld() {
+    ClResetEngine(&gClOoT, (uint8_t)GAME_OOT);
+    ClAddItem(&gClOoT, kOotSword);
+    ClAddItem(&gClOoT, kOotTier);
+    ClAddHost(&gClOoT, 10, 0u);
+    ClAddHost(&gClOoT, 11, 0u);
+    ClAddHost(&gClOoT, 12, 0u);
+    gClOoT.hostNeedItem[2] = kOotTier; // host 12 wants the second tier
+    gClOoT.hostNeedCount[2] = 2;
+    gClOoT.crossingRequires = 0u;
+    gClOoT.goalRequires = 0u;
+    gClOoT.withAllLocations = true;
+
+    ClResetEngine(&gClMM, (uint8_t)GAME_MM);
+    ClAddItem(&gClMM, kMmOcarina);
+    ClAddItem(&gClMM, kMmTier);
+    ClAddHost(&gClMM, 20, 0u);
+    ClAddHost(&gClMM, 21, 0u);
+    ClAddHost(&gClMM, 22, 0u);
+    gClMM.hostNeedItem[2] = kMmTier; // host 22 likewise
+    gClMM.hostNeedCount[2] = 2;
+    gClMM.crossingRequires = 0u;
+    gClMM.goalRequires = 0u;
+    gClMM.withAllLocations = true;
+    ClInstall();
+}
+
+/** One credited copy (RSBS_COMBO_BAG_SHARED_CREDIT) of `id`, naming the far game's
+ *  id for the family. */
+ComboLogicBagItem ClCreditItem(uint8_t origin, uint16_t id, uint16_t farId) {
+    ComboLogicBagItem b = ClBagItem(origin, id, RSBS_ITEMCLASS_PROGRESSION);
+    b.bagFlags = RSBS_COMBO_BAG_SHARED_CREDIT;
+    b.pairId = farId;
+    return b;
+}
+
 /** Does either coordinator table hold a placement carrying `id`? */
 bool ClAnyTableHolds(uint16_t id) {
     const GameId both[2] = { GAME_OOT, GAME_MM };
@@ -1803,6 +1854,143 @@ TestResult Test_ComboLogicFill(void) {
         }
         CL_ASSERT(Combo_Logic_UnreachableLocationCount() == 5 && mmMissed == 5,
                   "every one of MM's five locations is named, and no OoT one (the arrival gate)");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // --- THE GOAL AT THE PRE-FLIGHT (#1367 R5, #1371's deferred refusal) ------
+    // The fill world with MM's half unprovable (its goal wants the Mask, in no bag
+    // and no host) and MM host 24 curated out, so every location IS reached: the
+    // pre-flight's widest reach still misses the GOAL, so no seed proves it. Refused
+    // AT ONCE with its own status and the failed half, never the ten batch
+    // roll-backs that each end in GOAL_UNPROVABLE (the red half, under `beatable`).
+    {
+        ClBuildFillWorld(false);
+        gClMM.withAllLocations = true;
+        gClMM.notLocation = 1u << 4;
+        ClInstall();
+        const int rc =
+            ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u, &res);
+        CL_ASSERT(rc == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE,
+                  "All Locations refuses a goal its pre-flight cannot reach with every required row assumed");
+        CL_ASSERT(res.attempts == 0 && res.rounds == 1 && res.placed == 0 && !res.goalProven,
+                  "AT ONCE: one pre-flight round, no batch attempt, nothing placed");
+        CL_ASSERT(res.goalOoT == 1 && res.goalMM == 0,
+                  "and the result names the half that failed (MM's), for the refusal's copy");
+        CL_ASSERT(res.locationsUnreachable == 0 && Combo_Logic_UnreachableLocationCount() == 0,
+                  "every location was reached: the goal is the refusal, not a location");
+        CL_ASSERT(strcmp(Combo_Logic_StatusName(rc), "goal-unreachable") == 0, "its own status name");
+        CL_ASSERT(!Combo_SingleBag_StatusIsWorldDeadEnd(rc, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE),
+                  "never a ladder rung: another seed cannot reach the goal either");
+
+        ClBuildFillWorld(false);
+        gClMM.withAllLocations = true;
+        gClMM.notLocation = 1u << 4;
+        ClInstall();
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_OOT, RSBS_COMBO_RUNG_ALL_REACHABLE, 0x5EED1234u,
+                            &res) == RSBS_COMBO_LOGIC_OK,
+                  "the same world under beat-oot (whose goal holds) proves: the refusal is the GOAL's, not MM's half");
+
+        ClBuildFillWorld(false);
+        CL_ASSERT(ClRunFill(bag, bagCount, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_BEATABLE, 0x5EED1234u, &res) ==
+                          RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE &&
+                      res.attempts == RSBS_COMBO_LOGIC_FILL_RETRIES,
+                  "RED HALF: without the pre-flight (`beatable`) the same goal is found unprovable only after every "
+                  "batch roll-back");
+        CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
+    }
+
+    // --- THE SHARED-QUANTITY CREDIT (#1367 R5; combo_logic.h) -----------------
+    // ClBuildCreditWorld: one copy of a shared tier family per game, and a location
+    // in each game that wants the family's second tier. Credited, every copy counts
+    // in both engines (seeded when assumed, exchanged when placed), so All Locations
+    // proves; uncredited, each engine sees one tier and the pre-flight refuses both
+    // locations (the shape that refused every production world before the credit).
+    {
+        ComboLogicBagItem plain[2];
+        plain[0] = ClBagItem((uint8_t)GAME_OOT, kOotTier, RSBS_ITEMCLASS_PROGRESSION);
+        plain[1] = ClBagItem((uint8_t)GAME_MM, kMmTier, RSBS_ITEMCLASS_PROGRESSION);
+        ComboLogicBagItem credited[2];
+        credited[0] = ClCreditItem((uint8_t)GAME_OOT, kOotTier, kMmTier);
+        credited[1] = ClCreditItem((uint8_t)GAME_MM, kMmTier, kOotTier);
+
+        ClBuildCreditWorld();
+        CL_ASSERT(ClRunFill(plain, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0xC4ED17u, &res) ==
+                      RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE,
+                  "RED HALF: uncredited, each engine holds one tier and both second-tier locations are refused");
+        ComboLogicHostRef ref;
+        memset(&ref, 0, sizeof(ref));
+        int named = 0;
+        for (int i = 0; Combo_Logic_UnreachableLocationAt(i, &ref); ++i) {
+            named += ((ref.hostGame == (uint8_t)GAME_OOT && ref.hostCheck == 12) ||
+                      (ref.hostGame == (uint8_t)GAME_MM && ref.hostCheck == 22))
+                         ? 1
+                         : 0;
+        }
+        CL_ASSERT(Combo_Logic_UnreachableLocationCount() == 2 && named == 2,
+                  "and it names exactly OoT 12 and MM 22, the two second-tier locations");
+
+        ClBuildCreditWorld();
+        CL_ASSERT(ClRunFill(credited, 2, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0xC4ED17u, &res) ==
+                      RSBS_COMBO_LOGIC_OK,
+                  "credited, the same bag proves All Locations");
+        CL_ASSERT(res.goalProven && res.allLocationsReached && res.allHostsReached && res.locationsChecked == 6 &&
+                      res.requiredPlaced == 2,
+                  "every location of both games reached in the exit round, both copies placed");
+        // The exit round assumes NOTHING: the second tier on each side came from the
+        // EXCHANGE crediting the other game's placed copy, under the crossing's gate.
+        CL_ASSERT(gClOoT.assumeCalls[ClBitIndex(&gClOoT, kOotTier)] > 0 &&
+                      gClMM.assumeCalls[ClBitIndex(&gClMM, kMmTier)] > 0,
+                  "each engine was credited the other game's copy");
+        for (int s = 0; s < 2; ++s) {
+            const GameId g = (s == 0) ? GAME_OOT : GAME_MM;
+            for (int i = 0; i < Combo_Logic_PlacementCount(g); ++i) {
+                ComboLogicPlacement p;
+                CL_ASSERT(Combo_Logic_PlacementAt(g, i, &p) && p.pair.originGame == (uint8_t)GAME_NONE,
+                          "a credited row is placed as its own item, never as a shared pair");
+                const bool ootCopy = p.item.originGame == (uint8_t)GAME_OOT && p.item.id == kOotTier;
+                CL_ASSERT((ootCopy && p.credit.originGame == (uint8_t)GAME_MM && p.credit.id == kMmTier) ||
+                              (!ootCopy && p.item.originGame == (uint8_t)GAME_MM && p.item.id == kMmTier &&
+                               p.credit.originGame == (uint8_t)GAME_OOT && p.credit.id == kOotTier),
+                          "the placement records the far game's copy of the family (ComboLogicPlacement.credit)");
+                CL_ASSERT(p.hostCheck != 12 && p.hostCheck != 22,
+                          "a copy never lands on the location its own family's second tier opens (assumed fill)");
+            }
+        }
+        // AN EXPOSED ROUND AFTER THE FILL credits the placed copies exactly as the
+        // fill's own rounds did: nothing assumed, and both second-tier hosts reached.
+        {
+            ComboLogicRoundResult after;
+            CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, nullptr, 0, &after) == RSBS_COMBO_LOGIC_OK &&
+                          after.goalExpression == 1 && (gClOoT.reached & (1u << 2)) != 0u &&
+                          (gClMM.reached & (1u << 2)) != 0u,
+                      "an exposed round over the filled tables reaches OoT 12 and MM 22: the placements carry their "
+                      "credit, so a round after the fill answers what the fill's rounds answered");
+        }
+
+        // SEEDING, through one exposed round: a credited row assumed in its own game
+        // is ALSO assumed in the other's, once.
+        ClBuildCreditWorld();
+        ComboLogicRoundResult r;
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, credited, 1, &r) == RSBS_COMBO_LOGIC_OK,
+                  "one exposed round over one credited OoT copy");
+        CL_ASSERT(gClOoT.assumeCalls[ClBitIndex(&gClOoT, kOotTier)] == 1 &&
+                      gClMM.assumeCalls[ClBitIndex(&gClMM, kMmTier)] == 1,
+                  "the credited copy is assumed once in OoT's engine AND once in MM's, as MM's own id");
+        ClBuildCreditWorld();
+        CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, plain, 1, &r) == RSBS_COMBO_LOGIC_OK &&
+                      gClMM.assumeCalls[ClBitIndex(&gClMM, kMmTier)] == 0,
+                  "and an uncredited copy reaches its own engine only");
+
+        // A shared pair is already credited in both engines: a credit on it too would
+        // credit its far half twice, so the request is refused.
+        ClBuildCreditWorld();
+        ComboLogicBagItem both[1];
+        both[0] = credited[0];
+        both[0].bagFlags = (uint16_t)(RSBS_COMBO_BAG_SHARED_PAIR | RSBS_COMBO_BAG_SHARED_CREDIT);
+        CL_ASSERT(ClRunFill(both, 1, RSBS_COMBO_GOAL_BEAT_BOTH, RSBS_COMBO_RUNG_ALL_REACHABLE, 0xC4ED17u, &res) ==
+                          RSBS_COMBO_LOGIC_ERR_BAD_REQUEST &&
+                      res.attempts == 0,
+                  "a row that is both a shared pair and a credit is refused before any attempt");
         CL_ASSERT(ClContractClean(), "the contract traps must stay clear");
     }
 

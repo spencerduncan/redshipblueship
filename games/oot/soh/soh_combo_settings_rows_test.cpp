@@ -509,7 +509,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // #1367 (operator ruling 2026-11-02): OoTMM's `logic` values on the pinned
     // rungs (All Locations 3, Beatable Only 2, No Logic 1), each with a "Value:
     // effect" tooltip line, the No Logic one saying the seed may be unbeatable,
-    // and the default still Beatable Only (the flip is its own lane).
+    // and the default All Locations, OoTMM's (#1367 R5; Beatable Only before it).
     {
         WidgetInfo* logicRow = settingRow[COMBO_SETTING_LOGIC];
         auto logicOptions = std::static_pointer_cast<UIWidgets::ComboboxOptions>(logicRow->options);
@@ -537,11 +537,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ROWS_CHECK(tooltip.find("No Logic: Items are placed without any check. The seed may be unbeatable.") !=
                        std::string::npos,
                    "the logic row's No Logic line does not say the seed may be unbeatable");
-        ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
-                   "the logic's shipped default is %d, expected Beatable Only (the flip to All Locations is its own "
-                   "lane, with the golden re-pin)",
+        ROWS_CHECK(tooltip.find("All Locations: The goal can be met, and every location in both games can be "
+                                "reached.") != std::string::npos,
+                   "the logic row's All Locations line does not say every location in both games is reached");
+        ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE,
+                   "the logic's shipped default is %d, expected All Locations (OoTMM's default, #1367 R5)",
                    (int)Combo_ComboSettingDefault(COMBO_SETTING_LOGIC));
-        printf("[TEST] leg 1b2: the logic row offers OoTMM's three values in its words, default Beatable Only\n");
+        printf("[TEST] leg 1b2: the logic row offers OoTMM's three values in its words, default All Locations\n");
     }
 
     // ---- Leg 1c: the two "Max Items" rows are retired (#801) ----------------
@@ -898,9 +900,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     // that showed the CVar would be red rather than accidentally right.
     ComboSettingsRecord frozen;
     Combo_ComboSettingsDefaults(&frozen);
-    frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE; // authored: FORWARD
-    frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;     // authored: BEAT_OOT
-    frozen.comboFlags = 0u;                             // authored: Shared Kokiri Sword ON (#886)
+    frozen.direction = (uint8_t)RSBS_COMBO_DIR_REVERSE;   // authored: FORWARD
+    frozen.goal = (uint8_t)RSBS_COMBO_GOAL_BEAT_MM;       // authored: BEAT_OOT
+    frozen.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE; // authored: ALL_REACHABLE (a world of the old default)
+    frozen.comboFlags = 0u;                               // authored: Shared Kokiri Sword ON (#886)
     Combo_FreezeComboSettings(&frozen);
     ROWS_CHECK(Combo_ComboSettingsFrozen(), "Combo_FreezeComboSettings left the record unfrozen");
     ROWS_CHECK(Combo_ComboSettingReadOnlyReason() != nullptr, "the model reports no read-only reason once frozen");
@@ -916,8 +919,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
                "world was proved against the frozen goal",
                StagedInt(*settingRow[COMBO_SETTING_GOAL]), (int)RSBS_COMBO_GOAL_BEAT_MM, (int)RSBS_COMBO_GOAL_BEAT_OOT);
-    // #1367: the frozen record's rung (the defaults' Beatable Only) against the
-    // authored All Locations key.
+    // #1367: the frozen record's rung (Beatable Only, the default before #1367 R5)
+    // against the authored All Locations key.
     ExpectDecided(*settingRow[COMBO_SETTING_LOGIC], "the logic row");
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_LOGIC]) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
                "the frozen logic row staged %d; it must show the SAVE's %d (Beatable Only), not the CVar's %d",

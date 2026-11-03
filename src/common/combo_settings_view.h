@@ -141,8 +141,9 @@ typedef enum {
     // resolver never sets it and an unshuffled world keeps its all-clear record.
     COMBO_SETTING_SHARED_SWIM, // gCombo.Rando.SharedSwim -> RSBS_XITEM_SHARED_SWIM
     // #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
-    // `logic`, on the pinned RSBS_COMBO_RUNG_* enumerators: All Locations (3),
-    // Beatable Only (2, the default every earlier world froze) and No Logic (1).
+    // `logic`, on the pinned RSBS_COMBO_RUNG_* enumerators: All Locations (3, the
+    // default since #1367 R5, OoTMM's), Beatable Only (2, the default every world
+    // before that froze) and No Logic (1).
     // OoT's RSK_LOGIC_RULES and MM's RO_LOGIC derive from it at creation.
     COMBO_SETTING_LOGIC, // gCombo.Rando.Logic -> record.logicRung (RSBS_COMBO_RUNG_*)
     // #979 (epic #975 P4): the Blast Mask in Ocarina of Time (OoTMM blastMaskOot)

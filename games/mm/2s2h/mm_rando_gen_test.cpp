@@ -3180,8 +3180,9 @@ extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
  * `bagRounds` and `mmPairedAttempt` must match too, which ties this row to the
  * pinned worlds rather than to look-alikes. `bagSeed` is the part that tells the
  * profiles apart (#982): every seed-digest golden on RSBSUNIFIED1 creates on
- * attempt 1 in the same number of rounds, so an entry whose settings were dropped
- * or misspelled would generate the default world and still match those two, but
+ * attempt 1, most in 268 rounds (the default and Beatable Only in two batch
+ * attempts, 516 and 531), so an entry whose settings were dropped or misspelled
+ * could generate a look-alike world and still match those two, but
  * the bag's seed folds the frozen identity (both games' settings hashes and the
  * combo settings, Combo_SingleBag_SeedFor) and differs per golden. The row prints
  * each seed's headroom.
@@ -3250,6 +3251,11 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
           1,
           RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |
               RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_SHARED_BLAST },
+        // #1367 R5: the default is All Locations, so Beatable Only, the default before
+        // it, has its own golden. seed-digest-no-logic has no entry: No Logic runs no
+        // round, so there is no round budget to fit (its golden row pins the world).
+        { "seed-digest-beatable-only", "RSBSUNIFIED1", { "gCombo.Rando.Logic", nullptr, nullptr }, { 2, 0, 0 }, 0,
+          1 },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };

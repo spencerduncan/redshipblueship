@@ -200,6 +200,10 @@ set(REDSHIP_COMMON_SOURCES
     # libultraship's fast/interpreter.h brings in the whole LUS GBI. Test
     # tooling only. APPENDED.
     ${CMAKE_SOURCE_DIR}/src/common/tests/test_texture_cache_freed_node.cpp
+    # The lus-hardening row's body (#1384), its own TU because libultraship's
+    # fast/interpreter.h brings in the whole LUS GBI. Test tooling only.
+    # APPENDED.
+    ${CMAKE_SOURCE_DIR}/src/common/tests/test_lus_hardening.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1028,6 +1032,13 @@ if(BUILD_TESTING)
     # and requires the slots to read null, and the bucket count to stay fixed
     # while the cache fills (the LRU holds map iterators). ROM-free, no display.
     redship_add_test(NAME TextureCacheFreedNode COMMAND redship --test texture-cache-freed-node)
+    # #1384: the libultraship hardening batch, on the parts that run headless.
+    # Config::Save must stage a temporary file and rename it (a blocked staging
+    # path leaves the live config byte-identical); a tile on two empty TMEM
+    # slots caches and uploads nothing, and one on an empty slot imports the
+    # other slot's texture; gfx_check_image_signature rejects out-of-range
+    # addresses. ROM-free, no display, no context.
+    redship_add_test(NAME LusHardening COMMAND redship --test lus-hardening)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
@@ -2020,8 +2031,9 @@ if(BUILD_TESTING)
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity
-    # and direction-forward, #978's all-masks, the ladder world; #982's
-    # mm-nearly-no-logic is the default world since #1367) still creates on
+    # and direction-forward, #978's all-masks, #1367 R5's beatable-only, the ladder
+    # world; #982's mm-nearly-no-logic is the default world since #1367, and the
+    # no-logic golden runs no round, so it has no budget to fit) still creates on
     # its pinned attempt inside the shipped round budget, and its bagSeed,
     # bagRounds and mmPairedAttempt match the golden's when the golden is in the
     # tree (bagSeed tells the profiles apart; #982).
@@ -2299,6 +2311,14 @@ if(BUILD_TESTING)
         # line and re-pin this file, rather than adding a golden each. Same seed
         # and dispatch as seed-digest-default.
         "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1"
+        # #1367 R5: [Both Games] Logic defaults to All Locations, so every golden
+        # above is an All Locations world. The other two rungs get one golden each
+        # on the same seed and dispatch: Beatable Only (the default before R5; the
+        # same algorithm without the pre-flight and the every-location exit term)
+        # and No Logic (no round at all: every REQUIRED row drawn from every empty
+        # host, OoT generated No Logic with All Locations Reachable off).
+        "GoldenSeedDigestBeatableOnly|seed-digest-beatable-only|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Logic=2"
+        "GoldenSeedDigestNoLogic|seed-digest-no-logic|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Logic=1"
     )
     set(REDSHIP_GOLDEN_DIR "${CMAKE_SOURCE_DIR}/tests/golden")
 
@@ -2362,10 +2382,10 @@ if(BUILD_TESTING)
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
     # #1367: MM's own Logic row set to Nearly No Logic. Until #1367 the paired
     # profile honoured that choice and this row pinned its own world
-    # (seed-digest-mm-nearly-no-logic, #982). A paired world's MM Logic now
-    # derives from [Both Games] Logic (Glitchless under the default Beatable
-    # Only), so the key must not reach the world: the digest must equal
-    # seed-digest-default exactly. Outside REDSHIP_GOLDEN_DIGESTS for the reason
+    # (seed-digest-mm-nearly-no-logic, #982; the file is retired, #1367 R5). A
+    # paired world's MM Logic now derives from [Both Games] Logic (Glitchless
+    # under the default All Locations), so the key must not reach the world: the
+    # digest must equal seed-digest-default exactly. Outside REDSHIP_GOLDEN_DIGESTS for the reason
     # the host-scale variant is: a regen from this run would re-pin the default
     # golden from a profile whose whole claim is that it changes nothing.
     redship_add_test(NAME GoldenSeedDigestMMNearlyNoLogic

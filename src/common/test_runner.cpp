@@ -2283,7 +2283,9 @@ extern "C" int Rando_TestStaticHintsThatDrew(void);
 extern "C" uint32_t Rando_TestStaticHintTexts(int* outCount);
 extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
-static const uint32_t kStaticHintTextDigest = 0x54BF77F4u;
+// Re-pinned by #1367 R5 (generator 4, was 0x54BF77F4): the default paired world is
+// an All Locations world now, and the static hints name where its items landed.
+static const uint32_t kStaticHintTextDigest = 0x2387DBDDu;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
@@ -5324,6 +5326,22 @@ TestResult Test_TextureCacheFreedNode(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1384: the libultraship hardening batch, on the parts that run headless.
+// Config::Save stages "<config>.tmp" and renames it, so a blocked staging path
+// leaves the live config byte-identical; a tile on two empty TMEM slots caches
+// and uploads nothing, and one on an empty slot imports the other slot's texture
+// with key, bytes and size from that slot; gfx_check_image_signature rejects an
+// address below 0x10000 or above the 48-bit user range without reading it.
+// Body in its own TU, src/common/tests/test_lus_hardening.cpp (fast/interpreter.h
+// brings in the whole LUS GBI). ROM-free, archive-free and display-free; no context.
+extern "C" int LusHardening_RunHeadless(void);
+TestResult Test_LusHardening(void) {
+    printf("[TEST] lus-hardening: atomic config save, null-address texture import, signature bounds (#1384)\n");
+    int rc = LusHardening_RunHeadless();
+    printf("[TEST] %s: lus hardening rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #593: a user mod overrides a base asset only by being mounted after it, and
 // the switch-time base re-add (the #154 fix) put the base archives back on top
 // — silently revoking every override, with the mods still listed as enabled.
@@ -8230,6 +8248,8 @@ const TestDescriptor gTests[] = {
       Test_OtrReaddReleasesHandle },
     { "texture-cache-freed-node", "The texture cache leaves no slot on a node it freed (#1352)",
       Test_TextureCacheFreedNode },
+    { "lus-hardening", "Atomic config save, null-address texture import and signature bounds (#1384)",
+      Test_LusHardening },
     { "curated-archive-generator", "make_redship_otr.py refuses a raw-segmented-texture model (#605)",
       Test_CuratedArchiveGenerator },
     { "curated-archive-inapp", "The game generates the curated archives itself, as make_redship_otr.py would (#806)",
