@@ -69,7 +69,8 @@
  * cold-boots to its title, since the retire left it no blob and no slot); with OoT unplayable it falls back to the logo
  * over the retired session; with a cross-game arrival in flight it keeps the session and only restarts MM's logo; and
  * with a vanilla slot and OoT's frozen half resident (a vanilla file that crossed into MM) it retires both before the
- * logo, so MM's title bootstrap can no longer be frozen into that file's MM half (#532's laundering).
+ * logo, so MM's title bootstrap can no longer be frozen into that file's MM half (#532's laundering). With a departure
+ * already pending it stands down altogether: the session, the request and MM_gGameState are left to that departure.
  */
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -109,8 +110,11 @@ int MM_DebugConsole_TestGameStateResetToLogo(void);
 // randomizer_entrance.h both declare an Entrance_Init, so this SoH TU names only the entry points it drives.
 void RsbsSave_SetActiveSlot(int slot);
 int RsbsSave_GetActiveSlot(void);
+void Combo_RequestGameSwitch(void);
 bool Combo_IsGameSwitchRequested(void);
 void Combo_ClearGameSwitchRequest(void);
+bool Combo_IsCrossGameSwitch(void);
+void Combo_ClearPendingSwitch(void);
 bool Combo_HasStartupEntrance(void);
 void Combo_SetStartupEntrance(uint16_t entrance);
 void Combo_ClearStartupEntrance(void);
@@ -437,6 +441,10 @@ int RunConsoleAndKnifeGate() {
         GameState ootState{};
         ootState.running = 1;
         OoT_gGameState = &ootState;
+        // #1378: leg 2 and legs 5-9 arrange the cross-game session and MM's reset retires it, so the identity and the
+        // slot are captured before any of them and restored after leg 9.
+        const ComboContext savedCombo = gComboCtx;
+        const int savedSlot = RsbsSave_GetActiveSlot();
 
         // 1. Majora's Mask running, no MM_gGameState: fails with "MM_gGameState == nullptr", OoT untouched.
         Context_SetCurrentGame(GAME_MM);
@@ -464,6 +472,13 @@ int RunConsoleAndKnifeGate() {
         ootState.running = 1;
         OoT_gGameState = &ootState;
         exitGameHookCalls = 0;
+        // No cross-game session and nothing in flight, whatever an earlier row left behind under `--test all`: with a
+        // paired file resident the reset hands back to OoT instead (leg 5), and with a switch pending it stands down
+        // (leg 9).
+        RsbsSave_SetActiveSlot(-1);
+        Combo_ClearGameSwitchRequest();
+        Combo_ClearPendingSwitch();
+        Combo_ClearStartupEntrance();
         MM_DebugConsole_TestArmGameState(1);
         printf("[TEST] oot-windows-gate: Majora's Mask running, live MM_gGameState, console `reset`\n");
         fflush(stdout);
@@ -539,15 +554,14 @@ int RunConsoleAndKnifeGate() {
             }
         }
 
-        // 5-8. #1378: what MM's reset does with the cross-game session. Each leg arranges the session it names (seed
-        // stamp, active slot, OoT's frozen half, a pending startup entrance, whether OoT can be entered), runs `reset`
-        // under Majora's Mask with a live MM_gGameState, and reads back the switch request, MM's logo transition, the
-        // session and OoT. None of these legs can kill the process on an unfixed build, so they are not guarded.
+        // 5-9. #1378: what MM's reset does with the cross-game session. Each leg arranges the session it names (seed
+        // stamp, active slot, OoT's frozen half, a pending startup entrance or departure, whether OoT can be entered),
+        // runs `reset` under Majora's Mask with a live MM_gGameState, and reads back the switch request, MM's logo
+        // transition, the session and OoT. None of these legs can kill the process on an unfixed build, so they are
+        // not guarded.
         {
-            const ComboContext savedCombo = gComboCtx;
-            const int savedSlot = RsbsSave_GetActiveSlot();
-            std::vector<uint8_t> ootHalf(64,
-                                         0xA5); // stands in for OoT's frozen half (any bytes: only presence is read)
+            // Stands in for OoT's frozen half (any bytes: only its presence is read).
+            std::vector<uint8_t> ootHalf(64, 0xA5);
             constexpr uint32_t kPairedSeed = 0x1378C0DEu;
             constexpr uint32_t kPairedSettingsHash = 0x5E771378u;
             constexpr int kPairedSlot = 0;
@@ -574,6 +588,7 @@ int RunConsoleAndKnifeGate() {
             auto arrange = [&](bool paired, int slot, int targetStatus, bool arrivalInFlight) {
                 Context_ClearAllFrozenStates();
                 Combo_ClearGameSwitchRequest();
+                Combo_ClearPendingSwitch();
                 Combo_ClearStartupEntrance();
                 gComboCtx.sourceIsRando = paired;
                 gComboCtx.sharedRandoSeed = paired ? kPairedSeed : 0;
@@ -594,10 +609,11 @@ int RunConsoleAndKnifeGate() {
 
             auto runReset = [&](const char* leg) {
                 printf("[TEST] oot-windows-gate: %s: before `reset`: resident %d, slot %d, seed %u, OoT frozen %d, "
-                       "arrival pending %d\n",
+                       "arrival pending %d, departure pending %d\n",
                        leg, Context_ComboSessionResident(), RsbsSave_GetActiveSlot(),
                        (unsigned)gComboCtx.sharedRandoSeed, Context_HasFrozenState(GAME_OOT),
-                       Combo_HasStartupEntrance() ? 1 : 0);
+                       Combo_HasStartupEntrance() ? 1 : 0,
+                       (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) ? 1 : 0);
                 fflush(stdout);
                 ResetOutcome out{};
                 out.rc = console->Run("reset", &out.output);
@@ -695,8 +711,32 @@ int RunConsoleAndKnifeGate() {
                 }
             }
 
+            // 9. Paired file with a departure already pending when the reset arrives (here a raw switch request, as
+            // F10 and the owl-save and game-over exits leave it; the Clock Tower door leaves Combo_IsCrossGameSwitch
+            // instead, and the reset reads both). MM's graph loop breaks on it before another frame runs, and its
+            // commit needs the slot and the frozen half, so the reset stands down: the session is kept, MM_gGameState
+            // is not sent to its logo, and the departure's request is left as it was.
+            arrange(true, kPairedSlot, SWITCH_TARGET_PLAYABLE, false);
+            Combo_RequestGameSwitch();
+            if (!Combo_IsGameSwitchRequested() || Context_ComboSessionResident() != 1) {
+                printf("[TEST] FAIL: oot-windows-gate: leg 9 could not arrange a resident paired session with a "
+                       "switch already requested (#1378)\n");
+                failures++;
+            } else {
+                const ResetOutcome out = runReset("paired file, departure pending");
+                if (out.rc != 0 || !out.switchRequested || out.mmRunning != 1 || out.mmResetToLogo != 0 ||
+                    out.resident != 1 || out.slot != kPairedSlot || out.seed != kPairedSeed || out.ootFrozen != 1 ||
+                    !out.ootUntouched || out.saveDiff >= 0) {
+                    printf("[TEST] FAIL: oot-windows-gate: `reset` under Majora's Mask with a departure already "
+                           "pending did not stand down, keeping the session (stamp, slot, OoT's frozen half), the "
+                           "switch request and MM_gGameState (#1378)\n");
+                    failures++;
+                }
+            }
+
             Switch_SetTargetStatusForTest(-1);
             Combo_ClearGameSwitchRequest();
+            Combo_ClearPendingSwitch();
             Combo_ClearStartupEntrance();
             Context_ClearAllFrozenStates();
             gComboCtx = savedCombo;

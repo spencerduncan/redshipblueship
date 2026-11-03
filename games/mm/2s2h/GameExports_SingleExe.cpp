@@ -7901,12 +7901,26 @@ extern "C" bool MM_DebugConsole_IsActiveGame(void) {
  * if OoT cannot be entered (Switch_RequestHotSwap refuses), a paired file falls back to MM's title over the session
  * the retire already ended.
  *
+ * The whole reset stands down while a DEPARTURE is already pending (Combo_IsCrossGameSwitch: the Clock Tower door's
+ * Combo_CheckEntranceSwitch; Combo_IsGameSwitchRequested: F10, or the owl-save and game-over exits' raw request).
+ * That departure has already frozen what it carries, and MM's graph loop breaks on it at the next Combo_CheckHotSwap,
+ * before any reset could run. Retiring under it would drop the blob and slot its crossing or owl-save commit needs,
+ * and on the door path OoT would then arrive with a startup entrance but no blob. So the departure wins, as it did
+ * before #1378, and MM_gGameState is left as it is.
+ *
  * Locked by the redship row OoTWindowsGate (games/oot/soh/oot_windows_gate_test.cpp, leg 6b) and, for the transition
  * itself, by tools/tests/test_repo_invariants.py's title-chain scan over games/mm/2s2h.
  */
 extern "C" int MM_DebugConsole_Reset(void) {
     if (MM_gGameState == nullptr) {
         return 1;
+    }
+
+    // A departure already in flight carries the player on; see above.
+    if (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) {
+        fprintf(stderr, "[MM] Reset ignored: a game switch is already in flight (#1378)\n");
+        fflush(stderr);
+        return 0;
     }
 
     // Read before the retire, which drops the identity and the slot this asks about.
