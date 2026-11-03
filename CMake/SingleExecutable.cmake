@@ -2422,12 +2422,84 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=oot:KF Mido Top Left Chest=mm:Sonata of Awakening,oot:KF Mido Top Right Chest=mm:Deku Mask")
+    # #1286: THE HEAVIEST PROFILE PLAYED SO FAR, AS A MEASUREMENT ROW. The
+    # operator's paired seed 16-98-53-79-52 of 2026-10-27 (input seed 5759360843,
+    # comboSettingsHash 97CADCA9 at 347ba755): every OoT shuffle they played on
+    # (pots, grass, trees, freestanding, tokens, scrubs, merchants, shopsanity 7
+    # with random prices, fishsanity, cows, crawl, grab, climb, swim, speak,
+    # ocarina buttons, open chest, beehives, crates, dungeon rewards and keys
+    # anywhere, key rings, plentiful), every MM one (pots, grass, barrels, crates,
+    # snowballs, trees, freestanding, cows, swim, ocarina buttons, shops, Tingle,
+    # boss souls and remains, clock shuffle, plentiful) and 16 Shared rules. It
+    # took 36 s on the operator's screen against the overlay's 32 s estimate and
+    # read as a near miss, while its fill ran 464 rounds in one batch (37% of the
+    # 1250-round budget of the time, 18.6% of today's 2500). Replayed here exactly
+    # as Generate makes it (RSBS_FORCE_PLACEMENTS=none: no pinned row, the
+    # production completion, hint creation included), the row prints the
+    # measurement line and asserts the budget clears it WITH ROOM: the rounds the
+    # whole ladder charged are at most half the per-attempt round budget. A rounds
+    # figure, not a clock, so the verdict is the same on every machine (#950). The
+    # profile is the operator's session's 125 CVars, verbatim.
+    string(CONCAT RSBS_HEAVY_PROFILE_CVARS
+        "gRandoSettings.40GSHint=1,gRandoSettings.50GSHint=1,gRandoSettings.BigPoeTargetCount=1,"
+        "gRandoSettings.BlueFireArrows=1,gRandoSettings.BombchuBag=1,gRandoSettings.BossKeyHint=1,"
+        "gRandoSettings.BossKeysanity=5,gRandoSettings.ChickensHint=1,gRandoSettings.ClosedForest=2,"
+        "gRandoSettings.CuccosToReturn=1,gRandoSettings.DampeHint=1,gRandoSettings.DoorOfTime=2,"
+        "gRandoSettings.EnableBombchuDrops=1,gRandoSettings.Fishsanity=3,gRandoSettings.FortressCarpenters=1,"
+        "gRandoSettings.FrogsHint=1,gRandoSettings.FullWallets=1,gRandoSettings.GanonTrial=0,"
+        "gRandoSettings.GerudoKeys=3,gRandoSettings.GregHint=1,gRandoSettings.HBAHint=1,"
+        "gRandoSettings.IncludeTycoonWallet=1,gRandoSettings.ItemPool=0,gRandoSettings.KakarikoGate=1,"
+        "gRandoSettings.Keysanity=5,gRandoSettings.LacsRewardCount=8,gRandoSettings.LinksPocket=2,"
+        "gRandoSettings.MalonHint=1,gRandoSettings.ManualSeedEntry=0,gRandoSettings.MerchantText=1,"
+        "gRandoSettings.MidoHint=1,gRandoSettings.RainbowBridge=7,gRandoSettings.RocsFeather=0,"
+        "gRandoSettings.SariaHint=1,gRandoSettings.ScrubText=0,gRandoSettings.ScrubsFixedPrice=2,"
+        "gRandoSettings.ScrubsPrices=3,gRandoSettings.SheikLAHint=1,gRandoSettings.Shopsanity=1,"
+        "gRandoSettings.ShopsanityCount=7,gRandoSettings.ShopsanityPrices=2,gRandoSettings.ShuffleAdultTrade=1,"
+        "gRandoSettings.ShuffleBeehives=1,gRandoSettings.ShuffleBossEntrances=0,gRandoSettings.ShuffleBossSouls=2,"
+        "gRandoSettings.ShuffleClimb=1,gRandoSettings.ShuffleCows=1,gRandoSettings.ShuffleCrates=3,"
+        "gRandoSettings.ShuffleCrawl=1,gRandoSettings.ShuffleDekuNutBag=1,gRandoSettings.ShuffleDekuStickBag=1,"
+        "gRandoSettings.ShuffleDungeonReward=4,gRandoSettings.ShuffleDungeonsEntrances=0,"
+        "gRandoSettings.ShuffleFishingPole=1,gRandoSettings.ShuffleFreestanding=3,"
+        "gRandoSettings.ShuffleFrogSongRupees=1,gRandoSettings.ShuffleGanonBossKey=9,"
+        "gRandoSettings.ShuffleGerudoToken=1,gRandoSettings.ShuffleGrab=1,gRandoSettings.ShuffleGrass=3,"
+        "gRandoSettings.ShuffleKeyRings=2,gRandoSettings.ShuffleKeyRingsRandomCount=4,"
+        "gRandoSettings.ShuffleKokiriSword=1,gRandoSettings.ShuffleMasterSword=1,gRandoSettings.ShuffleMerchants=3,"
+        "gRandoSettings.ShuffleOcarinaButtons=1,gRandoSettings.ShuffleOcarinas=1,gRandoSettings.ShuffleOpenChest=1,"
+        "gRandoSettings.ShuffleOverworldSpawns=0,gRandoSettings.ShufflePots=3,gRandoSettings.ShuffleScrubs=2,"
+        "gRandoSettings.ShuffleSongs=3,gRandoSettings.ShuffleSpeak=1,gRandoSettings.ShuffleStoneFairies=1,"
+        "gRandoSettings.ShuffleSwim=1,gRandoSettings.ShuffleTokens=3,gRandoSettings.ShuffleTrees=1,"
+        "gRandoSettings.SkipChildZelda=1,gRandoSettings.SkipEponaRace=1,gRandoSettings.SkipPlantingBeans=1,"
+        "gRandoSettings.SkipScarecrowsSong=1,gRandoSettings.SlingBowBeehives=1,gRandoSettings.StartingAge=0,"
+        "gRandoSettings.StartingMapsCompasses=0,gRandoSettings.SunlightArrows=1,"
+        "gCombo.Rando.SharedArrowFire=1,gCombo.Rando.SharedArrowIce=1,gCombo.Rando.SharedArrowLight=1,"
+        "gCombo.Rando.SharedBottles=1,gCombo.Rando.SharedKokiriSword=1,gCombo.Rando.SharedLens=1,"
+        "gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskKeaton=1,"
+        "gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedOcarinaButtons=1,"
+        "gCombo.Rando.SharedShields=1,gCombo.Rando.SharedSongEpona=1,gCombo.Rando.SharedSongStorms=1,"
+        "gCombo.Rando.SharedSongTime=1,"
+        "gRando.Options.MoonCrash=1,gRando.Options.RO_CLOCK_SHUFFLE=1,gRando.Options.RO_HINTS_BOSS_REMAINS=1,"
+        "gRando.Options.RO_HINTS_GOSSIP_STONES=1,gRando.Options.RO_HINTS_HOOKSHOT=1,"
+        "gRando.Options.RO_HINTS_OATH_TO_ORDER=1,gRando.Options.RO_HINTS_SPIDER_HOUSES=1,"
+        "gRando.Options.RO_PLENTIFUL_ITEMS=1,gRando.Options.RO_SHUFFLE_BARREL_DROPS=1,"
+        "gRando.Options.RO_SHUFFLE_BOSS_REMAINS=1,gRando.Options.RO_SHUFFLE_BOSS_SOULS=1,"
+        "gRando.Options.RO_SHUFFLE_COWS=1,gRando.Options.RO_SHUFFLE_CRATE_DROPS=1,"
+        "gRando.Options.RO_SHUFFLE_ENEMY_SOULS=0,gRando.Options.RO_SHUFFLE_FREESTANDING_ITEMS=1,"
+        "gRando.Options.RO_SHUFFLE_GRASS_DROPS=1,gRando.Options.RO_SHUFFLE_OCARINA_BUTTONS=1,"
+        "gRando.Options.RO_SHUFFLE_POT_DROPS=1,gRando.Options.RO_SHUFFLE_SHOPS=1,"
+        "gRando.Options.RO_SHUFFLE_SNOWBALL_DROPS=1,gRando.Options.RO_SHUFFLE_SWIM=1,"
+        "gRando.Options.RO_SHUFFLE_TINGLE_SHOPS=1,gRando.Options.RO_SHUFFLE_TREE_DROPS=1,"
+        "gRando.Options.RO_STARTING_MAPS_AND_COMPASSES=1")
+    redship_add_test(NAME CreationHeavyProfileBudget COMMAND redship --test debug-seed-forced-placements
+        LABEL rando
+        TIMEOUT 480
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=none;RSBS_DEBUG_SEED=5759360843;RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=50;RSBS_DIAG_CVARS=${RSBS_HEAVY_PROFILE_CVARS}")
     # The rows above generate the default seed with the default settings and
     # read Randomizer/<icons>.json in the build tree (the round trip twice, around
     # its package write): one at a time under ctest -j, so none reads another's
-    # spoiler mid-rewrite.
+    # spoiler mid-rewrite. CreationHeavyProfileBudget writes its own spoiler into
+    # the same folder, so it waits its turn with them.
     set_tests_properties(GoldenSeedDigestPlayerPath GoldenSeedDigestPackagePath SeedPackageRoundTrip
-        SeedPackageCVarsCannotMoveWorld DebugSeedForcedPlacements
+        SeedPackageCVarsCannotMoveWorld DebugSeedForcedPlacements CreationHeavyProfileBudget
         PROPERTIES RESOURCE_LOCK rsbs_default_seed_spoiler)
 
     # #661 end to end: the OoTEntrancePin row above proves the pair is not a POOL

@@ -8,6 +8,8 @@
 #include "gen_budget.h"
 #include "integration_test_hooks.h" // #793: each report is progress for the int-* watchdog
 
+#include <libultraship/log/luslog.h> // #1286: the creation's measurement lines reach the session log
+#include <stdarg.h>
 #include <stdio.h>
 
 #ifdef _WIN32
@@ -413,14 +415,13 @@ void Combo_GenProgress_End(bool ok) {
     // creation — not only in a benchmark somebody has to remember to run.
     // The presentation split is printed with it, because "the bar cost the
     // generation nothing" is a claim about numbers and this is where the numbers
-    // are. Zero on a headless host by construction.
-    fprintf(stderr,
-            "[Combo] creation progress: %s in %ums wall (%ums generating, %ums presenting; per-attempt budget %u "
-            "rounds, floor %ums)\n",
-            ok ? "COMPLETE" : "FAILED", sProgress.elapsedMs,
-            (sProgress.elapsedMs > sPresentationMs) ? (sProgress.elapsedMs - sPresentationMs) : 0u, sPresentationMs,
-            Combo_GenBudget_RoundsPerAttempt(0), (unsigned)RSBS_GENBUDGET_FLOOR_MS);
-    fflush(stderr);
+    // are. Zero on a headless host by construction. Mirrored into the session log
+    // (#1286), so a playtest report carries it.
+    Combo_GenProgress_LogLine("[Combo] creation progress: %s in %ums wall (%ums generating, %ums presenting; "
+                              "per-attempt budget %u rounds, floor %ums)",
+                              ok ? "COMPLETE" : "FAILED", sProgress.elapsedMs,
+                              (sProgress.elapsedMs > sPresentationMs) ? (sProgress.elapsedMs - sPresentationMs) : 0u,
+                              sPresentationMs, Combo_GenBudget_RoundsPerAttempt(0), (unsigned)RSBS_GENBUDGET_FLOOR_MS);
 
     if (sProgressSink != NULL) {
         sProgressSink(&sProgress);
@@ -432,4 +433,17 @@ void Combo_GenProgress_End(bool ok) {
 
 void Combo_GenProgress_SetMaxAttempts(uint8_t maxAttempts) {
     sProgress.maxAttempts = maxAttempts;
+}
+
+void Combo_GenProgress_LogLine(const char* fmt, ...) {
+    // Sized for the longest caller (the single bag's ladder-attempt line, about
+    // 330 characters); vsnprintf truncates rather than overruns.
+    char line[1024];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(line, sizeof(line), fmt, args);
+    va_end(args);
+    fprintf(stderr, "%s\n", line);
+    fflush(stderr);
+    luslog(__FILE__, __LINE__, LUSLOG_LEVEL_INFO, line);
 }

@@ -351,6 +351,26 @@ const char* Combo_GenPhaseName(uint8_t phase);
  *  "attempt 2 of 10" without this file learning MM's constant. */
 void Combo_GenProgress_SetMaxAttempts(uint8_t maxAttempts);
 
+/**
+ * ONE CREATION LINE, ON BOTH THE LEGS A REPORT CARRIES (#1286). Formats the line
+ * once (printf-style, no trailing newline), writes it to stderr with a newline,
+ * and mirrors it into the session log (`logs/<name>.log`, through libultraship's
+ * logger at INFO).
+ *
+ * WHY. stderr is what a headless row, CI and an operator's console read, but a
+ * playtester's report attaches the `.log`, and a creation's measurement used to
+ * reach stderr only: the operator's 36 s creation (#1286) could not say from its
+ * own files how many fill rounds it ran. Only the few lines per creation that
+ * carry its MEASUREMENT come through here (the session's COMPLETE/FAILED line,
+ * the single bag's ladder-attempt line, the paired completion's OoT-tail line),
+ * never a per-round or per-report line, so the log grows by a handful of lines
+ * per creation.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 1, 2)))
+#endif
+void Combo_GenProgress_LogLine(const char* fmt, ...);
+
 #ifdef __cplusplus
 }
 #endif

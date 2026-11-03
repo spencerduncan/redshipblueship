@@ -176,3 +176,10 @@ and a check or item is its spoiler name or `#<id>`. A name that names nothing li
 it. Up to eight rows; each must be a progression item of the bag on an empty check it may cross to. Without
 `gCombo.Rando.SharedBottles=1` the same rows should make a seed whose bottle is Termina's alone (it crosses like the
 Sonata); that variant was not generated.
+
+`RSBS_FORCE_PLACEMENTS=none` pins nothing (#1286): with `RSBS_DEBUG_SEED` set to a player's seed string and
+`RSBS_DIAG_CVARS` to their settings, it makes their world again exactly as Generate made it and prints a
+`[TEST] measurement:` line (the ladder attempt, the fill's rounds against the round budget, the fill's and the
+completion's wall time), which is how a slow creation is timed. `RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=<p>` fails the
+run when the creation spent more than p% of the per-attempt round budget. Leaving `RSBS_FORCE_PLACEMENTS` unset still
+refuses.

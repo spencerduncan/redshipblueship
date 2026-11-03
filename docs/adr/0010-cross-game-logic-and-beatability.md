@@ -2587,3 +2587,31 @@ seed created within the old budget is created identically within the new one).
 What it costs: a seed the old budget refused now runs up to twice as long before
 it is created or refused, about 60 s per attempt on the reference machine and up
 to 180 s at three times the reference round cost. Locked by `GenBudgetFloor`.
+
+### 2026-11-02 -- The overlay shows the round budget, not the time estimate (#1286)
+
+The question behind the 60 s ruling came from the overlay itself: its second line
+printed the whole creation's elapsed time "(up to 32 s)" of the attempt's time
+estimate, and its within-attempt creep was the attempt's clock over that estimate.
+A headless replay of the operator's seed showed the fill at 464 of its 1250 rounds
+(37%) while OoT's generation, hint creation and presenting ran the clock past the
+estimate. So the overlay now reads the stop's own quantity:
+
+- **Bar:** while MM's fill runs, the single bag's observer notes the rounds run and
+  the per-attempt round budget (`ComboGenOverlay_NoteRounds`), and the creep is
+  rounds over budget. The time estimate drives the creep only where there is no
+  round count (before the bag's first round, MM's own pass).
+- **Line:** "N s elapsed (fill budget P% used)" while rounds are noted, "N s
+  elapsed" otherwise. The estimate is never printed as a limit, because it is not
+  one.
+- **Log:** the session's COMPLETE/FAILED line, the single bag's ladder-attempt line
+  (rounds and budget) and the completion's OoT-tail line reach `logs/<name>.log` as
+  well as stderr (`Combo_GenProgress_LogLine`), so a playtest report carries them.
+- **Replay and measurement:** `--test debug-seed-forced-placements` with
+  `RSBS_FORCE_PLACEMENTS=none` replays a seed string under a profile with no pinned
+  row, through the production completion, and prints one measurement line;
+  `CreationHeavyProfileBudget` replays the operator's seed and profile and requires
+  the ladder's charge to stay at or under half the per-attempt budget.
+
+Nothing a creation decides changed: no stop, budget or golden moves. Locked by
+`GenProgressOverlay` leg 8 and `CreationHeavyProfileBudget`.

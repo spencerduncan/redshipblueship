@@ -64,6 +64,7 @@
 #define RSBS_COMMON_GEN_PROGRESS_OVERLAY_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "gen_budget.h"
@@ -139,7 +140,13 @@ typedef struct ComboGenOverlayView {
     uint8_t maxAttempts; /**< the ladder bound; 0 outside MM_FILL */
     float fraction;      /**< [0,1], never decreasing within one creation */
     uint32_t elapsedMs;  /**< whole-creation elapsed, from the channel */
-    uint32_t budgetMs;   /**< this attempt's budget; 0 when N/A */
+    uint32_t budgetMs;   /**< this attempt's ESTIMATED duration (display only, gen_budget.h); 0 when N/A */
+    /** Fill rounds this ladder attempt has run, and the per-attempt round budget
+     *  (#950's stop), as the single-bag fill last noted them
+     *  (ComboGenOverlay_NoteRounds). Both 0 until a fill notes them, and zeroed by
+     *  every report outside MM_FILL or of a different ladder attempt. */
+    uint32_t roundsRun;
+    uint32_t roundBudget;
     /** One line naming the phase, e.g. "Building the Majora's Mask world
      *  (attempt 2 of 10)". NUL-terminated; never empty while SHOWN. */
     char caption[128];
@@ -172,6 +179,38 @@ bool ComboGenOverlay_Heartbeat(uint32_t attemptElapsedMs);
 /** True when a painter is installed AND a creation is on screen -- i.e. when a
  *  heartbeat would do something. Cheap enough to call in a fill's inner loop. */
 bool ComboGenOverlay_WantsHeartbeat(void);
+
+/**
+ * THE FILL'S POSITION IS COUNTED IN ROUNDS, NOT MILLISECONDS (#1286).
+ *
+ * Tell the overlay how many fill rounds this ladder attempt has run and the
+ * per-attempt round budget it runs under. The single-bag fill's observer calls
+ * this before every heartbeat. While a round budget is noted, the MM_FILL creep
+ * and the elapsed line read rounds over that budget, which is the quantity the
+ * per-attempt stop compares (#950); the attempt's time ESTIMATE
+ * (Combo_GenBudget_FillBudgetMs) is kept only for a stretch with no round count.
+ *
+ * WHY. Until #1286 the creep divided the attempt's elapsed time by the estimate,
+ * and the elapsed line printed the creation's whole elapsed time "(up to N s)"
+ * of the estimate. The operator's heaviest paired seed showed 36 s "up to 32 s"
+ * and read as a near miss, while its fill had run 464 of its 1250 rounds (37%):
+ * the creation's other phases (OoT's generation, hint creation, presenting) run
+ * the clock and not the stop. Nothing here decides anything; it only draws.
+ *
+ * Ignored unless a creation is on screen in MM_FILL.
+ */
+void ComboGenOverlay_NoteRounds(uint32_t roundsRun, uint32_t roundBudget);
+
+/**
+ * The overlay's second line, under the caption: the whole creation's elapsed
+ * seconds, and, while a round budget is noted, the share of this attempt's fill
+ * budget the rounds have used, e.g. "36.1 s elapsed (fill budget 18% used)".
+ * Without one it is the seconds alone: the time estimate is not a limit (#950),
+ * so it is not printed as one. Here rather than in the painter so the headless
+ * row can read the words a player reads. Always NUL-terminates a non-empty
+ * buffer.
+ */
+void ComboGenOverlay_FormatStatusLine(const ComboGenOverlayView* view, char* out, size_t outSize);
 
 /** Install / remove the presentation leg. NULL leaves the state machine
  *  running and silent, which is exactly what a headless row wants. */
