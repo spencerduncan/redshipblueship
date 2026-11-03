@@ -505,6 +505,8 @@ ItemObtainability Randomizer::GetItemObtainabilityFromRandomizerGet(RandomizerGe
             }
         case RG_ROCS_FEATHER:
             return Flags_GetRandomizerInf(RAND_INF_OBTAINED_ROCS_FEATHER) ? CANT_OBTAIN_ALREADY_HAVE : CAN_OBTAIN;
+        case RG_BLAST_MASK: // [RSBS #979]
+            return Flags_GetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK) ? CANT_OBTAIN_ALREADY_HAVE : CAN_OBTAIN;
 
         // Bottles
         case RG_EMPTY_BOTTLE:
@@ -4224,6 +4226,12 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             Flags_SetRandomizerInf(RAND_INF_OBTAINED_ROCS_FEATHER);
             if (INV_CONTENT(ITEM_NAYRUS_LOVE) == ITEM_NONE) {
                 INV_CONTENT(ITEM_NAYRUS_LOVE) = ITEM_ROCS_FEATHER;
+            }
+            break;
+        case RG_BLAST_MASK: // [RSBS #979] the eight masks' give: the flag, and an empty child trade slot
+            Flags_SetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK);
+            if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+                INV_CONTENT(ITEM_TRADE_CHILD) = ITEM_MASK_BLAST;
             }
             break;
         default:

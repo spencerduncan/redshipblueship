@@ -1104,6 +1104,11 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // models, both games' equip rules, the fields' persistence, and OoT's list-based
 // child trade cycle. FILE SCOPE (compiled as C++).
 #include "tests/test_foreign_masks.c"
+// The Blast Mask in Ocarina of Time (#979, epic #975 P4): its three Cross-Game
+// Rules keys and the cooldown table (blast-mask-oot-rule), then the custom
+// ItemID's table bounds, rule-gated ownership, the shared pair and OoT's logic
+// (blast-mask-oot-items). FILE SCOPE (compiled as C++).
+#include "tests/test_blast_mask_oot.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -7336,6 +7341,21 @@ TestResult Test_SharedMasksBunnyBoost(void) {
     return SharedMasksBunnyBoost_Run();
 }
 
+// #979: the Blast Mask's Cross-Game Rules rows, the same bring-up as
+// shared-masks-rule.
+TestResult Test_BlastMaskOoTRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return BlastMaskOoTRule_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -9355,6 +9375,16 @@ const TestDescriptor gTests[] = {
       "OoT's list-based child trade cycle answers exactly as the contiguous cycle for every slot value and ownership "
       "set, and visits a registered custom ItemID (#977)",
       Test_OoTChildTradeCycle },
+    { "blast-mask-oot-rule",
+      "The Blast Mask (OoT), Shared Blast Mask and Blast Mask Cooldown are three Cross-Game Rules, off and Default by "
+      "default, the shared one only with its extension, restored from the file at load; OoTMM's cooldown table and "
+      "one blast per cooldown (#979)",
+      Test_BlastMaskOoTRule },
+    { "blast-mask-oot-items",
+      "The Blast Mask's custom ItemID stays inside OoT's tables and out of SLOT(), is owned and cycled only under the "
+      "frozen rule, pairs into one bag row under the shared rule, and OoT's logic credits it as a child's explosive "
+      "only then (#979)",
+      Test_BlastMaskOoTItems },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",

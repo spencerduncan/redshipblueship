@@ -209,9 +209,11 @@ extern "C" uint8_t OoT_TradeCycleTest_ItemNone(void) {
     return ITEM_NONE;
 }
 
-/** The first custom ItemID after Roc's Feather: what P4's first mask will be. */
+/** The first custom ItemID after Roc's Feather: P4's first mask, the Blast Mask
+ *  (#979), which the row registers itself after clearing every extra. */
 extern "C" uint8_t OoT_TradeCycleTest_FirstFreeCustomItem(void) {
-    return (uint8_t)(ITEM_ROCS_FEATHER + 1);
+    static_assert(ITEM_MASK_BLAST == ITEM_ROCS_FEATHER + 1, "the Blast Mask is the first custom ItemID after Roc's");
+    return (uint8_t)ITEM_MASK_BLAST;
 }
 
 extern "C" int OoT_TradeCycleTest_RegisterExtra(uint8_t itemId, OoTChildTradeOwnedFn owned) {

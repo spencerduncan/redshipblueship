@@ -32,7 +32,7 @@ tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_
 tests/golden/seed-digest-excludes-tricks.txt     # --test rando-determinism, OoT and MM excludes and tricks (#982)
 tests/golden/seed-digest-shopsanity.txt          # --test rando-determinism, OoT Shop Shuffle with Balanced (drawn) prices (#982)
 tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Direction=2 (#982)
-tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978)
+tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast Mask in OoT and Shared Blast Mask (#979)
 tests/golden/seed-digest-beatable-only.txt       # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=2 (#1367 R5)
 tests/golden/seed-digest-no-logic.txt            # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=1 (#1367 R5)
 ```
@@ -221,14 +221,24 @@ so its own golden row is where its creation inside the budget is checked.
 ### The all-masks profile (#978)
 
 `seed-digest-all-masks` is `seed-digest-default`'s seed and dispatch with **every
-mask option on**. Today that means the five shared masks of P2 (#978):
-`gCombo.Rando.SharedMaskGoron`, `SharedMaskZora`, `SharedMaskBunny`,
-`SharedMaskKeaton` and `SharedMaskTruth`, OoTMM's five `sharedMask*` options. In
-this world the composer pairs each mask's two copies into one bag row (ABI 7).
+mask option on**. Today that means seven keys:
 
-Against `seed-digest-default`, the seed, `settingsHash`, `placementHash` and the
-rest of OoT's world at Generate do not move, because the rules are combo settings
-and OoT's settings string does not fold them. What moves:
+* the five shared masks of P2 (#978): `gCombo.Rando.SharedMaskGoron`,
+  `SharedMaskZora`, `SharedMaskBunny`, `SharedMaskKeaton` and `SharedMaskTruth`,
+  OoTMM's five `sharedMask*` options;
+* P4's first piece (#979): `gCombo.Rando.BlastMaskOoT` (OoTMM's `blastMaskOot`,
+  which adds the Blast Mask to OoT's pool) and `gCombo.Rando.SharedMaskBlast`
+  (`sharedMaskBlast`, which pairs it with Majora's Mask's copy).
+
+In this world the composer pairs each mask's two copies into one bag row (ABI 7).
+The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
+`blastMaskCooldown`) is a value, not an on/off option, so the profile leaves it
+at Default.
+
+Against `seed-digest-default`, the five shared masks leave the seed, `settingsHash`,
+`placementHash` and the rest of OoT's world at Generate where they were, because
+the rules are combo settings and OoT's settings string does not fold them. What
+moved when #978 pinned the five shared masks:
 
 * `comboSettingsHash` (`FADB7B21` to `2769D409` at generator 4), which folds the
   five rule bits;
@@ -241,15 +251,45 @@ When it was pinned (generator version 3) it created on ladder attempt 1 in 262
 rounds. Re-pinned at generator version 4 (All Locations by default, #1367 R5), it
 creates on ladder attempt 1 in one batch attempt of 263 rounds.
 
+#979 re-pins it with the two Blast Mask keys, also at generator version 4 (#1392
+bumped the version to 4 in the same release window; this re-pin does not bump
+it again). The Blast Mask (OoT) rule adds the Blast Mask to OoT's pool and the
+shared rule pairs it with MM's Blast Mask, keeping the OoT row and trimming the MM
+one. Against the five-mask pin, measured:
+
+* `comboSettingsHash` (`2769D409` to `3DFE31F1`), which folds the two more rule
+  bits; `comboSettings` does not carry the item rules and stays;
+* `placementHash` (`568A4F87` to `B6E7890B`): unlike the shared masks, this rule
+  changes OoT's own pool at Generate (the creation freezes before Fill), so OoT's
+  world at Generate moves. The Blast Mask takes a junk item's place, so
+  `placedCount` stays 277, and `settingsHash` stays;
+* `bagTrimmedMM` (34 to 35): the sixth shared pair. `bagRows` stays 261 (OoT's
+  Blast Mask row in, MM's trimmed out);
+* the bag's seed and every placement, crossing, hint and foolish area after it
+  (`crossingsInOoT` 54 to 40, `crossingsInMM` 31 to 20).
+
+It still creates on ladder attempt 1 in one batch attempt of 263 rounds. The
+re-pin commit names every field and value that moved. Rule 6 does not bump
+`RSBS_GENERATOR_VERSION` for it: the world moved because this profile's inputs
+changed, and the two new bits are folded into `comboSettingsHash` already, so no
+two builds make different worlds behind one fingerprint. No world the profile
+did not change moves: both rules ship off, so every other golden stays
+byte-identical.
+
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
-this golden with its five keys and requires the frozen `crossItemFlags` to be
-exactly the five mask bits, `0000001F`. It requires `0` for every other golden. A
-misspelled key resolves off, and without this check the golden would record the
-default world's rules under this profile's name. The check fails as `FAIL(12)`.
+this golden with its seven keys and requires the frozen `crossItemFlags` to be
+exactly the seven mask bits, `0000083F` (the five shared masks `0000001F`,
+`RSBS_XITEM_BLAST_MASK_OOT` `00000020` and `RSBS_XITEM_SHARED_BLAST`
+`00000800`). It requires `0` for every other golden. A misspelled key resolves
+off, and without this check the golden would record the default world's rules
+under this profile's name. The check fails as `FAIL(12)`. The Shared Blast Mask
+needs its extension: with `BlastMaskOoT` dropped from the row, the resolver drops
+`SharedMaskBlast` too and the frozen rules read `0000001F`, which this check
+refuses.
 
 **P4 and P5 extend this golden; they do not add one.** P4 (#979: the Blast, Stone
-and Kamaro masks in Ocarina of Time) and P5 (#980: the Gerudo, Skull and Spooky
-masks in Majora's Mask) each do four things:
+and Kamaro masks in Ocarina of Time; the Blast Mask is done) and P5 (#980: the
+Gerudo, Skull and Spooky masks in Majora's Mask) each do four things:
 
 1. append their option keys to this row's `RSBS_DIAG_CVARS` in
    `REDSHIP_GOLDEN_DIGESTS`;
@@ -444,6 +484,9 @@ which moves every proving rung's candidate sets (`armedBagDigest` folds the new
 bag flag). Every golden's bag, crossing, placement and hint lines moved; OoT's own
 generation (`settingsHash`, `placementHash`, `placedCount`) did not.
 `seed-digest-beatable-only` and `seed-digest-no-logic` were pinned at version 4.
+#979 re-pinned `seed-digest-all-masks` at version 4, in the same release window,
+with the Blast Mask keys added to its profile (an input change, not a bump; see
+"The all-masks profile").
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
