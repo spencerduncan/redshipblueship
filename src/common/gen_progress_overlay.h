@@ -188,7 +188,10 @@ bool ComboGenOverlay_WantsHeartbeat(void);
  * this before every heartbeat. While a round budget is noted, the MM_FILL creep
  * and the elapsed line read rounds over that budget, which is the quantity the
  * per-attempt stop compares (#950); the attempt's time ESTIMATE
- * (Combo_GenBudget_FillBudgetMs) is kept only for a stretch with no round count.
+ * (Combo_GenBudget_FillBudgetMs) is kept only for a fill that notes no rounds
+ * (MM's own fill loop, which the paired single bag does not reach). MM's own pass
+ * over its leftovers after the bag sends no heartbeat, so the bag's last noted
+ * rounds stay in the view until the next report.
  *
  * WHY. Until #1286 the creep divided the attempt's elapsed time by the estimate,
  * and the elapsed line printed the creation's whole elapsed time "(up to N s)"

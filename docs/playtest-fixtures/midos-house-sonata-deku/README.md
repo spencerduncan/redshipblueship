@@ -178,8 +178,9 @@ it. Up to eight rows; each must be a progression item of the bag on an empty che
 Sonata); that variant was not generated.
 
 `RSBS_FORCE_PLACEMENTS=none` pins nothing (#1286): with `RSBS_DEBUG_SEED` set to a player's seed string and
-`RSBS_DIAG_CVARS` to their settings, it makes their world again exactly as Generate made it and prints a
-`[TEST] measurement:` line (the ladder attempt, the fill's rounds against the round budget, the fill's and the
-completion's wall time), which is how a slow creation is timed. `RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=<p>` fails the
-run when the creation spent more than p% of the per-attempt round budget. Leaving `RSBS_FORCE_PLACEMENTS` unset still
-refuses.
+`RSBS_DIAG_CVARS` to their settings, it makes their world again exactly as Generate made it and prints two
+`[TEST] measurement:` lines (the ladder attempt, the fill's rounds against the round budget, the fill's and the
+completion's wall time; then the rules fingerprint and each game's pool rows), which is how a slow creation is timed.
+`RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=<p>` fails the run when the creation spent more than p% of the per-attempt round
+budget, and `RSBS_DEBUG_SEED_MIN_POOL_ROWS=<oot>,<mm>` fails it when either game's pool is smaller than that, which
+shows the settings took effect. Leaving `RSBS_FORCE_PLACEMENTS` unset still refuses.

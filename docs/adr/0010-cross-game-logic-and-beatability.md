@@ -2599,8 +2599,10 @@ estimate. So the overlay now reads the stop's own quantity:
 
 - **Bar:** while MM's fill runs, the single bag's observer notes the rounds run and
   the per-attempt round budget (`ComboGenOverlay_NoteRounds`), and the creep is
-  rounds over budget. The time estimate drives the creep only where there is no
-  round count (before the bag's first round, MM's own pass).
+  rounds over budget. The time estimate drives the creep only for a fill that
+  notes no rounds (MM's own fill loop, which the paired single bag does not
+  reach). MM's own pass over its leftovers after the bag sends no heartbeat, so
+  the bag's last share stays on screen until the next phase report.
 - **Line:** "N s elapsed (fill budget P% used)" while rounds are noted, "N s
   elapsed" otherwise. The estimate is never printed as a limit, because it is not
   one.
@@ -2609,9 +2611,12 @@ estimate. So the overlay now reads the stop's own quantity:
   well as stderr (`Combo_GenProgress_LogLine`), so a playtest report carries them.
 - **Replay and measurement:** `--test debug-seed-forced-placements` with
   `RSBS_FORCE_PLACEMENTS=none` replays a seed string under a profile with no pinned
-  row, through the production completion, and prints one measurement line;
-  `CreationHeavyProfileBudget` replays the operator's seed and profile and requires
-  the ladder's charge to stay at or under half the per-attempt budget.
+  row, through the production completion, and prints its measurement lines;
+  `CreationHeavyProfileBudget` replays the operator's seed and profile, requires
+  each game's pool to clear a floor of 1000 OoT + 1500 MM rows (the profile made
+  1464 + 2333 at 347ba755, the default makes about 193 + 283), so an ignored
+  setting cannot lighten the world under it, and requires the ladder's charge to
+  stay at or under half the per-attempt budget.
 
 Nothing a creation decides changed: no stop, budget or golden moves. Locked by
 `GenProgressOverlay` leg 8 and `CreationHeavyProfileBudget`.

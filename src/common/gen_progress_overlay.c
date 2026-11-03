@@ -286,9 +286,14 @@ bool ComboGenOverlay_Heartbeat(uint32_t attemptElapsedMs) {
     //     compares (#950), held just under the next attempt's base so a re-roll
     //     never has to move the bar backwards. The bar then says how much of the
     //     attempt's budget the fill has spent, whatever the clock says.
-    // (b) MM's fill with no round count (the stretch before the single bag's
-    //     first round, and MM's own pass over its leftovers): the same band times
-    //     elapsed / the attempt's time ESTIMATE, which is display-only since #950.
+    // (b) MM's fill with no round budget noted: MM's own fill loop
+    //     (GlitchlessLogic.cpp's heartbeat, which the paired single bag does not
+    //     reach) and a fill run with no per-attempt round budget. The same band
+    //     times elapsed / the attempt's time ESTIMATE, which is display-only since
+    //     #950. On the paired path the bag notes its rounds before every
+    //     heartbeat, from round zero, and MM's own pass over its leftovers after
+    //     the bag sends no heartbeat, so the bag's last noted rounds stay on
+    //     screen until the next report.
     // (c) everything else, where no total exists at all: an asymptote,
     //     t/(t+3000), which rises fast enough to look alive and provably never
     //     reaches the next phase's weight. An asymptote rather than a

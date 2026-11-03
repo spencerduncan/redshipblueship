@@ -2444,10 +2444,15 @@ if(BUILD_TESTING)
     # 1250-round budget of the time, 18.6% of today's 2500). Replayed here exactly
     # as Generate makes it (RSBS_FORCE_PLACEMENTS=none: no pinned row, the
     # production completion, hint creation included), the row prints the
-    # measurement line and asserts the budget clears it WITH ROOM: the rounds the
+    # measurement lines and asserts the budget clears it WITH ROOM: the rounds the
     # whole ladder charged are at most half the per-attempt round budget. A rounds
     # figure, not a clock, so the verdict is the same on every machine (#950). The
-    # profile is the operator's session's 125 CVars, verbatim.
+    # profile is the operator's session's 125 CVars, verbatim. It is anchored by
+    # size: at 347ba755 this profile handed the fill 1464 OoT + 2333 MM pool rows
+    # where the default profile hands about 193 + 283, so the row also requires at
+    # least 1000 + 1500 (RSBS_DEBUG_SEED_MIN_POOL_ROWS). A renamed or ignored
+    # CVar that lightens the world fails the row instead of letting it measure a
+    # lighter one.
     string(CONCAT RSBS_HEAVY_PROFILE_CVARS
         "gRandoSettings.40GSHint=1,gRandoSettings.50GSHint=1,gRandoSettings.BigPoeTargetCount=1,"
         "gRandoSettings.BlueFireArrows=1,gRandoSettings.BombchuBag=1,gRandoSettings.BossKeyHint=1,"
@@ -2500,7 +2505,7 @@ if(BUILD_TESTING)
     redship_add_test(NAME CreationHeavyProfileBudget COMMAND redship --test debug-seed-forced-placements
         LABEL rando
         TIMEOUT 480
-        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=none;RSBS_DEBUG_SEED=5759360843;RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=50;RSBS_DIAG_CVARS=${RSBS_HEAVY_PROFILE_CVARS}")
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_FORCE_PLACEMENTS=none;RSBS_DEBUG_SEED=5759360843;RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=50;RSBS_DEBUG_SEED_MIN_POOL_ROWS=1000,1500;RSBS_DIAG_CVARS=${RSBS_HEAVY_PROFILE_CVARS}")
     # The rows above generate the default seed with the default settings and
     # read Randomizer/<icons>.json in the build tree (the round trip twice, around
     # its package write): one at a time under ctest -j, so none reads another's
