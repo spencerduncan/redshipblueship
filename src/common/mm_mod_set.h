@@ -24,10 +24,11 @@
  *   RSBS_CVAR_MM_DISABLED_MODS  the archives the player turned off.
  *
  * Entries are KEYS: the archive's path relative to MM's half of the tree, with
- * '/' separators (`hd-pack.o2r`, `packs/hd-pack.o2r`). A path, not OoT's file-name
+ * '/' separators (`hd-pack.o2r`, `packs/hd-pack.o2r`). A path, not the file-name
  * stem, because MM's walk is recursive and two same-named archives in different
- * subfolders are two different mods. Joined with '|' like OoT's list ('|' cannot
- * occur in an NTFS file name and almost never does in an ext4 one).
+ * subfolders are two different mods; OoT's list uses the same keys since #1196.
+ * Joined with '|' like OoT's list ('|' cannot occur in an NTFS file name and almost
+ * never does in an ext4 one).
  *
  * THE RULES a scan applies, the same ones every time (Rsbs::ResolveMMModSet):
  *

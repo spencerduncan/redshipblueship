@@ -82,6 +82,13 @@
  *  12. (#1233) A HOSTED ROW IS NOT WHERE THE SEAM RECORDED IT. Leg 9 walks the
  *      hosted-row registry over SoH's Settings, Enhancements and Dev Tools.
  *
+ *  13. (#1272, from #1233) A PRESET DROPS A MAJORA'S MASK ROW. SoH's Presets
+ *      save and apply CVars by top-level family, and MM's gModes, gFixes,
+ *      gCosmetic and gHudEditor sat in no block. Leg 10 requires every hosted
+ *      row's key, every MM colour row's keys and the HUD placement family to
+ *      ride a preset block, except the two families SoH itself leaves out
+ *      beside them (developer tools; the timer display), which must stay out.
+ *
  * WHAT IT DOES NOT COVER. Whether an enabled toggle changes the game. That needs
  * a ROM, a play state and an operator; the ROM-free half of it is
  * MMEnhancementToggles' registry-content evidence, and the rest is a playtest.
@@ -92,6 +99,8 @@
 
 #include "soh/SohGui/SohMenu.h"
 #include "soh/SohGui/HostedMm/SohMenuHostedMm.h"
+#include "soh/Enhancements/Presets/Presets.h"             // leg 10 (#1272): Presets_BlockForCVar
+#include "soh/Enhancements/cosmetics/CosmeticsEditorMm.h" // leg 10: the MM colour rows' view
 
 #include "cvar_shared_keys.h"
 
@@ -1346,6 +1355,72 @@ extern "C" int OoT_MenuMmEnhancementRows_RunHeadless(void) {
         printf("[TEST] leg 9: %zu hosted MM row(s) found on their SoH pages, under their sections, bound as "
                "registered (the verdict refuses a wrong section and a wrong key)\n",
                checked);
+    }
+
+    // ---- Leg 10 (#1272, from #1233): every MM row's key rides a preset block ----
+    // SoH's Presets save and apply by top-level family (Presets.cpp's blockInfo), so a row whose family no block names
+    // is dropped by every preset. The registry is still filled from leg 9's build. Two families stay out on purpose,
+    // because SoH leaves its own twins out: developer tools (no block carries gDeveloperTools) and MM's In-Game Timer
+    // (gDisplayOverlay, beside SoH's timer display, gTimeDisplay). The control: each of those SoH families must still
+    // be outside every block, or the exception has lost its reason.
+    {
+        struct KeptOut {
+            const char* family;
+            const char* sohTwin;
+        };
+        static const KeptOut kKeptOut[] = {
+            { "gDeveloperTools", "gDeveloperTools.DebugEnabled" },
+            { "gDisplayOverlay", "gTimeDisplay.FontScale" },
+        };
+        auto familyOf = [](const std::string& key) { return key.substr(0, key.find('.')); };
+        for (const KeptOut& k : kKeptOut) {
+            MME_CHECK(Presets_BlockForCVar(k.sohTwin) == PRESET_SECTION_MAX,
+                      "leg 10 control: SoH's \"%s\" now rides a preset block, so MM's %s must join it", k.sohTwin,
+                      k.family);
+        }
+        std::size_t covered = 0;
+        for (const SohGui::HostedMmRow& h : SohGui::HostedMmRows()) {
+            if (h.key == nullptr) {
+                continue;
+            }
+            bool keptOut = false;
+            for (const KeptOut& k : kKeptOut) {
+                keptOut = keptOut || familyOf(h.key) == k.family;
+            }
+            const PresetSection block = Presets_BlockForCVar(h.key);
+            if (keptOut) {
+                MME_CHECK(block == PRESET_SECTION_MAX,
+                          "hosted MM row \"%s\" (%s) rides a preset block though SoH keeps its twin family out",
+                          h.name.c_str(), h.key);
+                continue;
+            }
+            MME_CHECK(block != PRESET_SECTION_MAX,
+                      "hosted MM row \"%s\" on %s > %s binds %s, whose family no preset block saves or applies: every "
+                      "preset drops it (Presets.cpp blockInfo)",
+                      h.name.c_str(), h.header.c_str(), h.sidebar.c_str(), h.key);
+            covered++;
+        }
+        const int colorRows = CosmeticsEditor_MmRowCount();
+        for (int r = 0; r < colorRows; r++) {
+            const char* label = nullptr;
+            const char* colorKey = nullptr;
+            const char* changedKey = nullptr;
+            if (!CosmeticsEditor_MmRowAt(r, &label, &colorKey, &changedKey)) {
+                continue;
+            }
+            MME_CHECK(Presets_BlockForCVar(colorKey) == PRESET_SECTION_COSMETICS &&
+                          Presets_BlockForCVar(changedKey) == PRESET_SECTION_COSMETICS,
+                      "the MM colour row \"%s\" (%s) rides no Cosmetics preset block", label, colorKey);
+            covered++;
+        }
+        const std::string hudKey = std::string(RSBS_CVAR_MM_HUD_EDITOR_PREFIX) + "Hearts.Mode";
+        MME_CHECK(Presets_BlockForCVar(hudKey.c_str()) == PRESET_SECTION_COSMETICS,
+                  "MM's HUD placement family (%s) rides no Cosmetics preset block, beside SoH's own HUD placement",
+                  RSBS_CVAR_MM_HUD_EDITOR_PREFIX);
+        MME_CHECK(covered > 0, "leg 10 found no MM row to check%s", "");
+        printf("[TEST] leg 10: %zu MM row key(s) and the HUD placement family ride a preset block; developer tools "
+               "and the In-Game Timer stay out beside SoH's own\n",
+               covered);
     }
 
     if (gFailures == 0) {

@@ -2019,8 +2019,9 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
-    # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity,
-    # mm-nearly-no-logic and direction-forward, #978's all-masks, the ladder world) still creates on
+    # #950: every golden seed (default, profile-v1, entrances, #982's shopsanity
+    # and direction-forward, #978's all-masks, the ladder world; #982's
+    # mm-nearly-no-logic is the default world since #1367) still creates on
     # its pinned attempt inside the shipped round budget, and its bagSeed,
     # bagRounds and mmPairedAttempt match the golden's when the golden is in the
     # tree (bagSeed tells the profiles apart; #982).
@@ -2281,9 +2282,9 @@ if(BUILD_TESTING)
         # all of them), so the stream-drawn price path of 3drando/shops.cpp is
         # pinned only here.
         "GoldenSeedDigestShopsanity|seed-digest-shopsanity|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRandoSettings.Shopsanity=1,gRandoSettings.ShopsanityCount=4,gRandoSettings.ShopsanityPrices=2"
-        # MM Nearly No Logic, the explicit choice the paired profile honours
-        # (Foreign.cpp): every profile above resolves MM to Glitchless.
-        "GoldenSeedDigestMMNearlyNoLogic|seed-digest-mm-nearly-no-logic|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gRando.Options.RO_LOGIC=2"
+        # GoldenSeedDigestMMNearlyNoLogic left this table with #1367: an explicit
+        # MM Logic no longer reaches a paired world, so it is a default-golden
+        # variant now (below, beside GoldenSeedDigestDefaultHostScale300).
         # Combo direction FORWARD (OoT items into MM checks only): every profile
         # above resolves BOTH, so this is the one golden whose crossingsInOoT is 0.
         "GoldenSeedDigestDirectionForward|seed-digest-direction-forward|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.Direction=2"
@@ -2356,6 +2357,28 @@ if(BUILD_TESTING)
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_GENBUDGET_HOST_SCALE=300")
+    # #1367: MM's own Logic row set to Nearly No Logic. Until #1367 the paired
+    # profile honoured that choice and this row pinned its own world
+    # (seed-digest-mm-nearly-no-logic, #982). A paired world's MM Logic now
+    # derives from [Both Games] Logic (Glitchless under the default Beatable
+    # Only), so the key must not reach the world: the digest must equal
+    # seed-digest-default exactly. Outside REDSHIP_GOLDEN_DIGESTS for the reason
+    # the host-scale variant is: a regen from this run would re-pin the default
+    # golden from a profile whose whole claim is that it changes nothing.
+    redship_add_test(NAME GoldenSeedDigestMMNearlyNoLogic
+        COMMAND ${CMAKE_COMMAND}
+                -DREDSHIP_EXE=$<TARGET_FILE:redship>
+                -DWORK_DIR=${CMAKE_BINARY_DIR}
+                -DDISPATCH=rando-determinism
+                -DDIGEST_ENV=RSBS_SEED_DIGEST_OUT
+                -DGOLDEN_DIR=${REDSHIP_GOLDEN_DIR}
+                -DGOLDEN_NAME=seed-digest-default
+                -DRUN_TAG=seed-digest-mm-nearly-no-logic
+                -DARCHIVE_FREE_ONLY=ON
+                -P ${CMAKE_CURRENT_LIST_DIR}/CheckGoldenDigest.cmake
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1;RSBS_DIAG_CVARS=gRando.Options.RO_LOGIC=2")
     # #982: THE PLAYER'S PATH against the default golden. Every golden is written
     # by the headless harness (RSBS_DISABLE_OTR_INIT=1, the synchronous generation,
     # MM's OnSaveInit driven directly); this row generates the same seed the way a
@@ -3017,6 +3040,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # Needs the console variables only: ROM-free and display-free, the default
     # tier. MMModsMount proves the same set drives the real mount and the re-apply.
     redship_add_test(NAME MMModSet COMMAND redship --test mm-mod-set)
+    # OoT'S ENABLED MOD SET KEYED BY PATH (#1196): two archives with one file name in
+    # different folders both mount (each serves a path only it ships), are saved by
+    # their path under mods/ and survive a switch's eviction and re-apply; a list
+    # saved by file name before #1196 migrates to paths keeping its mods and order.
+    # Drives OoT_UpdateModFilesHeadless, the init leg of UpdateModFiles over a staged
+    # tree of zips the row writes itself: ROM-free and archive-free, the default tier.
+    redship_add_test(NAME OoTModSet COMMAND redship --test oot-mod-set)
     # A FOREIGN ITEM'S ICON IN MM'S GET-ITEM TEXTBOX (#607, Tier 2b of #494): every
     # OoT progression item answers a well-formed icon with an MM textbox branch,
     # unknown ids and half-answers fall back, and the REAL CustomMessage load, the

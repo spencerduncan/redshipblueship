@@ -62,8 +62,10 @@
  * 9. A PRESET CARRIES THE WHOLE PAIRED PROFILE (#1368), through the writers
  *    these pages use. A captured profile (MM options, trap types, tricks,
  *    excluded checks and the Cross-Game rules), written out as text and read
- *    back, restores a bound MM trick and a Cross-Game rule over a scrambled
- *    profile; overwrite clears what it does not hold, merge keeps it; a
+ *    back, restores a bound MM trick and the Cross-Game rules, [Both Games]
+ *    Logic among them (#1367), over a scrambled profile; MM's own Logic, which
+ *    that rule sets, is never captured and is refused; overwrite clears what it
+ *    does not hold, merge keeps it; a
  *    reserved or unbound trick and an out-of-space rule are refused (and a
  *    stale unbound key goes back to never chosen), while the rest applies; a
  *    key that is not a randomizer setting is never touched; a decided world
@@ -84,7 +86,7 @@
 #include "../combo_mm_options_view.h"
 #include "../combo_mm_tricks_view.h"
 #include "../combo_preset_profile.h"
-#include "../combo_settings_view.h"
+#include "../combo_settings_view.h" // COMBO_LOGIC_SET_BY_COMBO_REASON (#1367)
 #include "../combo_ui.h"
 #include "../context.h"
 #include "../foreign_items.h"
@@ -238,12 +240,27 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
     {
         ComboContext_Init();
         CMOP_ASSERT(!Combo_MMProfileFrozen());
+        int setByCombo = 0;
         for (int i = 0; i < optionCount; i++) {
             const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
             const char* reason = NULL;
             const ComboMMRowState state = Combo_MMOptionsPage_OptionState(d, &reason);
             const bool gated = d->liveness == COMBO_MM_LIVENESS_PARTIAL || d->liveness == COMBO_MM_LIVENESS_DORMANT;
             CMOP_ASSERT(reason != NULL);
+            // #1367: MM's Logic follows [Both Games] Logic, read-only with the
+            // rule as its reason; it is no capability block.
+            if (strcmp(d->name, COMBO_MM_OPTION_NAME_LOGIC) == 0) {
+                setByCombo++;
+                if (!Combo_MMOptionsPage_OptionSetByCombo(d) || state != COMBO_MM_ROW_SET_BY_COMBO ||
+                    strcmp(reason, COMBO_LOGIC_SET_BY_COMBO_REASON) != 0) {
+                    printf("[TEST] FAIL: MM's Logic row has page state %d with reason \"%s\", expected SET_BY_COMBO "
+                           "with \"%s\" (#1367)\n",
+                           (int)state, reason, COMBO_LOGIC_SET_BY_COMBO_REASON);
+                    return TEST_FAIL;
+                }
+                continue;
+            }
+            CMOP_ASSERT(!Combo_MMOptionsPage_OptionSetByCombo(d));
             if (gated != (state == COMBO_MM_ROW_BLOCKED) || (!gated && state != COMBO_MM_ROW_LIVE)) {
                 printf("[TEST] FAIL: option %s (liveness %u) has page state %d\n", d->name, (unsigned)d->liveness,
                        (int)state);
@@ -251,6 +268,7 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
             }
             CMOP_ASSERT(gated ? strcmp(reason, d->disabledReason) == 0 && reason[0] != '\0' : reason[0] == '\0');
         }
+        CMOP_ASSERT(setByCombo == 1);
         int live = 0;
         int blockedReserved = 0;
         int blockedUnbound = 0;
@@ -553,14 +571,18 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
     // ---- 9. A preset carries the whole paired profile (#1368) ---------------
     {
         // One row of each kind, from the real tables.
-        const ComboMMOptionDesc* option = NULL; // a checkbox the page lets a player set
-        for (int i = 0; i < optionCount && option == NULL; i++) {
+        const ComboMMOptionDesc* option = NULL;  // a checkbox the page lets a player set
+        const ComboMMOptionDesc* mmLogic = NULL; // #1367: read-only, set by [Both Games] Logic
+        for (int i = 0; i < optionCount; i++) {
             const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
-            if (d->widget == COMBO_MM_WIDGET_CHECKBOX && d->liveness != COMBO_MM_LIVENESS_PARTIAL &&
-                d->liveness != COMBO_MM_LIVENESS_DORMANT) {
+            if (Combo_MMOptionsPage_OptionSetByCombo(d)) {
+                mmLogic = mmLogic != NULL ? mmLogic : d;
+            } else if (option == NULL && d->widget == COMBO_MM_WIDGET_CHECKBOX &&
+                       d->liveness != COMBO_MM_LIVENESS_PARTIAL && d->liveness != COMBO_MM_LIVENESS_DORMANT) {
                 option = d;
             }
         }
+        CMOP_ASSERT(mmLogic != NULL);
         const ComboMMTrickDesc* bound = NULL;
         const ComboMMTrickDesc* unbound = NULL;
         const ComboMMTrickDesc* reserved = NULL;
@@ -593,6 +615,11 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         CMOP_ASSERT(Combo_MMTrapTypeSetValue(trap, true));
         CMOP_ASSERT(Combo_MMLocationSetExcluded(check, true));
         CMOP_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_SHARED_LENS, 1) == 1);
+        // #1367: the pair's Logic is a Cross-Game rule the preset carries; MM's
+        // own Logic key, which that rule sets, is never carried.
+        CMOP_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE) == 1);
+        Combo_MMOptionSetValue(mmLogic, Combo_MMOptionGetValue(mmLogic) != 0 ? 0 : 1);
+        CMOP_ASSERT(Combo_MMOptionIsExplicit(mmLogic));
         CVarSetInteger(kProbeKey, 7);
         const nlohmann::json saved = nlohmann::json::parse(ComboPresetProfile_Capture().dump(4));
         CMOP_ASSERT(saved.is_object());
@@ -601,19 +628,26 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         CMOP_ASSERT(CmopProfileAt(saved, unbound->cvar) == nullptr);
         CMOP_ASSERT(CmopProfileAt(saved, Combo_ComboSettingKey(COMBO_SETTING_SHARED_LENS)) != nullptr);
         CMOP_ASSERT(CmopProfileAt(saved, Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS)) == nullptr);
+        CMOP_ASSERT(CmopProfileAt(saved, Combo_ComboSettingKey(COMBO_SETTING_LOGIC)) != nullptr);
+        CMOP_ASSERT(CmopProfileAt(saved, mmLogic->cvar) == nullptr);
         CMOP_ASSERT(CmopProfileAt(saved, kProbeKey) == nullptr);
 
         CmopClearPairedProfile();
         CVarSetInteger(kProbeKey, 9);
         CMOP_ASSERT(!Combo_MMTrickGetValue(bound) && !Combo_ComboSettingIsExplicit(COMBO_SETTING_SHARED_LENS));
+        CMOP_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_LOGIC));
         ComboPresetProfileReport report = ComboPresetProfile_Apply(saved, false);
-        CMOP_ASSERT(report.applied && report.refused == 0 && report.ignored == 0 && report.written == 5);
+        CMOP_ASSERT(report.applied && report.refused == 0 && report.ignored == 0 && report.written == 6);
         CMOP_ASSERT(Combo_MMOptionIsExplicit(option) && Combo_MMOptionGetValue(option) == chosen);
         CMOP_ASSERT(Combo_MMTrickGetValue(bound));
         CMOP_ASSERT(Combo_MMTrapTypeGetValue(trap));
         CMOP_ASSERT(Combo_MMLocationIsExcluded(check));
         int32_t lens = 0;
         CMOP_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_SHARED_LENS, &lens) && lens == 1);
+        int32_t rung = 0;
+        CMOP_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_LOGIC, &rung) &&
+                    rung == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE);
+        CMOP_ASSERT(!Combo_MMOptionIsExplicit(mmLogic));
         CMOP_ASSERT(CVarGetInteger(kProbeKey, 0) == 9);
 
         // Merge keeps what the profile does not hold; overwrite clears it.
@@ -625,20 +659,23 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
         CMOP_ASSERT(Combo_MMTrickGetValue(bound));
 
         // 9b. Refused keys: a reserved and an unbound trick (the writer's own
-        // gate), an out-of-space rule; the rest still applies, and a key that
-        // is not ours is ignored. A STALE unbound key (a hand-edited config) is
-        // put back to never chosen: off is the only value it can hold.
+        // gate), an out-of-space rule, and MM's own Logic (a preset made before
+        // #1367; [Both Games] Logic sets it); the rest still applies, and a key
+        // that is not ours is ignored. A STALE unbound key (a hand-edited
+        // config) is put back to never chosen: off is the only value it can hold.
         nlohmann::json bad = saved;
         CmopProfileSet(bad, unbound->cvar, 1);
         CmopProfileSet(bad, reserved->cvar, 1);
         CmopProfileSet(bad, Combo_ComboSettingKey(COMBO_SETTING_GOAL), 99);
+        CmopProfileSet(bad, mmLogic->cvar, 1);
         CmopProfileSet(bad, kProbeKey, 1);
         CmopClearPairedProfile();
         CVarSetInteger(unbound->cvar, 1);
         report = ComboPresetProfile_Apply(bad, false);
-        CMOP_ASSERT(report.applied && report.refused == 3 && report.ignored == 1);
+        CMOP_ASSERT(report.applied && report.refused == 4 && report.ignored == 1);
         CMOP_ASSERT(CVarGetInteger(unbound->cvar, 0) == 0 && CVarGetInteger(reserved->cvar, 0) == 0);
         CMOP_ASSERT(!Combo_ComboSettingIsExplicit(COMBO_SETTING_GOAL));
+        CMOP_ASSERT(!Combo_MMOptionIsExplicit(mmLogic));
         CMOP_ASSERT(Combo_MMTrickGetValue(bound));
         CMOP_ASSERT(Combo_ComboSettingReadStore(COMBO_SETTING_SHARED_LENS, &lens) && lens == 1);
         CMOP_ASSERT(CVarGetInteger(kProbeKey, 0) == 9);
@@ -698,9 +735,10 @@ extern "C" int Combo_MMOptionsPage_RunHeadless(void) {
 
         CmopClearPairedProfile();
         CVarClear(kProbeKey);
-        printf("[TEST] leg 9: a preset restores the MM trick and Cross-Game rule it carries, refuses reserved, "
-               "unbound and out-of-space keys, never touches a non-randomizer key, is refused whole by a decided "
-               "world, and the shipped reset preset clears the paired profile\n");
+        printf("[TEST] leg 9: a preset restores the MM trick and Cross-Game rules it carries ([Both Games] Logic "
+               "among them), refuses reserved, unbound and out-of-space keys and MM's own Logic, never touches a "
+               "non-randomizer key, is refused whole by a decided world, and the shipped reset preset clears the "
+               "paired profile\n");
     }
 
     ComboContext_Init();

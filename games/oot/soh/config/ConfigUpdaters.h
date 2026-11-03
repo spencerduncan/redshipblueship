@@ -84,6 +84,17 @@ class ConfigVersion9Updater final : public Ship::ConfigVersionUpdater {
 };
 
 /**
+ * RSBS version 10 — #1272 item 5: MM's first-person auto-centering key moves onto SoH's
+ * gSettings.DisableFirstPersonAutoCenterView. A pure rename, same conflict rule (OoT's value wins), via
+ * version10Migrations' RenameIfAbsent row.
+ */
+class ConfigVersion10Updater final : public Ship::ConfigVersionUpdater {
+  public:
+    ConfigVersion10Updater();
+    void Update(Ship::Config* conf);
+};
+
+/**
  * @brief The ADR 0003 §6.3 conflict rule, as a pure predicate.
  *
  * A config can legitimately hold BOTH spellings of a converged setting: the

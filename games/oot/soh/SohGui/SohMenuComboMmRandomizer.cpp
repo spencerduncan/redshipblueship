@@ -106,6 +106,10 @@ SohMenuPresentation ToPresentation(ComboMMRowState state) {
             return SOH_MENU_PRESENT_CAPABILITY;
         case COMBO_MM_ROW_FROZEN:
             return SOH_MENU_PRESENT_FROZEN;
+        case COMBO_MM_ROW_SET_BY_COMBO:
+            // #1367: SoH's disabled row with the rule as its reason ("Set by
+            // [Both Games] Logic"); the group note counts only BLOCKED rows.
+            return SOH_MENU_PRESENT_CAPABILITY;
         case COMBO_MM_ROW_LIVE:
         default:
             return SOH_MENU_PRESENT_LIVE;
@@ -161,7 +165,8 @@ void AddOptionRow(SohMenu& menu, WidgetPath& path, int index) {
             menu.AddWidget(path, label + COMBO_MM_OPTIONS_ROW_ID_SUFFIX, WIDGET_COMBOBOX)
                 .ValuePointer(&sOptionValue[index])
                 .PreFunc([index](WidgetInfo& info) {
-                    sOptionValue[index] = Combo_MMOptionGetValue(Combo_MMOptionAt(index));
+                    // #1367: a row a [Both Games] rule decides shows the rule's value.
+                    sOptionValue[index] = Combo_MMOptionsPage_OptionShownValue(Combo_MMOptionAt(index));
                     // std::map::at throws on a key it does not hold, and
                     // MenuDrawItem catches only bad_variant_access, so a value
                     // the table has no label for is taught as "Unknown (N)" and

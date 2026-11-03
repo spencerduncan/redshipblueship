@@ -107,6 +107,14 @@ typedef enum {
     SOH_MENU_CAP_COMBO_PAIRED,
     /** This is the combined RedShipBlueShip executable, not a lone SoH build. */
     SOH_MENU_CAP_SINGLE_EXE,
+    /**
+     * An Anchor network session can stand for this build's files (#1272 item 7). ABSENT in the combined executable:
+     * SoH's vendored Anchor client (soh/Network/Anchor) carries one Ocarina of Time seed and one save, knows nothing of
+     * a paired file, and ADR 0010's identity rule makes a session over the pair unsound until #574. Network > Anchor
+     * draws greyed with this reason and one gray note. Observed the way SINGLE_EXE is: the build that links both games
+     * is the build whose files are paired.
+     */
+    SOH_MENU_CAP_ANCHOR_SESSIONS,
     SOH_MENU_CAP_BUILTIN_COUNT
 } SohMenuCapability;
 

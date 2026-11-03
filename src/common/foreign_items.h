@@ -234,6 +234,14 @@ bool Combo_ForeignPairingActive(void);
 #define RSBS_COMBO_RUNG_BEATABLE 2u      // GOAL provable under the frozen trick set
 #define RSBS_COMBO_RUNG_ALL_REACHABLE 3u // GOAL provable and every location reachable
 
+/** Does @p rung claim a proof? BEATABLE and ALL_REACHABLE do; NONE, and any
+ *  value outside the pinned table, do not. The question both games' Logic
+ *  derivations ask (#1367): a proving rung generates each half under its
+ *  Glitchless logic, the base rung under its No Logic. */
+static inline bool Combo_LogicRungProves(uint8_t rung) {
+    return rung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE || rung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
+}
+
 // Item classes. Pinned BIT POSITIONS, append-only: allocate the next free bit,
 // never re-point an allocated one. Bits 0x0040..0x8000 are UNALLOCATED and must
 // read as 0 in a formatVersion == 1 record, which is what lets a future build
@@ -333,15 +341,22 @@ bool Combo_ForeignPairingActive(void);
  *     Gilded Sword, and an apply never takes a sword away (an MM apply leaves a
  *     Razor Sword alone).
  *
+ * FOUND IN THE OTHER GAME (#1145): both pool swords feed the kind, so a far
+ * game's sword steps the pool at its pickup and the finder holds the Kokiri
+ * Sword at once (Combo_SharedResourceStepsAtPickup). MM's sword steps only while
+ * the pool holds none; a later MM copy still crosses to become MM's Razor or
+ * Gilded Sword (Combo_SharedPickupStepAdmitted). Locked by SharedTierPickup (K).
+ *
  * THE POOLS STAY WHOLE, set or clear: OoT's RG_KOKIRI_SWORD and MM's three
  * RI_PROGRESSIVE_SWORD copies (MM's sword is a pool item since #879) are all
- * placed, and neither engine maps a sword to the kind. That has a cost, and it
- * is stated here rather than hidden:
+ * placed, and the kind's quantity policy is KEEP_ALL, so no sword is trimmed.
+ * That has a cost, and it is stated here rather than hidden:
  *   - OoT's sword first: MM's pool sword is PROGRESSIVE and resolves from the
- *     sword MM holds (ConvertItem.cpp), so once OoT's sword has crossed, MM's
- *     next sword pickup is the RAZOR Sword, the Gilded Sword comes one pickup
- *     early, and MM's last sword copy is surplus (it resolves to junk). The
- *     share promotes MM's chain by one tier.
+ *     sword MM holds (ConvertItem.cpp), so once OoT's sword has reached the
+ *     pool (crossed, or stepped it at a pickup in Termina), MM's next sword
+ *     pickup is the RAZOR Sword, the Gilded Sword comes one pickup early, and
+ *     MM's last sword copy is surplus (it resolves to junk). The share promotes
+ *     MM's chain by one tier.
  *   - MM's sword first: OoT already owns the Kokiri Sword when it arrives, so
  *     OoT's own Kokiri Sword pickup is a duplicate (Item_Give sets a bit that
  *     is already set).
@@ -816,8 +831,9 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
  * a logged reason — never to a new enumerator. An unset key, or a process with
  * no CVar store at all (every ROM-free row that never brings up a
  * Ship::Context), resolves to the default, so "nothing authored" and "what
- * ships" are the same record. `goal` and `logicRung` stay at their defaults:
- * ADR 0010 owns their authoring.
+ * ships" are the same record. `goal` is authored since 2026-09-27 (ADR 0010
+ * D1) and `logicRung` since #1367 (the pair's [Both Games] Logic, operator
+ * ruling 2026-11-02); both default to what every earlier world froze.
  *
  * "AND THE DETERMINISM DIGESTS DO NOT MOVE" USED TO END THAT SENTENCE, AND IT
  * NAMED NOTHING (#688). The determinism rows run one seed twice and diff the two

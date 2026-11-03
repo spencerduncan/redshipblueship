@@ -22,4 +22,9 @@ void applyPreset(std::string presetName, std::vector<PresetSection> includeSecti
 // presets/ folder, and returns the names of the presets it listed. The archive built-ins are not read (no resource
 // manager is needed), and the folder setting and the loaded preset list are put back before it returns.
 std::vector<std::string> Presets_LoadFolderForTest(const std::string& folder);
+
+// #1272 (from #1233): the preset block a CVar rides, by its top-level family (the segment before its first dot), or
+// PRESET_SECTION_MAX when no block saves or applies it. The lock that every Majora's Mask row's key rides the block of
+// the page that holds it reads this.
+PresetSection Presets_BlockForCVar(const char* key);
 #endif

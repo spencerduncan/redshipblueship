@@ -66,6 +66,7 @@ extern std::unordered_map<RandoCheckId, std::string> accessLogicFuncs;
 // wrapped in C linkage (matching Foreign.cpp).
 #include "combo_tracker_view.h"
 #include "combo_mm_locations_view.h" // Randomizer > MM Locations' check table (#1101 lane R3)
+#include "combo_mm_options_view.h"   // MM_Rando_PairedLogicShown: the resolved MM Logic (#1367)
 #include "game.h"                    // MM_SAVE_CONTEXT_SIZE
 
 // The reader in combo_tracker_view.c walks the row's flag bytes as u8 and the
@@ -465,12 +466,21 @@ const char* MMTrackerCheckLogic(uint16_t checkId) {
 
 // The navigation lock's stand-in (MM_TrackerAdapter_TestSceneSeam below): -1 is
 // production (MM's play state); 0 answers "no MM play state"; 1 answers "MM is
-// played in sSceneTestId".
+// played in sSceneTestId, room sSceneTestRoom" (-1: a room that is no grotto's).
 int sSceneTest = -1;
 int sSceneTestId = 0;
+int sSceneTestRoom = -1;
 // The last scene the op saw that was not a grotto, or -1: the scene a grotto
 // was entered from.
 s16 sAreaLastScene = -1;
+
+// Lone Peak Shrine (#1189): the grotto scene's room ObjGrass.cpp keys the shrine's
+// grass on (grassObjMap, { SCENE_KAKUSIANA, 5 } -> RC_LONE_PEAK_SHRINE_GRASS_01),
+// and one of its checks. MM's tracker connects RR_LONE_PEAK_SHRINE to itself
+// (initializeSceneChecks), so the shrine's checks are listed under the grotto
+// scene, not under the scene it opens from as every other grotto's are.
+constexpr s8 kLonePeakShrineRoom = 5;
+constexpr RandoCheckId kLonePeakShrineCheck = RC_LONE_PEAK_SHRINE_LENS_CHEST;
 
 /**
  * The descriptor's currentArea: the area of the scene MM is played in, the scene
@@ -478,24 +488,40 @@ s16 sAreaLastScene = -1;
  * Show Current Scene (CheckTracker.cpp: Play_GetOriginalSceneId of the play
  * state's scene), keyed as the rows are (MMSceneAreaKey). A grotto
  * (SCENE_KAKUSIANA) answers the scene it was entered from, the last other scene
- * the op saw (the window asks every frame), because MM's tracker lists a
- * grotto's checks under the scene its grotto opens from (MMCheckScenes); none if
- * it saw none. False with no MM play state (MMTrackerLiveSave's rule).
+ * the op saw (the window asks every frame, open or not), because MM's tracker
+ * lists a grotto's checks under the scene its grotto opens from (MMCheckScenes);
+ * none if it saw none. Lone Peak Shrine is the exception (#1189): it answers the
+ * scene MMCheckScenes lists its checks under, so Only Show Current Area keeps
+ * them and the scroll lands on them, and it leaves the scene a grotto was
+ * entered from as it was. False unless MM plays a randomizer file (#1189, ruling
+ * D11, as OoT's op answers only with one loaded). With no MM play state (MM's
+ * file select, or the Day Telop between two play states of one file at dawn,
+ * which respawns the player where the day ended, grotto included) it keeps the
+ * scene a grotto was entered from. A play state on any other save (MM's title
+ * demo, on an unmarked bootstrap save, or a vanilla file) forgets it, so the
+ * next file's first grotto cannot answer this file's scene.
  */
 bool MMTrackerCurrentArea(uint16_t* outKey) {
-    s16 scene = -1;
-    if (sSceneTest >= 0) {
-        if (sSceneTest == 0) {
-            return false;
-        }
-        scene = (s16)sSceneTestId;
-    } else {
-        if (Context_GetCurrentGame() != GAME_MM || MM_gPlayState == nullptr) {
-            return false;
-        }
-        scene = Play_GetOriginalSceneId(MM_gPlayState->sceneId);
+    const bool playState = (sSceneTest >= 0) ? (sSceneTest == 1) : (MM_gPlayState != nullptr);
+    if (!playState) {
+        return false;
     }
-    if (scene == (s16)SCENE_KAKUSIANA) {
+    if (!MMPlaysRandoFile()) {
+        sAreaLastScene = -1;
+        return false;
+    }
+    s16 scene = -1;
+    int room = -1;
+    if (sSceneTest >= 0) {
+        scene = (s16)sSceneTestId;
+        room = sSceneTestRoom;
+    } else {
+        scene = Play_GetOriginalSceneId(MM_gPlayState->sceneId);
+        room = MM_gPlayState->roomCtx.curRoom.num;
+    }
+    if (scene == (s16)SCENE_KAKUSIANA && room == (int)kLonePeakShrineRoom) {
+        scene = MMCheckScenes()[kLonePeakShrineCheck];
+    } else if (scene == (s16)SCENE_KAKUSIANA) {
         scene = sAreaLastScene;
     } else {
         sAreaLastScene = scene;
@@ -606,8 +632,8 @@ extern "C" int MM_TrackerAdapter_TestSetSkippedIn(void* save, uint16_t checkId, 
 
 /**
  * TEST BRIDGE (#1129): @p live -1 restores production; 0 or 1 answers "does MM
- * play a randomizer file now" for the reachability op and the departure capture,
- * in place of MM's play state, which no ROM-free or rando tier has (1 also hands
+ * play a randomizer file now" for the reachability op, the departure capture and
+ * (#1189) the current-area op, in place of MM's play state, which no ROM-free or rando tier has (1 also hands
  * the view &gSaveContext as the live save, as the play state would).
  */
 extern "C" void MM_TrackerAdapter_TestLiveSeam(int live) {
@@ -637,16 +663,40 @@ extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* i
 
 /**
  * TEST BRIDGE (#1131): @p mode -1 restores production; 0 stands in for "no MM
- * play state" and 1 for "MM is played in scene @p sceneId" (the ROM-free tier
- * has no play state), for the current-area op. Modes -1 and 0 also forget the
- * scene a grotto was entered from.
+ * play state" and 1 for "MM is played in scene @p sceneId", in a room that is no
+ * grotto's (the ROM-free tier has no play state), for the current-area op, which
+ * also asks MMPlaysRandoFile (MM_TrackerAdapter_TestLiveSeam stands in for it).
+ * Mode -1 also forgets the scene a grotto was entered from (a fresh session);
+ * mode 0 keeps it, as the op does with no play state (#1189: the Day Telop).
  */
 extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId) {
     sSceneTest = mode < 0 ? -1 : (mode != 0 ? 1 : 0);
     sSceneTestId = sceneId;
-    if (sSceneTest != 1) {
+    sSceneTestRoom = -1;
+    if (sSceneTest < 0) {
         sAreaLastScene = -1;
     }
+}
+
+/**
+ * TEST BRIDGE (#1189): mode 1 of MM_TrackerAdapter_TestSceneSeam in room @p room
+ * of scene @p sceneId, for the grotto scene's rooms (Lone Peak Shrine's is
+ * MM_TrackerAdapter_TestLonePeakShrine's).
+ */
+extern "C" void MM_TrackerAdapter_TestSceneRoomSeam(int sceneId, int room) {
+    MM_TrackerAdapter_TestSceneSeam(1, sceneId);
+    sSceneTestRoom = room;
+}
+
+/**
+ * TEST BRIDGE (#1189): Lone Peak Shrine's room in the grotto scene, in @p outRoom
+ * (which may be NULL), and @return one of its checks.
+ */
+extern "C" int MM_TrackerAdapter_TestLonePeakShrine(int* outRoom) {
+    if (outRoom != nullptr) {
+        *outRoom = (int)kLonePeakShrineRoom;
+    }
+    return (int)kLonePeakShrineCheck;
 }
 
 /** TEST BRIDGE (#1131): check @p checkId's own scene, through Play_GetOriginalSceneId; -1 for none. */
@@ -670,12 +720,15 @@ namespace {
 /**
  * True while MM's pool generation ignores gRando.ExcludedChecks: under Vanilla
  * logic GeneratePools.cpp places every check's vanilla item and never reads the
- * list, which is why MM's own Check Filter tab refused to draw there. The same
- * read that tab made (the RO_LOGIC CVar, Glitchless when unset, the paired
- * resolution's default too).
+ * list, which is why MM's own Check Filter tab refused to draw there. #1367: the
+ * RESOLVED value, not the RO_LOGIC CVar: a paired world's MM Logic follows the
+ * pair's [Both Games] Logic (Glitchless or No Logic, never Vanilla), so a
+ * Vanilla left in the key no longer disables a list the next world reads. Only a
+ * loaded world created with Vanilla before #1367 reads true here, and its page
+ * is frozen anyway.
  */
 bool MMLocationsVanillaLogic(void) {
-    return CVarGetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS) == RO_LOGIC_VANILLA;
+    return MM_Rando_PairedLogicShown() == RO_LOGIC_VANILLA;
 }
 
 } // namespace

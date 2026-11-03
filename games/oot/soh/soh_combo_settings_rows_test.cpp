@@ -395,6 +395,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
+        // #1367: [Both Games] Logic, a combobox over the three pinned
+        // RSBS_COMBO_RUNG_* enumerators, the goal row's shape.
+        { COMBO_SETTING_LOGIC, WIDGET_COMBOBOX, "" },
     };
 
     // Captured by its REGISTERED name, before any PreFunc runs: the status row
@@ -495,6 +498,45 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                    "the goal's shipped default is %d, expected beat-both (OoTMM's default is 'both')",
                    (int)Combo_ComboSettingDefault(COMBO_SETTING_GOAL));
         printf("[TEST] leg 1b: the goal row offers the five pinned goals in OoTMM's words, default Ganon & Majora\n");
+    }
+
+    // ---- Leg 1b2: the logic row offers exactly OoTMM's three, in its words ----
+    // #1367 (operator ruling 2026-11-02): OoTMM's `logic` values on the pinned
+    // rungs (All Locations 3, Beatable Only 2, No Logic 1), each with a "Value:
+    // effect" tooltip line, the No Logic one saying the seed may be unbeatable,
+    // and the default still Beatable Only (the flip is its own lane).
+    {
+        WidgetInfo* logicRow = settingRow[COMBO_SETTING_LOGIC];
+        auto logicOptions = std::static_pointer_cast<UIWidgets::ComboboxOptions>(logicRow->options);
+        const struct {
+            uint8_t value;
+            const char* label;
+        } kLogicLabels[] = {
+            { (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE, "All Locations" },
+            { (uint8_t)RSBS_COMBO_RUNG_BEATABLE, "Beatable Only" },
+            { (uint8_t)RSBS_COMBO_RUNG_NONE, "No Logic" },
+        };
+        ROWS_CHECK(logicOptions->comboMap.size() == 3,
+                   "the logic row offers %zu values, expected OoTMM's three (All Locations, Beatable Only, No Logic)",
+                   logicOptions->comboMap.size());
+        const std::string tooltip = logicOptions->tooltip != nullptr ? logicOptions->tooltip : "";
+        for (const auto& l : kLogicLabels) {
+            ROWS_CHECK(Combo_ComboSettingValueValid(COMBO_SETTING_LOGIC, (int32_t)l.value),
+                       "rung %u is offered by the row but refused by the model's value space", (unsigned)l.value);
+            ROWS_CHECK(logicOptions->comboMap.contains((int32_t)l.value) &&
+                           std::string(logicOptions->comboMap.at((int32_t)l.value)) == l.label,
+                       "rung %u is not labelled '%s' (OoTMM's name for it)", (unsigned)l.value, l.label);
+            ROWS_CHECK(tooltip.find(std::string("\n") + l.label + ": ") != std::string::npos,
+                       "the logic row's tooltip has no '%s: effect' line", l.label);
+        }
+        ROWS_CHECK(tooltip.find("No Logic: Items are placed without any check. The seed may be unbeatable.") !=
+                       std::string::npos,
+                   "the logic row's No Logic line does not say the seed may be unbeatable");
+        ROWS_CHECK(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
+                   "the logic's shipped default is %d, expected Beatable Only (the flip to All Locations is its own "
+                   "lane, with the golden re-pin)",
+                   (int)Combo_ComboSettingDefault(COMBO_SETTING_LOGIC));
+        printf("[TEST] leg 1b2: the logic row offers OoTMM's three values in its words, default Beatable Only\n");
     }
 
     // ---- Leg 1c: the two "Max Items" rows are retired (#801) ----------------
@@ -642,6 +684,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             if (row.name == RowName(COMBO_SETTING_GOAL)) {
                 ROWS_CHECK(section == "Win Condition", "the Goal row sits under '%s', expected \"Win Condition\"",
                            section.c_str());
+            } else if (row.name == RowName(COMBO_SETTING_LOGIC)) {
+                ROWS_CHECK(section == "Logic", "the Logic row sits under '%s', expected \"Logic\" (#1367)",
+                           section.c_str());
             } else if (row.name == RowName(COMBO_SETTING_DIRECTION)) {
                 ROWS_CHECK(section == "Item Crossing",
                            "the Crossing Direction row sits under '%s', expected \"Item Crossing\"", section.c_str());
@@ -660,13 +705,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                 }
             }
         }
-        const std::vector<std::string> kSections = { "Win Condition", "Item Crossing", "Shared Items" };
+        const std::vector<std::string> kSections = { "Win Condition", "Logic", "Item Crossing", "Shared Items" };
         std::string got;
         for (const std::string& s : separators) {
             got += (got.empty() ? "" : ", ") + s;
         }
         ROWS_CHECK(separators == kSections,
-                   "the page's sections read [%s]; OoTMM's are Win Condition, Item Crossing, Shared Items",
+                   "the page's sections read [%s]; expected Win Condition, Logic, Item Crossing, Shared Items",
                    got.c_str());
         printf("[TEST] leg 1f: the page's sections are [%s] and its %d shared rule(s) sit under Shared Items in "
                "OoTMM's order\n",
@@ -707,6 +752,8 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the writer refused a pre-creation direction");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_OOT) == 1,
                "the writer refused a pre-creation goal");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE) == 1,
+               "the writer refused a pre-creation [Both Games] Logic (#1367)");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1,
                "the writer refused a pre-creation Shared Kokiri Sword");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_SHIELDS, 1) == 1,
@@ -743,6 +790,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_GOAL]) == (int32_t)RSBS_COMBO_GOAL_BEAT_OOT,
                "the goal row staged %d, expected the authored %d (Ganon)", StagedInt(*settingRow[COMBO_SETTING_GOAL]),
                (int)RSBS_COMBO_GOAL_BEAT_OOT);
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_LOGIC]) == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE,
+               "the logic row staged %d, expected the authored %d (All Locations)",
+               StagedInt(*settingRow[COMBO_SETTING_LOGIC]), (int)RSBS_COMBO_RUNG_ALL_REACHABLE);
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 1,
                "the Shared Kokiri Sword row staged %d, expected the authored 1",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]));
@@ -825,6 +875,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                "the frozen goal row staged %d; it must show the SAVE's %d (Majora), not the CVar's %d (Ganon) -- the "
                "world was proved against the frozen goal",
                StagedInt(*settingRow[COMBO_SETTING_GOAL]), (int)RSBS_COMBO_GOAL_BEAT_MM, (int)RSBS_COMBO_GOAL_BEAT_OOT);
+    // #1367: the frozen record's rung (the defaults' Beatable Only) against the
+    // authored All Locations key.
+    ExpectDecided(*settingRow[COMBO_SETTING_LOGIC], "the logic row");
+    ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_LOGIC]) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
+               "the frozen logic row staged %d; it must show the SAVE's %d (Beatable Only), not the CVar's %d",
+               StagedInt(*settingRow[COMBO_SETTING_LOGIC]), (int)RSBS_COMBO_RUNG_BEATABLE,
+               (int)RSBS_COMBO_RUNG_ALL_REACHABLE);
     ExpectDecided(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD], "the Shared Kokiri Sword row");
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_KOKIRI_SWORD]) == 0,
                "the frozen Shared Kokiri Sword row staged %d; it must show the SAVE's OFF, not the CVar's ON -- the "

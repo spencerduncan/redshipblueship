@@ -887,19 +887,19 @@ extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves) {
 /**
  * #1350: OoT's Logic was authored "No Logic" and the paired world was generated
  * Glitchless (3drando/playthrough.cpp: OoT's No Logic answers every condition
- * true, and the pair's proof runs over those conditions). Raised by Generate's
+ * true, and the pair's proof runs over those conditions). Since #1367 OoT's own
+ * Logic row is read-only and follows [Both Games] Logic, so only a value stored
+ * before that (or a preset's) reaches here: the player chose a proving
+ * [Both Games] Logic, and No Logic is that row's own choice. Raised by Generate's
  * completion (SeedPackageSingleExe.cpp) on the game thread, in the goal warning's
- * shape: one line, the default colours, muted. The copy names the game, because
- * MM's own explicit No Logic is still honoured (Foreign.cpp), and says "for now"
- * because No Logic comes back with the combo Logic row; every world in this build
- * is paired, so "paired" would tell the player nothing. The full reason is on the
- * stderr line the generation printed. Its own function so the toast-fit row draws
- * the production toast.
+ * shape: one line, the default colours, muted, and within the 53 characters an
+ * 832-px window shows. The full reason is on the stderr line the generation
+ * printed. Its own function so the toast-fit row draws the production toast.
  */
 extern "C" void OoT_Creation_EmitLogicPinToast(void) {
     Notification::Emit({
         .prefix = "No Logic:",
-        .message = "Ocarina of Time is Glitchless for now.",
+        .message = "Ocarina of Time is Glitchless.",
         .mute = true,
     });
 }

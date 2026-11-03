@@ -6,7 +6,13 @@
 // what maps to what (ADR 0003 §6.4).
 #include "cvar_shared_keys.h"
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1272 item 3: the MM rows of SoH's Cosmetics Editor, whose keys MM-only colours import under.
+#include "soh/Enhancements/cosmetics/CosmeticsEditorMm.h"
+#endif
+
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -126,6 +132,108 @@ bool AdoptImportedValue(const RSBS::ConvergedKey& key, const nlohmann::json& val
     return false;
 }
 
+/**
+ * #1272 item 3: a colour 2Ship's Cosmetic Editor changed. 2Ship stores each element as `<stem>.Color`, a nested
+ * {R,G,B[,A],Type} object, beside `<stem>.Changed`; only a changed one counts (its Reset clears .Changed). Fills
+ * @p color (opaque, as 2Ship's reader returns it) and returns true for a changed colour with a readable value.
+ */
+bool ReadChangedTwoShipColor(const nlohmann::json& cvars, const std::string& stem, Color_RGBA8& color) {
+    const nlohmann::json* changed = FindNested(cvars, stem + ".Changed");
+    if (changed == nullptr ||
+        !((changed->is_boolean() && changed->get<bool>()) || (changed->is_number() && changed->get<double>() != 0))) {
+        return false;
+    }
+    const nlohmann::json* value = FindNested(cvars, stem + ".Color");
+    if (value == nullptr || !value->is_object() || !value->contains("R") || !value->contains("G") ||
+        !value->contains("B") || !(*value)["R"].is_number() || !(*value)["G"].is_number() ||
+        !(*value)["B"].is_number()) {
+        return false;
+    }
+    color.r = (uint8_t)(*value)["R"].get<uint32_t>();
+    color.g = (uint8_t)(*value)["G"].get<uint32_t>();
+    color.b = (uint8_t)(*value)["B"].get<uint32_t>();
+    color.a = 255;
+    return true;
+}
+
+/**
+ * Adopt @p color onto an editor row's `<stem>.Value`-or-`.Color` key beside its `<stem>.Changed`, under ADR 0003
+ * section 6.3's conflict rule: a row already changed in the combined config keeps its colour.
+ */
+bool AdoptImportedColor(const std::string& valueKey, const std::string& changedKey, const Color_RGBA8& color) {
+    if (CVarGetInteger(changedKey.c_str(), 0) != 0) {
+        return false;
+    }
+    CVarSetColor(valueKey.c_str(), color);
+    CVarSetInteger(changedKey.c_str(), 1);
+    return true;
+}
+
+/** @p key without @p suffix, or "" when it does not end in it. */
+std::string StemOf(const char* key, const char* suffix) {
+    const std::string k = key;
+    const std::size_t n = std::strlen(suffix);
+    if (k.size() <= n || k.compare(k.size() - n, n, suffix) != 0) {
+        return std::string();
+    }
+    return k.substr(0, k.size() - n);
+}
+
+/**
+ * #1272 item 3: the colour family, which no walk above carries (kTwoShipDoNotImport holds `gCosmetic.` back as a raw
+ * family). Each of MM's colours imports where the single exe reads it:
+ *  - an element with an SoH twin (a kTranslatedKeys row of the cosmetic translator) is read off SoH's Cosmetics
+ *    Editor row, so a changed 2Ship colour lands there: `<option>.Value` and `<option>.Changed`. Only an MM key's FIRST
+ *    row is its twin; a later row of the same MM key is a fallback (SoH's C Buttons under the per-button rows), which
+ *    would recolour all three C buttons for one. Two MM elements on one SoH row (a spin level's charge and burst):
+ *    the first changed one wins, by the conflict rule;
+ *  - an MM-only element keeps MM's own keys, which its MM row in SoH's Cosmetics Editor writes.
+ */
+void ImportTwoShipColors(const nlohmann::json& cvars, int& imported, int& skipped) {
+    for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+        const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+        if (std::strcmp(key.translator, RSBS::kCosmeticTranslator) != 0) {
+            continue;
+        }
+        bool fallback = false;
+        for (std::size_t j = 0; j < i; j++) {
+            fallback = fallback || std::strcmp(RSBS::kTranslatedKeys[j].mmKey, key.mmKey) == 0;
+        }
+        const std::string mmStem = StemOf(key.mmKey, ".Color");
+        const std::string sohStem = StemOf(key.ootKey, ".Value");
+        Color_RGBA8 color;
+        if (fallback || mmStem.empty() || sohStem.empty() || !ReadChangedTwoShipColor(cvars, mmStem, color)) {
+            continue;
+        }
+        if (AdoptImportedColor(key.ootKey, sohStem + ".Changed", color)) {
+            imported++;
+        } else {
+            skipped++;
+        }
+    }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    const int rows = CosmeticsEditor_MmRowCount();
+    for (int r = 0; r < rows; r++) {
+        const char* label = nullptr;
+        const char* colorKey = nullptr;
+        const char* changedKey = nullptr;
+        if (!CosmeticsEditor_MmRowAt(r, &label, &colorKey, &changedKey)) {
+            continue;
+        }
+        const std::string stem = StemOf(colorKey, ".Color");
+        Color_RGBA8 color;
+        if (stem.empty() || !ReadChangedTwoShipColor(cvars, stem, color)) {
+            continue;
+        }
+        if (AdoptImportedColor(colorKey, changedKey, color)) {
+            imported++;
+        } else {
+            skipped++;
+        }
+    }
+#endif
+}
+
 /** Where a standalone 2Ship install would have left its config. */
 std::vector<std::string> CandidateSourcePaths() {
     std::vector<std::string> paths;
@@ -210,6 +318,9 @@ SourceResult ImportFromSource(const std::string& sourcePath) {
             result.skipped++;
         }
     }
+
+    // #1272 item 3: the colours, each where the single exe reads it (SoH's twin row or MM's own row).
+    ImportTwoShipColors(cvars, result.imported, result.skipped);
 
     result.status = SourceStatus::Imported;
     return result;

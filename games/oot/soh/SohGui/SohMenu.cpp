@@ -271,6 +271,8 @@ constexpr CapabilityReasonText kCapReasonMMHosted = { "Majora's Mask Not in This
 constexpr CapabilityReasonText kCapReasonComboHosted = { "Cross-Game Settings Unavailable", 498 };
 constexpr CapabilityReasonText kCapReasonComboPaired = { "No Paired World Yet", 492 };
 constexpr CapabilityReasonText kCapReasonSingleExe = { "Available Only in RedShipBlueShip", 392 };
+/** #1272 item 7: Anchor cannot carry a paired file until multiworld over the pair exists (#574). */
+constexpr CapabilityReasonText kCapReasonAnchorSessions = { "Paired Worlds Not Supported Yet", 574 };
 /** A row that asks for a capability nothing in this build publishes (#497). */
 constexpr CapabilityReasonText kCapReasonUnregistered = { "Not Available in This Build", 497 };
 
@@ -310,6 +312,16 @@ bool SingleExeAbsent(disabledInfo& info) {
     return false;
 #else
     return true;
+#endif
+}
+
+/** #1272 item 7: the combined executable's files are paired, and Anchor's protocol names one seed and one save. */
+bool AnchorSessionsAbsent(disabledInfo& info) {
+    (void)info;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    return true;
+#else
+    return false;
 #endif
 }
 
@@ -367,6 +379,8 @@ std::unordered_map<uint32_t, SohMenuCapabilityRecord>& SohMenu::GetCapabilityMap
         capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_HOSTED] = MakeRecord(ComboHostedAbsent, kCapReasonComboHosted);
         capabilityMap[(uint32_t)SOH_MENU_CAP_COMBO_PAIRED] = MakeRecord(ComboPairedAbsent, kCapReasonComboPaired);
         capabilityMap[(uint32_t)SOH_MENU_CAP_SINGLE_EXE] = MakeRecord(SingleExeAbsent, kCapReasonSingleExe);
+        capabilityMap[(uint32_t)SOH_MENU_CAP_ANCHOR_SESSIONS] =
+            MakeRecord(AnchorSessionsAbsent, kCapReasonAnchorSessions);
     }
     return capabilityMap;
 }

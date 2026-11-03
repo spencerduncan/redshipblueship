@@ -178,10 +178,13 @@ packed mods, so a loose file beats both.
   linked mod folder worked under `mods/` and silently did nothing under
   `mods/mm/`).
 
-  One more difference is bookkeeping rather than behaviour you can see: OoT
-  identifies a mod by its file name with the extension removed, so two archives
-  with the same name in different subfolders count as one. MM identifies a mod by
-  its path inside `mods/mm/`, so they are two mods.
+  Both sides also identify a mod the same way: by its path inside their half of
+  the tree (`mods/` for OoT, `mods/mm/` for MM), so two archives with the same name
+  in different subfolders are two mods, each mounted and each listed with its
+  folder. OoT used to identify a mod by its file name with the extension removed,
+  which mounted only one of two such archives; a list of OoT mods saved that way
+  is converted to paths the first time the game starts with its mods folder
+  present, keeping the same mods in the same order.
 - **Between the two games:** OoT and MM already ship many colliding resource
   paths of their own — 151 object names, 14 actor overlays and all three
   `gameplay_*_keep` archives (`docs/resource-namespace-audit.md`), plus 595 paths

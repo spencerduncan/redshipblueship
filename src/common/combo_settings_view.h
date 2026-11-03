@@ -81,9 +81,9 @@ extern "C" {
 /**
  * The AUTHORABLE fields of ComboSettingsRecord, in the record's own
  * declaration order, then `goal`, appended when ADR 0010 D1's GOAL became a
- * player's choice (2026-09-27). `logicRung` is deliberately NOT here: ADR
- * 0010 owns its authoring, and until that lands it freezes at its shipped
- * default (Combo_ComboSettingsDefaults). Neither are `poolSizeOoT` /
+ * player's choice (2026-09-27), and `logicRung`, appended when the pair's
+ * logic became one [Both Games] choice (#1367, operator ruling 2026-11-02;
+ * until then it froze at its shipped default). Neither are `poolSizeOoT` /
  * `poolSizeMM` (#801) nor `itemClassOoT` / `itemClassMM` (#834) any more, nor
  * the comboFlags shared-ocarina bit (#879): their keys and rows are retired,
  * so a new world freezes the shipped defaults into those bytes and an existing
@@ -140,6 +140,11 @@ typedef enum {
     // game shuffles swim (Combo_ComboItemRulesApplyCreationShuffles), so the
     // resolver never sets it and an unshuffled world keeps its all-clear record.
     COMBO_SETTING_SHARED_SWIM, // gCombo.Rando.SharedSwim -> RSBS_XITEM_SHARED_SWIM
+    // #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
+    // `logic`, on the pinned RSBS_COMBO_RUNG_* enumerators: All Locations (3),
+    // Beatable Only (2, the default every earlier world froze) and No Logic (1).
+    // OoT's RSK_LOGIC_RULES and MM's RO_LOGIC derive from it at creation.
+    COMBO_SETTING_LOGIC, // gCombo.Rando.Logic -> record.logicRung (RSBS_COMBO_RUNG_*)
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -174,7 +179,8 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id);
  * Is @p value inside @p id's PINNED value space (ADR 0011 decision 1.2.1)?
  * Direction: exactly RSBS_COMBO_DIR_OFF..RSBS_COMBO_DIR_BOTH. Goal: exactly
  * one of the pinned RSBS_COMBO_GOAL_* enumerators (0 is a legacy record's
- * "unset" and is not authorable). A comboFlags bit: exactly 0 or 1, never
+ * "unset" and is not authorable). Logic (#1367): exactly one of the three
+ * pinned RSBS_COMBO_RUNG_* enumerators (1..3). A comboFlags bit: exactly 0 or 1, never
  * "nonzero is true", because a 2 stored in a boolean key is a value nobody
  * chose and the rule for those is the shipped default with a logged reason.
  * False for an invalid id.
@@ -272,6 +278,23 @@ const char* Combo_ComboSettingSharedMarker(void);
 const char* Combo_ComboDirectionName(uint8_t direction);
 
 /**
+ * THE PAIR'S LOGIC (#1367, operator ruling 2026-11-02). Strictness is one
+ * [Both Games] choice, COMBO_SETTING_LOGIC; each game's own Logic row only
+ * follows it, so those rows are shown read-only with this reason, in SoH's
+ * Title Case reason style ("Already Decided"). Never NULL.
+ */
+#define COMBO_LOGIC_SET_BY_COMBO_REASON "Set by [Both Games] Logic"
+
+/**
+ * The rung the two games' own Logic presentations follow: the frozen record's
+ * while a world is decided (Combo_ComboSettingsFrozen), else what the next
+ * creation would freeze (Combo_ResolveComboSettings). Always one of the three
+ * pinned RSBS_COMBO_RUNG_* values: a frozen record holding anything else (a
+ * later build's) reads as the shipped default.
+ */
+uint8_t Combo_ComboSettingsLogicRungShown(void);
+
+/**
  * What a load-time restore wrote, so it can be put back exactly (#781): for
  * each rule, whether the restore wrote its key, and whether the key was SET
  * before (and to what) or unset.
@@ -291,8 +314,8 @@ typedef struct ComboSettingsKeyUndo {
  * arrival compare, which reads the same keys, then agrees with the file.
  *
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
- * (Combo_ComboSettingsRestorableMask: goal, crossing direction, the Shared
- * Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
+ * (Combo_ComboSettingsRestorableMask: goal, the logic rung since #1367, crossing
+ * direction, the Shared Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
  * from the session has a key: today the Shared Shields, #1068, the Shared
  * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, the Shared Song
  * of Time, #1069, and the Shared Bottles, #970), the CVar
@@ -300,7 +323,7 @@ typedef struct ComboSettingsKeyUndo {
  * and every frozen value is inside its pinned space; otherwise it writes
  * NOTHING and returns 0, and the caller refuses. @p frozenRules is the file's
  * own item rules record (NULL reads as every rule off). A record field no key authors
- * (the logic rung, an unallocated flag bit, the spare byte) cannot be restored
+ * (an unallocated flag bit, the spare byte) cannot be restored
  * through a key, and the damage bits (unreadable, fingerprint, triforce) never
  * are.
  *

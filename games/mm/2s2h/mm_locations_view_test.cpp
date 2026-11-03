@@ -21,16 +21,18 @@
  *          its set.
  *   leg 3  FROZEN REFUSES. With the profile stamped, adding, removing and
  *          clearing are refused and the key is left exactly as it was.
- *   leg 4  VANILLA REFUSES. Under Vanilla logic MM's pool generation never
- *          reads the list, so the writers refuse an edit there (ADR 0004
- *          section 5); clearing stays allowed.
+ *   leg 4  VANILLA IS NOT A PAIRED WORLD'S LOGIC (#1367). Under Vanilla logic
+ *          MM's pool generation never reads the list, so the writers refused an
+ *          edit there; but a paired world's MM Logic follows [Both Games] Logic
+ *          (Glitchless or No Logic), so a Vanilla left in MM's own key no
+ *          longer blocks the list: an edit lands, clearing stays allowed.
  *   leg 5  THE DIGEST FOLLOWS AN EDIT. One check excluded through the writer
  *          moves MM_Rando_ComputeProfileStamp, taking it out moves it back, and
  *          two spellings of one set (a hand edit's "B,A" and the writers' "A,B,")
  *          give one digest: the identity is the set, so a load can restore it.
  *   leg 6  THE NOTE. Unpaired, the page says the sentence every randomizer page
- *          of ours shares; frozen, the shared frozen sentence; under Vanilla
- *          logic, why the table is disabled.
+ *          of ours shares, a Vanilla in MM's Logic key included (#1367); frozen,
+ *          the shared frozen sentence.
  *   leg 7  THE TABLE OWNS ITS NAMES. PopulateCheckNames reassigns every
  *          CheckNames entry (a move from a temporary, which frees each longer
  *          name's old buffer), and MM's tracker bring-up and the combo tracker
@@ -240,6 +242,12 @@ int LegFrozen(uint16_t a, uint16_t b) {
 }
 
 int LegVanilla(uint16_t a) {
+    // #1367 (operator ruling 2026-11-02): a paired world's MM Logic follows the
+    // pair's [Both Games] Logic (Glitchless or No Logic, never Vanilla), so a
+    // Vanilla left in MM's own Logic key is not the next world's logic. It no
+    // longer disables the list: the world the list authors reads it
+    // (GeneratePools.cpp skips the list only under Vanilla). Before #1367 the
+    // key decided, and an edit here was refused.
     const char* logic = Rando::StaticData::Options[RO_LOGIC].cvar;
     CVarClear(COMBO_MM_EXCLUDED_CHECKS_CVAR);
     if (Combo_MMLocationsBlockedByLogic()) {
@@ -249,23 +257,23 @@ int LegVanilla(uint16_t a) {
     const bool blocked = Combo_MMLocationsBlockedByLogic();
     const bool added = Combo_MMLocationSetExcluded(a, true);
     const std::string afterAdd = Key();
-    CVarSetString(COMBO_MM_EXCLUDED_CHECKS_CVAR, Spell({ a }).c_str());
     const bool cleared = Combo_MMLocationsClearExcluded();
     const bool clearedKey = KeyUnset();
     CVarClear(logic);
     CVarClear(COMBO_MM_EXCLUDED_CHECKS_CVAR);
-    printf("[TEST] leg 4 OBSERVED: vanilla blocked=%d add=%d key-after-add '%s' clear=%d cleared=%d\n", blocked ? 1 : 0,
-           added ? 1 : 0, afterAdd.c_str(), cleared ? 1 : 0, clearedKey ? 1 : 0);
-    if (!blocked || added || !afterAdd.empty()) {
+    printf("[TEST] leg 4 OBSERVED: Vanilla in MM's Logic key: blocked=%d add=%d key-after-add '%s' clear=%d "
+           "cleared=%d\n",
+           blocked ? 1 : 0, added ? 1 : 0, afterAdd.c_str(), cleared ? 1 : 0, clearedKey ? 1 : 0);
+    if (blocked || !added || afterAdd != Spell({ a })) {
         return Fail(41,
-                    "under Vanilla logic the list is not blocked, or an edit reached the key ('%s'): a control "
-                    "that moves the identity and not the world",
+                    "a Vanilla left in MM's Logic key still blocks the list, or the edit did not reach the key "
+                    "('%s'): [Both Games] Logic decides a paired world's MM Logic, never Vanilla (#1367)",
                     afterAdd.c_str());
     }
     if (!cleared || !clearedKey) {
-        return Fail(42, "under Vanilla logic clearing the list was refused");
+        return Fail(42, "clearing the list was refused");
     }
-    printf("[TEST] leg 4: under Vanilla logic an edit is refused and clearing is allowed\n");
+    printf("[TEST] leg 4: a Vanilla in MM's Logic key no longer blocks the list (#1367)\n");
     return 0;
 }
 
@@ -320,8 +328,11 @@ int LegNote(uint16_t a) {
     if (frozen.rfind("Already decided when this world was created", 0) != 0) {
         return Fail(61, "the frozen note is not the shared frozen sentence");
     }
-    if (vanilla.find("Vanilla") == std::string::npos || vanilla == unpaired) {
-        return Fail(62, "under Vanilla logic the note does not say why the table is disabled");
+    if (vanilla != unpaired) {
+        return Fail(62,
+                    "a Vanilla left in MM's Logic key changed the note to '%s'; [Both Games] Logic decides a "
+                    "paired world's MM Logic, never Vanilla (#1367)",
+                    vanilla.c_str());
     }
     printf("[TEST] leg 6: the note says each state\n");
     return 0;

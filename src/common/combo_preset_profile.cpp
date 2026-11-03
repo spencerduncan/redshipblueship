@@ -91,9 +91,20 @@ bool ReadInt(const json& value, int32_t* out) {
 }
 
 /** The page's own test of an option row: PARTIAL and DORMANT rows are drawn
- *  disabled because setting them cannot change the world in this build. */
+ *  disabled because setting them cannot change the world in this build, and
+ *  MM's Logic is drawn read-only because [Both Games] Logic decides it (#1367;
+ *  the profile carries that rule as gCombo.Rando.Logic instead). */
 bool OptionIsAuthorable(const ComboMMOptionDesc* desc) {
-    return desc->liveness != (uint8_t)COMBO_MM_LIVENESS_PARTIAL && desc->liveness != (uint8_t)COMBO_MM_LIVENESS_DORMANT;
+    return desc->liveness != (uint8_t)COMBO_MM_LIVENESS_PARTIAL &&
+           desc->liveness != (uint8_t)COMBO_MM_LIVENESS_DORMANT && !Combo_MMOptionsPage_OptionSetByCombo(desc);
+}
+
+/** Why the page will not let a player set @p desc (OptionIsAuthorable false). */
+const char* OptionRefusalReason(const ComboMMOptionDesc* desc) {
+    if (Combo_MMOptionsPage_OptionSetByCombo(desc)) {
+        return COMBO_LOGIC_SET_BY_COMBO_REASON;
+    }
+    return desc->disabledReason != NULL ? desc->disabledReason : "not available";
 }
 
 void Refuse(ComboPresetProfileReport& report, const char* key, const char* why) {
@@ -159,8 +170,11 @@ json ComboPresetProfile_Capture(void) {
 
     for (int i = 0; i < Combo_MMOptionCount(); i++) {
         const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
-        // Only what the player chose: an unchosen key must come back unchosen,
-        // because the paired MM logic default keys on whether RO_LOGIC exists.
+        // Only what the player chose: an unchosen key must come back unchosen.
+        // MM's Logic is never carried (#1367): [Both Games] Logic decides it and
+        // the page shows it read-only. Its key matters only to a world made
+        // before that rule, and the load restore, not a preset, puts that
+        // world's value back.
         if (desc != NULL && OptionIsAuthorable(desc) && Combo_MMOptionIsExplicit(desc)) {
             Store(profile, desc->cvar, Combo_MMOptionGetValue(desc));
         }
@@ -231,7 +245,10 @@ ComboPresetProfileReport ComboPresetProfile_Apply(const json& profile, bool merg
     const bool clearAbsent = reset || !merge;
     std::set<std::string> known;
 
-    // ---- MM options (first: the excluded-check writer reads the logic option)
+    // ---- MM options. #1367: MM's Logic is refused here, because the
+    //      Cross-Game rules below carry it as [Both Games] Logic, and the
+    //      excluded-check writer reads the logic that rule derives (never
+    //      Vanilla while a preset can apply), not MM's own key.
     for (int i = 0; i < Combo_MMOptionCount(); i++) {
         const ComboMMOptionDesc* desc = Combo_MMOptionAt(i);
         if (desc == NULL) {
@@ -244,7 +261,7 @@ ComboPresetProfileReport ComboPresetProfile_Apply(const json& profile, bool merg
             Refuse(report, desc->cvar, "not an integer");
             value = nullptr;
         } else if (value != nullptr && !OptionIsAuthorable(desc)) {
-            Refuse(report, desc->cvar, desc->disabledReason != NULL ? desc->disabledReason : "not available");
+            Refuse(report, desc->cvar, OptionRefusalReason(desc));
             value = nullptr;
         }
         if (value != nullptr) {

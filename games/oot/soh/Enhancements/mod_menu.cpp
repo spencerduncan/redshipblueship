@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <map>
+#include <set> // #1196: the keys the enabled list has already claimed
 #include <vector>
 
 #include <libultraship/classes.h>
@@ -17,6 +19,8 @@
 #include "soh/SohGui/SohMenu.h"
 #include "soh/SohGui/SohGui.hpp"
 
+// #1196: every list and map here holds KEYS, an archive's path under OoT's mods root
+// (OoTModKey below), not the file-name stem upstream used.
 std::vector<std::string> enabledModFiles;
 std::vector<std::string> disabledModFiles;
 std::vector<std::string> unsupportedFiles;
@@ -60,7 +64,12 @@ void SetEnabledModsCVarValue() {
     }
 
     CVarSetString(CVAR_ENABLED_MODS_NAME, s.c_str());
-    Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
+    // #1196: OoT_UpdateModFilesHeadless runs the init leg, and with it this write, in a
+    // process with no window (the shared bring-up), the same guard MM's list takes.
+    auto window = Ship::Context::GetInstance()->GetWindow();
+    if (window != nullptr && window->GetGui() != nullptr) {
+        window->GetGui()->SaveConsoleVariablesNextFrame();
+    }
 }
 
 void AfterModChange() {
@@ -101,7 +110,12 @@ void ModsHandleDragAndDrop(std::vector<std::string>& objectList, int targetIndex
 
 std::vector<std::string> GetEnabledModsFromCVar() {
     std::string enabledModsCVarValue = CVAR_ENABLED_MODS_VALUE;
-    return StringHelper::Split(enabledModsCVarValue, SEPARATOR);
+    // #1196: an empty entry names no archive. An unset list split to one, which the
+    // init leg then "dropped as missing" and wrote back on every boot, and which with
+    // no mods folder reached DrawMods as a row with no archive behind it.
+    std::vector<std::string> mods = StringHelper::Split(enabledModsCVarValue, SEPARATOR);
+    mods.erase(std::remove(mods.begin(), mods.end(), std::string()), mods.end());
+    return mods;
 }
 
 std::vector<std::string>& GetModFiles(bool enabled) {
@@ -136,6 +150,37 @@ bool IsValidExtension(std::string extension) {
 #endif
 }
 
+// #1196: how the mod menu names an archive. The KEY is the archive's path relative
+// to OoT's mods root, with '/' separators and its extension (`pack.o2r`,
+// `some-pack/pack.otr`): what the enabled list persists, what `filePaths` is keyed
+// by, and what the menu shows. A path and not upstream's file-name stem, because the
+// walk is recursive and two archives with the same name in different folders are two
+// mods. Keyed by stem, `filePaths.emplace` kept the first such archive and the other
+// was never mounted, and a stem listed twice mounted the first one twice. MM's half
+// of the tree keys its archives the same way, relative to `mods/mm`
+// (Rsbs::CollectMMModArchives, src/common/mm_mod_set.cpp).
+static std::string OoTModKey(const std::filesystem::path& modPath, const std::string& modsPath) {
+    std::filesystem::path root = std::filesystem::path(modsPath).lexically_normal();
+    if (!root.has_filename() && root.has_relative_path()) {
+        root = root.parent_path(); // "mods/" -> "mods": a trailing separator is not a folder
+    }
+    const std::filesystem::path normal = modPath.lexically_normal();
+    const std::filesystem::path rel = normal.lexically_relative(root);
+    if (rel.empty() || rel.begin()->generic_string() == "..") {
+        // Not under the root. The walk never yields such a path; the whole path is
+        // still a key no other archive can share.
+        return normal.generic_string();
+    }
+    return rel.generic_string();
+}
+
+// The pre-#1196 key: the file name up to its last '.', exactly as UpdateModFiles
+// used to compute it. Read only to migrate an enabled list saved before #1196.
+static std::string OoTModStem(const std::filesystem::path& modPath) {
+    const std::string name = modPath.filename().generic_string();
+    return name.substr(0, name.rfind("."));
+}
+
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #670: `mods/mm/` is Majora's Mask's folder now, and it was NOT an unused
 // namespace before this change — the walk below is recursive over the whole tree,
@@ -145,14 +190,19 @@ bool IsValidExtension(std::string extension) {
 // installs that actually have such a file, so say so once per run — and only when
 // OoT's own enabled-mods CVar still names the file, which is exactly the set of
 // installs whose behaviour changes.
-static void WarnOnceOnRehomedEnabledMod(const std::filesystem::path& skipped) {
+//
+// #1196: the walk runs before the saved list is resolved, so the list still holds
+// what the config says: the file's key under OoT's root (`mm/x.o2r`), or, in a
+// list saved before #1196, its stem.
+static void WarnOnceOnRehomedEnabledMod(const std::filesystem::path& skipped, const std::string& modsPath) {
     static bool warned = false;
     if (warned || !Combo_ModArchiveExtensionIsValid(skipped.extension().generic_string().c_str())) {
         return;
     }
-    const std::string name = skipped.filename().generic_string();
-    const std::string stem = name.substr(0, name.rfind("."));
-    if (std::find(enabledModFiles.begin(), enabledModFiles.end(), stem) == enabledModFiles.end()) {
+    const std::string key = OoTModKey(skipped, modsPath);
+    const std::string stem = OoTModStem(skipped);
+    if (std::find(enabledModFiles.begin(), enabledModFiles.end(), key) == enabledModFiles.end() &&
+        std::find(enabledModFiles.begin(), enabledModFiles.end(), stem) == enabledModFiles.end()) {
         return;
     }
     warned = true;
@@ -255,7 +305,7 @@ std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPat
         // silent.
         if (reserveMmSubdir &&
             !Combo_ModPathIsForGame(GAME_OOT, modsPath.c_str(), it->path().generic_string().c_str())) {
-            WarnOnceOnRehomedEnabledMod(it->path());
+            WarnOnceOnRehomedEnabledMod(it->path(), modsPath);
             continue;
         }
 #endif
@@ -286,10 +336,10 @@ std::vector<std::filesystem::path> CollectOoTModFiles(const std::string& modsPat
 // without consulting AddArchive's return value, which is upstream's own choice
 // here and not an oversight this seam may quietly "fix".
 //
-// What is NOT in here, and therefore not driven by the seam, is the init leg's
-// menu bookkeeping around it: which stems the enabled set names, and the
-// stem-keyed `filePaths` map that collapses two same-stem archives in different
-// subfolders to one. See OoT_MountModArchivesHeadless's contract.
+// What is NOT in here, and therefore not driven by OoT_MountModArchivesHeadless, is
+// the init leg's menu bookkeeping around it: which archives the enabled set names,
+// in which order. That is ResolveOoTModSet below, which OoT_UpdateModFilesHeadless
+// drives (#1196).
 static void MountAndRegisterOoTMod(const std::string& modArchivePath) {
     GetArchiveManager()->AddArchive(modArchivePath);
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -313,7 +363,7 @@ static void MountAndRegisterOoTMod(const std::string& modArchivePath) {
 // re-apply keeps it on top.
 //
 // Not in the mod menu's enabled list, deliberately: the list is keyed by archive
-// file-name stem and persisted in a CVar, and the loose folder is not an archive.
+// path (#1196) and persisted in a CVar, and the loose folder is not an archive.
 // Rename or empty the folder to turn it off. Called only from MountOoTModLayers
 // below, so the init leg and OoT_MountModArchivesHeadless cannot disagree on it.
 static int MountOoTLooseMods(const std::string& modsPath) {
@@ -329,11 +379,13 @@ static int MountOoTLooseMods(const std::string& modsPath) {
 // Now the loose call lives only here, and the #705 row, which drives this through
 // the seam, goes red if it is removed.
 //
-// What stays unlocked, as for #670's pair: that the init leg calls THIS at all. No
-// row drives UpdateModFiles(true), which reads the player's real mods root and the
-// enabled-mods CVar. The caller decides WHICH archives and in what order (the init
-// leg: the enabled set, in the menu's order; the seam: every archive the walk
-// claims); this decides everything after that.
+// That the init leg calls THIS is locked since #1196: OoT_UpdateModFilesHeadless
+// drives UpdateModFilesAt, everything UpdateModFiles(true) does once the two roots
+// are resolved, and the oot-mod-set row reads the mounts it makes. What stays
+// unlocked is only that resolution (Combo_ModsRootForGame; the #670 row pins the app
+// short name it passes). The caller decides WHICH archives and in what order (the
+// init leg: the enabled set, in the menu's order; OoT_MountModArchivesHeadless: every
+// archive the walk claims); this decides everything after that.
 //
 // @return how many packed archives were mounted and registered plus how many loose
 //         folders were.
@@ -353,7 +405,92 @@ static int MountOoTModLayers(const std::vector<std::filesystem::path>& packedInM
     return mounted;
 }
 
-void UpdateModFiles(bool init = false, bool reset = false) {
+// #1196: the saved enabled list resolved against the archives the walk claimed. A
+// pure function of its arguments; the init leg and the reset leg both call it.
+namespace {
+struct OoTModSet {
+    // Keys in mount order: the LAST is mounted last and wins every path it ships, and
+    // the menu shows it at the top (DrawMods walks the list backwards). Outside the
+    // init leg a saved entry with no archive behind it is kept as it was saved.
+    std::vector<std::string> enabled;
+    // Every claimed archive, by key.
+    std::map<std::string, std::filesystem::path> paths;
+    // Saved entries that were file-name stems and now name an archive by its key.
+    int migrated = 0;
+};
+} // namespace
+
+// The rules, applied to the saved entries in order:
+//   1. An entry that is a key names that archive.
+//   2. Otherwise it is read as a pre-#1196 stem. THE MIGRATION: it names the first
+//      archive in walk order with that stem that no earlier entry took. For a stem
+//      listed once that is the very archive upstream's `filePaths.emplace` kept and
+//      mounted, so an old config keeps its mods, in its order; a stem listed twice
+//      (what upstream saved for two new same-named archives) names both. The list
+//      is written back in keys, so a config migrates once.
+//   3. An entry naming an archive an earlier entry took is a duplicate and is
+//      dropped: one archive, one mount.
+//   4. An entry naming nothing is dropped by the init leg (upstream's "missing") and
+//      kept by the others, as upstream did.
+// Then every claimed archive no entry took is NEW, and enabled: appended in the order
+// of its normalised path, as upstream appended its new stems.
+static OoTModSet ResolveOoTModSet(const std::vector<std::filesystem::path>& claimed, const std::string& modsPath,
+                                  const std::vector<std::string>& saved, bool dropMissing) {
+    OoTModSet resolved;
+    std::vector<std::string> walkOrder;
+    for (const std::filesystem::path& modPath : claimed) {
+        std::string key = OoTModKey(modPath, modsPath);
+        if (resolved.paths.emplace(key, modPath).second) {
+            walkOrder.push_back(std::move(key));
+        }
+    }
+    std::set<std::string> taken;
+    for (const std::string& entry : saved) {
+        if (entry.empty()) {
+            continue;
+        }
+        std::string key;
+        if (resolved.paths.contains(entry)) {
+            key = entry;
+        } else {
+            for (const std::string& candidate : walkOrder) {
+                if (!taken.contains(candidate) && OoTModStem(resolved.paths.at(candidate)) == entry) {
+                    key = candidate;
+                    resolved.migrated++;
+                    break;
+                }
+            }
+        }
+        if (key.empty()) {
+            if (!dropMissing) {
+                resolved.enabled.push_back(entry);
+            }
+            continue;
+        }
+        if (taken.insert(key).second) {
+            resolved.enabled.push_back(key);
+        }
+    }
+    std::map<std::string, std::string> newMods;
+    for (const std::string& key : walkOrder) {
+        if (!taken.contains(key)) {
+            newMods.emplace(resolved.paths.at(key).lexically_normal().generic_string(), key);
+        }
+    }
+    for (const auto& newMod : newMods) {
+        resolved.enabled.push_back(newMod.second);
+    }
+    return resolved;
+}
+
+// #1196: UpdateModFiles once its two roots are resolved: read the saved list (init
+// and reset), walk, resolve, mount (init) and write the list back when it changed.
+// ONE definition, called by UpdateModFiles and by OoT_UpdateModFilesHeadless, so the
+// oot-mod-set row drives the init leg a player's boot runs rather than a copy of it.
+//
+// @return how many archives and loose folders the init leg mounted and registered;
+//         0 outside the init leg or with no mods folder.
+static int UpdateModFilesAt(const std::string& modsPath, const std::string& mmModsPath, bool init, bool reset) {
     if (init || reset) {
         enabledModFiles.clear();
         enabledModFiles = GetEnabledModsFromCVar();
@@ -361,7 +498,46 @@ void UpdateModFiles(bool init = false, bool reset = false) {
     disabledModFiles.clear();
     unsupportedFiles.clear();
     filePaths.clear();
-    bool changed = false;
+    std::error_code ec;
+    if (modsPath.empty() || !std::filesystem::is_directory(modsPath, ec)) {
+        // No folder, no walk: the saved list stays exactly as saved, stems and all
+        // (upstream touched it only when its mods folder existed), so a folder that is
+        // missing for a while costs no mod its place.
+        return 0;
+    }
+    // #670: the walk, the partition and the extension filter live in
+    // CollectOoTModFiles above, one definition shared with OoT_MountModArchivesHeadless.
+    const std::vector<std::string> saved = enabledModFiles;
+    OoTModSet resolved = ResolveOoTModSet(CollectOoTModFiles(modsPath, mmModsPath), modsPath, saved, init);
+    enabledModFiles = std::move(resolved.enabled);
+    filePaths = std::move(resolved.paths);
+    if (resolved.migrated > 0) {
+        fprintf(stderr,
+                "[OoT] mod menu: %d enabled mod(s) saved by file name are now saved by their path under '%s' "
+                "(#1196).\n",
+                resolved.migrated, modsPath.c_str());
+    }
+    int mounted = 0;
+    if (init) {
+        // The enabled set, in the menu's order; mounted by the one sequence
+        // OoT_MountModArchivesHeadless shares (MountOoTModLayers: these, then the
+        // loose layer). The init leg dropped every entry that names no archive.
+        std::vector<std::filesystem::path> toMount;
+        for (const std::string& key : enabledModFiles) {
+            auto it = filePaths.find(key);
+            if (it != filePaths.end()) {
+                toMount.push_back(it->second);
+            }
+        }
+        mounted = MountOoTModLayers(toMount, modsPath);
+    }
+    if (enabledModFiles != saved) {
+        SetEnabledModsCVarValue();
+    }
+    return mounted;
+}
+
+void UpdateModFiles(bool init = false, bool reset = false) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #670, PR #716's review: the same resolver MM's root comes from
     // (Combo_ModsRootForGame -> LocateFileAcrossAppDirs("mods",
@@ -371,64 +547,15 @@ void UpdateModFiles(bool init = false, bool reset = false) {
     // Combo_ModsAppShortName(GAME_OOT) and appShortName agree, which the #670 row
     // asserts (OoT_ModsAppShortName, below).
     std::string modsPath = Combo_ModsRootForGame(GAME_OOT);
+    // #670: MM's root, asked for the way MM asks for it, so the reserve decision
+    // inside the walk is made against the directory MM really globs rather than
+    // against an assumption about the build flags.
+    const std::string mmModsPath = Combo_ModsRootForGame(GAME_MM);
 #else
     std::string modsPath = Ship::Context::LocateFileAcrossAppDirs("mods", appShortName);
+    const std::string mmModsPath;
 #endif
-    std::map<std::string, std::string> tempMods;
-    if (modsPath.length() > 0 && std::filesystem::exists(modsPath)) {
-        std::vector<std::filesystem::path> enabledFiles;
-        if (std::filesystem::is_directory(modsPath)) {
-            // #670: the walk, the partition and the extension filter now live in
-            // CollectOoTModFiles above — one definition, shared with the seam the
-            // lock drives. Everything below is this function's own bookkeeping,
-            // unchanged.
-            // #670: MM's root, asked for the way MM asks for it, so the reserve
-            // decision inside the walk is made against the directory MM really
-            // globs rather than against an assumption about the build flags.
-#ifdef RSBS_SINGLE_EXECUTABLE
-            const std::string mmModsPath = Combo_ModsRootForGame(GAME_MM);
-#else
-            const std::string mmModsPath;
-#endif
-            for (const std::filesystem::path& modPath : CollectOoTModFiles(modsPath, mmModsPath)) {
-                std::string filename =
-                    modPath.filename().generic_string().substr(0, modPath.filename().generic_string().rfind("."));
-                bool enabled =
-                    std::find(enabledModFiles.begin(), enabledModFiles.end(), filename) != enabledModFiles.end();
-                if (!enabled) {
-                    tempMods.emplace(modPath.lexically_normal().generic_string(), filename);
-                }
-                filePaths.emplace(filename, modPath);
-            }
-            if (tempMods.size() > 0) {
-                changed = true;
-                for (auto [path, name] : tempMods) {
-                    enabledModFiles.push_back(name);
-                }
-                tempMods.clear();
-            }
-            if (init) {
-                std::vector<std::string> enabledTemp(enabledModFiles);
-                // The enabled set, in the menu's order; mounted by the one sequence
-                // the seam below shares (MountOoTModLayers: these, then the loose
-                // layer). Collected first and mounted after the bookkeeping, in the
-                // same order the loop used to mount them in.
-                std::vector<std::filesystem::path> toMount;
-                for (std::string mod : enabledTemp) {
-                    if (filePaths.contains(mod)) {
-                        toMount.push_back(filePaths.at(mod));
-                    } else {
-                        enabledModFiles.erase(std::find(enabledModFiles.begin(), enabledModFiles.end(), mod));
-                        changed = true;
-                    }
-                }
-                (void)MountOoTModLayers(toMount, modsPath);
-            }
-        }
-        if (changed) {
-            SetEnabledModsCVarValue();
-        }
-    }
+    (void)UpdateModFilesAt(modsPath, mmModsPath, init, reset);
 }
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -467,14 +594,13 @@ extern "C" const char* OoT_ModsAppShortName(void) {
  *     the #705 loose layer. So the pair, and "loose after packed", are shared too:
  *     delete the loose call and the #705 row goes red (observed, PR #732).
  *
- * WHAT IT DOES NOT DRIVE, and which no row covers: the init leg's CALL of
- * MountOoTModLayers (nothing drives UpdateModFiles(true)), and its menu bookkeeping
- * around that call. The shipping leg iterates the ENABLED set and registers only
- * `filePaths.at(stem)`, a map keyed by file-name stem, so two claimed archives with
- * the same stem in different subfolders collapse to ONE registration and a disabled
- * archive is claimed by the walk but never mounted. This seam registers every path
- * the walk returns. Reading a count from this seam is therefore a measurement of
- * the walk and of the mount pair, NOT of the enabled-set filter.
+ * WHAT IT DOES NOT DRIVE: the init leg's menu bookkeeping around that call. The
+ * shipping leg mounts only the archives its ENABLED set names, in that set's order
+ * (ResolveOoTModSet); this seam registers every path the walk returns, in walk
+ * order. Reading a count from this seam is therefore a measurement of the walk and
+ * of the mount pair, NOT of the enabled-set filter. The bookkeeping, and the init
+ * leg's call of MountOoTModLayers, are driven by OoT_UpdateModFilesHeadless below
+ * (#1196).
  *
  * Both roots are parameters rather than resolved through LocateFileAcrossAppDirs so
  * the row can stage a private tree and never touch the player's ./mods — and so it
@@ -504,6 +630,38 @@ extern "C" int OoT_MountModArchivesHeadless(const char* modsRoot, const char* mm
     // loose layer after the packed mods is shared, not copied.
     return MountOoTModLayers(CollectOoTModFiles(std::string(modsRoot), std::string(mmModsRoot)),
                              std::string(modsRoot));
+}
+
+/**
+ * Headless seam for the #1196 row (src/common/tests/test_oot_mod_set.c):
+ * UpdateModFilesAt with init = true over explicit roots, i.e. EVERYTHING
+ * UpdateModFiles(true) does at GUI init once Combo_ModsRootForGame has answered:
+ * the saved list read from the enabled-mods CVar, the walk, ResolveOoTModSet (path
+ * keys and the stem migration), the mount of the enabled set in its order through
+ * MountOoTModLayers, and the CVar write-back when the list changed.
+ *
+ * Unlike OoT_MountModArchivesHeadless this one reads and WRITES the enabled-mods CVar
+ * (`gSettings.EnabledMods`), and it leaves the menu's model (enabledModFiles,
+ * filePaths) as the staged tree left it; the row puts the CVar back. The write's
+ * save request needs a window, so in the windowless bring-up nothing reaches the
+ * config file.
+ *
+ * @param modsRoot   OoT's mods root.
+ * @param mmModsRoot MM's mods root (the same string for the shared tree).
+ * @return how many archives and loose folders were mounted and registered (0 when
+ *         @p modsRoot is not a directory), or -1 for a NULL/empty root, or with no
+ *         console variables or no live ArchiveManager.
+ */
+extern "C" int OoT_UpdateModFilesHeadless(const char* modsRoot, const char* mmModsRoot) {
+    if (modsRoot == nullptr || modsRoot[0] == '\0' || mmModsRoot == nullptr || mmModsRoot[0] == '\0') {
+        return -1;
+    }
+    auto ctx = Ship::Context::GetInstance();
+    if (ctx == nullptr || ctx->GetConsoleVariables() == nullptr || ctx->GetResourceManager() == nullptr ||
+        ctx->GetResourceManager()->GetArchiveManager() == nullptr) {
+        return -1;
+    }
+    return UpdateModFilesAt(std::string(modsRoot), std::string(mmModsRoot), true, false);
 }
 #endif
 
@@ -589,7 +747,12 @@ void DrawMods(bool enabled) {
             }
         }
 
-        DrawModInfo(filePaths.at(file).filename().generic_string());
+        // #1196: the key, the archive's path under mods/. Two archives with one file
+        // name in different folders are two rows and must read as two; a root-level
+        // archive's key is its file name, as before. And an entry with no archive
+        // behind it (kept outside the init leg) shows as saved instead of throwing out
+        // of filePaths.at.
+        DrawModInfo(file);
         if (enabled) {
             ImGui::EndGroup();
             ModsHandleDragAndDrop(selectedModFiles, i, file);
