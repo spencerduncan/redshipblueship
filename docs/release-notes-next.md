@@ -25,9 +25,10 @@
   closest Ship of Harkinian value to OoTMM's "Removed": you hold the key from the start, so the door to Ganondorf
   opens, and the Tower Boss Key Chest holds a random item that the Check Tracker lists and counts. The Light Arrow
   Cutscene is unchanged (the Shadow and Spirit Medallions). With Triforce Hunt on, the hunt still gives you Ganon's
-  Boss Key: Start With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner, Standard, Advanced and Hell Mode presets keep their own bridge and boss key; "Reset to Default"
-  uses the new defaults. This changes every new world, so the seed generator's version moves with it and a seed
-  package from an earlier build is refused. Saved files keep the gates they were made with.
+  Boss Key: Start With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner,
+  Standard, Advanced and Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new
+  defaults. This changes every new world, so the seed generator's version moves with it and a seed package from an
+  earlier build is refused. Saved files keep the gates they were made with.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
