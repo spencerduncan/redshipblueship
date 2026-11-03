@@ -191,7 +191,7 @@ void Settings::CreateOptions() {
             mOptions[RSK_KEYRINGS_GERUDO_FORTRESS].Enable();
         }
     });
-    OPT_U8(RSK_RAINBOW_BRIDGE, "Rainbow Bridge", {"Vanilla", "Always open", "Stones", "Medallions", "Dungeon rewards", "Dungeons", "Tokens", "Greg"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("RainbowBridge"), mOptionDescriptions[RSK_RAINBOW_BRIDGE], WIDGET_CVAR_COMBOBOX, RO_BRIDGE_VANILLA, false, nullptr, IMFLAG_NONE);
+    OPT_U8(RSK_RAINBOW_BRIDGE, "Rainbow Bridge", {"Vanilla", "Always open", "Stones", "Medallions", "Dungeon rewards", "Dungeons", "Tokens", "Greg"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("RainbowBridge"), mOptionDescriptions[RSK_RAINBOW_BRIDGE], WIDGET_CVAR_COMBOBOX, RO_BRIDGE_SHIPPED_DEFAULT, false, nullptr, IMFLAG_NONE);
     OPT_CALLBACK(RSK_RAINBOW_BRIDGE, {
         mOptions[RSK_BRIDGE_OPTIONS].Hide();
         mOptions[RSK_RAINBOW_BRIDGE_STONE_COUNT].Hide();
@@ -199,7 +199,7 @@ void Settings::CreateOptions() {
         mOptions[RSK_RAINBOW_BRIDGE_REWARD_COUNT].Hide();
         mOptions[RSK_RAINBOW_BRIDGE_DUNGEON_COUNT].Hide();
         mOptions[RSK_RAINBOW_BRIDGE_TOKEN_COUNT].Hide();
-        switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("RainbowBridge"), RO_BRIDGE_VANILLA)) {
+        switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("RainbowBridge"), RO_BRIDGE_SHIPPED_DEFAULT)) {
             case RO_BRIDGE_STONES:
                 // Show Bridge Options and Stone Count slider
                 mOptions[RSK_RAINBOW_BRIDGE].RemoveFlag(IMFLAG_SEPARATOR_BOTTOM);
@@ -1055,10 +1055,10 @@ void Settings::CreateOptions() {
         }
     });
     OPT_U8(RSK_BOSS_KEYSANITY, "Boss Key Shuffle", {"Start With", "Vanilla", "Own Dungeon", "Any Dungeon", "Overworld", "Anywhere"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("BossKeysanity"), mOptionDescriptions[RSK_BOSS_KEYSANITY], WIDGET_CVAR_COMBOBOX, RO_DUNGEON_ITEM_LOC_OWN_DUNGEON);
-    OPT_U8(RSK_GANONS_BOSS_KEY, "Ganon's Boss Key", {"Vanilla", "Own Dungeon", "Start With", "Any Dungeon", "Overworld", "Anywhere", "LACS-Vanilla", "LACS-Stones", "LACS-Medallions", "LACS-Rewards", "LACS-Dungeons", "LACS-Tokens", "100 GS Reward"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), mOptionDescriptions[RSK_GANONS_BOSS_KEY], WIDGET_CVAR_COMBOBOX, RO_GANON_BOSS_KEY_VANILLA);
+    OPT_U8(RSK_GANONS_BOSS_KEY, "Ganon's Boss Key", {"Vanilla", "Own Dungeon", "Start With", "Any Dungeon", "Overworld", "Anywhere", "LACS-Vanilla", "LACS-Stones", "LACS-Medallions", "LACS-Rewards", "LACS-Dungeons", "LACS-Tokens", "100 GS Reward"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), mOptionDescriptions[RSK_GANONS_BOSS_KEY], WIDGET_CVAR_COMBOBOX, RO_GANON_BOSS_KEY_SHIPPED_DEFAULT);
     OPT_CALLBACK(RSK_GANONS_BOSS_KEY, {
         // Shuffle 100 GS Reward - Force-Enabled if Ganon's Boss Key is on the 100 GS Reward
-        if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_VANILLA) ==
+        if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_SHIPPED_DEFAULT) ==
             RO_GANON_BOSS_KEY_KAK_TOKENS) {
             mOptions[RSK_SHUFFLE_100_GS_REWARD].Disable(
                 "This option is force-enabled because \"Ganon's Boss Key\" is set to \"100 GS Reward\".");
@@ -1071,7 +1071,7 @@ void Settings::CreateOptions() {
         mOptions[RSK_LACS_REWARD_COUNT].Hide();
         mOptions[RSK_LACS_DUNGEON_COUNT].Hide();
         mOptions[RSK_LACS_TOKEN_COUNT].Hide();
-        switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_VANILLA)) {
+        switch (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_SHIPPED_DEFAULT)) {
             case RO_GANON_BOSS_KEY_LACS_STONES:
                 mOptions[RSK_LACS_OPTIONS].Unhide();
                 mOptions[RSK_LACS_STONE_COUNT].Unhide();

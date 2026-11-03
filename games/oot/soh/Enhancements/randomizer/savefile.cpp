@@ -348,7 +348,16 @@ void SetStartingItems() {
         gSaveContext.inventory.dungeonItems[SCENE_SHADOW_TEMPLE] |= 1; // Shadow
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1428: with a Triforce Hunt on, the hunt grants Ganon's Boss Key (its own
+    // requirement under a boss goal, the combo win under the Triforce Hunt goal),
+    // as the greyed row says, so "Start With", the shipped default, does not hand
+    // it out at creation and the hunt stays the lock on the tower door.
+    if (Randomizer_GetSettingValue(RSK_GANONS_BOSS_KEY) == RO_GANON_BOSS_KEY_STARTWITH &&
+        Randomizer_GetSettingValue(RSK_TRIFORCE_HUNT) == RO_TRIFORCE_HUNT_OFF) {
+#else
     if (Randomizer_GetSettingValue(RSK_GANONS_BOSS_KEY) == RO_GANON_BOSS_KEY_STARTWITH) {
+#endif
         gSaveContext.inventory.dungeonItems[SCENE_GANONS_TOWER] |= 1;
     }
 }
