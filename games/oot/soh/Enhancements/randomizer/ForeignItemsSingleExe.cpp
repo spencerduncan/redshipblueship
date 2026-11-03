@@ -884,6 +884,26 @@ extern "C" void OoT_Creation_EmitGoalWarningToast(uint32_t unprovedHalves) {
     });
 }
 
+/**
+ * #1350: OoT's Logic was authored "No Logic" and the paired world was generated
+ * Glitchless (3drando/playthrough.cpp: OoT's No Logic answers every condition
+ * true, and the pair's proof runs over those conditions). Raised by Generate's
+ * completion (SeedPackageSingleExe.cpp) on the game thread, in the goal warning's
+ * shape: one line, the default colours, muted. The copy names the game, because
+ * MM's own explicit No Logic is still honoured (Foreign.cpp), and says "for now"
+ * because No Logic comes back with the combo Logic row; every world in this build
+ * is paired, so "paired" would tell the player nothing. The full reason is on the
+ * stderr line the generation printed. Its own function so the toast-fit row draws
+ * the production toast.
+ */
+extern "C" void OoT_Creation_EmitLogicPinToast(void) {
+    Notification::Emit({
+        .prefix = "No Logic:",
+        .message = "Ocarina of Time is Glitchless for now.",
+        .mute = true,
+    });
+}
+
 // The completed world, between this completion and the package it is written into.
 // Game-thread state like the bracket above.
 static std::atomic<bool> sPairedWorldComplete{ false };

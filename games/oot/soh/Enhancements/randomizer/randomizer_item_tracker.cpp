@@ -1149,7 +1149,7 @@ void DrawItem(ItemTrackerItem item) {
         case RG_DAMPES_HUT_KEY:
             actualItemId = item.id;
             hasItem = Flags_GetRandomizerInf(RAND_INF_DAMPES_HUT_KEY_OBTAINED);
-            itemName = "Damp├⌐'s Hut Key";
+            itemName = "Dampé's Hut Key";
             break;
         case RG_TALONS_HOUSE_KEY:
             actualItemId = item.id;
@@ -2757,7 +2757,8 @@ void ItemTrackerSettingsWindow::DrawElement() {
 
         if (layoutDirty) {
             ComboGui::ComboItemTrackerSetLayout(layout);
-            ComboGui::ComboItemTrackerSaveLayoutToConfig();
+            // #1349: armed, not written: the overlay writes it once the edits settle, not per keystroke.
+            ComboGui::ComboItemTrackerRequestLayoutSave();
         }
     }
 #endif

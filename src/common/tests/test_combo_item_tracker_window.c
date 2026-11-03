@@ -88,6 +88,16 @@
  *    through the grid's metrics and the section box, the keys' slider bounds),
  *    and the count fields both adapters and the pool fill for them.
  *
+ * 8b-8d. THE CUSTOM LAYOUT (#1328) AND ITS CONFIG BLOCK (#1349). The solver
+ *    presets and their JSON round trip, in memory: a preset or an edit arms
+ *    the deferred write the overlay's Draw() flushes once edits settle, and the
+ *    leg asserts the tree's config block is untouched (CitwLayoutGuard puts the
+ *    layout and the block back on every exit). The block reader takes wrong
+ *    types, nulls and out-of-range numbers without throwing, rejects any other
+ *    version, and survives Config's flatten / unflatten; a source scan holds
+ *    where the editor, the overlay and the exit write, and a vendored string's
+ *    bytes.
+ *
  * Appearance is judged from the UiSnapshot captures (window/Combo Item Tracker
  * @no-data, @live and @snapshot beside SoH's window/Item Tracker, and #1143's
  * @counts-capacity, @align-left and @key-counts); ImageOracle there holds that
@@ -108,6 +118,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -120,6 +131,9 @@
 #include <vector>
 
 #include <imgui.h>
+#include <nlohmann/json.hpp>
+#include <ship/Context.h>
+#include <ship/config/Config.h>
 #include <ship/window/gui/Gui.h>
 #include <ship/window/gui/GuiWindow.h>
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -2067,6 +2081,341 @@ int CitwLockOverlay(std::shared_ptr<Ship::GuiWindow> window, const ComboItemOps*
     return CitwLockKeySpaces(oot, mm);
 }
 
+/**
+ * #1349 finding 1: the custom-layout legs drive the layout editor's presets, and
+ * every --test process in a build tree shares that tree's shipofharkinian.json
+ * (Windows ignores SHIP_HOME). The presets now only arm the deferred write, so
+ * the legs stay in memory; this guard holds the in-memory layout and the
+ * config's layout block as it found them and puts both back on every exit path,
+ * an early CITW_ASSERT return included, and drops an armed write, so a run that
+ * fails mid-leg leaves neither presets in the tree nor a write for a later Draw.
+ */
+class CitwLayoutGuard {
+  public:
+    CitwLayoutGuard() : mLayout(ComboGui::ComboItemTrackerGetLayout()) {
+        mHadBlock = ReadBlock(mBlock);
+    }
+    ~CitwLayoutGuard() {
+        ComboGui::ComboItemTrackerCancelLayoutSave();
+        ComboGui::ComboItemTrackerSetLayout(mLayout);
+        if (BlockUnchanged()) {
+            return; // the passing path: nothing to write back
+        }
+        if (auto cfg = LiveConfig()) {
+            if (mHadBlock) {
+                cfg->SetBlock(ComboGui::kComboItemTrackerLayoutConfigBlock, mBlock);
+            } else {
+                cfg->EraseBlock(ComboGui::kComboItemTrackerLayoutConfigBlock);
+            }
+        }
+    }
+    CitwLayoutGuard(const CitwLayoutGuard&) = delete;
+    CitwLayoutGuard& operator=(const CitwLayoutGuard&) = delete;
+
+    // The config's layout block is as the guard found it: there or not, and the same contents.
+    bool BlockUnchanged() const {
+        nlohmann::json now;
+        const bool has = ReadBlock(now);
+        return has == mHadBlock && (!has || now == mBlock);
+    }
+
+  private:
+    static std::shared_ptr<Ship::Config> LiveConfig() {
+        auto ctx = Ship::Context::GetInstance();
+        return ctx != nullptr ? ctx->GetConfig() : nullptr;
+    }
+    // The file as last saved or loaded (SetBlock and EraseBlock both save).
+    static bool ReadBlock(nlohmann::json& out) {
+        auto cfg = LiveConfig();
+        if (cfg == nullptr) {
+            return false;
+        }
+        const nlohmann::json nested = cfg->GetNestedJson();
+        if (!nested.is_object()) {
+            return false;
+        }
+        const auto it = nested.find(ComboGui::kComboItemTrackerLayoutConfigBlock);
+        if (it == nested.end()) {
+            return false;
+        }
+        out = *it;
+        return true;
+    }
+
+    ComboGui::ComboItemTrackerLayout mLayout;
+    nlohmann::json mBlock;
+    bool mHadBlock = false;
+};
+
+// ---- 8b. Customizable groups, "Key Items" Dungeon Solver preset, & JSON persistence (#1328) ----
+// In memory only (#1349): the presets and Restore Default arm the deferred write
+// and the leg drops it, so the tree's config is never written; the guard puts
+// the layout and the block back whatever the exit.
+int CitwLockCustomLayout(void) {
+    CitwLayoutGuard guard;
+    Combo_TrackerWindow_Init();
+    std::vector<ComboGui::ComboItemTrackerGroup> mmAvail;
+    std::vector<ComboGui::ComboItemTrackerGroup> ootAvail;
+    std::vector<ComboGui::ComboItemTrackerGroup> sharedAvail;
+    ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_MM, mmAvail);
+    ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_OOT, ootAvail);
+    ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_SHARED, sharedAvail);
+    CITW_ASSERT(!mmAvail.empty() && mmAvail[0].name == "Key Items" && mmAvail[0].columns == 6 &&
+                mmAvail[0].slots.size() == 27);
+    CITW_ASSERT(!ootAvail.empty() && ootAvail[0].name == "Key Items" && ootAvail[0].columns == 5 &&
+                ootAvail[0].slots.size() == 50);
+    CITW_ASSERT(sharedAvail.size() >= 4 && sharedAvail[0].slots.size() == 32);
+
+    // Verify all 27 MM "Key Items" solver slots resolve cleanly, including Boss Souls & Stray Fairies.
+    std::vector<ComboItemRow> mmKeyRows;
+    ComboGui::ComboItemTrackerResolveGroupRows(mmAvail[0], (int)GAME_MM, false, mmKeyRows);
+    CITW_ASSERT(mmKeyRows.size() == 27);
+    CITW_ASSERT(mmKeyRows[0].customOwnLine && mmKeyRows[0].customCols == 6);
+    CITW_ASSERT(!mmKeyRows[1].customOwnLine && mmKeyRows[1].customCols == 6);
+
+    // Verify multi-group per-group column widths in ComboItemIconLayout (6-wide "Key Items" + 4-wide group).
+    ComboGui::ComboItemTrackerGroup fourWide;
+    fourWide.name = "Custom4";
+    fourWide.section = ComboGui::COMBO_ITEM_SECTION_MM;
+    fourWide.columns = 4;
+    for (int i = 0; i < 5; i++) {
+        fourWide.slots.push_back(mmAvail[0].slots[(size_t)i]);
+    }
+    ComboGui::ComboItemTrackerResolveGroupRows(fourWide, (int)GAME_MM, false, mmKeyRows);
+    CITW_ASSERT(mmKeyRows.size() == 32);
+    std::vector<ComboGui::ComboItemGridCell> customCells;
+    ComboGui::ComboItemIconLayout(mmKeyRows, *Combo_ItemGridStyle(GAME_MM), customCells);
+    CITW_ASSERT(customCells.size() == 32);
+    // 27 items in 6 columns take lines 0..4 (27th item at line 4, col 2).
+    CITW_ASSERT(customCells[26].line == 4 && customCells[26].column == 2);
+    // The 4-wide group starts on line 5, col 0, and its 5th item wraps to line 6, col 0.
+    CITW_ASSERT(customCells[27].line == 5 && customCells[27].column == 0);
+    CITW_ASSERT(customCells[30].line == 5 && customCells[30].column == 3);
+    CITW_ASSERT(customCells[31].line == 6 && customCells[31].column == 0);
+
+    // Apply MM and OoT Solver Presets and verify JSON round-trip persistence.
+    ComboGui::ComboItemTrackerCancelLayoutSave();
+    ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_MM);
+    // #1349: a preset arms the deferred write; it does not write the config.
+    CITW_ASSERT(ComboGui::ComboItemTrackerLayoutSavePending());
+    ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_OOT);
+    CITW_ASSERT(guard.BlockUnchanged());
+    const ComboGui::ComboItemTrackerLayout& liveLayout = ComboGui::ComboItemTrackerGetLayout();
+    CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
+    CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
+    const std::string jsonStr = ComboGui::ComboItemTrackerLayoutToJson(liveLayout);
+    CITW_ASSERT(!jsonStr.empty());
+    ComboGui::ComboItemTrackerLayout roundTripped{};
+    CITW_ASSERT(ComboGui::ComboItemTrackerLayoutFromJson(jsonStr, roundTripped));
+    CITW_ASSERT(roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM] &&
+                roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
+    CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size() ==
+                liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size());
+    CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size() ==
+                liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size());
+
+    // #1349: an edit that has not settled is not written (the overlay's Draw()
+    // asks every frame; a keystroke or a slider frame restarts the clock). Only a
+    // stall of the whole settle time between the two calls lets that flush write,
+    // and then the claim is not the leg's to make (the guard puts the block back).
+    const auto armedAt = std::chrono::steady_clock::now();
+    ComboGui::ComboItemTrackerRequestLayoutSave();
+    const bool unsettledWrote = ComboGui::ComboItemTrackerFlushLayoutSave();
+    const std::chrono::duration<double> armedFor = std::chrono::steady_clock::now() - armedAt;
+    const bool stalled = armedFor.count() >= ComboGui::kComboItemTrackerLayoutSaveSettleSeconds;
+    if (!stalled) {
+        CITW_ASSERT(!unsettledWrote);
+        CITW_ASSERT(ComboGui::ComboItemTrackerLayoutSavePending());
+        CITW_ASSERT(guard.BlockUnchanged());
+    }
+
+    // Restore default layout so no state leaks.
+    ComboGui::ComboItemTrackerRestoreDefaultLayout(-1);
+    CITW_ASSERT(!ComboGui::ComboItemTrackerGetLayout().customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
+    CITW_ASSERT(ComboGui::ComboItemTrackerLayoutSavePending());
+    // Cancel drops the armed write, and a flush with nothing armed writes nothing, forced or not.
+    ComboGui::ComboItemTrackerCancelLayoutSave();
+    CITW_ASSERT(!ComboGui::ComboItemTrackerLayoutSavePending());
+    CITW_ASSERT(!ComboGui::ComboItemTrackerFlushLayoutSave(true));
+    CITW_ASSERT(!ComboGui::ComboItemTrackerFlushLayoutSave());
+    // The whole leg wrote nothing to the tree's config.
+    CITW_ASSERT(stalled || guard.BlockUnchanged());
+    printf("[TEST] combo-item-tracker-window: custom layout leg in memory, config untouched PASS (#1349)\n");
+    return TEST_PASS;
+}
+
+// ---- 8c. The layout block reader never throws (#1349) -------------------------------
+// The boot path reads the config's block through ComboItemTrackerLayoutFromJson's
+// reader and catches nothing: a field of the wrong type or null takes its default,
+// a non-array list is empty, any other version is rejected with `out` untouched,
+// and the block survives Config's flatten / unflatten (empty lists come back null).
+int CitwLockLayoutJson(void) {
+    using namespace ComboGui;
+
+    // Mismatched types, nulls and out-of-range numbers: read, each field its default or clamped.
+    const char* const kMixed = R"({"version": 1, "customEnabled": [true, "yes", null],
+        "activeGroups": [
+          [ {"name": null, "section": "1", "columns": "wide", "autoHideUnshuffled": 1,
+             "slots": [ {"origin": "2", "key": 7}, null, {"origin": 2, "key": "pad"},
+                        {"origin": 2.5, "key": "sword"}, "slot" ]},
+            {"name": "Big", "section": 99, "columns": 18446744073709551615, "autoHideUnshuffled": true,
+             "slots": null},
+            {"name": "Small", "section": -9223372036854775808, "columns": 1e300, "slots": {"0": {}}},
+            "not a group", 3, null ],
+          null,
+          {"x": 1} ]})";
+    ComboItemTrackerLayout mixed{};
+    CITW_ASSERT(ComboItemTrackerLayoutFromJson(kMixed, mixed));
+    CITW_ASSERT(mixed.customEnabled[0] && !mixed.customEnabled[1] && !mixed.customEnabled[2]);
+    CITW_ASSERT(mixed.activeGroups[0].size() == 3);
+    CITW_ASSERT(mixed.activeGroups[1].empty() && mixed.activeGroups[2].empty());
+    const ComboItemTrackerGroup& g0 = mixed.activeGroups[0][0];
+    CITW_ASSERT(g0.name == "Group" && g0.section == COMBO_ITEM_SECTION_OOT && g0.columns == 6 &&
+                !g0.autoHideUnshuffled);
+    CITW_ASSERT(g0.slots.size() == 3);
+    CITW_ASSERT(g0.slots[0].origin == COMBO_SLOT_PAD && g0.slots[0].key == "pad");
+    CITW_ASSERT(g0.slots[1].origin == COMBO_SLOT_MM && g0.slots[1].key == "pad");
+    CITW_ASSERT(g0.slots[2].origin == COMBO_SLOT_PAD && g0.slots[2].key == "sword");
+    const ComboItemTrackerGroup& g1 = mixed.activeGroups[0][1];
+    CITW_ASSERT(g1.name == "Big" && g1.section == COMBO_ITEM_SECTION_SHARED &&
+                g1.columns == kComboItemTrackerGroupColumnsMax && g1.autoHideUnshuffled && g1.slots.empty());
+    const ComboItemTrackerGroup& g2 = mixed.activeGroups[0][2];
+    CITW_ASSERT(g2.name == "Small" && g2.section == COMBO_ITEM_SECTION_OOT && g2.columns == 6 && g2.slots.empty());
+
+    // Null lists read as empty.
+    // (Raw strings stay out of CITW_ASSERT, which stringizes its argument.)
+    const char* const kNullLists = R"({"version": 1, "customEnabled": null, "activeGroups": null})";
+    ComboItemTrackerLayout nulls{};
+    CITW_ASSERT(ComboItemTrackerLayoutFromJson(kNullLists, nulls));
+    for (int s = 0; s < COMBO_ITEM_SECTION_COUNT; s++) {
+        CITW_ASSERT(!nulls.customEnabled[s] && nulls.activeGroups[s].empty());
+    }
+
+    // Rejected, `out` untouched: not JSON, not an object, and every version but this build's.
+    const char* const kRejected[] = {
+        "",
+        "{",
+        "null",
+        "[]",
+        "42",
+        "\"layout\"",
+        R"({"customEnabled": [true, true, true]})",
+        R"({"version": 2, "customEnabled": [true, true, true]})",
+        R"({"version": 0, "customEnabled": [true, true, true]})",
+        R"({"version": "1", "customEnabled": [true, true, true]})",
+        R"({"version": 1.0, "customEnabled": [true, true, true]})",
+        R"({"version": true, "customEnabled": [true, true, true]})",
+        R"({"version": null, "customEnabled": [true, true, true]})",
+    };
+    for (const char* text : kRejected) {
+        ComboItemTrackerLayout sentinel{};
+        sentinel.customEnabled[COMBO_ITEM_SECTION_SHARED] = true;
+        ComboItemTrackerGroup kept;
+        kept.name = "Sentinel";
+        sentinel.activeGroups[COMBO_ITEM_SECTION_SHARED].push_back(kept);
+        if (ComboItemTrackerLayoutFromJson(text, sentinel)) {
+            printf("[TEST] FAIL: layout block read, expected rejected: %s\n", text);
+            return TEST_FAIL;
+        }
+        CITW_ASSERT(!sentinel.customEnabled[COMBO_ITEM_SECTION_OOT] &&
+                    sentinel.customEnabled[COMBO_ITEM_SECTION_SHARED]);
+        CITW_ASSERT(sentinel.activeGroups[COMBO_ITEM_SECTION_SHARED].size() == 1 &&
+                    sentinel.activeGroups[COMBO_ITEM_SECTION_SHARED][0].name == "Sentinel");
+    }
+
+    // Through Config's storage: SetBlock flattens, Save writes the unflattened
+    // tree, so an empty group's slots and an empty section come back null.
+    ComboItemTrackerLayout authored{};
+    authored.customEnabled[COMBO_ITEM_SECTION_OOT] = true;
+    authored.customEnabled[COMBO_ITEM_SECTION_MM] = true;
+    ComboItemTrackerGroup withSlots;
+    withSlots.name = "Mine";
+    withSlots.section = COMBO_ITEM_SECTION_OOT;
+    withSlots.columns = 3;
+    withSlots.autoHideUnshuffled = true;
+    withSlots.slots.push_back({ COMBO_SLOT_OOT, "song_lullaby" });
+    withSlots.slots.push_back({ COMBO_SLOT_PAD, "pad" });
+    withSlots.slots.push_back({ COMBO_SLOT_SHARED, "wallet" });
+    ComboItemTrackerGroup emptyGroup;
+    emptyGroup.name = "Empty";
+    emptyGroup.section = COMBO_ITEM_SECTION_OOT;
+    authored.activeGroups[COMBO_ITEM_SECTION_OOT].push_back(withSlots);
+    authored.activeGroups[COMBO_ITEM_SECTION_OOT].push_back(emptyGroup);
+    nlohmann::json stored = nlohmann::json::object();
+    stored[kComboItemTrackerLayoutConfigBlock] = nlohmann::json::parse(ComboItemTrackerLayoutToJson(authored));
+    const nlohmann::json reloaded = stored.flatten().unflatten();
+    CITW_ASSERT(reloaded[kComboItemTrackerLayoutConfigBlock]["activeGroups"][1].is_null());
+    ComboItemTrackerLayout back{};
+    CITW_ASSERT(ComboItemTrackerLayoutFromJson(reloaded[kComboItemTrackerLayoutConfigBlock].dump(), back));
+    CITW_ASSERT(back.customEnabled[COMBO_ITEM_SECTION_OOT] && back.customEnabled[COMBO_ITEM_SECTION_MM] &&
+                !back.customEnabled[COMBO_ITEM_SECTION_SHARED]);
+    CITW_ASSERT(back.activeGroups[COMBO_ITEM_SECTION_OOT].size() == 2);
+    CITW_ASSERT(back.activeGroups[COMBO_ITEM_SECTION_MM].empty() &&
+                back.activeGroups[COMBO_ITEM_SECTION_SHARED].empty());
+    const ComboItemTrackerGroup& mine = back.activeGroups[COMBO_ITEM_SECTION_OOT][0];
+    CITW_ASSERT(mine.name == "Mine" && mine.section == COMBO_ITEM_SECTION_OOT && mine.columns == 3 &&
+                mine.autoHideUnshuffled && mine.slots.size() == 3);
+    CITW_ASSERT(mine.slots[0].origin == COMBO_SLOT_OOT && mine.slots[0].key == "song_lullaby");
+    CITW_ASSERT(mine.slots[1].origin == COMBO_SLOT_PAD && mine.slots[1].key == "pad");
+    CITW_ASSERT(mine.slots[2].origin == COMBO_SLOT_SHARED && mine.slots[2].key == "wallet");
+    CITW_ASSERT(back.activeGroups[COMBO_ITEM_SECTION_OOT][1].name == "Empty" &&
+                back.activeGroups[COMBO_ITEM_SECTION_OOT][1].slots.empty());
+
+    // A name that is not UTF-8 is written with U+FFFD, not thrown on (dump's type_error.316).
+    ComboItemTrackerLayout badName{};
+    ComboItemTrackerGroup bad;
+    bad.name = "Bad\xFF";
+    badName.activeGroups[COMBO_ITEM_SECTION_MM].push_back(bad);
+    ComboItemTrackerLayout badBack{};
+    CITW_ASSERT(ComboItemTrackerLayoutFromJson(ComboItemTrackerLayoutToJson(badName), badBack));
+    CITW_ASSERT(badBack.activeGroups[COMBO_ITEM_SECTION_MM].size() == 1);
+    const std::string& readName = badBack.activeGroups[COMBO_ITEM_SECTION_MM][0].name;
+    CITW_ASSERT(readName.rfind("Bad", 0) == 0 && readName.find("\xEF\xBF\xBD") != std::string::npos);
+
+    printf("[TEST] combo-item-tracker-window: layout block reader typed, versioned, never throws PASS (#1349)\n");
+    return TEST_PASS;
+}
+
+// ---- 8d. Where the layout is written, and a vendored string (#1349) ---------------
+int CitwLockLayoutSaveSites(void) {
+#ifdef RSBS_SOURCE_DIR
+    auto slurp = [](const char* rel) {
+        std::ifstream in(std::string(RSBS_SOURCE_DIR) + rel, std::ios::binary);
+        return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    };
+    const std::string window = slurp("/src/common/ComboItemTrackerWindow.cpp");
+    const std::string editor = slurp("/games/oot/soh/Enhancements/randomizer/randomizer_item_tracker.cpp");
+    const std::string exports = slurp("/games/oot/soh/GameExports_SingleExe.cpp");
+    CITW_ASSERT(!window.empty() && !editor.empty() && !exports.empty());
+    // The editor arms the write and never writes per edit (a keystroke, a slider frame).
+    CITW_ASSERT(editor.find("ComboGui::ComboItemTrackerRequestLayoutSave();") != std::string::npos);
+    CITW_ASSERT(editor.find("ComboItemTrackerSaveLayoutToConfig") == std::string::npos);
+    // The overlay's Draw() flushes it first, ahead of the visibility gate, so it is written while hidden too.
+    const size_t draw = window.find("void ComboItemTrackerWindow::Draw() {");
+    CITW_ASSERT(draw != std::string::npos);
+    const size_t flush = window.find("ComboItemTrackerFlushLayoutSave();", draw);
+    const size_t gate = window.find("if (!CVarGetInteger(kComboItemTrackerVisibilityCVar, 0))", draw);
+    CITW_ASSERT(flush != std::string::npos && gate != std::string::npos && flush < gate);
+    // The exit forces an unsettled write before OoT tears the config down, so an edit made just before quitting
+    // is kept.
+    const size_t shutdownAt = exports.find("void OoT_Game_Shutdown(void) {");
+    CITW_ASSERT(shutdownAt != std::string::npos);
+    const size_t exitFlush = exports.find("ComboGui::ComboItemTrackerFlushLayoutSave(true);", shutdownAt);
+    const size_t deinit = exports.find("DeinitOTR();", shutdownAt);
+    CITW_ASSERT(exitFlush != std::string::npos && deinit != std::string::npos && exitFlush < deinit);
+    // The reader's reads are typed: nlohmann's value(key, default) throws on a type mismatch. An argument-less
+    // .value() (std::optional's) is not that call.
+    for (size_t at = window.find(".value("); at != std::string::npos; at = window.find(".value(", at + 1)) {
+        CITW_ASSERT(window.compare(at + 7, 1, ")") == 0);
+    }
+    // #1334 turned this name into a UTF-8 -> CP437 round trip (two box-drawing characters for the e acute);
+    // SoH's own bytes are back.
+    CITW_ASSERT(editor.find("itemName = \"Damp\xC3\xA9's Hut Key\";") != std::string::npos);
+    CITW_ASSERT(editor.find("\xE2\x94\x9C\xE2\x8C\x90") == std::string::npos);
+#endif
+    return TEST_PASS;
+}
+
 } // namespace
 
 extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
@@ -2080,6 +2429,8 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
     CITW_ASSERT(oot != nullptr && mm != nullptr);
 
     // ---- snapshot what this row touches -----------------------------------
+    // #1349: the custom layout and the config's layout block, put back on every exit.
+    CitwLayoutGuard layoutGuard;
     const GameId prevGame = Context_GetCurrentGame();
     std::vector<uint8_t> ootBackup((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
     if (const uint8_t* p = (const uint8_t*)Context_GetOoTSaveContext()) {
@@ -2110,6 +2461,10 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         CITW_ASSERT(neighbours[i] != window);
     }
     ComboGui::RegisterComboItemTrackerWindow(nullptr); // a null Gui is a no-op
+    // Registration loads the tree's saved layout (#1328); the points below lock the
+    // default overlay, so they read the default layout whatever the tree's config holds
+    // (#1349: a run that failed mid-leg used to leave its presets there for every later run).
+    ComboGui::ComboItemTrackerSetLayout(ComboGui::ComboItemTrackerLayout{});
     // #1132, rulings D1 and D7: the overlay is "Item Tracker" and answers SoH's
     // own window key (CVAR_WINDOW("ItemTracker"), never MM's gWindows.*), so
     // SoH's Randomizer > Item Tracker > Toggle Item Tracker opens it by name.
@@ -2187,68 +2542,10 @@ extern "C" int Combo_ItemTrackerWindow_RunHeadless(void) {
         return TEST_FAIL;
     }
 
-    // ---- 8b. Customizable groups, "Key Items" Dungeon Solver preset, & JSON persistence ----
-    {
-        Combo_TrackerWindow_Init();
-        std::vector<ComboGui::ComboItemTrackerGroup> mmAvail;
-        std::vector<ComboGui::ComboItemTrackerGroup> ootAvail;
-        std::vector<ComboGui::ComboItemTrackerGroup> sharedAvail;
-        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_MM, mmAvail);
-        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_OOT, ootAvail);
-        ComboGui::ComboItemTrackerAvailableGroups(ComboGui::COMBO_ITEM_SECTION_SHARED, sharedAvail);
-        CITW_ASSERT(!mmAvail.empty() && mmAvail[0].name == "Key Items" && mmAvail[0].columns == 6 &&
-                    mmAvail[0].slots.size() == 27);
-        CITW_ASSERT(!ootAvail.empty() && ootAvail[0].name == "Key Items" && ootAvail[0].columns == 5 &&
-                    ootAvail[0].slots.size() == 50);
-        CITW_ASSERT(sharedAvail.size() >= 4 && sharedAvail[0].slots.size() == 32);
-
-        // Verify all 27 MM "Key Items" solver slots resolve cleanly, including Boss Souls & Stray Fairies.
-        std::vector<ComboItemRow> mmKeyRows;
-        ComboGui::ComboItemTrackerResolveGroupRows(mmAvail[0], (int)GAME_MM, false, mmKeyRows);
-        CITW_ASSERT(mmKeyRows.size() == 27);
-        CITW_ASSERT(mmKeyRows[0].customOwnLine && mmKeyRows[0].customCols == 6);
-        CITW_ASSERT(!mmKeyRows[1].customOwnLine && mmKeyRows[1].customCols == 6);
-
-        // Verify multi-group per-group column widths in ComboItemIconLayout (6-wide "Key Items" + 4-wide group).
-        ComboGui::ComboItemTrackerGroup fourWide;
-        fourWide.name = "Custom4";
-        fourWide.section = ComboGui::COMBO_ITEM_SECTION_MM;
-        fourWide.columns = 4;
-        for (int i = 0; i < 5; i++) {
-            fourWide.slots.push_back(mmAvail[0].slots[(size_t)i]);
-        }
-        ComboGui::ComboItemTrackerResolveGroupRows(fourWide, (int)GAME_MM, false, mmKeyRows);
-        CITW_ASSERT(mmKeyRows.size() == 32);
-        std::vector<ComboGui::ComboItemGridCell> customCells;
-        ComboGui::ComboItemIconLayout(mmKeyRows, *Combo_ItemGridStyle(GAME_MM), customCells);
-        CITW_ASSERT(customCells.size() == 32);
-        // 27 items in 6 columns take lines 0..4 (27th item at line 4, col 2).
-        CITW_ASSERT(customCells[26].line == 4 && customCells[26].column == 2);
-        // The 4-wide group starts on line 5, col 0, and its 5th item wraps to line 6, col 0.
-        CITW_ASSERT(customCells[27].line == 5 && customCells[27].column == 0);
-        CITW_ASSERT(customCells[30].line == 5 && customCells[30].column == 3);
-        CITW_ASSERT(customCells[31].line == 6 && customCells[31].column == 0);
-
-        // Apply MM and OoT Solver Presets and verify JSON round-trip persistence.
-        ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_MM);
-        ComboGui::ComboItemTrackerApplySolverPreset(ComboGui::COMBO_ITEM_SECTION_OOT);
-        const ComboGui::ComboItemTrackerLayout& liveLayout = ComboGui::ComboItemTrackerGetLayout();
-        CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
-        CITW_ASSERT(liveLayout.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
-        const std::string jsonStr = ComboGui::ComboItemTrackerLayoutToJson(liveLayout);
-        CITW_ASSERT(!jsonStr.empty());
-        ComboGui::ComboItemTrackerLayout roundTripped{};
-        CITW_ASSERT(ComboGui::ComboItemTrackerLayoutFromJson(jsonStr, roundTripped));
-        CITW_ASSERT(roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_MM] &&
-                    roundTripped.customEnabled[ComboGui::COMBO_ITEM_SECTION_OOT]);
-        CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size() ==
-                    liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_MM].size());
-        CITW_ASSERT(roundTripped.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size() ==
-                    liveLayout.activeGroups[ComboGui::COMBO_ITEM_SECTION_OOT].size());
-
-        // Restore default layout so no state leaks.
-        ComboGui::ComboItemTrackerRestoreDefaultLayout(-1);
-        CITW_ASSERT(!ComboGui::ComboItemTrackerGetLayout().customEnabled[ComboGui::COMBO_ITEM_SECTION_MM]);
+    // ---- 8b-8d. Customizable groups and the layout block (#1328, #1349) -------------
+    if (CitwLockCustomLayout() != TEST_PASS || CitwLockLayoutJson() != TEST_PASS ||
+        CitwLockLayoutSaveSites() != TEST_PASS) {
+        return TEST_FAIL;
     }
 
 #ifdef RSBS_SOURCE_DIR
