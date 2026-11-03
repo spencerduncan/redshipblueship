@@ -32,6 +32,10 @@
 // make that circular. Same convention game-side TUs use to reach Combo_*.
 extern "C" void RsbsSave_SetActiveSlot(int slot);
 extern "C" int RsbsSave_GetActiveSlot(void);
+// The combo tracker's kept current areas (combo_tracker_view.h, #1189), session
+// state the invalidation below retires. Declared for the same reason: the view
+// header pulls in the tracker's whole model, which the context layer never needs.
+extern "C" void Combo_TrackerResetCurrentAreas(void);
 
 #include <cstdio>
 #include <cstring>
@@ -480,6 +484,11 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // save. Carrying one into a fresh session would make the next harvest
     // measure a delta against a balance that no longer exists.
     Combo_ResetSharedResourceWatermarks();
+
+    // And the combo tracker's kept current areas (#1189): RAM-only, each the area
+    // a game's pane answers while that game is not played, so a kept one would
+    // filter and scroll the next file's pane to the dead session's area.
+    Combo_TrackerResetCurrentAreas();
 
     // Every remaining field of gComboCtx is session state, so the initializer
     // IS the invalidator — there is no per-field clear to drift out of sync
