@@ -264,3 +264,6 @@ games/oot/soh/oot_mask_quest_paired_test.cpp
 games/oot/soh/oot_tracker_reachability_test.cpp
 games/oot/soh/oot_logic_gates_test.cpp
 games/oot/soh/oot_tracker_soh_fixes_test.cpp
+games/oot/soh/Enhancements/randomizer/BlastMaskOoT.h
+games/oot/soh/Enhancements/randomizer/BlastMaskOoT.cpp
+games/oot/soh/oot_blast_mask_test.cpp
