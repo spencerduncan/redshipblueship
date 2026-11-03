@@ -1419,6 +1419,15 @@ static const unsigned kCivOptMqWater = 1u << (16 + 0x05);
 static const unsigned kCivOptMqGanonsCastle = 1u << (16 + 0x0D);
 static const unsigned kCivOptAll =
     kCivOptBeanSouls | kCivOptBossSouls | kCivOptSpeak | kCivOptButtons | kCivOptOverworldDoors | kCivOptFishingPole;
+// #1369: SoH's ability shuffles, bits 9..14 of the same override.
+static const unsigned kCivOptSwim = 1u << 9;
+static const unsigned kCivOptGrab = 1u << 10;
+static const unsigned kCivOptClimb = 1u << 11;
+static const unsigned kCivOptCrawl = 1u << 12;
+static const unsigned kCivOptOpenChest = 1u << 13;
+static const unsigned kCivOptRocsFeather = 1u << 14;
+static const unsigned kCivOptAbilities =
+    kCivOptSwim | kCivOptGrab | kCivOptClimb | kCivOptCrawl | kCivOptOpenChest | kCivOptRocsFeather;
 
 /** OoT's rows of `group`, as the view hands them over. */
 static std::vector<ComboItemRow> CivOoTGroup(const char* group) {
@@ -1779,6 +1788,195 @@ static int CivOoTTrackerGroupLegs(const ComboItemOps* ops) {
     return TEST_PASS;
 }
 
+// ---- #1369: SoH's ability rows, each under its own option ---------------------
+//
+// SoH appends Roc's Feather, Swim, Grab, Climb, Crawl and Open Chest to its main
+// window, each only while its own shuffle is on (randomizer_item_tracker.cpp,
+// UpdateVectors), after the dungeon items and before Greg, with no DisplayType
+// key, and names each over its icon except Roc's Feather. The overlay's OoT
+// section carries the same rows as one "Abilities" group that flows on (not a
+// gated group of its own line), and Swim is OoT's copy of the Shared Swim
+// family. RED before #1369: OoT had no ability rows at all.
+static const struct {
+    unsigned option;
+    const char* name;
+    const char* label;
+    const char* icon;
+    const char* slotKey;
+    bool have; // the tracker world holds swim and climb
+    uint32_t family;
+} kCivAbilities[6] = {
+    { kCivOptRocsFeather, "Roc's Feather", NULL, "RG_ROCS_FEATHER", "rocs_feather", false, 0u },
+    { kCivOptSwim, "Swim", "Swim", "ITEM_SCALE_SILVER", "ability_swim", true, RSBS_XITEM_SHARED_SWIM },
+    { kCivOptGrab, "Grab", "Grab", "RG_POWER_BRACELET", "ability_grab", false, 0u },
+    { kCivOptClimb, "Climb", "Climb", "RG_CLIMB", "ability_climb", true, 0u },
+    { kCivOptCrawl, "Crawl", "Crawl", "RG_CRAWL", "ability_crawl", false, 0u },
+    { kCivOptOpenChest, "Open Chest", "Open", "RG_OPEN_CHEST", "ability_open_chest", false, 0u },
+};
+
+static int CivOoTAbilityLegs(const ComboItemOps* ops) {
+    std::vector<uint8_t> inherited((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    if (const uint8_t* resident = (const uint8_t*)Context_GetOoTSaveContext()) {
+        memcpy(inherited.data(), resident, inherited.size());
+    }
+    const GameId inheritedGame = Context_GetCurrentGame();
+    ComboContext_Init(); // no rule frozen: every ability row stays in OoT's own section
+    std::vector<uint8_t> world((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> vanilla((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(world.data(), world.size(), 1) == 1);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(vanilla.data(), vanilla.size(), 0) == 1);
+    Context_UpdateShadowCopy(GAME_OOT, world.data(), world.size());
+    Context_SetCurrentGame(GAME_MM);
+    const int fixedRows = ops->count();
+
+    // (a) Every ability option off: no ability row (Greg is the one gated row of a randomizer file).
+    OoT_ItemAdapter_TestOverrideOptions(1, 0u);
+    CIV_ASSERT(CivOoTGroup("Abilities").empty());
+    CIV_ASSERT(ops->countFor(world.data()) == fixedRows + 1);
+
+    // (b) Each option shows its own row and nothing else, as SoH draws it.
+    for (const auto& a : kCivAbilities) {
+        OoT_ItemAdapter_TestOverrideOptions(1, a.option);
+        const std::vector<ComboItemRow> g = CivOoTGroup("Abilities");
+        const bool ok = g.size() == 1 && CivRowIs(g, a.name, a.have, a.label) && g[0].iconKey != NULL &&
+                        strcmp(g[0].iconKey, a.icon) == 0 && g[0].slotKey != NULL &&
+                        strcmp(g[0].slotKey, a.slotKey) == 0 && g[0].sharedFamily == a.family;
+        printf("[TEST] combo-item-view: OoT ability option 0x%x alone: %zu row(s), \"%s\" icon %s family %08X\n",
+               a.option, g.size(), g.empty() ? "(none)" : g[0].name,
+               (g.empty() || g[0].iconKey == NULL) ? "(none)" : g[0].iconKey,
+               g.empty() ? 0u : (unsigned)g[0].sharedFamily);
+        CIV_ASSERT(ok);
+        CIV_ASSERT(ops->countFor(world.data()) == fixedRows + 1 + 1);
+    }
+
+    // (c) All six: SoH's order, after the dungeon tables and before Greg; a vanilla file shows none.
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptAbilities);
+    const std::vector<ComboItemRow> all = CivOoTGroup("Abilities");
+    CIV_ASSERT(all.size() == 6);
+    for (size_t i = 0; i < all.size(); i++) {
+        CIV_ASSERT(strcmp(all[i].name, kCivAbilities[i].name) == 0);
+    }
+    const int allRows = ops->countFor(world.data());
+    CIV_ASSERT(allRows == fixedRows + 6 + 1);
+    int firstAbility = -1;
+    int firstGreg = -1;
+    int lastDungeonKeys = -1;
+    ComboItemRow probe;
+    for (int i = 0; i < allRows; i++) {
+        memset(&probe, 0, sizeof(probe));
+        CIV_ASSERT(ops->rowAt(world.data(), i, &probe));
+        if (strcmp(probe.group, "Abilities") == 0 && firstAbility < 0) {
+            firstAbility = i;
+        } else if (strcmp(probe.group, "Greg") == 0 && firstGreg < 0) {
+            firstGreg = i;
+        } else if (strcmp(probe.group, "Dungeon Keys") == 0) {
+            lastDungeonKeys = i;
+        }
+    }
+    CIV_ASSERT(lastDungeonKeys >= 0 && firstAbility > lastDungeonKeys && firstGreg > firstAbility);
+    CIV_ASSERT(ops->countFor(vanilla.data()) == fixedRows);
+
+    // (d) The group flows on from the rows before it (no line of its own) and is always drawn: SoH gives the
+    // abilities no DisplayType key.
+    const ComboItemGridStyle* grid = Combo_ItemGridStyle((uint8_t)GAME_OOT);
+    CIV_ASSERT(grid->groupOwnLine != NULL && !grid->groupOwnLine("Abilities"));
+    const ComboGui::ComboItemTrackerKeys keys = ComboGui::ComboReadItemTrackerKeys();
+    CIV_ASSERT(ComboGui::ComboItemTrackerSohGroupShown(keys, "Abilities"));
+
+    // (e) The customizable tracker addresses each by its slot key.
+    for (const auto& a : kCivAbilities) {
+        ComboItemRow r;
+        CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_OOT, a.slotKey, &r) && r.group != NULL &&
+                   strcmp(r.group, "Abilities") == 0 && r.sharedFamily == a.family);
+    }
+    printf("[TEST] combo-item-view: OoT's six ability rows: each under its own option, SoH's order after the "
+           "dungeon tables, Swim the Shared Swim family's OoT copy (#1369)\n");
+
+    OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+    Context_UpdateShadowCopy(GAME_OOT, inherited.data(), inherited.size());
+    Context_SetCurrentGame(inheritedGame);
+    return TEST_PASS;
+}
+
+// ---- #1369: the Shared Swim row ---------------------------------------------------
+//
+// Under the frozen Shared Swim rule the two games' swim rows (OoT's Swim, MM's
+// Ability to Swim) leave their sections and the Shared column draws one "Swim"
+// row, held when either game's copy is. Off, each game keeps its own row and the
+// Shared column has none. RED before #1369: no family, so each game kept its row.
+static int CivSharedSwimLegs(const ComboItemOps* ops, const ComboItemOps* mmOps) {
+    Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    sCivLive = NULL;
+    sCivMMLive = NULL;
+    std::vector<uint8_t> oot((size_t)OOT_SAVE_CONTEXT_SIZE, 0);
+    std::vector<uint8_t> mm((size_t)MM_SAVE_CONTEXT_SIZE, 0);
+    CIV_ASSERT(OoT_ItemAdapter_TestAuthorTrackerWorld(oot.data(), oot.size(), 1) == 1);     // swim held
+    CIV_ASSERT(MM_ItemAdapter_TestAuthorTrackerWorld(mm.data(), mm.size(), 1, 0x10u) == 1); // RO_SHUFFLE_SWIM, held
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptSwim);
+
+    for (int on = 0; on <= 1; on++) {
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        gComboCtx.sourceIsRando = true;
+        gComboCtx.sharedRandoSeed = 0x1369F00Du;
+        gComboCtx.sharedRandoSettingsHash = 0x1369CA5Eu;
+        gComboCtx.mmProfileDigest = 0x1369D16Eu;
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = on ? (uint32_t)RSBS_XITEM_SHARED_SWIM : 0u;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        Combo_HarvestSharedResource(GAME_OOT, RSBS_SHARED_RES_RUPEES, 1); // a Shared group to draw in
+        Context_UpdateShadowCopy(GAME_OOT, oot.data(), oot.size());
+        Context_UpdateShadowCopy(GAME_MM, mm.data(), mm.size());
+        Context_SetCurrentGame(GAME_NONE);
+
+        int ootSwimRows = 0;
+        int mmSwimRows = 0;
+        std::vector<ComboItemRow> rows;
+        CivReadAll((uint8_t)GAME_OOT, rows);
+        for (const ComboItemRow& r : rows) {
+            ootSwimRows += (r.slotKey != NULL && strcmp(r.slotKey, "ability_swim") == 0) ? 1 : 0;
+        }
+        CivReadAll((uint8_t)GAME_MM, rows);
+        for (const ComboItemRow& r : rows) {
+            mmSwimRows += (r.slotKey != NULL && strcmp(r.slotKey, "ability_swim") == 0) ? 1 : 0;
+        }
+        int sharedSwimRows = 0;
+        ComboItemRow shared;
+        memset(&shared, 0, sizeof(shared));
+        const int n = Combo_ItemSharedCount();
+        for (int i = 0; i < n; i++) {
+            ComboItemRow r;
+            if (Combo_ItemSharedRowAtWithIcons(i, (uint8_t)GAME_OOT, &r) && r.slotKey != NULL &&
+                strcmp(r.slotKey, "ability_swim") == 0) {
+                sharedSwimRows++;
+                shared = r;
+            }
+        }
+        printf("[TEST] combo-item-view: Shared Swim %s: OoT section %d swim row(s), MM section %d, Shared column %d "
+               "(icon %s, held %d)\n",
+               on ? "on" : "off", ootSwimRows, mmSwimRows, sharedSwimRows,
+               shared.iconKey != NULL ? shared.iconKey : "(none)", (int)shared.have);
+        if (on) {
+            CIV_ASSERT(ootSwimRows == 0 && mmSwimRows == 0 && sharedSwimRows == 1);
+            CIV_ASSERT(shared.have && shared.sharedFamily == RSBS_XITEM_SHARED_SWIM && shared.iconKey != NULL &&
+                       strcmp(shared.iconKey, "ITEM_SCALE_SILVER") == 0 && shared.label != NULL &&
+                       strcmp(shared.label, "Swim") == 0);
+            // The customizable tracker's Shared slot reads the same family, in MM's art too.
+            ComboItemRow slot;
+            CIV_ASSERT(Combo_ItemSharedCatalogRowByKey("ability_swim", (uint8_t)GAME_MM, &slot) && slot.have &&
+                       slot.iconKey != NULL && slot.sharedFamily == RSBS_XITEM_SHARED_SWIM);
+        } else {
+            CIV_ASSERT(ootSwimRows == 1 && mmSwimRows == 1 && sharedSwimRows == 0);
+        }
+    }
+    OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+    return TEST_PASS;
+}
+
 // ---- the Shared column shows the pooled pieces toward the next heart (#1159) ----
 //
 // Health is ONE quantity for the pair (Combo_MakeHealthQuarters: capacity plus
@@ -1896,6 +2094,33 @@ static bool CivSharedRowLabelFits(const ComboItemRow& r, const char* path, int* 
     return ok;
 }
 
+/** #1369: is Shared button row `r` drawn with MM's own tinted glyph for its slot (MM's static catalog row: the
+ *  same icon key and tint, no name over it)? Counts one into `*glyphs` when it is. */
+static bool CivSharedRowIsMMGlyph(const ComboItemRow& r, const char* path, int* glyphs) {
+    const ComboItemOps* mmOps = Combo_Item_GetOps((uint8_t)GAME_MM);
+    if (mmOps == NULL || mmOps->catalogCount == NULL || mmOps->catalogRowAt == NULL || r.slotKey == NULL) {
+        return false;
+    }
+    ComboItemRow mmRow;
+    bool found = false;
+    for (int i = 0; i < mmOps->catalogCount() && !found; i++) {
+        memset(&mmRow, 0, sizeof(mmRow));
+        found = mmOps->catalogRowAt(NULL, i, &mmRow) && mmRow.slotKey != NULL && strcmp(mmRow.slotKey, r.slotKey) == 0;
+    }
+    const bool glyph = found && r.iconKey != NULL && mmRow.iconKey != NULL && strcmp(r.iconKey, mmRow.iconKey) == 0 &&
+                       r.iconTint == mmRow.iconTint && mmRow.iconTint != 0u && r.label == NULL;
+    if (!glyph) {
+        printf("[TEST] combo-item-view: %s: Shared \"%s\" drawn with %s tint %08X label %s; MM's glyph is %s tint "
+               "%08X\n",
+               path, r.slotKey, r.iconKey != NULL ? r.iconKey : "(no icon)", (unsigned)r.iconTint,
+               r.label != NULL ? r.label : "(none)", found && mmRow.iconKey != NULL ? mmRow.iconKey : "(none)",
+               found ? (unsigned)mmRow.iconTint : 0u);
+        return false;
+    }
+    (*glyphs)++;
+    return true;
+}
+
 static int CivSharedButtonLabelLegs(const ComboItemOps* ops, const ComboItemOps* mmOps) {
     Combo_Item_RegisterOps((uint8_t)GAME_OOT, ops);
     Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
@@ -1932,6 +2157,7 @@ static int CivSharedButtonLabelLegs(const ComboItemOps* ops, const ComboItemOps*
         { "MM alone shuffles them", false, true },
     };
     int ocarinas = 0;
+    int glyphs = 0;
     for (const auto& w : kWorlds) {
         OoT_ItemAdapter_TestOverrideOptions(1, w.ootShuffles ? kCivOptButtons : 0u);
         CIV_ASSERT(MM_ItemAdapter_TestAuthorOcarinaButtons(mm.data(), mm.size(), w.mmShuffles ? 1 : 0, 0x0Fu) == 1);
@@ -1939,6 +2165,7 @@ static int CivSharedButtonLabelLegs(const ComboItemOps* ops, const ComboItemOps*
         for (uint8_t iconGame : { (uint8_t)GAME_OOT, (uint8_t)GAME_MM }) {
             const char* icons = iconGame == (uint8_t)GAME_OOT ? "OoT" : "MM";
             const int before = ocarinas;
+            const int glyphsBefore = glyphs;
             // The default Shared column (Combo_ItemSharedRowAtWithIcons): its five button rows.
             ComboItemRow r;
             int buttons = 0;
@@ -1948,21 +2175,41 @@ static int CivSharedButtonLabelLegs(const ComboItemOps* ops, const ComboItemOps*
                 if (CivButtonLabel(r.slotKey) != NULL) {
                     buttons++;
                     CIV_ASSERT(CivSharedRowLabelFits(r, "Shared column", &ocarinas));
+                    CIV_ASSERT(CivSharedRowIsMMGlyph(r, "Shared column", &glyphs));
                 }
             }
             // The customizable tracker's Shared slots (Combo_ItemSharedCatalogRowByKey).
             for (const auto& b : kCivButtonLabels) {
                 CIV_ASSERT(Combo_ItemSharedCatalogRowByKey(b.slotKey, iconGame, &r));
                 CIV_ASSERT(CivSharedRowLabelFits(r, "Shared catalog slot", &ocarinas));
+                CIV_ASSERT(CivSharedRowIsMMGlyph(r, "Shared catalog slot", &glyphs));
             }
             printf("[TEST] combo-item-view: Shared buttons, %s, %s icons: %d rows, %d of 10 reads drawn with OoT's "
-                   "ocarina, each named\n",
-                   w.world, icons, buttons, ocarinas - before);
+                   "ocarina, %d with MM's glyph\n",
+                   w.world, icons, buttons, ocarinas - before, glyphs - glyphsBefore);
             CIV_ASSERT(buttons == 5);
         }
     }
-    // Not vacuous: some read drew OoT's ocarina (on main, none of those carried its name).
-    CIV_ASSERT(ocarinas > 0);
+    // #1369 (operator ruling 2026-11-02): every read, in either game's icons and whichever game shuffles the
+    // buttons, drew MM's tinted glyph, the one look of a button in both games. RED before #1369: OoT's icons drew
+    // the labelled ocarina, and Termina did too when only OoT shuffled the buttons.
+    printf("[TEST] combo-item-view: Shared buttons: %d of 60 reads drew MM's glyph, %d OoT's ocarina\n", glyphs,
+           ocarinas);
+    CIV_ASSERT(glyphs == 60 && ocarinas == 0);
+
+    // The fallback (#1347's look): with no MM adapter to lend its glyph, OoT's ocarina with SoH's short name.
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, NULL);
+    OoT_ItemAdapter_TestOverrideOptions(1, kCivOptButtons);
+    for (const auto& b : kCivButtonLabels) {
+        ComboItemRow r;
+        CIV_ASSERT(Combo_ItemSharedCatalogRowByKey(b.slotKey, (uint8_t)GAME_OOT, &r));
+        CIV_ASSERT(CivSharedRowLabelFits(r, "Shared catalog slot, no MM adapter", &ocarinas));
+    }
+    Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps);
+    printf("[TEST] combo-item-view: Shared buttons with no MM adapter: %d read(s) drew OoT's labelled ocarina\n",
+           ocarinas);
+    // Not vacuous: the fallback drew OoT's ocarina, each named.
+    CIV_ASSERT(ocarinas == 5);
     return TEST_PASS;
 }
 
@@ -2039,6 +2286,15 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         const int ootGroupResult = CivOoTTrackerGroupLegs(ops);
         OoT_ItemAdapter_TestOverrideOptions(0, 0u);
         if (ootGroupResult != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 2 for SoH's ability rows (#1369) ------------------------------
+        const int ootAbilityResult = CivOoTAbilityLegs(ops);
+        OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+        ComboContext_Init();
+        if (ootAbilityResult != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }
@@ -2121,9 +2377,9 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
             const int ootCatCount = Combo_ItemCatalogCount((uint8_t)GAME_OOT);
             const int mmCatCount = Combo_ItemCatalogCount((uint8_t)GAME_MM);
             const int sharedCatCount = Combo_ItemSharedCatalogCount();
-            CIV_ASSERT(ootCatCount == 157);
+            CIV_ASSERT(ootCatCount == 163); // #1369: SoH's six ability rows
             CIV_ASSERT(mmCatCount == 112);
-            CIV_ASSERT(sharedCatCount == 32);
+            CIV_ASSERT(sharedCatCount == 33); // #1369: the Shared Swim row
 
             for (int i = 0; i < ootCatCount; i++) {
                 ComboItemRow r = {};
@@ -2141,8 +2397,9 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
                 CIV_ASSERT(Combo_ItemCatalogRowByKey((uint8_t)GAME_MM, r.slotKey, &byKey));
                 CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0);
             }
-            // #1347: a slot drawn with OoT's ocarina carries SoH's short name (with no save, OoT's own catalog
-            // lends the buttons theirs), and one drawn with MM's glyph carries none.
+            // #1347: a slot drawn with OoT's ocarina carries SoH's short name, and one drawn with MM's glyph
+            // carries none. #1369: with no save the buttons draw MM's glyph in both games' icons (MM's static
+            // catalog), so no slot draws the ocarina here.
             int sharedOcarinas = 0;
             for (int i = 0; i < sharedCatCount; i++) {
                 ComboItemRow r = {};
@@ -2154,10 +2411,10 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
                 CIV_ASSERT(byKey.slotKey != NULL && strcmp(r.slotKey, byKey.slotKey) == 0 && byKey.iconKey != NULL);
                 CIV_ASSERT(CivSharedRowLabelFits(byKey, "Shared catalog, MM icons, no save", &sharedOcarinas));
             }
-            printf("[TEST] combo-item-view: Shared catalog with no save: %d slots drawn with OoT's ocarina, each "
-                   "named\n",
+            printf("[TEST] combo-item-view: Shared catalog with no save: %d slots drawn with OoT's ocarina (want 0, "
+                   "#1369)\n",
                    sharedOcarinas);
-            CIV_ASSERT(sharedOcarinas > 0);
+            CIV_ASSERT(sharedOcarinas == 0);
 
             // With no save loaded, unshuffled gated items (Boss Souls) report have == false.
             ComboItemRow odolwa = {};
@@ -2179,9 +2436,20 @@ extern "C" int Combo_ItemView_RunHeadless(void) {
         // ---- 5e. a Shared button drawn with OoT's ocarina carries SoH's short name (#1347) --
         const int buttonLabelResult = CivSharedButtonLabelLegs(ops, mmOps);
         OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+        Combo_Item_RegisterOps((uint8_t)GAME_MM, mmOps); // the fallback leg unregisters MM's adapter
         ComboContext_Init();
         Combo_ResetSharedResourceWatermarks();
         if (buttonLabelResult != TEST_PASS) {
+            result = TEST_FAIL;
+            break;
+        }
+
+        // ---- 5f. the Shared Swim row (#1369) -------------------------------
+        const int swimResult = CivSharedSwimLegs(ops, mmOps);
+        OoT_ItemAdapter_TestOverrideOptions(0, 0u);
+        ComboContext_Init();
+        Combo_ResetSharedResourceWatermarks();
+        if (swimResult != TEST_PASS) {
             result = TEST_FAIL;
             break;
         }

@@ -561,32 +561,43 @@ const char* Combo_ItemSharedLabel(void) {
 
 /** One shared family the Shared group can draw, after the resource rows. Its
  *  icon is the icon game's own row for it (the adapter row whose sharedFamily
- *  is this slot), so no adapter grows a second icon table. */
+ *  is this slot), so no adapter grows a second icon table. A family with an
+ *  `iconGame` takes that game's own art in BOTH games (#1369), read through its
+ *  static catalog, so it never depends on that game's shuffle or shadow; the
+ *  icon game's own row is then only the fallback. */
 typedef struct {
     uint32_t family; // the family slot (an RSBS_XITEM_* family bit or an RSBS_XFAMILY_SLOT_*)
     const char* name;
     const char* slotKey;
+    uint8_t iconGame; // GAME_NONE: the active game's own icon; GAME_OOT / GAME_MM: that game's in both
 } SharedFamilyRowDef;
 
+// #1369 (operator ruling 2026-11-02): the five Shared Ocarina Buttons rows draw
+// MM's tinted button glyph in BOTH games, as MM's tracker and OoTMM's one
+// BUTTON_A draw show a button, rather than OoT's Ocarina of Time with SoH's short
+// name over it (#1347). MM's glyphs reach OoT before the first crossing through
+// the curated half, redship-oot.o2r (CuratedArchiveInApp leg A2). OoT's labelled
+// ocarina stays the fallback when MM has no adapter.
 static const SharedFamilyRowDef kSharedFamilyRows[] = {
-    { RSBS_XITEM_SHARED_LENS, "Lens of Truth", "lens" },                // #1065
-    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song", "song_epona" },     // #1066
-    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms", "song_storms" }, // #1066
-    { RSBS_XITEM_SHARED_SONG_TIME, "Song of Time", "song_time" },       // #1069
+    { RSBS_XITEM_SHARED_LENS, "Lens of Truth", "lens", (uint8_t)GAME_NONE },                // #1065
+    { RSBS_XITEM_SHARED_SONG_EPONA, "Epona's Song", "song_epona", (uint8_t)GAME_NONE },     // #1066
+    { RSBS_XITEM_SHARED_SONG_STORMS, "Song of Storms", "song_storms", (uint8_t)GAME_NONE }, // #1066
+    { RSBS_XITEM_SHARED_SONG_TIME, "Song of Time", "song_time", (uint8_t)GAME_NONE },       // #1069
     // #1067: the five ocarina buttons, in MM's tracker order.
-    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button", "ocarina_btn_a" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button", "ocarina_btn_c_down" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button", "ocarina_btn_c_right" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button", "ocarina_btn_c_left" },
-    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button", "ocarina_btn_c_up" },
-    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows", "arrow_fire" },    // #968
-    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows", "arrow_ice" },       // #968
-    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows", "arrow_light" }, // #968
-    { RSBS_XITEM_SHARED_GORON, "Goron Mask", "mask_goron" },          // #978
-    { RSBS_XITEM_SHARED_ZORA, "Zora Mask", "mask_zora" },             // #978
-    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood", "mask_bunny" },          // #978
-    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask", "mask_keaton" },       // #978
-    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth", "mask_truth" },       // #978
+    { RSBS_XITEM_SHARED_OCARINA_BUTTONS, "A Button", "ocarina_btn_a", (uint8_t)GAME_MM },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_DOWN, "C Down Button", "ocarina_btn_c_down", (uint8_t)GAME_MM },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_RIGHT, "C Right Button", "ocarina_btn_c_right", (uint8_t)GAME_MM },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_LEFT, "C Left Button", "ocarina_btn_c_left", (uint8_t)GAME_MM },
+    { RSBS_XFAMILY_SLOT_OCARINA_C_UP, "C Up Button", "ocarina_btn_c_up", (uint8_t)GAME_MM },
+    { RSBS_XITEM_SHARED_ARROW_FIRE, "Fire Arrows", "arrow_fire", (uint8_t)GAME_NONE },    // #968
+    { RSBS_XITEM_SHARED_ARROW_ICE, "Ice Arrows", "arrow_ice", (uint8_t)GAME_NONE },       // #968
+    { RSBS_XITEM_SHARED_ARROW_LIGHT, "Light Arrows", "arrow_light", (uint8_t)GAME_NONE }, // #968
+    { RSBS_XITEM_SHARED_GORON, "Goron Mask", "mask_goron", (uint8_t)GAME_NONE },          // #978
+    { RSBS_XITEM_SHARED_ZORA, "Zora Mask", "mask_zora", (uint8_t)GAME_NONE },             // #978
+    { RSBS_XITEM_SHARED_BUNNY, "Bunny Hood", "mask_bunny", (uint8_t)GAME_NONE },          // #978
+    { RSBS_XITEM_SHARED_KEATON, "Keaton Mask", "mask_keaton", (uint8_t)GAME_NONE },       // #978
+    { RSBS_XITEM_SHARED_TRUTH, "Mask of Truth", "mask_truth", (uint8_t)GAME_NONE },       // #978
+    { RSBS_XITEM_SHARED_SWIM, "Swim", "ability_swim", (uint8_t)GAME_NONE },               // #1369
 };
 #define SHARED_FAMILY_ROW_DEF_COUNT ((int)(sizeof(kSharedFamilyRows) / sizeof(kSharedFamilyRows[0])))
 
@@ -653,10 +664,69 @@ int Combo_ItemSharedCount(void) {
     return n;
 }
 
+/** `game`'s STATIC catalog row for `family`: the adapter's catalog read with no
+ *  save, so icon metadata only, the same in every world (#1369). The index found
+ *  is remembered per family and catalog, so the per-frame Shared column re-reads
+ *  one row rather than rescanning the catalog. */
+static bool StaticCatalogFamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out) {
+    const ComboItemOps* ops = Combo_Item_GetOps(game);
+    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL) {
+        return false;
+    }
+    static struct {
+        bool (*catalogRowAt)(const void*, int, ComboItemRow*);
+        uint32_t family;
+        int index;
+    } sCache[8];
+    static int sCacheNext = 0;
+    for (int c = 0; c < (int)(sizeof(sCache) / sizeof(sCache[0])); c++) {
+        if (sCache[c].catalogRowAt == ops->catalogRowAt && sCache[c].family == family) {
+            memset(out, 0, sizeof(*out));
+            if (ops->catalogRowAt(NULL, sCache[c].index, out) && (out->sharedFamily & family) != 0u) {
+                return true;
+            }
+            sCache[c].catalogRowAt = NULL; // the catalog moved under it: rescan
+        }
+    }
+    const int n = ops->catalogCount();
+    for (int i = 0; i < n; i++) {
+        memset(out, 0, sizeof(*out));
+        if (ops->catalogRowAt(NULL, i, out) && (out->sharedFamily & family) != 0u) {
+            sCache[sCacheNext].catalogRowAt = ops->catalogRowAt;
+            sCache[sCacheNext].family = family;
+            sCache[sCacheNext].index = i;
+            sCacheNext = (sCacheNext + 1) % (int)(sizeof(sCache) / sizeof(sCache[0]));
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool CatalogFamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out);
+
+/** The row family row `def` takes its icon from, with `iconGame` the game whose
+ *  art the column draws: the family's preferred game's static catalog row when it
+ *  names one (#1369, the buttons' MM glyph in both games), else `iconGame`'s own
+ *  row, else the other game's. `catalog` reads each game through its catalog (the
+ *  customizable tracker's Shared slots) rather than its rows. */
+static bool SharedFamilyIconRow(const SharedFamilyRowDef* def, uint8_t iconGame, bool catalog, ComboItemRow* own) {
+    if (def->iconGame != (uint8_t)GAME_NONE && StaticCatalogFamilyRowOf(def->iconGame, def->family, own)) {
+        return true;
+    }
+    // OoT's tracker has one child-trade row, not a row per mask (#978), so a
+    // family with no row in the icon game takes the other game's icon.
+    const uint8_t otherGame = (iconGame == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
+    if (catalog) {
+        return CatalogFamilyRowOf(iconGame, def->family, own) || CatalogFamilyRowOf(otherGame, def->family, own);
+    }
+    return FamilyRowOf(iconGame, def->family, own) || FamilyRowOf(otherGame, def->family, own);
+}
+
 /** Fill `out` with family row `familyIndex`: held when the pool holds it or
  *  either game's own copy does (the pool only advances at a crossing or a save,
- *  so a button found this stint lights at once); its icon is `iconGame`'s own
- *  row's, and the row is text when that game has none. */
+ *  so a button found this stint lights at once); its icon is the family's
+ *  preferred game's, else `iconGame`'s own row's (SharedFamilyIconRow), and the
+ *  row is text when no game has one. */
 static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* out) {
     const SharedFamilyRowDef* def = SharedFamilyDefAt(familyIndex);
     if (def == NULL) {
@@ -673,10 +743,7 @@ static bool SharedFamilyRowAt(int familyIndex, uint8_t iconGame, ComboItemRow* o
         }
     }
     memset(out, 0, sizeof(*out));
-    // OoT's tracker has one child-trade row, not a row per mask (#978), so a
-    // family with no row in the icon game takes the other game's icon.
-    const uint8_t otherGame = (iconGame == (uint8_t)GAME_MM) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
-    if (FamilyRowOf(iconGame, def->family, &own) || FamilyRowOf(otherGame, def->family, &own)) {
+    if (SharedFamilyIconRow(def, iconGame, false, &own)) {
         out->iconKey = own.iconKey;
         out->iconKeyFaded = own.iconKeyFaded;
         out->iconAspect = own.iconAspect;
@@ -777,21 +844,7 @@ bool Combo_ItemSharedRowAtWithIcons(int index, uint8_t iconGame, ComboItemRow* o
 // ============================================================================
 
 static bool CatalogFamilyRowOf(uint8_t game, uint32_t family, ComboItemRow* out) {
-    if (FamilyRowOf(game, family, out)) {
-        return true;
-    }
-    const ComboItemOps* ops = Combo_Item_GetOps(game);
-    if (ops == NULL || ops->catalogCount == NULL || ops->catalogRowAt == NULL) {
-        return false;
-    }
-    const int n = ops->catalogCount();
-    for (int i = 0; i < n; i++) {
-        memset(out, 0, sizeof(*out));
-        if (ops->catalogRowAt(NULL, i, out) && (out->sharedFamily & family) != 0u) {
-            return true;
-        }
-    }
-    return false;
+    return FamilyRowOf(game, family, out) || StaticCatalogFamilyRowOf(game, family, out);
 }
 
 int Combo_ItemCatalogCount(uint8_t game) {
@@ -984,7 +1037,7 @@ bool Combo_ItemSharedCatalogRowAt(int catalogIndex, uint8_t iconGame, ComboItemR
         }
     }
     memset(out, 0, sizeof(*out));
-    if (CatalogFamilyRowOf(iconGame, def->family, &own) || CatalogFamilyRowOf(otherGame, def->family, &own)) {
+    if (SharedFamilyIconRow(def, iconGame, true, &own)) {
         out->iconKey = own.iconKey;
         out->iconKeyFaded = own.iconKeyFaded;
         out->iconAspect = own.iconAspect;
