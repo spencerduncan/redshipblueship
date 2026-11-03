@@ -267,3 +267,6 @@ games/oot/soh/oot_logic_gates_test.cpp
 games/oot/soh/Enhancements/randomizer/BlastMaskOoT.h
 games/oot/soh/Enhancements/randomizer/BlastMaskOoT.cpp
 games/oot/soh/oot_blast_mask_test.cpp
+games/mm/2s2h/Rando/Logic/ShopPrices.cpp
+games/mm/2s2h/Rando/Logic/ShopPrices.h
+games/mm/2s2h/mm_shop_prices_test.cpp

@@ -377,6 +377,12 @@ int MM_OcarinaDpad_RunHeadless(void);
 // the display-free shared bring-up first. Return 0 on pass.
 int MM_TreeShuffle_RunHeadless(void);
 int MM_TreeShuffleHooks_RunHeadless(void);
+// Majora's Mask's shop and Tingle price modes (games/mm/2s2h/mm_shop_prices_test.cpp,
+// #1427): the options, their page rows and the logic tiers; then the price pass
+// over a real pool generation and its determinism. Both need the display-free
+// shared bring-up first. Return 0 on pass.
+int MM_ShopPrices_RunHeadless(void);
+int MM_ShopPricesPool_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -6727,6 +6733,37 @@ static TestResult Test_MMTreeShuffleHooks(void) {
     return MM_TreeShuffleHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The MM price modes (#1427). Same display-free bring-up as mm-tree-shuffle: the
+// option table, the page view model and the region graph are all in the link,
+// and the CVar store must exist.
+static TestResult Test_MMShopPrices(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ShopPrices_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMShopPricesPool(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ShopPricesPool_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -8867,6 +8904,14 @@ const TestDescriptor gTests[] = {
       Test_MMTreeShuffle },
     { "mm-tree-shuffle-hooks", "The MM tree behaviour arms from OnFileLoad and suppresses a tree check's drop (#1121)",
       Test_MMTreeShuffleHooks },
+    // The MM price modes (#1427). After mm-registrar-coverage for the same
+    // reason as the tree rows (the pool row runs MM_Rando_Init). Both restore
+    // what they write.
+    { "mm-shop-prices", "MM Shop Prices and Tingle Prices are OoTMM's four modes; logic asks for the wallet (#1427)",
+      Test_MMShopPrices },
+    { "mm-shop-prices-pool",
+      "MM's price pass draws in a fixed order from the seeded stream, Vanilla by default (#1427)",
+      Test_MMShopPricesPool },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after

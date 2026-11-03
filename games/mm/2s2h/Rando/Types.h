@@ -2979,6 +2979,12 @@ typedef enum {
     // this option only when it is on (Foreign.cpp), so no world created before
     // it existed changes identity.
     RO_SHUFFLE_TREE_DROPS,
+    // Appended for the same reason (#1427): OoTMM's "MM Shop Prices" and "MM
+    // Tingle Prices" (priceMmShops, priceMmTingle), RandoOptionShopPriceMode values.
+    // The identity strings fold each only when it is not Vanilla (0, the
+    // default), so a world created before them keeps its seed and digest.
+    RO_SHOP_PRICES,
+    RO_TINGLE_PRICES,
     RO_MAX,
 } RandoOptionId;
 
@@ -3019,6 +3025,18 @@ typedef enum {
     RO_CLOCK_SHUFFLE_ASCENDING,
     RO_CLOCK_SHUFFLE_DESCENDING,
 } RandoClockShuffleOptions;
+
+// RO_SHOP_PRICES / RO_TINGLE_PRICES (#1427), OoTMM's SETTING_PRICE values with
+// Vanilla first: it is the default, and 0 keeps a default world's identity.
+// Append-only: the number is the value a file stores. Not "RandoOptionPrices":
+// SoH declares that global name with other enumerators, and one binary links
+// both trees (the ODR declaration gate).
+typedef enum {
+    RO_PRICES_VANILLA,
+    RO_PRICES_AFFORDABLE,
+    RO_PRICES_WEIGHTED,
+    RO_PRICES_RANDOM,
+} RandoOptionShopPriceMode;
 
 typedef enum {
     RANDO_INF_PURCHASED_BEANS_FROM_SOUTHERN_SWAMP_SCRUB,

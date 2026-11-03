@@ -1561,6 +1561,18 @@ if(BUILD_TESTING)
     # state is tolerated. Pure (no display, no ROM); ids looked up by name.
     redship_add_test(NAME MMTreeShuffle COMMAND redship --test mm-tree-shuffle)
     redship_add_test(NAME MMTreeShuffleHooks COMMAND redship --test mm-tree-shuffle-hooks)
+    # Majora's Mask's shop and Tingle price modes (#1427; OoTMM's priceMmShops
+    # and priceMmTingle). MMShopPrices: both options default to Vanilla, the page
+    # draws each as a four-value combo box after its shuffle, the price oracle
+    # covers every shop and Tingle check, and CAN_AFFORD asks for exactly the
+    # wallet that holds each price up to 500. MMShopPricesPool: over a real pool
+    # generation the default prices every priced check at vanilla and draws
+    # nothing, Affordable is 10, Random and Weighted Random follow OoTMM's
+    # formulas over one stream in the table's order within 0-500, and the prices
+    # are a function of the seed and the modes alone. Pure (no display, no ROM);
+    # options looked up by name.
+    redship_add_test(NAME MMShopPrices COMMAND redship --test mm-shop-prices)
+    redship_add_test(NAME MMShopPricesPool COMMAND redship --test mm-shop-prices-pool)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside
