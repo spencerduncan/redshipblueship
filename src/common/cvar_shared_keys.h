@@ -157,6 +157,12 @@
  * RSBS_COMBO_GOAL_* enumerators, DEFAULT beat-both (1), so a player who leaves
  * it alone resolves to the same twelve record bytes as before it existed. */
 #define RSBS_CVAR_COMBO_RANDO_GOAL "gCombo.Rando.Goal"
+/* #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
+ * `logic` (All Locations / Beatable Only / No Logic) on the pinned
+ * RSBS_COMBO_RUNG_* enumerators (3 / 2 / 1). DEFAULT Beatable Only (2), the
+ * rung every world before it froze, so a player who leaves it alone resolves to
+ * the same twelve record bytes. Both games' own Logic rows follow it. */
+#define RSBS_CVAR_COMBO_RANDO_LOGIC "gCombo.Rando.Logic"
 /* #886: one Kokiri Sword across both games. Boolean (0/1), DEFAULT 0, so every
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
@@ -1422,6 +1428,9 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_GOAL, ComboKeyClass::Identity,
       "ComboSettingsRecord.goal (RSBS_COMBO_GOAL_*, ADR 0010 D1): the expression the creation's proof must "
       "satisfy" },
+    { RSBS_CVAR_COMBO_RANDO_LOGIC, ComboKeyClass::Identity,
+      "ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*, #1367): the rung the creation's proof runs at, and the "
+      "logic both games' own rows derive from" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
@@ -1948,8 +1957,8 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Nineteen identity keys (the five of ADR 0011 increment 2 less the two pool sizes
-// #801 and the two item classes #834 retired, Goal (ADR 0010 D1),
+// Twenty identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
@@ -1965,9 +1974,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 39, "nineteen gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
+static_assert(kComboKeyCount == 40, "twenty gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
                                     "twelve gCombo.Tracker.Items.* preferences + four gCombo.Tracker.Checks.* "
-                                    "preferences = 39");
+                                    "preferences = 40");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

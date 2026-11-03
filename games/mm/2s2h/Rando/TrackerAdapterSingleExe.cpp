@@ -66,6 +66,7 @@ extern std::unordered_map<RandoCheckId, std::string> accessLogicFuncs;
 // wrapped in C linkage (matching Foreign.cpp).
 #include "combo_tracker_view.h"
 #include "combo_mm_locations_view.h" // Randomizer > MM Locations' check table (#1101 lane R3)
+#include "combo_mm_options_view.h"   // MM_Rando_PairedLogicShown: the resolved MM Logic (#1367)
 #include "game.h"                    // MM_SAVE_CONTEXT_SIZE
 
 // The reader in combo_tracker_view.c walks the row's flag bytes as u8 and the
@@ -670,12 +671,15 @@ namespace {
 /**
  * True while MM's pool generation ignores gRando.ExcludedChecks: under Vanilla
  * logic GeneratePools.cpp places every check's vanilla item and never reads the
- * list, which is why MM's own Check Filter tab refused to draw there. The same
- * read that tab made (the RO_LOGIC CVar, Glitchless when unset, the paired
- * resolution's default too).
+ * list, which is why MM's own Check Filter tab refused to draw there. #1367: the
+ * RESOLVED value, not the RO_LOGIC CVar: a paired world's MM Logic follows the
+ * pair's [Both Games] Logic (Glitchless or No Logic, never Vanilla), so a
+ * Vanilla left in the key no longer disables a list the next world reads. Only a
+ * loaded world created with Vanilla before #1367 reads true here, and its page
+ * is frozen anyway.
  */
 bool MMLocationsVanillaLogic(void) {
-    return CVarGetInteger(Rando::StaticData::Options[RO_LOGIC].cvar, RO_LOGIC_GLITCHLESS) == RO_LOGIC_VANILLA;
+    return MM_Rando_PairedLogicShown() == RO_LOGIC_VANILLA;
 }
 
 } // namespace

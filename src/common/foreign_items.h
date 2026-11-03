@@ -234,6 +234,14 @@ bool Combo_ForeignPairingActive(void);
 #define RSBS_COMBO_RUNG_BEATABLE 2u      // GOAL provable under the frozen trick set
 #define RSBS_COMBO_RUNG_ALL_REACHABLE 3u // GOAL provable and every location reachable
 
+/** Does @p rung claim a proof? BEATABLE and ALL_REACHABLE do; NONE, and any
+ *  value outside the pinned table, do not. The question both games' Logic
+ *  derivations ask (#1367): a proving rung generates each half under its
+ *  Glitchless logic, the base rung under its No Logic. */
+static inline bool Combo_LogicRungProves(uint8_t rung) {
+    return rung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE || rung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
+}
+
 // Item classes. Pinned BIT POSITIONS, append-only: allocate the next free bit,
 // never re-point an allocated one. Bits 0x0040..0x8000 are UNALLOCATED and must
 // read as 0 in a formatVersion == 1 record, which is what lets a future build
@@ -816,8 +824,9 @@ void Combo_ComboSettingsDefaults(ComboSettingsRecord* out);
  * a logged reason — never to a new enumerator. An unset key, or a process with
  * no CVar store at all (every ROM-free row that never brings up a
  * Ship::Context), resolves to the default, so "nothing authored" and "what
- * ships" are the same record. `goal` and `logicRung` stay at their defaults:
- * ADR 0010 owns their authoring.
+ * ships" are the same record. `goal` is authored since 2026-09-27 (ADR 0010
+ * D1) and `logicRung` since #1367 (the pair's [Both Games] Logic, operator
+ * ruling 2026-11-02); both default to what every earlier world froze.
  *
  * "AND THE DETERMINISM DIGESTS DO NOT MOVE" USED TO END THAT SENTENCE, AND IT
  * NAMED NOTHING (#688). The determinism rows run one seed twice and diff the two

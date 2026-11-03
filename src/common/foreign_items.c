@@ -85,9 +85,12 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     // authored" and "what ships" the same record, and the SeedDeterminism /
     // MMRandoGen / HeadlessForeignDigest rows byte-stable.
     //
-    // logicRung stays at its default: ADR 0010 owns its authoring. The goal is
-    // authored since 2026-09-27 (ADR 0010 D1's value list, OoTMM's goals); its
-    // default is beat-both, so an unset key reproduces the record exactly.
+    // The goal is authored since 2026-09-27 (ADR 0010 D1's value list, OoTMM's
+    // goals); its default is beat-both, so an unset key reproduces the record
+    // exactly. logicRung is authored since #1367 (operator ruling 2026-11-02:
+    // the pair's one [Both Games] Logic, OoTMM's `logic`); its default is
+    // Beatable Only, the rung every earlier world froze, so an unset key
+    // reproduces the record exactly too.
     //
     // poolSizeOoT / poolSizeMM keep their shipped defaults too: #801 retired
     // their keys. Under the single bag no rule reads a pool size, and both
@@ -102,6 +105,7 @@ void Combo_ResolveComboSettings(ComboSettingsRecord* out) {
     Combo_ComboSettingsDefaults(out);
     out->direction = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_DIRECTION);
     out->goal = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+    out->logicRung = (uint8_t)Combo_ComboSettingResolved(COMBO_SETTING_LOGIC); // #1367
     // comboFlags is ASSEMBLED from its flag keys, never overlaid: the byte is a
     // bitset and each bit has its own key, so writing the whole byte from the
     // resolved booleans keeps every unallocated bit at 0 whatever a stored value
