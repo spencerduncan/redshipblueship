@@ -195,6 +195,14 @@ extern "C" int OoT_ItemAdapter_TestAuthorSave(void* buf, size_t size, int varian
 extern "C" int MM_ItemAdapter_TestAuthorSave(void* buf, size_t size, int variant);
 // MM's tracker-rows world (#1140): the shadow world plus small keys found 1 / 3 / 0 / 2 and held 0 / 1 / none / 2.
 extern "C" int MM_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando, unsigned options);
+// #1347's Shared Ocarina Buttons states: OoT's tracker world (a randomizer file holding the A and C-Left buttons), the
+// frozen options its shuffle-gated groups read (OoT's live in the seed's context, not the buffer; bit 4 is
+// RSK_SHUFFLE_OCARINA_BUTTONS, `enabled` 0 puts the production read back), and MM's button world (the shadow world
+// with the file's button shuffle on, `mode` 1, and bit i of `heldMask` holding button i of A, C-Down, C-Right,
+// C-Left, C-Up).
+extern "C" int OoT_ItemAdapter_TestAuthorTrackerWorld(void* buf, size_t size, int rando);
+extern "C" void OoT_ItemAdapter_TestOverrideOptions(int enabled, unsigned bits);
+extern "C" int MM_ItemAdapter_TestAuthorOcarinaButtons(void* buf, size_t size, int mode, unsigned heldMask);
 
 namespace SohGui {
 // Combo > Majora's Mask's body over a manifest table, and its group note's
@@ -1649,7 +1657,8 @@ void AuthorCrossings() {
  */
 std::vector<uint8_t> gSnapshotMMShadowBackup;
 
-void AuthorMMShadow(bool withItems = false, bool withKeys = false) {
+// `buttonsHeld` >= 0 (#1347): MM's button world instead, the button shuffle on and those buttons held.
+void AuthorMMShadow(bool withItems = false, bool withKeys = false, int buttonsHeld = -1) {
     const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
     // The shadow storage exists only once the frozen-state manager is
     // initialized (idempotent); before that GetMMSaveContext answers NULL.
@@ -1669,6 +1678,10 @@ void AuthorMMShadow(bool withItems = false, bool withKeys = false) {
     if (withKeys) {
         // #1143's key-counts state: that world plus MM's small keys (#1140's tracker world).
         MM_ItemAdapter_TestAuthorTrackerWorld(blob.data(), blob.size(), 1, 0u);
+    }
+    if (buttonsHeld >= 0) {
+        // #1347's Shared Ocarina Buttons states: the shadow world with the file's frozen button shuffle on.
+        MM_ItemAdapter_TestAuthorOcarinaButtons(blob.data(), blob.size(), 1, (unsigned)buttonsHeld);
     }
     // A paired file's MM final seed is a hash of the paired seed and the options
     // (Rando::Foreign::MixPairedFinalSeedForAttempt), never the paired seed itself
@@ -1764,6 +1777,20 @@ const struct {
 
 bool gSnapshotItemSetMMDungeon = false; // the key-counts state turned MM's Dungeon group on
 
+// #1347: a world created with Shared Ocarina Buttons on, both games shuffling the buttons, with each game live in turn,
+// so the Shared column's five buttons can be judged in each game's own icons without a playthrough: SoH's Ocarina of
+// Time with its short names over it ("A", "C-U", ...) while OoT runs, MM's tinted button glyphs while MM runs.
+constexpr const char* kItemTrackerSharedButtonsOoT = "shared-buttons-oot";
+constexpr const char* kItemTrackerSharedButtonsMM = "shared-buttons-mm";
+// MM's world holds A and C-Right (bit i of A, C-Down, C-Right, C-Left, C-Up); OoT's tracker world holds A and C-Left,
+// so the pair holds three buttons and C-Down and C-Up draw unowned.
+constexpr unsigned kItemTrackerMMButtonsHeld = 0x05u;
+// OoT_ItemAdapter_TestOverrideOptions' RSK_SHUFFLE_OCARINA_BUTTONS bit.
+constexpr unsigned kItemTrackerOoTShuffleButtons = 1u << 4;
+bool gSnapshotItemOverrodeOoTOptions = false; // a Shared Ocarina Buttons state stood in for OoT's frozen options
+
+void AuthorPairing(); // with the other state authoring, below
+
 void AuthorItemTrackerState(const std::string& state) {
     Context_InitFrozenStates();
     gSnapshotItemOoTOps = Combo_Item_GetOps((uint8_t)GAME_OOT);
@@ -1787,12 +1814,29 @@ void AuthorItemTrackerState(const std::string& state) {
     // key-counts: MM's small keys in the snapshot and MM's Dungeon group shown, so the
     // capture carries Key Count Tracking's "held/collected/max" on MM's key rows.
     const bool keyCounts = state == "key-counts";
-    AuthorMMShadow(true, keyCounts);
-    if (keyCounts) {
-        CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON, 1);
-        gSnapshotItemSetMMDungeon = true;
+    const bool sharedButtons = state == kItemTrackerSharedButtonsOoT || state == kItemTrackerSharedButtonsMM;
+    if (sharedButtons) {
+        // The rule frozen into the world, as its creation freezes it (LeaveState's ComboContext_Init unfreezes it);
+        // OoT's file shuffles the buttons under its seed's option, which the test seam stands in for.
+        AuthorPairing();
+        ComboSettingsRecord rec;
+        Combo_ComboSettingsDefaults(&rec);
+        ComboItemRulesRecord rules;
+        std::memset(&rules, 0, sizeof(rules));
+        rules.crossItemFlags = (uint32_t)RSBS_XITEM_SHARED_OCARINA_BUTTONS;
+        Combo_FreezeComboSettingsEx(&rec, &rules);
+        OoT_ItemAdapter_TestOverrideOptions(1, kItemTrackerOoTShuffleButtons);
+        gSnapshotItemOverrodeOoTOptions = true;
+        AuthorMMShadow(false, false, (int)kItemTrackerMMButtonsHeld);
+        OoT_ItemAdapter_TestAuthorTrackerWorld(ootShadow.data(), ootShadow.size(), 1);
+    } else {
+        AuthorMMShadow(true, keyCounts);
+        if (keyCounts) {
+            CVarSetInteger(RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON, 1);
+            gSnapshotItemSetMMDungeon = true;
+        }
+        OoT_ItemAdapter_TestAuthorSave(ootShadow.data(), ootShadow.size(), 0);
     }
-    OoT_ItemAdapter_TestAuthorSave(ootShadow.data(), ootShadow.size(), 0);
     Context_UpdateShadowCopy(GAME_OOT, ootShadow.data(), ootShadow.size());
     // The pool a departing game leaves: 250 rupees, a tier-2 quiver holding 33
     // arrows, five hearts and two pieces.
@@ -1808,16 +1852,24 @@ void AuthorItemTrackerState(const std::string& state) {
             countState = true;
         }
     }
-    const bool ootLive = state == "live" || countState;
+    const bool ootLive = state == "live" || countState || state == kItemTrackerSharedButtonsOoT;
     std::vector<uint8_t>& live = ootLive ? gSnapshotItemOoTLive : gSnapshotItemMMLive;
     live.assign(ootLive ? (size_t)OOT_SAVE_CONTEXT_SIZE : (size_t)MM_SAVE_CONTEXT_SIZE, 0);
     if (ootLive && gSnapshotItemOoTOps != nullptr) {
-        OoT_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        if (sharedButtons) {
+            OoT_ItemAdapter_TestAuthorTrackerWorld(live.data(), live.size(), 1);
+        } else {
+            OoT_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        }
         gSnapshotItemOoTWrapped = *gSnapshotItemOoTOps;
         gSnapshotItemOoTWrapped.liveSave = SnapshotItemOoTLive;
         Combo_Item_RegisterOps((uint8_t)GAME_OOT, &gSnapshotItemOoTWrapped);
     } else if (!ootLive && gSnapshotItemMMOps != nullptr) {
-        MM_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        if (sharedButtons) {
+            MM_ItemAdapter_TestAuthorOcarinaButtons(live.data(), live.size(), 1, kItemTrackerMMButtonsHeld);
+        } else {
+            MM_ItemAdapter_TestAuthorSave(live.data(), live.size(), 1);
+        }
         gSnapshotItemMMWrapped = *gSnapshotItemMMOps;
         gSnapshotItemMMWrapped.liveSave = SnapshotItemMMLive;
         Combo_Item_RegisterOps((uint8_t)GAME_MM, &gSnapshotItemMMWrapped);
@@ -1843,6 +1895,10 @@ void RestoreItemTrackerState() {
     if (gSnapshotItemSetMMDungeon) {
         CVarClear(RSBS_CVAR_COMBO_ITEMS_MM_DUNGEON);
         gSnapshotItemSetMMDungeon = false;
+    }
+    if (gSnapshotItemOverrodeOoTOptions) {
+        OoT_ItemAdapter_TestOverrideOptions(0, 0u); // the seed's own options again
+        gSnapshotItemOverrodeOoTOptions = false;
     }
 }
 
@@ -2868,7 +2924,15 @@ void Session::BuildPageList() {
         p.kind = Kind::WINDOW;
         p.window = ComboGui::kComboItemTrackerWindowName;
         // #1143: one more state per non-default count setting (kItemTrackerCountStates), each the "live" world.
-        p.states = { "no-data", "live", "snapshot", "counts-capacity", "align-left", "key-counts" };
+        // #1347: the Shared Ocarina Buttons world with each game live in turn.
+        p.states = { "no-data",
+                     "live",
+                     "snapshot",
+                     "counts-capacity",
+                     "align-left",
+                     "key-counts",
+                     kItemTrackerSharedButtonsOoT,
+                     kItemTrackerSharedButtonsMM };
         p.compareWith = kSohItemTrackerReference;
         p.scroll = false;
         p.expectText = { "Ocarina of Time", "Majora's Mask", "Shared" };
@@ -2904,6 +2968,20 @@ void Session::BuildPageList() {
         p.checksResetPosition = true;
         p.stateText["no-data"] = { ComboGui::kComboItemTrackerWindowName };
         p.stateContrast = { { "live", "no-data" }, { "snapshot", "no-data" }, { "no-data", "live" } };
+        // #1347: the Shared column's five buttons, once, in the live game's icons. ROM-rich, OoT's are its ocarina
+        // with SoH's short names over it, which the overlay draws only over an icon (MM's glyphs carry none);
+        // ROM-free every section is the text fallback, which names each button. "live" freezes no rule: no Shared
+        // button there.
+        for (const char* s : { kItemTrackerSharedButtonsOoT, kItemTrackerSharedButtonsMM }) {
+            p.stateImages[s] = 100;
+            p.stateContrast[s] = "live";
+            if (romFree) {
+                p.stateText[s] = { "C Down Button" };
+            }
+        }
+        if (!romFree) {
+            p.stateText[kItemTrackerSharedButtonsOoT] = { "C-D", "C-U" };
+        }
         // #927: no section says how fresh it is, and an empty one is its
         // header alone.
         p.forbidText = { "Updated live", "As of the last", "As of file creation", "No data",
