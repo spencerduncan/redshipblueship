@@ -92,11 +92,14 @@ void applyPreset(std::string presetName, std::vector<PresetSection> includeSecti
             }
 #ifdef RSBS_SINGLE_EXECUTABLE
             // #1368: the Rando Settings block is one paired profile, so while a paired world is decided none of it
-            // applies (gRandoSettings included), rather than whichever half no freeze gate guards.
+            // applies (gRandoSettings included), rather than whichever half no freeze gate guards. The toast is the
+            // short copy docs/ui-style-guide.md's toast contract asks for (one line in the 832-px window, no period);
+            // the long explanation, with the title-screen escape, stays on the log line.
             if (i == PRESET_SECTION_RANDOMIZER) {
                 if (const std::string note = ComboPresetProfile_RefusalNote(); !note.empty()) {
                     spdlog::warn("Preset '{}': Rando Settings not applied. {}", presetName, note);
-                    Notification::Emit({ .message = "Rando Settings not applied. " + note });
+                    Notification::Emit(
+                        { .prefix = "Not applied:", .message = "Rando Settings decided for this world" });
                     continue;
                 }
             }

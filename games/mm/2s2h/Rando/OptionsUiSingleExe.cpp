@@ -976,7 +976,10 @@ bool IsBoundTrick(MMRandoTrickId mmRandoTrickId) {
 // real blocker. Under the follow-OoTMM ruling a key OoTMM opens with an "X in MM"
 // setting is in the item class (stoneAgonyMm data.ts:1908, shortHookshotMm :1970,
 // tunicGoronMm/tunicZoraMm, scalesMm and strengthMm in :2106-2214) and stays
-// visible: it becomes bindable once that item is usable in MM.
+// visible: it becomes bindable once that item is usable in MM. A key whose only
+// leg is short_hook_anywhere is NOT in the item class: MM's own Hookshot
+// satisfies can_hookshot_short, so its blocker is OoTMM's "Hookshot Anywhere
+// (MM)" logic setting (data.ts:1696), which MM's logic does not have.
 //
 // `mm-trick-table` leg (k) holds every unbound descriptor to a class, each class
 // to its wording, and the per-class counts, so binding a key here (or adding one)
@@ -1009,19 +1012,22 @@ const UnboundTrick kUnboundTricks[] = {
     { MMRT_MAJORA_LOGIC, COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM, COMBO_MM_TRICK_REASON_NO_SUCH_TERM },
     // Inside a grotto MM's logic does not map to its entrance (#578 section 3).
     { MMRT_GBC_COW_LIKELIKE_ELEVATOR, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
-    // can_enter_zora_door's leg is short_hook_anywhere (can_hookshot_short &&
-    // hookshotAnywhereMm), so the short hookshot first. ESCAPE_CAGE,
-    // GBT_FAIRY2_HOOK and KEG_TRIAL_HEATLESS below are the same.
-    { MMRT_ZORA_HALL_DOORS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // can_enter_zora_door's trick leg is short_hook_anywhere (macros_mm.yml:325,
+    // :424): can_hookshot_short && setting(hookshotAnywhereMm, logical). MM's
+    // Hookshot satisfies can_hookshot_short whenever shortHookshotMm is off, so
+    // the blocker is the Hookshot Anywhere logic setting, not an item.
+    // ESCAPE_CAGE, GBT_FAIRY2_HOOK and KEG_TRIAL_HEATLESS below are the same.
+    { MMRT_ZORA_HALL_DOORS, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE, COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
     // That edge is already unconditional here.
     { MMRT_IKANA_PILLAR_ENTRANCE_FLOAT, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
     { MMRT_IKANA_PILLAR_ENTRANCE_JUMP, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
     // Only matters with the Chuchu soul shuffled; the Wizzrobe-room edge here
     // has no Chuchu-soul term.
     { MMRT_ISTT_CHUCHU_LESS, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
-    // short_hook_anywhere, as Zora Hall's doors.
-    { MMRT_ESCAPE_CAGE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
-    { MMRT_GBT_FAIRY2_HOOK, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // short_hook_anywhere, as Zora Hall's doors (deku_palace.yml "Deku Palace
+    // Cage To Throne"; great_bay_temple.yml:40).
+    { MMRT_ESCAPE_CAGE, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE, COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
+    { MMRT_GBT_FAIRY2_HOOK, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE, COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
     // ER-only: setting(erMoon).
     { MMRT_CLOCK_TOWER_WAIT, COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO, COMBO_MM_TRICK_REASON_ENTRANCE_RANDO },
     // Grotto mapping, as the cow grotto above.
@@ -1035,17 +1041,23 @@ const UnboundTrick kUnboundTricks[] = {
     // Needs an inn-roof region; a disjunct on the midnight meeting alone is
     // unreachable under the inn's stay rules.
     { MMRT_STOCK_POT_WAIT, COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA, COMBO_MM_TRICK_REASON_UNMAPPED_AREA },
-    // access_keg_trial's leg is short_hook_anywhere.
-    { MMRT_KEG_TRIAL_HEATLESS, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
+    // access_keg_trial's trick leg is short_hook_anywhere (macros_mm.yml:333).
+    { MMRT_KEG_TRIAL_HEATLESS, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE, COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
     // OoTMM's kegStrength3 (strengthMm): the Golden Gauntlets.
     { MMRT_KEG_HOOKBUNNY, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Golden Gauntlets From Ocarina of Time" },
     // The keg implies Goron here, and Goron already breaks red boulders.
     { MMRT_KEG_RED_BOULDER, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
-    // The trick sits only on the Iron Boots / Zora Tunic / big-dive leg.
+    // great_bay_temple.yml:90: the trick's item legs are underwater_walking
+    // (Zora Tunic and Iron Boots) and can_dive_big && has_tunic_zora (Zora Tunic
+    // and the Golden Scale); both need the Zora Tunic. Its third leg,
+    // short_hook_anywhere, is the Hookshot Anywhere setting; the items are what
+    // this build can add.
     { MMRT_GBT_BABA_ENTRY_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
-      "Needs Iron Boots or Golden Scale From Ocarina of Time" },
+      "Needs Zora Tunic With Iron Boots or Golden Scale From Ocarina of Time" },
+    // zora_cape.yml:20: has_iron_boots && has_tunic_zora && (... has_bombchu &&
+    // trick ...). No scale leg.
     { MMRT_CAPE_LIKE_LIKE_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
-      "Needs Iron Boots or Golden Scale From Ocarina of Time" },
+      "Needs Iron Boots and Zora Tunic From Ocarina of Time" },
 };
 
 const UnboundTrick* FindUnboundTrick(MMRandoTrickId mmRandoTrickId) {

@@ -69,10 +69,12 @@ extern "C" {
 typedef enum {
     /** The row is bound, or reserved (a reserved row carries its own reason). */
     COMBO_MM_TRICK_UNBOUND_NONE = 0,
-    /** Every leg needs an Ocarina of Time item used in Majora's Mask, which
-     *  OoTMM opens with an "X in MM" setting (stoneAgonyMm, shortHookshotMm,
-     *  tunicGoronMm/tunicZoraMm, scalesMm, strengthMm). The reason names the
-     *  item. Not hidden: the key becomes bindable with that item. */
+    /** Every item leg needs an Ocarina of Time item used in Majora's Mask,
+     *  which OoTMM opens with an "X in MM" setting (stoneAgonyMm,
+     *  shortHookshotMm, tunicGoronMm/tunicZoraMm, scalesMm, strengthMm). The
+     *  reason names the item. Not hidden: the key becomes bindable with that
+     *  item. A key whose ONLY leg is short_hook_anywhere is not here: that is
+     *  a logic setting, not an item (COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE). */
     COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
     /** Every leg needs an entrance shuffle MM's logic does not have. */
     COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO,
@@ -84,17 +86,26 @@ typedef enum {
     /** The trick's leg lands in an area (a region or a grotto) MM's logic does
      *  not map yet. */
     COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA,
+    /** Every leg is OoTMM's short_hook_anywhere (`can_hookshot_short &&
+     *  setting(hookshotAnywhereMm, logical)`, macros_mm.yml:424): it needs the
+     *  "Hookshot Anywhere (MM)" logic setting (data.ts:1696), which MM's logic
+     *  does not have (it never expects Hookshot Anywhere). MM's own Hookshot
+     *  already satisfies can_hookshot_short, so no Ocarina of Time item is the
+     *  blocker. */
+    COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE,
     COMBO_MM_TRICK_UNBOUND_CLASS_COUNT
 } ComboMMTrickUnboundClass;
 
 /** The reason a class's rows read, for the classes whose reason is one sentence
  *  (an item-class row names its own item; an entrance-class row may add the
  *  alternative to the shuffle after this prefix). Title Case fragments in
- *  SoH's disabledMap style, like the reserved rows' reasons. */
+ *  SoH's disabledMap style, like the reserved rows' reasons, and spelling out
+ *  "Majora's Mask" (R-N8). */
 #define COMBO_MM_TRICK_REASON_ENTRANCE_RANDO "Needs Entrance Randomizer"
-#define COMBO_MM_TRICK_REASON_COVERED "Already Covered by MM Logic"
-#define COMBO_MM_TRICK_REASON_NO_SUCH_TERM "No Such Requirement in MM Logic"
-#define COMBO_MM_TRICK_REASON_UNMAPPED_AREA "Area Not Yet Mapped in MM Logic"
+#define COMBO_MM_TRICK_REASON_COVERED "Already Covered by Majora's Mask Logic"
+#define COMBO_MM_TRICK_REASON_NO_SUCH_TERM "No Such Requirement in Majora's Mask Logic"
+#define COMBO_MM_TRICK_REASON_UNMAPPED_AREA "Area Not Yet Mapped in Majora's Mask Logic"
+#define COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE "Needs Hookshot Anywhere in Logic"
 /** How every item-class reason ends: the reserved rows' wording ("Needs Hover
  *  Boots From Ocarina of Time"). */
 #define COMBO_MM_TRICK_REASON_OOT_ITEM_SUFFIX " From Ocarina of Time"

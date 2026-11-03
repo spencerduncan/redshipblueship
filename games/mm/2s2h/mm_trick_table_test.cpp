@@ -70,12 +70,13 @@
  *  (k) #1368, UNBOUND REASONS: every unbound key carries one of #697's classes
  *      (needs an Ocarina of Time item used in Majora's Mask, needs entrance
  *      randomizer, already covered by MM logic, no such requirement, area not
- *      mapped yet) and reads its class's wording, never the generic "Not Yet
- *      Supported by Logic"; a bound or reserved key carries no class; the
- *      per-class counts are pinned; the keys OoTMM opens with an "X in MM" item
- *      (Stone of Agony, tunics, short hookshot, scales, strength) sit in the
- *      item class and name the item; and an item-class key is still refused by
- *      the writer.
+ *      mapped yet, needs Hookshot Anywhere in logic) and reads its class's
+ *      wording, never the generic "Not Yet Supported by Logic"; a bound or
+ *      reserved key carries no class; the per-class counts are pinned; the keys
+ *      OoTMM opens with an "X in MM" item (Stone of Agony, tunics, short
+ *      hookshot, scales, strength) sit in the item class and name the item, and
+ *      the keys whose only leg is short_hook_anywhere do not; and an item-class
+ *      key is still refused by the writer.
  *
  * Deliberately NOT asserted: that any particular unbound key does something.
  * 84 of the 86 keys are declared and consulted by nothing in this PR (part 2
@@ -520,6 +521,9 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
                 case COMBO_MM_TRICK_UNBOUND_UNMAPPED_AREA:
                     shaped = reason == COMBO_MM_TRICK_REASON_UNMAPPED_AREA;
                     break;
+                case COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE:
+                    shaped = reason == COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE;
+                    break;
                 default:
                     break;
             }
@@ -530,14 +534,18 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
         }
         // #697's third pass, less MMRT_BOMBER_BACKFLIP (bound by #1306), with
         // the Stone of Agony and the tunics moved from "no such term" to the
-        // item class under the follow-OoTMM ruling (stoneAgonyMm, tunic*Mm).
+        // item class under the follow-OoTMM ruling (stoneAgonyMm, tunic*Mm),
+        // and the four keys whose only leg is short_hook_anywhere in their own
+        // class (their blocker is OoTMM's hookshotAnywhereMm setting: MM's own
+        // Hookshot already satisfies can_hookshot_short).
         static const int kExpectedPerClass[COMBO_MM_TRICK_UNBOUND_CLASS_COUNT] = {
-            0,  // NONE (not counted)
-            13, // OOT_ITEM: Stone of Agony, tunics, 6 short hookshot, 2 scales, Golden Gauntlets, 2 dive/boots
-            2,  // ENTRANCE_RANDO: Clock Tower wait, Snowhead stick run
-            4,  // COVERED: red boulder keg, two Ikana pillar routes, ISTT Chuchu-less
-            1,  // NO_SUCH_TERM: Majora as a time reset
-            8,  // UNMAPPED_AREA: five regions, three grottos
+            0, // NONE (not counted)
+            9, // OOT_ITEM: Stone of Agony, tunics, 2 short hookshot, 2 scales, Golden Gauntlets, 2 Zora Tunic legs
+            2, // ENTRANCE_RANDO: Clock Tower wait, Snowhead stick run
+            4, // COVERED: red boulder keg, two Ikana pillar routes, ISTT Chuchu-less
+            1, // NO_SUCH_TERM: Majora as a time reset
+            8, // UNMAPPED_AREA: five regions, three grottos
+            4, // HOOKSHOT_ANYWHERE: Zora Hall doors, monkey cage, GBT fairy 2, keg trial heatless
         };
         for (int c = 1; c < (int)COMBO_MM_TRICK_UNBOUND_CLASS_COUNT; c++) {
             if (perClass[c] != kExpectedPerClass[c]) {
@@ -560,6 +568,15 @@ extern "C" int MM_TrickTable_RunHeadless(void) {
             { MMRT_HARD_HOOKSHOT, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Short Hookshot From Ocarina of Time" },
             { MMRT_GYORG_POTS_DIVE, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Scales From Ocarina of Time" },
             { MMRT_KEG_HOOKBUNNY, COMBO_MM_TRICK_UNBOUND_OOT_ITEM, "Needs Golden Gauntlets From Ocarina of Time" },
+            // zora_cape.yml:20 has no scale leg: the Iron Boots AND the Zora Tunic.
+            { MMRT_CAPE_LIKE_LIKE_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
+              "Needs Iron Boots and Zora Tunic From Ocarina of Time" },
+            { MMRT_GBT_BABA_ENTRY_BOMBCHU, COMBO_MM_TRICK_UNBOUND_OOT_ITEM,
+              "Needs Zora Tunic With Iron Boots or Golden Scale From Ocarina of Time" },
+            // Only short_hook_anywhere: a logic setting, not an item.
+            { MMRT_ZORA_HALL_DOORS, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE, COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
+            { MMRT_KEG_TRIAL_HEATLESS, COMBO_MM_TRICK_UNBOUND_HOOKSHOT_ANYWHERE,
+              COMBO_MM_TRICK_REASON_HOOKSHOT_ANYWHERE },
             { MMRT_CLOCK_TOWER_WAIT, COMBO_MM_TRICK_UNBOUND_ENTRANCE_RANDO, COMBO_MM_TRICK_REASON_ENTRANCE_RANDO },
             { MMRT_KEG_RED_BOULDER, COMBO_MM_TRICK_UNBOUND_COVERED, COMBO_MM_TRICK_REASON_COVERED },
             { MMRT_MAJORA_LOGIC, COMBO_MM_TRICK_UNBOUND_NO_SUCH_TERM, COMBO_MM_TRICK_REASON_NO_SUCH_TERM },
