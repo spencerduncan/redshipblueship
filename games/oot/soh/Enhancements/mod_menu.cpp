@@ -436,11 +436,11 @@ struct OoTModSet {
 // of its normalised path, as upstream appended its new stems.
 static OoTModSet ResolveOoTModSet(const std::vector<std::filesystem::path>& claimed, const std::string& modsPath,
                                   const std::vector<std::string>& saved, bool dropMissing) {
-    OoTModSet set;
+    OoTModSet resolved;
     std::vector<std::string> walkOrder;
     for (const std::filesystem::path& modPath : claimed) {
         std::string key = OoTModKey(modPath, modsPath);
-        if (set.paths.emplace(key, modPath).second) {
+        if (resolved.paths.emplace(key, modPath).second) {
             walkOrder.push_back(std::move(key));
         }
     }
@@ -450,37 +450,37 @@ static OoTModSet ResolveOoTModSet(const std::vector<std::filesystem::path>& clai
             continue;
         }
         std::string key;
-        if (set.paths.contains(entry)) {
+        if (resolved.paths.contains(entry)) {
             key = entry;
         } else {
             for (const std::string& candidate : walkOrder) {
-                if (!taken.contains(candidate) && OoTModStem(set.paths.at(candidate)) == entry) {
+                if (!taken.contains(candidate) && OoTModStem(resolved.paths.at(candidate)) == entry) {
                     key = candidate;
-                    set.migrated++;
+                    resolved.migrated++;
                     break;
                 }
             }
         }
         if (key.empty()) {
             if (!dropMissing) {
-                set.enabled.push_back(entry);
+                resolved.enabled.push_back(entry);
             }
             continue;
         }
         if (taken.insert(key).second) {
-            set.enabled.push_back(key);
+            resolved.enabled.push_back(key);
         }
     }
     std::map<std::string, std::string> newMods;
     for (const std::string& key : walkOrder) {
         if (!taken.contains(key)) {
-            newMods.emplace(set.paths.at(key).lexically_normal().generic_string(), key);
+            newMods.emplace(resolved.paths.at(key).lexically_normal().generic_string(), key);
         }
     }
     for (const auto& newMod : newMods) {
-        set.enabled.push_back(newMod.second);
+        resolved.enabled.push_back(newMod.second);
     }
-    return set;
+    return resolved;
 }
 
 // #1196: UpdateModFiles once its two roots are resolved: read the saved list (init
@@ -508,14 +508,14 @@ static int UpdateModFilesAt(const std::string& modsPath, const std::string& mmMo
     // #670: the walk, the partition and the extension filter live in
     // CollectOoTModFiles above, one definition shared with OoT_MountModArchivesHeadless.
     const std::vector<std::string> saved = enabledModFiles;
-    OoTModSet set = ResolveOoTModSet(CollectOoTModFiles(modsPath, mmModsPath), modsPath, saved, init);
-    enabledModFiles = std::move(set.enabled);
-    filePaths = std::move(set.paths);
-    if (set.migrated > 0) {
+    OoTModSet resolved = ResolveOoTModSet(CollectOoTModFiles(modsPath, mmModsPath), modsPath, saved, init);
+    enabledModFiles = std::move(resolved.enabled);
+    filePaths = std::move(resolved.paths);
+    if (resolved.migrated > 0) {
         fprintf(stderr,
                 "[OoT] mod menu: %d enabled mod(s) saved by file name are now saved by their path under '%s' "
                 "(#1196).\n",
-                set.migrated, modsPath.c_str());
+                resolved.migrated, modsPath.c_str());
     }
     int mounted = 0;
     if (init) {
