@@ -87,9 +87,10 @@ char sUnknownLabel[kMaxOptionRows][24];
 // The Final Hours row's in-slider text ("05:59"), rewritten by its PreFunc.
 char sTimeFormat[kMaxOptionRows][8];
 
-/** The trap-type rows' staging values (#1101 lane R4); MM has seven types and
- *  its frozen set is one byte, so eight is every type there can be. */
-constexpr int kMaxTrapTypeRows = 8;
+/** The trap-type rows' staging values (#1101 lane R4); MM has twelve types since
+ *  OoTMM's five joined (#1424) and its frozen set is two bytes, so sixteen is
+ *  every type there can be. */
+constexpr int kMaxTrapTypeRows = 16;
 bool sTrapTypeOn[kMaxTrapTypeRows];
 /** The option the trap-type rows follow: Trap Count, as on MM's own Items tab. */
 constexpr const char* kTrapTypesFollow = "RO_TRAP_AMOUNT";

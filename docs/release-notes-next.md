@@ -21,6 +21,16 @@
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
 
+### Traps
+
+- **Every OoTMM trap type works in both games** (#1424). Majora's Mask gains Fire, Drain, Anti-Magic, Knockback and
+  Rupoor Traps on Randomizer > MM Randomizer, after Time Traps. Ocarina of Time gains Drain, Anti-Magic and Rupoor
+  Traps under Additional Traps, beside SoH's own. Each does what OoTMM's does: Fire sets Link on fire (Goron Link does
+  not burn), Drain leaves him a sliver of health, Anti-Magic empties the meter (and ends the Chateau Romani's endless
+  magic), Knockback throws him in a random direction, and a Rupoor takes 10 rupees. Health, magic and rupees are
+  shared, so the loss counts in both games. All of them are off by default, and a file or seed that does not turn one
+  on springs the same traps as before.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.

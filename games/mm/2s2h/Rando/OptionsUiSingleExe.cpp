@@ -759,6 +759,12 @@ std::vector<ComboMMTrapTypeDesc>& TrapTypeTable() {
         "Scatters some of Link's rupees around him.",
         "Spawns a Like Like on top of Link.",
         "Moves the clock forward about 90 minutes.",
+        // The types OoTMM added (its trap settings' effects, #1424).
+        "Sets Link on fire. Goron Link does not burn.",
+        "Drains Link's health to a sliver.",
+        "Empties Link's magic meter and ends the Chateau Romani's endless magic.",
+        "Throws Link in a random direction.",
+        "Takes 10 rupees from Link.",
     };
     for (int type = 0; type < (int)TRAP_MAX; type++) {
         const char* cvar = TrapTypeCVar(type);
