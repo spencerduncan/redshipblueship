@@ -2034,21 +2034,34 @@ TestResult ComboSingleBag_Run(void) {
         int shelfCrossings = 0;
         int scrubCrossings = 0;
         int merchantCrossings = 0;
+        // The hosts the purchase legs below drive: the first of each kind whose MM
+        // item CROSSES. A counted pack or a capacity tier (MM's Progressive Bow, a
+        // wallet, ...) is credited to the shared pool at pickup and records no
+        // crossing by design (#1061, #1120; oot_shared_tier_test.cpp locks that
+        // path), so "buying records exactly one MM crossing" is a claim about the
+        // other items only. Before #1428/#1425/#1427 moved RSBSSINGLEBAGSHOPS's world,
+        // each kind's first MM item happened to be one that crosses.
+        auto creditedAtPickup = [](const SharedItem& item) {
+            uint8_t kind = 0;
+            uint16_t units = 0;
+            return Combo_SharedPickupCreditOf(item, &kind, &units);
+        };
         const ComboLogicPlacement* firstShelf = nullptr;
         const ComboLogicPlacement* firstScrub = nullptr;
         const ComboLogicPlacement* firstMerchant = nullptr;
         for (const ComboLogicPlacement& p : shopTables.oot) {
+            const bool crosses = !creditedAtPickup(p.item);
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsShopShelf(p.hostCheck) == 1) {
                 shelfCrossings++;
-                firstShelf = firstShelf == nullptr ? &p : firstShelf;
+                firstShelf = (firstShelf == nullptr && crosses) ? &p : firstShelf;
             }
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsScrub(p.hostCheck) == 1) {
                 scrubCrossings++;
-                firstScrub = firstScrub == nullptr ? &p : firstScrub;
+                firstScrub = (firstScrub == nullptr && crosses) ? &p : firstScrub;
             }
             if (p.item.originGame == (uint8_t)GAME_MM && OoT_ComboLogic_TestIsMerchant(p.hostCheck) == 1) {
                 merchantCrossings++;
-                firstMerchant = firstMerchant == nullptr ? &p : firstMerchant;
+                firstMerchant = (firstMerchant == nullptr && crosses) ? &p : firstMerchant;
             }
         }
         printf("[TEST] combo-single-bag: G (#800): both shop shuffles, scrub shuffle and merchant shuffle on: %d "
@@ -2060,6 +2073,9 @@ TestResult ComboSingleBag_Run(void) {
                    "no MM item landed on an OoT Business Scrub with scrub shuffle on (#800 pass 2)");
         CSB_ASSERT(merchantCrossings > 0,
                    "no MM item landed on an OoT merchant with merchant shuffle on (#800 pass 2)");
+        CSB_ASSERT(firstShelf != nullptr && firstScrub != nullptr && firstMerchant != nullptr,
+                   "every MM item on an OoT shelf, scrub or merchant of this kind is credited at pickup, so this seed "
+                   "has no host whose purchase records a crossing and the purchase legs below would prove nothing");
 
         // The store the drain reads, then the drain's own recording core, on each
         // REAL host check: the placement is found by the check the host's
@@ -2146,7 +2162,8 @@ TestResult ComboSingleBag_Run(void) {
         ComboCrossing rewardRow{};
         ComboModelAnswer rewardModel{};
         for (const ComboCrossing& row : ootRows) {
-            if (row.hostCheck != (uint16_t)chestGameReward &&
+            // An item that crosses, for the reward's "one MM crossing" leg below.
+            if (row.hostCheck != (uint16_t)chestGameReward && !creditedAtPickup(row.item) &&
                 Combo_GetForeignItemModel((uint8_t)GAME_OOT, row.item, &rewardModel) ==
                     (uint8_t)COMBO_MODEL_ANSWER_DESCRIPTOR) {
                 rewardRow = row;
