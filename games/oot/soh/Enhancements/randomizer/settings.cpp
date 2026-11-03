@@ -143,8 +143,14 @@ void Settings::HandleMixedEntrancePoolsUI() {
 void Settings::HandleStartingAgeUI() {
     // Starting Age - Disabled under very specific conditions
     // RANDOTODO: Fix so this is not disabled for No Logic.
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1425: Shuffle Ocarinas defaults on here (CreateOptions), so an unset key reads on.
+    constexpr int kShuffleOcarinasDefault = RO_GENERIC_ON;
+#else
+    constexpr int kShuffleOcarinasDefault = RO_GENERIC_OFF;
+#endif
     if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DoorOfTime"), RO_DOOROFTIME_CLOSED) == RO_DOOROFTIME_CLOSED &&
-        CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), RO_GENERIC_OFF) ==
+        CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), kShuffleOcarinasDefault) ==
             RO_GENERIC_OFF) /* closed door of time with ocarina shuffle off */ {
         mOptions[RSK_STARTING_AGE].Disable("This option is disabled due to other options making the game unbeatable.");
     } else {
@@ -785,10 +791,23 @@ void Settings::CreateOptions() {
         }
     });
     OPT_BOOL(RSK_SHUFFLE_KOKIRI_SWORD, "Shuffle Kokiri Sword", CVAR_RANDOMIZER_SETTING("ShuffleKokiriSword"), mOptionDescriptions[RSK_SHUFFLE_KOKIRI_SWORD]);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1425: OoTMM ships Master Sword, Ocarina and Gerudo Card shuffle on
+    // (shuffleMasterSword, shuffleOcarinasOot, shuffleGerudoCard in its data.ts), so
+    // these three rows default on here. The other readers of the same keys
+    // (HandleStartingAgeUI above, randomizer_check_objects.cpp) use the same default.
+    OPT_BOOL(RSK_SHUFFLE_MASTER_SWORD, "Shuffle Master Sword", CVAR_RANDOMIZER_SETTING("ShuffleMasterSword"), mOptionDescriptions[RSK_SHUFFLE_MASTER_SWORD], IMFLAG_SEPARATOR_BOTTOM, WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON);
+#else
     OPT_BOOL(RSK_SHUFFLE_MASTER_SWORD, "Shuffle Master Sword", CVAR_RANDOMIZER_SETTING("ShuffleMasterSword"), mOptionDescriptions[RSK_SHUFFLE_MASTER_SWORD]);
+#endif
     OPT_BOOL(RSK_SHUFFLE_CHILD_WALLET, "Shuffle Child's Wallet", CVAR_RANDOMIZER_SETTING("ShuffleChildWallet"), mOptionDescriptions[RSK_SHUFFLE_CHILD_WALLET], IMFLAG_NONE);
     OPT_BOOL(RSK_INCLUDE_TYCOON_WALLET, "Include Tycoon Wallet", CVAR_RANDOMIZER_SETTING("IncludeTycoonWallet"), mOptionDescriptions[RSK_INCLUDE_TYCOON_WALLET]);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1425: on by default, OoTMM's shuffleOcarinasOot (see Shuffle Master Sword above).
+    OPT_BOOL(RSK_SHUFFLE_OCARINA, "Shuffle Ocarinas", CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), mOptionDescriptions[RSK_SHUFFLE_OCARINA], IMFLAG_SEPARATOR_BOTTOM, WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON);
+#else
     OPT_BOOL(RSK_SHUFFLE_OCARINA, "Shuffle Ocarinas", CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), mOptionDescriptions[RSK_SHUFFLE_OCARINA]);
+#endif
     OPT_CALLBACK(RSK_SHUFFLE_OCARINA, {
         HandleStartingAgeUI();
     });
@@ -800,7 +819,12 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SHUFFLE_SPEAK, "Shuffle Jabber Nuts", CVAR_RANDOMIZER_SETTING("ShuffleSpeak"), mOptionDescriptions[RSK_SHUFFLE_SPEAK]);
     OPT_BOOL(RSK_SHUFFLE_OPEN_CHEST, "Shuffle Open Chest", CVAR_RANDOMIZER_SETTING("ShuffleOpenChest"), mOptionDescriptions[RSK_SHUFFLE_OPEN_CHEST]);
     OPT_BOOL(RSK_SHUFFLE_WEIRD_EGG, "Shuffle Weird Egg", CVAR_RANDOMIZER_SETTING("ShuffleWeirdEgg"), mOptionDescriptions[RSK_SHUFFLE_WEIRD_EGG]);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1425: on by default, OoTMM's shuffleGerudoCard (see Shuffle Master Sword above).
+    OPT_BOOL(RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD, "Shuffle Gerudo Membership Card", CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), mOptionDescriptions[RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD], IMFLAG_SEPARATOR_BOTTOM, WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON);
+#else
     OPT_BOOL(RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD, "Shuffle Gerudo Membership Card", CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), mOptionDescriptions[RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD]);
+#endif
     OPT_U8(RSK_SHUFFLE_POTS, "Shuffle Pots", {"Off", "Dungeons", "Overworld", "All Pots"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShufflePots"), mOptionDescriptions[RSK_SHUFFLE_POTS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_POTS_OFF);
     OPT_U8(RSK_SHUFFLE_GRASS, "Shuffle Grass", {"Off", "Dungeons", "Overworld", "All Grass/Bushes"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleGrass"), mOptionDescriptions[RSK_SHUFFLE_GRASS], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_GRASS_OFF);
     OPT_U8(RSK_SHUFFLE_CRATES, "Shuffle Crates", {"Off", "Dungeons", "Overworld", "All Crates"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleCrates"), mOptionDescriptions[RSK_SHUFFLE_CRATES], WIDGET_CVAR_COMBOBOX, RO_SHUFFLE_CRATES_OFF);

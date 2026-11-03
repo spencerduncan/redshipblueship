@@ -9411,7 +9411,8 @@ const TestDescriptor gTests[] = {
       Test_BombchuDropRule },
     { "master-sword-respawn",
       "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
-      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
+      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218). "
+      "Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo Membership Card ship on, OoTMM's defaults (#1425)",
       Test_MasterSwordRespawn },
     { "shuffled-fairy-no-heal",
       "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "

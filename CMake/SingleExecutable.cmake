@@ -3281,6 +3281,8 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower
     # collapse or Ganon's arena (Play_LoadToLastEntrance) does not give the
     # unfound Master Sword, and still leaves through the collapse exterior.
+    # Leg 0 (#1425): Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo
+    # Membership Card ship on (OoTMM's defaults), and the exclude list agrees.
     # games/oot/soh/oot_master_sword_respawn_test.cpp.
     redship_add_test(NAME MasterSwordRespawn COMMAND redship --test master-sword-respawn
         LABEL rando

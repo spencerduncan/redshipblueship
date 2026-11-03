@@ -29,6 +29,14 @@
   Standard, Advanced and Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new
   defaults. This changes every new world, so the seed generator's version moves with it and a seed package from an
   earlier build is refused. Saved files keep the gates they were made with.
+- **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1429, issue
+  #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
+  Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
+  the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
+  on Randomizer > Shuffles > Shuffle Items. A shuffled Master Sword still lets Link travel through time at the
+  pedestal without it, as in Ship of Harkinian; OoTMM requires the sword by default. The Standard and Beginner
+  presets still leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the
+  carpenters. A saved file keeps the settings it was made with.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
