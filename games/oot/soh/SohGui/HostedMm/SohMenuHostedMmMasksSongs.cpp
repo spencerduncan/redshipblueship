@@ -114,7 +114,7 @@ void AddMmMasksRows(SohMenu& menu, WidgetPath& path) {
     AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Lenient Goron Spikes", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_MASKS_GORON_ROLLING_LENIENT_SPIKES)
         .Options(CheckboxOptions().Tooltip(
-            "Lets Goron Link build up spikes at a lower rolling speed, keeps the build-up through a landing, and keeps "
+            "Lets Goron Link build up spikes at a lower rolling speed, keeps the build-up on landing, and keeps "
             "the spikes out however slowly he rolls. On by default in a randomizer file. Majora's Mask only."));
 }
 

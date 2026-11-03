@@ -398,8 +398,9 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
 
     // Group C — cutscene-skip family. OoT groups under TimeSavers.SkipCutscene.*,
     // MM under Cutscenes.Skip*Cutscenes. Both bool. (OoT defaults these to
-    // IS_RANDO and MM to 0; that per-reader default difference is inherent to a
-    // shared key and pre-dates convergence — it is not a type mismatch.)
+    // IS_RANDO and MM to 0, except BossIntro since #1426, below; that per-reader
+    // default difference is inherent to a shared key and pre-dates convergence —
+    // it is not a type mismatch.)
     // SkipEnemyCutscenes joined in #1123 (migrated by ConfigVersion9Updater, not 8):
     // MM's one checkbox covers the boss intros SoH's "Skip Boss Introductions"
     // names plus MM's boss-warp and miniboss cutscenes, all under that one key.
@@ -408,7 +409,9 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // #1426: BossIntro is the one row of the family whose MM reader takes OoT's
     // IS_RANDO default (SkipEnemyCutscenes.cpp, re-armed on "IS_RANDO"), so an
     // untouched key skips Termina's boss intros on a rando file as it does
-    // Hyrule's, OoTMM's default (cutsceneIntro*).
+    // Hyrule's. OoTMM's cutsceneIntro* defaults skip six of them and play Wart's
+    // and Majora's; this one key skips all eight, and MM's boss-warp and miniboss
+    // cutscenes too, which no OoTMM setting covers.
     { "gEnhancements.Cutscenes.SkipEntranceCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Entrances", false },
     { "gEnhancements.Cutscenes.SkipIntroSequence", "gEnhancements.TimeSavers.SkipCutscene.Intro", false },
     { "gEnhancements.Cutscenes.SkipOnePointCutscenes", "gEnhancements.TimeSavers.SkipCutscene.OnePoint", false },

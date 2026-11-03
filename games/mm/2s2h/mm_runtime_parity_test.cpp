@@ -7,10 +7,10 @@
  * SKIP BOSS INTRODUCTIONS (legs 1-2). SoH reads gEnhancements.TimeSavers.SkipCutscene.BossIntro with an IS_RANDO
  * default (timesaver_hook_handlers.cpp), so an untouched key skips Hyrule's boss intros on a rando file. MM's reader,
  * Cutscenes/SkipEnemyCutscenes.cpp, read the same key with a 0 default and re-armed only when the key changed, so on
- * the same paired file Termina's intros played. OoTMM skips them by default (cutsceneIntro*). The fix reads the key
- * with MM's IS_RANDO default and adds "IS_RANDO" to the three registrars' update paths. This leg drives the production
- * arm path (saveType, then ShipInit::Init("IS_RANDO"), what Rando.cpp's OnSaveLoadHandler runs on every MM load) with
- * the key CLEARED, and requires each of the TU's three registrars to arm:
+ * the same paired file Termina's intros played. OoTMM skips six of the eight by default (cutsceneIntro*; it plays
+ * Wart's and Majora's). The fix reads the key with MM's IS_RANDO default and adds "IS_RANDO" to the three registrars'
+ * update paths. This leg drives the production arm path (saveType, then ShipInit::Init("IS_RANDO"), what Rando.cpp's
+ * OnSaveLoadHandler runs on every MM load) with the key CLEARED, and requires each of the TU's three registrars to arm:
  *   - RegisterSkipEnemyIntros: OnActorInit[ACTOR_EN_BIGSLIME] rises by exactly one;
  *   - RegisterSkipEnemyCutscenes: ShouldVanillaBehavior[VB_SET_CAMERA_AT_EYE] rises by exactly one;
  *   - RegisterSkipBossWarpCutscenes: VB_START_CUTSCENE for Mountain Village (spring) cutscene 13, the warp from Goht's

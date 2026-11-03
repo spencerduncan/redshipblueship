@@ -39,8 +39,10 @@ extern EnKnight* sWideKnightInstance;
 
 #define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.BossIntro"
 // RSBS (#1426): SoH's default, IS_RANDO (timesaver_hook_handlers.cpp, the "Skip Boss Introductions" row), so an
-// untouched key skips Termina's boss intros on a rando file as it skips Hyrule's. OoTMM skips them by default too
-// (cutsceneIntro*). The registrars below also re-run on "IS_RANDO", which Rando.cpp drives on every MM load.
+// untouched key skips Termina's boss intros on a rando file as it skips Hyrule's. OoTMM's cutsceneIntro* defaults skip
+// six of them and play Wart's and Majora's; this key skips all eight, plus the boss-warp and miniboss cutscenes below,
+// which no OoTMM setting covers. The registrars below also re-run on "IS_RANDO", which Rando.cpp drives on every MM
+// load.
 #define CVAR CVarGetInteger(CVAR_NAME, IS_RANDO)
 
 // Set by enemy actors to control the camera override hooks
