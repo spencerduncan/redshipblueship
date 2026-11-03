@@ -7877,9 +7877,60 @@ extern "C" bool MM_DebugConsole_IsActiveGame(void) {
     return Context_GetCurrentGame() == GAME_MM;
 }
 
+/**
+ * Where a Reset taken in Termina goes (#1378, from #1274).
+ *
+ * A Reset is a deliberate return to title, so the cross-game session is retired first, exactly as OoT's reset retires
+ * it in its TitleSetup (games/oot/src/code/title_setup.c): Context_InvalidateSessionOnReturnToTitle. Then:
+ *
+ *  - A PAIRED file (a combo session resident when the reset was asked for) is one game, and the one game's title is
+ *    OoT's. So the reset requests a switch to OoT instead of starting MM's boot chain. The retire left no OoT blob and
+ *    no active slot, so the launcher sets no startup entrance (OoT cold-boots to its own title and file select) and
+ *    skips the crossing commit (Switch_CommitCrossing: no active slot): the reset writes nothing to the .redsave, as
+ *    a reset should not. MM's graph loop breaks on the next Combo_CheckHotSwap. Before this, MM's ConsoleLogo ran,
+ *    MM's TitleSetup retired the session (Context_InvalidateSessionOnMMReturnToTitle) and the player was left on MM's
+ *    file select, whose slots are empty and whose New File makes an unpaired vanilla MM file.
+ *
+ *  - Every other session keeps MM's ConsoleLogo boot chain, now behind the retire. On a vanilla OoT file that crossed
+ *    into MM, MM's TitleSetup twin stands down (no paired identity), so without the retire the bootstrap MM's title
+ *    authors was frozen as MM's shadow at the next F10 and written into the .redsave's Tier-3 by OoT's next save,
+ *    losing the file's MM half: #532's laundering by one more route. On a hot-swap first entry the retire also ends
+ *    the OoT session suspended behind MM, which is what resetting the one game means. A standalone MM session has
+ *    nothing to retire.
+ *
+ * The retire stands down while a cross-game arrival is in flight (a startup entrance is pending): the session is what
+ * that arrival is about to hydrate, so the reset only restarts MM's boot chain, which consumes the arrival again. And
+ * if OoT cannot be entered (Switch_RequestHotSwap refuses), a paired file falls back to MM's title over the session
+ * the retire already ended.
+ *
+ * The whole reset stands down while a DEPARTURE is already pending (Combo_IsCrossGameSwitch: the Clock Tower door's
+ * Combo_CheckEntranceSwitch; Combo_IsGameSwitchRequested: F10, or the owl-save and game-over exits' raw request).
+ * That departure has already frozen what it carries, and MM's graph loop breaks on it at the next Combo_CheckHotSwap,
+ * before any reset could run. Retiring under it would drop the blob and slot its crossing or owl-save commit needs,
+ * and on the door path OoT would then arrive with a startup entrance but no blob. So the departure wins, as it did
+ * before #1378, and MM_gGameState is left as it is.
+ *
+ * Locked by the redship row OoTWindowsGate (games/oot/soh/oot_windows_gate_test.cpp, leg 6b) and, for the transition
+ * itself, by tools/tests/test_repo_invariants.py's title-chain scan over games/mm/2s2h.
+ */
 extern "C" int MM_DebugConsole_Reset(void) {
     if (MM_gGameState == nullptr) {
         return 1;
+    }
+
+    // A departure already in flight carries the player on; see above.
+    if (Combo_IsCrossGameSwitch() || Combo_IsGameSwitchRequested()) {
+        fprintf(stderr, "[MM] Reset ignored: a game switch is already in flight (#1378)\n");
+        fflush(stderr);
+        return 0;
+    }
+
+    // Read before the retire, which drops the identity and the slot this asks about.
+    const bool pairedFile = Context_ComboSessionResident() != 0;
+    if (Context_InvalidateSessionOnReturnToTitle() != 0 && pairedFile && Switch_RequestHotSwap() != 0) {
+        fprintf(stderr, "[MM] Reset on a paired file: returning to the combo title (OoT) (#1378)\n");
+        fflush(stderr);
+        return 0;
     }
 
     STOP_GAMESTATE(MM_gGameState);
