@@ -20,14 +20,14 @@
   piece looked unreachable.
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
-- **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1429, issue #1425).
-  This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership Card are
-  in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat, the
-  Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are on
-  Randomizer > Shuffles > Shuffle Items. A shuffled Master Sword still lets Link travel through time at the pedestal
-  without it, as in Ship of Harkinian; OoTMM requires the sword by default. The Standard and Beginner presets still
-  leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the carpenters. A
-  saved file keeps the settings it was made with.
+- **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1429, issue
+  #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
+  Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
+  the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
+  on Randomizer > Shuffles > Shuffle Items. A shuffled Master Sword still lets Link travel through time at the
+  pedestal without it, as in Ship of Harkinian; OoTMM requires the sword by default. The Standard and Beginner
+  presets still leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the
+  carpenters. A saved file keeps the settings it was made with.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
