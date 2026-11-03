@@ -200,6 +200,10 @@ set(REDSHIP_COMMON_SOURCES
     # libultraship's fast/interpreter.h brings in the whole LUS GBI. Test
     # tooling only. APPENDED.
     ${CMAKE_SOURCE_DIR}/src/common/tests/test_texture_cache_freed_node.cpp
+    # The lus-hardening row's body (#1384), its own TU because libultraship's
+    # fast/interpreter.h brings in the whole LUS GBI. Test tooling only.
+    # APPENDED.
+    ${CMAKE_SOURCE_DIR}/src/common/tests/test_lus_hardening.cpp
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -1028,6 +1032,13 @@ if(BUILD_TESTING)
     # and requires the slots to read null, and the bucket count to stay fixed
     # while the cache fills (the LRU holds map iterators). ROM-free, no display.
     redship_add_test(NAME TextureCacheFreedNode COMMAND redship --test texture-cache-freed-node)
+    # #1384: the libultraship hardening batch, on the parts that run headless.
+    # Config::Save must stage a temporary file and rename it (a blocked staging
+    # path leaves the live config byte-identical); a tile on two empty TMEM
+    # slots caches and uploads nothing, and one on an empty slot imports the
+    # other slot's texture; gfx_check_image_signature rejects out-of-range
+    # addresses. ROM-free, no display, no context.
+    redship_add_test(NAME LusHardening COMMAND redship --test lus-hardening)
 
     # #605 curated-archive GENERATOR lock: make_redship_otr.py must refuse a
     # curated model whose display list carries a raw segmented texture
