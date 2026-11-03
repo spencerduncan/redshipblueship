@@ -3208,6 +3208,10 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         int values[kGoldenCVarCap];
         int injectedRungs;    // the paired-attempt golden's pre-fill rung
         int expectedAttempts; // ladder attempts until the world was created
+        // #978: the item rules (crossItemFlags) the profile's keys must freeze; 0 for
+        // every profile that sets none. A misspelled key resolves off, so its golden
+        // would record the default world's rules under the profile's name.
+        uint32_t itemRules;
     };
     static const GoldenSeed kGoldens[] = {
         { "seed-digest-default", "RSBSUNIFIED1", { nullptr, nullptr, nullptr }, { 0, 0, 0 }, 0, 1 },
@@ -3239,7 +3243,9 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
             "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth" },
           { 1, 1, 1, 1, 1 },
           0,
-          1 },
+          1,
+          RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |
+              RSBS_XITEM_SHARED_TRUTH },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };
@@ -3305,6 +3311,14 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
                     g.golden, g.expectedAttempts, budget, created ? 1 : 0, attempts,
                     Combo_Logic_StatusName(bag.status), bag.fill.rounds, bag.roundBudget);
             rc = 10;
+            break;
+        }
+        if (gComboCtx.comboItemRules.crossItemFlags != g.itemRules) {
+            fprintf(stderr,
+                    "[MM-GOLDEN-ROUNDS] FAIL(12): golden seed %s froze item rules %08X, its profile names %08X — a "
+                    "key the profile sets did not reach the frozen world\n",
+                    g.golden, (unsigned)gComboCtx.comboItemRules.crossItemFlags, (unsigned)g.itemRules);
+            rc = 12;
             break;
         }
 
