@@ -33,6 +33,7 @@ commits, and run the classifier against a table of change sets.
 """
 
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -138,19 +139,95 @@ def test_each_required_check_has_exactly_one_producer(check):
     )
 
 
-def test_no_job_computes_a_required_name():
-    # A name built from an expression (matrix, inputs) cannot be checked by the
-    # test above, so it must not be able to spell a required name either.
-    for path in _workflow_files():
-        for job_id, job in (_load(path).get("jobs") or {}).items():
+# One ${{ ... }} expression in a job name. An unclosed one runs to the end of
+# the name, so it can never shrink what the name could spell.
+_NAME_EXPRESSION = re.compile(r"\$\{\{.*?(?:\}\}|\Z)", re.DOTALL)
+
+
+def _computed_name_pattern(name):
+    """Every check-run name a computed job `name` could produce: its literal
+    text as written, and each ${{ ... }} as any text at all.
+
+    GitHub appends the matrix values to a matrix job's check-run name only when
+    the name does not reference the matrix, so `build-${{ matrix.os }}` over
+    [linux, windows, macos] produces exactly build-linux, build-windows and
+    build-macos. Reading every expression as `.*` is stricter than evaluating
+    it, and no workflow here computes a job name today.
+    """
+    return re.compile(".*".join(re.escape(part) for part in _NAME_EXPRESSION.split(name)), re.DOTALL)
+
+
+def _computed_name_violations(workflows):
+    """[(workflow file, job id, required check)] for each computed job name
+    that could spell a required check."""
+    found = []
+    for workflow_name, workflow in workflows:
+        for job_id, job in ((workflow or {}).get("jobs") or {}).items():
             name = str(job.get("name", ""))
             if "${{" not in name:
                 continue
-            text = name + yaml.safe_dump(job.get("strategy") or {})
-            for check in REQUIRED_CHECKS:
-                assert check not in text, (
-                    f"#1373: {path.name} job {job_id!r} computes its name and could produce required check {check!r}"
-                )
+            pattern = _computed_name_pattern(name)
+            found.extend(
+                (workflow_name, job_id, check) for check in sorted(REQUIRED_CHECKS) if pattern.fullmatch(check)
+            )
+    return found
+
+
+def test_no_job_computes_a_required_name():
+    # A name built from an expression (matrix, inputs, format()) is invisible
+    # to the producer count above, so it must not be able to spell a required
+    # name at all.
+    violations = _computed_name_violations((path.name, _load(path)) for path in _workflow_files())
+    assert not violations, (
+        f"#1373: these jobs compute a name that could be a required check: {violations}. A second producer of a "
+        "required name (skipped, or finished early) can satisfy the requirement before the real one runs; give the "
+        "job a literal name, or literal text that no required name can match"
+    )
+
+
+# A workflow that would sneak a second producer of required names past a lock
+# that only looked for the literal names: skipped on every code PR, and named
+# from an expression. @JOB_NAME@ is replaced with the job's name.
+_COMPUTED_NAME_MUTANT = """\
+name: Mutant
+on:
+  pull_request:
+    paths: ['**.md']
+jobs:
+  build:
+    if: false
+    name: @JOB_NAME@
+    strategy:
+      matrix:
+        os: [linux, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'true'
+"""
+
+
+@pytest.mark.parametrize(
+    "name, could_spell",
+    [
+        # The #1373 stub shape: GitHub names these exactly build-linux,
+        # build-windows and build-macos.
+        ("build-${{ matrix.os }}", ["build-linux", "build-macos", "build-windows"]),
+        ("build-${{matrix.os}}", ["build-linux", "build-macos", "build-windows"]),
+        ("${{ format('clang-{0}', 'format') }}", sorted(REQUIRED_CHECKS)),
+        ("clang-${{ inputs.what }}", ["clang-format"]),
+        ("${{ matrix.prefix }}-linux", ["build-linux"]),
+        ("build-${{ matrix.os", ["build-linux", "build-macos", "build-windows"]),
+        # Literal text no required name can match.
+        ("Test ${{ matrix.os }}", []),
+        ("build-${{ matrix.os }} (rando)", []),
+        ("${{ matrix.os }} build", []),
+    ],
+)
+def test_computed_name_lock_catches_names_that_could_spell_a_required_check(name, could_spell):
+    workflow = yaml.safe_load(_COMPUTED_NAME_MUTANT.replace("@JOB_NAME@", json.dumps(name)))
+    assert workflow["jobs"]["build"]["name"] == name
+    found = [check for _, _, check in _computed_name_violations([("mutant.yml", workflow)])]
+    assert found == could_spell, f"job name {name!r} could produce {could_spell}, the lock found {found}"
 
 
 @pytest.mark.parametrize("workflow", sorted(set(REQUIRED_CHECKS.values())))
@@ -201,6 +278,13 @@ def test_required_build_check_cannot_be_skipped(check):
     )
     assert str(real.get("runs-on", "")).startswith(runner_family), (
         f"{gate_id} must report the {runner_family} build, but job {real_id} runs on {real.get('runs-on')!r}"
+    )
+    assert "continue-on-error" not in real, (
+        f"#1373: the real job {real_id} must have no job-level `continue-on-error`: a failed job with it can report "
+        f"needs.{real_id}.result == 'success', and {gate_id} would pass a failed build"
+    )
+    assert "strategy" not in real, (
+        f"#1373: the real job {real_id} must have no matrix: {gate_id} reports one build, not a set of them"
     )
 
 
