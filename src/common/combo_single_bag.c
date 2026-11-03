@@ -431,6 +431,11 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
                 fprintf(stderr,
                         "[SingleBag] All Locations: %d location(s) no seed can reach under these settings: %s\n", n,
                         names);
+            } else if (status == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE) {
+                fprintf(stderr,
+                        "[SingleBag] All Locations: no seed can finish the goal under these settings (OoT half %d, MM "
+                        "half %d with every required item assumed)\n",
+                        sReport.fill.goalOoT, sReport.fill.goalMM);
             }
             goto finish;
         }
@@ -526,9 +531,11 @@ bool Combo_SingleBag_StatusIsWorldDeadEnd(int status, uint8_t rung) {
             return true;
         // Never a rung (ABI 8): after the All Locations pre-flight held, a final round
         // that misses a location is an engine fault, not a seed's; and the pre-flight's
-        // own refusal is a fact of the settings, fixed at Generate.
+        // own refusals (a location, or the GOAL, no seed reaches) are facts of the
+        // settings, fixed at Generate.
         case RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED:
         case RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE:
+        case RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE:
         default:
             return false;
     }

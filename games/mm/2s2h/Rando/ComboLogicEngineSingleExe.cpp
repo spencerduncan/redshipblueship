@@ -1083,13 +1083,24 @@ void WithholdHost(void* self, uint16_t hostCheck) {
 // does not demand it. It still is a host, and it still is never a candidate under
 // a proving rung (a candidate must be reached), so it only ever receives MM's own
 // filler from the leftover pass: OoTMM's "junk those locations" by construction.
-// Only the All Locations rung reads this list, so it moves no default world.
+// Only the All Locations rung reads this list, and that is the DEFAULT rung since
+// #1367 R5, so an entry moves every default world that meets its condition (a
+// golden re-pin and an RSBS_GENERATOR_VERSION bump).
 //
 // EVERY ENTRY CARRIES ITS REASON. The list starts EMPTY on purpose: no entry is
 // added on a guess. The audit is combo-logic-measure's ALL LOCATIONS leg, which
 // runs the pre-flight over the profile's real pools and prints every location it
 // cannot reach by name; an entry belongs here only when that print names a check
 // whose unreachability is a fact of the settings (and the reason says which).
+// #1367 R5 ran the PRODUCTION pre-flight over thirteen profiles (the seven golden
+// profiles that fill; plentiful, armed and maximal with every location category shuffled;
+// the beat-oot, beat-mm and beat-either goals): it reached every MM check in
+// every one, so this list stays empty. The one it missed before (the West Clock
+// Town bank's heart piece: the Giant's Wallet) was the shared wallet counted in
+// one game only, fixed by THE SHARED-QUANTITY CREDIT (combo_logic.h). The
+// measurement rows' B8 and M3e still print it, because their OoT half is placed
+// natively and so credits MM nothing; that is their approximation, not the
+// settings.
 struct MmCuratedExclusion {
     RandoCheckId check;
     bool (*applies)();  // over the FROZEN profile (RANDO_SAVE_OPTIONS); nullptr = always
@@ -2514,7 +2525,7 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         // Not a world dead end: a refusal to run (no frozen identity, OoT not at
         // its general-pass point), a missing engine, a capacity overflow, an
         // engine defect, No Logic running out of free hosts, or (ABI 8) the All
-        // Locations pre-flight finding locations no seed can reach. Another seed
+        // Locations pre-flight finding locations, or a goal, no seed can reach. Another seed
         // cannot change any of them, so this is NOT a ladder rung (PR #743
         // review): the ladder fails the creation at once with this reason.
         std::string why = std::string("single-bag fill refused: ") + Combo_Logic_StatusName(status);
@@ -2522,6 +2533,10 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
             char names[512];
             const int count = Combo_Logic_FormatUnreachable(names, sizeof(names), 8);
             why += " - " + std::to_string(count) + " location(s) no seed can reach under these settings: " + names;
+        } else if (status == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE) {
+            why += " - no seed can finish the goal under these settings (Ocarina of Time half " +
+                   std::to_string(report.fill.goalOoT) + ", Majora's Mask half " + std::to_string(report.fill.goalMM) +
+                   " with every required item assumed)";
         } else if (status == RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE) {
             why += " - No Logic: both worlds together hold fewer free checks than the bag's required items (" +
                    std::to_string(report.fill.requiredPlaced) + " placed before they ran out)";

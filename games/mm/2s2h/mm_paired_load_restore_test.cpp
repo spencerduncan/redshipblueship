@@ -329,6 +329,11 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
 
     ComboSettingsRecord record;
     Combo_ResolveComboSettings(&record);
+    if (legacyMmLogic) {
+        // #1367 R5: a world created before [Both Games] Logic froze Beatable Only,
+        // the one rung there was; the resolver's default is All Locations now.
+        record.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
+    }
     if (recordOverride != nullptr) {
         record = *recordOverride;
     }
