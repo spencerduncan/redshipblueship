@@ -26,13 +26,27 @@
  *      a stored value (a preset's) is cleared back to it, and the callbacks never
  *      store one, which would take a config off the shipped defaults the
  *      integration rows require.
+ *   M5 #1350, the same seam's Logic pin: a paired generation authored with OoT's
+ *      Logic "No Logic" (every OoT condition true, so the pair's proof of OoT's
+ *      half would be vacuous) generates Glitchless (M5a), leaves the player's
+ *      CVar as authored (M5b) and reports the pin Generate's toast reads (M5c);
+ *      and over the registered OoT engine, with nothing assumed and every placed
+ *      host withheld but the Triforce's, the generated world reaches neither the
+ *      Skull Mask check nor OoT's goal nor every location (M5d), while the same
+ *      world with the context's rules at No Logic reaches the Skull Mask check
+ *      and more locations (the RED half, kept in the row so a change to No
+ *      Logic's semantics is reported instead of passing on an empty difference).
  * Every check runs and reports, and the row fails if any did, so one red run
  * shows every leg a change breaks.
  *
  * RED HALVES, run before landing: without playthrough.cpp's #973 block, M1 and
  * M2 fail under both modes and M3 fails over the "Completed" world (both checks
  * are reached before any mask is assumed); without the two settings.cpp
- * callbacks, or with Mask Quest's default left at "Vanilla", M4 fails.
+ * callbacks, or with Mask Quest's default left at "Vanilla", M4 fails. M5's red
+ * half is derived, not run (#1350's lane had no local build): without
+ * playthrough.cpp's #1350 block the world keeps No Logic, so M5a and M5c fail,
+ * and M5d's generated round IS the No Logic round, which the row's own RED half
+ * shows reaching the Skull Mask check with nothing assumed.
  */
 
 #include <cstdio>
@@ -55,6 +69,9 @@
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp: the headless generation
 // bridge the RandoGen rows use.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+// games/oot/soh/Enhancements/randomizer/3drando/playthrough.cpp (#1350): 1 when the
+// last generation generated an authored non-Glitchless OoT Logic as Glitchless.
+extern "C" int OoT_Rando_PairedLogicRulesPinned(void);
 
 namespace {
 
@@ -81,6 +98,7 @@ int sFailures = 0;
 
 const char* const kMaskQuestCVar = CVAR_RANDOMIZER_SETTING("CompleteMaskQuest");
 const char* const kMaskShopHintCVar = CVAR_RANDOMIZER_SETTING("MaskShopHint");
+const char* const kLogicRulesCVar = CVAR_RANDOMIZER_SETTING("LogicRules");
 
 const RandomizerGet kMasks[8] = {
     RG_KEATON_MASK, RG_SKULL_MASK, RG_SPOOKY_MASK, RG_BUNNY_HOOD,
@@ -238,6 +256,97 @@ void MqpCheckTheaterNeedsTheMasks() {
     MQP_CHECK(truthWithBoth, "M3: the Mask of Truth did not open the Mask of Truth check");
 }
 
+/** What one M5 round over the OoT engine reached. */
+struct MqpRound {
+    bool skull = false;
+    bool goal = false;
+    bool crossing = false;
+    int reached = 0;
+};
+
+/** One round over the registered OoT engine on the world the last generation left,
+ *  with NOTHING assumed (the starting inventory alone) and every placed host
+ *  withheld but the Triforce's, so the goal is reached exactly when Ganon is.
+ *  Returns false when the engine refused the round. */
+bool MqpRoundWithNothing(const ComboLogicEngine* e, MqpRound* out) {
+    auto ctx = Rando::Context::GetInstance();
+    if (e->beginQuery(e->self) == 0) {
+        // combo_logic.h: endQuery is still called when beginQuery refuses.
+        e->endQuery(e->self);
+        return false;
+    }
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        const RandomizerGet placed = ctx->GetItemLocation(rc)->GetPlacedRandomizerGet();
+        if (placed != RG_NONE && placed != RG_TRIFORCE) {
+            e->withholdHost(e->self, (uint16_t)rc);
+        }
+    }
+    MqpExpandToFixpoint(e);
+    out->skull = e->checkReached(e->self, (uint16_t)RC_DEKU_THEATER_SKULL_MASK) != 0;
+    out->goal = e->goalReached(e->self) != 0;
+    out->crossing = e->crossingOpen(e->self) != 0;
+    out->reached = 0;
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        out->reached += (e->checkReached(e->self, (uint16_t)rc) != 0) ? 1 : 0;
+    }
+    e->endQuery(e->self);
+    return true;
+}
+
+/** M5 (#1350): a paired generation authored with OoT's Logic "No Logic". */
+void MqpCheckNoLogicPinned() {
+    CVarSetInteger(kLogicRulesCVar, RO_LOGIC_NO_LOGIC);
+    const int genRc = Rando_HeadlessSeedTest("RSBSNOLOGIC1350");
+    // Read before the clear: the pin must move the context's value, never the CVar.
+    const bool cvarKept = CVarExists(kLogicRulesCVar) && CVarGetInteger(kLogicRulesCVar, -1) == RO_LOGIC_NO_LOGIC;
+    CVarClear(kLogicRulesCVar);
+    auto ctx = Rando::Context::GetInstance();
+    MQP_REQUIRE(genRc == 0 && ctx != nullptr, "M5: the headless paired generation authored with OoT No Logic failed");
+
+    // ---- M5a-c: the generated rules, the CVar, the toast's flag ----------------
+    const int rules = (int)ctx->GetOption(RSK_LOGIC_RULES).Get();
+    const int pinned = OoT_Rando_PairedLogicRulesPinned();
+    printf("[TEST] M5 (authored No Logic): generated Logic %d, the CVar still holds No Logic %d, pin reported %d\n",
+           rules, cvarKept ? 1 : 0, pinned);
+    MQP_CHECK(rules == RO_LOGIC_GLITCHLESS,
+              "M5a: a paired world kept OoT's No Logic, under which every OoT condition is true and the pair's proof "
+              "of OoT's half is vacuous (#1350)");
+    MQP_CHECK(cvarKept, "M5b: the generation rewrote the player's Logic CVar; only the generated value may move");
+    MQP_CHECK(pinned == 1, "M5c: the generation did not report the pin, so Generate raises no toast for it");
+
+    // ---- M5d: the OoT engine the pair proves with is not vacuous ---------------
+    const ComboLogicEngine* e = Combo_Logic_GetEngine(GAME_OOT);
+    MQP_REQUIRE(e != nullptr, "M5d: no OoT combo-logic engine is registered");
+    MqpRound generated;
+    MQP_REQUIRE(MqpRoundWithNothing(e, &generated), "M5d: the OoT engine refused to open a round");
+    // The RED half, in the row: the SAME world and the SAME round with the
+    // context's rules at No Logic, which is the world main generated here. If this
+    // stops reaching the Skull Mask check with nothing, No Logic is no longer
+    // vacuous and the pin wants re-deriving, rather than this row passing on an
+    // empty difference.
+    const uint8_t savedRules = ctx->GetOption(RSK_LOGIC_RULES).Get();
+    ctx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_NO_LOGIC);
+    MqpRound noLogic;
+    const bool noLogicOpened = MqpRoundWithNothing(e, &noLogic);
+    ctx->GetOption(RSK_LOGIC_RULES).Set(savedRules);
+    printf(
+        "[TEST] M5d: nothing assumed, %d locations: generated rules reach %d (Skull Mask check %d, goal %d, crossing "
+        "%d); the same world under No Logic reaches %d (Skull Mask check %d, goal %d, crossing %d)\n",
+        (int)ctx->allLocations.size(), generated.reached, generated.skull ? 1 : 0, generated.goal ? 1 : 0,
+        generated.crossing ? 1 : 0, noLogic.reached, noLogic.skull ? 1 : 0, noLogic.goal ? 1 : 0,
+        noLogic.crossing ? 1 : 0);
+    MQP_REQUIRE(noLogicOpened, "M5d: the OoT engine refused to open the No Logic round");
+    MQP_REQUIRE(noLogic.skull, "M5d: under No Logic the round with nothing no longer reaches the Skull Mask check, so "
+                               "the vacuity this pin answers is gone: re-derive #1350 against upstream's "
+                               "ConditionsMet");
+    MQP_CHECK(!generated.skull, "M5d: the Skull Mask check is reached with nothing assumed: the generated world's OoT "
+                                "logic answers true without the Skull Mask (#1350)");
+    MQP_CHECK(!generated.goal, "M5d: OoT's goal is reached with nothing assumed: the pair would stamp OoT's half "
+                               "proved over a vacuous logic (#1350)");
+    MQP_CHECK(generated.reached < noLogic.reached && generated.reached < (int)ctx->allLocations.size(),
+              "M5d: the generated world's OoT logic reaches as much with nothing assumed as No Logic does (#1350)");
+}
+
 /** M4: the menu rows show the generated value, and the callbacks never store a
  *  setting (a stored one would take a config off the shipped defaults, which the
  *  integration rows refuse). */
@@ -290,6 +399,7 @@ extern "C" int OoT_MaskQuestPaired_RunGenerated(void) {
     if (MqpGenerateAndCheck(RO_MASK_QUEST_COMPLETED, "Completed")) {
         MqpCheckTheaterNeedsTheMasks();
     }
+    MqpCheckNoLogicPinned();
     MqpCheckMenuRows();
     if (sFailures != 0) {
         printf("[TEST] FAIL: rando-mask-quest-paired (OoT): %d check(s) failed\n", sFailures);

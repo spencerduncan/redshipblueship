@@ -65,6 +65,10 @@ int OoT_PairedGen_CompletedWorld(const uint8_t** outHalf, size_t* outHalfSize, c
                                  const char** outMMProfile, uint32_t* outUnprovedHalves, unsigned* outGoal);
 void OoT_PairedGen_RetractWorld(void);
 void OoT_Creation_MarkFreshStagedWorld(void);
+// #1350: OoT's No Logic generated Glitchless (3drando/playthrough.cpp), and its
+// toast (ForeignItemsSingleExe.cpp).
+int OoT_Rando_PairedLogicRulesPinned(void);
+void OoT_Creation_EmitLogicPinToast(void);
 // ComboLogicEngineOoT.cpp.
 void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 // games/mm/2s2h/GameExports_SingleExe.cpp: the bytes of MM's half.
@@ -709,6 +713,11 @@ int CompleteAndStage(bool fromGenerate) {
         return Finish(rc);
     }
     Finish(written == RSBS_SEEDPKG_OK ? RSBS_SEEDPKG_OK : written);
+    // #1350: a world authored with OoT's "No Logic" was generated Glitchless; the
+    // player hears it where a failed Generate says "Not generated:".
+    if (fromGenerate && OoT_Rando_PairedLogicRulesPinned() != 0) {
+        OoT_Creation_EmitLogicPinToast();
+    }
     return 1;
 }
 
