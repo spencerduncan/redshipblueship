@@ -145,11 +145,11 @@ follow this section.
   tracker usability discovered following the `v0.4.0-alpha` milestone.
 - **Majora's Mask pause-save keeps its entrance and respawn** (#1317, issues #1298, #1302). Backported
   2Ship2Harkinian's pause-save entrance and respawn persistence (2Ship commits `16ef59bae`, `96611c3b3`). A reload
-  after a Termina save opens in Hyrule, as in OoTMM; the first crossing into Termina after the reload returns to where
-  you pause-saved (temple saves return to the temple). Corrected 2026-11-02: these notes first said the reload itself
-  returned to the exact entrance and respawn of the save, which is not so for a paired file. The return on the first
-  crossing comes with PR #1353 (issue #1348), which is not in `v0.4.4-alpha`; until it merges, that crossing arrives
-  in South Clock Town, as every crossing does.
+  after a Termina save opens in Hyrule, as in OoTMM; the first crossing into Termina after the reload arrives at the
+  entrance the save recorded: a temple save returns to the temple, and with Remember Save Location on any pause save
+  or autosave returns to its place (otherwise to South Clock Town). Corrected 2026-11-02: these notes first said the
+  reload itself returned to the exact entrance and respawn of the save, which is not so for a paired file. The return
+  on the first crossing comes with PR #1353 (issue #1348), merged after `v0.4.4-alpha`.
 - **Menu Reset and Ctrl+R reset Majora's Mask while running** (#1315, issue #1274). The menu header's red Reset button
   and the Ctrl+R shortcut now dispatch to Majora's Mask's reset handler (`MM_gGameState`) when Termina is active,
   resolving the issue where resets were ignored outside Hyrule.
