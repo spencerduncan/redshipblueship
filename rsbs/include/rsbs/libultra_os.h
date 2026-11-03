@@ -19,5 +19,11 @@ extern OSThread* __osRunningThread;
 /* Internal functions */
 void __osDequeueThread(OSThread** queue, OSThread* thread);
 void __osDispatchThread(void);
+/* Defined in games/oot/soh/stubs.c (signatures match games/oot/include/functions.h).
+ * destroythread, jammesg, recvmesg, sendmesg and seteventmesg call them; without
+ * these prototypes the calls are implicit declarations, which C99 and later
+ * forbid and AppleClang rejects as an error. */
+s32 __osDisableInt(void);
+void __osRestoreInt(s32);
 
 #endif /* RSBS_LIBULTRA_OS_H */

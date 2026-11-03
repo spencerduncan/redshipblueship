@@ -21,8 +21,12 @@ set(CPACK_PACKAGING_INSTALL_PREFIX "/usr/bin")
 endif()
 
 if (CPACK_GENERATOR MATCHES "Bundle")
-    set(CPACK_BUNDLE_NAME "soh")
-    set(CPACK_BUNDLE_PLIST "macosx/Info.plist")
-    set(CPACK_BUNDLE_ICON "macosx/soh.icns")
+    # The single executable sets its own bundle (RedShipBlueShip.app running
+    # redship, CMakeLists.txt Darwin block); these are the legacy build's.
+    if (NOT CPACK_BUNDLE_NAME)
+        set(CPACK_BUNDLE_NAME "soh")
+        set(CPACK_BUNDLE_PLIST "macosx/Info.plist")
+        set(CPACK_BUNDLE_ICON "macosx/soh.icns")
+    endif()
     set(CPACK_BUNDLE_APPLE_CERT_APP "-")
 endif()
