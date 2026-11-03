@@ -157,7 +157,7 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
                 snprintf(w->detail, sizeof(w->detail), "Placing the extra copies");
                 break;
             case RSBS_COMBO_FILL_STAGE_PREFLIGHT:
-                snprintf(w->detail, sizeof(w->detail), "Checking every location in both worlds can be reached");
+                snprintf(w->detail, sizeof(w->detail), "Checking that every location in both worlds is reachable");
                 break;
             default:
                 snprintf(w->detail, sizeof(w->detail), "Placing item %d of %d in both worlds (round %d, batch %d)",

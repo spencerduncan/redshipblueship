@@ -2021,11 +2021,14 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             { "moonCrash", MM_Rando_FrozenMoonCrash() == RSBS_MM_MOON_CRASH_CYCLE ? "cycle" : "reset" },
         };
         // No Logic (combo rung `none`): the coordinator distributed the bag and
-        // proved nothing, so the document says so beside the identity, the way
+        // proved nothing, so the document says so in a HEADER line, at its root
+        // beside OoT's own seed lines rather than inside the combo section, the way
         // OoTMM's spoiler drops every importance claim under logic 'none'. Absent
-        // under a proving rung, so a proved world's spoiler is unchanged.
-        if (gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_NONE) {
-            combo["logicWarning"] =
+        // under a proving rung, so a proved world's spoiler is unchanged
+        // (foreign_items.h, Combo_ComboLogicClaimsAllowed: the predicate the hint
+        // claim sites ask too).
+        if (!Combo_ComboLogicClaimsAllowed()) {
+            doc["logicWarning"] =
                 "No Logic: nothing was proved for this paired world. This seed may be unbeatable in either game.";
         }
 

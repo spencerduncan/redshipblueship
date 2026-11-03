@@ -9,8 +9,6 @@
  */
 
 #include "combo_area.h"
-#include "context.h"       // gComboCtx: the frozen combo record (Combo_Area_FoolishClaimsAllowed)
-#include "foreign_items.h" // RSBS_COMBO_RUNG_NONE
 #include "game.h"
 
 #include <stddef.h>
@@ -322,14 +320,6 @@ int Combo_Area_ComputeFoolish(uint8_t game, ComboFoolishAreas* out) {
         }
     }
     return out->count;
-}
-
-bool Combo_Area_FoolishClaimsAllowed(void) {
-    // A frozen record (formatVersion != 0) whose rung is `none`: no proof ran, so
-    // no hint may claim an area is not needed. Anything else (no record yet, or a
-    // proving rung) keeps today's foolish hints.
-    return !(gComboCtx.comboSettings.formatVersion != 0u &&
-             gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_NONE);
 }
 
 bool Combo_Area_IsFoolish(const ComboFoolishAreas* set, ComboArea a) {

@@ -240,8 +240,9 @@ extern "C" int OoT_HintArea_MarkPairedFoolish(void) {
         return 0;
     }
     // No Logic (combo rung `none`) proved nothing, so no area is CLAIMED foolish:
-    // the Foolish entry draws no candidate and SoH's distribution disables it.
-    if (!Combo_Area_FoolishClaimsAllowed()) {
+    // the Foolish entry draws no candidate and SoH's distribution disables it
+    // (foreign_items.h, Combo_ComboLogicClaimsAllowed; via combo_logic.h).
+    if (!Combo_ComboLogicClaimsAllowed()) {
         fprintf(stderr, "[OoT/hints] paired world under No Logic: no foolish claim is made (nothing was proved)\n");
         return 0;
     }

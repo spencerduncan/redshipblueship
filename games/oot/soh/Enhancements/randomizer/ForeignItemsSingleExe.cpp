@@ -925,8 +925,9 @@ extern "C" int OoT_Creation_EmitUnreachableToast(void) {
     if (count <= 0) {
         return 0;
     }
-    // One name: "unreachable: Name.", or "unreachable: Name and N more." when there are several.
-    std::string message = std::string("unreachable: ") + first + ".";
+    // One name: "Name is unreachable.", or "Name and N more are unreachable." when
+    // there are several (one colon on the line: the prefix's).
+    std::string message = std::string(first) + (count == 1 ? " is unreachable." : " are unreachable.");
     if (kPrefixChars + message.size() > kLineChars) {
         message = std::to_string(count) +
                   (count == 1 ? " location can never be reached." : " locations can never be reached.");

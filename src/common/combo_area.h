@@ -261,18 +261,6 @@ typedef struct {
  *  no area adapter. COMBO_AREA_NONE and COMBO_AREA_POCKET are never foolish. */
 int Combo_Area_ComputeFoolish(uint8_t game, ComboFoolishAreas* out);
 
-/**
- * May a hint CLAIM an area is foolish in this world? False when the frozen combo
- * record's logic rung is `none` (No Logic): the coordinator proved nothing, so a
- * hint must not tell the player an area is not needed. That is OoTMM's rule under
- * logic 'none' (spoiler.ts drops every importance suffix, the hintImportance
- * setting is hidden, analysis-foolish.ts runs no foolish analysis). Each game's
- * claim site asks before it speaks (OoT_HintArea_MarkPairedFoolish, MM's free
- * stone); the rule above stays a pure function of the placements. True with no
- * frozen record and under every proving rung, so no proved world changes.
- */
-bool Combo_Area_FoolishClaimsAllowed(void);
-
 /** Whether `a` is in `set` (false for another game's area or a special). */
 bool Combo_Area_IsFoolish(const ComboFoolishAreas* set, ComboArea a);
 

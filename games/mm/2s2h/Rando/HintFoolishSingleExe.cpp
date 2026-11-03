@@ -25,10 +25,11 @@
 #include "Rando/Rando.h"
 #include "Rando/StaticData/StaticData.h"
 
-#include "combo_area.h"   // src/common: the shared vocabulary and the foolish rule
-#include "context.h"      // src/common: SharedItem
-#include "game.h"         // src/common: GAME_MM
-#include "shared_items.h" // src/common: the item-class owner
+#include "combo_area.h"    // src/common: the shared vocabulary and the foolish rule
+#include "context.h"       // src/common: SharedItem
+#include "foreign_items.h" // src/common: Combo_ComboLogicClaimsAllowed (No Logic claims nothing)
+#include "game.h"          // src/common: GAME_MM
+#include "shared_items.h"  // src/common: the item-class owner
 
 namespace {
 
@@ -111,8 +112,8 @@ uint64_t NextStoneDraw(uint64_t* state) {
 
 std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {
     // No Logic (combo rung `none`) proved nothing: the stone keeps its item hint
-    // and claims no area foolish (combo_area.h, Combo_Area_FoolishClaimsAllowed).
-    if (!Combo_Area_FoolishClaimsAllowed()) {
+    // and claims no area foolish (foreign_items.h, Combo_ComboLogicClaimsAllowed).
+    if (!Combo_ComboLogicClaimsAllowed()) {
         return "";
     }
     ComboFoolishAreas foolish;
