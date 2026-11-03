@@ -2291,7 +2291,10 @@ extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 // Re-pinned by #1367 R5 (generator 4, was 0x54BF77F4): the default paired world is
 // an All Locations world now, and the static hints name where its items landed.
-static const uint32_t kStaticHintTextDigest = 0x2387DBDDu;
+// Re-pinned again by the OoTMM-defaults re-pin (#1428, #1425, #1427; still generator
+// 4, was 0x2387DBDD): the shipped goal gates and OoT shuffles move OoT's settings
+// string, so every static hint names a moved placement; the count stays 17.
+static const uint32_t kStaticHintTextDigest = 0x759F783Du;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
