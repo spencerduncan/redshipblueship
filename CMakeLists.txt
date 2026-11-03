@@ -606,20 +606,39 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/extractor/" DESTINATION 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/oot/assets/xml/" DESTINATION ./assets/xml)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/extractor/" DESTINATION ./assets/)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/games/mm/assets/xml/" DESTINATION ./assets/xml)
-install(FILES "${CMAKE_BINARY_DIR}/mm/2ship.o2r" DESTINATION ../Resources COMPONENT ship)
 
 if(SINGLE_EXECUTABLE_BUILD)
-    # Rename the installed redship binary to match CFBundleExecutable (soh) in Info.plist
-    INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/redship \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+    # MM's port-asset archive, as on Linux and Windows above. The games/mm
+    # Darwin rule is the legacy two-library build's, so this is the only one.
+    install(FILES "${CMAKE_BINARY_DIR}/mm/2ship.o2r" DESTINATION ../Resources COMPONENT ship)
+
+    # RedShipBlueShip.app runs redship itself: rsbs/macosx/Info.plist.in names
+    # it as CFBundleExecutable, so nothing is renamed before fixup_bundle. That
+    # plist is derived from games/oot/macosx/Info.plist.in (still the legacy
+    # build's) with LSMinimumSystemVersion following CMAKE_OSX_DEPLOYMENT_TARGET
+    # and this project's own identifier and SHIP_HOME, so a Mac that also has
+    # Ship of Harkinian keeps two separate shipofharkinian.json files and save
+    # folders. The CPACK_BUNDLE_* values reach CMake/Packaging-2.cmake through
+    # CPackConfig.cmake; the Bundle generator copies the icon in as
+    # Contents/Resources/<CPACK_BUNDLE_NAME>.icns, the name the plist gives.
+    set(CPACK_BUNDLE_NAME "RedShipBlueShip")
+    configure_file(${CMAKE_SOURCE_DIR}/rsbs/macosx/Info.plist.in ${CMAKE_BINARY_DIR}/macosx/redship-Info.plist @ONLY)
+    set(CPACK_BUNDLE_PLIST "${CMAKE_BINARY_DIR}/macosx/redship-Info.plist")
+    set(CPACK_BUNDLE_ICON "${CMAKE_BINARY_DIR}/macosx/soh.icns")
+    set(RSBS_MACOS_BUNDLE_EXECUTABLE "redship")
 else()
     # Rename the installed soh binary to drop the macos suffix
     INSTALL(CODE "FILE(RENAME \${CMAKE_INSTALL_PREFIX}/../MacOS/soh-macos \${CMAKE_INSTALL_PREFIX}/../MacOS/soh)")
+    set(RSBS_MACOS_BUNDLE_EXECUTABLE "soh")
 endif()
 
+# COMPONENT ship: CPack's Bundle generator installs monolithically today, but
+# Packaging-2.cmake limits component installs to "ship", and this must run last
+# under either.
 install(CODE "
     include(BundleUtilities)
-    fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/../MacOS/soh\" \"\" \"${dirs}\")
-    ")
+    fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/../MacOS/${RSBS_MACOS_BUNDLE_EXECUTABLE}\" \"\" \"${dirs}\")
+    " COMPONENT ship)
 
 endif()
 
