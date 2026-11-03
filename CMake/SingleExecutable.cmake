@@ -3800,7 +3800,15 @@ endif()
 # Installation
 # ============================================================================
 
-install(TARGETS redship RUNTIME DESTINATION . COMPONENT ship)
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+    # CPack's Bundle generator installs into <app>/Contents/Resources, so
+    # ../MacOS is Contents/MacOS: the CFBundleExecutable that
+    # rsbs/macosx/Info.plist.in names, and the file fixup_bundle starts from
+    # (CMakeLists.txt, Darwin block).
+    install(TARGETS redship RUNTIME DESTINATION ../MacOS COMPONENT ship)
+else()
+    install(TARGETS redship RUNTIME DESTINATION . COMPONENT ship)
+endif()
 
 message(STATUS "Single executable 'redship' will be built")
 message(STATUS "Use --test option to run integration tests")
