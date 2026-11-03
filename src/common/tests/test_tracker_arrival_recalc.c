@@ -3,14 +3,18 @@
  * @brief ROM-free lock: a cross-game arrival into OoT schedules the Check Tracker's
  *        Available Checks recalculation (#990).
  *
- * The tracker's Available Checks set is event-driven. Its deferred flag is armed
- * by exactly two events: OnLoadGame and a full SoH SaveFile. A cross-game arrival
- * is neither (the frozen save is restored at Play_ConsumeStartupEntrance without
- * Save_LoadFile, and the crossing commits through RsbsSave_Save), and the apply
- * and redeem that change the live state run before OoT_gPlayState is assigned, so
- * every handler that could notice them bails on IsSaveLoaded. Items redeemed and
- * shared resources applied from Termina therefore left the set stale until an
- * unrelated trigger.
+ * The tracker's Available Checks set is event-driven. Before #990 its deferred flag
+ * was armed by exactly two events: OnLoadGame and a full SoH SaveFile. A cross-game
+ * arrival is neither (the frozen save is restored at Play_ConsumeStartupEntrance
+ * without Save_LoadFile, and the crossing commits through RsbsSave_Save), and the
+ * apply and redeem that change the live state run before OoT_gPlayState is
+ * assigned, so every handler that could notice them bails on IsSaveLoaded. Items
+ * redeemed and shared resources applied from Termina therefore left the set stale
+ * until an unrelated trigger.
+ *
+ * Since #1420 an OoT scene transition (CheckTrackerTransition) also arms the flag
+ * while Enable Available Checks is on. This row does not rely on it: it clears the
+ * flag first and drives the arrival function alone, so the arrival must arm it.
  *
  * The row drives OoT_Play_ApplyArrivalShared, the function OoT_Play_Init calls at
  * the arrival (z_play.c), so skipping the tracker call there fails the row:

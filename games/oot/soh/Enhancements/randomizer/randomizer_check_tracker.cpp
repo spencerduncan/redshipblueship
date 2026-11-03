@@ -1641,9 +1641,9 @@ void LoadSettings() {
                  : false;
     // SoH #6447 (#1420): under Triforce Hunt the boss key is never placed
     // (item_pool.cpp), so the tower chest holds a random item even with the
-    // greyed-out Ganon's Boss Key option left at Vanilla. A paired Triforce Hunt
-    // world generates OoT's own hunt as "Win" (playthrough.cpp, #997 and #1389),
-    // so this option covers it too.
+    // greyed-out Ganon's Boss Key option left at Vanilla. The paired Triforce Hunt
+    // (#1389) writes OoT's own hunt as "Win" when it creates a file, so this option
+    // covers paired files too; until it lands, Generate refuses that goal.
     showGanonBossKey = IS_RANDO ? OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_GANONS_BOSS_KEY) !=
                                           RO_GANON_BOSS_KEY_VANILLA ||
                                       OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT) !=

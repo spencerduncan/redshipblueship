@@ -115,8 +115,9 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
     bool triforceHunt =
         CVarGetInteger(CVAR_RANDOMIZER_SETTING("TriforceHunt"), RO_TRIFORCE_HUNT_OFF) != RO_TRIFORCE_HUNT_OFF;
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // The [Both Games] Triforce Hunt goal generates OoT's own hunt whatever OoT's
-    // own row says (playthrough.cpp, #1389). The goal the next creation freezes.
+    // The [Both Games] Triforce Hunt goal (#1389) runs OoT's own hunt whatever
+    // OoT's own row says, so it counts too; until the paired hunt lands, Generate
+    // refuses that goal. This reads the goal the next creation freezes.
     ComboSettingsRecord comboRules;
     Combo_ResolveComboSettings(&comboRules);
     triforceHunt = triforceHunt || comboRules.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;

@@ -107,7 +107,28 @@ bool OtsfTowerChestOffered(int hunt, int goal) {
     return Rando::Context::GetInstance()->GetItemLocation(RC_GANONS_TOWER_BOSS_KEY_CHEST)->IsVisible();
 }
 
+/** A key's state before leg 1, so the leg puts it back instead of clearing it. */
+struct OtsfSavedKey {
+    const char* key;
+    bool existed;
+    int32_t value;
+};
+
+OtsfSavedKey OtsfSaveKey(const char* key) {
+    return { key, CVarExists(key), CVarGetInteger(key, 0) };
+}
+
+void OtsfRestoreKey(const OtsfSavedKey& saved) {
+    if (saved.existed) {
+        CVarSetInteger(saved.key, saved.value);
+    } else {
+        CVarClear(saved.key);
+    }
+}
+
 void OtsfLegExclusion() {
+    const OtsfSavedKey saved[] = { OtsfSaveKey(kTriforceHuntCVar), OtsfSaveKey(kGanonBossKeyCVar),
+                                   OtsfSaveKey(RSBS_CVAR_COMBO_RANDO_GOAL) };
     const bool off = OtsfTowerChestOffered(-1, -1);
     const bool ownWin = OtsfTowerChestOffered(RO_TRIFORCE_HUNT_WIN, -1);
     const bool ownGbk = OtsfTowerChestOffered(RO_TRIFORCE_HUNT_GBK, -1);
@@ -123,9 +144,9 @@ void OtsfLegExclusion() {
                        "exclusion list does not offer the tower chest");
     OTSF_CHECK(comboGoal, "1: the [Both Games] Triforce Hunt goal generates OoT's own hunt (#1389), yet the "
                           "exclusion list does not offer the tower chest");
-    CVarClear(kTriforceHuntCVar);
-    CVarClear(kGanonBossKeyCVar);
-    CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+    for (const OtsfSavedKey& key : saved) {
+        OtsfRestoreKey(key);
+    }
     RandomizerCheckObjects::UpdateImGuiVisibility();
 }
 
