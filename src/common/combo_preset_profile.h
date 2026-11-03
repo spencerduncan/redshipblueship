@@ -24,9 +24,13 @@
  *
  * THE SHAPE. A JSON object mirroring the CVar tree, as SoH's blocks do:
  *
- *     { "gRando": { "Options": { "RO_LOGIC": 1 }, "Tricks": { "MMRT_LENS": 1 },
+ *     { "gRando": { "Options": { "RO_SHUFFLE_GOLD_SKULLTULAS": 1 }, "Tricks": { "MMRT_LENS": 1 },
  *                   "Traps": { "Freeze": 1 }, "ExcludedChecks": "26,77," },
- *       "gCombo": { "Rando": { "SharedLens": 1 } } }
+ *       "gCombo": { "Rando": { "Logic": 3, "SharedLens": 1 } } }
+ *
+ * MM's own Logic (gRando.Options.RO_LOGIC) is not part of it (#1367): the page
+ * shows that row read-only, set by [Both Games] Logic, which the profile carries
+ * as gCombo.Rando.Logic. A profile that holds it has it refused.
  *
  * stored under COMBO_PRESET_PAIRED_PROFILE_KEY in the block, beside
  * "gRandoSettings". The key is deliberately not a CVar root: a build without
@@ -71,9 +75,9 @@ struct ComboPresetProfileReport {
  * The authored paired profile, as the block stores it: every explicitly chosen
  * MM option and trap type, every trick that is on, the excluded checks (unless
  * Vanilla logic makes the list inert), and every explicitly chosen Cross-Game
- * rule. Unchosen keys are left out, so applying the result puts them back to
- * "never chosen" (the MM logic option's default pin keys on that). An empty
- * object when nothing is chosen.
+ * rule ([Both Games] Logic among them, #1367). Unchosen keys are left out, so
+ * applying the result puts them back to "never chosen". An empty object when
+ * nothing is chosen.
  */
 nlohmann::json ComboPresetProfile_Capture(void);
 
@@ -89,8 +93,7 @@ std::string ComboPresetProfile_RefusalNote(void);
  * Apply @p profile through the writers. Null resets every paired-profile key.
  * Otherwise each key the profile holds is written, and with @p merge false
  * (SoH's "overwrite" block strategy) every key it does not hold is cleared;
- * with @p merge true those are left alone. Options go first, because the
- * excluded-check writer reads the logic option. Refused whole, writing nothing,
+ * with @p merge true those are left alone. Refused whole, writing nothing,
  * while ComboPresetProfile_RefusalNote() is non-empty.
  *
  * Writes the CVar store only; the caller persists it (CVarSave) when the write

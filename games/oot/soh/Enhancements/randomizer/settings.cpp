@@ -1311,6 +1311,20 @@ void Settings::CreateOptions() {
     // TODO: Remainder of Starting Items
     OPT_U8(RSK_LOGIC_RULES, "Logic", {"Glitchless", "No Logic"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LogicRules"), mOptionDescriptions[RSK_LOGIC_RULES], WIDGET_CVAR_COMBOBOX, RO_LOGIC_GLITCHLESS, false, nullptr, IMFLAG_LABEL_INLINE);
     OPT_BOOL(RSK_ALL_LOCATIONS_REACHABLE, "All Locations Reachable", {"Off", "On"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("AllLocationsReachable"), mOptionDescriptions[RSK_ALL_LOCATIONS_REACHABLE], WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON, false, nullptr, IMFLAG_SAME_LINE);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1367 (operator ruling 2026-11-02): every randomizer file here is paired, and a
+    // paired world's logic is the pair's one [Both Games] Logic (Randomizer >
+    // Cross-Game), from which 3drando/playthrough.cpp derives these two. So both rows
+    // are greyed and say what decides them. Unlike #973's rows nothing is cleared:
+    // a paired generation never reads the stored value, and only the generated one
+    // moves.
+    OPT_CALLBACK(RSK_LOGIC_RULES, {
+        mOptions[RSK_LOGIC_RULES].Disable("This option is disabled because [Both Games] Logic on Randomizer > Cross-Game sets it: Glitchless under All Locations and Beatable Only, No Logic under No Logic.");
+    });
+    OPT_CALLBACK(RSK_ALL_LOCATIONS_REACHABLE, {
+        mOptions[RSK_ALL_LOCATIONS_REACHABLE].Disable("This option is disabled because [Both Games] Logic on Randomizer > Cross-Game sets it: on under All Locations and Beatable Only, off under No Logic.");
+    });
+#endif
     OPT_BOOL(RSK_SKULLS_SUNS_SONG, "Night Skulltula's Expect Sun's Song", CVAR_RANDOMIZER_SETTING("GsExpectSunsSong"), mOptionDescriptions[RSK_SKULLS_SUNS_SONG]);
     OPT_U8(RSK_DAMAGE_MULTIPLIER, "Damage Multiplier", {"x1/2", "x1", "x2", "x4", "x8", "x16", "OHKO"}, OptionCategory::Setting, "", "", WIDGET_CVAR_SLIDER_INT, RO_DAMAGE_MULTIPLIER_DEFAULT);
     // Don't show any MQ options if both quests aren't available

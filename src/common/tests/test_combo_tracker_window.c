@@ -1309,7 +1309,14 @@ int LockNavBody(void) {
         CTW_ASSERT(in.good());
         const std::string win((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         const char* const kDraws[] = {
-            "ComboAreaScrollNote(pane.scroll, activePane,",
+            // #1189: the whole call and what feeds it, so the Auto Scroll key and
+            // the pane's own area reach the note: a literal true for
+            // nav.autoScroll kept every row green while the settings row did
+            // nothing.
+            "const bool areaKnown = Combo_TrackerCurrentArea(game, &currentArea);",
+            "const ComboTrackerNavKeys nav = ComboReadTrackerNavKeys();",
+            "const bool activePane = game == (uint8_t)Context_GetCurrentGame();",
+            "(void)ComboAreaScrollNote(pane.scroll, activePane, nav.autoScroll, areaKnown, currentArea);",
             "if (ComboAreaScrollTake(pane.scroll, area.key)) {\n            ImGui::SetScrollHereY(0.0f);",
             "Ui().Checkbox(\"Only Show Current Area\", &pane.area.onlyCurrentArea",
             "ComboApplyCurrentAreaFilter(hide, game, pane.area.onlyCurrentArea);",

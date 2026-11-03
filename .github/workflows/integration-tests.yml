@@ -29,9 +29,14 @@ on:
         description: 'gameplay-roundtrip: comma-separated OoT entrance ids to sweep as post-return warp targets (hex ok, < 0x614)'
         required: false
         default: '0x00B1'
+# Never cancelled in progress (#1377, see generate-builds.yml): a run on main
+# is the only one that saves this workflow's ccache, and a second dispatch
+# with other inputs is another experiment, not a newer copy of the first. A
+# second dispatch on the same ref waits for the first. If pull_request comes
+# back as a trigger, its runs still supersede each other.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   integration-tests-linux:

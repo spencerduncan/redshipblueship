@@ -1080,6 +1080,11 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // SCOPE (compiled as C++). Its wrapper (Test_MMModSet) is below, after the shared
 // bring-up helpers it needs.
 #include "tests/test_mm_mod_set.c"
+// #1196: OoT's mod menu names an archive by its path under mods/, so two same-named
+// archives in different folders both mount, and a list saved by file name migrates.
+// ROM-free and archive-free (it writes its own zips); FILE SCOPE (compiled as C++).
+// Its wrapper (Test_OoTModSet) is beside Test_MMModSet.
+#include "tests/test_oot_mod_set.c"
 // A foreign item's icon in MM's get-item textbox (#607): the origin's answer for
 // every OoT progression item, the fallbacks, and the real load/decode/draw chain
 // (its MM half is games/mm/2s2h/Rando/ForeignTextboxIconSingleExe.cpp). FILE
@@ -7710,6 +7715,24 @@ TestResult Test_MMModSet(void) {
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1196: OoT's enabled mod set keyed by path. The display-free shared bring-up gives
+// it the console variables and the ArchiveManager; it stages its own archives, so it
+// never skips.
+TestResult Test_OoTModSet(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    const int rc = OoTModSet_RunHeadless();
+    printf("[TEST] %s: oot mod set rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 TestResult Test_RoundtripIntegrity(void) {
     printf("[TEST] roundtrip-integrity: OoT SaveContext byte-integrity across roundtrip (issue #262)\n");
     int failures = TestRoundtripIntegrity_Run();
@@ -9177,6 +9200,10 @@ const TestDescriptor gTests[] = {
       "MM's enabled mod set: enable, disable and reorder round-trip through the persisted lists; unset lists keep the "
       "stem order, new archives arrive enabled on top, a disabled mod stays disabled (#706)",
       Test_MMModSet },
+    { "oot-mod-set",
+      "OoT's mod menu keys archives by path under mods/: two same-named archives in different folders both mount "
+      "and survive a switch, and a list saved by file name migrates to paths keeping its mods and order (#1196)",
+      Test_OoTModSet },
     { "combo-gameover-revive",
       "An F10 from either game's game-over screen revives the departing bar to that game's continue value (a spent "
       "fairy's refill mid-revive) before the freeze, and the other game arrives with it, not the one-heart floor "

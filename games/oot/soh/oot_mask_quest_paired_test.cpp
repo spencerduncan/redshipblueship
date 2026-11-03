@@ -36,6 +36,17 @@
  *      world with the context's rules at No Logic reaches the Skull Mask check
  *      and more locations (the RED half, kept in the row so a change to No
  *      Logic's semantics is reported instead of passing on an empty difference).
+ *   M6 #1367, the same seam's derivation from [Both Games] Logic: a paired
+ *      generation at "No Logic" (rung 1) is generated with OoT's Logic No Logic
+ *      and All Locations Reachable off, with no pin reported (the rung asked for
+ *      it) and the frozen record at rung 1 (M6a); at "All Locations" (rung 3)
+ *      OoT is Glitchless with All Locations Reachable on, an authored OoT No
+ *      Logic is overridden and reported (M6b); and neither the generation nor
+ *      the read-only Logic / All Locations Reachable rows' callbacks write
+ *      either key (M6c). Rung 3's own fill outcome is printed, not asserted:
+ *      #1371's All Locations pre-flight may refuse this profile, naming the
+ *      locations it cannot reach (its curated exclusions are still empty), and
+ *      the derivation runs before the fill either way.
  * Every check runs and reports, and the row fails if any did, so one red run
  * shows every leg a change breaks.
  *
@@ -65,6 +76,8 @@
 
 #include "combo_logic.h"      // Combo_Logic_GetEngine, the engine vtable
 #include "combo_single_bag.h" // OoT_ComboLogic_ExportPool
+#include "cvar_shared_keys.h" // RSBS_CVAR_COMBO_RANDO_LOGIC: [Both Games] Logic (#1367)
+#include "foreign_items.h"    // RSBS_COMBO_RUNG_*, gComboCtx
 
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp: the headless generation
 // bridge the RandoGen rows use.
@@ -99,6 +112,7 @@ int sFailures = 0;
 const char* const kMaskQuestCVar = CVAR_RANDOMIZER_SETTING("CompleteMaskQuest");
 const char* const kMaskShopHintCVar = CVAR_RANDOMIZER_SETTING("MaskShopHint");
 const char* const kLogicRulesCVar = CVAR_RANDOMIZER_SETTING("LogicRules");
+const char* const kAlrCVar = CVAR_RANDOMIZER_SETTING("AllLocationsReachable");
 
 const RandomizerGet kMasks[8] = {
     RG_KEATON_MASK, RG_SKULL_MASK, RG_SPOOKY_MASK, RG_BUNNY_HOOD,
@@ -347,6 +361,67 @@ void MqpCheckNoLogicPinned() {
               "M5d: the generated world's OoT logic reaches as much with nothing assumed as No Logic does (#1350)");
 }
 
+/** M6 (#1367): OoT's Logic and All Locations Reachable derive from [Both Games] Logic. */
+void MqpCheckComboLogicDerived() {
+    auto ctx = Rando::Context::GetInstance();
+
+    // ---- M6a: No Logic (rung 1), nothing authored on OoT's own rows ---------
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_LOGIC, (int32_t)RSBS_COMBO_RUNG_NONE);
+    const int noLogicRc = Rando_HeadlessSeedTest("RSBSCOMBOLOGIC1367");
+    const int noLogicRules = ctx != nullptr ? (int)ctx->GetOption(RSK_LOGIC_RULES).Get() : -1;
+    const int noLogicAlr = ctx != nullptr ? (int)ctx->GetOption(RSK_ALL_LOCATIONS_REACHABLE).Get() : -1;
+    const int noLogicPinned = OoT_Rando_PairedLogicRulesPinned();
+    const int noLogicRung = (int)gComboCtx.comboSettings.logicRung;
+    const bool noLogicStored = CVarExists(kLogicRulesCVar) || CVarExists(kAlrCVar);
+    CVarClear(RSBS_CVAR_COMBO_RANDO_LOGIC);
+    printf("[TEST] M6a ([Both Games] Logic No Logic): generation rc %d, OoT Logic %d, All Locations Reachable %d, "
+           "pin reported %d, frozen rung %d, OoT keys written %d\n",
+           noLogicRc, noLogicRules, noLogicAlr, noLogicPinned, noLogicRung, noLogicStored ? 1 : 0);
+    MQP_CHECK(noLogicRc == 0, "M6a: the paired generation at [Both Games] Logic \"No Logic\" failed");
+    MQP_CHECK(noLogicRules == RO_LOGIC_NO_LOGIC,
+              "M6a: [Both Games] Logic \"No Logic\" did not generate OoT's Logic as No Logic (#1367)");
+    MQP_CHECK(noLogicAlr == RO_GENERIC_OFF,
+              "M6a: [Both Games] Logic \"No Logic\" did not generate All Locations Reachable off (#1367)");
+    MQP_CHECK(noLogicPinned == 0, "M6a: the No Logic the rung asked for was reported as a pin (a false toast)");
+    MQP_CHECK(noLogicRung == (int)RSBS_COMBO_RUNG_NONE, "M6a: the paired record did not freeze rung No Logic");
+    MQP_CHECK(!noLogicStored, "M6a: the generation wrote OoT's Logic or All Locations Reachable key");
+
+    // ---- M6b: All Locations (rung 3) over an authored OoT No Logic, ALR off --
+    CVarSetInteger(RSBS_CVAR_COMBO_RANDO_LOGIC, (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE);
+    CVarSetInteger(kLogicRulesCVar, RO_LOGIC_NO_LOGIC);
+    CVarSetInteger(kAlrCVar, RO_GENERIC_OFF);
+    const int allRc = Rando_HeadlessSeedTest("RSBSCOMBOLOGIC1367");
+    const int allRules = ctx != nullptr ? (int)ctx->GetOption(RSK_LOGIC_RULES).Get() : -1;
+    const int allAlr = ctx != nullptr ? (int)ctx->GetOption(RSK_ALL_LOCATIONS_REACHABLE).Get() : -1;
+    const int allPinned = OoT_Rando_PairedLogicRulesPinned();
+    // Read before the clears: the derivation moves the context's values, never the keys.
+    const bool allKept =
+        CVarGetInteger(kLogicRulesCVar, -1) == RO_LOGIC_NO_LOGIC && CVarGetInteger(kAlrCVar, -1) == RO_GENERIC_OFF;
+    CVarClear(RSBS_CVAR_COMBO_RANDO_LOGIC);
+    CVarClear(kLogicRulesCVar);
+    CVarClear(kAlrCVar);
+    printf("[TEST] M6b ([Both Games] Logic All Locations, OoT authored No Logic / ALR off): generation rc %d (not "
+           "asserted), OoT Logic %d, All Locations Reachable %d, pin reported %d, authored keys kept %d\n",
+           allRc, allRules, allAlr, allPinned, allKept ? 1 : 0);
+    MQP_CHECK(allRules == RO_LOGIC_GLITCHLESS,
+              "M6b: [Both Games] Logic \"All Locations\" did not generate OoT's Logic as Glitchless (#1367)");
+    MQP_CHECK(allAlr == RO_GENERIC_ON,
+              "M6b: [Both Games] Logic \"All Locations\" did not generate All Locations Reachable on (#1367)");
+    MQP_CHECK(allPinned == 1, "M6b: the authored OoT No Logic a proving rung overrode was not reported");
+    MQP_CHECK(allKept, "M6b: the generation rewrote an authored OoT key; only the generated values may move");
+
+    // ---- M6c: the read-only rows' callbacks write nothing ---------------------
+    auto settings = Rando::Settings::GetInstance();
+    settings->GetOption(RSK_LOGIC_RULES).RunCallback();
+    settings->GetOption(RSK_ALL_LOCATIONS_REACHABLE).RunCallback();
+    const bool rowsStored = CVarExists(kLogicRulesCVar) || CVarExists(kAlrCVar);
+    printf("[TEST] M6c: the read-only Logic / All Locations Reachable rows' callbacks stored a key %d\n",
+           rowsStored ? 1 : 0);
+    MQP_CHECK(!rowsStored, "M6c: a read-only Logic row's callback stored a randomizer setting the player never set");
+    CVarClear(kLogicRulesCVar);
+    CVarClear(kAlrCVar);
+}
+
 /** M4: the menu rows show the generated value, and the callbacks never store a
  *  setting (a stored one would take a config off the shipped defaults, which the
  *  integration rows refuse). */
@@ -400,6 +475,7 @@ extern "C" int OoT_MaskQuestPaired_RunGenerated(void) {
         MqpCheckTheaterNeedsTheMasks();
     }
     MqpCheckNoLogicPinned();
+    MqpCheckComboLogicDerived();
     MqpCheckMenuRows();
     if (sFailures != 0) {
         printf("[TEST] FAIL: rando-mask-quest-paired (OoT): %d check(s) failed\n", sFailures);

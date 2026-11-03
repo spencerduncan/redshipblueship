@@ -692,7 +692,7 @@ void BenMenu::AddEnhancements() {
             "Fixes the camera snap that occurs when you are moving and press the targeting button."));
     AddWidget(path, "First Person", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Disable Auto-Centering", WIDGET_CVAR_CHECKBOX)
-        .CVar("gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView")
+        .CVar("gSettings.DisableFirstPersonAutoCenterView")
         .PreFunc([](WidgetInfo& info) {
             if (mBenMenu->disabledMap.at(DISABLE_FOR_GYRO_ON).active)
                 info.activeDisables.push_back(DISABLE_FOR_GYRO_ON);

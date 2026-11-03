@@ -2253,6 +2253,12 @@ uint8_t OoTFillClassSharedKind(RandomizerGet rg) {
             return RSBS_SHARED_RES_HOOKSHOT_TIER;
         case RG_PROGRESSIVE_OCARINA:
             return RSBS_SHARED_RES_OCARINA_TIER;
+        // #1145: so MM's pickup of it steps the shared sword (armed only by the
+        // frozen Shared Kokiri Sword bit). Its class stays PROGRESSION (the kind's
+        // other row, MM's progressive sword, is PROGRESSION too) and the kind is
+        // KEEP_ALL, so the pool and the bag do not move.
+        case RG_KOKIRI_SWORD:
+            return RSBS_SHARED_RES_KOKIRI_SWORD;
         // #970: a bottle, whatever it holds. Ruto's Letter is not tagged: it is a
         // bottle in the inventory (the shared count sees its slot) but it is OoT's
         // quest item, and the Shared Bottles trim must never take it out of the

@@ -4904,10 +4904,17 @@ static void OoT_FillWalletAfterStep(s32 tierBefore) {
  * @return 1 when stepped (including a copy absorbed at the cap: nothing in
  *         Termina could hold it either); 0 (the caller crosses the item, as
  *         before) when the kind is disarmed by the frozen rules or has no cap
- *         here.
+ *         here, or (#1145) the item is MM's sword and the pool, after the
+ *         harvest, already holds the Kokiri Sword: that copy is MM's Razor or
+ *         Gilded Sword, which only MM's give can make.
  */
 static int OoT_StepSharedTierAtPickup(const SharedItem* item, uint8_t kind, uint16_t units) {
     OoT_HarvestSharedKind(kind);
+    if (!Combo_SharedPickupStepAdmitted(*item, kind)) {
+        fprintf(stderr, "[OoT] shared pickup step: %s id=%u crosses, the pool already holds shared kind %u (#1145)\n",
+                Game_ToString((GameId)item->originGame), (unsigned)item->id, (unsigned)kind);
+        return 0;
+    }
     const s32 walletTierBefore = (s32)CUR_UPG_VALUE(UPG_WALLET);
     if (!Combo_StepSharedTier(kind, units, OoT_SharedKindCap(kind))) {
         return 0; // the harvest alone changes nothing a later harvest would not

@@ -1702,12 +1702,20 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
   Sword's owned-equipment bit and MM any sword it holds; OoT's apply writes
   that owned bit, MM's gives the Kokiri Sword on B when MM holds no sword.
 - **Not changed:** the pool and the logic. OoT's `RG_KOKIRI_SWORD` and MM's
-  three `RI_PROGRESSIVE_SWORD` copies all stay placed, and no pool row maps to
-  the kind, so each game's proof still reaches its own sword checks with its
-  own copies. Trimming is not available: the sword's ceilings are unequal
-  (OoT 1, MM's progressive chain 3), the shared-quantity trim's
+  three `RI_PROGRESSIVE_SWORD` copies all stay placed, and the kind's quantity
+  policy is keep-all, so each game's proof still reaches its own sword checks
+  with its own copies. Trimming is not available: the sword's ceilings are
+  unequal (OoT 1, MM's progressive chain 3), the shared-quantity trim's
   keep-whole case, and dropping either game's copy would leave that game's
   engine short of its own sword tiers.
+- **Found in the other game (#1145, 2026-11-02).** Both pool swords now feed
+  the kind in their games' item-class sources, so a far game's sword steps the
+  pool at its pickup (`Combo_SharedResourceStepsAtPickup`) and the finder holds
+  the Kokiri Sword at once instead of after a round trip. MM's sword steps only
+  while the pool, after the finder's harvest, holds no sword
+  (`Combo_SharedPickupStepAdmitted`): a later MM copy is MM's Razor or Gilded
+  Sword and still crosses. Each sword's class stays progression and the kind
+  stays keep-all, so no bag row or golden digest moves.
 - **What whole pools cost, with the option on.** MM's pool sword is
   progressive and resolves from the sword MM holds. If OoT's sword crosses
   first, MM's next sword pickup is the Razor Sword, the Gilded Sword comes one
@@ -1716,7 +1724,8 @@ can be an option". Default OFF, in the shape #668 gave the shared ocarina.
   pickup of the four is spent.
 
 Locked by `SharedKokiriSword` (legs 6 and 7 lock the whole pools and the
-promotion), `ComboSettingsRows`, `ComboSettingsAuthoring`,
+promotion), `SharedTierPickup` (leg K, the pickup step in both directions),
+`ComboSettingsRows`, `ComboSettingsAuthoring`,
 `ComboSettingsDivergence` and `CVarClassification` (three identity keys).
 
 ### 2026-10-18 -- The cross-game item rules: a sibling record at 900 and the shared-family bitset at 908 (#976, format note)

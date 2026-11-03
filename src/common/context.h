@@ -1731,6 +1731,15 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy);
  * behind a stamp. A seed generated afterwards re-stamps via Playthrough_Init;
  * an existing slot re-stamps from its .redsave on load.
  *
+ * Two production callers: OoT's TitleSetup (title_setup.c) and MM's console
+ * reset (MM_DebugConsole_Reset, games/mm/2s2h/GameExports_SingleExe.cpp,
+ * #1378), which is a return to title of the one game from Termina. That one
+ * retires BEFORE it hands a paired file back to OoT's title or starts MM's own
+ * boot chain, so neither a vanilla file's MM half (#532's laundering) nor a
+ * paired file's crossing commit can take MM's state after a reset; it does
+ * not run at all while a departure is already pending. The integration hooks
+ * (integration_test_hooks.cpp) and the C unit tests also call it directly.
+ *
  * @return 1 if the session was invalidated, 0 if suppressed for an arrival.
  */
 int Context_InvalidateSessionOnReturnToTitle(void);
@@ -1768,7 +1777,9 @@ int Context_ComboSessionResident(void);
  * reroute to OoT, a soft reset, and any a later change adds. A vanilla
  * cross-game session (no paired identity) is outside it (second suppression
  * below); the #532 / #590 reroutes cover that session's two known exits at
- * their call sites.
+ * their call sites, and MM's console reset retires it itself (#1378). A paired
+ * file's console reset retires and hands back to OoT's title instead of
+ * entering MM's (MM_DebugConsole_Reset).
  *
  * Retires the session exactly as OoT's return to title does
  * (RSBS_SEED_STAMP_DROP) when a combo session is resident and no cross-game

@@ -2063,10 +2063,11 @@ static void InitOTRImpl(int argc, char* argv[], bool runExtract) {
     // RSBS: cross-game key convergence — MM moves onto OoT's spelling for
     // settings both games mean identically (ADR 0003 §5.1). Version 7 is the
     // audio + tunic tier (#34); version 8 is the inventory §5.3 remainder (#462);
-    // version 9 is the #966 key-name gaps (#1027-#1036, #1038).
+    // version 9 is the #966 key-name gaps (#1027-#1036, #1038); version 10 is first-person auto-centering (#1272).
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion7Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion8Updater>());
     conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion9Updater>());
+    conf->RegisterVersionUpdater(std::make_shared<SOH::ConfigVersion10Updater>());
     conf->RunVersionUpdates();
 
     // RSBS: one-shot import of an existing 2Ship2Harkinian config, mapped

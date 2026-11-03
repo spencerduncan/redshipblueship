@@ -30,6 +30,11 @@ Gfx* Gfx_DrawTexRectIA8_DropShadowOffsetOverride(Gfx* pkt, TexturePtr texture, s
                                                  u16 dtdy, s16 r, s16 g, s16 b, s16 a, s32 masks, s32 rects,
                                                  u8 elementId);
 Color_RGBA8 CosmeticEditor_GetChangedColor(u8 r, u8 g, u8 b, u8 a, u8 elementId);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1272 item 2): a magic arrow's hit flash in its changed Secondary colour, as Ocarina of Time draws it; 0 while
+// the colour is unchanged (games/mm/2s2h/CosmeticGfxSingleExe.cpp).
+int MM_CosmeticEditor_ArrowHitFlash(u8 secondaryElementId, f32 intensity, Color_RGB8* out);
+#endif
 
 typedef enum {
     COSMETIC_ELEMENT_HEART_NORMAL,

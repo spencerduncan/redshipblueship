@@ -98,7 +98,9 @@ namespace {
  * RSBS_CVAR_MM_COSMETIC_PREFIX exactly as 2Ship's COSMETIC_EDITOR_ELEMENT composes them, so a 2Ship config's colours
  * keep their spelling. A twinned element reads SoH's Cosmetics Editor row (sohValue / sohChanged) and, when that row
  * is unchanged, an optional fallback row (SoH's C Buttons under its per-button rows); MM's own keys are then read by
- * nothing, as for every kTranslatedKeys pair. An MM-only element (sohValue null) reads its own keys.
+ * nothing, as for every kTranslatedKeys pair. An MM-only element (sohValue null) reads its own keys and, while its own
+ * row is unchanged, an optional fallback row (#1272 item 1: OoT draws its beating heart in SoH's Hearts and DD Hearts
+ * colours, z_lifemeter.c, so one game's beating heart follows them until MM's Beating Hearts row is set).
  */
 struct MmCosmeticElement {
     u8 id; ///< CosmeticEditorElementID
@@ -114,6 +116,11 @@ struct MmCosmeticElement {
     {                                                                                                          \
         id, RSBS_CVAR_MM_COSMETIC_PREFIX name ".Color", RSBS_CVAR_MM_COSMETIC_PREFIX name ".Changed", nullptr, \
             nullptr, nullptr, nullptr                                                                          \
+    }
+#define MM_COSMETIC_OWN_OR(id, name, fallback)                                                                 \
+    {                                                                                                          \
+        id, RSBS_CVAR_MM_COSMETIC_PREFIX name ".Color", RSBS_CVAR_MM_COSMETIC_PREFIX name ".Changed", nullptr, \
+            nullptr, fallback ".Value", fallback ".Changed"                                                    \
     }
 #define MM_COSMETIC_TWIN(id, name, soh)                                                                             \
     {                                                                                                               \
@@ -143,12 +150,13 @@ const MmCosmeticElement kMmCosmeticElements[] = {
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MINIMAP,           "HUD.Minimap",    "gCosmetics.HUD.Minimap"),
     MM_COSMETIC_OWN(COSMETIC_ELEMENT_RUPEE_ICON,         "HUD.RupeeIcon"),
     // W6-COS-B (#1239). Hearts and magic: SoH's Link & Items tab, Consumables group. MM's beating hearts and its
-    // Chateau Romani meter have no SoH twin: they are MM rows there.
+    // Chateau Romani meter have no SoH twin: they are MM rows there. #1272 item 1: a beating heart whose MM row is
+    // unchanged follows SoH's Hearts (DD Hearts), as Ocarina of Time's does.
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_NORMAL,      "Hearts.Normal",    "gCosmetics.Consumable.Hearts"),
-    MM_COSMETIC_OWN(COSMETIC_ELEMENT_HEART_NORMAL_BEATING, "Hearts.Beating"),
+    MM_COSMETIC_OWN_OR(COSMETIC_ELEMENT_HEART_NORMAL_BEATING, "Hearts.Beating", "gCosmetics.Consumable.Hearts"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_BORDER,      "Hearts.Border",    "gCosmetics.Consumable.HeartBorder"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_DD,          "Hearts.DD",        "gCosmetics.Consumable.DDHearts"),
-    MM_COSMETIC_OWN(COSMETIC_ELEMENT_HEART_DD_BEATING,   "Hearts.DDBeating"),
+    MM_COSMETIC_OWN_OR(COSMETIC_ELEMENT_HEART_DD_BEATING, "Hearts.DDBeating", "gCosmetics.Consumable.DDHearts"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_HEART_DD_BORDER,   "Hearts.DDBorder",  "gCosmetics.Consumable.DDHeartBorder"),
     MM_COSMETIC_TWIN(COSMETIC_ELEMENT_MAGIC_NORMAL,      "Magic.Normal",     "gCosmetics.Consumable.Magic"),
     MM_COSMETIC_OWN(COSMETIC_ELEMENT_MAGIC_CHATEAU,      "Magic.Chateau"),
@@ -193,6 +201,7 @@ const MmCosmeticElement kMmCosmeticElements[] = {
 // clang-format on
 
 #undef MM_COSMETIC_OWN
+#undef MM_COSMETIC_OWN_OR
 #undef MM_COSMETIC_TWIN
 #undef MM_COSMETIC_TWIN_OR
 
@@ -210,7 +219,14 @@ const MmCosmeticElement* FindMmCosmeticElement(u8 elementId) {
 /** The key holding @p element's changed colour, or null when nothing changed it (the lookup's precedence). */
 const char* ChangedValueKey(const MmCosmeticElement& element) {
     if (element.sohValue == nullptr) {
-        return CVarGetInteger(element.mmChanged, 0) ? element.mmColor : nullptr;
+        // MM-only: its own row first, then (#1272 item 1) the SoH row it follows while its own is unchanged.
+        if (CVarGetInteger(element.mmChanged, 0)) {
+            return element.mmColor;
+        }
+        if (element.sohFallbackValue != nullptr && CVarGetInteger(element.sohFallbackChanged, 0)) {
+            return element.sohFallbackValue;
+        }
+        return nullptr;
     }
     if (CVarGetInteger(element.sohChanged, 0)) {
         return element.sohValue;
@@ -248,6 +264,29 @@ int MM_CosmeticElement_At(int index, int* id, const char** mmColor, const char**
     *sohChanged = element.sohChanged;
     *sohFallbackValue = element.sohFallbackValue;
     *sohFallbackChanged = element.sohFallbackChanged;
+    return 1;
+}
+
+/**
+ * #1272 item 2: a magic arrow's hit flash. Ocarina of Time tints the screen flash with the arrow's Secondary colour, a
+ * sixth of each channel per unit of intensity (SoH's z_arrow_fire.c, z_arrow_ice.c and z_arrow_light.c); one game, so
+ * Majora's Mask's flash follows once that colour is changed (SoH's Arrow Effects row, read through
+ * @p secondaryElementId's lookup). Returns 0 and leaves @p out alone while it is unchanged: MM's own vanilla flash,
+ * whose tint differs from OoT's, stays.
+ */
+int MM_CosmeticEditor_ArrowHitFlash(u8 secondaryElementId, f32 intensity, Color_RGB8* out) {
+    const MmCosmeticElement* element = FindMmCosmeticElement(secondaryElementId);
+    if (element == nullptr || out == nullptr) {
+        return 0;
+    }
+    const char* valueKey = ChangedValueKey(*element);
+    if (valueKey == nullptr) {
+        return 0;
+    }
+    const Color_RGBA8 secondary = CVarGetColor(valueKey, Color_RGBA8{ 0, 0, 0, 255 });
+    out->r = (u8)((s32)((secondary.r / 6) * intensity) & 0xFF);
+    out->g = (u8)((s32)((secondary.g / 6) * intensity) & 0xFF);
+    out->b = (u8)((s32)((secondary.b / 6) * intensity) & 0xFF);
     return 1;
 }
 
@@ -1006,29 +1045,46 @@ int CosmeticGfxStub_RunHeadless(void) {
         setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "HUD.RupeeIcon", ".Color", 5, 6, 7);
         expect("MM's own Rupee Icon key",
                CosmeticEditor_GetChangedColor(200, 255, 100, 255, COSMETIC_ELEMENT_RUPEE_ICON), 5, 6, 7, 255);
-        // 8. W6-COS-B (#1239): hearts and magic. SoH's Hearts colours MM's normal hearts and leaves its beating heart,
-        //    an MM row's own key; SoH's Magic colours MM's normal meter and leaves the Chateau Romani meter.
+        // 8. W6-COS-B (#1239): hearts and magic. SoH's Hearts colours MM's normal hearts and (#1272 item 1) its beating
+        //    heart while MM's own Beating Hearts row is unchanged, as Ocarina of Time's z_lifemeter.c draws it; the MM
+        //    row's own key wins once set. SoH's DD Hearts covers the DD beating heart the same way. SoH's Magic colours
+        //    MM's normal meter and leaves the Chateau Romani meter.
         {
             static const char* const kHeartKeys[] = {
                 "gCosmetics.Consumable.Hearts.Value",
                 "gCosmetics.Consumable.Hearts.Changed",
+                "gCosmetics.Consumable.DDHearts.Value",
+                "gCosmetics.Consumable.DDHearts.Changed",
                 "gCosmetics.Consumable.Magic.Value",
                 "gCosmetics.Consumable.Magic.Changed",
                 RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating.Color",
                 RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating.Changed",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.DDBeating.Color",
+                RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.DDBeating.Changed",
                 RSBS_CVAR_MM_COSMETIC_PREFIX "Magic.Chateau.Color",
                 RSBS_CVAR_MM_COSMETIC_PREFIX "Magic.Chateau.Changed",
             };
+            expect("an unchanged beating heart",
+                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 255, 70, 50,
+                   200);
             setColor("gCosmetics.Consumable.Hearts", ".Value", 12, 34, 56);
             expect("SoH's Hearts on MM's normal hearts",
                    CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL), 12, 34, 56, 255);
-            expect("SoH's Hearts on MM's beating heart",
-                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 255, 70, 50,
-                   200);
+            expect("SoH's Hearts on MM's beating heart, its own row unchanged",
+                   CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 12, 34, 56,
+                   255);
+            expect("SoH's Hearts on MM's DD beating heart",
+                   CosmeticEditor_GetChangedColor(200, 0, 0, 200, COSMETIC_ELEMENT_HEART_DD_BEATING), 200, 0, 0, 200);
+            setColor("gCosmetics.Consumable.DDHearts", ".Value", 13, 14, 15);
+            expect("SoH's DD Hearts on MM's DD beating heart, its own row unchanged",
+                   CosmeticEditor_GetChangedColor(200, 0, 0, 200, COSMETIC_ELEMENT_HEART_DD_BEATING), 13, 14, 15, 255);
             setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.Beating", ".Color", 21, 22, 23);
-            expect("MM's own Beating Hearts key",
+            expect("MM's own Beating Hearts key over SoH's Hearts",
                    CosmeticEditor_GetChangedColor(255, 70, 50, 200, COSMETIC_ELEMENT_HEART_NORMAL_BEATING), 21, 22, 23,
                    255);
+            setColor(RSBS_CVAR_MM_COSMETIC_PREFIX "Hearts.DDBeating", ".Color", 24, 25, 26);
+            expect("MM's own DD Beating Hearts key over SoH's DD Hearts",
+                   CosmeticEditor_GetChangedColor(200, 0, 0, 200, COSMETIC_ELEMENT_HEART_DD_BEATING), 24, 25, 26, 255);
             setColor("gCosmetics.Consumable.Magic", ".Value", 31, 32, 33);
             expect("SoH's Magic on MM's magic meter",
                    CosmeticEditor_GetChangedColor(0, 200, 0, 255, COSMETIC_ELEMENT_MAGIC_NORMAL), 31, 32, 33, 255);
@@ -1058,6 +1114,29 @@ int CosmeticGfxStub_RunHeadless(void) {
             gDPSetEnvColor(want, 65, 43, 21, 128);
             if (memcmp(buffer, want, sizeof(Gfx)) != 0) {
                 printf("[TEST] FAIL: gDPSetEnvColorOverride did not draw SoH's Ice Secondary colour\n");
+                failures++;
+            }
+        }
+        // 8b. #1272 item 2: the hit flash. A changed Secondary tints it as OoT's z_arrow_ice.c does, a sixth of each
+        //     channel per unit of intensity; an unchanged one leaves MM's vanilla flash (the helper answers 0).
+        {
+            Color_RGB8 flash = { 0xEE, 0xEE, 0xEE };
+            if (MM_CosmeticEditor_ArrowHitFlash(COSMETIC_ELEMENT_ICE_ARROW_SECONDARY, 1.0f, &flash) != 1 ||
+                flash.r != 65 / 6 || flash.g != 43 / 6 || flash.b != 21 / 6) {
+                printf("[TEST] FAIL: the Ice Arrow hit flash is %u,%u,%u, want OoT's %d,%d,%d\n", flash.r, flash.g,
+                       flash.b, 65 / 6, 43 / 6, 21 / 6);
+                failures++;
+            }
+            if (MM_CosmeticEditor_ArrowHitFlash(COSMETIC_ELEMENT_ICE_ARROW_SECONDARY, 0.5f, &flash) != 1 ||
+                flash.r != 5 || flash.g != 3 || flash.b != 1) {
+                printf("[TEST] FAIL: the Ice Arrow hit flash at half intensity is %u,%u,%u, want 5,3,1\n", flash.r,
+                       flash.g, flash.b);
+                failures++;
+            }
+            flash = { 0xEE, 0xEE, 0xEE };
+            if (MM_CosmeticEditor_ArrowHitFlash(COSMETIC_ELEMENT_FIRE_ARROW_SECONDARY, 1.0f, &flash) != 0 ||
+                flash.r != 0xEE || flash.g != 0xEE || flash.b != 0xEE) {
+                printf("[TEST] FAIL: an unchanged Fire Arrow Secondary tinted the hit flash\n");
                 failures++;
             }
         }

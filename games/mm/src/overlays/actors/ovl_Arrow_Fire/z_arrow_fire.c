@@ -259,8 +259,21 @@ void MM_ArrowFire_Draw(Actor* thisx, PlayState* play) {
         if (this->screenFillIntensity > 0.0f) {
             POLY_XLU_DISP = Gfx_SetupDL57(POLY_XLU_DISP);
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // RSBS (#1272 item 2): a changed Fire Arrow Secondary tints the hit flash, as it does in Hyrule.
+            Color_RGB8 flash;
+            if (MM_CosmeticEditor_ArrowHitFlash(COSMETIC_ELEMENT_FIRE_ARROW_SECONDARY, this->screenFillIntensity,
+                                                &flash)) {
+                gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, flash.r, flash.g, flash.b,
+                                (s32)(150.0f * this->screenFillIntensity) & 0xFF);
+            } else {
+                gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (s32)(this->screenFillIntensity * 40.0f) & 0xFF, 0, 0,
+                                (s32)(150.0f * this->screenFillIntensity) & 0xFF);
+            }
+#else
             gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, (s32)(this->screenFillIntensity * 40.0f) & 0xFF, 0, 0,
                             (s32)(150.0f * this->screenFillIntensity) & 0xFF);
+#endif
 
             gDPSetAlphaDither(POLY_XLU_DISP++, G_AD_DISABLE);
             gDPSetColorDither(POLY_XLU_DISP++, G_CD_DISABLE);

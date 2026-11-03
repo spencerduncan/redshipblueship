@@ -440,9 +440,17 @@ const char* Combo_TrackerCheckLogic(uint8_t game, uint16_t checkId) {
     return NULL;
 }
 
-// The current area kept per game (#1131): each game's last live answer.
+// The current area kept per game (#1131): each game's last live answer, until
+// the session ends (#1189, Combo_TrackerResetCurrentAreas).
 static bool sAreaKnown[2];
 static uint16_t sAreaKey[2];
+
+void Combo_TrackerResetCurrentAreas(void) {
+    for (int slot = 0; slot < 2; slot++) {
+        sAreaKnown[slot] = false;
+        sAreaKey[slot] = 0;
+    }
+}
 
 bool Combo_TrackerCurrentArea(uint8_t game, uint16_t* outKey) {
     if (game != (uint8_t)GAME_OOT && game != (uint8_t)GAME_MM) {

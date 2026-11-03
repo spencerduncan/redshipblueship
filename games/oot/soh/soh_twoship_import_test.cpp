@@ -34,12 +34,18 @@
  *  4 The ammo-colour key in a version-0 file lands under its live spelling, and 2Ship's v1 rename target stays unset.
  *  5 Every RSBS::kTwoShipDoNotImport key, and one member of every family on it, is untouched.
  *  6 ADR 0003 §6.3: a value already set in the combined config wins over the imported one.
+ *  7 #1272 item 3: 2Ship's changed colours land where the single exe reads them. Each MM element with an SoH twin (the
+ *    first kTranslatedKeys row of its MM key) lands on SoH's Cosmetics Editor row, .Value and .Changed, and a fallback
+ *    row (SoH's C Buttons) stays untouched; each MM-only element lands on its own MM row's keys; an unchanged 2Ship
+ *    colour imports nothing; and an SoH row already changed keeps its colour. Driven from the manifest and the MM
+ *    rows' view, so no MM key is spelled here.
  *
  * RED without the fix: the importer ignores the list, so legs 2, 3 and 4 fail (and leg 4 also because the replayed
- * rename moves the ammo value onto a key nothing imports).
+ * rename moves the ammo value onto a key nothing imports). RED without #1272 item 3: leg 7 (no colour imports).
  */
 
 #include "soh/config/TwoShipImport.h"
+#include "soh/Enhancements/cosmetics/CosmeticsEditorMm.h" // leg 7: the MM rows' view
 
 #include "cvar_shared_keys.h" // src/common: the import list and the do-not-import table
 #include "test_scratch.h"     // src/common: per-process scratch directories
@@ -262,6 +268,148 @@ extern "C" int OoT_TwoShipImport_RunHeadless(void) {
         }
     }
     CVarClear(presetKey);
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // ---- Run 4 (#1272 item 3): 2Ship's changed colours: leg 7. ----
+    {
+        auto stemOf = [](const char* key, const char* suffix) {
+            const std::string k = key;
+            const std::size_t n = std::strlen(suffix);
+            return (k.size() > n && k.compare(k.size() - n, n, suffix) == 0) ? k.substr(0, k.size() - n)
+                                                                             : std::string();
+        };
+        auto colorJson = [](int r, int g, int b) {
+            nlohmann::json c = nlohmann::json::object();
+            c["R"] = r;
+            c["G"] = g;
+            c["B"] = b;
+            c["A"] = 255;
+            c["Type"] = "RGBA";
+            return c;
+        };
+        struct ColorExpect {
+            std::string valueKey;
+            std::string changedKey;
+            int r;
+            int g;
+            int b;
+        };
+        std::vector<ColorExpect> want;      // what must land
+        std::vector<std::string> untouched; // .Changed keys that must stay unset
+        std::vector<std::string> allKeys;   // every key cleared before and after
+        nlohmann::json colors = nlohmann::json::object();
+        bool colorShapeOk = true;
+        int n = 0;
+        std::string presetChanged;
+        std::string presetValue;
+        for (std::size_t i = 0; i < RSBS::kTranslatedKeyCount; i++) {
+            const RSBS::TranslatedKey& key = RSBS::kTranslatedKeys[i];
+            if (std::strcmp(key.translator, RSBS::kCosmeticTranslator) != 0) {
+                continue;
+            }
+            const std::string mmStem = stemOf(key.mmKey, ".Color");
+            const std::string sohStem = stemOf(key.ootKey, ".Value");
+            allKeys.push_back(key.ootKey);
+            allKeys.push_back(sohStem + ".Changed");
+            bool fallback = false;
+            for (std::size_t j = 0; j < i; j++) {
+                fallback = fallback || std::strcmp(RSBS::kTranslatedKeys[j].mmKey, key.mmKey) == 0;
+            }
+            if (fallback) {
+                // A fallback row (SoH's C Buttons) is never an import target. It may also be another MM key's
+                // first row, which then lands; so only a key that is no first row anywhere must stay untouched.
+                bool someonesTwin = false;
+                for (std::size_t j = 0; j < RSBS::kTranslatedKeyCount; j++) {
+                    bool firstOfItsKey = true;
+                    for (std::size_t k = 0; k < j; k++) {
+                        firstOfItsKey = firstOfItsKey && std::strcmp(RSBS::kTranslatedKeys[k].mmKey,
+                                                                     RSBS::kTranslatedKeys[j].mmKey) != 0;
+                    }
+                    someonesTwin = someonesTwin ||
+                                   (firstOfItsKey &&
+                                    std::strcmp(RSBS::kTranslatedKeys[j].translator, RSBS::kCosmeticTranslator) == 0 &&
+                                    std::strcmp(RSBS::kTranslatedKeys[j].ootKey, key.ootKey) == 0);
+                }
+                if (!someonesTwin) {
+                    untouched.push_back(sohStem + ".Changed");
+                }
+                continue;
+            }
+            n++;
+            colorShapeOk = PutNested(colors, mmStem + ".Color", colorJson(n, n + 1, n + 2)) && colorShapeOk;
+            colorShapeOk = PutNested(colors, mmStem + ".Changed", 1) && colorShapeOk;
+            bool sohRowTaken = false;
+            for (const ColorExpect& e : want) {
+                sohRowTaken = sohRowTaken || e.valueKey == key.ootKey;
+            }
+            if (presetChanged.empty()) {
+                // The first twin's SoH row is already changed in the combined config: it keeps its colour.
+                presetValue = key.ootKey;
+                presetChanged = sohStem + ".Changed";
+                want.push_back({ presetValue, presetChanged, 7, 8, 9 });
+            } else if (!sohRowTaken) {
+                want.push_back({ key.ootKey, sohStem + ".Changed", n, n + 1, n + 2 });
+            }
+        }
+        const int rows = CosmeticsEditor_MmRowCount();
+        std::string unchangedMm;
+        for (int r = 0; r < rows; r++) {
+            const char* label = nullptr;
+            const char* colorKey = nullptr;
+            const char* changedKey = nullptr;
+            if (!CosmeticsEditor_MmRowAt(r, &label, &colorKey, &changedKey)) {
+                continue;
+            }
+            const std::string stem = stemOf(colorKey, ".Color");
+            allKeys.push_back(colorKey);
+            allKeys.push_back(changedKey);
+            n++;
+            colorShapeOk = PutNested(colors, stem + ".Color", colorJson(n, n + 1, n + 2)) && colorShapeOk;
+            if (unchangedMm.empty()) {
+                // 2Ship's Reset clears .Changed and may leave .Color: nothing imports.
+                unchangedMm = colorKey;
+                colorShapeOk = PutNested(colors, stem + ".Changed", 0) && colorShapeOk;
+                untouched.push_back(changedKey);
+            } else {
+                colorShapeOk = PutNested(colors, stem + ".Changed", 1) && colorShapeOk;
+                want.push_back({ colorKey, changedKey, n, n + 1, n + 2 });
+            }
+        }
+        for (const std::string& key : allKeys) {
+            CVarClear(key.c_str());
+        }
+        if (want.size() < 3 || presetChanged.empty() || unchangedMm.empty()) {
+            failures.Add("leg 7: the manifest or the MM rows' view gave too few colours to drive the leg");
+        } else if (!colorShapeOk || !WriteSource(source, 1, colors)) {
+            failures.Add("could not build or write the colour run's synthetic file");
+        } else {
+            CVarSetColor(presetValue.c_str(), Color_RGBA8{ 7, 8, 9, 255 });
+            CVarSetInteger(presetChanged.c_str(), 1);
+            SOH::ImportTwoShipConfigFile(source.string());
+            for (const ColorExpect& e : want) {
+                const Color_RGBA8 got = CVarGetColor(e.valueKey.c_str(), Color_RGBA8{ 0, 0, 0, 0 });
+                if (CVarGetInteger(e.changedKey.c_str(), 0) != 1 || got.r != e.r || got.g != e.g || got.b != e.b) {
+                    failures.Add("leg 7: \"" + e.valueKey + "\" reads " + std::to_string(got.r) + "," +
+                                 std::to_string(got.g) + "," + std::to_string(got.b) + " (changed " +
+                                 std::to_string(CVarGetInteger(e.changedKey.c_str(), 0)) + "), want " +
+                                 std::to_string(e.r) + "," + std::to_string(e.g) + "," + std::to_string(e.b) +
+                                 ": a returning 2Ship player's colour is dropped, or overwrote a row set in RSBS");
+                }
+            }
+            for (const std::string& key : untouched) {
+                if (CVarGetInteger(key.c_str(), 0) != 0) {
+                    failures.Add("leg 7: \"" + key +
+                                 "\" was changed by the import: a fallback row or an unchanged 2Ship colour imported");
+                }
+            }
+            printf("[TEST] run 4 (colours): %zu colour(s) checked, %zu key(s) held untouched\n", want.size(),
+                   untouched.size());
+        }
+        for (const std::string& key : allKeys) {
+            CVarClear(key.c_str());
+        }
+    }
+#endif
 
     if (!failures.lines.empty()) {
         const std::size_t shown = failures.lines.size() < 40 ? failures.lines.size() : 40;

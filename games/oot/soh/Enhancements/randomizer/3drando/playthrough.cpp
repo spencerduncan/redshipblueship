@@ -44,7 +44,8 @@ uint32_t sRsbsFoldTotalLines = 0;
 uint32_t sRsbsFoldExcludeLines[kRsbsFoldExcludeGroups] = {};
 int sRsbsFoldRuns = 0;
 // #1350: 1 while the last generation began with OoT's Logic authored as anything
-// but Glitchless and generated it Glitchless (the paired pin in Playthrough_Init).
+// but Glitchless and generated it Glitchless under a proving combo rung (the
+// derivation in Playthrough_Init, #1367).
 // Written by the Generate worker, read on the game thread after the worker is
 // joined (SeedPackageSingleExe.cpp) and by the rando-mask-quest-paired row.
 std::atomic<int> sRsbsPairedLogicPinned{ 0 };
@@ -93,26 +94,35 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     StopPerformanceTimer(PT_REGION_RESET);
 
 #ifdef RSBS_SINGLE_EXECUTABLE
-    // #1350: OoT's Logic "No Logic" makes every OoT condition true (location_access.h's
-    // EventAccess::ConditionsMet and LocationAccess::GetConditionsMet, entrance.cpp's
-    // Entrance::GetConditionsMet answer true unless the rules are Glitchless), and a
-    // paired world's proof runs over those same conditions: the OoT engine's expand
-    // is this port's ReachabilitySearch, its crossingOpen reads RR_MARKET_MASK_SHOP's
-    // child access and its goalReached the reached Triforce host
-    // (ComboLogicEngineOoT.cpp). Under No Logic, OoT's reachability, the arrival gate
-    // and OoT's goal are all true before a single item is placed, the world carries a
-    // proving rung, and Combo_Logic_UnprovedHalves finds nothing to warn about: a
-    // world claimed beatable that nothing proved. Until the combo Logic row lands (a
-    // rung a player lowers to `none`, under which no proof is claimed), a paired
-    // world under a proving rung is generated Glitchless. Only the context's value
-    // moves, never the CVar, so the menu keeps the player's choice, and the settings
-    // hash, the seed, the spoiler and the save (SaveManager writes the context's
-    // options) all describe the world that is generated. Generation only: a file
-    // created with No Logic before this pin restores its own saved value
-    // (SaveManager's randoSettings) and plays as it was made. Decided before
-    // FinalizeSettings, so nothing downstream reads No Logic; it reads settings
-    // only and consumes no RNG. Every generation in this build is a paired creation
-    // (the gate below refuses any other), as for #973's block.
+    // #1367 (operator ruling 2026-11-02): a paired world's logic is ONE [Both Games]
+    // choice, the combo rung (Randomizer > Cross-Game, OoTMM's `logic`), and OoT's
+    // own Logic row only follows it. So OoT's Logic and All Locations Reachable are
+    // DERIVED from the rung here, whatever their CVars hold:
+    //   - a proving rung (Beatable Only, All Locations) generates OoT Glitchless
+    //     with All Locations Reachable on. #1350: OoT's "No Logic" makes every OoT
+    //     condition true (location_access.h's EventAccess::ConditionsMet and
+    //     LocationAccess::GetConditionsMet, entrance.cpp's
+    //     Entrance::GetConditionsMet answer true unless the rules are
+    //     Glitchless), and the pair's proof runs over those same conditions (the
+    //     OoT engine's expand is this port's ReachabilitySearch, its crossingOpen
+    //     reads RR_MARKET_MASK_SHOP's child access and its goalReached the reached
+    //     Triforce host, ComboLogicEngineOoT.cpp), so a proving rung over No Logic
+    //     would stamp a world proved that nothing proved. All Locations Reachable
+    //     stays on under both proving rungs: it is SoH's default, it is folded into
+    //     the settings hash, and turning it off would re-seed every default world;
+    //     in a paired world it only gates the OoT-only early stop in fill.cpp.
+    //   - the base rung (No Logic) generates OoT No Logic, with All Locations
+    //     Reachable off: no proof is claimed (the coordinator runs no round and
+    //     Combo_Logic_UnprovedHalves names both halves), and OoT's restricted
+    //     passes place without reachability (fill.cpp), as OoTMM's No Logic does.
+    // Only the context's values move, never the CVars, so the settings hash, the
+    // seed, the spoiler and the save (SaveManager writes the context's options) all
+    // describe the world that is generated. Generation only: a file created before
+    // this restores its own saved values (SaveManager's randoSettings) and plays as
+    // it was made. Decided before FinalizeSettings, so nothing downstream reads an
+    // authored value; it reads settings only and consumes no RNG. Every generation
+    // in this build is a paired creation (the gate below refuses any other), as for
+    // #973's block.
     //
     // The combo record is resolved once, here, for this block and #768's below:
     // the resolver reads only the gCombo keys, which FinalizeSettings never
@@ -121,20 +131,31 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
     Combo_ResolveComboSettings(&rsbsComboPreview);
     sRsbsPairedLogicPinned = 0;
     {
-        const bool rsbsProvingRung = rsbsComboPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE ||
-                                     rsbsComboPreview.logicRung == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE;
-        if (rsbsProvingRung && ctx->GetOption(RSK_LOGIC_RULES).IsNot(RO_LOGIC_GLITCHLESS)) {
-            SPDLOG_WARN("Paired world: OoT's Logic {} is generated as \"Glitchless\": the paired world's proof runs "
-                        "over OoT's logic, which \"No Logic\" answers true everywhere, and combo rung {} claims a "
-                        "proof; OoT No Logic waits for the combo Logic row (#1350)",
-                        (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsComboPreview.logicRung);
+        const bool rsbsProvingRung = Combo_LogicRungProves(rsbsComboPreview.logicRung);
+        const uint8_t rsbsRules = rsbsProvingRung ? (uint8_t)RO_LOGIC_GLITCHLESS : (uint8_t)RO_LOGIC_NO_LOGIC;
+        const uint8_t rsbsAlr = rsbsProvingRung ? (uint8_t)RO_GENERIC_ON : (uint8_t)RO_GENERIC_OFF;
+        if (ctx->GetOption(RSK_LOGIC_RULES).IsNot(rsbsRules)) {
+            SPDLOG_WARN("Paired world: OoT's Logic {} is generated as {} under combo rung {}: [Both Games] Logic "
+                        "decides both games' logic (#1367)",
+                        (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRules,
+                        (unsigned)rsbsComboPreview.logicRung);
             fprintf(stderr,
-                    "[OoT] Logic: %u generated as \"Glitchless\" under combo rung %u: No Logic is not available for "
-                    "paired worlds until the combo Logic row lands, because the pair's proof runs over OoT's logic "
-                    "(#1350)\n",
-                    (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsComboPreview.logicRung);
-            ctx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
-            sRsbsPairedLogicPinned = 1;
+                    "[OoT] Logic: %u generated as %u under combo rung %u: OoT's own Logic row follows [Both Games] "
+                    "Logic (#1367)\n",
+                    (unsigned)ctx->GetOption(RSK_LOGIC_RULES).Get(), (unsigned)rsbsRules,
+                    (unsigned)rsbsComboPreview.logicRung);
+            // #1350's toast: an authored No Logic the proving rung overrode. The
+            // base rung asks for No Logic itself, so nothing is said there.
+            sRsbsPairedLogicPinned = rsbsProvingRung ? 1 : 0;
+            ctx->GetOption(RSK_LOGIC_RULES).Set(rsbsRules);
+        }
+        if (ctx->GetOption(RSK_ALL_LOCATIONS_REACHABLE).IsNot(rsbsAlr)) {
+            fprintf(stderr,
+                    "[OoT] All Locations Reachable: %u generated as %u under combo rung %u: it follows [Both Games] "
+                    "Logic (#1367)\n",
+                    (unsigned)ctx->GetOption(RSK_ALL_LOCATIONS_REACHABLE).Get(), (unsigned)rsbsAlr,
+                    (unsigned)rsbsComboPreview.logicRung);
+            ctx->GetOption(RSK_ALL_LOCATIONS_REACHABLE).Set(rsbsAlr);
         }
     }
 #endif
