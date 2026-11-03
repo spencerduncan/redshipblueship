@@ -188,6 +188,13 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   cycle in South Clock Town (PR [#769](https://github.com/spencerduncan/redshipblueship/pull/769)). A half's own triforce hunt no longer ends a
   paired world under a boss goal, and OoT's own "Win" mode is generated as "Ganon's
   Boss Key" there (PR [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
+- **Ocarina of Time's goal gates follow OoTMM** ([#1428](https://github.com/spencerduncan/redshipblueship/issues/1428)).
+  Rainbow Bridge defaults to Medallions with all six required, and Ganon's Boss Key to
+  Start With, the closest Ship of Harkinian value to OoTMM's "Removed": you hold the key,
+  so the door to Ganondorf opens, and the Tower Boss Key Chest holds a random item that
+  the Check Tracker lists. The Light Arrow Cutscene still needs the Shadow and Spirit
+  Medallions. With Triforce Hunt on, the hunt still gives you Ganon's Boss Key. The
+  shipped presets keep their own values; "Reset to Default" uses these.
 - **Every randomizer file is a paired file.** Every OoT randomizer generation is a
   paired creation, so a single-game OoT randomizer file cannot be created (PR [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 

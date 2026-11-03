@@ -7767,6 +7767,16 @@ TestResult Test_MMLogicGates(void) {
     }
     return MM_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
+// #1428: OoT's goal gates at OoTMM's defaults on one paired creation save, Triforce
+// Hunt's override of Ganon's Boss Key and a stored world's own gates. Same bring-up
+// as the rows above; body in games/oot/soh/oot_goal_gate_defaults_test.cpp.
+extern "C" int OoT_GoalGateDefaults_Run(void);
+TestResult Test_RandoGoalGateDefaults(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_GoalGateDefaults_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
@@ -9220,6 +9230,11 @@ const TestDescriptor gTests[] = {
       "Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder broken on Day 1, and the "
       "Circus Leader's Mask needs Romani's Mask (#1168)",
       Test_MMLogicGates },
+    // #1428. Needs a paired creation; skipped by `--test all` below like its siblings.
+    { "rando-goal-gate-defaults",
+      "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
+      "paired creation, Triforce Hunt still decides the key, and a stored world keeps its own gates (#1428)",
+      Test_RandoGoalGateDefaults },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -9727,6 +9742,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
+                strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||

@@ -2949,6 +2949,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1428 (operator ruling 2026-11-03): OoT's goal gates ship at OoTMM's defaults,
+    # Rainbow Bridge Medallions (all six) and Ganon's Boss Key Start With (OoTMM's
+    # "removed" in play). On one paired creation save (TrackerOoTPanelList's seed):
+    # the defaults, the menu rows and exclusion list with no key stored, the
+    # created world and its proof, five medallions against six in logic, the tower
+    # chest in SoH's tracker, Triforce Hunt still deciding the key, and a stored
+    # world's OLD gates restoring unchanged. `rando`: a paired creation.
+    redship_add_test(NAME RandoGoalGateDefaults COMMAND redship --test rando-goal-gate-defaults
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps

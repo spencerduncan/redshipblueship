@@ -6916,6 +6916,19 @@ typedef enum {
     RO_GANON_BOSS_KEY_KAK_TOKENS,
 } RandoOptionGanonsBossKey;
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1428 (operator ruling 2026-11-03): the two OoT goal gates ship at OoTMM's
+// defaults, rainbowBridge "medallions" (all six) and ganonBossKey "removed".
+// Ship of Harkinian has no lock-less value; "Start With" is the one whose result
+// in play is the same, the boss door opening. The options (settings.cpp) and
+// every CVar read that falls back to their default name these.
+#define RO_BRIDGE_SHIPPED_DEFAULT RO_BRIDGE_MEDALLIONS
+#define RO_GANON_BOSS_KEY_SHIPPED_DEFAULT RO_GANON_BOSS_KEY_STARTWITH
+#else
+#define RO_BRIDGE_SHIPPED_DEFAULT RO_BRIDGE_VANILLA
+#define RO_GANON_BOSS_KEY_SHIPPED_DEFAULT RO_GANON_BOSS_KEY_VANILLA
+#endif
+
 typedef enum {
     RO_LACS_VANILLA,
     RO_LACS_STONES,
