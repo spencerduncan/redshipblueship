@@ -493,12 +493,18 @@ constexpr RandoCheckId kLonePeakShrineCheck = RC_LONE_PEAK_SHRINE_LENS_CHEST;
  * scene MMCheckScenes lists its checks under, so Only Show Current Area keeps
  * them and the scroll lands on them, and it leaves the scene a grotto was
  * entered from as it was. False unless MM plays a randomizer file (#1189, ruling
- * D11, as OoT's op answers only with one loaded): no MM play state, MM's title
- * demo and file select (an unmarked bootstrap save), a vanilla file. Such a
- * frame also forgets the scene a grotto was entered from, so the next file's
- * first grotto cannot answer this file's scene.
+ * D11, as OoT's op answers only with one loaded). With no MM play state (MM's
+ * file select, or the Day Telop between two play states of one file at dawn,
+ * which respawns the player where the day ended, grotto included) it keeps the
+ * scene a grotto was entered from. A play state on any other save (MM's title
+ * demo, on an unmarked bootstrap save, or a vanilla file) forgets it, so the
+ * next file's first grotto cannot answer this file's scene.
  */
 bool MMTrackerCurrentArea(uint16_t* outKey) {
+    const bool playState = (sSceneTest >= 0) ? (sSceneTest == 1) : (MM_gPlayState != nullptr);
+    if (!playState) {
+        return false;
+    }
     if (!MMPlaysRandoFile()) {
         sAreaLastScene = -1;
         return false;
@@ -506,15 +512,9 @@ bool MMTrackerCurrentArea(uint16_t* outKey) {
     s16 scene = -1;
     int room = -1;
     if (sSceneTest >= 0) {
-        if (sSceneTest == 0) {
-            return false;
-        }
         scene = (s16)sSceneTestId;
         room = sSceneTestRoom;
     } else {
-        if (MM_gPlayState == nullptr) {
-            return false;
-        }
         scene = Play_GetOriginalSceneId(MM_gPlayState->sceneId);
         room = MM_gPlayState->roomCtx.curRoom.num;
     }
@@ -665,13 +665,14 @@ extern "C" int MM_TrackerAdapter_TestInLogicSeam(int authored, const uint16_t* i
  * play state" and 1 for "MM is played in scene @p sceneId", in a room that is no
  * grotto's (the ROM-free tier has no play state), for the current-area op, which
  * also asks MMPlaysRandoFile (MM_TrackerAdapter_TestLiveSeam stands in for it).
- * Modes -1 and 0 also forget the scene a grotto was entered from.
+ * Mode -1 also forgets the scene a grotto was entered from (a fresh session);
+ * mode 0 keeps it, as the op does with no play state (#1189: the Day Telop).
  */
 extern "C" void MM_TrackerAdapter_TestSceneSeam(int mode, int sceneId) {
     sSceneTest = mode < 0 ? -1 : (mode != 0 ? 1 : 0);
     sSceneTestId = sceneId;
     sSceneTestRoom = -1;
-    if (sSceneTest != 1) {
+    if (sSceneTest < 0) {
         sAreaLastScene = -1;
     }
 }

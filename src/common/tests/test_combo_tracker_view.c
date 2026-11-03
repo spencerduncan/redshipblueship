@@ -1636,8 +1636,26 @@ static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyB);
     Context_SetCurrentGame(GAME_MM);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    // #1189: a frame with no play state inside one file (the Day Telop between two
+    // play states at dawn, which respawns the player in the grotto the day ended
+    // in) answers none and keeps the scene the grotto was entered from. A gate on
+    // MMPlaysRandoFile alone forgot it there, and the grotto answered none. With
+    // no play state MMPlaysRandoFile is false in production, so the telop frame
+    // sets both seams.
+    MM_TrackerAdapter_TestSceneSeam(1, grotto); // entered from scene A
+    CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
+    MM_TrackerAdapter_TestSceneSeam(0, 0); // the Day Telop: no play state...
+    MM_TrackerAdapter_TestLiveSeam(0);     // ...so no randomizer file is played either
+    const int inTelop = CtvArea((uint8_t)GAME_MM);
+    MM_TrackerAdapter_TestLiveSeam(1);
+    MM_TrackerAdapter_TestSceneSeam(1, grotto); // respawned in the grotto
+    const int afterTelop = CtvArea((uint8_t)GAME_MM);
+    printf("[TEST] combo-tracker-view #1189 MM: with no play state the area is %d; the grotto after it %d (scene A's "
+           "area %d)\n",
+           inTelop, afterTelop, keyA);
+    CTV_ASSERT(inTelop == -1 && afterTelop == keyA);
     // A grotto with no scene before it (a file loaded inside one): none.
-    MM_TrackerAdapter_TestSceneSeam(0, 0);
+    MM_TrackerAdapter_TestSceneSeam(-1, 0);
     MM_TrackerAdapter_TestSceneSeam(1, grotto);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == -1);
 
@@ -1663,10 +1681,10 @@ static int CtvNavMMBody(const ComboMMTrackerDesc* desc) {
     CTV_ASSERT(inShrine == (int)lonePeakRowKey && inShrine != keyA);
     CTV_ASSERT(inOtherGrotto == keyA);
 
-    // #1189, ruling D11: a randomizer file only, as OoT's op. MM's title demo, its
-    // file select and a vanilla file have no area whatever scene MM plays, and
-    // such a frame forgets the scene a grotto was entered from. Before #1189 the
-    // vanilla frame answered scene A.
+    // #1189, ruling D11: a randomizer file only, as OoT's op. A play state on any
+    // other save (MM's title demo, a vanilla file) has no area whatever scene MM
+    // plays, and such a frame forgets the scene a grotto was entered from. Before
+    // #1189 the vanilla frame answered scene A.
     MM_TrackerAdapter_TestSceneSeam(1, sceneA);
     CTV_ASSERT(CtvArea((uint8_t)GAME_MM) == keyA);
     MM_TrackerAdapter_TestLiveSeam(0);

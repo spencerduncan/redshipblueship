@@ -348,8 +348,8 @@ typedef struct ComboMMTrackerDesc {
     // the scene it was entered from, since a grotto's checks are listed there,
     // except Lone Peak Shrine, whose checks are listed under the grotto scene
     // itself and which answers that (#1189). False unless MM plays a
-    // randomizer file (#1189, ruling D11, as OoT's op): no MM play state, MM's
-    // title demo and file select, a vanilla file. The view calls it only while
+    // randomizer file (#1189, ruling D11, as OoT's op): no MM play state (MM's
+    // file select), MM's title demo, a vanilla file. The view calls it only while
     // MM is the active game (Combo_TrackerCurrentArea). May itself be NULL: no
     // area.
     bool (*currentArea)(uint16_t* outKey);
