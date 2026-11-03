@@ -53,8 +53,10 @@
  *   combo-triforce-rows (redship tier, needs the CVar store): the two keys and
  *     their clamp, a hunt frozen from them that either game wins at the goal,
  *     the counts divergence and its restore from the file's record (directly
- *     and through a real SaveManager::Load), and MM's own hunt rows following
- *     the [Both Games] rows only under the hunt goal.
+ *     and through a real SaveManager::Load), MM's own hunt rows following the
+ *     [Both Games] rows only under the hunt goal, and a preset that carries
+ *     MM's own hunt under a boss goal applying whole over a session staged at
+ *     the hunt goal (R3b).
  *   paired-triforce-bag (rando tier): a real paired generation under the hunt
  *     succeeds, its frozen hunt is the rows', and the single bag places exactly
  *     the rows' pieces, each game's half on its own hosts, proving the goal.
@@ -63,6 +65,7 @@
 #include "../combo_logic.h"
 #include "../combo_mm_options_page.h" // #1389: MM's hunt rows under the [Both Games] goal
 #include "../combo_mm_options_view.h" // #1389: MM_Rando_ResolveTriforceHalf, the MM option table
+#include "../combo_preset_profile.h"  // #1389: a preset judges MM's hunt rows by the goal it carries
 #include "../combo_settings_view.h"   // #1389: the [Both Games] Triforce Hunt keys and their restore
 #include "../combo_single_bag.h"      // #1389: the paired-triforce-bag row's fill report
 #include "../context.h"
@@ -77,6 +80,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -941,6 +945,27 @@ const ComboMMOptionDesc* TfrMMOption(const char* name) {
     return NULL;
 }
 
+/** Does @p profile (a captured paired profile, the CVar tree as JSON) hold the
+ *  dotted key @p cvar? */
+bool TfrProfileHolds(const nlohmann::json& profile, const char* cvar) {
+    const nlohmann::json* node = &profile;
+    std::string key;
+    for (const char* p = cvar;; p++) {
+        if (*p != '.' && *p != '\0') {
+            key.push_back(*p);
+            continue;
+        }
+        if (!node->is_object() || !node->contains(key)) {
+            return false;
+        }
+        node = &node->at(key);
+        key.clear();
+        if (*p == '\0') {
+            return true;
+        }
+    }
+}
+
 } // namespace
 
 #define TFR_ASSERT(cond, msg)                                               \
@@ -1102,6 +1127,61 @@ TestResult ComboTriforceRows_Run(void) {
         TfrClearKeys();
         printf("[TEST] R3: MM's three hunt rows are set by [Both Games] Triforce Hunt under its goal and show MM's "
                "half; under a boss goal they are MM's own\n");
+    }
+
+    // ---- R3b: a preset judges MM's hunt rows by the goal it carries -----------
+    // A profile captured under a boss goal with MM's own hunt on carries MM's
+    // three rows beside that goal (#768: they are MM's own there). Applied over
+    // a session staged at the hunt goal, the rows must be written and the goal
+    // put back to the boss goal. The Cross-Game rules apply first, so the rows
+    // are judged by the goal the profile leaves; judged by the session's hunt
+    // goal they were refused as set by [Both Games] Triforce Hunt (and, in an
+    // overwrite, cleared). A merge, so nothing else in the process is cleared.
+    {
+        ComboContext_Init();
+        TfrClearKeys();
+        Combo_MMOptionsPages_Init();
+        const ComboMMOptionDesc* shuffleRow = TfrMMOption(COMBO_MM_OPTION_NAME_SHUFFLE_TRIFORCE);
+        const ComboMMOptionDesc* maxRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_MAX);
+        const ComboMMOptionDesc* requiredRow = TfrMMOption(COMBO_MM_OPTION_NAME_TRIFORCE_REQUIRED);
+        TFR_ASSERT(shuffleRow != NULL && maxRow != NULL && requiredRow != NULL,
+                   "MM's three Triforce Hunt rows are not named");
+        TFR_ASSERT(ComboPresetProfile_RefusalNote().empty(), "fixture: an undecided session must take a preset");
+        TFR_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1,
+                   "fixture: the boss goal");
+        Combo_MMOptionSetValue(shuffleRow, 1);
+        Combo_MMOptionSetValue(maxRow, 10);
+        Combo_MMOptionSetValue(requiredRow, 7);
+        const nlohmann::json saved = nlohmann::json::parse(ComboPresetProfile_Capture().dump());
+        const bool captured = TfrProfileHolds(saved, shuffleRow->cvar) && TfrProfileHolds(saved, maxRow->cvar) &&
+                              TfrProfileHolds(saved, requiredRow->cvar) &&
+                              TfrProfileHolds(saved, Combo_ComboSettingKey(COMBO_SETTING_GOAL));
+        // The session walks to the hunt goal, MM's own rows back to unchosen.
+        Combo_MMOptionClear(shuffleRow);
+        Combo_MMOptionClear(maxRow);
+        Combo_MMOptionClear(requiredRow);
+        const bool stagedAtHunt =
+            Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT) == 1 &&
+            Combo_MMOptionsPage_OptionSetByCombo(maxRow);
+        const ComboPresetProfileReport report = ComboPresetProfile_Apply(saved, /*merge=*/true);
+        const int32_t goalAfter = Combo_ComboSettingResolved(COMBO_SETTING_GOAL);
+        const bool rowsWritten = Combo_MMOptionIsExplicit(shuffleRow) && Combo_MMOptionIsExplicit(maxRow) &&
+                                 Combo_MMOptionIsExplicit(requiredRow) && Combo_MMOptionGetValue(shuffleRow) == 1 &&
+                                 Combo_MMOptionGetValue(maxRow) == 10 && Combo_MMOptionGetValue(requiredRow) == 7;
+        printf("[TEST] R3b: preset with goal %d and MM's hunt 7 of 10 over a session at the hunt goal: applied %d, "
+               "%d written, %d refused; goal after %d, MM's rows %s\n",
+               (int)RSBS_COMBO_GOAL_BEAT_MM, report.applied ? 1 : 0, report.written, report.refused, (int)goalAfter,
+               rowsWritten ? "written" : "NOT written");
+        Combo_MMOptionClear(shuffleRow);
+        Combo_MMOptionClear(maxRow);
+        Combo_MMOptionClear(requiredRow);
+        TfrClearKeys();
+        TFR_ASSERT(captured, "a preset captured under a boss goal did not carry MM's hunt rows beside its goal");
+        TFR_ASSERT(stagedAtHunt, "fixture: the session staged at the hunt goal does not set MM's hunt rows");
+        TFR_ASSERT(report.applied && report.refused == 0,
+                   "the preset's MM hunt rows were refused by the session's goal, not judged by the preset's own");
+        TFR_ASSERT(goalAfter == (int32_t)RSBS_COMBO_GOAL_BEAT_MM, "the preset did not put its own goal back");
+        TFR_ASSERT(rowsWritten, "the preset's MM hunt (7 of 10) did not reach MM's own rows");
     }
 
     // ---- R4: a .redsave load restores the file's counts ------------------------

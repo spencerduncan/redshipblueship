@@ -1189,7 +1189,7 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         ComboContext_Init();
         ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_DIRECTION, (int32_t)RSBS_COMBO_DIR_FORWARD) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_GOAL, (int32_t)RSBS_COMBO_GOAL_BEAT_MM) == 1 &&
-                       // #1389: the Triforce Hunt's two keys, cleared again by leg 1c2.
+                       // #1389: the Triforce Hunt's two keys, cleared by this leg's Reset.
                        Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_PIECES, 40) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_TRIFORCE_GOAL, 25) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_KOKIRI_SWORD, 1) == 1 &&

@@ -67,6 +67,30 @@ extern "C" int OoT_Rando_LastSettingsFold(uint32_t* outTotalLines, uint32_t* out
     }
     return sRsbsFoldRuns;
 }
+
+// #1389: OoT's share of the [Both Games] Triforce Goal is not bounded by the
+// player's own Triforce Hunt Total Pieces, but SoH's Total Pieces callback
+// (settings.cpp) shrinks the Required Pieces option's list to that own total,
+// and Option::GetOptionText clamps an index past the list to its last entry. The
+// settings string hashed below and the spoiler both print through it, so under
+// the combo hunt the list goes back to the option's own 1..100 (NumOpts(1, 100)
+// in settings.cpp): the text then names the derived requirement. Only ever
+// widened: ChangeOptions writes the CVar when the index falls outside a shorter
+// list. The Required Pieces callback calls this too, so a menu rebuild under the
+// hunt goal keeps the list wide until the creation event's spoiler is written.
+extern "C" void OoT_Rando_WidenTriforceRequiredOptions(void) {
+    constexpr size_t kOptionCount = 100;
+    Rando::Option& required = Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED);
+    if (required.GetOptionCount() >= kOptionCount) {
+        return;
+    }
+    std::vector<std::string> counts;
+    counts.reserve(kOptionCount);
+    for (size_t n = 1; n <= kOptionCount; n++) {
+        counts.push_back(std::to_string(n));
+    }
+    required.ChangeOptions(std::move(counts));
+}
 #endif
 
 namespace Playthrough {
@@ -217,7 +241,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
             ComboTriforceHalf rsbsMMHalf;
             if (Combo_TriforceSplit(rsbsPieces, rsbsGoalCount, &rsbsOoTHalf, &rsbsMMHalf) == RSBS_TRIFORCE_OK) {
                 // The split gives OoT 1..100 pieces and 1..its pieces required, the
-                // options' own 1..100 ranges (each stores its value - 1).
+                // options' own 1..100 ranges (each stores its value - 1). The
+                // Required list is widened back to that range first, so the
+                // settings string and the spoiler print OoT's share unclamped.
+                OoT_Rando_WidenTriforceRequiredOptions();
                 ctx->GetOption(RSK_TRIFORCE_HUNT).Set(RO_TRIFORCE_HUNT_WIN);
                 ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Set((uint8_t)(rsbsOoTHalf.total - 1));
                 ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Set((uint8_t)(rsbsOoTHalf.required - 1));

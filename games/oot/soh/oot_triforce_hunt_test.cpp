@@ -38,6 +38,9 @@
  * Ganon's Boss Key: the boss key is granted only by the give that reaches the
  * COMBO requirement, which ends the paired game, so no location may be proved
  * behind it at OoT's own requirement. An authored "Win" stays "Win" (control).
+ * H3 (#1389): OoT's share of the [Both Games] goal is printed unclamped by the
+ * Required Pieces option the settings string and the spoiler print through,
+ * whatever cap OoT's own Total Pieces put on its list.
  *
  * COUNTERFACTUALS, run before landing (#768): main's arm (the "Win" test ungated
  * by the goal) turns W2 red under "Win"; main's playthrough.cpp (no "Win"
@@ -47,9 +50,11 @@
  * not forcing the Win branch, each turned its triforce-hunt leg red.)
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include <libultraship/bridge.h>
 
@@ -80,6 +85,8 @@ u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry);
 // games/oot/soh/Enhancements/randomizer/3drando/menu.cpp — the headless
 // generation bridge the RandoGen rows use.
 extern "C" int Rando_HeadlessSeedTest(const char* seedStr);
+// 3drando/playthrough.cpp (#1389): the Required Pieces list back to 1..100.
+extern "C" void OoT_Rando_WidenTriforceRequiredOptions(void);
 
 // ============================================================================
 // (1) The shim helpers
@@ -398,6 +405,53 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
                                               "\"Win\" (the #768 boss-goal rewrite must not apply)");
 
     ComboContext_Init();
+
+    // ---- H3: OoT's share of the goal is printed unclamped (#1389) ------------
+    // SoH's Total Pieces callback shrinks the Required Pieces list to the
+    // player's own total, and GetOptionText clamps an index past the list; the
+    // settings string (OoT's settings hash, the seed, the fingerprint) and the
+    // spoiler print through it. OoT's share of the [Both Games] goal is not
+    // bounded by that own total, so the creation widens the list back to the
+    // option's 1..100 before the string is built
+    // (OoT_Rando_WidenTriforceRequiredOptions, called by Playthrough_Init), and
+    // the option's callback keeps it wide under the hunt goal. The headless
+    // bridge rebuilds the options at 1..100, so the cap is put back here first:
+    // never below the current index, so shrinking writes no CVar.
+    {
+        Rando::Option& required = Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED);
+        const size_t cap = std::max<size_t>((size_t)required.GetOptionIndex() + 1, 10);
+        std::vector<std::string> capped;
+        for (size_t n = 1; n <= cap; n++) {
+            capped.push_back(std::to_string(n));
+        }
+        required.ChangeOptions(capped);
+        const std::string clampedText = required.GetOptionText(31); // OoT's share 32, past the cap
+        OoT_Rando_WidenTriforceRequiredOptions();
+        const size_t widenedCount = required.GetOptionCount();
+        const std::string widenedText = required.GetOptionText(31);
+        // The callback: wide under the hunt goal; SoH's own cap under any other.
+        required.ChangeOptions(capped);
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT);
+        required.RunCallback();
+        const size_t huntCount = required.GetOptionCount();
+        CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+        required.RunCallback();
+        const size_t ownCount = required.GetOptionCount();
+        const size_t ownCap = (size_t)CVarGetInteger(CVAR_RANDOMIZER_SETTING("TriforceHuntTotalPieces"), 30) + 1;
+        OoT_Rando_WidenTriforceRequiredOptions(); // as the headless bridge builds it
+        printf("[TEST] H3: Required Pieces capped at %zu prints OoT's share 32 as \"%s\"; widened to %zu entries it "
+               "prints \"%s\"; the callback lists %zu under the hunt goal and %zu (own cap %zu) under another\n",
+               cap, clampedText.c_str(), widenedCount, widenedText.c_str(), huntCount, ownCount, ownCap);
+        OTH_ASSERT(cap < 32 && clampedText != "32", "H3 fixture: the capped list does not clamp OoT's share 32");
+        OTH_ASSERT(widenedCount == 100 && widenedText == "32",
+                   "H3: the widened Required Pieces list does not name OoT's share of the goal (the settings string "
+                   "and the spoiler would clamp it to OoT's own Total Pieces)");
+        OTH_ASSERT(huntCount == 100, "H3: under the hunt goal the Required Pieces callback left the list capped at "
+                                     "OoT's own Total Pieces");
+        OTH_ASSERT(ownCount == ownCap, "H3: under another goal the Required Pieces callback did not give SoH's own "
+                                       "Total Pieces cap back");
+    }
+
     printf("[TEST] PASS: rando-combo-hunt-own-mode\n");
     return 0;
 }

@@ -311,10 +311,15 @@ static void ComboRuleApplyDecided(WidgetInfo& info, bool decided) {
  * default resolve identically today, but only the cleared one reads as "the
  * player never touched it".
  */
+static void ComboRuleRefreshOoTHuntRows();
+
 static void ComboRuleResetAll() {
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
         Combo_ComboSettingClear((ComboSettingId)i);
     }
+    // #1389: OoT's own hunt rows follow the goal the reset leaves (the shipped
+    // one), as they follow the goal row.
+    ComboRuleRefreshOoTHuntRows();
 }
 
 /**

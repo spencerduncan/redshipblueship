@@ -13,6 +13,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "static_data.h"         // #702: PopulateExcludeLocationsOptions reads the location table
 #include "combo_settings_view.h" // src/common — #1389: whether [Both Games] Triforce Hunt sets the hunt rows
+extern "C" void OoT_Rando_WidenTriforceRequiredOptions(void); // 3drando/playthrough.cpp (#1389)
 #endif
 
 namespace Rando {
@@ -448,17 +449,21 @@ void Settings::CreateOptions() {
     // #1389: under the Triforce Hunt combo goal OoT's hunt is OoT's half of the
     // [Both Games] Triforce Pieces / Triforce Goal rows (3drando/playthrough.cpp
     // derives it), so the three rows are greyed with what decides them, as #1367
-    // did for Logic. Re-run when the goal row changes (SohMenuCombo.cpp).
+    // did for Logic, and Required Pieces lists 1..100 (OoT's share of the goal is
+    // not capped at OoT's own total). Re-run when the goal row changes and on
+    // Reset Combo Rules (SohMenuCombo.cpp); otherwise the Total Pieces cap again.
     OPT_CALLBACK(RSK_TRIFORCE_HUNT_PIECES_REQUIRED, {
         if (Combo_ComboSettingsTriforceHuntShown()) {
-            static const char* const kSetBy = "This option is disabled because [Both Games] Triforce Pieces and Triforce Goal on Randomizer > Cross-Game set it under the Triforce Hunt goal: Ocarina of Time holds half of the pieces and half of the goal.";
+            static const char* const kSetBy = "This option is disabled because [Both Games] Triforce Pieces and Triforce Goal on Randomizer > Cross-Game set it under the Triforce Hunt goal: Ocarina of Time holds half of the pieces and half of the goal, rounded up, and at most 100 pieces.";
             mOptions[RSK_TRIFORCE_HUNT].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Disable(kSetBy);
+            OoT_Rando_WidenTriforceRequiredOptions();
         } else {
             mOptions[RSK_TRIFORCE_HUNT].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Enable();
+            mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].RunCallback();
         }
     });
 #endif
