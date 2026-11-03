@@ -105,6 +105,17 @@ RandomizerCheckArea RandomizerCheckObjects::GetRCAreaBySceneID(SceneID sceneId) 
         return areaIt->second;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1425: Shuffle Ocarinas and Shuffle Gerudo Membership Card default on here
+// (settings.cpp, Settings::CreateOptions), so an unset key reads on below, as the
+// options themselves read it, and the exclude list shows the locations they shuffle.
+static constexpr int kShuffleOcarinasDefault = RO_GENERIC_YES;
+static constexpr int kShuffleGerudoCardDefault = RO_GENERIC_YES;
+#else
+static constexpr int kShuffleOcarinasDefault = RO_GENERIC_NO;
+static constexpr int kShuffleGerudoCardDefault = RO_GENERIC_NO;
+#endif
+
 void RandomizerCheckObjects::UpdateImGuiVisibility() {
     auto ctx = Rando::Context::GetInstance();
     for (auto& location : Rando::StaticData::GetLocationTable()) {
@@ -149,8 +160,8 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
             (location.GetRCType() != RCTYPE_DUNGEON_REWARD ||
              CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) !=
                  RO_DUNGEON_REWARDS_END_OF_DUNGEON) && // dungeon rewards end of dungeons
-            (location.GetRCType() != RCTYPE_OCARINA ||
-             CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), RO_GENERIC_NO)) && // ocarina locations
+            (location.GetRCType() != RCTYPE_OCARINA || CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"),
+                                                                      kShuffleOcarinasDefault)) && // ocarina locations
             (location.GetRandomizerCheck() != RC_HC_ZELDAS_LETTER) && // don't show until we support shuffling letter
             (location.GetRCType() !=
              RCTYPE_GOSSIP_STONE) && // don't show gossip stones (maybe gossipsanity will be a thing eventually?)
@@ -250,14 +261,16 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
              (CVarGetInteger(CVAR_RANDOMIZER_SETTING("FortressCarpenters"), RO_GF_CARPENTERS_NORMAL) ==
                   RO_GF_CARPENTERS_FAST &&
               ((location.GetRandomizerCheck() == RC_TH_FREED_CARPENTERS &&
-                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), RO_GENERIC_NO) == RO_GENERIC_YES) ||
+                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), kShuffleGerudoCardDefault) ==
+                    RO_GENERIC_YES) ||
                (location.GetRandomizerCheck() == RC_TH_1_TORCH_CARPENTER &&
                 CVarGetInteger(CVAR_RANDOMIZER_SETTING("GerudoKeys"), RO_GERUDO_KEYS_VANILLA) !=
                     RO_GERUDO_KEYS_VANILLA))) ||
              (CVarGetInteger(CVAR_RANDOMIZER_SETTING("FortressCarpenters"), RO_GF_CARPENTERS_NORMAL) ==
                   RO_GF_CARPENTERS_NORMAL &&
               ((location.GetRandomizerCheck() == RC_TH_FREED_CARPENTERS &&
-                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), RO_GENERIC_NO) == RO_GENERIC_YES) ||
+                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), kShuffleGerudoCardDefault) ==
+                    RO_GENERIC_YES) ||
                (location.GetRCType() == RCTYPE_GF_KEY &&
                 CVarGetInteger(CVAR_RANDOMIZER_SETTING("GerudoKeys"), RO_GERUDO_KEYS_VANILLA) !=
                     RO_GERUDO_KEYS_VANILLA)))));
