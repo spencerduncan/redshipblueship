@@ -2667,7 +2667,11 @@ goal's parameters are each half's own authored settings" for this goal).
   defaults, when MM holds no piece), so both identities fold the hunt. The
   creation freeze checks that both games generate exactly the split. Under any
   other goal nothing is derived and no world moves. Each game's own hunt rows are
-  read-only under the goal ("Set by [Both Games] Triforce Hunt"), as Logic's are.
+  read-only under the goal, as Logic's are (MM's read "Set by [Both Games]
+  Triforce Hunt"). OoT's Required Pieces option lists 1..100 under the goal, so
+  the settings string and the spoiler name OoT's share unclamped by the player's
+  own Total Pieces. A preset applies the Cross-Game rules before MM's rows, so
+  MM's hunt rows are judged by the preset's own goal.
 - **The bag carries it.** Both games' pieces are WORLD_EVENT rows, which no
   record arms, so the production compose admits them HOME_ONLY: each game's
   pieces are proof-counted bag rows on its own hosts. The single bag passes the
@@ -2688,3 +2692,37 @@ authorable pair), `ComboTriforceRows` (keys, clamp, freeze, the win from either
 game, the restore directly and through `SaveManager::Load`, MM's rows),
 `PairedTriforceBag` (rando: a real paired hunt places exactly 12 pieces, 6 on
 each game's own hosts, and proves 8), and `ComboSettingsRows` (the two sliders).
+
+### 2026-11-02 -- The overlay shows the round budget, not the time estimate (#1286)
+
+The question behind the 60 s ruling (2026-10-28) came from the overlay itself: its
+second line printed the whole creation's elapsed time "(up to 32 s)" of the
+attempt's time estimate, and its within-attempt creep was the attempt's clock over
+that estimate.
+A headless replay of the operator's seed showed the fill at 464 of its 1250 rounds
+(37%) while OoT's generation, hint creation and presenting ran the clock past the
+estimate. So the overlay now reads the stop's own quantity:
+
+- **Bar:** while MM's fill runs, the single bag's observer notes the rounds run and
+  the per-attempt round budget (`ComboGenOverlay_NoteRounds`), and the creep is
+  rounds over budget. The time estimate drives the creep only for a fill that
+  notes no rounds (MM's own fill loop, which the paired single bag does not
+  reach). MM's own pass over its leftovers after the bag sends no heartbeat, so
+  the bag's last share stays on screen until the next phase report.
+- **Line:** "N s elapsed (fill budget P% used)" while rounds are noted, "N s
+  elapsed" otherwise. The estimate is never printed as a limit, because it is not
+  one.
+- **Log:** the session's COMPLETE/FAILED line, the single bag's ladder-attempt line
+  (rounds and budget) and the completion's OoT-tail line reach `logs/<name>.log` as
+  well as stderr (`Combo_GenProgress_LogLine`), so a playtest report carries them.
+- **Replay and measurement:** `--test debug-seed-forced-placements` with
+  `RSBS_FORCE_PLACEMENTS=none` replays a seed string under a profile with no pinned
+  row, through the production completion, and prints its measurement lines;
+  `CreationHeavyProfileBudget` replays the operator's seed and profile, requires
+  each game's pool to clear a floor of 1000 OoT + 1500 MM rows (the profile made
+  1464 + 2333 at 347ba755, the default makes about 193 + 283), so an ignored
+  setting cannot lighten the world under it, and requires the ladder's charge to
+  stay at or under half the per-attempt budget.
+
+Nothing a creation decides changed: no stop, budget or golden moves. Locked by
+`GenProgressOverlay` leg 8 and `CreationHeavyProfileBudget`.

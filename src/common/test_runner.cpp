@@ -3425,6 +3425,20 @@ TestResult Test_SeedPackageGoldenCreate(void) {
 // The world is the headless Generate's (seed-package-write's) with the rows pinned
 // by Combo_Logic_TestSetForcedPlacements; the row asserts the fill PROVED the GOAL
 // and that every cross-game row is in the crossing store on its host.
+//
+// #1286: REPLAYING A WORLD AS IT WAS MADE. RSBS_FORCE_PLACEMENTS=none pins no row,
+// so RSBS_DEBUG_SEED under a profile in RSBS_DIAG_CVARS is created exactly as the
+// player's Generate created it, through the production completion (hint creation
+// included), and can be timed: an operator's slow creation replays from its seed
+// string and settings alone. Unset still refuses, so a row that forgets the
+// variable cannot quietly run unforced. Every run prints two measurement lines (the
+// ladder attempt, the fill's rounds against the round budget, the fill's and the
+// completion's wall time; then the rules fingerprint and each game's pool rows);
+// RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT=<p> makes the first an assertion: the
+// rounds the whole ladder charged must be at most p% of the per-attempt round
+// budget (the CreationHeavyProfileBudget row's "with room").
+// RSBS_DEBUG_SEED_MIN_POOL_ROWS=<oot>,<mm> makes the second one: each game's pool
+// must be at least that many rows, so the profile provably took effect.
 static bool DebugSeedParseGame(const std::string& text, uint8_t* out) {
     if (text == "oot" || text == "OoT" || text == "OOT") {
         *out = (uint8_t)GAME_OOT;
@@ -3526,9 +3540,37 @@ TestResult Test_DebugSeedForcedPlacements(void) {
     if (spec == nullptr || !SeedPackageHeadlessBringUp()) {
         return TEST_FAIL;
     }
+    const char* ceilingEnv = std::getenv("RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT");
+    const unsigned long ceilingPercent =
+        (ceilingEnv != nullptr && ceilingEnv[0] != '\0') ? strtoul(ceilingEnv, nullptr, 10) : 0ul;
+    if (ceilingEnv != nullptr && ceilingEnv[0] != '\0' && (ceilingPercent == 0ul || ceilingPercent > 100ul)) {
+        printf("[TEST] FAIL: RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT='%s' is not a percent from 1 to 100\n", ceilingEnv);
+        return TEST_FAIL;
+    }
+    // #1286: RSBS_DEBUG_SEED_MIN_POOL_ROWS=<oot>,<mm> anchors a replay to its
+    // profile: each game's pool (the rows the single bag was handed) must be at
+    // least that many, so a renamed or ignored setting that lightens the world
+    // fails the row instead of quietly measuring a lighter one.
+    const char* minRowsEnv = std::getenv("RSBS_DEBUG_SEED_MIN_POOL_ROWS");
+    unsigned long minRowsOoT = 0ul;
+    unsigned long minRowsMM = 0ul;
+    if (minRowsEnv != nullptr && minRowsEnv[0] != '\0') {
+        char* end = nullptr;
+        minRowsOoT = strtoul(minRowsEnv, &end, 10);
+        if (end != nullptr && *end == ',') {
+            minRowsMM = strtoul(end + 1, &end, 10);
+        }
+        if (end == nullptr || *end != '\0' || minRowsOoT == 0ul || minRowsMM == 0ul) {
+            printf("[TEST] FAIL: RSBS_DEBUG_SEED_MIN_POOL_ROWS='%s' is not <OoT rows>,<MM rows>\n", minRowsEnv);
+            return TEST_FAIL;
+        }
+    }
     ComboLogicForcedPlacement rows[RSBS_COMBO_LOGIC_FORCED_CAP];
-    const int count = DebugSeedParseSpec(spec, rows, RSBS_COMBO_LOGIC_FORCED_CAP);
-    if (count <= 0 || Combo_Logic_TestSetForcedPlacements(rows, count) != count) {
+    // #1286: "none" is the explicit zero-row replay (the comment above).
+    const bool replay = strcmp(spec, "none") == 0;
+    const int count = replay ? 0 : DebugSeedParseSpec(spec, rows, RSBS_COMBO_LOGIC_FORCED_CAP);
+    if (replay ? Combo_Logic_TestSetForcedPlacements(nullptr, 0) != 0
+               : (count <= 0 || Combo_Logic_TestSetForcedPlacements(rows, count) != count)) {
         return TEST_FAIL;
     }
     const int rc = MM_SeedPackage_TestWrite(seed.c_str(), pkg.c_str(), report.c_str());
@@ -3543,6 +3585,42 @@ TestResult Test_DebugSeedForcedPlacements(void) {
         printf("[TEST] FAIL: the single-bag fill did not prove the GOAL (status %s, goalProven %d)\n",
                Combo_Logic_StatusName(bag->status), bag->fill.goalProven ? 1 : 0);
         failures++;
+    }
+    // #1286: THE MEASUREMENT, read off the creation that just completed. The ladder's
+    // charge is every round every attempt ran (combo_single_bag.c), so a world that
+    // climbed a rung counts the dead end's rounds too; the completion's wall time is
+    // the second progress session's (Generate's completion), hint creation included.
+    {
+        const uint32_t perAttempt = Combo_GenBudget_RoundsPerAttempt(0);
+        const uint32_t total = Combo_GenBudget_TotalRounds();
+        const uint32_t charged = Combo_GenBudget_RoundsCharged();
+        const uint64_t usedPercent = perAttempt > 0u ? ((uint64_t)charged * 100u) / (uint64_t)perAttempt : 0u;
+        printf("[TEST] measurement: seed '%s' created on ladder attempt %d; its fill ran %d round(s) in %d batch "
+               "attempt(s) in %ums; the ladder charged %u round(s), %u%% of the %u-round per-attempt budget and of "
+               "the %u-round total %u%%; the completion took %ums wall\n",
+               seed.c_str(), bag->ladderAttempt + 1, bag->fill.rounds, bag->fill.attempts, (unsigned)bag->wallMs,
+               (unsigned)charged, (unsigned)usedPercent, (unsigned)perAttempt, (unsigned)total,
+               total > 0u ? (unsigned)(((uint64_t)charged * 100u) / (uint64_t)total) : 0u,
+               (unsigned)Combo_GenProgress_Current()->elapsedMs);
+        if (ceilingPercent > 0ul && (charged == 0u || usedPercent > (uint64_t)ceilingPercent)) {
+            printf("[TEST] FAIL: the creation charged %u round(s), %u%% of the %u-round per-attempt budget; this row "
+                   "allows at most %lu%% (RSBS_DEBUG_SEED_ROUND_CEILING_PERCENT)\n",
+                   (unsigned)charged, (unsigned)usedPercent, (unsigned)perAttempt, ceilingPercent);
+            failures++;
+        }
+        // The world's size, so the measurement names what it measured: the pair's
+        // rules fingerprint and the pool rows each game handed the fill.
+        printf("[TEST] measurement: rules fingerprint %08X; the fill was handed %d OoT + %d MM pool row(s) and "
+               "composed a %d-row bag\n",
+               (unsigned)gComboCtx.comboSettingsHash, bag->ootRows, bag->mmRows, bag->bagCount);
+        const unsigned long ootRows = bag->ootRows > 0 ? (unsigned long)bag->ootRows : 0ul;
+        const unsigned long mmRows = bag->mmRows > 0 ? (unsigned long)bag->mmRows : 0ul;
+        if (minRowsOoT > 0ul && (ootRows < minRowsOoT || mmRows < minRowsMM)) {
+            printf("[TEST] FAIL: the profile did not take effect: the fill was handed %lu OoT + %lu MM pool row(s); "
+                   "this row requires at least %lu + %lu (RSBS_DEBUG_SEED_MIN_POOL_ROWS)\n",
+                   ootRows, mmRows, minRowsOoT, minRowsMM);
+            failures++;
+        }
     }
     for (int i = 0; i < count; ++i) {
         if (rows[i].hostGame == rows[i].item.originGame) {
@@ -8070,7 +8148,8 @@ const TestDescriptor gTests[] = {
       Test_SeedPackageGoldenWrite },
     { "seed-package-golden-create", "A file created from a loaded seed package, digested against the golden (#1044)",
       Test_SeedPackageGoldenCreate },
-    { "debug-seed-forced-placements", "A debug seed with RSBS_FORCE_PLACEMENTS pinned, proved and packaged (#1231)",
+    { "debug-seed-forced-placements",
+      "A debug seed with RSBS_FORCE_PLACEMENTS pinned (or none, a timed replay), proved and packaged (#1231, #1286)",
       Test_DebugSeedForcedPlacements },
     // Lane C0: MM's randomizer is reachable and generates headlessly. Needs a
     // display like rando-gen, so `--test all` skips it (below).
@@ -9202,7 +9281,8 @@ const TestDescriptor gTests[] = {
       Test_SharedArrowsBag },
     { "shared-masks-bag",
       "With all five shared-mask rules on, the single bag holds one row per mask both solvers credit, each placed "
-      "once over both games, the GOAL is still proven, and OoT's logic reads each mask's ownership (#978)",
+      "once over both games, the GOAL is still proven, OoT's logic reads each mask's ownership, and the only Goron "
+      "or Zora Mask forced onto an OoT check still proves Snowhead or Great Bay in MM's half (#978)",
       Test_SharedMasksBag },
     { "shared-quantity-policy",
       "Capacity-like shared families are trimmed to the shared maximum: 44 pieces + 6 containers + 1 double defense, "

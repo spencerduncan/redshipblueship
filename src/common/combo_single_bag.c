@@ -140,8 +140,12 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
     const uint32_t genMs = SingleBagGenerationMs(w);
 
     // Frames first, so a slow round still leaves a live window. The heartbeat is
-    // rate-limited to 10 Hz inside the overlay; its clock is this attempt's.
+    // rate-limited to 10 Hz inside the overlay; its clock is this attempt's. The
+    // rounds go in first (#1286): the bar and the elapsed line show the share of
+    // the per-attempt ROUND budget spent, which is what the stop below compares,
+    // not the attempt's clock against a time estimate.
     if (ComboGenOverlay_WantsHeartbeat()) {
+        ComboGenOverlay_NoteRounds(p->rounds > 0 ? (uint32_t)p->rounds : 0u, w->roundBudget);
         (void)ComboGenOverlay_Heartbeat(genMs);
     }
 
@@ -500,16 +504,17 @@ finish:
         Combo_GenBudget_ChargeRounds((uint32_t)sReport.fill.rounds);
     }
     sReport.wallMs = Combo_GenBudget_NowMs() - t0;
-    fprintf(stderr,
-            "[SingleBag] ladder attempt %d: %s — goal %u rung %u seed %08X; %d bag rows (%d OoT + %d MM trimmed to "
-            "filler); %d rows placed (%d required, %d surplus, %d dropped), %d crossings into MM, %d into OoT, "
-            "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds (budget %u), %ums\n",
-            ladderAttempt + 1, Combo_Logic_StatusName(status), (unsigned)sReport.goal, (unsigned)sReport.rung,
-            sReport.seed, sReport.bagCount, sReport.trimmedOoT, sReport.trimmedMM, sReport.fill.placed,
-            sReport.fill.requiredPlaced, sReport.fill.surplusPlaced, sReport.fill.surplusDropped,
-            sReport.crossingsIntoMM, sReport.crossingsIntoOoT, sReport.fill.leftoverHostsOoT,
-            sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds, roundBudget, sReport.wallMs);
-    fflush(stderr);
+    // Mirrored into the session log (#1286): the round count a playtest report
+    // needs to say whether a slow creation was near its budget.
+    Combo_GenProgress_LogLine(
+        "[SingleBag] ladder attempt %d: %s — goal %u rung %u seed %08X; %d bag rows (%d OoT + %d MM trimmed to "
+        "filler); %d rows placed (%d required, %d surplus, %d dropped), %d crossings into MM, %d into OoT, "
+        "leftovers OoT %d / MM %d; %d batch attempt(s), %d rounds (budget %u), %ums",
+        ladderAttempt + 1, Combo_Logic_StatusName(status), (unsigned)sReport.goal, (unsigned)sReport.rung, sReport.seed,
+        sReport.bagCount, sReport.trimmedOoT, sReport.trimmedMM, sReport.fill.placed, sReport.fill.requiredPlaced,
+        sReport.fill.surplusPlaced, sReport.fill.surplusDropped, sReport.crossingsIntoMM, sReport.crossingsIntoOoT,
+        sReport.fill.leftoverHostsOoT, sReport.fill.leftoverHostsMM, sReport.fill.attempts, sReport.fill.rounds,
+        roundBudget, sReport.wallMs);
     if (out != NULL) {
         *out = sReport;
     }
