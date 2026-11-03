@@ -858,7 +858,7 @@ bidirectional), license mechanics (→ D10).)
 | O7 | **Boundary/constraint carrier scalars and carve budget**: exactly which game-neutral fields cross (SharedItem + host check id + earliness bound?), sized against `reserved[132]` under the append-only second-block rule and the 64-byte floor | **Accepted**: the increment-3 epic sizes the carve, against `reserved[132]` under the append-only second-block rule and the 64-byte floor [corrected 2026-08-04, #584: the live figure is `reserved[124]`, not 132 — the #569 and #581 carves landed after this answer was ratified; the append-only rule and the 64-byte floor are unaffected, and this correction does not reopen O7's answer] |
 | O8 | **Shared-item classification authority**: one owner per shared item's junk/progression/renewable classification (OoTMM's `SHARED_BOMBCHU` two-settings wart is the cautionary tale) | **Accepted**: a single-owner classification table, one owner per shared item, living in the sanctioned ADR 0002 TU pair (`src/common/shared_items.h` / `src/common/shared_items.c`, deliberately free of game headers) — never a per-game duplicate that can disagree with itself |
 | O10 | **Combo triforce-hunt accounting**: one shared piece count across both worlds (a shared-resource-style carrier) vs per-half counts ANDed/ORed; both engines' existing piece machinery is the substrate | **Decided: ONE shared triforce piece count across both worlds**, carried shared-resource-style — not per-half composition. Both engines' existing piece machinery (OoT `RSK_TRIFORCE_HUNT_PIECES_*`, MM `RO_TRIFORCE_PIECES_*`) is the substrate feeding that one combo-level count |
-| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1). *Amended 2026-11-02 (#1367): strictness is now surfaced as a rung, the pair's `[Both Games] Logic`; its default stays `beatable(T = ∅)` (Beatable Only) until the flip to All Locations and its golden re-pin land in their own lane (the All Locations proof itself landed with #1371).* |
+| O11 | **Shipped default rung** of the logic ladder (`beatable(T = ∅)` is the conservative candidate; base `none` is the operator's named audience) — and whether the default GOAL stays `beat-both` | **Decided: "copy what ship has for the rando settings."** At source, Ship of Harkinian defaults logic to Glitchless (`RSK_LOGIC_RULES` → `RO_LOGIC_GLITCHLESS`, `settings.cpp:1282`), every trick to "Disabled" (`TrickOption`'s default index 0, `option.cpp:361-364`), and `RSK_ALL_LOCATIONS_REACHABLE` to `RO_GENERIC_ON` (`settings.cpp:1283`). The combo's shipped default follows those defaults: the **proved, no-tricks rung** — `beatable(T = ∅)` — and **never** the base `none` rung, despite `none` being the operator's named audience. SoH's all-locations-reachable default carries through on the strictness axis §1.2 keeps per-half, which in ladder terms presents as `all-reachable(T = ∅)` if the combo surfaces strictness as a rung rather than as the per-half axis; that presentation choice is the increment epic's, and either way the default is the strictest SoH ships. Consistent with increment 1.1's paired-MM flip to Glitchless. **Default GOAL stays `beat-both`**: SoH has no combo-GOAL precedent to copy, and OoTMM's own `goal` likewise defaults to `'both'` (§1.1). *Amended 2026-11-02 (#1367): strictness is now surfaced as a rung, the pair's `[Both Games] Logic`; its default stays `beatable(T = ∅)` (Beatable Only) until the flip to All Locations and its golden re-pin land in their own lane (the All Locations proof itself landed with #1371).* *Amended again 2026-11-02 (#1367 R5, operator-approved): **the shipped rung is `all-reachable(T = ∅)` (All Locations)**, OoTMM's own `logic` default and the strictest SoH presents (ALR on); worlds frozen at Beatable Only keep loading with their own rung. See the dated section "O11: All Locations is the default".* |
 
 ### Still open (tracked; neither blocks increment 1)
 
@@ -2640,7 +2640,8 @@ Logic setting follows it.
   `seed-digest-default` (MM's own Logic key must not reach a paired world), its
   `seed-digest-mm-nearly-no-logic.txt` is read by no row, and its
   `GoldenSeedsRoundBudget` entry is gone. A No Logic golden
-  (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run.
+  (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run (done by R5,
+  below; the unread file is deleted there).
 
 ### 2026-11-02 -- O10: the hunt is the pair's `[Both Games] Triforce Pieces` / `Triforce Goal` (#1389)
 
@@ -2695,6 +2696,11 @@ game, the restore directly and through `SaveManager::Load`, MM's rows),
 `PairedTriforceBag` (rando: a real paired hunt places exactly 12 pieces, 6 on
 each game's own hosts, and proves 8), and `ComboSettingsRows` (the two sliders).
 
+Capacity spent: two `ComboSettingId`s, appended after #979's three Blast Mask
+rows (ids 23 and 24; `COMBO_SETTING_COUNT` 25), two identity keys (manifest 43
+to 45, identity 23 to 25), one divergence bit
+(`RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS` 0x20000), and no record format bytes.
+
 ### 2026-11-02 -- The overlay shows the round budget, not the time estimate (#1286)
 
 The question behind the 60 s ruling (2026-10-28) came from the overlay itself: its
@@ -2728,3 +2734,52 @@ estimate. So the overlay now reads the stop's own quantity:
 
 Nothing a creation decides changed: no stop, budget or golden moves. Locked by
 `GenProgressOverlay` leg 8 and `CreationHeavyProfileBudget`.
+
+### 2026-11-02 -- O11: All Locations is the default (#1367 R5, PR #1392)
+
+Operator-approved: the shipped `[Both Games] Logic` is **All Locations**
+(`all-reachable(T = ∅)`, record byte 9 = 3), following OoTMM, whose `logic`
+defaults to `allLocations` (`packages/core/src/settings/data.ts`). O11's "the
+strictest SoH ships" now presents as that rung, which is what the row above
+anticipated. Every new default world moves (`RSBS_GENERATOR_VERSION` 4; every
+golden re-pinned; seed packages written by generator 3 are refused, as designed).
+
+- **Existing worlds keep their rung.** The record is the record: a world frozen at
+  Beatable Only (every world before this) keeps its fingerprint, and a load that
+  meets the new default puts the file's rung back into the key (`kRestorable`,
+  "Restored from file: Logic"), as for any staged rung. The key then holds Beatable
+  Only, so the next new file follows it until the player changes the row, the
+  same as a restored goal. Locked by ComboSettingsAuthoring leg 11 and
+  PairedLoadRestore legs 2f/2g.
+- **Measured first.** On `main` the All Locations pre-flight refused EVERY profile:
+  OoT's 300-rupee shop items (Market and Kakariko Potion Shops, Zora's Domain shop)
+  and MM's bank heart piece, all behind the Giant's Wallet. The trim keeps two
+  wallets for the pair, one per game, and each engine counted only its own, so
+  each game's logic saw one wallet tier while the shared tier reaches two in play.
+  That is a gap in the proof, not a fact of the settings, so nothing was curated
+  out for it.
+- **THE SHARED-QUANTITY CREDIT** (combo_logic.h) closes it, following OoTMM's
+  `SHARED_WALLET` (one item both games' logic counts): each copy of a tier family
+  the trim keeps as ONE shared family (equal ceilings: wallet, magic, quivers, bomb
+  bags, stick and nut capacity, double defense) is credited to both engines, as the
+  far game's own id for the family, when assumed (seeded) and when placed (the
+  exchange, through the crossing's gate; the placement records the far copy).
+  Health and the bottle count stay counted per game (the sound under-count): two
+  unit grades, and a bottle's contents are its own game's. The credit applies on
+  every proving rung, so Beatable Only worlds move too.
+- **The audit.** With the credit, the production pre-flight reached every location
+  of both games on thirteen profiles (the seven golden profiles that fill:
+  default, profile-v1, entrances, excludes-tricks, shopsanity, direction-forward
+  and #978's all-masks; plentiful, armed, and maximal with every MM location
+  category shuffled, 2254 MM checks; beat-oot, beat-mm, beat-either), and the
+  ladder golden's seed proved too. Both curated exclusion lists stay empty.
+- **The goal at the pre-flight.** A goal the pre-flight's widest reach does not
+  prove is refused at once, `RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE`
+  ("goal-unreachable"), no ladder rung, with the failed half named; Generate's
+  toast reads "Not generated: <game> can never be finished." (or "neither game can
+  ever be finished.", or "no seed can finish the goal."). The file-select fallback
+  (`OoT_Creation_ReportFailureAtFileSelect`) takes the refusal as its `reason` and
+  names the unreachable location or game instead of "try a new seed".
+- **Goldens.** Every golden re-pinned for generator 4; `seed-digest-beatable-only`
+  and `seed-digest-no-logic` pin the other two rungs; the unread
+  `seed-digest-mm-nearly-no-logic.txt` is deleted.

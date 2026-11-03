@@ -905,6 +905,59 @@ extern "C" void OoT_Creation_EmitLogicPinToast(void) {
 }
 
 /**
+ * The unreachable line after a prefix of @p prefixChars characters (its separating
+ * space included), within the overlay's 53: one name, "Name is unreachable." or
+ * "Name and N more are unreachable." (one colon on the line: the prefix's), else
+ * the count. Empty, with @p outCount 0, when the coordinator named nothing.
+ */
+static std::string AllLocationsUnreachableLine(size_t prefixChars, int* outCount) {
+    static constexpr size_t kLineChars = 53;
+    char first[96];
+    const int count = Combo_Logic_FormatUnreachable(first, sizeof(first), 1);
+    *outCount = count;
+    if (count <= 0) {
+        return std::string();
+    }
+    std::string message = std::string(first) + (count == 1 ? " is unreachable." : " are unreachable.");
+    if (prefixChars + message.size() > kLineChars) {
+        message = std::to_string(count) +
+                  (count == 1 ? " location can never be reached." : " locations can never be reached.");
+    }
+    return message;
+}
+
+/**
+ * The goal refusal's line (RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE, #1367 R5): the
+ * game that can never be finished when the goal is one game's, or beat-both with
+ * one half failing; both when both failed under beat-both or beat-either; else the
+ * goal. At most 38 characters, so it fits after either refusal prefix.
+ */
+static const char* AllLocationsGoalLine(unsigned goal, int goalOoT, int goalMM) {
+    const bool ootFailed = goalOoT == 0;
+    const bool mmFailed = goalMM == 0;
+    if (goal == RSBS_COMBO_GOAL_BEAT_OOT || (goal == RSBS_COMBO_GOAL_BEAT_BOTH && ootFailed && !mmFailed)) {
+        return "Ocarina of Time can never be finished.";
+    }
+    if (goal == RSBS_COMBO_GOAL_BEAT_MM || (goal == RSBS_COMBO_GOAL_BEAT_BOTH && mmFailed && !ootFailed)) {
+        return "Majora's Mask can never be finished.";
+    }
+    if ((goal == RSBS_COMBO_GOAL_BEAT_BOTH || goal == RSBS_COMBO_GOAL_BEAT_EITHER) && ootFailed && mmFailed) {
+        return "neither game can ever be finished.";
+    }
+    return "no seed can finish the goal.";
+}
+
+/** The `reason` a file-select refusal passes (OoT_Creation_ReportFailureAtFileSelect)
+ *  for the fill it has just run itself: that fill's All Locations refusal when that
+ *  is why it failed, else 0 (the generic line). */
+static int CreationFailureReasonFromOwnFill(void) {
+    const int status = Combo_SingleBag_LastReport()->status;
+    return (status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE || status == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE)
+               ? status
+               : 0;
+}
+
+/**
  * THE ALL LOCATIONS REFUSAL (combo_logic.h ABI 8): Generate's toast when the
  * single bag's pre-flight found locations no seed can reach under the chosen
  * settings (RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE), in place of the generic
@@ -918,19 +971,10 @@ extern "C" void OoT_Creation_EmitLogicPinToast(void) {
  * one. @return the number of unreachable locations named by the coordinator.
  */
 extern "C" int OoT_Creation_EmitUnreachableToast(void) {
-    static constexpr size_t kPrefixChars = sizeof("Not generated:"); // the prefix and its separating space
-    static constexpr size_t kLineChars = 53;
-    char first[96];
-    const int count = Combo_Logic_FormatUnreachable(first, sizeof(first), 1);
+    int count = 0;
+    const std::string message = AllLocationsUnreachableLine(sizeof("Not generated:"), &count);
     if (count <= 0) {
         return 0;
-    }
-    // One name: "Name is unreachable.", or "Name and N more are unreachable." when
-    // there are several (one colon on the line: the prefix's).
-    std::string message = std::string(first) + (count == 1 ? " is unreachable." : " are unreachable.");
-    if (kPrefixChars + message.size() > kLineChars) {
-        message = std::to_string(count) +
-                  (count == 1 ? " location can never be reached." : " locations can never be reached.");
     }
     Notification::Emit({
         .prefix = "Not generated:",
@@ -938,6 +982,23 @@ extern "C" int OoT_Creation_EmitUnreachableToast(void) {
         .mute = true,
     });
     return count;
+}
+
+/**
+ * THE ALL LOCATIONS GOAL REFUSAL (#1367 R5): Generate's toast when the pre-flight
+ * reached every location but not the goal with every required item assumed
+ * (RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE), so no new seed helps, only other
+ * settings. The unreachable toast's shape (one line, the default colours, muted).
+ *
+ * @param goal the frozen RSBS_COMBO_GOAL_*; @param goalOoT / @param goalMM the
+ *        pre-flight round's halves (ComboLogicFillResult: 0 failed, 1 reached).
+ */
+extern "C" void OoT_Creation_EmitGoalUnreachableToast(unsigned goal, int goalOoT, int goalMM) {
+    Notification::Emit({
+        .prefix = "Not generated:",
+        .message = AllLocationsGoalLine(goal, goalOoT, goalMM),
+        .mute = true,
+    });
 }
 
 // The completed world, between this completion and the package it is written into.
@@ -1303,9 +1364,10 @@ extern "C" int OoT_RunPairedCreationEvent(int slot) {
                 "completion (#1044)\n",
                 slot);
         if (OoT_SeedPackage_CompleteForCreation() != 1) {
-            // The completion retracted the identity; the creation surfaces it.
+            // The completion retracted the identity; the creation surfaces it, with
+            // the All Locations refusal's own line when that is why (#1367 R5).
             RsbsSave_RefuseSlotGeneration(slot);
-            OoT_Creation_ReportFailureAtFileSelect(slot, 0);
+            OoT_Creation_ReportFailureAtFileSelect(slot, CreationFailureReasonFromOwnFill());
             return 0;
         }
     }
@@ -1655,21 +1717,42 @@ extern "C" void OoT_Creation_EmitShortfallToast(int placed, int requested) {
  * edge); "other options" keeps the advice and the game is named on the stderr
  * line above.
  *
+ * THE ALL LOCATIONS REFUSALS (#1367 R5, #1371's deferred copy). "Try a new seed"
+ * is wrong advice for a refusal that is a fact of the settings, so a caller that
+ * knows the single bag refused that way passes its status as @p reason, and the
+ * line names what no seed can reach instead, as Generate's toast does: the first
+ * location ("Name is unreachable.", else the count) for
+ * RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE, the game that can never be finished
+ * for RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE. The reason is the CALLER's word, never
+ * read here from the process-wide last report, so the ui tier's page (reason 0)
+ * draws the same line whatever row ran before it.
+ *
  * @param slot   the slot whose creation failed.
- * @param reason reserved for a future failure taxonomy; 0 today ("generation
- *               did not converge"), which is the only way to get here.
+ * @param reason 0 ("generation did not converge"), or the single bag's
+ *               RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE /
+ *               RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE for this creation's own fill.
  */
 extern "C" void OoT_Creation_ReportFailureAtFileSelect(int slot, int reason) {
-    (void)reason;
     fprintf(stderr,
             "[OoT] creation event: slot %d REFUSED at file select — the paired Majora's Mask world could not be "
             "generated; no file was written and no pairing identity survives\n",
             slot);
     fflush(stderr);
 
+    std::string message = "try a new seed or other options.";
+    if (reason == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) {
+        int count = 0;
+        const std::string line = AllLocationsUnreachableLine(sizeof("Not created:"), &count);
+        if (count > 0) {
+            message = line;
+        }
+    } else if (reason == RSBS_COMBO_LOGIC_ERR_GOAL_UNREACHABLE) {
+        const ComboSingleBagReport* last = Combo_SingleBag_LastReport();
+        message = AllLocationsGoalLine(last->goal, last->fill.goalOoT, last->fill.goalMM);
+    }
     Notification::Emit({
         .prefix = "Not created:",
-        .message = "try a new seed or other options.",
+        .message = message,
         .mute = true, // see the header: this seam is driven by display-free locks too
     });
 }

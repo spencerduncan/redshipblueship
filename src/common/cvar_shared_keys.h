@@ -159,9 +159,10 @@
 #define RSBS_CVAR_COMBO_RANDO_GOAL "gCombo.Rando.Goal"
 /* #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
  * `logic` (All Locations / Beatable Only / No Logic) on the pinned
- * RSBS_COMBO_RUNG_* enumerators (3 / 2 / 1). DEFAULT Beatable Only (2), the
- * rung every world before it froze, so a player who leaves it alone resolves to
- * the same twelve record bytes. Both games' own Logic rows follow it. */
+ * RSBS_COMBO_RUNG_* enumerators (3 / 2 / 1). DEFAULT All Locations (3) since
+ * #1367 R5, OoTMM's own default; it was Beatable Only (2) before, the rung every
+ * earlier world froze, and those worlds restore their own rung at load. Both
+ * games' own Logic rows follow it. */
 #define RSBS_CVAR_COMBO_RANDO_LOGIC "gCombo.Rando.Logic"
 /* #1389: the pair's ONE Triforce Hunt, OoTMM's `triforcePieces` and
  * `triforceGoal` (1..255, OoT's 8-bit counter; DEFAULT 30 and 20). Read only
@@ -230,6 +231,18 @@
  * while a game shuffles swim, so a world nobody shuffles swim in keeps its
  * all-clear record and every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_SHARED_SWIM "gCombo.Rando.SharedSwim"
+/* #979 (epic #975 P4): Majora's Mask's Blast Mask added to Ocarina of Time (OoTMM
+ * blastMaskOot) and made one item for both games (OoTMM sharedMaskBlast, which
+ * requires the first). Boolean (0/1), DEFAULT 0 each. Bits of the same
+ * crossItemFlags (RSBS_XITEM_BLAST_MASK_OOT / RSBS_XITEM_SHARED_BLAST, reserved by
+ * #976), folded into comboSettingsHash only when on. */
+#define RSBS_CVAR_COMBO_RANDO_BLAST_MASK_OOT "gCombo.Rando.BlastMaskOoT"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BLAST "gCombo.Rando.SharedMaskBlast"
+/* #979: the Blast Mask's cooldown in both games (OoTMM blastMaskCooldown), the
+ * item rules record's cooldown byte on the pinned RSBS_BLAST_COOLDOWN_* values
+ * (0..5). DEFAULT 0, Majora's Mask's own cooldown, so an untouched world keeps its
+ * all-clear record and every fingerprint holds. */
+#define RSBS_CVAR_COMBO_RANDO_BLAST_MASK_COOLDOWN "gCombo.Rando.BlastMaskCooldown"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -1504,6 +1517,15 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_SWIM, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SWIM bit (#1369): the swim ability is ONE shared-pair "
       "family and one Shuffle Swim for the pair; frozen only while a game shuffles swim" },
+    { RSBS_CVAR_COMBO_RANDO_BLAST_MASK_OOT, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_BLAST_MASK_OOT bit (#979): Majora's Mask's Blast Mask is added "
+      "to Ocarina of Time's pool as an OoT item" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BLAST, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_BLAST bit (#979): the two Blast Masks are ONE "
+      "shared-pair family across both games; frozen only with the Blast Mask in OoT" },
+    { RSBS_CVAR_COMBO_RANDO_BLAST_MASK_COOLDOWN, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.blastMaskCooldown (#979): the Blast Mask's cooldown in both games, one of the pinned "
+      "RSBS_BLAST_COOLDOWN_* values" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -1975,14 +1997,15 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twenty-two identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Twenty-five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // TriforcePieces and TriforceGoal (#1389),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
 // (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
-// SharedMaskTruth (#978), SharedSwim (#1369); #879 retired SharedOcarina (#668)) + four
+// SharedMaskTruth (#978), SharedSwim (#1369), BlastMaskOoT, SharedMaskBlast and
+// BlastMaskCooldown (#979); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + twelve gCombo.Tracker.Items.* preferences
@@ -1993,9 +2016,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 42, "twenty-two gCombo.Rando.* identity keys + four gCombo.Windows.* preferences + "
-                                    "twelve gCombo.Tracker.Items.* preferences + four gCombo.Tracker.Checks.* "
-                                    "preferences = 42");
+static_assert(kComboKeyCount == 45, "twenty-five gCombo.Rando.* identity keys + four gCombo.Windows.* "
+                                    "preferences + twelve gCombo.Tracker.Items.* preferences + four "
+                                    "gCombo.Tracker.Checks.* preferences = 45");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

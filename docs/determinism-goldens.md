@@ -31,10 +31,18 @@ tests/golden/seed-digest-armed-caps.txt   # --test rando-armed-caps-digest, ever
 tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_CVARS=gRandoSettings.ShuffleInteriorsEntrances=2,gRandoSettings.ShuffleOverworldEntrances=1
 tests/golden/seed-digest-excludes-tricks.txt     # --test rando-determinism, OoT and MM excludes and tricks (#982)
 tests/golden/seed-digest-shopsanity.txt          # --test rando-determinism, OoT Shop Shuffle with Balanced (drawn) prices (#982)
-tests/golden/seed-digest-mm-nearly-no-logic.txt  # RETIRED by #1367: no row reads it (see "The MM Logic variant")
 tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Direction=2 (#982)
-tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978)
+tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast Mask in OoT and Shared Blast Mask (#979)
+tests/golden/seed-digest-beatable-only.txt       # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=2 (#1367 R5)
+tests/golden/seed-digest-no-logic.txt            # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=1 (#1367 R5)
 ```
+
+Every golden without `gCombo.Rando.Logic` in its profile is an **All Locations**
+world: that is the shipped `[Both Games] Logic` since #1367 R5 (generator 4). The
+other two rungs have one golden each, `seed-digest-beatable-only` (the default
+before R5) and `seed-digest-no-logic` (no round: `bagRounds=0`). The file
+`seed-digest-mm-nearly-no-logic.txt`, which no row read after #1367, is deleted
+(see "The MM Logic variant").
 
 `GoldenSeedDigestPlayerPath` has no file of its own: it compares the player's path
 with `seed-digest-default.txt` (see "The player's path" below). Nor does
@@ -45,7 +53,8 @@ with it (see "The package path" below).
 in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
 pins nothing. This profile shuffles every interior and the overworld on the same
 seed and dispatch as `seed-digest-default` (132 overrides; the single bag places on
-its first attempt in 266 rounds (258 before #974 added the mask shop's masks), far from the fill's wall clock, so the golden does
+its first attempt in 268 rounds at generator 4 (266 at generator 3, 258 before #974
+added the mask shop's masks), far from the fill's wall clock, so the golden does
 not ride machine speed). A heavier profile with dungeon entrances shuffled too was
 measured first and rejected: on this seed its single bag hit the 30 s per-attempt
 budget of the time (1250 rounds, before the 2026-10-28 floor of 60 s), and a
@@ -152,8 +161,10 @@ capabilities. Four more profiles, on the same seed and dispatch as
 |---|---|---|
 | `seed-digest-excludes-tricks` | OoT excludes 24, 44, 144, 194, 301 and tricks 1, 2, 16, 21, 24; MM excluded checks 26, 77, 211; MM tricks `MMRT_LENS`, `MMRT_SCT_NOTHING`, `MMRT_BANK_ONE_WALLET` | a fill with per-check exclusions and extra tricks in both games; `ootExcludedLocations` and `ootEnabledTricks` say the sets took |
 | `seed-digest-shopsanity` | Shop Shuffle "Specific Count", four items, prices "Balanced" | OoT's drawn prices (`ootPriceDigest`) and shop items in the pool |
-| `seed-digest-mm-nearly-no-logic` | MM logic Nearly No Logic, the explicit choice the paired profile honoured (`Foreign.cpp`) | RETIRED by #1367: a paired world's MM Logic derives from [Both Games] Logic, so this profile is the default world (see "The MM Logic variant") |
+| `seed-digest-mm-nearly-no-logic` | MM logic Nearly No Logic, the explicit choice the paired profile honoured (`Foreign.cpp`) | RETIRED by #1367 (the file deleted by #1367 R5): a paired world's MM Logic derives from [Both Games] Logic, so this profile is the default world (see "The MM Logic variant") |
 | `seed-digest-direction-forward` | combo direction FORWARD (OoT items into MM checks only) | a one-way bag: `crossingsInOoT=0`, `bagHomeOnly` non-zero |
+| `seed-digest-beatable-only` (#1367 R5) | `[Both Games] Logic` Beatable Only | the rung without the All Locations pre-flight and every-location exit term (`comboSettings=.../r2`) |
+| `seed-digest-no-logic` (#1367 R5) | `[Both Games] Logic` No Logic | the base rung: no round (`bagRounds=0`), every row drawn from every empty host, OoT generated No Logic with All Locations Reachable off (`comboSettings=.../r1`) |
 
 **How a profile names its sets.** The harness (`Rando_HeadlessSeedTest`,
 `ReadGoldenProfileSets` in `3drando/menu.cpp`) reads three variables:
@@ -192,46 +203,93 @@ this golden. Before re-pinning, read the `[golden-profile]` log lines, which nam
 every OoT key and every MM key, and correct the ids in the table instead if they
 no longer name the same checks.
 
-All four are created on ladder attempt 1 in 266 rounds against the 2500-round
-per-attempt budget. `GoldenSeedsRoundBudget` checks three of them again, the ones
-that `RSBS_DIAG_CVARS` alone describes. Because every golden on `RSBSUNIFIED1`
-creates on attempt 1 in the same number of rounds, that row ties each entry to
-its golden by `bagSeed` as well, which folds the frozen identity (both games'
-settings hashes and the combo settings) and so differs per profile: an entry
-whose settings were dropped would generate the default world and fail on its
-bag seed. The excludes-and-tricks profile also needs the harness's sets, so its
-own golden row is where its creation inside the budget is checked.
+Every profile in the table is created on ladder attempt 1 against the 2500-round
+per-attempt budget. At generator 4 the excludes-and-tricks, Shop Shuffle and
+forward-direction profiles each fill in one batch attempt of 268 rounds;
+`seed-digest-beatable-only` takes two batch attempts, 531 rounds, and
+`seed-digest-no-logic` runs no round at all. `GoldenSeedsRoundBudget` checks the
+Shop Shuffle, forward-direction and Beatable Only profiles again, the ones that
+`RSBS_DIAG_CVARS` alone describes and that run a round. Round counts do not tell
+the profiles apart: `seed-digest-default` also takes two batch attempts (516
+rounds), and the other All Locations goldens mostly take 268. So that row ties
+each entry to its golden by `bagSeed` as well, which folds the frozen identity
+(both games' settings hashes and the combo settings) and so differs per profile:
+an entry whose settings were dropped would generate the default world and fail
+on its bag seed. The excludes-and-tricks profile also needs the harness's sets,
+so its own golden row is where its creation inside the budget is checked.
 
 ### The all-masks profile (#978)
 
 `seed-digest-all-masks` is `seed-digest-default`'s seed and dispatch with **every
-mask option on**. Today that means the five shared masks of P2 (#978):
-`gCombo.Rando.SharedMaskGoron`, `SharedMaskZora`, `SharedMaskBunny`,
-`SharedMaskKeaton` and `SharedMaskTruth`, OoTMM's five `sharedMask*` options. In
-this world the composer pairs each mask's two copies into one bag row (ABI 7).
+mask option on**. Today that means seven keys:
 
-Against `seed-digest-default`, the seed, `settingsHash`, `placementHash` and the
-rest of OoT's world at Generate do not move, because the rules are combo settings
-and OoT's settings string does not fold them. What moves:
+* the five shared masks of P2 (#978): `gCombo.Rando.SharedMaskGoron`,
+  `SharedMaskZora`, `SharedMaskBunny`, `SharedMaskKeaton` and `SharedMaskTruth`,
+  OoTMM's five `sharedMask*` options;
+* P4's first piece (#979): `gCombo.Rando.BlastMaskOoT` (OoTMM's `blastMaskOot`,
+  which adds the Blast Mask to OoT's pool) and `gCombo.Rando.SharedMaskBlast`
+  (`sharedMaskBlast`, which pairs it with Majora's Mask's copy).
 
-* `comboSettingsHash` (`04491853` to `010CA409`), which folds the five rule bits;
+In this world the composer pairs each mask's two copies into one bag row (ABI 7).
+The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
+`blastMaskCooldown`) is a value, not an on/off option, so the profile leaves it
+at Default.
+
+Against `seed-digest-default`, the five shared masks leave the seed, `settingsHash`,
+`placementHash` and the rest of OoT's world at Generate where they were, because
+the rules are combo settings and OoT's settings string does not fold them. What
+moved when #978 pinned the five shared masks:
+
+* `comboSettingsHash` (`FADB7B21` to `2769D409` at generator 4), which folds the
+  five rule bits;
 * `bagRows` (266 to 261) and `bagTrimmedMM` (29 to 34): five shared pairs, each
   keeping its OoT row and trimming its MM row to filler;
 * the bag's seed and rounds, and every placement, crossing, hint and foolish area
   after them.
 
 When it was pinned (generator version 3) it created on ladder attempt 1 in 262
-rounds.
+rounds. Re-pinned at generator version 4 (All Locations by default, #1367 R5), it
+creates on ladder attempt 1 in one batch attempt of 263 rounds.
+
+#979 re-pins it with the two Blast Mask keys, also at generator version 4 (#1392
+bumped the version to 4 in the same release window; this re-pin does not bump
+it again). The Blast Mask (OoT) rule adds the Blast Mask to OoT's pool and the
+shared rule pairs it with MM's Blast Mask, keeping the OoT row and trimming the MM
+one. Against the five-mask pin, measured:
+
+* `comboSettingsHash` (`2769D409` to `3DFE31F1`), which folds the two more rule
+  bits; `comboSettings` does not carry the item rules and stays;
+* `placementHash` (`568A4F87` to `B6E7890B`): unlike the shared masks, this rule
+  changes OoT's own pool at Generate (the creation freezes before Fill), so OoT's
+  world at Generate moves. The Blast Mask takes a junk item's place, so
+  `placedCount` stays 277, and `settingsHash` stays;
+* `bagTrimmedMM` (34 to 35): the sixth shared pair. `bagRows` stays 261 (OoT's
+  Blast Mask row in, MM's trimmed out);
+* the bag's seed and every placement, crossing, hint and foolish area after it
+  (`crossingsInOoT` 54 to 40, `crossingsInMM` 31 to 20).
+
+It still creates on ladder attempt 1 in one batch attempt of 263 rounds. The
+re-pin commit names every field and value that moved. Rule 6 does not bump
+`RSBS_GENERATOR_VERSION` for it: the world moved because this profile's inputs
+changed, and the two new bits are folded into `comboSettingsHash` already, so no
+two builds make different worlds behind one fingerprint. No world the profile
+did not change moves: both rules ship off, so every other golden stays
+byte-identical.
 
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
-this golden with its five keys and requires the frozen `crossItemFlags` to be
-exactly the five mask bits, `0000001F`. It requires `0` for every other golden. A
-misspelled key resolves off, and without this check the golden would record the
-default world's rules under this profile's name. The check fails as `FAIL(12)`.
+this golden with its seven keys and requires the frozen `crossItemFlags` to be
+exactly the seven mask bits, `0000083F` (the five shared masks `0000001F`,
+`RSBS_XITEM_BLAST_MASK_OOT` `00000020` and `RSBS_XITEM_SHARED_BLAST`
+`00000800`). It requires `0` for every other golden. A misspelled key resolves
+off, and without this check the golden would record the default world's rules
+under this profile's name. The check fails as `FAIL(12)`. The Shared Blast Mask
+needs its extension: with `BlastMaskOoT` dropped from the row, the resolver drops
+`SharedMaskBlast` too and the frozen rules read `0000001F`, which this check
+refuses.
 
 **P4 and P5 extend this golden; they do not add one.** P4 (#979: the Blast, Stone
-and Kamaro masks in Ocarina of Time) and P5 (#980: the Gerudo, Skull and Spooky
-masks in Majora's Mask) each do four things:
+and Kamaro masks in Ocarina of Time; the Blast Mask is done) and P5 (#980: the
+Gerudo, Skull and Spooky masks in Majora's Mask) each do four things:
 
 1. append their option keys to this row's `RSBS_DIAG_CVARS` in
    `REDSHIP_GOLDEN_DIGESTS`;
@@ -377,12 +435,13 @@ different fingerprint at file select than the same seed created by the old one.
 
 What a bump moves, and what it must not:
 
-* **`comboSettingsHash`** moves in the eight goldens that carry it
+* **`comboSettingsHash`** moves in the ten goldens that carry it
   (`seed-digest-default`, `seed-digest-profile-v1`, `seed-digest-entrances`,
   `seed-digest-armed-caps`, three of the four #982 added:
   `seed-digest-excludes-tricks`, `seed-digest-shopsanity`,
   `seed-digest-direction-forward` (the fourth, `seed-digest-mm-nearly-no-logic`,
-  was retired by #1367), and #978's `seed-digest-all-masks`).
+  was retired by #1367), #978's `seed-digest-all-masks`, and #1367 R5's
+  `seed-digest-beatable-only` and `seed-digest-no-logic`).
   `paired-attempt-digest` does not carry it. It
   is an INPUT field, so the checker reports it under
   "INPUT fields moved". A bump with nothing else moving is that line alone.
@@ -413,7 +472,21 @@ was the one pinned world that reached 64 crossings on a side: its `mmPlacementHa
 `coordinatorDigest`, `mmHintDigest` and `mmFreeStoneDigest` moved, its crossings did
 not. Every other golden moved `comboSettingsHash` only.
 
-`seed-digest-all-masks` (#978) was first pinned at version 3.
+Version 3 (2026-10-31, #1323): upstream OoT/MM pool, logic and `Ship_Random`
+backports; every world moved. `seed-digest-all-masks` (#978) was first pinned at
+version 3.
+
+Version 4 (2026-11-02, #1367 R5, PR #1392): `[Both Games] Logic` defaults to All Locations
+(record byte 9: `r2` -> `r3`, which moves `comboSettings`, `comboSettingsHash` and,
+in `seed-digest-armed-caps`, `armedTrimSeed`), and THE SHARED-QUANTITY CREDIT
+(`combo_logic.h`) credits each copy of a shared tier family to both games' logic,
+which moves every proving rung's candidate sets (`armedBagDigest` folds the new
+bag flag). Every golden's bag, crossing, placement and hint lines moved; OoT's own
+generation (`settingsHash`, `placementHash`, `placedCount`) did not.
+`seed-digest-beatable-only` and `seed-digest-no-logic` were pinned at version 4.
+#979 re-pinned `seed-digest-all-masks` at version 4, in the same release window,
+with the Blast Mask keys added to its profile (an input change, not a bump; see
+"The all-masks profile").
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 
@@ -790,12 +863,14 @@ digest files and sandbox never collide with `GoldenSeedDigestDefault`'s under
 Logic) and compares against `seed-digest-default.txt`. From #982 until #1367 the
 paired profile honoured an explicit MM Logic, and this row pinned its own world in
 `seed-digest-mm-nearly-no-logic.txt`. Since #1367 a paired world's MM Logic derives
-from [Both Games] Logic (Glitchless under the default Beatable Only, No Logic under
-No Logic), so the key must not reach the world and the digest must equal the
-default's exactly. Like the host-scale variant it sits outside
-`REDSHIP_GOLDEN_DIGESTS` and passes `-DRUN_TAG=seed-digest-mm-nearly-no-logic`.
-The old file is no longer read by any row. A No Logic golden
-(`gCombo.Rando.Logic=1`) is not pinned yet.
+from [Both Games] Logic (Glitchless under the proving rungs, All Locations by
+default since #1367 R5; No Logic under No Logic), so the key must not reach the
+world and the digest must equal the default's exactly. Like the host-scale variant
+it sits outside `REDSHIP_GOLDEN_DIGESTS` and passes
+`-DRUN_TAG=seed-digest-mm-nearly-no-logic`. The old file, read by no row since
+#1367, is deleted (#1367 R5), and the No Logic golden it left owed is
+`seed-digest-no-logic` (`gCombo.Rando.Logic=1`), in the table with
+`seed-digest-beatable-only`.
 
 `GoldenSeedsRoundBudget` (rando tier) creates each golden seed again under the
 shipped round budget and requires it on its pinned ladder attempt, with its

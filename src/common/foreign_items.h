@@ -672,6 +672,11 @@ bool Combo_ComboItemRulesValid(const ComboItemRulesRecord* rec);
  * under one-game semantics playing that file as if the rule were off is
  * corruption, not choice. A keyed rule that diverges is restored from the file
  * instead (frozen wins at load, #781).
+ *
+ * #979: a shared extension (RSBS_XITEM_SHARED_BLAST ...) whose extension key is
+ * off resolves off (OoTMM's `cond`), and the cooldown byte is the Blast Mask
+ * Cooldown key's (COMBO_SETTING_BLAST_MASK_COOLDOWN), so the result is always a
+ * record Combo_ComboItemRulesValid accepts.
  */
 void Combo_ResolveComboItemRules(ComboItemRulesRecord* out);
 
@@ -1143,8 +1148,13 @@ int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, co
  * 3 = upstream OoT/MM randomizer pool, logic, and Ship_Random off-by-one
  *     backports (SoH #6180/#6176/#6334/#7117/#7274/#7085/location logic,
  *     2S2H #1777/#1472/region logic).
+ * 4 = [Both Games] Logic defaults to All Locations (#1367 R5, PR #1392; OoTMM's default):
+ *     every new default world is proved over every location of both games, and
+ *     the proof credits a shared tier family's copies to both games' logic (the
+ *     shared-quantity credit), which moves every proving rung's placements.
+ *     Seed packages written by generator 3 are refused, as designed.
  */
-#define RSBS_GENERATOR_VERSION 3u
+#define RSBS_GENERATOR_VERSION 4u
 
 /**
  * The fingerprint formula at an explicit generator version:

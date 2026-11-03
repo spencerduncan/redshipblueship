@@ -297,8 +297,10 @@ TestResult SharedLensRule_Run(void) {
                      Combo_ComboSettingsDivergence() == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS,
                  "the undo must put the key back to unset");
 
-        // A rule no key authors (a later build's bit) is never restored, and
-        // neither is the Blast Mask cooldown.
+        // A rule no key authors (a later build's bit) is never restored. The Blast
+        // Mask cooldown has had a key since #979 (Blast Mask Cooldown), so a file's
+        // cooldown is restored beside its lens, and one outside the pinned space
+        // (a later build's) is not.
         const ComboItemRulesRecord later = SlRules(kSlLens | kSlLaterBuildBit);
         SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &later,
                                                    RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) == 0,
@@ -307,8 +309,13 @@ TestResult SharedLensRule_Run(void) {
         cooldown.blastMaskCooldown = (uint8_t)RSBS_BLAST_COOLDOWN_SHORT;
         SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &cooldown,
                                                    RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS |
+                                                       RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 1,
+                 "the Blast Mask cooldown has a key (#979), so a file's cooldown must be restorable");
+        cooldown.blastMaskCooldown = (uint8_t)(RSBS_BLAST_COOLDOWN_MAX + 1u);
+        SL_CHECK(Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &cooldown,
+                                                   RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS |
                                                        RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0,
-                 "the Blast Mask cooldown has no key, so it must not be claimed restorable");
+                 "a cooldown outside the pinned space (a later build's) must not be claimed restorable");
         ComboContext_Init();
     }
 

@@ -345,18 +345,24 @@ TestResult Test_CrossItemRulesRecord(void) {
     const uint32_t base = Combo_ComputeComboSettingsHash(&rec, kXirSettingsHash, kXirProfileDigest);
     // Vectors at the generator version (#1003): version 0 is the label-free value,
     // and version n extends the same FNV state by ':' || LE32(n). The production
-    // value is RSBS_GENERATOR_VERSION 3 (upstream OoT/MM pool & logic backports);
-    // version 1's and version 2's values stay pinned at explicit versions.
-    XIR_CHECK(base == 0x5C46A389u, "the shipped defaults' fingerprint is %08X, expected 5C46A389", (unsigned)base);
+    // value is RSBS_GENERATOR_VERSION 4 (#1367 R5: All Locations by default);
+    // versions 1 to 3 stay pinned at explicit versions. R5 also moved the shipped
+    // defaults themselves (record byte 9, the rung, 2 -> 3), so every vector over
+    // `rec` below moved with it; before R5 the defaults' were 5C46A389 (version 3),
+    // 0C1A6478, FC9F21AB and BA5FC364 (versions 2, 1, 0).
+    XIR_CHECK(base == 0xA06B18F7u, "the shipped defaults' fingerprint is %08X, expected A06B18F7", (unsigned)base);
+    XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, NULL, kXirSettingsHash, kXirProfileDigest, 3u) ==
+                  0x6F355F80u,
+              "the shipped defaults' version-3 fingerprint must stay 6F355F80");
     XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, NULL, kXirSettingsHash, kXirProfileDigest, 2u) ==
-                  0x0C1A6478u,
-              "the shipped defaults' version-2 fingerprint must stay 0C1A6478");
+                  0xBF619E91u,
+              "the shipped defaults' version-2 fingerprint must stay BF619E91");
     XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, NULL, kXirSettingsHash, kXirProfileDigest, 1u) ==
-                  0xFC9F21ABu,
-              "the shipped defaults' version-1 fingerprint must stay FC9F21AB");
+                  0x0F8DDDA2u,
+              "the shipped defaults' version-1 fingerprint must stay 0F8DDDA2");
     XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, NULL, kXirSettingsHash, kXirProfileDigest, 0u) ==
-                  0xBA5FC364u,
-              "the shipped defaults' version-0 fingerprint must stay BA5FC364");
+                  0xCEA3786Bu,
+              "the shipped defaults' version-0 fingerprint must stay CEA3786B");
     XIR_CHECK(Combo_ComputeComboSettingsHashEx(&rec, NULL, kXirSettingsHash, kXirProfileDigest) == base &&
                   Combo_ComputeComboSettingsHashEx(&rec, &defaults, kXirSettingsHash, kXirProfileDigest) == base,
               "an all-clear item-rules record MOVED the fingerprint: every world without a rule must keep its "
@@ -387,16 +393,19 @@ TestResult Test_CrossItemRulesRecord(void) {
         memset(&r, 0, sizeof(r));
         r.blastMaskCooldown = (uint8_t)RSBS_BLAST_COOLDOWN_SHORT;
         const uint32_t hc = Combo_ComputeComboSettingsHashEx(&rec, &r, kXirSettingsHash, kXirProfileDigest);
-        XIR_CHECK(hc == 0x784EDC17u, "the SHORT-cooldown fingerprint is %08X, expected 784EDC17", (unsigned)hc);
+        XIR_CHECK(hc == 0x1DD91517u, "the SHORT-cooldown fingerprint is %08X, expected 1DD91517", (unsigned)hc);
+        XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &r, kXirSettingsHash, kXirProfileDigest, 3u) ==
+                      0xECA35BA0u,
+                  "the SHORT-cooldown version-3 fingerprint must stay ECA35BA0");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &r, kXirSettingsHash, kXirProfileDigest, 2u) ==
-                      0x28229D06u,
-                  "the SHORT-cooldown version-2 fingerprint must stay 28229D06");
+                      0x3CCF9AB1u,
+                  "the SHORT-cooldown version-2 fingerprint must stay 3CCF9AB1");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &r, kXirSettingsHash, kXirProfileDigest, 1u) ==
-                      0xD7F65DF5u,
-                  "the SHORT-cooldown version-1 fingerprint must stay D7F65DF5");
+                      0x8CFBD9C2u,
+                  "the SHORT-cooldown version-1 fingerprint must stay 8CFBD9C2");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &r, kXirSettingsHash, kXirProfileDigest, 0u) ==
-                      0x1E7FDB76u,
-                  "the SHORT-cooldown version-0 fingerprint must be 1E7FDB76");
+                      0xCC25E98Bu,
+                  "the SHORT-cooldown version-0 fingerprint must be CC25E98B");
         for (int sp = 0; sp < 3; ++sp) {
             memset(&r, 0, sizeof(r));
             r.spare[sp] = 1u;
@@ -405,16 +414,19 @@ TestResult Test_CrossItemRulesRecord(void) {
         }
         const ComboItemRulesRecord on = XirOnRecord();
         const uint32_t hon = Combo_ComputeComboSettingsHashEx(&rec, &on, kXirSettingsHash, kXirProfileDigest);
-        XIR_CHECK(hon == 0xAFDB7400u, "the ON record's fingerprint is %08X, expected AFDB7400", (unsigned)hon);
+        XIR_CHECK(hon == 0x56B84E70u, "the ON record's fingerprint is %08X, expected 56B84E70", (unsigned)hon);
+        XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &on, kXirSettingsHash, kXirProfileDigest, 3u) ==
+                      0x87EE07E7u,
+                  "the ON record's version-3 fingerprint must stay 87EE07E7");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &on, kXirSettingsHash, kXirProfileDigest, 2u) ==
-                      0x0007B311u,
-                  "the ON record's version-2 fingerprint must stay 0007B311");
+                      0x37C1C8D6u,
+                  "the ON record's version-2 fingerprint must stay 37C1C8D6");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &on, kXirSettingsHash, kXirProfileDigest, 1u) ==
-                      0x5033F222u,
-                  "the ON record's version-1 fingerprint must stay 5033F222");
+                      0xE79589C5u,
+                  "the ON record's version-1 fingerprint must stay E79589C5");
         XIR_CHECK(Combo_ComputeComboSettingsHashForGeneratorEx(&rec, &on, kXirSettingsHash, kXirProfileDigest, 0u) ==
-                      0x3AC849EBu,
-                  "the ON record's version-0 fingerprint must be 3AC849EB");
+                      0x4D8B1306u,
+                  "the ON record's version-0 fingerprint must be 4D8B1306");
         printf("[TEST] (5) %d rules each move the fingerprint (base %08X, ON %08X, cooldown %08X)\n", seenCount,
                (unsigned)base, (unsigned)hon, (unsigned)hc);
     }
@@ -425,25 +437,27 @@ TestResult Test_CrossItemRulesRecord(void) {
         XirFreezeWorld(&on);
         XIR_CHECK(memcmp(&gComboCtx.comboItemRules, &on, sizeof(on)) == 0,
                   "FreezeComboSettingsEx must store the rules");
-        XIR_CHECK(gComboCtx.comboSettingsHash == 0xAFDB7400u,
-                  "the stamped fingerprint is %08X; the freeze must fold the rules (expected AFDB7400)",
+        XIR_CHECK(gComboCtx.comboSettingsHash == 0x56B84E70u,
+                  "the stamped fingerprint is %08X; the freeze must fold the rules (expected 56B84E70)",
                   (unsigned)gComboCtx.comboSettingsHash);
         // The bag folds the label-free value over the record AND its rules (#976 x
         // #1003): the rules stay in the world's seed, only the version comes off.
-        XIR_CHECK(Combo_ComboSettingsWorldHash() == 0x3AC849EBu,
-                  "the world hash of a ruled world is %08X; expected the version-0 value 3AC849EB",
+        XIR_CHECK(Combo_ComboSettingsWorldHash() == 0x4D8B1306u,
+                  "the world hash of a ruled world is %08X; expected the version-0 value 4D8B1306",
                   (unsigned)Combo_ComboSettingsWorldHash());
         // A file a pre-#1003 build of the rules stamped (version 0) is the same
         // healthy identity; only a hash no version reproduces is damage.
         XIR_CHECK(Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &on, kXirSettingsHash,
-                                                            kXirProfileDigest, 0x3AC849EBu) == 0 &&
+                                                            kXirProfileDigest, 0x4D8B1306u) == 0 &&
                       Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &on, kXirSettingsHash,
                                                                 kXirProfileDigest,
-                                                                0xAFDB7400u) == (int)RSBS_GENERATOR_VERSION &&
+                                                                0x56B84E70u) == (int)RSBS_GENERATOR_VERSION &&
                       Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &on, kXirSettingsHash,
-                                                                kXirProfileDigest, 0x0007B311u) == 2 &&
+                                                                kXirProfileDigest, 0x87EE07E7u) == 3 &&
                       Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &on, kXirSettingsHash,
-                                                                kXirProfileDigest, 0x5033F222u) == 1,
+                                                                kXirProfileDigest, 0x37C1C8D6u) == 2 &&
+                      Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &on, kXirSettingsHash,
+                                                                kXirProfileDigest, 0xE79589C5u) == 1,
                   "a ruled fingerprint must verify at every generator version this build knows");
         XIR_CHECK(Combo_ComboCrossItemFlags() == on.crossItemFlags &&
                       Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_GORON) &&
@@ -451,7 +465,7 @@ TestResult Test_CrossItemRulesRecord(void) {
                       Combo_ComboBlastMaskCooldown() == (uint8_t)RSBS_BLAST_COOLDOWN_SHORT,
                   "the frozen accessors must read the frozen record");
         Context_InvalidateSessionState(RSBS_SEED_STAMP_KEEP);
-        XIR_CHECK(memcmp(&gComboCtx.comboItemRules, &on, sizeof(on)) == 0 && gComboCtx.comboSettingsHash == 0xAFDB7400u,
+        XIR_CHECK(memcmp(&gComboCtx.comboItemRules, &on, sizeof(on)) == 0 && gComboCtx.comboSettingsHash == 0x56B84E70u,
                   "the file-create invalidation dropped the item rules while keeping the fingerprint over them");
         // Kept with its fingerprint, the record is not damage: the only fields the
         // session diff names are the two rules this session cannot author ((7)).
@@ -536,7 +550,11 @@ TestResult Test_CrossItemRulesRecord(void) {
 
     // ---- (7) Divergence ----------------------------------------------------------
     {
-        const ComboItemRulesRecord on = XirOnRecord();
+        // The ON record plus a rule no key of this build authors (the Stone Mask
+        // in OoT; #978 keyed the shared masks and #979 the Blast Mask and its
+        // cooldown, so the ON record alone is restorable now).
+        ComboItemRulesRecord on = XirOnRecord();
+        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
         XirFreezeWorld(&on);
         const uint32_t bits = Combo_ComboSettingsDivergence();
         char fields[256];
@@ -546,12 +564,13 @@ TestResult Test_CrossItemRulesRecord(void) {
                   "the session diff is %08X; a frozen rule this session would not freeze must be named, alone",
                   (unsigned)bits);
         XIR_CHECK(!Combo_ComboSettingsDivergenceIsDamage(bits), "a rule divergence is the session's, not damage");
-        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) == 0u,
-                  "no key authors the Blast Mask cooldown, so no load may claim to restore it");
-        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) == bits &&
+        XIR_CHECK((Combo_ComboSettingsRestorableMask() & RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN) != 0u,
+                  "#979 keyed the Blast Mask cooldown, so a load may restore it");
+        XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) ==
+                          RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
-                  "no key of this build authors these rules (only #1068's Shared Shields, #1065's lens, #1066's "
-                  "songs, #1067's ocarina buttons and #968's arrows have one), so no load may claim to restore them");
+                  "a frozen rule no key of this build authors (the Stone Mask in OoT) leaves crossItemFlags "
+                  "unrestorable, so no load may claim to restore it");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
                       strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN),
@@ -608,10 +627,12 @@ TestResult Test_CrossItemRulesRecord(void) {
         ComboContext_Init();
         XIR_CHECK(mgr.Load(0), "the rules-off file must load");
 
-        // A later build's file: a rule on.
+        // A later build's file: a rule on that no key of this build authors (the
+        // Stone Mask in OoT, beside the ON record's keyed rules).
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
-        const ComboItemRulesRecord on = XirOnRecord();
+        ComboItemRulesRecord on = XirOnRecord();
+        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
         XirFreezeWorld(&on);
         XirSeedShadows(0x77u);
         XIR_CHECK(mgr.Save(0), "Save(0) failed for the rules-on file");

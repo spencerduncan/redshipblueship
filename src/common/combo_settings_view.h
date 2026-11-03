@@ -141,10 +141,22 @@ typedef enum {
     // resolver never sets it and an unshuffled world keeps its all-clear record.
     COMBO_SETTING_SHARED_SWIM, // gCombo.Rando.SharedSwim -> RSBS_XITEM_SHARED_SWIM
     // #1367 (operator ruling 2026-11-02): the pair's ONE logic choice, OoTMM's
-    // `logic`, on the pinned RSBS_COMBO_RUNG_* enumerators: All Locations (3),
-    // Beatable Only (2, the default every earlier world froze) and No Logic (1).
+    // `logic`, on the pinned RSBS_COMBO_RUNG_* enumerators: All Locations (3, the
+    // default since #1367 R5, OoTMM's), Beatable Only (2, the default every world
+    // before that froze) and No Logic (1).
     // OoT's RSK_LOGIC_RULES and MM's RO_LOGIC derive from it at creation.
     COMBO_SETTING_LOGIC, // gCombo.Rando.Logic -> record.logicRung (RSBS_COMBO_RUNG_*)
+    // #979 (epic #975 P4): the Blast Mask in Ocarina of Time (OoTMM blastMaskOot)
+    // and the Shared Blast Mask (OoTMM sharedMaskBlast), the lens's shape: 0 or 1,
+    // default 0 each. The shared one is OoTMM's `cond` on the extension: the
+    // resolver drops it while the Blast Mask in OoT is off, so a world never
+    // freezes a shared extension without its extension.
+    COMBO_SETTING_BLAST_MASK_OOT,    // gCombo.Rando.BlastMaskOoT -> RSBS_XITEM_BLAST_MASK_OOT
+    COMBO_SETTING_SHARED_MASK_BLAST, // gCombo.Rando.SharedMaskBlast -> RSBS_XITEM_SHARED_BLAST
+    // #979: OoTMM's blastMaskCooldown, the item rules record's cooldown BYTE (not a
+    // bit), on the pinned RSBS_BLAST_COOLDOWN_* values 0..5; default 0 (Default,
+    // Majora's Mask's own cooldown), so an untouched world keeps its record.
+    COMBO_SETTING_BLAST_MASK_COOLDOWN, // gCombo.Rando.BlastMaskCooldown -> rules.blastMaskCooldown
     // #1389: OoTMM's `triforcePieces` and `triforceGoal`, the pair's ONE Triforce
     // Hunt (read only under the triforce-hunt goal). 1..RSBS_TRIFORCE_COMBO_MAX
     // (255, OoT's 8-bit counter; OoTMM allows 999), defaults 30 and 20. Not fields
@@ -337,7 +349,8 @@ typedef struct ComboSettingsKeyUndo {
  * Restores only when EVERY bit of @p divergedBits is a player-authorable rule
  * (Combo_ComboSettingsRestorableMask: goal, the logic rung since #1367, the
  * Triforce Hunt's pieces and goal since #1389 (through the Ex form), crossing
- * direction, the Shared Kokiri Sword, and the item rules' crossItemFlags when every bit that differs
+ * direction, the Shared Kokiri Sword, the Blast Mask cooldown byte since #979,
+ * and the item rules' crossItemFlags when every bit that differs
  * from the session has a key: today the Shared Shields, #1068, the Shared
  * Lens of Truth, #1065, the Shared Ocarina Buttons, #1067, the Shared Song
  * of Time, #1069, and the Shared Bottles, #970), the CVar

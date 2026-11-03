@@ -26,6 +26,8 @@ this list, the issue link is the place to add detail.
 
 **A paired file saved by a build before `9cd7bf7e` (`v0.4.2-alpha` and older) whose last save was in Termina or at a crossing opens on `v0.4.3-alpha` and later with Ocarina of Time's randomizer data shifted: save it once in Hyrule on the build that wrote it before you update, or start a new file** (see "A paired file from before `v0.4.3-alpha` last saved in Termina or at a crossing loads Ocarina of Time's randomizer data shifted" under "Save loss and corruption").
 
+**A seed package exported by any build before PR [#1392](https://github.com/spencerduncan/redshipblueship/pull/1392) is refused (seed generator version 4): generate the seed again** (see "Seed packages from builds before PR #1392 are refused" under "Randomizer generation").
+
 **A seed package exported by any build before `3177aa00` is refused (seed generator version 3): generate the seed again** (see "Seed packages from builds before `3177aa00` are refused" under "Randomizer generation").
 
 **On `v0.3.1-prealpha` and every build before `b302dc7f`, rupees, hearts, magic and ammo earned or spent after loading a paired file are lost or refunded at your first save or crossing, and a file saved in Termina shows stale wallet, bags and hearts in Hyrule until the first crossing; builds from `b302dc7f` on fix it** (see "Money, hearts, magic or ammo earned after loading a paired file are lost" under "Save loss and corruption").
@@ -1611,6 +1613,22 @@ state (PRs [#751](https://github.com/spencerduncan/redshipblueship/pull/751), [#
 ---
 
 ## Randomizer generation
+
+### Seed packages from builds before PR #1392 are refused (PR [#1392](https://github.com/spencerduncan/redshipblueship/pull/1392))
+
+**What you see.** On a build with PR #1392, Randomizer > General > Seed Package > Load seed package on a package exported by any earlier build is refused ("Seed package from another generator") and stages nothing. The same seed and settings also show a different fingerprint at file select, and make a different world, than on an older build.
+
+**Why.** PR #1392 makes All Locations the default `[Both Games] Logic` (OoTMM's default) and counts a shared tier family's copies (the wallet, magic, quivers, bomb bags and Double Defense, and stick and nut capacity when both games' pools hold it) in both games' logic, which moves every world, so the seed generator's version went from 3 to 4, as the determinism rules require (`docs/determinism-goldens.md`, rule 6). A package records the generator version that made it, and a build loads only its own.
+
+**What to do.** Generate the seed again from the same seed and settings on the new build.
+
+### After loading an older paired file, `[Both Games] Logic` reads Beatable Only (PR [#1392](https://github.com/spencerduncan/redshipblueship/pull/1392))
+
+**What you see.** You load a paired file made before PR #1392, and a "Restored from file: Logic" toast appears. Randomizer > Cross-Game > `[Both Games] Logic` now reads Beatable Only, and the next file you generate is a Beatable Only world, not an All Locations one.
+
+**Why.** Every paired world made before PR #1392 was proved at Beatable Only, and the file keeps the rung it was made with. Loading it puts that rung back into the row, as a load does for the win condition, so the session matches the file. The row is not set back afterwards.
+
+**What to do.** Nothing for the file you loaded. Before generating a new seed, set `[Both Games] Logic` back to All Locations if you want the new default.
 
 ### Seed packages from builds before `3177aa00` are refused (PR [#1323](https://github.com/spencerduncan/redshipblueship/pull/1323))
 

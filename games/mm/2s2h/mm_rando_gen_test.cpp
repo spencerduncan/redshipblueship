@@ -3180,8 +3180,9 @@ extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
  * `bagRounds` and `mmPairedAttempt` must match too, which ties this row to the
  * pinned worlds rather than to look-alikes. `bagSeed` is the part that tells the
  * profiles apart (#982): every seed-digest golden on RSBSUNIFIED1 creates on
- * attempt 1 in the same number of rounds, so an entry whose settings were dropped
- * or misspelled would generate the default world and still match those two, but
+ * attempt 1, most in 268 rounds (the default and Beatable Only in two batch
+ * attempts, 516 and 531), so an entry whose settings were dropped or misspelled
+ * could generate a look-alike world and still match those two, but
  * the bag's seed folds the frozen identity (both games' settings hashes and the
  * combo settings, Combo_SingleBag_SeedFor) and differs per golden. The row prints
  * each seed's headroom.
@@ -3198,9 +3199,10 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         return up;
     }
 
-    // #978: five, for the all-masks golden's five shared-mask keys. The mask phases
-    // P4 (#979) and P5 (#980) add their options to that profile and widen this.
-    static constexpr int kGoldenCVarCap = 5;
+    // #978: the all-masks golden's keys: five shared masks, then #979's Blast Mask
+    // in OoT and Shared Blast Mask. The rest of P4 (#979) and P5 (#980) add their
+    // options to that profile and widen this.
+    static constexpr int kGoldenCVarCap = 7;
     struct GoldenSeed {
         const char* golden;
         const char* ootSeed;
@@ -3237,16 +3239,23 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         // world (GoldenSeedDigestMMNearlyNoLogic now compares it with that golden).
         { "seed-digest-direction-forward", "RSBSUNIFIED1", { "gCombo.Rando.Direction", nullptr, nullptr }, { 2, 0, 0 },
           0, 1 },
-        // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS).
+        // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS);
+        // #979 added the Blast Mask in OoT and its shared pair (0000083F).
         { "seed-digest-all-masks",
           "RSBSUNIFIED1",
           { "gCombo.Rando.SharedMaskGoron", "gCombo.Rando.SharedMaskZora", "gCombo.Rando.SharedMaskBunny",
-            "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth" },
-          { 1, 1, 1, 1, 1 },
+            "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth", "gCombo.Rando.BlastMaskOoT",
+            "gCombo.Rando.SharedMaskBlast" },
+          { 1, 1, 1, 1, 1, 1, 1 },
           0,
           1,
           RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |
-              RSBS_XITEM_SHARED_TRUTH },
+              RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_SHARED_BLAST },
+        // #1367 R5: the default is All Locations, so Beatable Only, the default before
+        // it, has its own golden. seed-digest-no-logic has no entry: No Logic runs no
+        // round, so there is no round budget to fit (its golden row pins the world).
+        { "seed-digest-beatable-only", "RSBSUNIFIED1", { "gCombo.Rando.Logic", nullptr, nullptr }, { 2, 0, 0 }, 0,
+          1 },
         { "paired-attempt-digest", kLadderSeed, { nullptr, nullptr, nullptr }, { 0, 0, 0 }, kLadderInjectedRungs,
           kLadderInjectedRungs + 1 },
     };

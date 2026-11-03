@@ -61,6 +61,11 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_TRUTH, "Shared Mask of Truth" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_SWIM, "Shared Swim" },
     { RSBS_CVAR_COMBO_RANDO_LOGIC, "Logic" }, // #1367: OoTMM's `logic`, under its own name
+    // #979: OoTMM's blastMaskOot, sharedMaskBlast and blastMaskCooldown, under
+    // OoTMM's own names.
+    { RSBS_CVAR_COMBO_RANDO_BLAST_MASK_OOT, "Blast Mask (OoT)" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_BLAST, "Shared Blast Mask" },
+    { RSBS_CVAR_COMBO_RANDO_BLAST_MASK_COOLDOWN, "Blast Mask Cooldown" },
     // #1389: OoTMM's `triforcePieces` and `triforceGoal`, under their own names.
     { RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, "Triforce Pieces" },
     { RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, "Triforce Goal" },
@@ -95,6 +100,8 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_MASK_KEATON, RSBS_XITEM_SHARED_KEATON },              // #978
     { COMBO_SETTING_SHARED_MASK_TRUTH, RSBS_XITEM_SHARED_TRUTH },                // #978
     { COMBO_SETTING_SHARED_SWIM, RSBS_XITEM_SHARED_SWIM },                       // #1369, shuffle-gated
+    { COMBO_SETTING_BLAST_MASK_OOT, RSBS_XITEM_BLAST_MASK_OOT },                 // #979, an extension
+    { COMBO_SETTING_SHARED_MASK_BLAST, RSBS_XITEM_SHARED_BLAST },                // #979, needs the extension
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -131,7 +138,7 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_GOAL:
             return (int32_t)defaults.goal;
         case COMBO_SETTING_LOGIC:
-            // #1367: Beatable Only, the rung every world before the key froze.
+            // #1367 R5: All Locations, OoTMM's default (Beatable Only before it).
             return (int32_t)defaults.logicRung;
         case COMBO_SETTING_SHARED_KOKIRI_SWORD:
             // A BIT of the defaults record, read the way its siblings read their
@@ -151,12 +158,21 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_SHARED_MASK_ZORA:       // #978
         case COMBO_SETTING_SHARED_MASK_BUNNY:      // #978
         case COMBO_SETTING_SHARED_MASK_KEATON:     // #978
-        case COMBO_SETTING_SHARED_MASK_TRUTH: {    // #978
-            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978),
+        case COMBO_SETTING_SHARED_MASK_TRUTH:      // #978
+        case COMBO_SETTING_BLAST_MASK_OOT:         // #979
+        case COMBO_SETTING_SHARED_MASK_BLAST: {    // #979
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978, #979),
             // the same one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
             return (rulesDefaults.crossItemFlags & ItemRuleBitFor(id)) != 0u ? 1 : 0;
+        }
+        case COMBO_SETTING_BLAST_MASK_COOLDOWN: {
+            // #979: the item rules' cooldown BYTE, read off the same defaults
+            // record (RSBS_BLAST_COOLDOWN_DEFAULT: Majora's Mask's own cooldown).
+            ComboItemRulesRecord rulesDefaults;
+            Combo_ComboItemRulesDefaults(&rulesDefaults);
+            return (int32_t)rulesDefaults.blastMaskCooldown;
         }
         case COMBO_SETTING_SHARED_SWIM:
             // #1369 (operator ruling 2026-11-02): the one item rule that ships
@@ -217,10 +233,16 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_MASK_KEATON:     // #978, the same
         case COMBO_SETTING_SHARED_MASK_TRUTH:      // #978, the same
         case COMBO_SETTING_SHARED_SWIM:            // #1369, the same
+        case COMBO_SETTING_BLAST_MASK_OOT:         // #979, the same
+        case COMBO_SETTING_SHARED_MASK_BLAST:      // #979, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
             return value == 0 || value == 1;
+        case COMBO_SETTING_BLAST_MASK_COOLDOWN:
+            // #979: the six pinned RSBS_BLAST_COOLDOWN_* values and nothing else; a
+            // value past the table is a cooldown this build has no frame count for.
+            return value >= (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT && value <= (int32_t)RSBS_BLAST_COOLDOWN_MAX;
         case COMBO_SETTING_TRIFORCE_PIECES: // #1389
         case COMBO_SETTING_TRIFORCE_GOAL:
             // 1..255: a hunt places at least one piece and asks for at least one,
@@ -420,7 +442,8 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_GOAL, COMBO_SETTING_GOAL },
     // #1367: the logic rung has a key now, so a file made at one rung and met by
     // a session staged at another puts its own rung back, like the goal. Every
-    // world made before the key froze Beatable Only, the key's default.
+    // world made before the key froze Beatable Only, the key's default then; the
+    // default is All Locations since #1367 R5, and those worlds load as they were.
     { RSBS_COMBO_DIVERGE_LOGIC_RUNG, COMBO_SETTING_LOGIC },
     // #1389: the Triforce Hunt's pieces and goal, beside the goal they serve.
     // One divergence bit for both keys; each is written only when it differs.
@@ -449,6 +472,10 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_KEATON },     // #978
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_TRUTH },      // #978
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SWIM },            // #1369
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_BLAST_MASK_OOT },         // #979
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BLAST },      // #979
+    // #979: the cooldown BYTE has its own divergence bit and, since #979, a key.
+    { RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN, COMBO_SETTING_BLAST_MASK_COOLDOWN },
 };
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
@@ -495,9 +522,15 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_MASK_BUNNY:
         case COMBO_SETTING_SHARED_MASK_KEATON:
         case COMBO_SETTING_SHARED_MASK_TRUTH:
-        case COMBO_SETTING_SHARED_SWIM: // #1369
+        case COMBO_SETTING_SHARED_SWIM:       // #1369
+        case COMBO_SETTING_BLAST_MASK_OOT:    // #979
+        case COMBO_SETTING_SHARED_MASK_BLAST: // #979
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
+        case COMBO_SETTING_BLAST_MASK_COOLDOWN:
+            // #979: the file's cooldown byte (NULL: the default).
+            return frozenRules != nullptr ? (int32_t)frozenRules->blastMaskCooldown
+                                          : (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT;
         default:
             return 0;
     }

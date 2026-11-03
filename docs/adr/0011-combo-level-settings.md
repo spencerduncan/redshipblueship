@@ -2076,3 +2076,42 @@ Cross-Game Rules row, "[Both Games] Shared Swim", key `gCombo.Rando.SharedSwim`
 Locked by `CrossItemRulesRecord`, `SharedSwimRule`, `SharedSwimPairs`,
 `SharedSwimArrival`, `ComboItemView`, `ComboSettingsRows`, `ComboSettingsFormat`
 and `CVarClassification`.
+
+### 2026-11-02 -- The Blast Mask in Ocarina of Time, its shared variant and its cooldown (#979)
+
+Epic #975 P4's first piece, OoTMM's `blastMaskOot`, `sharedMaskBlast` and
+`blastMaskCooldown`, all off or Default, so no default world moves. The one golden
+that moves is #978's all-masks profile (`seed-digest-all-masks`), which gains the
+two on/off keys and is re-pinned (`docs/determinism-goldens.md`, "The all-masks
+profile"). A new "Cross-Game Masks" section (OoTMM's own, after Shared Items)
+holds three rows:
+
+- **"[Both Games] Blast Mask (OoT)"**, key `gCombo.Rando.BlastMaskOoT` (0 or 1,
+  IDENTITY), the reserved extension bit `RSBS_XITEM_BLAST_MASK_OOT` 0x20. Frozen
+  on, OoT's pool gains `RG_BLAST_MASK`, a child trade mask (custom ItemID
+  `ITEM_MASK_BLAST` after Roc's Feather, never SLOT()-indexed; flag
+  `RAND_INF_OBTAINED_BLAST_MASK`), worn through #977's foreign-mask field, and
+  OoT's logic counts it where OoTMM's `can_use_mask_blast` does.
+- **"[Both Games] Shared Blast Mask"**, key `gCombo.Rando.SharedMaskBlast` (0 or
+  1, IDENTITY), the reserved shared-extension bit `RSBS_XITEM_SHARED_BLAST`
+  0x800, a family: OoT's `RG_BLAST_MASK` and MM's `RI_MASK_BLAST`. OoTMM shows it
+  only while the extension is on (`cond`); here the row greys with that reason
+  and shows off, and `Combo_ResolveComboItemRules` drops the bit while the
+  extension key is off, so the resolver never makes a record
+  `Combo_ComboItemRulesValid` refuses.
+- **"[Both Games] Blast Mask Cooldown"**, key `gCombo.Rando.BlastMaskCooldown`
+  (0..5 on the pinned `RSBS_BLAST_COOLDOWN_*`, IDENTITY), the record's cooldown
+  byte, which had no key until now; its divergence bit
+  (`RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN`) becomes restorable at load. OoTMM's
+  frames (Default is Majora's Mask's own 310) apply to both games' Blast Mask;
+  Majora's Mask's No Blast Mask Cooldown enhancement still removes it in both.
+  OoTMM lists it under Main > Misc; it sits with the mask on this one-column
+  page.
+
+Capacity spent: three `ComboSettingId`s, three identity keys (manifest 40 to
+43, identity 20 to 23), no new `RSBS_XITEM_*` bits, format bytes, divergence
+bits or shared-resource slots. Locked by `BlastMaskOoTRule`,
+`BlastMaskOoTItems`, `CrossItemRulesRecord`, `ComboSettingsRows`,
+`ComboSettingsAuthoring`, `SharedLensRule`, `CVarClassification`,
+`GoldenSeedDigestAllMasks` and `GoldenSeedsRoundBudget` (whose all-masks entry
+requires the frozen item rules `0000083F`).

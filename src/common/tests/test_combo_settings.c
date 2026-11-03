@@ -231,8 +231,9 @@ TestResult Test_ComboSettingsFormat(void) {
               "the shipped default item classes must be every allocated bit — today's pools are filtered by no "
               "class at all, so a narrower default silently narrows them at increment 3");
     CS_ASSERT(defaults.goal == RSBS_COMBO_GOAL_BEAT_BOTH, "the default GOAL must stay beat-both (ADR 0010 O11)");
-    CS_ASSERT(defaults.logicRung == RSBS_COMBO_RUNG_BEATABLE,
-              "the default rung must be the proved no-tricks rung, never base `none` (ADR 0010 O11)");
+    CS_ASSERT(defaults.logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE,
+              "the default rung must be All Locations, OoTMM's default and a proved no-tricks rung, never base "
+              "`none` (ADR 0010 O11, amended by #1367 R5; Beatable Only before it)");
     CS_ASSERT(defaults.comboFlags == 0,
               "the shipped default must have every comboFlags bit CLEAR (#668): each one changes a world, and "
               "'reproduce today's world exactly' binds every default in this file");
@@ -488,19 +489,33 @@ TestResult Test_ComboSettingsCanonical(void) {
 
     // The SHIPPED DEFAULTS get their own vector: they are what every legacy
     // pair and every increment-1 world freezes, so a default change must be a
-    // deliberate red test rather than an invisible identity shift.
+    // deliberate red test rather than an invisible identity shift. #1367 R5 was
+    // one: byte 9 (logicRung) went 0x02 -> 0x03 when All Locations became the
+    // default, which moved these fingerprints (the old defaults, Beatable Only,
+    // were 0xBA5FC364 at version 0 and 0xFC9F21AB at version 1; that record is
+    // pinned below as the worlds frozen before R5).
     ComboSettingsRecord defaults;
     Combo_ComboSettingsDefaults(&defaults);
     Combo_ComboSettingsCanonical(&defaults, canon);
     static const uint8_t kDefaultsCanonGold[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = {
-        0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x02, 0x00, 0x00,
+        0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x03, 0x00, 0x00,
     };
     CS_ASSERT(memcmp(canon, kDefaultsCanonGold, sizeof(kDefaultsCanonGold)) == 0,
               "the shipped defaults' canonical bytes changed — every new world's identity just moved");
-    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 0u) == 0xBA5FC364u,
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 0u) == 0xCEA3786Bu,
               "the shipped defaults' legacy (version 0) fingerprint changed");
-    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 1u) == 0xFC9F21ABu,
+    CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&defaults, kSettingsHash, kProfileDigest, 1u) == 0x0F8DDDA2u,
               "the shipped defaults' version-1 fingerprint changed");
+    // The worlds frozen at the pre-R5 default (Beatable Only) keep their identity:
+    // the record is the record, and only the default moved.
+    {
+        ComboSettingsRecord beatable = defaults;
+        beatable.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
+        CS_ASSERT(
+            Combo_ComputeComboSettingsHashForGenerator(&beatable, kSettingsHash, kProfileDigest, 0u) == 0xBA5FC364u &&
+                Combo_ComputeComboSettingsHashForGenerator(&beatable, kSettingsHash, kProfileDigest, 1u) == 0xFC9F21ABu,
+            "a world frozen at the pre-#1367-R5 default (Beatable Only) moved off its fingerprint vectors");
+    }
 
     // --- The comboFlags vector: SET moves it, CLEAR does not (#668) ---------
     // Both halves matter and they are different claims.
@@ -520,7 +535,7 @@ TestResult Test_ComboSettingsCanonical(void) {
         ComboSettingsRecord flagged = defaults;
         flagged.comboFlags = (uint8_t)RSBS_COMBO_FLAG_SHARED_OCARINA;
         static const uint8_t kSharedOcarinaCanonGold[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = {
-            0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x02, 0x01, 0x00,
+            0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x03, 0x01, 0x00,
         };
         uint8_t flaggedCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
         Combo_ComboSettingsCanonical(&flagged, flaggedCanon);
@@ -530,9 +545,9 @@ TestResult Test_ComboSettingsCanonical(void) {
         CS_ASSERT(memcmp(flaggedCanon, kDefaultsCanonGold, 10) == 0 && flaggedCanon[11] == kDefaultsCanonGold[11],
                   "setting the shared-ocarina flag changed a byte OTHER than byte 10");
         CS_ASSERT(
-            Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 0u) == 0x0B1A2145u &&
-                Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 1u) == 0xF7DE7DACu,
-            "the shared-ocarina world's fingerprint moved off its vector");
+            Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 0u) == 0x81422D22u &&
+                Combo_ComputeComboSettingsHashForGenerator(&flagged, kSettingsHash, kProfileDigest, 1u) == 0x1ABE4059u,
+            "the shared-ocarina world's fingerprint moved off its vector (the defaults' record since #1367 R5)");
         CS_ASSERT(Combo_ComputeComboSettingsHash(&flagged, kSettingsHash, kProfileDigest) !=
                       Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest),
                   "turning the shared ocarina ON did not change comboSettingsHash — a world rule outside the "
@@ -541,7 +556,7 @@ TestResult Test_ComboSettingsCanonical(void) {
         ComboSettingsRecord cleared = flagged;
         cleared.comboFlags = 0u;
         CS_ASSERT(Combo_ComputeComboSettingsHashForGenerator(&cleared, kSettingsHash, kProfileDigest, 0u) ==
-                          0xBA5FC364u &&
+                          0xCEA3786Bu &&
                       Combo_ComputeComboSettingsHash(&cleared, kSettingsHash, kProfileDigest) ==
                           Combo_ComputeComboSettingsHash(&defaults, kSettingsHash, kProfileDigest),
                   "clearing the shared-ocarina flag did not return the fingerprint to the shipped defaults' — "
@@ -1119,14 +1134,15 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
     // The same vector Test_ComboSettingsCanonical pins; restated here so THIS
     // row is red on its own if the defaults drift, without a reader having to
     // notice that a different row went red for a related reason.
+    // #1367 R5: byte 9 is All Locations (0x03), the default since then.
     static const uint8_t kDefaultsCanon[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = {
-        0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x02, 0x00, 0x00,
+        0x01, 0x04, 0x08, 0x08, 0x3F, 0x00, 0x3F, 0x00, 0x01, 0x03, 0x00, 0x00,
     };
     static const uint32_t kSettingsHash = 0xDEADBEEFu;
     static const uint32_t kProfileDigest = 0x0BADF00Du;
     // Pinned at the legacy formula (version 0) so a bump of RSBS_GENERATOR_VERSION
     // re-pins nothing here (#1003); the production value is derived from it below.
-    static const uint32_t kDefaultsFingerprintV0 = 0xBA5FC364u;
+    static const uint32_t kDefaultsFingerprintV0 = 0xCEA3786Bu;
     uint8_t canon[RSBS_COMBO_SETTINGS_CANONICAL_LEN];
     Combo_ComboSettingsCanonical(&live, canon);
     CS_ASSERT(memcmp(canon, kDefaultsCanon, sizeof(kDefaultsCanon)) == 0,
@@ -1330,9 +1346,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
 
         // A file whose other differing rule only a later build authors: the key
         // alone cannot answer it, so nothing is written and the load refuses.
-        // (An extension: #978 keyed the five shared masks.)
+        // (An extension: #978 keyed the five shared masks and #979 the Blast Mask
+        // in OoT; the Stone Mask in OoT has no key yet.)
         ComboItemRulesRecord later = rulesOn;
-        later.crossItemFlags |= (uint32_t)RSBS_XITEM_BLAST_MASK_OOT;
+        later.crossItemFlags |= (uint32_t)RSBS_XITEM_STONE_MASK_OOT;
         Combo_FreezeComboSettingsEx(&rec, &later);
         CVarClear(Combo_ComboSettingKey(COMBO_SETTING_SHARED_SHIELDS));
         const uint32_t laterBits = Combo_ComboSettingsDivergence();
@@ -1985,10 +2002,10 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         CS_ASSERT(strcmp(Combo_ComboSettingKey(COMBO_SETTING_LOGIC), RSBS_CVAR_COMBO_RANDO_LOGIC) == 0 &&
                       strcmp(Combo_ComboSettingLabel(COMBO_SETTING_LOGIC), "Logic") == 0,
                   "(11) the logic setting is gCombo.Rando.Logic, labelled \"Logic\" (OoTMM's name)");
-        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE &&
+        CS_ASSERT(Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE &&
                       Combo_ComboSettingDefault(COMBO_SETTING_LOGIC) == (int32_t)defaults.logicRung,
-                  "(11) the logic default must stay Beatable Only, the rung every earlier world froze (the flip "
-                  "to All Locations is its own lane, with the golden re-pin)");
+                  "(11) the logic default must be All Locations, OoTMM's default (#1367 R5; every world before it "
+                  "froze Beatable Only)");
         struct LogicProbe {
             int32_t value;
             bool valid;
@@ -2014,16 +2031,16 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                       Combo_LogicRungProves((uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE) && !Combo_LogicRungProves(4),
                   "(11) only Beatable Only and All Locations claim a proof");
 
-        // Nothing authored: the shipped record, byte 9 = 2, and its fingerprint.
+        // Nothing authored: the shipped record, byte 9 = 3, and its fingerprint.
         ComboSettingsRecord unset;
         Combo_ResolveComboSettings(&unset);
         CS_ASSERT(ComboSettingsRecordsEqual(unset, defaults) &&
-                      Combo_ComboSettingsLogicRungShown() == (uint8_t)RSBS_COMBO_RUNG_BEATABLE,
-                  "(11) an unset logic key must resolve the shipped record (Beatable Only)");
+                      Combo_ComboSettingsLogicRungShown() == (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE,
+                  "(11) an unset logic key must resolve the shipped record (All Locations)");
 
         // Each authored rung reaches record byte 9 and moves the fingerprint.
         const uint32_t unsetFingerprint = Combo_ComputeComboSettingsHash(&unset, kSettingsHash, kProfileDigest);
-        for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE }) {
+        for (const uint8_t rung : { (uint8_t)RSBS_COMBO_RUNG_NONE, (uint8_t)RSBS_COMBO_RUNG_BEATABLE }) {
             CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)rung) == 1,
                       "(11) an in-space rung must be authorable while nothing is frozen");
             ComboSettingsRecord authoredRung;
@@ -2040,18 +2057,34 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
                       Combo_ComboSettingSet(COMBO_SETTING_LOGIC, 0) == 0,
                   "(11) the writer must refuse a rung outside the pinned table");
         CVarSetInteger(Combo_ComboSettingKey(COMBO_SETTING_LOGIC), 7); // out of band: a hand-edited config
-        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_BEATABLE,
+        CS_ASSERT(Combo_ComboSettingResolved(COMBO_SETTING_LOGIC) == (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE,
                   "(11) an out-of-space stored rung must resolve to the shipped default, never a new rung");
         CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_LOGIC) == 1, "(11) clear the out-of-space rung");
 
-        // An EXISTING world: frozen Beatable Only, met by an untouched key. Nothing
-        // diverges, so nothing is refused or restored.
+        // A world of the shipped default (All Locations), met by an untouched key:
+        // nothing diverges, so nothing is refused or restored.
         ComboSettingsArmPairing(0xA07A1367u, kSettingsHash, kProfileDigest);
+        ComboSettingsRecord fresh;
+        Combo_ComboSettingsDefaults(&fresh);
+        Combo_FreezeComboSettings(&fresh);
+        CS_ASSERT(Combo_ComboSettingsDivergence() == 0,
+                  "(11) a world of the shipped default must compare healthy with the logic key unset");
+
+        // An EXISTING world: frozen Beatable Only, the default before #1367 R5. The
+        // untouched key now resolves All Locations, so it diverges as exactly the
+        // rung: a session divergence the load restores (kRestorable), never damage,
+        // so every world made before the flip still loads.
         ComboSettingsRecord existing;
         Combo_ComboSettingsDefaults(&existing);
+        existing.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
         Combo_FreezeComboSettings(&existing);
-        CS_ASSERT(Combo_ComboSettingsDivergence() == 0,
-                  "(11) an existing (Beatable Only) world must compare healthy with the logic key unset");
+        const uint32_t untouchedBits = Combo_ComboSettingsDivergence();
+        CS_ASSERT(untouchedBits == RSBS_COMBO_DIVERGE_LOGIC_RUNG &&
+                      !Combo_ComboSettingsDivergenceIsDamage(untouchedBits) &&
+                      Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                        untouchedBits) == 1,
+                  "(11) an existing (Beatable Only) world met by the untouched key (All Locations now) must diverge "
+                  "as exactly logicRung, restorably, not as damage");
         CS_ASSERT(Combo_ComboSettingSet(COMBO_SETTING_LOGIC, (int32_t)RSBS_COMBO_RUNG_NONE) == 0,
                   "(11) the logic writer must refuse once the world is frozen");
 
@@ -2093,7 +2126,12 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         ComboContext_Init();
         ComboSettingsSeedShadows(0x13u);
         ComboSettingsArmPairing(0xA07A1367u, 0x5E771367u, 0x11FE1367u);
-        Combo_FreezeComboSettings(NULL); // what an existing world froze: the resolver with the key unset
+        // What an existing world froze: the resolver with the key unset, when its
+        // default was Beatable Only (before #1367 R5).
+        ComboSettingsRecord existingResolved;
+        Combo_ResolveComboSettings(&existingResolved);
+        existingResolved.logicRung = (uint8_t)RSBS_COMBO_RUNG_BEATABLE;
+        Combo_FreezeComboSettings(&existingResolved);
         CS_ASSERT(gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_BEATABLE,
                   "(11) the existing world froze Beatable Only");
         CS_ASSERT(mgr.Save(0), "(11) Save(0) failed for the rung-restore leg");
@@ -2115,8 +2153,8 @@ extern "C" int Combo_SettingsAuthoring_RunHeadless(void) {
         mgr.SetSaveDirectory(kComboSettingsTestDir());
         ComboContext_Init();
         CS_ASSERT(Combo_ComboSettingClear(COMBO_SETTING_LOGIC) == 1, "(11) clear the logic key");
-        printf("[TEST] (11) #1367: the Logic key authors byte 9 over the three pinned rungs (default Beatable Only), "
-               "an existing world loads unchanged, and a staged rung is put back at load\n");
+        printf("[TEST] (11) #1367: the Logic key authors byte 9 over the three pinned rungs (default All Locations "
+               "since R5), an existing Beatable Only world loads unchanged, and a staged rung is put back at load\n");
     }
 
     // ---- Cleanup: leave the process-global store and context clean ---------

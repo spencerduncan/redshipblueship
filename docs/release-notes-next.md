@@ -1,3 +1,26 @@
+# Release notes: next release (draft)
+
+**Status:** draft, for the release after `v0.4.4-alpha`. Pull requests add their lines here as they merge.
+
+## Since v0.4.4-alpha
+
+### Read this first
+
+- **`[Both Games] Logic` now defaults to All Locations** (#1392, issue #1367). This follows OoTMM's default: a new
+  paired world is proved finishable, and every location in both games is proved reachable. Beatable Only and No Logic
+  stay available on Randomizer > Cross-Game. A file made before this keeps its own Logic: loading it puts Beatable Only
+  back into the row ("Restored from file: Logic"), and your next new file uses that until you change the row back.
+- **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
+  A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
+  generate the seed again. Saved files are not affected.
+- **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
+  each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
+  magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
+  Before this, All Locations refused every seed, because the 300-rupee shop items and the West Clock Town bank's heart
+  piece looked unreachable.
+- **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
+  are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.

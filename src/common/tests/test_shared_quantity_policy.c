@@ -234,6 +234,9 @@ constexpr uint16_t kSqpHookshot = 5;
 constexpr uint16_t kSqpRupee = 6;
 constexpr uint16_t kSqpBombchu = 7;
 constexpr uint16_t kSqpOcarina = 8;
+/** A second quiver-tier id (#1367 R5's credit leg Q6): a game whose pool names its
+ *  quiver family by two ids has no one far id to be credited. */
+constexpr uint16_t kSqpQuiverAlt = 9;
 
 ComboItemClassRow SqpRow(uint8_t fillClass, uint8_t kind, uint8_t units) {
     ComboItemClassRow row;
@@ -258,6 +261,7 @@ int SqpClassify(uint16_t id, ComboItemClassRow* out) {
             *out = SqpRow(P, RSBS_SHARED_RES_DOUBLE_DEFENSE, 0u);
             return 1;
         case kSqpQuiver:
+        case kSqpQuiverAlt:
             *out = SqpRow(P, RSBS_SHARED_RES_QUIVER_TIER, 0u);
             return 1;
         case kSqpHookshot:
@@ -834,6 +838,92 @@ TestResult Test_SharedQuantityPolicy(void) {
         SQP_ASSERT(hTrimBad.finalValue == 1,
                    "Q5: a trim to one OoT + one MM hookshot loses the longshot when OoT's comes first (the hazard the "
                    "unequal-ceiling rule exists for)");
+    }
+
+    // ---- Q6: THE SHARED-QUANTITY CREDIT (#1367 R5; combo_logic.h) -------------------
+    // Q5 shows the play side: every kept copy of an equal-ceiling family raises the
+    // ONE shared tier, whichever game it is found in. So the proof must credit it to
+    // both games' logic, or each engine sees only its own share (one wallet of the
+    // pair's two, and the Giant's Wallet locations read as unreachable on every seed
+    // under All Locations). The composer marks exactly those rows, naming the far
+    // game's id for the family; the coordinator's round does the crediting (the
+    // ComboLogicFill row's credit leg).
+    {
+        int creditRows = 0;
+        bool creditRight = true;
+        bool creditWrong = false;
+        for (const ComboLogicBagItem& b : trim.bag) {
+            const bool flagged = (b.bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) != 0u;
+            const bool family = b.item.id == kSqpQuiver || b.item.id == kSqpDoubleDefense;
+            if (family) {
+                creditRight = creditRight && flagged && b.pairId == b.item.id;
+            } else if (flagged) {
+                creditWrong = true;
+            }
+            creditRows += flagged ? 1 : 0;
+        }
+        printf("[TEST] shared-quantity-policy: Q6 credit: %d trimmed-bag rows credited (quivers %d, double defense "
+               "%d); composer count %d\n",
+               creditRows, SqpBoth(trim, kSqpQuiver), SqpBoth(trim, kSqpDoubleDefense), trim.res.sharedCredits);
+        SQP_ASSERT(creditRight && creditRows == SqpBoth(trim, kSqpQuiver) + SqpBoth(trim, kSqpDoubleDefense) &&
+                       creditRows == trim.res.sharedCredits && creditRows == 4,
+                   "Q6: every kept quiver and double-defense row (the equal-ceiling families the trim kept as one) "
+                   "is credited to the other game, naming that game's id for the family");
+        SQP_ASSERT(!creditWrong,
+                   "Q6: no health row (two grades), no hookshot (kept whole for unequal ceilings), no KEEP_ALL kind "
+                   "(bombchus, the unarmed ocarina) is credited");
+        bool fullCredited = false;
+        for (const ComboLogicBagItem& b : full.bag) {
+            fullCredited = fullCredited || (b.bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) != 0u;
+        }
+        SQP_ASSERT(!fullCredited && full.res.sharedCredits == 0,
+                   "Q6: RSBS_COMBO_QUANTITY_KEEP_ALL forms no shared family, so nothing is credited");
+
+        // SURPLUS copies of a credited family carry it too (they are real copies).
+        SqpPool plentiful = SqpShippedShape();
+        plentiful.Add(O, kSqpQuiver, 1, RSBS_COMBO_POOL_PLENTIFUL);
+        const SqpComposed pc = SqpCompose(plentiful, 0x0B22u);
+        int surplusCredited = 0;
+        for (const ComboLogicBagItem& b : pc.bag) {
+            if (b.item.id == kSqpQuiver && (b.bagFlags & RSBS_COMBO_BAG_SURPLUS) != 0u &&
+                (b.bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) != 0u && b.pairId == kSqpQuiver) {
+                surplusCredited++;
+            }
+        }
+        SQP_ASSERT(pc.status == RSBS_COMBO_LOGIC_OK && surplusCredited == 1,
+                   "Q6: a SURPLUS copy of a credited family is credited as well");
+
+        // AMBIGUITY: MM's pool names its quiver family by two ids, so OoT's copies have
+        // no one MM id to be credited as (the sound under-count), while MM's copies
+        // still credit OoT's one id.
+        // One of MM's three quiver rows renamed, so both pools keep three (equal
+        // ceilings: still one family the trim keeps as one).
+        SqpPool two = SqpShippedShape();
+        for (ComboLogicPoolRow& r : two.rows) {
+            if (r.item.originGame == M && r.item.id == kSqpQuiver) {
+                r.item.id = kSqpQuiverAlt;
+                break;
+            }
+        }
+        const SqpComposed tc = SqpCompose(two, 0x0A11u);
+        bool ootQuiverCredited = false;
+        bool mmQuiverCreditsOoT = true;
+        int mmQuivers = 0;
+        for (const ComboLogicBagItem& b : tc.bag) {
+            if (Combo_ItemClassSharedKind(b.item) != RSBS_SHARED_RES_QUIVER_TIER) {
+                continue;
+            }
+            const bool flagged = (b.bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) != 0u;
+            if (b.item.originGame == O) {
+                ootQuiverCredited = ootQuiverCredited || flagged;
+            } else {
+                mmQuivers++;
+                mmQuiverCreditsOoT = mmQuiverCreditsOoT && flagged && b.pairId == kSqpQuiver;
+            }
+        }
+        SQP_ASSERT(tc.status == RSBS_COMBO_LOGIC_OK && !ootQuiverCredited && mmQuivers > 0 && mmQuiverCreditsOoT,
+                   "Q6: a far game whose pool names the family by two ids is credited nothing; the other direction "
+                   "still is");
     }
 
     printf("[TEST] PASS: shared-quantity-policy\n");

@@ -2483,14 +2483,17 @@ TestResult Test_CVarClassification(void) {
             // identity sub-namespace is Identity, and there are exactly the
             // direction ADR 0011 increment 2 introduced (its pool sizes and
             // item classes were retired by #801 and #834), the goal, #1367's
-            // logic rung, #886's
+            // logic rung, #1389's Triforce Pieces and Triforce Goal (the frozen
+            // triforce record's sums), #886's
             // Shared Kokiri Sword, a BIT of the same frozen record and therefore
             // identity for the same reason, and #1068's Shared Shields, #1065's
             // Shared Lens of Truth, #1066's two shared songs, #1067's Shared
             // Ocarina Buttons, #1069's Shared Song of Time, #968's three shared
-            // arrows, #970's Shared Bottles, #978's five shared masks and #1369's
-            // Shared Swim, bits of the sibling frozen item rules. #668's shared
-            // ocarina was a third until #879 retired it.
+            // arrows, #970's Shared Bottles, #978's five shared masks, #1369's
+            // Shared Swim and #979's Blast Mask (OoT) and Shared Blast Mask, bits
+            // of the sibling frozen item rules, and #979's Blast Mask Cooldown,
+            // that record's cooldown byte. #668's shared ocarina was a third until
+            // #879 retired it.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
                 if (strncmp(RSBS::kComboKeys[k].key, RSBS::kComboIdentityKeyPrefix,
@@ -2501,14 +2504,16 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 22,
-                            "exactly twenty-two tier-4 identity keys (direction — ADR 0011 increment 2, whose two pool "
+            CVARCLASS_CHECK(identityKeys == 25,
+                            "exactly twenty-five tier-4 identity keys (direction — ADR 0011 increment 2, whose two "
+                            "pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, [Both Games] "
                             "Logic, #1367, [Both Games] Triforce Pieces and Triforce Goal, #1389, the Shared "
                             "Kokiri Sword, #886, the Shared Shields, #1068, the Shared Lens of Truth, #1065, Shared "
                             "Epona's Song and Song of Storms, #1066, the Shared Ocarina Buttons, #1067, the "
                             "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "
-                            "#970, the five shared masks, #978, and the Shared Swim, #1369; #879 retired #668's "
+                            "#970, the five shared masks, #978, the Shared Swim, #1369, and the Blast Mask (OoT), "
+                            "the Shared Blast Mask and the Blast Mask Cooldown, #979; #879 retired #668's "
                             "shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",

@@ -145,6 +145,9 @@ static bool comboRuleSharedMaskZora;       // #978: the item rules' RSBS_XITEM_S
 static bool comboRuleSharedMaskBunny;      // #978: the item rules' RSBS_XITEM_SHARED_BUNNY bit
 static bool comboRuleSharedMaskKeaton;     // #978: the item rules' RSBS_XITEM_SHARED_KEATON bit
 static bool comboRuleSharedMaskTruth;      // #978: the item rules' RSBS_XITEM_SHARED_TRUTH bit
+static bool comboRuleBlastMaskOoT;         // #979: the item rules' RSBS_XITEM_BLAST_MASK_OOT bit
+static bool comboRuleSharedMaskBlast;      // #979: the item rules' RSBS_XITEM_SHARED_BLAST bit
+static int32_t comboRuleBlastMaskCooldown; // #979: the item rules' cooldown byte (RSBS_BLAST_COOLDOWN_*)
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -183,6 +186,18 @@ static const std::map<int32_t, const char*> comboRuleLogicOptions = {
     { (int32_t)RSBS_COMBO_RUNG_NONE, "No Logic" },
     { (int32_t)RSBS_COMBO_RUNG_BEATABLE, "Beatable Only" },
     { (int32_t)RSBS_COMBO_RUNG_ALL_REACHABLE, "All Locations" },
+};
+
+// #979: the six pinned RSBS_BLAST_COOLDOWN_* values (0..5, static_asserted in
+// foreign_items.h), named in OoTMM's own words for its blastMaskCooldown. As the
+// goal's map, a std::map lists them in value order: Default (0) first.
+static const std::map<int32_t, const char*> comboRuleBlastMaskCooldownOptions = {
+    { (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT, "Default (~15s)" },
+    { (int32_t)RSBS_BLAST_COOLDOWN_INSTANT, "Instant (0s)" },
+    { (int32_t)RSBS_BLAST_COOLDOWN_VERY_SHORT, "Very Short (~2s)" },
+    { (int32_t)RSBS_BLAST_COOLDOWN_SHORT, "Short (~6s)" },
+    { (int32_t)RSBS_BLAST_COOLDOWN_LONG, "Long (~25s)" },
+    { (int32_t)RSBS_BLAST_COOLDOWN_VERY_LONG, "Very Long (~51s)" },
 };
 
 // The disabled tooltip of every rule row once the world is frozen, rebuilt by
@@ -718,7 +733,7 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
                      .ComboMap(comboRuleLogicOptions)
                      .Tooltip("Chooses how the seed is checked before you play it, for both games at once. Each "
                               "game's own Logic setting follows this one.\n\n"
-                              "All Locations: The goal can be met, and every item placed across both games can be "
+                              "All Locations: The goal can be met, and every location in both games can be "
                               "reached.\n"
                               "Beatable Only: The goal can be met. Some locations may be unreachable.\n"
                               "No Logic: Items are placed without any check. The seed may be unbeatable."));
@@ -1059,6 +1074,79 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Shuffling swim in either game shuffles it in both. In Ocarina of Time the ability is the Bronze Scale, "
             "and the Progressive Scale then gives the Silver and Golden Scales only. It does nothing when neither "
             "game shuffles swim."));
+
+    // ---- Cross-Game Masks (#979, epic #975 P4) ------------------------------
+    // OoTMM's own section after Shared Items (Items > Extended Items >
+    // Cross-Game Masks), in its order: the Blast Mask in Ocarina of Time, then
+    // its shared variant, which OoTMM shows only while the first is on (here: the
+    // row is greyed with that reason, and the resolver drops it). Then OoTMM's
+    // blastMaskCooldown, which OoTMM lists under Main > Misc but which is the
+    // same mask's rule in both games, so it sits with it on this one-column page.
+    menu.AddWidget(path, "Cross-Game Masks", WIDGET_SEPARATOR_TEXT);
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_BLAST_MASK_OOT), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleBlastMaskOoT)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleBlastMaskOoT = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_BLAST_MASK_OOT)
+                                            : Combo_ComboSettingResolved(COMBO_SETTING_BLAST_MASK_OOT) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, comboRuleBlastMaskOoT ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Adds Majora's Mask's Blast Mask to Ocarina of Time as a child trade mask. Wear it as a child and press B "
+            "to set off an explosion in front of you, once per Blast Mask Cooldown. Ocarina of Time's logic counts "
+            "it as an explosive a child can use."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BLAST), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskBlast)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskBlast = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_BLAST)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_BLAST) != 0;
+            if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_BLAST_MASK_OOT) == 0) {
+                // Shows off, the value the resolver freezes without the extension
+                // (Combo_ResolveComboItemRules drops the bit); the key keeps its value
+                // for when the extension comes back on.
+                comboRuleSharedMaskBlast = false;
+                info.options->disabled = true;
+                info.options->disabledTooltip = "This setting is disabled because: \n\n- Blast Mask (OoT) Is Off";
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BLAST, comboRuleSharedMaskBlast ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Blast Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Blast Mask is shuffled, and both games' logic counts it. Needs Blast Mask (OoT)."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_BLAST_MASK_COOLDOWN), WIDGET_COMBOBOX)
+        .ValuePointer(&comboRuleBlastMaskCooldown)
+        .PreFunc([](WidgetInfo& info) {
+            ComboItemRulesRecord shown;
+            const bool decided = ComboRuleShownItemRules(&shown);
+            comboRuleBlastMaskCooldown = (int32_t)shown.blastMaskCooldown;
+            if (comboRuleBlastMaskCooldownOptions.count(comboRuleBlastMaskCooldown) == 0) {
+                // Unreachable: a record outside the pinned space never freezes or
+                // loads (Combo_ComboItemRulesValid). Kept so the combobox's
+                // comboMap.at() can never throw.
+                comboRuleBlastMaskCooldown = (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT;
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_COOLDOWN, comboRuleBlastMaskCooldown);
+        })
+        .Options(ComboboxOptions()
+                     .ComboMap(comboRuleBlastMaskCooldownOptions)
+                     .Tooltip("Changes the time between the Blast Mask's explosions, in both games. Majora's "
+                              "Mask's No Blast Mask Cooldown still removes it.\n\n"
+                              "Default (~15s): Majora's Mask's own cooldown.\n"
+                              "Instant (0s): No wait.\n"
+                              "Very Short (~2s): About 2 seconds.\n"
+                              "Short (~6s): About 6 seconds.\n"
+                              "Long (~25s): About 25 seconds.\n"
+                              "Very Long (~51s): About 51 seconds."));
 
     // Reset confirms first, as SoH's destructive buttons do ("Clear Config",
     // SohMenuSettings.cpp); the popup's own Reset button does the work.

@@ -61,8 +61,12 @@
 #include "Rando/Rando.h"
 #include "Rando/ForeignMaskMM.h"
 
-#include "context.h"       // src/common: Context_GetCurrentGame
-#include "foreign_masks.h" // src/common: the table and the equip rules
+#include <libultraship/bridge/consolevariablebridge.h>
+
+#include "context.h"          // src/common: Context_GetCurrentGame
+#include "cvar_shared_keys.h" // src/common: RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN (#979)
+#include "foreign_items.h"    // src/common: the frozen Blast Mask cooldown (#979)
+#include "foreign_masks.h"    // src/common: the table and the equip rules
 
 extern "C" {
 #include "variables.h"
@@ -302,8 +306,36 @@ static void DrawOnHead(Player* player, s32 limbIndex) {
 
 namespace {
 
+/**
+ * #979: the paired world's frozen Blast Mask cooldown (OoTMM blastMaskCooldown)
+ * for Majora's Mask's own Blast Mask, at VB_SET_BLAST_MASK_COOLDOWN_TIMER (MM
+ * z_player.c, where vanilla arms 310 frames). True when it armed the timer
+ * itself; false leaves the vanilla write: an all-clear record (DEFAULT is MM's
+ * own 310) or MM's No Blast Mask Cooldown enhancement on, which composes over the
+ * frozen cooldown whichever handler runs first.
+ */
+bool ArmFrozenBlastMaskCooldown() {
+    const uint8_t cooldown = Combo_ComboBlastMaskCooldown();
+    if (cooldown == (uint8_t)RSBS_BLAST_COOLDOWN_DEFAULT || MM_gPlayState == nullptr ||
+        CVarGetInteger(RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN, 0) != 0) {
+        return false;
+    }
+    Player* player = GET_PLAYER(MM_gPlayState);
+    if (player == nullptr) {
+        return false;
+    }
+    player->blastMaskTimer = Combo_BlastMaskCooldownFrames(cooldown);
+    return true;
+}
+
 void RegisterForeignMasksMM() {
     COND_ID_HOOK(OnPlayerPostLimbDraw, PLAYER_LIMB_HEAD, true, DrawOnHead);
+
+    COND_VB_SHOULD(VB_SET_BLAST_MASK_COOLDOWN_TIMER, true, {
+        if (*should && ArmFrozenBlastMaskCooldown()) {
+            *should = false;
+        }
+    });
 
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, true, [](Actor* actor) {
         if (Context_GetCurrentGame() == GAME_MM) {
