@@ -17,19 +17,25 @@
  *   Random      0 to 500 Rupees in steps of 5: OoTMM's randomPrice, one draw
  *               in [0, 100], x5
  *
- * (packages/logic/src/price.ts; 500 is OoTMM's cap without its colossal and
- * bottomless wallets, which MM does not have, and the giant wallet's capacity.)
+ * (packages/logic/src/price.ts; 500 is OoTMM's cap with colossalWallets off, and
+ * the giant wallet's capacity. RSBS has no colossalWallets setting, but in the
+ * single executable MM's wallet tier 3 is OoT's Tycoon's Wallet at 999 (#1283,
+ * z_inventory.c), where OoTMM's colossalWallets would raise random prices to 995.
+ * Keeping the 500 cap is a deliberate, conservative divergence: no price asks for
+ * the shared tier 3.)
  *
  * THE TABLE. Every priced MM check, once: the 22 shop slots in OoTMM's MM_SHOPS
  * order (Bomb Shop, Curiosity Shop, Trading Post, Kotake's potion shop, Goron
  * shop, Zora shop; slot n is OoTMM's shop id n, generator/src/mm/shop.c
  * Shop_ItemSlot), Tingle's 12 maps in OoTMM's MM_TINGLE order (two per Tingle,
  * Clock Town first), then OoTMM's three MM_MERCHANTS (Gorman's milk, the Milk
- * Bar's milk and Chateau Romani). OoTMM has no price option for the merchants,
- * so they always charge their vanilla price (z_en_tab.c's 20 and 200 Rupees, the
- * "50 Rupees will do ya" Gorman line). The Big Bomb Bag slot is one check here
- * (RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) where OoTMM prices the Curiosity
- * Shop's copy separately (MM_SHOPS_EX, 100): it takes the Bomb Shop's price.
+ * Bar's milk and Chateau Romani; MM_MERCHANTS is OoTMM's location list,
+ * packages/logic/src/locations.ts, not a price range). OoTMM has no MM merchant
+ * price option, so they always charge their vanilla price (z_en_tab.c's 20 and
+ * 200 Rupees, the "50 Rupees will do ya" Gorman line). The Big Bomb Bag slot is
+ * one check here (RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) where OoTMM
+ * prices the Curiosity Shop's copy separately (MM_SHOPS_EX, 100): it takes the
+ * Bomb Shop's price.
  *
  * THE PASS. Assign() runs once per pool generation, after the check pool is
  * known (Logic/GeneratePools.cpp), and walks the table in its order. Under a
@@ -44,10 +50,13 @@
  * only; a standalone 2Ship build keeps upstream's Ship_Random(0, 200) roll.
  *
  * LOGIC. CAN_AFFORD (Logic.h) asks for no wallet below 100 Rupees, the adult
- * wallet up to 200 and the giant wallet above, which for prices up to 500 is
- * OoTMM's wallet_price (data/macros/macros_mm.yml:371, childWallets off): the
- * wallet that holds the price. No mode prices above kMaxDrawnPrice, the giant
- * wallet's capacity, so no mode can ask for a wallet MM does not have.
+ * wallet up to 200 and the giant wallet above, which for prices up to 500 is the
+ * wallet term of OoTMM's wallet_price (data/macros/macros_mm.yml:371,
+ * childWallets off): the wallet that holds the price. OoTMM's wallet_price also
+ * asks has_rupees (event RUPEES, :318) for a non-zero price; 2Ship's CAN_AFFORD
+ * never modelled that term, before this pass or after it. No mode prices above
+ * kMaxDrawnPrice, the giant wallet's capacity, so no mode asks for more than the
+ * giant wallet.
  */
 
 #include "Rando/Rando.h"
@@ -82,13 +91,11 @@ constexpr uint16_t kMaxDrawnPrice = 500;
 /** Every priced MM check, once, in draw order (see the header). */
 const std::vector<Slot>& Slots();
 
-/** The table's slot for @p randoCheckId, or nullptr for a check with no price. */
-const Slot* FindSlot(RandoCheckId randoCheckId);
-
 /**
- * The price @p mode (a RandoOptionPrices value) gives a slot whose vanilla price is
- * @p vanillaPrice. Weighted draws six values and Random one from Ship_Random;
- * Vanilla and Affordable draw nothing. A mode outside RandoOptionPrices is Vanilla.
+ * The price @p mode (a RandoOptionShopPriceMode value) gives a slot whose vanilla
+ * price is @p vanillaPrice. Weighted draws six values and Random one from
+ * Ship_Random; Vanilla and Affordable draw nothing. A mode outside
+ * RandoOptionShopPriceMode is Vanilla.
  */
 uint16_t PriceForMode(uint32_t mode, uint16_t vanillaPrice);
 

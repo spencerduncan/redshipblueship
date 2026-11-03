@@ -12,8 +12,9 @@ namespace ShopPrices {
 
 namespace {
 
-// OoTMM's randomPrice / randomPriceBeta range without colossal wallets: a draw in
-// [0, kDrawSpan), times kDrawnPriceStep, so 0 to 500 Rupees.
+// OoTMM's randomPrice / randomPriceBeta range with colossalWallets off: a draw in
+// [0, kDrawSpan), times kDrawnPriceStep, so 0 to 500 Rupees (ShopPrices.h says
+// why the cap stays there although MM's shared tier 3 holds 999).
 constexpr int32_t kDrawSpan = kMaxDrawnPrice / kDrawnPriceStep + 1;
 // betaApproxInt(random, alpha 2, beta 5, ...): the alpha-th lowest of
 // alpha + beta - 1 draws.
@@ -88,15 +89,6 @@ const std::vector<Slot>& Slots() {
     return kSlots;
 }
 // clang-format on
-
-const Slot* FindSlot(RandoCheckId randoCheckId) {
-    for (const Slot& slot : Slots()) {
-        if (slot.randoCheckId == randoCheckId) {
-            return &slot;
-        }
-    }
-    return nullptr;
-}
 
 uint16_t PriceForMode(uint32_t mode, uint16_t vanillaPrice) {
     switch (mode) {

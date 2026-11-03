@@ -13,16 +13,19 @@
  *  (2) The MM Randomizer page draws each as a live-at-generation combo box
  *      under "Shuffle Shops & Merchants", labelled "Shop Prices" / "Tingle
  *      Prices", the row after its shuffle (SoH's place for a price row), with
- *      OoTMM's four values in this order: Vanilla, Affordable, Weighted Random,
- *      Random. The tooltips end a sentence and stay under 200 characters.
+ *      OoTMM's four values in RSBS's order: Vanilla, Affordable, Weighted Random,
+ *      Random (OoTMM lists Affordable first; Vanilla is value 0 here because it
+ *      is the default, as SoH's price rows list it). The tooltips end a sentence
+ *      and stay under 200 characters.
  *  (3) The oracle below covers every priced check: a check is a shop or Tingle
  *      check exactly when it is in kExpected, and the merchants are exactly the
  *      three milk sellers.
  *  (4) Logic asks for the wallet that holds the price: over every price a mode
  *      can produce (0 to 500 in steps of 5, which includes every vanilla price),
  *      CAN_AFFORD at wallet tier t is exactly "price <= that tier's capacity",
- *      which is OoTMM's wallet_price (data/macros/macros_mm.yml:371), and the
- *      giant wallet holds the highest price.
+ *      which is the wallet term of OoTMM's wallet_price (data/macros/
+ *      macros_mm.yml:371; its has_rupees term was never in 2Ship's CAN_AFFORD),
+ *      and the giant wallet holds the highest price.
  *
  * ============================================================================
  * mm-shop-prices-pool (MMShopPricesPool) -- the price pass and determinism
@@ -105,7 +108,7 @@ int Fail(int code, const char* fmt, ...) {
 constexpr const char* kShopOptionName = "RO_SHOP_PRICES";
 constexpr const char* kTingleOptionName = "RO_TINGLE_PRICES";
 
-// RandoOptionPrices by number; leg (2) of mm-shop-prices ties each to its label.
+// RandoOptionShopPriceMode by number; leg (2) of mm-shop-prices ties each to its label.
 constexpr uint32_t kVanilla = 0;
 constexpr uint32_t kAffordable = 1;
 constexpr uint32_t kWeighted = 2;
@@ -166,7 +169,7 @@ const ExpectedSlot kExpected[] = {
 };
 constexpr int kExpectedCount = (int)(sizeof(kExpected) / sizeof(kExpected[0]));
 
-// OoTMM's ranges without colossal wallets: a draw in [0, 101), times 5.
+// OoTMM's ranges with colossalWallets off: a draw in [0, 101), times 5.
 constexpr int32_t kDrawSpan = 101;
 constexpr uint16_t kStep = 5;
 constexpr uint16_t kMaxPrice = 500;

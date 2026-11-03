@@ -222,8 +222,9 @@ const char* const kClockProgressiveLabels[] = {
     "Progressive: Descending", // RO_CLOCK_SHUFFLE_DESCENDING
 };
 
-// OoTMM's SETTING_PRICE names (#1427), in RandoOptionPrices order: Vanilla first,
-// as SoH's price rows list it, because it is the default.
+// OoTMM's SETTING_PRICE names (#1427), in RandoOptionShopPriceMode order: Vanilla
+// first, as SoH's price rows list it, because it is the default (OoTMM lists
+// Affordable first).
 const char* const kPriceLabels[] = {
     "Vanilla",         // RO_PRICES_VANILLA
     "Affordable",      // RO_PRICES_AFFORDABLE
@@ -439,8 +440,8 @@ const OptionUi kOptionUi[] = {
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_TINGLE_PRICES, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_COMBO,
       "Tingle Prices",
-      "Sets what Tingle charges for a shuffled map. Vanilla: his own prices. Affordable: 10 Rupees. Weighted Random: "
-      "0-500 Rupees, cheaper favored. Random: 0-500 Rupees.",
+      "Sets what Tingle charges for a shuffled map, so it needs Shuffle Tingle Maps. Vanilla: his own prices. "
+      "Affordable: 10 Rupees. Weighted Random: 0-500 Rupees, cheaper favored. Random: 0-500 Rupees.",
       0, 0, kPriceLabels, UI_COUNT(kPriceLabels),
       // #1427, OoTMM's "MM Tingle Prices" (priceMmTingle), the row after
       // Shuffle Tingle Maps. Generation-only for the Shop Prices row's reason.
