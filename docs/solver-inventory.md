@@ -996,15 +996,24 @@ the MM→OoT trigger), with MM arrival at `0xD800`
   save-warp exit, `Logic.cpp:341`). The MM→OoT edge is a new exit on
   `RR_CLOCK_TOWER_INTERIOR` (guard `true`) whose target is foreign; the
   observable is `RR_CLOCK_TOWER_INTERIOR ∈ reachableRegions`.
-- **O2's Day-1 re-stamp and reset-time guard.** In this model they are
-  already implied: MM's crawl seeds from `RR_MAX` at Day 1 06:00
-  (`Logic.cpp:62-64`, `:154`) and every region reachable from the root is
-  reachable *after a cycle reset*, since `CONNECTION(RR_MAX, true)` on South
-  Clock Town (`Central.cpp:215`) makes the reset free. An OoT→MM arrival
-  therefore lands in exactly the state a save-warp would, and "can reset time"
-  has no MM-graph analogue to guard — MM never models being unable to return
-  to Day 1. The return trip requires reaching `RR_CLOCK_TOWER_INTERIOR`, which
-  is unconditional from the root. The one authored term is on the OoT side
+- **O2's Day-1 re-stamp and reset-time guard.** The re-stamp is implied: MM's
+  crawl seeds from `RR_MAX` at Day 1 06:00 and gives the arrival region every
+  owned time slice (`Logic.cpp` `InitializeRegionTimeStates` /
+  `EnsureRegionTimeState`, `TimeLogic.cpp` `GetOwnedTimeSlices`), so an
+  OoT→MM arrival lands in the state a save-warp would, Clock Shuffle included.
+  The reset guard is NOT implied. `CONNECTION(RR_MAX, true)` on South Clock
+  Town (`Central.cpp`) makes the graph assume a free reset everywhere, which is
+  false when "Moon Crash Behavior" is "Last Save" (the default) and MM's
+  Shuffle Ocarina Buttons leaves the held Song of Time unplayable: a fill could
+  then ask for late-cycle items before the ones that unlock them (inherited
+  from 2Ship). [Corrected 2026-11-02, #645: this paragraph used to say "can
+  reset time" had no MM-graph analogue to guard.] The guard is
+  `Rando/Logic/ResetTimeGuard.h` (OoTMM's `can_reset_time` and
+  `can_reset_time_on_moon`), which the combo engine's `expand` and the MM
+  Check Tracker both apply to the crawl; ADR 0010's O2 row carries the
+  expressions. The return trip requires reaching `RR_CLOCK_TOWER_INTERIOR`,
+  which is inside the guard's arrival nook and so stays unconditional from
+  the root. The one authored term is on the OoT side
   (`IsChild`), plus whatever time-of-day stamp the epic chooses for the
   return landing in the Market (the Market is a `timePass` region under
   child access in practice; this audit did not verify the flag).

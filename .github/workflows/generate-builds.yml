@@ -112,13 +112,29 @@ jobs:
         retention-days: 3
 
   build-macos:
-    # DISABLED: macOS build is currently broken - see GitHub issue for tracking
-    # Error: OoT shared library not linking against libultraship properly
-    # Re-enable once issue is resolved
-    if: false
     needs: generate-rsbs-otr
-    runs-on: macos-14
+    # Pinned, not macos-latest: the MacPorts installer is built per macOS
+    # release (macos-latest moved to macOS 26 and the Sonoma package refused to
+    # install), and macos-14's compiler rejected soh_ui_snapshot.cpp (a lambda
+    # capturing a structured binding) where macos-15's Xcode 16.4 compiles the
+    # whole tree. MACOS_MAJOR below must name the same release: it picks the
+    # MacPorts installer, keys both caches (so a MacPorts tree or ccache built
+    # on one macOS is never restored on another), and sets the deployment
+    # target; the first step fails the job when the two disagree.
+    runs-on: macos-15
+    env:
+      MACOS_MAJOR: '15'
+      # Proven on macos-15 by run 41302059266.
+      MACPORTS_VERSION: '2.11.5'
     steps:
+    - name: Check runner macOS matches MACOS_MAJOR
+      run: |
+        actual="$(sw_vers -productVersion)"
+        echo "runner macOS ${actual}, MACOS_MAJOR ${MACOS_MAJOR}"
+        if [ "${actual%%.*}" != "${MACOS_MAJOR}" ]; then
+          echo "::error::runs-on gave macOS ${actual} but MACOS_MAJOR is ${MACOS_MAJOR}; change them together"
+          exit 1
+        fi
     - name: Git Checkout
       uses: actions/checkout@v4
       with:
@@ -132,11 +148,11 @@ jobs:
       with:
         create-symlink: true
         save: ${{ github.ref_name == github.event.repository.default_branch }}
-        key: ${{ runner.os }}-14-ccache-${{ github.ref }}
+        key: ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-ccache-${{ github.ref }}
         restore-keys: |
-          ${{ runner.os }}-14-ccache-${{ github.ref }}
-          ${{ runner.os }}-14-ccache-refs/heads/main
-          ${{ runner.os }}-14-ccache
+          ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-ccache-${{ github.ref }}
+          ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-ccache-refs/heads/main
+          ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-ccache
     # Needed to apply sudo for macports cache restore
     - name: Install gtar wrapper
       run: |
@@ -147,19 +163,28 @@ jobs:
       id: restore-cache-macports
       uses: actions/cache/restore@v4
       with:
-        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
+        key: ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-macports-${{ env.MACPORTS_VERSION }}-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         restore-keys: |
-          ${{ runner.os }}-14-macports-v1-
+          ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-macports-${{ env.MACPORTS_VERSION }}-
         path: /opt/local/
     # Updated PATH applies to the next step and onwards
     - name: Install MacPorts (if necessary)
       run: |
-        if command -v /opt/local/bin/port 2>&1 >/dev/null; then
+        if command -v /opt/local/bin/port >/dev/null 2>&1; then
           echo "MacPorts already installed"
         else
-          echo "Installing MacPorts"
-          wget https://github.com/macports/macports-base/releases/download/v2.11.5/MacPorts-2.11.5-14-Sonoma.pkg
-          sudo installer -pkg ./MacPorts-2.11.5-14-Sonoma.pkg -target /
+          # MacPorts names each installer after the macOS release it targets
+          # (https://github.com/macports/macports-base/releases).
+          case "${MACOS_MAJOR}" in
+            14) codename=Sonoma ;;
+            15) codename=Sequoia ;;
+            26) codename=Tahoe ;;
+            *) echo "::error::no MacPorts installer name known for macOS ${MACOS_MAJOR}"; exit 1 ;;
+          esac
+          pkg="MacPorts-${MACPORTS_VERSION}-${MACOS_MAJOR}-${codename}.pkg"
+          echo "Installing ${pkg}"
+          wget "https://github.com/macports/macports-base/releases/download/v${MACPORTS_VERSION}/${pkg}"
+          sudo installer -pkg "./${pkg}" -target /
         fi
         echo "/opt/local/bin:/opt/local/sbin" >> "$GITHUB_PATH"
     - name: Install dependencies
@@ -177,27 +202,44 @@ jobs:
       with:
         name: 2ship.o2r
         path: build-cmake/mm
-    - name: Build SoH
+    # Deployment target: the MacPorts libraries target the macOS they were
+    # built on (ports built here from source, and the buildbot archives this
+    # job fetches for the same release), so they carry minos MACOS_MAJOR.0.
+    # Linking them at CMakeLists.txt's default 10.15 warned "built for newer
+    # 'macOS' version (15.0) than being linked (10.15)" and the app would still
+    # need macOS 15 to start, so the job links at MACOS_MAJOR.0 and the bundle
+    # declares it (LSMinimumSystemVersion). Lowering macports.conf's
+    # macosx_deployment_target instead would have to cover the prebuilt archives
+    # this job fetches as well as the ports it builds, so older macOS support is
+    # a later decision, not a flag.
+    - name: Build redship
       run: |
         export PATH="/usr/lib/ccache:/opt/homebrew/opt/ccache/libexec:/usr/local/opt/ccache/libexec:$PATH"
-        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_REMOTE_CONTROL=1
+        export PKG_CONFIG_PATH="/opt/local/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+        echo "MacPorts libSDL2 build version:"
+        vtool -show-build /opt/local/lib/libSDL2.dylib || true
+        cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_MAJOR}.0" -DCMAKE_PREFIX_PATH=/opt/local -DBUILD_REMOTE_CONTROL=1
         cmake --build build-cmake --config Release --parallel 10
-        (cd build-cmake && cpack)
+        if ! (cd build-cmake && cpack); then
+          # The install rules and fixup_bundle log here, not to the console.
+          find build-cmake/_CPack_Packages -name 'InstallOutput.log' -exec sh -c 'echo "== $1"; tail -n 300 "$1"' _ {} \;
+          exit 1
+        fi
 
-        mv _packages/*.dmg SoH.dmg
+        mv _packages/*.dmg RedShipBlueShip.dmg
         mv README.md readme.txt
     - name: Upload build
       uses: actions/upload-artifact@v4
       with:
         name: rsbs-mac
         path: |
-          SoH.dmg
+          RedShipBlueShip.dmg
           readme.txt
     - name: Save Cache MacPorts
       if: ${{ github.ref_name == github.event.repository.default_branch }}
       uses: actions/cache/save@v4
       with:
-        key: ${{ runner.os }}-14-macports-v1-${{ hashFiles('.github/workflows/macports-deps.txt') }}
+        key: ${{ runner.os }}-${{ env.MACOS_MAJOR }}-${{ runner.arch }}-macports-${{ env.MACPORTS_VERSION }}-${{ hashFiles('.github/workflows/macports-deps.txt') }}
         path: /opt/local/
 
   odr-declaration-gate:
@@ -973,7 +1015,8 @@ jobs:
     # download URL that outlives the short CI artifact retention window.
     # Also runs on workflow_dispatch, where it creates the tag itself at the
     # dispatched commit (see the trigger comment at the top of this file).
-    # macOS is intentionally absent — its CI build is disabled (see build-macos).
+    # macOS is intentionally absent: build-macos packages a bundle, but nobody
+    # has run it on a Mac yet, so releases do not carry it.
     if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || github.event_name == 'workflow_dispatch'
     needs: [build-linux, build-windows]
     runs-on: ubuntu-latest

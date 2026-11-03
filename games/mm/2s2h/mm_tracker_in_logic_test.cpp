@@ -59,6 +59,7 @@ extern "C" int MM_TrackerFillSuperset_RunMM(void) {
 #include "2s2h/Rando/StaticData/StaticData.h"
 
 #include "combo_logic.h"
+#include "combo_mm_options_view.h" // RSBS_MM_MOON_CRASH_CYCLE (the arrival save's moon crash)
 #include "context.h"
 #include "shared_resources.h"
 #include "combo_tracker_view.h" // #1129: the combo tracker's MM panel
@@ -165,6 +166,12 @@ extern "C" int MM_TrackerInLogic_RunArrival(void) {
     gSaveContext.save.entrance = kArrivalEntrance;
     RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_CHEST_LOWER].shuffled = true;
     RANDO_SAVE_CHECKS[RC_CLOCK_TOWN_SOUTH_PLATFORM_PIECE_OF_HEART].shuffled = true;
+    // A "New Cycle" moon crash (ADR 0010 answer O2). With nothing in the inventory the save knows no Song of Time,
+    // and under the default "Last Save" the reset-time guard (Rando/Logic/ResetTimeGuard.h) holds the in-logic set
+    // to the arrival nook, where the lower chest never is. This row is about the hookshot gate, so it runs under the
+    // moon crash the guard reads as a reset; mm-combo-logic-engine leg 16 locks the guard itself, the tracker's half
+    // included. Written to the save, not to the combo record: ComboContext_Init below leaves no rule frozen.
+    gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash = RSBS_MM_MOON_CRASH_CYCLE;
     // The new-file marker every MM file carries, so the combo panel reads this save (C).
     memcpy(gSaveContext.save.saveInfo.playerData.newf, "ZELDA3", 6);
 
