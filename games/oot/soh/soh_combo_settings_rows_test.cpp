@@ -1080,7 +1080,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_ZORA, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BUNNY, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_KEATON, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_TRUTH, 1) == 1 &&
+                       // Shared Swim ships ON, so only its non-default value proves Reset clears it.
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_SWIM, 0) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
