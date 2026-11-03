@@ -12,7 +12,8 @@
   back into the row ("Restored from file: Logic"), and your next new file uses that until you change the row back.
 - **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
-  generate the seed again. Saved files are not affected.
+  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1428, #1425, #1427) are
+  part of generator 4 too.
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
   each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
   magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
@@ -27,8 +28,8 @@
   Cutscene is unchanged (the Shadow and Spirit Medallions). With Triforce Hunt on, the hunt still gives you Ganon's
   Boss Key: Start With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner,
   Standard, Advanced and Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new
-  defaults. This changes every new world, so the seed generator's version moves with it and a seed package from an
-  earlier build is refused. Saved files keep the gates they were made with.
+  defaults. This changes every new world, and a seed package from an earlier build is refused. Saved files keep the
+  gates they were made with.
 - **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1429, issue
   #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
   Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
