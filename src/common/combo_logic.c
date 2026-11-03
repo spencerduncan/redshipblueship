@@ -234,9 +234,10 @@ static SharedItem ComboLogicNoPair(void) {
 
 /** Append one placement. False on capacity, or on a host already assigned (the
  *  fill never offers one, so this is a defect trap, not a flow-control path).
- *  `pair` is the shared pair's far half (ABI 7) or ComboLogicNoPair(). */
+ *  `pair` is the shared pair's far half (ABI 7) or ComboLogicNoPair(); `credit` is
+ *  THE SHARED-QUANTITY CREDIT's far copy (combo_logic.h) or ComboLogicNoPair(). */
 static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedItem item, uint16_t itemClass,
-                                   SharedItem pair) {
+                                   SharedItem pair, SharedItem credit) {
     if (!ComboLogicIsGame(hostGame)) {
         return false;
     }
@@ -255,8 +256,22 @@ static bool ComboLogicAddPlacement(uint8_t hostGame, uint16_t hostCheck, SharedI
     p->itemClass = itemClass;
     p->item = item;
     p->pair = pair;
+    p->credit = credit;
     ComboLogicBitSet(sOccupied[hostGame], (int)hostCheck);
     return true;
+}
+
+/** THE SHARED-QUANTITY CREDIT's far copy for bag row `row` (combo_logic.h): the
+ *  other game's own id for the family, when the row is credited (and not a shared
+ *  pair, whose far half is its `pair`); ComboLogicNoPair() otherwise. */
+static SharedItem ComboLogicRowCredit(const ComboLogicBagItem* row) {
+    SharedItem credit = ComboLogicNoPair();
+    if ((row->bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) != 0u && (row->bagFlags & RSBS_COMBO_BAG_SHARED_PAIR) == 0u &&
+        ComboLogicIsGame(row->item.originGame)) {
+        credit.originGame = (row->item.originGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        credit.id = row->pairId;
+    }
+    return credit;
 }
 
 /**
@@ -294,7 +309,7 @@ bool Combo_Logic_Place(GameId hostGame, uint16_t hostCheck, SharedItem item, uin
         fprintf(stderr, "[ComboLogic] authored placement refused: no %s engine\n", Game_ToString(hostGame));
         return false;
     }
-    if (!ComboLogicAddPlacement(g, hostCheck, item, itemClass, ComboLogicNoPair())) {
+    if (!ComboLogicAddPlacement(g, hostCheck, item, itemClass, ComboLogicNoPair(), ComboLogicNoPair())) {
         return false;
     }
     if (!e->place(e->self, hostCheck, item)) {
@@ -325,6 +340,18 @@ static bool ComboLogicHydrateSideValid(uint8_t hostGame, const ComboLogicPlaceme
     return true;
 }
 
+/** A hydrated row's credit: its own `credit` when that names the OTHER game than
+ *  its item's, ComboLogicNoPair() otherwise (a zeroed row, the crossing store's). */
+static SharedItem ComboLogicHydratedCredit(const ComboLogicPlacement* row) {
+    if (ComboLogicIsGame(row->credit.originGame) && row->credit.originGame != row->item.originGame) {
+        SharedItem credit = ComboLogicNoPair();
+        credit.originGame = row->credit.originGame;
+        credit.id = row->credit.id;
+        return credit;
+    }
+    return ComboLogicNoPair();
+}
+
 bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCount, const ComboLogicPlacement* mmHosted,
                                int mmCount) {
     if (!ComboLogicHydrateSideValid((uint8_t)GAME_OOT, ootHosted, ootCount) ||
@@ -341,13 +368,16 @@ bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCoun
     sDroppedCount = 0;
     for (int i = 0; i < ootCount; ++i) {
         // A hydrated row never carries a shared pair: the crossing store holds
-        // cross-origin rows only (combo_logic.h, ComboLogicPlacement.pair).
+        // cross-origin rows only (combo_logic.h, ComboLogicPlacement.pair). Its
+        // credit is kept when the row names one (THE SHARED-QUANTITY CREDIT): the
+        // crossing store names none, and a lock that copies the tables out and back
+        // then runs rounds that answer as the fill's did.
         ComboLogicAddPlacement((uint8_t)GAME_OOT, ootHosted[i].hostCheck, ootHosted[i].item, ootHosted[i].itemClass,
-                               ComboLogicNoPair());
+                               ComboLogicNoPair(), ComboLogicHydratedCredit(&ootHosted[i]));
     }
     for (int i = 0; i < mmCount; ++i) {
         ComboLogicAddPlacement((uint8_t)GAME_MM, mmHosted[i].hostCheck, mmHosted[i].item, mmHosted[i].itemClass,
-                               ComboLogicNoPair());
+                               ComboLogicNoPair(), ComboLogicHydratedCredit(&mmHosted[i]));
     }
     return true;
 }
@@ -625,69 +655,6 @@ int Combo_Logic_LeftoverHosts(GameId hostGame, uint16_t* out, int cap) {
     return leftover;
 }
 
-// ============================================================================
-// THE SHARED-QUANTITY CREDIT's lookup (combo_logic.h)
-// ============================================================================
-//
-// Which (origin, id) credits which far id, built from the rows a fill (or one
-// exposed round, or the pre-flight) was handed: every RSBS_COMBO_BAG_SHARED_CREDIT
-// row's own item and its `pairId`. Keyed on the item rather than carried on the
-// placement, so a placed row keeps its credit without a field in the placement
-// record (which the crossing store and the digest read). The composer gives every
-// copy of one id the same far id; if a hand-made bag gives two, the first wins.
-
-#define COMBO_LOGIC_CREDIT_CAP 32
-
-typedef struct {
-    uint8_t originGame;
-    uint16_t id;
-    uint16_t farId;
-} ComboLogicCredit;
-
-static ComboLogicCredit sCredits[COMBO_LOGIC_CREDIT_CAP];
-static int sCreditCount;
-
-/** Rebuild the credit lookup from `rows` (NULL / 0: no credit at all). */
-static void ComboLogicCreditsFrom(const ComboLogicBagItem* rows, int count) {
-    sCreditCount = 0;
-    for (int i = 0; rows != NULL && i < count; ++i) {
-        if ((rows[i].bagFlags & RSBS_COMBO_BAG_SHARED_CREDIT) == 0u || !ComboLogicIsGame(rows[i].item.originGame)) {
-            continue;
-        }
-        bool known = false;
-        for (int c = 0; c < sCreditCount && !known; ++c) {
-            known = sCredits[c].originGame == rows[i].item.originGame && sCredits[c].id == rows[i].item.id;
-        }
-        if (known) {
-            continue;
-        }
-        if (sCreditCount >= COMBO_LOGIC_CREDIT_CAP) {
-            // Sound either way: an id left out is only under-counted in the far game.
-            fprintf(stderr,
-                    "[ComboLogic] shared-quantity credit: more than %d credited ids; %s id %u is not credited\n",
-                    COMBO_LOGIC_CREDIT_CAP, Game_ToString((GameId)rows[i].item.originGame), (unsigned)rows[i].item.id);
-            continue;
-        }
-        sCredits[sCreditCount].originGame = rows[i].item.originGame;
-        sCredits[sCreditCount].id = rows[i].item.id;
-        sCredits[sCreditCount].farId = rows[i].pairId;
-        sCreditCount++;
-    }
-}
-
-/** The far game's credited copy of `item`, when `item` is a credited id. */
-static bool ComboLogicCreditFor(SharedItem item, SharedItem* outFar) {
-    for (int c = 0; c < sCreditCount; ++c) {
-        if (sCredits[c].originGame == item.originGame && sCredits[c].id == item.id) {
-            memset(outFar, 0, sizeof(*outFar));
-            outFar->originGame = (item.originGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
-            outFar->id = sCredits[c].farId;
-            return true;
-        }
-    }
-    return false;
-}
-
 /**
  * Hand every not-yet-exchanged FOREIGN item hosted in `hostGame`'s reached
  * checks to the engine whose id-space it belongs to.
@@ -712,8 +679,8 @@ static bool ComboLogicCreditFor(SharedItem item, SharedItem* outFar) {
  * handed to the far engine here, under the same gate and the same delivered bit
  * as a crossing from this host.
  *
- * THE SHARED-QUANTITY CREDIT (combo_logic.h) rides the same visit: a placed
- * credited id, own-origin or crossing, also hands the far game's copy of its
+ * THE SHARED-QUANTITY CREDIT (combo_logic.h) rides the same visit: a placement
+ * that carries a `credit`, own-origin or crossing, also hands that far copy of its
  * family to the far engine, under the same gate and the same delivered bit.
  *
  * @return nonzero if anything was granted (the round must iterate again).
@@ -738,8 +705,8 @@ static int ComboLogicExchangeFrom(uint8_t hostGame, int gateOpen, int* exchanged
             ComboLogicIsGame(p->pair.originGame) && p->pair.originGame != hostGame && p->item.originGame == hostGame;
         const SharedItem crossing = sharedPair ? p->pair : p->item;
         const bool crosses = sharedPair || (p->item.originGame != hostGame && ComboLogicIsGame(p->item.originGame));
-        SharedItem credit;
-        const bool credited = !sharedPair && ComboLogicCreditFor(p->item, &credit);
+        const SharedItem credit = p->credit;
+        const bool credited = !sharedPair && ComboLogicIsGame(credit.originGame);
         if (!crosses && !credited) {
             continue;
         }
@@ -1257,9 +1224,6 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
         return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
     }
 
-    // One exposed round knows only its own rows: a placed id is credited when one
-    // of them names it (THE SHARED-QUANTITY CREDIT).
-    ComboLogicCreditsFrom(req->assumed, req->assumedCount);
     status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, req->triforceRequired, req->forbidden,
                                 req->forbiddenCount, false, &local);
     if (out != NULL) {
@@ -1487,7 +1451,8 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
     const uint16_t host = sCandidates[hostGame].host[hostIndex];
 
     // THE SHARED PAIR (ABI 7): the host gets ITS OWN half and the table keeps the
-    // other half beside it for the exchange. Every other row is placed as is.
+    // other half beside it for the exchange. Every other row is placed as is, a
+    // credited one with its far copy beside it (THE SHARED-QUANTITY CREDIT).
     SharedItem placed = item->item;
     SharedItem pair = ComboLogicNoPair();
     if (ComboLogicRowIsPair(item)) {
@@ -1495,7 +1460,7 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
         placed = ComboLogicHalfFor(item, hostGame);
         pair = ComboLogicHalfFor(item, far);
     }
-    if (!ComboLogicAddPlacement(hostGame, host, placed, item->itemClass, pair)) {
+    if (!ComboLogicAddPlacement(hostGame, host, placed, item->itemClass, pair, ComboLogicRowCredit(item))) {
         return RSBS_COMBO_LOGIC_ERR_CAPACITY;
     }
 
@@ -1695,7 +1660,7 @@ static int ComboLogicPlaceForced(const ComboLogicFillRequest* req) {
             placed = ComboLogicHalfFor(row, hostGame);
             pair = ComboLogicHalfFor(row, far);
         }
-        if (!ComboLogicAddPlacement(hostGame, host, placed, row->itemClass, pair)) {
+        if (!ComboLogicAddPlacement(hostGame, host, placed, row->itemClass, pair, ComboLogicRowCredit(row))) {
             return RSBS_COMBO_LOGIC_ERR_CAPACITY;
         }
         if (!e->place(e->self, host, placed)) {
@@ -1853,9 +1818,6 @@ static int ComboLogicPreflight(const ComboLogicBagItem* bag, int bagCount, uint8
         }
     }
     out->assumed = assumedCount;
-    // The whole bag's credits (THE SHARED-QUANTITY CREDIT): the same lookup the
-    // fill's rounds use, so the pre-flight's reach is the final round's.
-    ComboLogicCreditsFrom(bag, bagCount);
 
     if (observed != NULL && fillRes != NULL && ComboLogicObserve(observed, RSBS_COMBO_FILL_STAGE_PREFLIGHT, fillRes)) {
         return RSBS_COMBO_LOGIC_ERR_ABORTED;
@@ -2011,9 +1973,6 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
     sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
     // The unreachable-location record describes THIS fill (or nothing).
     sUnreachedCount = 0;
-    // THE SHARED-QUANTITY CREDIT: from the whole bag, so a row keeps its credit
-    // once it is placed and no longer assumed.
-    ComboLogicCreditsFrom(req->bag, req->bagCount);
 
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per

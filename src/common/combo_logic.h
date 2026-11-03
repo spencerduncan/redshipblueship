@@ -984,6 +984,15 @@ typedef struct {
      *  shared pair reaches the far game through the shared-family bitset at
      *  runtime (shared_resources.h), so a HYDRATED row never carries one. */
     SharedItem pair;
+    /** THE SHARED-QUANTITY CREDIT's far copy (#1367 R5): for a placement of a
+     *  RSBS_COMBO_BAG_SHARED_CREDIT bag row, the other game's own id for the
+     *  family (`item` is the row's own item, as for any row); originGame
+     *  GAME_NONE on every other row. Every round over the tables (the fill's, or
+     *  an exposed one after it) hands it to the far engine through the exchange.
+     *  Never persisted, never in the placement digest (it is a function of the
+     *  bag), and never on a HYDRATED row: the crossing store is for play, and no
+     *  round runs over it. */
+    SharedItem credit;
 } ComboLogicPlacement;
 
 /**
@@ -1053,6 +1062,11 @@ bool Combo_Logic_GetPlacement(GameId hostGame, uint16_t hostCheck, ComboLogicPla
  *
  * Like Combo_Logic_Place it PROVES NOTHING and does not compose with
  * Combo_Logic_RunFill (every attempt starts by emptying the tables).
+ *
+ * A row's `pair` is never kept (the crossing store holds no shared pair); its
+ * `credit` is, when it names the other game than its item's (THE SHARED-QUANTITY
+ * CREDIT): the crossing store names none, and a lock that copies the filled
+ * tables out and back gets rounds that answer as the fill's did.
  */
 bool Combo_Logic_HydrateTables(const ComboLogicPlacement* ootHosted, int ootCount, const ComboLogicPlacement* mmHosted,
                                int mmCount);
@@ -1570,10 +1584,11 @@ int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, i
 //     uses (its own engine still harvests it, natively or as a crossing): the
 //     runtime steps the shared tier at pickup and applies it on arrival, so the
 //     far game holds the tier exactly when the player could carry it there. The
-//     exchange keys the credit on the placed item's (origin, id), from the rows
-//     the fill was handed, so placing a row loses none of it.
+//     placement records the far copy (ComboLogicPlacement.credit), so placing a
+//     row loses none of it, and every round over the tables, the fill's or an
+//     exposed one after it, credits it the same way.
 // A pure function of the composed bag: no RNG, no host, and the placement digest
-// does not see it (no placement records a credit).
+// does not fold it (the far copy is a function of the bag row).
 //
 // `quantityFlags` RSBS_COMBO_QUANTITY_KEEP_ALL switches the trim off for the
 // whole call: the untrimmed bag, for the before/after measurement and for the

@@ -1946,10 +1946,25 @@ TestResult Test_ComboLogicFill(void) {
             for (int i = 0; i < Combo_Logic_PlacementCount(g); ++i) {
                 ComboLogicPlacement p;
                 CL_ASSERT(Combo_Logic_PlacementAt(g, i, &p) && p.pair.originGame == (uint8_t)GAME_NONE,
-                          "a credited row is placed as its own item: no placement records a credit");
+                          "a credited row is placed as its own item, never as a shared pair");
+                const bool ootCopy = p.item.originGame == (uint8_t)GAME_OOT && p.item.id == kOotTier;
+                CL_ASSERT((ootCopy && p.credit.originGame == (uint8_t)GAME_MM && p.credit.id == kMmTier) ||
+                              (!ootCopy && p.item.originGame == (uint8_t)GAME_MM && p.item.id == kMmTier &&
+                               p.credit.originGame == (uint8_t)GAME_OOT && p.credit.id == kOotTier),
+                          "the placement records the far game's copy of the family (ComboLogicPlacement.credit)");
                 CL_ASSERT(p.hostCheck != 12 && p.hostCheck != 22,
                           "a copy never lands on the location its own family's second tier opens (assumed fill)");
             }
+        }
+        // AN EXPOSED ROUND AFTER THE FILL credits the placed copies exactly as the
+        // fill's own rounds did: nothing assumed, and both second-tier hosts reached.
+        {
+            ComboLogicRoundResult after;
+            CL_ASSERT(ClRunRound(RSBS_COMBO_GOAL_BEAT_BOTH, nullptr, 0, &after) == RSBS_COMBO_LOGIC_OK &&
+                          after.goalExpression == 1 && (gClOoT.reached & (1u << 2)) != 0u &&
+                          (gClMM.reached & (1u << 2)) != 0u,
+                      "an exposed round over the filled tables reaches OoT 12 and MM 22: the placements carry their "
+                      "credit, so a round after the fill answers what the fill's rounds answered");
         }
 
         // SEEDING, through one exposed round: a credited row assumed in its own game
