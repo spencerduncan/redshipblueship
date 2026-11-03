@@ -69,6 +69,8 @@ void OoT_Creation_MarkFreshStagedWorld(void);
 // toast (ForeignItemsSingleExe.cpp).
 int OoT_Rando_PairedLogicRulesPinned(void);
 void OoT_Creation_EmitLogicPinToast(void);
+// The All Locations refusal's toast (ForeignItemsSingleExe.cpp; combo_logic.h ABI 8).
+int OoT_Creation_EmitUnreachableToast(void);
 // ComboLogicEngineOoT.cpp.
 void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 // games/mm/2s2h/GameExports_SingleExe.cpp: the bytes of MM's half.
@@ -666,8 +668,13 @@ int CompleteAndStage(bool fromGenerate) {
     if (completed != 0) {
         ctx->SetSeedGenerated(false);
         if (fromGenerate) {
-            Notification::Emit(
-                { .prefix = "Not generated:", .message = "try a new seed or other options.", .mute = true });
+            // ABI 8: the All Locations pre-flight's refusal is a fact of the
+            // settings, so a new seed cannot help; its toast names the location.
+            if (Combo_SingleBag_LastReport()->status != RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE ||
+                OoT_Creation_EmitUnreachableToast() <= 0) {
+                Notification::Emit(
+                    { .prefix = "Not generated:", .message = "try a new seed or other options.", .mute = true });
+            }
         }
         return Finish(RSBS_SEEDPKG_ERR_GENERATION);
     }

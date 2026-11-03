@@ -2020,6 +2020,17 @@ extern "C" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath)
             // forced to New Cycle by the Shared Song of Time rule), as OoTMM names it.
             { "moonCrash", MM_Rando_FrozenMoonCrash() == RSBS_MM_MOON_CRASH_CYCLE ? "cycle" : "reset" },
         };
+        // No Logic (combo rung `none`): the coordinator distributed the bag and
+        // proved nothing, so the document says so in a HEADER line, at its root
+        // beside OoT's own seed lines rather than inside the combo section, the way
+        // OoTMM's spoiler drops every importance claim under logic 'none'. Absent
+        // under a proving rung, so a proved world's spoiler is unchanged
+        // (foreign_items.h, Combo_ComboLogicClaimsAllowed: the predicate the hint
+        // claim sites ask too).
+        if (!Combo_ComboLogicClaimsAllowed()) {
+            doc["logicWarning"] =
+                "No Logic: nothing was proved for this paired world. This seed may be unbeatable in either game.";
+        }
 
         // The MM world, in MM's own schema, under its own key.
         combo["mm"] = Rando::Spoiler::GenerateFromSaveContext();

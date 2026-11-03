@@ -1065,6 +1065,68 @@ void WithholdHost(void* self, uint16_t hostCheck) {
     sRound.withheldHosts.insert(hostCheck);
 }
 
+// ============================================================================
+// THE ALL LOCATIONS RUNG (combo_logic.h ABI 8, `allLocations`)
+// ============================================================================
+//
+// MM's locations are its HOST UNIVERSE: the check pool GeneratePools built under
+// the frozen profile (MM_ComboLogic_SetHostPool), or the graph's check set when no
+// pool was handed in. A check outside the pool keeps its vanilla item (A7) and is
+// not a location the pair's fill decides, which is the line the operator's ruling
+// draws for MM (2026-11-02).
+//
+// THE CURATED EXCLUSIONS. OoTMM keeps one hand-curated, settings-conditioned list
+// of locations its own logic makes unreachable by construction (removeLocations,
+// transform.ts ~1368-1580) and drops them from the All Locations obligation.
+// Neither port had one. This is MM's: a check listed here, while its condition
+// holds for the FROZEN profile, is left out of `allLocations`, so the pre-flight
+// does not demand it. It still is a host, and it still is never a candidate under
+// a proving rung (a candidate must be reached), so it only ever receives MM's own
+// filler from the leftover pass: OoTMM's "junk those locations" by construction.
+// Only the All Locations rung reads this list, so it moves no default world.
+//
+// EVERY ENTRY CARRIES ITS REASON. The list starts EMPTY on purpose: no entry is
+// added on a guess. The audit is combo-logic-measure's ALL LOCATIONS leg, which
+// runs the pre-flight over the profile's real pools and prints every location it
+// cannot reach by name; an entry belongs here only when that print names a check
+// whose unreachability is a fact of the settings (and the reason says which).
+struct MmCuratedExclusion {
+    RandoCheckId check;
+    bool (*applies)();  // over the FROZEN profile (RANDO_SAVE_OPTIONS); nullptr = always
+    const char* reason; // why no seed can reach it under those settings
+};
+const std::vector<MmCuratedExclusion>& MmCuratedExclusions() {
+    static const std::vector<MmCuratedExclusion> kList = {};
+    return kList;
+}
+
+bool IsCuratedUnreachable(uint16_t check) {
+    for (const MmCuratedExclusion& entry : MmCuratedExclusions()) {
+        if ((uint16_t)entry.check == check && (entry.applies == nullptr || entry.applies())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int AllLocations(void* self, uint16_t* out, int cap) {
+    (void)self;
+    // Legal OUTSIDE a round, like AllEmptyHosts: the universe and the curated list
+    // only, never the round's reached set. Ascending (the universe is a sorted
+    // set), which is the order contract.
+    int total = 0;
+    for (const uint16_t check : HostUniverse()) {
+        if (IsCuratedUnreachable(check)) {
+            continue;
+        }
+        if (out != nullptr && total < cap) {
+            out[total] = check;
+        }
+        total++;
+    }
+    return total;
+}
+
 const ComboLogicEngine kMmEngine = {
     /* abiVersion        */ RSBS_COMBO_LOGIC_ENGINE_ABI,
     /* self              */ nullptr,
@@ -1084,6 +1146,7 @@ const ComboLogicEngine kMmEngine = {
     /* triforcePieces    */ TriforcePieces,
     /* hostAcceptsForeign*/ HostAcceptsForeign,
     /* withholdHost      */ WithholdHost,
+    /* allLocations      */ AllLocations,
 };
 
 /**
@@ -2369,9 +2432,12 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
 //   - Rando::Logic::GenerationTimeout for the per-attempt ROUND-BUDGET stop
 //     (RSBS_COMBO_LOGIC_ERR_ABORTED; a round count since #950, never a clock):
 //     the ladder stops and never climbs a rung on it (#581 §2a);
-//   - std::runtime_error for every deterministic dead end (no candidate, the GOAL
-//     unprovable, not all reached): a rung, re-derived from the next attempt's
-//     seed.
+//   - std::runtime_error for every deterministic dead end (no candidate under a
+//     proving rung, the GOAL unprovable): a rung, re-derived from the next
+//     attempt's seed;
+//   - Rando::Foreign::PairedFillRefused for everything another seed cannot change,
+//     including No Logic's capacity NO_CANDIDATE and the All Locations
+//     pre-flight's named refusal (ABI 8).
 // Combo_SingleBag_Run has already rolled both engines back on a failure.
 //
 // ON SUCCESS it also runs MM's OWN PASS over MM's leftover hosts (combo_logic.h,
@@ -2436,15 +2502,23 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         throw std::runtime_error("single-bag fill: injected ladder rung after " + std::to_string(report.fill.rounds) +
                                  " rounds (test)");
     }
-    if (status != RSBS_COMBO_LOGIC_OK && !Combo_SingleBag_StatusIsWorldDeadEnd(status)) {
+    if (status != RSBS_COMBO_LOGIC_OK && !Combo_SingleBag_StatusIsWorldDeadEnd(status, report.rung)) {
         // Not a world dead end: a refusal to run (no frozen identity, OoT not at
-        // its general-pass point), a missing engine, a capacity overflow or an
-        // engine defect. Another seed cannot change any of them, so this is NOT a
-        // ladder rung (PR #743 review): the ladder fails the creation at once with
-        // this reason.
-        throw Rando::Foreign::PairedFillRefused(std::string("single-bag fill refused: ") +
-                                                Combo_Logic_StatusName(status) +
-                                                " (not a world dead end; no re-seed can fix it)");
+        // its general-pass point), a missing engine, a capacity overflow, an
+        // engine defect, No Logic running out of free hosts, or (ABI 8) the All
+        // Locations pre-flight finding locations no seed can reach. Another seed
+        // cannot change any of them, so this is NOT a ladder rung (PR #743
+        // review): the ladder fails the creation at once with this reason.
+        std::string why = std::string("single-bag fill refused: ") + Combo_Logic_StatusName(status);
+        if (status == RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE) {
+            char names[512];
+            const int count = Combo_Logic_FormatUnreachable(names, sizeof(names), 8);
+            why += " - " + std::to_string(count) + " location(s) no seed can reach under these settings: " + names;
+        } else if (status == RSBS_COMBO_LOGIC_ERR_NO_CANDIDATE) {
+            why += " - No Logic: both worlds together hold fewer free checks than the bag's required items (" +
+                   std::to_string(report.fill.requiredPlaced) + " placed before they ran out)";
+        }
+        throw Rando::Foreign::PairedFillRefused(why + " (not a world dead end; no re-seed can fix it)");
     }
     if (status != RSBS_COMBO_LOGIC_OK) {
         throw std::runtime_error(std::string("single-bag fill: ") + Combo_Logic_StatusName(status) + " after " +

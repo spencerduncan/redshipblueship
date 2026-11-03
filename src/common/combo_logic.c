@@ -127,6 +127,8 @@ const char* Combo_Logic_StatusName(int status) {
             return "engine-refused";
         case RSBS_COMBO_LOGIC_ERR_ABORTED:
             return "aborted";
+        case RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE:
+            return "locations-unreachable";
         default:
             return "(unknown)";
     }
@@ -696,6 +698,117 @@ static void ComboLogicResetRoundResult(ComboLogicRoundResult* res) {
     res->triforcePiecesOoT = -1;
     res->triforcePiecesMM = -1;
     res->triforcePieces = -1;
+    res->allLocationsReached = -1;
+}
+
+// ============================================================================
+// THE ALL LOCATIONS RUNG's location lists (ABI 8)
+// ============================================================================
+//
+// Captured ONCE per fill, at the pre-flight, outside any round (`allLocations` is
+// legal there, like `allEmptyHosts`), and read by every location-evaluating round
+// of that fill. Sized by RSBS_COMBO_LOGIC_HOST_CAP for the reason the candidate
+// buffers are: the bound is a game's check id-space. 24 KB of locations and 32 KB
+// of unreached refs, static like every other buffer in this TU.
+
+static uint16_t sLocations[RSBS_FOREIGN_POOL_ORIGIN_COUNT][RSBS_COMBO_LOGIC_HOST_CAP];
+static int sLocationCount[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+#define COMBO_LOGIC_UNREACHED_CAP (2 * RSBS_COMBO_LOGIC_HOST_CAP)
+static ComboLogicHostRef sUnreached[COMBO_LOGIC_UNREACHED_CAP];
+static int sUnreachedCount;
+
+/** Capture `game`'s locations into sLocations. The engine's `allLocations`, or,
+ *  when it has none, its host table: `allEmptyHosts` over the EMPTY tables the
+ *  pre-flight has just made, i.e. every host it offers. */
+static int ComboLogicCaptureLocations(uint8_t game) {
+    sLocationCount[game] = 0;
+    const ComboLogicEngine* e = ComboLogicEngineFor(game);
+    if (e == NULL) {
+        return RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
+    }
+    const int total = (e->allLocations != NULL)
+                          ? e->allLocations(e->self, sLocations[game], RSBS_COMBO_LOGIC_HOST_CAP)
+                          : e->allEmptyHosts(e->self, sLocations[game], RSBS_COMBO_LOGIC_HOST_CAP);
+    if (total < 0) {
+        return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED;
+    }
+    if (total > RSBS_COMBO_LOGIC_HOST_CAP) {
+        fprintf(stderr,
+                "[ComboLogic] %s engine listed %d locations; RSBS_COMBO_LOGIC_HOST_CAP is %d — raise that constant "
+                "rather than proving a prefix of the world\n",
+                Game_ToString((GameId)game), total, RSBS_COMBO_LOGIC_HOST_CAP);
+        return RSBS_COMBO_LOGIC_ERR_CAPACITY;
+    }
+    sLocationCount[game] = total;
+    return RSBS_COMBO_LOGIC_OK;
+}
+
+int Combo_Logic_UnreachableLocationCount(void) {
+    return sUnreachedCount;
+}
+
+bool Combo_Logic_UnreachableLocationAt(int index, ComboLogicHostRef* out) {
+    if (index < 0 || index >= sUnreachedCount || index >= COMBO_LOGIC_UNREACHED_CAP) {
+        return false;
+    }
+    if (out != NULL) {
+        *out = sUnreached[index];
+    }
+    return true;
+}
+
+/** Append `text` to `out` at `*len`, truncating, always NUL-terminated. */
+static void ComboLogicAppend(char* out, size_t cap, size_t* len, const char* text) {
+    if (out == NULL || cap == 0 || *len + 1 >= cap) {
+        return;
+    }
+    const int n = snprintf(out + *len, cap - *len, "%s", text);
+    if (n > 0) {
+        *len += ((size_t)n < cap - *len) ? (size_t)n : (cap - *len - 1);
+    }
+}
+
+int Combo_Logic_FormatUnreachable(char* out, size_t cap, int maxNames) {
+    size_t len = 0;
+    if (out != NULL && cap > 0) {
+        out[0] = '\0';
+    }
+    const int total = sUnreachedCount;
+    const int named = (maxNames < 0) ? 0 : ((total < maxNames) ? total : maxNames);
+    for (int i = 0; i < named && i < COMBO_LOGIC_UNREACHED_CAP; ++i) {
+        char fallback[48];
+        const char* name = Combo_DescribeCheckName(sUnreached[i].hostGame, sUnreached[i].hostCheck);
+        if (name == NULL || name[0] == '\0') {
+            snprintf(fallback, sizeof(fallback), "%s location %u", Game_ToString((GameId)sUnreached[i].hostGame),
+                     (unsigned)sUnreached[i].hostCheck);
+            name = fallback;
+        }
+        if (i > 0) {
+            ComboLogicAppend(out, cap, &len, (i + 1 == named && named == total) ? " and " : ", ");
+        }
+        ComboLogicAppend(out, cap, &len, name);
+    }
+    if (total > named) {
+        char more[32];
+        snprintf(more, sizeof(more), "%s%d more", (named > 0) ? " and " : "", total - named);
+        ComboLogicAppend(out, cap, &len, more);
+    }
+    return total;
+}
+
+/** Log the unreachable locations, one per line, by game, id and name (a bounded
+ *  number; the count is always printed). */
+static void ComboLogicLogUnreached(const char* when) {
+    const int kMaxLines = 64;
+    fprintf(stderr, "[ComboLogic] All Locations: %d location(s) unreachable %s:\n", sUnreachedCount, when);
+    for (int i = 0; i < sUnreachedCount && i < kMaxLines && i < COMBO_LOGIC_UNREACHED_CAP; ++i) {
+        const char* name = Combo_DescribeCheckName(sUnreached[i].hostGame, sUnreached[i].hostCheck);
+        fprintf(stderr, "[ComboLogic]   %s %u %s\n", Game_ToString((GameId)sUnreached[i].hostGame),
+                (unsigned)sUnreached[i].hostCheck, (name != NULL) ? name : "(no name)");
+    }
+    if (sUnreachedCount > kMaxLines) {
+        fprintf(stderr, "[ComboLogic]   ... and %d more\n", sUnreachedCount - kMaxLines);
+    }
 }
 
 /** Set (`on`) or clear the forbidden bits a round's request names. The request
@@ -747,10 +860,14 @@ static bool ComboLogicForbiddenValid(const ComboLogicHostRef* forbidden, int for
 /**
  * Run one round. On return the engines have been torn down, so every fact the
  * caller needs is in `res` and in sCandidates[].
+ *
+ * @param evalLocations the All Locations rung's rounds (ABI 8): also read every
+ *                      location the pre-flight captured (sLocations), and record
+ *                      the unreached ones in sUnreached.
  */
 static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount, uint8_t goal,
                               uint16_t triforceRequired, const ComboLogicHostRef* forbidden, int forbiddenCount,
-                              ComboLogicRoundResult* res) {
+                              bool evalLocations, ComboLogicRoundResult* res) {
     const uint8_t order[2] = { (uint8_t)GAME_OOT, (uint8_t)GAME_MM };
     /** `beginQuery` was CALLED on this side — not "it succeeded". The teardown
      *  owes `endQuery` from the call, not from the return: see the bracket
@@ -980,6 +1097,33 @@ static int ComboLogicRoundRun(const ComboLogicBagItem* assumed, int assumedCount
                 }
             }
             res->allHostsReached = allReached;
+
+            // THE ALL LOCATIONS TERM (ABI 8), read here for the same reason: every
+            // captured location of both games, MM's behind the arrival gate (a
+            // Termina location is not reached while the player cannot enter
+            // Termina). Every miss is recorded, so a refusal can name them all.
+            if (evalLocations) {
+                int unreached = 0;
+                sUnreachedCount = 0;
+                for (int s = 0; s < 2; ++s) {
+                    const uint8_t g = order[s];
+                    const ComboLogicEngine* e = sEngines[g];
+                    const int gated = (g == (uint8_t)GAME_MM) ? res->crossingOpenOoT : 1;
+                    for (int i = 0; i < sLocationCount[g]; ++i) {
+                        if (gated && e->checkReached(e->self, sLocations[g][i])) {
+                            continue;
+                        }
+                        if (sUnreachedCount < COMBO_LOGIC_UNREACHED_CAP) {
+                            sUnreached[sUnreachedCount].hostGame = g;
+                            sUnreached[sUnreachedCount].hostCheck = sLocations[g][i];
+                            sUnreachedCount++;
+                        }
+                        unreached++;
+                    }
+                }
+                res->locationsUnreached = unreached;
+                res->allLocationsReached = (unreached == 0) ? 1 : 0;
+            }
         }
     }
 
@@ -1035,7 +1179,7 @@ int Combo_Logic_RunRound(const ComboLogicRoundRequest* req, ComboLogicRoundResul
     }
 
     status = ComboLogicRoundRun(req->assumed, req->assumedCount, req->goal, req->triforceRequired, req->forbidden,
-                                req->forbiddenCount, &local);
+                                req->forbiddenCount, false, &local);
     if (out != NULL) {
         *out = local;
     }
@@ -1077,6 +1221,7 @@ static void ComboLogicResetFillResult(ComboLogicFillResult* out) {
     out->status = RSBS_COMBO_LOGIC_OK;
     out->goalOoT = -1; // no proving round has held yet
     out->goalMM = -1;
+    out->allLocationsReached = false;
 }
 
 static bool ComboLogicRungIsPinned(uint8_t rung) {
@@ -1567,6 +1712,106 @@ static int ComboLogicFillNoLogic(const ComboLogicFillRequest* req, ComboLogicFil
     return ComboLogicPlaceSurplus(req, false, &rng, res);
 }
 
+/**
+ * THE ALL LOCATIONS PRE-FLIGHT (ABI 8; combo_logic.h, Combo_Logic_RunAllLocationsPreflight).
+ *
+ * WHY ONE ROUND WITH EVERY REQUIRED ROW ASSUMED IS THE WHOLE QUESTION. A complete
+ * assumed fill leaves every REQUIRED row collectible, so its final round reaches
+ * exactly what this round reaches; every other placement of the same bag reaches
+ * no more (monotonicity: the assumed set is the most any world of this bag can
+ * hold, SURPLUS rows aside, which the proof never leans on). So a location missed
+ * here is missed by every seed, and the honest answer is a refusal now, with the
+ * locations named, rather than ten ladder attempts that end in "exhausted".
+ *
+ * @param observed  the fill request whose observer sees STAGE_PREFLIGHT, or NULL
+ * @param fillRes   the fill result whose `rounds` this round is charged to, or NULL
+ */
+static int ComboLogicPreflight(const ComboLogicBagItem* bag, int bagCount, uint8_t goal, uint16_t triforceRequired,
+                               const ComboLogicFillRequest* observed, ComboLogicFillResult* fillRes,
+                               ComboLogicPreflightResult* out) {
+    ComboLogicRoundResult round;
+    memset(out, 0, sizeof(*out));
+    out->goalExpression = -1;
+    out->crossingOpenOoT = -1;
+
+    if (bagCount < 0 || (bagCount > 0 && bag == NULL)) {
+        return RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
+    }
+    if (bagCount > RSBS_COMBO_LOGIC_BAG_CAP) {
+        return RSBS_COMBO_LOGIC_ERR_CAPACITY;
+    }
+    if (ComboLogicEngineFor((uint8_t)GAME_OOT) == NULL || ComboLogicEngineFor((uint8_t)GAME_MM) == NULL) {
+        return RSBS_COMBO_LOGIC_ERR_NO_ENGINE;
+    }
+
+    // Empty tables: the round must see the bag as ASSUMED, never as placed, and a
+    // host table with no placement in it is what the NULL-`allLocations` fallback
+    // enumerates.
+    Combo_Logic_ResetPlacements();
+    sUnreachedCount = 0;
+    int st = ComboLogicCaptureLocations((uint8_t)GAME_OOT);
+    if (st == RSBS_COMBO_LOGIC_OK) {
+        st = ComboLogicCaptureLocations((uint8_t)GAME_MM);
+    }
+    if (st != RSBS_COMBO_LOGIC_OK) {
+        return st;
+    }
+    out->locationsOoT = sLocationCount[(uint8_t)GAME_OOT];
+    out->locationsMM = sLocationCount[(uint8_t)GAME_MM];
+
+    // Every REQUIRED row, in bag order: SURPLUS rows are never assumed by any round
+    // of the proof (THE BAG MODEL, shape 2), so they are not assumed here either.
+    // A forced (debug-seed) row is a REQUIRED row like any other.
+    int assumedCount = 0;
+    for (int i = 0; i < bagCount; ++i) {
+        if ((bag[i].bagFlags & RSBS_COMBO_BAG_SURPLUS) == 0u) {
+            sAssumedBuf[assumedCount++] = bag[i];
+        }
+    }
+    out->assumed = assumedCount;
+
+    if (observed != NULL && fillRes != NULL && ComboLogicObserve(observed, RSBS_COMBO_FILL_STAGE_PREFLIGHT, fillRes)) {
+        return RSBS_COMBO_LOGIC_ERR_ABORTED;
+    }
+    st = ComboLogicRoundRun(sAssumedBuf, assumedCount, goal, triforceRequired, NULL, 0, true, &round);
+    if (fillRes != NULL) {
+        fillRes->rounds++;
+    }
+    if (st != RSBS_COMBO_LOGIC_OK) {
+        return st;
+    }
+    out->crossingOpenOoT = round.crossingOpenOoT;
+    out->goalExpression = round.goalExpression;
+    for (int i = 0; i < sUnreachedCount; ++i) {
+        if (sUnreached[i].hostGame == (uint8_t)GAME_OOT) {
+            out->unreachableOoT++;
+        } else {
+            out->unreachableMM++;
+        }
+    }
+    fprintf(stderr,
+            "[ComboLogic] All Locations pre-flight: OoT %d of %d and MM %d of %d locations reached with every one of "
+            "the %d REQUIRED rows assumed (OoT crossing %s, GOAL %d)\n",
+            out->locationsOoT - out->unreachableOoT, out->locationsOoT, out->locationsMM - out->unreachableMM,
+            out->locationsMM, assumedCount, round.crossingOpenOoT ? "open" : "CLOSED", round.goalExpression);
+    if (round.allLocationsReached != 1) {
+        ComboLogicLogUnreached("by construction under these settings (no seed can reach them; refused at once)");
+        return RSBS_COMBO_LOGIC_ERR_LOCATIONS_UNREACHABLE;
+    }
+    return RSBS_COMBO_LOGIC_OK;
+}
+
+int Combo_Logic_RunAllLocationsPreflight(const ComboLogicBagItem* bag, int bagCount, uint8_t goal,
+                                         uint16_t triforceRequired, ComboLogicPreflightResult* out) {
+    ComboLogicPreflightResult local;
+    const int status = ComboLogicPreflight(bag, bagCount, goal, triforceRequired, NULL, NULL, &local);
+    local.status = status;
+    if (out != NULL) {
+        *out = local;
+    }
+    return status;
+}
+
 int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* out) {
     ComboLogicFillResult res;
     ComboLogicRoundResult round;
@@ -1657,6 +1902,8 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
     }
     res.droppedDigest = 2166136261u; // FNV-1a offset basis: "nothing dropped"
     sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
+    // The unreachable-location record describes THIS fill (or nothing).
+    sUnreachedCount = 0;
 
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per
@@ -1664,6 +1911,19 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
     if (req->logicRung == RSBS_COMBO_RUNG_NONE) {
         status = ComboLogicFillNoLogic(req, &res);
         goto finish;
+    }
+
+    // THE ALL LOCATIONS PRE-FLIGHT (ABI 8): before anything is placed, so a
+    // location no seed can reach refuses the fill at once, named, instead of
+    // grinding every batch roll-back and every ladder attempt to the same answer.
+    if (req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE) {
+        ComboLogicPreflightResult pre;
+        status = ComboLogicPreflight(req->bag, req->bagCount, req->goal, req->triforceRequired, req, &res, &pre);
+        res.locationsChecked = pre.locationsOoT + pre.locationsMM;
+        res.locationsUnreachable = pre.unreachableOoT + pre.unreachableMM;
+        if (status != RSBS_COMBO_LOGIC_OK) {
+            goto finish;
+        }
     }
 
     maxAttempts = (req->maxAttempts > 0) ? req->maxAttempts : RSBS_COMBO_LOGIC_FILL_RETRIES;
@@ -1707,7 +1967,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 goto finish;
             }
             const int st =
-                ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, NULL, 0, &round);
+                ComboLogicRoundRun(sAssumedBuf, assumedCount, req->goal, req->triforceRequired, NULL, 0, false, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 // An engine-contract failure is not a dead end and retrying it
@@ -1744,8 +2004,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             status = RSBS_COMBO_LOGIC_ERR_ABORTED;
             goto finish;
         }
+        const bool allLocationsRung = req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE;
         {
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, &round);
+            const int st =
+                ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, allLocationsRung, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
@@ -1756,7 +2018,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             lastFailure = RSBS_COMBO_LOGIC_ERR_GOAL_UNPROVABLE;
             continue;
         }
-        if (req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE && round.allHostsReached != 1) {
+        // `all-reachable`: the GOAL AND every placed host AND every location the
+        // pre-flight captured, in both games, whatever the GOAL (ABI 8).
+        if (allLocationsRung && (round.allHostsReached != 1 || round.allLocationsReached != 1)) {
+            res.locationsUnreachable = round.locationsUnreached;
             lastFailure = RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED;
             continue;
         }
@@ -1784,14 +2049,15 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
             // reached host or not; this measures it instead of assuming it. A
             // failure here is an engine whose reachability SHRANK when an item
             // was added — refused, never worked around (ADR 0010 §2.3).
-            const int st = ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, &round);
+            const int st =
+                ComboLogicRoundRun(NULL, 0, req->goal, req->triforceRequired, NULL, 0, allLocationsRung, &round);
             res.rounds++;
             if (st != RSBS_COMBO_LOGIC_OK) {
                 status = st;
                 goto finish;
             }
             if (round.goalExpression != 1 ||
-                (req->logicRung == RSBS_COMBO_RUNG_ALL_REACHABLE && round.allHostsReached != 1)) {
+                (allLocationsRung && (round.allHostsReached != 1 || round.allLocationsReached != 1))) {
                 fprintf(stderr,
                         "[ComboLogic] placing %d surplus rows UNDID the proof — an engine is not monotone under "
                         "added items\n",
@@ -1803,6 +2069,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
         res.goalProven = true;
         res.allHostsReached = (round.allHostsReached == 1);
+        res.allLocationsReached = allLocationsRung && (round.allLocationsReached == 1);
+        if (allLocationsRung) {
+            res.locationsUnreachable = 0;
+        }
         // The proving round's own halves (the confirming round's, when surplus
         // was placed: a superset of the proof). Reported, never read here.
         res.goalOoT = (round.goalOoT == 1) ? 1 : 0;
@@ -1815,6 +2085,10 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
 finish:
     res.status = status;
+    if (status == RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED && sUnreachedCount > 0) {
+        ComboLogicLogUnreached("in the last All Locations proof round (after a pre-flight that held: an engine is "
+                               "not monotone)");
+    }
     // `placed` and `placementDigest` describe THIS CALL, not the tables. A
     // request refused before any attempt ran (bad request, unpinned rung,
     // unsupported GOAL, a missing engine) never called an engine and never

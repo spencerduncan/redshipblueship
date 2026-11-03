@@ -407,6 +407,13 @@ bool Combo_ComboSettingsFrozen(void) {
     return gComboCtx.comboSettings.formatVersion != 0;
 }
 
+bool Combo_ComboLogicClaimsAllowed(void) {
+    // A FROZEN record whose rung is `none`: no proof ran, so nothing may claim an
+    // area is not needed or that the seed is beatable. No record yet, or any
+    // proving rung, keeps today's claims (an old record's logicRung 0 is not `none`).
+    return !(Combo_ComboSettingsFrozen() && gComboCtx.comboSettings.logicRung == (uint8_t)RSBS_COMBO_RUNG_NONE);
+}
+
 uint8_t Combo_ComboDirection(void) {
     if (Combo_ComboSettingsFrozen()) {
         return gComboCtx.comboSettings.direction;

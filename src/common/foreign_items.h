@@ -844,6 +844,25 @@ bool Combo_ForeignCreationGateHolds(bool crossingsRequestedPreFill);
  */
 bool Combo_ComboSettingsFrozen(void);
 
+/**
+ * MAY THIS WORLD MAKE A LOGIC-DERIVED CLAIM? False when the FROZEN record's logic
+ * rung is RSBS_COMBO_RUNG_NONE (No Logic): the coordinator distributed the bag
+ * and proved nothing, so no hint may tell the player an area is not needed and
+ * the spoiler must say the seed may be unbeatable. That is OoTMM's rule under
+ * logic 'none' (spoiler.ts drops every importance suffix, the hintImportance
+ * setting is hidden, analysis-foolish.ts runs no foolish analysis).
+ *
+ * Each claim site asks before it speaks: OoT_HintArea_MarkPairedFoolish, MM's
+ * free stone (Rando::HintFoolish::FreeStoneText) and the paired spoiler's
+ * logicWarning (MM_Rando_AugmentSpoilerWithPairedHalf). The foolish RULE
+ * (combo_area.h, Combo_Area_ComputeFoolish) stays a pure function of the
+ * placements and free of this record, which is why the predicate lives here.
+ *
+ * True with no frozen record and under every proving rung, so no proved world
+ * changes. Locked by MmFoolishStoneHint's No Logic leg.
+ */
+bool Combo_ComboLogicClaimsAllowed(void);
+
 /** The resolved direction: the frozen record's when frozen, else the shipped
  *  default. Increment 4 is where each placement pass NO-OPS on an unarmed
  *  direction — increment 1 only reads and reports it, because that increment is

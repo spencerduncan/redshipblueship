@@ -230,7 +230,8 @@ void RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool, std::vector<Ra
  *  a world that dead-ended (PR #743 review). Thrown by RunPairedSingleBagFill for
  *  every status Combo_SingleBag_StatusIsWorldDeadEnd rejects: no frozen identity,
  *  OoT not at its general-pass point, a missing engine, a capacity overflow, an
- *  engine that refused or broke monotonicity. None of those is a property of the
+ *  engine that refused or broke monotonicity, No Logic out of free hosts, or the
+ *  All Locations pre-flight's named locations. None of those is a property of the
  *  attempt's seed, so no re-seed can fix it; OnFileCreate's ladder catches this
  *  type BEFORE its generic dead-end catch and fails the creation at once with this
  *  reason, instead of re-running GeneratePools nine more times and reporting an
