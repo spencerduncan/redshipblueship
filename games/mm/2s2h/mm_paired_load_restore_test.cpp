@@ -868,11 +868,9 @@ int LegLegacyMmLogicAtStagedRung() {
     const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
     printf("[TEST] leg 2g OBSERVED: legacy file MM Logic %u at rung %u; live matched before the load %d; probe=%d "
            "moved='%s' load rc=%d paired=%d rung key now %d profile matches %d MM Logic key %d (set %d) "
-           "arrivalGate=%d
-           ",
-           (unsigned)fileLogic,
-           (unsigned)fileRung, liveMatchedBefore ? 1 : 0, probe.outcome, probe.moved.c_str(), rc, paired ? 1 : 0,
-           (int)rungNow, matches ? 1 : 0, (int)keyNow, keySet ? 1 : 0, gate);
+           "arrivalGate=%d\n",
+           (unsigned)fileLogic, (unsigned)fileRung, liveMatchedBefore ? 1 : 0, probe.outcome, probe.moved.c_str(), rc,
+           paired ? 1 : 0, (int)rungNow, matches ? 1 : 0, (int)keyNow, keySet ? 1 : 0, gate);
 
     if (fileLogic != (uint32_t)RO_LOGIC_NO_LOGIC || fileRung != (uint8_t)RSBS_COMBO_RUNG_BEATABLE) {
         return Fail(143, "leg 2g setup: the legacy world froze MM Logic %u at rung %u, not No Logic at Beatable Only",
