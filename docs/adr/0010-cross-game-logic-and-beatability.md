@@ -2643,6 +2643,40 @@ Logic setting follows it.
   (`gCombo.Rando.Logic=1`) still has to be pinned by a re-pin run (done by R5,
   below; the unread file is deleted there).
 
+### 2026-11-02 -- The overlay shows the round budget, not the time estimate (#1286)
+
+The question behind the 60 s ruling (2026-10-28) came from the overlay itself: its
+second line printed the whole creation's elapsed time "(up to 32 s)" of the
+attempt's time estimate, and its within-attempt creep was the attempt's clock over
+that estimate.
+A headless replay of the operator's seed showed the fill at 464 of its 1250 rounds
+(37%) while OoT's generation, hint creation and presenting ran the clock past the
+estimate. So the overlay now reads the stop's own quantity:
+
+- **Bar:** while MM's fill runs, the single bag's observer notes the rounds run and
+  the per-attempt round budget (`ComboGenOverlay_NoteRounds`), and the creep is
+  rounds over budget. The time estimate drives the creep only for a fill that
+  notes no rounds (MM's own fill loop, which the paired single bag does not
+  reach). MM's own pass over its leftovers after the bag sends no heartbeat, so
+  the bag's last share stays on screen until the next phase report.
+- **Line:** "N s elapsed (fill budget P% used)" while rounds are noted, "N s
+  elapsed" otherwise. The estimate is never printed as a limit, because it is not
+  one.
+- **Log:** the session's COMPLETE/FAILED line, the single bag's ladder-attempt line
+  (rounds and budget) and the completion's OoT-tail line reach `logs/<name>.log` as
+  well as stderr (`Combo_GenProgress_LogLine`), so a playtest report carries them.
+- **Replay and measurement:** `--test debug-seed-forced-placements` with
+  `RSBS_FORCE_PLACEMENTS=none` replays a seed string under a profile with no pinned
+  row, through the production completion, and prints its measurement lines;
+  `CreationHeavyProfileBudget` replays the operator's seed and profile, requires
+  each game's pool to clear a floor of 1000 OoT + 1500 MM rows (the profile made
+  1464 + 2333 at 347ba755, the default makes about 193 + 283), so an ignored
+  setting cannot lighten the world under it, and requires the ladder's charge to
+  stay at or under half the per-attempt budget.
+
+Nothing a creation decides changed: no stop, budget or golden moves. Locked by
+`GenProgressOverlay` leg 8 and `CreationHeavyProfileBudget`.
+
 ### 2026-11-02 -- O11: All Locations is the default (#1367 R5, PR #1392)
 
 Operator-approved: the shipped `[Both Games] Logic` is **All Locations**

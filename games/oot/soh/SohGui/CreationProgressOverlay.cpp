@@ -508,15 +508,14 @@ void DrawOverlayContents() {
 
         // The elapsed counter is the honest part of the surface: the fraction is
         // a phase position (gen_progress_overlay.h says so), the seconds are
-        // measured. The budget is shown only while there is one, because "0 s
-        // budget" would read as a broken bar rather than as "this phase is not
-        // the timed one".
-        if (view->budgetMs > 0) {
-            ImGui::Text("%.1f s elapsed (up to %.0f s)", (double)view->elapsedMs / 1000.0,
-                        (double)view->budgetMs / 1000.0);
-        } else {
-            ImGui::Text("%.1f s elapsed", (double)view->elapsedMs / 1000.0);
-        }
+        // measured. While MM's fill runs, the line adds the share of the attempt's
+        // ROUND budget spent, the quantity the stop compares; it used to print the
+        // attempt's time estimate as "up to N s", which is not a limit since #950
+        // and read as a near miss on a creation nowhere near its stop (#1286). The
+        // words come from the state machine so the headless row reads them too.
+        char statusLine[96];
+        ComboGenOverlay_FormatStatusLine(view, statusLine, sizeof(statusLine));
+        ImGui::Text("%s", statusLine);
 
         // The extraction bar's 600 x 50, in font units (docs/ui-style-guide.md
         // R-T2) so it scales with "ImGui Menu Scaling" the way the text does: at
