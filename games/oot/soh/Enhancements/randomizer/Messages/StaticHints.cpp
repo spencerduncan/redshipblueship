@@ -395,6 +395,14 @@ void BuildBossKeyHintMessage(uint16_t* textId, bool* loadFromMessageTable) {
         default:
             break;
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1435: under a Triforce Hunt no hint is built for Ganon's door (hints.cpp,
+    // StaticHintReplacedByTriforceHunt); the door keeps the game's own text, as
+    // OoTMM's does, instead of a disabled hint's "No Hint".
+    if (rh != RH_NONE && !RAND_GET_HINT(rh)->IsEnabled()) {
+        return;
+    }
+#endif
     if (rh != RH_NONE) {
         CustomMessage msg = RAND_GET_HINT(rh)->GetHintMessage(MF_AUTO_FORMAT);
         msg.LoadIntoFont();

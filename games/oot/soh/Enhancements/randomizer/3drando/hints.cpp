@@ -15,6 +15,7 @@
 #include "combo_area.h" // src/common: the shared area vocabulary (#575 H3a)
 #include "game.h"       // src/common: GAME_MM
 #include <algorithm>    // std::sort, std::reverse: the static hints' build order (#951)
+#include "starting_inventory.hpp" // #1435: a static hint's target that Link starts with
 // ForeignItemsSingleExe.cpp (#575 H3b): whether OoT check `rc`, a crossing host of the
 // paired world OoT's remainder hints, yields an MM item MM itself grades major (1) or
 // not (0); -1 when `rc` is no such host.
@@ -872,8 +873,39 @@ void CreateAdultAltarHint() {
                     RC_ALTAR_HINT_ADULT);
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+/**
+ * #1435: whether Link starts with `item`, so it is in no pool and at no location and
+ * FindItemsAndMarkHinted answers RC_UNKNOWN_CHECK for it: a boss key under "Start
+ * With" (Ganon's Boss Key's shipped default since #1428), a starting Kokiri Sword.
+ */
+static bool StaticHintTargetIsStartingItem(RandomizerGet item) {
+    return std::find(StartingInventory.begin(), StartingInventory.end(), item) != StartingInventory.end();
+}
+
+/**
+ * #1435: Ganon's door names no key while a Triforce Hunt is on. The hunt grants
+ * Ganon's Boss Key ("Win": at the end of the hunt, while the starting inventory
+ * credits it to logic only; "Ganon's Boss Key": at RC_TRIFORCE_COMPLETED, in Link's
+ * pocket by area), so either answer would read "your pocket" for a door that stays
+ * locked until the hunt is won. OoTMM does the same: under its Triforce goals
+ * Ganon's Boss Key Shuffle is hidden (data.ts `cond`), the tower door opens on the
+ * hunt's win (doors.c), and its Ganon's Boss Key hint exists only under "Anywhere"
+ * (world-config.ts OOT_GANON_BOSS_KEY_HINT), so the door keeps the game's own text.
+ */
+static bool StaticHintReplacedByTriforceHunt(RandomizerHint hint) {
+    return hint == RH_GANONS_BOSS_KEY_HINT &&
+           Rando::Context::GetInstance()->GetOption(RSK_TRIFORCE_HUNT).IsNot(RO_TRIFORCE_HUNT_OFF);
+}
+#endif
+
 void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
     auto ctx = Rando::Context::GetInstance();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (StaticHintReplacedByTriforceHunt(hint)) {
+        return; // #1435: no hint at Ganon's door under a Triforce Hunt (see above)
+    }
+#endif
     if (!ctx->GetHint(hint)->IsEnabled()) {
         OptionValue& option = ctx->GetOption(staticData.setting);
         if ((std::holds_alternative<bool>(staticData.condition) && option.Is(std::get<bool>(staticData.condition))) ||
@@ -904,6 +936,17 @@ void CreateStaticHintFromData(RandomizerHint hint, StaticHintInfo staticData) {
                     continue;
                 }
                 ctx->GetItemLocation(loc)->SetHintAccesible();
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #1435: an item Link starts with is in his pocket, which a hint built
+                // with yourPocket (every boss door's) reads as "your pocket", rather
+                // than at RC_UNKNOWN_CHECK's no area, RA_NONE, "an Isolated Place".
+                // No draw either way, so the fill's stream is the same.
+                if (loc == RC_UNKNOWN_CHECK && i < staticData.targetItems.size() &&
+                    StaticHintTargetIsStartingItem(staticData.targetItems[i])) {
+                    areas.push_back(RA_LINKS_POCKET);
+                    continue;
+                }
+#endif
                 if (ctx->GetItemLocation(loc)->GetAreas().empty()) {
                     // If we get to here then it means a location got through with no area assignment, which means
                     // something went wrong elsewhere.
