@@ -123,7 +123,7 @@
  *
  *  Note: the Hookshot terms in 848106039 (dodongos_cavern.cpp:428), ZD island
  *  (zoras_domain.cpp:49), DC Armos (dodongos_cavern.cpp:159), the BotW corridor
- *  (bottom_of_the_well.cpp:23) and the KF child branch (kokiri_forest.cpp:75)
+ *  (bottom_of_the_well.cpp:23) and the KF child branch (kokiri_forest.cpp:77)
  *  are ported faithfully but cannot change logic for either age because
  *  Logic::CanUse(RG_HOOKSHOT/RG_LONGSHOT) requires IsAdult (logic.cpp:829-831),
  *  so they are not lockable. Q2 locks 09b0fdbc9.
