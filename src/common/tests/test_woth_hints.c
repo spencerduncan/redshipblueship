@@ -664,9 +664,16 @@ TestResult Test_WothHints(void) {
     bool ok = WhCheckDefaults();
     if (ok) {
         // WhCheckSet installs the stub engines first thing, so they are what
-        // ClUninstall resets and un-registers, whatever the two legs found.
+        // ClUninstall resets and un-registers, whatever the two legs found. The
+        // real engines (both games' file-scope registrars) go back afterwards:
+        // `--test all` runs every row in one process, and later rows read the
+        // registry (menu-capability-gating needs MM's engine registered).
+        const ComboLogicEngine* priorOoT = Combo_Logic_GetEngine(GAME_OOT);
+        const ComboLogicEngine* priorMM = Combo_Logic_GetEngine(GAME_MM);
         ok = WhCheckSet() && WhCheckRecord();
         ClUninstall();
+        Combo_Logic_RegisterEngine(GAME_OOT, priorOoT);
+        Combo_Logic_RegisterEngine(GAME_MM, priorMM);
     }
     Combo_Woth_Clear();
     ok = ok && WhCheckCreationRecord() && WhCheckMmStones() && WhCheckOoTStones() && WhCheckWiring();
