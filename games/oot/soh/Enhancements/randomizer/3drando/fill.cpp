@@ -28,6 +28,7 @@ extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void);
 // (ComboLogicEngineOoT.cpp).
 extern "C" int OoT_ComboLogic_SharedSongHeldBack(uint16_t rg);
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
+#include "soh/Enhancements/randomizer/TimeTravelSword.h"
 #endif
 
 using namespace Rando;
@@ -114,17 +115,31 @@ PriceSettingsStruct merchantPrices = {
     RSK_MERCHANT_PRICES_AFFORDABLE,
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// [RSBS #1434] OoTMM's timeTravelSword: the pedestal sends Link through time, either
+// way, only once the search holds the Master Sword (TimeTravelSword.cpp). Asked last
+// in each branch below, so a search that already has both ages never asks.
+static bool PedestalLetsLinkTravel() {
+    return OoT_TimeTravelSword_LogicAllows();
+}
+#else
+static bool PedestalLetsLinkTravel() {
+    return true;
+}
+#endif
+
 static void PropagateTimeTravel(GetAccessibleLocationsStruct& gals, RandomizerGet ignore = RG_NONE,
                                 bool stopOnBeatable = false, bool addToPlaythrough = false) {
     // special check for temple of time
     if (gals.haveTimeAccess && gals.foundTempleOfTime && gals.validatedStartingRegion) {
-        if (!RegionTable(RR_ROOT)->Adult() &&
-            RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)
-                ->Child()) { // RANDOTODO: sphere weirdness, other age locations not propagated in this sphere
+        // RANDOTODO: sphere weirdness, other age locations not propagated in this sphere
+        if (!RegionTable(RR_ROOT)->Adult() && RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->Child() &&
+            PedestalLetsLinkTravel()) {
             RegionTable(RR_ROOT)->adultDay = RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->childDay;
             RegionTable(RR_ROOT)->adultNight = RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->childNight;
             ProcessRegion(RegionTable(RR_ROOT), gals, ignore, stopOnBeatable, addToPlaythrough);
-        } else if (!RegionTable(RR_ROOT)->Child() && RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->Adult()) {
+        } else if (!RegionTable(RR_ROOT)->Child() && RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->Adult() &&
+                   PedestalLetsLinkTravel()) {
             RegionTable(RR_ROOT)->childDay = RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->adultDay;
             RegionTable(RR_ROOT)->childNight = RegionTable(RR_TOT_BEYOND_DOOR_OF_TIME)->adultNight;
             ProcessRegion(RegionTable(RR_ROOT), gals, ignore, stopOnBeatable, addToPlaythrough);

@@ -2607,6 +2607,16 @@ typedef enum {
     // - `uint16_t` (cursorItem - promoted from `u16`)
     VB_EQUIP_ITEM_TO_C_BUTTON,
 
+    // [RSBS #1434] Appended last. Asked in `z_bg_toki_swd.c` before the Pedestal
+    // of Time offers the pull that sends Link through time, at either age.
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_BE_ABLE_TO_TIME_TRAVEL_AT_PEDESTAL,
+
 } GIVanillaBehavior;
 
 #endif

@@ -129,6 +129,9 @@ games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/SeedPackageTestBridgeSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/TimeTravelSword.h
+games/oot/soh/Enhancements/randomizer/TimeTravelSword.cpp
+games/oot/soh/oot_time_travel_sword_test.cpp
 games/oot/soh/GameExports_SingleExe.cpp
 games/oot/soh/OTRGlobals.cpp
 games/oot/soh/ResourceManagerHelpers.cpp

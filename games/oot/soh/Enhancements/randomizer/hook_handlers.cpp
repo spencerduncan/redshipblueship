@@ -22,6 +22,7 @@
 // in C linkage (see context.h's header comment).
 #include "foreign_items.h" // Combo_GetForeignPlacementForOoTCheck, OoT_Rando_Foreign_RecordPickup (#510/#493)
 #include "soh/Enhancements/randomizer/ForeignModelHostOoT.h" // the show-only get-item entry (#577 M4)
+#include "soh/Enhancements/randomizer/TimeTravelSword.h"     // the pedestal's rule (#1434)
 #endif
 
 extern "C" {
@@ -1426,6 +1427,11 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                 CheckTracker::RecalculateAllAreaTotals();
             }
             break;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        case VB_BE_ABLE_TO_TIME_TRAVEL_AT_PEDESTAL: // [RSBS #1434] OoTMM's timeTravelSword
+            *should = OoT_TimeTravelSword_PedestalAllows();
+            break;
+#endif
         case VB_ITEM00_DESPAWN: {
             EnItem00* item00 = va_arg(args, EnItem00*);
             if (item00->actor.params == ITEM00_HEART_PIECE || item00->actor.params == ITEM00_SMALL_KEY) {

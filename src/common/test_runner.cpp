@@ -7881,6 +7881,17 @@ TestResult Test_MMTrackerInLogicArrival(void) {
     }
     return MM_TrackerInLogic_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
 }
+// #1434: Time Travel Requires Master Sword (OoTMM's timeTravelSword): the option's
+// default, the pedestal's real wait action, OoT's real search through the pedestal,
+// and a stored world's own value. Same bring-up as the rows above (OTRGlobals'
+// randomizer context); body in games/oot/soh/oot_time_travel_sword_test.cpp.
+extern "C" int OoT_TimeTravelSwordTest_Run(void);
+TestResult Test_OoTTimeTravelSword(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_TimeTravelSwordTest_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
 TestResult Test_TrackerFillSuperset(void) {
     if (!TrackerReachabilityBringUp()) {
         return TEST_FAIL;
@@ -9622,6 +9633,13 @@ const TestDescriptor gTests[] = {
       "ShuffleFairies_FairyExists inspects the actor in ACTORCAT_ITEMACTION rather than the address of its own local "
       "pointer, and the gossip-stone hook suppresses duplicate fairy spawns while the check's fairy lives (#1296)",
       Test_ShuffledFairyExists },
+    // #1434. Replaces the randomizer context in its last leg; skipped by `--test all`
+    // below like its siblings.
+    { "oot-time-travel-sword",
+      "Time Travel Requires Master Sword ships on (OoTMM's timeTravelSword); with the sword shuffled the Pedestal of "
+      "Time offers the pull and logic sends Link through time, either way, only with the sword; a world saved before "
+      "the option keeps its pedestal (#1434)",
+      Test_OoTTimeTravelSword },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -9966,6 +9984,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-no-heal") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
+                strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
