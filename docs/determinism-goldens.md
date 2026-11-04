@@ -296,9 +296,14 @@ rule, the Stone Mask (OoT) rule changes OoT's own pool at Generate (one
 `RG_STONE_MASK`, pooled after the Blast Mask's), so `placementHash` moves with
 `comboSettingsHash`, and the Shared Stone Mask is the seventh shared pair (OoT's
 Stone Mask row in, MM's trimmed, one more `bagTrimmedMM`), so the bag's seed and
-everything after it move too. The orchestrator re-pins this file once for every
-golden-moving lane of the window (the lane does not), and the re-pin commit names
-every field and value that moved. Both rules ship off, so no other golden moves.
+everything after it move too. Both rules ship off, so no other golden moves
+because of them. This file was re-pinned once with the rest of that release
+window's golden-moving changes (the D wave 2 re-pin under "The generator
+version"), which also moved every other golden. Measured there: `bagTrimmedMM`
+35 to 36 (the default world trims 29, so seven shared pairs), `bagRows` stays
+265, `placedCount` stays 272 (the Stone Mask takes a junk item's place), and
+`crossItemFlags` is `0000187F`. It still creates on ladder attempt 1 in one batch
+attempt of 267 rounds.
 
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
 this golden with its nine keys and requires the frozen `crossItemFlags` to be
@@ -574,6 +579,94 @@ half moves. That is true only against the unreleased generator-4 builds between
 because #1427's two new option slots change the MM half's size (`ERR_LAYOUT`).
 `RandoStaticHintOrder`'s hand pin `kStaticHintTextDigest` moved in the same re-pin
 (`2387DBDD` to `759F783D`, still 17 hints, 15 of them drawing).
+
+The D wave 2 re-pin (2026-11-03; PRs #1438, #1441, #1442, #1444 and #1445,
+combined into one branch and re-pinned once), still version 4. Five reviewed
+changes, each of which moves worlds:
+
+* #1442 (issue #1434): Time Travel Requires Master Sword (OoTMM's
+  `timeTravelSword`), on by default. With Shuffle Master Sword on (#1436's
+  default), OoT's settings fold adds the option and logic's age switch at the
+  pedestal needs the sword.
+* #1445 (issue #1439): Majora's Mask's five hint rows default on, and the pair's
+  Way of the Hero hints, from an analysis after the fill that draws no RNG and
+  moves no placement.
+* #1441 (issue #979): the Stone Mask (OoT) and Shared Stone Mask rules, off by
+  default, appended to `seed-digest-all-masks`'s profile (see "The all-masks
+  profile").
+* #1438 (issue #1435): Ganon's door hint names Link's pocket for a starting key.
+  No golden profile turns the boss-door hints on, so only `kStaticHintTextDigest`
+  sees it.
+* #1444 (issue #1443): OoTMM's critical renewables under All Locations. No golden
+  profile shuffles MM's shops, so MM's vanilla shops renew all six MM kinds before
+  the fill and OoT's vanilla shelves renew both shields: the rule is inert in every
+  golden.
+
+Measured against the OoTMM-defaults pins:
+
+* INPUT: `settingsHash` in every golden that carries it (`seed-digest-default`
+  `60E949E7` to `87ACBBCC`), because OoT's settings string folds #1442's option
+  while the sword is shuffled. `comboSettingsHash` moves with it and with MM's
+  profile digest (`DB569499` to `5A6E8D11`). `seed`, `comboSettings` and
+  `ladderMasterSeed` stay.
+* `mmFinalSeed` moves in every golden (`74C32F12` to `03D4D40F`; `4CF9E67F` to
+  `1EF066A2` in `seed-digest-no-logic`, `E74E56F7` to `A1BB0D40` in
+  `paired-attempt-digest`): MM's seed derivation folds the five hint rows #1445
+  turns on.
+* OoT's general pass: `placementHash` moves (#1442's logic ask). `placedCount`
+  stays (272; 277 in `seed-digest-excludes-tricks`, 240 in
+  `seed-digest-shopsanity`), and so does `ootStartingItems` (`1/959CFCFB`).
+* The bag: `bagRows`, `bagRequiredPlaced` and `bagTrimmedOoT` stay everywhere.
+  In `seed-digest-all-masks`, `bagTrimmedMM` goes from 35 to 36 and the frozen
+  `crossItemFlags` from `0000083F` to `0000187F` (the Stone Mask pair). In
+  `seed-digest-armed-caps`, `armedBagDigest` and `armedTrimSeed` move with
+  `settingsHash`; `armedGiveCaps`, `armedOoTPoolRows`, `armedMMPoolRows`,
+  `armedBagRows`, `armedOoT`, `armedMM` and `armedStartingHealth` stay.
+* After that: `bagSeed`, `coordinatorDigest`, `mmPlacementHash`,
+  `ootFinalPlacementHash`, `crossingDigest`, the crossing counts and every
+  per-slot line, `ootHintDigest` (`ootHintCount` stays 45: OoT's own Way of the
+  Hero entry draws again and MM areas join it), `mmHintCount`, `mmHintDigest`,
+  `mmFoolishAreas`, `mmFreeStoneDigest` (the free stone's Way of the Hero
+  variant; `mmFreeStoneCount` stays), `entranceDigest` in
+  `seed-digest-entrances`, and the drawn OoT prices in `seed-digest-shopsanity`
+  (`233AA6DB` to `FDABC8EC`, still 113). `ootFinalPlacedCount` (490),
+  `mmStartingItems`, `mmStartInventory`, `mmPriceCount` and `mmPriceDigest` stay.
+* Rounds: every golden still creates on its pinned ladder attempt, so `kGoldens`'
+  `expectedAttempts` is unchanged. The default takes one batch attempt of 272
+  rounds (as before), Beatable Only one of 271, the entrances profile one of 272
+  (two, 488, before), all-masks one of 267, and `paired-attempt-digest`'s ladder
+  world three, 804 rounds (one, 272, before; two batches dead-ended near the end
+  of the bag, and 804 is 32% of the 2500-round budget).
+* The Way of the Hero runs after the fill in every proving golden: 191 to 196
+  candidates in the worlds `GoldenSeedsRoundBudget` creates, one round each plus
+  the baseline (197 rounds in the default world, 64 required hosts, 35 areas),
+  under its 400-round cap and not charged to the fill's budget.
+
+Why no bump: the same reasons as the OoTMM-defaults re-pin. #1392 bumped to 4 in
+this release window and no release has carried generator 4 (the latest is
+`v0.4.4-alpha`, generator 3). #1442's and #1445's default changes are folded by
+the fingerprint (OoT's settings string and MM's profile digest), so a default
+world made after this re-pin never shares a fingerprint with one made before it.
+The residuals, all against the unreleased generator-4 builds between #1392 and
+this re-pin only:
+
+* **Critical renewables (#1444) change the fill behind an unchanged fingerprint.**
+  No setting changed, so an All Locations world with MM's Shuffle Shops on (off
+  by default) keeps its `comboSettingsHash` while the first Hero's Shield, 10
+  Bombchus and Red Potion move to renewing Termina hosts (with Shared Shields
+  off, every bag draw after the shield's moves too). A seed package one of those
+  builds wrote still loads its own world: a package binds its stored placements
+  and is never refilled.
+* **Hint text changes behind an unchanged fingerprint.** A profile that sets MM's
+  five hint rows explicitly keeps MM's profile digest, yet OoT's Way of the Hero
+  entry and MM's free stones now say something else (#1445), and Ganon's door
+  with Boss Door Hints on names Link's pocket (#1438). No placement moves.
+* #1442 has none: with the option off or the sword unshuffled, the fold leaves the
+  option out and the world does not move. #1441's rules ship off, and their bits
+  are folded into `comboSettingsHash` when on.
+
+`RandoStaticHintOrder`'s hand pin `kStaticHintTextDigest` moved in the same re-pin
+(`759F783D` to `AC30C06B`, still 17 hints, 15 of them drawing).
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 

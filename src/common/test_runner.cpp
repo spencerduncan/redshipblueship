@@ -2349,7 +2349,11 @@ extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 // Re-pinned again by the OoTMM-defaults re-pin (#1428, #1425, #1427; still generator
 // 4, was 0x2387DBDD): the shipped goal gates and OoT shuffles move OoT's settings
 // string, so every static hint names a moved placement; the count stays 17.
-static const uint32_t kStaticHintTextDigest = 0x759F783Du;
+// Re-pinned again by the D wave 2 re-pin (#1434, #1435, #1439, #1443, #979; still
+// generator 4, was 0x759F783D): Ganon's door names Link's pocket for the Start With
+// key (#1435), and Time Travel Requires Master Sword and MM's hint defaults move the
+// placements every static hint names; the count stays 17.
+static const uint32_t kStaticHintTextDigest = 0xAC30C06Bu;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
