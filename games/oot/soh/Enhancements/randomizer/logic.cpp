@@ -80,8 +80,8 @@ namespace Rando {
 // and `endQuery` (ComboLogicEngineOoT.cpp), and it bounds OoT's COUNTER rows (small keys, Gold Skulltula tokens,
 // triforce pieces, heart capacity, magic beans), which upstream also advances
 // with no upper bound into narrow storage: `dungeonKeys` is an `s8` that
-// `GetSmallKeyCount` reads back through a `-1` "never had keys" sentinel, so the
-// 255th copy reads as ZERO keys; `GetGSCount` narrows the `s16` token count to a
+// `GetSmallKeyCount` returns as an `int8_t`, so the 128th copy wraps the count
+// from 127 to -128; `GetGSCount` narrows the `s16` token count to a
 // `uint8_t`, so the 256th token reads as zero; bean ammo and
 // `triforcePiecesCollected` are 8-bit. A combo round has no bag cap of its own
 // (`Combo_Logic_RunRound` takes any assumed set), so "no bag is that big" is not
