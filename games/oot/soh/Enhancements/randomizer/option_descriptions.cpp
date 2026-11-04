@@ -822,8 +822,7 @@ void Settings::CreateOptionDescriptions() {
 #ifdef RSBS_SINGLE_EXECUTABLE
     // [RSBS #1434] OoTMM's timeTravelSword (TimeTravelSword.cpp).
     mOptionDescriptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD] =
-        "Link needs the Master Sword to travel through time at the Pedestal of Time, in either direction, as in "
-        "OoTMM.\n"
+        "Link needs the Master Sword to travel through time at the Pedestal of Time, in either direction.\n"
         "\n"
         "With Shuffle Master Sword on, logic expects the sword before the first trip to adult, wherever it was "
         "placed (Termina included). An adult start must find it before Link can be a child again, so the way to "
