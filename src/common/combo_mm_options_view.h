@@ -452,7 +452,7 @@ enum {
  * The pure half of MM_Rando_RestoreProfileForLoad (#836): the same
  * classification, with NOTHING written. MATCHES, RESTORABLE (the restore below
  * would write the file's options and tricks back) or UNRESTORABLE. The
- * file-select probe asks this (through MM_Rando_ClassifyProfileForLoadAtRung),
+ * file-select probe asks this (through MM_Rando_ClassifyProfileForLoadAtFileRules),
  * so it refuses exactly the files whose MM profile the load could not restore.
  * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
  */
@@ -469,6 +469,19 @@ int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint3
  * Writes nothing. DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp.
  */
 int MM_Rando_ClassifyProfileForLoadAtRung(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, int fileRung);
+
+/**
+ * MM_Rando_ClassifyProfileForLoadAtRung at the file's goal and Triforce Hunt
+ * counts too (#1389). Under the triforce-hunt goal MM's paired triforce options
+ * derive from [Both Games] Triforce Pieces / Triforce Goal, which the load also
+ * restores before the MM profile, so the probe asks at @p fileGoal (the record's
+ * goal) and @p filePieces / @p fileTriforceGoal (its triforce record's sums) when
+ * the rules restore will write them. -1 reads the key, as does a goal outside
+ * the pinned RSBS_COMBO_GOAL_* table or a count outside 1..255. Writes nothing.
+ * DEFINED MM-SIDE in games/mm/2s2h/Rando/Foreign.cpp; save.cpp's probe calls it.
+ */
+int MM_Rando_ClassifyProfileForLoadAtFileRules(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
+                                               int fileRung, int fileGoal, int filePieces, int fileTriforceGoal);
 
 /** Outcomes of MM_Rando_ClassifyHalfForPair. */
 enum {

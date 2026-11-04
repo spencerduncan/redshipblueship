@@ -19889,7 +19889,8 @@ void func_80857AEC(PlayState* play, Player* this) {
                 this->unk_B08 = 0.0f;
                 MM_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_TEST, this->actor.world.pos.x, this->actor.world.pos.y,
                             this->actor.world.pos.z, 0, 0, 0, 0);
-            } else {
+            } else if (GameInteractor_Should(VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING, true)) {
+                // RSBS (#1426): Lenient Goron Spikes keeps the charge through a landing (OoTMM's lenientSpikes).
                 this->av1.actionVar1 = 4;
             }
         }

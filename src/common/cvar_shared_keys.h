@@ -164,6 +164,13 @@
  * earlier world froze, and those worlds restore their own rung at load. Both
  * games' own Logic rows follow it. */
 #define RSBS_CVAR_COMBO_RANDO_LOGIC "gCombo.Rando.Logic"
+/* #1389: the pair's ONE Triforce Hunt, OoTMM's `triforcePieces` and
+ * `triforceGoal` (1..255, OoT's 8-bit counter; DEFAULT 30 and 20). Read only
+ * under the triforce-hunt goal, where they freeze as the triforce record's two
+ * halves and both games' own piece settings follow them, so a world under any
+ * other goal resolves to the same record bytes whatever they hold. */
+#define RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES "gCombo.Rando.TriforcePieces"
+#define RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL "gCombo.Rando.TriforceGoal"
 /* #886: one Kokiri Sword across both games. Boolean (0/1), DEFAULT 0, so every
  * world created before it existed, and every world whose player leaves it alone,
  * resolves to the same twelve record bytes and the same comboSettingsHash. */
@@ -398,13 +405,20 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
 
     // Group C — cutscene-skip family. OoT groups under TimeSavers.SkipCutscene.*,
     // MM under Cutscenes.Skip*Cutscenes. Both bool. (OoT defaults these to
-    // IS_RANDO and MM to 0; that per-reader default difference is inherent to a
-    // shared key and pre-dates convergence — it is not a type mismatch.)
+    // IS_RANDO and MM to 0, except BossIntro since #1426, below; that per-reader
+    // default difference is inherent to a shared key and pre-dates convergence —
+    // it is not a type mismatch.)
     // SkipEnemyCutscenes joined in #1123 (migrated by ConfigVersion9Updater, not 8):
     // MM's one checkbox covers the boss intros SoH's "Skip Boss Introductions"
     // names plus MM's boss-warp and miniboss cutscenes, all under that one key.
     // LearnSong, QuickBossDeaths and GlitchAiding have no MM twin; MM's song-teacher
     // skips key on Story, as upstream 2S2H does.
+    // #1426: BossIntro is the one row of the family whose MM reader takes OoT's
+    // IS_RANDO default (SkipEnemyCutscenes.cpp, re-armed on "IS_RANDO"), so an
+    // untouched key skips Termina's boss intros on a rando file as it does
+    // Hyrule's. OoTMM's cutsceneIntro* defaults skip six of them and play Wart's
+    // and Majora's; this one key skips all eight, and MM's boss-warp and miniboss
+    // cutscenes too, which no OoTMM setting covers.
     { "gEnhancements.Cutscenes.SkipEntranceCutscenes", "gEnhancements.TimeSavers.SkipCutscene.Entrances", false },
     { "gEnhancements.Cutscenes.SkipIntroSequence", "gEnhancements.TimeSavers.SkipCutscene.Intro", false },
     { "gEnhancements.Cutscenes.SkipOnePointCutscenes", "gEnhancements.TimeSavers.SkipCutscene.OnePoint", false },
@@ -570,6 +584,9 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_MASKS_NO_BLAST_MASK_COOLDOWN "gEnhancements.Masks.NoBlastMaskCooldown"
 #define RSBS_CVAR_MM_MASKS_GORON_ROLLING_IGNORES_MAGIC "gEnhancements.Masks.GoronRollingIgnoresMagic"
 #define RSBS_CVAR_MM_MASKS_GORON_ROLLING_FAST_SPIKES "gEnhancements.Masks.GoronRollingFastSpikes"
+// #1426: Lenient Goron Spikes (OoTMM lenientSpikes), this project's own key: 2Ship has no such setting
+// (kTwoShipDoNotImport). Read with an IS_RANDO default by Masks/GoronRollingLenientSpikes.cpp.
+#define RSBS_CVAR_MM_MASKS_GORON_ROLLING_LENIENT_SPIKES "gEnhancements.Masks.GoronRollingLenientSpikes"
 #define RSBS_CVAR_MM_SONGS_PAUSE_OWL_WARP "gEnhancements.Songs.PauseOwlWarp"
 #define RSBS_CVAR_MM_SONGS_ENABLE_SUNS_SONG "gEnhancements.Songs.EnableSunsSong"
 #define RSBS_CVAR_MM_SONGS_ZORA_EGG_COUNT "gEnhancements.Songs.ZoraEggCount"
@@ -1254,6 +1271,10 @@ inline constexpr TwoShipDoNotImport kTwoShipDoNotImport[] = {
       "INTERNAL (W6-MASKS-SONGS): PersistentMasks.cpp writes it from the mask menu; it is not a setting" },
     { "gWindows.Timesplits.Settings", false,
       "INTENTIONAL (W6-TIMERS): SoH's Time Splits window is the one Time Splits surface" },
+    // ---- This project's own MM keys: 2Ship has no such setting, so there is no 2Ship value to carry. ----
+    { "gEnhancements.Masks.GoronRollingLenientSpikes", false,
+      "NOT A 2SHIP KEY (#1426): Lenient Goron Spikes is OoTMM's lenientSpikes, added here; a 2Ship config never "
+      "holds it" },
     // ---- Key families: a family import is a follow-up after the family lanes (#1239). ----
     { "gAudioEditor.ReplacedSequences.", true,
       "2Ship's raw sequence replacements: SoH's own tabs write this spelling, eleven sfxKeys name a sequence in both "
@@ -1328,6 +1349,10 @@ inline constexpr const char* kSharedIntentKeys[] = {
     "gSettings.Menu.SidebarSearch",
     // Shared macro prefix, identical in both trees.
     "gInputViewer.",
+    // #1426: SoH's "Disable Crit Wiggle". 2Ship has no such setting; MM's z_camera.c low-health wiggle now reads
+    // SoH's key with SoH's default (off), the way OoT's z_camera.c does, so the one row drives both games and the
+    // marker pass labels it. Adopted, not converged: there is no MM spelling to retire or migrate.
+    "gEnhancements.DisableCritWiggle",
 };
 
 /**
@@ -1449,6 +1474,12 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_LOGIC, ComboKeyClass::Identity,
       "ComboSettingsRecord.logicRung (RSBS_COMBO_RUNG_*, #1367): the rung the creation's proof runs at, and the "
       "logic both games' own rows derive from" },
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, ComboKeyClass::Identity,
+      "ComboTriforceRecord's two totals (#1389, OoTMM triforcePieces): the pieces a triforce-hunt world places, "
+      "split between the two games' pools" },
+    { RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, ComboKeyClass::Identity,
+      "ComboTriforceRecord's two requirements (#1389, OoTMM triforceGoal): the pieces that win a triforce-hunt "
+      "world, in whichever game the last one is found" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_KOKIRI_SWORD, ComboKeyClass::Identity,
       "ComboSettingsRecord.comboFlags' RSBS_COMBO_FLAG_SHARED_KOKIRI_SWORD bit (#886): the Kokiri Sword is ONE "
       "monotonic shared item across both games" },
@@ -1968,13 +1999,15 @@ static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder 
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to
 // OoT's 1). Two of the 26 were never shared: the draw-distance and
 // widescreen-culling spellings matched only in OoT's uncalled ShipUtils.cpp, so
-// #966 (#1027, #1028) converged them as ordinary rows and this table carries 24.
-// Pinning the count makes a silent drop a compile error rather than a quietly
-// weaker lock.
-static_assert(kSharedIntentKeyCount == 24,
+// #966 (#1027, #1028) converged them as ordinary rows and this table carried 24.
+// #1426 adds one adopted key, SoH's DisableCritWiggle, which MM's camera now
+// reads too: 25. Pinning the count makes a silent drop a compile error rather
+// than a quietly weaker lock.
+static_assert(kSharedIntentKeyCount == 25,
               "ADR 0003 Appendix B's 26 class-(S) keys less the two actor-cull spellings #966 moved to converged "
               "rows (#1027, #1028); includes DebugSaveFileMode — restored to (S) by #454 once MM's "
-              "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1");
+              "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1; plus #1426's "
+              "adopted gEnhancements.DisableCritWiggle");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 // The disputed table is empty since #454's fix. Pinned at 0 like every other
 // table here, so a key silently re-added to it is a compile error rather than a
@@ -1984,8 +2017,9 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twenty-three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Twenty-five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
+// TriforcePieces and TriforceGoal (#1389),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
 // SharedSongEpona and SharedSongStorms (#1066), SharedOcarinaButtons (#1067),
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
@@ -2002,9 +2036,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 43, "twenty-three gCombo.Rando.* identity keys + four gCombo.Windows.* "
+static_assert(kComboKeyCount == 45, "twenty-five gCombo.Rando.* identity keys + four gCombo.Windows.* "
                                     "preferences + twelve gCombo.Tracker.Items.* preferences + four "
-                                    "gCombo.Tracker.Checks.* preferences = 43");
+                                    "gCombo.Tracker.Checks.* preferences = 45");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

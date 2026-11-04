@@ -22,6 +22,9 @@ extern PlayState* OoT_gPlayState;
 #include "textures/icon_item_static/icon_item_static.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "triforce_hunt.h" // src/common — #1389: the paired hunt's requirement and total, for the pause entry
+#endif
 
 #include <sstream>
 
@@ -43,6 +46,11 @@ void KaleidoEntryIcon::LoadIconTex(std::vector<Gfx>* mEntryDl) {
         if (mIconSize == G_IM_SIZ_32b) {
             Gfx iconTexture[] = { gsDPLoadTextureBlock(
                 mIconResourceName, G_IM_FMT_RGBA, G_IM_SIZ_32b, mIconWidth, mIconHeight, 0, G_TX_NOMIRROR | G_TX_WRAP,
+                G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD) };
+            mEntryDl->insert(mEntryDl->end(), std::begin(iconTexture), std::end(iconTexture));
+        } else if (mIconSize == G_IM_SIZ_16b) {
+            Gfx iconTexture[] = { gsDPLoadTextureBlock(
+                mIconResourceName, G_IM_FMT_RGBA, G_IM_SIZ_16b, mIconWidth, mIconHeight, 0, G_TX_NOMIRROR | G_TX_WRAP,
                 G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD) };
             mEntryDl->insert(mEntryDl->end(), std::begin(iconTexture), std::end(iconTexture));
         }
@@ -144,8 +152,14 @@ Kaleido::Kaleido() {
         mEntries.push_back(std::make_shared<KaleidoEntryIconCountRequired>(
             gTriforcePieceTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, Color_RGBA8{ 255, 255, 255, 255 },
             reinterpret_cast<int*>(&gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected),
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1389: the counter is the paired hunt's one count, so are these.
+            Combo_TriforceHuntShownRequired((uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1)),
+            Combo_TriforceHuntShownTotal((uint16_t)(ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1))));
+#else
             ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).Get() + 1,
             ctx->GetOption(RSK_TRIFORCE_HUNT_PIECES_TOTAL).Get() + 1));
+#endif
     }
     if (ctx->GetOption(RSK_SKELETON_KEY)) {
         mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(
@@ -180,6 +194,26 @@ Kaleido::Kaleido() {
                 Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(rg)).GetName().english));
         }
     }
+    // SoH #6184 (#1420): the action, chest, swim, bean soul and Roc's Feather
+    // shuffles, in SoH's order around the speak entries.
+    // Default A button color stored for action shuffle (crawl, climb, etc.)
+    // TODO: find a way to update this so we can match Cosmetics Editor color, or just replace these icons
+    Color_RGBA8 aButtonColor = { 90, 90, 255, 255 };
+    if (ctx->GetOption(RSK_SHUFFLE_CRAWL)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(gButtonBackgroundTex, G_IM_FMT_IA, G_IM_SIZ_8b, 32,
+                                                                  32, aButtonColor, FlagType::FLAG_RANDOMIZER_INF,
+                                                                  RAND_INF_CAN_CRAWL, "Crawl"));
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_CLIMB)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(gButtonBackgroundTex, G_IM_FMT_IA, G_IM_SIZ_8b, 32,
+                                                                  32, aButtonColor, FlagType::FLAG_RANDOMIZER_INF,
+                                                                  RAND_INF_CAN_CLIMB, "Climb"));
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_GRAB)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(gButtonBackgroundTex, G_IM_FMT_IA, G_IM_SIZ_8b, 32,
+                                                                  32, aButtonColor, FlagType::FLAG_RANDOMIZER_INF,
+                                                                  RAND_INF_CAN_GRAB, "Grab"));
+    }
     if (ctx->GetOption(RSK_SHUFFLE_SPEAK)) {
         int rg = RG_SPEAK_DEKU;
         for (int i = RAND_INF_CAN_SPEAK_DEKU; i <= RAND_INF_CAN_SPEAK_ZORA; i++, rg++) {
@@ -189,6 +223,32 @@ Kaleido::Kaleido() {
                                                                       32, 32, Color_RGBA8{ 255, 255, 255, 255 },
                                                                       FlagType::FLAG_RANDOMIZER_INF, i, speakName));
         }
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_OPEN_CHEST)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(
+            gMapChestIconTex, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, Color_RGBA8{ 255, 255, 255, 255 },
+            FlagType::FLAG_RANDOMIZER_INF, RAND_INF_CAN_OPEN_CHEST, "Open Chests"));
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_SWIM)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(
+            gItemIconScaleSilverTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, Color_RGBA8{ 255, 255, 255, 255 },
+            FlagType::FLAG_RANDOMIZER_INF, RAND_INF_CAN_SWIM, "Swim"));
+    }
+    if (ctx->GetOption(RSK_SHUFFLE_BEAN_SOULS)) {
+        int rg = RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL;
+        for (int i = RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL; i <= RAND_INF_ZORAS_RIVER_BEAN_SOUL; i++, rg++) {
+            std::string beanSoulName =
+                Rando::StaticData::RetrieveItem(static_cast<RandomizerGet>(rg)).GetName().english;
+            StringHelper::ReplaceOriginal(beanSoulName, " Bean Soul", "");
+            mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(
+                gItemIconMagicBeanTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, Color_RGBA8{ 255, 255, 255, 255 },
+                FlagType::FLAG_RANDOMIZER_INF, i, std::move(beanSoulName)));
+        }
+    }
+    if (ctx->GetOption(RSK_ROCS_FEATHER)) {
+        mEntries.push_back(std::make_shared<KaleidoEntryIconFlag>(
+            gRocsFeatherTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, Color_RGBA8{ 255, 255, 255, 255 },
+            FlagType::FLAG_RANDOMIZER_INF, RAND_INF_OBTAINED_ROCS_FEATHER, "Roc's Feather"));
     }
 }
 
@@ -522,7 +582,41 @@ void KaleidoEntryOcarinaButtons::Draw(PlayState* play, std::vector<Gfx>* mEntryD
     }
     mEntryDl->push_back(gsSPPopMatrix(G_MTX_MODELVIEW));
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+std::vector<std::string> Kaleido::EntryTextsForTest() const {
+    std::vector<std::string> texts;
+    texts.reserve(mEntries.size());
+    for (const auto& entry : mEntries) {
+        texts.push_back(entry->GetTextForTest());
+    }
+    return texts;
+}
+#endif
 } // namespace Rando
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// TEST BRIDGE (#1420, OoTTrackerSohFixes): the lines of a pause-screen list
+// built over the live seed context's options, in list order, joined by '\n'
+// into `out`. Returns the entry count, or -1 when `out` cannot hold them.
+extern "C" int OoT_Kaleido_TestEntryLines(char* out, int cap) {
+    const Rando::Kaleido kaleido;
+    const std::vector<std::string> lines = kaleido.EntryTextsForTest();
+    std::string joined;
+    for (size_t i = 0; i < lines.size(); i++) {
+        if (i > 0) {
+            joined += '\n';
+        }
+        joined += lines[i];
+    }
+    if (out == nullptr || cap <= 0 || joined.size() >= static_cast<size_t>(cap)) {
+        return -1;
+    }
+    joined.copy(out, joined.size());
+    out[joined.size()] = '\0';
+    return static_cast<int>(lines.size());
+}
+#endif
 
 static void RandoKaleido_RegisterHooks() {
     GameInteractor::Instance->RegisterGameHook<GameInteractor::OnKaleidoscopeUpdate>(

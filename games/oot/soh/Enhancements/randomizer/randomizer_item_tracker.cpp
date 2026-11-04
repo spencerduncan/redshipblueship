@@ -27,6 +27,7 @@
 #include "ComboItemTrackerWindow.h"
 #include "combo_ui.h"
 #include "context.h"
+#include "triforce_hunt.h" // #1389: the paired hunt's requirement and total
 #endif
 
 extern "C" {
@@ -769,6 +770,11 @@ void DrawItemCount(ItemTrackerItem item, bool hideMax) {
             (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_REQUIRED) + 1);
         uint8_t piecesTotal =
             (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_TRIFORCE_HUNT_PIECES_TOTAL) + 1);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1389: the counter is the paired hunt's one count, so are these.
+        piecesRequired = (uint8_t)Combo_TriforceHuntShownRequired(piecesRequired);
+        piecesTotal = (uint8_t)Combo_TriforceHuntShownTotal(piecesTotal);
+#endif
         ImU32 currentColor = gSaveContext.ship.quest.data.randomizer.triforcePiecesCollected >= piecesRequired
                                  ? IM_COL_GREEN
                                  : IM_COL_WHITE;

@@ -708,11 +708,21 @@ RSBS_CTX_STATIC_ASSERT(
  * THE SPLIT RULE: the pieces stay in the pool of the game whose setting put
  * them there (totalOoT in OoT's pool, totalMM in MM's), the combo total is
  * their sum, and the combo requirement is the SUM OF THE TWO HALVES'
- * REQUIREMENTS. Nothing here invents a knob (ADR 0010 §1.2: the goal's
- * parameters are each half's own authored settings). Combo_TriforceResolve
- * (triforce_hunt.h) is the one statement of the rule; it refuses a world with
- * no pieces at all, a half asking for more than it holds, and a combo total
- * past OoT's 8-bit counter.
+ * REQUIREMENTS. Combo_TriforceResolve (triforce_hunt.h) is the one statement of
+ * the rule; it refuses a world with no pieces at all, a half asking for more
+ * than it holds, OoT's half holding pieces with no requirement (bytes no
+ * creation writes; only MM's half may hold a zero share, #1389), no
+ * requirement at all, and a combo total past OoT's 8-bit counter.
+ *
+ * WHERE THE HALVES COME FROM (#1389, amending ADR 0010 §1.2's "each half's own
+ * authored settings"): the pair's two [Both Games] rows, OoTMM's
+ * triforcePieces and triforceGoal (gCombo.Rando.TriforcePieces /
+ * TriforceGoal), split by Combo_TriforceSplit, and each game GENERATES its own
+ * half from that split (OoT's Playthrough_Init writes its RSK_TRIFORCE_HUNT_*
+ * options, MM's paired resolution its RO_TRIFORCE_PIECES_*), so the two lists
+ * above describe what each game's settings are made to say, not what a player
+ * authored there. No byte moved: the record still stores the two halves, and
+ * the rows' values are its sums.
  *
  * WHY THE HALVES ARE STORED, NOT JUST THE SUMS: MM's win trigger must read the
  * combo requirement in a session where OoT's randomizer settings were never

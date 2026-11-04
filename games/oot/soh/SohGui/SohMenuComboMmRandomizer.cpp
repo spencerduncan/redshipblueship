@@ -150,7 +150,8 @@ void AddOptionRow(SohMenu& menu, WidgetPath& path, int index) {
             menu.AddWidget(path, label + COMBO_MM_OPTIONS_ROW_ID_SUFFIX, WIDGET_CHECKBOX)
                 .ValuePointer(&sOptionOn[index])
                 .PreFunc([index](WidgetInfo& info) {
-                    sOptionOn[index] = Combo_MMOptionGetValue(Combo_MMOptionAt(index)) != 0;
+                    // #1389: a row a [Both Games] rule decides shows the rule's value.
+                    sOptionOn[index] = Combo_MMOptionsPage_OptionShownValue(Combo_MMOptionAt(index)) != 0;
                     ApplyOptionState(info, index);
                 })
                 .Callback([index](WidgetInfo& info) {
@@ -197,7 +198,8 @@ void AddOptionRow(SohMenu& menu, WidgetPath& path, int index) {
             menu.AddWidget(path, EscapePercent(label.c_str()) + ": %d", WIDGET_SLIDER_INT)
                 .ValuePointer(&sOptionValue[index])
                 .PreFunc([index](WidgetInfo& info) {
-                    sOptionValue[index] = Combo_MMOptionGetValue(Combo_MMOptionAt(index));
+                    // #1389: a row a [Both Games] rule decides shows the rule's value.
+                    sOptionValue[index] = Combo_MMOptionsPage_OptionShownValue(Combo_MMOptionAt(index));
                     ApplyOptionState(info, index);
                 })
                 .Callback(

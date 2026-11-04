@@ -227,7 +227,9 @@
  * PHASE 11 (#1123) -- SKIP BOSS INTRODUCTIONS. Cutscenes/SkipEnemyCutscenes reads SoH's
  * gEnhancements.TimeSavers.SkipCutscene.BossIntro (it read MM's own Cutscenes.SkipEnemyCutscenes, which nothing in
  * the single exe writes) and registers only through three file-scope RegisterShipInitFuncs on that key. Same table
- * as Phase 9; the key is read by this one TU alone in games/mm, so the delta is attributable.
+ * as Phase 9; the key is read by this one TU alone in games/mm, so the delta is attributable. Since #1426 the three
+ * also re-run on "IS_RANDO" and read SoH's IS_RANDO default; this row holds the key at 0 or 1 explicitly, so the
+ * default never decides here (mm_runtime_parity_test.cpp drives it).
  *
  * PHASE 12 (#1215, #1221) -- THE RANDO-FORCED GATES. Four 2s2h/Enhancements TUs register a `CVAR || IS_RANDO` gate
  * through a file-scope RegisterShipInitFunc only: Cheats/UnbreakableRazorSword, Cycle/EndOfCycle,
@@ -960,6 +962,16 @@ const std::vector<SkipKeyProbe>& W6MasksSongsProbes() {
           "Goron Rolling Fast Spikes",
           { { "VB_GORON_ROLL_INCREASE_SPIKE_LEVEL (Masks/GoronRollingFastSpikes.cpp)",
               W6_MASKS_VB_COUNT(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL), 1 } } },
+        // #1426: Lenient Goron Spikes, this project's own TU. Its verdicts and its IS_RANDO default are
+        // mm_runtime_parity_test.cpp's; this probe holds its link. The landing VB has no other registrant.
+        { "gEnhancements.Masks.GoronRollingLenientSpikes",
+          "Lenient Goron Spikes",
+          { { "VB_GORON_ROLL_INCREASE_SPIKE_LEVEL (Masks/GoronRollingLenientSpikes.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL), 1 },
+            { "VB_GORON_ROLL_DISABLE_SPIKE_MODE (Masks/GoronRollingLenientSpikes.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_DISABLE_SPIKE_MODE), 1 },
+            { "VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING (Masks/GoronRollingLenientSpikes.cpp)",
+              W6_MASKS_VB_COUNT(VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING), 1 } } },
         { "gEnhancements.Songs.PauseOwlWarp",
           "Pause Owl Warp",
           { { "OnKaleidoUpdate, unkeyed (Songs/PauseOwlWarp.cpp)",

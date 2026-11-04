@@ -1123,10 +1123,13 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
     // LOAD (#781), so a divergence every bit of which a key authors is accepted
     // here and restored by the load; what no key can restore refuses.
     // #976: the item rules ride the same check, over the record just read.
+    // #1389: the [Both Games] Triforce Hunt rows join it, a session divergence the
+    // load restores from the file's triforce record.
     uint32_t comboDiverged =
         Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
                                            combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce);
+        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+        Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
@@ -1142,7 +1145,8 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
             return;
         }
-        if (Combo_ComboSettingsCanRestoreLive(&combo.comboSettings, &combo.comboItemRules, comboDiverged) == 0) {
+        if (Combo_ComboSettingsCanRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, &combo.comboTriforce,
+                                                comboDiverged) == 0) {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
                          "created under do not match this session's and cannot be restored from it: %s. The "
@@ -1219,10 +1223,17 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
         // and the load's restore ask about the same live state: a world met by a
         // session staged at another rung is neither refused here for a mismatch
         // the rules restore clears, nor accepted for a match it breaks.
+        // #1389: the same for the goal and the Triforce Hunt's pieces and goal,
+        // which MM's paired triforce options derive from under the hunt goal.
         const int classifyRung =
             (v.comboDiverged & RSBS_COMBO_DIVERGE_LOGIC_RUNG) != 0u ? (int)combo.comboSettings.logicRung : -1;
-        v.mmProfile = MM_Rando_ClassifyProfileForLoadAtRung(data.mmBlob.data(), data.mmBlob.size(),
-                                                            combo.mmProfileDigest, classifyRung);
+        const int classifyGoal = (v.comboDiverged & RSBS_COMBO_DIVERGE_GOAL) != 0u ? (int)combo.comboSettings.goal : -1;
+        const bool countsDiverged = (v.comboDiverged & RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS) != 0u;
+        const int classifyPieces = countsDiverged ? (int)Combo_TriforceRecordTotal(&combo.comboTriforce) : -1;
+        const int classifyTriforceGoal = countsDiverged ? (int)Combo_TriforceRecordRequired(&combo.comboTriforce) : -1;
+        v.mmProfile = MM_Rando_ClassifyProfileForLoadAtFileRules(data.mmBlob.data(), data.mmBlob.size(),
+                                                                 combo.mmProfileDigest, classifyRung, classifyGoal,
+                                                                 classifyPieces, classifyTriforceGoal);
         if (openKind != kOpenLegacy && v.mmProfile == RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
             // #836 P4: an MM profile the file cannot restore used to load with a
             // warning toast, and the first crossing was then refused.
@@ -1364,13 +1375,14 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     bool rulesWritten = false;
     if (v.comboDiverged != 0) {
         uint32_t afterRestore = v.comboDiverged;
-        if (Combo_ComboSettingsRestoreLive(&combo.comboSettings, &combo.comboItemRules, v.comboDiverged, restoredRules,
-                                           sizeof(restoredRules), &rulesUndo) == 1) {
+        if (Combo_ComboSettingsRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, &combo.comboTriforce,
+                                             v.comboDiverged, restoredRules, sizeof(restoredRules), &rulesUndo) == 1) {
             rulesWritten = true;
             afterRestore =
                 Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
                                                    combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
                 Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce) |
                 (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
             std::fprintf(stderr,
                          "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "

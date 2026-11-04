@@ -1785,6 +1785,36 @@ void EntranceShuffler::ApplyEntranceOverrides() {
         entrance->SetAsShuffled();
     }
 }
+
+// SoH #6165: the entrance the region graph knows by entrance-table index, or none.
+// Only the Check Tracker's Available Checks asks (randomizer_check_tracker.cpp).
+const Entrance* EntranceShuffler::GetEntranceByIndex(int16_t index) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1420: upstream answers from entranceMap, which holds pointers into the
+    // region graph SetAllEntrancesData() last stamped. RegionTable_Init()
+    // rebuilds that graph (areaTable.fill) without clearing the map, and a
+    // generation without entrance shuffle never stamps the new graph, so a map
+    // entry can point at a freed exit. The live graph is asked instead: its
+    // stamped exit with this index (unstamped exits keep index -1 and type
+    // None), or none, which leaves the caller at Root. Of the stamped indices
+    // only ENTR_GANONS_TOWER_0 is used twice, and both exits lead to
+    // RR_GANONS_TOWER_STAIRS_1.
+    if (index < 0) {
+        return nullptr;
+    }
+    for (const Region& region : areaTable) {
+        for (const Entrance& exit : region.exits) {
+            if (exit.GetIndex() == index && exit.GetType() != EntranceType::None) {
+                return &exit;
+            }
+        }
+    }
+    return nullptr;
+#else
+    auto iter = entranceMap.find(index);
+    return iter != entranceMap.end() ? iter->second : nullptr;
+#endif
+}
 } // namespace Rando
 
 extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {

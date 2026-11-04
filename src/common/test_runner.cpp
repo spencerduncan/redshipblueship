@@ -335,6 +335,13 @@ int MM_ClockShuffleSongs_RunHeadless(void);
 // EnTest4 pre-update hook and the VB hooks over a stand-in play state, and
 // restores everything it touches. Returns 0 on pass, non-zero on fail.
 int MM_ClockShuffleFinalHours_RunHeadless(void);
+// Shuffle Time's first MM arrival (games/mm/2s2h/mm_clock_shuffle_first_arrival_test.cpp,
+// #1415): a half-day found in Ocarina of Time is owned when the arrival's
+// OnSaveLoad re-dispatch picks the cycle's starting half-day. Drives the real
+// MM_Play_ConsumeStartupEntrance after the boot chain's OnSaveLoad disarm, and
+// the first gameplay frame's drain over a stand-in play state; restores
+// everything it touches. Returns 0 on pass, non-zero on fail.
+int MM_ClockShuffleFirstArrival_RunHeadless(void);
 // The song-teacher hooks (games/mm/2s2h/mm_song_teacher_hooks_test.cpp,
 // #1071): the nine StoryCutscenes/SkipLearning*.cpp TUs register only through a
 // file-scope RegisterShipInitFunc, so plain-archive 2ship_enh dropped all nine
@@ -343,6 +350,12 @@ int MM_ClockShuffleFinalHours_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// #1426's MM runtime parity with OoTMM (games/mm/2s2h/mm_runtime_parity_test.cpp):
+// Skip Boss Introductions arms on a rando file with the key untouched (SoH's
+// IS_RANDO default), and Lenient Goron Spikes' three verdicts, its IS_RANDO
+// default and its order-independence from Goron Rolling Ignores Magic. Needs the
+// display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
+int MM_RuntimeParity_RunHeadless(void);
 // The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
 // a rupee that stands in for an open check is not given on top of it (#1216).
 // Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
@@ -526,6 +539,13 @@ int RandoTest_EntrancePinGenerated(void);
 // either slider order. ROM-free and display-free; body in
 // games/oot/soh/oot_price_range_test.cpp. Return 0 on pass.
 int OoTTest_PriceRangeMinimum(void);
+// #1420: Ship of Harkinian's tracker fixes in the unified tracker's OoT pane (the
+// tower chest under Triforce Hunt, where Available Checks starts, the credits item
+// pane, entrance names, the pause screen's list). ROM-free; the display-free shared
+// bring-up for the CVar store. Body in games/oot/soh/oot_tracker_soh_fixes_test.cpp;
+// returns its failure count. Wrapper: Test_OoTTrackerSohFixes, beside
+// twoship-import-mm-keys.
+int OoTTest_TrackerSohFixes(void);
 // #948: in a paired world the night Market's Happy Mask Shop door is a
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
@@ -1476,6 +1496,17 @@ static TestResult Test_TwoShipImportMmKeys(void) {
         return TEST_FAIL;
     }
     return OoT_TwoShipImport_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1420 (see the extern decl beside oot-price-range-minimum). The display-free shared bring-up, because leg 1 writes
+// and clears the randomizer's Triforce Hunt and Ganon's Boss Key keys and the [Both Games] goal (in memory only).
+static TestResult Test_OoTTrackerSohFixes(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    return OoTTest_TrackerSohFixes() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // MM new-save session guard (#564 V21; see the extern decl above). The display-free shared bring-up, because leg 7
@@ -2746,10 +2777,11 @@ TestResult Test_TestWindowNoActivation(void) {
 
 // #1152 lock: a test process never plays the operator's game controller. Its
 // window never holds the keyboard (the row above), so SDL would drop pad input
-// for it -- except that libultraship's Gui::ImGuiWMInit (Gui.cpp:200/206) sets
-// SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" for every process, and the
+// for it -- except that libultraship's Gui::ImGuiWMInit (Gui.cpp:204/212) sets
+// SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" for every process (while
+// gSettings.AllowBackgroundInputs is on, its default), and the
 // ROM-staged rows then walked, warped and loaded files on the operator's pad.
-//   C1 after a normal-priority SDL_SetHint(..., "1") standing in for Gui.cpp:200,
+//   C1 after a normal-priority SDL_SetHint(..., "1") standing in for Gui.cpp:204,
 //      the background-events hint still reads "0" (the environment variable of
 //      the same name removed first, as W2 does, so the value is main's in-code
 //      override and not the one every CTest row also carries);
@@ -6571,6 +6603,24 @@ static TestResult Test_MMClockShuffleFinalHours(void) {
     return MM_ClockShuffleFinalHours_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1415. Same display-free shared bring-up as mm-clock-shuffle-final-hours,
+// for two reasons: the row drives MM_Rando_InitCore, whose ShipInit registrars
+// read the CVar store, and its sourced grant's arrival toast reaches the
+// overlay's Emit, which reads it too; the overlay is muted so no toast reaches
+// OoT's audio. It restores what it touches and leaves the ClockShuffle hooks
+// disarmed; it must stay after mm-registrar-coverage in the table.
+static TestResult Test_MMClockShuffleFirstArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx || OoT_InitSharedContextSubsystems() != 0 || ctx->GetConsoleVariables() == nullptr) {
+        printf("[TEST] FAIL: the display-free shared Context bring-up failed\n");
+        return TEST_FAIL;
+    }
+    CVarSetInteger("gSettings.Notifications.Mute", 1);
+    const TestResult result = MM_ClockShuffleFirstArrival_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+    CVarClear("gSettings.Notifications.Mute");
+    return result;
+}
+
 // #1071. Same display-free shared bring-up as mm-clock-shuffle-songs: the
 // registrars it arms read CVars through the Ship::Context singleton. It restores
 // the SaveContext image, MM_gPlayState, the event queue and the Story CVar and
@@ -6587,6 +6637,25 @@ static TestResult Test_MMSongTeacherHooks(void) {
     }
 
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1426. Same display-free shared bring-up as mm-song-teacher-hooks: the registrars
+// it drives read CVars through the Ship::Context singleton. It restores the
+// SaveContext image, MM_gPlayState, sPlayerControlInput and every key it touches,
+// and re-runs each key's drive and the IS_RANDO drive on the way out, so it has no
+// ordering constraints.
+static TestResult Test_MMRuntimeParity(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_RuntimeParity_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
@@ -7693,6 +7762,36 @@ TestResult Test_RandoComboHuntOwnMode(void) {
     return OoT_ComboHuntOwnMode_RunGenerated() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1389: the [Both Games] Triforce Hunt rows read and write their tier-4 keys and
+// a load restores them, so they need the CVar store: combo-settings-authoring's
+// bring-up. Assertions in tests/test_triforce_hunt.c.
+TestResult Test_ComboTriforceRows(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return ComboTriforceRows_Run();
+}
+
+// #1389: a real paired triforce-hunt world through the single bag. Same bring-up
+// as shared-lens-bag (a real paired generation and MM's creation-time half).
+TestResult Test_PairedTriforceBag(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char ptbArg0[] = "redship";
+    static char* ptbArgv[] = { ptbArg0, nullptr };
+    InitOTRForMMFirstBoot(1, ptbArgv);
+    return PairedTriforceBag_Run();
+}
+
 // #973: a paired world generates OoT's Mask Quest as "Shuffle" and its Mask Shop
 // Hint off, because the Happy Mask Shop's door leads to Termina. Same bring-up as
 // the row above (a real paired generation, then the registered OoT engine).
@@ -7719,7 +7818,8 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void);
 extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
 extern "C" int MM_TrackerInLogic_RunArrival(void);
 extern "C" int MM_TrackerFillSuperset_RunMM(void);
-extern "C" int OoT_TrackerOoTPanelList_Run(void); // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerOoTPanelList_Run(void);   // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerSohFixes_RunPaired(void); // #1420, the same file, over the panel list's paired file
 static bool TrackerReachabilityBringUp(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -7754,12 +7854,18 @@ TestResult Test_TrackerFillSuperset(void) {
     return (oot == 0 && mm == 0) ? TEST_PASS : TEST_FAIL;
 }
 // #1126: the combo tracker's OoT panel against SoH's Check Tracker on one paired
-// creation save. Same bring-up as the rows above.
+// creation save. Same bring-up as the rows above. #1420's paired legs (the tower
+// chest row under Triforce Hunt, generation untouched, Available Checks from
+// Link's entrance, age and time) follow over the same file.
 TestResult Test_TrackerOoTPanelList(void) {
     if (!TrackerReachabilityBringUp()) {
         return TEST_FAIL;
     }
-    return OoT_TrackerOoTPanelList_Run() == 0 ? TEST_PASS : TEST_FAIL;
+    const int list = OoT_TrackerOoTPanelList_Run();
+    const int fixes = OoT_TrackerSohFixes_RunPaired();
+    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d)\n",
+           (list == 0 && fixes == 0) ? "PASS" : "FAIL", list, fixes);
+    return (list == 0 && fixes == 0) ? TEST_PASS : TEST_FAIL;
 }
 // #1168: the talking, grabbing and time gates ported from upstream, through each
 // game's real search (OoT's per-region event fixpoint and location question, MM's
@@ -8845,11 +8951,24 @@ const TestDescriptor gTests[] = {
     { "mm-clock-shuffle-final-hours",
       "Shuffle Time hands out no unowned Final Hours; the moon falls at the last owned half-day (#1229)",
       Test_MMClockShuffleFinalHours },
+    // Shuffle Time's first MM arrival (#1415): a half-day found in Hyrule is
+    // owned when the arrival picks the cycle's start. It drives MM_Rando_InitCore,
+    // so it MUST stay after mm-registrar-coverage (that row needs the registries
+    // empty before its own MM_Rando_Init); it restores everything else it touches.
+    { "mm-clock-shuffle-first-arrival",
+      "A half-day found in Hyrule is owned when MM's first arrival picks the cycle's start (#1415)",
+      Test_MMClockShuffleFirstArrival },
     // The same elided-registrar class again (#1071): the nine song-teacher
     // hooks, carved into the WHOLE_ARCHIVE'd 2ship_enh_registrars. Restores
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // #1426: MM runtime parity with OoTMM. Restores everything it touches.
+    { "mm-runtime-parity",
+      "Skip Boss Introductions arms on an untouched key in a rando file, and Lenient Goron Spikes keeps the charge "
+      "through a landing, charges at a lower speed and keeps spikes out at any speed, on by default under rando "
+      "(#1426)",
+      Test_MMRuntimeParity },
     // The MM rando minigame reward hooks (#1216). Restores everything it touches.
     { "mm-gallery-rupee-stand-in",
       "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
@@ -8989,6 +9108,13 @@ const TestDescriptor gTests[] = {
     { "oot-price-range-minimum",
       "A Range price setting's tracker minimum is min(range 1, range 2) * 5 in either slider order (#999)",
       Test_OoTPriceRangeMinimum },
+    // #1420: ROM-free over a heap rando Context and the region graph; puts back every
+    // key, option and save field it changes.
+    { "oot-tracker-soh-fixes",
+      "SoH's tracker fixes in the OoT pane: the tower chest offered under Triforce Hunt, Available Checks start from "
+      "the saved entrance and Link's age and time, the credits item pane is live, the fortress grotto and owl rows, "
+      "and the pause screen's new entries (#1420)",
+      Test_OoTTrackerSohFixes },
     // #948: display-free and ROM-free, and order-free: it restores the current
     // game, the active slot and OoT_gPlayState, and clears the combo identity.
     { "oot-mask-shop-night-door",
@@ -9203,6 +9329,17 @@ const TestDescriptor gTests[] = {
       "Under the combo triforce hunt a paired creation generates OoT's own \"Ganon's Boss Key\" hunt as \"Win\", "
       "so RC_TRIFORCE_COMPLETED never holds Ganon's Boss Key (#997)",
       Test_RandoComboHuntOwnMode },
+    // #1389: the [Both Games] Triforce Hunt rows (display-free, ROM-free, the CVar
+    // store) and a real paired triforce-hunt world (a generation; skipped by
+    // `--test all` below like its siblings).
+    { "combo-triforce-rows",
+      "[Both Games] Triforce Pieces / Triforce Goal: their keys and clamp, the hunt frozen from them won at the goal "
+      "from either game, the load restore of the file's counts, and MM's hunt rows set by them (#1389)",
+      Test_ComboTriforceRows },
+    { "paired-triforce-bag",
+      "A paired Triforce Hunt world is generated: the single bag places exactly the [Both Games] pieces, each game's "
+      "half on its own hosts, and proves the goal (#1389)",
+      Test_PairedTriforceBag },
     // #973. Needs a generation; skipped by `--test all` below like its siblings.
     { "rando-mask-quest-paired",
       "A paired world generates Mask Quest as Shuffle and the Mask Shop Hint off, all eight OoT masks are in the "
@@ -9225,7 +9362,8 @@ const TestDescriptor gTests[] = {
     { "tracker-oot-panel-list",
       "On a paired creation save, the combo tracker's OoT panel lists what SoH's Check Tracker lists: its total, a "
       "shuffled chest, not an excluded location or an unshuffled shop slot, and the same list while MM is played "
-      "(#1126)",
+      "(#1126); the tower chest is a row under Triforce Hunt, generation ignores Link's state, and Available Checks "
+      "start from Link's entrance, age and time (#1420)",
       Test_TrackerOoTPanelList },
     // #1168. Each needs its game's real region graph; skipped by `--test all` below.
     { "oot-logic-gates",
@@ -9737,6 +9875,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "combo-logic-monotonicity") == 0 ||
                 strcmp(gTests[i].name, "rando-triforce-hunt-win") == 0 ||
                 strcmp(gTests[i].name, "rando-combo-hunt-own-mode") == 0 ||
+                strcmp(gTests[i].name, "paired-triforce-bag") == 0 ||
                 strcmp(gTests[i].name, "rando-mask-quest-paired") == 0 ||
                 strcmp(gTests[i].name, "tracker-availability-arrival") == 0 ||
                 strcmp(gTests[i].name, "mm-tracker-in-logic-arrival") == 0 ||

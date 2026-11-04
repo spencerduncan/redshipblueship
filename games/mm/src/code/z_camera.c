@@ -2277,7 +2277,10 @@ s32 MM_Camera_Normal1(Camera* camera) {
         camera->inputDir.z = 0;
 
         // crit wiggle
-        if (gSaveContext.save.saveInfo.playerData.health <= 0x10) {
+        // RSBS (#1426): SoH's "Disable Crit Wiggle" key, one key for both games (OoT's z_camera.c reads it the same
+        // way, default off). OoTMM's critWiggleDisable also drops the low-health FOV zoom below; SoH's key never did.
+        if ((gSaveContext.save.saveInfo.playerData.health <= 0x10) &&
+            !CVarGetInteger("gEnhancements.DisableCritWiggle", 0)) {
             phi_v1_2 = ((s32)(camera->play->state.frames << 0x18) >> 0x15) & 0xFD68;
             camera->inputDir.y += phi_v1_2;
         }

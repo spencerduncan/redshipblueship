@@ -21,6 +21,18 @@
 - **A goal no seed can reach is refused at Generate** (#1392). Under All Locations, settings whose goal cannot be met
   are refused at once with "Not generated: <game> can never be finished.", instead of running the whole fill ten times.
 
+### Majora's Mask: boss intros, Lenient Goron Spikes and Disable Crit Wiggle (#1433, issue #1426)
+
+- **Termina's boss intros are skipped on a randomizer file by default**, as Hyrule's already were. Enhancements >
+  Skips & Speed-ups > Skip Boss Introductions now has the same default in both games. If you turn it off, both games
+  play the intros. In Majora's Mask the same option also skips the boss warp-out cutscenes and the miniboss cutscenes
+  (Gekko, Wizrobe, Dinolfos and others), and Wart's and Majora's intros, which OoTMM plays.
+- **Lenient Goron Spikes** (Enhancements > Items > Masks, Majora's Mask block): OoTMM's `lenientSpikes`, on by default
+  in a randomizer file. Goron Link builds up spikes at a lower rolling speed, keeps that build-up when he lands, and
+  keeps his spikes out however slowly he rolls.
+- **[Both Games] Disable Crit Wiggle** (Enhancements > Quality of Life > Misc): SoH's row now also stops Majora's
+  Mask's low-health camera wiggle. The low-health zoom stays in both games, as before.
+
 ### Traps
 
 - **Every OoTMM trap type works in both games** (#1424). Majora's Mask gains Fire, Knockback, Drain, Anti-Magic and

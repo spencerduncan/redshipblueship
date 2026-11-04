@@ -5,6 +5,7 @@
 #include "2s2h_assets.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Foreign.h" // Lane 6 (#494 slice 6): IsForeignCheck, for the cross-game marker
+#include "triforce_hunt.h"      // #1389: the paired hunt's requirement, for the completed model
 #endif
 
 extern "C" {
@@ -481,6 +482,13 @@ void DrawTriforcePiece(RandoItemId randoItemId) {
     };
 
     u16 currentTriforcePieces = gSaveContext.save.shipSaveInfo.rando.foundTriforcePieces;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1389: the counter is the paired hunt's one count, so is the requirement.
+    const u32 requiredTriforcePieces =
+        Combo_TriforceHuntShownRequired((uint16_t)RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]);
+#else
+    const u32 requiredTriforcePieces = RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED];
+#endif
 
     OPEN_DISPS(MM_gPlayState->state.gfxCtx);
 
@@ -489,7 +497,7 @@ void DrawTriforcePiece(RandoItemId randoItemId) {
     MM_Matrix_Scale(0.03f, 0.03f, 0.03f, MTXMODE_APPLY);
 
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
-    if (currentTriforcePieces >= RANDO_SAVE_OPTIONS[RO_TRIFORCE_PIECES_REQUIRED]) {
+    if (currentTriforcePieces >= requiredTriforcePieces) {
         MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)gTriforcePieceCompletedDL);
     } else {
         if (randoItemId == RI_TRIFORCE_PIECE_PREVIOUS) {

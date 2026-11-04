@@ -1508,8 +1508,18 @@ if(BUILD_TESTING)
     # falls at the end of the last owned one (OoTMM's rule). Drives the real
     # ClockShuffle EnTest4 pre-update hook, the Scarecrow and time-left VB hooks
     # and the ownership query; pins the retired Final Hours Start Time row.
+    # #1415 adds the hook's guard (EVENTINF_17, not Doggy Racetrack state) and
+    # the six half-day items' flags.
     # Pure (no display, no ROM); restores everything it touches.
     redship_add_test(NAME MMClockShuffleFinalHours COMMAND redship --test mm-clock-shuffle-final-hours)
+    # Shuffle Time's first MM arrival (#1415, games/mm/2s2h/
+    # mm_clock_shuffle_first_arrival_test.cpp): a half-day found in Ocarina of
+    # Time is owned when MM's arrival picks the cycle's starting half-day, a
+    # running cycle is not rewound, the first frame's drain moves nothing and
+    # toasts only a sourced grant. Drives the real MM_Play_ConsumeStartupEntrance
+    # after the boot chain's OnSaveLoad disarm, with MM_Rando_InitCore's OnSaveLoad
+    # handler registered. Pure (no display, no ROM); restores what it touches.
+    redship_add_test(NAME MMClockShuffleFirstArrival COMMAND redship --test mm-clock-shuffle-first-arrival)
     # The same class a third time (#1071): the nine song-teacher hooks under
     # games/mm/2s2h/Enhancements/Cutscenes/StoryCutscenes/SkipLearning*.cpp are
     # forced on under IS_RANDO because they ARE the rando hand-off for those
@@ -1525,6 +1535,14 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # #1426: MM runtime parity with OoTMM. Skip Boss Introductions (SkipEnemyCutscenes.cpp)
+    # arms through the production rando path with its key untouched, SoH's IS_RANDO
+    # default, and an explicit off still wins; Lenient Goron Spikes (OoTMM's
+    # lenientSpikes) answers its three Goron-roll VBs as OoTMM's patch does, is on by
+    # default under rando, and gives one answer whichever of it and Goron Rolling
+    # Ignores Magic runs last. Driven over a calloc'd play state and player. Pure (no
+    # display, no ROM); games/mm/2s2h/mm_runtime_parity_test.cpp.
+    redship_add_test(NAME MMRuntimeParity COMMAND redship --test mm-runtime-parity)
     # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
     # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
     # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's
@@ -1680,6 +1698,18 @@ if(BUILD_TESTING)
     # through the bridge in location_access.cpp. Display-free and ROM-free: it needs
     # only the rando Context.
     redship_add_test(NAME OoTPriceRangeMinimum COMMAND redship --test oot-price-range-minimum)
+
+    # #1420 (SFX-26): Ship of Harkinian's tracker fixes, which reach the unified
+    # Check Tracker through its OoT pane. The Locations exclusion list offers the
+    # Ganon's Tower boss key chest under Triforce Hunt (OoT's own or the [Both
+    # Games] goal); Available Checks start from the saved entrance index (stepping
+    # back to the scene's known entrance, Root for a graph without entrance stamps)
+    # at Link's age and time; OoT's item pane reads the live save during the end
+    # credits; the Gerudo Fortress grotto doors and the owl drops carry SoH's names
+    # and groups; the pause screen lists the new shuffles. ROM-free; the
+    # display-free shared bring-up for the CVar store. The legs that need a
+    # generated world are in TrackerOoTPanelList (rando tier).
+    redship_add_test(NAME OoTTrackerSohFixes COMMAND redship --test oot-tracker-soh-fixes)
 
     # #948: the same door at night. SCENE_MARKET_NIGHT places it as a sign door
     # (DOOR_CHECKABLE, text 0x0210), so the crossing waited for morning; in a
@@ -2907,6 +2937,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1389: the [Both Games] Triforce Hunt rows (OoTMM's triforcePieces and
+    # triforceGoal). ComboTriforceRows is ROM-free with the CVar store: the keys
+    # and their clamp, the hunt frozen from them, the load restore of the file's
+    # counts and MM's hunt rows set by them. PairedTriforceBag is `rando`: a real
+    # paired triforce-hunt generation through the single bag.
+    redship_add_test(NAME ComboTriforceRows COMMAND redship --test combo-triforce-rows)
+    redship_add_test(NAME PairedTriforceBag COMMAND redship --test paired-triforce-bag
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #973: the Happy Mask Shop door is the crossing, so its room never loads. A
     # paired world generates Mask Quest as "Shuffle" and the Mask Shop Hint off
     # (under both authored modes a player can arrive with), all eight OoT masks are
@@ -2938,7 +2978,10 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #1126: the combo tracker's OoT panel lists what SoH's Check Tracker lists
     # (its total, an excluded location and an unshuffled shop slot left out), live
-    # and stale, on the same paired creation. `rando`: a generation.
+    # and stale, on the same paired creation. `rando`: a generation. #1420's
+    # paired legs follow on that file: the tower chest is a row under Triforce
+    # Hunt, the combo engine's round ignores Link's entrance, age and time, and
+    # Available Checks start from them.
     redship_add_test(NAME TrackerOoTPanelList COMMAND redship --test tracker-oot-panel-list
         LABEL rando
         TIMEOUT 600
@@ -3390,7 +3433,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
     # #1152: test processes never play the operator's game controller. main.cpp
     # keeps SDL's joystick background events off in code over libultraship's "1"
-    # (Gui.cpp:200) and hides every device from SDL (src/common/test_window_focus.h).
+    # (Gui.cpp:204) and hides every device from SDL (src/common/test_window_focus.h).
     # This row removes the same-named variables from its own process, re-makes
     # libultraship's SDL_SetHint, asserts the in-code values, then runs the
     # ControlDeck's own scan and (when SDL sees any joystick) asserts it opened
