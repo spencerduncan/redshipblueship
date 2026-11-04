@@ -42,7 +42,22 @@ bool sCrossGameHalf[GAME_MM + 1] = { false, false, false };
 // Game switch request flag (for F10 hotkey)
 bool sGameSwitchRequested = false;
 
+// The kind of the switch that set the startup entrance (ComboSwitchKind,
+// #1169 XW1). Lives and dies with sStartupEntrance: every setter writes it
+// (the ones that name no kind write the door) and every clear resets it.
+uint8_t sStartupEntranceKind = COMBO_SWITCH_KIND_DOOR;
+
+// The one-shot cross-game warp target (#1169 XW1), beside gPendingSwitch. See
+// ComboWarp_Arm in entrance.h for the whole contract.
+ComboWarpTarget sWarpTarget = {};
+
 } // anonymous namespace
+
+extern "C" {
+// src/common/switch.cpp: where a game comes back after an F10 hot swap. A warp's
+// departing game returns there too.
+uint16_t Switch_GetHotSwapReturnEntrance(GameId departing);
+}
 
 // Global pending switch state
 PendingGameSwitch gPendingSwitch = {};
@@ -58,7 +73,9 @@ void ComboEntrance_Init(void) {
     sStartupEntrance = 0;
     sStartupEntrancePresent = false;
     sStartupEntranceGame = GAME_NONE;
+    sStartupEntranceKind = COMBO_SWITCH_KIND_DOOR;
     sGameSwitchRequested = false;
+    sWarpTarget = {};
     // The arrival latch is session state like everything else here, so a fresh
     // init clears it. Production calls this once, from rsbs/src/main.cpp before
     // either game boots; the ROM-free rows use it as their reset.
@@ -192,6 +209,33 @@ size_t Entrance_GetLinkCount(void) {
 }
 
 uint16_t Entrance_CheckCrossGame(GameId game, uint16_t entrance) {
+    // The one-shot warp target (#1169 XW1), before the door links. Every call
+    // spends it: a (game, marker) match turns it into the pending switch, and
+    // any other call only disarms it, so a later void-out, door or scene change
+    // can never cross on a target armed for an earlier transition.
+    if (sWarpTarget.armed) {
+        const ComboWarpTarget warp = sWarpTarget;
+        sWarpTarget = {};
+        if (warp.sourceGame == game && warp.marker == entrance && !gPendingSwitch.requested) {
+            gPendingSwitch.requested = true;
+            gPendingSwitch.targetGame = warp.targetGame;
+            gPendingSwitch.targetEntrance = warp.targetEntrance;
+            gPendingSwitch.returnEntrance = warp.returnEntrance;
+            gPendingSwitch.readyToSwitch = false;
+            gPendingSwitch.kind = warp.kind;
+            return entrance;
+        }
+    }
+
+    // A pending warp switch belongs to the transition that consumed it. A later
+    // call on the same transition (a second call site, the next frame) must not
+    // turn it into the door's crossing when the marker happens to be a door's
+    // source entrance. Inert while nothing arms a warp: a pending door switch
+    // has the door kind and is looked up exactly as before.
+    if (gPendingSwitch.requested && gPendingSwitch.kind != COMBO_SWITCH_KIND_DOOR) {
+        return entrance;
+    }
+
     // Search for a matching link
     auto it =
         std::find_if(gEntranceLinks.begin(), gEntranceLinks.end(), [game, entrance](const CrossGameEntranceLink& link) {
@@ -209,6 +253,7 @@ uint16_t Entrance_CheckCrossGame(GameId game, uint16_t entrance) {
     gPendingSwitch.targetEntrance = it->targetEntrance;
     gPendingSwitch.returnEntrance = it->returnEntrance;
     gPendingSwitch.readyToSwitch = false;
+    gPendingSwitch.kind = COMBO_SWITCH_KIND_DOOR;
 
     return entrance;
 }
@@ -235,6 +280,9 @@ void Entrance_SignalReadyToSwitch(void) {
 
 void Entrance_ClearPendingSwitch(void) {
     gPendingSwitch = {};
+    // The warp target is part of the pending-switch state (#1169 XW1): the
+    // launcher clears both before a switch, and a #954 refusal clears both.
+    sWarpTarget = {};
 }
 
 void Entrance_SetStartupEntrance(uint16_t entrance) {
@@ -244,9 +292,16 @@ void Entrance_SetStartupEntrance(uint16_t entrance) {
 }
 
 void Entrance_SetStartupEntrance(uint16_t entrance, GameId targetGame) {
+    // Every setter that names no kind is a door, an F10 return or a refused
+    // re-entry (#1169 XW1): none of them may run a warp's arrival work.
+    Entrance_SetStartupEntrance(entrance, targetGame, COMBO_SWITCH_KIND_DOOR);
+}
+
+void Entrance_SetStartupEntrance(uint16_t entrance, GameId targetGame, uint8_t kind) {
     sStartupEntrance = entrance;
     sStartupEntrancePresent = true;
     sStartupEntranceGame = targetGame;
+    sStartupEntranceKind = kind;
 }
 
 uint16_t Entrance_GetStartupEntrance(void) {
@@ -269,6 +324,7 @@ void Entrance_ClearStartupEntrance(void) {
     sStartupEntrance = 0;
     sStartupEntrancePresent = false;
     sStartupEntranceGame = GAME_NONE;
+    sStartupEntranceKind = COMBO_SWITCH_KIND_DOOR;
 }
 
 void Entrance_NoteCrossGameArrival(GameId game) {
@@ -289,6 +345,14 @@ void Entrance_ClearCrossGameHalves(void) {
     for (size_t i = 0; i < sizeof(sCrossGameHalf) / sizeof(sCrossGameHalf[0]); i++) {
         sCrossGameHalf[i] = false;
     }
+}
+
+uint8_t Entrance_GetSwitchKind(void) {
+    return gPendingSwitch.requested ? gPendingSwitch.kind : (uint8_t)COMBO_SWITCH_KIND_DOOR;
+}
+
+uint8_t Entrance_GetStartupEntranceKindForGame(GameId game) {
+    return Entrance_HasStartupEntranceForGame(game) ? sStartupEntranceKind : (uint8_t)COMBO_SWITCH_KIND_DOOR;
 }
 
 // ============================================================================
@@ -387,6 +451,67 @@ bool Combo_IsGameSwitchRequested(void) {
 
 void Combo_ClearGameSwitchRequest(void) {
     sGameSwitchRequested = false;
+}
+
+// ============================================================================
+// One-shot cross-game warp target (#1169 XW1). The contract is in entrance.h.
+// ============================================================================
+
+bool ComboWarp_Arm(GameId sourceGame, uint16_t marker, GameId targetGame, uint16_t targetEntrance, uint8_t kind) {
+    const char* why = nullptr;
+    if ((sourceGame != GAME_OOT && sourceGame != GAME_MM) || (targetGame != GAME_OOT && targetGame != GAME_MM) ||
+        sourceGame == targetGame) {
+        why = "the source and target must be the two games";
+    } else if (!(kind == COMBO_SWITCH_KIND_SOARING && sourceGame == GAME_OOT) &&
+               !(kind == COMBO_SWITCH_KIND_WARP_SONG && sourceGame == GAME_MM)) {
+        why = "the kind is not a warp in this direction (Soaring is OoT to MM, a warp song MM to OoT)";
+    } else if (targetEntrance == 0) {
+        why = "a target entrance of 0 is ignored by the launcher, so the target would boot at its title";
+    } else if (gPendingSwitch.requested || sGameSwitchRequested) {
+        why = "a switch is already pending";
+    }
+    const uint16_t returnEntrance = (why == nullptr) ? Switch_GetHotSwapReturnEntrance(sourceGame) : 0;
+    if (why == nullptr && returnEntrance == 0) {
+        why = "the source game has no return entrance";
+    }
+    if (why != nullptr) {
+        fprintf(stderr, "[ENTRANCE] warp target not armed (%s 0x%04X -> %s 0x%04X, kind %u): %s\n",
+                Game_ToString(sourceGame) ? Game_ToString(sourceGame) : "none", marker,
+                Game_ToString(targetGame) ? Game_ToString(targetGame) : "none", targetEntrance, (unsigned)kind, why);
+        return false;
+    }
+
+    sWarpTarget.armed = true;
+    sWarpTarget.sourceGame = sourceGame;
+    sWarpTarget.marker = marker;
+    sWarpTarget.targetGame = targetGame;
+    sWarpTarget.targetEntrance = targetEntrance;
+    sWarpTarget.returnEntrance = returnEntrance;
+    sWarpTarget.kind = kind;
+    fprintf(stderr, "[ENTRANCE] warp target armed: %s 0x%04X -> %s 0x%04X, kind %u, return 0x%04X\n",
+            Game_ToString(sourceGame), marker, Game_ToString(targetGame), targetEntrance, (unsigned)kind,
+            returnEntrance);
+    return true;
+}
+
+bool ComboWarp_IsArmed(void) {
+    return sWarpTarget.armed;
+}
+
+bool ComboWarp_Peek(ComboWarpTarget* out) {
+    if (out == nullptr) {
+        return false;
+    }
+    *out = sWarpTarget;
+    return true;
+}
+
+int Combo_GetStartupEntranceKindForGame(const char* gameId) {
+    const GameId game = Game_FromString(gameId);
+    if (game == GAME_NONE) {
+        return COMBO_SWITCH_KIND_DOOR;
+    }
+    return Entrance_GetStartupEntranceKindForGame(game);
 }
 
 } // extern "C"

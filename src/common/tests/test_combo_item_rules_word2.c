@@ -1,14 +1,15 @@
 /**
  * @file test_combo_item_rules_word2.c
  * @brief Locks for the SECOND cross-game rules word and its fourteen hidden keys
- *        (#1169 lane XW2; ADR 0011's 2026-11-04 amendment, ADR 0009 claim 18).
+ *        (#1169 lane XW2; ADR 0011's 2026-11-04 amendment, ADR 0009 claim 19).
  *
  * Two rows, split by what each one needs:
  *
  *   combo-item-rules-second-word (CTest ComboItemRulesSecondWord, redship tier;
  *   needs the CVar store, so the runner brings up the display-free shared
- *   context first) -- THE WORD. Its carve (offset 914, four bytes, reserved[]
- *   from 918, still above ADR 0009's floor) and its little-endian codec; the
+ *   context first) -- THE WORD. Its carve (offset 925 after #1439's Way of the
+ *   Hero record, four bytes, reserved[] from 929, still above ADR 0009's floor)
+ *   and its little-endian codec; the
  *   pinned bit space (OoTMM's seven warp-song extensions at bits 0-6, the seven
  *   shared songs at 7-13, each requiring its extension); the fourteen keys
  *   (OoTMM's names, off by default, exactly 0 or 1) and the resolver (a shared
@@ -193,9 +194,11 @@ TestResult ComboItemRulesSecondWord_Run(void) {
     {
         XW2_CHECK(sizeof(ComboItemRules2Record) == 4u, "sizeof(ComboItemRules2Record) is %u, expected 4",
                   (unsigned)sizeof(ComboItemRules2Record));
-        XW2_CHECK(offsetof(ComboContext, comboFillWallets) == 913u && offsetof(ComboContext, comboItemRules2) == 914u &&
-                      offsetof(ComboContext, reserved) == 918u && sizeof(((ComboContext*)0)->reserved) == 86u,
-                  "the second word is at %u and reserved[] is %u bytes at %u; expected 914, then 86 at 918",
+        XW2_CHECK(offsetof(ComboContext, comboFillWallets) == 913u && offsetof(ComboContext, comboWoth) == 914u &&
+                      offsetof(ComboContext, comboItemRules2) == 925u && offsetof(ComboContext, reserved) == 929u &&
+                      sizeof(((ComboContext*)0)->reserved) == 75u,
+                  "the second word is at %u and reserved[] is %u bytes at %u; expected 925 (after #1439's 11-byte "
+                  "comboWoth at 914), then 75 at 929",
                   (unsigned)offsetof(ComboContext, comboItemRules2), (unsigned)sizeof(((ComboContext*)0)->reserved),
                   (unsigned)offsetof(ComboContext, reserved));
         XW2_CHECK(sizeof(((ComboContext*)0)->reserved) >= 64u, "the carve took reserved[] under ADR 0009's floor");

@@ -184,6 +184,17 @@ Hint::Hint(RandomizerHint ownKey_, nlohmann::json json_) {
         num = json_["num"].get<int>();
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#1435): whether RA_LINKS_POCKET reads "your pocket" is the
+    // static hint's own (staticHintInfoMap, which CreateStaticHintFromData builds it
+    // from), not the document's, which never carried it. Without this a save or a
+    // spoiler read back here says "Link's Pocket" where the live hint said "your
+    // pocket" (a boss door's key that Link starts with).
+    if (StaticData::staticHintInfoMap.contains(ownKey)) {
+        yourPocket = StaticData::staticHintInfoMap[ownKey].yourPocket;
+    }
+#endif
+
     FillGapsInData();
     SetLocationsAsHinted();
 }

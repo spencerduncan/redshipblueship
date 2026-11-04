@@ -5139,6 +5139,8 @@ static uint8_t MM_SharedMaskItem(uint16_t nativeId) {
             return (uint8_t)ITEM_MASK_KEATON;
         case (uint16_t)RI_MASK_BLAST: // #979: the Shared Blast Mask's MM copy
             return (uint8_t)ITEM_MASK_BLAST;
+        case (uint16_t)RI_MASK_STONE: // #979: the Shared Stone Mask's MM copy
+            return (uint8_t)ITEM_MASK_STONE;
         default:
             return (uint8_t)ITEM_MASK_TRUTH;
     }
@@ -5186,6 +5188,10 @@ struct MMSharedFamilyRegistrar {
         // paired with the one OoT gains under the Blast Mask (OoT) rule.
         const ComboSharedFamilyMember maskBlast = { (uint16_t)RI_MASK_BLAST, MM_SharedMaskHeld, MM_SharedMaskGive };
         Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_BLAST, &maskBlast);
+        // #979: the Shared Stone Mask (OoTMM sharedMaskStone): MM's own Stone Mask,
+        // paired with the one OoT gains under the Stone Mask (OoT) rule.
+        const ComboSharedFamilyMember maskStone = { (uint16_t)RI_MASK_STONE, MM_SharedMaskHeld, MM_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_MM, RSBS_XITEM_SHARED_STONE, &maskStone);
     }
 };
 const MMSharedFamilyRegistrar gMMSharedFamilyRegistrar;

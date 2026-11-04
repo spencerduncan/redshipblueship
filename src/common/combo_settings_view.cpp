@@ -69,6 +69,9 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     // #1389: OoTMM's `triforcePieces` and `triforceGoal`, under their own names.
     { RSBS_CVAR_COMBO_RANDO_TRIFORCE_PIECES, "Triforce Pieces" },
     { RSBS_CVAR_COMBO_RANDO_TRIFORCE_GOAL, "Triforce Goal" },
+    // #979: OoTMM's stoneMaskOot and sharedMaskStone, under OoTMM's own names.
+    { RSBS_CVAR_COMBO_RANDO_STONE_MASK_OOT, "Stone Mask (OoT)" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_STONE, "Shared Stone Mask" },
     // #1169 XW2: OoTMM's fourteen warp-song rules, under OoTMM's own names
     // (data.ts). Hidden until XW12: no row draws these labels yet; a load that
     // restores one names it in its toast.
@@ -118,7 +121,9 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_MASK_TRUTH, RSBS_XITEM_SHARED_TRUTH },                // #978
     { COMBO_SETTING_SHARED_SWIM, RSBS_XITEM_SHARED_SWIM },                       // #1369, shuffle-gated
     { COMBO_SETTING_BLAST_MASK_OOT, RSBS_XITEM_BLAST_MASK_OOT },                 // #979, an extension
+    { COMBO_SETTING_STONE_MASK_OOT, RSBS_XITEM_STONE_MASK_OOT },                 // #979, an extension
     { COMBO_SETTING_SHARED_MASK_BLAST, RSBS_XITEM_SHARED_BLAST },                // #979, needs the extension
+    { COMBO_SETTING_SHARED_MASK_STONE, RSBS_XITEM_SHARED_STONE },                // #979, needs the extension
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -199,7 +204,9 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_SHARED_MASK_KEATON:     // #978
         case COMBO_SETTING_SHARED_MASK_TRUTH:      // #978
         case COMBO_SETTING_BLAST_MASK_OOT:         // #979
-        case COMBO_SETTING_SHARED_MASK_BLAST: {    // #979
+        case COMBO_SETTING_SHARED_MASK_BLAST:      // #979
+        case COMBO_SETTING_STONE_MASK_OOT:         // #979, the Stone Mask
+        case COMBO_SETTING_SHARED_MASK_STONE: {    // #979, the Stone Mask
             // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978, #979),
             // the same one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
@@ -291,6 +298,8 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_SWIM:            // #1369, the same
         case COMBO_SETTING_BLAST_MASK_OOT:         // #979, the same
         case COMBO_SETTING_SHARED_MASK_BLAST:      // #979, the same
+        case COMBO_SETTING_STONE_MASK_OOT:         // #979, the same
+        case COMBO_SETTING_SHARED_MASK_STONE:      // #979, the same
         case COMBO_SETTING_SONG_SOARING_OOT:       // #1169 XW2: one second-word bit each, the same
         case COMBO_SETTING_SONG_MINUET_MM:
         case COMBO_SETTING_SONG_BOLERO_MM:
@@ -543,7 +552,9 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_TRUTH },      // #978
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SWIM },            // #1369
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_BLAST_MASK_OOT },         // #979
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_STONE_MASK_OOT },         // #979
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BLAST },      // #979
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_STONE },      // #979
     // #979: the cooldown BYTE has its own divergence bit and, since #979, a key.
     { RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN, COMBO_SETTING_BLAST_MASK_COOLDOWN },
     // #1169 XW2: the second rules word's fourteen keys, under the same bitset bit
@@ -621,6 +632,8 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_SWIM:       // #1369
         case COMBO_SETTING_BLAST_MASK_OOT:    // #979
         case COMBO_SETTING_SHARED_MASK_BLAST: // #979
+        case COMBO_SETTING_STONE_MASK_OOT:    // #979
+        case COMBO_SETTING_SHARED_MASK_STONE: // #979
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         case COMBO_SETTING_BLAST_MASK_COOLDOWN:

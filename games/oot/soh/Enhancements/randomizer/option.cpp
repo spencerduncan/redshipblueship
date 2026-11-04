@@ -150,6 +150,16 @@ void Option::Disable(std::string text) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+bool Option::IsDisabled() const {
+    return disabled;
+}
+
+const std::string& Option::GetDisabledText() const {
+    return disabledText;
+}
+#endif
+
 bool Option::IsCategory(const OptionCategory category) const {
     return category == this->category;
 }

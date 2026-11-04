@@ -32,6 +32,7 @@ extern "C" int OoT_ComboLogic_GeneralPassDeferred(void);
 // ForeignItemsSingleExe.cpp: the record of which file consumed the last staged
 // generation (#564 V2), which a new generation replaces.
 extern "C" void OoT_Creation_ForgetConsumedGeneration(void);
+#include "soh/Enhancements/randomizer/TimeTravelSword.h" // the fold's #1434 term
 
 // #702: a record of what the LAST settings fold below actually folded, so a
 // rando-tier row can assert that the per-area exclude-location groups reach the
@@ -342,6 +343,15 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                         }
                         settingsStr += option->GetOptionText(ctx->GetTrickOption(trickOption->GetKey()).Get());
                     } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                        // [RSBS #1434] Time Travel Requires Master Sword changes the world only
+                        // while it can stop Link (TimeTravelSword.cpp); otherwise a world keeps
+                        // the fingerprint it had before the option existed.
+                        if (option->GetKey() == RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD &&
+                            !OoT_TimeTravelSword_RuleCanBlock()) {
+                            continue;
+                        }
+#endif
                         settingsStr += option->GetOptionText(ctx->GetOption(option->GetKey()).Get());
                     }
 #ifdef RSBS_SINGLE_EXECUTABLE

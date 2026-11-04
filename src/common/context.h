@@ -795,8 +795,41 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboItemRulesRecord, crossItemFlags) == 0 &&
                        "digest encoder walks them in this declaration order");
 
 /**
+ * THE PAIR'S WAY OF THE HERO, as areas (#1439; OoTMM's `woth` hint bucket). Which
+ * areas of the shared hint vocabulary (combo_area.h) hold a host the frozen goal
+ * cannot do without: one bit per area of each game's half, bit `a` of the half's
+ * bytes (LSB first) for area `a`. Bit 0 of `oot` is the PRESENT tag (area 0 is
+ * COMBO_AREA_NONE, never on the path); bit 0 of `mm` is always 0.
+ *
+ * WHY IT IS STORED. The analysis behind it (combo_woth.h) runs rounds over both
+ * engines, which only the creation event has live, and costs seconds; Majora's
+ * Mask's gossip stones speak when they are read, in a session that may never have
+ * created the world. So the creation event writes the answer here, once, and the
+ * stones read it. OoT's own stones need no copy: their hints are chosen at
+ * creation and persist in OoT's own hint data.
+ *
+ * ZERO MEANS ABSENT: a world created before #1439, or one whose rung proves
+ * nothing (No Logic claims nothing), stores eleven zero bytes, and its stones
+ * keep the hints they always had. Not world identity: no digest or fingerprint
+ * folds it. A creation record (ComboCreationRecords, foreign_items.h): rolled
+ * back, retracted, KEPT and copied by the seed package's world record with them.
+ */
+#define RSBS_COMBO_WOTH_OOT_BYTES 5u /* bits 1..35: COMBO_AREA_OOT_KOKIRI_FOREST .. GANONS_CASTLE; bit 0: present */
+#define RSBS_COMBO_WOTH_MM_BYTES 6u  /* bits 1..46: COMBO_AREA_MM_WOODFALL_TEMPLE .. GORON_RACETRACK */
+typedef struct {
+    uint8_t oot[RSBS_COMBO_WOTH_OOT_BYTES];
+    uint8_t mm[RSBS_COMBO_WOTH_MM_BYTES];
+} ComboWothRecord;
+
+RSBS_CTX_STATIC_ASSERT(sizeof(ComboWothRecord) == 11,
+                       "ComboWothRecord is serialized raw inside the .redsave Tier-1 record; its layout is format "
+                       "(#1439)");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboWothRecord, oot) == 0 && offsetof(ComboWothRecord, mm) == 5,
+                       "ComboWothRecord member offsets are .redsave format and must not move");
+
+/**
  * THE SECOND CROSS-GAME RULES WORD (#1169 lane XW2; ADR 0011's 2026-11-04
- * amendment is its format note, ADR 0009's claim 18 its byte spend): a second
+ * amendment is its format note, ADR 0009's claim 19 its byte spend): a second
  * full 32-bit bitset of frozen item rules, RSBS_XITEM2_* in foreign_items.h,
  * beside ComboItemRulesRecord's crossItemFlags. The first word holds three free
  * rule bits (28-30; bit 31 is never a rule bit there), fewer than OoTMM's
@@ -1191,6 +1224,16 @@ typedef struct {
     // every world created before #1284 played at a far wallet's pickup.
     uint8_t comboFillWallets;
 
+    // #1439: the pair's frozen Way of the Hero, as areas of the shared hint
+    // vocabulary (see ComboWothRecord above): written by the creation event's
+    // single-bag fill once the world is proved (combo_woth.h), read by Majora's
+    // Mask's gossip stones while the file is played. A creation record
+    // (ComboCreationRecords: rolled back, retracted, KEPT and copied by the seed
+    // package's world record with them). Carved from the FRONT of the old
+    // reserved[90]: a zero-extended record reads ABSENT, so a world created
+    // before #1439 keeps the hints it had. Bytes only, so it needs no alignment.
+    ComboWothRecord comboWoth;
+
     // #1169 lane XW2: the SECOND frozen cross-game rules word (see
     // ComboItemRules2Record above), OoTMM's fourteen warp-song rules. Written
     // once by the creation event beside comboItemRules, folded into
@@ -1198,8 +1241,8 @@ typedef struct {
     // invalidation with it, copied by the seed package's world record, and never
     // mutated by an arrival or a load. A creation record (ComboCreationRecords:
     // rolled back, retracted, KEPT and copied with the others). Carved from the
-    // FRONT of the old reserved[90]: a zero-extended record reads every rule off.
-    // Bytes only, so it needs no alignment.
+    // FRONT of the old reserved[79], after #1439's comboWoth: a zero-extended
+    // record reads every rule off. Bytes only, so it needs no alignment.
     ComboItemRules2Record comboItemRules2;
 
     // Headroom. Carve new fields from the FRONT of this array (as
@@ -1217,7 +1260,8 @@ typedef struct {
     // - 4 (comboSettingsHash) - 12 (comboSettings) = 108, then - 4 (comboTriforce,
     // ADR 0010 O10) = 104, then - 8 (comboItemRules) - 4 (sharedFamilyOwned,
     // #976) = 92, then - 1 (mmKeepItemsReset, #1175) = 91, then - 1
-    // (comboFillWallets, #1284) = 90, then - 4 (comboItemRules2, #1169 XW2) = 86.
+    // (comboFillWallets, #1284) = 90, then - 11 (comboWoth, #1439) = 79, then
+    // - 4 (comboItemRules2, #1169 XW2) = 75.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
@@ -1248,9 +1292,10 @@ typedef struct {
     // and #976's item rules (8 bytes at 900) and family bitset (4 at 908) after
     // it, so the next carver starts from 92 at 912; 92 clears the floor by 28.
     // #1175's byte at 912 leaves 91 at 913, 27 over the floor; #1284's byte at
-    // 913 leaves 90 at 914, 26 over it; #1169 XW2's second rules word (4 bytes
-    // at 914) leaves 86 at 918, 22 over it.
-    uint8_t reserved[86];
+    // 913 leaves 90 at 914, 26 over it; #1439's 11 bytes at 914 leave 79 at 925,
+    // 15 over it; #1169 XW2's second rules word (4 bytes at 925) leaves 75 at
+    // 929, 11 over it.
+    uint8_t reserved[75];
 
     // #1129 (lane L3, ruling D6 "inactive should be captured at freeze"): each
     // game's TRACKER AVAILABILITY CAPTURE, the set its check tracker marks
@@ -1506,23 +1551,28 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboFillWallets) == 913u &&
                                offsetof(ComboContext, mmKeepItemsReset) + sizeof(uint8_t),
                        "comboFillWallets (#1284) is carved from the FRONT of reserved[] at .redsave byte offset 913; "
                        "if this fires, a field before it grew in place");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboItemRules2) == 914u &&
-                           offsetof(ComboContext, comboItemRules2) ==
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboWoth) == 914u &&
+                           offsetof(ComboContext, comboWoth) ==
                                offsetof(ComboContext, comboFillWallets) + sizeof(uint8_t),
+                       "comboWoth (#1439) is carved from the FRONT of reserved[] at .redsave byte offset 914; if "
+                       "this fires, a field before it grew in place");
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, comboItemRules2) == 925u &&
+                           offsetof(ComboContext, comboItemRules2) ==
+                               offsetof(ComboContext, comboWoth) + sizeof(ComboWothRecord),
                        "comboItemRules2 (#1169 XW2) is carved from the FRONT of reserved[] at .redsave byte offset "
-                       "914; if this fires, a field before it grew in place");
+                       "925, after #1439's comboWoth; if this fires, a field before it grew in place");
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) ==
                            offsetof(ComboContext, comboItemRules2) + sizeof(ComboItemRules2Record),
                        "the tagged-item array, the settings digest, both foreign-placement tables, "
                        "the grant cursors, the overflow count, the MM profile digest, BOTH shared "
                        "resource blocks, the commit generation, the paired-attempt record, the "
                        "combo settings digest and record, the triforce record, the item rules, the "
-                       "family bitset, the keep-items byte, the fill-wallets byte, the second rules word, and the "
-                       "remaining headroom must stay contiguous (no "
+                       "family bitset, the keep-items byte, the fill-wallets byte, the Way of the Hero record, the "
+                       "second rules word, and the remaining headroom must stay contiguous (no "
                        "padding, no fields slipped between them)");
-RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 918u,
-                       "reserved[] begins at .redsave byte offset 918 after #976's two carves, the #1175 and #1284 "
-                       "bytes and #1169 XW2's second rules word; if "
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 929u,
+                       "reserved[] begins at .redsave byte offset 929 after #976's two carves, the #1175 and #1284 "
+                       "bytes, #1439's Way of the Hero record and #1169 XW2's second rules word; if "
                        "this fires, a field ahead of it moved and every shipped save is being "
                        "reinterpreted - that is a format generation, not an assert edit");
 // ADR 0009's floor. reserved[] is what Test_SaveComboRecordFixed scribbles to
@@ -1532,8 +1582,8 @@ RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
                        "reserved[] must keep at least 64 bytes: Test_SaveComboRecordFixed's headroom "
                        "round-trip degenerates to a vacuous pass when it empties (ADR 0009)");
 // #1129's append, pinned to literals on the same terms as every carve above:
-// directly after reserved[] (92 bytes then, 90 after #1175's and #1284's bytes, 86 now
-// after #1169 XW2's second rules word), the two counts, then the two bitsets.
+// directly after reserved[] (92 bytes then, 90 after #1175's and #1284's bytes, 75 now
+// after #1439's record and #1169 XW2's second rules word), the two counts, then the two bitsets.
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerAvailCountOoT) == 1004u &&
                            offsetof(ComboContext, trackerAvailCountMM) == 1006u &&
                            offsetof(ComboContext, trackerAvailOoT) == 1008u &&

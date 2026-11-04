@@ -328,6 +328,20 @@ to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 > `RO_GENERIC_OFF` default, and the explicit-choice-overrides rule is unchanged: an explicit
 > player choice of a no-logic mode is still honored and recorded in the frozen identity.
 
+> **Superseded on the hint rows (2026-11-03, [#1439](https://github.com/spencerduncan/redshipblueship/issues/1439)):**
+> following OoTMM, which ships its hints on (operator directive 2026-09-27, "OoTMM is the reference
+> for game choices"), five `RO_HINTS_*` rows now default **on** (`Rando/StaticData/Options.cpp`,
+> single-exe only): Gossip Stone Hints, Spider House Hints, Hookshot Hint, Boss Remains Hints and
+> Oath to Order Hint. Purchaseable Gossip Hints keeps `RO_GENERIC_OFF`: it is a 2Ship rupee sink
+> OoTMM has no counterpart for. The dead-end concern above cannot reach these rows (no `RO_HINTS_*`
+> id is read by `Logic/GeneratePools.cpp`, `OptionsUiSingleExe.cpp`'s note on the family), but they
+> are profile terms: a new default re-seeds the MM half of a default paired world, and a file
+> created before the flip is restored to its own values on load (`MM_Rando_RestoreProfileForLoad`).
+> A file whose MM half cannot say them (written before #1101, or none before K11) still matches
+> with the keys as they were: the compare also tries the stamp with each unset hint key Off
+> (`ProfileEra::PreHintsOn` in `Rando/Foreign.cpp`, #1437's pattern; `mm-paired-profile`
+> Fail(105) to Fail(107)). Every `RO_SHUFFLE_*` row keeps its `RO_GENERIC_OFF` default.
+
 #### 4.2 Shared-intent entries must be visibly marked (required, not cosmetic)
 
 Because a shared-intent control toggled while playing OoT also changes MM — a game the player

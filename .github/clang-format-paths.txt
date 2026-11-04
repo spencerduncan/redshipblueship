@@ -51,6 +51,8 @@ games/mm/2s2h/Rando/HintArea.h
 games/mm/2s2h/Rando/HintAreaSingleExe.cpp
 games/mm/2s2h/Rando/HintFoolish.h
 games/mm/2s2h/Rando/HintFoolishSingleExe.cpp
+games/mm/2s2h/Rando/HintWoth.h
+games/mm/2s2h/Rando/HintWothSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp
 games/mm/2s2h/Rando/OptionsUiSingleExe.cpp
 games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp
@@ -129,6 +131,9 @@ games/oot/soh/Enhancements/randomizer/ItemAdapterSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/SeedPackageSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/SeedPackageTestBridgeSingleExe.cpp
 games/oot/soh/Enhancements/randomizer/TrackerAdapterSingleExe.cpp
+games/oot/soh/Enhancements/randomizer/TimeTravelSword.h
+games/oot/soh/Enhancements/randomizer/TimeTravelSword.cpp
+games/oot/soh/oot_time_travel_sword_test.cpp
 games/oot/soh/GameExports_SingleExe.cpp
 games/oot/soh/OTRGlobals.cpp
 games/oot/soh/ResourceManagerHelpers.cpp
@@ -154,6 +159,7 @@ games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
 games/oot/soh/oot_master_sword_respawn_test.cpp
+games/oot/soh/oot_warp_arrival_test.cpp
 games/oot/soh/oot_goal_gate_defaults_test.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c
@@ -274,3 +280,6 @@ games/mm/2s2h/Enhancements/Masks/GoronRollingLenientSpikes.cpp
 games/mm/2s2h/Rando/Logic/ShopPrices.cpp
 games/mm/2s2h/Rando/Logic/ShopPrices.h
 games/mm/2s2h/mm_shop_prices_test.cpp
+games/oot/soh/Enhancements/randomizer/StoneMaskOoT.h
+games/oot/soh/Enhancements/randomizer/StoneMaskOoT.cpp
+games/oot/soh/oot_stone_mask_test.cpp

@@ -1253,6 +1253,14 @@ narrowing itself is now delivered, on branch
     RANDOM, the #1367 pattern, so such a file still loads and arrives, and a pair
     with no half generates in RANDOM. Locks: `mm-paired-profile` Fail(96) to
     Fail(104) and `mm-clock-shuffle-first-arrival` legs 9 to 13.
+  - *Amended by #1439 (MM's hints on by default).* Every world created before
+    #1437 was also created before #1439, so its stamp folds MM's hint rows Off
+    where today's unset keys resolve on. The compares therefore try older builds
+    as eras, newest first (`ProfileEra` in `Rando/Foreign.cpp`): before #1439,
+    each unset hint key Off; before #1437, the hint rows Off and, with clock
+    shuffle on, the unset mode RANDOM. An era that changes nothing beyond the
+    next newer one is skipped. Locks: `mm-paired-profile` Fail(102) (its world
+    folds the hint rows Off) and Fail(105) to Fail(107).
 - **The armed draw is pinned exactly**, not only bounded:
   `GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`)
   generates the golden seed with all four families armed through MM's own
@@ -2133,6 +2141,39 @@ bits or shared-resource slots. Locked by `BlastMaskOoTRule`,
 `GoldenSeedDigestAllMasks` and `GoldenSeedsRoundBudget` (whose all-masks entry
 requires the frozen item rules `0000083F`).
 
+### 2026-11-03 -- The Stone Mask in Ocarina of Time and its shared variant (#979)
+
+Epic #975 P4's second piece, OoTMM's `stoneMaskOot` and `sharedMaskStone`, both
+off, built on the Blast Mask's pattern, so no default world moves; the all-masks
+profile gains the two keys (`docs/determinism-goldens.md`). Two rows join
+"Cross-Game Masks", in OoTMM's own order (the masks added to OoT, then their
+shared variants): Blast Mask (OoT), **Stone Mask (OoT)**, Shared Blast Mask,
+**Shared Stone Mask**, then the Blast Mask Cooldown.
+
+- **"[Both Games] Stone Mask (OoT)"**, key `gCombo.Rando.StoneMaskOoT` (0 or 1,
+  IDENTITY), the reserved extension bit `RSBS_XITEM_STONE_MASK_OOT` 0x40. Frozen
+  on, OoT's pool gains `RG_STONE_MASK`, a child trade mask (custom ItemID
+  `ITEM_MASK_STONE` after the Blast Mask's, never SLOT()-indexed; flag
+  `RAND_INF_OBTAINED_STONE_MASK`; the trade cycle visits it after the Blast Mask,
+  OoTMM's order), worn through #977's foreign-mask field. While a child wears it,
+  the actors OoTMM's `shouldActorIgnorePlayer` lists update with Link far away in
+  a random direction (OoTMM's `Actor_RunUpdate`), and OoT's logic counts it where
+  OoTMM's `get_past_skultullas` and `evade_gerudo` count `can_use_mask_stone`.
+- **"[Both Games] Shared Stone Mask"**, key `gCombo.Rando.SharedMaskStone` (0 or
+  1, IDENTITY), the reserved shared-extension bit `RSBS_XITEM_SHARED_STONE`
+  0x1000, a family: OoT's `RG_STONE_MASK` and MM's `RI_MASK_STONE`. Greyed with
+  its extension's reason and shown off while the Stone Mask (OoT) is off, and
+  dropped by the resolver then (the Shared Blast Mask's rule, OoTMM's `cond`).
+
+Capacity spent: two `ComboSettingId`s (appended), two identity keys (manifest
+45 to 47, identity 25 to 27), no new `RSBS_XITEM_*` bits, format bytes,
+divergence bits or shared-resource slots. The keyless-rule examples in
+`ComboSettingsAuthoring` and `CrossItemRulesRecord` move to Kamaro's Mask, the one
+P4 mask still without a key. Locked by `StoneMaskOoTRule`, `StoneMaskOoTItems`,
+`CrossItemRulesRecord`, `ComboSettingsRows`, `ComboSettingsAuthoring`,
+`ForeignTextboxIcon`, `CVarClassification`, `GoldenSeedDigestAllMasks` and
+`GoldenSeedsRoundBudget` (whose all-masks entry requires `0000187F`).
+
 ### 2026-11-04 -- The second rules word and the fourteen warp-song keys, hidden (#1169 lane XW2, format note)
 
 Operator ruling 2026-11-04 on #1169 (cross-game warp songs), decisions 1 and 7:
@@ -2142,17 +2183,18 @@ rules: `songSoaringOot` (Majora's Mask's Song of Soaring in Ocarina of Time) and
 `songMinuetMm` .. `songPreludeMm` (OoT's six warp songs in Majora's Mask), the
 extensions, and one `sharedSong*` per song, each requiring its extension
 (`packages/core/src/settings/data.ts`). The first word has three free rule bits
-(28-30; bit 31 is never a rule bit) on `main` and on the open
-`claude/dwave2-combined` branch alike, so they cannot go there.
+(28-30; bit 31 is never a rule bit), before and after #1446 (D wave 2, whose
+Stone Mask took the bits #976 had already reserved), so they cannot go there.
 
-- **The layout.** `ComboItemRules2Record comboItemRules2` at **914**, carved
-  from the front of `reserved[]` (ADR 0009 claim 18): four bytes,
-  `crossItemFlags2[4]`, the word little-endian. Bytes and not a `uint32_t`
-  because 914 is not 4-aligned: a `uint32_t` would pad, spending headroom the
-  64-byte floor cannot spare. `ComboItemRulesRecord.spare[3]` was measured first
-  and holds 24 bits, not 32. `reserved[]` goes from 90 bytes at 914 to **86 at
-  918**, 22 above the floor; `sizeof(ComboContext)` stays 1844, so no
-  `.redsave` layout and no seed package's combo-record size moves.
+- **The layout.** `ComboItemRules2Record comboItemRules2` at **925**, carved
+  from the front of `reserved[]` directly after #1439's 11-byte `comboWoth`
+  (ADR 0009 claim 19): four bytes, `crossItemFlags2[4]`, the word
+  little-endian. Bytes and not a `uint32_t` because 925 is not 4-aligned: a
+  `uint32_t` would pad, spending headroom the 64-byte floor cannot spare.
+  `ComboItemRulesRecord.spare[3]` was measured first and holds 24 bits, not 32.
+  `reserved[]` goes from 79 bytes at 925 to **75 at 929**, 11 above the floor;
+  `sizeof(ComboContext)` stays 1844, so no `.redsave` layout and no seed
+  package's combo-record size moves.
   `Combo_ComboItemRules2Word` / `Combo_ComboItemRules2Store` are the codec.
 - **The value space** (`foreign_items.h`, pinned, append-only): the seven
   extensions `RSBS_XITEM2_SONG_SOARING_OOT` 0x1, `_SONG_MINUET_MM` 0x2,
@@ -2220,8 +2262,9 @@ extensions, and one `sharedSong*` per song, each requiring its extension
   `RSBS_XITEM2_HIDDEN` once the matchers (XW6, XW7) and the logic edges (XW9)
   exist.
 
-Capacity spent: four format bytes (ADR 0009 claim 18), fourteen
-`ComboSettingId`s and identity keys (manifest 45 to 59, identity 25 to 39), no
+Capacity spent: four format bytes (ADR 0009 claim 19), fourteen
+`ComboSettingId`s, appended after #979's two Stone Mask ids, and identity keys
+(manifest 47 to 61, identity 27 to 41), no
 first-word bits, divergence bits or shared-resource slots. Locked by
 `ComboItemRulesSecondWord` and `RulesOffGoldensUnchanged` (new),
 `CrossItemRulesRecord` and `ComboSettingsFormat` (the carve), `CVarClassification`

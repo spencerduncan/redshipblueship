@@ -40,7 +40,9 @@
  * behind it at OoT's own requirement. An authored "Win" stays "Win" (control).
  * H3 (#1389): OoT's share of the [Both Games] goal is printed unclamped by the
  * Required Pieces option the settings string and the spoiler print through,
- * whatever cap OoT's own Total Pieces put on its list.
+ * whatever cap OoT's own Total Pieces put on its list. H4 (#1435): the [Both
+ * Games] goal greys Ganon's Boss Key as OoT's own Triforce Hunt row does, with
+ * the same reason, and hands the row back to that row when the goal moves away.
  *
  * COUNTERFACTUALS, run before landing (#768): main's arm (the "Win" test ungated
  * by the goal) turns W2 red under "Win"; main's playthrough.cpp (no "Win"
@@ -450,6 +452,65 @@ extern "C" int OoT_ComboHuntOwnMode_RunGenerated(void) {
                                      "OoT's own Total Pieces");
         OTH_ASSERT(ownCount == ownCap, "H3: under another goal the Required Pieces callback did not give SoH's own "
                                        "Total Pieces cap back");
+    }
+
+    // ---- H4: the [Both Games] hunt greys Ganon's Boss Key (#1435) -------------
+    // OoT's own Triforce Hunt row greys Ganon's Boss Key (the hunt grants the
+    // key); the [Both Games] goal grants it too, so its callback greys the row
+    // with the same reason (OoTMM hides ganonBossKey under its Triforce goals),
+    // and gives the row back to OoT's own hunt row when the goal moves away. The
+    // callbacks run in UpdateAllOptions' order (RandomizerSettingKey order: the
+    // own hunt row's before the goal's) and alone; no CVar is stored.
+    {
+        const std::shared_ptr<Rando::Settings> settings = Rando::Settings::GetInstance();
+        Rando::Option& ganonsBossKey = settings->GetOption(RSK_GANONS_BOSS_KEY);
+        Rando::Option& ownHunt = settings->GetOption(RSK_TRIFORCE_HUNT);
+        Rando::Option& required = settings->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED);
+        const char* const ownHuntCVar = CVAR_RANDOMIZER_SETTING("TriforceHunt");
+        auto runInOrder = [&]() {
+            ownHunt.RunCallback();
+            required.RunCallback();
+        };
+        // The own row's reason, read from its own callback.
+        CVarSetInteger(ownHuntCVar, RO_TRIFORCE_HUNT_WIN);
+        runInOrder();
+        const bool ownGreys = ganonsBossKey.IsDisabled();
+        const std::string ownReason = ganonsBossKey.GetDisabledText();
+        CVarClear(ownHuntCVar);
+        runInOrder();
+        const bool freeWithoutHunt = !ganonsBossKey.IsDisabled();
+        // The goal, with the own row Off: in order, and the goal's callback alone.
+        CVarSetInteger(RSBS_CVAR_COMBO_RANDO_GOAL, (int32_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT);
+        runInOrder();
+        const bool goalGreys = ganonsBossKey.IsDisabled();
+        const std::string goalReason = ganonsBossKey.GetDisabledText();
+        ownHunt.RunCallback();  // the own row Off enables the key ...
+        required.RunCallback(); // ... and the goal greys it again
+        const bool goalGreysAlone = ganonsBossKey.IsDisabled();
+        // The goal moves away: the own row's verdict again, either way.
+        CVarClear(RSBS_CVAR_COMBO_RANDO_GOAL);
+        required.RunCallback();
+        const bool freeAfterGoal = !ganonsBossKey.IsDisabled();
+        CVarSetInteger(ownHuntCVar, RO_TRIFORCE_HUNT_GBK);
+        required.RunCallback();
+        const bool ownGreysAfterGoal = ganonsBossKey.IsDisabled() && ganonsBossKey.GetDisabledText() == ownReason;
+        CVarClear(ownHuntCVar);
+        runInOrder();
+        OoT_Rando_WidenTriforceRequiredOptions(); // as the headless bridge builds it (H3)
+        printf("[TEST] H4: own hunt greys Ganon's Boss Key %d (\"%s\"), free without a hunt %d; the [Both Games] goal "
+               "greys it %d / alone %d (\"%s\"); free after the goal %d, own hunt greys it after the goal %d\n",
+               ownGreys ? 1 : 0, ownReason.c_str(), freeWithoutHunt ? 1 : 0, goalGreys ? 1 : 0, goalGreysAlone ? 1 : 0,
+               goalReason.c_str(), freeAfterGoal ? 1 : 0, ownGreysAfterGoal ? 1 : 0);
+        OTH_ASSERT(ownGreys && !ownReason.empty() && freeWithoutHunt,
+                   "H4 fixture: OoT's own Triforce Hunt row does not grey Ganon's Boss Key, or does without a hunt");
+        OTH_ASSERT(goalGreys && goalGreysAlone,
+                   "H4: the [Both Games] Triforce Hunt goal leaves Ganon's Boss Key editable, though the hunt grants "
+                   "the key (#1435)");
+        OTH_ASSERT(goalReason == ownReason, "H4: the [Both Games] goal greys Ganon's Boss Key with another reason than "
+                                            "OoT's own Triforce Hunt row's (#1435)");
+        OTH_ASSERT(freeAfterGoal && ownGreysAfterGoal,
+                   "H4: once the goal moves away Ganon's Boss Key does not follow OoT's own Triforce Hunt row (#1435)");
+        OTH_ASSERT(!ganonsBossKey.IsDisabled(), "H4: Ganon's Boss Key is left greyed with no hunt");
     }
 
     printf("[TEST] PASS: rando-combo-hunt-own-mode\n");

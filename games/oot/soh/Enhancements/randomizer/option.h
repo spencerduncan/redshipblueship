@@ -292,6 +292,12 @@ class Option {
      * "X" symbol.
      */
     void Disable(std::string text);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#1435): whether the row is greyed and why, as AddWidget's
+    // PreFunc hands them to the menu, for the ROM-free locks that drive a callback.
+    bool IsDisabled() const;
+    const std::string& GetDisabledText() const;
+#endif
     bool IsCategory(OptionCategory category) const;
 
     void AddWidget(WidgetPath& path);

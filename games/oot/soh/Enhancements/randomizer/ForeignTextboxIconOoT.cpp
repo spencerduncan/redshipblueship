@@ -236,6 +236,10 @@ extern "C" int OoT_ComboTextboxIcon(uint16_t id, ComboTextboxIcon* out) {
             // shows (OoT_gItemIcons' custom row). MM draws it from its own archive.
             return IconForTexture(static_cast<const char*>(OoT_gItemIcons[ITEM_MASK_BLAST]), COMBO_TEXTBOX_ICON_ITEM,
                                   out);
+        case RG_STONE_MASK:
+            // #979: the Stone Mask's, the same way.
+            return IconForTexture(static_cast<const char*>(OoT_gItemIcons[ITEM_MASK_STONE]), COMBO_TEXTBOX_ICON_ITEM,
+                                  out);
         case RG_GREG_RUPEE:
             // SoH's gregMapping: the rupee counter icon in Greg green.
             *out = { kOoTRupeeCounterIconTex, (uint8_t)COMBO_TEXTBOX_ICON_RUPEE, 42, 169, 40 };

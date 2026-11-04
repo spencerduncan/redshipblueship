@@ -580,6 +580,11 @@ int OoT_BombchuDropRuleTest_Run(void);
 // Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
 // Return 0 on pass.
 int OoT_MasterSwordRespawnTest_Run(void);
+// #1169 XW3: a cross-game warp's arrival in OoT takes the seed's entrance override
+// (and a grotto return's respawn), a door arrival does not, and before Entrance_Init
+// the vanilla pad stands. Body in games/oot/soh/oot_warp_arrival_test.cpp. Return 0
+// on pass.
+int OoT_WarpArrivalTest_Run(void);
 // #1289: a shuffled fairy is an item pickup, not a heal; #6405: only an EnElf takes
 // the shuffled fairy's bottle path; #1296: ShuffleFairies_FairyExists checks the
 // actor, not the address of its own local pointer. Bodies in
@@ -672,6 +677,13 @@ extern "C" {
 // the same way, and GameRunner_ReenterActive is suspend-then-resume. FILE SCOPE
 // (compiled as C++) for entrance.h's C++-linkage ComboEntrance_Init.
 #include "tests/test_crossing_refusal.c"
+
+// THE ONE-SHOT CROSS-GAME WARP TARGET (#1169 XW1): armed, consumed by its
+// (game, marker) and spent by any other entrance check, refused while a switch
+// is pending, carried through the real Combo_CheckEntranceSwitch, the #954
+// refusal and the crossing commit, with its kind on the startup entrance. FILE
+// SCOPE (compiled as C++) for entrance.h's C++-linkage API and rsbs::SaveManager.
+#include "tests/test_entrance_warp_target.c"
 
 // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498): the 16-byte
 // carve at 880/884 as .redsave format, the byte-pinned canonical() encoder and
@@ -1001,6 +1013,14 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // involved. FILE SCOPE (compiled as C++, like every file in that directory);
 // every symbol under test is C-linkage through combo_logic.h.
 #include "tests/test_combo_logic.c"
+// R6: OoTMM's critical-renewables rule under All Locations, over both games'
+// registered sources and over the stub engines above (whose fixture it reuses, so
+// it is included after them). ROM-free; FILE SCOPE (compiled as C++).
+#include "tests/test_critical_renewables.c"
+// #1439: the pair-level Way of the Hero over the stub engines above, both games'
+// stones naming it, and MM's hints on by default. FILE SCOPE, after
+// test_combo_logic.c, whose fixture it drives.
+#include "tests/test_woth_hints.c"
 
 // #605: the curated-archive GENERATOR's raw-segmented-texture admission guard.
 // FILE SCOPE (compiled as C++): unlike test_crossgame_model.c, this drives
@@ -1129,6 +1149,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // ItemID's table bounds, rule-gated ownership, the shared pair and OoT's logic
 // (blast-mask-oot-items). FILE SCOPE (compiled as C++).
 #include "tests/test_blast_mask_oot.c"
+// The Stone Mask in Ocarina of Time (#979, epic #975 P4's second mask): its two
+// Cross-Game Rules keys and OoTMM's ignore list (stone-mask-oot-rule), then the
+// custom ItemID's table bounds, rule-gated ownership, the trade cycle after the
+// Blast Mask, the shared pair, OoT's logic and the update seam
+// (stone-mask-oot-items). FILE SCOPE (compiled as C++), after the Blast Mask's.
+#include "tests/test_stone_mask_oot.c"
 // #1169 lane XW2: the second cross-game rules word and its fourteen hidden
 // warp-song keys (combo-item-rules-second-word, needs the CVar store), and the
 // rules-off world staying main's byte for byte (rules-off-goldens-unchanged).
@@ -1830,6 +1856,9 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
 // #1162 (menu.cpp): the same checks under Hint Distribution = Useless (40 gag
 // stones, never "No Hint") and under two Ganon's Trials (only required ones hinted).
 extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr);
+// #1435 (menu.cpp): Ganon's door with its key "Start With": "your pocket" with no
+// Triforce Hunt, no hint at all under one (the hunt opens the door).
+extern "C" int Rando_HeadlessGanonDoorHintTest(const char* seedStr);
 // Hint-RELOAD lock (#441, body in menu.cpp): generates one seed, then drives the
 // REAL randomizer section through save -> Rando::Context reset -> reload (exactly
 // as loading a saved file does) and asserts every enabled item hint still renders
@@ -1962,6 +1991,13 @@ TestResult Test_RandoHintValidity(void) {
     // #1162: seed-independent RED for the junk stones and the trial filter.
     rc = Rando_HeadlessHintValidityVariantsTest("RSBSHINT1");
     printf("[TEST] %s: hint validity under Useless / two trials rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    if (rc != 0) {
+        return TEST_FAIL;
+    }
+    // #1435: seed-independent RED for Ganon's door when Link starts with its key.
+    rc = Rando_HeadlessGanonDoorHintTest("RSBSHINT1");
+    printf("[TEST] %s: Ganon's door hint with its key \"Start With\", without and under a Triforce Hunt rc=%d\n",
+           rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -2330,7 +2366,11 @@ extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 // Re-pinned again by the OoTMM-defaults re-pin (#1428, #1425, #1427; still generator
 // 4, was 0x2387DBDD): the shipped goal gates and OoT shuffles move OoT's settings
 // string, so every static hint names a moved placement; the count stays 17.
-static const uint32_t kStaticHintTextDigest = 0x759F783Du;
+// Re-pinned again by the D wave 2 re-pin (#1434, #1435, #1439, #1443, #979; still
+// generator 4, was 0x759F783D): Ganon's door names Link's pocket for the Start With
+// key (#1435), and Time Travel Requires Master Sword and MM's hint defaults move the
+// placements every static hint names; the count stays 17.
+static const uint32_t kStaticHintTextDigest = 0xAC30C06Bu;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
@@ -3196,6 +3236,27 @@ TestResult Test_MasterSwordRespawn(void) {
 
     int rc = OoT_MasterSwordRespawnTest_Run();
     printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1169 XW3: a cross-game warp's arrival in OoT runs the override tail of
+// Entrance_OverrideNextIndex (no crossing check) and the forced grotto return,
+// only for a warp kind and only once Entrance_Init has filled the override table.
+// Same bring-up as the row above (OTRGlobals' randomizer context). Assertions in
+// games/oot/soh/oot_warp_arrival_test.cpp.
+TestResult Test_RandoWarpArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = OoT_WarpArrivalTest_Run();
+    printf("[TEST] %s: warp arrival rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -4666,6 +4727,9 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void);
 // display requirement.
 extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void);
 extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void);
+// R6: the critical-renewables rule in two generated All Locations worlds; same
+// file, same display requirement.
+extern "C" int MM_Rando_HeadlessCriticalRenewables(void);
 
 TestResult Test_MMPairSwitchEntry(void) {
     printf("[TEST] mm-pair-switch-entry: paired MM world activates through the switch-entry path (#439)\n");
@@ -4801,6 +4865,13 @@ TestResult Test_MMRoundBudgetHostScale(void) {
 
 TestResult Test_MMGoldenSeedsRoundBudget(void) {
     return RunRoundBudgetDispatch("mm-golden-seeds-round-budget", MM_Rando_HeadlessGoldenSeedsRoundBudget);
+}
+
+// R6: OoTMM's critical renewables in a real All Locations creation, with MM's
+// shops shuffled (the rule acts) and vanilla (it has nothing to do). The same
+// harness as the golden rows, so the same dispatch; `--test all` skips it.
+TestResult Test_CriticalRenewablesWorld(void) {
+    return RunRoundBudgetDispatch("critical-renewables-world", MM_Rando_HeadlessCriticalRenewables);
 }
 
 // Non-arrival entry-path arm-state lock (#439 follow-up). MMPairSwitchEntry
@@ -7453,6 +7524,20 @@ TestResult Test_BlastMaskOoTRule(void) {
     return BlastMaskOoTRule_Run();
 }
 
+// #979: the Stone Mask's Cross-Game Rules rows, the Blast Mask's bring-up.
+TestResult Test_StoneMaskOoTRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return StoneMaskOoTRule_Run();
+}
+
 // #1169 XW2: the second rules word's fourteen keys read and write the CVar
 // store, the same bring-up as blast-mask-oot-rule.
 TestResult Test_ComboItemRulesSecondWord(void) {
@@ -7898,6 +7983,17 @@ TestResult Test_MMTrackerInLogicArrival(void) {
         return TEST_FAIL;
     }
     return MM_TrackerInLogic_RunArrival() == 0 ? TEST_PASS : TEST_FAIL;
+}
+// #1434: Time Travel Requires Master Sword (OoTMM's timeTravelSword): the option's
+// default, the pedestal's real wait action, OoT's real search through the pedestal,
+// and a stored world's own value. Same bring-up as the rows above (OTRGlobals'
+// randomizer context); body in games/oot/soh/oot_time_travel_sword_test.cpp.
+extern "C" int OoT_TimeTravelSwordTest_Run(void);
+TestResult Test_OoTTimeTravelSword(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_TimeTravelSwordTest_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 TestResult Test_TrackerFillSuperset(void) {
     if (!TrackerReachabilityBringUp()) {
@@ -8476,6 +8572,11 @@ const TestDescriptor gTests[] = {
       Test_ForeignHostGossipHint },
     // #575 H5a: MM's free stone names a foolish area, in MM's voice.
     { "mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint },
+    // #1439: the pair-level Way of the Hero, both games' stones, MM's hints on.
+    { "woth-hints",
+      "The pair's Way of the Hero is the hosts its goal cannot do without in either game, both games' stones name "
+      "it, and MM's hints default on (#1439)",
+      Test_WothHints },
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
@@ -9583,6 +9684,15 @@ const TestDescriptor gTests[] = {
       "frozen rule, pairs into one bag row under the shared rule, and OoT's logic credits it as a child's explosive "
       "only then (#979)",
       Test_BlastMaskOoTItems },
+    { "stone-mask-oot-rule",
+      "The Stone Mask (OoT) and Shared Stone Mask are two Cross-Game Rules, off by default, the shared one only with "
+      "its extension, restored from the file at load in OoTMM's order; OoTMM's actors lose sight of the wearer (#979)",
+      Test_StoneMaskOoTRule },
+    { "stone-mask-oot-items",
+      "The Stone Mask's custom ItemID stays inside OoT's tables and out of SLOT(), is owned and cycled after the Blast "
+      "Mask only under the frozen rule, pairs into one bag row under the shared rule, OoT's logic credits it for a "
+      "child only then, and a listed actor's update runs with Link out of sight (#979)",
+      Test_StoneMaskOoTItems },
     // #1169 XW2: the second cross-game rules word. The first needs the CVar store
     // (its wrapper brings it up); the second is ROM-free and store-free.
     { "combo-item-rules-second-word",
@@ -9639,6 +9749,11 @@ const TestDescriptor gTests[] = {
       "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218). "
       "Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo Membership Card ship on, OoTMM's defaults (#1425)",
       Test_MasterSwordRespawn },
+    { "rando-warp-arrival",
+      "A cross-game warp's arrival in OoT lands on the seed's override for its pad (a grotto-return override sets the "
+      "respawn after the arrival's neutralisation), keeps the vanilla pad before Entrance_Init, and a door arrival "
+      "with overworld ER runs no override (#1169 XW3)",
+      Test_RandoWarpArrival },
     { "shuffled-fairy-no-heal",
       "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "
       "randomized big fairy no magic refill; a fairy with no check still heals and the big one refills magic (#1289)",
@@ -9651,6 +9766,13 @@ const TestDescriptor gTests[] = {
       "ShuffleFairies_FairyExists inspects the actor in ACTORCAT_ITEMACTION rather than the address of its own local "
       "pointer, and the gossip-stone hook suppresses duplicate fairy spawns while the check's fairy lives (#1296)",
       Test_ShuffledFairyExists },
+    // #1434. Replaces the randomizer context in its last leg; skipped by `--test all`
+    // below like its siblings.
+    { "oot-time-travel-sword",
+      "Time Travel Requires Master Sword ships on (OoTMM's timeTravelSword); with the sword shuffled the Pedestal of "
+      "Time offers the pull and logic sends Link through time, either way, only with the sword; a world saved before "
+      "the option keeps its pedestal (#1434)",
+      Test_OoTTimeTravelSword },
     { "mm-creation-new-file",
       "A creation-authored MM half carries what MM's own new-file path stamps (OoT's typed name in MM's charset, the "
       "'ZELDA3' marker, the checksum, fileNum 0xFF, flashSaveAvailable): the tracker reads it present by the marker "
@@ -9696,6 +9818,12 @@ const TestDescriptor gTests[] = {
       "back the entrance outside the door; a refusal after the loop returned re-enters the game by suspend then "
       "resume (#954)",
       Test_CrossingRefusal },
+    { "entrance-warp-target",
+      "The one-shot cross-game warp target: a (game, marker) match fills the pending switch with the warp's kind and "
+      "the hot-swap return entrance, any other entrance check spends it, arming is refused while a switch is pending, "
+      "the real Combo_CheckEntranceSwitch freezes, refuses (#954) and commits as for the door, and the kind rides the "
+      "startup entrance (#1169 XW1)",
+      Test_EntranceWarpTarget },
     { "oot-check-state-load",
       "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
@@ -9829,6 +9957,18 @@ const TestDescriptor gTests[] = {
     { "mm-extract",
       "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
       Test_MmExtract },
+    // R6: OoTMM's critical renewables under All Locations. ROM-free: both games'
+    // registered sources by real id, the predicates, the remainders' plan and the
+    // coordinator over the stub engines.
+    { "critical-renewables-rule",
+      "Under All Locations the first copy of each critical renewable lands on its own game's renewing host; Beatable "
+      "Only and No Logic are unchanged, and a world whose kinds are renewed is the world it was (#1443)",
+      Test_CriticalRenewablesRule },
+    // R6, rando tier (needs a display, like the golden rows): two real creations.
+    { "critical-renewables-world",
+      "A generated All Locations world puts every critical renewable's first copy on a host that renews it, with MM's "
+      "shops shuffled and vanilla (#1443)",
+      Test_CriticalRenewablesWorld },
     { nullptr, nullptr, nullptr } // Sentinel
 };
 
@@ -9992,9 +10132,12 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
+                strcmp(gTests[i].name, "rando-warp-arrival") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-no-heal") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
+                strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
+                strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

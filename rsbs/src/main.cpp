@@ -1017,11 +1017,16 @@ int main(int argc, char** argv) {
         GameId nextGame = GAME_NONE;
         uint16_t targetEntrance = 0;
         bool isEntranceSwitch = false;
+        // The door, or a warp the one-shot target armed (#1169 XW1). Read before
+        // the pending switch is cleared below, and handed to the startup entrance
+        // with the target entrance so only a warp's arrival runs warp work.
+        uint8_t switchKind = COMBO_SWITCH_KIND_DOOR;
 
         if (Entrance_IsCrossGameSwitch()) {
             // Entrance-based cross-game switch
             nextGame = Entrance_GetSwitchTargetGame();
             targetEntrance = Entrance_GetSwitchTargetEntrance();
+            switchKind = Entrance_GetSwitchKind();
             isEntranceSwitch = true;
             printf("\n=== Cross-game entrance detected ===\n");
             printf("Target: %s entrance 0x%04X\n", Game_ToString(nextGame), targetEntrance);
@@ -1111,8 +1116,14 @@ int main(int argc, char** argv) {
             // "the player left this game and has not returned since", which is
             // exactly the condition the restore is for — not "this game was
             // left at some point in the past" (#364).
+            //
+            // The kind travels with it (#1169 XW1): the door's crossing carries
+            // the door kind, a consumed warp target its warp kind. The F10 return
+            // below and the refused re-entry (ReenterAfterRefusedSwitch) use the
+            // setter that names no kind, which is the door, so a warp's arrival
+            // work never runs on a door or hot-swap arrival.
             if (isEntranceSwitch && targetEntrance != 0) {
-                Entrance_SetStartupEntrance(targetEntrance, nextGame);
+                Entrance_SetStartupEntrance(targetEntrance, nextGame, switchKind);
             } else if (!isEntranceSwitch && Context_HasFrozenState(nextGame)) {
                 Entrance_SetStartupEntrance(Context_GetFrozenReturnEntrance(nextGame), nextGame);
             }

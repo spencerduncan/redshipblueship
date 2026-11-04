@@ -107,12 +107,15 @@ bool PathMounted(const char* path) {
     return archives != nullptr && archives->HasFile(std::string(path + sizeof(kOtr) - 1));
 }
 
-/** OoT's ownership of its foreign masks: the Blast Mask's RAND_INF flag. Stone
- *  and Kamaro (the rest of P4) add their cases here. */
+/** OoT's ownership of its foreign masks: each one's RAND_INF flag (the Blast
+ *  Mask's, and the Stone Mask's, StoneMaskOoT.cpp). Kamaro (the rest of P4) adds
+ *  its case here. */
 int ForeignMasksOwned(uint8_t id) {
     switch (id) {
         case COMBO_FOREIGN_MASK_MM_BLAST:
             return Flags_GetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK) ? 1 : 0;
+        case COMBO_FOREIGN_MASK_MM_STONE:
+            return Flags_GetRandomizerInf(RAND_INF_OBTAINED_STONE_MASK) ? 1 : 0;
         default:
             return 0;
     }

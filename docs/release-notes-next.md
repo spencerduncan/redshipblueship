@@ -13,7 +13,8 @@
 - **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
   generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436) are part of
-  generator 4 too.
+  generator 4 too, as are Time Travel Requires Master Sword, Majora's Mask's hints and the Way of the Hero, and the
+  critical renewables (#1446).
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
   each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
   magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
@@ -33,10 +34,17 @@
   #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
   Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
   the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
-  on Randomizer > Shuffles > Shuffle Items. A shuffled Master Sword still lets Link travel through time at the
-  pedestal without it, as in Ship of Harkinian; OoTMM requires the sword by default. The Standard and Beginner
+  on Randomizer > Shuffles > Shuffle Items. With the Master Sword shuffled, Link now needs it to travel through time
+  at the pedestal, as in OoTMM (Time Travel Requires Master Sword, #1446, below). The Standard and Beginner
   presets still leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the
   carpenters. A saved file keeps the settings it was made with.
+- **Time Travel Requires Master Sword is on by default** (#1446, issue #1434), as OoTMM's `timeTravelSword` is. With
+  Shuffle Master Sword on (the default above), Link must hold the Master Sword to travel through time at the Pedestal
+  of Time, in either direction, and logic agrees: a child start reaches the adult world only once the sword is found,
+  and an adult start reaches the child world, and the Happy Mask Shop crossing into Termina, only after it. Without
+  the sword the pedestal offers no pull. The row sits right under Shuffle Master Sword on Randomizer > Shuffles >
+  Shuffle Items, greyed while the sword is not shuffled (pulling it then hands it over). A saved file or seed package
+  made before this keeps the pedestal it was made with.
 
 ### Majora's Mask randomizer
 
@@ -69,6 +77,49 @@
 - **A Progressive Time can now be found in Ocarina of Time.** It unlocks the next half-day when you arrive in Termina,
   before the game picks the half-day your cycle starts on. Before, Progressive Time stayed in Majora's Mask's own
   checks. In Random, the six named half-days could already be found in Hyrule, and that is unchanged.
+
+### Hints: the Way of the Hero in both games, and Majora's Mask's hints on (#1446, issue #1439)
+
+- **Gossip stones in both games name areas on the Way of the Hero**, OoTMM's largest hint bucket. An area is on it when
+  the paired goal cannot be finished without something there, whichever game it is in: a Hyrule stone may say "They
+  say that the Southern Swamp is on the way of the hero.", and a Termina stone "They say Kokiri Forest is on the Way
+  of the Hero." Generate works this out once, after it proves the world, so making a seed takes longer (up to one
+  extra proof round per item the fill placed; "Finding the Way of the Hero" on the progress screen). No Logic claims
+  none.
+- **Majora's Mask's hints are on by default**, as OoTMM's are: gossip stones, the boss remains posters, Oath to Order,
+  the spider house rewards and the Hookshot hint. Purchaseable Gossip Hints stays off (OoTMM has no rupee-bought
+  hints). The hint rows are part of Majora's Mask's settings, so the same seed makes a different world, and a file
+  made before this keeps its own rows (loading it restores them). Loading such a file writes its hint rows (off) back
+  to your settings, so your next new file has them off too: turn them on again under Hints in Randomizer > MM Randomizer
+  first. A file from v0.2.0-prealpha or earlier cannot be restored that way; it loads as before and keeps its hints
+  off, but the rows show the new defaults.
+
+### Ocarina of Time hints: Ganon's door and the Triforce Hunt (#1446, issue #1435)
+
+- **Ganon's door names your pocket when you start with its key.** With Boss Door Hints on and Ganon's Boss Key on
+  Start With (the default since #1436), the door's hint says the key is in your pocket, instead of "an Isolated
+  Place". A hint read back from a save or a spoiler log says "your pocket" too, as the live hint does.
+- **No Ganon's door hint under a Triforce Hunt.** The hunt gives the key, so the door keeps the game's own text, as
+  OoTMM names no key for it either. The [Both Games] Triforce Hunt goal now greys the Ganon's Boss Key row with the
+  reason Ocarina of Time's own Triforce Hunt row gives; when the goal moves away, the row follows that row again.
+
+### Cross-Game Masks: the Stone Mask in Ocarina of Time (#1446, issue #979)
+
+- **[Both Games] Stone Mask (OoT)** and **[Both Games] Shared Stone Mask** (OoTMM's `stoneMaskOot` and
+  `sharedMaskStone`), both off by default, on Randomizer > Cross-Game, each right after its Blast Mask twin. The
+  first puts Majora's Mask's Stone Mask in Ocarina of Time's pool and child trade cycle, after the Blast Mask: while
+  child Link wears it, the enemies and guards on OoTMM's list ignore him, and logic lets it pass Big Skulltulas and
+  the Gerudo guards. The second makes the two games' Stone Masks one item and needs the first. Both freeze at file
+  creation. Kamaro's Mask, the last of this set, and Item Tracker rows for the Stone Mask are still to come.
+
+### All Locations: critical renewables (#1446, issue #1443)
+
+- **Under All Locations, the first copy of each critical renewable lands where it can be had again**, as OoTMM does:
+  Majora's Mask's Hero's Shield, 10 Bombchus, Magic Bean, Red and Blue Potions and Milk, and Ocarina of Time's Deku and
+  Hylian Shields. A Majora's Mask copy goes to a Termina shop shelf or counter, Tingle or a cow; Ocarina of Time's two
+  shields are always on a vanilla shop shelf. Worlds change only with Majora's Mask's Shuffle Shops on (off by
+  default): then the first Hero's Shield, 10 Bombchus and Red Potion go to a Termina host that sells or gives them
+  again. Beatable Only and No Logic are unchanged.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 

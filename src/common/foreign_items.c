@@ -1031,6 +1031,7 @@ void Combo_SnapshotCreationRecords(ComboCreationRecords* out) {
     out->comboTriforce = gComboCtx.comboTriforce;
     out->comboItemRules = gComboCtx.comboItemRules;
     out->comboFillWallets = gComboCtx.comboFillWallets;
+    out->comboWoth = gComboCtx.comboWoth;
     out->comboItemRules2 = gComboCtx.comboItemRules2; // #1169 XW2
 }
 
@@ -1043,6 +1044,7 @@ void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
     gComboCtx.comboTriforce = in->comboTriforce;
     gComboCtx.comboItemRules = in->comboItemRules;
     gComboCtx.comboFillWallets = in->comboFillWallets;
+    gComboCtx.comboWoth = in->comboWoth;
     gComboCtx.comboItemRules2 = in->comboItemRules2; // #1169 XW2
 }
 
@@ -1052,6 +1054,7 @@ void Combo_RetractCreationRecords(void) {
     memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
     memset(&gComboCtx.comboItemRules, 0, sizeof(gComboCtx.comboItemRules));
     gComboCtx.comboFillWallets = 0;                                           // #1284
+    memset(&gComboCtx.comboWoth, 0, sizeof(gComboCtx.comboWoth));             // #1439: ABSENT
     memset(&gComboCtx.comboItemRules2, 0, sizeof(gComboCtx.comboItemRules2)); // #1169 XW2: every rule off
 }
 
