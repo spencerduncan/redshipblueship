@@ -1863,6 +1863,14 @@ typedef struct {
      *  binds. Counted over the coordinator's tables, so a batch roll-back gives
      *  the budget back with the rows. */
     uint16_t maxCrossingsPerSide;
+    /** THE CRITICAL-RENEWABLES RULE (critical_renewables.h; OoTMM solve.ts:1101,
+     *  1149): nonzero asks the fill to apply it, which it does under All Locations
+     *  only; a pending first copy of a critical renewable is then drawn only onto
+     *  its own game's renewing hosts. The production caller (combo_single_bag.c)
+     *  passes 1. Zero, which every memset-initialised request is, leaves the fill
+     *  exactly as it was: the rule reads the games' REGISTERED sources, which
+     *  describe the real engines' ids, not a stub engine's. */
+    uint8_t criticalRenewables;
 } ComboLogicFillRequest;
 
 typedef struct {

@@ -204,6 +204,10 @@ set(REDSHIP_COMMON_SOURCES
     # fast/interpreter.h brings in the whole LUS GBI. Test tooling only.
     # APPENDED.
     ${CMAKE_SOURCE_DIR}/src/common/tests/test_lus_hardening.cpp
+    # OoTMM's critical-renewables rule under All Locations (#1443): each game's
+    # renewable-host source, and the rule the coordinator and both games' own
+    # passes apply. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -306,6 +310,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_identity_display.h
     # Header for seed_package.cpp above (#1044)
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
+    # Header for critical_renewables.c above (#1443)
+    ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
 )
 
 # ============================================================================
@@ -2874,6 +2880,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier: the coordinator's one-call-per-copy shape, and the surplus / filler /
     # exact-fit shapes of the bag, with the drop rule's determinism.
     redship_add_test(NAME ComboLogicBagModel COMMAND redship --test combo-logic-bag-model)
+    # R6: OoTMM's critical-renewables rule under All Locations. ROM-free and
+    # display-free: both games' registered sources answer OoTMM's list with this
+    # port's exclusions by real id, the predicates and the remainders' plan, and
+    # the coordinator over the stub engines (the first copy lands on its own
+    # game's renewing host; Beatable Only and a renewed world are unchanged).
+    redship_add_test(NAME CriticalRenewablesRule COMMAND redship --test critical-renewables-rule)
+    # R6, the same rule in two REAL All Locations creations of one seed, MM's
+    # shops, cows and Tingle shuffled (the rule acts) and vanilla (it has nothing
+    # to do). The golden rows' harness, label and environment.
+    redship_add_test(NAME CriticalRenewablesWorld COMMAND redship --test critical-renewables-world
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # The same ruling over BOTH REAL engines: OoT's progressive top-tier and
     # counter clamps (and the wraps they prevent, observed with the clamp off),
     # order independence with its red half, and MM's counter maxima and per-host

@@ -98,12 +98,15 @@ uint32_t Rando_HeadlessPlacementHash(size_t* outPlacedCount);
 void Rando_HeadlessWriteOoTContentDigest(FILE* out);
 int MM_Rando_Hints_DigestCandidates(uint32_t* outDigest);
 int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest); // #1047, EnGs.cpp
+// R6: OoT's critical renewables over its generated world (ComboLogicEngineOoT.cpp).
+int OoT_ComboLogic_CriticalRenewablesWorld(uint32_t* outPresent, uint32_t* outRenewed, int* outRenewingShelves);
 }
 
 #include "gen_budget.h"       // src/common — the creation's round budget (#950)
 #include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
 #include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
 #include "combo_area.h"       // src/common — MM's foolish areas the content digest folds (#949)
+#include "critical_renewables.h" // src/common — OoTMM's critical-renewables rule (R6)
 
 namespace {
 
@@ -3392,6 +3395,191 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
         fprintf(stderr, "[MM-GOLDEN-ROUNDS] PASS: every golden seed creates on its pinned attempt inside the shipped "
                         "%u-round budget\n",
                 budget);
+    }
+    return rc;
+}
+
+// ============================================================================
+// R6: OoTMM'S CRITICAL RENEWABLES IN A GENERATED ALL LOCATIONS WORLD
+// ============================================================================
+namespace {
+
+constexpr uint32_t kCritMMAll = (1u << RSBS_CRIT_MM_KIND_COUNT) - 1u;
+constexpr uint32_t kCritOoTAll = (1u << RSBS_CRIT_OOT_KIND_COUNT) - 1u;
+/** MM's kinds whose only vanilla sources are shop shelves: with MM's shops
+ *  shuffled, nothing renews them until the fill puts a first copy on a renewing
+ *  host. (Beans and the blue potion are renewed by the business scrubs, milk by
+ *  the cows, whatever the shuffles.) */
+constexpr uint32_t kCritMMShopOnly =
+    (1u << RSBS_CRIT_MM_HERO_SHIELD) | (1u << RSBS_CRIT_MM_BOMBCHU_10) | (1u << RSBS_CRIT_MM_RED_POTION);
+
+/**
+ * One paired creation of `ootSeed` with MM's shops, cows and Tingle shuffled or
+ * not, and the rule's three facts read off the world it made:
+ *   - MM: every critical kind a copy of which stands anywhere in MM (or crossed to
+ *     OoT through the bag) is renewed: by what MM's source says stands (vanilla
+ *     checks, vanilla goods that resume, the bag's renewing placements) or by a
+ *     copy on a shuffled renewing host. With the shuffles on, the shop-only kinds
+ *     are renewed by a placed copy (the rule's bite); with them off, MM's source
+ *     already renews all six before the fill, so the rule had nothing to do.
+ *   - OoT: both shields are on vanilla shelves (SoH's premise the OoT half rests
+ *     on), and every OoT kind present is renewed.
+ * @return 0, or a FAIL code.
+ */
+int CritRenewCreate(const char* ootSeed, bool shuffled) {
+    const RandoOptionId kShuffles[] = { RO_SHUFFLE_SHOPS, RO_SHUFFLE_COWS, RO_SHUFFLE_TINGLE_SHOPS };
+    for (const RandoOptionId o : kShuffles) {
+        CVarSetInteger(Rando::StaticData::Options[o].cvar, shuffled ? RO_GENERIC_YES : RO_GENERIC_NO);
+    }
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    ComboContext_Init();
+    if (K11PairedOoTGenerate(ootSeed) != 0) {
+        return 21;
+    }
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    MM_Sram_InitNewSave();
+    GameInteractor_ExecuteOnSaveInit(0);
+    for (const RandoOptionId o : kShuffles) {
+        CVarClear(Rando::StaticData::Options[o].cvar);
+    }
+    const char* tag = shuffled ? "shuffled" : "default";
+    if (gSaveContext.save.shipSaveInfo.saveType != SAVETYPE_RANDO) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(22): the %s world (%s) was not created\n", tag, ootSeed);
+        return 22;
+    }
+    if (gComboCtx.comboSettings.logicRung != (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(23): the %s world froze rung %u, not All Locations (the default)\n", tag,
+                (unsigned)gComboCtx.comboSettings.logicRung);
+        return 23;
+    }
+    if ((RANDO_SAVE_OPTIONS[RO_SHUFFLE_SHOPS] == RO_GENERIC_YES) != shuffled) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(24): MM's shop shuffle did not reach the %s world\n", tag);
+        return 24;
+    }
+
+    const ComboCriticalRenewableSource* mm = Combo_GetCriticalRenewableSource((uint8_t)GAME_MM);
+    if (mm == nullptr) {
+        return 25;
+    }
+    uint32_t present = 0u;
+    uint32_t onRenewing = 0u;
+    for (auto& [randoCheckId, randoStaticCheck] : Rando::StaticData::Checks) {
+        if (randoStaticCheck.randoCheckId == RC_UNKNOWN || !RANDO_SAVE_CHECKS[randoCheckId].shuffled) {
+            continue;
+        }
+        // A foreign host holds RI_JUNK; a skipped check RI_JUNK too. Neither counts.
+        const int kind = mm->kindOf((uint16_t)RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+        if (kind < 0) {
+            continue;
+        }
+        present |= 1u << kind;
+        if (mm->hostRenews((uint16_t)randoCheckId) != 0) {
+            onRenewing |= 1u << kind;
+        }
+    }
+    // MM's copies the bag put on OoT hosts (the tables live until the commit).
+    for (int i = 0; i < Combo_Logic_PlacementCount(GAME_OOT); ++i) {
+        ComboLogicPlacement p;
+        if (Combo_Logic_PlacementAt(GAME_OOT, i, &p) && p.item.originGame == (uint8_t)GAME_MM) {
+            const int kind = mm->kindOf(p.item.id);
+            if (kind >= 0) {
+                present |= 1u << kind;
+            }
+        }
+    }
+    const uint32_t standing = mm->kindsRenewedNow();
+    fprintf(stderr, "[MM-CRIT-RENEW] %s world (%s): MM kinds present %02X, on a renewing host %02X, standing %02X\n",
+            tag, ootSeed, (unsigned)present, (unsigned)onRenewing, (unsigned)standing);
+    if ((present & ~(standing | onRenewing)) != 0u) {
+        fprintf(stderr,
+                "[MM-CRIT-RENEW] FAIL(26): the %s world holds a critical renewable no MM host renews (kinds %02X): "
+                "its first copy did not land on a renewing host\n",
+                tag, (unsigned)(present & ~(standing | onRenewing)));
+        return 26;
+    }
+    if (shuffled && (present & kCritMMShopOnly) != (onRenewing & kCritMMShopOnly)) {
+        fprintf(stderr,
+                "[MM-CRIT-RENEW] FAIL(27): with MM's shops shuffled, a shop-only kind present (%02X) has no copy on a "
+                "renewing host (%02X): the rule did not act\n",
+                (unsigned)(present & kCritMMShopOnly), (unsigned)(onRenewing & kCritMMShopOnly));
+        return 27;
+    }
+    if (shuffled && (present & (1u << RSBS_CRIT_MM_HERO_SHIELD)) == 0u) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(28): no Hero's Shield in the shuffled world: the bite leg is vacuous\n");
+        return 28;
+    }
+    if (!shuffled && standing != kCritMMAll) {
+        fprintf(stderr,
+                "[MM-CRIT-RENEW] FAIL(29): with MM's shops, cows and Tingle vanilla, MM's source must renew all six "
+                "kinds (%02X, wanted %02X): the default world would no longer be the world it was\n",
+                (unsigned)standing, (unsigned)kCritMMAll);
+        return 29;
+    }
+
+    // OoT's half: its remainder runs here, then the commit.
+    if (K11FinishPairedOoTHalf() < 0) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(30): OoT's remainder of the %s world did not run\n", tag);
+        return 30;
+    }
+    uint32_t ootPresent = 0u;
+    uint32_t ootRenewed = 0u;
+    int shelves = 0;
+    if (OoT_ComboLogic_CriticalRenewablesWorld(&ootPresent, &ootRenewed, &shelves) != 0) {
+        return 31;
+    }
+    fprintf(stderr, "[MM-CRIT-RENEW] %s world: OoT kinds present %02X, renewed %02X by %d vanilla shelves\n", tag,
+            (unsigned)ootPresent, (unsigned)ootRenewed, shelves);
+    if (ootRenewed != kCritOoTAll || shelves <= 0) {
+        fprintf(stderr,
+                "[MM-CRIT-RENEW] FAIL(32): OoT's vanilla shelves must sell both shields (renewed %02X, %d shelves): "
+                "the premise OoT's half of the rule rests on is gone\n",
+                (unsigned)ootRenewed, shelves);
+        return 32;
+    }
+    if ((ootPresent & ~ootRenewed) != 0u) {
+        fprintf(stderr, "[MM-CRIT-RENEW] FAIL(33): an OoT critical renewable present (%02X) is not renewed (%02X)\n",
+                (unsigned)ootPresent, (unsigned)ootRenewed);
+        return 33;
+    }
+    return 0;
+}
+
+} // namespace
+
+/**
+ * R6: the critical-renewables rule over two real All Locations creations of one
+ * seed: MM's shops, cows and Tingle shuffled (the rule must act: the Hero's
+ * Shield, the 10 Bombchus and the Red Potion have no vanilla shelf left), and all
+ * three vanilla (the rule must have nothing to do: MM's source renews all six
+ * kinds before the fill, which is why the default goldens do not move).
+ * @return 0 on success, a FAIL code otherwise.
+ */
+extern "C" int MM_Rando_HeadlessCriticalRenewables(void) {
+    const char* const kSaveDir = "rsbs_test_critrenew_saves";
+    const int up = RoundBudgetBringUp("MM-CRIT-RENEW", kSaveDir);
+    if (up != 0) {
+        return up;
+    }
+    int rc = CritRenewCreate("RSBSUNIFIED1", true);
+    if (rc == 0) {
+        rc = CritRenewCreate("RSBSUNIFIED1", false);
+    }
+    // The golden rows' cleanup: these creations armed no save slot.
+    LadderClearOptionCVars();
+    Combo_ClearForeignPlacements();
+    Combo_ClearFrozenState("mm");
+    Combo_ClearStartupEntrance();
+    memset(&gSaveContext, 0, sizeof(gSaveContext));
+    ComboContext_Init();
+    rsbs::SaveManager::Instance().SetSaveDirectory("Save");
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(kSaveDir, ec);
+    }
+    if (rc == 0) {
+        fprintf(stderr, "[MM-CRIT-RENEW] PASS: every first copy of a critical renewable is on a host that renews it\n");
     }
     return rc;
 }
