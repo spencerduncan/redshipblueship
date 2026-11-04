@@ -2519,8 +2519,10 @@ TestResult Test_CVarClassification(void) {
             // arrows, #970's Shared Bottles, #978's five shared masks, #1369's
             // Shared Swim and #979's Blast Mask (OoT) and Shared Blast Mask, bits
             // of the sibling frozen item rules, and #979's Blast Mask Cooldown,
-            // that record's cooldown byte. #668's shared ocarina was a third until
-            // #879 retired it.
+            // that record's cooldown byte, and #1169 XW2's fourteen warp-song
+            // rules, bits of the second rules word (hidden until XW12, identity
+            // all the same). #668's shared ocarina was a third until #879
+            // retired it.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
                 if (strncmp(RSBS::kComboKeys[k].key, RSBS::kComboIdentityKeyPrefix,
@@ -2531,8 +2533,8 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 25,
-                            "exactly twenty-five tier-4 identity keys (direction — ADR 0011 increment 2, whose two "
+            CVARCLASS_CHECK(identityKeys == 39,
+                            "exactly thirty-nine tier-4 identity keys (direction — ADR 0011 increment 2, whose two "
                             "pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, [Both Games] "
                             "Logic, #1367, [Both Games] Triforce Pieces and Triforce Goal, #1389, the Shared "
@@ -2540,8 +2542,8 @@ TestResult Test_CVarClassification(void) {
                             "Epona's Song and Song of Storms, #1066, the Shared Ocarina Buttons, #1067, the "
                             "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "
                             "#970, the five shared masks, #978, the Shared Swim, #1369, and the Blast Mask (OoT), "
-                            "the Shared Blast Mask and the Blast Mask Cooldown, #979; #879 retired #668's "
-                            "shared ocarina)");
+                            "the Shared Blast Mask and the Blast Mask Cooldown, #979, and the fourteen warp-song "
+                            "rules, #1169 XW2; #879 retired #668's shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);

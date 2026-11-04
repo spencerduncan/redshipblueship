@@ -26,7 +26,9 @@
  * and FNV-1a match what identity.json records; MM's half and the combo record have
  * this build's layout; the crossing block validates; the combo record names the
  * identity identity.json names, and its fingerprint is the one this generator's
- * formula gives (Combo_ComboSettingsHashGeneratorVersionEx).
+ * formula gives (Combo_ComboSettingsHashGeneratorVersionEx2, over both item-rule
+ * words); and its second rules word holds nothing this build refuses to create
+ * (Combo_ComboItemRules2Refused, #1169 XW2).
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
@@ -216,6 +218,8 @@ std::string WorldRecordBytes(const ComboContext& live) {
     memcpy(&rec->comboTriforce, &live.comboTriforce, sizeof(rec->comboTriforce));
     memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
     memcpy(&rec->comboFillWallets, &live.comboFillWallets, sizeof(rec->comboFillWallets)); // #1284
+    // #1169 XW2: the second rules word, a world field like the first.
+    memcpy(&rec->comboItemRules2, &live.comboItemRules2, sizeof(rec->comboItemRules2));
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 
@@ -495,15 +499,26 @@ int Validate(const rsbs::seedpkg::Entries& entries, nlohmann::json& id, std::str
         why = "the combo record does not name the identity identity.json names";
         return RSBS_SEEDPKG_ERR_INTEGRITY;
     }
-    const int stampedBy =
-        Combo_ComboSettingsHashGeneratorVersionEx(&rec.comboSettings, &rec.comboItemRules, rec.sharedRandoSettingsHash,
-                                                  rec.mmProfileDigest, rec.comboSettingsHash);
+    // #1169 XW2: the fingerprint folds the second rules word too (0 folds nothing).
+    const uint32_t rules2 = Combo_ComboItemRules2Word(&rec.comboItemRules2);
+    const int stampedBy = Combo_ComboSettingsHashGeneratorVersionEx2(&rec.comboSettings, &rec.comboItemRules, rules2,
+                                                                     rec.sharedRandoSettingsHash, rec.mmProfileDigest,
+                                                                     rec.comboSettingsHash);
     if (stampedBy != (int)RSBS_GENERATOR_VERSION) {
         why =
             "the pair's fingerprint " + Hex8(rec.comboSettingsHash) + " is not this generator's (" +
             (stampedBy < 0 ? std::string("no generator this build knows") : "generator " + std::to_string(stampedBy)) +
             ")";
         return RSBS_SEEDPKG_ERR_GENERATOR_VERSION;
+    }
+    // #1169 XW2: a world whose second rules word holds a rule this build does not
+    // offer yet (until XW12, any warp-song rule; or a bit no build allocates) is
+    // another build's world, refused by name as Generate refuses it, before
+    // anything is applied.
+    char refusedRules[160];
+    if (Combo_ComboItemRules2Refused(rules2, refusedRules, sizeof(refusedRules)) != 0u) {
+        why = std::string("the pair turns on cross-game rules this build does not offer (") + refusedRules + ")";
+        return RSBS_SEEDPKG_ERR_FORMAT;
     }
     return RSBS_SEEDPKG_OK;
 }
@@ -528,6 +543,7 @@ void ApplyComboWorld(const ComboContext& rec) {
     records.comboTriforce = rec.comboTriforce;
     records.comboItemRules = rec.comboItemRules;
     records.comboFillWallets = rec.comboFillWallets; // #1284
+    records.comboItemRules2 = rec.comboItemRules2;   // #1169 XW2
     Combo_RestoreCreationRecords(&records);
 }
 
@@ -747,6 +763,28 @@ int CompleteAndStage(bool fromGenerate) {
 }
 
 } // namespace
+
+// TEST HOOK (ComboItemRulesSecondWord, #1169 XW2): a package's world-record copy
+// and its apply, end to end, ROM-free. @p live's world fields go through
+// WorldRecordBytes (what placement/combo-context.bin holds) and back through
+// ApplyComboWorld into gComboCtx; @p outRecordBytes (may be NULL) receives the
+// record a package would carry. Returns 1 when the record has this build's size.
+extern "C" int OoT_SeedPackage_WorldRecordRoundTripForTest(const ComboContext* live, ComboContext* outRecordBytes) {
+    if (live == nullptr) {
+        return 0;
+    }
+    const std::string bytes = WorldRecordBytes(*live);
+    if (bytes.size() != sizeof(ComboContext)) {
+        return 0;
+    }
+    auto rec = std::make_unique<ComboContext>();
+    memcpy(rec.get(), bytes.data(), sizeof(ComboContext));
+    if (outRecordBytes != nullptr) {
+        memcpy(outRecordBytes, rec.get(), sizeof(ComboContext));
+    }
+    ApplyComboWorld(*rec);
+    return 1;
+}
 
 // ----------------------------------------------------------------------------
 // The entry points (seed_package.h)

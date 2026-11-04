@@ -243,6 +243,27 @@
  * (0..5). DEFAULT 0, Majora's Mask's own cooldown, so an untouched world keeps its
  * all-clear record and every fingerprint holds. */
 #define RSBS_CVAR_COMBO_RANDO_BLAST_MASK_COOLDOWN "gCombo.Rando.BlastMaskCooldown"
+/* #1169 lane XW2: OoTMM's fourteen warp-song rules, bits of the SECOND rules word
+ * (gComboCtx.comboItemRules2, RSBS_XITEM2_*). The seven extensions add the other
+ * game's warp song to a game (OoTMM songSoaringOot, songMinuetMm .. songPreludeMm);
+ * the seven shared ones make the two copies one item (OoTMM sharedSong*, each
+ * requiring its extension). Boolean (0/1), DEFAULT 0 each, folded into
+ * comboSettingsHash only when on. HIDDEN until lane XW12: no row exposes them, and
+ * Generate refuses a world with any of them on. */
+#define RSBS_CVAR_COMBO_RANDO_SONG_SOARING_OOT "gCombo.Rando.SongSoaringOoT"
+#define RSBS_CVAR_COMBO_RANDO_SONG_MINUET_MM "gCombo.Rando.SongMinuetMM"
+#define RSBS_CVAR_COMBO_RANDO_SONG_BOLERO_MM "gCombo.Rando.SongBoleroMM"
+#define RSBS_CVAR_COMBO_RANDO_SONG_SERENADE_MM "gCombo.Rando.SongSerenadeMM"
+#define RSBS_CVAR_COMBO_RANDO_SONG_REQUIEM_MM "gCombo.Rando.SongRequiemMM"
+#define RSBS_CVAR_COMBO_RANDO_SONG_NOCTURNE_MM "gCombo.Rando.SongNocturneMM"
+#define RSBS_CVAR_COMBO_RANDO_SONG_PRELUDE_MM "gCombo.Rando.SongPreludeMM"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SOARING "gCombo.Rando.SharedSongSoaring"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_MINUET "gCombo.Rando.SharedSongMinuet"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_BOLERO "gCombo.Rando.SharedSongBolero"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SERENADE "gCombo.Rando.SharedSongSerenade"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_REQUIEM "gCombo.Rando.SharedSongRequiem"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_NOCTURNE "gCombo.Rando.SharedSongNocturne"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_SONG_PRELUDE "gCombo.Rando.SharedSongPrelude"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -1544,6 +1565,51 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_BLAST_MASK_COOLDOWN, ComboKeyClass::Identity,
       "ComboItemRulesRecord.blastMaskCooldown (#979): the Blast Mask's cooldown in both games, one of the pinned "
       "RSBS_BLAST_COOLDOWN_* values" },
+    // #1169 lane XW2: the fourteen warp-song rules, bits of the second rules word.
+    // Hidden until XW12 (no row; Generate refuses one set), IDENTITY all the same:
+    // each one, once offered, decides a world.
+    { RSBS_CVAR_COMBO_RANDO_SONG_SOARING_OOT, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_SOARING_OOT bit (#1169): Majora's Mask's Song of Soaring is added to "
+      "Ocarina of Time (OoTMM songSoaringOot)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_MINUET_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_MINUET_MM bit (#1169): OoT's Minuet of Forest is added to Majora's "
+      "Mask (OoTMM songMinuetMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_BOLERO_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_BOLERO_MM bit (#1169): OoT's Bolero of Fire is added to Majora's Mask "
+      "(OoTMM songBoleroMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_SERENADE_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_SERENADE_MM bit (#1169): OoT's Serenade of Water is added to "
+      "Majora's Mask (OoTMM songSerenadeMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_REQUIEM_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_REQUIEM_MM bit (#1169): OoT's Requiem of Spirit is added to "
+      "Majora's Mask (OoTMM songRequiemMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_NOCTURNE_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_NOCTURNE_MM bit (#1169): OoT's Nocturne of Shadow is added to "
+      "Majora's Mask (OoTMM songNocturneMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_PRELUDE_MM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SONG_PRELUDE_MM bit (#1169): OoT's Prelude of Light is added to Majora's "
+      "Mask (OoTMM songPreludeMm)" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SOARING, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_SOARING bit (#1169): the two Songs of Soaring are one item "
+      "for both games (OoTMM sharedSongSoaring); frozen only with the Song of Soaring in OoT" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_MINUET, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_MINUET bit (#1169): the two Minuets of Forest are one item "
+      "for both games (OoTMM sharedSongMinuet); frozen only with the Minuet of Forest in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_BOLERO, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_BOLERO bit (#1169): the two Boleros of Fire are one item for "
+      "both games (OoTMM sharedSongBolero); frozen only with the Bolero of Fire in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SERENADE, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_SERENADE bit (#1169): the two Serenades of Water are one item "
+      "for both games (OoTMM sharedSongSerenade); frozen only with the Serenade of Water in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_REQUIEM, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_REQUIEM bit (#1169): the two Requiems of Spirit are one item "
+      "for both games (OoTMM sharedSongRequiem); frozen only with the Requiem of Spirit in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_NOCTURNE, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_NOCTURNE bit (#1169): the two Nocturnes of Shadow are one "
+      "item for both games (OoTMM sharedSongNocturne); frozen only with the Nocturne of Shadow in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_PRELUDE, ComboKeyClass::Identity,
+      "ComboItemRules2Record's RSBS_XITEM2_SHARED_SONG_PRELUDE bit (#1169): the two Preludes of Light are one item "
+      "for both games (OoTMM sharedSongPrelude); frozen only with the Prelude of Light in MM" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -2017,7 +2083,7 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twenty-five identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Thirty-nine identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // TriforcePieces and TriforceGoal (#1389),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
@@ -2025,7 +2091,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
 // (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
 // SharedMaskTruth (#978), SharedSwim (#1369), BlastMaskOoT, SharedMaskBlast and
-// BlastMaskCooldown (#979); #879 retired SharedOcarina (#668)) + four
+// BlastMaskCooldown (#979), and the fourteen warp-song keys SongSoaringOoT,
+// SongMinuetMM .. SongPreludeMM and SharedSongSoaring .. SharedSongPrelude
+// (#1169 XW2, hidden until XW12); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + twelve gCombo.Tracker.Items.* preferences
@@ -2036,9 +2104,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 45, "twenty-five gCombo.Rando.* identity keys + four gCombo.Windows.* "
+static_assert(kComboKeyCount == 59, "thirty-nine gCombo.Rando.* identity keys + four gCombo.Windows.* "
                                     "preferences + twelve gCombo.Tracker.Items.* preferences + four "
-                                    "gCombo.Tracker.Checks.* preferences = 45");
+                                    "gCombo.Tracker.Checks.* preferences = 59");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

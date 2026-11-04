@@ -2115,3 +2115,91 @@ bits or shared-resource slots. Locked by `BlastMaskOoTRule`,
 `ComboSettingsAuthoring`, `SharedLensRule`, `CVarClassification`,
 `GoldenSeedDigestAllMasks` and `GoldenSeedsRoundBudget` (whose all-masks entry
 requires the frozen item rules `0000083F`).
+
+### 2026-11-04 -- The second rules word and the fourteen warp-song keys, hidden (#1169 lane XW2, format note)
+
+Operator ruling 2026-11-04 on #1169 (cross-game warp songs), decisions 1 and 7:
+per-song rules in a second full 32-bit rules word carried as a world field, and
+the rows hidden until lane XW12. OoTMM's warp songs are fourteen off-by-default
+rules: `songSoaringOot` (Majora's Mask's Song of Soaring in Ocarina of Time) and
+`songMinuetMm` .. `songPreludeMm` (OoT's six warp songs in Majora's Mask), the
+extensions, and one `sharedSong*` per song, each requiring its extension
+(`packages/core/src/settings/data.ts`). The first word has three free rule bits
+(28-30; bit 31 is never a rule bit) on `main` and on the open
+`claude/dwave2-combined` branch alike, so they cannot go there.
+
+- **The layout.** `ComboItemRules2Record comboItemRules2` at **914**, carved
+  from the front of `reserved[]` (ADR 0009 claim 18): four bytes,
+  `crossItemFlags2[4]`, the word little-endian. Bytes and not a `uint32_t`
+  because 914 is not 4-aligned: a `uint32_t` would pad, spending headroom the
+  64-byte floor cannot spare. `ComboItemRulesRecord.spare[3]` was measured first
+  and holds 24 bits, not 32. `reserved[]` goes from 90 bytes at 914 to **86 at
+  918**, 22 above the floor; `sizeof(ComboContext)` stays 1844, so no
+  `.redsave` layout and no seed package's combo-record size moves.
+  `Combo_ComboItemRules2Word` / `Combo_ComboItemRules2Store` are the codec.
+- **The value space** (`foreign_items.h`, pinned, append-only): the seven
+  extensions `RSBS_XITEM2_SONG_SOARING_OOT` 0x1, `_SONG_MINUET_MM` 0x2,
+  `_SONG_BOLERO_MM` 0x4, `_SONG_SERENADE_MM` 0x8, `_SONG_REQUIEM_MM` 0x10,
+  `_SONG_NOCTURNE_MM` 0x20, `_SONG_PRELUDE_MM` 0x40; the seven shared songs
+  `RSBS_XITEM2_SHARED_SONG_SOARING` 0x80 .. `_SHARED_SONG_PRELUDE` 0x2000, each
+  requiring the extension seven bits below it. `RSBS_XITEM2_ALL_V1` is 0x3FFF.
+  Bits 14-31 are free: exactly OoTMM's eighteen other song rows not in either
+  word yet (nine extensions, `elegyOot` .. `songSariasMm`, and their nine
+  `sharedSong*`; the shared Epona's Song, Song of Storms and Song of Time have
+  first-word bits). That is a plan, not a pin: the next rule takes the next free
+  bit. The masks do not need this word: Kamaro's two rules and masks P5's six
+  (#980) were allocated in the first word by #976; a mask rule reaches this word
+  only once the first word's three free bits are gone. No family slots here: a
+  shared song's family is lane XW10's second family word (decision 6).
+- **The fourteen keys** (`combo_settings_view.h`, appended `ComboSettingId`s,
+  IDENTITY in the manifest, 0 or 1, default 0, OoTMM's names as labels):
+  `gCombo.Rando.SongSoaringOoT` "Song of Soaring (OoT)", `SongMinuetMM` "Minuet
+  of Forest (MM)", `SongBoleroMM`, `SongSerenadeMM`, `SongRequiemMM`,
+  `SongNocturneMM`, `SongPreludeMM`, and `SharedSongSoaring` "Shared Song of
+  Soaring" .. `SharedSongPrelude` "Shared Prelude of Light".
+  `Combo_ResolveComboItemRules2` assembles the word from them and drops a shared
+  song whose extension key is off (OoTMM's `cond`). OoTMM's option texts, for
+  XW12's tooltips: each extension "Add the X in Majora's Mask / Ocarina of Time.
+  If Songs are on Song Locations, you must share or start with at least one
+  song" (Soaring adds "Usable only as child."; the six MM tooltips drop the Song
+  Locations sentence, a stated divergence, #1169's doc), each shared "Combines
+  the X from OoT and MM into one item for both games" (OoTMM's Soaring text reads
+  "Songs of Song", a typo XW12 does not copy).
+- **The fingerprint.** `Combo_ComputeComboSettingsHashForGeneratorEx2` appends
+  `"%" || LE32(word)` after the first word's `"#"` term and before the generator
+  label, **only when the word is not 0**. Every rules-off world therefore keeps
+  its fingerprint, its world hash and the single bag's seeds byte for byte, and
+  no golden moves. The Ex entry points are the Ex2 ones with 0. Vectors (the
+  defaults, settings hash 0xDEADBEEF, MM profile 0x0BADF00D): with the Soaring
+  pair (0x81) 0xC5D0FBFB at version 0 and 0xE59A4747 at version 4; every rule
+  off stays 0xCEA3786B / 0xA06B18F7.
+- **The freeze and the creation records.** `Combo_FreezeComboSettingsEx2(rec,
+  rules, word)` freezes the word in the same act and stamps over all three;
+  the creation event calls it with the resolved word. `comboItemRules2` joins
+  `ComboCreationRecords` (snapshot, rollback, retraction) and the file-create
+  invalidation's KEEP set, and the seed package's world record copies it
+  (`WorldRecordBytes`, `ApplyComboWorld`; the package's fingerprint check folds
+  it).
+- **Divergence and restore.** The word diverges under
+  `RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS`, the one bitset bit both words share, so
+  the field table and the refusal toasts do not change. The load, the file
+  select probe and the arrival compare the file's word against the session's;
+  the fourteen keys join the restore table, so a file's word is put back into
+  the keys at load (frozen wins at load, #781).
+- **Hidden until XW12.** No Cross-Game Rules row exposes the keys. A word holding
+  any `RSBS_XITEM2_HIDDEN` bit (every allocated bit until XW12), an unallocated
+  bit or a shared song without its extension is refused by one predicate,
+  `Combo_ComboItemRules2Refused`, which names the rules: Generate refuses before
+  anything is frozen (`playthrough.cpp`), a seed package's validation refuses as
+  "from a newer build" (`RSBS_SEEDPKG_ERR_FORMAT`), and a `.redsave` load or an
+  arrival refuses the file as another build's, not quarantined. Only a session's
+  stray key against a file's "off" is restorable while hidden. XW12 empties
+  `RSBS_XITEM2_HIDDEN` once the matchers (XW6, XW7) and the logic edges (XW9)
+  exist.
+
+Capacity spent: four format bytes (ADR 0009 claim 18), fourteen
+`ComboSettingId`s and identity keys (manifest 45 to 59, identity 25 to 39), no
+first-word bits, divergence bits or shared-resource slots. Locked by
+`ComboItemRulesSecondWord` and `RulesOffGoldensUnchanged` (new),
+`CrossItemRulesRecord` and `ComboSettingsFormat` (the carve), `CVarClassification`
+and `ComboSettingsRows` (leg 9 sets the fourteen keys the Reset clears).

@@ -182,10 +182,12 @@ TestResult Test_ComboSettingsFormat(void) {
     CS_ASSERT(offsetof(ComboContext, mmKeepItemsReset) == 912u, "mmKeepItemsReset moved off .redsave offset 912");
     // #1284 carved one byte (comboFillWallets, 913) after it.
     CS_ASSERT(offsetof(ComboContext, comboFillWallets) == 913u, "comboFillWallets moved off .redsave offset 913");
-    CS_ASSERT(offsetof(ComboContext, reserved) == 914u, "reserved[] moved off .redsave offset 914");
-    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 90u,
-              "reserved[] is not 90 bytes after the ADR 0011, O10, #976, #1175 and #1284 carves — ADR 0009's budget "
-              "table and context.h must reconcile");
+    // #1169 XW2 carved the 4-byte second rules word (comboItemRules2, 914) after it.
+    CS_ASSERT(offsetof(ComboContext, comboItemRules2) == 914u, "comboItemRules2 moved off .redsave offset 914");
+    CS_ASSERT(offsetof(ComboContext, reserved) == 918u, "reserved[] moved off .redsave offset 918");
+    CS_ASSERT(sizeof(((ComboContext*)0)->reserved) == 86u,
+              "reserved[] is not 86 bytes after the ADR 0011, O10, #976, #1175, #1284 and #1169 XW2 carves — ADR "
+              "0009's budget table and context.h must reconcile");
     CS_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u, "reserved[] fell below ADR 0009's 64-byte floor");
     CS_ASSERT(sizeof(ComboContext) <= RSBS_COMBO_CONTEXT_RECORD_SIZE, "ComboContext outgrew its Tier-1 budget");
 
