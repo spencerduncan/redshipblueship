@@ -72,7 +72,38 @@ typedef struct {
     uint16_t targetEntrance;
     uint16_t returnEntrance; // Where to return in source game
     bool readyToSwitch;      // Set by game after saving state
+    uint8_t kind;            // ComboSwitchKind: the door, or the warp the one-shot target armed (#1169)
 } PendingGameSwitch;
+
+/**
+ * What kind of crossing a pending switch is (#1169 XW1), carried to the startup
+ * entrance the target game consumes. Zero is the door and everything that is
+ * not a warp (F10, a refused re-entry), so a zeroed PendingGameSwitch and a
+ * startup entrance set by the older setters both read as the door.
+ *
+ * The arriving game reads it (Combo_GetStartupEntranceKindForGame) to decide
+ * whether its warp-only arrival work runs: OoT's entrance-override tail
+ * (games/oot/src/code/z_play.c, XW3) runs for a warp kind only, never on a
+ * door or hot-swap arrival.
+ */
+typedef enum {
+    COMBO_SWITCH_KIND_DOOR = 0,      // the portal door, F10, a refused re-entry
+    COMBO_SWITCH_KIND_WARP_SONG = 1, // an OoT warp song played in Majora's Mask, to an OoT pad (XW7)
+    COMBO_SWITCH_KIND_SOARING = 2,   // OoT's Song of Soaring, to a Termina owl (XW6)
+} ComboSwitchKind;
+
+/**
+ * The one-shot cross-game warp target (#1169 XW1). See ComboWarp_Arm.
+ */
+typedef struct {
+    bool armed;
+    GameId sourceGame;       // the game the warp is played in
+    uint16_t marker;         // the entrance that game's transition will check (Entrance_CheckCrossGame)
+    GameId targetGame;       // the game the warp lands in
+    uint16_t targetEntrance; // an entrance id in targetGame's table, never an owl index, never 0
+    uint16_t returnEntrance; // Switch_GetHotSwapReturnEntrance(sourceGame)
+    uint8_t kind;            // ComboSwitchKind, never COMBO_SWITCH_KIND_DOOR
+} ComboWarpTarget;
 
 #ifdef __cplusplus
 extern "C" {
@@ -145,6 +176,52 @@ void Combo_ClearCrossGameHalves(void);
 void Combo_RequestGameSwitch(void);
 bool Combo_IsGameSwitchRequested(void);
 void Combo_ClearGameSwitchRequest(void);
+
+// ============================================================================
+// One-shot cross-game warp target (#1169 XW1)
+//
+// A warp (an OoT warp song played in Majora's Mask, OoT's Song of Soaring to a
+// Termina owl) crosses through the SAME machinery as the portal door: the
+// departing game's transition calls Combo_CheckEntranceSwitch, which flushes,
+// freezes and signals exactly as for the door (games/oot/soh/
+// GameExports_SingleExe.cpp), and the launcher (rsbs/src/main.cpp) switches and
+// commits (Switch_CommitCrossing). The only new piece is where the pending
+// switch comes from: a target armed beforehand instead of a door link.
+//
+// ARM. ComboWarp_Arm records {sourceGame, marker, targetGame, targetEntrance,
+// kind} and derives returnEntrance from Switch_GetHotSwapReturnEntrance
+// (src/common/switch.cpp): the departing game comes back where an F10 return
+// would put it. It refuses (returns false, arms nothing) while a switch is
+// pending (a crossing or an F10 request), for a game that is not OoT or MM or a
+// target in the same game, for a kind that is not a warp or that does not match
+// its direction (Soaring is OoT -> MM, a warp song MM -> OoT), and for a target
+// entrance of 0, which the launcher ignores (main.cpp sets no startup entrance
+// for it, so the target would cold-boot at its title). Entrance ids only, never
+// owl indices. A second arm replaces the first.
+//
+// CONSUME. Entrance_CheckCrossGame checks the target BEFORE the door links. A
+// (game, marker) match fills gPendingSwitch from it (kind included) and disarms
+// it; ANY other call disarms it too, so a later void-out, door or scene change
+// cannot cross. A pending warp switch is not overwritten by a later door-link
+// match on the same transition. ComboEntrance_Init and
+// Entrance_ClearPendingSwitch clear it.
+//
+// WHO ASKS FIRST. The warp prompt (XW6, XW7) refuses an unplayable target
+// through Switch_GetTargetStatus before it arms; Combo_CheckEntranceSwitch's
+// #954 refusal stays as the backstop and hands back returnEntrance.
+//
+// Nothing in either game arms it yet (XW6 and XW7 will); the ROM-free row
+// entrance-warp-target drives it.
+bool ComboWarp_Arm(GameId sourceGame, uint16_t marker, GameId targetGame, uint16_t targetEntrance, uint8_t kind);
+bool ComboWarp_IsArmed(void);
+// Copies the target (armed or not) into *out; false when out is NULL.
+bool ComboWarp_Peek(ComboWarpTarget* out);
+
+// The kind of the switch that set the startup entrance (ComboSwitchKind), when
+// that entrance is tagged for `gameId` (or is a wildcard); COMBO_SWITCH_KIND_DOOR
+// otherwise. Cleared with the startup entrance, and set to the door by every
+// setter that does not name a kind (the F10 return, the refused re-entry).
+int Combo_GetStartupEntranceKindForGame(const char* gameId);
 
 #ifdef __cplusplus
 }
@@ -323,6 +400,26 @@ bool Entrance_IsCrossGameHalf(GameId game);
  * Clear every arrival latch. Test hygiene only; production never calls it.
  */
 void Entrance_ClearCrossGameHalves(void);
+
+/**
+ * The kind of the pending switch (ComboSwitchKind): COMBO_SWITCH_KIND_DOOR for
+ * a door link or when nothing is pending, the armed kind for a consumed warp
+ * target (#1169 XW1). The launcher reads it before it clears the switch and
+ * hands it to the startup entrance.
+ */
+uint8_t Entrance_GetSwitchKind(void);
+
+/**
+ * Set the startup entrance tagged with its game AND the kind of the switch that
+ * set it (#1169 XW1). The 1- and 2-arg overloads above set the door kind.
+ */
+void Entrance_SetStartupEntrance(uint16_t entrance, GameId targetGame, uint8_t kind);
+
+/**
+ * The startup entrance's kind if it targets `game` (or is a wildcard), else
+ * COMBO_SWITCH_KIND_DOOR.
+ */
+uint8_t Entrance_GetStartupEntranceKindForGame(GameId game);
 
 #endif // __cplusplus
 

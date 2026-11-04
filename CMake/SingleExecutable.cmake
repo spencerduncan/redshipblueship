@@ -3343,6 +3343,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1169 XW3: a cross-game warp's arrival in OoT (OoT_Play_ApplyWarpArrival, what
+    # OoT_Play_Init runs) lands on the seed's override for the warp pad, sets a
+    # grotto return's respawn after the arrival's neutralisation, keeps the vanilla
+    # pad before Entrance_Init, and runs nothing for a door arrival under overworld
+    # ER. Overrides written into the context and installed by the real Entrance_Init.
+    # games/oot/soh/oot_warp_arrival_test.cpp.
+    redship_add_test(NAME RandoWarpArrival COMMAND redship --test rando-warp-arrival
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #1289: a shuffled fairy (gossip stone, fountain, fairy spot, bean) gives its
     # item and no heal, and a shuffled big fairy no magic refill either; a fairy
     # with no check still heals (and the big one refills magic). The bottle-guard
@@ -3429,6 +3439,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # late-refusal road, GameRunner_ReenterActive, is suspend then resume.
     # Target statuses are forced, so ROM-free. src/common/tests/test_crossing_refusal.c.
     redship_add_test(NAME CrossingRefusal COMMAND redship --test crossing-refusal)
+    # #1169 XW1: the one-shot cross-game warp target. Consumed by its (game,
+    # marker), spent by any other entrance check, refused while a switch is
+    # pending, carried through the real Combo_CheckEntranceSwitch (freeze, the
+    # #954 refusal) and GameRunner_SwitchTo's crossing commit; its kind rides the
+    # startup entrance. Target statuses forced, mock games, scratch slot: ROM-free.
+    # src/common/tests/test_entrance_warp_target.c.
+    redship_add_test(NAME EntranceWarpTarget COMMAND redship --test entrance-warp-target)
     # #849 / #803's load leg: a load whose .redsave holds a newer OoT half than
     # the .sav makes OoT's check statuses follow that half (a check whose own
     # collection flag differs between the two halves takes the loaded half's

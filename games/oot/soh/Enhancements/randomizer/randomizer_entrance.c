@@ -849,3 +849,55 @@ void Entrance_SetEntranceDiscovered(u16 entranceIndex, u8 isReversedEntrance) {
         Save_SaveSection(SECTION_ID_ENTRANCES);
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// A cross-game warp's arrival in OoT (#1169 XW3). An OoT warp song played in
+// Majora's Mask targets the song's VANILLA pad (the one-shot warp target,
+// src/common/entrance.h, carries entrance ids only), so with warp songs or
+// spawns shuffled the pad still has to go through the seed's override, as SoH's
+// own warp songs do through Entrance_SetWarpSongEntrance.
+//
+// Only the TAIL of Entrance_OverrideNextIndex runs here. Its head is the
+// cross-game crossing check (Combo_CheckEntranceSwitch), which must not run on
+// an arrival: the crossing already happened. Its Castle Courtyard exception
+// keys off the scene Link departs from, which is in the other game. The tail is
+// followed by the grotto return Entrance_SetWarpSongEntrance forces when a warp
+// song leads to a grotto exit.
+//
+// Gated as SoH gates its own load-time override (hook_handlers.cpp OnLoadGame:
+// IS_RANDO, then RSK_SHUFFLE_ENTRANCES before Entrance_SetSavewarpEntrance), and
+// on the override table being filled: only Entrance_Init fills it, at a file
+// load, and before that every slot holds 0, so an arrival before it (an MM-first
+// boot, a .redsave loaded on Termina's side) keeps the vanilla pad instead of
+// landing on entrance 0. Entrance_ResetEntranceTable empties it again at
+// OnExitGame.
+//
+// The caller (OoT_Play_ApplyWarpArrival, games/oot/src/code/z_play.c) runs it
+// only for a warp arrival, after the arrival's respawn neutralisation, so the
+// respawn a grotto return sets survives. OoT_gPlayState is NULL there (the
+// suspend's OoT_Graph_ResetRunFrameContext nulled it and Play_Init has not set
+// it yet), so Grotto_OverrideSpecialEntrance takes its load-from-save branch.
+s16 Entrance_OverrideWarpArrival(s16 entranceIndex) {
+    if (!IS_RANDO || !Randomizer_GetSettingValue(RSK_SHUFFLE_ENTRANCES)) {
+        return entranceIndex;
+    }
+    if (!hasModifiedEntranceTable) {
+        return entranceIndex;
+    }
+
+    Entrance_SetEntranceDiscovered(entranceIndex, false);
+    EntranceTracker_SetLastEntranceOverride(entranceIndex);
+    s16 overridden = Grotto_OverrideSpecialEntrance(Entrance_GetOverride(entranceIndex));
+
+    // If the warp song leads to a grotto return, force the grotto return as
+    // Entrance_SetWarpSongEntrance does.
+    Grotto_ForceGrottoReturnOnSpecialEntrance();
+    return overridden;
+}
+
+// Whether Entrance_Init has filled the override table since the last
+// Entrance_ResetEntranceTable (#1169 XW3), for the rando-tier lock.
+u8 Entrance_WarpArrivalOverridesReady(void) {
+    return hasModifiedEntranceTable != 0;
+}
+#endif
