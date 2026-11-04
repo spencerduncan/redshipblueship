@@ -29,6 +29,9 @@ extern "C" bool OoT_SharedSwimSplitsScale(void);
 extern "C" bool OoT_BlastMaskOoTOn(void);
 // #979 (StoneMaskOoT.cpp): is the frozen Stone Mask (OoT) rule on in this world?
 extern "C" bool OoT_StoneMaskOoTOn(void);
+// #1169 XW4 (SongOfSoaringOoT.cpp): how many separate Songs of Soaring (OoT) the
+// frozen world pools (1 under songSoaringOot alone, 0 otherwise).
+extern "C" int OoT_SongOfSoaringOoTPooledCopies(void);
 #endif
 const std::array<RandomizerGet, 13> JunkPoolItems = {
     RG_BOMBS_5,  RG_BOMBS_10,  RG_BOMBS_20,  RG_DEKU_NUTS_5, RG_DEKU_STICK_1, RG_DEKU_SEEDS_30, RG_RECOVERY_HEART,
@@ -427,6 +430,14 @@ void GenerateItemPool() {
     // #979: OoTMM's stoneMaskOot, the same way.
     if (OoT_StoneMaskOoTOn()) {
         AddItemToPool(RG_STONE_MASK, 2, 1, 1, 1);
+    }
+    // #1169 XW4: OoTMM's songSoaringOot adds one Song of Soaring (OoT) under the
+    // FROZEN rule, with the songs' counts above (a plentiful second copy and an
+    // ice-trap model only when songs are Anywhere); under any other Shuffle Songs
+    // value it is still pooled, having no vanilla spot. A shared Soaring adds none.
+    if (OoT_SongOfSoaringOoTPooledCopies() > 0) {
+        const bool soaringAnywhere = ctx->GetOption(RSK_SHUFFLE_SONGS).Is(RO_SONG_SHUFFLE_ANYWHERE);
+        AddItemToPool(RG_SONG_OF_SOARING_OOT, soaringAnywhere ? 2 : 1, 1, 1, 1, soaringAnywhere);
     }
 #endif
 

@@ -285,3 +285,6 @@ games/oot/soh/Enhancements/randomizer/StoneMaskOoT.cpp
 games/oot/soh/oot_stone_mask_test.cpp
 games/oot/soh/oot_trap_parity_test.cpp
 games/mm/2s2h/mm_trap_parity_test.cpp
+games/oot/soh/Enhancements/randomizer/SongOfSoaringOoT.h
+games/oot/soh/Enhancements/randomizer/SongOfSoaringOoT.cpp
+games/oot/soh/oot_song_of_soaring_oot_test.cpp

@@ -1161,6 +1161,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // rules-off world staying main's byte for byte (rules-off-goldens-unchanged).
 // FILE SCOPE (compiled as C++).
 #include "tests/test_combo_item_rules_word2.c"
+// #1169 lane XW4: the Song of Soaring (OoT) item, its rule and OoTMM's "Not
+// enough locations" refusal: three ROM-free rows (oot-soaring-table-bounds,
+// oot-soaring-rule-logic, oot-soaring-rules-off-unchanged) and two rando rows
+// over real paired OoT generations through the hidden-bit test seam. FILE SCOPE
+// (compiled as C++).
+#include "tests/test_song_soaring_oot.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -7789,6 +7795,31 @@ TestResult Test_SharedSongsOneCopyAnywhere(void) {
     return SharedSongsOneCopyRow(3);
 }
 
+// #1169 XW4: the Song of Soaring (OoT)'s pool and OoTMM's overflow refusal over
+// real paired OoT generations, shared-songs-one-copy's bring-up.
+TestResult Test_OoTSoaringPooledOnlyWhenRuleOn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char xw4PoolArg0[] = "redship";
+    static char* xw4PoolArgv[] = { xw4PoolArg0, nullptr };
+    InitOTRForMMFirstBoot(1, xw4PoolArgv);
+    return OoTSoaringPooledOnlyWhenRuleOn_Run();
+}
+TestResult Test_SongLocationsOverflowRefused(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char xw4OverArg0[] = "redship";
+    static char* xw4OverArgv[] = { xw4OverArg0, nullptr };
+    InitOTRForMMFirstBoot(1, xw4OverArgv);
+    return SongLocationsOverflowRefused_Run();
+}
+
 // #968: the shared arrows' bag rows over a real generation, shared-lens-bag's
 // bring-up.
 TestResult Test_SharedArrowsBag(void) {
@@ -9720,6 +9751,30 @@ const TestDescriptor gTests[] = {
       "With every second-word rule off, the fingerprint, the world hash, the single bag's seeds, the divergence diff "
       "and a seed package's record are main's (#1169)",
       Test_RulesOffGoldensUnchanged },
+    // #1169 XW4: the Song of Soaring (OoT). Three ROM-free rows; the last two run
+    // real paired OoT generations (rando tier) through the hidden-bit test seam.
+    { "oot-soaring-table-bounds",
+      "The Song of Soaring (OoT) is appended after the masks in OoT's item, hint and RAND_INF enums, adds no ItemID, "
+      "still fits the 129 saved RAND_INF words, and its item row is a song with its own flag, note, text and hint "
+      "(#1169)",
+      Test_OoTSoaringTableBounds },
+    { "oot-soaring-rule-logic",
+      "The frozen Song of Soaring (OoT) rule pools one copy unless the song is shared, OoT's logic plays it only as a "
+      "child with an ocarina and C-down, C-up and C-left under the rule, its effect is its flag, and OoTMM's refusal "
+      "and warning are worded (#1169)",
+      Test_OoTSoaringRuleLogic },
+    { "oot-soaring-rules-off-unchanged",
+      "While the warp-song rules are hidden no world a player can make pools the Song of Soaring (OoT), credits it or "
+      "meets the song-spot refusal, and every id before it is main's (#1169)",
+      Test_OoTSoaringRulesOffUnchanged },
+    { "oot-soaring-pooled-only-when-rule-on",
+      "A real paired OoT generation pools no Song of Soaring (OoT) with the rule off, exactly one with it on through "
+      "the test seam, and none with the shared song; its hint names it and its give sets only its flag (#1169)",
+      Test_OoTSoaringPooledOnlyWhenRuleOn },
+    { "song-locations-overflow-refused",
+      "Thirteen songs on the twelve spots of Song Locations or Dungeon Rewards are refused at Generate with OoTMM's "
+      "\"Not enough locations\" wording; a starting song, a shared song or Anywhere generates (#1169)",
+      Test_SongLocationsOverflowRefused },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",

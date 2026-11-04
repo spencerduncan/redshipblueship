@@ -1974,6 +1974,11 @@ void StaticData::HintTable_Init_Item() {
     hintTextTable[RHT_BLAST_MASK] = HintText(CustomMessage("a blast mask", /*german*/"!!!", /*french*/"le Masque Explosif"), {CustomMessage("a mask", /*german*/"!!!", /*french*/"un masque")});
     // [RSBS #979] Majora's Mask's Stone Mask in OoT, the same shape.
     hintTextTable[RHT_STONE_MASK] = HintText(CustomMessage("a stone mask", /*german*/"!!!", /*french*/"le Masque de Pierre"), {CustomMessage("a mask", /*german*/"!!!", /*french*/"un masque")});
+    // [RSBS #1169 XW4] Majora's Mask's Song of Soaring in OoT, under OoTMM's name, the warp songs' shape.
+    hintTextTable[RHT_SONG_OF_SOARING_OOT] = HintText(CustomMessage("the Song of Soaring (OoT)", /*german*/"the Song of Soaring (OoT)", /*french*/"the Song of Soaring (OoT)"),
+                                                      {CustomMessage("a warp song", /*german*/"ein Teleportationslied", /*french*/"une chanson de téléportation")},
+                                                      {CustomMessage("an owl's melody", /*german*/"an owl's melody", /*french*/"an owl's melody"),
+                                                       CustomMessage("a song of wings", /*german*/"a song of wings", /*french*/"a song of wings")});
 
     hintTextTable[RHT_BEAN_SOUL] = HintText(CustomMessage("a bean soul", /*german*/"eine bohnenseele", /*french*/"une âme de haricot"));
 

@@ -904,6 +904,13 @@ void InitTrickNames() {
         Text{ "Pebble Face", "Visage Caillou", "Kieselgesicht" },
         Text{ "Statue Hat", "Chapeau Statue", "Statuenhut" },
     };
+    // [RSBS #1169 XW4] Majora's Mask's Song of Soaring in OoT.
+    trickNameTable[RG_SONG_OF_SOARING_OOT] = {
+        // TODO_TRANSLATE
+        Text{ "Song of Sinking" },
+        Text{ "Owl's Lullaby" },
+        Text{ "Ballad of the Kaepora" },
+    };
     trickNameTable[RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL] = {
         // TODO_TRANSLATE
         Text{ "Volcano Seed Spirit" },
