@@ -1001,6 +1001,10 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // involved. FILE SCOPE (compiled as C++, like every file in that directory);
 // every symbol under test is C-linkage through combo_logic.h.
 #include "tests/test_combo_logic.c"
+// R6: OoTMM's critical-renewables rule under All Locations, over both games'
+// registered sources and over the stub engines above (whose fixture it reuses, so
+// it is included after them). ROM-free; FILE SCOPE (compiled as C++).
+#include "tests/test_critical_renewables.c"
 
 // #605: the curated-archive GENERATOR's raw-segmented-texture admission guard.
 // FILE SCOPE (compiled as C++): unlike test_crossgame_model.c, this drives
@@ -4669,6 +4673,9 @@ extern "C" int MM_Rando_HeadlessPairedExhaustion(void);
 // display requirement.
 extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void);
 extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void);
+// R6: the critical-renewables rule in two generated All Locations worlds; same
+// file, same display requirement.
+extern "C" int MM_Rando_HeadlessCriticalRenewables(void);
 
 TestResult Test_MMPairSwitchEntry(void) {
     printf("[TEST] mm-pair-switch-entry: paired MM world activates through the switch-entry path (#439)\n");
@@ -4804,6 +4811,13 @@ TestResult Test_MMRoundBudgetHostScale(void) {
 
 TestResult Test_MMGoldenSeedsRoundBudget(void) {
     return RunRoundBudgetDispatch("mm-golden-seeds-round-budget", MM_Rando_HeadlessGoldenSeedsRoundBudget);
+}
+
+// R6: OoTMM's critical renewables in a real All Locations creation, with MM's
+// shops shuffled (the rule acts) and vanilla (it has nothing to do). The same
+// harness as the golden rows, so the same dispatch; `--test all` skips it.
+TestResult Test_CriticalRenewablesWorld(void) {
+    return RunRoundBudgetDispatch("critical-renewables-world", MM_Rando_HeadlessCriticalRenewables);
 }
 
 // Non-arrival entry-path arm-state lock (#439 follow-up). MMPairSwitchEntry
@@ -9847,6 +9861,18 @@ const TestDescriptor gTests[] = {
     { "mm-extract",
       "In-app Majora's Mask extraction seams: silent ROM scan and validation, search dirs, tools check (#944)",
       Test_MmExtract },
+    // R6: OoTMM's critical renewables under All Locations. ROM-free: both games'
+    // registered sources by real id, the predicates, the remainders' plan and the
+    // coordinator over the stub engines.
+    { "critical-renewables-rule",
+      "Under All Locations the first copy of each critical renewable lands on its own game's renewing host; Beatable "
+      "Only and No Logic are unchanged, and a world whose kinds are renewed is the world it was (#1443)",
+      Test_CriticalRenewablesRule },
+    // R6, rando tier (needs a display, like the golden rows): two real creations.
+    { "critical-renewables-world",
+      "A generated All Locations world puts every critical renewable's first copy on a host that renews it, with MM's "
+      "shops shuffled and vanilla (#1443)",
+      Test_CriticalRenewablesWorld },
     { nullptr, nullptr, nullptr } // Sentinel
 };
 
@@ -10014,6 +10040,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
                 strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
+                strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

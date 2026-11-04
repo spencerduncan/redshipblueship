@@ -1368,7 +1368,11 @@ int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, i
 //    REQUIRED row is NEVER dropped: running out of hosts for one is the existing
 //    dead end (roll back / ERR_NO_CANDIDATE), because dropping a required copy
 //    could silently make the stated world unprovable, which neither native fill
-//    ever does.
+//    ever does. One exception to last-first (`criticalRenewables`, All Locations
+//    only): a surplus row that is a pending first copy of a critical renewable
+//    and finds no renewing host dead-ends on that rule, not on the supply, so it
+//    drops ALONE and the rows after it are still drawn. No world reaches it
+//    today: a kind's REQUIRED copy is placed, and renews it, before this phase.
 //
 //    LAST-FIRST IS THE COORDINATOR'S RULE, NOT EITHER NATIVE FILL'S, and BAG
 //    ORDER IS THE CALLER'S INSTRUMENT for matching a native one:
@@ -1863,6 +1867,14 @@ typedef struct {
      *  binds. Counted over the coordinator's tables, so a batch roll-back gives
      *  the budget back with the rows. */
     uint16_t maxCrossingsPerSide;
+    /** THE CRITICAL-RENEWABLES RULE (critical_renewables.h; OoTMM solve.ts:1101,
+     *  1149): nonzero asks the fill to apply it, which it does under All Locations
+     *  only; a pending first copy of a critical renewable is then drawn only onto
+     *  its own game's renewing hosts. The production caller (combo_single_bag.c)
+     *  passes 1. Zero, which every memset-initialised request is, leaves the fill
+     *  exactly as it was: the rule reads the games' REGISTERED sources, which
+     *  describe the real engines' ids, not a stub engine's. */
+    uint8_t criticalRenewables;
 } ComboLogicFillRequest;
 
 typedef struct {

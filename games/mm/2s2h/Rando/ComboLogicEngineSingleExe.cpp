@@ -314,8 +314,9 @@ void MM_Sram_InitNewSave(void);
 #include "combo_logic.h"
 #include "combo_single_bag.h" // src/common — the single-bag fill at the creation event (lane K11)
 #include "context.h"
-#include "gen_budget.h"   // src/common — the #582 per-attempt budget
-#include "shared_items.h" // src/common — the O8 class of a pool row (traps stay home)
+#include "critical_renewables.h" // src/common — OoTMM's critical-renewables rule (MM's source, MM's own pass)
+#include "gen_budget.h"          // src/common — the #582 per-attempt budget
+#include "shared_items.h"        // src/common — the O8 class of a pool row (traps stay home)
 
 namespace {
 
@@ -2438,6 +2439,198 @@ extern "C" int MM_ComboLogic_TestFillAdvancement(uint16_t id) {
 }
 
 // ============================================================================
+// MM'S CRITICAL-RENEWABLES SOURCE (OoTMM groups.ts:535, locations.ts:90-109;
+// src/common/critical_renewables.h)
+// ============================================================================
+//
+// THE KINDS: OoTMM's six MM critical renewables, one MM item each (OoTMM's
+// MM_POTION_RED / MM_POTION_BLUE / MM_MILK are the refills, not the bottles).
+//
+// THE HOSTS: OoTMM's renewable list intersected with what this port re-gives.
+//   - RCTYPE_SHOP: a shuffled shelf restocks whatever is still obtainable
+//     (ActorBehavior/EnGirlA.cpp EnGirlA_RandoRestock and ShopShelfSlotSold); a
+//     counter slot (the milk bar, Gorman's milk) sells again every cycle
+//     (ShopCounterSlotSold reads cycleObtained). Minus OoTMM's ONE_TIME_SHOP_CHECKS
+//     (locations.ts:37): the two Bomb Shop bomb bags and the All-Night Mask.
+//   - RCTYPE_TINGLE_SHOP: Tingle sells a map again while it is obtainable
+//     (ActorBehavior/EnBal.cpp TingleMapSlotSold). OoTMM's MM_TINGLE.
+//   - RCTYPE_COW: a shuffled cow gives its item again every cycle
+//     (ActorBehavior/EnCow.cpp, `cycleObtained`).
+//   NOT OoTMM's MM_SCRUBS: a shuffled business scrub sells its shuffled item once
+//   (ActorBehavior/EnAkindonuts.cpp, RANDO_INF_PURCHASED_*). Afterwards it sells
+//   its VANILLA goods again, as an unshuffled one always does, so its vanilla item
+//   counts as renewed below; so does a cow's milk, which a shuffled cow gives once
+//   its cycle's item is taken (EnCow.cpp falls through to vanilla).
+namespace {
+
+int MMCritKindOf(uint16_t id) {
+    switch ((RandoItemId)id) {
+        case RI_SHIELD_HERO:
+            return RSBS_CRIT_MM_HERO_SHIELD;
+        case RI_BOMBCHU_10:
+            return RSBS_CRIT_MM_BOMBCHU_10;
+        case RI_MAGIC_BEAN:
+            return RSBS_CRIT_MM_MAGIC_BEAN;
+        case RI_RED_POTION_REFILL:
+            return RSBS_CRIT_MM_RED_POTION;
+        case RI_BLUE_POTION_REFILL:
+            return RSBS_CRIT_MM_BLUE_POTION;
+        case RI_MILK_REFILL:
+            return RSBS_CRIT_MM_MILK;
+        default:
+            return -1;
+    }
+}
+
+int MMCritHostRenews(uint16_t hostCheck) {
+    if (hostCheck == (uint16_t)RC_UNKNOWN || hostCheck >= (uint16_t)RC_MAX) {
+        return 0;
+    }
+    const auto it = Rando::StaticData::Checks.find((RandoCheckId)hostCheck);
+    if (it == Rando::StaticData::Checks.end()) {
+        return 0;
+    }
+    switch (it->second.randoCheckType) {
+        case RCTYPE_SHOP:
+            return (hostCheck == (uint16_t)RC_BOMB_SHOP_ITEM_03 ||
+                    hostCheck == (uint16_t)RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM ||
+                    hostCheck == (uint16_t)RC_CURIOSITY_SHOP_SPECIAL_ITEM)
+                       ? 0
+                       : 1;
+        case RCTYPE_TINGLE_SHOP:
+        case RCTYPE_COW:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+/** Does `rc` hand out its VANILLA item again even when it is shuffled (after its
+ *  one shuffled give)? The cows and OoTMM's three MM business scrubs. */
+bool MMCritVanillaResumes(RandoCheckId rc, RandoCheckType type) {
+    return type == RCTYPE_COW || rc == RC_SOUTHERN_SWAMP_SCRUB_BEANS || rc == RC_ZORA_HALL_SCRUB_POTION_REFILL ||
+           rc == RC_IKANA_CANYON_SCRUB_POTION_REFILL;
+}
+
+/**
+ * The kinds MM already renews: a renewable check the fill does not own (neither in
+ * the host pool nor marked shuffled, so it keeps its vanilla item and vanilla
+ * behaviour), a check whose vanilla goods resume after its shuffled give, and an
+ * MM item this engine already holds on a renewable host. A skipped (excluded)
+ * check is marked shuffled with RI_JUNK by GeneratePools, so it never counts as
+ * vanilla.
+ */
+uint32_t MMCritKindsRenewedNow() {
+    uint32_t bits = 0u;
+    const std::vector<uint16_t>& pool = HostUniverse();
+    for (const auto& [rc, check] : Rando::StaticData::Checks) {
+        if (rc == RC_UNKNOWN || (uint32_t)rc >= (uint32_t)RC_MAX) {
+            continue;
+        }
+        const bool inPool = std::binary_search(pool.begin(), pool.end(), (uint16_t)rc);
+        const bool vanilla = !inPool && !RANDO_SAVE_CHECKS[rc].shuffled;
+        const bool renews = MMCritHostRenews((uint16_t)rc) != 0;
+        const int vanillaKind = MMCritKindOf((uint16_t)check.randoItemId);
+        if (vanillaKind >= 0 && (MMCritVanillaResumes(rc, check.randoCheckType) || (vanilla && renews))) {
+            bits |= 1u << vanillaKind;
+        }
+        if (inPool && renews) {
+            const auto held = sHeld.find((uint16_t)rc);
+            if (held != sHeld.end() && held->second.item.originGame == (uint8_t)GAME_MM) {
+                const int kind = MMCritKindOf(held->second.item.id);
+                if (kind >= 0) {
+                    bits |= 1u << kind;
+                }
+            }
+        }
+    }
+    return bits;
+}
+
+const ComboCriticalRenewableSource kMMCriticalRenewableSource = {
+    /* abiVersion      */ RSBS_CRITICAL_RENEWABLE_SOURCE_ABI,
+    /* kindOf          */ MMCritKindOf,
+    /* hostRenews      */ MMCritHostRenews,
+    /* kindsRenewedNow */ MMCritKindsRenewedNow,
+};
+
+struct MMCriticalRenewableRegistrar {
+    MMCriticalRenewableRegistrar() {
+        Combo_RegisterCriticalRenewableSource((uint8_t)GAME_MM, &kMMCriticalRenewableSource);
+    }
+};
+const MMCriticalRenewableRegistrar gMMCriticalRenewableRegistrar;
+
+} // namespace
+
+/**
+ * TEST BRIDGE (redship tier, ROM-free: MM's static check and item tables only).
+ * MM's registered source answers OoTMM's list with this port's exclusions:
+ * every kind, every renewable host type, the three one-time shop checks, a
+ * business scrub, a chest. @return 0, or the first failing step's code.
+ */
+extern "C" int MM_ComboLogic_TestCriticalRenewables(void) {
+    const ComboCriticalRenewableSource* src = Combo_GetCriticalRenewableSource((uint8_t)GAME_MM);
+    if (src != &kMMCriticalRenewableSource) {
+        return 1; // the registrar was elided, or another source took the slot
+    }
+    const struct {
+        RandoItemId item;
+        int kind;
+    } kKinds[] = {
+        { RI_SHIELD_HERO, RSBS_CRIT_MM_HERO_SHIELD },
+        { RI_BOMBCHU_10, RSBS_CRIT_MM_BOMBCHU_10 },
+        { RI_MAGIC_BEAN, RSBS_CRIT_MM_MAGIC_BEAN },
+        { RI_RED_POTION_REFILL, RSBS_CRIT_MM_RED_POTION },
+        { RI_BLUE_POTION_REFILL, RSBS_CRIT_MM_BLUE_POTION },
+        { RI_MILK_REFILL, RSBS_CRIT_MM_MILK },
+        // Not OoTMM's: the bottles, the other chu packs, the Mirror Shield.
+        { RI_BOTTLE_RED_POTION, -1 },
+        { RI_BOTTLE_MILK, -1 },
+        { RI_BOMBCHU_5, -1 },
+        { RI_SHIELD_MIRROR, -1 },
+        { RI_GREEN_POTION_REFILL, -1 },
+    };
+    for (const auto& k : kKinds) {
+        if (src->kindOf((uint16_t)k.item) != k.kind) {
+            fprintf(stderr, "[MM CriticalRenewables] kindOf(%d) = %d, expected %d\n", (int)k.item,
+                    src->kindOf((uint16_t)k.item), k.kind);
+            return 2;
+        }
+    }
+    const struct {
+        RandoCheckId rc;
+        int renews;
+    } kHosts[] = {
+        { RC_TRADING_POST_SHOP_ITEM_03, 1 },                // a shelf
+        { RC_ZORA_SHOP_ITEM_01, 1 },                        // a shelf
+        { RC_BOMB_SHOP_ITEM_02, 1 },                        // the chu shelf
+        { RC_HAGS_POTION_SHOP_ITEM_03, 1 },                 // a shelf
+        { RC_MILK_BAR_PURCHASE_MILK, 1 },                   // a counter, every cycle
+        { RC_GORMAN_MILK_PURCHASE, 1 },                     // a counter, every cycle
+        { RC_MILK_ROAD_TINGLE_MAP_01, 1 },                  // Tingle
+        { RC_ROMANI_RANCH_BARN_COW_LEFT, 1 },               // a cow, every cycle
+        { RC_BOMB_SHOP_ITEM_03, 0 },                        // OoTMM one-time: Bomb Shop Bomb Bag
+        { RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, 0 }, // OoTMM one-time: Bomb Bag 2
+        { RC_CURIOSITY_SHOP_SPECIAL_ITEM, 0 },              // OoTMM one-time: All-Night Mask
+        { RC_SOUTHERN_SWAMP_SCRUB_BEANS, 0 },               // a shuffled scrub sells its item once
+        { RC_STONE_TOWER_INVERTED_CHEST_03, 0 },            // a chest
+    };
+    for (const auto& h : kHosts) {
+        if (src->hostRenews((uint16_t)h.rc) != h.renews) {
+            fprintf(stderr, "[MM CriticalRenewables] hostRenews(%d) = %d, expected %d\n", (int)h.rc,
+                    src->hostRenews((uint16_t)h.rc), h.renews);
+            return 3;
+        }
+    }
+    // Out of range and the sentinel are no hosts.
+    if (src->hostRenews((uint16_t)RC_UNKNOWN) != 0 || src->hostRenews((uint16_t)RC_MAX) != 0) {
+        return 4;
+    }
+    return 0;
+}
+
+// ============================================================================
 // THE PAIRED CREATION'S FILL (ADR 0010 increment 3, D3; lane K11)
 // ============================================================================
 //
@@ -2584,15 +2777,72 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
     for (size_t i = 0; i + 1 < rest.size(); ++i) {
         std::swap(rest[i], rest[(size_t)Ship_Random((s32)i, (s32)rest.size())]);
     }
+
+    // THE CRITICAL-RENEWABLES RULE (OoTMM solve.ts:1101/1149, All Locations only;
+    // src/common/critical_renewables.h). MM's bombchus, potions and milk are
+    // renewable-class rows, so this pass, not the bag, places them: the first copy
+    // of each kind MM does not renew yet goes on a leftover host that gives it
+    // again (a shop shelf, a counter, Tingle, a cow), BEFORE the traps can take
+    // those hosts. Both orders are the shuffles above; no random number is drawn,
+    // so a world with nothing pending is dealt exactly as before.
+    std::vector<bool> hostTaken(leftovers.size(), false);
+    std::vector<bool> restTaken(rest.size(), false);
+    int renewPlanned = 0;
+    if (Combo_CriticalRenewablesArmed(report.rung) && !rest.empty()) {
+        std::vector<uint16_t> restIds(rest.size(), 0);
+        for (size_t i = 0; i < rest.size(); ++i) {
+            restIds[i] = (uint16_t)rest[i];
+        }
+        uint32_t renewed[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+        Combo_CriticalRenewablesRenewedNow(renewed);
+        std::vector<int> itemIdx(rest.size(), -1);
+        std::vector<int> hostIdx(rest.size(), -1);
+        uint32_t unhosted = 0u;
+        renewPlanned = Combo_CriticalRenewablesPlanFirstCopies(
+            (uint8_t)GAME_MM, restIds.data(), (int)restIds.size(), leftovers.data(), (int)leftovers.size(), renewed,
+            itemIdx.data(), hostIdx.data(), (int)rest.size(), &unhosted);
+        if (unhosted != 0u) {
+            // Every renewing host is taken (by the bag) and a first copy is still
+            // pending: OoTMM's LogicSeedError. A world dead end, so the ladder
+            // re-seeds; rolled back as the after-fill rung above is.
+            std::string kinds;
+            for (int k = 0; k < RSBS_CRIT_KIND_CAP; ++k) {
+                if ((unhosted & (1u << k)) != 0u) {
+                    kinds +=
+                        std::string(kinds.empty() ? "" : ", ") + Combo_CriticalRenewableKindName((uint8_t)GAME_MM, k);
+                }
+            }
+            Combo_Logic_ResetPlacements();
+            throw std::runtime_error("single-bag fill: no leftover Majora's Mask host renews the first " + kinds +
+                                     " (All Locations' critical renewables)");
+        }
+        for (int p = 0; p < renewPlanned; ++p) {
+            const uint16_t host = leftovers[(size_t)hostIdx[p]];
+            RANDO_SAVE_CHECKS[host].randoItemId = rest[(size_t)itemIdx[p]];
+            RANDO_SAVE_CHECKS[host].shuffled = true;
+            hostTaken[(size_t)hostIdx[p]] = true;
+            restTaken[(size_t)itemIdx[p]] = true;
+        }
+    }
+
     size_t trapIndex = 0;
     size_t restIndex = 0;
+    int restDealt = 0;
     int padded = 0;
-    for (const uint16_t host : leftovers) {
+    for (size_t h = 0; h < leftovers.size(); ++h) {
+        if (hostTaken[h]) {
+            continue;
+        }
+        const uint16_t host = leftovers[h];
+        while (restIndex < rest.size() && restTaken[restIndex]) {
+            restIndex++;
+        }
         RandoItemId item;
         if (trapIndex < traps.size()) {
             item = traps[trapIndex++];
         } else if (restIndex < rest.size()) {
             item = rest[restIndex++];
+            restDealt++;
         } else {
             item = RI_JUNK;
             padded++;
@@ -2600,12 +2850,17 @@ void Rando::Foreign::RunPairedSingleBagFill(std::vector<RandoCheckId>& checkPool
         RANDO_SAVE_CHECKS[host].randoItemId = item;
         RANDO_SAVE_CHECKS[host].shuffled = true;
     }
+    const int restPlaced = restDealt + renewPlanned;
     fprintf(stderr,
             "[MM] single-bag fill: MM's own pass put %d trap(s) and %d other row(s) (%d of them junk for trimmed "
             "rows) on %d leftover host(s), padded %d with junk, dropped %d trap(s) and %d other row(s) for want of "
             "hosts\n",
-            (int)trapIndex, (int)restIndex, trimmedToJunk, leftoverTotal, padded, (int)(traps.size() - trapIndex),
-            (int)(rest.size() - restIndex));
+            (int)trapIndex, restPlaced, trimmedToJunk, leftoverTotal, padded, (int)(traps.size() - trapIndex),
+            (int)rest.size() - restPlaced);
+    if (renewPlanned > 0) {
+        fprintf(stderr, "[MM] single-bag fill: %d critical renewable first cop%s dealt onto renewing hosts first\n",
+                renewPlanned, renewPlanned == 1 ? "y" : "ies");
+    }
     fflush(stderr);
 }
 

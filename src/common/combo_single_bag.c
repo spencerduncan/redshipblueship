@@ -425,6 +425,9 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         freq.maxCrossingsPerSide = (uint16_t)RSBS_CROSSINGS_PER_SIDE_MAX;
         freq.observer = SingleBagObserve;
         freq.observerCtx = &watch;
+        // OoTMM's critical-renewables rule (critical_renewables.h): the fill
+        // applies it under All Locations only, over both games' registered sources.
+        freq.criticalRenewables = 1u;
         status = Combo_Logic_RunFill(&freq, &sReport.fill);
         if (status != RSBS_COMBO_LOGIC_OK) {
             fprintf(stderr, "[SingleBag] fill failed on ladder attempt %d: %s after %d batch attempt(s), %d rounds%s\n",
