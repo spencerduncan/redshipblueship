@@ -526,6 +526,68 @@ void CreateWarpSongTexts() {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#1439): a paired world's Way of the Hero runs through BOTH games
+// (src/common's combo_woth.h). Its OoT hosts are native WotH candidates
+// (HintAreaOoT.cpp marks them); its MM areas join the WotH entry's draw here, each
+// hinted once, by OoT's own WotH hint with the area in the Termina slot (#575 H3a).
+// HintAreaOoT.cpp: the MM areas on the path (none outside a paired remainder), and
+// the hint that names one.
+extern "C" int OoT_HintArea_PairedForeignWothAreas(uint8_t* out, int cap);
+Rando::Hint OoT_HintArea_ForeignWothHint(RandomizerHint key, const std::string& distribution, uint8_t mmArea);
+
+/** The MM areas on the path this hint pass has not hinted yet, ascending. */
+static std::vector<uint8_t> sRsbsForeignWothAreas;
+
+static void RsbsLoadForeignWothAreas() {
+    uint8_t areas[256];
+    const int n = OoT_HintArea_PairedForeignWothAreas(areas, (int)sizeof(areas));
+    sRsbsForeignWothAreas.assign(areas, areas + std::max(0, std::min(n, (int)sizeof(areas))));
+}
+
+/**
+ * The WotH entry's draw, widened to the MM areas on the path: one roll over the
+ * entry's OoT candidates and the MM areas not yet hinted. On an MM area its hint
+ * is placed here, the first copy on a stone reachable in logic and the rest on
+ * any empty stone (CreateHint's shape), and true is returned; otherwise false,
+ * and the native draw over the OoT candidates runs as it always has. No roll at
+ * all while no MM area waits, so every other world keeps its exact stream.
+ */
+static bool RsbsPlaceForeignWothHint(size_t ownCandidates, uint8_t copies, const std::string& distributionName) {
+    auto ctx = Rando::Context::GetInstance();
+    if (sRsbsForeignWothAreas.empty() || copies == 0 || GetEmptyGossipStones().size() < copies) {
+        return false;
+    }
+    const uint32_t roll = Random(0, (uint32_t)(ownCandidates + sRsbsForeignWothAreas.size()));
+    if (roll < ownCandidates) {
+        return false;
+    }
+    const size_t pick = roll - ownCandidates;
+    const uint8_t mmArea = sRsbsForeignWothAreas[pick];
+    sRsbsForeignWothAreas.erase(sRsbsForeignWothAreas.begin() + (std::ptrdiff_t)pick);
+    std::vector<RandomizerCheck> accessible = GetAccessibleGossipStones();
+    if (accessible.empty()) {
+        return false;
+    }
+    for (uint8_t c = 0; c < copies; c++) {
+        RandomizerCheck stone = RC_UNKNOWN_CHECK;
+        if (c == 0) {
+            stone = RandomElement(accessible);
+        } else {
+            std::vector<RandomizerCheck> empty = GetEmptyGossipStones();
+            if (empty.empty()) {
+                break;
+            }
+            stone = RandomElement(empty, false);
+        }
+        const RandomizerHint key = StaticData::gossipStoneCheckToHint[stone];
+        ctx->AddHint(key, OoT_HintArea_ForeignWothHint(key, distributionName, mmArea));
+        ctx->GetItemLocation(stone)->SetPlacedItem(RG_HINT);
+    }
+    return true;
+}
+#endif
+
 static int32_t getRandomWeight(uint32_t totalWeight) {
     return totalWeight <= 1 ? 1 : Random(1, totalWeight);
 }
@@ -607,6 +669,13 @@ static void DistributeAndPlaceHints(std::vector<HintDistributionSetting>& distTa
         // Build hint pool and attempt placement
         std::vector<RandomizerCheck> hintPool = FilterHintability(ctx->allLocations, dist.filter);
         SPDLOG_DEBUG("Attempting to make hint of type: {}", StaticData::hintTypeNames[dist.type].GetEnglish(MF_CLEAN));
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RedShipBlueShip (#1439): the MM areas on a paired world's Way of the Hero.
+        if (dist.type == HINT_TYPE_WOTH && RsbsPlaceForeignWothHint(hintPool.size(), dist.copies, dist.name)) {
+            totalStones -= dist.copies;
+            continue;
+        }
+#endif
 
         RandomizerCheck hintedLocation = CreateRandomHint(hintPool, dist.copies, dist.type, dist.name);
         if (hintedLocation == RC_UNKNOWN_CHECK) {
@@ -633,6 +702,9 @@ void CreateStoneHints() {
     SPDLOG_DEBUG("NOW CREATING HINTS");
     const HintSetting& hintSetting = hintSettingTable[ctx->GetOption(RSK_HINT_DISTRIBUTION).Get()];
     std::vector<HintDistributionSetting> distTable = hintSetting.distTable;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    RsbsLoadForeignWothAreas(); // #1439: empty unless OoT's paired remainder is hinting
+#endif
 
     // Apply impa's song exclusions when zelda is skipped
     if (ctx->GetOption(RSK_SKIP_CHILD_ZELDA)) {

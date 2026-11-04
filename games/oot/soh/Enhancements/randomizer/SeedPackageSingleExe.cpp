@@ -215,6 +215,9 @@ std::string WorldRecordBytes(const ComboContext& live) {
     memcpy(&rec->comboTriforce, &live.comboTriforce, sizeof(rec->comboTriforce));
     memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
     memcpy(&rec->comboFillWallets, &live.comboFillWallets, sizeof(rec->comboFillWallets)); // #1284
+    // #1439: the pair's Way of the Hero, the world's (its fill wrote it). A package
+    // written before #1439 carries zero bytes here: ABSENT, the stones' old hints.
+    memcpy(&rec->comboWoth, &live.comboWoth, sizeof(rec->comboWoth));
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 
@@ -527,6 +530,7 @@ void ApplyComboWorld(const ComboContext& rec) {
     records.comboTriforce = rec.comboTriforce;
     records.comboItemRules = rec.comboItemRules;
     records.comboFillWallets = rec.comboFillWallets; // #1284
+    records.comboWoth = rec.comboWoth;               // #1439
     Combo_RestoreCreationRecords(&records);
 }
 

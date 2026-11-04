@@ -597,7 +597,8 @@ const OptionUi kOptionUi[] = {
     // once per call, so a handler that only staged text and rewrote textId
     // would never be re-entered.
     { RO_HINTS_GOSSIP_STONES, COMBO_MM_GROUP_HINTS, COMBO_MM_WIDGET_CHECKBOX,
-      "Gossip Stone Hints", "Each gossip stone gives a fixed hint about one location's contents.",
+      "Gossip Stone Hints",
+      "Each gossip stone gives a fixed hint: where an item is, an area on the Way of the Hero, or a foolish area.",
       0, 0, nullptr, 0,
       // Was PARTIAL as "breaks stones": VB_GS_CONSIDER_MASK_OF_TRUTH_EQUIPPED
       // forced the permissive verdict while the text that justified it was
