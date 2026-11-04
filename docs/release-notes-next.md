@@ -12,9 +12,9 @@
   back into the row ("Restored from file: Logic"), and your next new file uses that until you change the row back.
 - **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
-  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436), Time Travel
-  Requires Master Sword (#1442), Majora's Mask's hints and the Way of the Hero (#1445) and the critical renewables
-  (#1444) are part of generator 4 too.
+  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436) are part of
+  generator 4 too, as are Time Travel Requires Master Sword, Majora's Mask's hints and the Way of the Hero, and the
+  critical renewables (#1446).
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
   each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
   magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
@@ -35,10 +35,10 @@
   Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
   the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
   on Randomizer > Shuffles > Shuffle Items. With the Master Sword shuffled, Link now needs it to travel through time
-  at the pedestal, as in OoTMM (Time Travel Requires Master Sword, #1442, below). The Standard and Beginner
+  at the pedestal, as in OoTMM (Time Travel Requires Master Sword, #1446, below). The Standard and Beginner
   presets still leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the
   carpenters. A saved file keeps the settings it was made with.
-- **Time Travel Requires Master Sword is on by default** (#1442, issue #1434), as OoTMM's `timeTravelSword` is. With
+- **Time Travel Requires Master Sword is on by default** (#1446, issue #1434), as OoTMM's `timeTravelSword` is. With
   Shuffle Master Sword on (the default above), Link must hold the Master Sword to travel through time at the Pedestal
   of Time, in either direction, and logic agrees: a child start reaches the adult world only once the sword is found,
   and an adult start reaches the child world, and the Happy Mask Shop crossing into Termina, only after it. Without
@@ -66,7 +66,7 @@
 - **[Both Games] Disable Crit Wiggle** (Enhancements > Quality of Life > Misc): SoH's row now also stops Majora's
   Mask's low-health camera wiggle. The low-health zoom stays in both games, as before.
 
-### Hints: the Way of the Hero in both games, and Majora's Mask's hints on (issue #1439)
+### Hints: the Way of the Hero in both games, and Majora's Mask's hints on (#1446, issue #1439)
 
 - **Gossip stones in both games name areas on the Way of the Hero**, OoTMM's largest hint bucket. An area is on it when
   the paired goal cannot be finished without something there, whichever game it is in: a Hyrule stone may say "They
@@ -81,7 +81,7 @@
   to your settings, so your next new file has them off too: turn them on again under Hints in Randomizer > MM Randomizer
   first.
 
-### Ocarina of Time hints: Ganon's door and the Triforce Hunt (#1438, issue #1435)
+### Ocarina of Time hints: Ganon's door and the Triforce Hunt (#1446, issue #1435)
 
 - **Ganon's door names your pocket when you start with its key.** With Boss Door Hints on and Ganon's Boss Key on
   Start With (the default since #1436), the door's hint says the key is in your pocket, instead of "an Isolated
@@ -90,7 +90,7 @@
   OoTMM names no key for it either. The [Both Games] Triforce Hunt goal now greys the Ganon's Boss Key row with the
   reason Ocarina of Time's own Triforce Hunt row gives; when the goal moves away, the row follows that row again.
 
-### Cross-Game Masks: the Stone Mask in Ocarina of Time (#1441, issue #979)
+### Cross-Game Masks: the Stone Mask in Ocarina of Time (#1446, issue #979)
 
 - **[Both Games] Stone Mask (OoT)** and **[Both Games] Shared Stone Mask** (OoTMM's `stoneMaskOot` and
   `sharedMaskStone`), both off by default, on Randomizer > Cross-Game, each right after its Blast Mask twin. The
@@ -99,7 +99,7 @@
   the Gerudo guards. The second makes the two games' Stone Masks one item and needs the first. Both freeze at file
   creation. Kamaro's Mask, the last of this set, and Item Tracker rows for the Stone Mask are still to come.
 
-### All Locations: critical renewables (#1444, issue #1443)
+### All Locations: critical renewables (#1446, issue #1443)
 
 - **Under All Locations, the first copy of each critical renewable lands where it can be had again**, as OoTMM does:
   Majora's Mask's Hero's Shield, 10 Bombchus, Magic Bean, Red and Blue Potions and Milk, and Ocarina of Time's Deku and
