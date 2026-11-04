@@ -277,3 +277,6 @@ games/mm/2s2h/Enhancements/Masks/GoronRollingLenientSpikes.cpp
 games/mm/2s2h/Rando/Logic/ShopPrices.cpp
 games/mm/2s2h/Rando/Logic/ShopPrices.h
 games/mm/2s2h/mm_shop_prices_test.cpp
+games/oot/soh/Enhancements/randomizer/StoneMaskOoT.h
+games/oot/soh/Enhancements/randomizer/StoneMaskOoT.cpp
+games/oot/soh/oot_stone_mask_test.cpp

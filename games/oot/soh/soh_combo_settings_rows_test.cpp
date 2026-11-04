@@ -397,6 +397,9 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         { COMBO_SETTING_BLAST_MASK_OOT, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_MASK_BLAST, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_BLAST_MASK_COOLDOWN, WIDGET_COMBOBOX, "" },
+        // #979: the Stone Mask in OoT and its shared variant, the Blast Mask's shape.
+        { COMBO_SETTING_STONE_MASK_OOT, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_STONE, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -691,15 +694,15 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 19,
-                   "the Cross-Game Rules page has %d checkbox row(s); the nineteen expected are the Shared Kokiri "
+        ROWS_CHECK(checkboxes == 21,
+                   "the Cross-Game Rules page has %d checkbox row(s); the twenty-one expected are the Shared Kokiri "
                    "Sword (#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song "
                    "and Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
                    "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970), the Shared Goron, "
-                   "Zora, Keaton and Truth masks and Bunny Hood (#978), the Shared Swim (#1369) and the Blast Mask "
-                   "(OoT) and Shared Blast Mask (#979), after #879 retired the Shared Ocarina",
+                   "Zora, Keaton and Truth masks and Bunny Hood (#978), the Shared Swim (#1369) and the Blast and "
+                   "Stone Masks (OoT) and their shared variants (#979), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 19 "
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 21 "
                "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369, #979)\n",
                ocarinaRows, checkboxes);
     }
@@ -732,10 +735,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             "Shared Bottles",
             // #1369: OoTMM's sharedScales follows its button and bottle rules.
             "Shared Swim",
-            // #979: OoTMM's next section, Cross-Game Masks: the Blast Mask in OoT,
-            // then its shared variant (Stone and Kamaro follow as P4 adds them).
+            // #979: OoTMM's next section, Cross-Game Masks, in its data.ts order: the
+            // masks added to OoT (blastMaskOot, stoneMaskOot; kamaroMaskOot follows
+            // when P4 adds it), then their shared variants in the same order
+            // (sharedMaskBlast, sharedMaskStone, then sharedMaskKamaro).
             "Blast Mask (OoT)",
+            "Stone Mask (OoT)",
             "Shared Blast Mask",
+            "Shared Stone Mask",
         };
         // The first rank of OoTMM's Cross-Game Masks section (#979); every rank
         // before it is a Shared Items rule.
@@ -869,9 +876,32 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] leg 3a: with the Blast Mask (OoT) off the Shared Blast Mask row is greyed with the "
                "extension's reason and shows off (#979)\n");
     }
-    // Then the extension is authored ON for every row to be editable.
+    // #979: the Shared Stone Mask's row, the same way, with its own extension's
+    // reason.
+    if (settingRow[COMBO_SETTING_SHARED_MASK_STONE] != nullptr) {
+        WidgetInfo& sharedStoneRow = *settingRow[COMBO_SETTING_SHARED_MASK_STONE];
+        ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, 1) == 1,
+                   "the writer refused a pre-creation Shared Stone Mask");
+        RunPreFunc(sharedStoneRow);
+        const std::string tip =
+            sharedStoneRow.options->disabledTooltip != nullptr ? sharedStoneRow.options->disabledTooltip : "";
+        ROWS_CHECK(sharedStoneRow.options->disabled && tip.find("Stone Mask (OoT) Is Off") != std::string::npos,
+                   "the Shared Stone Mask row must be greyed with the reason \"Stone Mask (OoT) Is Off\" while its "
+                   "extension is off (disabled=%d, tooltip '%s')",
+                   sharedStoneRow.options->disabled ? 1 : 0, tip.c_str());
+        ROWS_CHECK(StagedBool(sharedStoneRow) == 0,
+                   "the Shared Stone Mask row staged %d with the Stone Mask (OoT) off; the resolver freezes it off, "
+                   "so the row must show off",
+                   StagedBool(sharedStoneRow));
+        Combo_ComboSettingClear(COMBO_SETTING_SHARED_MASK_STONE);
+        printf("[TEST] leg 3a: with the Stone Mask (OoT) off the Shared Stone Mask row is greyed with the "
+               "extension's reason and shows off (#979)\n");
+    }
+    // Then the extensions are authored ON for every row to be editable.
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1,
                "the writer refused a pre-creation Blast Mask (OoT)");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, 1) == 1,
+               "the writer refused a pre-creation Stone Mask (OoT)");
     // #1065: the lens is authored ON through its own row's Callback (the row's
     // only write path), so the PreFunc below must stage what the writer kept.
     WidgetInfo* lensRow = FindRow(rows, LensRowName());
@@ -1033,6 +1063,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]) == (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT,
                "the frozen Blast Mask Cooldown row staged %d; it must show the SAVE's %d (Default)",
                StagedInt(*settingRow[COMBO_SETTING_BLAST_MASK_COOLDOWN]), (int)RSBS_BLAST_COOLDOWN_DEFAULT);
+    // #979: the Stone Mask's two rows, the same way: the frozen OFF, not the
+    // authored Stone Mask (OoT) ON, and the decided reason on the shared one.
+    ExpectDecided(*settingRow[COMBO_SETTING_STONE_MASK_OOT], "the Stone Mask (OoT) row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_STONE_MASK_OOT]) == 0,
+               "the frozen Stone Mask (OoT) row staged %d; it must show the SAVE's OFF, not the CVar's ON",
+               StagedBool(*settingRow[COMBO_SETTING_STONE_MASK_OOT]));
+    ExpectDecided(*settingRow[COMBO_SETTING_SHARED_MASK_STONE], "the Shared Stone Mask row");
+    ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_STONE]) == 0,
+               "the frozen Shared Stone Mask row staged %d; it must show the SAVE's OFF",
+               StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_STONE]));
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {
@@ -1273,7 +1313,10 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_BLAST, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_COOLDOWN, (int32_t)RSBS_BLAST_COOLDOWN_SHORT) ==
-                           1,
+                           1 &&
+                       // #979: the Stone Mask's two rows.
+                       Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),

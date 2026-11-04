@@ -808,7 +808,7 @@ void RegionTable_Init_ForestTemple() {
     }, {
         //Exits
         Entrance(RR_FOREST_TEMPLE_MQ_LOBBY,             []{return true;}),
-        Entrance(RR_FOREST_TEMPLE_MQ_BASEMENT_POT_ROOM, []{return  logic->HasItem(RG_POWER_BRACELET) && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || logic->TakeDamage());}),
+        Entrance(RR_FOREST_TEMPLE_MQ_BASEMENT_POT_ROOM, []{return  logic->HasItem(RG_POWER_BRACELET) && (logic->CanPassEnemy(RE_BIG_SKULLTULA, ED_CLOSE, true, false) || logic->TakeDamage());}), // [RSBS #979] OoTMM's get_past_skultullas_no_stone
         Entrance(RR_FOREST_TEMPLE_BOSS_ENTRYWAY,        []{return logic->Get(LOGIC_FOREST_OPEN_BOSS_HALLWAY);}),
     });
 

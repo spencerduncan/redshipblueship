@@ -550,11 +550,11 @@ TestResult Test_CrossItemRulesRecord(void) {
 
     // ---- (7) Divergence ----------------------------------------------------------
     {
-        // The ON record plus a rule no key of this build authors (the Stone Mask
-        // in OoT; #978 keyed the shared masks and #979 the Blast Mask and its
-        // cooldown, so the ON record alone is restorable now).
+        // The ON record plus a rule no key of this build authors (Kamaro's Mask
+        // in OoT; #978 keyed the shared masks and #979 the Blast Mask, its
+        // cooldown and the Stone Mask, so the ON record alone is restorable now).
         ComboItemRulesRecord on = XirOnRecord();
-        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
+        on.crossItemFlags |= RSBS_XITEM_KAMARO_MASK_OOT;
         XirFreezeWorld(&on);
         const uint32_t bits = Combo_ComboSettingsDivergence();
         char fields[256];
@@ -569,7 +569,7 @@ TestResult Test_CrossItemRulesRecord(void) {
         XIR_CHECK(Combo_ComboSettingsUnrestorableBits(&gComboCtx.comboItemRules, bits) ==
                           RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
                       Combo_ComboSettingsCanRestoreLive(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, bits) == 0,
-                  "a frozen rule no key of this build authors (the Stone Mask in OoT) leaves crossItemFlags "
+                  "a frozen rule no key of this build authors (Kamaro's Mask in OoT) leaves crossItemFlags "
                   "unrestorable, so no load may claim to restore it");
         XIR_CHECK(strcmp(Combo_ComboSettingsDivergenceFieldName(RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS),
                          "crossItemFlags") == 0 &&
@@ -627,12 +627,12 @@ TestResult Test_CrossItemRulesRecord(void) {
         ComboContext_Init();
         XIR_CHECK(mgr.Load(0), "the rules-off file must load");
 
-        // A later build's file: a rule on that no key of this build authors (the
-        // Stone Mask in OoT, beside the ON record's keyed rules).
+        // A later build's file: a rule on that no key of this build authors
+        // (Kamaro's Mask in OoT, beside the ON record's keyed rules).
         RsbsSave_ResetSlotSessionState();
         mgr.DeleteSave(0);
         ComboItemRulesRecord on = XirOnRecord();
-        on.crossItemFlags |= RSBS_XITEM_STONE_MASK_OOT;
+        on.crossItemFlags |= RSBS_XITEM_KAMARO_MASK_OOT;
         XirFreezeWorld(&on);
         XirSeedShadows(0x77u);
         XIR_CHECK(mgr.Save(0), "Save(0) failed for the rules-on file");

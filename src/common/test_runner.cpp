@@ -1129,6 +1129,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // ItemID's table bounds, rule-gated ownership, the shared pair and OoT's logic
 // (blast-mask-oot-items). FILE SCOPE (compiled as C++).
 #include "tests/test_blast_mask_oot.c"
+// The Stone Mask in Ocarina of Time (#979, epic #975 P4's second mask): its two
+// Cross-Game Rules keys and OoTMM's ignore list (stone-mask-oot-rule), then the
+// custom ItemID's table bounds, rule-gated ownership, the trade cycle after the
+// Blast Mask, the shared pair, OoT's logic and the update seam
+// (stone-mask-oot-items). FILE SCOPE (compiled as C++), after the Blast Mask's.
+#include "tests/test_stone_mask_oot.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -7450,6 +7456,20 @@ TestResult Test_BlastMaskOoTRule(void) {
     return BlastMaskOoTRule_Run();
 }
 
+// #979: the Stone Mask's Cross-Game Rules rows, the Blast Mask's bring-up.
+TestResult Test_StoneMaskOoTRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return StoneMaskOoTRule_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -9576,6 +9596,15 @@ const TestDescriptor gTests[] = {
       "frozen rule, pairs into one bag row under the shared rule, and OoT's logic credits it as a child's explosive "
       "only then (#979)",
       Test_BlastMaskOoTItems },
+    { "stone-mask-oot-rule",
+      "The Stone Mask (OoT) and Shared Stone Mask are two Cross-Game Rules, off by default, the shared one only with "
+      "its extension, restored from the file at load in OoTMM's order; OoTMM's actors lose sight of the wearer (#979)",
+      Test_StoneMaskOoTRule },
+    { "stone-mask-oot-items",
+      "The Stone Mask's custom ItemID stays inside OoT's tables and out of SLOT(), is owned and cycled after the Blast "
+      "Mask only under the frozen rule, pairs into one bag row under the shared rule, OoT's logic credits it for a "
+      "child only then, and a listed actor's update runs with Link out of sight (#979)",
+      Test_StoneMaskOoTItems },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",

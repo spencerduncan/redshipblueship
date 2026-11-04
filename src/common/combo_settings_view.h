@@ -165,6 +165,12 @@ typedef enum {
     // derive from that split at creation.
     COMBO_SETTING_TRIFORCE_PIECES, // gCombo.Rando.TriforcePieces -> comboTriforce totals (their sum)
     COMBO_SETTING_TRIFORCE_GOAL,   // gCombo.Rando.TriforceGoal -> comboTriforce requirements (their sum)
+    // #979 (epic #975 P4, its second mask): the Stone Mask in Ocarina of Time
+    // (OoTMM stoneMaskOot) and the Shared Stone Mask (OoTMM sharedMaskStone), the
+    // Blast Mask's shape: 0 or 1, default 0 each, and the shared one is dropped by
+    // the resolver while the Stone Mask in OoT is off (OoTMM's `cond`).
+    COMBO_SETTING_STONE_MASK_OOT,    // gCombo.Rando.StoneMaskOoT -> RSBS_XITEM_STONE_MASK_OOT
+    COMBO_SETTING_SHARED_MASK_STONE, // gCombo.Rando.SharedMaskStone -> RSBS_XITEM_SHARED_STONE
     COMBO_SETTING_COUNT
 } ComboSettingId;
 

@@ -32,7 +32,7 @@ tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_
 tests/golden/seed-digest-excludes-tricks.txt     # --test rando-determinism, OoT and MM excludes and tricks (#982)
 tests/golden/seed-digest-shopsanity.txt          # --test rando-determinism, OoT Shop Shuffle with Balanced (drawn) prices (#982)
 tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Direction=2 (#982)
-tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast Mask in OoT and Shared Blast Mask (#979)
+tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast and Stone Masks in OoT and their shared variants (#979)
 tests/golden/seed-digest-beatable-only.txt       # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=2 (#1367 R5)
 tests/golden/seed-digest-no-logic.txt            # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=1 (#1367 R5)
 ```
@@ -228,14 +228,17 @@ so its own golden row is where its creation inside the budget is checked.
 ### The all-masks profile (#978)
 
 `seed-digest-all-masks` is `seed-digest-default`'s seed and dispatch with **every
-mask option on**. Today that means seven keys:
+mask option on**. Today that means nine keys:
 
 * the five shared masks of P2 (#978): `gCombo.Rando.SharedMaskGoron`,
   `SharedMaskZora`, `SharedMaskBunny`, `SharedMaskKeaton` and `SharedMaskTruth`,
   OoTMM's five `sharedMask*` options;
 * P4's first piece (#979): `gCombo.Rando.BlastMaskOoT` (OoTMM's `blastMaskOot`,
   which adds the Blast Mask to OoT's pool) and `gCombo.Rando.SharedMaskBlast`
-  (`sharedMaskBlast`, which pairs it with Majora's Mask's copy).
+  (`sharedMaskBlast`, which pairs it with Majora's Mask's copy);
+* P4's second piece (#979): `gCombo.Rando.StoneMaskOoT` (OoTMM's `stoneMaskOot`,
+  which adds the Stone Mask to OoT's pool) and `gCombo.Rando.SharedMaskStone`
+  (`sharedMaskStone`, which pairs it with Majora's Mask's copy).
 
 In this world the composer pairs each mask's two copies into one bag row (ABI 7).
 The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
@@ -288,20 +291,30 @@ every other one, because its profile inherits the shipped OoT and MM settings: i
 now creates on ladder attempt 1 in one batch attempt of 267 rounds, with
 `bagRows` 265 (the four new OoT rows) and `crossItemFlags` still `0000083F`.
 
+#979's second piece appends the two Stone Mask keys. Like the Blast Mask (OoT)
+rule, the Stone Mask (OoT) rule changes OoT's own pool at Generate (one
+`RG_STONE_MASK`, pooled after the Blast Mask's), so `placementHash` moves with
+`comboSettingsHash`, and the Shared Stone Mask is the seventh shared pair (OoT's
+Stone Mask row in, MM's trimmed, one more `bagTrimmedMM`), so the bag's seed and
+everything after it move too. The orchestrator re-pins this file once for every
+golden-moving lane of the window (the lane does not), and the re-pin commit names
+every field and value that moved. Both rules ship off, so no other golden moves.
+
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
-this golden with its seven keys and requires the frozen `crossItemFlags` to be
-exactly the seven mask bits, `0000083F` (the five shared masks `0000001F`,
-`RSBS_XITEM_BLAST_MASK_OOT` `00000020` and `RSBS_XITEM_SHARED_BLAST`
-`00000800`). It requires `0` for every other golden. A misspelled key resolves
+this golden with its nine keys and requires the frozen `crossItemFlags` to be
+exactly the nine mask bits, `0000187F` (the five shared masks `0000001F`,
+`RSBS_XITEM_BLAST_MASK_OOT` `00000020`, `RSBS_XITEM_STONE_MASK_OOT` `00000040`,
+`RSBS_XITEM_SHARED_BLAST` `00000800` and `RSBS_XITEM_SHARED_STONE`
+`00001000`). It requires `0` for every other golden. A misspelled key resolves
 off, and without this check the golden would record the default world's rules
-under this profile's name. The check fails as `FAIL(12)`. The Shared Blast Mask
-needs its extension: with `BlastMaskOoT` dropped from the row, the resolver drops
-`SharedMaskBlast` too and the frozen rules read `0000001F`, which this check
-refuses.
+under this profile's name. The check fails as `FAIL(12)`. Each shared variant
+needs its extension: with `BlastMaskOoT` (or `StoneMaskOoT`) dropped from the row,
+the resolver drops `SharedMaskBlast` (or `SharedMaskStone`) too and the frozen
+rules lose two bits, which this check refuses.
 
 **P4 and P5 extend this golden; they do not add one.** P4 (#979: the Blast, Stone
-and Kamaro masks in Ocarina of Time; the Blast Mask is done) and P5 (#980: the
-Gerudo, Skull and Spooky masks in Majora's Mask) each do four things:
+and Kamaro masks in Ocarina of Time; the Blast and Stone Masks are done) and P5
+(#980: the Gerudo, Skull and Spooky masks in Majora's Mask) each do four things:
 
 1. append their option keys to this row's `RSBS_DIAG_CVARS` in
    `REDSHIP_GOLDEN_DIGESTS`;
