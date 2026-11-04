@@ -1058,6 +1058,128 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
         gComboCtx.mmProfileDigest = 0;
     }
 
+    // ---- #1437: a world made before Ascending shipped loads where it did ------
+    // Created with Shuffle Time on and Time Progression never touched, so its
+    // stamp folds the old row default, Random. Its half cannot always say so: a
+    // pair created before K11 has none, and a half written before #1101 reads
+    // later SaveContext fields where the excluded-check set now sits, so its
+    // candidate misses. With the keys as the player left them the load matched on
+    // main and must still match, and a generation against the stamp keeps Random.
+    // RED without the pre-#1437 candidate: both classify UNRESTORABLE (the file
+    // select refuses the slot) and the re-resolution throws.
+    {
+        ClearAllOptionCVars();
+        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+        // The stamp a creation before #1437 made from these keys. Spelled out only
+        // to compute it: the identity folds values, not whether a key was set.
+        CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_RANDOM);
+        restampUnfrozenCarrier();
+        const uint32_t frozen = MM_Rando_ComputeProfileStamp();
+        // The half that world's creation wrote, then aged into one written before
+        // #1101: the bytes now read as the excluded-check set hold something else.
+        gComboCtx.mmProfileDigest = frozen;
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+        Rando::Foreign::ResolvePairedProfile(true);
+        gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks[4] = 0xFF;
+        std::vector<uint8_t> oldHalf(sizeof(SaveContext));
+        memcpy(oldHalf.data(), &gSaveContext, sizeof(SaveContext));
+        CVarClear(modeRow.cvar); // the keys as the player left them
+        const uint32_t today = MM_Rando_ComputeProfileStamp();
+        const bool matches = MM_Rando_ProfileStampMatches(frozen) != 0;
+        const int classifiedNone = MM_Rando_ClassifyProfileForLoad(nullptr, 0, frozen);
+        const int classifiedOld = MM_Rando_ClassifyProfileForLoad(oldHalf.data(), oldHalf.size(), frozen);
+        char names[256] = { 0 };
+        int count = -1;
+        const int restored =
+            MM_Rando_RestoreProfileForLoad(oldHalf.data(), oldHalf.size(), frozen, names, sizeof(names), &count);
+        const bool keyUnset = !Combo_CVarIsExplicitInt(modeRow.cvar);
+        // The arrival of a pair with no half: its generation re-resolves the keys
+        // against the stamp (ResolvePairedProfile's compare-or-stamp).
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        bool threw = false;
+        uint32_t resolved = 0;
+        try {
+            resolved = Rando::Foreign::ResolvePairedProfile(true);
+        } catch (const std::exception&) {
+            threw = true;
+        }
+        const uint32_t resolvedMode = RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE];
+        printf("[TEST] mm-paired-profile #1437 legacy: stamp %08X (today's keys %08X) matches %d; no half %d, old half "
+               "%d, restore %d (%d key(s), mode key unset %d); re-resolved %08X mode %u (threw %d)\n",
+               (unsigned)frozen, (unsigned)today, matches ? 1 : 0, classifiedNone, classifiedOld, restored, count,
+               keyUnset ? 1 : 0, (unsigned)resolved, (unsigned)resolvedMode, threw ? 1 : 0);
+        if (today == frozen || !matches || classifiedNone != RSBS_MM_PROFILE_LOAD_MATCHES ||
+            classifiedOld != RSBS_MM_PROFILE_LOAD_MATCHES || restored != RSBS_MM_PROFILE_LOAD_MATCHES || count != 0 ||
+            !keyUnset) {
+            return Fail(102,
+                        "a world created with Shuffle Time on and Time Progression unset before it shipped Ascending "
+                        "no longer loads from a half that cannot restore it (matches %d, no half %d, old half %d, "
+                        "restore %d)",
+                        matches ? 1 : 0, classifiedNone, classifiedOld, restored);
+        }
+        if (threw || resolved != frozen || resolvedMode != RO_CLOCK_SHUFFLE_RANDOM) {
+            return Fail(102,
+                        "a pair created before #1437 with no half re-resolved mode %u (digest %08X vs %08X, threw "
+                        "%d); its generation must keep Random",
+                        (unsigned)resolvedMode, (unsigned)resolved, (unsigned)frozen, threw ? 1 : 0);
+        }
+
+        // Guards: the candidate is the unset key's old value and nothing else. An
+        // explicit Ascending is a different world, and a world frozen in
+        // Descending is not matched by the candidate (it supplies Random alone).
+        CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_ASCENDING);
+        const int explicitAscending = MM_Rando_ClassifyProfileForLoad(nullptr, 0, frozen);
+        CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_DESCENDING);
+        const uint32_t descending = MM_Rando_ComputeProfileStamp();
+        CVarClear(modeRow.cvar);
+        const int descendingUnset = MM_Rando_ClassifyProfileForLoad(nullptr, 0, descending);
+        if (explicitAscending != RSBS_MM_PROFILE_LOAD_UNRESTORABLE ||
+            descendingUnset != RSBS_MM_PROFILE_LOAD_UNRESTORABLE) {
+            return Fail(103,
+                        "the pre-#1437 candidate matched a different world (Random stamp with an explicit Ascending: "
+                        "%d; Descending stamp with the key unset: %d)",
+                        explicitAscending, descendingUnset);
+        }
+        gComboCtx.mmProfileDigest = 0;
+    }
+
+    // ---- #1437: the restore compares Time Progression last ------------------
+    // A default file (Shuffle Time off, the mode Random) loaded while the session
+    // has Shuffle Time on and the mode unset. Putting Shuffle Time back makes the
+    // unset mode resolve to Random again, so only Shuffle Time is written and
+    // named, and the mode key stays unset (the next creation still gets
+    // Ascending). RED when the mode is compared in the first pass: it is written
+    // as an explicit Random and named in the load toast.
+    {
+        ClearAllOptionCVars();
+        restampUnfrozenCarrier();
+        const uint32_t frozen = MM_Rando_ComputeProfileStamp();
+        gComboCtx.mmProfileDigest = frozen;
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+        Rando::Foreign::ResolvePairedProfile(true);
+        std::vector<uint8_t> half(sizeof(SaveContext));
+        memcpy(half.data(), &gSaveContext, sizeof(SaveContext));
+        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+        char names[256] = { 0 };
+        int count = 0;
+        const int restored =
+            MM_Rando_RestoreProfileForLoad(half.data(), half.size(), frozen, names, sizeof(names), &count);
+        const bool keyUnset = !Combo_CVarIsExplicitInt(modeRow.cvar);
+        const uint32_t after = MM_Rando_ComputeProfileStamp();
+        printf("[TEST] mm-paired-profile #1437: default file loaded with Shuffle Time on: restore %d (%d key(s): %s), "
+               "mode key unset %d, stamp %08X vs frozen %08X\n",
+               restored, count, names, keyUnset ? 1 : 0, (unsigned)after, (unsigned)frozen);
+        if (restored != RSBS_MM_PROFILE_LOAD_RESTORED || count != 1 || !keyUnset || after != frozen) {
+            return Fail(104,
+                        "loading a default file while Shuffle Time was on restored %d key(s) (%s), mode key unset %d: "
+                        "Time Progression was written for nothing",
+                        count, names, keyUnset ? 1 : 0);
+        }
+        gComboCtx.mmProfileDigest = 0;
+    }
+
     // Leave global state clean for whatever runs next.
     ClearAllOptionCVars();
     CVarClear("gRando.ExcludedChecks");
