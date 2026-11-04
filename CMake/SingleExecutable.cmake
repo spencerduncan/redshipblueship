@@ -3569,6 +3569,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
                 -DBUILD_DIR=${CMAKE_BINARY_DIR}
                 "-DEXEMPT=prism" # libultraship's own row; it runs no redship
                 -P ${CMAKE_CURRENT_LIST_DIR}/CheckTestAudioEnv.cmake)
+    # #1346 (SFX-23): on Windows main.cpp's setlocale(LC_ALL, ".UTF8") makes the CRT
+    # decode narrow paths as UTF-8, and rsbs/windows/redship.manifest (activeCodePage
+    # UTF-8, root CMakeLists.txt) makes the OS ANSI code page UTF-8 to match, so an
+    # accented %TEMP% or ROM path never throws inside std::filesystem. The row reads
+    # the CRT code page, LC_NUMERIC and GetACP() in its own process, which is the
+    # only check that the manifest was embedded (hosted runners have ASCII paths).
+    # ROM-free, no window. Off Windows it reports and skips (exit 77).
+    redship_add_test(NAME WindowsUtf8CodePage COMMAND redship --test windows-utf8-code-page)
+    set_tests_properties(WindowsUtf8CodePage PROPERTIES SKIP_RETURN_CODE 77)
     # #880: the window title and --version carry the configured short commit
     # (and "-dirty"), so a build says which commit it is. The expected identity is
     # handed over from configure ("none" for a tree without git); run outside

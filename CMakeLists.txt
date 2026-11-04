@@ -163,7 +163,6 @@ set(CMAKE_PROJECT_GIT_COMMIT_TAG "${GIT_COMMIT_TAG}" CACHE STRING "Git commit ta
 set_property(DIRECTORY ${CMAKE_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT soh)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/utf-8>)
-add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/fp:precise>)
 
 ################################################################################
 # Set target arch type if empty. Visual studio solution generator provides it.
@@ -184,11 +183,11 @@ endif()
 # Global configuration types
 ################################################################################
 if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-set(CMAKE_C_FLAGS_DEBUG "-g -ffast-math -DDEBUG")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -ffast-math -DDEBUG")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -DNDEBUG")
-elseif (MSVC)
+set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
+set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+else()
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_OBJCXX_FLAGS_DEBUG "-g -DDEBUG")
@@ -198,17 +197,15 @@ set(CMAKE_OBJCXX_FLAGS_RELWITHDEBINFO "-O2 -g -DNDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 set(CMAKE_OBJCXX_FLAGS_RELEASE "-O2 -DNDEBUG")
-else()
-set(CMAKE_C_FLAGS_DEBUG "-g -fno-fast-math -ffp-contract=off -DDEBUG")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -fno-fast-math -ffp-contract=off -DDEBUG")
-set(CMAKE_OBJCXX_FLAGS_DEBUG "-g -fno-fast-math -ffp-contract=off -DDEBUG")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g -fno-fast-math -ffp-contract=off -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -fno-fast-math -ffp-contract=off -DNDEBUG")
-set(CMAKE_OBJCXX_FLAGS_RELWITHDEBINFO "-O2 -g -fno-fast-math -ffp-contract=off -DNDEBUG")
-set(CMAKE_C_FLAGS_RELEASE "-O2 -fno-fast-math -ffp-contract=off -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -fno-fast-math -ffp-contract=off -DNDEBUG")
-set(CMAKE_OBJCXX_FLAGS_RELEASE "-O2 -fno-fast-math -ffp-contract=off -DNDEBUG")
 endif()
+
+# Enforce strict, deterministic IEEE-754 floating-point to match N64 (MIPS) semantics.
+# Never enable fast-math, and disable FMA contraction: the R4300 CPU and RSP have no
+# fused multiply-add, so contracting mul+add into an FMA produces extra precision.
+add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-fno-fast-math>)
+add_compile_options($<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-ffp-contract=off>)
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/fp:precise>)
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/fp:except->)
 
 if(NOT CMAKE_BUILD_TYPE )
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
@@ -319,6 +316,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         # because /GL is incompatible with /FORCE:MULTIPLE (causes LNK1179).
         if(MSVC)
             target_link_options(redship PRIVATE /FORCE:MULTIPLE)
+            # Application manifest (SoH 0017fc55b, #7446): activeCodePage UTF-8
+            # makes the process ANSI code page UTF-8 on Windows 10 1903+, so
+            # getenv, argv and the -A Win32 APIs hand back the same UTF-8 the
+            # CRT decodes after main.cpp's setlocale(LC_ALL, ".UTF8"). Upstream
+            # embeds SHIPOFHARKINIAN.manifest through Resource.rc, which this
+            # build skips (games/oot/CMakeLists.txt); a .manifest source reaches
+            # the linker as /MANIFESTINPUT and is merged into its default
+            # manifest. Locked by the WindowsUtf8CodePage row.
+            target_sources(redship PRIVATE ${CMAKE_SOURCE_DIR}/rsbs/windows/redship.manifest)
         endif()
         target_link_libraries(redship PRIVATE
             ${SOH_STATIC_TARGETS} ${TWOSHIP_STATIC_TARGETS}

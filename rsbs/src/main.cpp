@@ -592,9 +592,12 @@ void PrintUsage(const char* progName) {
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
-    // Allow non-ASCII characters in narrow CRT file paths on Windows (SoH 0017fc55b / #7446).
-    // Keep LC_NUMERIC on "C" so locale-sensitive float parsing/formatting stays dot-decimal.
+    // Allow non-ascii characters for Windows (SoH 5ed3db0a7, #5741): the CRT and STL decode narrow paths as
+    // UTF-8. The OS hands this process UTF-8 too only because redship embeds rsbs/windows/redship.manifest
+    // (activeCodePage UTF-8, SoH 0017fc55b, #7446); without it getenv, argv and the -A APIs stay in the ANSI
+    // code page and std::filesystem throws on their accented bytes. Locked by the WindowsUtf8CodePage row.
     setlocale(LC_ALL, ".UTF8");
+    // Keep '.' as the decimal point, user locale may use ',' (SoH d657862aa, #7413)
     setlocale(LC_NUMERIC, "C");
 #endif
 
