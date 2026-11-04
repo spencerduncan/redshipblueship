@@ -1,5 +1,6 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/GameInteractor/GameInteractor.h"
+#include "2s2h/Rando/Rando.h"
 #include "2s2h/ShipInit.hpp"
 
 extern "C" {
@@ -37,7 +38,12 @@ extern EnKnight* sWideKnightInstance;
 }
 
 #define CVAR_NAME "gEnhancements.TimeSavers.SkipCutscene.BossIntro"
-#define CVAR CVarGetInteger(CVAR_NAME, 0)
+// RSBS (#1426): SoH's default, IS_RANDO (timesaver_hook_handlers.cpp, the "Skip Boss Introductions" row), so an
+// untouched key skips Termina's boss intros on a rando file as it skips Hyrule's. OoTMM's cutsceneIntro* defaults skip
+// six of them and play Wart's and Majora's; this key skips all eight, plus the boss-warp and miniboss cutscenes below,
+// which no OoTMM setting covers. The registrars below also re-run on "IS_RANDO", which Rando.cpp drives on every MM
+// load.
+#define CVAR CVarGetInteger(CVAR_NAME, IS_RANDO)
 
 // Set by enemy actors to control the camera override hooks
 static bool skipSetCamera = false;
@@ -425,6 +431,6 @@ void RegisterSkipEnemyCutscenes() {
     });
 }
 
-static RegisterShipInitFunc introsInitFunc(RegisterSkipEnemyIntros, { CVAR_NAME });
-static RegisterShipInitFunc bossWarpInitFunc(RegisterSkipBossWarpCutscenes, { CVAR_NAME });
-static RegisterShipInitFunc enemyCsInitFunc(RegisterSkipEnemyCutscenes, { CVAR_NAME });
+static RegisterShipInitFunc introsInitFunc(RegisterSkipEnemyIntros, { CVAR_NAME, "IS_RANDO" });
+static RegisterShipInitFunc bossWarpInitFunc(RegisterSkipBossWarpCutscenes, { CVAR_NAME, "IS_RANDO" });
+static RegisterShipInitFunc enemyCsInitFunc(RegisterSkipEnemyCutscenes, { CVAR_NAME, "IS_RANDO" });

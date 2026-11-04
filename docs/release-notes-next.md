@@ -46,6 +46,18 @@
   Rupees; by default they now cost their vanilla price. Logic asks for the wallet that holds the price, so the All-Night
   Mask (500 Rupees) needs the Giant's Wallet. The Milk Bar and Gorman's milk keep their vanilla prices, as in OoTMM.
 
+### Majora's Mask: boss intros, Lenient Goron Spikes and Disable Crit Wiggle (#1433, issue #1426)
+
+- **Termina's boss intros are skipped on a randomizer file by default**, as Hyrule's already were. Enhancements >
+  Skips & Speed-ups > Skip Boss Introductions now has the same default in both games. If you turn it off, both games
+  play the intros. In Majora's Mask the same option also skips the boss warp-out cutscenes and the miniboss cutscenes
+  (Gekko, Wizrobe, Dinolfos and others), and Wart's and Majora's intros, which OoTMM plays.
+- **Lenient Goron Spikes** (Enhancements > Items > Masks, Majora's Mask block): OoTMM's `lenientSpikes`, on by default
+  in a randomizer file. Goron Link builds up spikes at a lower rolling speed, keeps that build-up when he lands, and
+  keeps his spikes out however slowly he rolls.
+- **[Both Games] Disable Crit Wiggle** (Enhancements > Quality of Life > Misc): SoH's row now also stops Majora's
+  Mask's low-health camera wiggle. The low-health zoom stays in both games, as before.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.

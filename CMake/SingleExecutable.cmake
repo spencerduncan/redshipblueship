@@ -1529,6 +1529,14 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # #1426: MM runtime parity with OoTMM. Skip Boss Introductions (SkipEnemyCutscenes.cpp)
+    # arms through the production rando path with its key untouched, SoH's IS_RANDO
+    # default, and an explicit off still wins; Lenient Goron Spikes (OoTMM's
+    # lenientSpikes) answers its three Goron-roll VBs as OoTMM's patch does, is on by
+    # default under rando, and gives one answer whichever of it and Goron Rolling
+    # Ignores Magic runs last. Driven over a calloc'd play state and player. Pure (no
+    # display, no ROM); games/mm/2s2h/mm_runtime_parity_test.cpp.
+    redship_add_test(NAME MMRuntimeParity COMMAND redship --test mm-runtime-parity)
     # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
     # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
     # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's
@@ -3444,7 +3452,7 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME TestWindowNoActivation COMMAND redship --test test-window-no-activation)
     # #1152: test processes never play the operator's game controller. main.cpp
     # keeps SDL's joystick background events off in code over libultraship's "1"
-    # (Gui.cpp:200) and hides every device from SDL (src/common/test_window_focus.h).
+    # (Gui.cpp:204) and hides every device from SDL (src/common/test_window_focus.h).
     # This row removes the same-named variables from its own process, re-makes
     # libultraship's SDL_SetHint, asserts the in-code values, then runs the
     # ControlDeck's own scan and (when SDL sees any joystick) asserts it opened

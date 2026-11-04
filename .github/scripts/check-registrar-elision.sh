@@ -697,6 +697,8 @@ main() {
         "RegisterNoBlastMaskCooldown()"
         "RegisterGoronRollingIgnoresMagic()"
         "RegisterGoronRollingFastSpikes()"
+        # #1426: Lenient Goron Spikes, this project's own Masks TU (no 2Ship or OoT twin of the name).
+        "RegisterGoronRollingLenientSpikes()"
         "RegisterEnableSunsSong()"
         "RegisterZoraEggCount()"
         "RegisterFasterSongPlayback()"

@@ -340,7 +340,7 @@ Changes to `.github/workflows/integration-tests.yml`:
    operator's machine (§7), which already removes the human from the repro *loop*
    even though their hardware stays in it.
 2. **Display is NOT the blocker.** libultraship's SDL2 backend hard-requires a GL
-   4+ context (`SDL_GL_CreateContext` with no fallback — `gfx_sdl2.cpp:476`), so
+   4+ context (`SDL_GL_CreateContext` with no fallback — `gfx_sdl2.cpp:480`), so
    `SDL_VIDEODRIVER=dummy` cannot work and no headless/null backend exists. But
    Xvfb + llvmpipe (`libgl1-mesa-dri`) satisfies it on hosted runners — proven
    every PR by the `rando` tier's full `Fast3dWindow` bring-up under `xvfb-run`.

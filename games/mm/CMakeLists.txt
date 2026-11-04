@@ -633,6 +633,10 @@ if(SINGLE_EXECUTABLE_BUILD)
         "2s2h/Enhancements/Masks/NoBlastMaskCooldown.cpp"
         "2s2h/Enhancements/Masks/GoronRollingIgnoresMagic.cpp"
         "2s2h/Enhancements/Masks/GoronRollingFastSpikes.cpp"
+        # #1426: Lenient Goron Spikes (OoTMM lenientSpikes), this project's own TU beside the two Goron Rolling ones.
+        # Same shape: a file-scope RegisterShipInitFunc (keyed on its key and on "IS_RANDO") and three VBs from
+        # z_player.c, one of them (VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING) added by #1426.
+        "2s2h/Enhancements/Masks/GoronRollingLenientSpikes.cpp"
         "2s2h/Enhancements/Songs/EnableSunsSong.cpp"
         "2s2h/Enhancements/Songs/ZoraEggCount.cpp"
         "2s2h/Enhancements/Songs/FasterSongPlayback.cpp"
