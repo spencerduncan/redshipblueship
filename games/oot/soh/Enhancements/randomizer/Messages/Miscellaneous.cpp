@@ -53,6 +53,21 @@ void BuildFixedMallonAtCastleMessage(uint16_t* textId, bool* loadFromMessageTabl
     }
 }
 
+void BuildGerudoGuardJailOfferMessage(uint16_t* textId, bool* loadFromMessageTable) {
+    if (OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS) {
+        CustomMessage msg = CustomMessage(
+            "Looks like you have a %gGerudo Membership Card%w, kid, wait, what's that? You still want to be %rthrown "
+            "in jail%w?%\x1B%gYes&No%w",
+            "Du hast also eine %gGerudo-Mitgliedskarte%w, Kleiner. Aber was soll das heißen, Du willst trotzdem %rin's "
+            "Gefängnis geworfen%w werden?%\x1B%gJa&Nein%w",
+            "On dirait que tu as une %gCarte de Membre Gerudo%w, gamin... Attends, quoi? Tu veux quand même être "
+            "%rjeté en prison%w?%\x1B%gOui&Non%w");
+        msg.AutoFormat();
+        msg.LoadIntoFont();
+        *loadFromMessageTable = false;
+    }
+}
+
 void RegisterMiscellaneousMessages() {
     COND_ID_HOOK(OnOpenText, TEXT_LAKE_HYLIA_WATER_SWITCH_NAVI, IS_RANDO, BuildWaterSwitchMessage);
     COND_ID_HOOK(OnOpenText, TEXT_LAKE_HYLIA_WATER_SWITCH_SIGN, IS_RANDO, BuildWaterSwitchMessage);
@@ -60,6 +75,7 @@ void RegisterMiscellaneousMessages() {
     COND_ID_HOOK(OnOpenText, TEXT_MALON_MEET_EPONA, IS_RANDO, BuildFixedMallonAtCastleMessage);
     COND_ID_HOOK(OnOpenText, TEXT_MALON_EPONA_IS_AFRAID, IS_RANDO, BuildFixedMallonAtCastleMessage);
     COND_ID_HOOK(OnOpenText, TEXT_MALON_LETS_SING_THIS_SONG, IS_RANDO, BuildFixedMallonAtCastleMessage);
+    COND_ID_HOOK(OnOpenText, TEXT_GERUDO_GUARD_FRIENDLY, IS_RANDO, BuildGerudoGuardJailOfferMessage);
 }
 
 static RegisterShipInitFunc initFunc(RegisterMiscellaneousMessages, { "IS_RANDO" });

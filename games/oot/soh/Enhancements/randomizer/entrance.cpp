@@ -1,5 +1,9 @@
 #include "entrance.h"
 
+#include "soh/OTRGlobals.h"
+#include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/ShipInit.hpp"
+#include "soh/Enhancements/gameconsole.h"
 #include "3drando/fill.hpp"
 #include "3drando/pool_functions.hpp"
 #include "3drando/item_pool.hpp"
@@ -7,6 +11,15 @@
 #include "../debugger/performanceTimer.h"
 
 #include <spdlog/spdlog.h>
+#include "z64camera.h"
+#include "z64scene.h"
+
+extern "C" {
+#include "variables.h"
+#include "macros.h"
+#include "functions.h"
+extern PlayState* OoT_gPlayState;
+}
 
 namespace Rando {
 EntranceLinkInfo NO_RETURN_ENTRANCE = { EntranceType::None, RR_NONE, RR_NONE, -1 };
@@ -1820,6 +1833,34 @@ const Entrance* EntranceShuffler::GetEntranceByIndex(int16_t index) {
 extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
     return Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides.data();
 }
+
+static s16 backedUpScene = SCENE_ID_MAX;
+static Camera backupCamera;
+
+void RegisterEntranceShuffleHooks() {
+    COND_HOOK(OnSceneInit,
+              IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).IsNot(RO_GENERIC_OFF),
+              [](int16_t sceneNum) {
+                  if (backedUpScene != sceneNum) {
+                      backedUpScene = sceneNum;
+                      backupCamera = OoT_gPlayState->mainCamera;
+                  }
+              });
+
+    COND_VB_SHOULD(VB_SHOULD_LOAD_BG_IMAGE,
+                   IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).IsNot(RO_GENERIC_OFF), {
+                       s16* camId = va_arg(args, s16*);
+                       if (*camId == -1) {
+                           SPDLOG_ERROR("Invalid Camera Index in fixed camera transition, resetting camera and "
+                                        "skipping Image Load");
+                           *should = false;
+                           OoT_gPlayState->mainCamera = backupCamera;
+                           OoT_Camera_ChangeMode(&OoT_gPlayState->mainCamera, CAM_MODE_NORMAL);
+                       }
+                   });
+}
+
+static RegisterShipInitFunc initFunc(RegisterEntranceShuffleHooks, { "IS_RANDO" });
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #661 probe surface for the OoTEntrancePin lock (games/oot/soh/
