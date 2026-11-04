@@ -8,6 +8,7 @@
 
 #include "combo_single_bag.h"
 
+#include "combo_woth.h" // #1439: the Way of the Hero the proved world is analysed for
 #include "context.h"
 #include "foreign_items.h"
 #include "gen_budget.h"
@@ -191,6 +192,23 @@ static int SingleBagObserve(void* ctx, const ComboLogicFillProgress* p) {
     return 0;
 }
 
+/** #1439: the Way of the Hero analysis's heartbeat (combo_woth.h), called before
+ *  each of its rounds: a frame, and a caption at most once a second, so the
+ *  overlay stays live through it. DISPLAY ONLY: the analysis is bounded by its own
+ *  round cap, and nothing here can stop it or the creation. */
+static void SingleBagWothProgress(void* ctx, int tested, int candidates) {
+    SingleBagWatch* w = (SingleBagWatch*)ctx;
+    const uint32_t genMs = SingleBagGenerationMs(w);
+    if (ComboGenOverlay_WantsHeartbeat()) {
+        (void)ComboGenOverlay_Heartbeat(genMs);
+    }
+    if (tested == 0 || genMs - w->lastReportMs >= 1000u) {
+        snprintf(w->detail, sizeof(w->detail), "Finding the Way of the Hero (%d of %d)", tested + 1, candidates);
+        Combo_GenProgress_Report((uint8_t)RSBS_GENPHASE_MM_FILL, w->ladderAttempt + 1, w->detail);
+        w->lastReportMs = genMs;
+    }
+}
+
 // ============================================================================
 // The fill
 // ============================================================================
@@ -253,6 +271,10 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
     sReport.goal = gComboCtx.comboSettings.goal;
     sReport.rung = gComboCtx.comboSettings.logicRung;
     int status = RSBS_COMBO_LOGIC_OK;
+    // #1439: an attempt's Way of the Hero is its own proved world's or none, so a
+    // failed attempt never leaves an earlier one's behind.
+    Combo_Woth_Clear();
+    Combo_WothRecord_Clear(&gComboCtx.comboWoth);
 
     if (mmCount < 0 || (mmCount > 0 && (mmItems == NULL || mmFlags == NULL))) {
         status = RSBS_COMBO_LOGIC_ERR_BAD_REQUEST;
@@ -454,6 +476,12 @@ int Combo_SingleBag_Run(const uint16_t* mmItems, const uint16_t* mmFlags, int mm
         if (sPostFillProbe != NULL) {
             sPostFillProbe(sPostFillProbeCtx);
         }
+        // #1439: the pair's Way of the Hero, over the proved world while both
+        // engines are still live (combo_woth.h): #575 H4's required set, bounded
+        // by its own round cap. Its rounds move no placement and are not charged
+        // to the fill's budget; it writes gComboCtx.comboWoth for MM's stones and
+        // leaves the set resident for OoT's remainder.
+        (void)Combo_Woth_RunAtCreation(sReport.goal, freq.triforceRequired, SingleBagWothProgress, &watch);
     }
 
     // --- success: the bookkeeping each game's own pass needs -----------------

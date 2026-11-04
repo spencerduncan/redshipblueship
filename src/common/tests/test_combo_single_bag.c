@@ -260,6 +260,7 @@
 
 #include "../combo_area.h"
 #include "../combo_logic.h"
+#include "../combo_mm_options_view.h"
 #include "../combo_single_bag.h"
 #include "../context.h"
 #include "../crossing_store.h"
@@ -1836,7 +1837,24 @@ TestResult ComboSingleBag_Run(void) {
                     }
                 }
             } restoreOption{ kV23Option, savedOption };
-            CVarSetInteger(kV23Option, savedOption == 1 ? 0 : 1);
+            // Flip the value file 1 was CREATED with, not the raw key: on a clean
+            // config the key is unset and the creation resolved the row's default
+            // (Foreign.cpp ResolveProfileValues), which #1439 turned on, so writing
+            // 1 over an unset key would leave the profile as it was.
+            MM_RandoOptionsUi_Register(); // idempotent; the boot already published it
+            const ComboMMOptionDesc* v23Desc = nullptr;
+            for (int i = 0; i < Combo_MMOptionCount() && v23Desc == nullptr; i++) {
+                const ComboMMOptionDesc* d = Combo_MMOptionAt(i);
+                if (d != nullptr && d->cvar != nullptr && strcmp(d->cvar, kV23Option) == 0) {
+                    v23Desc = d;
+                }
+            }
+            CSB_ASSERT(v23Desc != nullptr, "MM's option table has no row for V23b's option, so the value file 1 was "
+                                           "created with cannot be read and V23b proves nothing");
+            const int createdOption = (int)Combo_MMOptionGetValue(v23Desc);
+            printf("[TEST] combo-single-bag: V23b %s: key %d, file 1 created with %d, the second pair writes %d\n",
+                   kV23Option, savedOption, createdOption, createdOption == 0 ? 1 : 0);
+            CVarSetInteger(kV23Option, createdOption == 0 ? 1 : 0);
 
             CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSINGLEBAGGIVES") == 0,
                        "the second pair's generation (one MM option changed) failed");

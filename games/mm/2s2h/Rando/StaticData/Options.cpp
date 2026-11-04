@@ -45,12 +45,26 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_ACCESS_MOON_MASKS_COUNT,     0),
     RO(RO_ACCESS_MOON_REMAINS_COUNT,   4),
     RO(RO_ACCESS_TRIALS,               RO_ACCESS_TRIALS_20_MASKS),
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip (#1439): Majora's Mask's hints are on, as OoTMM's are (its
+    // gossip stones and its static hints for the remains, Oath to Order and the
+    // spider houses; 2Ship's Hookshot hint, another static hint, follows them),
+    // closing #575's decision 5. Purchaseable Gossip Hints stay off: a rupee sink
+    // OoTMM does not have (packages/core/src/settings/data.ts).
+    RO(RO_HINTS_BOSS_REMAINS,          RO_GENERIC_ON),
+    RO(RO_HINTS_GOSSIP_STONES,         RO_GENERIC_ON),
+    RO(RO_HINTS_HOOKSHOT,              RO_GENERIC_ON),
+    RO(RO_HINTS_OATH_TO_ORDER,         RO_GENERIC_ON),
+    RO(RO_HINTS_PURCHASEABLE,          RO_GENERIC_OFF),
+    RO(RO_HINTS_SPIDER_HOUSES,         RO_GENERIC_ON),
+#else
     RO(RO_HINTS_BOSS_REMAINS,          RO_GENERIC_OFF),
     RO(RO_HINTS_GOSSIP_STONES,         RO_GENERIC_OFF),
     RO(RO_HINTS_HOOKSHOT,              RO_GENERIC_OFF),
     RO(RO_HINTS_OATH_TO_ORDER,         RO_GENERIC_OFF),
     RO(RO_HINTS_PURCHASEABLE,          RO_GENERIC_OFF),
     RO(RO_HINTS_SPIDER_HOUSES,         RO_GENERIC_OFF),
+#endif
     RO(RO_TRAP_AMOUNT,                 5),
     RO(RO_LOGIC,                       RO_LOGIC_GLITCHLESS),
     RO(RO_MINIMUM_SKULLTULA_TOKENS,    SPIDER_HOUSE_TOKENS_REQUIRED),

@@ -2783,3 +2783,41 @@ golden re-pinned; seed packages written by generator 3 are refused, as designed)
 - **Goldens.** Every golden re-pinned for generator 4; `seed-digest-beatable-only`
   and `seed-digest-no-logic` pin the other two rungs; the unread
   `seed-digest-mm-nearly-no-logic.txt` is deleted.
+
+### 2026-11-03 -- Hints: the pair-level Way of the Hero in production (#1439)
+
+#575 H4 (the 2026-10-11 entry) measured OoTMM's required set (`analysis.ts`
+`makeRequiredLocs`) beside creation and left it unwired. #1439 wires it, because
+OoTMM's largest default hint bucket is `woth` (9 hints in
+`SETTINGS_DEFAULT_HINTS`, `packages/core/src/settings/hints.ts`) and a paired
+world had none. The ceiling of §2.3 holds: the analysis is deterministic (no
+RNG), sits on top of the proved world, and decides no placement.
+
+- **The set** (`src/common/combo_woth.{h,c}`): right after a single-bag fill
+  succeeds, with both engines still live, one baseline round and then one round
+  per coordinator placement with that host forbidden (ABI 6); a host is on the
+  Way of the Hero when the frozen goal falls without it, in either game. The
+  candidates are H4's bag hosts minus OoTMM's `path` exclusions (keys, tokens,
+  stray fairies, by the item's chest grade) and hosts with no area, interleaved
+  OoT, MM, OoT, ... A host each game's restricted pass filled is not tested.
+- **The cost** is H4's (a): about one round per bag host, which H4 timed at
+  30 to 45 ms after the fill (11.5 s mean, 16.8 s worst on shipped; 11.4 s and
+  14.1 s on plentiful, then on Beatable Only). It is bounded by a ROUND count,
+  `RSBS_COMBO_WOTH_ROUND_CAP` = 400, never a clock (#950), so it binds only on
+  armed-sized worlds (549 bag hosts in H4), where the untested tail is simply not
+  on the path. Its rounds are not charged to the fill budget and cannot fail a
+  creation; the overlay shows "Finding the Way of the Hero" meanwhile.
+- **Who reads it.** OoT's remainder flags its own hosts on the path as native
+  WotH candidates and adds the MM areas on it to the WotH entry's draw, each
+  hinted once through the Termina slot (#575 H3a). MM's free stones read a frozen
+  11-byte area record, `ComboContext.comboWoth` (offset 914, carved from
+  `reserved[]`; ADR 0009's table row 18), because their hints are chosen when
+  read and the analysis cannot rerun then. It is a creation record, carried by
+  the seed package's world record, and not world identity.
+- **No Logic claims nothing**: under rung `none` no round runs and the record
+  stays absent (OoTMM skips its required set under logic `none`).
+- **Locks.** `WothHints` (redship tier: the set over the stub engines under all
+  four paired goals, the record, the creation-record plumbing, both games' stone
+  wording, the wiring from source) and `Rando_ValidatePairedWorldHints`'s P8
+  (rando tier, ComboSingleBag D2: the flags, the record and every WotH hint of a
+  generated world).

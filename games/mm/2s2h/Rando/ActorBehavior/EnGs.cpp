@@ -215,6 +215,7 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/HintFoolish.h" // #575 H5a: the free stone's foolish variant
+#include "2s2h/Rando/HintWoth.h"    // #1439: the free stone's Way of the Hero variant
 
 // #575 H5a: what the FREE stone says, given its item pick and its stone seed:
 // the foolish variant one time in Rando::HintFoolish::kFreeStoneOneIn when the
@@ -222,9 +223,16 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
 // exactly as before. The text hook below calls FreeStoneHintText in both builds
 // (a directive is ill-formed inside its COND_ID_HOOK argument); the #else keeps
 // upstream's expression.
+// #1439: a stone that keeps its item hint after the foolish draw then draws the
+// Way of the Hero variant from its own stream (HintWothSingleExe.cpp), so every
+// stone that spoke the foolish variant still does.
 static std::string FreeStoneHintTextSeeded(const GossipHintTarget& target, uint32_t stoneSeed) {
     const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);
-    return foolish.empty() ? GossipHintText(target, false) : foolish;
+    if (!foolish.empty()) {
+        return foolish;
+    }
+    const std::string woth = Rando::HintWoth::FreeStoneText(stoneSeed);
+    return woth.empty() ? GossipHintText(target, false) : woth;
 }
 
 // The stone seed is GetRandomCheck's own for the free stone (the same expression,

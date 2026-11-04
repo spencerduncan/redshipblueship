@@ -58,6 +58,21 @@
 - **[Both Games] Disable Crit Wiggle** (Enhancements > Quality of Life > Misc): SoH's row now also stops Majora's
   Mask's low-health camera wiggle. The low-health zoom stays in both games, as before.
 
+### Hints: the Way of the Hero in both games, and Majora's Mask's hints on (issue #1439)
+
+- **Gossip stones in both games name areas on the Way of the Hero**, OoTMM's largest hint bucket. An area is on it when
+  the paired goal cannot be finished without something there, whichever game it is in: a Hyrule stone may say "They
+  say that the Southern Swamp is on the way of the hero.", and a Termina stone "They say Kokiri Forest is on the Way
+  of the Hero." Generate works this out once, after it proves the world, so making a seed takes longer (up to one
+  extra proof round per item the fill placed; "Finding the Way of the Hero" on the progress screen). No Logic claims
+  none.
+- **Majora's Mask's hints are on by default**, as OoTMM's are: gossip stones, the boss remains posters, Oath to Order,
+  the spider house rewards and the Hookshot hint. Purchaseable Gossip Hints stays off (OoTMM has no rupee-bought
+  hints). The hint rows are part of Majora's Mask's settings, so the same seed makes a different world, and a file
+  made before this keeps its own rows (loading it restores them). Loading such a file writes its hint rows (off) back
+  to your settings, so your next new file has them off too: turn them on again under Hints in Randomizer > MM Randomizer
+  first.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.

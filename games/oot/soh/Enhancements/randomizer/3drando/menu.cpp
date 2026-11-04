@@ -28,6 +28,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "combo_area.h"    // src/common — the MM area a Termina slot names (#575 H3a)
 #include "combo_logic.h"   // src/common — the coordinator's placements a foolish area may not hold (#575 H5a)
+#include "combo_woth.h"    // src/common — the pair's Way of the Hero a WotH hint must name (#1439)
 #include "foreign_items.h" // src/common — the crossed item's name and article (#575 H3b)
 #include "shared_items.h"  // src/common — MM's grade of a crossed item (#575 H3b)
 #include <set>
@@ -235,7 +236,8 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *   (P1) #575 H3b: a hint that names a crossing host names the MM item the host
  *        yields, with its article and " (MM)", never the cover item the host
  *        physically holds, and so does the spoiler's "item" (the hint's text is
- *        read with the remainder's gate open, as the paired creation renders it);
+ *        read with the remainder's gate open, as the paired creation renders it).
+ *        A WotH hint names only the host's area, never an item, so P8 checks it;
  *   (P2) #575 H3b: every crossing host is hintable, and the hint pass's "Named
  *        Item" filter counts it as a major item. Because the pinned seed may hint
  *        no host, P1 and P2 are also probed on every host (ProbeCrossingHostHints):
@@ -281,6 +283,11 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *        CalculateBarren, so the Foolish entry drew nothing), and every Foolish
  *        hint the world drew must name a foolish area. A pinned seed may draw no
  *        Foolish hint; that half is then reported as vacuous, the flag half is not.
+ *   (P8) #1439: the pair's Way of the Hero (CheckPairedWoth below): OoT's WotH
+ *        flags are exactly its hintable hosts of the pair's set, the frozen
+ *        record MM's stones read is exactly the set's areas and is not empty,
+ *        and every WotH hint names an area on the path, an MM one through the
+ *        Termina slot in the words the stone says.
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 /** (P4) The MM check of the FIRST store row hosting OoT item `item`, or 0. */
@@ -878,6 +885,109 @@ static FoolishCheckResult CheckPairedFoolish(const std::shared_ptr<Rando::Contex
     }
     return r;
 }
+
+struct WothCheckResult {
+    size_t failures = 0;
+    int required = 0;    // hosts of either game in the pair's set
+    int ootRequired = 0; // those hosted in OoT
+    int candidates = 0;  // OoT locations carrying the WotH flag
+    int recordAreas = 0; // areas of both halves in the frozen record
+    int wothHints = 0;
+    int foreignWothHints = 0; // WotH hints naming an MM area through the Termina slot
+};
+
+/**
+ * (P8) #1439: the pair's Way of the Hero, on OoT's stones and in the frozen record.
+ *  (a) a location carries the WotH flag exactly when it is an OoT host of the
+ *      pair's set (combo_woth.h) that OoT's hints may name (a paired world skips
+ *      CalculateWotH, so no other writer exists);
+ *  (b) gComboCtx.comboWoth, which MM's stones read, is exactly the set's areas,
+ *      and holds at least one (the lock is vacuous otherwise); under No Logic it
+ *      is ABSENT, nothing is flagged and no WotH hint is drawn;
+ *  (c) every WotH hint names an area on the path: an OoT area of a flagged
+ *      location, or a Termina slot naming an MM area in the record, whose words
+ *      the stone says ("the Southern Swamp is on the way of the hero").
+ * A pinned seed may draw no WotH hint, or none naming an MM area; that half is
+ * then reported as vacuous.
+ */
+static WothCheckResult CheckPairedWoth(const std::shared_ptr<Rando::Context>& ctx) {
+    WothCheckResult r;
+    const bool claims = Combo_ComboLogicClaimsAllowed();
+    r.required = Combo_Woth_Count();
+    std::vector<bool> flaggedArea(RA_MAX, false);
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        Rando::ItemLocation* il = ctx->GetItemLocation(rc);
+        const bool required = Combo_Woth_IsRequired((uint8_t)GAME_OOT, (uint16_t)rc);
+        const bool expected = claims && required && il->IsHintable();
+        r.ootRequired += required ? 1 : 0;
+        if (il->IsWothCandidate()) {
+            r.candidates++;
+            for (const RandomizerArea ra : il->GetAreas()) {
+                flaggedArea[ra] = true;
+            }
+        }
+        if (il->IsWothCandidate() != expected) {
+            if (r.failures < 5) {
+                fprintf(stderr, "[rando-hints] FAIL: %s is %sa WotH candidate, but the pair's set says %s (P8a)\n",
+                        Rando::StaticData::GetLocation(rc)->GetName().c_str(), il->IsWothCandidate() ? "" : "not ",
+                        expected ? "it is one" : "it is not");
+            }
+            r.failures++;
+        }
+    }
+
+    const ComboWothRecord* frozen = Combo_Woth_FrozenRecord();
+    r.recordAreas =
+        Combo_WothRecord_Count(frozen, (uint8_t)GAME_OOT) + Combo_WothRecord_Count(frozen, (uint8_t)GAME_MM);
+    if (claims) {
+        ComboWothRecord rebuilt;
+        (void)Combo_Woth_BuildRecord(&rebuilt, nullptr);
+        if (memcmp(&rebuilt, frozen, sizeof(rebuilt)) != 0) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL: the frozen Way of the Hero record is not the pair's set's areas (P8b)\n");
+            r.failures++;
+        }
+        if (!Combo_WothRecord_Present(frozen) || r.recordAreas == 0) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL: the paired world froze %d Way of the Hero area(s) from %d required host(s): "
+                    "the WotH lock is vacuous (P8b)\n",
+                    r.recordAreas, r.required);
+            r.failures++;
+        }
+    } else if (Combo_WothRecord_Present(frozen) || r.candidates != 0) {
+        fprintf(stderr, "[rando-hints] FAIL: No Logic proved nothing, yet the world claims a Way of the Hero (P8b)\n");
+        r.failures++;
+    }
+
+    for (int h = RH_NONE + 1; h < RH_MAX; h++) {
+        Rando::Hint* hint = ctx->GetHint(static_cast<RandomizerHint>(h));
+        if (hint == nullptr || !hint->IsEnabled() || hint->GetHintType() != HINT_TYPE_WOTH) {
+            continue;
+        }
+        r.wothHints++;
+        const std::vector<RandomizerArea> areas = hint->GetHintedAreas();
+        const std::vector<uint8_t> foreign = hint->GetForeignAreas();
+        const std::string english = hint->GetHintMessage(MF_CLEAN, 0).GetEnglish(MF_CLEAN);
+        for (size_t ai = 0; ai < areas.size(); ai++) {
+            bool ok = false;
+            if (areas[ai] == RA_TERMINA) {
+                r.foreignWothHints++;
+                const ComboArea mm = { (uint8_t)GAME_MM, ai < foreign.size() ? foreign[ai] : (uint8_t)COMBO_AREA_NONE };
+                const char* name = Combo_Area_Name(mm);
+                ok = Combo_WothRecord_Has(frozen, mm) && name != nullptr && mm.area != COMBO_AREA_NONE &&
+                     english.find(name) != std::string::npos;
+            } else {
+                ok = areas[ai] >= RA_KOKIRI_FOREST && areas[ai] <= RA_GANONS_CASTLE && flaggedArea[areas[ai]];
+            }
+            fprintf(stderr, "[rando-hints] WotH hint %d: \"%s\" (%s) (P8c)\n", h, english.c_str(),
+                    ok ? "on the path" : "NOT on the path");
+            if (!ok) {
+                r.failures++;
+            }
+        }
+    }
+    return r;
+}
 #endif
 
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -1012,9 +1122,10 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
         const std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
         const std::vector<RandomizerArea> hintedAreas = hint->GetHintedAreas();
 #ifdef RSBS_SINGLE_EXECUTABLE
-        if (pairedWorld) {
+        if (pairedWorld && hintType != HINT_TYPE_WOTH) {
             // (P6) each Termina slot names the area of its own item's first MM host;
-            // any other slot names none.
+            // any other slot names none. #1439: a WotH hint's Termina slot names an
+            // MM area on the pair's Way of the Hero, not an item's host: P8 checks it.
             failures += CheckForeignAreaSlots(hintName, hintedAreas, hint->GetForeignAreas(),
                                               TerminaSlotItemsOf(hintKey, *hint), &terminaSlots);
         }
@@ -1023,7 +1134,10 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
             const RandomizerCheck hintedCheck = hintedLocations[li];
             if (pairedWorld) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-                if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
+                // #1439: a WotH hint names a crossing host's AREA ("... is on the way
+                // of the hero"), never an item, so P1's crossed-item text does not
+                // apply to it: P8 checks that its area is on the pair's path.
+                if (hintType != HINT_TYPE_WOTH && OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
                     hostHints++;
                     failures += CheckCrossingHostHint(hintName, *hint, li, (uint16_t)hintedCheck);
                 }
@@ -1205,6 +1319,18 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
         if (foolishCheck.foolishHints == 0) {
             fprintf(stderr, "[rando-hints] the pinned seed drew no Foolish hint; P7's hint half is vacuous (its "
                             "candidate half is not)\n");
+        }
+        const WothCheckResult wothCheck = CheckPairedWoth(ctx);
+        failures += wothCheck.failures;
+        fprintf(stderr,
+                "[rando-hints] paired world: %d host(s) on the Way of the Hero (%d in OoT), %d OoT WotH candidate(s), "
+                "%d area(s) in the frozen record, %d WotH hint(s) drawn, %d naming an MM area (P8)\n",
+                wothCheck.required, wothCheck.ootRequired, wothCheck.candidates, wothCheck.recordAreas,
+                wothCheck.wothHints, wothCheck.foreignWothHints);
+        if (wothCheck.wothHints == 0 || wothCheck.foreignWothHints == 0) {
+            fprintf(stderr, "[rando-hints] the pinned seed drew no WotH hint%s; P8's hint half is %svacuous (its "
+                            "candidate and record halves are not)\n",
+                    wothCheck.wothHints == 0 ? "" : " naming an MM area", wothCheck.wothHints == 0 ? "" : "partly ");
         }
         fprintf(stderr,
                 "[rando-hints] paired world: %d crossing hosts in OoT (each hintable), %d OoT items in MM, "

@@ -208,6 +208,11 @@ set(REDSHIP_COMMON_SOURCES
     # renewable-host source, and the rule the coordinator and both games' own
     # passes apply. Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.c
+    # #1439: the pair-level Way of the Hero (OoTMM's `woth` hint bucket): the
+    # required-set analysis the single-bag fill runs once the world is proved,
+    # and the frozen area record Majora's Mask's stones read. Game-header-free.
+    # APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -267,6 +272,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/crossing_store.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_woth.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -652,6 +658,14 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1439: the pair-level Way of the Hero (OoTMM's `woth` bucket): over the
+    # coordinator's stub engines, the analysis names exactly the hosts each paired
+    # goal cannot do without, in either game; the frozen area record is a creation
+    # record; MM's free stone and OoT's foreign WotH hint name both games' areas in
+    # their own words; MM's hints default on; and the generated-world wiring is
+    # checked from source (RSBS_SOURCE_DIR). The generated half is ComboSingleBag
+    # D2's P8 (rando tier).
+    redship_add_test(NAME WothHints COMMAND redship --test woth-hints)
     # #1047: what MM decides while you play is a pure function of the frozen world.
     # A free stone's seed was a float sum converted to uint32_t (undefined when
     # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup

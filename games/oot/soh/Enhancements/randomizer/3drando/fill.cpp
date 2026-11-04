@@ -1305,8 +1305,9 @@ void ClearProgress() {
  * still empty. Then the tail the native Fill() runs after its general pass,
  * minus the playthrough (see the seam in Fill()).
  */
-// HintAreaOoT.cpp (#575 H5a)
+// HintAreaOoT.cpp (#575 H5a; #1439)
 extern "C" int OoT_HintArea_MarkPairedFoolish(void);
+extern "C" int OoT_HintArea_MarkPairedWoth(void);
 
 int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool) {
     auto ctx = Rando::Context::GetInstance();
@@ -1315,6 +1316,9 @@ int RsbsFinishPairedGeneralPass(std::vector<RandomizerGet>& remainingPool) {
     FastFill(traps, GetAllEmptyLocations(), true);
     FastFill(remainingPool, GetAllEmptyLocations(), false);
     remainingPool.clear();
+    // #1439: the WotH flags, from the pair's Way of the Hero (HintAreaOoT.cpp),
+    // so the WotH hint entry has candidates again.
+    OoT_HintArea_MarkPairedWoth();
     // #575 H5a: the barren flags the native tail's CalculateBarren would set
     // (HintAreaOoT.cpp), so the Foolish hint entry has candidates again.
     OoT_HintArea_MarkPairedFoolish();

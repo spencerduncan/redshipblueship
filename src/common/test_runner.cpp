@@ -1005,6 +1005,10 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // registered sources and over the stub engines above (whose fixture it reuses, so
 // it is included after them). ROM-free; FILE SCOPE (compiled as C++).
 #include "tests/test_critical_renewables.c"
+// #1439: the pair-level Way of the Hero over the stub engines above, both games'
+// stones naming it, and MM's hints on by default. FILE SCOPE, after
+// test_combo_logic.c, whose fixture it drives.
+#include "tests/test_woth_hints.c"
 
 // #605: the curated-archive GENERATOR's raw-segmented-texture admission guard.
 // FILE SCOPE (compiled as C++): unlike test_crossgame_model.c, this drives
@@ -8503,6 +8507,11 @@ const TestDescriptor gTests[] = {
       Test_ForeignHostGossipHint },
     // #575 H5a: MM's free stone names a foolish area, in MM's voice.
     { "mm-foolish-stone-hint", "MM's free gossip stone names a foolish area (#575 H5a)", Test_MmFoolishStoneHint },
+    // #1439: the pair-level Way of the Hero, both games' stones, MM's hints on.
+    { "woth-hints",
+      "The pair's Way of the Hero is the hosts its goal cannot do without in either game, both games' stones name "
+      "it, and MM's hints default on (#1439)",
+      Test_WothHints },
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
