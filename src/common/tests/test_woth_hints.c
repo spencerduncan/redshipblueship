@@ -74,6 +74,7 @@
 
 #include "../combo_area.h"
 #include "../combo_logic.h"
+#include "../combo_mm_options_page.h"
 #include "../combo_mm_options_view.h"
 #include "../combo_woth.h"
 #include "../context.h"
@@ -122,6 +123,10 @@ bool WhCheckDefaults() {
         { "RO_HINTS_GOSSIP_STONES", 1 }, { "RO_HINTS_SPIDER_HOUSES", 1 }, { "RO_HINTS_HOOKSHOT", 1 },
         { "RO_HINTS_BOSS_REMAINS", 1 },  { "RO_HINTS_OATH_TO_ORDER", 1 }, { "RO_HINTS_PURCHASEABLE", 0 },
     };
+    // MM publishes its descriptor table from Combo_MMOptionsPages_Init, never from a
+    // file-scope registrar (OptionsUiSingleExe.cpp), so a ROM-free row brings it up
+    // itself, as combo-mm-options-page does. Idempotent.
+    Combo_MMOptionsPages_Init();
     WH_ASSERT(Combo_MMOptionCount() > 0, "A: MM's option table did not register, so no default can be read");
     for (const Want& w : wants) {
         const ComboMMOptionDesc* found = nullptr;
