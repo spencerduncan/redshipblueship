@@ -150,6 +150,12 @@ static bool comboRuleSharedMaskBlast;      // #979: the item rules' RSBS_XITEM_S
 static int32_t comboRuleBlastMaskCooldown; // #979: the item rules' cooldown byte (RSBS_BLAST_COOLDOWN_*)
 static bool comboRuleStoneMaskOoT;         // #979: the item rules' RSBS_XITEM_STONE_MASK_OOT bit
 static bool comboRuleSharedMaskStone;      // #979: the item rules' RSBS_XITEM_SHARED_STONE bit
+static bool comboRuleGerudoMaskMM;         // #980: the item rules' RSBS_XITEM_GERUDO_MASK_MM bit
+static bool comboRuleSkullMaskMM;          // #980: the item rules' RSBS_XITEM_SKULL_MASK_MM bit
+static bool comboRuleSpookyMaskMM;         // #980: the item rules' RSBS_XITEM_SPOOKY_MASK_MM bit
+static bool comboRuleSharedMaskGerudo;     // #980: the item rules' RSBS_XITEM_SHARED_GERUDO bit
+static bool comboRuleSharedMaskSkull;      // #980: the item rules' RSBS_XITEM_SHARED_SKULL bit
+static bool comboRuleSharedMaskSpooky;     // #980: the item rules' RSBS_XITEM_SHARED_SPOOKY bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -1077,10 +1083,11 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "and the Progressive Scale then gives the Silver and Golden Scales only. It does nothing when neither "
             "game shuffles swim."));
 
-    // ---- Cross-Game Masks (#979, epic #975 P4) ------------------------------
+    // ---- Cross-Game Masks (#979, epic #975 P4; #980, P5) ---------------------
     // OoTMM's own section after Shared Items (Items > Extended Items >
     // Cross-Game Masks), in its order: the masks added to Ocarina of Time (the
-    // Blast Mask, then the Stone Mask), then their shared variants in the same
+    // Blast Mask, then the Stone Mask), the masks added to Majora's Mask (the
+    // Gerudo, Skull and Spooky Masks, #980), then their shared variants in the same
     // order, each of which OoTMM shows only while its mask is on (here: the row is
     // greyed with that reason, and the resolver drops it). Then OoTMM's
     // blastMaskCooldown, which OoTMM lists under Main > Misc but which is the
@@ -1116,6 +1123,52 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Adds Majora's Mask's Stone Mask to Ocarina of Time as a child trade mask. While a child wears it, most "
             "enemies and the Gerudo and castle guards do not notice you. Ocarina of Time's logic counts it for "
             "getting past Big Skulltulas and the Gerudo guards."));
+    // #980 (epic #975 P5): Ocarina of Time's masks added to Majora's Mask, OoTMM's
+    // gerudoMaskMm, skullMaskMm and spookyMaskMm, after the masks added to OoT.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_GERUDO_MASK_MM), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleGerudoMaskMM)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleGerudoMaskMM = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_GERUDO_MASK_MM)
+                                            : Combo_ComboSettingResolved(COMBO_SETTING_GERUDO_MASK_MM) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_GERUDO_MASK_MM, comboRuleGerudoMaskMM ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Adds Ocarina of Time's Gerudo Mask to Majora's Mask. It shares the Stone Mask's slot on the mask "
+            "screen. Worn in human form, the purple Gerudo guards in Pirates' Fortress do not notice you, as with "
+            "the Stone Mask, and Majora's Mask's logic counts it for getting past them."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SKULL_MASK_MM), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSkullMaskMM)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSkullMaskMM = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SKULL_MASK_MM)
+                                           : Combo_ComboSettingResolved(COMBO_SETTING_SKULL_MASK_MM) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback(
+            [](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_SKULL_MASK_MM, comboRuleSkullMaskMM ? 1 : 0); })
+        .Options(CheckboxOptions().Tooltip(
+            "Adds Ocarina of Time's Skull Mask to Majora's Mask. It shares the Stone Mask's slot on the mask "
+            "screen. Worn in human form, the Deku Palace guards let you in as if you were a Deku, and Keese, Guays "
+            "and Bad Bats ignore you. Majora's Mask's logic counts it for entering the Deku Palace."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SPOOKY_MASK_MM), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSpookyMaskMM)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSpookyMaskMM = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SPOOKY_MASK_MM)
+                                            : Combo_ComboSettingResolved(COMBO_SETTING_SPOOKY_MASK_MM) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SPOOKY_MASK_MM, comboRuleSpookyMaskMM ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Adds Ocarina of Time's Spooky Mask to Majora's Mask. It shares the Gibdo Mask's slot on the mask "
+            "screen. Worn in human form at night, it works like the Gibdo Mask, and Majora's Mask's logic counts it "
+            "for the Gibdos at night."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BLAST), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedMaskBlast)
         .PreFunc([](WidgetInfo& info) {
@@ -1160,6 +1213,70 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(CheckboxOptions().Tooltip(
             "Makes the Stone Mask one item across both games: finding it in either game gives it to you in the "
             "other. Only one Stone Mask is shuffled, and both games' logic counts it. Needs Stone Mask (OoT)."));
+    // #980: OoTMM's sharedMaskGerudo, sharedMaskSkull and sharedMaskSpooky, after the
+    // shared variants of the masks added to OoT, each greyed while its mask in MM is off.
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_GERUDO), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskGerudo)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskGerudo = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_GERUDO)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_GERUDO) != 0;
+            if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_GERUDO_MASK_MM) == 0) {
+                // Shows off, the value the resolver freezes without the extension
+                // (Combo_ResolveComboItemRules drops the bit); the key keeps its value
+                // for when the extension comes back on.
+                comboRuleSharedMaskGerudo = false;
+                info.options->disabled = true;
+                info.options->disabledTooltip = "This setting is disabled because: \n\n- Gerudo Mask (MM) Is Off";
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GERUDO, comboRuleSharedMaskGerudo ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Gerudo Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Gerudo Mask is shuffled, and both games' logic counts it. Needs Gerudo Mask (MM)."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_SKULL), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskSkull)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskSkull = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SKULL)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_SKULL) != 0;
+            if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_SKULL_MASK_MM) == 0) {
+                // Shows off, the value the resolver freezes without the extension.
+                comboRuleSharedMaskSkull = false;
+                info.options->disabled = true;
+                info.options->disabledTooltip = "This setting is disabled because: \n\n- Skull Mask (MM) Is Off";
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_SKULL, comboRuleSharedMaskSkull ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Skull Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Skull Mask is shuffled, and both games' logic counts it. Needs Skull Mask (MM)."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_SPOOKY), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskSpooky)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskSpooky = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_SPOOKY)
+                                                : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_SPOOKY) != 0;
+            if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_SPOOKY_MASK_MM) == 0) {
+                // Shows off, the value the resolver freezes without the extension.
+                comboRuleSharedMaskSpooky = false;
+                info.options->disabled = true;
+                info.options->disabledTooltip = "This setting is disabled because: \n\n- Spooky Mask (MM) Is Off";
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_SPOOKY, comboRuleSharedMaskSpooky ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Spooky Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Spooky Mask is shuffled, and both games' logic counts it. Needs Spooky Mask (MM)."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_BLAST_MASK_COOLDOWN), WIDGET_COMBOBOX)
         .ValuePointer(&comboRuleBlastMaskCooldown)
         .PreFunc([](WidgetInfo& info) {

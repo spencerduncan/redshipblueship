@@ -228,7 +228,7 @@ so its own golden row is where its creation inside the budget is checked.
 ### The all-masks profile (#978)
 
 `seed-digest-all-masks` is `seed-digest-default`'s seed and dispatch with **every
-mask option on**. Today that means nine keys:
+mask option on**. Today that means fifteen keys:
 
 * the five shared masks of P2 (#978): `gCombo.Rando.SharedMaskGoron`,
   `SharedMaskZora`, `SharedMaskBunny`, `SharedMaskKeaton` and `SharedMaskTruth`,
@@ -238,7 +238,21 @@ mask option on**. Today that means nine keys:
   (`sharedMaskBlast`, which pairs it with Majora's Mask's copy);
 * P4's second piece (#979): `gCombo.Rando.StoneMaskOoT` (OoTMM's `stoneMaskOot`,
   which adds the Stone Mask to OoT's pool) and `gCombo.Rando.SharedMaskStone`
-  (`sharedMaskStone`, which pairs it with Majora's Mask's copy).
+  (`sharedMaskStone`, which pairs it with Majora's Mask's copy);
+* P5 (#980): `gCombo.Rando.GerudoMaskMM`, `SkullMaskMM` and `SpookyMaskMM`
+  (OoTMM's `gerudoMaskMm`, `skullMaskMm` and `spookyMaskMm`, which add Ocarina of
+  Time's Gerudo, Skull and Spooky Masks to Majora's Mask's pool as
+  `RI_MASK_GERUDO`, `RI_MASK_SKULL` and `RI_MASK_SPOOKY`) and
+  `gCombo.Rando.SharedMaskGerudo`, `SharedMaskSkull` and `SharedMaskSpooky`
+  (`sharedMaskGerudo`, `sharedMaskSkull`, `sharedMaskSpooky`, which pair each
+  with OoT's own copy). The profile freezes `crossItemFlags` `0001DF7F`, which
+  `GoldenSeedsRoundBudget`'s all-masks entry requires.
+
+#980 re-pins this golden only: with the three MM rules and their shared pairs on,
+MM's pool gains three masks and the bag three more shared pairs (ten in all), so
+`comboSettingsHash`, MM's placements, the bag's rows, seed and rounds, the
+crossings and the hint digests move. Every other golden leaves the rules off,
+builds the pools it always did and does not move.
 
 In this world the composer pairs each mask's two copies into one bag row (ABI 7).
 The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's

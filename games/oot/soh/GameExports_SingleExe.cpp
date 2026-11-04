@@ -3738,6 +3738,16 @@ struct OoTSharedFamilyRegistrar {
         const ComboSharedFamilyMember maskStone = { (uint16_t)RG_STONE_MASK, OoT_SharedStoneMaskHeld,
                                                     OoT_SharedStoneMaskGive }; // #979
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_STONE, &maskStone);
+        // #980: the Shared Gerudo, Skull and Spooky Masks (OoTMM sharedMaskGerudo,
+        // sharedMaskSkull, sharedMaskSpooky): OoT's own three masks, owned and given
+        // as the eight masks are, each paired with the copy Majora's Mask gains
+        // under its mask's (MM) rule (MM's OoTMasksMM.cpp registers that half).
+        const ComboSharedFamilyMember maskGerudo = { (uint16_t)RG_GERUDO_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_GERUDO, &maskGerudo);
+        const ComboSharedFamilyMember maskSkull = { (uint16_t)RG_SKULL_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SKULL, &maskSkull);
+        const ComboSharedFamilyMember maskSpooky = { (uint16_t)RG_SPOOKY_MASK, OoT_SharedMaskHeld, OoT_SharedMaskGive };
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_SPOOKY, &maskSpooky);
     }
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;

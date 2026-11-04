@@ -72,6 +72,14 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     // #979: OoTMM's stoneMaskOot and sharedMaskStone, under OoTMM's own names.
     { RSBS_CVAR_COMBO_RANDO_STONE_MASK_OOT, "Stone Mask (OoT)" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_STONE, "Shared Stone Mask" },
+    // #980: OoTMM's gerudoMaskMm, skullMaskMm, spookyMaskMm and their shared
+    // variants, under OoTMM's own names.
+    { RSBS_CVAR_COMBO_RANDO_GERUDO_MASK_MM, "Gerudo Mask (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SKULL_MASK_MM, "Skull Mask (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SPOOKY_MASK_MM, "Spooky Mask (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GERUDO, "Shared Gerudo Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SKULL, "Shared Skull Mask" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SPOOKY, "Shared Spooky Mask" },
 };
 
 bool ComboSettingIdValid(ComboSettingId id) {
@@ -105,8 +113,14 @@ const ItemRuleKey kItemRuleKeys[] = {
     { COMBO_SETTING_SHARED_SWIM, RSBS_XITEM_SHARED_SWIM },                       // #1369, shuffle-gated
     { COMBO_SETTING_BLAST_MASK_OOT, RSBS_XITEM_BLAST_MASK_OOT },                 // #979, an extension
     { COMBO_SETTING_STONE_MASK_OOT, RSBS_XITEM_STONE_MASK_OOT },                 // #979, an extension
+    { COMBO_SETTING_GERUDO_MASK_MM, RSBS_XITEM_GERUDO_MASK_MM },                 // #980, an extension
+    { COMBO_SETTING_SKULL_MASK_MM, RSBS_XITEM_SKULL_MASK_MM },                   // #980, an extension
+    { COMBO_SETTING_SPOOKY_MASK_MM, RSBS_XITEM_SPOOKY_MASK_MM },                 // #980, an extension
     { COMBO_SETTING_SHARED_MASK_BLAST, RSBS_XITEM_SHARED_BLAST },                // #979, needs the extension
     { COMBO_SETTING_SHARED_MASK_STONE, RSBS_XITEM_SHARED_STONE },                // #979, needs the extension
+    { COMBO_SETTING_SHARED_MASK_GERUDO, RSBS_XITEM_SHARED_GERUDO },              // #980, needs the extension
+    { COMBO_SETTING_SHARED_MASK_SKULL, RSBS_XITEM_SHARED_SKULL },                // #980, needs the extension
+    { COMBO_SETTING_SHARED_MASK_SPOOKY, RSBS_XITEM_SHARED_SPOOKY },              // #980, needs the extension
 };
 
 /** The item-rule bit @p id authors, or 0 for a setting of ComboSettingsRecord. */
@@ -167,8 +181,14 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
         case COMBO_SETTING_BLAST_MASK_OOT:         // #979
         case COMBO_SETTING_SHARED_MASK_BLAST:      // #979
         case COMBO_SETTING_STONE_MASK_OOT:         // #979, the Stone Mask
-        case COMBO_SETTING_SHARED_MASK_STONE: {    // #979, the Stone Mask
-            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978, #979),
+        case COMBO_SETTING_SHARED_MASK_STONE:      // #979, the Stone Mask
+        case COMBO_SETTING_GERUDO_MASK_MM:         // #980
+        case COMBO_SETTING_SKULL_MASK_MM:          // #980
+        case COMBO_SETTING_SPOOKY_MASK_MM:         // #980
+        case COMBO_SETTING_SHARED_MASK_GERUDO:     // #980
+        case COMBO_SETTING_SHARED_MASK_SKULL:      // #980
+        case COMBO_SETTING_SHARED_MASK_SPOOKY: {   // #980
+            // A bit of the item rules' defaults (#1068, #1065, #1066, #1067, #1069, #968, #970, #978, #979, #980),
             // the same one-definition rule: every rule ships off (Combo_ComboItemRulesDefaults).
             ComboItemRulesRecord rulesDefaults;
             Combo_ComboItemRulesDefaults(&rulesDefaults);
@@ -244,6 +264,12 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_MASK_BLAST:      // #979, the same
         case COMBO_SETTING_STONE_MASK_OOT:         // #979, the same
         case COMBO_SETTING_SHARED_MASK_STONE:      // #979, the same
+        case COMBO_SETTING_GERUDO_MASK_MM:         // #980, the same
+        case COMBO_SETTING_SKULL_MASK_MM:          // #980, the same
+        case COMBO_SETTING_SPOOKY_MASK_MM:         // #980, the same
+        case COMBO_SETTING_SHARED_MASK_GERUDO:     // #980, the same
+        case COMBO_SETTING_SHARED_MASK_SKULL:      // #980, the same
+        case COMBO_SETTING_SHARED_MASK_SPOOKY:     // #980, the same
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -483,8 +509,16 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SWIM },            // #1369
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_BLAST_MASK_OOT },         // #979
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_STONE_MASK_OOT },         // #979
-    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BLAST },      // #979
-    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_STONE },      // #979
+    // #980, in OoTMM's page order: the masks added to MM after those added to OoT,
+    // their shared variants after the OoT masks' shared variants.
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_GERUDO_MASK_MM },     // #980
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SKULL_MASK_MM },      // #980
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SPOOKY_MASK_MM },     // #980
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_BLAST },  // #979
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_STONE },  // #979
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_GERUDO }, // #980
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_SKULL },  // #980
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_SPOOKY }, // #980
     // #979: the cooldown BYTE has its own divergence bit and, since #979, a key.
     { RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN, COMBO_SETTING_BLAST_MASK_COOLDOWN },
 };
@@ -533,11 +567,17 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
         case COMBO_SETTING_SHARED_MASK_BUNNY:
         case COMBO_SETTING_SHARED_MASK_KEATON:
         case COMBO_SETTING_SHARED_MASK_TRUTH:
-        case COMBO_SETTING_SHARED_SWIM:       // #1369
-        case COMBO_SETTING_BLAST_MASK_OOT:    // #979
-        case COMBO_SETTING_SHARED_MASK_BLAST: // #979
-        case COMBO_SETTING_STONE_MASK_OOT:    // #979
-        case COMBO_SETTING_SHARED_MASK_STONE: // #979
+        case COMBO_SETTING_SHARED_SWIM:        // #1369
+        case COMBO_SETTING_BLAST_MASK_OOT:     // #979
+        case COMBO_SETTING_SHARED_MASK_BLAST:  // #979
+        case COMBO_SETTING_STONE_MASK_OOT:     // #979
+        case COMBO_SETTING_SHARED_MASK_STONE:  // #979
+        case COMBO_SETTING_GERUDO_MASK_MM:     // #980
+        case COMBO_SETTING_SKULL_MASK_MM:      // #980
+        case COMBO_SETTING_SPOOKY_MASK_MM:     // #980
+        case COMBO_SETTING_SHARED_MASK_GERUDO: // #980
+        case COMBO_SETTING_SHARED_MASK_SKULL:  // #980
+        case COMBO_SETTING_SHARED_MASK_SPOOKY: // #980
             // A bit of the file's item rules (NULL: every rule off).
             return (frozenRules != nullptr && (frozenRules->crossItemFlags & ItemRuleBitFor(id)) != 0u) ? 1 : 0;
         case COMBO_SETTING_BLAST_MASK_COOLDOWN:

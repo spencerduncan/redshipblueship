@@ -192,7 +192,13 @@ static RegisterShipInitFunc initFunc([]() {
             // has_mask_skull` (macros_mm.yml:194), and `has_mask_skull` is OoT's SKULL MASK (MASK_SKULL /
             // SHARED_MASK_SKULL, :192), not MM's Captain's Hat. That is a cross-game tricks-off route this
             // MM-only condition cannot name; it is not this key's, and is left alone.)
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #980: OoTMM's can_enter_deku_palace (`has_mask_deku || has_mask_skull`): under the Skull Mask (MM)
+            // rule the guards let a human wearing it in (Rando/OoTMasksMM.cpp).
+            CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || HAS_OOT_MASK(RI_MASK_SKULL) || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
+#else
             CONNECTION(RR_DEKU_PALACE_INSIDE_LOWER, CAN_BE_DEKU || MM_TRICK(MMRT_PALACE_GUARD_SKIP)),
+#endif
             CONNECTION(RR_DEKU_PALACE_INSIDE_UPPER_BEAN_SIDE, (CAN_BE_DEKU || (RANDO_EVENTS[RE_CLEARED_WOODFALL_TEMPLE] && CAN_TRAVERSE_WAIST_DEEP_WATER)) && CAN_USE_DAY2_RAIN_BEAN),
         },
     };

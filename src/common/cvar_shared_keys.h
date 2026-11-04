@@ -250,6 +250,18 @@
  * reserved by #976), folded into comboSettingsHash only when on. */
 #define RSBS_CVAR_COMBO_RANDO_STONE_MASK_OOT "gCombo.Rando.StoneMaskOoT"
 #define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_STONE "gCombo.Rando.SharedMaskStone"
+/* #980 (epic #975 P5): Ocarina of Time's Gerudo, Skull and Spooky Masks added to
+ * Majora's Mask (OoTMM gerudoMaskMm, skullMaskMm, spookyMaskMm) and each made one
+ * item for both games (OoTMM sharedMaskGerudo, sharedMaskSkull, sharedMaskSpooky,
+ * each of which requires its mask in MM). Boolean (0/1), DEFAULT 0 each. Bits of
+ * the same crossItemFlags (RSBS_XITEM_GERUDO_MASK_MM ... RSBS_XITEM_SHARED_SPOOKY,
+ * reserved by #976), folded into comboSettingsHash only when on. */
+#define RSBS_CVAR_COMBO_RANDO_GERUDO_MASK_MM "gCombo.Rando.GerudoMaskMM"
+#define RSBS_CVAR_COMBO_RANDO_SKULL_MASK_MM "gCombo.Rando.SkullMaskMM"
+#define RSBS_CVAR_COMBO_RANDO_SPOOKY_MASK_MM "gCombo.Rando.SpookyMaskMM"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GERUDO "gCombo.Rando.SharedMaskGerudo"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SKULL "gCombo.Rando.SharedMaskSkull"
+#define RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SPOOKY "gCombo.Rando.SharedMaskSpooky"
 
 /* The common-owned windows' visibility toggles (ADR 0008). PREFERENCE keys:
  * no identity role, live forever. Spelled here so the tier-4 manifest carries
@@ -1557,6 +1569,24 @@ inline constexpr ComboKey kComboKeys[] = {
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_STONE, ComboKeyClass::Identity,
       "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_STONE bit (#979): the two Stone Masks are ONE "
       "shared-pair family across both games; frozen only with the Stone Mask in OoT" },
+    { RSBS_CVAR_COMBO_RANDO_GERUDO_MASK_MM, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_GERUDO_MASK_MM bit (#980): Ocarina of Time's Gerudo Mask is "
+      "added to Majora's Mask's pool as an MM item" },
+    { RSBS_CVAR_COMBO_RANDO_SKULL_MASK_MM, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SKULL_MASK_MM bit (#980): Ocarina of Time's Skull Mask is "
+      "added to Majora's Mask's pool as an MM item" },
+    { RSBS_CVAR_COMBO_RANDO_SPOOKY_MASK_MM, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SPOOKY_MASK_MM bit (#980): Ocarina of Time's Spooky Mask is "
+      "added to Majora's Mask's pool as an MM item" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_GERUDO, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_GERUDO bit (#980): the two Gerudo Masks are ONE "
+      "shared-pair family across both games; frozen only with the Gerudo Mask in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SKULL, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SKULL bit (#980): the two Skull Masks are ONE "
+      "shared-pair family across both games; frozen only with the Skull Mask in MM" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_SPOOKY, ComboKeyClass::Identity,
+      "ComboItemRulesRecord.crossItemFlags' RSBS_XITEM_SHARED_SPOOKY bit (#980): the two Spooky Masks are ONE "
+      "shared-pair family across both games; frozen only with the Spooky Mask in MM" },
     // ---- gCombo.Windows.*: the common-owned windows' visibility (ADR 0008).
     //      All PREFERENCE: whether a pane is open says nothing about a world.
     { RSBS_CVAR_COMBO_WINDOW_SPOILER, ComboKeyClass::Preference, "cross-game spoiler window visibility (#496)" },
@@ -2030,7 +2060,7 @@ static_assert(kDisputedClassificationKeyCount == 0,
               "kSharedIntentKeys by #454");
 
 inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kComboKeys[0]);
-// Twenty-seven identity keys (the five of ADR 0011 increment 2 less the two pool sizes
+// Thirty-three identity keys (the five of ADR 0011 increment 2 less the two pool sizes
 // #801 and the two item classes #834 retired, Goal (ADR 0010 D1), Logic (#1367),
 // TriforcePieces and TriforceGoal (#1389),
 // SharedKokiriSword (#886), SharedShields (#1068), SharedLens (#1065),
@@ -2038,8 +2068,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // SharedSongTime (#1069), SharedArrowFire, SharedArrowIce and SharedArrowLight (#968), SharedBottles
 // (#970), SharedMaskGoron, SharedMaskZora, SharedMaskBunny, SharedMaskKeaton and
 // SharedMaskTruth (#978), SharedSwim (#1369), BlastMaskOoT, SharedMaskBlast,
-// BlastMaskCooldown, StoneMaskOoT and SharedMaskStone (#979); #879 retired
-// SharedOcarina (#668)) + four
+// BlastMaskCooldown, StoneMaskOoT and SharedMaskStone (#979), GerudoMaskMM,
+// SkullMaskMM, SpookyMaskMM, SharedMaskGerudo, SharedMaskSkull and
+// SharedMaskSpooky (#980); #879 retired SharedOcarina (#668)) + four
 // window-visibility preferences (the MM randomizer options window's left with
 // it on 2026-09-27, when the options became Combo pages; #458 U0 added the
 // unified item tracker overlay's) + twelve gCombo.Tracker.Items.* preferences
@@ -2050,9 +2081,9 @@ inline constexpr std::size_t kComboKeyCount = sizeof(kComboKeys) / sizeof(kCombo
 // Checks checkbox's visibility).
 // Pinning the count makes a silently dropped row a compile error; the lock's
 // tree scan makes a silently ADDED key a red test.
-static_assert(kComboKeyCount == 47, "twenty-seven gCombo.Rando.* identity keys + four gCombo.Windows.* "
+static_assert(kComboKeyCount == 53, "thirty-three gCombo.Rando.* identity keys + four gCombo.Windows.* "
                                     "preferences + twelve gCombo.Tracker.Items.* preferences + four "
-                                    "gCombo.Tracker.Checks.* preferences = 47");
+                                    "gCombo.Tracker.Checks.* preferences = 53");
 static_assert(kComboRetiredKeyCount == 5, "#1141: the Item Tracker overlay's five twins of SoH's keys");
 
 // #682's curated allowlist was exactly the four keys that issue named; #693 adds

@@ -2520,8 +2520,9 @@ TestResult Test_CVarClassification(void) {
             // Shared Swim and #979's Blast Mask (OoT) and Shared Blast Mask, bits
             // of the sibling frozen item rules, and #979's Blast Mask Cooldown,
             // that record's cooldown byte, and #979's Stone Mask (OoT) and Shared
-            // Stone Mask, two more bits. #668's shared ocarina was a third until
-            // #879 retired it.
+            // Stone Mask, two more bits, and #980's Gerudo, Skull and Spooky Masks
+            // (MM) and their shared variants, six more. #668's shared ocarina was a
+            // third until #879 retired it.
             std::size_t identityKeys = 0;
             for (std::size_t k = 0; k < RSBS::kComboKeyCount; k++) {
                 if (strncmp(RSBS::kComboKeys[k].key, RSBS::kComboIdentityKeyPrefix,
@@ -2532,8 +2533,8 @@ TestResult Test_CVarClassification(void) {
                     identityKeys++;
                 }
             }
-            CVARCLASS_CHECK(identityKeys == 27,
-                            "exactly twenty-seven tier-4 identity keys (direction — ADR 0011 increment 2, whose two "
+            CVARCLASS_CHECK(identityKeys == 33,
+                            "exactly thirty-three tier-4 identity keys (direction — ADR 0011 increment 2, whose two "
                             "pool "
                             "sizes #801 and two item classes #834 retired —, the goal, ADR 0010 D1, [Both Games] "
                             "Logic, #1367, [Both Games] Triforce Pieces and Triforce Goal, #1389, the Shared "
@@ -2542,7 +2543,8 @@ TestResult Test_CVarClassification(void) {
                             "Shared Song of Time, #1069, Shared Fire, Ice and Light Arrows, #968, the Shared Bottles, "
                             "#970, the five shared masks, #978, the Shared Swim, #1369, and the Blast Mask (OoT), "
                             "the Shared Blast Mask, the Blast Mask Cooldown, the Stone Mask (OoT) and the Shared "
-                            "Stone Mask, #979; #879 retired #668's shared ocarina)");
+                            "Stone Mask, #979, the Gerudo, Skull and Spooky Masks (MM) and their shared variants, "
+                            "#980; #879 retired #668's shared ocarina)");
             printf("[TEST]   tier-4 namespace: %zu literal(s) across %zu files, all %zu manifest rows spelled, "
                    "%zu identity\n",
                    literalsSeen, comboFiles.size(), RSBS::kComboKeyCount, identityKeys);

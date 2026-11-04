@@ -131,6 +131,21 @@ bool NativeOwned(uint8_t slot) {
     return INV_CONTENT(item) == item;
 }
 
+/** The mask-page cell (0-based) a shared slot's own mask sits in. */
+int CellOfSlot(uint8_t slot) {
+    return (int)SLOT(NativeItemOfSlot(slot)) - ITEM_NUM_SLOTS;
+}
+
+/** The shared slot whose own mask sits in mask-page cell `cell`, or SLOT_NONE. */
+uint8_t SlotForCell(int cell) {
+    for (uint8_t slot = COMBO_FOREIGN_MASK_SLOT_MM_STONE; slot < COMBO_FOREIGN_MASK_SLOT_COUNT; slot++) {
+        if (CellOfSlot(slot) == cell) {
+            return slot;
+        }
+    }
+    return COMBO_FOREIGN_MASK_SLOT_NONE;
+}
+
 } // namespace
 
 extern "C" uint8_t MM_ForeignMask_Worn(void) {
@@ -174,29 +189,65 @@ extern "C" void MM_ForeignMask_ApplyRules(Player* player) {
     }
 }
 
-/** A shared slot's chosen variant, sanitized: an owned OoT mask sharing it, or NONE (the slot's own mask). */
+/**
+ * A shared slot's chosen variant, sanitized: an owned OoT mask sharing it, or NONE
+ * (the slot's own mask). The choice is the state byte's low nibble (#980, P5: the
+ * high nibble is MM's ownership of the slot's OoT masks). When the slot's own mask
+ * is not owned, NONE is no choice at all, so the slot reads as its first owned OoT
+ * mask (#980: the cell an owned OoT mask shows while its slot's own mask is not
+ * owned).
+ */
 extern "C" uint8_t MM_ForeignMask_SlotSelection(uint8_t slot) {
     if (slot == COMBO_FOREIGN_MASK_SLOT_NONE || slot >= COMBO_FOREIGN_MASK_SLOT_COUNT) {
         return COMBO_FOREIGN_MASK_NONE;
     }
-    const uint8_t sel = RandoSave().foreignMaskSlotSel[slot - 1];
+    const uint8_t sel = Combo_ForeignMask_SlotByteSelection(RandoSave().foreignMaskSlotSel[slot - 1]);
     const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(sel);
     if (info == nullptr || info->host != GAME_MM || info->mmSharedSlot != slot ||
         !Combo_ForeignMask_Owned(GAME_MM, sel)) {
+        if (!NativeOwned(slot)) {
+            uint8_t variants[COMBO_FOREIGN_MASK_SLOT_MAX_VARIANTS];
+            if (Combo_ForeignMask_SlotVariants(slot, 0, variants, COMBO_FOREIGN_MASK_SLOT_MAX_VARIANTS) > 0) {
+                return variants[0];
+            }
+        }
         return COMBO_FOREIGN_MASK_NONE;
     }
     return sel;
 }
 
-/** Cycle a shared slot's variant (dir > 0 forward). 1 when it changed. */
+/** Cycle a shared slot's variant (dir > 0 forward). 1 when it changed. The
+ *  state byte's owned bits are kept (#980). */
 extern "C" int MM_ForeignMask_CycleSlot(uint8_t slot, int dir) {
     if (slot == COMBO_FOREIGN_MASK_SLOT_NONE || slot >= COMBO_FOREIGN_MASK_SLOT_COUNT) {
         return 0;
     }
     const uint8_t current = MM_ForeignMask_SlotSelection(slot);
     const uint8_t next = Combo_ForeignMask_SlotCycle(slot, current, NativeOwned(slot) ? 1 : 0, dir);
-    RandoSave().foreignMaskSlotSel[slot - 1] = next;
+    uint8_t& state = RandoSave().foreignMaskSlotSel[slot - 1];
+    state = Combo_ForeignMask_SlotByteWithSelection(state, next);
     return next != current;
+}
+
+/**
+ * #980: the item mask-page cell `maskSlot` (0-based) shows, whose inventory
+ * holds `stored`. A shared slot's cell whose own mask is not owned holds
+ * ITEM_NONE in the inventory; while MM owns an OoT mask sharing it, the cell
+ * answers the slot's own ItemId so the page draws, selects and equips it like
+ * any cell, and every use of it goes to the owned OoT mask
+ * (MM_ForeignMask_OnEquipNative). The inventory itself is never written: the
+ * slot's own mask stays unowned to the logic, the shared families and the save.
+ * Called by z_kaleido_mask.c.
+ */
+extern "C" uint8_t MM_ForeignMask_PageCellItem(int maskSlot, uint8_t stored) {
+    if (stored != (uint8_t)ITEM_NONE) {
+        return stored;
+    }
+    const uint8_t slot = SlotForCell(maskSlot);
+    if (slot == COMBO_FOREIGN_MASK_SLOT_NONE || MM_ForeignMask_SlotSelection(slot) == COMBO_FOREIGN_MASK_NONE) {
+        return stored;
+    }
+    return (uint8_t)NativeItemOfSlot(slot);
 }
 
 /** How many variants a shared slot cycles through (1 or 0: no cycling). */
@@ -212,9 +263,13 @@ extern "C" int MM_ForeignMask_SlotVariantCount(uint8_t slot) {
  * is used instead and this answers 1 (the vanilla equip must not run); else 0.
  */
 extern "C" int MM_ForeignMask_OnEquipNative(Player* player, int maskId) {
-    const uint8_t sel = MM_ForeignMask_SlotSelection(SlotForMask(maskId));
+    const uint8_t slot = SlotForMask(maskId);
+    const uint8_t sel = MM_ForeignMask_SlotSelection(slot);
     if (sel == COMBO_FOREIGN_MASK_NONE) {
-        return 0;
+        // #980: a C button that names a shared slot's own mask MM does not own (the
+        // cell an OoT mask showed, MM_ForeignMask_PageCellItem) puts nothing on,
+        // never the unowned mask.
+        return (slot != COMBO_FOREIGN_MASK_SLOT_NONE && !NativeOwned(slot)) ? 1 : 0;
     }
     MM_ForeignMask_Use(player, sel);
     return 1;
@@ -229,7 +284,9 @@ extern "C" const char* MM_ForeignMask_PageIcon(int maskSlot, const char* nativeI
     if (maskSlot < 0 || maskSlot >= MASK_NUM_SLOTS) {
         return nativeIcon;
     }
-    const uint8_t slot = SlotForItem(gSaveContext.save.saveInfo.inventory.items[maskSlot + ITEM_NUM_SLOTS]);
+    // #980: the cell's slot by position, so a cell whose own mask is not owned
+    // (MM_ForeignMask_PageCellItem) shows its OoT mask too.
+    const uint8_t slot = SlotForCell(maskSlot);
     const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(MM_ForeignMask_SlotSelection(slot));
     if (info == nullptr || !PathMounted(info->icon)) {
         return nativeIcon;

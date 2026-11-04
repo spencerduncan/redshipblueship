@@ -1155,6 +1155,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // Blast Mask, the shared pair, OoT's logic and the update seam
 // (stone-mask-oot-items). FILE SCOPE (compiled as C++), after the Blast Mask's.
 #include "tests/test_stone_mask_oot.c"
+// Ocarina of Time's Gerudo, Skull and Spooky Masks in Majora's Mask (#980, epic
+// #975 P5): their six Cross-Game Rules keys and the record's round trip
+// (oot-masks-mm-rule), then the appended MM ids, the give and the owned bits,
+// rule-gated ownership, the shared pairs, the wear path and the actor seam
+// (oot-masks-mm-items). FILE SCOPE (compiled as C++), after the Stone Mask's.
+#include "tests/test_oot_masks_mm.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -7533,6 +7539,21 @@ TestResult Test_StoneMaskOoTRule(void) {
     return StoneMaskOoTRule_Run();
 }
 
+// #980: the Gerudo, Skull and Spooky Masks (MM)'s Cross-Game Rules rows, the Blast
+// Mask's bring-up.
+TestResult Test_OoTMasksMMRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoTMasksMMRule_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -8016,6 +8037,15 @@ TestResult Test_MMLogicGates(void) {
         return TEST_FAIL;
     }
     return MM_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+// #980: Ocarina of Time's masks in MM's logic (games/mm/2s2h/mm_oot_masks_test.cpp),
+// over MM's real region lambdas. Same bring-up as mm-logic-gates.
+extern "C" int MM_OoTMasksLogic_RunHeadless(void);
+TestResult Test_OoTMasksMMLogic(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return MM_OoTMasksLogic_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 // #1428: OoT's goal gates at OoTMM's defaults on one paired creation save, Triforce
 // Hunt's override of Ganon's Boss Key and a stored world's own gates. Same bring-up
@@ -9525,6 +9555,11 @@ const TestDescriptor gTests[] = {
       "Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder broken on Day 1, and the "
       "Circus Leader's Mask needs Romani's Mask (#1168)",
       Test_MMLogicGates },
+    // #980. Skipped by `--test all` below like its siblings.
+    { "oot-masks-mm-logic",
+      "Under their frozen rules the Skull Mask opens the Deku Palace, the Gerudo Mask gets past the purple guard, "
+      "and the Spooky Mask passes the Gibdos at night only, in MM's real logic (#980)",
+      Test_OoTMasksMMLogic },
     // #1428. Needs a paired creation; skipped by `--test all` below like its siblings.
     { "rando-goal-gate-defaults",
       "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
@@ -9673,6 +9708,15 @@ const TestDescriptor gTests[] = {
       "Mask only under the frozen rule, pairs into one bag row under the shared rule, OoT's logic credits it for a "
       "child only then, and a listed actor's update runs with Link out of sight (#979)",
       Test_StoneMaskOoTItems },
+    { "oot-masks-mm-rule",
+      "The Gerudo, Skull and Spooky Masks (MM) and their shared variants are six Cross-Game Rules, off by default, "
+      "each shared one only with its mask in MM, restored from the file at load in OoTMM's order (#980)",
+      Test_OoTMasksMMRule },
+    { "oot-masks-mm-items",
+      "The three MM ids are appended with every saved id unchanged, owned through the slot state byte only under the "
+      "frozen rule, pair into one bag row under the shared rule, are worn from a cell whose own mask is not owned, "
+      "and OoTMM's actors read them for exactly their update (#980)",
+      Test_OoTMasksMMItems },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
@@ -10078,6 +10122,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
+                strcmp(gTests[i].name, "oot-masks-mm-logic") == 0 ||
                 strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||

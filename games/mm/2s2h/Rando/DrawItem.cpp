@@ -6,6 +6,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/Foreign.h" // Lane 6 (#494 slice 6): IsForeignCheck, for the cross-game marker
 #include "triforce_hunt.h"      // #1389: the paired hunt's requirement, for the completed model
+#include "2s2h/Rando/OoTMasksMM.h" // #980: the OoT masks' get-item model
 #endif
 
 extern "C" {
@@ -436,7 +437,13 @@ void DrawRandomTrapModel(RandoItemId randoItemId, Actor* actor) {
         actorData += abs(actor->home.pos.x + actor->home.pos.y + actor->params);
     }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #980: the ids appended after RI_WOODFALL_STRAY_FAIRY (RI_MASK_GERUDO ...) are
+    // not disguises. This is the pre-#980 `RI_MAX - 3`, so a trap keeps its look.
+    int drawRandoItemId = actorData % ((int)RI_WOODFALL_STRAY_FAIRY - 1);
+#else
     int drawRandoItemId = actorData % ((int)RI_MAX - 3);
+#endif
 
     if (drawRandoItemId == RI_UNKNOWN || drawRandoItemId >= RI_TRAP) {
         drawRandoItemId++;
@@ -802,6 +809,15 @@ void Rando::DrawItem(RandoItemId randoItemId, Actor* actor) {
         case RI_OCARINA_BUTTON_C_UP:
             DrawOcarinaButtonItem(randoItemId, actor);
             break;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #980: Ocarina of Time's own mask model from the co-mounted archives
+        // (OoTMasksMM.cpp), else its pause slot's own MM mask.
+        case RI_MASK_GERUDO:
+        case RI_MASK_SKULL:
+        case RI_MASK_SPOOKY:
+            MM_OoTMask_DrawGetItem(randoItemId);
+            break;
+#endif
         case RI_NONE:
         case RI_UNKNOWN:
             break;

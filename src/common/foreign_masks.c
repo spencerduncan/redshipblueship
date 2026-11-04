@@ -137,6 +137,23 @@ int Combo_ListCycle_Step(const uint8_t* owned, int n, int currentIndex, int dir)
     return -1;
 }
 
+uint8_t Combo_ForeignMask_SlotOwnedBit(uint8_t id) {
+    // One bit per MM-hosted mask, in id order from the Gerudo Mask: three masks,
+    // three of the high nibble's four bits.
+    if (id < COMBO_FOREIGN_MASK_OOT_GERUDO || id > COMBO_FOREIGN_MASK_OOT_SPOOKY) {
+        return 0u;
+    }
+    return (uint8_t)(0x10u << (id - COMBO_FOREIGN_MASK_OOT_GERUDO));
+}
+
+uint8_t Combo_ForeignMask_SlotByteSelection(uint8_t slotByte) {
+    return (uint8_t)(slotByte & COMBO_FOREIGN_MASK_SLOT_SEL_BITS);
+}
+
+uint8_t Combo_ForeignMask_SlotByteWithSelection(uint8_t slotByte, uint8_t sel) {
+    return (uint8_t)((slotByte & COMBO_FOREIGN_MASK_SLOT_OWNED_BITS) | (sel & COMBO_FOREIGN_MASK_SLOT_SEL_BITS));
+}
+
 uint16_t Combo_BlastMaskCooldownFrames(uint8_t cooldown) {
     // OoTMM's blastMaskDelay(), value for value. DEFAULT is Majora's Mask's own
     // 310 frames (z_player.c, `this->blastMaskTimer = 310`), so an all-clear
