@@ -2350,8 +2350,9 @@ static uint8_t MMChestGradeOf(RandoItemType type) {
  * aid in the drawing of unique models" — CheckQueue swaps it in for display, and
  * no pool ever holds it.
  *
- * ARMING: the four criterion-3 give-capability families (souls, ocarina buttons,
- * swim, clock items) carry their RSBS_GIVECAP_* bit, and triforce pieces are a
+ * ARMING: the criterion-3 give-capability families (souls, ocarina buttons,
+ * swim, the six concrete clocks, and Progressive Time on its own bit since
+ * #1437) carry their RSBS_GIVECAP_* bit, and triforce pieces are a
  * per-world goal quantity. No confinement family: MM's fill places its whole pool
  * in one pass, so no MM setting holds an item in a restricted pass (small keys
  * included — which is the asymmetry with OoT's keysanity the owner's predicate
@@ -2393,8 +2394,12 @@ extern "C" int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out) {
         row.armedBy = RSBS_FILL_ARM_OCARINA_BUTTONS;
     } else if (ri == RI_ABILITY_SWIM) {
         row.armedBy = RSBS_FILL_ARM_SWIM;
-    } else if (ri >= RI_TIME_DAY_1 && ri <= RI_TIME_PROGRESSIVE) {
+    } else if (ri >= RI_TIME_DAY_1 && ri <= RI_TIME_NIGHT_3) {
         row.armedBy = RSBS_FILL_ARM_CLOCKS;
+    } else if (ri == RI_TIME_PROGRESSIVE) {
+        // #1437: the progressive modes' one clock, armed by its own bit
+        // (MM_Rando_PublishProfileGiveCaps), never by the concrete family's.
+        row.armedBy = RSBS_FILL_ARM_CLOCKS_PROGRESSIVE;
     } else if (ri == RI_TRIFORCE_PIECE) {
         row.armedBy = RSBS_FILL_ARM_WORLD_EVENT;
     }

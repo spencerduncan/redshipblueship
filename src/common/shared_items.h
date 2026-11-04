@@ -558,10 +558,11 @@ const char* Combo_SharedItemOverflow_StatusName(int status);
 // keysanity=anywhere with gerudo keys=any-dungeon: the fortress keys would read
 // as roaming while OoT's fill still confined them, which is the unsound
 // direction.
-#define RSBS_FILL_ARM_SOULS 0x00000001u           /* == RSBS_GIVECAP_SOULS */
-#define RSBS_FILL_ARM_OCARINA_BUTTONS 0x00000002u /* == RSBS_GIVECAP_OCARINA_BUTTONS */
-#define RSBS_FILL_ARM_SWIM 0x00000004u            /* == RSBS_GIVECAP_SWIM */
-#define RSBS_FILL_ARM_CLOCKS 0x00000008u          /* == RSBS_GIVECAP_CLOCKS */
+#define RSBS_FILL_ARM_SOULS 0x00000001u              /* == RSBS_GIVECAP_SOULS */
+#define RSBS_FILL_ARM_OCARINA_BUTTONS 0x00000002u    /* == RSBS_GIVECAP_OCARINA_BUTTONS */
+#define RSBS_FILL_ARM_SWIM 0x00000004u               /* == RSBS_GIVECAP_SWIM */
+#define RSBS_FILL_ARM_CLOCKS 0x00000008u             /* == RSBS_GIVECAP_CLOCKS */
+#define RSBS_FILL_ARM_CLOCKS_PROGRESSIVE 0x00000010u /* == RSBS_GIVECAP_CLOCKS_PROGRESSIVE (#1437) */
 #define RSBS_FILL_ARM_GIVECAPS_MASK 0x0000FFFFu
 /** OoT dungeon small keys and key rings (the dungeon list's GetSmallKey /
  *  GetKeyRing) are placed by the general pass: RSK_KEYSANITY == ANYWHERE. */

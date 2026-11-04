@@ -586,6 +586,7 @@ const char* Combo_SharedItemOverflow_StatusName(int status) {
 RSBS_CTX_STATIC_ASSERT(RSBS_FILL_ARM_SOULS == RSBS_GIVECAP_SOULS &&
                            RSBS_FILL_ARM_OCARINA_BUTTONS == RSBS_GIVECAP_OCARINA_BUTTONS &&
                            RSBS_FILL_ARM_SWIM == RSBS_GIVECAP_SWIM && RSBS_FILL_ARM_CLOCKS == RSBS_GIVECAP_CLOCKS &&
+                           RSBS_FILL_ARM_CLOCKS_PROGRESSIVE == RSBS_GIVECAP_CLOCKS_PROGRESSIVE &&
                            (RSBS_GIVECAP_ALL_V1 & ~RSBS_FILL_ARM_GIVECAPS_MASK) == 0u,
                        "the give-capability half of RSBS_FILL_ARM_* must be bit-identical to RSBS_GIVECAP_*");
 RSBS_CTX_STATIC_ASSERT(RSBS_FILL_CLASS_NONE == 0u && RSBS_FILL_CLASS_PROGRESSION == 1u && RSBS_FILL_CLASS_JUNK == 2u &&
