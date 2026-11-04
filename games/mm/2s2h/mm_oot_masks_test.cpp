@@ -20,6 +20,8 @@
  */
 #ifdef RSBS_SINGLE_EXECUTABLE
 
+#include "global.h"
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
