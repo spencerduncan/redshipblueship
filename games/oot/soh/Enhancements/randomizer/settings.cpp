@@ -464,12 +464,20 @@ void Settings::CreateOptions() {
             mOptions[RSK_TRIFORCE_HUNT].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Disable(kSetBy);
+            // #1435: the [Both Games] hunt grants Ganon's Boss Key as OoT's own hunt
+            // does, so the row is greyed as OoT's own Triforce Hunt row greys it,
+            // with the same reason (OoTMM hides ganonBossKey under its Triforce goals).
+            mOptions[RSK_GANONS_BOSS_KEY].Disable(
+                "This option is disabled because Triforce Hunt is enabled."
+                "Ganon's Boss key\nwill instead be given to you after Triforce Hunt completion.");
             OoT_Rando_WidenTriforceRequiredOptions();
         } else {
             mOptions[RSK_TRIFORCE_HUNT].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].RunCallback();
+            // #1435: Ganon's Boss Key back to what OoT's own Triforce Hunt row says.
+            mOptions[RSK_TRIFORCE_HUNT].RunCallback();
         }
     });
 #endif
@@ -1326,6 +1334,20 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_BLUE_FIRE_ARROWS, "Blue Fire Arrows", CVAR_RANDOMIZER_SETTING("BlueFireArrows"), mOptionDescriptions[RSK_BLUE_FIRE_ARROWS]);
     OPT_BOOL(RSK_SUNLIGHT_ARROWS, "Sunlight Arrows", CVAR_RANDOMIZER_SETTING("SunlightArrows"), mOptionDescriptions[RSK_SUNLIGHT_ARROWS]);
     OPT_BOOL(RSK_ROCS_FEATHER, "Roc's Feather", CVAR_RANDOMIZER_SETTING("RocsFeather"), mOptionDescriptions[RSK_ROCS_FEATHER]);
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // [RSBS #1434] OoTMM's timeTravelSword, on by default as there (data.ts). Drawn
+    // under Shuffle Master Sword, whose row greys it out while it is off: the pedestal
+    // then holds the sword, so the rule never stops Link (TimeTravelSword.cpp). The
+    // callback reads the row's own default, so it follows Shuffle Master Sword's.
+    OPT_BOOL(RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD, "Time Travel Requires Master Sword", CVAR_RANDOMIZER_SETTING("TimeTravelRequiresMasterSword"), mOptionDescriptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD], IMFLAG_SEPARATOR_BOTTOM, WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON);
+    OPT_CALLBACK(RSK_SHUFFLE_MASTER_SWORD, {
+        if (mOptions[RSK_SHUFFLE_MASTER_SWORD].GetOptionIndex() == RO_GENERIC_OFF) {
+            mOptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD].Disable("Without Shuffle Master Sword, pulling the sword from the pedestal hands it over, so Link always has it when he travels through time.");
+        } else {
+            mOptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD].Enable();
+        }
+    });
+#endif
     OPT_U8(RSK_INFINITE_UPGRADES, "Infinite Upgrades", {"Off", "Progressive", "Condensed Progressive"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("InfiniteUpgrades"), mOptionDescriptions[RSK_INFINITE_UPGRADES]);
     OPT_BOOL(RSK_SKELETON_KEY, "Skeleton Key", CVAR_RANDOMIZER_SETTING("SkeletonKey"), mOptionDescriptions[RSK_SKELETON_KEY]);
     OPT_BOOL(RSK_SLINGBOW_BREAK_BEEHIVES, "Slingshot/Bow Can Break Beehives", CVAR_RANDOMIZER_SETTING("SlingBowBeehives"), mOptionDescriptions[RSK_SLINGBOW_BREAK_BEEHIVES]);
@@ -2432,6 +2454,9 @@ void Settings::CreateOptions() {
                                   &mOptions[RSK_SHUFFLE_TOKENS],
                                   &mOptions[RSK_SHUFFLE_KOKIRI_SWORD],
                                   &mOptions[RSK_SHUFFLE_MASTER_SWORD],
+#ifdef RSBS_SINGLE_EXECUTABLE
+                                  &mOptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD], // [RSBS #1434]
+#endif
                                   &mOptions[RSK_SHUFFLE_OCARINA],
                                   &mOptions[RSK_SHUFFLE_WEIRD_EGG],
                                   &mOptions[RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD],

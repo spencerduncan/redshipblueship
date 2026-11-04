@@ -147,7 +147,10 @@ void func_808BAF40(BgTokiSwd* this, PlayState* play) {
             BgTokiSwd_SetupAction(this, func_808BB0AC);
         } else {
             Player* player = GET_PLAYER(play);
-            if (OoT_Actor_IsFacingPlayer(&this->actor, 0x2000)) {
+            // [RSBS #1434] OoTMM's timeTravelSword: the randomizer offers the pull only to a
+            // Link who owns the Master Sword (TimeTravelSword.cpp).
+            if (OoT_Actor_IsFacingPlayer(&this->actor, 0x2000) &&
+                GameInteractor_Should(VB_BE_ABLE_TO_TIME_TRAVEL_AT_PEDESTAL, true)) {
                 OoT_Actor_OfferCarry(&this->actor, play);
             }
         }

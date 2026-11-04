@@ -148,6 +148,8 @@ static bool comboRuleSharedMaskTruth;      // #978: the item rules' RSBS_XITEM_S
 static bool comboRuleBlastMaskOoT;         // #979: the item rules' RSBS_XITEM_BLAST_MASK_OOT bit
 static bool comboRuleSharedMaskBlast;      // #979: the item rules' RSBS_XITEM_SHARED_BLAST bit
 static int32_t comboRuleBlastMaskCooldown; // #979: the item rules' cooldown byte (RSBS_BLAST_COOLDOWN_*)
+static bool comboRuleStoneMaskOoT;         // #979: the item rules' RSBS_XITEM_STONE_MASK_OOT bit
+static bool comboRuleSharedMaskStone;      // #979: the item rules' RSBS_XITEM_SHARED_STONE bit
 
 // The four pinned RSBS_COMBO_DIR_* enumerators (1..4, static_asserted in
 // foreign_items.h because they are .redsave format). Short Title Case values,
@@ -1077,11 +1079,12 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
 
     // ---- Cross-Game Masks (#979, epic #975 P4) ------------------------------
     // OoTMM's own section after Shared Items (Items > Extended Items >
-    // Cross-Game Masks), in its order: the Blast Mask in Ocarina of Time, then
-    // its shared variant, which OoTMM shows only while the first is on (here: the
-    // row is greyed with that reason, and the resolver drops it). Then OoTMM's
+    // Cross-Game Masks), in its order: the masks added to Ocarina of Time (the
+    // Blast Mask, then the Stone Mask), then their shared variants in the same
+    // order, each of which OoTMM shows only while its mask is on (here: the row is
+    // greyed with that reason, and the resolver drops it). Then OoTMM's
     // blastMaskCooldown, which OoTMM lists under Main > Misc but which is the
-    // same mask's rule in both games, so it sits with it on this one-column page.
+    // Blast Mask's rule in both games, so it sits with it on this one-column page.
     menu.AddWidget(path, "Cross-Game Masks", WIDGET_SEPARATOR_TEXT);
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_BLAST_MASK_OOT), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleBlastMaskOoT)
@@ -1098,6 +1101,21 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
             "Adds Majora's Mask's Blast Mask to Ocarina of Time as a child trade mask. Wear it as a child and press B "
             "to set off an explosion in front of you, once per Blast Mask Cooldown. Ocarina of Time's logic counts "
             "it as an explosive a child can use."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_STONE_MASK_OOT), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleStoneMaskOoT)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleStoneMaskOoT = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_STONE_MASK_OOT)
+                                            : Combo_ComboSettingResolved(COMBO_SETTING_STONE_MASK_OOT) != 0;
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, comboRuleStoneMaskOoT ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Adds Majora's Mask's Stone Mask to Ocarina of Time as a child trade mask. While a child wears it, most "
+            "enemies and the Gerudo and castle guards do not notice you. Ocarina of Time's logic counts it for "
+            "getting past Big Skulltulas and the Gerudo guards."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BLAST), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedMaskBlast)
         .PreFunc([](WidgetInfo& info) {
@@ -1120,6 +1138,28 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         .Options(CheckboxOptions().Tooltip(
             "Makes the Blast Mask one item across both games: finding it in either game gives it to you in the "
             "other. Only one Blast Mask is shuffled, and both games' logic counts it. Needs Blast Mask (OoT)."));
+    menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_STONE), WIDGET_CHECKBOX)
+        .ValuePointer(&comboRuleSharedMaskStone)
+        .PreFunc([](WidgetInfo& info) {
+            const bool decided = Combo_ComboSettingsFrozen();
+            comboRuleSharedMaskStone = decided ? Combo_ComboCrossItemRule(RSBS_XITEM_SHARED_STONE)
+                                               : Combo_ComboSettingResolved(COMBO_SETTING_SHARED_MASK_STONE) != 0;
+            if (!decided && Combo_ComboSettingResolved(COMBO_SETTING_STONE_MASK_OOT) == 0) {
+                // Shows off, the value the resolver freezes without the extension
+                // (Combo_ResolveComboItemRules drops the bit); the key keeps its value
+                // for when the extension comes back on.
+                comboRuleSharedMaskStone = false;
+                info.options->disabled = true;
+                info.options->disabledTooltip = "This setting is disabled because: \n\n- Stone Mask (OoT) Is Off";
+            }
+            ComboRuleApplyDecided(info, decided);
+        })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, comboRuleSharedMaskStone ? 1 : 0);
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "Makes the Stone Mask one item across both games: finding it in either game gives it to you in the "
+            "other. Only one Stone Mask is shuffled, and both games' logic counts it. Needs Stone Mask (OoT)."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_BLAST_MASK_COOLDOWN), WIDGET_COMBOBOX)
         .ValuePointer(&comboRuleBlastMaskCooldown)
         .PreFunc([](WidgetInfo& info) {

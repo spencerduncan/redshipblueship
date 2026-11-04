@@ -27,6 +27,8 @@ std::vector<RandomizerGet> gRsbsComboPlentifulAdded = {};
 extern "C" bool OoT_SharedSwimSplitsScale(void);
 // #979 (BlastMaskOoT.cpp): is the frozen Blast Mask (OoT) rule on in this world?
 extern "C" bool OoT_BlastMaskOoTOn(void);
+// #979 (StoneMaskOoT.cpp): is the frozen Stone Mask (OoT) rule on in this world?
+extern "C" bool OoT_StoneMaskOoTOn(void);
 #endif
 const std::array<RandomizerGet, 13> JunkPoolItems = {
     RG_BOMBS_5,  RG_BOMBS_10,  RG_BOMBS_20,  RG_DEKU_NUTS_5, RG_DEKU_STICK_1, RG_DEKU_SEEDS_30, RG_RECOVERY_HEART,
@@ -421,6 +423,10 @@ void GenerateItemPool() {
     // the masks' counts, under the FROZEN rule (the creation freezes before Fill).
     if (OoT_BlastMaskOoTOn()) {
         AddItemToPool(RG_BLAST_MASK, 2, 1, 1, 1);
+    }
+    // #979: OoTMM's stoneMaskOot, the same way.
+    if (OoT_StoneMaskOoTOn()) {
+        AddItemToPool(RG_STONE_MASK, 2, 1, 1, 1);
     }
 #endif
 

@@ -450,6 +450,11 @@ void Rando::StaticData::InitItemTable() {
 #ifdef RSBS_SINGLE_EXECUTABLE
     itemTable[RG_BLAST_MASK].SetCustomDrawFunc(Randomizer_DrawBlastMask);
 #endif
+    // [RSBS #979] Majora's Mask's Stone Mask in OoT: the Blast Mask's row shape.
+    itemTable[RG_STONE_MASK] =                          Item(RG_STONE_MASK,                       Text{ "Stone Mask", "Masque de Pierre", "Steinmaske" },                                                                              ITEMTYPE_ITEM,              RG_STONE_MASK,        true,  LOGIC_NONE,                         RHT_STONE_MASK,                        RG_STONE_MASK,                        OBJECT_GI_KI_TAN_MASK,  GID_MASK_KEATON,      TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER, {"the ", "die ", "le "});
+#ifdef RSBS_SINGLE_EXECUTABLE
+    itemTable[RG_STONE_MASK].SetCustomDrawFunc(Randomizer_DrawStoneMask);
+#endif
 
     // clang-format on
 

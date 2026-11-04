@@ -1233,17 +1233,18 @@ typedef struct ComboCreationRecords {
     uint32_t comboSettingsHash;
     ComboTriforceRecord comboTriforce;
     ComboItemRulesRecord comboItemRules;
-    uint8_t comboFillWallets; // #1284: the pair's fill-wallets rule, frozen in the same act
+    uint8_t comboFillWallets;  // #1284: the pair's fill-wallets rule, frozen in the same act
+    ComboWothRecord comboWoth; // #1439: the pair's Way of the Hero, written by the same creation's fill
 } ComboCreationRecords;
 
-/** Copy the four creation records out of gComboCtx into @p out. */
+/** Copy the creation records (every ComboCreationRecords field) out of gComboCtx into @p out. */
 void Combo_SnapshotCreationRecords(ComboCreationRecords* out);
 
-/** Put the four creation records of @p in back into gComboCtx. */
+/** Put the creation records of @p in back into gComboCtx. */
 void Combo_RestoreCreationRecords(const ComboCreationRecords* in);
 
 /**
- * Retract the four creation records: every byte zero, which is how a world with
+ * Retract the creation records: every byte zero, which is how a world with
  * no frozen record stores each of them (formatVersion 0 is the combo record's
  * ABSENT tag, ADR 0011 decision 4.2).
  */

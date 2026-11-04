@@ -142,6 +142,7 @@
 
 #include "combo_logic.h"           // src/common — the vtable this file implements
 #include "context.h"               // src/common — SharedItem, GameId
+#include "critical_renewables.h"   // src/common — OoTMM's critical-renewables rule (OoT's source, OoT's remainder)
 #include "foreign_items.h"         // src/common — the frozen pairing identity and combo record
 #include "soh/SohGui/ImGuiUtils.h" // GetTextureForItemId: the describer's arrival-toast icon key
 
@@ -2429,6 +2430,229 @@ const OoTItemClassRegistrar gOoTItemClassRegistrar;
 } // namespace
 
 // ============================================================================
+// OoT'S CRITICAL-RENEWABLES SOURCE (OoTMM groups.ts:535, locations.ts:90-109;
+// src/common/critical_renewables.h)
+// ============================================================================
+//
+// THE KINDS: OoTMM's OOT_SHIELD_DEKU and OOT_SHIELD_HYLIAN. A vanilla shelf's
+// RG_BUY_* row gives the same shield, so it answers the same kind.
+//
+// THE HOSTS: a shop shelf that keeps its VANILLA stock (an ITEMTYPE_SHOP row),
+// and nothing else, because nothing else re-gives in this port:
+//   - a SHUFFLED shelf is SI_RANDOMIZED_ITEM, and z_en_girla.c turns it
+//     SI_SOLD_OUT once the purchase sets its RandomizerInf;
+//   - a shuffled cow gives once (randomizer.cpp's RAND_INF_COWS_MILKED_* table),
+//     a shuffled scrub despawns once bought (hook_handlers.cpp
+//     VB_BUSINESS_SCRUB_DESPAWN), a merchant is sold out after one sale.
+// So no EMPTY OoT host renews, and OoT's two kinds are renewed by its vanilla
+// shelves alone: SoH caps the shop count at seven (settings.cpp
+// RSK_SHOPSANITY_COUNT 0..7; shops.cpp calls eight "unreachable due to logic
+// limitations") and GetMinVanillaShopItems puts RG_BUY_DEKU_SHIELD and
+// RG_BUY_HYLIAN_SHIELD first, so both are on a vanilla shelf in every world.
+// That is OoTMM with vanilla shops: `place` marks a shop's fixed shield renewed.
+
+// fill.cpp: the empty-host walk OoT's remainder deals onto (declared again below).
+std::vector<RandomizerCheck> GetAllEmptyLocations();
+
+namespace {
+
+int OoTCritKindOf(uint16_t id) {
+    switch ((RandomizerGet)id) {
+        case RG_DEKU_SHIELD:
+        case RG_BUY_DEKU_SHIELD:
+            return RSBS_CRIT_OOT_DEKU_SHIELD;
+        case RG_HYLIAN_SHIELD:
+        case RG_BUY_HYLIAN_SHIELD:
+            return RSBS_CRIT_OOT_HYLIAN_SHIELD;
+        default:
+            return -1;
+    }
+}
+
+int OoTCritHostRenews(uint16_t hostCheck) {
+    if (hostCheck == (uint16_t)RC_UNKNOWN_CHECK || hostCheck >= (uint16_t)RC_MAX) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    Rando::Location* loc = Rando::StaticData::GetLocation((RandomizerCheck)hostCheck);
+    if (ctx == nullptr || loc == nullptr || loc->GetRCType() != RCTYPE_SHOP) {
+        return 0;
+    }
+    Rando::ItemLocation* il = ctx->GetItemLocation((RandomizerCheck)hostCheck);
+    if (il == nullptr) {
+        return 0;
+    }
+    const RandomizerGet placed = il->GetPlacedRandomizerGet();
+    if (placed == RG_NONE || placed == RG_SOLD_OUT || placed >= RG_MAX || !OoTComboLogicIsRealItem(placed)) {
+        return 0;
+    }
+    return Rando::StaticData::RetrieveItem(placed).GetItemType() == ITEMTYPE_SHOP ? 1 : 0;
+}
+
+uint32_t OoTCritKindsRenewedNow() {
+    uint32_t bits = 0u;
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return 0u;
+    }
+    for (const RandomizerCheck rc : Rando::StaticData::GetShopLocations()) {
+        if (OoTCritHostRenews((uint16_t)rc) == 0) {
+            continue;
+        }
+        const int kind = OoTCritKindOf((uint16_t)ctx->GetItemLocation(rc)->GetPlacedRandomizerGet());
+        if (kind >= 0) {
+            bits |= 1u << kind;
+        }
+    }
+    return bits;
+}
+
+const ComboCriticalRenewableSource kOoTCriticalRenewableSource = {
+    /* abiVersion      */ RSBS_CRITICAL_RENEWABLE_SOURCE_ABI,
+    /* kindOf          */ OoTCritKindOf,
+    /* hostRenews      */ OoTCritHostRenews,
+    /* kindsRenewedNow */ OoTCritKindsRenewedNow,
+};
+
+struct OoTCriticalRenewableRegistrar {
+    OoTCriticalRenewableRegistrar() {
+        Combo_RegisterCriticalRenewableSource((uint8_t)GAME_OOT, &kOoTCriticalRenewableSource);
+    }
+};
+const OoTCriticalRenewableRegistrar gOoTCriticalRenewableRegistrar;
+
+} // namespace
+
+/**
+ * TEST BRIDGE (redship tier, ROM-free: item ids only). OoT's registered source
+ * names OoTMM's two OoT kinds, the vanilla shelf rows as the same kinds, and
+ * nothing else; and no out-of-range check renews. @return 0, or a step code.
+ */
+extern "C" int OoT_ComboLogic_TestCriticalRenewableKinds(void) {
+    const ComboCriticalRenewableSource* src = Combo_GetCriticalRenewableSource((uint8_t)GAME_OOT);
+    if (src != &kOoTCriticalRenewableSource) {
+        return 1; // the registrar was elided, or another source took the slot
+    }
+    const struct {
+        RandomizerGet item;
+        int kind;
+    } kKinds[] = {
+        { RG_DEKU_SHIELD, RSBS_CRIT_OOT_DEKU_SHIELD },
+        { RG_BUY_DEKU_SHIELD, RSBS_CRIT_OOT_DEKU_SHIELD },
+        { RG_HYLIAN_SHIELD, RSBS_CRIT_OOT_HYLIAN_SHIELD },
+        { RG_BUY_HYLIAN_SHIELD, RSBS_CRIT_OOT_HYLIAN_SHIELD },
+        // Not OoTMM's for OoT: the Mirror Shield, chus, beans, potions, milk.
+        { RG_MIRROR_SHIELD, -1 },
+        { RG_BOMBCHU_10, -1 },
+        { RG_MAGIC_BEAN, -1 },
+        { RG_BOTTLE_WITH_RED_POTION, -1 },
+        { RG_BOTTLE_WITH_MILK, -1 },
+    };
+    for (const auto& k : kKinds) {
+        if (src->kindOf((uint16_t)k.item) != k.kind) {
+            fprintf(stderr, "[OoT CriticalRenewables] kindOf(%d) = %d, expected %d\n", (int)k.item,
+                    src->kindOf((uint16_t)k.item), k.kind);
+            return 2;
+        }
+    }
+    if (src->hostRenews((uint16_t)RC_UNKNOWN_CHECK) != 0 || src->hostRenews((uint16_t)RC_MAX) != 0) {
+        return 3;
+    }
+    return 0;
+}
+
+/**
+ * RANDO-TIER BRIDGE: over OoT's generated world, the critical kinds a copy of
+ * which stands on ANY OoT location (`*outPresent`), the kinds OoT's renewing hosts
+ * hold (`*outRenewed`, the source's answer), and how many shop shelves the source
+ * calls renewing (`*outRenewingShelves`). @return 0, or -1 with no context.
+ */
+extern "C" int OoT_ComboLogic_CriticalRenewablesWorld(uint32_t* outPresent, uint32_t* outRenewed,
+                                                      int* outRenewingShelves) {
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr) {
+        return -1;
+    }
+    uint32_t present = 0u;
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        const int kind = OoTCritKindOf((uint16_t)ctx->GetItemLocation(rc)->GetPlacedRandomizerGet());
+        if (kind >= 0) {
+            present |= 1u << kind;
+        }
+    }
+    int shelves = 0;
+    for (const RandomizerCheck rc : Rando::StaticData::GetShopLocations()) {
+        shelves += OoTCritHostRenews((uint16_t)rc);
+    }
+    *outPresent = present;
+    *outRenewed = OoTCritKindsRenewedNow();
+    *outRenewingShelves = shelves;
+    return 0;
+}
+
+/**
+ * OoT'S REMAINDER HALF of the rule (All Locations only): before the traps and the
+ * junk are dealt, the first copy of each OoT kind not yet renewed goes on an empty
+ * OoT host that renews it. In every world SoH can build there is no such kind
+ * (both shields are on vanilla shelves, see the source above) and no empty host
+ * renews, so this places nothing and draws nothing; it is here so the rule holds
+ * in OoT's pass by construction and not only by that fact, and it says so loudly
+ * if the fact ever stops holding.
+ * @return the number of copies placed.
+ */
+static int OoTComboLogicDealCriticalRenewables(std::vector<RandomizerGet>& remaining) {
+    if (!Combo_ComboSettingsFrozen() || !Combo_CriticalRenewablesArmed(gComboCtx.comboSettings.logicRung) ||
+        remaining.empty()) {
+        return 0;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    const std::vector<RandomizerCheck> empties = GetAllEmptyLocations();
+    std::vector<uint16_t> ids(remaining.size(), 0);
+    for (size_t i = 0; i < remaining.size(); ++i) {
+        ids[i] = (uint16_t)remaining[i];
+    }
+    std::vector<uint16_t> hosts(empties.size(), 0);
+    for (size_t i = 0; i < empties.size(); ++i) {
+        hosts[i] = (uint16_t)empties[i];
+    }
+    // OoT's own answer only: at this seam the live save may no longer be MM's, so
+    // MM's source (which reads MM's save) is not asked. OoT's shields are renewed
+    // by OoT's own shelves, so the Shared Shields coupling adds nothing here.
+    uint32_t renewed[RSBS_FOREIGN_POOL_ORIGIN_COUNT] = { 0u, 0u, 0u };
+    renewed[GAME_OOT] = OoTCritKindsRenewedNow();
+    std::vector<int> itemIdx(remaining.size(), -1);
+    std::vector<int> hostIdx(remaining.size(), -1);
+    uint32_t unhosted = 0u;
+    const int planned = Combo_CriticalRenewablesPlanFirstCopies(
+        (uint8_t)GAME_OOT, ids.data(), (int)ids.size(), hosts.data(), (int)hosts.size(), renewed, itemIdx.data(),
+        hostIdx.data(), (int)remaining.size(), &unhosted);
+    for (int k = 0; k < RSBS_CRIT_KIND_CAP; ++k) {
+        if ((unhosted & (1u << k)) != 0u) {
+            fprintf(stderr,
+                    "[OoT/ComboLogic] critical renewables: no empty Ocarina of Time host renews the first %s and no "
+                    "vanilla shelf sells it (has the shop count passed SoH's seven?)\n",
+                    Combo_CriticalRenewableKindName((uint8_t)GAME_OOT, k));
+        }
+    }
+    std::vector<bool> taken(remaining.size(), false);
+    for (int p = 0; p < planned; ++p) {
+        ctx->PlaceItemInLocation(empties[(size_t)hostIdx[p]], remaining[(size_t)itemIdx[p]]);
+        taken[(size_t)itemIdx[p]] = true;
+    }
+    if (planned > 0) {
+        std::vector<RandomizerGet> kept;
+        kept.reserve(remaining.size());
+        for (size_t i = 0; i < remaining.size(); ++i) {
+            if (!taken[i]) {
+                kept.push_back(remaining[i]);
+            }
+        }
+        remaining.swap(kept);
+    }
+    return planned;
+}
+
+// ============================================================================
 // THE POOL EXPORT (#645 increment 3, lane K9): OoT's half of bag composition
 // ============================================================================
 //
@@ -2872,6 +3096,9 @@ extern "C" int OoT_ComboLogic_FinishGeneralPass(int writeSpoiler) {
     }
     const int leftovers = (int)GetAllEmptyLocations().size();
     const int remainingRows = (int)remaining.size();
+    // All Locations' critical renewables (OoTMM solve.ts:1101/1149): a pending
+    // first copy goes on a renewing host before traps and junk are dealt.
+    OoTComboLogicDealCriticalRenewables(remaining);
     {
         // RAII: RsbsFinishPairedGeneralPass can throw (the fill's own
         // exceptions), and a flag left set would let a later hint pass read

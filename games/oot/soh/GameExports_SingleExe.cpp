@@ -3684,6 +3684,21 @@ static void OoT_SharedBlastMaskGive(uint16_t nativeId) {
     }
 }
 
+// #979: the Stone Mask OoT gains under the Stone Mask (OoT) rule (OoTMM
+// stoneMaskOot), OoT's copy of the Shared Stone Mask family (sharedMaskStone),
+// held and given as the Blast Mask's is.
+static bool OoT_SharedStoneMaskHeld(uint16_t nativeId) {
+    (void)nativeId;
+    return Flags_GetRandomizerInf(RAND_INF_OBTAINED_STONE_MASK) != 0;
+}
+static void OoT_SharedStoneMaskGive(uint16_t nativeId) {
+    (void)nativeId;
+    Flags_SetRandomizerInf(RAND_INF_OBTAINED_STONE_MASK);
+    if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+        INV_CONTENT(ITEM_TRADE_CHILD) = ITEM_MASK_STONE;
+    }
+}
+
 namespace {
 // Static-init registration, the ComboLogicEngine registrars' shape: this TU is
 // always linked (it holds the shims), and the registry is zero-initialised
@@ -3720,6 +3735,9 @@ struct OoTSharedFamilyRegistrar {
         const ComboSharedFamilyMember maskBlast = { (uint16_t)RG_BLAST_MASK, OoT_SharedBlastMaskHeld,
                                                     OoT_SharedBlastMaskGive }; // #979
         Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_BLAST, &maskBlast);
+        const ComboSharedFamilyMember maskStone = { (uint16_t)RG_STONE_MASK, OoT_SharedStoneMaskHeld,
+                                                    OoT_SharedStoneMaskGive }; // #979
+        Combo_RegisterSharedFamilyMember(GAME_OOT, RSBS_XITEM_SHARED_STONE, &maskStone);
     }
 };
 const OoTSharedFamilyRegistrar gOoTSharedFamilyRegistrar;

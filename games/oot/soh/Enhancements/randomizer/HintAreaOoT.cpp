@@ -24,7 +24,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <set>
+#include <string>
 #include <vector>
 
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
@@ -37,6 +39,7 @@
 
 #include "combo_area.h"  // src/common: the shared vocabulary and the registrar
 #include "combo_logic.h" // src/common: the coordinator's placements (#575 H5a)
+#include "combo_woth.h"  // src/common: the pair's Way of the Hero (#1439)
 #include "game.h"        // src/common: GAME_OOT
 
 namespace {
@@ -262,6 +265,91 @@ extern "C" int OoT_HintArea_MarkPairedFoolish(void) {
 }
 
 // ============================================================================
+// #1439: the pair's Way of the Hero on OoT's stones
+// ============================================================================
+//
+// A paired world skips CalculateWotH at the single-bag seam (it reads the
+// playthrough the seam does not run), so no location was a WotH candidate and
+// OoT's native WotH entry never drew. The pair's Way of the Hero is src/common's
+// (combo_woth.h): the hosts of BOTH games the frozen goal cannot do without,
+// found by the single-bag fill once the world was proved. OoT's remainder reads
+// it while it hints that world: its own hosts become native WotH candidates, and
+// the MM areas on the path join the WotH entry's draw (hints.cpp), each named
+// through #575 H3a's Termina slot ("the Southern Swamp is on the way of the
+// hero"). Outside the remainder's window OoT asks nothing, so a later hint pass
+// over another world can never read this one's set.
+
+/** Whether OoT may speak of the pair's Way of the Hero now: inside the remainder's
+ *  hinting window, under a rung that proved something. */
+static bool OoTWothWindowOpen() {
+    return OoT_ComboLogic_HintingPairedRemainder() != 0 && Combo_ComboLogicClaimsAllowed();
+}
+
+/**
+ * Mark OoT's WotH candidates in a paired world: every OoT location the pair's goal
+ * cannot do without (Combo_Woth_IsRequired) that OoT's hints may name. Called by
+ * fill.cpp's RsbsFinishPairedGeneralPass before CreateAllHints, inside the
+ * remainder's hinting window. Draws no RNG and places nothing: the flags steer the
+ * hint draw only. Returns the number marked.
+ */
+extern "C" int OoT_HintArea_MarkPairedWoth(void) {
+    const auto ctx = Rando::Context::GetInstance();
+    if (!ctx || !OoTWothWindowOpen()) {
+        return 0;
+    }
+    int marked = 0;
+    ComboLogicHostRef host;
+    for (int i = 0; Combo_Woth_At(i, &host); i++) {
+        if (host.hostGame != (uint8_t)GAME_OOT || host.hostCheck == RC_UNKNOWN_CHECK || host.hostCheck >= RC_MAX) {
+            continue;
+        }
+        Rando::ItemLocation* il = ctx->GetItemLocation((RandomizerCheck)host.hostCheck);
+        if (il->IsHintable()) {
+            il->SetWothCandidate();
+            marked++;
+        }
+    }
+    fprintf(stderr, "[OoT/hints] paired world: %d host(s) on the Way of the Hero, %d OoT WotH candidate(s)\n",
+            Combo_Woth_Count(), marked);
+    return marked;
+}
+
+/**
+ * The MM areas on the pair's Way of the Hero, for OoT's WotH entry (hints.cpp):
+ * the area of every MM host the goal cannot do without, each once, ascending.
+ * Empty outside the remainder's hinting window. Returns how many there are (which
+ * may exceed `cap`).
+ */
+extern "C" int OoT_HintArea_PairedForeignWothAreas(uint8_t* out, int cap) {
+    if (!OoTWothWindowOpen()) {
+        return 0;
+    }
+    ComboWothRecord mmAreas;
+    Combo_WothRecord_Clear(&mmAreas);
+    Combo_WothRecord_MarkPresent(&mmAreas);
+    ComboLogicHostRef host;
+    for (int i = 0; Combo_Woth_At(i, &host); i++) {
+        if (host.hostGame == (uint8_t)GAME_MM) {
+            (void)Combo_WothRecord_Add(&mmAreas, Combo_Area_OfCheck((uint8_t)GAME_MM, host.hostCheck));
+        }
+    }
+    return Combo_WothRecord_Areas(&mmAreas, (uint8_t)GAME_MM, out, cap);
+}
+
+/**
+ * THE FOREIGN WOTH HINT: OoT's own WotH hint, on gossip stone hint `key`, naming
+ * MM area `mmArea` through the Termina slot (#575 H3a: area RA_TERMINA, the MM
+ * area in the parallel foreignAreas), so it renders, persists and reloads like
+ * every other Termina slot: "They say that the Southern Swamp is on the way of the
+ * hero." No location: no OoT check holds the host.
+ */
+Rando::Hint OoT_HintArea_ForeignWothHint(RandomizerHint key, const std::string& distribution, uint8_t mmArea) {
+    Rando::Hint hint(key, HINT_TYPE_WOTH, distribution, {}, {}, { RA_TERMINA }, {});
+    hint.SetForeignAreas({ mmArea });
+    return hint;
+}
+
+// ============================================================================
 // TEST BRIDGES (src/common/tests/test_combo_area.c; RandoHintReload)
 // ============================================================================
 
@@ -294,6 +382,43 @@ extern "C" void OoT_HintArea_TestSpecials(uint8_t* outNone, uint8_t* outPocket, 
     *outNone = OoTComboAreaOf(RA_NONE);
     *outPocket = OoTComboAreaOf(RA_LINKS_POCKET);
     *outTermina = OoTComboAreaOf(RA_TERMINA);
+}
+
+/**
+ * #1439 (WothHints, redship tier): what an OoT gossip stone says for the foreign
+ * WotH hint naming MM area `mmArea` -- OoT_HintArea_ForeignWothHint's own hint,
+ * the one hints.cpp places -- in English before formatting, and the name its
+ * foreignAreas slot persists under (the save's and the spoiler's "foreignAreas").
+ * ROM-free: the hint text table is a static fill (HintTable_Init), and the
+ * Context the hint's name draw reads is created only if none exists and released
+ * again (OoT_ComboLogic_TestEnsureItemTableTransient's shape), so no row of
+ * `--test all` sees one left behind. Returns the text's length, or -1.
+ */
+extern "C" int OoT_HintArea_TestForeignWothText(uint8_t mmArea, char* out, int cap, char* outForeignName,
+                                                int foreignCap) {
+    if (out == nullptr || cap <= 0 || outForeignName == nullptr || foreignCap <= 0) {
+        return -1;
+    }
+    Rando::StaticData::HintTable_Init();
+    std::shared_ptr<Rando::Context> created;
+    if (Rando::Context::GetInstance() == nullptr) {
+        created = Rando::Context::CreateInstance();
+    }
+    std::string text;
+    std::string foreignName;
+    {
+        const RandomizerHint key = Rando::StaticData::gossipStoneCheckToHint[RC_KF_GOSSIP_STONE];
+        const Rando::Hint hint = OoT_HintArea_ForeignWothHint(key, "WotH", mmArea);
+        text = hint.GetHintMessage(MF_CLEAN, 0).GetEnglish(MF_CLEAN);
+        const std::vector<std::string> names = hint.GetForeignAreaNames();
+        foreignName = names.size() == 1 ? names[0] : std::string();
+    }
+    if (created != nullptr) {
+        created->GetLogic()->SetContext(nullptr); // the back-edge that would keep it alive
+    }
+    snprintf(out, (size_t)cap, "%s", text.c_str());
+    snprintf(outForeignName, (size_t)foreignCap, "%s", foreignName.c_str());
+    return (int)text.size();
 }
 
 /** #575 H3c (MmHintCrossedArea): give OoT check `rc` of the live heap context
