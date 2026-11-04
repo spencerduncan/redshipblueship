@@ -182,11 +182,12 @@ bool IsGiveableItemId(uint16_t riId) {
  * (the item enum runs D1 D2 D3 N1 N2 N3, the flag enum D1 N1 D2 N2 D3 N3). The
  * OnFlagSet handlers this dispatches filter by flag type and read no play state.
  *
- * The six concrete ids are the whole set. A clock crosses only under
- * RSBS_GIVECAP_CLOCKS, which arms in the RANDOM clock mode alone
- * (MM_Rando_PublishProfileGiveCaps, Foreign.cpp), and that mode's pool holds the
- * six concrete rows, never RI_TIME_PROGRESSIVE (GeneratePools.cpp). For any
- * other id GetHalfDayIndexFromClockItem answers INVALID and nothing is written.
+ * The six concrete ids are the whole set this writes. A concrete clock crosses
+ * only under RSBS_GIVECAP_CLOCKS, which arms in the RANDOM clock mode alone
+ * (MM_Rando_PublishProfileGiveCaps, Foreign.cpp). A Progressive Time (#1437,
+ * RSBS_GIVECAP_CLOCKS_PROGRESSIVE) reaches here already resolved into its
+ * concrete half-day (ResolveCrossedClock, below). For any other id
+ * GetHalfDayIndexFromClockItem answers INVALID and nothing is written.
  *
  * A mid-cycle arrival is unchanged: CorrectInitialTime acts only on day 0 at
  * 05:59, so an owned earlier half-day never rewinds a running cycle (OoTMM's
@@ -198,6 +199,35 @@ void OwnCrossedHalfDay(uint16_t riId) {
         return;
     }
     Flags_SetRandoInf(RANDO_INF_OBTAINED_CLOCK_DAY_1 + halfDay);
+}
+
+/**
+ * #1437: a Progressive Time found in Ocarina of Time becomes the half-day it
+ * grants HERE, at the redemption, in the world's own order (ConvertItem.cpp:
+ * Ascending hands out Day 1, Night 1, ... Night 3; Descending the reverse), read
+ * off the half-days the restored MM half owns. OoTMM resolves it the same way at
+ * its pickup (Item_Progressive -> progressiveClock(), the popcount of the owned
+ * half-days). Resolving here, before OwnCrossedHalfDay and before the queue, is
+ * what makes three things hold:
+ *
+ *  - the first arrival's start-of-cycle correction sees it (the #1415 point: a
+ *    Descending world's start moves from Night 3 to Day 3 when Day 3 crossed);
+ *  - several crossed in one arrival resolve in slot order, each after the last
+ *    one's flag is written, so they hand out consecutive half-days;
+ *  - the queue holds the CONCRETE half-day, whose give at the drain is the same
+ *    single flag write, so nothing resolves twice.
+ *
+ * A copy past the sixth half-day (the start plus six in the pool is seven)
+ * resolves to RI_JUNK, whose give does nothing (GiveItem.cpp), as OoTMM's clamps
+ * to a clock already owned. ConvertItem reads the save and the options only, no
+ * play state (RI_TIME_PROGRESSIVE has no ItemId, so its obtainability test never
+ * reaches MM_Item_CheckObtainability). Every other id is returned unchanged.
+ */
+uint16_t ResolveCrossedClock(uint16_t riId) {
+    if ((RandoItemId)riId != RI_TIME_PROGRESSIVE) {
+        return riId;
+    }
+    return (uint16_t)Rando::ConvertItem(RI_TIME_PROGRESSIVE);
 }
 
 /**
@@ -311,6 +341,10 @@ extern "C" int MM_ForeignItem_Give(uint16_t riId, int announce) {
         fprintf(stderr, "[MM] foreign give: RI id=%u names no real MM item — not given\n", (unsigned)riId);
         return 0;
     }
+
+    // #1437: a crossed Progressive Time becomes its half-day before either path,
+    // so the queue and a live give both carry the concrete id.
+    riId = ResolveCrossedClock(riId);
 
     if (MM_gPlayState != NULL) {
         GiveNow(riId, announce != 0);
@@ -497,7 +531,8 @@ extern "C" const char* MM_ForeignItem_TestArrivalIcon(uint16_t riId) {
 // MMClockShuffleFirstArrival): the six concrete half-days are admitted too.
 // Rando::GiveItem's RI_TIME_* branch is a single RANDO_INF flag write with no
 // play read. Their flags are not put back either: that row reads them and
-// restores the save itself.
+// restores the save itself. #1437: RI_JUNK too, what a Progressive Time past
+// the sixth half-day resolves to; GiveItem's RI_JUNK branch does nothing.
 // ============================================================================
 
 namespace {
@@ -513,6 +548,7 @@ bool IsStandInDrainableId(uint16_t riId) {
         case RI_TIME_NIGHT_2:
         case RI_TIME_DAY_3:
         case RI_TIME_NIGHT_3:
+        case RI_JUNK:
             return true;
         default:
             return false;

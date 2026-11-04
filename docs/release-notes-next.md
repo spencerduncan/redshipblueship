@@ -58,6 +58,18 @@
 - **[Both Games] Disable Crit Wiggle** (Enhancements > Quality of Life > Misc): SoH's row now also stops Majora's
   Mask's low-health camera wiggle. The low-health zoom stays in both games, as before.
 
+### Majora's Mask: Time Progression defaults to Ascending (issue #1437)
+
+- **Shuffle Time's Time Progression now defaults to Ascending**, OoTMM's `progressiveClocks` default (Randomizer > MM
+  Randomizer > Additional Items). You start with the First Day, and each Progressive Time unlocks the next half-day.
+  Shuffle Time itself is still off by default, so a default seed is unchanged. A file made with Shuffle Time on and
+  Time Progression left at the old default keeps Random: loading it puts Random back into the row. A file from
+  v0.2.0-prealpha or earlier cannot be restored that way; it loads as before and still plays Random, but the row shows
+  the new default.
+- **A Progressive Time can now be found in Ocarina of Time.** It unlocks the next half-day when you arrive in Termina,
+  before the game picks the half-day your cycle starts on. Before, Progressive Time stayed in Majora's Mask's own
+  checks. In Random, the six named half-days could already be found in Hyrule, and that is unchanged.
+
 ### Traps
 
 - **Every OoTMM trap type works in both games** (#1424). Majora's Mask gains Fire, Knockback, Drain, Anti-Magic and

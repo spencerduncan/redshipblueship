@@ -36,7 +36,7 @@
  * neither reads or writes the clock or the half-day flags. A .redsave write and
  * reload is not driven either: leg 8 stages the reloaded half directly.
  *
- * LEGS. Every frozen half is a rando save in the RANDOM clock mode, isOwlSave
+ * LEGS. Legs 1-8 freeze a rando save in the RANDOM clock mode, isOwlSave
  * clear. "day N" is gSaveContext.save.day; DayTelop adds one, so day 1 at 05:59
  * is Dawn of the Second Day.
  *   1  Control: Day 3 owned, nothing crossed, day 0 05:59 -> day 2 05:59. Shows
@@ -59,6 +59,27 @@
  *   8  The reload after a Song of Time: the half was committed at day 0 05:59
  *      with Days 2 and 3 owned; Night 1 crosses and the cycle starts at the
  *      Night of the First Day (day 1, 18:00). Before the fix: day 1 05:59.
+ *
+ * PROGRESSIVE TIME (#1437). Time Progression ships Ascending (OoTMM's
+ * progressiveClocks), and a Progressive Time may now be placed in an OoT check
+ * (RSBS_GIVECAP_CLOCKS_PROGRESSIVE). MM_ForeignItem_Give resolves it at the
+ * redemption into the next half-day in the world's order and queues that
+ * half-day (ResolveCrossedClock). These legs freeze the half in a progressive
+ * mode; each start owns what StartingItems.cpp grants (Day 1 Ascending, Night 3
+ * Descending).
+ *   9  Ascending, Day 1 owned, one Progressive Time crossed: Night 1 is owned
+ *      right after the arrival, the queue holds Time (Night 1), the start stays
+ *      day 0 05:59, and the drain owns nothing more (no second resolution).
+ *      Before the fix: nothing owned until the drain, and the drain refused the
+ *      progressive id (-1).
+ *  10  Ascending, two crossed in one arrival: Night 1 and Day 2 in slot order.
+ *  11  Descending, Night 3 owned, one crossed: Day 3 is owned when the start is
+ *      picked, so the cycle starts at Dawn of the Third Day (day 2 05:59).
+ *      Before the fix: the Night of the Third Day (day 3, 18:00).
+ *  12  Ascending with all six owned: the surplus copy resolves to RI_JUNK, owns
+ *      nothing new and its drain gives nothing.
+ *  13  The give order itself, no arrival: seven gives of Progressive Time hand
+ *      out Day 1 .. Night 3 then junk Ascending, and the reverse Descending.
  *   Cleanup: the pending queue, the crossings, gComboCtx, the frozen and
  *   startup slots, the cross-game latches, MM_gPlayState, gSceneSeqState and
  *   the SaveContext image come back, and the hooks are taken down against a
@@ -143,6 +164,7 @@ constexpr u8 kN1 = 1u << Rando::ClockItems::HALF_DAY1_NIGHT;
 constexpr u8 kD2 = 1u << Rando::ClockItems::HALF_DAY2_DAY;
 constexpr u8 kD3 = 1u << Rando::ClockItems::HALF_DAY3_DAY;
 constexpr u8 kN3 = 1u << Rando::ClockItems::HALF_DAY3_NIGHT;
+constexpr u8 kAllSix = 0x3F;
 
 // The toast record's count just before the current leg's arrival.
 int sToastMark = 0;
@@ -203,6 +225,11 @@ struct Arrival {
     RandoItemId item;
     bool sourced;
     u16 threeDayResetCount;
+    // #1437: the frozen half's Time Progression, how many copies of `item`
+    // crossed, and what the queue must hold in slot order (RI_NONE: `item`).
+    int32_t mode = RO_CLOCK_SHUFFLE_RANDOM;
+    int copies = 1;
+    RandoItemId queued[2] = { RI_NONE, RI_NONE };
 };
 
 /**
@@ -223,7 +250,7 @@ int Arrive(const Arrival& a, int code) {
     MM_Sram_InitNewSave();
     gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
     RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE] = a.clockShuffle ? RO_GENERIC_ON : RO_GENERIC_OFF;
-    RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
+    RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] = (uint32_t)a.mode;
     gSaveContext.save.isOwlSave = false;
     gSaveContext.save.day = a.day;
     gSaveContext.save.eventDayCount = a.day;
@@ -232,10 +259,11 @@ int Arrive(const Arrival& a, int code) {
     SetOwnedHalfDays(a.owned);
     Combo_FreezeState("mm", kArrival, &gSaveContext, sizeof(gSaveContext));
 
-    if (a.item != RI_NONE) {
+    for (int copy = 0; a.item != RI_NONE && copy < a.copies; copy++) {
         if (a.sourced) {
-            FA_ASSERT(Combo_SubmitSourcedGrant(kSourceKey, 1, GAME_MM, (uint16_t)a.item) == RSBS_GRANT_ACCEPTED, code,
-                      "%s: the sourced grant of RI id %u was not accepted", a.leg, (unsigned)a.item);
+            FA_ASSERT(Combo_SubmitSourcedGrant(kSourceKey + (uint32_t)copy, 1, GAME_MM, (uint16_t)a.item) ==
+                          RSBS_GRANT_ACCEPTED,
+                      code, "%s: the sourced grant of RI id %u was not accepted", a.leg, (unsigned)a.item);
         } else {
             FA_ASSERT(Combo_RecordSharedItemCrossing(GAME_MM, (uint16_t)a.item) >= 0, code,
                       "%s: the crossing of RI id %u was not recorded", a.leg, (unsigned)a.item);
@@ -267,12 +295,17 @@ int Arrive(const Arrival& a, int code) {
               a.leg, Test4Registrants(), a.clockShuffle ? 1u : 0u);
     FA_ASSERT(Combo_CountSharedItems(GAME_MM, /*includeRedeemed=*/false) == 0, code,
               "%s: the arrival left an MM item unredeemed", a.leg);
-    const int expectedPending = (a.item != RI_NONE) ? 1 : 0;
-    FA_ASSERT(MM_ForeignItem_TestPendingCount() == expectedPending &&
-                  (expectedPending == 0 || MM_ForeignItem_TestPendingAt(0) == (uint16_t)a.item),
-              code,
+    const int expectedPending = (a.item != RI_NONE) ? a.copies : 0;
+    FA_ASSERT(MM_ForeignItem_TestPendingCount() == expectedPending, code,
               "%s: %d gives queued for the first gameplay frame, expected %d (the give still waits for its toast)",
               a.leg, MM_ForeignItem_TestPendingCount(), expectedPending);
+    for (int i = 0; i < expectedPending; i++) {
+        const RandoItemId want = (i < 2 && a.queued[i] != RI_NONE) ? a.queued[i] : a.item;
+        FA_ASSERT(MM_ForeignItem_TestPendingAt(i) == (uint16_t)want, code,
+                  "%s: queue slot %d holds RI id %u, expected %u (#1437: a crossed Progressive Time is queued as "
+                  "the half-day it resolved to)",
+                  a.leg, i, (unsigned)MM_ForeignItem_TestPendingAt(i), (unsigned)want);
+    }
     FA_ASSERT(OoT_Notification_EmittedCountForTest() == sToastMark, code,
               "%s: the arrival itself toasted; a give's toast waits for the first gameplay frame", a.leg);
     PrintClock(a.leg, "after the arrival");
@@ -280,13 +313,13 @@ int Arrive(const Arrival& a, int code) {
 }
 
 /** The first gameplay frame's drain. Returns 0, or `code`. */
-int Drain(const char* leg, s32 day, u16 time, int code) {
+int Drain(const char* leg, s32 day, u16 time, int code, int expectedGiven = 1) {
     const int given = MM_ForeignItem_TestFlushWithStandInPlay();
     PrintClock(leg, "after the first frame's drain");
-    FA_ASSERT(given == 1, code,
-              "%s: the stand-in drain returned %d, expected the one queued half-day (-1 means the drain does not "
-              "admit RI_TIME_* and this leg is vacuous)",
-              leg, given);
+    FA_ASSERT(given == expectedGiven, code,
+              "%s: the stand-in drain returned %d, expected the %d queued half-day(s) (-1 means the queue holds an id "
+              "the drain does not admit, such as an unresolved Progressive Time, and this leg is vacuous)",
+              leg, given, expectedGiven);
     FA_ASSERT(MM_ForeignItem_TestPendingCount() == 0, code, "%s: the drain left a give queued", leg);
     FA_ASSERT(gSaveContext.save.day == day && gSaveContext.save.time == time, code,
               "%s: the drain moved the clock to day %d 0x%04X (expected day %d 0x%04X)", leg,
@@ -443,6 +476,162 @@ int RunLegs() {
         rc = Drain("leg 8", 1, kDusk, 30);
         if (rc != 0) {
             return rc;
+        }
+    }
+
+    // ---- Leg 9: Ascending, one Progressive Time crossed (#1437) -------------
+    {
+        const Arrival a = { "leg 9",
+                            true,
+                            kD1,
+                            0,
+                            kNewCycleTime,
+                            RI_TIME_PROGRESSIVE,
+                            false,
+                            0,
+                            RO_CLOCK_SHUFFLE_ASCENDING,
+                            1,
+                            { RI_TIME_NIGHT_1, RI_NONE } };
+        int rc = Arrive(a, 32);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD1 | kN1), 33,
+                  "leg 9: right after the arrival the file owns 0x%02X, expected Day 1 and Night 1 (0x%02X): a "
+                  "Progressive Time found in Hyrule must be the next half-day, owned before the start is picked",
+                  (unsigned)OwnedHalfDays(), (unsigned)(kD1 | kN1));
+        FA_ASSERT(ClockIs(0, kNewCycleTime), 34,
+                  "leg 9: Day 1 owned, the cycle must start at Dawn of the First Day (day 0 05:59), got day %d 0x%04X",
+                  (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time);
+        rc = Drain("leg 9", 0, kNewCycleTime, 35);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD1 | kN1), 36,
+                  "leg 9: after the drain the file owns 0x%02X, expected 0x%02X: the drain resolved the crossed clock "
+                  "a second time",
+                  (unsigned)OwnedHalfDays(), (unsigned)(kD1 | kN1));
+        FA_ASSERT(ToastsSinceMark() == 0, 37,
+                  "leg 9: a Progressive Time picked up in Hyrule was toasted at the crossing (#878)");
+    }
+
+    // ---- Leg 10: Ascending, two crossed in one arrival ----------------------
+    {
+        const Arrival a = { "leg 10",
+                            true,
+                            kD1,
+                            0,
+                            kNewCycleTime,
+                            RI_TIME_PROGRESSIVE,
+                            false,
+                            0,
+                            RO_CLOCK_SHUFFLE_ASCENDING,
+                            2,
+                            { RI_TIME_NIGHT_1, RI_TIME_DAY_2 } };
+        int rc = Arrive(a, 38);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD1 | kN1 | kD2), 39,
+                  "leg 10: two crossed Progressive Times own 0x%02X, expected Day 1, Night 1 and Day 2 (0x%02X) in "
+                  "ascending order",
+                  (unsigned)OwnedHalfDays(), (unsigned)(kD1 | kN1 | kD2));
+        rc = Drain("leg 10", 0, kNewCycleTime, 40, 2);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD1 | kN1 | kD2), 41, "leg 10: after the drain the file owns 0x%02X",
+                  (unsigned)OwnedHalfDays());
+    }
+
+    // ---- Leg 11: Descending, the start moves to Day 3 -----------------------
+    {
+        const Arrival a = { "leg 11",
+                            true,
+                            kN3,
+                            0,
+                            kNewCycleTime,
+                            RI_TIME_PROGRESSIVE,
+                            false,
+                            0,
+                            RO_CLOCK_SHUFFLE_DESCENDING,
+                            1,
+                            { RI_TIME_DAY_3, RI_NONE } };
+        int rc = Arrive(a, 42);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD3 | kN3), 43,
+                  "leg 11: right after the arrival the file owns 0x%02X, expected Day 3 and Night 3 (0x%02X)",
+                  (unsigned)OwnedHalfDays(), (unsigned)(kD3 | kN3));
+        FA_ASSERT(ClockIs(2, kNewCycleTime), 44,
+                  "leg 11: a Descending world with Day 3 found in Hyrule must start at Dawn of the Third Day (day 2 "
+                  "05:59), got day %d 0x%04X: the start was picked before the crossed clock was owned",
+                  (int)gSaveContext.save.day, (unsigned)gSaveContext.save.time);
+        rc = Drain("leg 11", 2, kNewCycleTime, 45);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == (kD3 | kN3), 46, "leg 11: after the drain the file owns 0x%02X",
+                  (unsigned)OwnedHalfDays());
+    }
+
+    // ---- Leg 12: a surplus copy owns nothing --------------------------------
+    {
+        const Arrival a = { "leg 12",
+                            true,
+                            kAllSix,
+                            0,
+                            kNewCycleTime,
+                            RI_TIME_PROGRESSIVE,
+                            false,
+                            0,
+                            RO_CLOCK_SHUFFLE_ASCENDING,
+                            1,
+                            { RI_JUNK, RI_NONE } };
+        int rc = Arrive(a, 47);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == kAllSix, 48, "leg 12: the surplus copy changed the owned half-days to 0x%02X",
+                  (unsigned)OwnedHalfDays());
+        rc = Drain("leg 12", 0, kNewCycleTime, 49);
+        if (rc != 0) {
+            return rc;
+        }
+        FA_ASSERT(OwnedHalfDays() == kAllSix, 50, "leg 12: after the drain the file owns 0x%02X",
+                  (unsigned)OwnedHalfDays());
+    }
+
+    // ---- Leg 13: the give order, no arrival ---------------------------------
+    {
+        static const RandoItemId kAscending[] = { RI_TIME_DAY_1, RI_TIME_NIGHT_1, RI_TIME_DAY_2, RI_TIME_NIGHT_2,
+                                                  RI_TIME_DAY_3, RI_TIME_NIGHT_3, RI_JUNK };
+        static const RandoItemId kDescending[] = { RI_TIME_NIGHT_3, RI_TIME_DAY_3, RI_TIME_NIGHT_2, RI_TIME_DAY_2,
+                                                   RI_TIME_NIGHT_1, RI_TIME_DAY_1, RI_JUNK };
+        struct Order {
+            int32_t mode;
+            const RandoItemId* gives;
+            const char* name;
+        };
+        const Order orders[] = { { RO_CLOCK_SHUFFLE_ASCENDING, kAscending, "Ascending" },
+                                 { RO_CLOCK_SHUFFLE_DESCENDING, kDescending, "Descending" } };
+        for (const Order& order : orders) {
+            memset(&gSaveContext, 0, sizeof(gSaveContext));
+            MM_Sram_InitNewSave();
+            gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+            RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE] = RO_GENERIC_ON;
+            RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] = (uint32_t)order.mode;
+            SetOwnedHalfDays(0);
+            for (int i = 0; i < 7; i++) {
+                const RandoItemId got = Rando::ConvertItem(RI_TIME_PROGRESSIVE);
+                FA_ASSERT(got == order.gives[i], 51,
+                          "leg 13: %s give %d of Progressive Time resolved to RI id %u, expected %u", order.name, i + 1,
+                          (unsigned)got, (unsigned)order.gives[i]);
+                Rando::GiveItem(got);
+            }
+            FA_ASSERT(OwnedHalfDays() == kAllSix, 52, "leg 13: %s: seven gives own 0x%02X, expected all six",
+                      order.name, (unsigned)OwnedHalfDays());
         }
     }
     return 0;
