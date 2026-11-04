@@ -2269,3 +2269,40 @@ first-word bits, divergence bits or shared-resource slots. Locked by
 `ComboItemRulesSecondWord` and `RulesOffGoldensUnchanged` (new),
 `CrossItemRulesRecord` and `ComboSettingsFormat` (the carve), `CVarClassification`
 and `ComboSettingsRows` (leg 9 sets the fourteen keys the Reset clears).
+
+### 2026-11-04 -- The Song of Soaring (OoT) item and the song-spot refusal (#1169 lane XW4)
+
+Operator ruling 2026-11-04 on #1169, decision 2: with Shuffle Songs on Song
+Locations or Dungeon Rewards a separate OoT Song of Soaring makes thirteen songs
+for twelve spots, and the answer is OoTMM's behaviour exactly.
+
+- **The item.** `RG_SONG_OF_SOARING_OOT` "Song of Soaring (OoT)" (OoTMM's name),
+  appended after `RG_STONE_MASK` and before the never-placed logic-only ids, with
+  `RHT_SONG_OF_SOARING_OOT` before `RHT_MAX` and
+  `RAND_INF_OBTAINED_SONG_OF_SOARING_OOT` last (2063 flags, still the 129 saved
+  words; `SongOfSoaringOoT.cpp` static-asserts all three positions and the word
+  count). A song (`ITEMTYPE_SONG`, so the restricted song passes count it) with no
+  quest bit and no ItemID: owning it is its flag, which its give sets and the
+  logic reads. The logic only knows how to play it (`CanUse`: a child with an
+  ocarina and the C-down, C-up and C-left buttons, under the frozen rule); no
+  region reads that until XW9, and nothing plays it until XW6.
+- **The pool.** `Combo_SongSoaringOoTCopies` (`warp_song_items.h`): one copy
+  under the frozen `RSBS_XITEM2_SONG_SOARING_OOT`, with the songs' counts; none
+  with the rule off, and none under `RSBS_XITEM2_SHARED_SONG_SOARING`, where
+  OoTMM replaces Majora's Mask's copy with the shared item and adds no OoT copy
+  (that family is XW10's).
+- **The refusal.** OoT's restricted song pass asks `Combo_SongSpotsOverflow` with
+  the songs it is about to place, after the starting songs left the pool and
+  after #1085's shared hold-back, and the spots it would place them on. More
+  songs than spots ends Generate on the first attempt, no retry, with OoTMM's
+  "Not enough locations for songs/dungeon rewards" (`solve.ts`,
+  `placeSemiShuffled`) followed by the counts, the mode and, when the separate
+  Soaring is one of them, the ways out (share or start with a song, or
+  Anywhere). The creation's freeze is rolled back. The option text that warns
+  is `RSBS_SONG_SOARING_OOT_TOOLTIP`; XW12 draws it on the row, never greyed.
+
+Still hidden: the rule is a bit of `RSBS_XITEM2_HIDDEN`, so until XW12 no world a
+player can make pools the song, credits it or meets the refusal. Locked by
+`OoTSoaringTableBounds`, `OoTSoaringRuleLogic` and `OoTSoaringRulesOffUnchanged`
+(ROM-free), and `OoTSoaringPooledOnlyWhenRuleOn` and
+`SongLocationsOverflowRefused` (rando tier, through the hidden-bit test seam).
