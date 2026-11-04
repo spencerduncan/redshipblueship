@@ -125,6 +125,9 @@ void SkeletonPatcher::UpdateSkeletons() {
 
         if (newSkel != nullptr) {
             ApplyEntry(skel, newSkel->skeletonData.skeletonHeader.segment, (uintptr_t)newSkel->GetPointer());
+            if (newSkel->type == SkeletonType::Flex && skel.skelAnime != nullptr) {
+                skel.skelAnime->dListCount = newSkel->skeletonData.flexSkeletonHeader.dListCount;
+            }
         }
     }
 }

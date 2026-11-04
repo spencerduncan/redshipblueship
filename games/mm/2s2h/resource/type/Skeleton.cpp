@@ -78,10 +78,12 @@ void SkeletonPatcher::UpdateSkeletons() {
                 .get();
 
         if (newSkel != nullptr) {
-            skel.skelAnime->skeleton = newSkel->skeletonData.skeletonHeader.segment;
             uintptr_t skelPtr = (uintptr_t)newSkel->GetPointer();
             memcpy(&skel.skelAnime->skeleton, &skelPtr,
                    sizeof(uintptr_t)); // Dumb thing that needs to be done because cast is not cooperating
+            if (newSkel->type == SkeletonType::Flex) {
+                skel.skelAnime->dListCount = newSkel->skeletonData.flexSkeletonHeader.dListCount;
+            }
         }
     }
 }

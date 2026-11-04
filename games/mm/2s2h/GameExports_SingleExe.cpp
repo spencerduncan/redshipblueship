@@ -3120,12 +3120,26 @@ extern "C" void MM_ExtensionRescan_AfterArchiveMount(void) {
     sExtRescanScanned = true;
     fprintf(stderr, "[MM] ExtensionCache rescan: +%d MM-owned entries (#618)\n", added);
 
+    if (added > 0) {
+        PlayerCustomFlipbooks_Reset();
+    }
     PlayerCustomFlipbooks_Patch();
     // Records the ORDER, not merely the call: it can only be true because the
     // scan above already completed. Moving the patch ahead of the scan turns
     // the MMRegistrarCoverage probe red instead of silently latching MM's faces
     // to vanilla — verified by doing exactly that (FAIL(9)).
     sExtRescanFlipbooksPatchedAfterScan = sExtRescanScanned;
+}
+
+/**
+ * Re-run PlayerCustomFlipbooks_Patch on AltAssets toggle in the single executable,
+ * gated on sExtRescanScanned so flipbook resolution never runs before MM's
+ * ExtensionCache rescan (#618).
+ */
+extern "C" void MM_PlayerCustomFlipbooks_RefreshIfScanned(void) {
+    if (sExtRescanScanned) {
+        PlayerCustomFlipbooks_Patch();
+    }
 }
 
 /** True once the MM-scoped ExtensionCache scan has completed at least once. */

@@ -2666,6 +2666,10 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         Ship::Context::GetInstance()->GetResourceManager()->SetAltAssetsEnabled(curAltAssets);
         gfx_texture_cache_clear();
         SOH::SkeletonPatcher::UpdateSkeletons();
+#ifdef RSBS_SINGLE_EXECUTABLE
+        extern "C" void MM_PlayerCustomFlipbooks_RefreshIfScanned(void);
+        MM_PlayerCustomFlipbooks_RefreshIfScanned();
+#endif
         GameInteractor::Instance->ExecuteHooks<GameInteractor::OnAssetAltChange>();
     }
 
