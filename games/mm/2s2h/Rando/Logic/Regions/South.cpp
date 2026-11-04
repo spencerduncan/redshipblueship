@@ -51,7 +51,14 @@ static RegisterShipInitFunc initFunc([]() {
             EXIT(ENTRANCE(DEKU_PALACE, 2),                  ENTRANCE(DEKU_KINGS_CHAMBER, 0), true),
         },
         .events = {
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #980: OoTMM's PICTURE_DEKU_KING (`can_use_pictograph_box && can_enter_deku_palace`, deku_palace.yml):
+            // under the Skull Mask (MM) rule the throne-room guards (En_Dns) read a human wearing it as a Deku
+            // (Rando/OoTMasksMM.cpp).
+            EVENT(RE_ACCESS_PICTOGRAPH_DEKU_KING, HAS_ITEM(ITEM_PICTOGRAPH_BOX) && (CAN_BE_DEKU || HAS_OOT_MASK(RI_MASK_SKULL))),
+#else
             EVENT(RE_ACCESS_PICTOGRAPH_DEKU_KING, HAS_ITEM(ITEM_PICTOGRAPH_BOX) && CAN_BE_DEKU),
+#endif
             EVENT(RE_RETURN_DEKU_PRINCESS, HAS_BOTTLE && CAN_ACCESS(DEKU_PRINCESS)),
         }
     };

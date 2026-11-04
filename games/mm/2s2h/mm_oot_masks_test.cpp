@@ -253,6 +253,31 @@ void Expect(const char* leg, RandoRegionId from, RandoRegionId to, bool expected
     printf("[TEST]   ok: %s: %s\n", leg, expected ? "open" : "closed");
 }
 
+bool EventCond(RandoRegionId region, RandoEvent event, bool* found) {
+    for (const auto& entry : Rando::Logic::Regions[region].events) {
+        if (entry.first == event) {
+            *found = true;
+            return entry.second();
+        }
+    }
+    *found = false;
+    return false;
+}
+
+void ExpectEvent(const char* leg, RandoRegionId region, RandoEvent event, bool expected, const char* why) {
+    bool found = false;
+    const bool got = EventCond(region, event, &found);
+    if (!found) {
+        OmFail("%s: the event is not in the region, so this leg probes nothing", leg);
+        return;
+    }
+    if (got != expected) {
+        OmFail("%s: the event is %s: %s", leg, got ? "reachable" : "unreachable", why);
+        return;
+    }
+    printf("[TEST]   ok: %s: %s\n", leg, expected ? "reachable" : "unreachable");
+}
+
 } // namespace
 
 /**
@@ -260,7 +285,9 @@ void Expect(const char* leg, RandoRegionId from, RandoRegionId to, bool expected
  *  D. Deku Palace (South.cpp, OoTMM can_enter_deku_palace): from the outside to
  *     the inside, human, no Deku Mask: closed with the Skull Mask owned and its
  *     rule off; closed with the rule on and nothing owned; open with both; open
- *     with the Deku Mask alone (the control).
+ *     with the Deku Mask alone (the control). The Deku King's picture (OoTMM
+ *     PICTURE_DEKU_KING) likewise: not with the rule off, yes with the rule on and
+ *     the Pictograph Box, not without the box, yes with the Deku Mask (the control).
  *  G. Pirates' Fortress plaza tower (PiratesFortress.cpp, OoTMM can_evade_gerudo):
  *     closed empty-handed; open with the Gerudo Mask under its rule; open with the
  *     Stone Mask (the control).
@@ -303,6 +330,29 @@ extern "C" int MM_OoTMasksLogic_RunHeadless(void) {
     INV_CONTENT(ITEM_MASK_DEKU) = ITEM_MASK_DEKU;
     Expect("D4 control: the Deku Mask", RR_DEKU_PALACE_OUTSIDE, RR_DEKU_PALACE_INSIDE_LOWER, true,
            "the Deku Mask no longer opens the palace, so D1-D3 probe a broken edge");
+    // OoTMM's PICTURE_DEKU_KING: can_use_pictograph_box && can_enter_deku_palace.
+    ResetSave();
+    FreezeRules(kAll & ~RSBS_XITEM_SKULL_MASK_MM);
+    INV_CONTENT(ITEM_PICTOGRAPH_BOX) = ITEM_PICTOGRAPH_BOX;
+    MM_OoTMask_Give(RI_MASK_SKULL);
+    ExpectEvent("D5 Deku King picture, Skull Mask owned, rule off", RR_DEKU_KINGS_CHAMBER,
+                RE_ACCESS_PICTOGRAPH_DEKU_KING, false, "a mask the world did not add got a human the picture");
+    ResetSave();
+    FreezeRules(kAll);
+    INV_CONTENT(ITEM_PICTOGRAPH_BOX) = ITEM_PICTOGRAPH_BOX;
+    MM_OoTMask_Give(RI_MASK_SKULL);
+    ExpectEvent("D6 Deku King picture, rule on, Skull Mask owned", RR_DEKU_KINGS_CHAMBER,
+                RE_ACCESS_PICTOGRAPH_DEKU_KING, true,
+                "OoTMM's PICTURE_DEKU_KING: can_use_pictograph_box && can_enter_deku_palace");
+    INV_CONTENT(ITEM_PICTOGRAPH_BOX) = ITEM_NONE;
+    ExpectEvent("D7 the Skull Mask without the Pictograph Box", RR_DEKU_KINGS_CHAMBER, RE_ACCESS_PICTOGRAPH_DEKU_KING,
+                false, "the picture was taken with no Pictograph Box");
+    ResetSave();
+    INV_CONTENT(ITEM_MASK_DEKU) = ITEM_MASK_DEKU;
+    INV_CONTENT(ITEM_PICTOGRAPH_BOX) = ITEM_PICTOGRAPH_BOX;
+    ExpectEvent("D8 control: the Deku Mask and the Pictograph Box", RR_DEKU_KINGS_CHAMBER,
+                RE_ACCESS_PICTOGRAPH_DEKU_KING, true,
+                "the Deku Mask no longer gets the picture, so D5-D7 probe a broken event");
 
     // ---- G. the Pirates' Fortress purple guard -------------------------------
     ResetSave();

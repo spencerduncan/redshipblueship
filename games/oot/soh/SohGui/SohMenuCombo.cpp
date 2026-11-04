@@ -1167,8 +1167,8 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
         })
         .Options(CheckboxOptions().Tooltip(
             "Adds Ocarina of Time's Spooky Mask to Majora's Mask. It shares the Gibdo Mask's slot on the mask "
-            "screen. Worn in human form at night, it works like the Gibdo Mask, and Majora's Mask's logic counts it "
-            "for the Gibdos at night."));
+            "screen. Worn in human form at night, the Gibdos and the Poe collector react to it as they do to the "
+            "Gibdo Mask, and Majora's Mask's logic counts it for the Gibdos at night."));
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_SHARED_MASK_BLAST), WIDGET_CHECKBOX)
         .ValuePointer(&comboRuleSharedMaskBlast)
         .PreFunc([](WidgetInfo& info) {

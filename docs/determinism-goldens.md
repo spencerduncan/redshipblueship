@@ -249,10 +249,14 @@ mask option on**. Today that means fifteen keys:
   `GoldenSeedsRoundBudget`'s all-masks entry requires.
 
 #980 re-pins this golden only: with the three MM rules and their shared pairs on,
-MM's pool gains three masks and the bag three more shared pairs (ten in all), so
-`comboSettingsHash`, MM's placements, the bag's rows, seed and rounds, the
-crossings and the hint digests move. Every other golden leaves the rules off,
-builds the pools it always did and does not move.
+MM's pool gains three masks and the bag three more shared pairs (ten in all), and
+MM's logic credits the masks, so `comboSettingsHash`, MM's placements, the bag's
+rows, seed and rounds, the crossings and the hint digests move. The bag also
+places onto OoT's hosts, so OoT's final placement fields (`ootFinalPlacementHash`,
+`ootFinalPlacedCount`) and its hint and price digests may move too: re-pin the
+whole file, not a field list, and re-check `GoldenSeedsRoundBudget`'s all-masks
+entry (its expected attempts) against the new pin. Every other golden leaves the
+rules off, builds the pools it always did and does not move.
 
 In this world the composer pairs each mask's two copies into one bag row (ABI 7).
 The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
