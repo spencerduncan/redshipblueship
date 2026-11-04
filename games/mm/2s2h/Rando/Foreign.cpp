@@ -294,6 +294,19 @@ static void ResolveProfileValues(uint32_t* values, bool paired,
         values[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
     }
 
+    // (2a) #1437: Time Progression ships Ascending (OoTMM's progressiveClocks),
+    // and is inert while Shuffle Time is off: nothing reads it then (GeneratePools,
+    // StartingItems, Logic.h's OwnsHalfDayForMode and the give caps all test
+    // Shuffle Time first). An UNSET key resolves there to Random, the value every
+    // world before the default changed froze, so the options string the MM seed
+    // hashes and the identity a default world stamps are unchanged. An explicit key
+    // is honoured as it always was, so no frozen world's identity moves either. The
+    // load restore compares twice for this (MM_Rando_RestoreProfileForLoad).
+    if (!values[RO_CLOCK_SHUFFLE] &&
+        !Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar)) {
+        values[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
+    }
+
     if (!paired) {
         return;
     }
@@ -1433,6 +1446,8 @@ extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, u
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId] = (uint32_t)randoStaticOption.defaultValue;
     }
+    // #1437: what a default creation freezes, as ResolveProfileValues (2a) does it.
+    half->save.shipSaveInfo.rando.randoSaveOptions[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
     half->save.shipSaveInfo.rando.finalSeed =
         Rando::Foreign::MixPairedFinalSeedFromOptions(masterSeed, half->save.shipSaveInfo.rando.randoSaveOptions, 0);
     memset(mmHalf, 0, mmHalfSize);
@@ -1484,16 +1499,30 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     };
 
     std::vector<std::string> restored;
-    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
-        if (liveValues[randoOptionId] == fileValues[randoOptionId]) {
-            continue;
+    // #1437: two passes. An option whose resolution reads ANOTHER key (Time
+    // Progression's unset key follows Shuffle Time, ResolveProfileValues (2a)) can
+    // agree with the file before the first pass writes the key it reads, and
+    // disagree after: a file frozen with Shuffle Time on in Random, loaded while
+    // the key holds Shuffle Time off, matched on the mode until Shuffle Time was
+    // put back. The second pass resolves again and writes what still differs. A key
+    // is written once: RO_LOGIC's paired value never follows its key (#1367).
+    std::vector<bool> written(RO_MAX, false);
+    for (int pass = 0; pass < 2; pass++) {
+        if (pass > 0) {
+            Rando::Foreign::ResolveProfileValues(liveValues.data(), /*paired=*/true);
         }
-        remember(randoStaticOption.cvar);
-        CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
-        const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
-        restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
-        fprintf(stderr, "[MM] profile: load restored option %s to the file's value %u (was %u)\n",
-                randoStaticOption.name, (unsigned)fileValues[randoOptionId], (unsigned)liveValues[randoOptionId]);
+        for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+            if (written[randoOptionId] || liveValues[randoOptionId] == fileValues[randoOptionId]) {
+                continue;
+            }
+            written[randoOptionId] = true;
+            remember(randoStaticOption.cvar);
+            CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
+            const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
+            restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
+            fprintf(stderr, "[MM] profile: load restored option %s to the file's value %u (was %u)\n",
+                    randoStaticOption.name, (unsigned)fileValues[randoOptionId], (unsigned)liveValues[randoOptionId]);
+        }
     }
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         if (liveTricks[mmRandoTrickId] == fileTricks[mmRandoTrickId]) {
@@ -1661,16 +1690,29 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     if (Rando::Foreign::ShuffleSwimForWorld(values.data())) {
         caps |= RSBS_GIVECAP_SWIM;
     }
-    // Clocks arm only in the RANDOM clock mode (#681 review). The capability
-    // admits the six CONCRETE half-day rows, and the two progressive modes read
-    // time ownership as a COUNT (Logic.h, OwnsHalfDayForMode: ASCENDING owns
-    // "the first N" half-days, DESCENDING "the last N") because their world
-    // only ever hands half-days out in that order (ConvertItem.cpp,
+    // Concrete clocks arm only in the RANDOM clock mode (#681 review). That
+    // capability admits the six CONCRETE half-day rows, and the two progressive
+    // modes read time ownership as a COUNT (Logic.h, OwnsHalfDayForMode:
+    // ASCENDING owns "the first N" half-days, DESCENDING "the last N") because
+    // their world only ever hands half-days out in that order (ConvertItem.cpp,
     // RI_TIME_PROGRESSIVE). A crossed Time (Night 3) in an ascending world would
     // set the Night 3 flag while the logic read "Day 1 owned" off the count. In
     // RANDOM mode both read each flag, so a concrete crossing means what it says.
-    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF && values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM) {
-        caps |= RSBS_GIVECAP_CLOCKS;
+    //
+    // #1437: the progressive modes arm Progressive Time instead, the only clock
+    // their pool holds (GeneratePools.cpp). OoTMM lets one cross either way
+    // (Item_Progressive -> progressiveClock(), counted from the owned half-days),
+    // and MM's redemption resolves it in the world's own order before the arrival
+    // picks the cycle's start (ForeignItemsSingleExe.cpp, ResolveCrossedClock), so
+    // the flags stay "the first N" (or "the last N") the logic counts. A separate
+    // bit, so a concrete half-day still never crosses into a progressive world.
+    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF) {
+        const uint32_t mode = values[RO_CLOCK_SHUFFLE_PROGRESSIVE];
+        if (mode == RO_CLOCK_SHUFFLE_RANDOM) {
+            caps |= RSBS_GIVECAP_CLOCKS;
+        } else if (mode == RO_CLOCK_SHUFFLE_ASCENDING || mode == RO_CLOCK_SHUFFLE_DESCENDING) {
+            caps |= RSBS_GIVECAP_CLOCKS_PROGRESSIVE;
+        }
     }
 
     Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, caps);

@@ -93,6 +93,7 @@
 #include <cstring>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -106,11 +107,14 @@
 #include "combo_mm_options_view.h"
 #include "combo_settings_view.h" // COMBO_SETTING_LOGIC: [Both Games] Logic (#1367)
 #include "foreign_items.h"
+#include "shared_items.h" // ComboItemClassRow, RSBS_FILL_ARM_CLOCKS* (#1437)
 
 extern "C" {
 #include "variables.h"
 // Foreign.cpp (#1367): the stamp a world created before [Both Games] Logic carried.
 uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void);
+// ComboLogicEngineSingleExe.cpp (#1437): MM's classifier, for the clock rows' arming.
+int MM_ComboLogic_ClassifyItem(uint16_t id, ComboItemClassRow* out);
 // SPIDER_HOUSE_TOKENS_REQUIRED — the vanilla token requirement the derived
 // correction falls back to.
 #include "overlays/actors/ovl_En_Sth/z_en_sth.h"
@@ -637,10 +641,13 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     // ---- unpaired: options resolve, nothing else happens -------------------
     Rando::Foreign::ResolvePairedProfile(false);
     for (auto& [randoOptionId, row] : Rando::StaticData::Options) {
-        if (RANDO_SAVE_OPTIONS[randoOptionId] != row.defaultValue &&
-            !(randoOptionId == RO_MINIMUM_SKULLTULA_TOKENS)) {
-            return Fail(53, "unpaired resolution wrote %u to %s, expected its default %u",
-                        (unsigned)RANDO_SAVE_OPTIONS[randoOptionId], row.name, (unsigned)row.defaultValue);
+        // #1437: Time Progression's unset key resolves to Random while Shuffle
+        // Time is off (its default), whatever the row's own default.
+        const uint32_t expected = randoOptionId == RO_CLOCK_SHUFFLE_PROGRESSIVE ? (uint32_t)RO_CLOCK_SHUFFLE_RANDOM
+                                                                                : (uint32_t)row.defaultValue;
+        if (RANDO_SAVE_OPTIONS[randoOptionId] != expected && !(randoOptionId == RO_MINIMUM_SKULLTULA_TOKENS)) {
+            return Fail(53, "unpaired resolution wrote %u to %s, expected %u",
+                        (unsigned)RANDO_SAVE_OPTIONS[randoOptionId], row.name, (unsigned)expected);
         }
     }
     if (RANDO_SAVE_OPTIONS[RO_LOGIC] != RO_LOGIC_GLITCHLESS) {
@@ -893,17 +900,23 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
     // owned" off the count: the flags and the logic would describe different
     // worlds. So the capability is published only in RANDOM mode, where both
     // read the flags. RED before the gate: ASCENDING and DESCENDING published it.
+    //
+    // #1437: the progressive modes publish RSBS_GIVECAP_CLOCKS_PROGRESSIVE
+    // instead, which admits Progressive Time alone (its give resolves in the
+    // world's order at the redemption, so the count stays true). RED before
+    // #1437: no mode published it, so a progressive clock never left MM.
     ClearAllOptionCVars();
     CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
     struct ClockModeCase {
         int32_t mode;
         bool arms;
+        bool armsProgressive;
         const char* name;
     };
     static const ClockModeCase kClockModes[] = {
-        { RO_CLOCK_SHUFFLE_RANDOM, true, "RANDOM" },
-        { RO_CLOCK_SHUFFLE_ASCENDING, false, "ASCENDING" },
-        { RO_CLOCK_SHUFFLE_DESCENDING, false, "DESCENDING" },
+        { RO_CLOCK_SHUFFLE_RANDOM, true, false, "RANDOM" },
+        { RO_CLOCK_SHUFFLE_ASCENDING, false, true, "ASCENDING" },
+        { RO_CLOCK_SHUFFLE_DESCENDING, false, true, "DESCENDING" },
     };
     for (const ClockModeCase& m : kClockModes) {
         CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar, m.mode);
@@ -917,15 +930,133 @@ extern "C" int MM_PairedProfile_RunHeadless(void) {
                         m.arms ? "is now refused where the logic reads each flag"
                                : "would break the progressive order the logic counts");
         }
+        const bool armedProgressive = (Combo_ForeignGiveCaps((uint8_t)GAME_MM) & RSBS_GIVECAP_CLOCKS_PROGRESSIVE) != 0u;
+        if (armedProgressive != m.armsProgressive) {
+            return Fail(96,
+                        "clock shuffle ON in %s mode published RSBS_GIVECAP_CLOCKS_PROGRESSIVE=%d, expected %d - "
+                        "Progressive Time %s (#1437)",
+                        m.name, armedProgressive ? 1 : 0, m.armsProgressive ? 1 : 0,
+                        m.armsProgressive ? "stays confined to MM checks, as before OoTMM's rule was followed"
+                                          : "would cross into a world whose pool holds the concrete half-days");
+        }
     }
-    // Control: clock shuffle OFF never arms the family, in the mode that would.
+    // Control: clock shuffle OFF never arms either family, in the modes that would.
     CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_OFF);
-    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar, RO_CLOCK_SHUFFLE_RANDOM);
-    MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
-    if ((Combo_ForeignGiveCaps((uint8_t)GAME_MM) & RSBS_GIVECAP_CLOCKS) != 0u) {
-        return Fail(76, "clock shuffle OFF published RSBS_GIVECAP_CLOCKS");
+    for (const ClockModeCase& m : kClockModes) {
+        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar, m.mode);
+        MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
+        if ((Combo_ForeignGiveCaps((uint8_t)GAME_MM) & (RSBS_GIVECAP_CLOCKS | RSBS_GIVECAP_CLOCKS_PROGRESSIVE)) != 0u) {
+            return Fail(76, "clock shuffle OFF in %s mode published a clock capability", m.name);
+        }
     }
     Combo_ClearForeignGiveCaps();
+
+    // ---- #1437: each clock row carries its own mode's bit -------------------
+    // The classifier is what the bag reads: the six concrete half-days need the
+    // RANDOM bit and Progressive Time the progressive one, so neither family can
+    // roam under the other mode's caps.
+    for (int ri = RI_TIME_DAY_1; ri <= RI_TIME_PROGRESSIVE; ri++) {
+        ComboItemClassRow row;
+        if (MM_ComboLogic_ClassifyItem((uint16_t)ri, &row) != 1) {
+            return Fail(97, "MM's classifier has no row for clock RI id %d", ri);
+        }
+        const uint32_t want =
+            ri == RI_TIME_PROGRESSIVE ? (uint32_t)RSBS_FILL_ARM_CLOCKS_PROGRESSIVE : (uint32_t)RSBS_FILL_ARM_CLOCKS;
+        if (row.armedBy != want) {
+            return Fail(97, "clock RI id %d is armed by %08X, expected %08X", ri, (unsigned)row.armedBy,
+                        (unsigned)want);
+        }
+    }
+
+    // ---- #1437: Time Progression ships Ascending, inert while Shuffle Time is off
+    // OoTMM's progressiveClocks defaults to 'ascending' (data.ts). The row says so
+    // (the pane reads it there); the resolution keeps the unset key at Random
+    // while Shuffle Time is off, so a default world's options string and identity
+    // are the ones every world before the change froze, and an explicit key is
+    // honoured in both states.
+    const auto& modeRow = Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE];
+    if (modeRow.defaultValue != RO_CLOCK_SHUFFLE_ASCENDING) {
+        return Fail(98, "Time Progression defaults to %u, expected Ascending (OoTMM's progressiveClocks)",
+                    (unsigned)modeRow.defaultValue);
+    }
+    ClearAllOptionCVars();
+    restampUnfrozenCarrier();
+    const uint32_t unsetDigest = Rando::Foreign::ResolvePairedProfile(true);
+    if (RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] != RO_CLOCK_SHUFFLE_RANDOM || unsetDigest != defaultDigest) {
+        return Fail(99,
+                    "with Shuffle Time off and Time Progression unset the mode resolved to %u (digest %08X vs the "
+                    "default world's %08X); expected Random and the same world",
+                    (unsigned)RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE], unsetDigest, defaultDigest);
+    }
+    CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_RANDOM);
+    restampUnfrozenCarrier();
+    if (Rando::Foreign::ResolvePairedProfile(true) != defaultDigest) {
+        return Fail(99, "an explicit Random with Shuffle Time off is not the default world's identity");
+    }
+    CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_ASCENDING);
+    restampUnfrozenCarrier();
+    if (Rando::Foreign::ResolvePairedProfile(true) == defaultDigest ||
+        RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] != RO_CLOCK_SHUFFLE_ASCENDING) {
+        return Fail(99,
+                    "an explicit Ascending with Shuffle Time off was not honoured (resolved %u): a world frozen "
+                    "with it would no longer match its own stamp",
+                    (unsigned)RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE]);
+    }
+    ClearAllOptionCVars();
+    CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+    restampUnfrozenCarrier();
+    Rando::Foreign::ResolvePairedProfile(true);
+    if (RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] != RO_CLOCK_SHUFFLE_ASCENDING) {
+        return Fail(100, "with Shuffle Time on and Time Progression unset the mode resolved to %u, expected Ascending",
+                    (unsigned)RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE]);
+    }
+    MM_Rando_PublishProfileGiveCaps(/*fromSave=*/0);
+    if ((Combo_ForeignGiveCaps((uint8_t)GAME_MM) & (RSBS_GIVECAP_CLOCKS | RSBS_GIVECAP_CLOCKS_PROGRESSIVE)) !=
+        RSBS_GIVECAP_CLOCKS_PROGRESSIVE) {
+        return Fail(100,
+                    "the shipped Shuffle Time profile published caps %04X, expected the progressive clock bit "
+                    "alone",
+                    (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM));
+    }
+    Combo_ClearForeignGiveCaps();
+
+    // ---- #1437: the load restore puts a Random world's mode back ------------
+    // A world frozen with Shuffle Time on and Time Progression left at the old
+    // default (Random), loaded while the key holds Shuffle Time off: the unset
+    // mode agrees with the file (Random while off) until Shuffle Time is put back,
+    // and then resolves to Ascending. RED with one pass: the restore wrote Shuffle
+    // Time alone and its after-check refused the file.
+    {
+        ClearAllOptionCVars();
+        CVarSetInteger(Rando::StaticData::Options[RO_CLOCK_SHUFFLE].cvar, RO_GENERIC_ON);
+        CVarSetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_RANDOM);
+        restampUnfrozenCarrier();
+        const uint32_t frozen = MM_Rando_ComputeProfileStamp();
+        gComboCtx.mmProfileDigest = frozen;
+        memset(&gSaveContext, 0, sizeof(gSaveContext));
+        gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_RANDO;
+        Rando::Foreign::ResolvePairedProfile(true);
+        std::vector<uint8_t> half(sizeof(SaveContext));
+        memcpy(half.data(), &gSaveContext, sizeof(SaveContext));
+        ClearAllOptionCVars(); // the player turned Shuffle Time off at the title
+        const int classified = MM_Rando_ClassifyProfileForLoad(half.data(), half.size(), frozen);
+        char names[256] = { 0 };
+        int count = 0;
+        const int restored =
+            MM_Rando_RestoreProfileForLoad(half.data(), half.size(), frozen, names, sizeof(names), &count);
+        const uint32_t after = MM_Rando_ComputeProfileStamp();
+        printf("[TEST] mm-paired-profile: Random clock world, keys cleared: classified %d, restore %d (%d key(s): "
+               "%s), stamp %08X vs frozen %08X\n",
+               classified, restored, count, names, (unsigned)after, (unsigned)frozen);
+        if (classified != RSBS_MM_PROFILE_LOAD_RESTORABLE || restored != RSBS_MM_PROFILE_LOAD_RESTORED ||
+            after != frozen || CVarGetInteger(modeRow.cvar, RO_CLOCK_SHUFFLE_ASCENDING) != RO_CLOCK_SHUFFLE_RANDOM) {
+            return Fail(101,
+                        "a world frozen with Shuffle Time in Random was not restored (classified %d, restore %d, "
+                        "stamp %08X vs %08X): the restore's second pass is missing",
+                        classified, restored, (unsigned)after, (unsigned)frozen);
+        }
+        gComboCtx.mmProfileDigest = 0;
+    }
 
     // Leave global state clean for whatever runs next.
     ClearAllOptionCVars();

@@ -1236,6 +1236,18 @@ narrowing itself is now delivered, on branch
   in a progressive world the clock family is simply unarmed. Lock:
   `mm-paired-profile` Fail(75)/(76) (RANDOM arms, ASCENDING and DESCENDING do
   not, clock shuffle off never does), observed red before the gate.
+  - *Amended by #1437.* Time Progression now defaults to ASCENDING (OoTMM's
+    `progressiveClocks`), and the progressive modes publish their own bit,
+    `RSBS_GIVECAP_CLOCKS_PROGRESSIVE`, which arms `RI_TIME_PROGRESSIVE` alone (the
+    classifier tags it apart from the six concrete rows). The ordering argument
+    above still holds. MM's redemption resolves a crossed Progressive Time into
+    the next half-day in the world's own order (`ForeignItemsSingleExe.cpp`,
+    `ResolveCrossedClock`) before the first arrival picks the cycle's start, so
+    the flags remain "the first N" (or "the last N") the logic counts. A concrete
+    half-day still never crosses into a progressive world. While clock shuffle is
+    off an unset mode key resolves to RANDOM, the value every earlier world
+    froze, so no default identity moves. Locks: `mm-paired-profile` Fail(96) to
+    Fail(101) and `mm-clock-shuffle-first-arrival` legs 9 to 13.
 - **The armed draw is pinned exactly**, not only bounded:
   `GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`)
   generates the golden seed with all four families armed through MM's own
