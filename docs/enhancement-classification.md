@@ -147,6 +147,7 @@ Per decision (2), cheats are (S). Verified per-key that the semantics genuinely 
 | `gDeveloperTools.DebugEnabled` | unlocks OoT debug features | unlocks MM debug features | ✅ same intent |
 | `gDeveloperTools.FrameAdvanceTick` | frame-advance tick | frame-advance tick | ✅ same intent |
 | `gDeveloperTools.LogLevel` | one spdlog logger | one spdlog logger | ✅ port-level |
+| `gEnhancements.DisableCritWiggle` (#1426, adopted) | `z_camera.c` low-health camera wiggle (SoH's "Disable Crit Wiggle" row) | `z_camera.c` low-health wiggle in `MM_Camera_Normal1` | ✅ both bool, default off. 2Ship has no such setting; MM's camera now reads SoH's key, so the row carries the [Both Games] marker. The low-health FOV zoom stays in both games: SoH's key never covered it (OoTMM's `critWiggleDisable` does) |
 
 **The Audio Editor's other MM keys (#1239).** Not shared spellings, so not rows of the table above; each is now driven
 from SoH's Audio Editor, by its Audio Options block (providers in `Audio/Sfx/`, carved into `ship__Enh_registrars`) or
@@ -477,7 +478,7 @@ under `Cutscenes.Skip*Cutscenes`. Same behaviour, both bool.
 | Skip intro | `gEnhancements.TimeSavers.SkipCutscene.Intro` | `gEnhancements.Cutscenes.SkipIntroSequence` |
 | Skip one-point cutscenes | `gEnhancements.TimeSavers.SkipCutscene.OnePoint` | `gEnhancements.Cutscenes.SkipOnePointCutscenes` |
 | Skip story cutscenes | `gEnhancements.TimeSavers.SkipCutscene.Story` | `gEnhancements.Cutscenes.SkipStoryCutscenes` |
-| Skip boss introductions (#1123, version 9) | `gEnhancements.TimeSavers.SkipCutscene.BossIntro` | `gEnhancements.Cutscenes.SkipEnemyCutscenes` |
+| Skip boss introductions (#1123, version 9; MM reads SoH's IS_RANDO default since #1426) | `gEnhancements.TimeSavers.SkipCutscene.BossIntro` | `gEnhancements.Cutscenes.SkipEnemyCutscenes` |
 
 Remaining members of each family are (O): OoT-only `SkipCutscene.{GlitchAiding, LearnSong,
 QuickBossDeaths}` (MM's song-teacher skips key on Story, as upstream 2S2H does); MM-only
@@ -599,6 +600,7 @@ default (off).
 | `Masks.NoBlastMaskCooldown` | 1 | (O). Row "No Blast Mask Cooldown", same block; `Masks/NoBlastMaskCooldown.cpp` linked |
 | `Masks.GoronRollingIgnoresMagic` | 1 | (O). Row "Goron Rolling Ignores Magic", same block; `Masks/GoronRollingIgnoresMagic.cpp` linked (play-state guard added) |
 | `Masks.GoronRollingFastSpikes` | 1 | (O). Row "Goron Rolling Fast Spikes", same block; `Masks/GoronRollingFastSpikes.cpp` linked (play-state guard added) |
+| `Masks.GoronRollingLenientSpikes` | 1 | (O), this project's own key (#1426): OoTMM's `lenientSpikes`, not a 2Ship setting (`kTwoShipDoNotImport`). Row "Lenient Goron Spikes", same block; `Masks/GoronRollingLenientSpikes.cpp` linked. Default IS_RANDO (on for a rando file), as OoTMM ships it on. Ignores Magic's charge hook now relaxes rather than assigns, so the two agree in either order |
 | `Songs.PauseOwlWarp` | 1 | (O). Row "Pause Owl Warp", Items > Ocarina, Majora's Mask block (W6-MASKS-SONGS, #1240). `Songs/PauseOwlWarp.cpp` was already linked through the z_kaleido accessor; the row was MISSING |
 | `Songs.EnableSunsSong` | 1 | (O). Row "Enable Sun's Song", same block; `Songs/EnableSunsSong.cpp` linked. Makes the song playable without its quest bit, which is not a shared song (only Epona's Song and the Song of Storms are, #1066), and its notes stay behind the shared ocarina buttons |
 | `Songs.ZoraEggCount` | 1 | (O). Slider "Zora Eggs for Bossa Nova" (1-7, default 7), same block; `Songs/ZoraEggCount.cpp` linked |

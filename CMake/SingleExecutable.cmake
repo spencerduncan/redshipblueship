@@ -1529,6 +1529,14 @@ if(BUILD_TESTING)
     # nine TUs. Pure (no display, no ROM); needs the shared bring-up only for
     # the CVar reads.
     redship_add_test(NAME MMSongTeacherHooks COMMAND redship --test mm-song-teacher-hooks)
+    # #1426: MM runtime parity with OoTMM. Skip Boss Introductions (SkipEnemyCutscenes.cpp)
+    # arms through the production rando path with its key untouched, SoH's IS_RANDO
+    # default, and an explicit off still wins; Lenient Goron Spikes (OoTMM's
+    # lenientSpikes) answers its three Goron-roll VBs as OoTMM's patch does, is on by
+    # default under rando, and gives one answer whichever of it and Goron Rolling
+    # Ignores Magic runs last. Driven over a calloc'd play state and player. Pure (no
+    # display, no ROM); games/mm/2s2h/mm_runtime_parity_test.cpp.
+    redship_add_test(NAME MMRuntimeParity COMMAND redship --test mm-runtime-parity)
     # The MM rando minigame reward hooks (Rando/ActorBehavior/, armed through
     # ActorBehavior::OnFileLoad and driven by VB dispatch against a calloc'd
     # play state). MMGalleryRupeeStandIn (#1216): while a shooting gallery's

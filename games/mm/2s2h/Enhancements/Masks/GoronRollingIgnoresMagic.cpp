@@ -20,7 +20,11 @@ void RegisterGoronRollingIgnoresMagic() {
     COND_VB_SHOULD(VB_GORON_ROLL_INCREASE_SPIKE_LEVEL, CVAR, {
         RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
         Player* player = GET_PLAYER(MM_gPlayState);
-        *should = player->av2.actionVar2 >= 0x36B0;
+        // RSBS (#1426): relax rather than assign, the same answer on its own (vanilla's condition implies this one),
+        // so Lenient Goron Spikes' lower speed survives whichever of the two hooks runs last.
+        if (player->av2.actionVar2 >= 0x36B0) {
+            *should = true;
+        }
     });
 
     // Mimicking the vanilla condition minus the magic check

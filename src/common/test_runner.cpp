@@ -350,6 +350,12 @@ int MM_ClockShuffleFirstArrival_RunHeadless(void);
 // that the Epona and Healing hooks survive a missing play state. Needs the
 // display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
 int MM_SongTeacherHooks_RunHeadless(void);
+// #1426's MM runtime parity with OoTMM (games/mm/2s2h/mm_runtime_parity_test.cpp):
+// Skip Boss Introductions arms on a rando file with the key untouched (SoH's
+// IS_RANDO default), and Lenient Goron Spikes' three verdicts, its IS_RANDO
+// default and its order-independence from Goron Rolling Ignores Magic. Needs the
+// display-free shared bring-up first. Returns 0 on pass, non-zero on fail.
+int MM_RuntimeParity_RunHeadless(void);
 // The MM rando minigame reward hooks (games/mm/2s2h/mm_minigame_offer_hooks_test.cpp):
 // a rupee that stands in for an open check is not given on top of it (#1216).
 // Drives the Rando/ActorBehavior hooks through OnFileLoad against a calloc'd
@@ -6632,6 +6638,25 @@ static TestResult Test_MMSongTeacherHooks(void) {
     return MM_SongTeacherHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1426. Same display-free shared bring-up as mm-song-teacher-hooks: the registrars
+// it drives read CVars through the Ship::Context singleton. It restores the
+// SaveContext image, MM_gPlayState, sPlayerControlInput and every key it touches,
+// and re-runs each key's drive and the IS_RANDO drive on the way out, so it has no
+// ordering constraints.
+static TestResult Test_MMRuntimeParity(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_RuntimeParity_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #1216. Same display-free shared bring-up as mm-song-teacher-hooks. Restores
 // the SaveContext image and MM_gPlayState and re-runs OnFileLoad on the way
 // out, so it has no ordering constraints.
@@ -8922,6 +8947,12 @@ const TestDescriptor gTests[] = {
     // everything it touches, so it has no ordering constraints.
     { "mm-song-teacher-hooks", "The nine SkipLearning song-teacher hooks are linked and arm under rando (#1071)",
       Test_MMSongTeacherHooks },
+    // #1426: MM runtime parity with OoTMM. Restores everything it touches.
+    { "mm-runtime-parity",
+      "Skip Boss Introductions arms on an untouched key in a rando file, and Lenient Goron Spikes keeps the charge "
+      "through a landing, charges at a lower speed and keeps spikes out at any speed, on by default under rando "
+      "(#1426)",
+      Test_MMRuntimeParity },
     // The MM rando minigame reward hooks (#1216). Restores everything it touches.
     { "mm-gallery-rupee-stand-in",
       "A minigame rupee standing in for an open MM check is not given on top of it (#1216)",
