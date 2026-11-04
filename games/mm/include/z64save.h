@@ -399,6 +399,15 @@ typedef struct RandoSaveInfo {
     u32 randoSaveOptions[RO_MAX]; // Type here may change in the future
     u16 randoStartingItems[256]; // Max 256 starting items, using u16 in case we add more than 255 items
     s8 foundDungeonKeys[9]; // Tracks the number of dungeon keys found, opposed to the number of keys in the inventory
+    // RedShipBlueShip (#1424): bits 8-15 of the FROZEN trap-type set; bits 0-7
+    // are randoSaveTrapTypes below (Traps.cpp FrozenTrapTypesOf joins them).
+    // OoTMM's Fire, Drain, Anti-Magic, Knockback and Rupoor traps took MM to
+    // twelve types, more than randoSaveTrapTypes' eight bits. NOT appended: it
+    // sits in what was the padding byte before foundTriforcePieces (that u16 is
+    // at foundDungeonKeys + 10 with or without it, which Traps.cpp asserts), so
+    // no field moves, sizeof(Save) is unchanged and every .redsave written
+    // before it keeps its layout and reads zero here: none of the new types.
+    u8 randoSaveTrapTypesHi;
     u16 foundTriforcePieces;
     // The FROZEN per-file trick set (#578 part 1; ADR 0010 §3.3, ADR 0004 §6
     // state 4), indexed by MMRT_* — one byte per key rather than a bitfield so
@@ -428,6 +437,7 @@ typedef struct RandoSaveInfo {
     // page offers). Not a generation input, but world identity: the profile
     // digest folds it when nonzero (Foreign.cpp ProfileIdentityString), so a
     // paired world cannot change it between creation and its first crossing.
+    // Types 8 and up live in randoSaveTrapTypesHi (#1424).
     u8 randoSaveTrapTypes;
     // The FROZEN "Moon Crash Behavior" (#1069; OoTMM's moonCrash): 0 = "Last
     // Save" (reset, the file as last saved; OoTMM's default), 1 = "New Cycle"

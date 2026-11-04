@@ -459,6 +459,8 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
     // #1439: the pair's Way of the Hero is written by the same creation (its fill,
     // a creation record), so it is KEPT with them.
     const ComboWothRecord savedComboWoth = gComboCtx.comboWoth;
+    // #1169 XW2: the second rules word, frozen and folded with the first.
+    const ComboItemRules2Record savedComboItemRules2 = gComboCtx.comboItemRules2;
 
     // Frozen blobs and shadow copies in one call — they are the same storage
     // (FrozenStateManager::ClearFrozenState memsets the buffer AND clears
@@ -532,6 +534,9 @@ void Context_InvalidateSessionState(ComboSeedStampPolicy seedPolicy) {
         gComboCtx.comboItemRules = savedComboItemRules;
         gComboCtx.comboFillWallets = savedComboFillWallets;
         gComboCtx.comboWoth = savedComboWoth;
+        // Half of the fingerprint too: a kept hash with a dropped word would read
+        // as damage at the next compare (#1169 XW2).
+        gComboCtx.comboItemRules2 = savedComboItemRules2;
         // The crossing store (ADR 0010 O7) is KEPT by not being cleared: it
         // lives outside gComboCtx, so the ComboContext_Init above never touched
         // it. Same author and same moment as the stamp; see

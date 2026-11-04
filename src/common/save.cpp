@@ -1125,11 +1125,13 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
     // #976: the item rules ride the same check, over the record just read.
     // #1389: the [Both Games] Triforce Hunt rows join it, a session divergence the
     // load restores from the file's triforce record.
-    uint32_t comboDiverged =
-        Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
-                                           combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-        Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
-        Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce);
+    // #1169 XW2: the second rules word too (0 in every file written before it).
+    const uint32_t comboRules2 = Combo_ComboItemRules2Word(&combo.comboItemRules2);
+    uint32_t comboDiverged = Combo_ComboSettingsDivergenceForEx2(&combo.comboSettings, &combo.comboItemRules,
+                                                                 comboRules2, combo.comboSettingsHash,
+                                                                 combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
+                             Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                             Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce);
     if (comboDiverged != 0) {
         char fields[192];
         Combo_ComboSettingsDivergenceDescribe(comboDiverged, fields, sizeof(fields));
@@ -1145,8 +1147,8 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
             return;
         }
-        if (Combo_ComboSettingsCanRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, &combo.comboTriforce,
-                                                comboDiverged) == 0) {
+        if (Combo_ComboSettingsCanRestoreLiveEx2(&combo.comboSettings, &combo.comboItemRules, comboRules2,
+                                                 &combo.comboTriforce, comboDiverged) == 0) {
             std::fprintf(stderr,
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the cross-game rules this file was "
                          "created under do not match this session's and cannot be restored from it: %s. The "
@@ -1158,9 +1160,10 @@ void SaveManager::EvaluateSlot(int slot, uint32_t ootSavGeneration, int openKind
             // logicRung has a key since #1367) is one only another build
             // writes; a divergence of keyed rules alone reaches here only when
             // the store could not take them.
-            v.identityToast = Combo_ComboSettingsUnrestorableBits(&combo.comboItemRules, comboDiverged) != 0u
-                                  ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
-                                  : RSBS_LOAD_TOAST_REFUSED_RULES;
+            v.identityToast =
+                Combo_ComboSettingsUnrestorableBitsEx2(&combo.comboItemRules, comboRules2, comboDiverged) != 0u
+                    ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
+                    : RSBS_LOAD_TOAST_REFUSED_RULES;
             v.words = RsbsSave_LoadToastRefusalMessage(v.identityToast);
             return;
         }
@@ -1375,15 +1378,18 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
     bool rulesWritten = false;
     if (v.comboDiverged != 0) {
         uint32_t afterRestore = v.comboDiverged;
-        if (Combo_ComboSettingsRestoreLiveEx(&combo.comboSettings, &combo.comboItemRules, &combo.comboTriforce,
-                                             v.comboDiverged, restoredRules, sizeof(restoredRules), &rulesUndo) == 1) {
+        // #1169 XW2: the file's second rules word restores beside the first.
+        const uint32_t comboRules2 = Combo_ComboItemRules2Word(&combo.comboItemRules2);
+        if (Combo_ComboSettingsRestoreLiveEx2(&combo.comboSettings, &combo.comboItemRules, comboRules2,
+                                              &combo.comboTriforce, v.comboDiverged, restoredRules,
+                                              sizeof(restoredRules), &rulesUndo) == 1) {
             rulesWritten = true;
-            afterRestore =
-                Combo_ComboSettingsDivergenceForEx(&combo.comboSettings, &combo.comboItemRules, combo.comboSettingsHash,
-                                                   combo.sharedRandoSettingsHash, combo.mmProfileDigest) |
-                Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
-                Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce) |
-                (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
+            afterRestore = Combo_ComboSettingsDivergenceForEx2(&combo.comboSettings, &combo.comboItemRules, comboRules2,
+                                                               combo.comboSettingsHash, combo.sharedRandoSettingsHash,
+                                                               combo.mmProfileDigest) |
+                           Combo_TriforceRecordDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                           Combo_TriforceCountsDivergence(&combo.comboSettings, &combo.comboTriforce) |
+                           (gForceLoadRestoreVerifyFail ? v.comboDiverged : 0u);
             std::fprintf(stderr,
                          "[RsbsSave] slot %d: the cross-game rules this session held differed from the file's; the "
                          "file's own values were restored (%s) — frozen wins at load (#781)\n",
@@ -1399,9 +1405,10 @@ RsbsLoadOutcome SaveManager::LoadSlotImpl(int slot, uint32_t ootSavGeneration, i
                          "[RsbsSave] slot %d REFUSED: COMBO SETTINGS IDENTITY — the restore of the file's rules did "
                          "not take (%s); every key it wrote was put back. The on-disk .redsave is intact.\n",
                          slot, fields);
-            const int toast = Combo_ComboSettingsUnrestorableBits(&combo.comboItemRules, afterRestore) != 0u
-                                  ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
-                                  : RSBS_LOAD_TOAST_REFUSED_RULES;
+            const int toast =
+                Combo_ComboSettingsUnrestorableBitsEx2(&combo.comboItemRules, comboRules2, afterRestore) != 0u
+                    ? RSBS_LOAD_TOAST_REFUSED_OTHER_BUILD
+                    : RSBS_LOAD_TOAST_REFUSED_RULES;
             return refuse(RSBS_REFUSE_IDENTITY, false, toast, RsbsSave_LoadToastRefusalMessage(toast));
         }
     }
@@ -2070,7 +2077,9 @@ RsbsResetOutcome SaveManager::RestoreLastCommitForReset(int slot, uint8_t* mmOut
         combo.mmProfileDigest == gComboCtx.mmProfileDigest && combo.mmPairedAttempt == gComboCtx.mmPairedAttempt &&
         combo.comboSettingsHash == gComboCtx.comboSettingsHash &&
         std::memcmp(&combo.comboTriforce, &gComboCtx.comboTriforce, sizeof(ComboTriforceRecord)) == 0 &&
-        std::memcmp(&combo.comboItemRules, &gComboCtx.comboItemRules, sizeof(ComboItemRulesRecord)) == 0;
+        std::memcmp(&combo.comboItemRules, &gComboCtx.comboItemRules, sizeof(ComboItemRulesRecord)) == 0 &&
+        // #1169 XW2: the second rules word is the same world identity.
+        std::memcmp(&combo.comboItemRules2, &gComboCtx.comboItemRules2, sizeof(ComboItemRules2Record)) == 0;
     // The crossing store is the only truth for foreign placements, frozen at
     // creation; the commit's block must be the live store byte for byte (a
     // v1/v2 file carries none, which is true only of a world with none).

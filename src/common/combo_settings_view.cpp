@@ -72,6 +72,23 @@ const ComboSettingDesc kComboSettingDescs[COMBO_SETTING_COUNT] = {
     // #979: OoTMM's stoneMaskOot and sharedMaskStone, under OoTMM's own names.
     { RSBS_CVAR_COMBO_RANDO_STONE_MASK_OOT, "Stone Mask (OoT)" },
     { RSBS_CVAR_COMBO_RANDO_SHARED_MASK_STONE, "Shared Stone Mask" },
+    // #1169 XW2: OoTMM's fourteen warp-song rules, under OoTMM's own names
+    // (data.ts). Hidden until XW12: no row draws these labels yet; a load that
+    // restores one names it in its toast.
+    { RSBS_CVAR_COMBO_RANDO_SONG_SOARING_OOT, "Song of Soaring (OoT)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_MINUET_MM, "Minuet of Forest (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_BOLERO_MM, "Bolero of Fire (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_SERENADE_MM, "Serenade of Water (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_REQUIEM_MM, "Requiem of Spirit (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_NOCTURNE_MM, "Nocturne of Shadow (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SONG_PRELUDE_MM, "Prelude of Light (MM)" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SOARING, "Shared Song of Soaring" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_MINUET, "Shared Minuet of Forest" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_BOLERO, "Shared Bolero of Fire" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_SERENADE, "Shared Serenade of Water" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_REQUIEM, "Shared Requiem of Spirit" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_NOCTURNE, "Shared Nocturne of Shadow" },
+    { RSBS_CVAR_COMBO_RANDO_SHARED_SONG_PRELUDE, "Shared Prelude of Light" },
     // #980: OoTMM's gerudoMaskMm, skullMaskMm, spookyMaskMm and their shared
     // variants, under OoTMM's own names.
     { RSBS_CVAR_COMBO_RANDO_GERUDO_MASK_MM, "Gerudo Mask (MM)" },
@@ -132,6 +149,28 @@ uint32_t ItemRuleBitFor(ComboSettingId id) {
     }
     return 0u;
 }
+
+// #1169 XW2: THE SECOND WORD'S KEYS, the same shape: each authors one
+// RSBS_XITEM2_* bit of gComboCtx.comboItemRules2. OoTMM's order (the seven
+// extensions, then the seven shared songs), which is also the order a restore
+// names them in. Every bit here is a plain 0/1 rule; the shared ones need their
+// extension (Combo_ComboItemRule2Requires).
+const ItemRuleKey kItemRule2Keys[] = {
+    { COMBO_SETTING_SONG_SOARING_OOT, RSBS_XITEM2_SONG_SOARING_OOT },
+    { COMBO_SETTING_SONG_MINUET_MM, RSBS_XITEM2_SONG_MINUET_MM },
+    { COMBO_SETTING_SONG_BOLERO_MM, RSBS_XITEM2_SONG_BOLERO_MM },
+    { COMBO_SETTING_SONG_SERENADE_MM, RSBS_XITEM2_SONG_SERENADE_MM },
+    { COMBO_SETTING_SONG_REQUIEM_MM, RSBS_XITEM2_SONG_REQUIEM_MM },
+    { COMBO_SETTING_SONG_NOCTURNE_MM, RSBS_XITEM2_SONG_NOCTURNE_MM },
+    { COMBO_SETTING_SONG_PRELUDE_MM, RSBS_XITEM2_SONG_PRELUDE_MM },
+    { COMBO_SETTING_SHARED_SONG_SOARING, RSBS_XITEM2_SHARED_SONG_SOARING },
+    { COMBO_SETTING_SHARED_SONG_MINUET, RSBS_XITEM2_SHARED_SONG_MINUET },
+    { COMBO_SETTING_SHARED_SONG_BOLERO, RSBS_XITEM2_SHARED_SONG_BOLERO },
+    { COMBO_SETTING_SHARED_SONG_SERENADE, RSBS_XITEM2_SHARED_SONG_SERENADE },
+    { COMBO_SETTING_SHARED_SONG_REQUIEM, RSBS_XITEM2_SHARED_SONG_REQUIEM },
+    { COMBO_SETTING_SHARED_SONG_NOCTURNE, RSBS_XITEM2_SHARED_SONG_NOCTURNE },
+    { COMBO_SETTING_SHARED_SONG_PRELUDE, RSBS_XITEM2_SHARED_SONG_PRELUDE },
+};
 
 } // namespace
 
@@ -215,6 +254,23 @@ int32_t Combo_ComboSettingDefault(ComboSettingId id) {
             return (int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_PIECES;
         case COMBO_SETTING_TRIFORCE_GOAL:
             return (int32_t)RSBS_TRIFORCE_COMBO_DEFAULT_GOAL;
+        case COMBO_SETTING_SONG_SOARING_OOT: // #1169 XW2
+        case COMBO_SETTING_SONG_MINUET_MM:
+        case COMBO_SETTING_SONG_BOLERO_MM:
+        case COMBO_SETTING_SONG_SERENADE_MM:
+        case COMBO_SETTING_SONG_REQUIEM_MM:
+        case COMBO_SETTING_SONG_NOCTURNE_MM:
+        case COMBO_SETTING_SONG_PRELUDE_MM:
+        case COMBO_SETTING_SHARED_SONG_SOARING:
+        case COMBO_SETTING_SHARED_SONG_MINUET:
+        case COMBO_SETTING_SHARED_SONG_BOLERO:
+        case COMBO_SETTING_SHARED_SONG_SERENADE:
+        case COMBO_SETTING_SHARED_SONG_REQUIEM:
+        case COMBO_SETTING_SHARED_SONG_NOCTURNE:
+        case COMBO_SETTING_SHARED_SONG_PRELUDE:
+            // A bit of the second word's defaults, the one definition of "what
+            // ships" (RSBS_XITEM2_DEFAULTS: every warp-song rule off, OoTMM's).
+            return ((uint32_t)RSBS_XITEM2_DEFAULTS & Combo_ComboItemRule2BitFor(id)) != 0u ? 1 : 0;
         default:
             return 0;
     }
@@ -270,6 +326,20 @@ bool Combo_ComboSettingValueValid(ComboSettingId id, int32_t value) {
         case COMBO_SETTING_SHARED_MASK_GERUDO:     // #980, the same
         case COMBO_SETTING_SHARED_MASK_SKULL:      // #980, the same
         case COMBO_SETTING_SHARED_MASK_SPOOKY:     // #980, the same
+        case COMBO_SETTING_SONG_SOARING_OOT:       // #1169 XW2: one second-word bit each, the same
+        case COMBO_SETTING_SONG_MINUET_MM:
+        case COMBO_SETTING_SONG_BOLERO_MM:
+        case COMBO_SETTING_SONG_SERENADE_MM:
+        case COMBO_SETTING_SONG_REQUIEM_MM:
+        case COMBO_SETTING_SONG_NOCTURNE_MM:
+        case COMBO_SETTING_SONG_PRELUDE_MM:
+        case COMBO_SETTING_SHARED_SONG_SOARING:
+        case COMBO_SETTING_SHARED_SONG_MINUET:
+        case COMBO_SETTING_SHARED_SONG_BOLERO:
+        case COMBO_SETTING_SHARED_SONG_SERENADE:
+        case COMBO_SETTING_SHARED_SONG_REQUIEM:
+        case COMBO_SETTING_SHARED_SONG_NOCTURNE:
+        case COMBO_SETTING_SHARED_SONG_PRELUDE:
             // EXACTLY 0 or 1, not "nonzero is true" (#886, #668's rule). A flag key
             // holding 2 is a value nobody chose, and the record stores one bit,
             // so a coercion would make two stored values produce the same world.
@@ -521,21 +591,47 @@ const Restorable kRestorable[] = {
     { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_MASK_SPOOKY }, // #980
     // #979: the cooldown BYTE has its own divergence bit and, since #979, a key.
     { RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN, COMBO_SETTING_BLAST_MASK_COOLDOWN },
+    // #1169 XW2: the second rules word's fourteen keys, under the same bitset bit
+    // as the first word's (one divergence bit for both words), in OoTMM's order.
+    // Restorable only when every differing bit has a key and the file's word holds
+    // nothing this build refuses (ItemRulesKeyedDiff): while the rules are hidden,
+    // only a session's stray key against a file's "off" is put back.
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_SOARING_OOT },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_MINUET_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_BOLERO_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_SERENADE_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_REQUIEM_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_NOCTURNE_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SONG_PRELUDE_MM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_SOARING },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_MINUET },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_BOLERO },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_SERENADE },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_REQUIEM },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_NOCTURNE },
+    { RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, COMBO_SETTING_SHARED_SONG_PRELUDE },
 };
 
 /** Can the keys put the file's crossItemFlags back? Only when every bit that
  *  differs from the session's resolution has a key; a rule only another build
  *  authors (an extension mask, say) cannot be restored, and the load refuses it by
- *  name. */
-bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules) {
+ *  name. #1169 XW2: the same for the second word, which also may not hold a bit
+ *  this build refuses (Combo_ComboItemRules2Refused: until XW12, any warp-song
+ *  rule on), so a later build's warp-song world is refused as another build's. */
+bool ItemRulesKeyedDiff(const ComboItemRulesRecord* frozenRules, uint32_t frozenRules2) {
     ComboItemRulesRecord live;
     Combo_ResolveComboItemRules(&live);
     Combo_ComboItemRulesLiveForFile(frozenRules, &live); // #1369: a gated rule as the file decided it
     const uint32_t frozenFlags = (frozenRules != nullptr) ? frozenRules->crossItemFlags : 0u;
-    return ((frozenFlags ^ live.crossItemFlags) & ~Combo_ComboItemRuleKeyedBits()) == 0u;
+    if (((frozenFlags ^ live.crossItemFlags) & ~Combo_ComboItemRuleKeyedBits()) != 0u) {
+        return false;
+    }
+    const uint32_t live2 = Combo_ResolveComboItemRules2();
+    return ((frozenRules2 ^ live2) & ~Combo_ComboItemRule2KeyedBits()) == 0u &&
+           Combo_ComboItemRules2Refused(frozenRules2, nullptr, 0) == 0u;
 }
 
-int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules, uint32_t frozenRules2,
                     const ComboTriforceRecord* frozenTriforce, ComboSettingId id) {
     switch (id) {
         case COMBO_SETTING_TRIFORCE_PIECES:
@@ -584,6 +680,22 @@ int32_t FrozenValue(const ComboSettingsRecord* frozen, const ComboItemRulesRecor
             // #979: the file's cooldown byte (NULL: the default).
             return frozenRules != nullptr ? (int32_t)frozenRules->blastMaskCooldown
                                           : (int32_t)RSBS_BLAST_COOLDOWN_DEFAULT;
+        case COMBO_SETTING_SONG_SOARING_OOT: // #1169 XW2
+        case COMBO_SETTING_SONG_MINUET_MM:
+        case COMBO_SETTING_SONG_BOLERO_MM:
+        case COMBO_SETTING_SONG_SERENADE_MM:
+        case COMBO_SETTING_SONG_REQUIEM_MM:
+        case COMBO_SETTING_SONG_NOCTURNE_MM:
+        case COMBO_SETTING_SONG_PRELUDE_MM:
+        case COMBO_SETTING_SHARED_SONG_SOARING:
+        case COMBO_SETTING_SHARED_SONG_MINUET:
+        case COMBO_SETTING_SHARED_SONG_BOLERO:
+        case COMBO_SETTING_SHARED_SONG_SERENADE:
+        case COMBO_SETTING_SHARED_SONG_REQUIEM:
+        case COMBO_SETTING_SHARED_SONG_NOCTURNE:
+        case COMBO_SETTING_SHARED_SONG_PRELUDE:
+            // A bit of the file's second rules word (0: every rule off).
+            return (frozenRules2 & Combo_ComboItemRule2BitFor(id)) != 0u ? 1 : 0;
         default:
             return 0;
     }
@@ -629,6 +741,35 @@ uint32_t Combo_ComboItemRuleKeyedBits(void) {
     return bits;
 }
 
+uint32_t Combo_ComboItemRules2Authored(void) {
+    // #1169 XW2: the second word's keys through the same one reader, so an unset
+    // key (and a process with no CVar store) is off.
+    uint32_t bits = 0u;
+    for (const ItemRuleKey& k : kItemRule2Keys) {
+        if (Combo_ComboSettingResolved(k.id) != 0) {
+            bits |= k.bit;
+        }
+    }
+    return bits;
+}
+
+uint32_t Combo_ComboItemRule2KeyedBits(void) {
+    uint32_t bits = 0u;
+    for (const ItemRuleKey& k : kItemRule2Keys) {
+        bits |= k.bit;
+    }
+    return bits;
+}
+
+uint32_t Combo_ComboItemRule2BitFor(ComboSettingId id) {
+    for (const ItemRuleKey& k : kItemRule2Keys) {
+        if (k.id == id) {
+            return k.bit;
+        }
+    }
+    return 0u;
+}
+
 uint32_t Combo_ComboSettingsRestorableMask(void) {
     uint32_t mask = 0;
     for (const Restorable& r : kRestorable) {
@@ -638,8 +779,13 @@ uint32_t Combo_ComboSettingsRestorableMask(void) {
 }
 
 uint32_t Combo_ComboSettingsUnrestorableBits(const ComboItemRulesRecord* frozenRules, uint32_t divergedBits) {
+    return Combo_ComboSettingsUnrestorableBitsEx2(frozenRules, 0u, divergedBits);
+}
+
+uint32_t Combo_ComboSettingsUnrestorableBitsEx2(const ComboItemRulesRecord* frozenRules, uint32_t frozenRules2,
+                                                uint32_t divergedBits) {
     uint32_t bits = divergedBits & ~Combo_ComboSettingsRestorableMask();
-    if ((divergedBits & RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) != 0u && !ItemRulesKeyedDiff(frozenRules)) {
+    if ((divergedBits & RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS) != 0u && !ItemRulesKeyedDiff(frozenRules, frozenRules2)) {
         bits |= RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS;
     }
     return bits;
@@ -652,10 +798,16 @@ int Combo_ComboSettingsCanRestoreLive(const ComboSettingsRecord* frozen, const C
 
 int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                         const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits) {
+    return Combo_ComboSettingsCanRestoreLiveEx2(frozen, frozenRules, 0u, frozenTriforce, divergedBits);
+}
+
+int Combo_ComboSettingsCanRestoreLiveEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                         uint32_t frozenRules2, const ComboTriforceRecord* frozenTriforce,
+                                         uint32_t divergedBits) {
     if (frozen == nullptr || divergedBits == 0) {
         return 0;
     }
-    if (Combo_ComboSettingsUnrestorableBits(frozenRules, divergedBits) != 0u) {
+    if (Combo_ComboSettingsUnrestorableBitsEx2(frozenRules, frozenRules2, divergedBits) != 0u) {
         // A field no key authors (an item rule only another build authors among
         // them, #1068), or damage: the caller refuses.
         return 0;
@@ -668,7 +820,7 @@ int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const
     // An item rule's value is one bit, 0 or 1, so it is always in its space.
     for (const Restorable& r : kRestorable) {
         if ((divergedBits & r.bit) != 0u &&
-            !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, frozenRules, frozenTriforce, r.id))) {
+            !Combo_ComboSettingValueValid(r.id, FrozenValue(frozen, frozenRules, frozenRules2, frozenTriforce, r.id))) {
             return 0;
         }
     }
@@ -683,6 +835,12 @@ int Combo_ComboSettingsRestoreLive(const ComboSettingsRecord* frozen, const Comb
 int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                      const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits, char* names,
                                      size_t len, ComboSettingsKeyUndo* undo) {
+    return Combo_ComboSettingsRestoreLiveEx2(frozen, frozenRules, 0u, frozenTriforce, divergedBits, names, len, undo);
+}
+
+int Combo_ComboSettingsRestoreLiveEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                      uint32_t frozenRules2, const ComboTriforceRecord* frozenTriforce,
+                                      uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo) {
     if (names != nullptr && len > 0) {
         names[0] = '\0';
     }
@@ -691,7 +849,7 @@ int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const Co
     }
     // The same answer the file-select probe got (#836), so the probe and the
     // load cannot disagree about whether the file can restore its rules.
-    if (Combo_ComboSettingsCanRestoreLiveEx(frozen, frozenRules, frozenTriforce, divergedBits) == 0) {
+    if (Combo_ComboSettingsCanRestoreLiveEx2(frozen, frozenRules, frozenRules2, frozenTriforce, divergedBits) == 0) {
         return 0;
     }
 
@@ -705,7 +863,7 @@ int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const Co
         // actually differs, so a load names what it changed. Every differing
         // rule is keyed (checked above), so this makes the resolver's
         // crossItemFlags the file's exactly.
-        const int32_t value = FrozenValue(frozen, frozenRules, frozenTriforce, r.id);
+        const int32_t value = FrozenValue(frozen, frozenRules, frozenRules2, frozenTriforce, r.id);
         if ((r.bit == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS || r.bit == RSBS_COMBO_DIVERGE_TRIFORCE_COUNTS) &&
             Combo_ComboSettingResolved(r.id) == value) {
             continue;
