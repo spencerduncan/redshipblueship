@@ -243,6 +243,9 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *        spoiler "item" and their JSON round trip;
  *   (P3) an item hint whose target is at no OoT location names Termina, never
  *        "an Isolated Place" (the RA_NONE a location with no area answers);
+ *        #1435: or, for a static hint's target Link starts with (in the starting
+ *        inventory: a "Start With" boss key), his pocket (RA_LINKS_POCKET), except
+ *        at Ganon's door under a Triforce Hunt, which names no key at all;
  *   (P4) every OoT item the crossing store hosts in MM resolves to Termina, so P3
  *        is not vacuous on a seed whose hinted items all stayed home.
  *   (P5) OUTSIDE the remainder's hint pass (now: this validator runs after it) the
@@ -939,6 +942,27 @@ static void CheckStoneHint(const std::shared_ptr<Rando::Context>& ctx, Randomize
     }
 }
 
+/** #1435: whether a Triforce Hunt is on, so the hunt, not a placed key, opens Ganon's door. */
+static bool TriforceHuntOn(const std::shared_ptr<Rando::Context>& ctx) {
+    return ctx->GetOption(RSK_TRIFORCE_HUNT).IsNot(RO_TRIFORCE_HUNT_OFF);
+}
+
+/**
+ * (P3, #1435) Whether slot `slot` of static hint `key`, which names no location, is a
+ * target Link starts with: read from the hint's own data (staticHintInfoMap's
+ * targetItems) and the starting inventory, not through hints.cpp's predicate. Ganon's
+ * door under a Triforce Hunt never is: no hint is built there.
+ */
+static bool PocketSlotIsStartingItem(const std::shared_ptr<Rando::Context>& ctx, RandomizerHint key, size_t slot) {
+    if (!Rando::StaticData::staticHintInfoMap.contains(key) ||
+        (key == RH_GANONS_BOSS_KEY_HINT && TriforceHuntOn(ctx))) {
+        return false;
+    }
+    const std::vector<RandomizerGet>& targets = Rando::StaticData::staticHintInfoMap[key].targetItems;
+    return slot < targets.size() &&
+           std::find(StartingInventory.begin(), StartingInventory.end(), targets[slot]) != StartingInventory.end();
+}
+
 static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut = nullptr) {
     auto ctx = Rando::Context::GetInstance();
     if (!ctx) {
@@ -957,6 +981,7 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
     size_t hintsChecked = 0;
     size_t failures = 0;
     size_t terminaHints = 0;
+    size_t pocketHints = 0; // #1435: P3's starting-item slots
     StoneCheckResult stoneCheck;
 #ifdef RSBS_SINGLE_EXECUTABLE
     size_t terminaSlots = 0;
@@ -973,6 +998,13 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
 
         const std::string hintName =
             Rando::StaticData::hintNames[hintKey].GetForCurrentLanguage(MF_CLEAN);
+        // #1435: under a Triforce Hunt the hunt opens Ganon's door, and no hint names
+        // a key for it (hints.cpp, StaticHintReplacedByTriforceHunt; OoTMM's door).
+        if (hintKey == RH_GANONS_BOSS_KEY_HINT && TriforceHuntOn(ctx)) {
+            fprintf(stderr, "[rando-hints] FAIL %s: generated under a Triforce Hunt, which opens the door (#1435)\n",
+                    hintName.c_str());
+            failures++;
+        }
         const HintType hintType = hint->GetHintType();
         const bool namesAnItem = (hintType == HINT_TYPE_ITEM || hintType == HINT_TYPE_ITEM_AREA);
 
@@ -1005,10 +1037,13 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
                 if (hintedCheck == RC_UNKNOWN_CHECK) {
                     if (li < hintedAreas.size() && hintedAreas[li] == RA_TERMINA) {
                         terminaHints++;
+                    } else if (li < hintedAreas.size() && hintedAreas[li] == RA_LINKS_POCKET &&
+                               PocketSlotIsStartingItem(ctx, hintKey, li)) {
+                        pocketHints++; // #1435: a target Link starts with
                     } else {
                         fprintf(stderr,
-                                "[rando-hints] FAIL %s: target %zu is at no OoT location and the hint does not name "
-                                "Termina (area %d) (P3)\n",
+                                "[rando-hints] FAIL %s: target %zu is at no OoT location and the hint names neither "
+                                "Termina nor, for an item Link starts with, his pocket (area %d) (P3)\n",
                                 hintName.c_str(), li, li < hintedAreas.size() ? (int)hintedAreas[li] : -1);
                         failures++;
                     }
@@ -1172,8 +1207,8 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
         }
         fprintf(stderr,
                 "[rando-hints] paired world: %d crossing hosts in OoT (each hintable), %d OoT items in MM, "
-                "%zu hinted target(s) named Termina\n",
-                crossingHosts, ootItemsInMM, terminaHints);
+                "%zu hinted target(s) named Termina, %zu starting item(s) named Link's pocket (#1435)\n",
+                crossingHosts, ootItemsInMM, terminaHints, pocketHints);
         fprintf(stderr,
                 "[rando-hints] paired world: %zu generated hint slot(s) name a crossing host, %d crossing host "
                 "probe(s), %d graded major by MM and %d not (P1/P2)\n",
@@ -1290,13 +1325,65 @@ extern "C" int Rando_ValidatePairedWorldHints(void) {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 /**
+ * #1435: every slot of static hint `key` that names no location and Link's pocket
+ * (a target Link starts with) is one P3 accepts, and the text a player reads names
+ * "your pocket" (the hint is built with yourPocket), never "Link's Pocket" or "an
+ * Isolated Place"; and so does the hint read back from its spoiler / save document
+ * (toJSON / Hint(key, json)), which never carried yourPocket. Counts the slots into
+ * `*pocketSlots`; returns the failures.
+ */
+static int CheckPocketSlotWords(const std::string& label, RandomizerHint key, Rando::Hint& hint, int* pocketSlots) {
+    auto ctx = Rando::Context::GetInstance();
+    int failures = 0;
+    const std::vector<RandomizerCheck> locations = hint.GetHintedLocations();
+    const std::vector<RandomizerArea> areas = hint.GetHintedAreas();
+    const std::string yourPocket = Rando::StaticData::hintTextTable[RHT_YOUR_POCKET].GetClear().GetEnglish(MF_CLEAN);
+    const std::string linksPocket = Rando::StaticData::hintTextTable[RHT_LINKS_POCKET].GetClear().GetEnglish(MF_CLEAN);
+    const std::string isolated = Rando::StaticData::hintTextTable[RHT_ISOLATED_PLACE].GetClear().GetEnglish(MF_CLEAN);
+    const std::string text = JoinMessages(hint.GetAllMessageStrings(MF_CLEAN));
+    const nlohmann::json doc = nlohmann::json::parse(hint.toJSON().dump());
+    const Rando::Hint reloaded(key, doc);
+    const std::string reloadedText = JoinMessages(reloaded.GetAllMessageStrings(MF_CLEAN));
+    for (size_t ai = 0; ai < areas.size() && ai < locations.size(); ai++) {
+        if (locations[ai] != RC_UNKNOWN_CHECK || areas[ai] != RA_LINKS_POCKET) {
+            continue;
+        }
+        (*pocketSlots)++;
+        if (!PocketSlotIsStartingItem(ctx, key, ai)) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL %s: slot %zu names Link's pocket for an item Link does not start "
+                    "with (#1435)\n",
+                    label.c_str(), ai);
+            failures++;
+        }
+        if (text.find(yourPocket) == std::string::npos || text.find(linksPocket) != std::string::npos ||
+            text.find(isolated) != std::string::npos) {
+            fprintf(stderr, "[rando-hints] FAIL %s: pocket slot %zu does not read \"%s\": \"%s\" (#1435)\n",
+                    label.c_str(), ai, yourPocket.c_str(), text.c_str());
+            failures++;
+        }
+        if (reloadedText != text) {
+            fprintf(stderr,
+                    "[rando-hints] FAIL %s: read back from its document the hint says \"%s\", live \"%s\" "
+                    "(#1435)\n",
+                    label.c_str(), reloadedText.c_str(), text.c_str());
+            failures++;
+        }
+    }
+    return failures;
+}
+
+/**
  * #1187, ComboSingleBag leg H: the caller has created a paired world with Mido's
  * Hint and Boss Door Hints on and run Rando_ValidatePairedWorldHints over it. The
  * seven hints those settings enable (CreateStaticHintFromData over
  * staticHintInfoMap) are all generated, and each slot whose item the single bag
  * put in Termina (PushTerminaSlot) names, in the text a player reads, the MM area
  * of that item's first MM host. P6 checks the slot's stored area; this checks the
- * words.
+ * words. #1435: Ganon's door is the exception under a Triforce Hunt, where it must
+ * NOT be generated; and a slot for an item Link starts with (Ganon's Boss Key under
+ * "Start With", the shipped default since #1428) reads "your pocket"
+ * (CheckPocketSlotWords).
  * @param outTermina  the Termina slots among the seven (0 leaves the words unproven).
  * @return the failures.
  */
@@ -1304,18 +1391,28 @@ extern "C" int Rando_TestMidoBossDoorHints(int* outTermina) {
     auto ctx = Rando::Context::GetInstance();
     int failures = 0;
     int termina = 0;
+    int pocket = 0;
     const RandomizerHint keys[] = { RH_MIDO_HINT,           RH_FOREST_BOSS_KEY_HINT, RH_FIRE_BOSS_KEY_HINT,
                                     RH_WATER_BOSS_KEY_HINT, RH_SPIRIT_BOSS_KEY_HINT, RH_SHADOW_BOSS_KEY_HINT,
                                     RH_GANONS_BOSS_KEY_HINT };
     for (const RandomizerHint key : keys) {
         const std::string label = Rando::StaticData::hintNames[key].GetForCurrentLanguage(MF_CLEAN);
         Rando::Hint* hint = ctx->GetHint(key);
+        const bool huntOpensDoor = key == RH_GANONS_BOSS_KEY_HINT && TriforceHuntOn(ctx);
+        if (huntOpensDoor) {
+            if (hint != nullptr && hint->IsEnabled()) {
+                fprintf(stderr, "[rando-hints] FAIL %s: generated under a Triforce Hunt (#1435)\n", label.c_str());
+                failures++;
+            }
+            continue;
+        }
         if (hint == nullptr || !hint->IsEnabled()) {
             fprintf(stderr, "[rando-hints] FAIL %s: not generated although its setting is on (#1187)\n",
                     label.c_str());
             failures++;
             continue;
         }
+        failures += CheckPocketSlotWords(label, key, *hint, &pocket);
         const std::vector<RandomizerArea> areas = hint->GetHintedAreas();
         const std::vector<RandomizerGet> slotItems = TerminaSlotItemsOf(key, *hint);
         const std::string text = JoinMessages(hint->GetAllMessageStrings(MF_CLEAN));
@@ -1338,10 +1435,143 @@ extern "C" int Rando_TestMidoBossDoorHints(int* outTermina) {
             }
         }
     }
+    fprintf(stderr, "[rando-hints] Mido's and the boss-door hints: %d Termina slot(s), %d pocket slot(s) (#1435)\n",
+            termina, pocket);
     if (outTermina != nullptr) {
         *outTermina = termina;
     }
     return failures;
+}
+
+/** #1435: one native generation of `seedStr` with `settings` set, every one cleared
+ *  again before returning (never stored: a stored rando CVar poisons later rows). */
+static int GenerateNativeWith(const char* seedStr, const std::vector<std::pair<const char*, int>>& settings) {
+    for (const auto& s : settings) {
+        CVarSetInteger(s.first, s.second);
+    }
+    (void)OoT_ComboLogic_TestSetNativeGeneralPass(1);
+    const int gen = Rando_HeadlessSeedTest(seedStr);
+    for (const auto& s : settings) {
+        CVarClear(s.first);
+    }
+    return gen;
+}
+
+/** #1435: the #441 checks over the world just generated. 10 (the seed drew no Junk
+ *  stone, so check (5)'s Junk half is vacuous) comes after every failure is counted
+ *  and is no failure of these legs, which do not change the hint distribution. */
+static bool HintChecksHold(const char* leg) {
+    const int rc = ValidateGeneratedHints(false);
+    if (rc != 0 && rc != 10) {
+        fprintf(stderr, "[rando-hints] FAIL %s: the #441 hint checks fail (rc %d; see above)\n", leg, rc);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * #1435, Ganon's door, over two native generations of `seedStr` with Boss Door Hints
+ * on and Ganon's Boss Key "Start With" (the shipped default since #1428):
+ *   P. Triforce Hunt off: the key is in the starting inventory and at no location,
+ *      and Ganon's door hint names Link's pocket: its one slot is RC_UNKNOWN_CHECK /
+ *      RA_LINKS_POCKET and it reads "your pocket", live and read back from its
+ *      document (CheckPocketSlotWords). Before #1435: RA_NONE, "an Isolated Place".
+ *   H. Triforce Hunt "Ganon's Boss Key": the hunt opens the door (the key is at
+ *      RC_TRIFORCE_COMPLETED, granted when the hunt is won), so no hint is built
+ *      for it, as OoTMM's door names none; the five dungeon doors' hints still are.
+ *      Before #1435: "your pocket", RC_TRIFORCE_COMPLETED's area, for a door that
+ *      stays locked until the hunt is won.
+ * The #441 checks hold over both worlds.
+ * @return 0 when both hold.
+ */
+extern "C" int Rando_HeadlessGanonDoorHintTest(const char* seedStr) {
+    const char* const bossKeyHint = CVAR_RANDOMIZER_SETTING("BossKeyHint");
+    const char* const ganonsBossKey = CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey");
+    const char* const triforceHunt = CVAR_RANDOMIZER_SETTING("TriforceHunt");
+    int failures = 0;
+
+    // ---- P: Start With, no hunt ---------------------------------------------
+    int gen = GenerateNativeWith(
+        seedStr,
+        { { bossKeyHint, 1 }, { ganonsBossKey, RO_GANON_BOSS_KEY_STARTWITH }, { triforceHunt, RO_TRIFORCE_HUNT_OFF } });
+    if (gen != 0) {
+        fprintf(stderr, "[rando-hints] FAIL P: generation with Ganon's Boss Key \"Start With\" failed rc=%d\n", gen);
+        return gen;
+    }
+    auto ctx = Rando::Context::GetInstance();
+    bool keyPlaced = false;
+    for (const RandomizerCheck loc : ctx->allLocations) {
+        keyPlaced = keyPlaced || ctx->GetItemLocation(loc)->GetPlacedRandomizerGet() == RG_GANONS_CASTLE_BOSS_KEY;
+    }
+    const bool startsWithKey = std::find(StartingInventory.begin(), StartingInventory.end(),
+                                         RG_GANONS_CASTLE_BOSS_KEY) != StartingInventory.end();
+    if (!ctx->GetOption(RSK_GANONS_BOSS_KEY).Is(RO_GANON_BOSS_KEY_STARTWITH) || TriforceHuntOn(ctx) || keyPlaced ||
+        !startsWithKey) {
+        fprintf(stderr,
+                "[rando-hints] FAIL P fixture: Ganon's Boss Key option %u, hunt %u, placed %d, starting %d; the leg "
+                "needs a key Link starts with and no hunt\n",
+                (unsigned)ctx->GetOption(RSK_GANONS_BOSS_KEY).Get(), (unsigned)ctx->GetOption(RSK_TRIFORCE_HUNT).Get(),
+                keyPlaced ? 1 : 0, startsWithKey ? 1 : 0);
+        return 1;
+    }
+    Rando::Hint* door = ctx->GetHint(RH_GANONS_BOSS_KEY_HINT);
+    const std::string label = Rando::StaticData::hintNames[RH_GANONS_BOSS_KEY_HINT].GetForCurrentLanguage(MF_CLEAN);
+    if (door == nullptr || !door->IsEnabled()) {
+        fprintf(stderr, "[rando-hints] FAIL P: %s is not generated with Boss Door Hints on (#1435)\n", label.c_str());
+        return 1;
+    }
+    const std::vector<RandomizerCheck> doorLocations = door->GetHintedLocations();
+    const std::vector<RandomizerArea> doorAreas = door->GetHintedAreas();
+    fprintf(stderr, "[rando-hints] P: %s: %zu slot(s), area %d: \"%s\"\n", label.c_str(), doorAreas.size(),
+            doorAreas.empty() ? -1 : (int)doorAreas[0], JoinMessages(door->GetAllMessageStrings(MF_CLEAN)).c_str());
+    if (doorLocations != std::vector<RandomizerCheck>{ RC_UNKNOWN_CHECK } ||
+        doorAreas != std::vector<RandomizerArea>{ RA_LINKS_POCKET }) {
+        fprintf(stderr, "[rando-hints] FAIL P: %s does not name Link's pocket for a key Link starts with (#1435)\n",
+                label.c_str());
+        failures++;
+    }
+    int pocket = 0;
+    failures += CheckPocketSlotWords(label, RH_GANONS_BOSS_KEY_HINT, *door, &pocket);
+    if (pocket != 1) {
+        fprintf(stderr, "[rando-hints] FAIL P: %d pocket slot(s) at %s, expected 1 (#1435)\n", pocket, label.c_str());
+        failures++;
+    }
+    failures += HintChecksHold("P") ? 0 : 1;
+
+    // ---- H: Start With under a Triforce Hunt ----------------------------------
+    gen = GenerateNativeWith(
+        seedStr,
+        { { bossKeyHint, 1 }, { ganonsBossKey, RO_GANON_BOSS_KEY_STARTWITH }, { triforceHunt, RO_TRIFORCE_HUNT_GBK } });
+    if (gen != 0) {
+        fprintf(stderr, "[rando-hints] FAIL H: generation under a Triforce Hunt failed rc=%d\n", gen);
+        return gen;
+    }
+    ctx = Rando::Context::GetInstance();
+    if (!TriforceHuntOn(ctx)) {
+        fprintf(stderr, "[rando-hints] FAIL H fixture: the generated world has no Triforce Hunt\n");
+        return 1;
+    }
+    door = ctx->GetHint(RH_GANONS_BOSS_KEY_HINT);
+    if (door != nullptr && door->IsEnabled()) {
+        fprintf(stderr,
+                "[rando-hints] FAIL H: %s is generated under a Triforce Hunt, which opens the door: \"%s\" "
+                "(#1435)\n",
+                label.c_str(), JoinMessages(door->GetAllMessageStrings(MF_CLEAN)).c_str());
+        failures++;
+    }
+    const RandomizerHint dungeonDoors[] = { RH_FOREST_BOSS_KEY_HINT, RH_FIRE_BOSS_KEY_HINT, RH_WATER_BOSS_KEY_HINT,
+                                            RH_SPIRIT_BOSS_KEY_HINT, RH_SHADOW_BOSS_KEY_HINT };
+    for (const RandomizerHint key : dungeonDoors) {
+        Rando::Hint* hint = ctx->GetHint(key);
+        if (hint == nullptr || !hint->IsEnabled()) {
+            fprintf(stderr, "[rando-hints] FAIL H: %s is not generated with Boss Door Hints on\n",
+                    Rando::StaticData::hintNames[key].GetForCurrentLanguage(MF_CLEAN).c_str());
+            failures++;
+        }
+    }
+    failures += HintChecksHold("H") ? 0 : 1;
+    fprintf(stderr, "[rando-hints] Ganon's door (#1435): %d failure(s)\n", failures);
+    return failures == 0 ? 0 : 1;
 }
 
 /**
