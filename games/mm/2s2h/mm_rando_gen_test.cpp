@@ -102,10 +102,10 @@ int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest); // #1047, EnGs.cpp
 int OoT_ComboLogic_CriticalRenewablesWorld(uint32_t* outPresent, uint32_t* outRenewed, int* outRenewingShelves);
 }
 
-#include "gen_budget.h"       // src/common — the creation's round budget (#950)
-#include "combo_single_bag.h" // src/common — the single bag's report and commit (lane K11)
-#include "crossing_store.h"   // src/common — the crossings the creation stores (ADR 0010 O7)
-#include "combo_area.h"       // src/common — MM's foolish areas the content digest folds (#949)
+#include "gen_budget.h"          // src/common — the creation's round budget (#950)
+#include "combo_single_bag.h"    // src/common — the single bag's report and commit (lane K11)
+#include "crossing_store.h"      // src/common — the crossings the creation stores (ADR 0010 O7)
+#include "combo_area.h"          // src/common — MM's foolish areas the content digest folds (#949)
 #include "critical_renewables.h" // src/common — OoTMM's critical-renewables rule (R6)
 
 namespace {

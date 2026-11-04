@@ -1474,6 +1474,23 @@ static bool ComboLogicRowMayDraw(const ComboLogicBagItem* item, uint8_t hostGame
     return !renew || ComboLogicRenewHostOk(item, hostGame, host);
 }
 
+/** A row that must renew found no candidate: name the pending kind, so a dead end
+ *  the rule causes (every renewing host of that game taken, or none in the pool)
+ *  is not read as an empty supply. Logged only; it draws and changes nothing. */
+static void ComboLogicLogRenewDeadEnd(const ComboLogicBagItem* item) {
+    SharedItem pending = item->item;
+    if (!Combo_CriticalRenewablePending(pending, sRenewed) && ComboLogicRowIsPair(item)) {
+        memset(&pending, 0, sizeof(pending));
+        pending.originGame = (item->item.originGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        pending.id = item->pairId;
+    }
+    fprintf(stderr,
+            "[ComboLogic] All Locations' critical renewables: no reached empty %s host renews the first %s, so its "
+            "draw dead-ends (every renewing host is taken, or none is in the pool)\n",
+            Game_ToString((GameId)pending.originGame),
+            Combo_CriticalRenewableKindName(pending.originGame, Combo_CriticalRenewableKind(pending)));
+}
+
 /** How many of `hostGame`'s current candidates `item` may use. */
 static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostGame, bool renew) {
     const ComboLogicHostBuf* buf = &sCandidates[hostGame];
@@ -1547,6 +1564,9 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
     *deadEnd = false;
     if (total == 0) {
         *deadEnd = true;
+        if (renew) {
+            ComboLogicLogRenewDeadEnd(item);
+        }
         return RSBS_COMBO_LOGIC_OK;
     }
 
@@ -1649,7 +1669,9 @@ static void ComboLogicPartitionBag(const ComboLogicFillRequest* req) {
  *     then handed those hosts to the junk pass.
  *
  * When the supply is empty, THIS ROW AND EVERY LATER ONE is dropped: the drop
- * set is the tail of the surplus list, which is the last-first rule.
+ * set is the tail of the surplus list, which is the last-first rule. The one
+ * exception is a pending first copy of a critical renewable (All Locations),
+ * which dead-ends on that rule and drops alone (see below).
  */
 static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reachedSupply, uint32_t* rng,
                                   ComboLogicFillResult* res) {
@@ -1669,6 +1691,16 @@ static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reached
             return st;
         }
         if (deadEnd) {
+            // THE CRITICAL-RENEWABLES RULE: a pending first copy that found no
+            // renewing host dead-ended on the rule, not on an empty supply, so it
+            // drops ALONE and the rows after it are still drawn. A surplus copy is
+            // not load-bearing, and a dropped one stands nowhere, so the rule still
+            // holds. No world reaches this today: a kind's REQUIRED copy is placed
+            // (and renews the kind) before this phase runs.
+            if (ComboLogicRowMustRenew(&req->bag[sSurplusIdx[s]])) {
+                ComboLogicRecordDrop(req, sSurplusIdx[s], res);
+                continue;
+            }
             for (int d = s; d < sSurplusCount; ++d) {
                 ComboLogicRecordDrop(req, sSurplusIdx[d], res);
             }

@@ -1368,7 +1368,11 @@ int Combo_Logic_TestSetForcedPlacements(const ComboLogicForcedPlacement* rows, i
 //    REQUIRED row is NEVER dropped: running out of hosts for one is the existing
 //    dead end (roll back / ERR_NO_CANDIDATE), because dropping a required copy
 //    could silently make the stated world unprovable, which neither native fill
-//    ever does.
+//    ever does. One exception to last-first (`criticalRenewables`, All Locations
+//    only): a surplus row that is a pending first copy of a critical renewable
+//    and finds no renewing host dead-ends on that rule, not on the supply, so it
+//    drops ALONE and the rows after it are still drawn. No world reaches it
+//    today: a kind's REQUIRED copy is placed, and renews it, before this phase.
 //
 //    LAST-FIRST IS THE COORDINATOR'S RULE, NOT EITHER NATIVE FILL'S, and BAG
 //    ORDER IS THE CALLER'S INSTRUMENT for matching a native one:

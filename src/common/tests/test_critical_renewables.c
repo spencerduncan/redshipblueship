@@ -24,6 +24,9 @@
  *       the hosts (the sensitivity control); a second copy is free once the first
  *       renewed; and with the kind already renewed the fill is the fill it was,
  *       digest for digest, as it is under Beatable Only with the rule asked for.
+ *   R5b. THE SURPLUS PHASE: a surplus first copy whose kind is pending and has
+ *        no renewing host drops alone, and the surplus rows after it are still
+ *        drawn (a dead end on the rule is not an empty supply).
  */
 
 #include "../combo_logic.h"
@@ -355,6 +358,47 @@ TestResult CrBody() {
         CL_ASSERT(CrRunFill(bag, bagCount, (uint8_t)RSBS_COMBO_RUNG_BEATABLE, seed, false, &res) == RSBS_COMBO_LOGIC_OK,
                   "the Beatable Only fill must succeed");
         CL_ASSERT(res.placementDigest == withRule, "Beatable Only is unchanged: the rule is All Locations' alone");
+    }
+
+    // --- R5b: a surplus first copy with no renewing host drops ALONE --------
+    // MM hosts 40-42 and OoT hosts 10-11: none is MM's renewing host (22), so the
+    // surplus ocarina (MM's pending kind) dead-ends on the rule while two hosts are
+    // still free. It is dropped by itself and the surplus rows after it are drawn;
+    // a dead end on the rule must not drop the tail as an empty supply does.
+    {
+        const ComboLogicBagItem surplusBag[5] = {
+            ClBagItem((uint8_t)GAME_OOT, kOotHook, 0),      ClBagItem((uint8_t)GAME_MM, kMmBow, 0),
+            ClSurplusItem((uint8_t)GAME_MM, kMmOcarina, 0), ClSurplusItem((uint8_t)GAME_OOT, kOotSword, 0),
+            ClSurplusItem((uint8_t)GAME_MM, kMmBow, 0),
+        };
+        sCrSeedOoT = 1u;
+        sCrSeedMM = 0u;
+        for (int s = 0; s < 4; ++s) {
+            const uint32_t seed = 0xC217F000u + (uint32_t)s;
+            ClBuildOpenWorld(2, 3);
+            CL_ASSERT(CrRunFill(surplusBag, 5, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE, seed, true, &res) ==
+                          RSBS_COMBO_LOGIC_OK,
+                      "an All Locations fill whose surplus first copy has no renewing host must still succeed");
+            int dropped = -1;
+            CL_ASSERT(res.requiredPlaced == 2 && res.surplusPlaced == 2 && res.surplusDropped == 1 &&
+                          Combo_Logic_SurplusDroppedCount() == 1 && Combo_Logic_SurplusDroppedAt(0, &dropped) &&
+                          dropped == 2,
+                      "the surplus ocarina, pending with no renewing host, drops ALONE; the two surplus rows after "
+                      "it are still placed (not the empty-supply tail drop)");
+            uint8_t game = 0;
+            uint16_t host = 0;
+            CL_ASSERT(!CrFind((uint8_t)GAME_MM, kMmOcarina, &game, &host),
+                      "the dropped first copy stands nowhere, so the rule still holds");
+
+            // SENSITIVITY: the rule not asked for, the same bag is an exact fit.
+            ClBuildOpenWorld(2, 3);
+            CL_ASSERT(CrRunFill(surplusBag, 5, (uint8_t)RSBS_COMBO_RUNG_ALL_REACHABLE, seed, false, &res) ==
+                          RSBS_COMBO_LOGIC_OK,
+                      "the same fill without the rule must succeed");
+            CL_ASSERT(res.surplusPlaced == 3 && res.surplusDropped == 0,
+                      "SENSITIVITY: without the rule every surplus row fits, so the drop above is the rule's");
+        }
+        sCrSeedOoT = 0u;
     }
     CL_ASSERT(ClContractClean(), "neither stub engine saw a contract violation");
     return TEST_PASS;
