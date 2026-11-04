@@ -44,7 +44,9 @@
 - **Majora's Mask's hints are on by default**, as OoTMM's are: gossip stones, the boss remains posters, Oath to Order,
   the spider house rewards and the Hookshot hint. Purchaseable Gossip Hints stays off (OoTMM has no rupee-bought
   hints). The hint rows are part of Majora's Mask's settings, so the same seed makes a different world, and a file
-  made before this keeps its own rows (loading it restores them).
+  made before this keeps its own rows (loading it restores them). Loading such a file writes its hint rows (off) back
+  to your settings, so your next new file has them off too: turn them on again under Hints in Randomizer > MM Randomizer
+  first.
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 

@@ -60,11 +60,13 @@
  *      the single-bag fill runs the analysis after its probe, OoT's remainder
  *      flags its WotH candidates before CreateAllHints, OoT's WotH entry draws the
  *      MM areas, CreateStoneHints loads them, MM's free stone consults the WotH
- *      variant after the foolish one, and both claim sites ask
- *      Combo_ComboLogicClaimsAllowed. Each check has a counterfactual that must
- *      fail it. The generated half (the flags, the record and the hints of a real
- *      paired world) is the rando tier's ComboSingleBag D2, through
- *      Rando_ValidatePairedWorldHints's P8.
+ *      variant after the foolish one, both claim sites ask
+ *      Combo_ComboLogicClaimsAllowed, and the paired validator's P1 (a crossing
+ *      host's hint names the crossed item) skips WotH hints, which name only an
+ *      area (a WotH draw on a crossing host would fail P1). Each check has a
+ *      counterfactual that must fail it. The generated half (the flags, the
+ *      record and the hints of a real paired world) is the rando tier's
+ *      ComboSingleBag D2, through Rando_ValidatePairedWorldHints's P8.
  *
  * Linkage note: #included into test_runner.cpp at FILE SCOPE (compiled as C++),
  * AFTER test_combo_logic.c, whose stub engines it drives.
@@ -557,6 +559,8 @@ const char* const kWhMmWoth = "const std::string woth = Rando::HintWoth::FreeSto
 const char* const kWhClaimGate = "if (!Combo_ComboLogicClaimsAllowed()) {";
 const char* const kWhOoTWindow =
     "return OoT_ComboLogic_HintingPairedRemainder() != 0 && Combo_ComboLogicClaimsAllowed();";
+const char* const kWhP1SkipsWoth =
+    "if (hintType != HINT_TYPE_WOTH && OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {";
 
 const WhSite kWhSites[] = {
     { "src/common/combo_single_bag.c", "int Combo_SingleBag_Run(", "}", "sPostFillProbe(sPostFillProbeCtx);",
@@ -580,6 +584,11 @@ const WhSite kWhSites[] = {
     { "games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp", "static bool OoTWothWindowOpen() {", "}", kWhOoTWindow,
       nullptr, kWhOoTWindow,
       "OoT speaks of the Way of the Hero only in its remainder and only when the rung proved something" },
+    // The counterfactual drops only the exemption, which restores main's line.
+    { "games/oot/soh/Enhancements/randomizer/3drando/menu.cpp", "static int ValidateGeneratedHints(", "}",
+      kWhP1SkipsWoth, "failures += CheckCrossingHostHint(hintName, *hint, li, (uint16_t)hintedCheck);",
+      "hintType != HINT_TYPE_WOTH && ",
+      "the paired validator's crossed-item check (P1) skips WotH hints, which name a crossing host's area only" },
 };
 
 /** "" when `text` (the file of `site`) holds the fact, else what is wrong. */

@@ -236,7 +236,8 @@ static int OoT_Combo_CheckHostsCrossing(int) {
  *   (P1) #575 H3b: a hint that names a crossing host names the MM item the host
  *        yields, with its article and " (MM)", never the cover item the host
  *        physically holds, and so does the spoiler's "item" (the hint's text is
- *        read with the remainder's gate open, as the paired creation renders it);
+ *        read with the remainder's gate open, as the paired creation renders it).
+ *        A WotH hint names only the host's area, never an item, so P8 checks it;
  *   (P2) #575 H3b: every crossing host is hintable, and the hint pass's "Named
  *        Item" filter counts it as a major item. Because the pinned seed may hint
  *        no host, P1 and P2 are also probed on every host (ProbeCrossingHostHints):
@@ -1100,7 +1101,10 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
             const RandomizerCheck hintedCheck = hintedLocations[li];
             if (pairedWorld) {
 #ifdef RSBS_SINGLE_EXECUTABLE
-                if (OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
+                // #1439: a WotH hint names a crossing host's AREA ("... is on the way
+                // of the hero"), never an item, so P1's crossed-item text does not
+                // apply to it: P8 checks that its area is on the pair's path.
+                if (hintType != HINT_TYPE_WOTH && OoT_Combo_CheckHostsCrossing((int)hintedCheck) != 0) {
                     hostHints++;
                     failures += CheckCrossingHostHint(hintName, *hint, li, (uint16_t)hintedCheck);
                 }
