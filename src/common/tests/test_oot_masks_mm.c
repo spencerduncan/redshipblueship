@@ -21,6 +21,7 @@
  *   (pinned), their rows (RITYPE_MASK, OoTMM's names, progression), MM's REAL give
  *   and conversion through the slot state byte's owned bits (the chosen variant
  *   untouched), ownership gated by the frozen rule, both games' shared members
+ *   (MM's already registered at static init, before the row re-registers them)
  *   and THE SHARED PAIR (one bag row per mask only under its shared rule), the
  *   wear path (a cell whose own mask is not owned shows the OoT mask, and its C
  *   button wears it), and the actor seam: OoTMM's list of the actors that read
@@ -294,7 +295,6 @@ TestResult Test_OoTMasksMMItems(void) {
            "only under the frozen rule, pair into one bag row under the shared rule, are worn from a cell whose own "
            "mask is not owned, and the listed actors read them for exactly their update (#980)\n");
     sOmmFailures = 0;
-    MM_OoTMasks_RegisterRuntime();
     const uint16_t gerudo = (uint16_t)MM_OoTMasksTest_Id(0);
     const uint16_t skull = (uint16_t)MM_OoTMasksTest_Id(1);
     const uint16_t spooky = (uint16_t)MM_OoTMasksTest_Id(2);
@@ -304,6 +304,19 @@ TestResult Test_OoTMasksMMItems(void) {
     const uint32_t ruleBits[3] = { kOmmGerudoMM, kOmmSkullMM, kOmmSpookyMM };
     const uint32_t sharedBits[3] = { kOmmSharedGerudo, kOmmSharedSkull, kOmmSharedSpooky };
     static const char* const kOmmNames[3] = { "Gerudo Mask (MM)", "Skull Mask (MM)", "Spooky Mask (MM)" };
+
+    // ---- (0) The static-init registration, before this row re-registers ----------
+    // A paired creation can run before MM's ShipInit, so MM's three shared members
+    // must already be registered at static init (OoTMasksMM.cpp's registrar). No
+    // row clears these three families, so this holds in a --test all process too.
+    // MM's ownership source is not checked here: test_foreign_masks.c resets it.
+    for (int i = 0; i < 3; i++) {
+        uint16_t mmId = 0;
+        OMM_CHECK(Combo_SharedFamilyMemberId(GAME_MM, sharedBits[i], &mmId) && mmId == masks[i],
+                  "MM's %s (%u) is not registered at static init (the family's MM member is %u)", kOmmNames[i],
+                  (unsigned)masks[i], (unsigned)mmId);
+    }
+    MM_OoTMasks_RegisterRuntime();
 
     // ---- (1) The ids: appended, every saved id unchanged --------------------------
     {
