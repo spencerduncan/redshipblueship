@@ -12,8 +12,9 @@
   back into the row ("Restored from file: Logic"), and your next new file uses that until you change the row back.
 - **Seeds come from generator 4** (#1392). The same seed and settings make a different world than on earlier builds.
   A seed package exported by an earlier build (generator 3) is refused ("Seed package from another generator"), so
-  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436) are part of
-  generator 4 too.
+  generate the seed again. Saved files are not affected. The OoTMM default changes below (#1436), Time Travel
+  Requires Master Sword (#1442), Majora's Mask's hints and the Way of the Hero (#1445) and the critical renewables
+  (#1444) are part of generator 4 too.
 - **The proof counts a shared wallet in both games** (#1392). The pair keeps two progressive wallets, usually one in
   each game, and either game's copy raises the shared wallet in both. The fill now counts it that way, as it does for
   magic, quivers, bomb bags and Double Defense, and for Deku Stick and Nut capacity when both games' pools hold it.
