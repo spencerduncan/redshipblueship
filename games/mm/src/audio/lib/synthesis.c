@@ -1244,6 +1244,7 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
                 // Goes from adpcm (compressed) sample data to pcm (uncompressed) sample data
                 switch (sample->codec) {
                     case CODEC_ADPCM:
+                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(numFramesToDecode * frameSize);
                         aSetBuffer(cmd++, 0, sampleDataDmemAddr,
                                    DMEM_UNCOMPRESSED_NOTE + dmemUncompressedAddrOffset2,
                                    numSamplesToDecode * SAMPLE_SIZE);
@@ -1251,6 +1252,7 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
                         break;
 
                     case CODEC_SMALL_ADPCM:
+                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(numFramesToDecode * frameSize);
                         aSetBuffer(cmd++, 0, sampleDataDmemAddr,
                                    DMEM_UNCOMPRESSED_NOTE + dmemUncompressedAddrOffset2,
                                    numSamplesToDecode * SAMPLE_SIZE);

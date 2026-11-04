@@ -922,10 +922,12 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
                 }
                 switch (audioFontSample->codec) {
                     case CODEC_ADPCM:
+                        addr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(nFramesToDecode * frameSize);
                         aSetBuffer(cmd++, 0, addr, DMEM_UNCOMPRESSED_NOTE + phi_s4, nSamplesToDecode * 2);
                         aADPCMdec(cmd++, flags, synthState->synthesisBuffers->adpcmdecState);
                         break;
                     case CODEC_SMALL_ADPCM:
+                        addr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(nFramesToDecode * frameSize);
                         aSetBuffer(cmd++, 0, addr, DMEM_UNCOMPRESSED_NOTE + phi_s4, nSamplesToDecode * 2);
                         aADPCMdec(cmd++, flags | 4, synthState->synthesisBuffers->adpcmdecState);
                         break;

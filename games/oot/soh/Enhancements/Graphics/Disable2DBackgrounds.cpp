@@ -70,28 +70,27 @@ std::set<SkyboxId> skyboxIdControlList = {
     SKYBOX_HOUSE_ALLEY,
 };
 
-void SyncSkyboxTimeToCurrentTime() {
+static void SyncSkyboxTimeToCurrentTime() {
     SOH::SetTimeSettings cmd;
     cmd.settings = { 0xFF, 0xFF, static_cast<uint8_t>(OoT_gPlayState->envCtx.timeIncrement) };
     OoT_Scene_CommandTimeSettings(OoT_gPlayState, &cmd);
 }
 
 void Register3DPreRenderedScenes() {
+    // Runs after the scene commands have set play->skyboxId, but before Play_InitEnvironment builds the
+    // skybox. Overriding the id here means Skybox_Setup loads a real sky; overriding it any later would
+    // leave the display lists pointing at the pre-rendered skybox's texture slots.
     COND_HOOK(AfterSceneCommands, CVAR_VALUE, [](int16_t sceneNum) {
         if (!skyboxSceneControlList.contains(static_cast<SceneID>(sceneNum)) &&
-            // The interior scenes that use the fake skybox that is in skyboxIdControlList never have a real skybox to
-            // show because we disable the 2D background, so we might as well put the normal sky there anyway just in
-            // case any void space manages to peek through the geometry. And by replacing the skybox ID instead of
-            // preventing the load of the textures when they're used we prevent potential bad access later.
             !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxId))) {
             return;
         }
 
         // Add a skybox on scenes from skyboxSceneControlList
         OoT_gPlayState->envCtx.skyboxDisabled = false;
-        SyncSkyboxTimeToCurrentTime();
 
         // Replace skybox with normal sky
+        SyncSkyboxTimeToCurrentTime();
         OoT_gPlayState->skyboxId = SKYBOX_NORMAL_SKY;
         // Apply the always cloudy skybox as an adult for Temple of Time and the Market
         if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS || sceneNum == SCENE_MARKET_RUINS ||
@@ -109,7 +108,7 @@ void Register3DPreRenderedScenes() {
         if ((HREG(80) != 10) || (HREG(82) != 0)) {
             // Furthest possible fog and zFar
             OoT_gPlayState->view.zFar = 12800;
-            OoT_gPlayState->lightCtx.fogNear = 1000; // Set to 1000 to complete disable fog entirely
+            OoT_gPlayState->lightCtx.fogNear = 1000;
             OoT_gPlayState->lightCtx.fogFar = 12800;
         }
     });

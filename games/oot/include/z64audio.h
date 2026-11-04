@@ -917,6 +917,7 @@ typedef struct {
     /* 0x2B30 */ AudioCache fontCache;
     /* 0x2C40 */ AudioCache sampleBankCache;
     /* 0x2D50 */ AudioAllocPool permanentPool;
+    // SOH [Bugfix] 32 -> 512: large custom-music packs overflowed this (see AudioHeap_AllocPermanent).
     /* 0x2D60 */ AudioCacheEntry permanentCache[512];
     /* 0x2EE0 */ AudioSampleCache persistentSampleCache;
     /* 0x3174 */ AudioSampleCache temporarySampleCache;
