@@ -218,7 +218,9 @@ extern "C" int OoT_StoneMaskTest_Seen(int slot) {
  * adult (@p child), under whatever cross-game item rules the caller froze.
  * @p which: 0 CanPassEnemy(RE_BIG_SKULLTULA), 1 CanPassEnemy(RE_GERUDO_GUARD),
  * 2 CanPassEnemy(RE_BREAK_ROOM_GUARD), 3 CanUse(RG_STONE_MASK), 4 BlastOrSmash
- * (the Stone Mask is no explosive), else HasItem(RG_STONE_MASK).
+ * (the Stone Mask is no explosive), 5 CanPassEnemy(RE_BIG_SKULLTULA) without the
+ * Stone Mask's credit (OoTMM's get_past_skultullas_no_stone, the MQ Forest
+ * basement pot room's way in), else HasItem(RG_STONE_MASK).
  * 1 or 0; -1 with no randomizer context.
  */
 extern "C" int OoT_StoneMaskTest_Logic(int held, int child, int which) {
@@ -259,6 +261,9 @@ extern "C" int OoT_StoneMaskTest_Logic(int held, int child, int which) {
             break;
         case 4:
             result = probe->BlastOrSmash();
+            break;
+        case 5:
+            result = probe->CanPassEnemy(RE_BIG_SKULLTULA, ED_CLOSE, true, false);
             break;
         default:
             result = probe->HasItem(RG_STONE_MASK);

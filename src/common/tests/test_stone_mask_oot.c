@@ -23,7 +23,8 @@
  *   child trade cycle visiting it only then and after the Blast Mask (OoTMM's
  *   order), the shared member's give, THE SHARED PAIR (one bag row only under the
  *   shared rule), OoT's REAL logic crediting it where OoTMM's get_past_skultullas
- *   and evade_gerudo do, for a child, only under the rule, and THE EFFECT's seam:
+ *   and evade_gerudo do, for a child, only under the rule (and never where
+ *   get_past_skultullas_no_stone leaves it out), and THE EFFECT's seam:
  *   a listed actor's update runs with Link far away, its true fields come back
  *   after it, and an update another handler kept from running is put back by the
  *   next actor's, never across a frame.
@@ -496,6 +497,11 @@ TestResult Test_StoneMaskOoTItems(void) {
         // OoTMM's can_use_mask_stone is in no explosive macro: it never blasts.
         STM_CHECK(OoT_StoneMaskTest_Logic(1, 1, 4) == 0,
                   "rule on: BlastOrSmash credited a child holding only the Stone Mask");
+        // OoTMM's get_past_skultullas_no_stone (the MQ Forest antichamber alcove,
+        // SoH's basement pot room way in): the same Big Skulltula, no Stone credit.
+        STM_CHECK(OoT_StoneMaskTest_Logic(1, 1, 5) == 0,
+                  "rule on: CanPassEnemy(Big Skulltula) without the Stone credit passed a child holding only the "
+                  "Stone Mask");
     }
 
     // ---- (7) THE EFFECT's seam: Link out of sight for a listed actor's update -------

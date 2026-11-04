@@ -1445,7 +1445,7 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
 // It is rare for Pass Enemy to need distance, this only happens when the enemy blocks a platform and you can't reach it
 // before it blocks you an example is the Big Skulltula in water room of MQ deku, which is out of sword swing height but
 // blocks off the whole SoT block Can we get past this enemy in a tight space?
-bool Logic::CanPassEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wallOrFloor) {
+bool Logic::CanPassEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wallOrFloor, bool stoneMask) {
     if (CanKillEnemy(enemy, distance, wallOrFloor)) {
         return true;
     }
@@ -1487,7 +1487,7 @@ bool Logic::CanPassEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
             // hammer jumpslash can pass, but only on flat land where you can kill with hammer swing
             return CanUse(RG_NUTS) || CanUse(RG_BOOMERANG) ||
                    (ctx->GetTrickOption(RT_BIG_SKULLTULA_PAUSE_LIFT) && wallOrFloor && distance == ED_CLOSE) ||
-                   CanUse(RG_STONE_MASK); // [RSBS #979] OoTMM's get_past_skultullas counts can_use_mask_stone
+                   (stoneMask && CanUse(RG_STONE_MASK)); // [RSBS #979] OoTMM's get_past_skultullas
         case RE_LIKE_LIKE:
             return CanUse(RG_HOOKSHOT) || CanUse(RG_BOOMERANG);
         case RE_GIBDO:

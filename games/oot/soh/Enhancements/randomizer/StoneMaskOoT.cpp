@@ -37,11 +37,14 @@
  * put back as soon as the update returns, so targeting, the draw and every other
  * actor read the true ones. They are replaced in ShouldActorUpdate (the last
  * hook before the update) and put back in OnActorUpdate (the first after it).
- * When another ShouldActorUpdate handler keeps the update from running,
- * OnActorUpdate does not fire, so the next actor's ShouldActorUpdate puts them
- * back, in the same pass: Actor_UpdateAll never deletes an actor it has already
- * passed. A held actor from an earlier frame or play state is forgotten without
- * being touched (its fields were recomputed, or it is gone).
+ * The replacing handler is a filter hook, which GameInteractor_ShouldActorUpdate
+ * runs after every general, ID- and pointer-scoped one, so it reads their final
+ * vote: an update they keep from running (Anchor's ACTOR_EN_SW veto, say) is
+ * never touched. Should a filter hook registered after it still keep the update
+ * from running, OnActorUpdate does not fire, so the next actor's ShouldActorUpdate
+ * puts the fields back, in the same pass: Actor_UpdateAll never deletes an actor
+ * it has already passed. A held actor from an earlier frame or play state is
+ * forgotten without being touched (its fields were recomputed, or it is gone).
  *
  * THE LOGIC is logic.cpp's (CanUse(RG_STONE_MASK): a child under the frozen rule,
  * OoTMM's can_use_mask_stone, counted where OoTMM's get_past_skultullas and
@@ -343,7 +346,16 @@ extern "C" void Randomizer_DrawStoneMask(PlayState* play, GetItemEntry* getItemE
 static void RegisterStoneMaskOoT() {
     OoT_StoneMask_RegisterRuntime();
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_PLAYER, true, StoneMaskBeforePlayerUpdate);
-    COND_HOOK(ShouldActorUpdate, true, StoneMaskBeforeActorUpdate);
+    {
+        // A filter hook (every actor passes the filter): the filter hooks run last,
+        // so StoneMaskBeforeActorUpdate reads the general, ID- and pointer-scoped
+        // hooks' final vote on the update.
+        static HOOK_ID sBeforeActorUpdateHook = 0;
+        GameInteractor::Instance->UnregisterGameHookForFilter<GameInteractor::ShouldActorUpdate>(
+            sBeforeActorUpdateHook);
+        sBeforeActorUpdateHook = GameInteractor::Instance->RegisterGameHookForFilter<GameInteractor::ShouldActorUpdate>(
+            [](void*, bool*) { return true; }, StoneMaskBeforeActorUpdate);
+    }
     COND_HOOK(OnActorUpdate, true, StoneMaskAfterActorUpdate);
     COND_HOOK(OnLoadGame, true, StoneMaskOnLoadGame);
     COND_HOOK(OnPlayDestroy, true, StoneMaskOnPlayDestroy);
