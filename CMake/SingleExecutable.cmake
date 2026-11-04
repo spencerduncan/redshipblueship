@@ -3303,6 +3303,18 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the rule, and the update seam that hides Link from a listed actor. ROM-free.
     redship_add_test(NAME StoneMaskOoTRule COMMAND redship --test stone-mask-oot-rule)
     redship_add_test(NAME StoneMaskOoTItems COMMAND redship --test stone-mask-oot-items)
+    # THE SECOND CROSS-GAME RULES WORD (#1169 lane XW2): a full 32-bit world field
+    # carved at 925, after #1439's Way of the Hero record, for OoTMM's fourteen
+    # warp-song rules. ComboItemRulesSecondWord:
+    # the carve, the pinned bits (a shared song needs its extension, an unallocated
+    # bit is refused), the fourteen keys hidden (Generate refuses any of them, and
+    # from source asks before the freeze), the fingerprint only when set, the
+    # freeze/KEEP/rollback, divergence and the frozen-record restore, and the round
+    # trips through the seed package's world record and a real .redsave.
+    # RulesOffGoldensUnchanged: a rules-off world's fingerprint, world hash, bag
+    # seeds, divergence and package record are main's. ROM-free.
+    redship_add_test(NAME ComboItemRulesSecondWord COMMAND redship --test combo-item-rules-second-word)
+    redship_add_test(NAME RulesOffGoldensUnchanged COMMAND redship --test rules-off-goldens-unchanged)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every

@@ -1318,6 +1318,13 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                        Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, 1) == 1 &&
                        Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
+        // #1169 XW2: the fourteen warp-song keys have no row until XW12, but the
+        // Reset button clears every key, theirs included.
+        for (int i = (int)COMBO_SETTING_SONG_SOARING_OOT; i <= (int)COMBO_SETTING_SHARED_SONG_PRELUDE; i++) {
+            ROWS_CHECK(Combo_ComboSettingSet((ComboSettingId)i, 1) == 1,
+                       "the writer refused the pre-creation value leg 9 needs for '%s'",
+                       Combo_ComboSettingLabel((ComboSettingId)i));
+        }
         for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
             ROWS_CHECK(Combo_ComboSettingIsExplicit((ComboSettingId)i),
                        "leg 9 set '%s' but the store holds no explicit value, so the reset check would be vacuous",

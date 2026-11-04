@@ -171,6 +171,28 @@ typedef enum {
     // the resolver while the Stone Mask in OoT is off (OoTMM's `cond`).
     COMBO_SETTING_STONE_MASK_OOT,    // gCombo.Rando.StoneMaskOoT -> RSBS_XITEM_STONE_MASK_OOT
     COMBO_SETTING_SHARED_MASK_STONE, // gCombo.Rando.SharedMaskStone -> RSBS_XITEM_SHARED_STONE
+    // #1169 lane XW2: OoTMM's fourteen warp-song rules, BITS OF THE SECOND RULES
+    // WORD (gComboCtx.comboItemRules2, RSBS_XITEM2_*), assembled by
+    // Combo_ResolveComboItemRules2 (Combo_ComboItemRules2Authored). 0 or 1, default
+    // 0 each; a shared song is dropped by the resolver while its extension is off
+    // (OoTMM's `cond`). HIDDEN until lane XW12: no Cross-Game Rules row exposes
+    // them, and Generate refuses a world with any of them on
+    // (Combo_ComboItemRules2Refused). The seven extensions, OoTMM's order:
+    COMBO_SETTING_SONG_SOARING_OOT, // gCombo.Rando.SongSoaringOoT -> RSBS_XITEM2_SONG_SOARING_OOT
+    COMBO_SETTING_SONG_MINUET_MM,   // gCombo.Rando.SongMinuetMM -> RSBS_XITEM2_SONG_MINUET_MM
+    COMBO_SETTING_SONG_BOLERO_MM,   // gCombo.Rando.SongBoleroMM -> RSBS_XITEM2_SONG_BOLERO_MM
+    COMBO_SETTING_SONG_SERENADE_MM, // gCombo.Rando.SongSerenadeMM -> RSBS_XITEM2_SONG_SERENADE_MM
+    COMBO_SETTING_SONG_REQUIEM_MM,  // gCombo.Rando.SongRequiemMM -> RSBS_XITEM2_SONG_REQUIEM_MM
+    COMBO_SETTING_SONG_NOCTURNE_MM, // gCombo.Rando.SongNocturneMM -> RSBS_XITEM2_SONG_NOCTURNE_MM
+    COMBO_SETTING_SONG_PRELUDE_MM,  // gCombo.Rando.SongPreludeMM -> RSBS_XITEM2_SONG_PRELUDE_MM
+    // ...and the seven shared songs, each requiring its extension:
+    COMBO_SETTING_SHARED_SONG_SOARING,  // gCombo.Rando.SharedSongSoaring -> RSBS_XITEM2_SHARED_SONG_SOARING
+    COMBO_SETTING_SHARED_SONG_MINUET,   // gCombo.Rando.SharedSongMinuet -> RSBS_XITEM2_SHARED_SONG_MINUET
+    COMBO_SETTING_SHARED_SONG_BOLERO,   // gCombo.Rando.SharedSongBolero -> RSBS_XITEM2_SHARED_SONG_BOLERO
+    COMBO_SETTING_SHARED_SONG_SERENADE, // gCombo.Rando.SharedSongSerenade -> RSBS_XITEM2_SHARED_SONG_SERENADE
+    COMBO_SETTING_SHARED_SONG_REQUIEM,  // gCombo.Rando.SharedSongRequiem -> RSBS_XITEM2_SHARED_SONG_REQUIEM
+    COMBO_SETTING_SHARED_SONG_NOCTURNE, // gCombo.Rando.SharedSongNocturne -> RSBS_XITEM2_SHARED_SONG_NOCTURNE
+    COMBO_SETTING_SHARED_SONG_PRELUDE,  // gCombo.Rando.SharedSongPrelude -> RSBS_XITEM2_SHARED_SONG_PRELUDE
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
@@ -189,6 +211,19 @@ typedef enum {
  */
 uint32_t Combo_ComboItemRulesAuthored(void);
 uint32_t Combo_ComboItemRuleKeyedBits(void);
+
+/**
+ * The same two for the SECOND rules word (#1169 XW2, RSBS_XITEM2_*): the bits
+ * whose keys resolve on now (Combo_ResolveComboItemRules2 reads this and
+ * nothing else), and every bit a key authors at all (all fourteen warp-song
+ * rules). The keys exist and no row exposes them until lane XW12.
+ */
+uint32_t Combo_ComboItemRules2Authored(void);
+uint32_t Combo_ComboItemRule2KeyedBits(void);
+
+/** The second-word bit @p id authors (RSBS_XITEM2_*), or 0 for every other
+ *  setting. */
+uint32_t Combo_ComboItemRule2BitFor(ComboSettingId id);
 
 /** The tier-4 CVar key for @p id (the RSBS_CVAR_COMBO_RANDO_* literal from
  *  cvar_shared_keys.h). Never NULL; "(invalid)" for an id past the table. */
@@ -404,6 +439,24 @@ int Combo_ComboSettingsRestoreLiveEx(const ComboSettingsRecord* frozen, const Co
 int Combo_ComboSettingsCanRestoreLiveEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                         const ComboTriforceRecord* frozenTriforce, uint32_t divergedBits);
 
+/**
+ * The two above with the file's SECOND rules word too (#1169 XW2): a
+ * RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS divergence restores the fourteen
+ * warp-song keys from @p frozenRules2 beside the first word's keys, and is
+ * unrestorable when the file's word holds a bit this build refuses to load
+ * (Combo_ComboItemRules2Refused: an unallocated bit, a shared song without its
+ * extension, or, until XW12, any warp-song rule on), so such a file is refused
+ * as another build's. A file whose word is 0 restores exactly as the Ex forms
+ * (which are these with 0): a session holding a stray second-word key is put
+ * back to the file's "off". The load path calls these.
+ */
+int Combo_ComboSettingsRestoreLiveEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                      uint32_t frozenRules2, const ComboTriforceRecord* frozenTriforce,
+                                      uint32_t divergedBits, char* names, size_t len, ComboSettingsKeyUndo* undo);
+int Combo_ComboSettingsCanRestoreLiveEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                         uint32_t frozenRules2, const ComboTriforceRecord* frozenTriforce,
+                                         uint32_t divergedBits);
+
 /** Undo a Combo_ComboSettingsRestoreLive: every key it wrote goes back to the
  *  value it held, or back to unset. A NULL or all-unwritten @p undo is a no-op. */
 void Combo_ComboSettingsRestoreUndo(const ComboSettingsKeyUndo* undo);
@@ -419,6 +472,13 @@ uint32_t Combo_ComboSettingsRestorableMask(void);
  *  (#1068; a rule only another build authors). Nonzero is the "other build"
  *  refusal; zero with a refusal is "the store could not take them". */
 uint32_t Combo_ComboSettingsUnrestorableBits(const ComboItemRulesRecord* frozenRules, uint32_t divergedBits);
+
+/** Combo_ComboSettingsUnrestorableBits with the file's second rules word
+ *  (#1169 XW2): RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS is unrestorable also when a
+ *  second-word bit that differs has no key, or the file's word holds a bit
+ *  Combo_ComboItemRules2Refused names. The Ex-less form is this with 0. */
+uint32_t Combo_ComboSettingsUnrestorableBitsEx2(const ComboItemRulesRecord* frozenRules, uint32_t frozenRules2,
+                                                uint32_t divergedBits);
 
 /** Ask the host to write the CVar store to its config file on the next frame.
  *  A no-op in a process with no window or GUI (every headless row). */

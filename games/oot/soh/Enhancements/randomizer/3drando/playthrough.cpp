@@ -490,6 +490,25 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
                      (unsigned)Combo_ComboDirection());
         return -1;
     }
+    // #1169 XW2: THE HIDDEN RULES' GATE. OoTMM's warp-song rules (the second
+    // rules word) have keys but no row until lane XW12, because nothing in this
+    // build plays them yet: a world frozen with one on would hold dead song
+    // pickups. A key set out of band (the console, a hand-made config or preset)
+    // is refused here by name, before anything is frozen, so the refusal is the
+    // same plain early return as the gate above. With no such key set (every
+    // player's case) the word resolves to 0 and this is not taken.
+    const uint32_t rsbsItemRules2 = Combo_ResolveComboItemRules2();
+    {
+        char rsbsRefusedRules[160];
+        if (Combo_ComboItemRules2Refused(rsbsItemRules2, rsbsRefusedRules, sizeof(rsbsRefusedRules)) != 0u) {
+            SPDLOG_ERROR("Paired identity: the cross-game rules {} are not offered by this build yet (the warp-song "
+                         "rules are hidden until they can be played); refusing to generate (#1169)",
+                         rsbsRefusedRules);
+            fprintf(stderr, "[OoT] generation REFUSED: cross-game rules not offered yet: %s (#1169)\n",
+                    rsbsRefusedRules);
+            return -1;
+        }
+    }
 
     // The progress surface (#582), OoT's half. Two sessions per paired creation,
     // not one: this one measures the staged OoT generation, and the file-create
@@ -559,7 +578,10 @@ int Playthrough_Init(uint32_t seed, std::set<RandomizerCheck> excludedLocations,
             }
             Combo_ComboItemRulesApplyCreationShuffles(&comboSettings, &comboItemRules, rsbsShuffled);
         }
-        Combo_FreezeComboSettingsEx(&comboSettings, &comboItemRules);
+        // #1169 XW2: the second rules word freezes in the same act. The gate above
+        // refused any word it names, so while the warp-song rules are hidden this
+        // is 0, and the freeze and its fingerprint are exactly the Ex form's.
+        Combo_FreezeComboSettingsEx2(&comboSettings, &comboItemRules, rsbsItemRules2);
         // #1369: publish MM's give capabilities again, now that the record they
         // read the pair's one shuffle from is this world's (the publish above may
         // have read the last file's record).
