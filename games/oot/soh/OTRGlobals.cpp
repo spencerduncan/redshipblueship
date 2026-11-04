@@ -2587,6 +2587,11 @@ extern "C" int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, flo
     }
     return 1;
 }
+
+// 2S2H 4243fd92f (#1623): MM's half of the Alt Assets toggle below. Defined in
+// games/mm/2s2h/GameExports_SingleExe.cpp; re-resolves MM's FD/Deku/Goron face
+// flipbooks once MM's ExtensionCache rescan has run (#618).
+extern "C" void MM_PlayerCustomFlipbooks_RefreshIfScanned(void);
 #endif
 
 // C->C++ Bridge
@@ -2667,7 +2672,6 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         gfx_texture_cache_clear();
         SOH::SkeletonPatcher::UpdateSkeletons();
 #ifdef RSBS_SINGLE_EXECUTABLE
-        extern "C" void MM_PlayerCustomFlipbooks_RefreshIfScanned(void);
         MM_PlayerCustomFlipbooks_RefreshIfScanned();
 #endif
         GameInteractor::Instance->ExecuteHooks<GameInteractor::OnAssetAltChange>();

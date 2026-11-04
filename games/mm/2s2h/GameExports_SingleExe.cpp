@@ -2947,14 +2947,15 @@ extern "C" void MM_Rando_InitCore(void) {
 
     // #618's trailing InitOTR pair is deliberately NOT here — it belongs to the
     // ASSET phase, and moving it there is a correctness fix rather than a
-    // tidy-up. PlayerCustomFlipbooks_PatchOnce LATCHES sFacePatchState on its
-    // first call and never re-evaluates, and the ExtensionCache scan reports
-    // success (0 added) rather than failure when a live ResourceManager simply
-    // has no MM archives in it. Running the pair from the CORE phase would
-    // therefore, at the creation seam in an OoT-first session, permanently
-    // decide "MM has no custom faces" against a cache that had never seen
-    // mm.o2r — the exact silent-no-op shape #618 exists to close, re-created by
-    // the very split meant to prevent it.
+    // tidy-up. PlayerCustomFlipbooks_Patch LATCHES the Alt Assets state it
+    // resolved for (sFacePatchAltState) and re-evaluates only when that state
+    // changes (2S2H 4243fd92f), and the ExtensionCache scan reports success
+    // (0 added) rather than failure when a live ResourceManager simply has no
+    // MM archives in it. Running the pair from the CORE phase would therefore,
+    // at the creation seam in an OoT-first session, decide "MM has no custom
+    // faces" until the next Alt Assets toggle, against a cache that had never
+    // seen mm.o2r — the exact silent-no-op shape #618 exists to close,
+    // re-created by the very split meant to prevent it.
 }
 
 /**
@@ -3016,9 +3017,10 @@ extern "C" void MM_Rando_InitAssets(void) {
 
     // #618 — the LAST two entries of BenPort's InitOTR list: OTRExtScanner()
     // and PlayerCustomFlipbooks_Patch(). ASSET phase, and the core phase's
-    // comment says why that is not optional: the flipbook patch self-latches on
-    // its first call, so it must not run until the ExtensionCache has actually
-    // seen MM's archives. Placed last, mirroring InitOTR's own order.
+    // comment says why that is not optional: the flipbook patch latches the
+    // Alt Assets state it resolved for, so it must not run until the
+    // ExtensionCache has actually seen MM's archives. Placed last, mirroring
+    // InitOTR's own order.
     MM_ExtensionRescan_AfterArchiveMount();
 
     fprintf(stderr, "[MM] MM_Rando_InitAssets: asset-gated rando bring-up complete\n");
@@ -3079,12 +3081,13 @@ extern "C" bool MM_Rando_AssetsReady(void) {
 // archives OoT mounted after its own scan — OoT mounts `mods/` late, at GUI init
 // — making OoT's own answers depend on whether MM had ever been visited.
 //
-// ORDERING IS LOAD-BEARING, not cosmetic. `PlayerCustomFlipbooks_PatchOnce`
-// latches `sFacePatchState` on its first call and never re-evaluates. Calling it
-// before the rescan would permanently decide "no custom faces" from a cache that
-// had not yet seen mm.o2r — the silent-no-op shape this whole issue class is
-// made of. The two flags below record that the patch ran WITH the scan already
-// complete, and the MMRegistrarCoverage row asserts it.
+// ORDERING IS LOAD-BEARING, not cosmetic. `PlayerCustomFlipbooks_Patch` latches
+// the Alt Assets state it resolved for (`sFacePatchAltState`, 2S2H 4243fd92f)
+// and re-evaluates only when that state changes. Calling it before the rescan
+// would decide "no custom faces" from a cache that had not yet seen mm.o2r, and
+// keep that answer until the next Alt Assets toggle — the silent-no-op shape
+// this whole issue class is made of. The two flags below record that the patch
+// ran WITH the scan already complete, and the MMRegistrarCoverage row asserts it.
 
 static bool sExtRescanScanned = false;
 static bool sExtRescanFlipbooksPatchedAfterScan = false;
@@ -3100,7 +3103,13 @@ extern "C" int Combo_ExtensionCache_ScanGame(const char* gameTag);
  * Run BenPort InitOTR's trailing pair, in order, against MM's now-mounted
  * archives. Called from the end of MM_Rando_Init (once-only via its guard), and
  * safe to call again: the scan is insert-only and re-derives identical entries,
- * and the flipbook patch self-latches.
+ * and the flipbook patch latches on the Alt Assets state.
+ *
+ * RSBS (#1343): when a scan adds entries, PlayerCustomFlipbooks_Reset() clears
+ * that latch so the patch below resolves against the new entries even if an
+ * earlier call already resolved for the same Alt Assets state. Not upstream
+ * code. In production this function runs once, the latch is still unset, and
+ * the reset changes nothing; it matters only when the rescan runs again.
  */
 extern "C" void MM_ExtensionRescan_AfterArchiveMount(void) {
     sExtRescanCalls++;

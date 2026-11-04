@@ -108,5 +108,26 @@ static void RegisterTimeSpeedOffsetRepair() {
     });
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1343): put the real time speed back before MM's gSaveContext is frozen
+// for a crossing or an F10 swap. Called from Combo_FlushLiveStateForFreeze
+// (src/common/switch.cpp). While Link stands still this mode holds the real
+// offset in sStoredTimeOffset and writes -R_TIME_SPEED into the save. Every
+// crossing commits the frozen half to the .redsave (#837), and every arrival
+// into MM dispatches OnSaveLoad (z_opening.c, then z_play.c after the restore).
+// The repair above would then turn the frozen -3 into 0 and drop the stored
+// offset, so an Inverted Song of Time (-2) would be lost on every round trip.
+// This is the same restore the hook makes when time starts moving again. If
+// MM keeps running for a frame after the freeze, the hook stores the offset
+// again on its next update.
+extern "C" void MM_Combo_RestoreTimeSpeedForFreeze(void) {
+    if (sStoredTimeOffset == DEFAULT_TIME_OFFSET) {
+        return;
+    }
+    gSaveContext.save.timeSpeedOffset = sStoredTimeOffset;
+    sStoredTimeOffset = DEFAULT_TIME_OFFSET;
+}
+#endif
+
 static RegisterShipInitFunc initFunc_Repair(RegisterTimeSpeedOffsetRepair);
 static RegisterShipInitFunc initFunc(RegisterTimeMovesWhenYouMove, { CVAR_NAME });
