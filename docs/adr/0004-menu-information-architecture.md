@@ -169,7 +169,8 @@ This is the reassuring part, and it is verified, not assumed:
 - LUS's own settings CVars are defined **once** in `CMake/lus-cvars.cmake` and compiled into
   both games: `gSettings.VsyncEnabled`, `MSAAValue`, `InternalResolution`, `TextureFilter`,
   `LowResMode`, `SimulatedInputLag`, `ZFightingMode`, `ControlNav`, `EnableMultiViewports`,
-  `SdlWindowedFullscreen`, `OverlayFont`, and the `Controllers` / `AdvancedResolution` prefixes.
+  `SdlWindowedFullscreen`, `OverlayFont`, `AllowBackgroundInputs`, and the `Controllers` /
+  `AdvancedResolution` prefixes.
   MM's menu references `CVAR_LOW_RES_MODE` and `CVAR_SIMULATED_INPUT_LAG` through the *same*
   macros OoT uses.
 - The `CVAR_PREFIX_*` strings themselves come from `CMake/soh-cvars.cmake` via

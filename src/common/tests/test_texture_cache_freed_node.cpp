@@ -38,7 +38,7 @@
 
 namespace {
 
-// More synthetic textures than any cache cap libultraship has used (500 in the fork, 1024 upstream).
+// More synthetic textures than any cache cap libultraship has used (1024 in the fork and upstream, 500 before #1416).
 constexpr size_t kTcfnKeyCount = 8192;
 
 // TextureCacheLookup on a miss asks the rendering API for a texture id, selects it and resets its sampler.

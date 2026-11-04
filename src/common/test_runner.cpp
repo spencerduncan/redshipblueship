@@ -2770,10 +2770,11 @@ TestResult Test_TestWindowNoActivation(void) {
 
 // #1152 lock: a test process never plays the operator's game controller. Its
 // window never holds the keyboard (the row above), so SDL would drop pad input
-// for it -- except that libultraship's Gui::ImGuiWMInit (Gui.cpp:200/206) sets
-// SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" for every process, and the
+// for it -- except that libultraship's Gui::ImGuiWMInit (Gui.cpp:204/212) sets
+// SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS to "1" for every process (while
+// gSettings.AllowBackgroundInputs is on, its default), and the
 // ROM-staged rows then walked, warped and loaded files on the operator's pad.
-//   C1 after a normal-priority SDL_SetHint(..., "1") standing in for Gui.cpp:200,
+//   C1 after a normal-priority SDL_SetHint(..., "1") standing in for Gui.cpp:204,
 //      the background-events hint still reads "0" (the environment variable of
 //      the same name removed first, as W2 does, so the value is main's in-code
 //      override and not the one every CTest row also carries);
