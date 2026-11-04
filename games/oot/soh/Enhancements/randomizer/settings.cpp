@@ -464,12 +464,20 @@ void Settings::CreateOptions() {
             mOptions[RSK_TRIFORCE_HUNT].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Disable(kSetBy);
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Disable(kSetBy);
+            // #1435: the [Both Games] hunt grants Ganon's Boss Key as OoT's own hunt
+            // does, so the row is greyed as OoT's own Triforce Hunt row greys it,
+            // with the same reason (OoTMM hides ganonBossKey under its Triforce goals).
+            mOptions[RSK_GANONS_BOSS_KEY].Disable(
+                "This option is disabled because Triforce Hunt is enabled."
+                "Ganon's Boss key\nwill instead be given to you after Triforce Hunt completion.");
             OoT_Rando_WidenTriforceRequiredOptions();
         } else {
             mOptions[RSK_TRIFORCE_HUNT].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_REQUIRED].Enable();
             mOptions[RSK_TRIFORCE_HUNT_PIECES_TOTAL].RunCallback();
+            // #1435: Ganon's Boss Key back to what OoT's own Triforce Hunt row says.
+            mOptions[RSK_TRIFORCE_HUNT].RunCallback();
         }
     });
 #endif

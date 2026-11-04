@@ -1825,6 +1825,9 @@ extern "C" int Rando_HeadlessHintValidityTest(const char* seedStr);
 // #1162 (menu.cpp): the same checks under Hint Distribution = Useless (40 gag
 // stones, never "No Hint") and under two Ganon's Trials (only required ones hinted).
 extern "C" int Rando_HeadlessHintValidityVariantsTest(const char* seedStr);
+// #1435 (menu.cpp): Ganon's door with its key "Start With": "your pocket" with no
+// Triforce Hunt, no hint at all under one (the hunt opens the door).
+extern "C" int Rando_HeadlessGanonDoorHintTest(const char* seedStr);
 // Hint-RELOAD lock (#441, body in menu.cpp): generates one seed, then drives the
 // REAL randomizer section through save -> Rando::Context reset -> reload (exactly
 // as loading a saved file does) and asserts every enabled item hint still renders
@@ -1957,6 +1960,13 @@ TestResult Test_RandoHintValidity(void) {
     // #1162: seed-independent RED for the junk stones and the trial filter.
     rc = Rando_HeadlessHintValidityVariantsTest("RSBSHINT1");
     printf("[TEST] %s: hint validity under Useless / two trials rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    if (rc != 0) {
+        return TEST_FAIL;
+    }
+    // #1435: seed-independent RED for Ganon's door when Link starts with its key.
+    rc = Rando_HeadlessGanonDoorHintTest("RSBSHINT1");
+    printf("[TEST] %s: Ganon's door hint with its key \"Start With\", without and under a Triforce Hunt rc=%d\n",
+           rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
