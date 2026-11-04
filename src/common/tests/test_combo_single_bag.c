@@ -61,6 +61,14 @@
  *      PROGRESSION content other than the remains is load-bearing", and a fixed
  *      renewable is regainable in play by construction. The remains-only round is
  *      still run and printed, and the red half is untouched.
+ *      AMENDED (D wave 2 re-pin, #1434/#1439/#1443): the re-pinned world also runs
+ *      through the Progressive Bomb Bag MM's vanilla Bomb Shop sells
+ *      (RC_BOMB_SHOP_ITEM_03; Shuffle Shops is off by default), named by
+ *      single-content probes and nothing else. It is a NAMED exception
+ *      (kCsbFLoadBearingFixedChecks), asserted both ways: remains + renewables
+ *      alone leave goalMM=0, and with the named content goalMM=1. When either
+ *      fails, the leg prints every single fixed content whose probe restores
+ *      goalMM.
  *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
@@ -1246,12 +1254,14 @@ TestResult ComboSingleBag_Run(void) {
         // distinct item id: what a player regains in play from a pot or a shop.
         std::vector<ComboLogicBagItem> remainsAndRenewables = remains;
         int renewableIds = 0;
+        // Every fixed content and its check, for the named exception and the probes below.
+        const int fixedAll = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
+        std::vector<uint16_t> fixedItems((size_t)(fixedAll > 0 ? fixedAll : 0));
+        std::vector<uint16_t> fixedChecks(fixedItems.size());
+        if (fixedAll > 0) {
+            MM_ComboLogic_TestFixedContents(0, fixedItems.data(), fixedChecks.data(), fixedAll);
+        }
         {
-            const int fixedAll = MM_ComboLogic_TestFixedContents(0, nullptr, nullptr, 0);
-            std::vector<uint16_t> fixedItems((size_t)(fixedAll > 0 ? fixedAll : 0));
-            if (fixedAll > 0) {
-                MM_ComboLogic_TestFixedContents(0, fixedItems.data(), nullptr, fixedAll);
-            }
             std::vector<uint16_t> seen;
             for (const uint16_t id : fixedItems) {
                 ComboItemClassRow cls;
@@ -1274,6 +1284,45 @@ TestResult ComboSingleBag_Run(void) {
                 renewableIds++;
             }
         }
+        // THE NAMED EXCEPTION (D wave 2 re-pin). The worlds that re-pin moved need one
+        // fixed PROGRESSION content besides the remains: the Progressive Bomb Bag MM's
+        // vanilla Bomb Shop sells (Shuffle Shops is off by default, so the shelf keeps
+        // its stock), which the player buys in play. Single-content probes over every
+        // fixed content named it and nothing else. The same seed generated with Time
+        // Travel Requires Master Sword off (another world: the option moves the bag's
+        // seed) names it too, so the bag's draw put every other explosive behind it,
+        // not that rule. Named by check, and required both ways below: sufficient (no OTHER
+        // fixed progression content is load-bearing) and necessary (an exception the
+        // world stops needing must be dropped here, so the claim stays exact).
+        static const char* const kCsbFLoadBearingFixedChecks[] = { "RC_BOMB_SHOP_ITEM_03" };
+        const int namedCount = (int)(sizeof(kCsbFLoadBearingFixedChecks) / sizeof(kCsbFLoadBearingFixedChecks[0]));
+        std::vector<ComboLogicBagItem> remainsRenewablesAndNamed = remainsAndRenewables;
+        int namedFound = 0;
+        int namedProgression = 0;
+        for (int n = 0; n < namedCount; n++) {
+            for (size_t i = 0; i < fixedItems.size(); i++) {
+                const char* checkName = Combo_DescribeCheckName((uint8_t)GAME_MM, fixedChecks[i]);
+                if (checkName == nullptr || std::strcmp(checkName, kCsbFLoadBearingFixedChecks[n]) != 0) {
+                    continue;
+                }
+                ComboItemClassRow cls;
+                namedFound++;
+                namedProgression += (MM_ComboLogic_ClassifyItem(fixedItems[i], &cls) == 1 &&
+                                     cls.fillClass == RSBS_FILL_CLASS_PROGRESSION)
+                                        ? 1
+                                        : 0;
+                ComboLogicBagItem row;
+                memset(&row, 0, sizeof(row));
+                row.item.originGame = (uint8_t)GAME_MM;
+                row.item.id = fixedItems[i];
+                remainsRenewablesAndNamed.push_back(row);
+                const char* itemName = Combo_DescribeItemName(row.item);
+                printf("[TEST] combo-single-bag: F (#737): named exception: MM %s (id %u) on fixed MM %s (check %u)\n",
+                       itemName != nullptr ? itemName : "(unnamed)", (unsigned)fixedItems[i], checkName,
+                       (unsigned)fixedChecks[i]);
+                break;
+            }
+        }
         const std::vector<ComboLogicBagItem> none;
         const int grantsBefore = MM_ComboLogic_FixedHarvestCount();
         ComboLogicRoundResult on;
@@ -1288,6 +1337,46 @@ TestResult ComboSingleBag_Run(void) {
         const int remainsRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remains, &withRemains);
         ComboLogicRoundResult withRenewables;
         const int renewablesRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remainsAndRenewables, &withRenewables);
+        ComboLogicRoundResult withNamed;
+        const int namedRc = CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, remainsRenewablesAndNamed, &withNamed);
+        // When the claim fails, the single-content probes that name the culprit: each
+        // distinct fixed content not assumed above, added alone (printed, not asserted).
+        int probesRestoring = 0;
+        if (namedRc != RSBS_COMBO_LOGIC_OK || withNamed.goalMM != 1 || withRenewables.goalMM != 0) {
+            std::vector<uint16_t> probed;
+            for (size_t i = 0; i < fixedItems.size(); i++) {
+                bool skip = false;
+                for (const uint16_t id : probed) {
+                    skip = skip || id == fixedItems[i];
+                }
+                for (const ComboLogicBagItem& assumed : remainsAndRenewables) {
+                    skip = skip || assumed.item.id == fixedItems[i];
+                }
+                if (skip) {
+                    continue;
+                }
+                probed.push_back(fixedItems[i]);
+                std::vector<ComboLogicBagItem> probe = remainsAndRenewables;
+                ComboLogicBagItem row;
+                memset(&row, 0, sizeof(row));
+                row.item.originGame = (uint8_t)GAME_MM;
+                row.item.id = fixedItems[i];
+                probe.push_back(row);
+                ComboLogicRoundResult probeRound;
+                if (CsbRoundNow(RSBS_COMBO_GOAL_BEAT_BOTH, probe, &probeRound) == RSBS_COMBO_LOGIC_OK &&
+                    probeRound.goalMM == 1) {
+                    const char* itemName = Combo_DescribeItemName(row.item);
+                    const char* checkName = Combo_DescribeCheckName((uint8_t)GAME_MM, fixedChecks[i]);
+                    printf("[TEST] combo-single-bag: F (#737): probe: assuming MM %s (id %u) from fixed MM %s (check "
+                           "%u) as well restores goalMM\n",
+                           itemName != nullptr ? itemName : "(unnamed)", (unsigned)fixedItems[i],
+                           checkName != nullptr ? checkName : "(unnamed)", (unsigned)fixedChecks[i]);
+                    probesRestoring++;
+                }
+            }
+            printf("[TEST] combo-single-bag: F (#737): %d single-content probe(s) of %d restore goalMM\n",
+                   probesRestoring, (int)probed.size());
+        }
         MM_ComboLogic_TestSetFixedGrants(previous);
         printf("[TEST] combo-single-bag: F (#737): %d fixed MM contents outside the host pool, %d of them boss "
                "remains; beat-both exit round with the fixed grant: goalOoT=%d goalMM=%d GOAL=%d (%d fixed "
@@ -1299,6 +1388,9 @@ TestResult ComboSingleBag_Run(void) {
         printf("[TEST] combo-single-bag: F (#737): without it but the fixed remains and %d distinct fixed renewable "
                "ids assumed: goalOoT=%d goalMM=%d GOAL=%d\n",
                renewableIds, withRenewables.goalOoT, withRenewables.goalMM, withRenewables.goalExpression);
+        printf("[TEST] combo-single-bag: F (#737): and the %d named fixed content(s) assumed as well: goalOoT=%d "
+               "goalMM=%d GOAL=%d\n",
+               namedFound, withNamed.goalOoT, withNamed.goalMM, withNamed.goalExpression);
         CSB_ASSERT(previous == 1, "MM's fixed-content grant was already switched off before leg F");
         CSB_ASSERT(remainsTotal > 0, "the shipped profile leaves no boss remains fixed, so leg F proves nothing about "
                                      "the case #737 found");
@@ -1310,9 +1402,17 @@ TestResult ComboSingleBag_Run(void) {
                    "the GOAL is provable without MM's fixed contents, so this world does not run through them and "
                    "the grant is unlocked (#737's red half not observed)");
         CSB_ASSERT(remainsRc == RSBS_COMBO_LOGIC_OK, "the round with the fixed boss remains assumed did not run");
-        CSB_ASSERT(renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 1,
-                   "assuming the fixed boss remains and every fixed renewable does not restore MM's goal: a fixed "
-                   "PROGRESSION content other than the remains is load-bearing for Majora");
+        CSB_ASSERT(namedFound == namedCount && namedProgression == namedCount,
+                   "a named fixed content of leg F is not a fixed PROGRESSION content of this world (see "
+                   "kCsbFLoadBearingFixedChecks)");
+        CSB_ASSERT(renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 0,
+                   "assuming the fixed boss remains and every fixed renewable restores MM's goal without the named "
+                   "fixed content, so the named exception is no longer load-bearing: drop it from "
+                   "kCsbFLoadBearingFixedChecks");
+        CSB_ASSERT(namedRc == RSBS_COMBO_LOGIC_OK && withNamed.goalMM == 1,
+                   "assuming the fixed boss remains, every fixed renewable and the named fixed content does not "
+                   "restore MM's goal: a fixed PROGRESSION content other than those is load-bearing for Majora (see "
+                   "the probe lines)");
         CSB_ASSERT(CsbGoalNow(goal) == 1, "leg F did not leave the world proving the GOAL");
     }
 
