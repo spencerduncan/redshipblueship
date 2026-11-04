@@ -15,6 +15,7 @@
  *   redship               # Run Ocarina of Time (default)
  */
 
+#include <clocale>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -590,6 +591,13 @@ void PrintUsage(const char* progName) {
 // ============================================================================
 
 int main(int argc, char** argv) {
+#ifdef _WIN32
+    // Allow non-ASCII characters in narrow CRT file paths on Windows (SoH 0017fc55b / #7446).
+    // Keep LC_NUMERIC on "C" so locale-sensitive float parsing/formatting stays dot-decimal.
+    setlocale(LC_ALL, ".UTF8");
+    setlocale(LC_NUMERIC, "C");
+#endif
+
     // Install crash handler
     InstallCrashHandler();
 
