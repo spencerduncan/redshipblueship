@@ -1972,6 +1972,8 @@ void StaticData::HintTable_Init_Item() {
 
     // [RSBS #979] Majora's Mask's Blast Mask in OoT, the masks' shape.
     hintTextTable[RHT_BLAST_MASK] = HintText(CustomMessage("a blast mask", /*german*/"!!!", /*french*/"le Masque Explosif"), {CustomMessage("a mask", /*german*/"!!!", /*french*/"un masque")});
+    // [RSBS #979] Majora's Mask's Stone Mask in OoT, the same shape.
+    hintTextTable[RHT_STONE_MASK] = HintText(CustomMessage("a stone mask", /*german*/"!!!", /*french*/"le Masque de Pierre"), {CustomMessage("a mask", /*german*/"!!!", /*french*/"un masque")});
 
     hintTextTable[RHT_BEAN_SOUL] = HintText(CustomMessage("a bean soul", /*german*/"eine bohnenseele", /*french*/"une âme de haricot"));
 

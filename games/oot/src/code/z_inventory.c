@@ -41,6 +41,8 @@ u32 gGsFlagsShifts[] = { 0, 8, 16, 24 };
 // [RSBS #979] The Blast Mask's pause and C-button icon, by path (aligned as the
 // asset headers' names are).
 static const ALIGN_ASSET(2) char gRsbsBlastMaskIconTex[] = "__OTR__icon_item_static_yar/gItemIconBlastMaskTex";
+// [RSBS #979] The Stone Mask's, the same way.
+static const ALIGN_ASSET(2) char gRsbsStoneMaskIconTex[] = "__OTR__icon_item_static_yar/gItemIconStoneMaskTex";
 
 void* OoT_gItemIcons[] = {
     gItemIconDekuStickTex,
@@ -205,6 +207,8 @@ void* OoT_gItemIcons[] = {
     // [RSBS #979] ITEM_MASK_BLAST: Majora's Mask's own icon, from the curated
     // redship-oot.o2r (assets/crossgame/manifest.txt, icon_item_static_yar/).
     gRsbsBlastMaskIconTex,
+    // [RSBS #979] ITEM_MASK_STONE: Majora's Mask's own icon, curated the same way.
+    gRsbsStoneMaskIconTex,
 };
 
 // [RSBS #979] The entry count, for the ROM-free `blast-mask-oot-items` row: the

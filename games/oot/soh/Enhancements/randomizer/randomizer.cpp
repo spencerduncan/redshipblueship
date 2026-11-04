@@ -507,6 +507,8 @@ ItemObtainability Randomizer::GetItemObtainabilityFromRandomizerGet(RandomizerGe
             return Flags_GetRandomizerInf(RAND_INF_OBTAINED_ROCS_FEATHER) ? CANT_OBTAIN_ALREADY_HAVE : CAN_OBTAIN;
         case RG_BLAST_MASK: // [RSBS #979]
             return Flags_GetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK) ? CANT_OBTAIN_ALREADY_HAVE : CAN_OBTAIN;
+        case RG_STONE_MASK: // [RSBS #979]
+            return Flags_GetRandomizerInf(RAND_INF_OBTAINED_STONE_MASK) ? CANT_OBTAIN_ALREADY_HAVE : CAN_OBTAIN;
 
         // Bottles
         case RG_EMPTY_BOTTLE:
@@ -4232,6 +4234,12 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             Flags_SetRandomizerInf(RAND_INF_OBTAINED_BLAST_MASK);
             if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
                 INV_CONTENT(ITEM_TRADE_CHILD) = ITEM_MASK_BLAST;
+            }
+            break;
+        case RG_STONE_MASK: // [RSBS #979] the same give, for the Stone Mask
+            Flags_SetRandomizerInf(RAND_INF_OBTAINED_STONE_MASK);
+            if (INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_NONE) {
+                INV_CONTENT(ITEM_TRADE_CHILD) = ITEM_MASK_STONE;
             }
             break;
         default:

@@ -4747,6 +4747,9 @@ typedef enum {
     // only while the frozen Cross-Game Rule is on. Before the logic-only ids, which
     // are never placed, so no placed id moves.
     RG_BLAST_MASK,
+    // [RSBS #979] Majora's Mask's Stone Mask in OoT (OoTMM stoneMaskOot), the Blast
+    // Mask's shape: pooled only under its frozen rule, before the logic-only ids.
+    RG_STONE_MASK,
 
     // Logic Only
     RG_STICKS,
@@ -6371,6 +6374,8 @@ typedef enum {
     RHT_TERMINA,
     // [RSBS #979] the hint text of RG_BLAST_MASK. Appended last, as RHT_TERMINA is.
     RHT_BLAST_MASK,
+    // [RSBS #979] the hint text of RG_STONE_MASK. Appended last, as RHT_BLAST_MASK is.
+    RHT_STONE_MASK,
     // MAX
     RHT_MAX,
 } RandomizerHintTextKey;

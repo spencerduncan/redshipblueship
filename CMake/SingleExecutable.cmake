@@ -2334,13 +2334,14 @@ if(BUILD_TESTING)
         # share. P2's five shared masks (OoTMM's sharedMaskGoron, sharedMaskZora,
         # sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth) and, since P4's first
         # piece (#979), the Blast Mask in OoT and its shared pair (OoTMM's
-        # blastMaskOot, sharedMaskBlast): six shared pairs in the bag, their
-        # trimmed halves, and a comboSettingsHash no other golden has. The Blast
-        # Mask Cooldown is a value, not an on/off option, and stays at Default.
-        # The rest of P4 (#979) and P5 (#980) append their mask options to this
-        # line and re-pin this file, rather than adding a golden each. Same seed
-        # and dispatch as seed-digest-default.
-        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1"
+        # blastMaskOot, sharedMaskBlast), and since its second, the Stone Mask in
+        # OoT and its shared pair (stoneMaskOot, sharedMaskStone): seven shared
+        # pairs in the bag, their trimmed halves, and a comboSettingsHash no other
+        # golden has. The Blast Mask Cooldown is a value, not an on/off option, and
+        # stays at Default. The rest of P4 (#979, Kamaro's Mask) and P5 (#980)
+        # append their mask options to this line and re-pin this file, rather than
+        # adding a golden each. Same seed and dispatch as seed-digest-default.
+        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1,gCombo.Rando.StoneMaskOoT=1,gCombo.Rando.SharedMaskStone=1"
         # #1367 R5: [Both Games] Logic defaults to All Locations, so every golden
         # above is an All Locations world. The other two rungs get one golden each
         # on the same seed and dispatch: Beatable Only (the default before R5; the
@@ -3226,6 +3227,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the mask as a child's explosive only under the rule. ROM-free.
     redship_add_test(NAME BlastMaskOoTRule COMMAND redship --test blast-mask-oot-rule)
     redship_add_test(NAME BlastMaskOoTItems COMMAND redship --test blast-mask-oot-items)
+    # THE STONE MASK IN OCARINA OF TIME (#979, epic #975 P4's second mask; OoTMM
+    # stoneMaskOot, sharedMaskStone): the two Cross-Game Rules keys (off by
+    # default, the shared one only with its extension, restored at load in OoTMM's
+    # order) and OoTMM's list of the actors that lose sight of the wearer; then the
+    # custom ItemID's table bounds, ownership and the child trade cycle (after the
+    # Blast Mask) gated by the frozen rule, the shared member's give, the shared
+    # pair's one bag row, OoT's real logic crediting the mask for a child only under
+    # the rule, and the update seam that hides Link from a listed actor. ROM-free.
+    redship_add_test(NAME StoneMaskOoTRule COMMAND redship --test stone-mask-oot-rule)
+    redship_add_test(NAME StoneMaskOoTItems COMMAND redship --test stone-mask-oot-items)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every

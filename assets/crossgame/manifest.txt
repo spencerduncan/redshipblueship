@@ -242,6 +242,8 @@ mm->oot objects/object_mask_bakuretu/object_mask_bakuretu_Tex_000DF0
 # BlastMaskOoT.cpp).  MM's item_name_static is a top-level directory; OoT's own
 # lives under textures/, so the path collides with nothing.
 mm->oot item_name_static/gItemNameBlastMaskENGTex
+# The Stone Mask's (#979), the same way (StoneMaskOoT.cpp).
+mm->oot item_name_static/gItemNameStoneMaskENGTex
 mm->oot objects/object_mask_stone/
 mm->oot objects/object_mask_dancer/
 #

@@ -30,11 +30,17 @@ extern "C" bool OoT_SharedSwimSplitsScale(void);
 // #979 (BlastMaskOoT.cpp): is the frozen Blast Mask (OoT) rule on (OoTMM's
 // has_mask_blast: setting(blastMaskOot))?
 extern "C" bool OoT_BlastMaskOoTOn(void);
+// #979 (StoneMaskOoT.cpp): is the frozen Stone Mask (OoT) rule on (OoTMM's
+// has_mask_stone: setting(stoneMaskOot))?
+extern "C" bool OoT_StoneMaskOoTOn(void);
 #else
 static bool OoT_SharedSwimSplitsScale(void) {
     return false;
 }
 static bool OoT_BlastMaskOoTOn(void) {
+    return false;
+}
+static bool OoT_StoneMaskOoTOn(void) {
     return false;
 }
 #endif
@@ -456,6 +462,7 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_FISHING_HOLE_KEY:
         case RG_RUTOS_LETTER:
         case RG_BLAST_MASK: // [RSBS #979]
+        case RG_STONE_MASK: // [RSBS #979]
             return CheckRandoInf(RandoGetToRandInf[itemName]);
             // Boss Keys
         case RG_FOREST_TEMPLE_BOSS_KEY:
@@ -909,6 +916,8 @@ bool Logic::CanUse(RandomizerGet itemName) {
             return IsChild;
         case RG_BLAST_MASK: // [RSBS #979] OoTMM's can_use_mask_blast: age_child_trade && has_mask_blast
             return IsChild && OoT_BlastMaskOoTOn();
+        case RG_STONE_MASK: // [RSBS #979] OoTMM's can_use_mask_stone: age_child_trade && has_mask_stone
+            return IsChild && OoT_StoneMaskOoTOn();
 
         // Songs
         case RG_ZELDAS_LULLABY:
@@ -1469,13 +1478,16 @@ bool Logic::CanPassEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
             return true;
         case RE_GERUDO_GUARD:
             return ctx->GetTrickOption(RT_PASS_GUARDS_WITH_NOTHING) || HasItem(RG_GERUDO_MEMBERSHIP_CARD) ||
-                   CanUse(RG_FAIRY_BOW) || CanUse(RG_HOOKSHOT);
+                   CanUse(RG_FAIRY_BOW) || CanUse(RG_HOOKSHOT) ||
+                   CanUse(RG_STONE_MASK); // [RSBS #979] OoTMM's evade_gerudo counts can_use_mask_stone
         case RE_BREAK_ROOM_GUARD:
-            return HasItem(RG_GERUDO_MEMBERSHIP_CARD) || CanUse(RG_FAIRY_BOW) || CanUse(RG_HOOKSHOT);
+            return HasItem(RG_GERUDO_MEMBERSHIP_CARD) || CanUse(RG_FAIRY_BOW) || CanUse(RG_HOOKSHOT) ||
+                   CanUse(RG_STONE_MASK); // [RSBS #979] OoTMM's evade_gerudo
         case RE_BIG_SKULLTULA:
             // hammer jumpslash can pass, but only on flat land where you can kill with hammer swing
             return CanUse(RG_NUTS) || CanUse(RG_BOOMERANG) ||
-                   (ctx->GetTrickOption(RT_BIG_SKULLTULA_PAUSE_LIFT) && wallOrFloor && distance == ED_CLOSE);
+                   (ctx->GetTrickOption(RT_BIG_SKULLTULA_PAUSE_LIFT) && wallOrFloor && distance == ED_CLOSE) ||
+                   CanUse(RG_STONE_MASK); // [RSBS #979] OoTMM's get_past_skultullas counts can_use_mask_stone
         case RE_LIKE_LIKE:
             return CanUse(RG_HOOKSHOT) || CanUse(RG_BOOMERANG);
         case RE_GIBDO:
@@ -2199,6 +2211,7 @@ static constexpr std::pair<RandomizerGet, uint32_t> randInfTable[] = {
     { RG_HYLIA_LAB_KEY, RAND_INF_HYLIA_LAB_KEY_OBTAINED },
     { RG_FISHING_HOLE_KEY, RAND_INF_FISHING_HOLE_KEY_OBTAINED },
     { RG_BLAST_MASK, RAND_INF_OBTAINED_BLAST_MASK }, // [RSBS #979]
+    { RG_STONE_MASK, RAND_INF_OBTAINED_STONE_MASK }, // [RSBS #979]
 };
 const std::array<uint32_t, RG_MAX> Logic::RandoGetToRandInf = ToRandoGetArray(randInfTable, RAND_INF_MAX);
 
@@ -2628,6 +2641,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_HYLIA_LAB_KEY:
                 case RG_FISHING_HOLE_KEY:
                 case RG_BLAST_MASK: // [RSBS #979]
+                case RG_STONE_MASK: // [RSBS #979]
                     SetRandoInf(RandoGetToRandInf[randoGet], state);
                     break;
                 case RG_TRIFORCE_PIECE:

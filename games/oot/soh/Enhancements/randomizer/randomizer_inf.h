@@ -2116,3 +2116,6 @@ DEFINE_RAND_INF(RAND_INF_TALON_SENT_MALON_HOME)
 // [RSBS #979] OoT owns the Blast Mask (OoTMM blastMaskOot). Appended last: the
 // flags are saved by index, and 2061 flags still fit the 129 u16 words.
 DEFINE_RAND_INF(RAND_INF_OBTAINED_BLAST_MASK)
+// [RSBS #979] OoT owns the Stone Mask (OoTMM stoneMaskOot). Appended last, as the
+// Blast Mask's: 2062 flags still fit the 129 u16 words (2064 bits).
+DEFINE_RAND_INF(RAND_INF_OBTAINED_STONE_MASK)
