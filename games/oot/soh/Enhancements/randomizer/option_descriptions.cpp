@@ -819,5 +819,17 @@ void Settings::CreateOptionDescriptions() {
         "Shuffles 8 boss souls (one for each blue warp dungeon). A boss will not appear until you collect its "
         "respective soul."
         "\n\"On + Ganon\" will also hide Ganon and Ganondorf behind a boss soul.";
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // [RSBS #1434] OoTMM's timeTravelSword (TimeTravelSword.cpp).
+    mOptionDescriptions[RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD] =
+        "Link needs the Master Sword to travel through time at the Pedestal of Time, in either direction, as in "
+        "OoTMM.\n"
+        "\n"
+        "With Shuffle Master Sword on, logic expects the sword before the first trip to adult, wherever it was "
+        "placed (Termina included). An adult start must find it before Link can be a child again, so the way to "
+        "Termina waits for it too.\n"
+        "\n"
+        "Without Shuffle Master Sword, the pedestal holds the sword, so this changes nothing.";
+#endif
 }
 } // namespace Rando

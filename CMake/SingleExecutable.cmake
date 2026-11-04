@@ -3339,6 +3339,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1434: Time Travel Requires Master Sword (OoTMM's timeTravelSword) ships on;
+    # with the sword shuffled the Pedestal of Time's real wait action offers the
+    # pull, and OoT's real search sends Link through time, either way, only with
+    # the sword; a world saved before the option loads it off.
+    # games/oot/soh/oot_time_travel_sword_test.cpp.
+    redship_add_test(NAME OoTTimeTravelSword COMMAND redship --test oot-time-travel-sword
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # #765: the paired creation event authors MM's half the way MM's own
     # file-select new-file path would -- the 'ZELDA3' marker, the checksum, and

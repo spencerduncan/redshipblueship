@@ -6702,6 +6702,10 @@ typedef enum {
     RSK_LOCK_OVERWORLD_DOORS,
     RSK_SHUFFLE_GRASS,
     RSK_ROCS_FEATHER,
+    // [RSBS #1434] OoTMM's timeTravelSword (TimeTravelSword.cpp). Appended last:
+    // a save's randoSettings array is indexed by this enum, and a world saved
+    // before it reads the missing tail as 0, off.
+    RSK_TIME_TRAVEL_REQUIRES_MASTER_SWORD,
     RSK_MAX
 } RandomizerSettingKey;
 
