@@ -580,9 +580,9 @@ because #1427's two new option slots change the MM half's size (`ERR_LAYOUT`).
 `RandoStaticHintOrder`'s hand pin `kStaticHintTextDigest` moved in the same re-pin
 (`2387DBDD` to `759F783D`, still 17 hints, 15 of them drawing).
 
-The D wave 2 re-pin (2026-11-03; PRs #1438, #1441, #1442, #1444 and #1445,
-combined into one branch and re-pinned once), still version 4. Five reviewed
-changes, each of which moves worlds:
+The D wave 2 re-pin (2026-11-03, PR #1446: #1438, #1441, #1442, #1444 and
+#1445, combined into one branch and re-pinned once), still version 4. Five
+reviewed changes, each of which moves worlds:
 
 * #1442 (issue #1434): Time Travel Requires Master Sword (OoTMM's
   `timeTravelSword`), on by default. With Shuffle Master Sword on (#1436's
