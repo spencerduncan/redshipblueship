@@ -83,7 +83,14 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_TRIFORCE_PIECES_MAX,         DEFAULT_TRIFORCE_PIECES_MAX),
     RO(RO_TRIFORCE_PIECES_REQUIRED,    DEFAULT_TRIFORCE_PIECES_MAX),
     RO(RO_CLOCK_SHUFFLE,               RO_GENERIC_OFF),
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #1437: OoTMM's progressiveClocks default (data.ts). While
+    // Shuffle Time is off the mode is inert and an unset key resolves to Random,
+    // the value every world before this froze (Foreign.cpp, ResolveProfileValues).
+    RO(RO_CLOCK_SHUFFLE_PROGRESSIVE,   RO_CLOCK_SHUFFLE_ASCENDING),
+#else
     RO(RO_CLOCK_SHUFFLE_PROGRESSIVE,   RO_CLOCK_SHUFFLE_RANDOM),
+#endif
     RO(RO_CLOCK_TERMINAL_TIME,         0), // Default: 00:00 (midnight)
     RO(RO_SHUFFLE_TREE_DROPS,          RO_GENERIC_OFF),
     RO(RO_SHOP_PRICES,                 RO_PRICES_VANILLA), // OoTMM priceMmShops' default (#1427)
