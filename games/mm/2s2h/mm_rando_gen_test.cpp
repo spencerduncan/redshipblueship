@@ -3180,8 +3180,9 @@ extern "C" int MM_Rando_HeadlessRoundBudgetHostScale(void) {
  * `bagRounds` and `mmPairedAttempt` must match too, which ties this row to the
  * pinned worlds rather than to look-alikes. `bagSeed` is the part that tells the
  * profiles apart (#982): every seed-digest golden on RSBSUNIFIED1 creates on
- * attempt 1, most in 268 rounds (the default and Beatable Only in two batch
- * attempts, 516 and 531), so an entry whose settings were dropped or misspelled
+ * attempt 1, most in one batch attempt of 272 rounds since the OoTMM-defaults
+ * re-pin (#1428, #1425, #1427; the entrances profile takes two, 488 rounds), so
+ * an entry whose settings were dropped or misspelled
  * could generate a look-alike world and still match those two, but
  * the bag's seed folds the frozen identity (both games' settings hashes and the
  * combo settings, Combo_SingleBag_SeedFor) and differs per golden. The row prints

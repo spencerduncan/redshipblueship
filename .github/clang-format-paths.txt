@@ -154,6 +154,7 @@ games/oot/soh/oot_mask_shop_night_door_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
 games/oot/soh/oot_master_sword_respawn_test.cpp
+games/oot/soh/oot_goal_gate_defaults_test.cpp
 games/oot/src/code/audio_load.c
 games/oot/src/code/code_800E4FE0.c
 games/oot/src/code/code_800F9280.c
@@ -270,3 +271,6 @@ games/oot/soh/Enhancements/randomizer/BlastMaskOoT.cpp
 games/oot/soh/oot_blast_mask_test.cpp
 games/mm/2s2h/mm_runtime_parity_test.cpp
 games/mm/2s2h/Enhancements/Masks/GoronRollingLenientSpikes.cpp
+games/mm/2s2h/Rando/Logic/ShopPrices.cpp
+games/mm/2s2h/Rando/Logic/ShopPrices.h
+games/mm/2s2h/mm_shop_prices_test.cpp

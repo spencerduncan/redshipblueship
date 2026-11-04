@@ -1579,6 +1579,18 @@ if(BUILD_TESTING)
     # state is tolerated. Pure (no display, no ROM); ids looked up by name.
     redship_add_test(NAME MMTreeShuffle COMMAND redship --test mm-tree-shuffle)
     redship_add_test(NAME MMTreeShuffleHooks COMMAND redship --test mm-tree-shuffle-hooks)
+    # Majora's Mask's shop and Tingle price modes (#1427; OoTMM's priceMmShops
+    # and priceMmTingle). MMShopPrices: both options default to Vanilla, the page
+    # draws each as a four-value combo box after its shuffle, the price oracle
+    # covers every shop and Tingle check, and CAN_AFFORD asks for exactly the
+    # wallet that holds each price up to 500. MMShopPricesPool: over a real pool
+    # generation the default prices every priced check at vanilla and draws
+    # nothing, Affordable is 10, Random and Weighted Random follow OoTMM's
+    # formulas over one stream in the table's order within 0-500, and the prices
+    # are a function of the seed and the modes alone. Pure (no display, no ROM);
+    # options looked up by name.
+    redship_add_test(NAME MMShopPrices COMMAND redship --test mm-shop-prices)
+    redship_add_test(NAME MMShopPricesPool COMMAND redship --test mm-shop-prices-pool)
     # The entrance -> region cache's registration boundary (#659).
     # Rando::Logic::Regions is filled by eighteen independent ShipInit
     # registrars whose order is link order, and the cache inside
@@ -2992,6 +3004,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1428 (operator ruling 2026-11-03): OoT's goal gates ship at OoTMM's defaults,
+    # Rainbow Bridge Medallions (all six) and Ganon's Boss Key Start With (OoTMM's
+    # "removed" in play). On one paired creation save (TrackerOoTPanelList's seed):
+    # the defaults, the menu rows and exclusion list with no key stored, the
+    # created world and its proof, five medallions against six in logic, the tower
+    # chest in SoH's tracker, Triforce Hunt still deciding the key, and a stored
+    # world's OLD gates restoring unchanged. `rando`: a paired creation.
+    redship_add_test(NAME RandoGoalGateDefaults COMMAND redship --test rando-goal-gate-defaults
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # THE BAG COMPOSITION RULE over both REAL pools (#645 increment 3, lane K9;
     # #731, #733): the composed bag holds progression copies only, plentiful copies
     # are surplus, OoT's restricted passes confine their families, filler and traps
@@ -3313,6 +3336,8 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # #1218: under Shuffle Master Sword, a respawn out of the Ganon's Tower
     # collapse or Ganon's arena (Play_LoadToLastEntrance) does not give the
     # unfound Master Sword, and still leaves through the collapse exterior.
+    # Leg 0 (#1425): Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo
+    # Membership Card ship on (OoTMM's defaults), and the exclude list agrees.
     # games/oot/soh/oot_master_sword_respawn_test.cpp.
     redship_add_test(NAME MasterSwordRespawn COMMAND redship --test master-sword-respawn
         LABEL rando

@@ -55,8 +55,19 @@ void GenerateStartingInventory() {
 
     // Add Ganon's Boss key with Triforce Hunt's Win setting so the game thinks it's obtainable from the start.
     // During save init, the boss key isn't actually given and it's instead given when completing the triforce.
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1428: "Start With" is the shipped default here (OoTMM's "removed"). A
+    // Triforce Hunt decides Ganon's Boss Key, as its greyed row says: "Ganon's
+    // Boss Key" places it at RC_TRIFORCE_COMPLETED, "Win" credits it from the
+    // start (above). So "Start With" adds it only with the hunt off, or logic
+    // would assume the key the hunt withholds.
+    if ((ctx->GetOption(RSK_GANONS_BOSS_KEY).Is(RO_GANON_BOSS_KEY_STARTWITH) &&
+         ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_OFF)) ||
+        ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_WIN)) {
+#else
     if (ctx->GetOption(RSK_GANONS_BOSS_KEY).Is(RO_GANON_BOSS_KEY_STARTWITH) ||
         ctx->GetOption(RSK_TRIFORCE_HUNT).Is(RO_TRIFORCE_HUNT_WIN)) {
+#endif
         AddItemToInventory(RG_GANONS_CASTLE_BOSS_KEY);
     }
 

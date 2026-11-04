@@ -188,7 +188,7 @@ extern "C" {
 namespace {
 
 // ---------------------------------------------------------------------------
-// Value labels for the four combo-valued options. Order is ENUMERATOR order
+// Value labels for the combo-valued options. Order is ENUMERATOR order
 // (index 0 first) because the pane writes the selected index straight into the
 // CVar and MM reads it back as the enumerator — a re-ordered array here would
 // silently map "Glitchless" onto RO_LOGIC_NO_LOGIC.
@@ -220,6 +220,16 @@ const char* const kClockProgressiveLabels[] = {
     "Random",                  // RO_CLOCK_SHUFFLE_RANDOM
     "Progressive: Ascending",  // RO_CLOCK_SHUFFLE_ASCENDING
     "Progressive: Descending", // RO_CLOCK_SHUFFLE_DESCENDING
+};
+
+// OoTMM's SETTING_PRICE names (#1427), in RandoOptionShopPriceMode order: Vanilla
+// first, as SoH's price rows list it, because it is the default (OoTMM lists
+// Affordable first).
+const char* const kPriceLabels[] = {
+    "Vanilla",         // RO_PRICES_VANILLA
+    "Affordable",      // RO_PRICES_AFFORDABLE
+    "Weighted Random", // RO_PRICES_WEIGHTED
+    "Random",          // RO_PRICES_RANDOM
 };
 
 /**
@@ -409,6 +419,16 @@ const OptionUi kOptionUi[] = {
       // RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM): that machinery has been
       // carrying real checks all along, which is corroboration the path works.
       COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_SHOP_PRICES, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_COMBO,
+      "Shop Prices",
+      "Sets what Majora's Mask shops charge for shuffled items. Vanilla: each item's own price. Affordable: 10 Rupees. "
+      "Weighted Random: 0-500 Rupees, cheaper favored. Random: 0-500 Rupees.",
+      0, 0, kPriceLabels, UI_COUNT(kPriceLabels),
+      // #1427, OoTMM's "MM Shop Prices" (priceMmShops), SoH's place for it: the
+      // row after its shuffle, as SoH's Shops Prices follows Shop Shuffle. Read
+      // once, by the price pass at pool generation (Logic/ShopPrices.h); the
+      // shop hooks then charge each slot's stored price, so no hook rides it.
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_SHUFFLE_TINGLE_SHOPS, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Tingle Maps", "Adds the maps Tingle sells to the check pool.",
       0, 0, nullptr, 0,
@@ -418,6 +438,14 @@ const OptionUi kOptionUi[] = {
       // registrants (0x1D09-0x1D16) carry the shop text. VB plus OnOpenText,
       // both dispatched; no third hook type.
       COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_TINGLE_PRICES, COMBO_MM_GROUP_SHUFFLE_SHOPS, COMBO_MM_WIDGET_COMBO,
+      "Tingle Prices",
+      "Sets what Tingle charges for a shuffled map, so it needs Shuffle Tingle Maps. Vanilla: his own prices. "
+      "Affordable: 10 Rupees. Weighted Random: 0-500 Rupees, cheaper favored. Random: 0-500 Rupees.",
+      0, 0, kPriceLabels, UI_COUNT(kPriceLabels),
+      // #1427, OoTMM's "MM Tingle Prices" (priceMmTingle), the row after
+      // Shuffle Tingle Maps. Generation-only for the Shop Prices row's reason.
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     // Re-measured leg by leg for #438's remainder (see the file header). All
     // three rode OnActorInit, which #512 dispatched; grass additionally rode
     // OnActorKill and OnActorDestroy, which #515 dispatched. Every behaviour TU

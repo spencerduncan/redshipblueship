@@ -86,6 +86,8 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_CLOCK_SHUFFLE_PROGRESSIVE,   RO_CLOCK_SHUFFLE_RANDOM),
     RO(RO_CLOCK_TERMINAL_TIME,         0), // Default: 00:00 (midnight)
     RO(RO_SHUFFLE_TREE_DROPS,          RO_GENERIC_OFF),
+    RO(RO_SHOP_PRICES,                 RO_PRICES_VANILLA), // OoTMM priceMmShops' default (#1427)
+    RO(RO_TINGLE_PRICES,               RO_PRICES_VANILLA), // OoTMM priceMmTingle's default (#1427)
 };
 // clang-format on
 

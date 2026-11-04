@@ -390,6 +390,12 @@ int MM_OcarinaDpad_RunHeadless(void);
 // the display-free shared bring-up first. Return 0 on pass.
 int MM_TreeShuffle_RunHeadless(void);
 int MM_TreeShuffleHooks_RunHeadless(void);
+// Majora's Mask's shop and Tingle price modes (games/mm/2s2h/mm_shop_prices_test.cpp,
+// #1427): the options, their page rows and the logic tiers; then the price pass
+// over a real pool generation and its determinism. Both need the display-free
+// shared bring-up first. Return 0 on pass.
+int MM_ShopPrices_RunHeadless(void);
+int MM_ShopPricesPool_RunHeadless(void);
 // The curated MM enhancement keys' liveness evidence
 // (games/mm/2s2h/mm_enhancement_toggles_test.cpp, #682): the EVIDENCE half of the
 // pair above, MM-side because the registries are. Per key: exactly one
@@ -2316,7 +2322,10 @@ extern "C" void OoT_HintArea_TestAreaRange(int* outFirst, int* outLast);
 extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 // Re-pinned by #1367 R5 (generator 4, was 0x54BF77F4): the default paired world is
 // an All Locations world now, and the static hints name where its items landed.
-static const uint32_t kStaticHintTextDigest = 0x2387DBDDu;
+// Re-pinned again by the OoTMM-defaults re-pin (#1428, #1425, #1427; still generator
+// 4, was 0x2387DBDD): the shipped goal gates and OoT shuffles move OoT's settings
+// string, so every static hint names a moved placement; the count stays 17.
+static const uint32_t kStaticHintTextDigest = 0x759F783Du;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
@@ -6796,6 +6805,37 @@ static TestResult Test_MMTreeShuffleHooks(void) {
     return MM_TreeShuffleHooks_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// The MM price modes (#1427). Same display-free bring-up as mm-tree-shuffle: the
+// option table, the page view model and the region graph are all in the link,
+// and the CVar store must exist.
+static TestResult Test_MMShopPrices(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ShopPrices_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+static TestResult Test_MMShopPricesPool(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+
+    return MM_ShopPricesPool_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // #682's evidence half. Same display-free shared bring-up and the same reason as
 // mm-clock-shuffle-songs: it drives MM's registrars through CVarSetInteger +
 // MM_ShipInit_OnCVarChanged, and reads the Ship::Context singleton's
@@ -7872,6 +7912,16 @@ TestResult Test_MMLogicGates(void) {
         return TEST_FAIL;
     }
     return MM_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+// #1428: OoT's goal gates at OoTMM's defaults on one paired creation save, Triforce
+// Hunt's override of Ganon's Boss Key and a stored world's own gates. Same bring-up
+// as the rows above; body in games/oot/soh/oot_goal_gate_defaults_test.cpp.
+extern "C" int OoT_GoalGateDefaults_Run(void);
+TestResult Test_RandoGoalGateDefaults(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_GoalGateDefaults_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
@@ -8976,6 +9026,14 @@ const TestDescriptor gTests[] = {
       Test_MMTreeShuffle },
     { "mm-tree-shuffle-hooks", "The MM tree behaviour arms from OnFileLoad and suppresses a tree check's drop (#1121)",
       Test_MMTreeShuffleHooks },
+    // The MM price modes (#1427). After mm-registrar-coverage for the same
+    // reason as the tree rows (the pool row runs MM_Rando_Init). Both restore
+    // what they write.
+    { "mm-shop-prices", "MM Shop Prices and Tingle Prices are OoTMM's four modes; logic asks for the wallet (#1427)",
+      Test_MMShopPrices },
+    { "mm-shop-prices-pool",
+      "MM's price pass draws in a fixed order from the seeded stream, Vanilla by default (#1427)",
+      Test_MMShopPricesPool },
     // The two MM resume-contract tests below mutate process-global state
     // (mm-resume-arena re-inits the MM system arena + heaps; mm-startup-restore
     // scribbles and re-zeroes the unified gSaveContext). Both clean up after
@@ -9358,6 +9416,11 @@ const TestDescriptor gTests[] = {
       "Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder broken on Day 1, and the "
       "Circus Leader's Mask needs Romani's Mask (#1168)",
       Test_MMLogicGates },
+    // #1428. Needs a paired creation; skipped by `--test all` below like its siblings.
+    { "rando-goal-gate-defaults",
+      "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
+      "paired creation, Triforce Hunt still decides the key, and a stored world keeps its own gates (#1428)",
+      Test_RandoGoalGateDefaults },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -9534,7 +9597,8 @@ const TestDescriptor gTests[] = {
       Test_BombchuDropRule },
     { "master-sword-respawn",
       "Under Shuffle Master Sword, dying, voiding out or running out the escape timer in the Ganon's Tower collapse "
-      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218)",
+      "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218). "
+      "Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo Membership Card ship on, OoTMM's defaults (#1425)",
       Test_MasterSwordRespawn },
     { "shuffled-fairy-no-heal",
       "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "
@@ -9866,6 +9930,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
+                strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
