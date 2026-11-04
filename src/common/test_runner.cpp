@@ -3743,7 +3743,7 @@ TestResult Test_RandoArmedCapsDigest(void) {
 
     // MM's own option CVars, by name (the StaticData rows' "gRando.Options.<id>"
     // keys) - the same surface the combo pane writes. Souls need BOTH shuffles
-    // (MM_Rando_PublishProfileGiveCaps); clocks arm in the default RANDOM mode.
+    // (MM_Rando_PublishProfileGiveCaps); concrete clocks arm in the RANDOM mode.
     static const char* const kArming[] = {
         "gRando.Options.RO_SHUFFLE_ENEMY_SOULS",     "gRando.Options.RO_SHUFFLE_BOSS_SOULS",
         "gRando.Options.RO_SHUFFLE_OCARINA_BUTTONS", "gRando.Options.RO_SHUFFLE_SWIM",
@@ -3752,6 +3752,14 @@ TestResult Test_RandoArmedCapsDigest(void) {
     for (const char* cvar : kArming) {
         CVarSetInteger(cvar, 1);
     }
+    // #1437: Time Progression ships Ascending now, so the RANDOM mode this golden
+    // has always pinned (the six concrete clocks, armed by RSBS_GIVECAP_CLOCKS) is
+    // named explicitly: the pinned world, its options string and its caps word
+    // (000F) are the ones it pinned before. The progressive bit is the other
+    // mode's, so "every family" here is every bit but that one.
+    static const char* const kClockMode = "gRando.Options.RO_CLOCK_SHUFFLE_PROGRESSIVE";
+    CVarSetInteger(kClockMode, 0); // RO_CLOCK_SHUFFLE_RANDOM
+    const uint32_t kArmedCaps = RSBS_GIVECAP_ALL_V1 & ~(uint32_t)RSBS_GIVECAP_CLOCKS_PROGRESSIVE;
     // #1369: this golden pins the armed MM profile with every Cross-Game Rule off,
     // the world it pinned before the rules existed. Shared Swim ships ON and would
     // freeze here, where MM shuffles swim (and OoT's swim would be generated
@@ -3761,6 +3769,7 @@ TestResult Test_RandoArmedCapsDigest(void) {
         for (const char* cvar : kArming) {
             CVarClear(cvar);
         }
+        CVarClear(kClockMode);
         CVarClear(RSBS_CVAR_COMBO_RANDO_SHARED_SWIM);
     };
 
@@ -3770,13 +3779,12 @@ TestResult Test_RandoArmedCapsDigest(void) {
         printf("[TEST] FAIL: armed-profile determinism digest rc=%d\n", rc);
         return TEST_FAIL;
     }
-    if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ||
-        Combo_ForeignGiveCaps((uint8_t)GAME_MM) != (uint16_t)RSBS_GIVECAP_ALL_V1) {
+    if (!Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) || Combo_ForeignGiveCaps((uint8_t)GAME_MM) != kArmedCaps) {
         clearArming();
-        printf("[TEST] FAIL: the armed profile published caps=%04X (published=%d); expected every family (%04X) - "
-               "this golden would pin a world that is not the armed one\n",
+        printf("[TEST] FAIL: the armed profile published caps=%04X (published=%d); expected every family a RANDOM "
+               "clock mode arms (%04X) - this golden would pin a world that is not the armed one\n",
                (unsigned)Combo_ForeignGiveCaps((uint8_t)GAME_MM),
-               Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0, (unsigned)RSBS_GIVECAP_ALL_V1);
+               Combo_ForeignGiveCapsPublished((uint8_t)GAME_MM) ? 1 : 0, (unsigned)kArmedCaps);
         return TEST_FAIL;
     }
 

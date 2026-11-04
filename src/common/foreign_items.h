@@ -1914,10 +1914,18 @@ void OoT_Rando_Foreign_ClearHolds(void);
  *  count of half-days owned in order, which a concrete out-of-order crossing
  *  would contradict (#681 review). */
 #define RSBS_GIVECAP_CLOCKS 0x0008u
-/** Every bit ALLOCATED at v1. Append only; an unallocated bit in a published
- *  word comes from a newer build and is masked off rather than reinterpreted. */
-#define RSBS_GIVECAP_ALL_V1 \
-    (RSBS_GIVECAP_SOULS | RSBS_GIVECAP_OCARINA_BUTTONS | RSBS_GIVECAP_SWIM | RSBS_GIVECAP_CLOCKS)
+/** Clock shuffle in a PROGRESSIVE clock mode (#1437; MM: RO_CLOCK_SHUFFLE on AND
+ *  RO_CLOCK_SHUFFLE_PROGRESSIVE == ASCENDING or DESCENDING) — RI_TIME_PROGRESSIVE
+ *  alone, the one clock those pools hold. Its give resolves into the next
+ *  half-day in the world's own order, so the count the logic reads stays true.
+ *  Never published beside RSBS_GIVECAP_CLOCKS: the two modes exclude each other. */
+#define RSBS_GIVECAP_CLOCKS_PROGRESSIVE 0x0010u
+/** Every bit ALLOCATED: v1's four and the bits appended since (#1437's
+ *  progressive clocks). Append only; an unallocated bit in a published word
+ *  comes from a newer build and is masked off rather than reinterpreted. */
+#define RSBS_GIVECAP_ALL_V1                                                                        \
+    (RSBS_GIVECAP_SOULS | RSBS_GIVECAP_OCARINA_BUTTONS | RSBS_GIVECAP_SWIM | RSBS_GIVECAP_CLOCKS | \
+     RSBS_GIVECAP_CLOCKS_PROGRESSIVE)
 
 /**
  * Publish @p caps as the give capabilities of @p originGame's FROZEN option

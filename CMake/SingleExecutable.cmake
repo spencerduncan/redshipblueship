@@ -2548,7 +2548,10 @@ if(BUILD_TESTING)
     # where the default profile hands about 193 + 283, so the row also requires at
     # least 1000 + 1500 (RSBS_DEBUG_SEED_MIN_POOL_ROWS). A renamed or ignored
     # CVar that lightens the world fails the row instead of letting it measure a
-    # lighter one.
+    # lighter one. #1437 appends a 126th, RO_CLOCK_SHUFFLE_PROGRESSIVE=0: the
+    # session left Time Progression unset with clock shuffle on, which resolved to
+    # Random then and resolves to Ascending (the new default) now, so the replay
+    # names Random to stay the operator's world.
     string(CONCAT RSBS_HEAVY_PROFILE_CVARS
         "gRandoSettings.40GSHint=1,gRandoSettings.50GSHint=1,gRandoSettings.BigPoeTargetCount=1,"
         "gRandoSettings.BlueFireArrows=1,gRandoSettings.BombchuBag=1,gRandoSettings.BossKeyHint=1,"
@@ -2586,7 +2589,8 @@ if(BUILD_TESTING)
         "gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedOcarinaButtons=1,"
         "gCombo.Rando.SharedShields=1,gCombo.Rando.SharedSongEpona=1,gCombo.Rando.SharedSongStorms=1,"
         "gCombo.Rando.SharedSongTime=1,"
-        "gRando.Options.MoonCrash=1,gRando.Options.RO_CLOCK_SHUFFLE=1,gRando.Options.RO_HINTS_BOSS_REMAINS=1,"
+        "gRando.Options.MoonCrash=1,gRando.Options.RO_CLOCK_SHUFFLE=1,gRando.Options.RO_CLOCK_SHUFFLE_PROGRESSIVE=0,"
+        "gRando.Options.RO_HINTS_BOSS_REMAINS=1,"
         "gRando.Options.RO_HINTS_GOSSIP_STONES=1,gRando.Options.RO_HINTS_HOOKSHOT=1,"
         "gRando.Options.RO_HINTS_OATH_TO_ORDER=1,gRando.Options.RO_HINTS_SPIDER_HOUSES=1,"
         "gRando.Options.RO_PLENTIFUL_ITEMS=1,gRando.Options.RO_SHUFFLE_BARREL_DROPS=1,"
