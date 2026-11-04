@@ -1,6 +1,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 #include "soh/mixer.h"
+#include "soh/Enhancements/audio/AudioSettings.h"
 
 #define DEFAULT_LEN_1CH 0x1A0
 #define DEFAULT_LEN_2CH 0x340
@@ -654,7 +655,7 @@ Acmd* AudioSynth_DoOneAudioUpdate(s16* aiBuf, s32 aiBufLen, Acmd* cmd, s32 updat
     }
 
     updateIndex = aiBufLen * 2;
-    if (CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0)) {
+    if (AudioSettings_GetMirroredWorld()) {
         aInterleave(cmd++, DMEM_TEMP, DMEM_RIGHT_CH, DMEM_LEFT_CH, updateIndex);
     } else {
         aInterleave(cmd++, DMEM_TEMP, DMEM_LEFT_CH, DMEM_RIGHT_CH, updateIndex);
@@ -699,7 +700,6 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
     u8* sampleData;
     s32 nParts;
     s32 curPart;
-    intptr_t sampleDataStartPad;
     s32 side;
     s32 resampledTempLen;
     u16 noteSamplesDmemAddrBeforeResampling;
@@ -713,7 +713,6 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
     s16* filter;
     s32 bookOffset;
     s32 finished;
-    s32 aligned;
     s16 addr;
     u16 unused;
 
@@ -896,14 +895,17 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
                         return cmd;
                     }
 
-                    sampleDataStartPad = (uintptr_t)sampleData & 0xF;
-                    aligned = ALIGN16((nFramesToDecode * frameSize) + 16);
-                    addr = DMEM_COMPRESSED_ADPCM_DATA - aligned;
-
-                    aLoadBuffer(cmd++, sampleData - sampleDataStartPad, addr, aligned);
+                    addr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(nFramesToDecode * frameSize);
+                    u32 bytesToLoad = nFramesToDecode * frameSize;
+                    u32 bytesAvail = (u32)sampleDataOffset < audioFontSample->size
+                                         ? audioFontSample->size - (u32)sampleDataOffset
+                                         : 0;
+                    if (bytesToLoad > bytesAvail) {
+                        bytesToLoad = bytesAvail;
+                    }
+                    aLoadBuffer(cmd++, sampleData, addr, bytesToLoad);
                 } else {
                     nSamplesToDecode = 0;
-                    sampleDataStartPad = 0;
                 }
 
                 if (synthState->restart) {
@@ -920,24 +922,16 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
                 }
                 switch (audioFontSample->codec) {
                     case CODEC_ADPCM:
-                        aligned = ALIGN16((nFramesToDecode * frameSize) + 0x10);
-                        addr = DMEM_COMPRESSED_ADPCM_DATA - aligned;
-                        aSetBuffer(cmd++, 0, addr + sampleDataStartPad, DMEM_UNCOMPRESSED_NOTE + phi_s4,
-                                   nSamplesToDecode * 2);
+                        aSetBuffer(cmd++, 0, addr, DMEM_UNCOMPRESSED_NOTE + phi_s4, nSamplesToDecode * 2);
                         aADPCMdec(cmd++, flags, synthState->synthesisBuffers->adpcmdecState);
                         break;
                     case CODEC_SMALL_ADPCM:
-                        aligned = ALIGN16((nFramesToDecode * frameSize) + 0x10);
-                        addr = DMEM_COMPRESSED_ADPCM_DATA - aligned;
-                        aSetBuffer(cmd++, 0, addr + sampleDataStartPad, DMEM_UNCOMPRESSED_NOTE + phi_s4,
-                                   nSamplesToDecode * 2);
+                        aSetBuffer(cmd++, 0, addr, DMEM_UNCOMPRESSED_NOTE + phi_s4, nSamplesToDecode * 2);
                         aADPCMdec(cmd++, flags | 4, synthState->synthesisBuffers->adpcmdecState);
                         break;
                     case CODEC_S8:
-                        aligned = ALIGN16((nFramesToDecode * frameSize) + 0x10);
-                        addr = DMEM_COMPRESSED_ADPCM_DATA - aligned;
-                        OoT_AudioSynth_SetBuffer(cmd++, 0, addr + sampleDataStartPad, DMEM_UNCOMPRESSED_NOTE + phi_s4,
-                                             nSamplesToDecode * 2);
+                        addr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(nFramesToDecode * frameSize);
+                        OoT_AudioSynth_SetBuffer(cmd++, 0, addr, DMEM_UNCOMPRESSED_NOTE + phi_s4, nSamplesToDecode * 2);
                         OoT_AudioSynth_S8Dec(cmd++, flags, synthState->synthesisBuffers->adpcmdecState);
                         break;
                 }

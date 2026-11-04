@@ -1,5 +1,6 @@
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/Enhancements/audio/AudioSettings.h"
 #include <libultraship/bridge.h>
 
 extern bool gUseLegacySD;
@@ -95,7 +96,7 @@ void Audio_InitNoteSub(Note* note, NoteSubEu* sub, NoteSubAttributes* attrs) {
     vel = 0.0f > vel ? 0.0f : vel;
     vel = 1.0f < vel ? 1.0f : vel;
 
-    float master_vol = (float)CVarGetInteger(CVAR_SETTING("Volume.Master"), 40) / 100.0f;
+    float master_vol = AudioSettings_GetMasterVolume();
     sub->targetVolLeft = (s32)((vel * volLeft) * (0x1000 - 0.001f)) * master_vol;
     sub->targetVolRight = (s32)((vel * volRight) * (0x1000 - 0.001f)) * master_vol;
 
@@ -121,7 +122,7 @@ void Audio_NoteSetResamplingRate(NoteSubEu* noteSubEu, f32 resamplingRateInput) 
     } else {
         noteSubEu->bitField1.hasTwoParts = true;
         if (3.99996f < resamplingRateInput) {
-            if (CVarGetInteger(CVAR_AUDIO("ExperimentalOctaveDrop"), 0) || noteSubEu->bitField1.isSyntheticWave) {
+            if (AudioSettings_GetOctaveDrop() || noteSubEu->bitField1.isSyntheticWave) {
                 resamplingRate = resamplingRateInput * 0.25;
             } else {
                 resamplingRate = 1.99998f;

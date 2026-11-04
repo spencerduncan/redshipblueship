@@ -67,6 +67,7 @@ static void UpdateMirrorModeState(int32_t sceneNum) {
     } else {
         CVarClear(CVAR_MIRRORED_WORLD_NAME);
     }
+    ShipInit::Init(CVAR_MIRRORED_WORLD_NAME);
 
     ApplyMirrorWorldGfxPatches();
 }

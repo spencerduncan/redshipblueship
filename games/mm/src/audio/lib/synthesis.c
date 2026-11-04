@@ -3,6 +3,10 @@
 #include "2s2h/mixer.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+int32_t MM_AudioSettings_GetMirroredWorld(void);
+#endif
+
 // DMEM Addresses for the RSP
 #define DMEM_TEMP 0x3B0
 #define DMEM_TEMP2 0x3C0
@@ -868,7 +872,11 @@ Acmd* AudioSynth_ProcessSamples(s16* aiBuf, s32 numSamplesPerUpdate, Acmd* cmd, 
     }
 
     size = numSamplesPerUpdate * SAMPLE_SIZE;
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (MM_AudioSettings_GetMirroredWorld()) {
+#else
     if (CVarGetInteger("gModes.MirroredWorld.State", 0)) {
+#endif
         aInterleave(cmd++, DMEM_TEMP, DMEM_RIGHT_CH, DMEM_LEFT_CH, size);
     } else {
         aInterleave(cmd++, DMEM_TEMP, DMEM_LEFT_CH, DMEM_RIGHT_CH, size);
@@ -918,7 +926,6 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
     u8* samplesToLoadAddr;
     s32 numParts;
     s32 curPart;
-    s32 sampleDataChunkAlignPad;
     s32 haasEffectDelaySide;
     s32 numSamplesToLoadFirstPart;
     u16 sampleDmemBeforeResampling;
@@ -932,7 +939,6 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
     s16* filter;
     s32 bookOffset = sampleState->bitField1.bookOffset;
     s32 finished = sampleState->bitField0.finished;
-    s32 sampleDataChunkSize;
     s16 sampleDataDmemAddr;
 
     note = &gAudioCtx.notes[noteIndex];
@@ -1206,29 +1212,16 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
 
                     // Move the raw sample chunk from ram to the rsp
                     // DMEM at the addresses before DMEM_COMPRESSED_ADPCM_DATA
-                    sampleDataChunkAlignPad = (uintptr_t)samplesToLoadAddr & 0xF;
-                    sampleDataChunkSize = ALIGN16((numFramesToDecode * frameSize) + SAMPLES_PER_FRAME);
-                    sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - sampleDataChunkSize;
-                    // 2S2H [Port] This fixes an overflow that crashes the asan, but causes some ADPCM sounds to cut off
-                    // early.
-#if __SANITIZE_ADDRESS__
-                    uintptr_t actualAddrLoaded = samplesToLoadAddr - sampleDataChunkAlignPad;
-                    uintptr_t offset = actualAddrLoaded - (uintptr_t)sampleAddr;
-                    if (offset + sampleDataChunkSize > sample->size) {
-                        sampleDataChunkSize -= (offset + sampleDataChunkSize - sample->size);
+                    sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(numFramesToDecode * frameSize);
+                    u32 bytesToLoad = numFramesToDecode * frameSize;
+                    u32 bytesAvail =
+                        (u32)sampleAddrOffset < sample->size ? sample->size - (u32)sampleAddrOffset : 0;
+                    if (bytesToLoad > bytesAvail) {
+                        bytesToLoad = bytesAvail;
                     }
-#endif
-                    // BEN: This will crash the asan. We can just ignore alignment since we don't have those strictures.
-                    // if (sampleDataChunkSize + sampleAddrOffset > sample->size) {
-                    //    sampleDataChunkSize = sample->size - sampleAddrOffset;
-                    //    sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - sampleDataChunkSize;
-                    //}
-
-                    aLoadBuffer(cmd++, samplesToLoadAddr - sampleDataChunkAlignPad, sampleDataDmemAddr,
-                                sampleDataChunkSize);
+                    aLoadBuffer(cmd++, samplesToLoadAddr, sampleDataDmemAddr, bytesToLoad);
                 } else {
                     numSamplesToDecode = 0;
-                    sampleDataChunkAlignPad = 0;
                 }
 
                 if (synthState->atLoopPoint) {
@@ -1251,27 +1244,22 @@ Acmd* AudioSynth_ProcessSample(s32 noteIndex, NoteSampleState* sampleState, Note
                 // Goes from adpcm (compressed) sample data to pcm (uncompressed) sample data
                 switch (sample->codec) {
                     case CODEC_ADPCM:
-                        sampleDataChunkSize = ALIGN16((numFramesToDecode * frameSize) + SAMPLES_PER_FRAME);
-                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - sampleDataChunkSize;
-                        aSetBuffer(cmd++, 0, sampleDataDmemAddr + sampleDataChunkAlignPad,
+                        aSetBuffer(cmd++, 0, sampleDataDmemAddr,
                                    DMEM_UNCOMPRESSED_NOTE + dmemUncompressedAddrOffset2,
                                    numSamplesToDecode * SAMPLE_SIZE);
                         aADPCMdec(cmd++, flags, synthState->synthesisBuffers->adpcmState);
                         break;
 
                     case CODEC_SMALL_ADPCM:
-                        sampleDataChunkSize = ALIGN16((numFramesToDecode * frameSize) + SAMPLES_PER_FRAME);
-                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - sampleDataChunkSize;
-                        aSetBuffer(cmd++, 0, sampleDataDmemAddr + sampleDataChunkAlignPad,
+                        aSetBuffer(cmd++, 0, sampleDataDmemAddr,
                                    DMEM_UNCOMPRESSED_NOTE + dmemUncompressedAddrOffset2,
                                    numSamplesToDecode * SAMPLE_SIZE);
                         aADPCMdec(cmd++, flags | A_ADPCM_SHORT, synthState->synthesisBuffers->adpcmState);
                         break;
 
                     case CODEC_S8:
-                        sampleDataChunkSize = ALIGN16((numFramesToDecode * frameSize) + SAMPLES_PER_FRAME);
-                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - sampleDataChunkSize;
-                        MM_AudioSynth_SetBuffer(cmd++, 0, sampleDataDmemAddr + sampleDataChunkAlignPad,
+                        sampleDataDmemAddr = DMEM_COMPRESSED_ADPCM_DATA - ALIGN16(numFramesToDecode * frameSize);
+                        MM_AudioSynth_SetBuffer(cmd++, 0, sampleDataDmemAddr,
                                              DMEM_UNCOMPRESSED_NOTE + dmemUncompressedAddrOffset2,
                                              numSamplesToDecode * SAMPLE_SIZE);
                         MM_AudioSynth_S8Dec(cmd++, flags, synthState->synthesisBuffers->adpcmState);

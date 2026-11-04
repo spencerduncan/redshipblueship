@@ -2,6 +2,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
+#include "soh/resource/type/scenecommand/SetTimeSettings.h"
 
 extern "C" {
 extern SaveContext gSaveContext;
@@ -9,6 +10,8 @@ extern PlayState* OoT_gPlayState;
 #include "macros.h"
 #include "variables.h"
 }
+
+bool OoT_Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd);
 
 #define CVAR_NAME CVAR_ENHANCEMENT("3DSceneRender")
 #define CVAR_VALUE CVarGetInteger(CVAR_NAME, 0)
@@ -25,25 +28,6 @@ std::set<SceneID> fogControlList = {
     SCENE_TEMPLE_OF_TIME_EXTERIOR_DAY,
     SCENE_TEMPLE_OF_TIME_EXTERIOR_NIGHT,
     SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS,
-    SCENE_KNOW_IT_ALL_BROS_HOUSE,
-    SCENE_TWINS_HOUSE,
-    SCENE_MIDOS_HOUSE,
-    SCENE_SARIAS_HOUSE,
-    SCENE_BACK_ALLEY_HOUSE,
-    SCENE_BAZAAR,
-    SCENE_KOKIRI_SHOP,
-    SCENE_GORON_SHOP,
-    SCENE_ZORA_SHOP,
-    SCENE_POTION_SHOP_KAKARIKO,
-    SCENE_POTION_SHOP_MARKET,
-    SCENE_BOMBCHU_SHOP,
-    SCENE_HAPPY_MASK_SHOP,
-    SCENE_LINKS_HOUSE,
-    SCENE_DOG_LADY_HOUSE,
-    SCENE_STABLE,
-    SCENE_IMPAS_HOUSE,
-    SCENE_CARPENTERS_TENT,
-    SCENE_GRAVEKEEPERS_HUT,
 };
 
 std::set<SceneID> skyboxSceneControlList = {
@@ -86,14 +70,26 @@ std::set<SkyboxId> skyboxIdControlList = {
     SKYBOX_HOUSE_ALLEY,
 };
 
+void SyncSkyboxTimeToCurrentTime() {
+    SOH::SetTimeSettings cmd;
+    cmd.settings = { 0xFF, 0xFF, static_cast<uint8_t>(OoT_gPlayState->envCtx.timeIncrement) };
+    OoT_Scene_CommandTimeSettings(OoT_gPlayState, &cmd);
+}
+
 void Register3DPreRenderedScenes() {
     COND_HOOK(AfterSceneCommands, CVAR_VALUE, [](int16_t sceneNum) {
-        if (!skyboxSceneControlList.contains(static_cast<SceneID>(sceneNum))) {
+        if (!skyboxSceneControlList.contains(static_cast<SceneID>(sceneNum)) &&
+            // The interior scenes that use the fake skybox that is in skyboxIdControlList never have a real skybox to
+            // show because we disable the 2D background, so we might as well put the normal sky there anyway just in
+            // case any void space manages to peek through the geometry. And by replacing the skybox ID instead of
+            // preventing the load of the textures when they're used we prevent potential bad access later.
+            !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxId))) {
             return;
         }
 
         // Add a skybox on scenes from skyboxSceneControlList
         OoT_gPlayState->envCtx.skyboxDisabled = false;
+        SyncSkyboxTimeToCurrentTime();
 
         // Replace skybox with normal sky
         OoT_gPlayState->skyboxId = SKYBOX_NORMAL_SKY;
@@ -101,6 +97,7 @@ void Register3DPreRenderedScenes() {
         if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS || sceneNum == SCENE_MARKET_RUINS ||
             sceneNum == SCENE_MARKET_ENTRANCE_RUINS) {
             OoT_gWeatherMode = 3;
+            gSaveContext.retainWeatherMode = 1;
         }
     });
 
@@ -112,25 +109,12 @@ void Register3DPreRenderedScenes() {
         if ((HREG(80) != 10) || (HREG(82) != 0)) {
             // Furthest possible fog and zFar
             OoT_gPlayState->view.zFar = 12800;
-            OoT_gPlayState->lightCtx.fogNear = 996; // Set to 1000 to complete disable fog entirely
+            OoT_gPlayState->lightCtx.fogNear = 1000; // Set to 1000 to complete disable fog entirely
             OoT_gPlayState->lightCtx.fogFar = 12800;
-            // General gray fog color
-            OoT_gPlayState->lightCtx.fogColor[0] = 100;
-            OoT_gPlayState->lightCtx.fogColor[1] = 100;
-            OoT_gPlayState->lightCtx.fogColor[2] = 100;
         }
     });
 
     COND_VB_SHOULD(VB_DRAW_2D_BACKGROUND, CVAR_VALUE, { *should = false; });
-
-    COND_VB_SHOULD(VB_LOAD_SKYBOX, CVAR_VALUE, {
-        if (!OoT_gPlayState || !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxCtx.skyboxId))) {
-            return;
-        }
-
-        OoT_gPlayState->skyboxCtx.unk_140 = 0;
-        *should = false;
-    });
 }
 
 static RegisterShipInitFunc initFunc(Register3DPreRenderedScenes, { CVAR_NAME });
