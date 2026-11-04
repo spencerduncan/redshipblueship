@@ -53,9 +53,10 @@ with it (see "The package path" below).
 in the other goldens `entranceCount` is 0 and `entranceDigest` is the empty hash: it
 pins nothing. This profile shuffles every interior and the overworld on the same
 seed and dispatch as `seed-digest-default` (132 overrides; the single bag places on
-its first attempt in 268 rounds at generator 4 (266 at generator 3, 258 before #974
-added the mask shop's masks), far from the fill's wall clock, so the golden does
-not ride machine speed). A heavier profile with dungeon entrances shuffled too was
+ladder attempt 1 in two batch attempts, 488 rounds, since the OoTMM-defaults re-pin
+(one batch attempt of 268 rounds before it at generator 4, 266 at generator 3, 258
+before #974 added the mask shop's masks), far from the 2500-round budget, so the
+golden does not ride machine speed). A heavier profile with dungeon entrances shuffled too was
 measured first and rejected: on this seed its single bag hit the 30 s per-attempt
 budget of the time (1250 rounds, before the 2026-10-28 floor of 60 s), and a
 golden must never pin a world a slower machine would not reach.
@@ -142,14 +143,20 @@ shuffle on: under the shipped profile the table is empty (`entranceCount=0`).
 
 Some of these fields are the same in every golden, so they pin the writer and the
 fixed values, not a draw. Under the shipped profiles OoT's prices do not depend on the
-seed: `ootPriceCount=114` and `ootPriceDigest=2F60E6D1` appear in every paired
+seed: `ootPriceCount=114` and `ootPriceDigest=B45358F7` appear in every paired
 golden but one, and those are different worlds. The exception is
 `seed-digest-shopsanity` (#982), the one profile with OoT's stream-drawn price path
-(`3drando/shops.cpp`) on: `ootPriceCount=114`, `ootPriceDigest=1AA05B30`. MM's prices
-are drawn: `paired-attempt-digest` pins `mmPriceDigest=46E226E3`, the retired MM
-Nearly No Logic golden pinned `49E4D929`, and the others, which share one MM seed, pin `9E241182`. `ootStartingItems`,
-`mmStartingItems` and `mmStartInventory` are constant too, as expected for a fixed
-paired start.
+(`3drando/shops.cpp`) on: `ootPriceCount=113`, `ootPriceDigest=233AA6DB`. Since #1427
+MM's prices do not depend on the seed either: MM Shop Prices and MM Tingle Prices ship
+at Vanilla, so every golden pins `mmPriceCount=37` (22 shop slots, Tingle's 12 maps
+and the three merchants, each at its vanilla price) and `mmPriceDigest=A07C1459`.
+Before #1427 every MM check that reached the price roll drew a 0-199 price from MM's
+stream (`mmPriceCount=306` in most goldens), so the digest followed the MM seed:
+`9E241182` in the goldens that share one MM seed, `46E226E3` in
+`paired-attempt-digest`. `ootStartingItems` (`1/959CFCFB` since #1428: Ganon's Boss
+Key, which the shipped Start With grants), `mmStartingItems` and `mmStartInventory`
+are constant too, as expected for a fixed paired start. (These values are as of the
+OoTMM-defaults re-pin below.)
 
 ### The profiles #982 added
 
@@ -204,14 +211,14 @@ every OoT key and every MM key, and correct the ids in the table instead if they
 no longer name the same checks.
 
 Every profile in the table is created on ladder attempt 1 against the 2500-round
-per-attempt budget. At generator 4 the excludes-and-tricks, Shop Shuffle and
-forward-direction profiles each fill in one batch attempt of 268 rounds;
-`seed-digest-beatable-only` takes two batch attempts, 531 rounds, and
-`seed-digest-no-logic` runs no round at all. `GoldenSeedsRoundBudget` checks the
-Shop Shuffle, forward-direction and Beatable Only profiles again, the ones that
-`RSBS_DIAG_CVARS` alone describes and that run a round. Round counts do not tell
-the profiles apart: `seed-digest-default` also takes two batch attempts (516
-rounds), and the other All Locations goldens mostly take 268. So that row ties
+per-attempt budget. Since the OoTMM-defaults re-pin (generator 4) the
+excludes-and-tricks, Shop Shuffle and forward-direction profiles each fill in one
+batch attempt of 272 rounds; `seed-digest-beatable-only` takes one batch attempt of
+271 rounds, and `seed-digest-no-logic` runs no round at all. `GoldenSeedsRoundBudget`
+checks the Shop Shuffle, forward-direction and Beatable Only profiles again, the ones
+that `RSBS_DIAG_CVARS` alone describes and that run a round. Round counts do not tell
+the profiles apart: `seed-digest-default` also takes one batch attempt of 272
+rounds, and so do most of the other All Locations goldens. So that row ties
 each entry to its golden by `bagSeed` as well, which folds the frozen identity
 (both games' settings hashes and the combo settings) and so differs per profile:
 an entry whose settings were dropped would generate the default world and fail
@@ -275,6 +282,11 @@ changed, and the two new bits are folded into `comboSettingsHash` already, so no
 two builds make different worlds behind one fingerprint. No world the profile
 did not change moves: both rules ship off, so every other golden stays
 byte-identical.
+
+The OoTMM-defaults re-pin (see "The generator version") moved this golden with
+every other one, because its profile inherits the shipped OoT and MM settings: it
+now creates on ladder attempt 1 in one batch attempt of 267 rounds, with
+`bagRows` 265 (the four new OoT rows) and `crossItemFlags` still `0000083F`.
 
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
 this golden with its seven keys and requires the frozen `crossItemFlags` to be
@@ -487,6 +499,68 @@ generation (`settingsHash`, `placementHash`, `placedCount`) did not.
 #979 re-pinned `seed-digest-all-masks` at version 4, in the same release window,
 with the Blast Mask keys added to its profile (an input change, not a bump; see
 "The all-masks profile").
+
+The OoTMM defaults (2026-11-03, PR #1436; #1428, #1425, #1427), still version 4.
+Three default changes re-pinned together, because each one moves every golden:
+
+* #1428: Rainbow Bridge defaults to Medallions (all six) and Ganon's Boss Key to
+  Start With;
+* #1425: Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card
+  default on;
+* #1427: MM's price pass. MM Shop Prices and MM Tingle Prices default to Vanilla,
+  an unsold slot charges its vanilla price, and the 0-199 junk price every MM
+  check drew is gone.
+
+Measured against the version-4 pins:
+
+* INPUT: `settingsHash` in every golden that carries it (`seed-digest-default`
+  `AA535593` to `60E949E7`), because OoT's settings string folds the five OoT
+  options. `comboSettingsHash` moves with it (`FADB7B21` to `DB569499`). `seed`,
+  `comboSettings` and `ladderMasterSeed` stay. `mmFinalSeed` stays in every golden
+  (`74C32F12`; `4CF9E67F` in `seed-digest-no-logic`, `E74E56F7` in
+  `paired-attempt-digest`), which shows that MM's seed derivation folds neither
+  price mode at Vanilla, as #1427 intends.
+* OoT's general pass: `placementHash` moves, and `placedCount` drops by five in
+  every golden (277 to 272; `seed-digest-excludes-tricks` 282 to 277,
+  `seed-digest-shopsanity` 245 to 240). Four pre-placements become pool rows (two
+  ocarinas, the Master Sword and the Gerudo Membership Card), and the Tower Boss Key
+  Chest's fixed key is gone. `ootStartingItems` moves from `0/811C9DC5` to
+  `1/959CFCFB` (Ganon's Boss Key).
+* The bag: `bagRows` and `bagRequiredPlaced` grow by four (266 to 270; 261 to 265 in
+  `seed-digest-all-masks`), the four new OoT rows. `bagTrimmedOoT` and
+  `bagTrimmedMM` stay. In `seed-digest-armed-caps`, `armedOoTPoolRows` goes from 173
+  to 178 (the four rows plus the freed chest's filler), `armedOoT` from
+  `req73/.../ren72` to `req77/.../ren73`, `armedBagRows` from 329 to 333, and
+  `armedBagDigest` and `armedTrimSeed` move. `armedGiveCaps`, `armedMMPoolRows`,
+  `armedMM` and `armedStartingHealth` stay.
+* Prices: `mmPriceCount` goes from 306 (305 in `seed-digest-no-logic`, 304 in
+  `paired-attempt-digest`) to 37, and `mmPriceDigest` to `A07C1459` in every
+  golden. `ootPriceCount` and `ootPriceDigest` stay, except in
+  `seed-digest-shopsanity`, whose drawn prices follow the moved stream
+  (`790CE32C` to `233AA6DB`, still 113).
+* After that: `bagSeed`, `coordinatorDigest`, `mmPlacementHash`,
+  `ootFinalPlacementHash`, `crossingDigest`, the crossing counts and every
+  per-slot line, `ootHintDigest` (`ootHintCount` stays 45), the MM hint and
+  free-stone digests and foolish areas, and `entranceDigest` in
+  `seed-digest-entrances`. `ootFinalPlacedCount` (490), `mmStartingItems` and
+  `mmStartInventory` stay.
+* Rounds: every golden still creates on its pinned ladder attempt. The default
+  takes one batch attempt of 272 rounds (two, 516, before), Beatable Only one of 271
+  (two, 531), the entrances profile two, 488 (one, 268), and the other round-running
+  goldens 267 to 272.
+
+Why no bump: #1392 bumped to 4 in this release window, and no release has carried
+generator 4 (the latest is `v0.4.4-alpha`, generator 3), which #979's re-pin also
+relied on. The OoT changes are default changes that `settingsHash`, and so the
+fingerprint, folds, so a default world made after this change does not share a
+fingerprint with one made before it. #1427 changes the generator behind an
+unchanged MM profile digest. A profile that sets all five OoT options explicitly
+(each shipped preset does) therefore keeps its `comboSettingsHash` while its MM
+half moves. That is true only against the unreleased generator-4 builds between
+#1392 and this change, and a seed package one of them wrote is refused anyway,
+because #1427's two new option slots change the MM half's size (`ERR_LAYOUT`).
+`RandoStaticHintOrder`'s hand pin `kStaticHintTextDigest` moved in the same re-pin
+(`2387DBDD` to `759F783D`, still 17 hints, 15 of them drawing).
 
 ## Comparing two binaries by hand: never read a file a bare `--test` did not write
 

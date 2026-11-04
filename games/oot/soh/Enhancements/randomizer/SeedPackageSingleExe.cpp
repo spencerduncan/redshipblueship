@@ -48,7 +48,8 @@
 #include "soh/Notification/Notification.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/randomizer/settings.h"
-#include "soh/Enhancements/randomizer/randomizer.h" // JoinRandoGenerationThread
+#include "soh/Enhancements/randomizer/randomizer.h"                   // JoinRandoGenerationThread
+#include "soh/Enhancements/randomizer/3drando/starting_inventory.hpp" // GenerateStartingInventory
 
 #include "context.h"
 #include "foreign_items.h"
@@ -553,7 +554,18 @@ bool LoadOoTWorld(const StagedPackage& p) {
         return false;
     }
     auto ctx = Rando::Context::GetInstance();
-    return ctx && ctx->GetSeed() == p.ootFinalSeed;
+    if (!ctx || ctx->GetSeed() != p.ootFinalSeed) {
+        return false;
+    }
+    // Logic's starting inventory is a process global that only generation fills
+    // (3drando/starting_inventory.cpp), and the world load does not carry it. A
+    // process that loads a package therefore held an empty start, or the start of
+    // whatever world it generated last. Rebuild it from the settings and the
+    // Master Quest dungeons this load just restored; it is a function of those
+    // alone. Since #1428 the default start is not empty (Ganon's Boss Key under
+    // "Start With").
+    GenerateStartingInventory();
+    return true;
 }
 
 /** The package's spoiler as the document the spoiler windows read: written beside

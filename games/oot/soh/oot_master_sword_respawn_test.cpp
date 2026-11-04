@@ -34,6 +34,22 @@
  *
  * The randomizer option, the hook registries the give dispatches and the whole
  * save are put back before returning.
+ *
+ * LEG 0, THE SHIPPED DEFAULTS (#1425). OoTMM ships shuffleMasterSword,
+ * shuffleOcarinasOot and shuffleGerudoCard on (packages/core/src/settings/data.ts),
+ * so Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo Membership Card
+ * ship on here. With their keys unset (each stored value set aside and put back):
+ *   0a. each Settings option reads its own key and answers on: what Settings::
+ *       SetAllToContext hands every generation on an untouched config;
+ *   0b. the menu's exclude list (RandomizerCheckObjects::UpdateImGuiVisibility,
+ *       the visibility filter the Generate button's exclude parse applies) lists
+ *       Gift From Saria, the Ocarina of Time item and Freed All Carpenters, the
+ *       locations those shuffles empty; with Shuffle Ocarinas and Shuffle Gerudo
+ *       Membership Card stored off it lists none of the three, so the half that
+ *       must pass reads the two keys.
+ * Red before #1425: 0a fails for all three options (each read off), and 0b's
+ * unset half fails for all three locations (the visibility filter read the keys
+ * with an "off" fallback).
  */
 
 #include <cstring>
@@ -44,11 +60,18 @@
 #include "macros.h"
 #include "soh/Enhancements/randomizer/randomizerTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/Enhancements/randomizer/settings.h"
+#include "soh/Enhancements/randomizer/randomizer_check_objects.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/OTRGlobals.h"
+#include "soh/cvar_prefixes.h"
 
+#include <libultraship/bridge/consolevariablebridge.h>
+
+#include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <string>
 
 // The respawn site under test (games/oot/src/code/z_play.c).
 extern "C" void Play_LoadToLastEntrance(PlayState* play);
@@ -115,6 +138,119 @@ int sFailures = 0;
             sFailures++;                                                \
         }                                                               \
     } while (0)
+
+// ---- Leg 0 (#1425): the three shuffles OoTMM ships on --------------------------
+
+/** One randomizer key's stored value, set aside (the key cleared) for leg 0. */
+struct StoredKey {
+    const char* cvar;
+    bool existed;
+    int32_t value;
+};
+
+StoredKey KeyAside(const char* cvar) {
+    StoredKey stored = { cvar, CVarExists(cvar), 0 };
+    if (stored.existed) {
+        stored.value = CVarGetInteger(cvar, 0);
+    }
+    CVarClear(cvar);
+    return stored;
+}
+
+void KeyRestore(const StoredKey& stored) {
+    if (stored.existed) {
+        CVarSetInteger(stored.cvar, stored.value);
+    } else {
+        CVarClear(stored.cvar);
+    }
+}
+
+struct ShippedShuffle {
+    RandomizerSettingKey key;
+    const char* cvar;
+    const char* name;
+    const char* ootmmKey;
+};
+
+const ShippedShuffle kShippedShuffles[] = {
+    { RSK_SHUFFLE_MASTER_SWORD, CVAR_RANDOMIZER_SETTING("ShuffleMasterSword"), "Shuffle Master Sword",
+      "shuffleMasterSword" },
+    { RSK_SHUFFLE_OCARINA, CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), "Shuffle Ocarinas", "shuffleOcarinasOot" },
+    { RSK_SHUFFLE_GERUDO_MEMBERSHIP_CARD, CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"),
+      "Shuffle Gerudo Membership Card", "shuffleGerudoCard" },
+};
+
+/** The locations the exclude list shows only while Shuffle Ocarinas or Shuffle
+ *  Gerudo Membership Card is on (randomizer_check_objects.cpp). */
+struct ShuffledLocation {
+    RandomizerCheck rc;
+    const char* name;
+};
+
+const ShuffledLocation kShuffledLocations[] = {
+    { RC_LW_GIFT_FROM_SARIA, "Gift From Saria" },
+    { RC_HF_OCARINA_OF_TIME_ITEM, "Ocarina of Time Item" },
+    { RC_TH_FREED_CARPENTERS, "Freed All Carpenters" },
+};
+
+bool ExcludeListShows(RandomizerCheck rc) {
+    return Rando::Context::GetInstance()->GetItemLocation(rc)->IsVisible();
+}
+
+void CheckShippedDefaults() {
+    // Fortress Carpenters decides whether Freed All Carpenters is listed at all
+    // ("Free" never lists it); cleared, it is its default, "Normal".
+    const char* const kCarpentersCVar = CVAR_RANDOMIZER_SETTING("FortressCarpenters");
+    const StoredKey stored[] = {
+        KeyAside(kShippedShuffles[0].cvar),
+        KeyAside(kShippedShuffles[1].cvar),
+        KeyAside(kShippedShuffles[2].cvar),
+        KeyAside(kCarpentersCVar),
+    };
+
+    // 0a. The options themselves (the options Rando_HeadlessSeedTest and the menu
+    // build; CreateOptions runs once per process).
+    auto settings = Rando::Settings::GetInstance();
+    settings->CreateOptions();
+    for (const ShippedShuffle& s : kShippedShuffles) {
+        Rando::Option& option = settings->GetOption(s.key);
+        const int shipped = (int)option.GetOptionIndex();
+        std::printf("[TEST] master-sword-respawn leg 0a: %s (key %s) with nothing stored reads %d, OoTMM's %s is on\n",
+                    s.name, option.GetCVarName().c_str(), shipped, s.ootmmKey);
+        MSR_CHECK(option.GetCVarName() == s.cvar, "%s reads the key '%s', expected '%s'\n", s.name,
+                  option.GetCVarName().c_str(), s.cvar);
+        MSR_CHECK(shipped == RO_GENERIC_ON, "%s must ship on, OoTMM's %s default (#1425); it reads %d\n", s.name,
+                  s.ootmmKey, shipped);
+    }
+
+    // 0b. The exclude list: stored off, none of the three is listed (the filter
+    // reads the two keys); unset, all three are, as the shipped options shuffle them.
+    CVarSetInteger(kShippedShuffles[1].cvar, RO_GENERIC_OFF);
+    CVarSetInteger(kShippedShuffles[2].cvar, RO_GENERIC_OFF);
+    RandomizerCheckObjects::UpdateImGuiVisibility();
+    bool listedWhenOff[3] = {};
+    for (int i = 0; i < 3; i++) {
+        listedWhenOff[i] = ExcludeListShows(kShuffledLocations[i].rc);
+    }
+    CVarClear(kShippedShuffles[1].cvar);
+    CVarClear(kShippedShuffles[2].cvar);
+    RandomizerCheckObjects::UpdateImGuiVisibility();
+    for (int i = 0; i < 3; i++) {
+        const bool listedUnset = ExcludeListShows(kShuffledLocations[i].rc);
+        std::printf("[TEST] master-sword-respawn leg 0b: the exclude list shows %s: stored off %d, unset %d\n",
+                    kShuffledLocations[i].name, listedWhenOff[i] ? 1 : 0, listedUnset ? 1 : 0);
+        MSR_CHECK(!listedWhenOff[i], "with its shuffle stored off the exclude list must not show %s\n",
+                  kShuffledLocations[i].name);
+        MSR_CHECK(listedUnset,
+                  "with nothing stored the exclude list must show %s, which the shipped default shuffles (#1425)\n",
+                  kShuffledLocations[i].name);
+    }
+
+    for (const StoredKey& key : stored) {
+        KeyRestore(key);
+    }
+    RandomizerCheckObjects::UpdateImGuiVisibility();
+}
 
 struct CollapseScene {
     s16 scene;
@@ -195,6 +331,7 @@ extern "C" int OoT_MasterSwordRespawnTest_Run(void) {
     std::memcpy(priorSave.get(), &gSaveContext, sizeof(SaveContext));
 
     sFailures = 0;
+    CheckShippedDefaults();
     {
         HooksAside<GameInteractor::OnItemReceive> receive;
         HooksAside<GameInteractor::OnTimestamp> timestamp;

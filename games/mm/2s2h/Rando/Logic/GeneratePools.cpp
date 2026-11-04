@@ -10,6 +10,7 @@ extern "C" {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
+#include "ShopPrices.h"    // #1427: the shop and Tingle price modes
 // RedShipBlueShip (#645 increment 3, lane K9): where RO_PLENTIFUL_ITEMS' copies
 // sit in the last `itemPool` this function returned — [from, to), both 0 when
 // plentiful added none — and that pool's final size, so a consumer can tell it is
@@ -127,8 +128,13 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
                 saveInfo.randoSaveOptions[RO_SHUFFLE_TINGLE_SHOPS] == RO_GENERIC_NO) {
                 continue;
             } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // #1427: priced after this loop by Rando::ShopPrices::Assign. This
+                // branch gave EVERY check reaching it a junk price, one draw each.
+#else
                 int price = Ship_Random(0, 200);
                 saveInfo.randoSaveChecks[randoCheckId].price = price;
+#endif
             }
 
             if (randoStaticCheck.randoCheckType == RCTYPE_SHOP) {
@@ -139,10 +145,14 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
                     randoCheckId != RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) {
                     continue;
                 } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+                    // #1427: the shop price modes, priced after this loop.
+#else
                     // We may come up with a better solution for this in the future, but for now we choose a
                     // random price ahead of time, logic will account for whatever price we choose
                     int price = Ship_Random(0, 200);
                     saveInfo.randoSaveChecks[randoCheckId].price = price;
+#endif
                 }
             }
 
@@ -165,6 +175,12 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
             itemPool.push_back(randoStaticCheck.randoItemId);
         }
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1427: OoTMM's MM shop and Tingle price modes, one pass in a fixed order
+    // from the seeded stream, before the fill reads any price (CAN_AFFORD).
+    Rando::ShopPrices::Assign(saveInfo, checkPool);
+#endif
 
     // Add sword and shield to the pool because they don't have a vanilla location, if you are starting with
     // them they will be removed from the pool in the next step

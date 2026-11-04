@@ -82,7 +82,14 @@ void Settings::CreateOptionDescriptions() {
         "\n"
         "Tokens - Obtain the specified amount of Skulltula tokens.\n"
         "\n"
-        "Greg - Find Greg the Green Rupee.";
+        "Greg - Find Greg the Green Rupee."
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1428: the shipped default is OoTMM's (rainbowBridge "medallions").
+        "\n"
+        "\n"
+        "The default is Medallions with all six required, as in OoTMM."
+#endif
+        ;
     mOptionDescriptions[RSK_BRIDGE_OPTIONS] =
         "Standard Rewards - Greg does not change logic, Greg does not help open the bridge, max "
         "number of rewards on slider does not change.\n"
@@ -629,7 +636,17 @@ void Settings::CreateOptionDescriptions() {
         "- Tokens: Obtain the specified amount of Skulltula tokens.\n"
         "\n"
         "100 GS Reward - Ganon's Boss Key will be awarded by the cursed rich man after you collect 100 Gold Skulltula "
-        "Tokens.";
+        "Tokens."
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1428: the shipped default is OoTMM's "removed", whose twin here is
+        // Start With; a Triforce Hunt overrides it (starting_inventory.cpp,
+        // savefile.cpp), as the row's greyed reason says.
+        "\n"
+        "\n"
+        "The default is Start With, the closest to OoTMM's \"Removed\": you hold the key, so the door to Ganondorf "
+        "opens. With Triforce Hunt on, the hunt gives you the key instead."
+#endif
+        ;
     mOptionDescriptions[RSK_LACS_OPTIONS] =
         "Standard Rewards - Greg does not change logic, Greg does not help obtain GBK, max "
         "number of rewards on slider does not change.\n"

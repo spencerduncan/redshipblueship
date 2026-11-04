@@ -108,6 +108,17 @@ RandomizerCheckArea RandomizerCheckObjects::GetRCAreaBySceneID(SceneID sceneId) 
         return areaIt->second;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1425: Shuffle Ocarinas and Shuffle Gerudo Membership Card default on here
+// (settings.cpp, Settings::CreateOptions), so an unset key reads on below, as the
+// options themselves read it, and the exclude list shows the locations they shuffle.
+static constexpr int kShuffleOcarinasDefault = RO_GENERIC_YES;
+static constexpr int kShuffleGerudoCardDefault = RO_GENERIC_YES;
+#else
+static constexpr int kShuffleOcarinasDefault = RO_GENERIC_NO;
+static constexpr int kShuffleGerudoCardDefault = RO_GENERIC_NO;
+#endif
+
 void RandomizerCheckObjects::UpdateImGuiVisibility() {
     auto ctx = Rando::Context::GetInstance();
     // SoH #6447 (#1420): under Triforce Hunt the boss key is never placed, so the
@@ -116,8 +127,8 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
         CVarGetInteger(CVAR_RANDOMIZER_SETTING("TriforceHunt"), RO_TRIFORCE_HUNT_OFF) != RO_TRIFORCE_HUNT_OFF;
 #ifdef RSBS_SINGLE_EXECUTABLE
     // The [Both Games] Triforce Hunt goal (#1389) runs OoT's own hunt whatever
-    // OoT's own row says, so it counts too; until the paired hunt lands, Generate
-    // refuses that goal. This reads the goal the next creation freezes.
+    // OoT's own row says, so it counts too. This reads the goal the next creation
+    // freezes.
     ComboSettingsRecord comboRules;
     Combo_ResolveComboSettings(&comboRules);
     triforceHunt = triforceHunt || comboRules.goal == (uint8_t)RSBS_COMBO_GOAL_TRIFORCE_HUNT;
@@ -164,8 +175,8 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
             (location.GetRCType() != RCTYPE_DUNGEON_REWARD ||
              CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleDungeonReward"), RO_DUNGEON_REWARDS_END_OF_DUNGEON) !=
                  RO_DUNGEON_REWARDS_END_OF_DUNGEON) && // dungeon rewards end of dungeons
-            (location.GetRCType() != RCTYPE_OCARINA ||
-             CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), RO_GENERIC_NO)) && // ocarina locations
+            (location.GetRCType() != RCTYPE_OCARINA || CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"),
+                                                                      kShuffleOcarinasDefault)) && // ocarina locations
             (location.GetRandomizerCheck() != RC_HC_ZELDAS_LETTER) && // don't show until we support shuffling letter
             (location.GetRCType() !=
              RCTYPE_GOSSIP_STONE) && // don't show gossip stones (maybe gossipsanity will be a thing eventually?)
@@ -240,7 +251,7 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
              CVarGetInteger(CVAR_RANDOMIZER_SETTING("BossKeysanity"), RO_DUNGEON_ITEM_LOC_OWN_DUNGEON) !=
                  RO_DUNGEON_ITEM_LOC_VANILLA) &&
             (location.GetRCType() != RCTYPE_GANON_BOSS_KEY ||
-             CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_VANILLA) !=
+             CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGanonBossKey"), RO_GANON_BOSS_KEY_SHIPPED_DEFAULT) !=
                  RO_GANON_BOSS_KEY_VANILLA ||
              triforceHunt) && // vanilla ganon boss key, unless Triforce Hunt leaves it out
             (location.GetRandomizerCheck() != RC_TOT_LIGHT_ARROWS_CUTSCENE ||
@@ -266,14 +277,16 @@ void RandomizerCheckObjects::UpdateImGuiVisibility() {
              (CVarGetInteger(CVAR_RANDOMIZER_SETTING("FortressCarpenters"), RO_GF_CARPENTERS_NORMAL) ==
                   RO_GF_CARPENTERS_FAST &&
               ((location.GetRandomizerCheck() == RC_TH_FREED_CARPENTERS &&
-                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), RO_GENERIC_NO) == RO_GENERIC_YES) ||
+                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), kShuffleGerudoCardDefault) ==
+                    RO_GENERIC_YES) ||
                (location.GetRandomizerCheck() == RC_TH_1_TORCH_CARPENTER &&
                 CVarGetInteger(CVAR_RANDOMIZER_SETTING("GerudoKeys"), RO_GERUDO_KEYS_VANILLA) !=
                     RO_GERUDO_KEYS_VANILLA))) ||
              (CVarGetInteger(CVAR_RANDOMIZER_SETTING("FortressCarpenters"), RO_GF_CARPENTERS_NORMAL) ==
                   RO_GF_CARPENTERS_NORMAL &&
               ((location.GetRandomizerCheck() == RC_TH_FREED_CARPENTERS &&
-                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), RO_GENERIC_NO) == RO_GENERIC_YES) ||
+                CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGerudoToken"), kShuffleGerudoCardDefault) ==
+                    RO_GENERIC_YES) ||
                (location.GetRCType() == RCTYPE_GF_KEY &&
                 CVarGetInteger(CVAR_RANDOMIZER_SETTING("GerudoKeys"), RO_GERUDO_KEYS_VANILLA) !=
                     RO_GERUDO_KEYS_VANILLA)))));
