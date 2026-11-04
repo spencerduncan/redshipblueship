@@ -1838,8 +1838,14 @@ static SceneID backedUpScene = (SceneID)0xFF;
 static Camera backupCamera;
 
 void RegisterEntranceShuffleHooks() {
-    // Upstream f2c34d8c1 returns early when there is no backup for this scene; that is
-    // folded into the restore branch here so the hook body always reaches va_end.
+    // Upstream f2c34d8c1 resets the backup from an OnLoadGame hook. This registrar already
+    // runs on every load (hook_handlers.cpp's OnLoadGame calls ShipInit::Init("IS_RANDO")),
+    // so the reset happens here instead: registering an OnLoadGame hook from inside the
+    // OnLoadGame dispatch would insert into the unordered_map ExecuteHooks is iterating.
+    backedUpScene = (SceneID)0xFF;
+
+    // Upstream returns early when there is no backup for this scene; that is folded into
+    // the restore branch here so the hook body always reaches va_end.
     COND_VB_SHOULD(VB_SHOULD_LOAD_BG_IMAGE,
                    IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get(), {
                        int32_t* camId = va_arg(args, int32_t*);
@@ -1855,9 +1861,6 @@ void RegisterEntranceShuffleHooks() {
                            backedUpScene = (SceneID)OoT_gPlayState->sceneNum;
                        }
                    });
-
-    COND_HOOK(OnLoadGame, IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get(),
-              [](int32_t) { backedUpScene = (SceneID)0xFF; });
 }
 
 static RegisterShipInitFunc initFunc(RegisterEntranceShuffleHooks, { "IS_RANDO" });
