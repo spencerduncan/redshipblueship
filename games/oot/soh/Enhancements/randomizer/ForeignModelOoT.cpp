@@ -408,13 +408,15 @@ RandomizerGet FirstTier(RandomizerGet rg) {
 
 /** SoH custom draws that fall back to their entry's `gid` row: the recolours
  *  of that row's model, and the substitutes (key ring, overworld key, bombchu
- *  bag) that draw a different model the row stands in for (#577 M7). */
+ *  bag; the Song of Soaring (OoT), which draws MM's own note through the
+ *  co-mounted archives where its GID_SONG_GENERIC row draws OoT's generic note,
+ *  #1169 XW4) that draw a different model the row stands in for (#577 M7). */
 bool CustomDrawFallsBackToGidRow(CustomDrawFunc fn) {
     return fn == Randomizer_DrawSmallKey || fn == Randomizer_DrawKeyRing || fn == Randomizer_DrawOverworldKey ||
            fn == Randomizer_DrawBossKey || fn == Randomizer_DrawMap || fn == Randomizer_DrawCompass ||
            fn == Randomizer_DrawDoubleDefense || fn == Randomizer_DrawPowerBracelet ||
            fn == Randomizer_DrawBronzeScale || fn == Randomizer_DrawBombchuBag ||
-           fn == Randomizer_DrawBombchuBagInLogic;
+           fn == Randomizer_DrawBombchuBagInLogic || fn == Randomizer_DrawSongOfSoaringOoT;
 }
 
 int ModelForItem(uint16_t id, ComboModel* out, const char** reason) {

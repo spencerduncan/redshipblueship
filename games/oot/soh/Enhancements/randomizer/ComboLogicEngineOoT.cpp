@@ -2745,7 +2745,11 @@ extern "C" uint32_t OoT_ComboLogic_ConfinementArmed(void) {
     // #1085: a shared song held back from the restricted song placement is handed
     // to the general pass, the bag. It is the only song left in the pool at the
     // seam (the restricted pass took every other one, and Off placed them), so
-    // arming the family moves no other song.
+    // arming the family moves no other song. One exception, inert while the rule
+    // is hidden (#1169 XW4): under Off a Song of Soaring (OoT) has no vanilla
+    // check and waits in the pool, so this arm also lets it leave OoT, while
+    // without a held-back song it stays home. Which one Off means is lane XW10's
+    // or XW12's decision.
     if (OoTComboLogicHoldsBackASong()) {
         armed |= RSBS_FILL_ARM_SONGS_ROAM;
     }

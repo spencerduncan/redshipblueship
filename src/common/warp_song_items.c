@@ -38,7 +38,7 @@ uint32_t Combo_SongSpotsOverflow(uint32_t songs, uint32_t spots, uint32_t mode, 
     if (soaringOoT) {
         snprintf(msg, len,
                  "%s: %u songs for the %u spots of Shuffle Songs: %s. The Song of Soaring (OoT) is a song too: share "
-                 "or start with at least one song, or shuffle songs Anywhere",
+                 "a song or start with an Ocarina of Time song, or shuffle songs Anywhere",
                  RSBS_SONG_SPOTS_REFUSAL, (unsigned)songs, (unsigned)spots, modeName);
     } else {
         snprintf(msg, len, "%s: %u songs for the %u spots of Shuffle Songs: %s", RSBS_SONG_SPOTS_REFUSAL,

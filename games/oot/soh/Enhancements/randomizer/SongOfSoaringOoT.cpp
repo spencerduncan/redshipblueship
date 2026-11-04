@@ -73,6 +73,11 @@ static_assert(RAND_INF_OBTAINED_SONG_OF_SOARING_OOT == RAND_INF_OBTAINED_STONE_M
 static_assert((RAND_INF_MAX + 15) / 16 == 129 && sizeof(ShipSaveContextData::randomizerInf) == 129 * sizeof(u16),
               "OoT's RAND_INF flags must still fit the 129 saved u16 words: a 130th word moves the save layout "
               "(#1169 XW4)");
+// The refusal names the mode from RSK_SHUFFLE_SONGS's raw value, which fill.cpp
+// passes through; warp_song_items.h spells the two restricted values game-free.
+static_assert(RSBS_SONG_SPOTS_SONG_LOCATIONS == (unsigned)RO_SONG_SHUFFLE_SONG_LOCATIONS &&
+                  RSBS_SONG_SPOTS_DUNGEON_REWARDS == (unsigned)RO_SONG_SHUFFLE_DUNGEON_REWARDS,
+              "RSBS_SONG_SPOTS_* must equal OoT's RO_SONG_SHUFFLE_* restricted values (#1169 XW4)");
 
 extern "C" bool OoT_SongOfSoaringOoTOn(void) {
     return Combo_ComboCrossItemRule2(RSBS_XITEM2_SONG_SOARING_OOT);

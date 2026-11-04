@@ -26,7 +26,10 @@
  * warns, and the option is never greyed out. Combo_SongSpotsOverflow is the count
  * and the wording; OoT's restricted song pass asks it after the starting songs
  * left the pool and after the #1085 shared hold-back, the two ways a player makes
- * room (OoTMM's "share or start with at least one song").
+ * room (OoTMM's "share or start with at least one song"). Each game fills its own
+ * song spots here, not one combined pass as OoTMM does, so only an Ocarina of Time
+ * starting song frees one of OoT's spots; the texts therefore say "start with an
+ * Ocarina of Time song", a stated divergence from OoTMM's wording.
  *
  * INERT UNTIL XW12. Every RSBS_XITEM2_* bit is hidden (RSBS_XITEM2_HIDDEN): Generate
  * refuses a world with one set before anything is frozen, and a load refuses one
@@ -49,17 +52,18 @@ extern "C" {
 /**
  * The Song of Soaring (OoT) row's tooltip (OoTMM data.ts songSoaringOot's
  * description, with Dungeon Rewards named too, since OoT's Shuffle Songs has
- * both restricted modes). Lane XW12 draws the row; the text is here so the
- * warning ships with the refusal it describes.
+ * both restricted modes, and "an Ocarina of Time song" for OoTMM's "at least one
+ * song", above). Lane XW12 draws the row; the text is here so the warning ships
+ * with the refusal it describes.
  */
 #define RSBS_SONG_SOARING_OOT_TOOLTIP                                                                               \
     "Adds Majora's Mask's Song of Soaring to Ocarina of Time. Usable only as a child. If Shuffle Songs is on Song " \
-    "Locations or Dungeon Rewards, you must share or start with at least one song: those twelve spots cannot hold " \
-    "a thirteenth song, and Generate refuses."
+    "Locations or Dungeon Rewards, you must share a song or start with an Ocarina of Time song: those twelve "      \
+    "spots cannot hold a thirteenth song, and Generate refuses."
 
 /** OoT's restricted Shuffle Songs values (RO_SONG_SHUFFLE_SONG_LOCATIONS and
  *  RO_SONG_SHUFFLE_DUNGEON_REWARDS, randomizerTypes.h), the two passes with a
- *  fixed set of spots. */
+ *  fixed set of spots. SongOfSoaringOoT.cpp static-asserts both. */
 #define RSBS_SONG_SPOTS_SONG_LOCATIONS 1u
 #define RSBS_SONG_SPOTS_DUNGEON_REWARDS 2u
 

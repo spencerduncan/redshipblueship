@@ -66,6 +66,7 @@
 #include "../context.h"
 #include "../cvar_shared_keys.h"
 #include "../foreign_items.h"
+#include "../foreign_model.h"
 #include "../foreign_textbox_icon.h"
 #include "../shared_resources.h"
 #include "../test_runner.h"
@@ -98,6 +99,8 @@ bool OoT_SongOfSoaringOoTOn(void);
 int OoT_SongOfSoaringOoTPooledCopies(void);
 int OoT_ComboLogic_TestEnsureItemTableTransient(void);
 int Rando_HeadlessSeedTest(const char* seedStr);
+// games/oot/soh/Enhancements/randomizer/ForeignModelOoT.cpp
+const char* OoT_ComboModel_TestItemReason(uint16_t id);
 #ifdef __cplusplus
 }
 #endif
@@ -196,7 +199,10 @@ TestResult Test_OoTSoaringTableBounds(void) {
         const int stone = OoT_SoaringTest_Id(0);
         const int firstLogicOnly = OoT_SoaringTest_Id(1);
         const int rgMax = OoT_SoaringTest_Id(2);
-        XW4_CHECK(soaring == stone + 1 && firstLogicOnly == soaring + 1 && soaring < rgMax,
+        // Pinned against the Stone Mask before it and the bound after it, never
+        // as the last entry: a later append (Kamaro's Mask, another warp song)
+        // goes after the song and must not turn this row red.
+        XW4_CHECK(soaring == stone + 1 && soaring < firstLogicOnly && firstLogicOnly < rgMax,
                   "RG_SONG_OF_SOARING_OOT is %d; the Stone Mask is %d, the first logic-only id %d, RG_MAX %d: it must "
                   "sit right after the Stone Mask and before the never-placed logic-only ids",
                   soaring, stone, firstLogicOnly, rgMax);
@@ -204,18 +210,19 @@ TestResult Test_OoTSoaringTableBounds(void) {
         const int stoneFlag = OoT_SoaringTest_Id(4);
         const int infMax = OoT_SoaringTest_Id(5);
         const int savedWords = OoT_SoaringTest_Id(6);
-        XW4_CHECK(flag == stoneFlag + 1 && flag == infMax - 1,
+        XW4_CHECK(flag == stoneFlag + 1 && flag < infMax,
                   "RAND_INF_OBTAINED_SONG_OF_SOARING_OOT is %d (Stone Mask's %d, RAND_INF_MAX %d): flags are saved by "
-                  "index, so it must be the last one",
+                  "index, so it must follow the Stone Mask's, appended",
                   flag, stoneFlag, infMax);
         XW4_CHECK(savedWords == 129 && infMax <= savedWords * 16,
                   "%d RAND_INF flags in %d saved words: OoT's save keeps 129 words (2064 bits)", infMax, savedWords);
         const int key = OoT_SoaringTest_Id(7);
         const int stoneKey = OoT_SoaringTest_Id(8);
         const int keyMax = OoT_SoaringTest_Id(9);
-        XW4_CHECK(key == stoneKey + 1 && key == keyMax - 1,
-                  "RHT_SONG_OF_SOARING_OOT is %d (Stone Mask's %d, RHT_MAX %d): it must be appended last", key,
-                  stoneKey, keyMax);
+        XW4_CHECK(key == stoneKey + 1 && key < keyMax,
+                  "RHT_SONG_OF_SOARING_OOT is %d (Stone Mask's %d, RHT_MAX %d): it must follow the Stone Mask's, "
+                  "appended",
+                  key, stoneKey, keyMax);
     }
 
     // ---- (2) No ItemID: the vanilla-sized ItemID tables are never reached ------------
@@ -258,7 +265,7 @@ TestResult Test_OoTSoaringTableBounds(void) {
                   "the item is named '%s', not OoTMM's \"Song of Soaring (OoT)\"", name != NULL ? name : "(null)");
     }
 
-    // ---- (4) Its icon in Majora's Mask's textbox: OoT's white note -------------------
+    // ---- (4) In Majora's Mask: OoT's white note, as textbox icon and model -----------
     {
         SharedItem item;
         memset(&item, 0, sizeof(item));
@@ -274,6 +281,17 @@ TestResult Test_OoTSoaringTableBounds(void) {
                       icon.g == 255 && icon.b == 255,
                   "the textbox icon is answered %d, shape %u, '%s' (%u,%u,%u); want OoT's note in white", answered,
                   (unsigned)icon.shape, icon.texture != NULL ? icon.texture : "(null)", icon.r, icon.g, icon.b);
+
+        // Its get-item model there: OoT's source answers its GID_SONG_GENERIC
+        // row (the custom draw falls back to it), whose note list both archives
+        // carry, so Majora's Mask draws its own white note, not the stand-in.
+        const char* why = OoT_ComboModel_TestItemReason((uint16_t)soaring);
+        ComboModelAnswer model;
+        memset(&model, 0, sizeof(model));
+        const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, item, &model);
+        XW4_CHECK(why == NULL && kind == (uint8_t)COMBO_MODEL_ANSWER_HOST_NATIVE,
+                  "OoT's source answers no model for the song ('%s') or MM does not draw its own note (answer kind %u)",
+                  why != NULL ? why : "", (unsigned)kind);
     }
 
     // ---- (5) From source: the trick names and the give's flag ------------------------
@@ -377,7 +395,7 @@ TestResult Test_OoTSoaringRuleLogic(void) {
                           text.find("13 songs for the 12 spots") != std::string::npos &&
                           text.find(modeNames[m]) != std::string::npos &&
                           text.find("Song of Soaring (OoT)") != std::string::npos &&
-                          text.find("share or start with at least one song") != std::string::npos,
+                          text.find("share a song or start with an Ocarina of Time song") != std::string::npos,
                       "13 on 12 under %s answered %u with '%s'", modeNames[m], (unsigned)over, msg);
             memset(msg, 'x', sizeof(msg));
             XW4_CHECK(Combo_SongSpotsOverflow(12u, 12u, modes[m], true, msg, sizeof(msg)) == 0u && msg[0] == '\0',
@@ -393,7 +411,7 @@ TestResult Test_OoTSoaringRuleLogic(void) {
         XW4_CHECK(tooltip.find("only as a child") != std::string::npos &&
                       tooltip.find("Song Locations") != std::string::npos &&
                       tooltip.find("Dungeon Rewards") != std::string::npos &&
-                      tooltip.find("share or start with at least one song") != std::string::npos,
+                      tooltip.find("share a song or start with an Ocarina of Time song") != std::string::npos,
                   "the option text does not warn as OoTMM's does: '%s'", tooltip.c_str());
     }
 
@@ -462,9 +480,10 @@ TestResult Test_OoTSoaringRulesOffUnchanged(void) {
         XW4_CHECK(OoT_SoaringTest_Id(8) == 1514 && OoT_SoaringTest_Id(7) == 1515,
                   "RHT_STONE_MASK is %d (main's 1514) and the song's key %d (1515)", OoT_SoaringTest_Id(8),
                   OoT_SoaringTest_Id(7));
-        XW4_CHECK(OoT_SoaringTest_Id(4) == 2061 && OoT_SoaringTest_Id(3) == 2062 && OoT_SoaringTest_Id(5) == 2063,
-                  "the Stone Mask's flag is %d (main's 2061), the song's %d (2062), RAND_INF_MAX %d (2063)",
-                  OoT_SoaringTest_Id(4), OoT_SoaringTest_Id(3), OoT_SoaringTest_Id(5));
+        // RAND_INF_MAX is not pinned: a later flag appends after the song's.
+        XW4_CHECK(OoT_SoaringTest_Id(4) == 2061 && OoT_SoaringTest_Id(3) == 2062,
+                  "the Stone Mask's flag is %d (main's 2061) and the song's %d (2062)", OoT_SoaringTest_Id(4),
+                  OoT_SoaringTest_Id(3));
     }
 
     // ---- (5) From source: the pool and the song pass ask the rule ----------------------------

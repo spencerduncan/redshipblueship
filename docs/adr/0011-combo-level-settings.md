@@ -2297,9 +2297,20 @@ for twelve spots, and the answer is OoTMM's behaviour exactly.
   songs than spots ends Generate on the first attempt, no retry, with OoTMM's
   "Not enough locations for songs/dungeon rewards" (`solve.ts`,
   `placeSemiShuffled`) followed by the counts, the mode and, when the separate
-  Soaring is one of them, the ways out (share or start with a song, or
-  Anywhere). The creation's freeze is rolled back. The option text that warns
-  is `RSBS_SONG_SOARING_OOT_TOOLTIP`; XW12 draws it on the row, never greyed.
+  Soaring is one of them, the ways out (share a song or start with an Ocarina of
+  Time song, or Anywhere). The creation's freeze is rolled back. The option text
+  that warns is `RSBS_SONG_SOARING_OOT_TOOLTIP`; XW12 draws it on the row, never
+  greyed. Both texts say "an Ocarina of Time song" where OoTMM says "at least one
+  song", a stated divergence: each game fills its own song spots here, so a
+  Majora's Mask starting song frees none of OoT's. The count is the spot list,
+  as OoTMM's is, not the spots left empty (an excluded song spot still counts).
+- **The model.** OoT draws the song through `Randomizer_DrawSongOfSoaringOoT`
+  (Majora's Mask's own note through the co-mounted archives, else OoT's generic
+  note); as a cross-game descriptor it falls back to its `GID_SONG_GENERIC` row,
+  so Majora's Mask draws its own white note for it.
+- **Room left.** 2063 flags use 2063 of the 129 words' 2064 bits: one more
+  appended `RAND_INF` still fits, and the one after it makes a 130th word, which
+  the static assert stops until a save-layout decision is made.
 
 Still hidden: the rule is a bit of `RSBS_XITEM2_HIDDEN`, so until XW12 no world a
 player can make pools the song, credits it or meets the refusal. Locked by
