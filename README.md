@@ -1,126 +1,89 @@
 # RedShipBlueShip
 
-A libultraship-based combo randomizer for Ocarina of Time and Majora's Mask.
+Ocarina of Time and Majora's Mask in one executable, with cross-game randomization.
 
-**Red** = OoT cartridge color | **Blue** = MM cartridge color
+RedShipBlueShip links [Ship of Harkinian](https://github.com/HarbourMasters/Shipwright) and
+[2Ship2Harkinian](https://github.com/HarbourMasters/2ship2harkinian) into a single `redship`
+binary. A randomized file spans both games: items from either game can be placed in either
+world, and you move between them in-game through the Happy Mask Shop and the Clock Tower.
+The shuffle design follows [OoTMM](https://ootmm.com).
 
-## Overview
+The project is in alpha. Pre-release builds for Windows, Linux and macOS are on the
+[releases page](https://github.com/spencerduncan/redshipblueship/releases). Read
+[docs/known-issues.md](docs/known-issues.md) before playing, and back up your saves.
 
-RedShipBlueShip combines [Ship of Harkinian](https://github.com/HarbourMasters/Shipwright) (OoT port) and [2Ship2Harkinian](https://github.com/HarbourMasters/2ship2harkinian) (MM port) into a single unified executable with cross-game randomization inspired by [OoTMM](https://ootmm.com).
+## Running a release
 
-## Features (Planned)
+1. Download the package for your platform and unpack it.
+2. Place your Ocarina of Time and Majora's Mask ROMs next to `redship`. The first launch
+   finds them, or asks you to browse for them, and generates `oot.o2r` and `mm.o2r`.
+   Supported ROM hashes are listed in [docs/supportedHashes.json](docs/supportedHashes.json).
+3. Launch `redship`. It boots into Ocarina of Time; `--game mm` boots into Majora's Mask.
 
-### MVP (In Development)
-- [ ] Single executable running either OoT or MM
-- [ ] Game switching (Happy Mask Shop ↔ Clock Tower)
-- [ ] Basic cross-game item shuffle
+## Building from source
 
-### Future
-- [ ] Full OoTMM feature parity (entrance rando, souls, hints, etc.)
-- [ ] Archipelago multiworld support
-- [ ] Extended platform support (Switch, Wii U)
-
-## Building
-
-### Requirements
-- CMake 3.16+
-- C++20 compiler
-- Original OoT and MM ROMs for asset extraction
-
-### Build Steps
+Requires CMake 3.26+, a C++20 compiler, Python 3, and at least 8 GB of RAM. Platform
+details are in [docs/BUILDING.md](docs/BUILDING.md) and
+[docs/BUILDING_WINDOWS.md](docs/BUILDING_WINDOWS.md).
 
 ```bash
-# Clone with submodules
-git clone --recursive https://github.com/sd/redshipblueship.git
+git clone --recursive https://github.com/spencerduncan/redshipblueship.git
 cd redshipblueship
-
-# Generate build files
 cmake -B build -S .
-
-# Build
 cmake --build build --parallel
+```
 
-# Generate game archives from your ROMs:
-#   OoT: place ROM at OTRExporter/oot.z64, then:
+A source build has no packaged `assets/` folder, so it cannot generate the archives on first
+launch. Generate them from the build tree instead, then copy `oot.o2r` and `mm.o2r` next
+to `redship`:
+
+```bash
+# ROM at OTRExporter/oot.z64
 cmake --build build --target ExtractAssets
-#   MM: place ROM at OTRExporter/mm.z64, then:
+# ROM at OTRExporter/mm.z64
 cmake --build build --target ExtractMMAssets
-# (or generate mm.o2r with standalone 2Ship2Harkinian —
-#  see docs/mm-archive-setup.md)
 ```
 
-## Project Structure
+See [docs/mm-archive-setup.md](docs/mm-archive-setup.md) for alternatives.
+
+Tests run with `ctest --test-dir build`.
+
+## Default controls
+
+| N64      | A | B | Z | Start | Stick | C buttons  | D-pad |
+| -------- | - | - | - | ----- | ----- | ---------- | ----- |
+| Keyboard | X | C | Z | Space | WASD  | Arrow keys | TFGH  |
+
+Esc opens the menu, F11 toggles fullscreen, Ctrl+R resets.
+
+## Layout
 
 ```
-redshipblueship/
-├── games/
-│   ├── oot/          # Ocarina of Time (from Ship of Harkinian)
-│   └── mm/           # Majora's Mask (from 2Ship2Harkinian)
-├── combo/            # Cross-game systems
-│   ├── GameManager/  # Game switching logic
-│   ├── SharedState/  # Cross-game save state
-│   ├── Randomizer/   # Combo randomizer
-│   └── UI/           # Unified menu
-├── libultraship/     # Shared engine (submodule)
-├── ZAPDTR/           # Asset extraction
-└── OTRExporter/      # OTR generation
+games/oot/      Ocarina of Time (Ship of Harkinian)
+games/mm/       Majora's Mask (2Ship2Harkinian)
+src/common/     Shared logic: game lifecycle, cross-game state, entrances, combo randomizer
+rsbs/           Entry point
+libultraship/   N64 compatibility layer (submodule)
+ZAPDTR/         Asset extraction (submodule)
+OTRExporter/    Archive generation (submodule)
+docs/           Build guides, modding, versioning, design records, known issues
 ```
 
 ## Documentation
 
-- [Building](docs/BUILDING.md) - Build instructions
-- [Error Handling Policy](docs/error-handling.md) - Error handling patterns and guidelines
-- [Modding](docs/MODDING.md) - Modding guide
-- [Custom Music](docs/CUSTOM_MUSIC.md) - Custom music support
-- [Credits](docs/CREDITS.md) - Full credits
-
-## Quick Start (Once Built)
-
-1. Generate `oot.o2r` and `mm.o2r` from your Ocarina of Time and Majora's Mask ROMs:
-   - **Release package** (Windows zip or Linux AppImage, which carry the extractor's `assets/` folder): place both ROMs next to the `redship` executable. Its first launch finds them (or lets you browse for them) and generates the two archives itself
-   - **Source build**: a plain `cmake --build` tree has no `assets/` folder, so its first launch cannot generate them. Run the `ExtractAssets` and `ExtractMMAssets` targets from the build steps above, then copy `oot.o2r` and `mm.o2r` next to `redship` (see [docs/mm-archive-setup.md](docs/mm-archive-setup.md))
-2. Launch `redship` (boots into Ocarina of Time by default)
-3. Switch to Majora's Mask in-game, or launch with `--game mm`
-
-## Default Controls
-
-| N64 | A | B | Z | Start | Analog stick | C buttons | D-Pad |
-| - | - | - | - | - | - | - | - |
-| Keyboard | X | C | Z | Space | WASD | Arrow keys | TFGH |
-
-### Shortcuts
-| Keys | Action |
-| - | - |
-| ESC | Toggle menu |
-| F11 | Fullscreen |
-| Ctrl+R | Reset |
-
-## Credits
-
-- [Ship of Harkinian](https://github.com/HarbourMasters/Shipwright) - OoT PC port
-- [2Ship2Harkinian](https://github.com/HarbourMasters/2ship2harkinian) - MM PC port
-- [OoTMM](https://github.com/OoTMM/OoTMM) - Combo randomizer inspiration & logic reference
-- [libultraship](https://github.com/kenix3/libultraship) - N64 compatibility layer
-- [zeldaret](https://github.com/zeldaret) - OoT and MM decompilation projects
+- [Known issues](docs/known-issues.md)
+- [Modding](docs/MODDING.md) and [custom music](docs/CUSTOM_MUSIC.md)
+- [Versioning](docs/VERSIONING.md)
+- [Architecture decision records](docs/adr)
+- [Credits](docs/CREDITS.md)
 
 ## License
 
-RedShipBlueShip's own code is licensed under the **MIT License** — see
-[`LICENSE`](LICENSE), which states precisely which paths that grant covers.
+RedShipBlueShip's own code is MIT licensed; [LICENSE](LICENSE) states which paths that covers.
+The game ports, submodules, build dependencies and fonts keep their own licenses, inventoried
+in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Read it before redistributing a build.
 
-The vendored game ports, submodules, build-time dependencies and font assets
-keep their own licenses. All of them are inventoried — license, copyright line,
-upstream URL, path in this tree — in
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), together with the licenses
-elected where an upstream offers a choice and the one component whose license
-status is unresolved. Read it before redistributing a build.
+No Nintendo assets are included. Everything is extracted from ROMs you supply.
 
-No copyrighted Nintendo asset is included here; assets are extracted at build
-time from ROMs you supply.
-
-<a href="https://github.com/Kenix3/libultraship/">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./docs/poweredbylus.darkmode.png">
-    <img alt="Powered by libultraship" src="./docs/poweredbylus.lightmode.png">
-  </picture>
-</a>
+Built on [libultraship](https://github.com/Kenix3/libultraship) and the
+[zeldaret](https://github.com/zeldaret) decompilations.
