@@ -1253,6 +1253,14 @@ narrowing itself is now delivered, on branch
     RANDOM, the #1367 pattern, so such a file still loads and arrives, and a pair
     with no half generates in RANDOM. Locks: `mm-paired-profile` Fail(96) to
     Fail(104) and `mm-clock-shuffle-first-arrival` legs 9 to 13.
+  - *Amended by #1439 (MM's hints on by default).* Every world created before
+    #1437 was also created before #1439, so its stamp folds MM's hint rows Off
+    where today's unset keys resolve on. The compares therefore try older builds
+    as eras, newest first (`ProfileEra` in `Rando/Foreign.cpp`): before #1439,
+    each unset hint key Off; before #1437, the hint rows Off and, with clock
+    shuffle on, the unset mode RANDOM. An era that changes nothing beyond the
+    next newer one is skipped. Locks: `mm-paired-profile` Fail(102) (its world
+    folds the hint rows Off) and Fail(105) to Fail(107).
 - **The armed draw is pinned exactly**, not only bounded:
   `GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`)
   generates the golden seed with all four families armed through MM's own
@@ -2132,3 +2140,36 @@ bits or shared-resource slots. Locked by `BlastMaskOoTRule`,
 `ComboSettingsAuthoring`, `SharedLensRule`, `CVarClassification`,
 `GoldenSeedDigestAllMasks` and `GoldenSeedsRoundBudget` (whose all-masks entry
 requires the frozen item rules `0000083F`).
+
+### 2026-11-03 -- The Stone Mask in Ocarina of Time and its shared variant (#979)
+
+Epic #975 P4's second piece, OoTMM's `stoneMaskOot` and `sharedMaskStone`, both
+off, built on the Blast Mask's pattern, so no default world moves; the all-masks
+profile gains the two keys (`docs/determinism-goldens.md`). Two rows join
+"Cross-Game Masks", in OoTMM's own order (the masks added to OoT, then their
+shared variants): Blast Mask (OoT), **Stone Mask (OoT)**, Shared Blast Mask,
+**Shared Stone Mask**, then the Blast Mask Cooldown.
+
+- **"[Both Games] Stone Mask (OoT)"**, key `gCombo.Rando.StoneMaskOoT` (0 or 1,
+  IDENTITY), the reserved extension bit `RSBS_XITEM_STONE_MASK_OOT` 0x40. Frozen
+  on, OoT's pool gains `RG_STONE_MASK`, a child trade mask (custom ItemID
+  `ITEM_MASK_STONE` after the Blast Mask's, never SLOT()-indexed; flag
+  `RAND_INF_OBTAINED_STONE_MASK`; the trade cycle visits it after the Blast Mask,
+  OoTMM's order), worn through #977's foreign-mask field. While a child wears it,
+  the actors OoTMM's `shouldActorIgnorePlayer` lists update with Link far away in
+  a random direction (OoTMM's `Actor_RunUpdate`), and OoT's logic counts it where
+  OoTMM's `get_past_skultullas` and `evade_gerudo` count `can_use_mask_stone`.
+- **"[Both Games] Shared Stone Mask"**, key `gCombo.Rando.SharedMaskStone` (0 or
+  1, IDENTITY), the reserved shared-extension bit `RSBS_XITEM_SHARED_STONE`
+  0x1000, a family: OoT's `RG_STONE_MASK` and MM's `RI_MASK_STONE`. Greyed with
+  its extension's reason and shown off while the Stone Mask (OoT) is off, and
+  dropped by the resolver then (the Shared Blast Mask's rule, OoTMM's `cond`).
+
+Capacity spent: two `ComboSettingId`s (appended), two identity keys (manifest
+45 to 47, identity 25 to 27), no new `RSBS_XITEM_*` bits, format bytes,
+divergence bits or shared-resource slots. The keyless-rule examples in
+`ComboSettingsAuthoring` and `CrossItemRulesRecord` move to Kamaro's Mask, the one
+P4 mask still without a key. Locked by `StoneMaskOoTRule`, `StoneMaskOoTItems`,
+`CrossItemRulesRecord`, `ComboSettingsRows`, `ComboSettingsAuthoring`,
+`ForeignTextboxIcon`, `CVarClassification`, `GoldenSeedDigestAllMasks` and
+`GoldenSeedsRoundBudget` (whose all-masks entry requires `0000187F`).

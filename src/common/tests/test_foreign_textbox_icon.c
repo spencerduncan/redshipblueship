@@ -114,13 +114,25 @@ bool FtiContains(const char* haystack, const char* needle) {
     return haystack != nullptr && std::strstr(haystack, needle) != nullptr;
 }
 
-/** #979: the one OoT item whose icon is Majora's Mask's own BY DESIGN: the Blast
- *  Mask OoT gains under OoTMM's blastMaskOot keeps MM's icon (OoT's pause menu
- *  draws it from the curated half, MM's textbox from its own archive). Exact. */
-const char* const kFtiMmIconByDesign = "__OTR__icon_item_static_yar/gItemIconBlastMaskTex";
+/** #979: the OoT items whose icon is Majora's Mask's own BY DESIGN: the Blast and
+ *  Stone Masks OoT gains under OoTMM's blastMaskOot and stoneMaskOot keep MM's
+ *  icon (OoT's pause menu draws it from the curated half, MM's textbox from its
+ *  own archive). Exact paths. */
+const char* const kFtiMmIconsByDesign[] = {
+    "__OTR__icon_item_static_yar/gItemIconBlastMaskTex",
+    "__OTR__icon_item_static_yar/gItemIconStoneMaskTex",
+};
 
 bool FtiIsMmIconByDesign(const ComboTextboxIcon& icon) {
-    return icon.texture != nullptr && std::strcmp(icon.texture, kFtiMmIconByDesign) == 0;
+    if (icon.texture == nullptr) {
+        return false;
+    }
+    for (const char* path : kFtiMmIconsByDesign) {
+        if (std::strcmp(icon.texture, path) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /** The path a shape's texture must come from (OoT's archive layout). */

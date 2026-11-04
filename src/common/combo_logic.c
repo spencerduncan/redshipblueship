@@ -19,8 +19,9 @@
  */
 
 #include "combo_logic.h"
-#include "shared_items.h"     // the O8 owner the bag builder reads (game-header-free)
-#include "shared_resources.h" // RSBS_SHARED_RES_KIND_COUNT, for THE SHARED-QUANTITY TRIM (game-header-free)
+#include "critical_renewables.h" // OoTMM's critical-renewables rule under All Locations (game-header-free)
+#include "shared_items.h"        // the O8 owner the bag builder reads (game-header-free)
+#include "shared_resources.h"    // RSBS_SHARED_RES_KIND_COUNT, for THE SHARED-QUANTITY TRIM (game-header-free)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1382,10 +1383,121 @@ static bool ComboLogicRowUsesWholeSide(const ComboLogicBagItem* item, uint8_t ho
     return e != NULL && e->hostAcceptsForeign == NULL;
 }
 
+// ----------------------------------------------------------------------------
+// THE CRITICAL-RENEWABLES RULE (OoTMM solve.ts:1101/1149; critical_renewables.h)
+// ----------------------------------------------------------------------------
+//
+// Under All Locations only, a bag row whose item is a critical renewable whose
+// kind no renewable host holds yet may only be drawn onto a host of its OWN game
+// that gives it again. The renewed kinds are the fill's own fact: each game's
+// source's answer at the start of the attempt (its vanilla renewable checks and
+// what its engine already holds) plus this coordinator's placements on renewable
+// hosts, recomputed from the tables before every draw, so a batch roll-back that
+// takes a placement out takes its renewal with it, with no bookkeeping.
+//
+// A row with nothing pending is drawn exactly as before (the same count, the same
+// single RNG value over the same union), so the rule moves no world whose first
+// copies are already renewed: OoT's shields always are (its vanilla shelves), and
+// MM's are whenever MM's shops are not shuffled.
+
+/** Armed for the running fill (Combo_CriticalRenewablesArmed of its rung). */
+static bool sRenewArmed;
+/** Each game's source answer at the start of the attempt (indexed by GameId). */
+static uint32_t sRenewSeed[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+/** sRenewSeed plus the tables' renewing placements, before the current draw. */
+static uint32_t sRenewed[RSBS_FOREIGN_POOL_ORIGIN_COUNT];
+
+/** Take the sources' answers for this attempt (after its reset and forced rows). */
+static void ComboLogicRenewSeed(void) {
+    for (int g = 0; g < (int)RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        sRenewSeed[g] = 0u;
+    }
+    if (sRenewArmed) {
+        Combo_CriticalRenewablesRenewedNow(sRenewSeed);
+    }
+}
+
+/** sRenewed from the seed and the tables, before a draw. */
+static void ComboLogicRefreshRenewed(void) {
+    for (int g = 0; g < (int)RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        sRenewed[g] = sRenewSeed[g];
+    }
+    if (!sRenewArmed) {
+        return;
+    }
+    for (int g = 0; g < (int)RSBS_FOREIGN_POOL_ORIGIN_COUNT; ++g) {
+        if (!ComboLogicIsGame((uint8_t)g)) {
+            continue;
+        }
+        for (int i = 0; i < sPlacementCount[g]; ++i) {
+            Combo_CriticalRenewablesNote(sRenewed, (uint8_t)g, sPlacements[g][i].hostCheck, sPlacements[g][i].item);
+        }
+    }
+}
+
+/** Must `item` be drawn onto a renewing host? Its item, or a shared pair's far
+ *  half, is a critical renewable not yet renewed in its game. */
+static bool ComboLogicRowMustRenew(const ComboLogicBagItem* item) {
+    if (!sRenewArmed) {
+        return false;
+    }
+    if (Combo_CriticalRenewablePending(item->item, sRenewed)) {
+        return true;
+    }
+    if (ComboLogicRowIsPair(item)) {
+        SharedItem far;
+        memset(&far, 0, sizeof(far));
+        far.originGame = (item->item.originGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        far.id = item->pairId;
+        return Combo_CriticalRenewablePending(far, sRenewed);
+    }
+    return false;
+}
+
+/** For a row that must renew: is `host` one where the half `hostGame` hosts is
+ *  pending AND the host gives it again? Never a crossing (a foreign item is
+ *  delivered once). */
+static bool ComboLogicRenewHostOk(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host) {
+    if (!ComboLogicRowNativeTo(item, hostGame)) {
+        return false;
+    }
+    const SharedItem half = ComboLogicHalfFor(item, hostGame);
+    return Combo_CriticalRenewablePending(half, sRenewed) && Combo_CriticalRenewableServes(hostGame, host, half);
+}
+
+/** May `item` be DRAWN onto `host`: the row's own host rule and, when the row
+ *  must renew, the critical-renewables rule. */
+static bool ComboLogicRowMayDraw(const ComboLogicBagItem* item, uint8_t hostGame, uint16_t host, bool renew) {
+    if (!ComboLogicRowMayUseHost(item, hostGame, host)) {
+        return false;
+    }
+    return !renew || ComboLogicRenewHostOk(item, hostGame, host);
+}
+
+/** A row that must renew found no candidate: name the pending kind, so a dead end
+ *  the rule causes (every renewing host of that game taken, or none in the pool)
+ *  is not read as an empty supply. Logged only; it draws and changes nothing. */
+static void ComboLogicLogRenewDeadEnd(const ComboLogicBagItem* item) {
+    SharedItem pending = item->item;
+    if (!Combo_CriticalRenewablePending(pending, sRenewed) && ComboLogicRowIsPair(item)) {
+        memset(&pending, 0, sizeof(pending));
+        pending.originGame = (item->item.originGame == (uint8_t)GAME_OOT) ? (uint8_t)GAME_MM : (uint8_t)GAME_OOT;
+        pending.id = item->pairId;
+    }
+    fprintf(stderr,
+            "[ComboLogic] All Locations' critical renewables: no reached empty %s host renews the first %s, so its "
+            "draw dead-ends (every renewing host is taken, or none is in the pool)\n",
+            Game_ToString((GameId)pending.originGame),
+            Combo_CriticalRenewableKindName(pending.originGame, Combo_CriticalRenewableKind(pending)));
+}
+
 /** How many of `hostGame`'s current candidates `item` may use. */
-static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostGame) {
+static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostGame, bool renew) {
     const ComboLogicHostBuf* buf = &sCandidates[hostGame];
-    if (ComboLogicRowUsesWholeSide(item, hostGame)) {
+    if (renew && !ComboLogicRowNativeTo(item, hostGame)) {
+        return 0;
+    }
+    if (!renew && ComboLogicRowUsesWholeSide(item, hostGame)) {
         return buf->count;
     }
     if (!ComboLogicRowNativeTo(item, hostGame) &&
@@ -1394,7 +1506,7 @@ static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostG
     }
     int n = 0;
     for (int i = 0; i < buf->count; ++i) {
-        if (ComboLogicRowMayUseHost(item, hostGame, buf->host[i])) {
+        if (ComboLogicRowMayDraw(item, hostGame, buf->host[i], renew)) {
             ++n;
         }
     }
@@ -1402,13 +1514,13 @@ static int ComboLogicEligibleOnSide(const ComboLogicBagItem* item, uint8_t hostG
 }
 
 /** The index into `hostGame`'s buffer of the `k`-th candidate `item` may use. */
-static int ComboLogicEligibleAt(const ComboLogicBagItem* item, uint8_t hostGame, int k) {
+static int ComboLogicEligibleAt(const ComboLogicBagItem* item, uint8_t hostGame, int k, bool renew) {
     const ComboLogicHostBuf* buf = &sCandidates[hostGame];
-    if (ComboLogicRowUsesWholeSide(item, hostGame)) {
+    if (!renew && ComboLogicRowUsesWholeSide(item, hostGame)) {
         return k;
     }
     for (int i = 0; i < buf->count; ++i) {
-        if (ComboLogicRowMayUseHost(item, hostGame, buf->host[i])) {
+        if (ComboLogicRowMayDraw(item, hostGame, buf->host[i], renew)) {
             if (k == 0) {
                 return i;
             }
@@ -1441,20 +1553,27 @@ static int ComboLogicDrawAndPlace(const ComboLogicBagItem* item, uint32_t* rng, 
     // `hostAcceptsForeign`. Still ONE uniform draw over what the row may use — not
     // "pick a side, then a host", for the XOR-bias reason stated above.
     ComboLogicRefreshCrossingBudget();
-    const int nOoT = ComboLogicEligibleOnSide(item, (uint8_t)GAME_OOT);
-    const int nMM = ComboLogicEligibleOnSide(item, (uint8_t)GAME_MM);
+    // THE CRITICAL-RENEWABLES RULE (All Locations only): a pending first copy sees
+    // only its own game's renewing hosts. Nothing pending, nothing changes.
+    ComboLogicRefreshRenewed();
+    const bool renew = ComboLogicRowMustRenew(item);
+    const int nOoT = ComboLogicEligibleOnSide(item, (uint8_t)GAME_OOT, renew);
+    const int nMM = ComboLogicEligibleOnSide(item, (uint8_t)GAME_MM, renew);
     const int total = nOoT + nMM;
 
     *deadEnd = false;
     if (total == 0) {
         *deadEnd = true;
+        if (renew) {
+            ComboLogicLogRenewDeadEnd(item);
+        }
         return RSBS_COMBO_LOGIC_OK;
     }
 
     const uint32_t pick = ComboLogicRngBelow(rng, (uint32_t)total);
     const uint8_t hostGame = (pick < (uint32_t)nOoT) ? (uint8_t)GAME_OOT : (uint8_t)GAME_MM;
     const int eligibleIndex = (pick < (uint32_t)nOoT) ? (int)pick : (int)(pick - (uint32_t)nOoT);
-    const int hostIndex = ComboLogicEligibleAt(item, hostGame, eligibleIndex);
+    const int hostIndex = ComboLogicEligibleAt(item, hostGame, eligibleIndex, renew);
     if (hostIndex < 0) {
         return RSBS_COMBO_LOGIC_ERR_ENGINE_REFUSED; // a predicate that changed its answer mid-draw
     }
@@ -1550,7 +1669,9 @@ static void ComboLogicPartitionBag(const ComboLogicFillRequest* req) {
  *     then handed those hosts to the junk pass.
  *
  * When the supply is empty, THIS ROW AND EVERY LATER ONE is dropped: the drop
- * set is the tail of the surplus list, which is the last-first rule.
+ * set is the tail of the surplus list, which is the last-first rule. The one
+ * exception is a pending first copy of a critical renewable (All Locations),
+ * which dead-ends on that rule and drops alone (see below).
  */
 static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reachedSupply, uint32_t* rng,
                                   ComboLogicFillResult* res) {
@@ -1570,6 +1691,16 @@ static int ComboLogicPlaceSurplus(const ComboLogicFillRequest* req, bool reached
             return st;
         }
         if (deadEnd) {
+            // THE CRITICAL-RENEWABLES RULE: a pending first copy that found no
+            // renewing host dead-ended on the rule, not on an empty supply, so it
+            // drops ALONE and the rows after it are still drawn. A surplus copy is
+            // not load-bearing, and a dropped one stands nowhere, so the rule still
+            // holds. No world reaches this today: a kind's REQUIRED copy is placed
+            // (and renews the kind) before this phase runs.
+            if (ComboLogicRowMustRenew(&req->bag[sSurplusIdx[s]])) {
+                ComboLogicRecordDrop(req, sSurplusIdx[s], res);
+                continue;
+            }
             for (int d = s; d < sSurplusCount; ++d) {
                 ComboLogicRecordDrop(req, sSurplusIdx[d], res);
             }
@@ -1983,6 +2114,11 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
     sMaxCrossingsPerSide = (int)req->maxCrossingsPerSide;
     // The unreachable-location record describes THIS fill (or nothing).
     sUnreachedCount = 0;
+    // THE CRITICAL-RENEWABLES RULE: armed when the caller asks for it, under All
+    // Locations only (OoTMM's `settings.logic === 'allLocations'`); No Logic and
+    // Beatable Only draw as they always did. Re-seeded per attempt below.
+    sRenewArmed = req->criticalRenewables != 0u && Combo_CriticalRenewablesArmed(req->logicRung);
+    ComboLogicRenewSeed();
 
     // The base rung is a different HOST SOURCE, not a different distribution:
     // see ComboLogicFillNoLogic. Everything below this point runs a round per
@@ -2029,6 +2165,8 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
                 goto finish;
             }
         }
+        // What each game already renews, now that the attempt's tables are reset.
+        ComboLogicRenewSeed();
 
         for (int i = 0; i < sRequiredCount; ++i) {
             sBagOrder[i] = sRequiredIdx[i];
@@ -2170,6 +2308,7 @@ int Combo_Logic_RunFill(const ComboLogicFillRequest* req, ComboLogicFillResult* 
 
 finish:
     res.status = status;
+    sRenewArmed = false; // the rule is this fill's; no later draw inherits it
     if (status == RSBS_COMBO_LOGIC_ERR_NOT_ALL_REACHED && sUnreachedCount > 0) {
         ComboLogicLogUnreached("in the last All Locations proof round (after a pre-flight that held: an engine is "
                                "not monotone)");

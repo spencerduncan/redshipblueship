@@ -112,7 +112,7 @@ extern "C"
 	extern u16 OoT_gUpgradeCapacities[8][4];
 	extern u32 gGsFlagsMasks[4];
 	extern u32 gGsFlagsShifts[4];
-	extern void* OoT_gItemIcons[158]; // [RSBS #979] + ITEM_MASK_BLAST's icon
+	extern void* OoT_gItemIcons[159]; // [RSBS #979] + ITEM_MASK_BLAST's and ITEM_MASK_STONE's icons
 	extern u8 gItemAgeReqs[];
 	extern u8 gSlotAgeReqs[];
 	extern u8 OoT_gItemSlots[56];

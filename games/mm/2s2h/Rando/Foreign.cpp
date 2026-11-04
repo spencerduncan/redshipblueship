@@ -348,8 +348,9 @@ static void ResolveProfileValues(uint32_t* values, bool paired,
  *  ResolveProfileValues) and returns true when today's resolution differs from
  *  that: Shuffle Time on, the key unset and not already Random. Otherwise writes
  *  nothing and returns false, since that candidate is today's own. The compares
- *  try it last (MM_Rando_ProfileStampMatches), so it matches only a world whose
- *  frozen digest folds Random, never a different profile. */
+ *  try it last (MM_Rando_ProfileStampMatches), with the hint rows as that build
+ *  resolved them too (ProfileEra::PreAscendingClock), so it matches only a world
+ *  whose frozen digest folds Random, never a different profile. */
 static bool ApplyPreAscendingClockMode(uint32_t* values) {
     if (!values[RO_CLOCK_SHUFFLE] || values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM ||
         Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar)) {
@@ -357,6 +358,77 @@ static bool ApplyPreAscendingClockMode(uint32_t* values) {
     }
     values[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
     return true;
+}
+
+/** #1439: MM's hint rows as their unset keys resolved before Majora's Mask's
+ *  hints shipped on (StaticData/Options.cpp). Every hint row defaulted Off then,
+ *  so a world stamped before it folded Off for each row whose key was unset. Puts
+ *  Off into each such row of @p values (resolved by ResolveProfileValues) and
+ *  returns true when that changed one: a key unset whose row resolves on today.
+ *  Otherwise writes nothing and returns false, since that candidate is today's
+ *  own. An explicit key is honoured as it always was, so the candidate matches
+ *  only a world whose frozen digest folds those rows Off. */
+static bool ApplyPreHintsOnDefaults(uint32_t* values) {
+    static const RandoOptionId kHintRows[] = {
+        RO_HINTS_BOSS_REMAINS,  RO_HINTS_GOSSIP_STONES, RO_HINTS_HOOKSHOT,
+        RO_HINTS_OATH_TO_ORDER, RO_HINTS_PURCHASEABLE,  RO_HINTS_SPIDER_HOUSES,
+    };
+    bool changed = false;
+    for (const RandoOptionId randoOptionId : kHintRows) {
+        if (values[randoOptionId] == RO_GENERIC_OFF ||
+            Combo_CVarIsExplicitInt(Rando::StaticData::Options[randoOptionId].cvar)) {
+            continue;
+        }
+        values[randoOptionId] = RO_GENERIC_OFF;
+        changed = true;
+    }
+    return changed;
+}
+
+/** The builds whose resolution of the same keys a frozen world may carry: a row
+ *  whose shipped default changed folded its OLD default for an unset key in
+ *  every world made before the change. An older era therefore applies its own
+ *  change and every newer one's: a world made before #1437 was made before #1439
+ *  too. Each candidate differs from today's only in rows the player left unset,
+ *  so it reproduces a frozen digest only for a world frozen with those values. */
+enum class ProfileEra {
+    /** Today's resolution. */
+    Current,
+    /** Before Majora's Mask's hints shipped on (#1439): the hint rows Off. */
+    PreHintsOn,
+    /** Before Time Progression shipped Ascending (#1437): the hint rows Off and,
+     *  with Shuffle Time on, the mode Random. */
+    PreAscendingClock,
+};
+
+/** The eras before today's, newest first: the order every compare tries them. */
+static constexpr ProfileEra kOlderProfileEras[] = { ProfileEra::PreHintsOn, ProfileEra::PreAscendingClock };
+
+/** Resolve @p values (from ResolveProfileValues) as @p era's build did. Returns
+ *  false when the era's own change leaves them as the next newer era's, a
+ *  candidate tried already; @p values is then not a candidate and is discarded. */
+static bool ApplyProfileEra(uint32_t* values, ProfileEra era) {
+    switch (era) {
+        case ProfileEra::PreHintsOn:
+            return ApplyPreHintsOnDefaults(values);
+        case ProfileEra::PreAscendingClock:
+            ApplyPreHintsOnDefaults(values);
+            return ApplyPreAscendingClockMode(values);
+        default:
+            return true;
+    }
+}
+
+/** When a world of @p era was made, for the logs. */
+static const char* ProfileEraName(ProfileEra era) {
+    switch (era) {
+        case ProfileEra::PreHintsOn:
+            return "before Majora's Mask's hints defaulted on (#1439)";
+        case ProfileEra::PreAscendingClock:
+            return "before Time Progression defaulted to Ascending (#1437)";
+        default:
+            return "by this build";
+    }
 }
 
 /** Resolve the frozen TRICK set from the `gRando.Tricks.*` CVars into `tricks`
@@ -702,12 +774,19 @@ uint32_t ResolvePairedProfile(bool paired) {
         }
     }
     if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
-        // #1437: a world stamped before Time Progression shipped Ascending, with
-        // Shuffle Time on and the mode key unset, folded Random. Re-resolved with
-        // that mode (under either paired logic, #1367), the same inputs give that
-        // world's own stamp, and its half is generated in Random, as it was made.
-        std::vector<uint32_t> legacy(values);
-        if (ApplyPreAscendingClockMode(legacy.data())) {
+        // #1437, #1439: a world stamped before a row it left unset changed its
+        // shipped default folded the old one: the hint rows Off before Majora's
+        // Mask's hints shipped on, and before Time Progression shipped Ascending,
+        // with Shuffle Time on, the mode Random as well (ProfileEra). Re-resolved
+        // as that build resolved them (under either paired logic, #1367), the same
+        // inputs give that world's own stamp, and its half is generated with those
+        // values, as it was made.
+        bool adopted = false;
+        for (const ProfileEra era : kOlderProfileEras) {
+            std::vector<uint32_t> legacy(values);
+            if (!ApplyProfileEra(legacy.data(), era)) {
+                continue;
+            }
             const uint32_t logics[2] = { values[RO_LOGIC], AuthoredPairedLogic() };
             for (const uint32_t logicValue : logics) {
                 legacy[RO_LOGIC] = logicValue;
@@ -718,13 +797,18 @@ uint32_t ResolvePairedProfile(bool paired) {
                     continue;
                 }
                 fprintf(stderr,
-                        "[MM] profile: the stamp %08X is a world created before Time Progression defaulted to "
-                        "Ascending; its Random mode is kept (MM Logic %u) (#1437)\n",
-                        (unsigned)legacyDigest, (unsigned)logicValue);
+                        "[MM] profile: the stamp %08X is a world created %s; the values it folded are kept (MM "
+                        "Logic %u)\n",
+                        (unsigned)legacyDigest, ProfileEraName(era), (unsigned)logicValue);
                 values = legacy;
-                RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
-                RANDO_SAVE_OPTIONS[RO_LOGIC] = logicValue;
+                for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+                    RANDO_SAVE_OPTIONS[randoOptionId] = legacy[randoOptionId];
+                }
                 digest = legacyDigest;
+                adopted = true;
+                break;
+            }
+            if (adopted) {
                 break;
             }
         }
@@ -1188,13 +1272,15 @@ namespace {
 
 /** The profile digest the CVars resolve to with the paired logic taken from
  *  @p logic: MM_Rando_ComputeProfileStamp's computation, with the source named
- *  so a compare can try both (#1367). With @p preAscendingClock, the stamp the
- *  same CVars gave before Time Progression shipped Ascending (#1437,
- *  ApplyPreAscendingClockMode), or 0, which no digest is, when that is today's. */
-uint32_t ComputeProfileStampFor(Rando::Foreign::PairedLogicSource logic, bool preAscendingClock = false) {
+ *  so a compare can try both (#1367). With an older @p era, the stamp the same
+ *  CVars gave on that era's build (#1439's hint rows, #1437's Time Progression;
+ *  Rando::Foreign::ApplyProfileEra), or 0, which no digest is, when that is the
+ *  next newer era's. */
+uint32_t ComputeProfileStampFor(Rando::Foreign::PairedLogicSource logic,
+                                Rando::Foreign::ProfileEra era = Rando::Foreign::ProfileEra::Current) {
     std::vector<uint32_t> values(RO_MAX, 0);
     Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true, logic);
-    if (preAscendingClock && !Rando::Foreign::ApplyPreAscendingClockMode(values.data())) {
+    if (!Rando::Foreign::ApplyProfileEra(values.data(), era)) {
         return 0;
     }
     // The trick set is resolved from the CVars here as well, NOT read from the
@@ -1221,13 +1307,13 @@ bool PairedLogicCandidatesDiffer() {
            Rando::Foreign::PairedLogicForRung(Rando::Foreign::ResolvedComboRung());
 }
 
-/** The paired-logic candidates (#1367), with Time Progression resolved as today
- *  or, with @p preAscendingClock, as before #1437. */
-bool StampMatchesLogicCandidates(uint32_t frozenDigest, bool preAscendingClock) {
+/** The paired-logic candidates (#1367), with the rows whose default changed
+ *  resolved as @p era's build resolved them. */
+bool StampMatchesLogicCandidates(uint32_t frozenDigest, Rando::Foreign::ProfileEra era) {
     if (frozenDigest == 0) {
         return false;
     }
-    if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, preAscendingClock) == frozenDigest) {
+    if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, era) == frozenDigest) {
         return true;
     }
     // #1367: a world stamped before [Both Games] Logic took RO_LOGIC from MM's
@@ -1235,20 +1321,30 @@ bool StampMatchesLogicCandidates(uint32_t frozenDigest, bool preAscendingClock) 
     // matches only a world whose own logic the key holds (put back by the load
     // restore when it differed), never a different profile.
     return PairedLogicCandidatesDiffer() &&
-           ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, preAscendingClock) == frozenDigest;
+           ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, era) == frozenDigest;
 }
 
 /** Today's resolution matches @p frozenDigest (either paired logic, #1367). */
 bool StampMatchesCurrentRules(uint32_t frozenDigest) {
-    return StampMatchesLogicCandidates(frozenDigest, /*preAscendingClock=*/false);
+    return StampMatchesLogicCandidates(frozenDigest, Rando::Foreign::ProfileEra::Current);
 }
 
-/** #1437: a world stamped before Time Progression shipped Ascending, with Shuffle
- *  Time on and the mode key unset (it folded Random), matches @p frozenDigest
- *  while the keys are as they were. The candidate differs from today's in that
- *  mode alone, so it matches only a world frozen in Random. */
-bool StampMatchesPreAscendingClock(uint32_t frozenDigest) {
-    return StampMatchesLogicCandidates(frozenDigest, /*preAscendingClock=*/true);
+/** #1437, #1439: a world stamped by an older build, with the rows whose default
+ *  changed since left unset (it folded their old defaults: the hint rows Off,
+ *  and before #1437, with Shuffle Time on, Time Progression Random), matches
+ *  @p frozenDigest while the keys are as they were. Each candidate differs from
+ *  today's in those rows alone, so it matches only a world frozen with those
+ *  values. Writes the era that matched to @p matched when it is not null. */
+bool StampMatchesOlderEra(uint32_t frozenDigest, Rando::Foreign::ProfileEra* matched = nullptr) {
+    for (const Rando::Foreign::ProfileEra era : Rando::Foreign::kOlderProfileEras) {
+        if (StampMatchesLogicCandidates(frozenDigest, era)) {
+            if (matched != nullptr) {
+                *matched = era;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -1259,7 +1355,7 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 }
 
 extern "C" int MM_Rando_ProfileStampMatches(uint32_t frozenDigest) {
-    return StampMatchesCurrentRules(frozenDigest) || StampMatchesPreAscendingClock(frozenDigest) ? 1 : 0;
+    return StampMatchesCurrentRules(frozenDigest) || StampMatchesOlderEra(frozenDigest) ? 1 : 0;
 }
 
 /** TEST BRIDGE (#1367): the stamp a creation before [Both Games] Logic made from
@@ -1271,15 +1367,16 @@ extern "C" uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void) {
 
 extern "C" int MM_Rando_PairedLogicShown(void) {
     if (Combo_MMProfileFrozen() && PairedLogicCandidatesDiffer()) {
-        // #1437: today's Time Progression first, then the one a world created
-        // before Ascending shipped folded (the compare's order).
-        for (const bool preAscendingClock : { false, true }) {
-            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, preAscendingClock) ==
+        // #1437, #1439: today's resolution first, then each older build's,
+        // newest first (the compare's order).
+        for (const Rando::Foreign::ProfileEra era :
+             { Rando::Foreign::ProfileEra::Current, Rando::Foreign::ProfileEra::PreHintsOn,
+               Rando::Foreign::ProfileEra::PreAscendingClock }) {
+            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, era) ==
                 gComboCtx.mmProfileDigest) {
                 break;
             }
-            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, preAscendingClock) ==
-                gComboCtx.mmProfileDigest) {
+            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, era) == gComboCtx.mmProfileDigest) {
                 // A world created before [Both Games] Logic, with its own MM Logic.
                 return (int)Rando::Foreign::AuthoredPairedLogic();
             }
@@ -1457,18 +1554,21 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
     }
     const int fromHalf = ClassifyHalfForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps,
                                              fileMoonCrash, fileExcluded, fileKeepItems);
-    // #1437: a world created before Time Progression shipped Ascending, with
-    // Shuffle Time on and the mode left unset, folded Random. A half that can say
-    // so is restored (the restore writes Random into the key). One that cannot (a
-    // half written before #1101, or none before K11) still matches with the keys
-    // as they were, as it did before the default changed: the arrival gate asks
-    // the same candidate (MM_Rando_ProfileStampMatches), and a pair with no half
-    // generates in Random (ResolvePairedProfile) rather than refusing the file.
-    if (fromHalf == RSBS_MM_PROFILE_LOAD_UNRESTORABLE && StampMatchesPreAscendingClock(frozenDigest)) {
+    // #1437, #1439: a world created before a row it left unset changed its
+    // shipped default folded the old one: the hint rows Off, and before Time
+    // Progression shipped Ascending, with Shuffle Time on, the mode Random. A half
+    // that can say so is restored (the restore writes the old values into the
+    // keys). One that cannot (a half written before #1101, or none before K11)
+    // still matches with the keys as they were, as it did before the default
+    // changed: the arrival gate asks the same candidates
+    // (MM_Rando_ProfileStampMatches), and a pair with no half generates with the
+    // old values (ResolvePairedProfile) rather than refusing the file.
+    Rando::Foreign::ProfileEra era = Rando::Foreign::ProfileEra::Current;
+    if (fromHalf == RSBS_MM_PROFILE_LOAD_UNRESTORABLE && StampMatchesOlderEra(frozenDigest, &era)) {
         fprintf(stderr,
-                "[MM] profile: the stamp %08X is a world created before Time Progression defaulted to Ascending, "
-                "with Shuffle Time on and the mode unset; it keeps Random (#1437)\n",
-                (unsigned)frozenDigest);
+                "[MM] profile: the stamp %08X is a world created %s, with the changed rows unset; it keeps the "
+                "values it was made with\n",
+                (unsigned)frozenDigest, Rando::Foreign::ProfileEraName(era));
         return RSBS_MM_PROFILE_LOAD_MATCHES;
     }
     return fromHalf;

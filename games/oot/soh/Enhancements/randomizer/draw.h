@@ -37,6 +37,8 @@ void Randomizer_DrawRocsFeather(PlayState* play, GetItemEntry* getItemEntry);
 // [RSBS #979] RG_BLAST_MASK's get-item model: Majora's Mask's own, from the curated
 // archive (BlastMaskOoT.cpp; single-exe only).
 void Randomizer_DrawBlastMask(PlayState* play, GetItemEntry* getItemEntry);
+// [RSBS #979] RG_STONE_MASK's, the same way (StoneMaskOoT.cpp; single-exe only).
+void Randomizer_DrawStoneMask(PlayState* play, GetItemEntry* getItemEntry);
 
 #define GET_ITEM_MYSTERY                                                                                 \
     {                                                                                                    \

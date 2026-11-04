@@ -314,6 +314,10 @@ typedef enum {
     // child trade mask. Custom, like Roc's Feather: never SLOT()-indexed (it is past
     // OoT_gItemSlots' 56 entries); the 256-entry tables cover it.
     /* 0x9D */ ITEM_MASK_BLAST,
+    // [RSBS #979] Majora's Mask's Stone Mask added to OoT (OoTMM stoneMaskOot), the
+    // second child trade mask, after the Blast Mask as in OoTMM. Custom and never
+    // SLOT()-indexed, as the Blast Mask is.
+    /* 0x9E */ ITEM_MASK_STONE,
     /* 0xFC */ ITEM_LAST_USED = 0xFC,
     /* 0xFE */ ITEM_NONE_FE = 0xFE,
     /* 0xFF */ ITEM_NONE = 0xFF

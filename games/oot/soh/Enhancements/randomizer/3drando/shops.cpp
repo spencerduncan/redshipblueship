@@ -898,6 +898,12 @@ void InitTrickNames() {
         Text{ "Blast Hat", "Chapeau Explosif", "Explosionshut" },
         Text{ "Boom Face", "Visage Boum", "Bumm-Gesicht" },
     };
+    // [RSBS #979] Majora's Mask's Stone Mask in OoT.
+    trickNameTable[RG_STONE_MASK] = {
+        Text{ "Rock Mask", "Masque Rocheux", "Felsmaske" },
+        Text{ "Pebble Face", "Visage Caillou", "Kieselgesicht" },
+        Text{ "Statue Hat", "Chapeau Statue", "Statuenhut" },
+    };
     trickNameTable[RG_DEATH_MOUNTAIN_CRATER_BEAN_SOUL] = {
         // TODO_TRANSLATE
         Text{ "Volcano Seed Spirit" },

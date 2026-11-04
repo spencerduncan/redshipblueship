@@ -64,6 +64,27 @@ void OoT_Play_ApplyArrivalShared(void) {
     CheckTracker_ArmAvailableChecksRecalc();
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// The kind of the switch that set OoT's startup entrance (src/common/entrance.cpp,
+// #1169 XW1): 0 for the door, an F10 return and a refused re-entry; a warp kind
+// for a crossing the one-shot warp target armed. Declared for the same reason.
+extern int Combo_GetStartupEntranceKindForGame(const char* gameId);
+
+// A cross-game WARP's arrival into OoT (#1169 XW3). The warp targets an OoT
+// warp song's vanilla pad; under entrance shuffle the seed's override decides
+// where that pad leads (Entrance_OverrideWarpArrival, randomizer_entrance.c,
+// which also falls back to the vanilla pad before Entrance_Init). Nothing runs
+// for any other arrival: a door or hot-swap arrival already carries its final
+// entrance. One function so the rando-tier row (rando-warp-arrival) drives
+// exactly what OoT_Play_Init runs.
+void OoT_Play_ApplyWarpArrival(s32 switchKind) {
+    if (switchKind == 0) {
+        return;
+    }
+    gSaveContext.entranceIndex = Entrance_OverrideWarpArrival((s16)gSaveContext.entranceIndex);
+}
+#endif
+
 // Cross-game combo support - entrance switch checking
 extern uint16_t Combo_CheckEntranceSwitch(uint16_t entranceIndex);
 extern bool Combo_IsCrossGameSwitch(void);
@@ -602,6 +623,14 @@ void OoT_Play_Init(GameState* thisx) {
                 // layers on top and is picked up as a delta by the next
                 // harvest.
                 OoT_Play_ApplyArrivalShared();
+#ifdef RSBS_SINGLE_EXECUTABLE
+                // A warp's arrival (#1169 XW3) only: the seed's override for the
+                // warp pad, after the respawnFlag neutralisation above so a grotto
+                // return's respawn survives, and after the shared apply so the
+                // entrance-discovery save it can make sees a settled save. Read
+                // before the startup entrance (and its kind) is cleared below.
+                OoT_Play_ApplyWarpArrival(Combo_GetStartupEntranceKindForGame("oot"));
+#endif
                 Combo_ClearStartupEntrance();
                 osSyncPrintf("[OoT] Cross-game switch: loading entrance 0x%04X\n", startupEntrance);
             }

@@ -204,6 +204,15 @@ set(REDSHIP_COMMON_SOURCES
     # fast/interpreter.h brings in the whole LUS GBI. Test tooling only.
     # APPENDED.
     ${CMAKE_SOURCE_DIR}/src/common/tests/test_lus_hardening.cpp
+    # OoTMM's critical-renewables rule under All Locations (#1443): each game's
+    # renewable-host source, and the rule the coordinator and both games' own
+    # passes apply. Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.c
+    # #1439: the pair-level Way of the Hero (OoTMM's `woth` hint bucket): the
+    # required-set analysis the single-bag fill runs once the world is proved,
+    # and the frozen area record Majora's Mask's stones read. Game-header-free.
+    # APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -263,6 +272,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_logic.h
     ${CMAKE_SOURCE_DIR}/src/common/crossing_store.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_single_bag.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_woth.h
     ${CMAKE_SOURCE_DIR}/src/common/entrance.h
     # Header for mod_archives.cpp above (#593)
     ${CMAKE_SOURCE_DIR}/src/common/mod_archives.h
@@ -306,6 +316,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_identity_display.h
     # Header for seed_package.cpp above (#1044)
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
+    # Header for critical_renewables.c above (#1443)
+    ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
 )
 
 # ============================================================================
@@ -646,6 +658,14 @@ if(BUILD_TESTING)
     # and nothing MM's fill counts. Authors a five-area world over MM's real
     # check table and reads the free stone's text (EnGs.cpp) for 512 stone seeds.
     redship_add_test(NAME MmFoolishStoneHint COMMAND redship --test mm-foolish-stone-hint)
+    # #1439: the pair-level Way of the Hero (OoTMM's `woth` bucket): over the
+    # coordinator's stub engines, the analysis names exactly the hosts each paired
+    # goal cannot do without, in either game; the frozen area record is a creation
+    # record; MM's free stone and OoT's foreign WotH hint name both games' areas in
+    # their own words; MM's hints default on; and the generated-world wiring is
+    # checked from source (RSBS_SOURCE_DIR). The generated half is ComboSingleBag
+    # D2's P8 (rando tier).
+    redship_add_test(NAME WothHints COMMAND redship --test woth-hints)
     # #1047: what MM decides while you play is a pure function of the frozen world.
     # A free stone's seed was a float sum converted to uint32_t (undefined when
     # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
@@ -2352,13 +2372,14 @@ if(BUILD_TESTING)
         # share. P2's five shared masks (OoTMM's sharedMaskGoron, sharedMaskZora,
         # sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth) and, since P4's first
         # piece (#979), the Blast Mask in OoT and its shared pair (OoTMM's
-        # blastMaskOot, sharedMaskBlast): six shared pairs in the bag, their
-        # trimmed halves, and a comboSettingsHash no other golden has. The Blast
-        # Mask Cooldown is a value, not an on/off option, and stays at Default.
-        # The rest of P4 (#979) and P5 (#980) append their mask options to this
-        # line and re-pin this file, rather than adding a golden each. Same seed
-        # and dispatch as seed-digest-default.
-        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1"
+        # blastMaskOot, sharedMaskBlast), and since its second, the Stone Mask in
+        # OoT and its shared pair (stoneMaskOot, sharedMaskStone): seven shared
+        # pairs in the bag, their trimmed halves, and a comboSettingsHash no other
+        # golden has. The Blast Mask Cooldown is a value, not an on/off option, and
+        # stays at Default. The rest of P4 (#979, Kamaro's Mask) and P5 (#980)
+        # append their mask options to this line and re-pin this file, rather than
+        # adding a golden each. Same seed and dispatch as seed-digest-default.
+        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1,gCombo.Rando.StoneMaskOoT=1,gCombo.Rando.SharedMaskStone=1"
         # #1367 R5: [Both Games] Logic defaults to All Locations, so every golden
         # above is an All Locations world. The other two rungs get one golden each
         # on the same seed and dispatch: Beatable Only (the default before R5; the
@@ -2896,6 +2917,19 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # tier: the coordinator's one-call-per-copy shape, and the surplus / filler /
     # exact-fit shapes of the bag, with the drop rule's determinism.
     redship_add_test(NAME ComboLogicBagModel COMMAND redship --test combo-logic-bag-model)
+    # R6: OoTMM's critical-renewables rule under All Locations. ROM-free and
+    # display-free: both games' registered sources answer OoTMM's list with this
+    # port's exclusions by real id, the predicates and the remainders' plan, and
+    # the coordinator over the stub engines (the first copy lands on its own
+    # game's renewing host; Beatable Only and a renewed world are unchanged).
+    redship_add_test(NAME CriticalRenewablesRule COMMAND redship --test critical-renewables-rule)
+    # R6, the same rule in two REAL All Locations creations of one seed, MM's
+    # shops, cows and Tingle shuffled (the rule acts) and vanilla (it has nothing
+    # to do). The golden rows' harness, label and environment.
+    redship_add_test(NAME CriticalRenewablesWorld COMMAND redship --test critical-renewables-world
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # The same ruling over BOTH REAL engines: OoT's progressive top-tier and
     # counter clamps (and the wraps they prevent, observed with the clamp off),
     # order independence with its red half, and MM's counter maxima and per-host
@@ -3259,6 +3293,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the mask as a child's explosive only under the rule. ROM-free.
     redship_add_test(NAME BlastMaskOoTRule COMMAND redship --test blast-mask-oot-rule)
     redship_add_test(NAME BlastMaskOoTItems COMMAND redship --test blast-mask-oot-items)
+    # THE STONE MASK IN OCARINA OF TIME (#979, epic #975 P4's second mask; OoTMM
+    # stoneMaskOot, sharedMaskStone): the two Cross-Game Rules keys (off by
+    # default, the shared one only with its extension, restored at load in OoTMM's
+    # order) and OoTMM's list of the actors that lose sight of the wearer; then the
+    # custom ItemID's table bounds, ownership and the child trade cycle (after the
+    # Blast Mask) gated by the frozen rule, the shared member's give, the shared
+    # pair's one bag row, OoT's real logic crediting the mask for a child only under
+    # the rule, and the update seam that hides Link from a listed actor. ROM-free.
+    redship_add_test(NAME StoneMaskOoTRule COMMAND redship --test stone-mask-oot-rule)
+    redship_add_test(NAME StoneMaskOoTItems COMMAND redship --test stone-mask-oot-items)
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every
@@ -3353,6 +3397,16 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1169 XW3: a cross-game warp's arrival in OoT (OoT_Play_ApplyWarpArrival, what
+    # OoT_Play_Init runs) lands on the seed's override for the warp pad, sets a
+    # grotto return's respawn after the arrival's neutralisation, keeps the vanilla
+    # pad before Entrance_Init, and runs nothing for a door arrival under overworld
+    # ER. Overrides written into the context and installed by the real Entrance_Init.
+    # games/oot/soh/oot_warp_arrival_test.cpp.
+    redship_add_test(NAME RandoWarpArrival COMMAND redship --test rando-warp-arrival
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #1289: a shuffled fairy (gossip stone, fountain, fairy spot, bean) gives its
     # item and no heal, and a shuffled big fairy no magic refill either; a fairy
     # with no check still heals (and the big one refills magic). The bottle-guard
@@ -3371,6 +3425,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # rather than &actor (its own local pointer), and VB_SPAWN_GOSSIP_STONE_FAIRY
     # relies on it to suppress a duplicate spawn while the fairy lives.
     redship_add_test(NAME ShuffledFairyExists COMMAND redship --test shuffled-fairy-exists
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1434: Time Travel Requires Master Sword (OoTMM's timeTravelSword) ships on;
+    # with the sword shuffled the Pedestal of Time's real wait action offers the
+    # pull, and OoT's real search sends Link through time, either way, only with
+    # the sword; a world saved before the option loads it off.
+    # games/oot/soh/oot_time_travel_sword_test.cpp.
+    redship_add_test(NAME OoTTimeTravelSword COMMAND redship --test oot-time-travel-sword
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
@@ -3439,6 +3502,13 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # late-refusal road, GameRunner_ReenterActive, is suspend then resume.
     # Target statuses are forced, so ROM-free. src/common/tests/test_crossing_refusal.c.
     redship_add_test(NAME CrossingRefusal COMMAND redship --test crossing-refusal)
+    # #1169 XW1: the one-shot cross-game warp target. Consumed by its (game,
+    # marker), spent by any other entrance check, refused while a switch is
+    # pending, carried through the real Combo_CheckEntranceSwitch (freeze, the
+    # #954 refusal) and GameRunner_SwitchTo's crossing commit; its kind rides the
+    # startup entrance. Target statuses forced, mock games, scratch slot: ROM-free.
+    # src/common/tests/test_entrance_warp_target.c.
+    redship_add_test(NAME EntranceWarpTarget COMMAND redship --test entrance-warp-target)
     # #849 / #803's load leg: a load whose .redsave holds a newer OoT half than
     # the .sav makes OoT's check statuses follow that half (a check whose own
     # collection flag differs between the two halves takes the loaded half's

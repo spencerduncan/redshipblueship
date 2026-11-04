@@ -321,11 +321,14 @@ uint32_t MM_Rando_ComputeProfileStamp(void);
  * #1367, MM_Rando_ComputeProfileStamp), and from MM's own Logic row (an explicit
  * choice honoured, Glitchless when unset: every world before). The second
  * candidate differs from the first in RO_LOGIC alone, so it matches only a world
- * whose own MM Logic the key holds, never a different profile. #1437: both are
- * also tried with Time Progression resolved as it was before it shipped
- * Ascending (Random for an unset key while Shuffle Time is on), which matches
- * only a world frozen in Random with the keys as they were. DEFINED MM-SIDE
- * (games/mm/2s2h/Rando/Foreign.cpp).
+ * whose own MM Logic the key holds, never a different profile. #1437, #1439:
+ * both are also tried as each older build resolved the rows whose default has
+ * changed since, newest first: the hint rows Off for each unset key (before
+ * Majora's Mask's hints shipped on), then those rows Off and Time Progression
+ * Random for an unset key while Shuffle Time is on (before it shipped
+ * Ascending; every such world predates the hints change too). Each matches
+ * only a world frozen with those values and the keys as they were. DEFINED
+ * MM-SIDE (games/mm/2s2h/Rando/Foreign.cpp).
  */
 int MM_Rando_ProfileStampMatches(uint32_t frozenDigest);
 
