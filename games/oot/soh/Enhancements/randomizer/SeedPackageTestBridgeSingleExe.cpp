@@ -133,6 +133,7 @@ std::string WorldOnlyRecord(const ComboContext& live) {
     memcpy(&rec->comboItemRules, &live.comboItemRules, sizeof(rec->comboItemRules));
     memcpy(&rec->comboFillWallets, &live.comboFillWallets, sizeof(rec->comboFillWallets)); // #1284
     memcpy(&rec->comboWoth, &live.comboWoth, sizeof(rec->comboWoth));                      // #1439
+    memcpy(&rec->comboItemRules2, &live.comboItemRules2, sizeof(rec->comboItemRules2));    // #1169 XW2
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 

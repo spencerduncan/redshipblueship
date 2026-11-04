@@ -74,6 +74,11 @@
  *                   moves, and ResolvePairedProfile refuses to author the half);
  *                   a file whose half froze the set loads with the file's set
  *                   back in the keys, a toast names it, and the arrival agrees
+ *   leg 2d2 - #1424: the same load for trap types in the frozen set's HIGH
+ *           byte (randoSaveTrapTypesHi: OoTMM's Drain and Rupoor)
+ *                -> the file's own Drain and Rupoor come back on and Fire off,
+ *                   the live digest matches the file, the toast counts all
+ *                   three, and the arrival agrees
  *   leg 2e - #1101 lane R3: the MM excluded-check list (gRando.ExcludedChecks,
  *           Randomizer > MM Locations) changed at the title screen
  *                -> the file's own list is put back into the key in the
@@ -350,6 +355,7 @@ int CreatePairedFile(bool emptyMmHalf, const ComboSettingsRecord* recordOverride
     memset(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks, 0,
            sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveTricks));
     gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = 0;
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypesHi = 0; // #1424
     memset(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, 0,
            sizeof(gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks));
     return 0;
@@ -1134,6 +1140,56 @@ int LegMmTrapTypes() {
 }
 
 // ---------------------------------------------------------------------------
+// Leg 2d2 (#1424): the same, for types in the frozen set's HIGH byte.
+// ---------------------------------------------------------------------------
+int LegMmTrapTypesHigh() {
+    const char* fire = TrapTypeCVar(TRAP_FIRE);     // bit 7: the low byte
+    const char* drain = TrapTypeCVar(TRAP_DRAIN);   // bit 9: the high byte
+    const char* rupoor = TrapTypeCVar(TRAP_RUPOOR); // bit 11: the high byte
+    if (fire == nullptr || drain == nullptr || rupoor == nullptr) {
+        return Fail(149, "leg 2d2 setup: no Fire, Drain or Rupoor trap key");
+    }
+
+    // A file whose MM half froze Drain and Rupoor (randoSaveTrapTypesHi only),
+    // loaded after the keys moved to Fire. The file's digest folded 0xA00, so the
+    // load can only reproduce it from a half that kept the high byte.
+    ClearAuthoredKeys();
+    CVarSetInteger(drain, 1);
+    CVarSetInteger(rupoor, 1);
+    if (int rc = CreatePairedFile(false, nullptr)) {
+        return rc;
+    }
+    const uint32_t fileDigest = gComboCtx.mmProfileDigest;
+    Relaunch();
+    CVarClear(drain);
+    CVarClear(rupoor);
+    CVarSetInteger(fire, 1);
+
+    const int rc = LoadThroughProductionSeam();
+    const bool paired = Combo_ForeignPairingActive();
+    const bool matches = MM_Rando_ComputeProfileStamp() == fileDigest;
+    const int fireNow = CVarGetInteger(fire, 0);
+    const int drainNow = CVarGetInteger(drain, 0);
+    const int rupoorNow = CVarGetInteger(rupoor, 0);
+    const Toast toast = LastToast();
+    const int gate = paired ? MM_Rando_GateCrossGameArrival() : -1;
+    printf("[TEST] leg 2d2 OBSERVED: load rc=%d paired=%d liveProfileMatchesFile=%d fire=%d drain=%d rupoor=%d "
+           "toast=%s%s%s%s arrivalGate=%d\n",
+           rc, paired ? 1 : 0, matches ? 1 : 0, fireNow, drainNow, rupoorNow, toast.any ? "'" : "(none)",
+           toast.any ? toast.prefix.c_str() : "", toast.any ? " " : "", toast.any ? toast.message.c_str() : "", gate);
+    if (!paired || !matches || fireNow != 0 || drainNow != 1 || rupoorNow != 1 || gate != 0) {
+        return Fail(150, "leg 2d2: the load did not put the file's high-byte trap types back (Drain and Rupoor on, "
+                         "Fire off), or the arrival refused the file that loaded");
+    }
+    if (!toast.any || !PlrContains(toast.message, "Fire Traps") ||
+        ToastShownNames(toast.message) + ToastPlusCount(toast.message) != 3 || !FitsOneLine(toast)) {
+        return Fail(151, "leg 2d2: no toast names the three trap types the load restored (prefix '%s', message '%s')",
+                    toast.prefix.c_str(), toast.message.c_str());
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
 // Leg 2e (#1101 lane R3): the excluded-check list changed at the title screen.
 // ---------------------------------------------------------------------------
 int LegMmExcludedChecks() {
@@ -1837,11 +1893,14 @@ extern "C" int MM_PairedLoadRestore_RunHeadless(void) {
     // observed state; the first failure is the row's result.
     int rc = 0;
     int (*const legs[])() = {
-        LegCrossGameRules,     LegLogicRung,        LegMmProfile,
-        LegMmTrickOnly,        LegMmManyTricks,     LegMmTrapTypes,
-        LegMmExcludedChecks,   LegLegacyMmLogic,    LegLegacyMmLogicAtStagedRung,
-        LegRoundTrip,          LegUnrestorableRule, LegRollback,
-        LegProbeRefusals,      LegProbeAccepts,     LegProbeMmHalfNotThisPairs,
+        LegCrossGameRules,     LegLogicRung,
+        LegMmProfile,          LegMmTrickOnly,
+        LegMmManyTricks,       LegMmTrapTypes,
+        LegMmTrapTypesHigh,    LegMmExcludedChecks,
+        LegLegacyMmLogic,      LegLegacyMmLogicAtStagedRung,
+        LegRoundTrip,          LegUnrestorableRule,
+        LegRollback,           LegProbeRefusals,
+        LegProbeAccepts,       LegProbeMmHalfNotThisPairs,
         LegProbeOtherOoTWorld,
     };
     for (auto leg : legs) {

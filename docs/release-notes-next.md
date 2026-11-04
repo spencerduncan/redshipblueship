@@ -121,6 +121,17 @@
   default): then the first Hero's Shield, 10 Bombchus and Red Potion go to a Termina host that sells or gives them
   again. Beatable Only and No Logic are unchanged.
 
+### Traps
+
+- **Every OoTMM trap type works in both games** (#1424). Majora's Mask gains Fire, Knockback, Drain, Anti-Magic and
+  Rupoor Traps on Randomizer > MM Randomizer, after Time Traps. Ocarina of Time gains Drain, Anti-Magic and Rupoor
+  Traps under Additional Traps, beside SoH's own (its Burn and Knockback Traps stand for OoTMM's Fire and Knockback).
+  The new ones do what OoTMM's do: in Majora's Mask, Fire sets Link on fire (Goron Link does not burn) and Knockback
+  throws him in a random direction; in both games, Drain leaves him a sliver of health, Anti-Magic empties the meter
+  (and, in Majora's Mask, ends the Chateau Romani's endless magic), and a Rupoor takes 10 rupees. Health, magic and
+  rupees are shared, so the loss counts in both games. All of them are off by default, and a file or seed that does
+  not turn one on springs the same traps as before.
+
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
 Minor fixes. Huge performance issue in overlay, crash when getting a progressive ocarina in MM.

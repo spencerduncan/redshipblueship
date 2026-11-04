@@ -397,6 +397,171 @@ bool Combo_ComboItemRulesClear(const ComboItemRulesRecord* rec) {
     return true;
 }
 
+// ---- The second rules word (#1169 lane XW2) ---------------------------------
+
+uint32_t Combo_ComboItemRules2Word(const ComboItemRules2Record* rec) {
+    if (rec == NULL) {
+        return 0u;
+    }
+    // Little-endian, a byte at a time: the stored bytes are the value's
+    // canonical form, whatever the host's endianness.
+    return (uint32_t)rec->crossItemFlags2[0] | ((uint32_t)rec->crossItemFlags2[1] << 8) |
+           ((uint32_t)rec->crossItemFlags2[2] << 16) | ((uint32_t)rec->crossItemFlags2[3] << 24);
+}
+
+void Combo_ComboItemRules2Store(ComboItemRules2Record* rec, uint32_t word) {
+    if (rec == NULL) {
+        return;
+    }
+    rec->crossItemFlags2[0] = (uint8_t)(word & 0xFFu);
+    rec->crossItemFlags2[1] = (uint8_t)((word >> 8) & 0xFFu);
+    rec->crossItemFlags2[2] = (uint8_t)((word >> 16) & 0xFFu);
+    rec->crossItemFlags2[3] = (uint8_t)((word >> 24) & 0xFFu);
+}
+
+uint32_t Combo_ComboItemRule2Requires(uint32_t bit) {
+    // A shared warp song is one family of the extension's added copy and the
+    // host-native copy (OoTMM's `cond: s.songMinuetMm`), so without the
+    // extension there is nothing to share.
+    if (bit != 0u && (bit & (bit - 1u)) == 0u && (bit & (uint32_t)RSBS_XITEM2_WARP_SONG_SHARED) != 0u) {
+        return bit >> RSBS_XITEM2_WARP_SONG_SHARED_SHIFT;
+    }
+    return 0u;
+}
+
+const char* Combo_ComboItemRule2Name(uint32_t bit) {
+    // OoTMM's own keys (packages/core/src/settings/data.ts), so a refusal names
+    // the option a player of OoTMM would recognize.
+    switch (bit) {
+        case RSBS_XITEM2_SONG_SOARING_OOT:
+            return "songSoaringOot";
+        case RSBS_XITEM2_SONG_MINUET_MM:
+            return "songMinuetMm";
+        case RSBS_XITEM2_SONG_BOLERO_MM:
+            return "songBoleroMm";
+        case RSBS_XITEM2_SONG_SERENADE_MM:
+            return "songSerenadeMm";
+        case RSBS_XITEM2_SONG_REQUIEM_MM:
+            return "songRequiemMm";
+        case RSBS_XITEM2_SONG_NOCTURNE_MM:
+            return "songNocturneMm";
+        case RSBS_XITEM2_SONG_PRELUDE_MM:
+            return "songPreludeMm";
+        case RSBS_XITEM2_SHARED_SONG_SOARING:
+            return "sharedSongSoaring";
+        case RSBS_XITEM2_SHARED_SONG_MINUET:
+            return "sharedSongMinuet";
+        case RSBS_XITEM2_SHARED_SONG_BOLERO:
+            return "sharedSongBolero";
+        case RSBS_XITEM2_SHARED_SONG_SERENADE:
+            return "sharedSongSerenade";
+        case RSBS_XITEM2_SHARED_SONG_REQUIEM:
+            return "sharedSongRequiem";
+        case RSBS_XITEM2_SHARED_SONG_NOCTURNE:
+            return "sharedSongNocturne";
+        case RSBS_XITEM2_SHARED_SONG_PRELUDE:
+            return "sharedSongPrelude";
+        default:
+            return "(unknown)";
+    }
+}
+
+bool Combo_ComboItemRules2Valid(uint32_t word) {
+    if ((word & ~(uint32_t)RSBS_XITEM2_ALL_V1) != 0u) {
+        return false; // a bit this build does not allocate
+    }
+    for (uint32_t b = 0; b < RSBS_XITEM2_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        const uint32_t needs = Combo_ComboItemRule2Requires(bit);
+        if ((word & bit) != 0u && needs != 0u && (word & needs) == 0u) {
+            return false; // a shared warp song without its extension
+        }
+    }
+    return true;
+}
+
+uint32_t Combo_ResolveComboItemRules2(void) {
+    // THE ONE RESOLVER for the second word (Combo_ResolveComboItemRules'
+    // discipline): ASSEMBLED from the fourteen keys, each through
+    // Combo_ComboSettingResolved, so an unset or out-of-space key is off and a
+    // bit no key authors is never on. With nothing authored this is 0, so every
+    // world whose player leaves the (hidden) keys alone keeps its fingerprint.
+    uint32_t word = Combo_ComboItemRules2Authored() & (uint32_t)RSBS_XITEM2_ALL_V1;
+    for (uint32_t b = 0; b < RSBS_XITEM2_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        const uint32_t needs = Combo_ComboItemRule2Requires(bit);
+        if ((word & bit) != 0u && needs != 0u && (word & needs) == 0u) {
+            word &= ~bit; // OoTMM's `cond`: a shared song without its extension is off
+        }
+    }
+    if (!Combo_ComboItemRules2Valid(word)) {
+        // Unreachable: every keyed bit is allocated and a shared song without
+        // its extension was dropped above.
+        fprintf(stderr,
+                "[Combo] cross-game item rules (second word) %08X are not a world this build can create; "
+                "resolving to every rule off\n",
+                (unsigned)word);
+        word = 0u;
+    }
+    return word;
+}
+
+uint32_t Combo_ComboCrossItemFlags2(void) {
+    return Combo_ComboSettingsFrozen() ? Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2) : 0u;
+}
+
+bool Combo_ComboCrossItemRule2(uint32_t bit) {
+    return bit != 0u && (Combo_ComboCrossItemFlags2() & bit) == bit;
+}
+
+// TEST ONLY (Combo_ComboItemRules2RevealForTest): the hidden mask reads empty, as
+// it will once lane XW12 lands. Never set in production.
+static bool sComboItemRules2Revealed = false;
+
+void Combo_ComboItemRules2RevealForTest(int on) {
+    sComboItemRules2Revealed = on != 0;
+}
+
+uint32_t Combo_ComboItemRules2Refused(uint32_t word, char* names, size_t len) {
+    if (names != NULL && len > 0) {
+        names[0] = '\0';
+    }
+    const uint32_t hidden = sComboItemRules2Revealed ? 0u : (uint32_t)RSBS_XITEM2_HIDDEN;
+    uint32_t refused = (word & ~(uint32_t)RSBS_XITEM2_ALL_V1) | (word & hidden);
+    for (uint32_t b = 0; b < RSBS_XITEM2_BIT_COUNT; ++b) {
+        const uint32_t bit = 1u << b;
+        const uint32_t needs = Combo_ComboItemRule2Requires(bit);
+        if ((word & bit) != 0u && needs != 0u && (word & needs) == 0u) {
+            refused |= bit; // a shared song without its extension is not a world
+        }
+    }
+    if (names != NULL && len > 0) {
+        size_t used = 0;
+        for (uint32_t b = 0; b < RSBS_XITEM2_BIT_COUNT && used + 1u < len; ++b) {
+            const uint32_t bit = 1u << b;
+            if ((refused & bit) == 0u) {
+                continue;
+            }
+            const int n =
+                (bit & (uint32_t)RSBS_XITEM2_ALL_V1) != 0u
+                    ? snprintf(names + used, len - used, "%s%s", used > 0 ? ", " : "", Combo_ComboItemRule2Name(bit))
+                    : snprintf(names + used, len - used, "%sbit %u", used > 0 ? ", " : "", (unsigned)b);
+            if (n < 0) {
+                break;
+            }
+            used += (size_t)n;
+            if (used >= len) {
+                used = len - 1u; // snprintf truncated; the buffer is full and terminated
+            }
+        }
+    }
+    return refused;
+}
+
+uint32_t Combo_ComboItemRules2DivergenceBetween(uint32_t frozen, uint32_t live) {
+    return frozen != live ? (uint32_t)RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS : 0u;
+}
+
 bool Combo_ComboSettingsDescribePairedWorld(const ComboSettingsRecord* rec) {
     // THE #667 RULING, as one falsifiable function rather than a comment.
     //
@@ -663,13 +828,24 @@ static void ComboAppendLe32(uint8_t* out, uint32_t value) {
 uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
                                                       uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
                                                       uint32_t generatorVersion) {
+    // The second word all clear (#1169 XW2) contributes no byte, so this is the
+    // pre-XW2 formula exactly.
+    return Combo_ComputeComboSettingsHashForGeneratorEx2(rec, rules, 0u, sharedRandoSettingsHash, mmProfileDigest,
+                                                         generatorVersion);
+}
+
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx2(const ComboSettingsRecord* rec,
+                                                       const ComboItemRulesRecord* rules, uint32_t rules2,
+                                                       uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                       uint32_t generatorVersion) {
     // canonical(12) || ':' || LE32(settingsHash) || ':' || LE32(mmProfileDigest)
     //   [ || '#' || canonical(rules, 8) ]      -- only when the rules are not all clear (#976)
+    //   [ || '%' || LE32(rules2) ]             -- only when the second word is not 0 (#1169 XW2)
     //   [ || ':' || LE32(generatorVersion) ]   -- only for version >= 1 (#1003)
     // The version label is the LAST term, so taking it off (version 0) leaves
-    // exactly the label-free fingerprint over the record AND its rules.
+    // exactly the label-free fingerprint over the record AND both rule words.
     enum { kBase = RSBS_COMBO_SETTINGS_CANONICAL_LEN + 1u + 4u + 1u + 4u };
-    uint8_t buf[kBase + 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN + 1u + 4u];
+    uint8_t buf[kBase + 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN + 1u + 4u + 1u + 4u];
     size_t len = kBase;
     Combo_ComboSettingsCanonical(rec, buf);
     buf[RSBS_COMBO_SETTINGS_CANONICAL_LEN] = (uint8_t)':';
@@ -683,6 +859,15 @@ uint32_t Combo_ComputeComboSettingsHashForGeneratorEx(const ComboSettingsRecord*
         buf[len] = (uint8_t)'#';
         Combo_ComboItemRulesCanonical(rules, &buf[len + 1u]);
         len += 1u + RSBS_COMBO_ITEM_RULES_CANONICAL_LEN;
+    }
+    // #1169 XW2: the second rules word, APPENDED AND ONLY WHEN SET, on the first
+    // word's terms: a world with every second-word rule off keeps its
+    // fingerprint and its single-bag seed. Its own separator, so a word can never
+    // read as bytes of the first word's term.
+    if (rules2 != 0u) {
+        buf[len] = (uint8_t)'%';
+        ComboAppendLe32(&buf[len + 1u], rules2);
+        len += 1u + 4u;
     }
     if (generatorVersion != 0) {
         // Version 0 is the legacy byte string, untouched, so every fingerprint
@@ -724,10 +909,24 @@ uint32_t Combo_ComputeComboSettingsHashEx(const ComboSettingsRecord* rec, const 
 int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
                                               uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
                                               uint32_t storedHash) {
+    return Combo_ComboSettingsHashGeneratorVersionEx2(rec, rules, 0u, sharedRandoSettingsHash, mmProfileDigest,
+                                                      storedHash);
+}
+
+uint32_t Combo_ComputeComboSettingsHashEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                           uint32_t rules2, uint32_t sharedRandoSettingsHash,
+                                           uint32_t mmProfileDigest) {
+    return Combo_ComputeComboSettingsHashForGeneratorEx2(rec, rules, rules2, sharedRandoSettingsHash, mmProfileDigest,
+                                                         RSBS_GENERATOR_VERSION);
+}
+
+int Combo_ComboSettingsHashGeneratorVersionEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                               uint32_t rules2, uint32_t sharedRandoSettingsHash,
+                                               uint32_t mmProfileDigest, uint32_t storedHash) {
     // Newest first: a file this build created is the common case.
     for (int v = (int)RSBS_GENERATOR_VERSION; v >= 0; --v) {
-        if (Combo_ComputeComboSettingsHashForGeneratorEx(rec, rules, sharedRandoSettingsHash, mmProfileDigest,
-                                                         (uint32_t)v) == storedHash) {
+        if (Combo_ComputeComboSettingsHashForGeneratorEx2(rec, rules, rules2, sharedRandoSettingsHash, mmProfileDigest,
+                                                          (uint32_t)v) == storedHash) {
             return v;
         }
     }
@@ -744,28 +943,31 @@ uint32_t Combo_ComboSettingsWorldHash(void) {
     if (stored == 0 || !Combo_ComboSettingsFrozen()) {
         return stored;
     }
-    // Over the resident record AND its item rules (#976): the fingerprint the
-    // freeze stamped folds both, so the label comes off that one.
-    const int version =
-        Combo_ComboSettingsHashGeneratorVersionEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
-                                                  gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest, stored);
+    // Over the resident record AND both item-rule words (#976, #1169 XW2): the
+    // fingerprint the freeze stamped folds all three, so the label comes off that
+    // one. With the second word 0 this is the pre-XW2 computation exactly.
+    const uint32_t rules2 = Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2);
+    const int version = Combo_ComboSettingsHashGeneratorVersionEx2(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                                                   rules2, gComboCtx.sharedRandoSettingsHash,
+                                                                   gComboCtx.mmProfileDigest, stored);
     if (version <= 0) {
         // Legacy (already the label-free value) or a value no version
         // reproduces: fold it as stored, which is what the bag did before #1003.
         return stored;
     }
-    return Combo_ComputeComboSettingsHashForGeneratorEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
-                                                        gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
-                                                        0u);
+    return Combo_ComputeComboSettingsHashForGeneratorEx2(&gComboCtx.comboSettings, &gComboCtx.comboItemRules, rules2,
+                                                         gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest,
+                                                         0u);
 }
 
 uint32_t Combo_StampComboSettingsHash(void) {
     if (!Combo_ComboSettingsFrozen()) {
         return 0;
     }
-    gComboCtx.comboSettingsHash =
-        Combo_ComputeComboSettingsHashEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
-                                         gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
+    // #1169 XW2: over the resident second word too; 0 folds nothing.
+    gComboCtx.comboSettingsHash = Combo_ComputeComboSettingsHashEx2(
+        &gComboCtx.comboSettings, &gComboCtx.comboItemRules, Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2),
+        gComboCtx.sharedRandoSettingsHash, gComboCtx.mmProfileDigest);
     return gComboCtx.comboSettingsHash;
 }
 
@@ -774,6 +976,12 @@ uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec) {
 }
 
 uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules) {
+    // Every second-word rule off (#1169 XW2): the world every pre-XW2 caller froze.
+    return Combo_FreezeComboSettingsEx2(rec, rules, 0u);
+}
+
+uint32_t Combo_FreezeComboSettingsEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                      uint32_t rules2) {
     ComboSettingsRecord frozen;
     if (rec != NULL) {
         frozen = *rec;
@@ -791,6 +999,8 @@ uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const Combo
     } else {
         Combo_ComboItemRulesDefaults(&gComboCtx.comboItemRules);
     }
+    // #1169 XW2: the second rules word in the same act, before the stamp.
+    Combo_ComboItemRules2Store(&gComboCtx.comboItemRules2, rules2);
 
     // Computed LAST, over the record and BOTH half-digests. The caller is
     // responsible for having stamped those first (decision 4.1's order); this
@@ -805,6 +1015,10 @@ uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const Combo
             (unsigned)frozen.logicRung, (unsigned)frozen.comboFlags, (unsigned)gComboCtx.comboItemRules.crossItemFlags,
             (unsigned)gComboCtx.comboItemRules.blastMaskCooldown, (unsigned)digest,
             (unsigned)gComboCtx.sharedRandoSettingsHash, (unsigned)gComboCtx.mmProfileDigest);
+    if (rules2 != 0u) {
+        // A line of its own, so the line above stays what it always was.
+        fprintf(stderr, "[Combo] combo settings FROZEN: itemRules2=%08X (#1169)\n", (unsigned)rules2);
+    }
     return digest;
 }
 
@@ -818,6 +1032,7 @@ void Combo_SnapshotCreationRecords(ComboCreationRecords* out) {
     out->comboItemRules = gComboCtx.comboItemRules;
     out->comboFillWallets = gComboCtx.comboFillWallets;
     out->comboWoth = gComboCtx.comboWoth;
+    out->comboItemRules2 = gComboCtx.comboItemRules2; // #1169 XW2
 }
 
 void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
@@ -830,6 +1045,7 @@ void Combo_RestoreCreationRecords(const ComboCreationRecords* in) {
     gComboCtx.comboItemRules = in->comboItemRules;
     gComboCtx.comboFillWallets = in->comboFillWallets;
     gComboCtx.comboWoth = in->comboWoth;
+    gComboCtx.comboItemRules2 = in->comboItemRules2; // #1169 XW2
 }
 
 void Combo_RetractCreationRecords(void) {
@@ -837,8 +1053,9 @@ void Combo_RetractCreationRecords(void) {
     gComboCtx.comboSettingsHash = 0;
     memset(&gComboCtx.comboTriforce, 0, sizeof(gComboCtx.comboTriforce));
     memset(&gComboCtx.comboItemRules, 0, sizeof(gComboCtx.comboItemRules));
-    gComboCtx.comboFillWallets = 0;                               // #1284
-    memset(&gComboCtx.comboWoth, 0, sizeof(gComboCtx.comboWoth)); // #1439: ABSENT
+    gComboCtx.comboFillWallets = 0;                                           // #1284
+    memset(&gComboCtx.comboWoth, 0, sizeof(gComboCtx.comboWoth));             // #1439: ABSENT
+    memset(&gComboCtx.comboItemRules2, 0, sizeof(gComboCtx.comboItemRules2)); // #1169 XW2: every rule off
 }
 
 int Combo_FreezeLegacyComboSettings(void) {
@@ -963,6 +1180,14 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
 uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                             uint32_t storedHash, uint32_t sharedRandoSettingsHash,
                                             uint32_t mmProfileDigest) {
+    // A record with no second word (#1169 XW2): every second-word rule off.
+    return Combo_ComboSettingsDivergenceForEx2(frozen, frozenRules, 0u, storedHash, sharedRandoSettingsHash,
+                                               mmProfileDigest);
+}
+
+uint32_t Combo_ComboSettingsDivergenceForEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                             uint32_t frozenRules2, uint32_t storedHash,
+                                             uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest) {
     if (frozen == NULL || frozen->formatVersion == 0) {
         return 0; // absent, exempt (decision 4.2)
     }
@@ -1006,6 +1231,23 @@ uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, c
     Combo_ComboItemRulesLiveForFile(frozenRules, &liveRules);
     if ((bits & RSBS_COMBO_DIVERGE_UNREADABLE) == 0) {
         bits |= Combo_ComboItemRulesDivergenceBetween(frozenRules, &liveRules);
+        // #1169 XW2: the second word against the session's, on the same terms
+        // (one-game semantics refuses a file whose rules this session would not
+        // freeze, unless a key restores them at load). Under the shared bitset
+        // bit; with no second-word key set and a file from before the carve,
+        // both sides are 0 and nothing is added.
+        bits |= Combo_ComboItemRules2DivergenceBetween(frozenRules2, Combo_ResolveComboItemRules2());
+        // And a frozen word this build refuses (Combo_ComboItemRules2Refused:
+        // until XW12, any warp-song rule on) diverges even when the session's
+        // keys equal it (set from the console, or by a later build's config):
+        // the keys alone must not let a world load or arrive that this build
+        // has no item, matcher or logic for. The restore probe reports it
+        // unrestorable (ItemRulesKeyedDiff), so a .redsave load refuses it as
+        // another build's, untouched, and an arrival refuses it by name, as a
+        // seed package's validation does. A word of 0 is never refused.
+        if (Combo_ComboItemRules2Refused(frozenRules2, NULL, 0) != 0u) {
+            bits |= RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS;
+        }
     }
 
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a
@@ -1015,9 +1257,9 @@ uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, c
         // Any generator version this build knows (#1003): a file an older build
         // created carries that build's version (0 before #1003) and is the same
         // healthy identity; only a hash no version reproduces is damage. The
-        // rules fold at every version (#976).
-        if (Combo_ComboSettingsHashGeneratorVersionEx(frozen, frozenRules, sharedRandoSettingsHash, mmProfileDigest,
-                                                      storedHash) < 0) {
+        // rules fold at every version (#976), the second word too (#1169 XW2).
+        if (Combo_ComboSettingsHashGeneratorVersionEx2(frozen, frozenRules, frozenRules2, sharedRandoSettingsHash,
+                                                       mmProfileDigest, storedHash) < 0) {
             bits |= RSBS_COMBO_DIVERGE_FINGERPRINT;
         }
     }
@@ -1028,9 +1270,10 @@ uint32_t Combo_ComboSettingsDivergence(void) {
     // The triforce record (ADR 0010 O10) rides the same arrival refusal: the
     // record and the goal it serves are one identity, so a resident pair whose
     // triforce record contradicts its combo record is refused by name here.
-    return Combo_ComboSettingsDivergenceForEx(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
-                                              gComboCtx.comboSettingsHash, gComboCtx.sharedRandoSettingsHash,
-                                              gComboCtx.mmProfileDigest) |
+    return Combo_ComboSettingsDivergenceForEx2(&gComboCtx.comboSettings, &gComboCtx.comboItemRules,
+                                               Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2),
+                                               gComboCtx.comboSettingsHash, gComboCtx.sharedRandoSettingsHash,
+                                               gComboCtx.mmProfileDigest) |
            Combo_TriforceRecordDivergence(&gComboCtx.comboSettings, &gComboCtx.comboTriforce);
 }
 

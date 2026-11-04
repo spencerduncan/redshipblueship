@@ -760,6 +760,154 @@ void Combo_ComboItemRulesCanonical(const ComboItemRulesRecord* rec, uint8_t* out
 bool Combo_ComboItemRulesClear(const ComboItemRulesRecord* rec);
 
 // ============================================================================
+// THE SECOND RULES WORD (#1169 lane XW2; ADR 0011's 2026-11-04 amendment)
+// ============================================================================
+//
+// A second full 32-bit bitset of frozen cross-game item rules, stored in
+// gComboCtx.comboItemRules2 (ComboItemRules2Record, context.h), because the
+// first word has three free rule bits (28-30) and OoTMM's warp songs are
+// fourteen rules. PINNED, APPEND-ONLY, retire-never-renumber, like the first
+// word: a bit's position is .redsave and seed-package format.
+//
+// THE ALLOCATION. Warp songs first (OoTMM data.ts's `songSoaringOot`,
+// `songMinuetMm` .. `songPreludeMm`, and the seven `sharedSong*` that each
+// require theirs), bits 0-13. Bits 14-31 are free, which is exactly OoTMM's
+// eighteen other song rows not in either word yet: the nine extensions
+// (`elegyOot`, `songHealingOot`, `songAwakeningOot`, `songGoronOot`,
+// `songZoraOot`, `songOrderOot`, `songSunMm`, `songZeldaLullabyMm`,
+// `songSariasMm`) and their nine `sharedSong*` (the shared Epona's Song, Song of
+// Storms and Song of Time already have first-word bits). That plan is not a
+// pin: a later rule takes the next free bit, first come. The masks need none of
+// it: Kamaro's two rules (0x80, 0x2000) and masks P5's six (#980: 0x100, 0x200,
+// 0x400, 0x4000, 0x8000, 0x10000) were allocated in the FIRST word by #976, so a
+// mask rule reaches this word only once the first word's three free bits are
+// gone.
+//
+// HIDDEN UNTIL XW12 (operator ruling 2026-11-04, decision 7). The keys exist
+// (combo_settings_view.h) and nothing exposes them: no Cross-Game Rules row, and
+// Generate REFUSES a word holding any bit of RSBS_XITEM2_HIDDEN, as a seed
+// package's validation and a .redsave load do for a world another build made
+// with one on (Combo_ComboItemRules2Refused). XW12 clears the mask once the
+// note matchers (XW6, XW7) and the logic edges (XW9) exist: before then a world
+// frozen with a warp rule on would hold dead song pickups.
+//
+// No family slots here: a shared song's family is the second family word lane
+// XW10 carves (decision 6), not a bit of gComboCtx.sharedFamilyOwned.
+
+// The seven EXTENSIONS: a copy of the other game's warp song added to this game.
+#define RSBS_XITEM2_SONG_SOARING_OOT 0x00000001u // OoTMM songSoaringOot: MM's Song of Soaring in OoT (child only)
+#define RSBS_XITEM2_SONG_MINUET_MM 0x00000002u   // OoTMM songMinuetMm: OoT's Minuet of Forest in MM
+#define RSBS_XITEM2_SONG_BOLERO_MM 0x00000004u   // OoTMM songBoleroMm
+#define RSBS_XITEM2_SONG_SERENADE_MM 0x00000008u // OoTMM songSerenadeMm
+#define RSBS_XITEM2_SONG_REQUIEM_MM 0x00000010u  // OoTMM songRequiemMm
+#define RSBS_XITEM2_SONG_NOCTURNE_MM 0x00000020u // OoTMM songNocturneMm
+#define RSBS_XITEM2_SONG_PRELUDE_MM 0x00000040u  // OoTMM songPreludeMm
+// The seven SHARED songs: the added copy and the host-native copy are one item.
+// Each REQUIRES the extension seven bits below it (Combo_ComboItemRule2Requires).
+#define RSBS_XITEM2_SHARED_SONG_SOARING 0x00000080u  // OoTMM sharedSongSoaring
+#define RSBS_XITEM2_SHARED_SONG_MINUET 0x00000100u   // OoTMM sharedSongMinuet
+#define RSBS_XITEM2_SHARED_SONG_BOLERO 0x00000200u   // OoTMM sharedSongBolero
+#define RSBS_XITEM2_SHARED_SONG_SERENADE 0x00000400u // OoTMM sharedSongSerenade
+#define RSBS_XITEM2_SHARED_SONG_REQUIEM 0x00000800u  // OoTMM sharedSongRequiem
+#define RSBS_XITEM2_SHARED_SONG_NOCTURNE 0x00001000u // OoTMM sharedSongNocturne
+#define RSBS_XITEM2_SHARED_SONG_PRELUDE 0x00002000u  // OoTMM sharedSongPrelude
+
+/** The seven warp-song extensions, and the seven shared songs over them. */
+#define RSBS_XITEM2_WARP_SONG_EXTENSIONS 0x0000007Fu
+#define RSBS_XITEM2_WARP_SONG_SHARED 0x00003F80u
+/** How far a shared warp song sits above the extension it requires. */
+#define RSBS_XITEM2_WARP_SONG_SHARED_SHIFT 7u
+/** Every RSBS_XITEM2_* bit ALLOCATED by this build. A frozen word holding any
+ *  other bit was written by a later build. */
+#define RSBS_XITEM2_ALL_V1 (RSBS_XITEM2_WARP_SONG_EXTENSIONS | RSBS_XITEM2_WARP_SONG_SHARED)
+/** The allocated bits no world of this build may hold yet: every one until
+ *  lane XW12 exposes the rows (operator ruling 2026-11-04, decision 7). */
+#define RSBS_XITEM2_HIDDEN RSBS_XITEM2_ALL_V1
+/** What ships: every second-word rule off (OoTMM's defaults). */
+#define RSBS_XITEM2_DEFAULTS 0u
+/** How many bit positions the word has. */
+#define RSBS_XITEM2_BIT_COUNT 32u
+
+RSBS_CTX_STATIC_ASSERT(
+    RSBS_XITEM2_SONG_SOARING_OOT == 0x1u && RSBS_XITEM2_SONG_PRELUDE_MM == 0x40u &&
+        RSBS_XITEM2_SHARED_SONG_SOARING == 0x80u && RSBS_XITEM2_SHARED_SONG_PRELUDE == 0x2000u &&
+        RSBS_XITEM2_ALL_V1 == 0x00003FFFu &&
+        (RSBS_XITEM2_WARP_SONG_EXTENSIONS << RSBS_XITEM2_WARP_SONG_SHARED_SHIFT) == RSBS_XITEM2_WARP_SONG_SHARED &&
+        (RSBS_XITEM2_HIDDEN & ~RSBS_XITEM2_ALL_V1) == 0u && RSBS_XITEM2_DEFAULTS == 0u,
+    "RSBS_XITEM2_* bit positions are .redsave and seed-package format: pinned, append-only, allocate the next free bit "
+    "and never re-point an allocated one; the defaults stay 0 so an all-clear word is today's world (#1169 XW2)");
+
+/** The value of the word @p rec stores (little-endian, a byte at a time). NULL
+ *  is 0, every rule off. */
+uint32_t Combo_ComboItemRules2Word(const ComboItemRules2Record* rec);
+
+/** Store @p word into @p rec, little-endian, a byte at a time. NULL is ignored. */
+void Combo_ComboItemRules2Store(ComboItemRules2Record* rec, uint32_t word);
+
+/** The extension bit a SHARED warp-song bit requires, or 0 for every other bit
+ *  (an extension, an unallocated bit, a mask with more than one bit set). */
+uint32_t Combo_ComboItemRule2Requires(uint32_t bit);
+
+/** OoTMM's key for ONE RSBS_XITEM2_* bit ("songSoaringOot", "sharedSongMinuet",
+ *  ...), or "(unknown)" for an unallocated bit or a mask with more than one bit
+ *  set. Never NULL. */
+const char* Combo_ComboItemRule2Name(uint32_t bit);
+
+/**
+ * Could a world be built from the second word @p word? True iff every set bit is
+ * allocated (RSBS_XITEM2_ALL_V1) and every shared song's extension is set too.
+ * Says nothing about whether this build offers the rules yet: that is
+ * Combo_ComboItemRules2Refused's question. 0 is valid.
+ */
+bool Combo_ComboItemRules2Valid(uint32_t word);
+
+/**
+ * The session's RESOLVED second word: what a creation event would freeze now
+ * and what an arrival or a load compares the frozen word against (the
+ * one-resolver discipline Combo_ResolveComboItemRules states). Assembled from
+ * the fourteen keys (Combo_ComboItemRules2Authored), never overlaid from a
+ * stored bitset; a shared song whose extension key is off resolves off (OoTMM's
+ * `cond`), so the result is always a word Combo_ComboItemRules2Valid accepts.
+ * With no key set (and with no CVar store at all) it is 0.
+ *
+ * It does NOT drop a hidden bit: a key set out of band (the console, a hand-made
+ * config or preset) reaches here so that Generate can refuse it by name rather
+ * than freeze a world whose rule nothing plays.
+ */
+uint32_t Combo_ResolveComboItemRules2(void);
+
+/** The FROZEN second word, or 0 while nothing is frozen. Never a CVar. */
+uint32_t Combo_ComboCrossItemFlags2(void);
+
+/** Is the single RSBS_XITEM2_* rule @p bit frozen ON? False while unfrozen. */
+bool Combo_ComboCrossItemRule2(uint32_t bit);
+
+/**
+ * THE GATE ON A WORLD THIS BUILD CREATES OR ADOPTS (#1169 XW2). The bits of
+ * @p word this build refuses to freeze at Generate, to take from a seed
+ * package, or to load from a .redsave: an unallocated bit, a shared song
+ * without its extension, and every hidden bit (RSBS_XITEM2_HIDDEN: all fourteen
+ * until XW12). 0 means the word may be created; 0 is always.
+ *
+ * @p names (may be NULL) receives the refused rules' OoTMM keys, comma
+ * separated ("songSoaringOot, sharedSongSoaring"), an unallocated bit as
+ * "bit N"; "" when none. Always NUL-terminated when @p len > 0.
+ */
+uint32_t Combo_ComboItemRules2Refused(uint32_t word, char* names, size_t len);
+
+/**
+ * TEST ONLY: with @p on nonzero the hidden mask reads empty, as it will once
+ * lane XW12 lands, so a row can drive a world with a second-word rule on
+ * through the real freeze, .redsave load and restore. Production never calls it.
+ */
+void Combo_ComboItemRules2RevealForTest(int on);
+
+/** Which item-rule FIELDS differ between a frozen second word and a live one:
+ *  RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS when they differ (the one bitset bit both
+ *  words share), else 0. */
+uint32_t Combo_ComboItemRules2DivergenceBetween(uint32_t frozen, uint32_t live);
+
+// ============================================================================
 // The class rule (#495; ADR 0011 decision 3; ADR 0010 increment 3)
 // ============================================================================
 //
@@ -1121,6 +1269,39 @@ int Combo_ComboSettingsHashGeneratorVersionEx(const ComboSettingsRecord* rec, co
                                               uint32_t storedHash);
 
 /**
+ * THE FINGERPRINT WITH THE SECOND RULES WORD (#1169 XW2), at an explicit
+ * generator version:
+ *
+ *   canonical(rec) || ":" || LE32(settingsHash) || ":" || LE32(mmProfileDigest)
+ *     [ || "#" || canonical(rules) ]   -- only when the rules are not all clear (#976)
+ *     [ || "%" || LE32(rules2) ]       -- only when @p rules2 is not 0 (XW2)
+ *     [ || ":" || LE32(version) ]      -- only for version >= 1 (#1003)
+ *
+ * The word is APPENDED after the first word's term and before the generator
+ * label, and only when it is not 0, so with every second-word rule off this is
+ * Combo_ComputeComboSettingsHashForGeneratorEx byte for byte (the Ex form IS
+ * this with 0): every fingerprint, every bag seed folded from the version-0
+ * value, and every golden stays where it was. '%' is a separator neither earlier
+ * term uses, so a word cannot read as part of the first word's term. Pure.
+ */
+uint32_t Combo_ComputeComboSettingsHashForGeneratorEx2(const ComboSettingsRecord* rec,
+                                                       const ComboItemRulesRecord* rules, uint32_t rules2,
+                                                       uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest,
+                                                       uint32_t generatorVersion);
+
+/** Combo_ComputeComboSettingsHashEx with the second word, at this build's
+ *  generator version. 0 @p rules2 is the Ex form exactly. Pure. */
+uint32_t Combo_ComputeComboSettingsHashEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                           uint32_t rules2, uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
+
+/** Combo_ComboSettingsHashGeneratorVersionEx with the second word: the version
+ *  whose formula reproduces @p storedHash over all three, or -1. The load, the
+ *  arrival and a seed package's validation go through this one. Pure. */
+int Combo_ComboSettingsHashGeneratorVersionEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                               uint32_t rules2, uint32_t sharedRandoSettingsHash,
+                                               uint32_t mmProfileDigest, uint32_t storedHash);
+
+/**
  * THE GENERATOR VERSION (#1003). Hand-bumped; folded into comboSettingsHash as
  * a fourth term, so a build whose generator changed shows a different
  * fingerprint at file select (#960's surface) for the same seed and settings.
@@ -1217,6 +1398,18 @@ uint32_t Combo_FreezeComboSettings(const ComboSettingsRecord* rec);
 uint32_t Combo_FreezeComboSettingsEx(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules);
 
 /**
+ * Combo_FreezeComboSettingsEx with the second rules word (#1169 XW2): freezes
+ * @p rules2 into gComboCtx.comboItemRules2 in the same act and stamps the
+ * fingerprint over all three. Combo_FreezeComboSettingsEx is this with 0 (every
+ * second-word rule off). The creation event calls this one with
+ * Combo_ResolveComboItemRules2, after refusing any word
+ * Combo_ComboItemRules2Refused names, so while the rules are hidden it always
+ * freezes 0.
+ */
+uint32_t Combo_FreezeComboSettingsEx2(const ComboSettingsRecord* rec, const ComboItemRulesRecord* rules,
+                                      uint32_t rules2);
+
+/**
  * THE CREATION FREEZE'S RECORDS, as one unit for its two failure exits (#976
  * review F1). The creation event writes four combo-level fields beside the
  * identity: the combo record, its fingerprint, the O10 triforce record and the
@@ -1233,8 +1426,9 @@ typedef struct ComboCreationRecords {
     uint32_t comboSettingsHash;
     ComboTriforceRecord comboTriforce;
     ComboItemRulesRecord comboItemRules;
-    uint8_t comboFillWallets;  // #1284: the pair's fill-wallets rule, frozen in the same act
-    ComboWothRecord comboWoth; // #1439: the pair's Way of the Hero, written by the same creation's fill
+    uint8_t comboFillWallets;              // #1284: the pair's fill-wallets rule, frozen in the same act
+    ComboWothRecord comboWoth;             // #1439: the pair's Way of the Hero, written by the same creation's fill
+    ComboItemRules2Record comboItemRules2; // #1169 XW2: the second rules word, frozen with the first
 } ComboCreationRecords;
 
 /** Copy the creation records (every ComboCreationRecords field) out of gComboCtx into @p out. */
@@ -1334,7 +1528,10 @@ int Combo_FreezeLegacyComboSettings(void);
  *  the field-name table must stay contiguous and the u32 has 18 bits left, fewer
  *  than the rules; Combo_ComboItemRuleName names each one. Until a
  *  key authors the rules (epic #975 P2) no load can restore it, so a file a later
- *  build made with a rule on is refused here, by name. */
+ *  build made with a rule on is refused here, by name. #1169 XW2: the SECOND
+ *  rules word (gComboCtx.comboItemRules2) diverges under this bit too, so the
+ *  field table, the refusal toasts and every combination the toast-fit row draws
+ *  are unchanged; Combo_ComboItemRule2Name names its rules. */
 #define RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS 0x4000u
 /** The frozen Blast Mask cooldown differs from the live resolution's (#976). */
 #define RSBS_COMBO_DIVERGE_BLAST_MASK_COOLDOWN 0x8000u
@@ -1403,6 +1600,22 @@ uint32_t Combo_ComboSettingsDivergenceFor(const ComboSettingsRecord* frozen, uin
 uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                             uint32_t storedHash, uint32_t sharedRandoSettingsHash,
                                             uint32_t mmProfileDigest);
+
+/**
+ * Combo_ComboSettingsDivergenceForEx over the second rules word too (#1169 XW2):
+ * @p frozenRules2 against Combo_ResolveComboItemRules2 (a difference sets
+ * RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, the bitset bit both words share), and the
+ * fingerprint cross-check with the word folded
+ * (Combo_ComboSettingsHashGeneratorVersionEx2). A frozen word this build refuses
+ * (Combo_ComboItemRules2Refused) sets that bit too, even when the session's keys
+ * equal it, so the load and the arrival refuse it as another build's whatever
+ * the keys say. The Ex form is this with 0 (never refused), so a caller holding
+ * a record from before the carve (or any rules-off world) gets exactly what it
+ * got before. The load path and the session diff call this one.
+ */
+uint32_t Combo_ComboSettingsDivergenceForEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
+                                             uint32_t frozenRules2, uint32_t storedHash,
+                                             uint32_t sharedRandoSettingsHash, uint32_t mmProfileDigest);
 
 /**
  * The session-level diff the arrival refusal calls: Combo_ComboSettingsDivergenceFor
