@@ -1,4 +1,4 @@
-#include "SohMenu.h"
+﻿#include "SohMenu.h"
 #include <soh/Enhancements/enhancementTypes.h>
 #include <soh/Enhancements/mods.h>
 #include <soh/Enhancements/game-interactor/GameInteractor.h>
@@ -1659,8 +1659,8 @@ void SohMenu::AddMenuEnhancements() {
             "The minimum weight for the unique fishing reward as an adult."));
     AddWidget(path, "Allow fishing with blank B", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FishingBlankB"))
-        .Options(CheckboxOptions().Tooltip("Fixes a vanilla bug where the player stops holding the fishing rod while "
-                                           "fishing if the B button has no item on it (Always active in Randomizer)."));
+        .Options(CheckboxOptions().Tooltip("Allow fishing even when not having any item equipped on the B button, "
+                                           "fixing a vanilla bug. Always enabled in randomizer."));
     AddMmMinigameRows(*this, path); // W6-MINIGAMES: MM's minigames, in a Majora's Mask block
 
     // Extra Modes

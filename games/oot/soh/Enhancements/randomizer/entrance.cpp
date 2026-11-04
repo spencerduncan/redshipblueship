@@ -1834,30 +1834,30 @@ extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
     return Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides.data();
 }
 
-static s16 backedUpScene = SCENE_ID_MAX;
+static SceneID backedUpScene = (SceneID)0xFF;
 static Camera backupCamera;
 
 void RegisterEntranceShuffleHooks() {
-    COND_HOOK(OnSceneInit,
-              IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).IsNot(RO_GENERIC_OFF),
-              [](int16_t sceneNum) {
-                  if (backedUpScene != sceneNum) {
-                      backedUpScene = sceneNum;
-                      backupCamera = OoT_gPlayState->mainCamera;
-                  }
-              });
-
+    // Upstream f2c34d8c1 returns early when there is no backup for this scene; that is
+    // folded into the restore branch here so the hook body always reaches va_end.
     COND_VB_SHOULD(VB_SHOULD_LOAD_BG_IMAGE,
-                   IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).IsNot(RO_GENERIC_OFF), {
-                       s16* camId = va_arg(args, s16*);
+                   IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get(), {
+                       int32_t* camId = va_arg(args, int32_t*);
+                       Camera* camera = GET_ACTIVE_CAM(OoT_gPlayState);
                        if (*camId == -1) {
-                           SPDLOG_ERROR("Invalid Camera Index in fixed camera transition, resetting camera and "
-                                        "skipping Image Load");
+                           if (backedUpScene == OoT_gPlayState->sceneNum) {
+                               memcpy(camera, &backupCamera, sizeof(Camera));
+                               OoT_Camera_ChangeMode(camera, CAM_MODE_TALK);
+                           }
                            *should = false;
-                           OoT_gPlayState->mainCamera = backupCamera;
-                           OoT_Camera_ChangeMode(&OoT_gPlayState->mainCamera, CAM_MODE_NORMAL);
+                       } else if (backedUpScene != OoT_gPlayState->sceneNum) {
+                           memcpy(&backupCamera, camera, sizeof(Camera));
+                           backedUpScene = (SceneID)OoT_gPlayState->sceneNum;
                        }
                    });
+
+    COND_HOOK(OnLoadGame, IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get(),
+              [](int32_t) { backedUpScene = (SceneID)0xFF; });
 }
 
 static RegisterShipInitFunc initFunc(RegisterEntranceShuffleHooks, { "IS_RANDO" });

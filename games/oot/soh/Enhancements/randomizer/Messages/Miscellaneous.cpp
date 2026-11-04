@@ -10,6 +10,7 @@
 
 extern "C" {
 #include <variables.h>
+#include <macros.h>
 extern PlayState* OoT_gPlayState;
 }
 
@@ -54,14 +55,14 @@ void BuildFixedMallonAtCastleMessage(uint16_t* textId, bool* loadFromMessageTabl
 }
 
 void BuildGerudoGuardJailOfferMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    if (OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS) {
-        CustomMessage msg = CustomMessage(
-            "Looks like you have a %gGerudo Membership Card%w, kid, wait, what's that? You still want to be %rthrown "
-            "in jail%w?%\x1B%gYes&No%w",
-            "Du hast also eine %gGerudo-Mitgliedskarte%w, Kleiner. Aber was soll das heißen, Du willst trotzdem %rin's "
-            "Gefängnis geworfen%w werden?%\x1B%gJa&Nein%w",
-            "On dirait que tu as une %gCarte de Membre Gerudo%w, gamin... Attends, quoi? Tu veux quand même être "
-            "%rjeté en prison%w?%\x1B%gOui&Non%w");
+    Player* player = GET_PLAYER(OoT_gPlayState);
+
+    if (OoT_gPlayState->sceneNum == SCENE_GERUDOS_FORTRESS && player->talkActor != NULL &&
+        player->talkActor->id == ACTOR_EN_GE2) {
+        CustomMessage msg =
+            CustomMessage("Want me to throw you in jail?&\x1B#Yes please&No thanks#",
+                          "Soll ich dich ins Gefängnis werfen?&\x1B#Ja, bitte&Nein, danke#",
+                          "Tu veux que je te jette en prison?&\x1B#Oui, s'il te plaît&Non merci#", { QM_GREEN });
         msg.AutoFormat();
         msg.LoadIntoFont();
         *loadFromMessageTable = false;

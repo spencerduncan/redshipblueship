@@ -1,37 +1,35 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
-#include "src/overlays/actors/ovl_En_Go2/z_en_go2.h"
 
 extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
-
+#include "src/overlays/actors/ovl_En_Go2/z_en_go2.h"
+void OoT_Player_UseItem(PlayState*, Player*, s32);
 extern PlayState* OoT_gPlayState;
 }
 
 void RegisterAlwaysOnFixes() {
-    // This prevents a crash when using items that change the camera (such as din's fire), voiding out or dying on
-    // scenes with prerendered backgrounds.
+    // Crash on death/Din's Fire outside Temple of Time (crowd control, Sail, unrestricted items). camId -1 path won't
+    // affect vanilla.
     COND_VB_SHOULD(VB_SHOULD_LOAD_BG_IMAGE, true, {
-        s16* camId = va_arg(args, s16*);
+        int32_t* camId = va_arg(args, int32_t*);
         if (*camId == -1) {
             *should = false;
         }
     });
 
-    // Back Face Culling explicitly sets data on segment 0x0C, we then aren't consistently restoring it when other code
-    // sets values directly on the segment table
+    // Actor_Item_Shield (dropped Deku Shield) assumes segment 12 still holds Link's
+    // gCullBackDList; an intermediate actor using segment 12 (e.g. Jabu tentacles)
+    // overwrites it and crashes. Re-set segment 12 before drawing.
     COND_VB_SHOULD(VB_ITEMSHIELD_DRAW, true, {
-        OPEN_DISPS(OoT_gPlayState->state.gfxCtx);
-
-        gSPSegment(POLY_OPA_DISP++, 0x0C, SEGMENTED_TO_VIRTUAL(OoT_gCullBackDList));
-
-        CLOSE_DISPS(OoT_gPlayState->state.gfxCtx);
+        GraphicsContext* __gfxCtx = OoT_gPlayState->state.gfxCtx;
+        gSPSegment(POLY_OPA_DISP++, 0x0C, (uintptr_t)SEGMENTED_TO_VIRTUAL(OoT_gCullBackDList));
     });
 
-    // Prevents rolling while starting up the hookshot, holding the actor without using it
-    // Softlocks context: https://github.com/HarbourMasters/Shipwright/pull/5578
+    // Hookshot not spawning softlocks player (child use, memory full). Clear item on no
+    // spawn (Player_InitItemAction removes the ranged weapon state elsewhere).
     COND_VB_SHOULD(VB_INIT_HOOKSHOT_IA, true, {
         Player* player = va_arg(args, Player*);
         if (player->heldActor == NULL) {
@@ -39,9 +37,8 @@ void RegisterAlwaysOnFixes() {
         }
     });
 
-    // Prevents the player from sliding everywhere if holding an actor that isn't the hookshot while moving & holding
-    // out the hookshot
-    // Softlocks context: https://github.com/HarbourMasters/Shipwright/pull/5578
+    // Non-hookshot parent causes fly-land-fly loop (e.g. Moblin grab in water, or Like
+    // Like eating player then despawning falling through En_Holl). Validate ACTOR_ARMS_HOOK parent.
     COND_VB_SHOULD(VB_PREVENT_HOOKSHOT_PARENT_SOFTLOCK, true, {
         s16* parentId = va_arg(args, s16*);
         if (*parentId != ACTOR_ARMS_HOOK) {
@@ -49,8 +46,8 @@ void RegisterAlwaysOnFixes() {
         }
     });
 
-    // Prevents softlocking when Goron Link starts rolling just as the player talks to him, keeping him out of range for
-    // conversation
+    // Goron Link asleep softlocks talk state after leaving range before tunic, since
+    // UpdateTalkState cannot run to progress to the question textbox. Force the update.
     COND_VB_SHOULD(VB_PREVENT_GORON_LINK_SOFTLOCK, true, {
         EnGo2* GoronLink = va_arg(args, EnGo2*);
         if (GoronLink->interactInfo.talkState == NPC_TALK_STATE_TALKING) {

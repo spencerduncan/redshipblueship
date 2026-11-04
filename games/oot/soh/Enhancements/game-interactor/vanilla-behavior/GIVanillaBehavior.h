@@ -2607,64 +2607,6 @@ typedef enum {
     // - `uint16_t` (cursorItem - promoted from `u16`)
     VB_EQUIP_ITEM_TO_C_BUTTON,
 
-    // #### `result`
-    // ```c
-    // true
-    // ```
-    // #### `args`
-    // - `*s16` (camId)
-    VB_SHOULD_LOAD_BG_IMAGE,
-
-    // #### `result`
-    // ```c
-    // true
-    // ```
-    // #### `args`
-    // - `None`
-    VB_ITEMSHIELD_DRAW,
-
-    // #### `result`
-    // ```c
-    // true
-    // ```
-    // #### `args`
-    // - `*Player`
-    VB_INIT_HOOKSHOT_IA,
-
-    // #### `result`
-    // ```c
-    // !(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) && Player_HoldsHookshot(this)
-    // ```
-    // #### `args`
-    // - `*s16` (Holding Actor ID)
-    VB_PREVENT_HOOKSHOT_PARENT_SOFTLOCK,
-
-    // #### `result`
-    // ```c
-    // this->isAwake
-    // ```
-    // #### `args`
-    // - `*EnGo2`
-    VB_PREVENT_GORON_LINK_SOFTLOCK,
-
-    // #### `result`
-    // ```c
-    // true
-    // ```
-    // #### `args`
-    // - None
-    VB_PUTAWAY_BECAUSE_DISABLED_ITEM_BUTTONS,
-
-    // #### `result`
-    // ```c
-    // true
-    // ```
-    // #### `args`
-    // - `*int32_t` (usedButton)
-    // - `*Player` (player)
-    // - `*int32_t` (item)
-    VB_OVERRIDE_BUTTON_ITEM_USED,
-
     // [RSBS #1434] Appended last. Asked in `z_bg_toki_swd.c` before the Pedestal
     // of Time offers the pull that sends Link through time, at either age.
     // #### `result`
@@ -2674,6 +2616,72 @@ typedef enum {
     // #### `args`
     // - None
     VB_BE_ABLE_TO_TIME_TRAVEL_AT_PEDESTAL,
+
+    // [RSBS #1336] The seven ids below are appended after #1434's, so no earlier
+    // id moves. Upstream SoH e9268c446 / f2c34d8c1 (z_room.c func_80096A74).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*int32_t (camId)`
+    VB_SHOULD_LOAD_BG_IMAGE,
+
+    // Upstream SoH 4b6678b82 (z_item_shield.c ItemShield_Draw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - none
+    VB_ITEMSHIELD_DRAW,
+
+    // Upstream SoH 53b9db5b9 (z_player.c OoT_Player_InitHookshotIA).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_INIT_HOOKSHOT_IA,
+
+    // Upstream SoH 53b9db5b9 (z_player.c OoT_Player_UpdateUpperBody).
+    // #### `result`
+    // ```c
+    // !(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) && Player_HoldsHookshot(this)
+    // ```
+    // #### `args`
+    // - `s16* (&this->actor.parent->id)`
+    VB_PREVENT_HOOKSHOT_PARENT_SOFTLOCK,
+
+    // Upstream SoH 984ccf80e (z_en_go2.c func_80A45288).
+    // #### `result`
+    // ```c
+    // this->isAwake
+    // ```
+    // #### `args`
+    // - `*EnGo2` (Goron Link)
+    VB_PREVENT_GORON_LINK_SOFTLOCK,
+
+    // Upstream SoH 3c565ed6e (z_player.c OoT_Player_ProcessItemButtons).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - none
+    VB_PUTAWAY_BECAUSE_DISABLED_ITEM_BUTTONS,
+
+    // Upstream SoH 3c565ed6e (z_player.c OoT_Player_ProcessItemButtons).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s32* i` (button index)
+    // - `Player*`
+    // - `s32* item`
+    VB_OVERRIDE_BUTTON_ITEM_USED,
 
 } GIVanillaBehavior;
 

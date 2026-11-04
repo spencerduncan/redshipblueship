@@ -43,8 +43,7 @@ namespace {
     } while (0)
 
 bool HasFileSuffix(const std::string& path, const std::string& suffix) {
-    return path.size() >= suffix.size() &&
-           path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return path.size() >= suffix.size() && path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
 }
 
 bool RunAlwaysOnFixesRegistrar(void) {
@@ -75,8 +74,7 @@ bool HasGoronMessagesRegistrar(void) {
 int RunLegs(PlayState* play) {
     RBCG_ASSERT(RunAlwaysOnFixesRegistrar(),
                 "AlwaysOnFixes.cpp boot registrar is not in ShipInit's '*' map exactly once");
-    RBCG_ASSERT(HasGoronMessagesRegistrar(),
-                "Goron.cpp registrar is not in ShipInit's 'IS_RANDO' map exactly once");
+    RBCG_ASSERT(HasGoronMessagesRegistrar(), "Goron.cpp registrar is not in ShipInit's 'IS_RANDO' map exactly once");
 
     Camera activeCam = {};
     play->activeCamera = MAIN_CAM;
