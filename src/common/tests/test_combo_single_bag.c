@@ -578,18 +578,15 @@ const char* const kCsbShopCVars[][2] = {
 
 /** Leg H (#1187): Mido's hint and the six boss-door hints on, over a paired world in
  *  which the Kokiri Sword and the dungeon boss keys may cross (restored after).
- *  OoT's two goal gates stay at their pre-#1428 values: under the shipped "Start
- *  With" Ganon's Boss Key is placed nowhere, so Ganon's door hint names no check and
- *  no area (RC_UNKNOWN_CHECK, RA_NONE), which P3 refuses. The pin keeps that hint on
- *  a placed key; it does not keep the world main proved, because the shipped OoT
- *  shuffles (#1425) and MM's price pass (#1427) still move it. */
+ *  OoT's two goal gates are the shipped ones (#1428): under "Start With" Ganon's
+ *  Boss Key is placed nowhere, and Ganon's door hint names Link's pocket
+ *  (RC_UNKNOWN_CHECK, RA_LINKS_POCKET; #1435), which P3 accepts for a starting
+ *  item and Rando_TestMidoBossDoorHints reads as "your pocket". */
 const char* const kCsbStaticHintCVars[][2] = {
-    { "gRandoSettings.MidoHint", "1" },            // RSK_MIDO_HINT: Mido names the Kokiri Sword's area
-    { "gRandoSettings.BossKeyHint", "1" },         // RSK_BOSS_KEY_HINT: the six boss doors name their key's area
-    { "gRandoSettings.ShuffleKokiriSword", "1" },  // the sword enters the pool, so the bag may cross it
-    { "gRandoSettings.BossKeysanity", "5" },       // RO_DUNGEON_ITEM_LOC_ANYWHERE: the boss keys enter the bag
-    { "gRandoSettings.ShuffleGanonBossKey", "0" }, // RO_GANON_BOSS_KEY_VANILLA: the key is in the tower chest
-    { "gRandoSettings.RainbowBridge", "0" },       // RO_BRIDGE_VANILLA: with the line above, the pre-#1428 gates
+    { "gRandoSettings.MidoHint", "1" },           // RSK_MIDO_HINT: Mido names the Kokiri Sword's area
+    { "gRandoSettings.BossKeyHint", "1" },        // RSK_BOSS_KEY_HINT: the six boss doors name their key's area
+    { "gRandoSettings.ShuffleKokiriSword", "1" }, // the sword enters the pool, so the bag may cross it
+    { "gRandoSettings.BossKeysanity", "5" },      // RO_DUNGEON_ITEM_LOC_ANYWHERE: the boss keys enter the bag
 };
 
 /** RSBS_CSB_SAMPLE=N: N paired creations under the shipped budget, measured. */
