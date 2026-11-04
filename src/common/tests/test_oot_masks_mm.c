@@ -473,12 +473,24 @@ TestResult Test_OoTMasksMMItems(void) {
                   "the cell's C button did not put the Gerudo Mask on through the foreign field");
         OMM_CHECK(MM_OoTMasksTest_EquipNative(MM_OoTMasksTest_Const(0)) == 1 && MM_ForeignMask_Worn() == 0,
                   "the C button again did not take it off");
-        // Nothing owned in the slot: the C button wears nothing, never the unowned
-        // Stone Mask.
-        MM_OoTMasksTest_ArmLive();
+        // The cell was lent and the Gerudo Mask is no longer usable (its rule off;
+        // the owned bit stays): the cell is empty again and the C button wears
+        // nothing, never the unowned Stone Mask.
+        OmmFreezeWorld(kOmmExtensions & ~kOmmGerudoMM);
+        OMM_CHECK(MM_OoTMask_Owned(gerudo) &&
+                      MM_ForeignMask_SlotSelection(COMBO_FOREIGN_MASK_SLOT_MM_STONE) == COMBO_FOREIGN_MASK_NONE &&
+                      MM_ForeignMask_PageCellItem(stoneCell, MM_OoTMasksTest_CellStored(stoneCell)) == none,
+                  "with the Gerudo Mask's rule off, Stone's cell still shows the slot");
         OMM_CHECK(MM_OoTMasksTest_EquipNative(MM_OoTMasksTest_Const(0)) == 1 && MM_ForeignMask_Worn() == 0 &&
                       MM_OoTMasksTest_PlayerMask() == MM_OoTMasksTest_Const(4),
-                  "a Stone C button with the Stone Mask unowned put a mask on");
+                  "a lent Stone C button with the Stone Mask unowned and the Gerudo Mask unusable put a mask on");
+        // A slot whose cell was never lent (nothing held in it) keeps MM's own equip:
+        // P5 takes over no C button it did not lend (test_foreign_masks.c R6, R6b).
+        OmmFreezeWorld(kOmmExtensions);
+        MM_OoTMasksTest_ArmLive();
+        OMM_CHECK(MM_OoTMasksTest_EquipNative(MM_OoTMasksTest_Const(0)) == 0 &&
+                      MM_OoTMasksTest_EquipNative(MM_OoTMasksTest_Const(1)) == 0,
+                  "a Stone or Gibdo C button whose cell was never lent did not stay MM's own equip");
         MM_OoTMasksTest_SetNativeOwned(COMBO_FOREIGN_MASK_SLOT_MM_STONE, 1);
         OMM_CHECK(MM_OoTMasksTest_EquipNative(MM_OoTMasksTest_Const(0)) == 0,
                   "with the Stone Mask owned and nothing else, its C button no longer wears the Stone Mask");

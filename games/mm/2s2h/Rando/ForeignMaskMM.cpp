@@ -33,9 +33,10 @@
  * chosen puts that mask on or takes it off (VB_USE_ITEM_EQUIP_MASK) instead of
  * the slot's own. Ownership is P5's (#980): until it registers a source,
  * nothing is owned, every slot has one variant, and the page is unchanged.
- * Still P5's: an owned OoT mask whose slot's own mask is not owned has no cell
- * to select (the cell is empty), the C button shows the slot's own icon, and
- * the item description names the slot's own mask.
+ * P5 gives an owned OoT mask whose slot's own mask is not owned that slot's
+ * cell (MM_ForeignMask_PageCellItem), and the slot's own C button wears it.
+ * Still to come: the C button shows the slot's own icon, and the item
+ * description names the slot's own mask.
  *
  * THE DRAW. OnPlayerPostLimbDraw on PLAYER_LIMB_HEAD, where MM draws its own
  * masks. Each OoT list loads the head matrix itself from segment 0x0D + 0x1C0
@@ -60,6 +61,7 @@
 #include "2s2h/ShipInit.hpp"
 #include "Rando/Rando.h"
 #include "Rando/ForeignMaskMM.h"
+#include "Rando/OoTMasksMM.h" // #980: MM_OoTMask_Owned, the owned bit alone
 
 #include <libultraship/bridge/consolevariablebridge.h>
 
@@ -144,6 +146,25 @@ uint8_t SlotForCell(int cell) {
         }
     }
     return COMBO_FOREIGN_MASK_SLOT_NONE;
+}
+
+/**
+ * #980: does MM's live save hold an OoT mask that shares `slot` (its owned bit,
+ * MM_OoTMask_Owned), whatever the frozen rules and the registered source say
+ * now? Only such a slot's cell can ever have been lent to an OoT mask
+ * (MM_ForeignMask_PageCellItem): production's ownership source is that bit, and
+ * nothing clears it. So only such a slot's C button can name the slot's own
+ * mask while MM does not own it.
+ */
+bool SlotHoldsForeignMask(uint8_t slot) {
+    for (uint8_t id = 1; id < COMBO_FOREIGN_MASK_COUNT; id++) {
+        const ComboForeignMaskInfo* info = Combo_ForeignMask_Info(id);
+        if (info != nullptr && info->host == GAME_MM && info->mmSharedSlot == slot &&
+            MM_OoTMask_Owned(MM_OoTMask_ItemId(id))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace
@@ -261,15 +282,21 @@ extern "C" int MM_ForeignMask_SlotVariantCount(uint8_t slot) {
  * VB_USE_ITEM_EQUIP_MASK's question: the player used the C button of native
  * mask `maskId`. When its shared slot has a foreign variant chosen, that mask
  * is used instead and this answers 1 (the vanilla equip must not run); else 0.
+ * #980: also 1, putting nothing on, for the C button of a slot whose cell was
+ * lent to an OoT mask MM holds (SlotHoldsForeignMask) when neither that mask
+ * nor the slot's own mask is usable. Every other C button, another slot's
+ * included, is MM's own equip, as it was before P5.
  */
 extern "C" int MM_ForeignMask_OnEquipNative(Player* player, int maskId) {
     const uint8_t slot = SlotForMask(maskId);
     const uint8_t sel = MM_ForeignMask_SlotSelection(slot);
     if (sel == COMBO_FOREIGN_MASK_NONE) {
-        // #980: a C button that names a shared slot's own mask MM does not own (the
-        // cell an OoT mask showed, MM_ForeignMask_PageCellItem) puts nothing on,
-        // never the unowned mask.
-        return (slot != COMBO_FOREIGN_MASK_SLOT_NONE && !NativeOwned(slot)) ? 1 : 0;
+        // #980: a C button that names a shared slot's own mask MM does not own, in
+        // a slot whose cell an OoT mask MM holds was lent (MM_ForeignMask_PageCellItem),
+        // puts nothing on, never the unowned mask. A slot never lent (no OoT mask
+        // held in it) keeps MM's own equip: P5 does not take over its C button
+        // (test_foreign_masks.c R6).
+        return (slot != COMBO_FOREIGN_MASK_SLOT_NONE && !NativeOwned(slot) && SlotHoldsForeignMask(slot)) ? 1 : 0;
     }
     MM_ForeignMask_Use(player, sel);
     return 1;
