@@ -1605,9 +1605,12 @@ uint32_t Combo_ComboSettingsDivergenceForEx(const ComboSettingsRecord* frozen, c
  * @p frozenRules2 against Combo_ResolveComboItemRules2 (a difference sets
  * RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS, the bitset bit both words share), and the
  * fingerprint cross-check with the word folded
- * (Combo_ComboSettingsHashGeneratorVersionEx2). The Ex form is this with 0, so a
- * caller holding a record from before the carve (or any rules-off world) gets
- * exactly what it got before. The load path and the session diff call this one.
+ * (Combo_ComboSettingsHashGeneratorVersionEx2). A frozen word this build refuses
+ * (Combo_ComboItemRules2Refused) sets that bit too, even when the session's keys
+ * equal it, so the load and the arrival refuse it as another build's whatever
+ * the keys say. The Ex form is this with 0 (never refused), so a caller holding
+ * a record from before the carve (or any rules-off world) gets exactly what it
+ * got before. The load path and the session diff call this one.
  */
 uint32_t Combo_ComboSettingsDivergenceForEx2(const ComboSettingsRecord* frozen, const ComboItemRulesRecord* frozenRules,
                                              uint32_t frozenRules2, uint32_t storedHash,

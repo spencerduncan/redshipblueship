@@ -1234,6 +1234,17 @@ uint32_t Combo_ComboSettingsDivergenceForEx2(const ComboSettingsRecord* frozen, 
         // bit; with no second-word key set and a file from before the carve,
         // both sides are 0 and nothing is added.
         bits |= Combo_ComboItemRules2DivergenceBetween(frozenRules2, Combo_ResolveComboItemRules2());
+        // And a frozen word this build refuses (Combo_ComboItemRules2Refused:
+        // until XW12, any warp-song rule on) diverges even when the session's
+        // keys equal it (set from the console, or by a later build's config):
+        // the keys alone must not let a world load or arrive that this build
+        // has no item, matcher or logic for. The restore probe reports it
+        // unrestorable (ItemRulesKeyedDiff), so a .redsave load refuses it as
+        // another build's, untouched, and an arrival refuses it by name, as a
+        // seed package's validation does. A word of 0 is never refused.
+        if (Combo_ComboItemRules2Refused(frozenRules2, NULL, 0) != 0u) {
+            bits |= RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS;
+        }
     }
 
     // The fingerprint cross-check. Skipped for an UNREADABLE record, where a

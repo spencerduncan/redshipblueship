@@ -19,11 +19,12 @@
  *   asks it; the fingerprint (folded only when set, pinned vectors computed
  *   outside the build, every bit moves it); the freeze, the KEEP invalidation,
  *   the creation rollback and retraction; divergence (a frozen word the session
- *   cannot author is named, refused as another build's while hidden, and
- *   restored through the keys once revealed; a session's stray key is put back
- *   to a file's "off"); and THE ROUND TRIPS: the seed package's world record
- *   (WorldRecordBytes -> ApplyComboWorld) and a real .redsave Save/Load carry
- *   the word, a hidden word is refused at load and not quarantined.
+ *   cannot author is named, refused as another build's while hidden, even under
+ *   session keys equal to it, and restored through the keys once revealed; a
+ *   session's stray key is put back to a file's "off"); and THE ROUND TRIPS:
+ *   the seed package's world record (WorldRecordBytes -> ApplyComboWorld) and a
+ *   real .redsave Save/Load carry the word, a hidden word is refused at load
+ *   (with the session's keys unset or equal to it) and not quarantined.
  *
  *   rules-off-goldens-unchanged (CTest RulesOffGoldensUnchanged, redship tier,
  *   ROM-free, no CVar store needed) -- INERT. With every second-word rule off
@@ -515,6 +516,34 @@ TestResult ComboItemRulesSecondWord_Run(void) {
                       Combo_ComboSettingResolved(COMBO_SETTING_SONG_MINUET_MM) == 0 &&
                       Combo_ComboSettingsDivergence() == 0u,
                   "the stray key was not put back to the file's off (%d, '%s')", back, names);
+
+        // Hidden, the session's keys EQUAL to the file's word (set from the
+        // console, or by a later build's config): the arrival still refuses it
+        // as another build's. The keys alone must not admit a hidden-rule world.
+        Xw2ClearKeys();
+        ComboContext_Init();
+        XW2_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SONG_SOARING_OOT, 1) == 1 &&
+                      Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_SOARING, 1) == 1,
+                  "the writers refused the Soaring keys before the freeze");
+        Xw2FreezeWorld(kXw2SoaringPair);
+        XW2_CHECK(Combo_ResolveComboItemRules2() == kXw2SoaringPair,
+                  "the session resolves %08X, not the file's word: the leg below would not test equal keys",
+                  (unsigned)Combo_ResolveComboItemRules2());
+        const uint32_t keyed = Combo_ComboSettingsDivergence();
+        printf("[TEST] (7) a Soaring world under the same keys, hidden: %08X\n", (unsigned)keyed);
+        XW2_CHECK(keyed == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS &&
+                      Combo_ComboSettingsUnrestorableBitsEx2(&gComboCtx.comboItemRules,
+                                                             Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2),
+                                                             keyed) == RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS,
+                  "HIDDEN UNDER EQUAL KEYS: the arrival diff is %08X; a hidden-rule world must be refused as another "
+                  "build's even when the session's keys match it",
+                  (unsigned)keyed);
+        // Revealed, the same keys and the same world: no divergence at all.
+        Combo_ComboItemRules2RevealForTest(1);
+        XW2_CHECK(Combo_ComboSettingsDivergence() == 0u,
+                  "revealed, a Soaring world under its own keys diverges by %08X",
+                  (unsigned)Combo_ComboSettingsDivergence());
+        Combo_ComboItemRules2RevealForTest(0);
         Xw2ClearKeys();
         ComboContext_Init();
     }
@@ -569,6 +598,25 @@ TestResult ComboItemRulesSecondWord_Run(void) {
         XW2_CHECK(!hiddenLoaded, "a file with a hidden warp-song rule on LOADED: this build cannot play it");
         XW2_CHECK(RsbsSave_HasQuarantine(0) == 0 && RsbsSave_HasSave(0) == 1,
                   "a rule this build does not offer is not damage: the .redsave must stay where it is");
+
+        // Hidden, the session's keys the file's (the console, or a later build's
+        // config): still refused as another build's, not quarantined, and the
+        // word never becomes resident.
+        XW2_CHECK(Combo_ComboSettingSet(COMBO_SETTING_SONG_SOARING_OOT, 1) == 1 &&
+                      Combo_ComboSettingSet(COMBO_SETTING_SHARED_SONG_SOARING, 1) == 1,
+                  "the writers refused the keys before the hidden keyed load");
+        RsbsSave_ResetSlotSessionState();
+        ComboContext_Init();
+        const bool hiddenKeyedLoaded = mgr.Load(0);
+        printf("[TEST] (9) hidden, keys equal to the file's: loaded %d, quarantine %d, file present %d, resident word "
+               "%08X (expected 0, 0, 1, 00000000)\n",
+               hiddenKeyedLoaded ? 1 : 0, RsbsSave_HasQuarantine(0), RsbsSave_HasSave(0),
+               (unsigned)Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2));
+        XW2_CHECK(!hiddenKeyedLoaded && Combo_ComboItemRules2Word(&gComboCtx.comboItemRules2) == 0u,
+                  "a file with a hidden warp-song rule on LOADED under keys equal to it: the keys alone must not "
+                  "admit a world this build cannot play");
+        XW2_CHECK(RsbsSave_HasQuarantine(0) == 0 && RsbsSave_HasSave(0) == 1,
+                  "a hidden rule under equal keys is not damage: the .redsave must stay where it is");
 
         // Revealed, the session's keys the file's: the word round-trips exactly.
         Combo_ComboItemRules2RevealForTest(1);

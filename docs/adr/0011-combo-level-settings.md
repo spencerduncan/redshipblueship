@@ -2209,8 +2209,14 @@ extensions, and one `sharedSong*` per song, each requiring its extension
   `Combo_ComboItemRules2Refused`, which names the rules: Generate refuses before
   anything is frozen (`playthrough.cpp`), a seed package's validation refuses as
   "from a newer build" (`RSBS_SEEDPKG_ERR_FORMAT`), and a `.redsave` load or an
-  arrival refuses the file as another build's, not quarantined. Only a session's
-  stray key against a file's "off" is restorable while hidden. XW12 empties
+  arrival refuses the file as another build's, not quarantined. That holds even
+  when the session's keys equal the file's word (set from the console, or by a
+  later build's config): `Combo_ComboSettingsDivergenceForEx2` reports a refused
+  word under `RSBS_COMBO_DIVERGE_CROSS_ITEM_FLAGS` whatever the keys say, and the
+  restore probe calls it unrestorable. Only a session's stray key against a
+  file's "off" is restorable while hidden. The predicate judges the resolved
+  word, not the keys: a shared-song key set without its extension resolves to 0
+  (OoTMM's `cond`), so it sets no bit and Generate proceeds. XW12 empties
   `RSBS_XITEM2_HIDDEN` once the matchers (XW6, XW7) and the logic edges (XW9)
   exist.
 
