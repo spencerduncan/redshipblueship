@@ -53,6 +53,13 @@ int32_t Entrance_OverrideSpawnSceneRoom(int32_t sceneNum, int32_t spawn, int32_t
 void Entrance_EnableFW(void);
 uint8_t Entrance_GetIsEntranceDiscovered(uint16_t entranceIndex);
 void Entrance_SetEntranceDiscovered(uint16_t entranceIndex, uint8_t isReversedEntrance);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// A cross-game warp's arrival in OoT (#1169 XW3): the override tail of
+// Entrance_OverrideNextIndex without its crossing check, then the forced grotto
+// return. See randomizer_entrance.c.
+int16_t Entrance_OverrideWarpArrival(int16_t entranceIndex);
+uint8_t Entrance_WarpArrivalOverridesReady(void);
+#endif
 #ifdef __cplusplus
 }
 #endif

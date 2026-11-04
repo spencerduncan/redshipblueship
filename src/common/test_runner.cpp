@@ -580,6 +580,11 @@ int OoT_BombchuDropRuleTest_Run(void);
 // Master Sword ungiven. Body in games/oot/soh/oot_master_sword_respawn_test.cpp.
 // Return 0 on pass.
 int OoT_MasterSwordRespawnTest_Run(void);
+// #1169 XW3: a cross-game warp's arrival in OoT takes the seed's entrance override
+// (and a grotto return's respawn), a door arrival does not, and before Entrance_Init
+// the vanilla pad stands. Body in games/oot/soh/oot_warp_arrival_test.cpp. Return 0
+// on pass.
+int OoT_WarpArrivalTest_Run(void);
 // #1289: a shuffled fairy is an item pickup, not a heal; #6405: only an EnElf takes
 // the shuffled fairy's bottle path; #1296: ShuffleFairies_FairyExists checks the
 // actor, not the address of its own local pointer. Bodies in
@@ -672,6 +677,13 @@ extern "C" {
 // the same way, and GameRunner_ReenterActive is suspend-then-resume. FILE SCOPE
 // (compiled as C++) for entrance.h's C++-linkage ComboEntrance_Init.
 #include "tests/test_crossing_refusal.c"
+
+// THE ONE-SHOT CROSS-GAME WARP TARGET (#1169 XW1): armed, consumed by its
+// (game, marker) and spent by any other entrance check, refused while a switch
+// is pending, carried through the real Combo_CheckEntranceSwitch, the #954
+// refusal and the crossing commit, with its kind on the startup entrance. FILE
+// SCOPE (compiled as C++) for entrance.h's C++-linkage API and rsbs::SaveManager.
+#include "tests/test_entrance_warp_target.c"
 
 // The frozen COMBO-LEVEL rule record (ADR 0011 increment 1, #498): the 16-byte
 // carve at 880/884 as .redsave format, the byte-pinned canonical() encoder and
@@ -3219,6 +3231,27 @@ TestResult Test_MasterSwordRespawn(void) {
 
     int rc = OoT_MasterSwordRespawnTest_Run();
     printf("[TEST] %s: master sword respawn rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
+    return rc == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1169 XW3: a cross-game warp's arrival in OoT runs the override tail of
+// Entrance_OverrideNextIndex (no crossing check) and the forced grotto return,
+// only for a warp kind and only once Entrance_Init has filled the override table.
+// Same bring-up as the row above (OTRGlobals' randomizer context). Assertions in
+// games/oot/soh/oot_warp_arrival_test.cpp.
+TestResult Test_RandoWarpArrival(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char arg0[] = "redship";
+    static char* fakeArgv[] = { arg0, nullptr };
+    InitOTRForMMFirstBoot(1, fakeArgv);
+
+    int rc = OoT_WarpArrivalTest_Run();
+    printf("[TEST] %s: warp arrival rc=%d\n", rc == 0 ? "PASS" : "FAIL", rc);
     return rc == 0 ? TEST_PASS : TEST_FAIL;
 }
 
@@ -9685,6 +9718,11 @@ const TestDescriptor gTests[] = {
       "or Ganon's arena no longer gives the unfound Master Sword; the respawn still leaves the collapse (#1218). "
       "Shuffle Master Sword, Shuffle Ocarinas and Shuffle Gerudo Membership Card ship on, OoTMM's defaults (#1425)",
       Test_MasterSwordRespawn },
+    { "rando-warp-arrival",
+      "A cross-game warp's arrival in OoT lands on the seed's override for its pad (a grotto-return override sets the "
+      "respawn after the arrival's neutralisation), keeps the vanilla pad before Entrance_Init, and a door arrival "
+      "with overworld ER runs no override (#1169 XW3)",
+      Test_RandoWarpArrival },
     { "shuffled-fairy-no-heal",
       "A randomized fairy (gossip stone, fountain, fairy spot, bean) gives its item on touch and no heal, and a "
       "randomized big fairy no magic refill; a fairy with no check still heals and the big one refills magic (#1289)",
@@ -9749,6 +9787,12 @@ const TestDescriptor gTests[] = {
       "back the entrance outside the door; a refusal after the loop returned re-enters the game by suspend then "
       "resume (#954)",
       Test_CrossingRefusal },
+    { "entrance-warp-target",
+      "The one-shot cross-game warp target: a (game, marker) match fills the pending switch with the warp's kind and "
+      "the hot-swap return entrance, any other entrance check spends it, arming is refused while a switch is pending, "
+      "the real Combo_CheckEntranceSwitch freezes, refuses (#954) and commits as for the door, and the kind rides the "
+      "startup entrance (#1169 XW1)",
+      Test_EntranceWarpTarget },
     { "oot-check-state-load",
       "After a load, OoT's check statuses follow the save half that was loaded: a heart piece the newer .redsave "
       "half holds reads found, a chest that half has closed gives its item again, and a check whose flag both "
@@ -10057,6 +10101,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "scrub-text-hint-setting") == 0 ||
                 strcmp(gTests[i].name, "map-compass-text") == 0 || strcmp(gTests[i].name, "bombchu-drop-rule") == 0 ||
                 strcmp(gTests[i].name, "master-sword-respawn") == 0 ||
+                strcmp(gTests[i].name, "rando-warp-arrival") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-no-heal") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-bottle-guard") == 0 ||
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
