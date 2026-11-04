@@ -866,11 +866,13 @@ void Entrance_SetEntranceDiscovered(u16 entranceIndex, u8 isReversedEntrance) {
 //
 // Gated as SoH gates its own load-time override (hook_handlers.cpp OnLoadGame:
 // IS_RANDO, then RSK_SHUFFLE_ENTRANCES before Entrance_SetSavewarpEntrance), and
-// on the override table being filled: only Entrance_Init fills it, at a file
-// load, and before that every slot holds 0, so an arrival before it (an MM-first
-// boot, a .redsave loaded on Termina's side) keeps the vanilla pad instead of
-// landing on entrance 0. Entrance_ResetEntranceTable empties it again at
-// OnExitGame.
+// on the override table being filled for this file: only Entrance_Init fills it,
+// at a file load, and sets hasModifiedEntranceTable. Before that the table holds
+// 0 in every slot (a fresh process) or the previous file's overrides
+// (Entrance_ResetEntranceTable at OnExitGame restores the entrance table and
+// clears the flag, but leaves the override table as it was), so an arrival
+// before it (an MM-first boot, a .redsave loaded on Termina's side) keeps the
+// vanilla pad instead of landing on entrance 0 or a stale override.
 //
 // The caller (OoT_Play_ApplyWarpArrival, games/oot/src/code/z_play.c) runs it
 // only for a warp arrival, after the arrival's respawn neutralisation, so the

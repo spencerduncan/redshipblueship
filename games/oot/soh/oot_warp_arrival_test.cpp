@@ -24,14 +24,25 @@
  * installed by the real Entrance_Init.
  *
  *   W1 BEFORE Entrance_Init (the table not filled for this file): a warp
- *      arrival on Minuet's pad keeps the pad, never entrance 0. The ungated
- *      override at that point is printed: 0 in a fresh process, the RED half.
+ *      arrival on Minuet's pad keeps the pad, never entrance 0 and never a stale
+ *      override. The row first installs the seed and resets it as OnExitGame
+ *      does: Entrance_ResetEntranceTable clears the readiness flag but leaves
+ *      the override table as it was, so the table holds Kakariko for Minuet's
+ *      pad (checked, the control) in any process state, and only the readiness
+ *      gate keeps the pad.
  *   W2 A SHUFFLED-WARP ARRIVAL lands on the override: Minuet's pad leads to
  *      Kakariko's front gate, and no respawn is set.
  *   W3 A GROTTO-RETURN TARGET: Serenade's pad leads to the Hyrule Field tektite
  *      grotto's exit, so the arrival lands on that grotto's return entrance with
  *      respawnFlag 2 and the grotto's return point (params 0x04FF, its position),
  *      set after the neutralisation left respawnFlag 0.
+ *   W3b THE FORCED GROTTO RETURN, with Decoupled and Mixed Grotto Entrances off:
+ *      Grotto_OverrideSpecialEntrance's load-from-save branch already sets W3's
+ *      respawnFlag, params and position, but with both settings off its
+ *      Grotto_SetupReturnInfo copies the return point's temp flags through. The
+ *      row leaves stale temp flags there before the arrival; only
+ *      Grotto_ForceGrottoReturnOnSpecialEntrance clears them. The down respawn
+ *      keeps the copied values (the control: the copy-through branch ran).
  *   W4 A DOOR ARRIVAL WITH OVERWORLD ER (the door kind, as a door, an F10 return
  *      and a refused re-entry carry) keeps its entrance although that entrance
  *      has an override row; the same entrance under a warp kind does take the
@@ -45,8 +56,10 @@
  *
  * RED ON MAIN: neither OoT_Play_ApplyWarpArrival nor Entrance_OverrideWarpArrival
  * exists there, so the row does not link; without the readiness gate W1 lands on
- * the zeroed (or stale) table entry; without the kind gate W4's door arrival is
- * overridden; called before the neutralisation W3's respawnFlag would be zeroed.
+ * the stale Kakariko override; without Grotto_ForceGrottoReturnOnSpecialEntrance
+ * W3b's return point keeps the stale temp flags; without the kind gate W4's door
+ * arrival is overridden; called before the neutralisation W3's respawnFlag would
+ * be zeroed (that order is z_play.c's, not this row's).
  */
 
 #include <cstring>
@@ -116,6 +129,9 @@ constexpr s16 kDoorOverride = ENTR_LON_LON_RANCH_ENTRANCE;
 constexpr s16 kTektiteReturnEntrance = ENTR_HYRULE_FIELD_CENTER_EXIT;
 constexpr float kTektiteReturnX = -4949.58f;
 constexpr float kTektiteReturnZ = 2837.59f;
+// W3b: temp flags a previous scene left on the return point.
+constexpr u32 kStaleTempSwchFlags = 0x00A50000;
+constexpr u32 kStaleTempCollectFlags = 0x0000005A;
 
 static_assert(OOT_ENTR_MARKET_FROM_MASK_SHOP == kDoorArrival, "the door's OoT arrival entrance");
 
@@ -150,12 +166,16 @@ void RunLegs(Rando::Context& ctx) {
     ctx.GetOption(RSK_SHUFFLE_WARP_SONGS).Set(RO_GENERIC_ON);
     ctx.GetOption(RSK_SHUFFLE_OVERWORLD_ENTRANCES).Set(RO_GENERIC_ON);
     ctx.GetOption(RSK_DECOUPLED_ENTRANCES).Set(RO_GENERIC_ON);
+    ctx.GetOption(RSK_MIX_GROTTO_ENTRANCES).Set(RO_GENERIC_OFF);
     WriteSeedOverrides(Randomizer_GetEntranceOverrides());
 
-    // W1. Before Entrance_Init: the vanilla pad, never entrance 0.
-    if (Entrance_WarpArrivalOverridesReady()) {
-        Entrance_ResetEntranceTable();
-    }
+    // W1. Before Entrance_Init: the vanilla pad, never entrance 0 or a stale
+    // override. Installing the seed and resetting it as OnExitGame does leaves
+    // the override table stale (Reset restores the entrance table and clears the
+    // readiness flag, nothing else), so the readiness gate is all that keeps the
+    // pad, whatever ran earlier in this process.
+    Entrance_Init();
+    Entrance_ResetEntranceTable();
     const s16 ungated = Entrance_GetOverride(ENTR_SACRED_FOREST_MEADOW_WARP_PAD);
     const s16 early = Arrive(true, ENTR_SACRED_FOREST_MEADOW_WARP_PAD, COMBO_SWITCH_KIND_WARP_SONG);
     std::printf("[TEST] rando-warp-arrival W1: before Entrance_Init (ready %d) Minuet's pad 0x%04X lands on 0x%04X; "
@@ -163,8 +183,10 @@ void RunLegs(Rando::Context& ctx) {
                 (int)Entrance_WarpArrivalOverridesReady(), (unsigned)ENTR_SACRED_FOREST_MEADOW_WARP_PAD,
                 (unsigned)(u16)early, (unsigned)(u16)ungated);
     WA_CHECK(!Entrance_WarpArrivalOverridesReady(), "the override table must read not ready before Entrance_Init\n");
+    WA_CHECK(ungated == kMinuetOverride,
+             "control: Entrance_ResetEntranceTable must leave the previous file's override in the table\n");
     WA_CHECK(early == ENTR_SACRED_FOREST_MEADOW_WARP_PAD && early != 0,
-             "an arrival before Entrance_Init must keep the vanilla pad, never entrance 0\n");
+             "an arrival before Entrance_Init must keep the vanilla pad, never entrance 0 or a stale override\n");
 
     Entrance_Init();
     WA_CHECK(Entrance_WarpArrivalOverridesReady(), "Entrance_Init must mark the override table ready\n");
@@ -191,6 +213,29 @@ void RunLegs(Rando::Context& ctx) {
                  std::fabs(ret.pos.x - kTektiteReturnX) < 0.01f && std::fabs(ret.pos.z - kTektiteReturnZ) < 0.01f,
              "the return respawn must be the tektite grotto's return point\n");
     WA_CHECK(ret.tempSwchFlags == 0 && ret.tempCollectFlags == 0, "the forced grotto return must clear temp flags\n");
+
+    // W3b. With Decoupled and Mixed Grotto Entrances off, Grotto_SetupReturnInfo
+    // copies the return point's temp flags through, so only the forced grotto
+    // return clears them; the down respawn keeps the copy (the control).
+    ctx.GetOption(RSK_DECOUPLED_ENTRANCES).Set(RO_GENERIC_OFF);
+    ArmArrival(true, ENTR_LAKE_HYLIA_WARP_PAD);
+    gSaveContext.respawn[RESPAWN_MODE_RETURN].tempSwchFlags = kStaleTempSwchFlags;
+    gSaveContext.respawn[RESPAWN_MODE_RETURN].tempCollectFlags = kStaleTempCollectFlags;
+    OoT_Play_ApplyWarpArrival(COMBO_SWITCH_KIND_WARP_SONG);
+    const s16 coupled = (s16)gSaveContext.entranceIndex;
+    const RespawnData& down = gSaveContext.respawn[RESPAWN_MODE_DOWN];
+    std::printf("[TEST] rando-warp-arrival W3b: coupled Serenade's pad lands on 0x%04X, respawnFlag %d, return temp "
+                "flags 0x%08X/0x%08X, down temp flags 0x%08X/0x%08X\n",
+                (unsigned)(u16)coupled, (int)gSaveContext.respawnFlag, (unsigned)ret.tempSwchFlags,
+                (unsigned)ret.tempCollectFlags, (unsigned)down.tempSwchFlags, (unsigned)down.tempCollectFlags);
+    WA_CHECK(coupled == kTektiteReturnEntrance && gSaveContext.respawnFlag == 2,
+             "a coupled grotto-return target must still land on the grotto's return with respawnFlag 2\n");
+    WA_CHECK(down.tempSwchFlags == kStaleTempSwchFlags && down.tempCollectFlags == kStaleTempCollectFlags,
+             "control: with Decoupled and Mixed Grotto Entrances off the return point's temp flags are copied "
+             "through\n");
+    WA_CHECK(ret.tempSwchFlags == 0 && ret.tempCollectFlags == 0,
+             "the forced grotto return must clear the return point's stale temp flags\n");
+    ctx.GetOption(RSK_DECOUPLED_ENTRANCES).Set(RO_GENERIC_ON);
 
     // W4. A door arrival with overworld ER keeps its entrance; a warp kind on the
     // same entrance takes the row (the control).
@@ -230,7 +275,8 @@ extern "C" int OoT_WarpArrivalTest_Run(void) {
     }
     const std::shared_ptr<Rando::Context> ctx = OTRGlobals::Instance->gRandoContext;
     const RandomizerSettingKey kKeys[] = { RSK_SHUFFLE_ENTRANCES, RSK_SHUFFLE_WARP_SONGS,
-                                           RSK_SHUFFLE_OVERWORLD_ENTRANCES, RSK_DECOUPLED_ENTRANCES };
+                                           RSK_SHUFFLE_OVERWORLD_ENTRANCES, RSK_DECOUPLED_ENTRANCES,
+                                           RSK_MIX_GROTTO_ENTRANCES };
     uint8_t priorOptions[sizeof(kKeys) / sizeof(kKeys[0])];
     for (size_t i = 0; i < sizeof(kKeys) / sizeof(kKeys[0]); i++) {
         priorOptions[i] = ctx->GetOption(kKeys[i]).Get();
