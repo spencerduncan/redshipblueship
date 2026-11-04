@@ -877,7 +877,8 @@ void CreateAdultAltarHint() {
 /**
  * #1435: whether Link starts with `item`, so it is in no pool and at no location and
  * FindItemsAndMarkHinted answers RC_UNKNOWN_CHECK for it: a boss key under "Start
- * With" (Ganon's Boss Key's shipped default since #1428), a starting Kokiri Sword.
+ * With" (OoTMM's default for Ganon's Boss Key, which #1428 adopts), a starting
+ * Kokiri Sword.
  */
 static bool StaticHintTargetIsStartingItem(RandomizerGet item) {
     return std::find(StartingInventory.begin(), StartingInventory.end(), item) != StartingInventory.end();
@@ -888,10 +889,12 @@ static bool StaticHintTargetIsStartingItem(RandomizerGet item) {
  * Ganon's Boss Key ("Win": at the end of the hunt, while the starting inventory
  * credits it to logic only; "Ganon's Boss Key": at RC_TRIFORCE_COMPLETED, in Link's
  * pocket by area), so either answer would read "your pocket" for a door that stays
- * locked until the hunt is won. OoTMM does the same: under its Triforce goals
+ * locked until the hunt is won. OoTMM names no key either: under its Triforce goals
  * Ganon's Boss Key Shuffle is hidden (data.ts `cond`), the tower door opens on the
- * hunt's win (doors.c), and its Ganon's Boss Key hint exists only under "Anywhere"
- * (world-config.ts OOT_GANON_BOSS_KEY_HINT), so the door keeps the game's own text.
+ * hunt's win (doors.c), and its one Ganon's Boss Key hint, a line of the adult
+ * Temple of Time altar text (En_Wonder_Talk.c), exists only under "Anywhere"
+ * (world-config.ts OOT_GANON_BOSS_KEY_HINT). OoTMM has no boss-door hints; here the
+ * door keeps the game's own text.
  */
 static bool StaticHintReplacedByTriforceHunt(RandomizerHint hint) {
     return hint == RH_GANONS_BOSS_KEY_HINT &&

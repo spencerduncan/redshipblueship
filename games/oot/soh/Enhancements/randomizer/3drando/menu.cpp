@@ -999,7 +999,8 @@ static int ValidateGeneratedHints(bool pairedWorld, StoneCheckResult* stonesOut 
         const std::string hintName =
             Rando::StaticData::hintNames[hintKey].GetForCurrentLanguage(MF_CLEAN);
         // #1435: under a Triforce Hunt the hunt opens Ganon's door, and no hint names
-        // a key for it (hints.cpp, StaticHintReplacedByTriforceHunt; OoTMM's door).
+        // a key for it (hints.cpp, StaticHintReplacedByTriforceHunt; OoTMM's altar
+        // names no Ganon's Boss Key under its Triforce goals).
         if (hintKey == RH_GANONS_BOSS_KEY_HINT && TriforceHuntOn(ctx)) {
             fprintf(stderr, "[rando-hints] FAIL %s: generated under a Triforce Hunt, which opens the door (#1435)\n",
                     hintName.c_str());
@@ -1382,7 +1383,7 @@ static int CheckPocketSlotWords(const std::string& label, RandomizerHint key, Ra
  * of that item's first MM host. P6 checks the slot's stored area; this checks the
  * words. #1435: Ganon's door is the exception under a Triforce Hunt, where it must
  * NOT be generated; and a slot for an item Link starts with (Ganon's Boss Key under
- * "Start With", the shipped default since #1428) reads "your pocket"
+ * "Start With", OoTMM's default, which #1428 adopts) reads "your pocket"
  * (CheckPocketSlotWords).
  * @param outTermina  the Termina slots among the seven (0 leaves the words unproven).
  * @return the failures.
@@ -1471,14 +1472,15 @@ static bool HintChecksHold(const char* leg) {
 
 /**
  * #1435, Ganon's door, over two native generations of `seedStr` with Boss Door Hints
- * on and Ganon's Boss Key "Start With" (the shipped default since #1428):
+ * on and Ganon's Boss Key "Start With" (OoTMM's default, which #1428 adopts):
  *   P. Triforce Hunt off: the key is in the starting inventory and at no location,
  *      and Ganon's door hint names Link's pocket: its one slot is RC_UNKNOWN_CHECK /
  *      RA_LINKS_POCKET and it reads "your pocket", live and read back from its
  *      document (CheckPocketSlotWords). Before #1435: RA_NONE, "an Isolated Place".
  *   H. Triforce Hunt "Ganon's Boss Key": the hunt opens the door (the key is at
  *      RC_TRIFORCE_COMPLETED, granted when the hunt is won), so no hint is built
- *      for it, as OoTMM's door names none; the five dungeon doors' hints still are.
+ *      for it (OoTMM has no door hints, and its altar names no Ganon's Boss Key
+ *      under its Triforce goals); the five dungeon doors' hints still are.
  *      Before #1435: "your pocket", RC_TRIFORCE_COMPLETED's area, for a door that
  *      stays locked until the hunt is won.
  * The #441 checks hold over both worlds.
