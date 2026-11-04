@@ -1253,6 +1253,14 @@ narrowing itself is now delivered, on branch
     RANDOM, the #1367 pattern, so such a file still loads and arrives, and a pair
     with no half generates in RANDOM. Locks: `mm-paired-profile` Fail(96) to
     Fail(104) and `mm-clock-shuffle-first-arrival` legs 9 to 13.
+  - *Amended by #1439 (MM's hints on by default).* Every world created before
+    #1437 was also created before #1439, so its stamp folds MM's hint rows Off
+    where today's unset keys resolve on. The compares therefore try older builds
+    as eras, newest first (`ProfileEra` in `Rando/Foreign.cpp`): before #1439,
+    each unset hint key Off; before #1437, the hint rows Off and, with clock
+    shuffle on, the unset mode RANDOM. An era that changes nothing beyond the
+    next newer one is skipped. Locks: `mm-paired-profile` Fail(102) (its world
+    folds the hint rows Off) and Fail(105) to Fail(107).
 - **The armed draw is pinned exactly**, not only bounded:
   `GoldenSeedDigestArmedCaps` (`tests/golden/seed-digest-armed-caps.txt`)
   generates the golden seed with all four families armed through MM's own

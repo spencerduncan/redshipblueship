@@ -337,7 +337,10 @@ to Nearly No Logic (#426), becomes a default that an explicit choice overrides.
 > id is read by `Logic/GeneratePools.cpp`, `OptionsUiSingleExe.cpp`'s note on the family), but they
 > are profile terms: a new default re-seeds the MM half of a default paired world, and a file
 > created before the flip is restored to its own values on load (`MM_Rando_RestoreProfileForLoad`).
-> Every `RO_SHUFFLE_*` row keeps its `RO_GENERIC_OFF` default.
+> A file whose MM half cannot say them (written before #1101, or none before K11) still matches
+> with the keys as they were: the compare also tries the stamp with each unset hint key Off
+> (`ProfileEra::PreHintsOn` in `Rando/Foreign.cpp`, #1437's pattern; `mm-paired-profile`
+> Fail(105) to Fail(107)). Every `RO_SHUFFLE_*` row keeps its `RO_GENERIC_OFF` default.
 
 #### 4.2 Shared-intent entries must be visibly marked (required, not cosmetic)
 

@@ -91,7 +91,8 @@
   hints). The hint rows are part of Majora's Mask's settings, so the same seed makes a different world, and a file
   made before this keeps its own rows (loading it restores them). Loading such a file writes its hint rows (off) back
   to your settings, so your next new file has them off too: turn them on again under Hints in Randomizer > MM Randomizer
-  first.
+  first. A file from v0.2.0-prealpha or earlier cannot be restored that way; it loads as before and keeps its hints
+  off, but the rows show the new defaults.
 
 ### Ocarina of Time hints: Ganon's door and the Triforce Hunt (#1446, issue #1435)
 
