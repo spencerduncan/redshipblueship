@@ -3203,6 +3203,7 @@ typedef enum {
     RE_BOMBERS_EAST_DAY3,
     RE_BOMBER_CODE,
     RE_DESTROY_MILK_ROAD_BOULDER,
+    RE_MAIL_LETTER_TO_KAFEI,
 
     RE_MAX,
 } RandoEvent;
