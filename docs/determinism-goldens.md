@@ -32,7 +32,7 @@ tests/golden/seed-digest-entrances.txt    # --test rando-determinism, RSBS_DIAG_
 tests/golden/seed-digest-excludes-tricks.txt     # --test rando-determinism, OoT and MM excludes and tricks (#982)
 tests/golden/seed-digest-shopsanity.txt          # --test rando-determinism, OoT Shop Shuffle with Balanced (drawn) prices (#982)
 tests/golden/seed-digest-direction-forward.txt   # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Direction=2 (#982)
-tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast and Stone Masks in OoT and their shared variants (#979)
+tests/golden/seed-digest-all-masks.txt           # --test rando-determinism, every mask option on: the five shared masks (#978), the Blast and Stone Masks in OoT and their shared variants (#979), the Gerudo, Skull and Spooky Masks in MM and their shared variants (#980)
 tests/golden/seed-digest-beatable-only.txt       # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=2 (#1367 R5)
 tests/golden/seed-digest-no-logic.txt            # --test rando-determinism, RSBS_DIAG_CVARS=gCombo.Rando.Logic=1 (#1367 R5)
 ```
@@ -248,16 +248,6 @@ mask option on**. Today that means fifteen keys:
   with OoT's own copy). The profile freezes `crossItemFlags` `0001DF7F`, which
   `GoldenSeedsRoundBudget`'s all-masks entry requires.
 
-#980 re-pins this golden only: with the three MM rules and their shared pairs on,
-MM's pool gains three masks and the bag three more shared pairs (ten in all), and
-MM's logic credits the masks, so `comboSettingsHash`, MM's placements, the bag's
-rows, seed and rounds, the crossings and the hint digests move. The bag also
-places onto OoT's hosts, so OoT's final placement fields (`ootFinalPlacementHash`,
-`ootFinalPlacedCount`) and its hint and price digests may move too: re-pin the
-whole file, not a field list, and re-check `GoldenSeedsRoundBudget`'s all-masks
-entry (its expected attempts) against the new pin. Every other golden leaves the
-rules off, builds the pools it always did and does not move.
-
 In this world the composer pairs each mask's two copies into one bag row (ABI 7).
 The Blast Mask Cooldown (`gCombo.Rando.BlastMaskCooldown`, OoTMM's
 `blastMaskCooldown`) is a value, not an on/off option, so the profile leaves it
@@ -323,21 +313,60 @@ version"), which also moved every other golden. Measured there: `bagTrimmedMM`
 `crossItemFlags` is `0000187F`. It still creates on ladder attempt 1 in one batch
 attempt of 267 rounds.
 
+#980 (P5) appends its six keys. The three MM rules add Ocarina of Time's Gerudo,
+Skull and Spooky Masks to Majora's Mask's pool, and MM's logic credits them; the
+three shared rules make them the eighth, ninth and tenth shared pairs (OoT's row
+kept, MM's trimmed to filler). Only this golden moves: every other one leaves the
+rules off, and the re-pin regenerated each of them unchanged. The re-pin was cut
+on PR #1450's head after main's #1432 (trap parity) and #1449 (the second rules
+word) had merged into it. Measured against the Stone Mask pin:
+
+* INPUT: `comboSettingsHash` (`F7C49D31` to `0A12790D`), which folds the six rule
+  bits. `seed`, `settingsHash`, `comboSettings` and `mmFinalSeed` (`03D4D40F`)
+  stay.
+* OoT's general pass does not move: `placementHash` (`F14595AC`), `placedCount`
+  (272) and `ootStartingItems` stay, because the three masks join MM's pool, not
+  OoT's.
+* The bag: `bagTrimmedMM` 36 to 39 (ten shared pairs), while `bagRows` and
+  `bagRequiredPlaced` stay 265 and `bagTrimmedOoT` stays 22. `bagLeftoverOoT` goes
+  from 86 to 90 and `bagLeftoverMM` from 110 to 106.
+* After that: `mmPlacementHash` (`ABFF43E8` to `3A33A2BA`), `bagSeed` (`7F894868`
+  to `AA0C820D`), `coordinatorDigest` (`BB129AFD` to `252B1544`),
+  `ootFinalPlacementHash` (`886AB207` to `FE858EE0`), `crossingDigest` (`FF41CD99`
+  to `033E1662`) and every per-slot line (`crossingsInOoT` 42 to 43,
+  `crossingsInMM` 24 to 30), `ootHintDigest` (`ootHintCount` stays 45),
+  `mmHintCount` (208 to 213), `mmHintDigest`, `mmFoolishAreas` (`23,24,41,46` to
+  `10,24,36,41,45`) and `mmFreeStoneDigest` (`mmFreeStoneCount` stays 58).
+  `ootFinalPlacedCount` (490), both games' price lines, `mmStartingItems` and
+  `mmStartInventory` stay.
+* Rounds: it still creates on ladder attempt 1 in one batch attempt of 267
+  rounds, so its `kGoldens` entry keeps `expectedAttempts` 1. `crossItemFlags` is
+  `0001DF7F`.
+
+Rule 6 does not bump `RSBS_GENERATOR_VERSION` for it, for #979's reasons: the
+world moved because this profile's inputs changed, the six bits are folded into
+`comboSettingsHash`, and no release has carried generator 4 (the latest is
+`v0.4.4-alpha`, generator 3).
+
 **A profile key that does not take is refused.** `GoldenSeedsRoundBudget` lists
-this golden with its nine keys and requires the frozen `crossItemFlags` to be
-exactly the nine mask bits, `0000187F` (the five shared masks `0000001F`,
+this golden with its fifteen keys and requires the frozen `crossItemFlags` to be
+exactly the fifteen mask bits, `0001DF7F` (the five shared masks `0000001F`,
 `RSBS_XITEM_BLAST_MASK_OOT` `00000020`, `RSBS_XITEM_STONE_MASK_OOT` `00000040`,
-`RSBS_XITEM_SHARED_BLAST` `00000800` and `RSBS_XITEM_SHARED_STONE`
-`00001000`). It requires `0` for every other golden. A misspelled key resolves
+`RSBS_XITEM_GERUDO_MASK_MM` `00000100`, `RSBS_XITEM_SKULL_MASK_MM` `00000200`,
+`RSBS_XITEM_SPOOKY_MASK_MM` `00000400`, `RSBS_XITEM_SHARED_BLAST` `00000800`,
+`RSBS_XITEM_SHARED_STONE` `00001000`, `RSBS_XITEM_SHARED_GERUDO` `00004000`,
+`RSBS_XITEM_SHARED_SKULL` `00008000` and `RSBS_XITEM_SHARED_SPOOKY`
+`00010000`). It requires `0` for every other golden. A misspelled key resolves
 off, and without this check the golden would record the default world's rules
 under this profile's name. The check fails as `FAIL(12)`. Each shared variant
-needs its extension: with `BlastMaskOoT` (or `StoneMaskOoT`) dropped from the row,
-the resolver drops `SharedMaskBlast` (or `SharedMaskStone`) too and the frozen
-rules lose two bits, which this check refuses.
+needs its extension: with `BlastMaskOoT` (or `StoneMaskOoT`, or one of P5's
+three MM rules) dropped from the row, the resolver drops its shared rule too and
+the frozen rules lose two bits, which this check refuses.
 
 **P4 and P5 extend this golden; they do not add one.** P4 (#979: the Blast, Stone
 and Kamaro masks in Ocarina of Time; the Blast and Stone Masks are done) and P5
-(#980: the Gerudo, Skull and Spooky masks in Majora's Mask) each do four things:
+(#980: the Gerudo, Skull and Spooky masks in Majora's Mask; done) each do four
+things:
 
 1. append their option keys to this row's `RSBS_DIAG_CVARS` in
    `REDSHIP_GOLDEN_DIGESTS`;
@@ -534,7 +563,8 @@ generation (`settingsHash`, `placementHash`, `placedCount`) did not.
 `seed-digest-beatable-only` and `seed-digest-no-logic` were pinned at version 4.
 #979 re-pinned `seed-digest-all-masks` at version 4, in the same release window,
 with the Blast Mask keys added to its profile (an input change, not a bump; see
-"The all-masks profile").
+"The all-masks profile"). #980 re-pinned it again at version 4 with P5's six
+keys added, for the same reason.
 
 The OoTMM defaults (2026-11-03, PR #1436; #1428, #1425, #1427), still version 4.
 Three default changes re-pinned together, because each one moves every golden:
