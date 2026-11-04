@@ -574,7 +574,10 @@ const OptionUi kOptionUi[] = {
       0, 0, nullptr, 0,
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_CLOCK_SHUFFLE_PROGRESSIVE, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_COMBO,
-      "Time Progression", "Random shuffles all six half-days; Ascending and Descending unlock them in order.",
+      "Time Progression",
+      "Random shuffles all six half-days and starts you with one of them. Ascending starts you with the First Day "
+      "and each Progressive Time unlocks the next half-day; Descending starts you with the Night of the Final Day "
+      "and counts back.",
       0, 0, kClockProgressiveLabels, UI_COUNT(kClockProgressiveLabels),
       COMBO_MM_LIVENESS_LIVE, "" },
     { RO_CLOCK_TERMINAL_TIME, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_TIME,

@@ -296,6 +296,19 @@ static void ResolveProfileValues(uint32_t* values, bool paired,
         values[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
     }
 
+    // (2a) #1437: Time Progression ships Ascending (OoTMM's progressiveClocks),
+    // and is inert while Shuffle Time is off: nothing reads it then (GeneratePools,
+    // StartingItems, Logic.h's OwnsHalfDayForMode and the give caps all test
+    // Shuffle Time first). An UNSET key resolves there to Random, the value every
+    // world before the default changed froze, so the options string the MM seed
+    // hashes and the identity a default world stamps are unchanged. An explicit key
+    // is honoured as it always was, so no frozen world's identity moves either. The
+    // load restore compares twice for this (MM_Rando_RestoreProfileForLoad).
+    if (!values[RO_CLOCK_SHUFFLE] &&
+        !Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar)) {
+        values[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
+    }
+
     if (!paired) {
         return;
     }
@@ -327,6 +340,23 @@ static void ResolveProfileValues(uint32_t* values, bool paired,
     }
     const uint8_t rung = ResolvedComboRung();
     values[RO_LOGIC] = PairedLogicForRung(rung);
+}
+
+/** #1437: Time Progression as its unset key resolved before it shipped Ascending.
+ *  A world stamped then with Shuffle Time on and the mode key unset folded the old
+ *  row default, Random. Puts Random into @p values (resolved by
+ *  ResolveProfileValues) and returns true when today's resolution differs from
+ *  that: Shuffle Time on, the key unset and not already Random. Otherwise writes
+ *  nothing and returns false, since that candidate is today's own. The compares
+ *  try it last (MM_Rando_ProfileStampMatches), so it matches only a world whose
+ *  frozen digest folds Random, never a different profile. */
+static bool ApplyPreAscendingClockMode(uint32_t* values) {
+    if (!values[RO_CLOCK_SHUFFLE] || values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM ||
+        Combo_CVarIsExplicitInt(Rando::StaticData::Options[RO_CLOCK_SHUFFLE_PROGRESSIVE].cvar)) {
+        return false;
+    }
+    values[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
+    return true;
 }
 
 /** Resolve the frozen TRICK set from the `gRando.Tricks.*` CVars into `tricks`
@@ -665,6 +695,34 @@ uint32_t ResolvePairedProfile(bool paired) {
                 values[RO_LOGIC] = authored;
                 RANDO_SAVE_OPTIONS[RO_LOGIC] = authored;
                 digest = legacyDigest;
+            }
+        }
+    }
+    if (gComboCtx.mmProfileDigest != 0 && gComboCtx.mmProfileDigest != digest) {
+        // #1437: a world stamped before Time Progression shipped Ascending, with
+        // Shuffle Time on and the mode key unset, folded Random. Re-resolved with
+        // that mode (under either paired logic, #1367), the same inputs give that
+        // world's own stamp, and its half is generated in Random, as it was made.
+        std::vector<uint32_t> legacy(values);
+        if (ApplyPreAscendingClockMode(legacy.data())) {
+            const uint32_t logics[2] = { values[RO_LOGIC], AuthoredPairedLogic() };
+            for (const uint32_t logicValue : logics) {
+                legacy[RO_LOGIC] = logicValue;
+                const uint32_t legacyDigest = DigestFromIdentity(ProfileIdentityString(
+                    legacy.data(), tricks.data(), trapTypes, moonCrash,
+                    gSaveContext.save.shipSaveInfo.rando.randoSaveExcludedChecks, keepItemsReset));
+                if (legacyDigest != gComboCtx.mmProfileDigest) {
+                    continue;
+                }
+                fprintf(stderr,
+                        "[MM] profile: the stamp %08X is a world created before Time Progression defaulted to "
+                        "Ascending; its Random mode is kept (MM Logic %u) (#1437)\n",
+                        (unsigned)legacyDigest, (unsigned)logicValue);
+                values = legacy;
+                RANDO_SAVE_OPTIONS[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
+                RANDO_SAVE_OPTIONS[RO_LOGIC] = logicValue;
+                digest = legacyDigest;
+                break;
             }
         }
     }
@@ -1127,10 +1185,15 @@ namespace {
 
 /** The profile digest the CVars resolve to with the paired logic taken from
  *  @p logic: MM_Rando_ComputeProfileStamp's computation, with the source named
- *  so a compare can try both (#1367). */
-uint32_t ComputeProfileStampFor(Rando::Foreign::PairedLogicSource logic) {
+ *  so a compare can try both (#1367). With @p preAscendingClock, the stamp the
+ *  same CVars gave before Time Progression shipped Ascending (#1437,
+ *  ApplyPreAscendingClockMode), or 0, which no digest is, when that is today's. */
+uint32_t ComputeProfileStampFor(Rando::Foreign::PairedLogicSource logic, bool preAscendingClock = false) {
     std::vector<uint32_t> values(RO_MAX, 0);
     Rando::Foreign::ResolveProfileValues(values.data(), /*paired=*/true, logic);
+    if (preAscendingClock && !Rando::Foreign::ApplyPreAscendingClockMode(values.data())) {
+        return 0;
+    }
     // The trick set is resolved from the CVars here as well, NOT read from the
     // save: this function is the CREATION-side computation (OoT's
     // Playthrough_Init calls it before any MM save exists) and the arrival-side
@@ -1155,6 +1218,36 @@ bool PairedLogicCandidatesDiffer() {
            Rando::Foreign::PairedLogicForRung(Rando::Foreign::ResolvedComboRung());
 }
 
+/** The paired-logic candidates (#1367), with Time Progression resolved as today
+ *  or, with @p preAscendingClock, as before #1437. */
+bool StampMatchesLogicCandidates(uint32_t frozenDigest, bool preAscendingClock) {
+    if (frozenDigest == 0) {
+        return false;
+    }
+    if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, preAscendingClock) == frozenDigest) {
+        return true;
+    }
+    // #1367: a world stamped before [Both Games] Logic took RO_LOGIC from MM's
+    // own row. Every other input is the same in both candidates, so this one
+    // matches only a world whose own logic the key holds (put back by the load
+    // restore when it differed), never a different profile.
+    return PairedLogicCandidatesDiffer() &&
+           ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, preAscendingClock) == frozenDigest;
+}
+
+/** Today's resolution matches @p frozenDigest (either paired logic, #1367). */
+bool StampMatchesCurrentRules(uint32_t frozenDigest) {
+    return StampMatchesLogicCandidates(frozenDigest, /*preAscendingClock=*/false);
+}
+
+/** #1437: a world stamped before Time Progression shipped Ascending, with Shuffle
+ *  Time on and the mode key unset (it folded Random), matches @p frozenDigest
+ *  while the keys are as they were. The candidate differs from today's in that
+ *  mode alone, so it matches only a world frozen in Random. */
+bool StampMatchesPreAscendingClock(uint32_t frozenDigest) {
+    return StampMatchesLogicCandidates(frozenDigest, /*preAscendingClock=*/true);
+}
+
 } // namespace
 
 extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
@@ -1163,20 +1256,7 @@ extern "C" uint32_t MM_Rando_ComputeProfileStamp(void) {
 }
 
 extern "C" int MM_Rando_ProfileStampMatches(uint32_t frozenDigest) {
-    if (frozenDigest == 0) {
-        return 0;
-    }
-    if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung) == frozenDigest) {
-        return 1;
-    }
-    // #1367: a world stamped before [Both Games] Logic took RO_LOGIC from MM's
-    // own row. Every other input is the same in both candidates, so this one
-    // matches only a world whose own logic the key holds (put back by the load
-    // restore when it differed), never a different profile.
-    return PairedLogicCandidatesDiffer() &&
-                   ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored) == frozenDigest
-               ? 1
-               : 0;
+    return StampMatchesCurrentRules(frozenDigest) || StampMatchesPreAscendingClock(frozenDigest) ? 1 : 0;
 }
 
 /** TEST BRIDGE (#1367): the stamp a creation before [Both Games] Logic made from
@@ -1187,11 +1267,20 @@ extern "C" uint32_t MM_Rando_ComputeLegacyProfileStampForTest(void) {
 }
 
 extern "C" int MM_Rando_PairedLogicShown(void) {
-    if (Combo_MMProfileFrozen() && PairedLogicCandidatesDiffer() &&
-        ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung) != gComboCtx.mmProfileDigest &&
-        ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored) == gComboCtx.mmProfileDigest) {
-        // A world created before [Both Games] Logic, with its own MM Logic.
-        return (int)Rando::Foreign::AuthoredPairedLogic();
+    if (Combo_MMProfileFrozen() && PairedLogicCandidatesDiffer()) {
+        // #1437: today's Time Progression first, then the one a world created
+        // before Ascending shipped folded (the compare's order).
+        for (const bool preAscendingClock : { false, true }) {
+            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::ComboRung, preAscendingClock) ==
+                gComboCtx.mmProfileDigest) {
+                break;
+            }
+            if (ComputeProfileStampFor(Rando::Foreign::PairedLogicSource::Authored, preAscendingClock) ==
+                gComboCtx.mmProfileDigest) {
+                // A world created before [Both Games] Logic, with its own MM Logic.
+                return (int)Rando::Foreign::AuthoredPairedLogic();
+            }
+        }
     }
     return (int)Rando::Foreign::PairedLogicForRung(Rando::Foreign::ResolvedComboRung());
 }
@@ -1273,22 +1362,13 @@ extern "C" void MM_Rando_ForceProfileRestoreVerifyFailForTest(int on) {
 namespace {
 
 /**
- * The classification both MM_Rando_ClassifyProfileForLoad (the file-select
- * probe, #836) and MM_Rando_RestoreProfileForLoad (the load) run, so the two
- * cannot disagree. Writes nothing. On RESTORABLE, @p fileValues / @p fileTricks
- * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks, and
- * @p fileTraps its trap-type set (#1047) and @p fileMoonCrash its Moon Crash
- * Behavior (#1069).
+ * ClassifyProfileForLoad's question of the half: RESTORABLE when the file's own
+ * values reproduce @p frozenDigest (and then fills the outputs), else
+ * UNRESTORABLE. Writes nothing.
  */
-int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
-                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
-                           uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
-    // #1367: either paired-logic candidate (MM_Rando_ProfileStampMatches), so a
-    // world created before [Both Games] Logic matches while the key holds its own
-    // MM Logic.
-    if (MM_Rando_ProfileStampMatches(frozenDigest) != 0) {
-        return RSBS_MM_PROFILE_LOAD_MATCHES;
-    }
+int ClassifyHalfForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, std::vector<uint32_t>& fileValues,
+                        std::vector<uint8_t>& fileTricks, uint8_t& fileTraps, uint8_t& fileMoonCrash,
+                        std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
 
     if (mmHalf == nullptr || mmHalfSize < sizeof(SaveContext)) {
@@ -1353,6 +1433,41 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
         return RSBS_MM_PROFILE_LOAD_UNRESTORABLE;
     }
     return RSBS_MM_PROFILE_LOAD_RESTORABLE;
+}
+
+/**
+ * The classification both MM_Rando_ClassifyProfileForLoad (the file-select
+ * probe, #836) and MM_Rando_RestoreProfileForLoad (the load) run, so the two
+ * cannot disagree. Writes nothing. On RESTORABLE, @p fileValues / @p fileTricks
+ * (sized RO_MAX / MMRT_MAX) hold the file's own options and tricks, and
+ * @p fileTraps its trap-type set (#1047) and @p fileMoonCrash its Moon Crash
+ * Behavior (#1069).
+ */
+int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
+                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
+                           uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
+    // #1367: either paired-logic candidate, so a world created before [Both
+    // Games] Logic matches while the key holds its own MM Logic.
+    if (StampMatchesCurrentRules(frozenDigest)) {
+        return RSBS_MM_PROFILE_LOAD_MATCHES;
+    }
+    const int fromHalf = ClassifyHalfForLoad(mmHalf, mmHalfSize, frozenDigest, fileValues, fileTricks, fileTraps,
+                                             fileMoonCrash, fileExcluded, fileKeepItems);
+    // #1437: a world created before Time Progression shipped Ascending, with
+    // Shuffle Time on and the mode left unset, folded Random. A half that can say
+    // so is restored (the restore writes Random into the key). One that cannot (a
+    // half written before #1101, or none before K11) still matches with the keys
+    // as they were, as it did before the default changed: the arrival gate asks
+    // the same candidate (MM_Rando_ProfileStampMatches), and a pair with no half
+    // generates in Random (ResolvePairedProfile) rather than refusing the file.
+    if (fromHalf == RSBS_MM_PROFILE_LOAD_UNRESTORABLE && StampMatchesPreAscendingClock(frozenDigest)) {
+        fprintf(stderr,
+                "[MM] profile: the stamp %08X is a world created before Time Progression defaulted to Ascending, "
+                "with Shuffle Time on and the mode unset; it keeps Random (#1437)\n",
+                (unsigned)frozenDigest);
+        return RSBS_MM_PROFILE_LOAD_MATCHES;
+    }
+    return fromHalf;
 }
 
 } // namespace
@@ -1435,6 +1550,8 @@ extern "C" int MM_Rando_AuthorPairHalfForTest(void* mmHalf, size_t mmHalfSize, u
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
         half->save.shipSaveInfo.rando.randoSaveOptions[randoOptionId] = (uint32_t)randoStaticOption.defaultValue;
     }
+    // #1437: what a default creation freezes, as ResolveProfileValues (2a) does it.
+    half->save.shipSaveInfo.rando.randoSaveOptions[RO_CLOCK_SHUFFLE_PROGRESSIVE] = RO_CLOCK_SHUFFLE_RANDOM;
     half->save.shipSaveInfo.rando.finalSeed =
         Rando::Foreign::MixPairedFinalSeedFromOptions(masterSeed, half->save.shipSaveInfo.rando.randoSaveOptions, 0);
     memset(mmHalf, 0, mmHalfSize);
@@ -1486,16 +1603,33 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     };
 
     std::vector<std::string> restored;
-    for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
-        if (liveValues[randoOptionId] == fileValues[randoOptionId]) {
-            continue;
+    // #1437: two passes. An option whose resolution reads ANOTHER key (Time
+    // Progression's unset key follows Shuffle Time, ResolveProfileValues (2a)) is
+    // compared only in the second, after the first has put every other key back
+    // and the profile is resolved again. Compared in the first, it could disagree
+    // only because Shuffle Time still held the session's value, and be written
+    // (and named) for nothing: a default file loaded while Shuffle Time is on
+    // would leave an explicit Random behind. A key is written once: RO_LOGIC's
+    // paired value never follows its key (#1367).
+    std::vector<bool> written(RO_MAX, false);
+    for (int pass = 0; pass < 2; pass++) {
+        if (pass > 0) {
+            Rando::Foreign::ResolveProfileValues(liveValues.data(), /*paired=*/true);
         }
-        remember(randoStaticOption.cvar);
-        CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
-        const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
-        restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
-        fprintf(stderr, "[MM] profile: load restored option %s to the file's value %u (was %u)\n",
-                randoStaticOption.name, (unsigned)fileValues[randoOptionId], (unsigned)liveValues[randoOptionId]);
+        for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
+            const bool dependent = randoOptionId == RO_CLOCK_SHUFFLE_PROGRESSIVE;
+            if ((dependent && pass == 0) || written[randoOptionId] ||
+                liveValues[randoOptionId] == fileValues[randoOptionId]) {
+                continue;
+            }
+            written[randoOptionId] = true;
+            remember(randoStaticOption.cvar);
+            CVarSetInteger(randoStaticOption.cvar, (int32_t)fileValues[randoOptionId]);
+            const ComboMMOptionDesc* desc = Combo_MMOptionById((uint16_t)randoOptionId);
+            restored.push_back(MMProfileRestoreLabel(desc != nullptr ? desc->label : nullptr, randoStaticOption.name));
+            fprintf(stderr, "[MM] profile: load restored option %s to the file's value %u (was %u)\n",
+                    randoStaticOption.name, (unsigned)fileValues[randoOptionId], (unsigned)liveValues[randoOptionId]);
+        }
     }
     for (auto& [mmRandoTrickId, randoStaticTrick] : Rando::StaticData::Tricks) {
         if (liveTricks[mmRandoTrickId] == fileTricks[mmRandoTrickId]) {
@@ -1663,16 +1797,29 @@ extern "C" void MM_Rando_PublishProfileGiveCaps(int fromSave) {
     if (Rando::Foreign::ShuffleSwimForWorld(values.data())) {
         caps |= RSBS_GIVECAP_SWIM;
     }
-    // Clocks arm only in the RANDOM clock mode (#681 review). The capability
-    // admits the six CONCRETE half-day rows, and the two progressive modes read
-    // time ownership as a COUNT (Logic.h, OwnsHalfDayForMode: ASCENDING owns
-    // "the first N" half-days, DESCENDING "the last N") because their world
-    // only ever hands half-days out in that order (ConvertItem.cpp,
+    // Concrete clocks arm only in the RANDOM clock mode (#681 review). That
+    // capability admits the six CONCRETE half-day rows, and the two progressive
+    // modes read time ownership as a COUNT (Logic.h, OwnsHalfDayForMode:
+    // ASCENDING owns "the first N" half-days, DESCENDING "the last N") because
+    // their world only ever hands half-days out in that order (ConvertItem.cpp,
     // RI_TIME_PROGRESSIVE). A crossed Time (Night 3) in an ascending world would
     // set the Night 3 flag while the logic read "Day 1 owned" off the count. In
     // RANDOM mode both read each flag, so a concrete crossing means what it says.
-    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF && values[RO_CLOCK_SHUFFLE_PROGRESSIVE] == RO_CLOCK_SHUFFLE_RANDOM) {
-        caps |= RSBS_GIVECAP_CLOCKS;
+    //
+    // #1437: the progressive modes arm Progressive Time instead, the only clock
+    // their pool holds (GeneratePools.cpp). OoTMM lets one cross either way
+    // (Item_Progressive -> progressiveClock(), counted from the owned half-days),
+    // and MM's redemption resolves it in the world's own order before the arrival
+    // picks the cycle's start (ForeignItemsSingleExe.cpp, ResolveCrossedClock), so
+    // the flags stay "the first N" (or "the last N") the logic counts. A separate
+    // bit, so a concrete half-day still never crosses into a progressive world.
+    if (values[RO_CLOCK_SHUFFLE] != RO_GENERIC_OFF) {
+        const uint32_t mode = values[RO_CLOCK_SHUFFLE_PROGRESSIVE];
+        if (mode == RO_CLOCK_SHUFFLE_RANDOM) {
+            caps |= RSBS_GIVECAP_CLOCKS;
+        } else if (mode == RO_CLOCK_SHUFFLE_ASCENDING || mode == RO_CLOCK_SHUFFLE_DESCENDING) {
+            caps |= RSBS_GIVECAP_CLOCKS_PROGRESSIVE;
+        }
     }
 
     Combo_PublishForeignGiveCaps((uint8_t)GAME_MM, caps);

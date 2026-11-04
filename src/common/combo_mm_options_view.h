@@ -319,7 +319,10 @@ uint32_t MM_Rando_ComputeProfileStamp(void);
  * #1367, MM_Rando_ComputeProfileStamp), and from MM's own Logic row (an explicit
  * choice honoured, Glitchless when unset: every world before). The second
  * candidate differs from the first in RO_LOGIC alone, so it matches only a world
- * whose own MM Logic the key holds, never a different profile. DEFINED MM-SIDE
+ * whose own MM Logic the key holds, never a different profile. #1437: both are
+ * also tried with Time Progression resolved as it was before it shipped
+ * Ascending (Random for an unset key while Shuffle Time is on), which matches
+ * only a world frozen in Random with the keys as they were. DEFINED MM-SIDE
  * (games/mm/2s2h/Rando/Foreign.cpp).
  */
 int MM_Rando_ProfileStampMatches(uint32_t frozenDigest);
