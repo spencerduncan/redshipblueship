@@ -28,6 +28,12 @@ typedef enum {
     ADD_AMMO_TRAP,
     ADD_KILL_TRAP,
     ADD_TELEPORT_TRAP,
+    // RedShipBlueShip (#1424): OoTMM's trap types SoH lacked (OoTMM
+    // packages/generator/src/common/traps.c). APPEND ONLY: the roll picks from
+    // the enabled types in this order, so a config without them rolls as before.
+    ADD_DRAIN_TRAP,
+    ADD_ANTIMAGIC_TRAP,
+    ADD_RUPOOR_TRAP,
     ADD_TRAP_MAX
 } AltTrapType;
 
@@ -36,12 +42,38 @@ static int statusTimer = -1;
 static int eventTimer = -1;
 
 const char* altTrapTypeCvars[] = {
-    CVAR_ENHANCEMENT("ExtraTraps.Ice"),   CVAR_ENHANCEMENT("ExtraTraps.Burn"),
-    CVAR_ENHANCEMENT("ExtraTraps.Shock"), CVAR_ENHANCEMENT("ExtraTraps.Knockback"),
-    CVAR_ENHANCEMENT("ExtraTraps.Speed"), CVAR_ENHANCEMENT("ExtraTraps.Bomb"),
-    CVAR_ENHANCEMENT("ExtraTraps.Void"),  CVAR_ENHANCEMENT("ExtraTraps.Ammo"),
-    CVAR_ENHANCEMENT("ExtraTraps.Kill"),  CVAR_ENHANCEMENT("ExtraTraps.Teleport"),
+    CVAR_ENHANCEMENT("ExtraTraps.Ice"),    CVAR_ENHANCEMENT("ExtraTraps.Burn"),
+    CVAR_ENHANCEMENT("ExtraTraps.Shock"),  CVAR_ENHANCEMENT("ExtraTraps.Knockback"),
+    CVAR_ENHANCEMENT("ExtraTraps.Speed"),  CVAR_ENHANCEMENT("ExtraTraps.Bomb"),
+    CVAR_ENHANCEMENT("ExtraTraps.Void"),   CVAR_ENHANCEMENT("ExtraTraps.Ammo"),
+    CVAR_ENHANCEMENT("ExtraTraps.Kill"),   CVAR_ENHANCEMENT("ExtraTraps.Teleport"),
+    CVAR_ENHANCEMENT("ExtraTraps.Drain"),  CVAR_ENHANCEMENT("ExtraTraps.AntiMagic"),
+    CVAR_ENHANCEMENT("ExtraTraps.Rupoor"),
 };
+static_assert(sizeof(altTrapTypeCvars) / sizeof(altTrapTypeCvars[0]) == ADD_TRAP_MAX,
+              "every trap type needs its CVar, in AltTrapType order");
+
+// RedShipBlueShip (#1424): the SAVE half of OoTMM's Drain, Anti-Magic and Rupoor
+// traps (OoTMM traps.c Play_UpdateTrapsDrain / AntiMagic / Rupoor), everything
+// but Link's reaction, so a ROM-free row can spring it with no play state. Each
+// writes the live field the shared-pool harvest reads: health and magic
+// directly, rupees through Rupees_ChangeBy's accumulator, which
+// OoT_HarvestSharedRupees folds in. True when the type has a save half.
+static bool ApplyTrapSaveEffect(AltTrapType type) {
+    switch (type) {
+        case ADD_DRAIN_TRAP:
+            gSaveContext.health = 1;
+            return true;
+        case ADD_ANTIMAGIC_TRAP:
+            gSaveContext.magic = 0;
+            return true;
+        case ADD_RUPOOR_TRAP:
+            OoT_Rupees_ChangeBy(-10);
+            return true;
+        default:
+            return false;
+    }
+}
 
 std::vector<AltTrapType> getEnabledAddTraps() {
     std::vector<AltTrapType> enabledAddTraps;
@@ -60,12 +92,17 @@ std::vector<AltTrapType> getEnabledAddTraps() {
     return enabledAddTraps;
 };
 
+// RedShipBlueShip (#1424): the draw, apart from springing it, so the parity row
+// reads the type the production roll picks.
+static AltTrapType PickRandomTrap(uint32_t finalSeed) {
+    Random_Init(finalSeed);
+    return RandomElement(getEnabledAddTraps());
+}
+
 static void RollRandomTrap(uint32_t seed) {
     uint32_t finalSeed = seed + (IS_RANDO ? Rando::Context::GetInstance()->GetSeed()
                                           : static_cast<uint32_t>(gSaveContext.ship.stats.fileCreatedAt));
-    Random_Init(finalSeed);
-
-    roll = RandomElement(getEnabledAddTraps());
+    roll = PickRandomTrap(finalSeed);
     switch (roll) {
         case ADD_ICE_TRAP:
             GameInteractor::RawAction::FreezePlayer();
@@ -103,6 +140,19 @@ static void RollRandomTrap(uint32_t seed) {
             break;
         case ADD_TELEPORT_TRAP:
             eventTimer = 3;
+            break;
+        // #1424: OoTMM's handlers: the save half, then (Drain, Anti-Magic) its
+        // damage response 0 with no damage of its own and 20 invincibility frames.
+        case ADD_DRAIN_TRAP:
+        case ADD_ANTIMAGIC_TRAP: {
+            ApplyTrapSaveEffect(roll);
+            Player* player = GET_PLAYER(OoT_gPlayState);
+            player->actor.colChkInfo.damage = 0;
+            func_80837C0C(OoT_gPlayState, player, 0, 0, 0, 0, 20);
+            break;
+        }
+        case ADD_RUPOOR_TRAP:
+            ApplyTrapSaveEffect(roll);
             break;
         default:
             break;
@@ -199,3 +249,40 @@ void RegisterExtraTraps() {
 }
 
 static RegisterShipInitFunc initFunc(RegisterExtraTraps, { CVAR_EXTRA_TRAPS_NAME });
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ROM-free test bridges (redship tier; src/common/tests/test_trap_type_parity.c, #1424).
+
+extern "C" int OoT_ExtraTraps_TestTypeCount(void) {
+    return (int)ADD_TRAP_MAX;
+}
+
+/** The CVar that enables trap type @p type, or nullptr outside 0..ADD_TRAP_MAX-1. */
+extern "C" const char* OoT_ExtraTraps_TestCVarName(int type) {
+    return type >= 0 && type < (int)ADD_TRAP_MAX ? altTrapTypeCvars[type] : nullptr;
+}
+
+/** The list the roll picks from (getEnabledAddTraps) under the live CVars, in its
+ *  order: writes at most @p cap types and returns how many there are. */
+extern "C" int OoT_ExtraTraps_TestEnabledList(int* out, int cap) {
+    const std::vector<AltTrapType> list = getEnabledAddTraps();
+    for (int i = 0; i < (int)list.size() && i < cap; i++) {
+        out[i] = (int)list[i];
+    }
+    return (int)list.size();
+}
+
+/** The type the production draw (PickRandomTrap) picks for @p finalSeed under
+ *  the live CVars, without springing it. */
+extern "C" int OoT_ExtraTraps_TestPick(uint32_t finalSeed) {
+    return (int)PickRandomTrap(finalSeed);
+}
+
+/** Spring the save half of trap @p type on OoT's live save. 1 when it has one. */
+extern "C" int OoT_ExtraTraps_TestApplySaveEffect(int type) {
+    if (type < 0 || type >= (int)ADD_TRAP_MAX) {
+        return 0;
+    }
+    return ApplyTrapSaveEffect((AltTrapType)type) ? 1 : 0;
+}
+#endif

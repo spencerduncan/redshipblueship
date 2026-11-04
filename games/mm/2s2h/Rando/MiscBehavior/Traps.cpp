@@ -6,6 +6,7 @@
 #include "2s2h/ShipUtils.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // ResolvePairedProfile, for the creation bridge (#1047)
+#include <cstddef>         // offsetof: the high byte's layout lock (#1424)
 #include <memory>
 #endif
 
@@ -28,7 +29,55 @@ std::map<TrapTypes, const char*> trapToCvarMap = {
     { TRAP_SHOCK, "gRando.Traps.Shock" },   { TRAP_JINX, "gRando.Traps.Jinx" },
     { TRAP_WALLET, "gRando.Traps.Wallet" }, { TRAP_ENEMY, "gRando.Traps.Enemy" },
     { TRAP_TIME, "gRando.Traps.Time" },
+    // RedShipBlueShip (#1424): OoTMM's trap types MM lacked (Fire and Knockback
+    // under upstream 2Ship's own keys, 254cc60e1).
+    { TRAP_FIRE, "gRando.Traps.Fire" },
+    { TRAP_KNOCKBACK, "gRando.Traps.Knockback" },
+    { TRAP_DRAIN, "gRando.Traps.Drain" },
+    { TRAP_ANTI_MAGIC, "gRando.Traps.AntiMagic" },
+    { TRAP_RUPOOR, "gRando.Traps.Rupoor" },
 };
+
+// RedShipBlueShip (#1424): the SAVE half of OoTMM's Drain, Anti-Magic and Rupoor
+// traps (OoTMM traps.c Play_UpdateTrapsDrain / AntiMagic / Rupoor), everything
+// but Link's reaction, so a ROM-free row can spring it with no play state. Each
+// writes the live field the shared-pool harvest reads: health and magic
+// directly, rupees through Rupees_ChangeBy's accumulator, which
+// MM_HarvestSharedRupees folds in. True when the type has a save half.
+static bool ApplyTrapSaveEffect(int type) {
+    switch (type) {
+        case TRAP_DRAIN:
+            gSaveContext.save.saveInfo.playerData.health = 1;
+            return true;
+        case TRAP_ANTI_MAGIC:
+            gSaveContext.save.saveInfo.playerData.magic = 0;
+            // OoTMM ends the Chateau Romani's endless magic too.
+            if (CHECK_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI)) {
+                CLEAR_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI);
+            }
+            return true;
+        case TRAP_RUPOOR:
+            MM_Rupees_ChangeBy(-10);
+            return true;
+        default:
+            return false;
+    }
+}
+
+// #1424: OoTMM's Fire Trap leaves Goron Link alone (Player_IsGoronOrGoronTunic;
+// MM has no Goron Tunic, so that is the Goron form).
+static bool TrapFireSpares(u8 transformation) {
+    return transformation == PLAYER_FORM_GORON;
+}
+
+// #1424: Link's reaction to the traps OoTMM added: the damage response OoTMM
+// gives each (Player_ApplyDamage is func_80833B18 here), with no damage of its
+// own (colChkInfo.damage = 0) and OoTMM's 20 invincibility frames.
+static void TrapPlayerReaction(s32 response, f32 speed, f32 velocityY, s16 yaw) {
+    Player* player = GET_PLAYER(MM_gPlayState);
+    player->actor.colChkInfo.damage = 0;
+    func_80833B18(MM_gPlayState, player, response, speed, velocityY, yaw, 20);
+}
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #1047: a trap's type is part of the world (one-game semantics; OoTMM decides a
@@ -39,14 +88,37 @@ std::map<TrapTypes, const char*> trapToCvarMap = {
 // the save at creation (ResolveTrapTypesFromCVars, written by
 // Rando::Foreign::ResolvePairedProfile) and the roll is seeded by the world's
 // seed plus the check.
-uint8_t ResolveTrapTypesFromCVars() {
-    uint8_t mask = 0;
+uint16_t ResolveTrapTypesFromCVars() {
+    uint16_t mask = 0;
     for (auto& trap : trapToCvarMap) {
         if (CVarGetInteger(trap.second, 0)) {
-            mask |= (uint8_t)(1u << trap.first);
+            mask |= (uint16_t)(1u << trap.first);
         }
     }
     return mask;
+}
+
+// #1424: the frozen set is 16 bits over two bytes. The high byte sits in what
+// was RandoSaveInfo's padding before foundTriforcePieces (z64save.h), so the
+// layout every existing .redsave has is unchanged: that u16 must still be at
+// foundDungeonKeys + 10, the place the 9-byte array's padding always put it.
+static_assert(TRAP_MAX <= 16, "the frozen trap-type set holds one bit per type in two bytes");
+static_assert(offsetof(RandoSaveInfo, foundDungeonKeys) % 2 == 0,
+              "foundDungeonKeys must start even for the byte after it to have been padding");
+static_assert(offsetof(RandoSaveInfo, randoSaveTrapTypesHi) == offsetof(RandoSaveInfo, foundDungeonKeys) + 9,
+              "randoSaveTrapTypesHi must fill the padding byte after foundDungeonKeys");
+static_assert(offsetof(RandoSaveInfo, foundTriforcePieces) == offsetof(RandoSaveInfo, foundDungeonKeys) + 10,
+              "randoSaveTrapTypesHi moved foundTriforcePieces, so every later Save field and the raw MM tier moved");
+
+uint16_t FrozenTrapTypesOf(const RandoSaveInfo& info) {
+    // Only the bits a type exists for: a byte no build wrote reads as no type.
+    const uint16_t known = (uint16_t)((1u << TRAP_MAX) - 1u);
+    return (uint16_t)((info.randoSaveTrapTypes | ((uint16_t)info.randoSaveTrapTypesHi << 8)) & known);
+}
+
+void StoreFrozenTrapTypes(RandoSaveInfo& info, uint16_t mask) {
+    info.randoSaveTrapTypes = (uint8_t)(mask & 0xFFu);
+    info.randoSaveTrapTypesHi = (uint8_t)(mask >> 8);
 }
 
 const char* TrapTypeCVar(int type) {
@@ -58,13 +130,16 @@ const char* TrapTypeLabel(int type) {
     // Rando/Menu.cpp's names for the toggles (not built into the single exe).
     static const char* const kLabels[TRAP_MAX] = {
         "Freeze Traps", "Blast Traps", "Shock Traps", "Jinx Traps", "Wallet Traps", "Like Like Traps", "Time Traps",
+        // #1424: OoTMM's names for its trap settings, in the rows' "... Traps" form.
+        "Fire Traps", "Knockback Traps", "Drain Traps", "Anti-Magic Traps", "Rupoor Traps",
     };
     return type >= 0 && type < TRAP_MAX ? kLabels[type] : nullptr;
 }
 
 std::vector<TrapTypes> getEnabledTrapTypes() {
-    static_assert(TRAP_MAX <= 8, "randoSaveTrapTypes holds one bit per trap type");
-    const uint8_t mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    // In TrapTypes order, so a set without the appended types (#1424) gives the
+    // list, and the roll, it always gave.
+    const uint16_t mask = FrozenTrapTypesOf(gSaveContext.save.shipSaveInfo.rando);
     std::vector<TrapTypes> enabledTrapTypes;
     for (auto& trap : trapToCvarMap) {
         if (mask & (1u << trap.first)) {
@@ -90,16 +165,18 @@ int RollTrapType(RandoCheckId randoCheckId) {
  *  `finalSeed` and whose frozen set is `mask`, with MM's global stream first put
  *  at `streamSeed` (standing for wherever play left it). Leaves the save's seed
  *  and set as it found them. */
-extern "C" int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint8_t mask, uint16_t randoCheckId, uint64_t streamSeed) {
+extern "C" int MM_Rando_Traps_TestRoll(uint32_t finalSeed, uint16_t mask, uint16_t randoCheckId, uint64_t streamSeed) {
     RandoSaveInfo& rando = gSaveContext.save.shipSaveInfo.rando;
     const uint32_t priorSeed = rando.finalSeed;
-    const uint8_t priorMask = rando.randoSaveTrapTypes;
+    const uint8_t priorLo = rando.randoSaveTrapTypes;
+    const uint8_t priorHi = rando.randoSaveTrapTypesHi;
     rando.finalSeed = finalSeed;
-    rando.randoSaveTrapTypes = mask;
+    StoreFrozenTrapTypes(rando, mask);
     Ship_Random_Seed(streamSeed);
     const int type = RollTrapType((RandoCheckId)randoCheckId);
     rando.finalSeed = priorSeed;
-    rando.randoSaveTrapTypes = priorMask;
+    rando.randoSaveTrapTypes = priorLo;
+    rando.randoSaveTrapTypesHi = priorHi;
     return type;
 }
 
@@ -114,14 +191,34 @@ extern "C" int MM_Rando_Traps_TestTypeCount(void) {
 
 /** What creation freezes: runs the real Rando::Foreign::ResolvePairedProfile
  *  (the solo leg, which publishes no identity) over a copy of the save's rando
- *  block and returns the randoSaveTrapTypes it wrote; the block is put back. */
+ *  block and returns the set it wrote, both bytes (#1424); the block is put back.
+ *  Both bytes start as 0xFF, so a byte creation forgot reads as every type. */
 extern "C" int MM_Rando_Traps_TestCreationFreezes(void) {
     auto saved = std::make_unique<RandoSaveInfo>(gSaveContext.save.shipSaveInfo.rando);
     gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = 0xFF;
+    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypesHi = 0xFF;
     Rando::Foreign::ResolvePairedProfile(false);
-    const int mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    const int mask = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes |
+                     ((int)gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypesHi << 8);
     gSaveContext.save.shipSaveInfo.rando = *saved;
     return mask;
+}
+
+/** #1424: spring the save half of trap @p type (ApplyTrapSaveEffect) on MM's
+ *  live save, as OfferTrapItem's event does. 1 when the type has one. */
+extern "C" int MM_Rando_Traps_TestApplySaveEffect(int type) {
+    return ApplyTrapSaveEffect(type) ? 1 : 0;
+}
+
+/** #1424: 1 when a Fire Trap leaves Link alone in @p transformation
+ *  (a PlayerTransformation), as OoTMM's spares Goron Link. */
+extern "C" int MM_Rando_Traps_TestFireSpares(int transformation) {
+    return TrapFireSpares((u8)transformation) ? 1 : 0;
+}
+
+/** #1424: the name of trap type @p type in the options, for the parity row. */
+extern "C" const char* MM_Rando_Traps_TestLabel(int type) {
+    return TrapTypeLabel(type);
 }
 #else
 std::vector<TrapTypes> getEnabledTrapTypes() {
@@ -217,6 +314,35 @@ std::vector<std::string> timeTrapMessages = {
     "Mweep",
 };
 
+// RedShipBlueShip (#1424): the trap types OoTMM added.
+std::vector<std::string> fireTrapMessages = {
+    "Stop, drop and %rroll%w!",
+    "This item was %rtoo hot%w to handle.",
+    "A %rGoron%w would have shrugged that off.",
+};
+
+std::vector<std::string> drainTrapMessages = {
+    "You feel %rdrained%w...",
+    "A %gFairy%w would be nice right about now.",
+    "That one took a lot out of you.",
+};
+
+std::vector<std::string> antiMagicTrapMessages = {
+    "Your %gmagic%w fizzles away.",
+    "Out of %gmagic%w!",
+    "The %gGreat Fairy%w is not amused.",
+};
+
+std::vector<std::string> knockbackTrapMessages = {
+    "Up, up and %baway%w!",
+    "Mind your %bfooting%w.",
+};
+
+std::vector<std::string> rupoorTrapMessages = {
+    "You found a %rRupoor%w!",
+    "That will be %r10 Rupees%w, please.",
+};
+
 std::map<TrapTypes, std::vector<std::string>> trapMessageList = {
     { TRAP_FREEZE, freezeTrapMessages },
     { TRAP_BLAST, blastTrapMessages },
@@ -225,6 +351,11 @@ std::map<TrapTypes, std::vector<std::string>> trapMessageList = {
     { TRAP_WALLET, walletTrapMessages },
     { TRAP_ENEMY, enemyTrapMessages },
     { TRAP_TIME, timeTrapMessages },
+    { TRAP_FIRE, fireTrapMessages },
+    { TRAP_KNOCKBACK, knockbackTrapMessages },
+    { TRAP_DRAIN, drainTrapMessages },
+    { TRAP_ANTI_MAGIC, antiMagicTrapMessages },
+    { TRAP_RUPOOR, rupoorTrapMessages },
 };
 // clang-format on
 
@@ -365,6 +496,44 @@ void Rando::MiscBehavior::OfferTrapItem() {
                     }
                 }
             } });
+            break;
+        // RedShipBlueShip (#1424): OoTMM's trap types (OoTMM traps.c), each
+        // its handler there: the save half (ApplyTrapSaveEffect) and Link's
+        // damage response.
+        case TRAP_FIRE:
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
+                Player* player = GET_PLAYER(MM_gPlayState);
+                if (TrapFireSpares(player->transformation)) {
+                    return;
+                }
+                TrapPlayerReaction(0, 0.0f, 0.0f, 0);
+                for (int i = 0; i < PLAYER_BODYPART_MAX; i++) {
+                    player->bodyFlameTimers[i] = MM_Rand_S16Offset(0, 200);
+                }
+                player->bodyIsBurning = true;
+            } });
+            break;
+        case TRAP_DRAIN:
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
+                ApplyTrapSaveEffect(TRAP_DRAIN);
+                TrapPlayerReaction(0, 0.0f, 0.0f, 0);
+            } });
+            break;
+        case TRAP_ANTI_MAGIC:
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
+                ApplyTrapSaveEffect(TRAP_ANTI_MAGIC);
+                TrapPlayerReaction(0, 0.0f, 0.0f, 0);
+            } });
+            break;
+        case TRAP_KNOCKBACK:
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() {
+                // A random speed, height and direction, as OoTMM throws Link.
+                TrapPlayerReaction(1, MM_Rand_ZeroFloat(20.0f), MM_Rand_ZeroFloat(15.0f),
+                                   (s16)(s32)MM_Rand_ZeroFloat(65536.0f));
+            } });
+            break;
+        case TRAP_RUPOOR:
+            MM_GameEvents_Queue().emplace_back(GIEventTrap{ .action = []() { ApplyTrapSaveEffect(TRAP_RUPOOR); } });
             break;
         default:
             break;

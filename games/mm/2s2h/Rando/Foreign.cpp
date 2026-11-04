@@ -517,7 +517,7 @@ static std::string ExcludedChecksString(const uint8_t* bits) {
  *  them is a vacuous guard — same seed + same digest could still yield
  *  different MM worlds. OoT's own settings hash is the precedent: it folds
  *  excludes and tricks. */
-static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint8_t trapTypes,
+static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* tricks, uint16_t trapTypes,
                                          uint8_t moonCrash, const uint8_t* excludedChecks, uint8_t keepItemsReset) {
     std::string s;
     for (auto& [randoOptionId, randoStaticOption] : Rando::StaticData::Options) {
@@ -594,7 +594,9 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // restore puts the file's set back) instead of a silently different world.
     // Folded only when nonzero, as two hex digits of the bit set: the set every
     // world before #1047 had (no gRando.Traps.* key set) adds no term, so no
-    // existing pair's mmProfileDigest moves.
+    // existing pair's mmProfileDigest moves. #1424 widened the set to 16 bits:
+    // "%02X" prints any set below 0x100 exactly as before, so no digest moves
+    // unless the world turned on one of the types OoTMM added after Time.
     if (trapTypes != 0) {
         char traps[8];
         snprintf(traps, sizeof(traps), "%02X", (unsigned)trapTypes);
@@ -627,7 +629,8 @@ static std::string ProfileIdentityString(const uint32_t* values, const uint8_t* 
     // identity (ADR 0004 §6 scope note), so silence here is not neutral.
     //
     //  - `gRando.Traps.*` (Traps.cpp's trapToCvarMap: Freeze/Blast/Shock/Jinx/
-    //    Wallet/Enemy/Time) ARE folded, as the trap-type set above (#1047): not
+    //    Wallet/Enemy/Time, and since #1424 Fire/Knockback/Drain/AntiMagic/
+    //    Rupoor) ARE folded, as the trap-type set above (#1047): not
     //    a generation input, but world identity. The trap knobs that shape the
     //    fill (RO_SHUFFLE_TRAPS, RO_TRAP_AMOUNT, read by GeneratePools.cpp:281)
     //    are ordinary option rows and are already folded by the loop above.
@@ -718,8 +721,8 @@ uint32_t ResolvePairedProfile(bool paired) {
     // type is part of the world, so it reads this file's set, not the CVars. A
     // paired world reaches this at its first crossing, so the set is also an
     // identity term (ProfileIdentityString), compared below like the tricks.
-    const uint8_t trapTypes = ResolveTrapTypesFromCVars();
-    gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes = trapTypes;
+    const uint16_t trapTypes = ResolveTrapTypesFromCVars();
+    StoreFrozenTrapTypes(gSaveContext.save.shipSaveInfo.rando, trapTypes); // both bytes (#1424)
     // #1069: Moon Crash Behavior freezes here too, the player's choice (the
     // Shared Song of Time rule's force is the combo record's, applied in play).
     const uint8_t moonCrash = ResolveMoonCrashFromCVar();
@@ -1464,7 +1467,7 @@ namespace {
  * UNRESTORABLE. Writes nothing.
  */
 int ClassifyHalfForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest, std::vector<uint32_t>& fileValues,
-                        std::vector<uint8_t>& fileTricks, uint8_t& fileTraps, uint8_t& fileMoonCrash,
+                        std::vector<uint8_t>& fileTricks, uint16_t& fileTraps, uint8_t& fileMoonCrash,
                         std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
     const uint32_t liveDigest = MM_Rando_ComputeProfileStamp();
 
@@ -1495,7 +1498,8 @@ int ClassifyHalfForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDi
         fileTricks[mmRandoTrickId] = half->save.shipSaveInfo.rando.randoSaveTricks[mmRandoTrickId] != 0 ? 1 : 0;
     }
     // A half written before #1047 zero-extends here: no trap term, as its stamp.
-    fileTraps = half->save.shipSaveInfo.rando.randoSaveTrapTypes;
+    // The high byte (#1424) was padding before it existed, so it reads zero.
+    fileTraps = FrozenTrapTypesOf(half->save.shipSaveInfo.rando);
     // A half written before #1069 zero-extends here: Last Save, no term, as its stamp.
     fileMoonCrash = half->save.shipSaveInfo.rando.randoSaveMoonCrash == RSBS_MM_MOON_CRASH_CYCLE
                         ? (uint8_t)RSBS_MM_MOON_CRASH_CYCLE
@@ -1541,7 +1545,7 @@ int ClassifyHalfForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDi
  * Behavior (#1069).
  */
 int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest,
-                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint8_t& fileTraps,
+                           std::vector<uint32_t>& fileValues, std::vector<uint8_t>& fileTricks, uint16_t& fileTraps,
                            uint8_t& fileMoonCrash, std::vector<uint8_t>& fileExcluded, uint8_t& fileKeepItems) {
     // #1367: either paired-logic candidate, so a world created before [Both
     // Games] Logic matches while the key holds its own MM Logic.
@@ -1575,7 +1579,7 @@ int ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t froze
 extern "C" int MM_Rando_ClassifyProfileForLoad(const void* mmHalf, size_t mmHalfSize, uint32_t frozenDigest) {
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
-    uint8_t fileTraps = 0;
+    uint16_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
     std::vector<uint8_t> fileExcluded;
     uint8_t fileKeepItems = 0;
@@ -1669,7 +1673,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     }
     std::vector<uint32_t> fileValues;
     std::vector<uint8_t> fileTricks;
-    uint8_t fileTraps = 0;
+    uint16_t fileTraps = 0;
     uint8_t fileMoonCrash = 0;
     std::vector<uint8_t> fileExcluded;
     uint8_t fileKeepItems = 0;
@@ -1685,7 +1689,7 @@ extern "C" int MM_Rando_RestoreProfileForLoad(const void* mmHalf, size_t mmHalfS
     Rando::Foreign::ResolveProfileValues(liveValues.data(), /*paired=*/true);
     std::vector<uint8_t> liveTricks(MMRT_MAX, 0);
     Rando::Foreign::ResolveProfileTricks(liveTricks.data());
-    const uint8_t liveTraps = ResolveTrapTypesFromCVars();
+    const uint16_t liveTraps = ResolveTrapTypesFromCVars();
     const uint8_t liveMoonCrash = Rando::Foreign::ResolveMoonCrashFromCVar();
     const uint8_t liveKeepItems = Rando::Foreign::ResolveKeepItemsResetFromCVar();
 
@@ -2894,7 +2898,8 @@ extern "C" int MM_Rando_ProfileDumpFromSave(char* out, size_t cap) {
         }
     }
     dump["excludedChecks"] = excluded;
-    dump["trapTypes"] = gSaveContext.save.shipSaveInfo.rando.randoSaveTrapTypes;
+    // Both bytes (#1424); every set below 0x100 reads as it always did.
+    dump["trapTypes"] = FrozenTrapTypesOf(gSaveContext.save.shipSaveInfo.rando);
     dump["moonCrash"] = gSaveContext.save.shipSaveInfo.rando.randoSaveMoonCrash;
     const std::string text = dump.dump(2);
     if (text.size() + 1 > cap) {
