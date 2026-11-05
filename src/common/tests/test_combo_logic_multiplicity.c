@@ -31,8 +31,8 @@
  *       generated world's own placed wallets — still reads the top tier.
  *   C1. OoT, COUNTERS, THE DEFECT OBSERVED. With the clamp off, 260 copies of a
  *       small key, a Gold Skulltula token, a triforce piece or a magic bean read
- *       LOWER at some copy than at the one before (the key's `s8` hits the `-1`
- *       "never had keys" sentinel at copy 255; the others wrap 8-bit storage).
+ *       LOWER at some copy than at the one before (the key count, an `int8_t`,
+ *       wraps from 127 to -128 at copy 128; the others wrap 8-bit storage).
  *       A combo round has no bag cap of its own, so this is reachable.
  *   C2. OoT, COUNTERS, THE CLAMP. With it on, every counter kind (those four
  *       plus heart capacity) never decreases and rests exactly at logic.cpp's
