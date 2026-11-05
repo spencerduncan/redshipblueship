@@ -455,6 +455,12 @@ void Rando::StaticData::InitItemTable() {
 #ifdef RSBS_SINGLE_EXECUTABLE
     itemTable[RG_STONE_MASK].SetCustomDrawFunc(Randomizer_DrawStoneMask);
 #endif
+    // [RSBS #1169 XW4] Majora's Mask's Song of Soaring in OoT, under OoTMM's name: a song (the restricted song
+    // passes count it) with no quest bit, owned through its RAND_INF flag. The generic white note is its row.
+    itemTable[RG_SONG_OF_SOARING_OOT] =                 Item(RG_SONG_OF_SOARING_OOT,              Text{ "Song of Soaring (OoT)", "Song of Soaring (OoT)", "Song of Soaring (OoT)" },                                                   ITEMTYPE_SONG,              RG_SONG_OF_SOARING_OOT, true, LOGIC_NONE,                       RHT_SONG_OF_SOARING_OOT,               RG_SONG_OF_SOARING_OOT,               OBJECT_GI_MELODY,       GID_SONG_GENERIC,     TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER, {"the ", "das ", "le "});
+#ifdef RSBS_SINGLE_EXECUTABLE
+    itemTable[RG_SONG_OF_SOARING_OOT].SetCustomDrawFunc(Randomizer_DrawSongOfSoaringOoT);
+#endif
 
     // clang-format on
 

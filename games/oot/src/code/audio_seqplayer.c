@@ -1187,7 +1187,7 @@ void AudioSeq_SequenceChannelProcessScript(SequenceChannel* channel) {
 
                             // The game apparantely would sometimes do negative array lookups, the result of which would
                             // get rejected by OoT_AudioHeap_SearchCaches, never changing the actual fontid.
-                            if (result > sDat.numFonts)
+                            if (result >= sDat.numFonts)
                                 break;
 
                             command = sDat.fonts[(sDat.numFonts - result - 1)];

@@ -4,6 +4,9 @@
 #include "2s2h/ShipUtils.h"
 #include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #include "2s2h/Rando/Logic/Logic.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+#endif
 
 extern "C" {
 #include "functions.h"
@@ -29,8 +32,17 @@ void ApplyOathHint(u16* textId, bool* loadFromMessageTable) {
         msg = "You think you can defeat me? The Giants are trapped and powerless to stop me. Even if they were free, "
               "they couldn't save you.";
     } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1475: the combined Hint Tracker's resolver builds the hint (Rando/
+        // HintSources.h, upstream's expression moved there; its location is filled
+        // there, so the ReplaceItemLocation below finds nothing left to fill), and
+        // showing it records the Oath hint as read. The taunt above is no hint.
+        msg = Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_OATH, RANDO_SAVE_CHECKS, nullptr);
+        Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_OATH);
+#else
         msg = "I can hear the Giants Melody coming from "
               "%y{{location}}%w. But it's too late! They can't help you now!";
+#endif
     }
 
     Rando::HintArea::ReplaceItemLocation(&msg, "{{location}}", RI_SONG_OATH);

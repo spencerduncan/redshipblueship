@@ -83,6 +83,10 @@
 // W6-AUDIO-SFX (#1239): MM's two sound mutes with no SoH twin, drawn as MM rows in SoH's Audio Editor (Audio Options).
 #define RSBS_CVAR_MM_MUTE_CARPENTER_SFX "gAudioEditor.MuteCarpenterSfx"
 #define RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY "gAudioEditor.ChildGoronCry"
+// #1411: MM's two accessibility toggles with no SoH twin, hosted on SoH's Settings > General under Accessibility
+// (SohGui/HostedMm/SohMenuHostedMmAudio.cpp).
+#define RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES "gEnhancements.A11y.NoFinalDayQuakes"
+#define RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION "gEnhancements.A11y.NoScreenDistortion"
 
 /* Character colour — issue #453, inventory §3.3 BUG 1 / §4 row P4.
  *
@@ -512,8 +516,9 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // Controls > Ocarina Controls) and gEnhancements.DpadNoDropOcarinaInput.
     // All bool, default off, read per frame by GameInteractor_Dpad,
     // GameInteractor_RightStickOcarina and the two ocarina input loops, so a plain rename. The held-apart P6 pair that
-    // stood in kMustStayDistinct is gone: both games have all three switches, and the one genuinely OoT-only piece (the
-    // custom button-mapping layer, gSettings.CustomOcarina.Enabled) has no MM key to pair.
+    // stood in kMustStayDistinct is gone: both games have all three switches. The custom button-mapping layer
+    // (gSettings.CustomOcarina.Enabled) had no MM key to pair here; #1413 ported 2Ship's mapping layer onto SoH's key
+    // directly, so it is an ADOPTED shared-intent key (kSharedIntentKeys), not a rename row.
     { "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad", false },
     { "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick", false },
     { "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput", false },
@@ -528,6 +533,22 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // row wrote the MM spelling, so version 10 carries a stored value across.
     { "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", "gSettings.DisableFirstPersonAutoCenterView",
       false },
+    // #1412: the MM halves of ten settings SoH already ships (2Ship's TUs, ported in that change). Each MM spelling is
+    // 2Ship's own; no single-exe row ever wrote one. All bool, default off on both sides. Each MM TU covers its own
+    // game's content, which reaches a little further for three of them: Remove Explosive Limit also lifts Honey &
+    // Darling's cap of 5, No Heart Drops also blocks healing fairies, and Empty Bottles Faster also speeds drinking
+    // and releasing a fairy. Epona Boost: both games skip the carrot use and hide the carrot HUD. No Random Drops is
+    // NOT here: MM's rule blocks set drops too, so it is held apart (kMustStayDistinct) with its own hosted row.
+    { "gEnhancements.Player.UnsheatheWithoutSlashing", "gEnhancements.UnsheatheWithoutSlashing", false },
+    { "gEnhancements.Items.RemoveExplosiveLimit", "gEnhancements.RemoveExplosiveLimit", false },
+    { "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops", false },
+    { "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie", false },
+    { "gEnhancements.Timesavers.FasterRupeeAccumulator", "gEnhancements.FasterRupeeAccumulator", false },
+    { "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles", false },
+    { "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty", false },
+    { "gEnhancements.Mods.DisableBombBillboarding", "gEnhancements.DisableBombBillboarding", false },
+    { "gEnhancements.Mods.DisableGrottoRotation", "gEnhancements.DisableGrottoRotation", false },
+    { "gCheats.InfiniteEponaCarrots", "gCheats.InfiniteEponaBoost", false },
 };
 
 /**
@@ -610,6 +631,9 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
+// #1411: 2Ship's Invert Zora Swim Y Axis (dabc3aadc), a Player row in 2Ship, hosted in the same Quality of Life >
+// Controls "Majora's Mask" block. MM reads it with default 1, which is vanilla (the row draws ticked).
+#define RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y "gEnhancements.Player.InvertZoraSwimY"
 // W6-MASKS-SONGS
 // W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
 // Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
@@ -705,6 +729,9 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT "gEnhancements.DifficultyOptions.FrogChoirCount"
 #define RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS "gEnhancements.Minigames.CremiaHugs"
 #define RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK "gEnhancements.Items.AmmoBuyback"
+// #1412: MM's No Random Drops (2Ship's own key), held apart from SoH's gEnhancements.NoRandomDrops (kMustStayDistinct)
+// and bound by its hosted row, "MM No Random Drops", right after SoH's on Enhancements > Difficulty > Drops.
+#define RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS "gEnhancements.DifficultyOptions.NoRandomDrops"
 // W6-MINIGAMES
 // #1236: MM's minigame options and its Mark Shooting Gallery Octoroks row, each bound by one hosted row on SoH's
 // Enhancements > Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). No SoH twin shares a key. The three
@@ -886,6 +913,18 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "two rules, and a seed-forced SoH row would show on while MM followed the hidden value. Ruled: the keys stay "
       "distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. MM-only key: an "
       "importer must carry it as MM's own and never onto SoH's." },
+    { "No Random Drops rule (#1412, held apart and hosted)", RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS,
+      "gEnhancements.NoRandomDrops",
+      "Same bool and JSON shape, different RULE: SoH's key returns early from OoT_Item_DropCollectibleRandom (and "
+      "stops the random drops of grass, beehives and the Shadow Temple's giant skull jar), and its row says random "
+      "drops only, 'except from the Goron Pot, Dampe, and Bosses'. 2Ship's NoRandomDrops.cpp ('Prevents spawning of "
+      "any collectibles.') cancels VB_DROP_COLLECTIBLE in MM_Item_DropCollectible as well as "
+      "MM_Item_DropCollectibleRandom, so SET drops vanish too: a stray fairy in a pot, the Hero's Shield a Like Like "
+      "gives back, the Swordsman's School gong rupee, a rupee trap's rupees. It spares only arrows and magic in a "
+      "few rooms that need them. On SoH's key one switch would delete Termina contents its row never mentions, so "
+      "the keys stay distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. Converging "
+      "needs MM's rule narrowed to random drops first. MM-only key: an importer must carry it as MM's own and never "
+      "onto SoH's." },
     { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
@@ -1060,6 +1099,9 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     /* W6-AUDIO-SFX */                                               \
     X(RSBS_CVAR_MM_MUTE_CARPENTER_SFX)                               \
     X(RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY)                             \
+    /* #1411 */                                                      \
+    X(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)                         \
+    X(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)                        \
     /* W6-TIMESAVERS */                                              \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_TEXT)                               \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION)                     \
@@ -1099,6 +1141,7 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE)                   \
     X(RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL)                    \
     X(RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS)                              \
+    X(RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y)                        \
     /* W6-MASKS-SONGS */                                             \
     X(RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING)                       \
     X(RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG)                             \
@@ -1171,6 +1214,8 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT)                      \
     X(RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS)                            \
     X(RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK)                               \
+    /* #1412: MM's own No Random Drops, held apart */                \
+    X(RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS)                       \
     /* W6-MINIGAMES */                                               \
     X(RSBS_CVAR_MM_MINIGAMES_BOMBERS_HIDE_AND_SEEK)                  \
     X(RSBS_CVAR_MM_MINIGAMES_SWORDSMAN_SCHOOL_SCORE)                 \
@@ -1395,6 +1440,13 @@ inline constexpr const char* kSharedIntentKeys[] = {
     // SoH's key with SoH's default (off), the way OoT's z_camera.c does, so the one row drives both games and the
     // marker pass labels it. Adopted, not converged: there is no MM spelling to retire or migrate.
     "gEnhancements.DisableCritWiggle",
+    // #1413 (MFE-22): SoH's "Customize Ocarina Controls" (the custom note-button mapping layer). 2Ship's port of it
+    // (ec9e755bb, gEnhancements.Playback.CustomizeOcarinaControls) never reached our MM tree under that spelling;
+    // the backport reads SoH's key with SoH's default (off) in MM's GameInteractor_CustomOcarinaControls
+    // (GameExports_SingleExe.cpp) and AudioOcarina_ReadControllerInput (code_8019AF00.c), and the note bindings
+    // are the BTN_CUSTOM_OCARINA_* bits of the one shared ControlDeck. Adopted, not converged: nothing to migrate.
+    // The checkbox is a raw CVarCheckbox in SoH's input editor, which the menu marker pass does not reach.
+    "gSettings.CustomOcarina.Enabled",
 };
 
 /**
@@ -2100,11 +2152,14 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
 // right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
-// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering). 32 + 11 + 4 + 1 + 1
-// + 1 = 50. Pinning the count makes a silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering),
+// and #1412 ten (unsheathe without slashing, remove explosive limit, no heart drops, drops don't despawn, faster
+// rupee accumulator, skip bottle pickup messages, empty bottles faster, bomb billboarding, grotto rotation, Epona
+// boost; its No Random Drops is held out in kMustStayDistinct).
+// 32 + 11 + 4 + 1 + 1 + 1 + 10 = 60. Pinning the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 60, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
                                         "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
-                                        "+ #1239 (1) + #1272 (1) = 50");
+                                        "+ #1239 (1) + #1272 (1) + #1412 (10 of 11; No Random Drops held out) = 60");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to
@@ -2112,13 +2167,14 @@ static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder 
 // widescreen-culling spellings matched only in OoT's uncalled ShipUtils.cpp, so
 // #966 (#1027, #1028) converged them as ordinary rows and this table carried 24.
 // #1426 adds one adopted key, SoH's DisableCritWiggle, which MM's camera now
-// reads too: 25. Pinning the count makes a silent drop a compile error rather
-// than a quietly weaker lock.
-static_assert(kSharedIntentKeyCount == 25,
+// reads too: 25. #1413 adopts SoH's gSettings.CustomOcarina.Enabled, which MM's
+// ocarina input now reads too: 26. Pinning the count makes a silent drop a
+// compile error rather than a quietly weaker lock.
+static_assert(kSharedIntentKeyCount == 26,
               "ADR 0003 Appendix B's 26 class-(S) keys less the two actor-cull spellings #966 moved to converged "
               "rows (#1027, #1028); includes DebugSaveFileMode — restored to (S) by #454 once MM's "
               "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1; plus #1426's "
-              "adopted gEnhancements.DisableCritWiggle");
+              "adopted gEnhancements.DisableCritWiggle and #1413's adopted gSettings.CustomOcarina.Enabled");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 // The disputed table is empty since #454's fix. Pinned at 0 like every other
 // table here, so a key silently re-added to it is a compile error rather than a

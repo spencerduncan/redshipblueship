@@ -186,6 +186,8 @@ std::unordered_map<RandomizerGet, RandomizerInf> randomizerGetToRandInf = {
     { RG_BONGO_BONGO_SOUL, RAND_INF_BONGO_BONGO_SOUL },
     { RG_TWINROVA_SOUL, RAND_INF_TWINROVA_SOUL },
     { RG_GANON_SOUL, RAND_INF_GANON_SOUL },
+    // [RSBS #1169 XW4] Song of Soaring (OoT): owned through its flag (the give and the obtainability below).
+    { RG_SONG_OF_SOARING_OOT, RAND_INF_OBTAINED_SONG_OF_SOARING_OOT },
 };
 
 #ifdef _MSC_VER

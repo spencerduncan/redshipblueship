@@ -118,7 +118,7 @@ typedef struct {
  *
  *   - OoT projects its RandomizerCheckStatus in its own TU, with SoH's own
  *     precedence (DrawLocation): RCSHOW_COLLECTED is COLLECTED, RCSHOW_SAVED is
- *     SAVED, then the heap skip flag is SKIPPED, RCSHOW_SEEN and
+ *     SAVED, then the heap skip flag is SKIPPED, RCSHOW_SEEN_OR_HINTED and
  *     RCSHOW_IDENTIFIED are SEEN, RCSHOW_SCUMMED is SCUMMED, RCSHOW_UNCHECKED
  *     is UNCHECKED.
  *   - MM has its obtained, skipped and seen (RandoCheckSeen: seen = 1,
@@ -217,9 +217,10 @@ typedef struct {
 
 /**
  * A SEEN check's item (#1166): what SoH's DrawLocation prints beside a check it
- * has seen (RCSHOW_SEEN, a shop slot looked at) or identified (RCSHOW_IDENTIFIED,
- * its price read too), as facts the OoT TU reads in its own terms. The rule is
- * here, free of OoT's enums, so the ROM-free lock holds it:
+ * has seen (RCSHOW_SEEN_OR_HINTED: a shop slot looked at, or a check a clear item
+ * hint names, #1366) or identified (RCSHOW_IDENTIFIED, its price read too), as
+ * facts the OoT TU reads in its own terms. The rule is here, free of OoT's enums,
+ * so the ROM-free lock holds it:
  *   - The item is named unless SoH hides it: a merchant's without Merchant Hint
  *     Text or under Mysterious Shuffle, a scrub's without Scrub Hint Text or
  *     under Mysterious Shuffle, a shop slot's under Mysterious Shuffle when it
@@ -241,7 +242,7 @@ typedef enum {
 typedef struct {
     uint8_t game;              // the row's game: an ice trap's disguise and trick name are its items
     uint8_t saleKind;          // ComboTrackerSaleKind
-    bool identified;           // RCSHOW_IDENTIFIED (else RCSHOW_SEEN)
+    bool identified;           // RCSHOW_IDENTIFIED (else RCSHOW_SEEN_OR_HINTED)
     bool listed;               // on the game's tracker list (SoH's IsVisibleInCheckTracker)
     bool canBePurchased;       // ItemLocation::CanBePurchased
     bool merchantTextHint;     // the seed's Merchant Hint Text
@@ -387,6 +388,16 @@ void Combo_Tracker_RegisterMM(const ComboMMTrackerDesc* desc);
 /** The registered MM descriptor, or NULL. Read-only; exposed so the ROM-free
  *  lock can author a shadow blob at the REAL registered offsets. */
 const ComboMMTrackerDesc* Combo_Tracker_GetMMDesc(void);
+
+/**
+ * The MM save image every MM read of this view uses (THE SOURCE PICK, #799), for
+ * the other MM views that must switch source together with the check panes (the
+ * combined Hint Tracker's MM pane, #1475): MM's live save while MM is played and
+ * marked (LIVE), else the marked frozen shadow (STALE), else NULL (UNAVAILABLE).
+ * The image is MM's SaveContext layout. `*outFreshness` (may be NULL) receives
+ * the ComboTrackerFreshness. NULL, UNAVAILABLE, with no MM descriptor registered.
+ */
+const void* Combo_TrackerMMSave(uint8_t* outFreshness);
 
 /**
  * Build and register MM's descriptor. DEFINED MM-SIDE

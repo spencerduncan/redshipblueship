@@ -3,6 +3,8 @@
 #include "z64quake.h"
 #include "z64view.h"
 
+#include "2s2h/GameInteractor/GameInteractor.h"
+
 typedef struct {
     /* 0x00 */ s16 index;
     /* 0x02 */ s16 duration;
@@ -878,15 +880,17 @@ void Distortion_Update(void) {
         depthPhase += CAM_DEG_TO_BINANG(depthPhaseStep);
         screenPlanePhase += CAM_DEG_TO_BINANG(screenPlanePhaseStep);
 
-        MM_View_SetDistortionOrientation(&sDistortionRequest.play->view,
-                                      MM_Math_CosS(depthPhase) * (DEG_TO_RAD(rotX) * xyScaleFactor),
-                                      MM_Math_SinS(depthPhase) * (DEG_TO_RAD(rotY) * xyScaleFactor),
-                                      MM_Math_SinS(screenPlanePhase) * (DEG_TO_RAD(rotZ) * zScaleFactor));
-        MM_View_SetDistortionScale(&sDistortionRequest.play->view,
-                                (MM_Math_SinS(screenPlanePhase) * (xScale * xyScaleFactor)) + 1.0f,
-                                (MM_Math_CosS(screenPlanePhase) * (yScale * xyScaleFactor)) + 1.0f,
-                                (MM_Math_CosS(depthPhase) * (zScale * zScaleFactor)) + 1.0f);
-        MM_View_SetDistortionSpeed(&sDistortionRequest.play->view, speed * speedScaleFactor);
+        if (GameInteractor_Should(VB_APPLY_SCREEN_DISTORTION, true, sDistortionRequest.type)) {
+            MM_View_SetDistortionOrientation(&sDistortionRequest.play->view,
+                                             MM_Math_CosS(depthPhase) * (DEG_TO_RAD(rotX) * xyScaleFactor),
+                                             MM_Math_SinS(depthPhase) * (DEG_TO_RAD(rotY) * xyScaleFactor),
+                                             MM_Math_SinS(screenPlanePhase) * (DEG_TO_RAD(rotZ) * zScaleFactor));
+            MM_View_SetDistortionScale(&sDistortionRequest.play->view,
+                                       (MM_Math_SinS(screenPlanePhase) * (xScale * xyScaleFactor)) + 1.0f,
+                                       (MM_Math_CosS(screenPlanePhase) * (yScale * xyScaleFactor)) + 1.0f,
+                                       (MM_Math_CosS(depthPhase) * (zScale * zScaleFactor)) + 1.0f);
+            MM_View_SetDistortionSpeed(&sDistortionRequest.play->view, speed * speedScaleFactor);
+        }
 
         sDistortionRequest.state = DISTORTION_ACTIVE;
 

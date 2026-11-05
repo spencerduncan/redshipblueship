@@ -11,6 +11,9 @@
  *    Time Moves When You Move). SoH has no twin of any of them.
  *  - Difficulty: a "Majora's Mask" block after SoH's Enemies section, for 2Ship's Difficulty rows and the two rows of
  *    its 'Other' block (Milk Run Reward Options, Ammo Buyback Options), which have no nearer SoH relative.
+ *  - Difficulty > Drops: "MM No Random Drops" right after SoH's own (#1412). Held apart (kMustStayDistinct): SoH's row
+ *    stops random drops only, while 2Ship's NoRandomDrops.cpp blocks every collectible spawn outside a few rooms,
+ *    fixed drops included, so SoH's key would delete Termina contents its row never mentions.
  *
  * What is NOT here:
  *  - Mirrored World. SoH's own row on Extra Modes is the one control; it reaches MM through a translation
@@ -136,6 +139,16 @@ void AddMmDifficultyRows(SohMenu& menu, WidgetPath& path) {
                      .DefaultIndex(0)
                      .Tooltip("Lets the Curiosity Shop owner buy your ammo, Magic Beans and Powder Kegs at full or "
                               "half price. Majora's Mask only."));
+}
+
+/** Enhancements > Difficulty > Drops, right after SoH's No Random Drops. */
+void AddMmNoRandomDropsRow(SohMenu& menu, WidgetPath& path) {
+    AddHostedMmWidget(menu, path, "Drops", "MM No Random Drops", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS)
+        .Options(CheckboxOptions().Tooltip(
+            "Prevents every collectible from spawning, fixed drops included, such as a stray fairy in a pot or the "
+            "Hero's Shield a Like Like drops. Arrows and magic still drop in the few rooms that need them. Majora's "
+            "Mask only."));
 }
 
 } // namespace SohGui

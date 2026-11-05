@@ -39,6 +39,9 @@ void Randomizer_DrawRocsFeather(PlayState* play, GetItemEntry* getItemEntry);
 void Randomizer_DrawBlastMask(PlayState* play, GetItemEntry* getItemEntry);
 // [RSBS #979] RG_STONE_MASK's, the same way (StoneMaskOoT.cpp; single-exe only).
 void Randomizer_DrawStoneMask(PlayState* play, GetItemEntry* getItemEntry);
+// [RSBS #1169 XW4] RG_SONG_OF_SOARING_OOT's: Majora's Mask's Song of Soaring through
+// the co-mounted archives, else OoT's generic note (SongOfSoaringOoT.cpp; single-exe only).
+void Randomizer_DrawSongOfSoaringOoT(PlayState* play, GetItemEntry* getItemEntry);
 
 #define GET_ITEM_MYSTERY                                                                                 \
     {                                                                                                    \

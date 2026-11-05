@@ -513,6 +513,19 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // under the one-game model, migrated by version 10. Both bool, default off.
     { 1272, "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView",
       "gSettings.DisableFirstPersonAutoCenterView" },
+    // #1412: the MM halves of ten settings SoH already ships. 2Ship's TUs (ported in that change) read 2Ship's
+    // spellings; they read SoH's keys instead. All bool, default off. MM's No Random Drops is held apart
+    // (kMustStayDistinct: MM's rule also blocks set drops), so it has no row here.
+    { 1412, "gEnhancements.Player.UnsheatheWithoutSlashing", "gEnhancements.UnsheatheWithoutSlashing" },
+    { 1412, "gEnhancements.Items.RemoveExplosiveLimit", "gEnhancements.RemoveExplosiveLimit" },
+    { 1412, "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops" },
+    { 1412, "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie" },
+    { 1412, "gEnhancements.Timesavers.FasterRupeeAccumulator", "gEnhancements.FasterRupeeAccumulator" },
+    { 1412, "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles" },
+    { 1412, "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty" },
+    { 1412, "gEnhancements.Mods.DisableBombBillboarding", "gEnhancements.DisableBombBillboarding" },
+    { 1412, "gEnhancements.Mods.DisableGrottoRotation", "gEnhancements.DisableGrottoRotation" },
+    { 1412, "gCheats.InfiniteEponaCarrots", "gCheats.InfiniteEponaBoost" },
 };
 
 /// The migration table a key-gap row's stored MM spelling rides: version 9's for the #966 audit's rows, version 10's
@@ -552,6 +565,19 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     { 1239, "gAudioEditor.LinkVoiceFreqMultiplier", "Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
     { 1239, "gAudioEditor.MuteCarpenterSfx", "Audio/Sfx/MuteCarpenterSfx.cpp" },
     { 1239, "gAudioEditor.ChildGoronCry", "Audio/Sfx/MuteCryingGoronChild.cpp" },
+    // #1412: the providers of the ten converged MM halves, and MM's held-apart No Random Drops (its own key, hosted
+    // as "MM No Random Drops"), which has the same file-scope-registrar exposure.
+    { 1412, "gEnhancements.UnsheatheWithoutSlashing", "Player/UnsheatheWithoutSlashing.cpp" },
+    { 1412, "gEnhancements.RemoveExplosiveLimit", "Items/RemoveExplosiveLimit.cpp" },
+    { 1412, "gEnhancements.NoHeartDrops", "DifficultyOptions/NoHeartDrops.cpp" },
+    { 1412, "gEnhancements.DifficultyOptions.NoRandomDrops", "DifficultyOptions/NoRandomDrops.cpp" },
+    { 1412, "gCheats.DropsDontDie", "DifficultyOptions/NoDropDespawning.cpp" },
+    { 1412, "gEnhancements.FasterRupeeAccumulator", "Timesavers/FasterRupeeAccumulator.cpp" },
+    { 1412, "gEnhancements.FastBottles", "Dialogue/SkipBottleCatch.cpp" },
+    { 1412, "gEnhancements.FasterBottleEmpty", "Timesavers/FasterBottles.cpp" },
+    { 1412, "gEnhancements.DisableBombBillboarding", "Graphics/DisableBombBillboarding.cpp" },
+    { 1412, "gEnhancements.DisableGrottoRotation", "Graphics/DisableGrottoRotation.cpp" },
+    { 1412, "gCheats.InfiniteEponaBoost", "Cheats/InfiniteEponaCarrots.cpp" },
 };
 
 /// #1037: held APART, not mapped, and HOSTED: OoT's DamageMult list runs 0-8, MM's 0-4 plus 10, so each game keeps its
@@ -1648,6 +1674,47 @@ TestResult Test_CVarClassification(void) {
                             "(3e-2) #1426: nothing under games/oot reads \"DisableCritWiggle\" any more (OoT's "
                             "z_camera.c and SoH's row reach it through CVAR_ENHANCEMENT)");
             printf("[TEST] (3e-2) Disable Crit Wiggle is one shared-intent key, read by both games' cameras\n");
+        }
+
+        // (3e-3) #1413: SoH's Customize Ocarina Controls is ADOPTED by Majora's Mask. 2Ship's custom ocarina note
+        // buttons (ec9e755bb) read SoH's key in MM's two live readers: GameInteractor_CustomOcarinaControls (in
+        // GameExports_SingleExe.cpp, because MM's GameInteractor.cpp is excluded from the single exe) and the
+        // vanilla-input block in AudioOcarina_ReadControllerInput (code_8019AF00.c). Red on a tree where either
+        // reader moves off the key, or where the manifest drops it: a later pass trusting an "OoT-only" manifest
+        // could rename or retire the key and MM's remapped notes would stop with nothing else going red.
+        {
+            constexpr const char* kCustomOcarinaKey = "gSettings.CustomOcarina.Enabled";
+            bool shared = false;
+            for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+                shared = shared || strcmp(RSBS::kSharedIntentKeys[i], kCustomOcarinaKey) == 0;
+            }
+            CVARCLASS_CHECK(shared, "(3e-3) #1413: gSettings.CustomOcarina.Enabled is not in RSBS::kSharedIntentKeys, "
+                                    "but Majora's Mask's ocarina input reads it");
+            const std::filesystem::path mmReaders[] = {
+                sourceRoot / "games" / "mm" / "2s2h" / "GameExports_SingleExe.cpp",
+                sourceRoot / "games" / "mm" / "src" / "audio" / "code_8019AF00.c",
+            };
+            for (const std::filesystem::path& reader : mmReaders) {
+                std::ifstream readerFile(reader, std::ios::binary);
+                const std::string readerText((std::istreambuf_iterator<char>(readerFile)),
+                                             std::istreambuf_iterator<char>());
+                if (readerText.empty()) {
+                    printf("[TEST] FAIL: (3e-3) #1413: could not read %s\n", reader.string().c_str());
+                    return TEST_FAIL;
+                }
+                const std::vector<std::string> readerTree = { CvarClassStripComments(readerText) };
+                if (!CvarClassTreeContainsExactKey(readerTree, kCustomOcarinaKey)) {
+                    printf("[TEST] FAIL: (3e-3) #1413: %s does not read SoH's \"gSettings.CustomOcarina.Enabled\", so "
+                           "notes remapped in SoH's input editor are ignored in Majora's Mask\n",
+                           reader.string().c_str());
+                    return TEST_FAIL;
+                }
+            }
+            CVARCLASS_CHECK(CvarClassOotTreeNamesKey(ootTree, kCustomOcarinaKey),
+                            "(3e-3) #1413: nothing under games/oot names \"gSettings.CustomOcarina.Enabled\" any more "
+                            "(SoH's input editor reaches it through CVAR_SETTING)");
+            printf("[TEST] (3e-3) Customize Ocarina Controls is one shared-intent key, read by both games' ocarina "
+                   "input\n");
         }
 
         // (3f) The canonical keys are actually read by OoT. Catches a typo in

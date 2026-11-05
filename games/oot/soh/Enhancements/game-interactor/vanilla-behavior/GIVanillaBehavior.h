@@ -2403,7 +2403,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // true
+    // varies
     // ```
     // #### `args`
     // - `*Actor`
@@ -2675,6 +2675,180 @@ typedef enum {
     // - `s32* item`
     VB_OVERRIDE_BUTTON_ITEM_USED,
 
+    // [RSBS #1345] The next four are appended last so no existing id shifts.
+    // Upstream SoH 917a9b78d puts the two Guay ids after VB_GUAY_FORCE_FLY_AWAY
+    // and 5f52af7ef puts the two Keese ids after VB_KEESE_FORCE_FLY_AWAY.
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnCrow`
+    VB_GUAY_SETUP_DAMAGED,
+
+    // #### `result`
+    // ```c
+    // this->actor.colChkInfo.health != 0
+    // ```
+    // #### `args`
+    // - `*f32` (scale)
+    VB_GUAY_ALIVE_MOVE_HEIGHT_OFFSET,
+
+    // #### `result`
+    // ```c
+    // varies
+    // ```
+    // #### `args`
+    // - `*EnFirefly`
+    VB_KEESE_SETUP_FALL,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnFirefly`
+    VB_KEESE_SETUP_FROZENFALL,
+
+    // [RSBS #1365] Appended after #1336's, so no earlier id moves.
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_Init).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossTw`
+    // - `*PlayState`
+    VB_PLAY_TWINROVA_INTRO_CS,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOTAKE,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOUME,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossVa`
+    // - `s8*` sCsState
+    VB_BARINADE_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timer == 0
+    // ```
+    // or while the body darkens
+    // ```c
+    // this->timer != 0
+    // ```
+    // #### `args`
+    // - `*BossSst` (head)
+    // - `*BossSst` (left hand)
+    // - `*BossSst` (right hand)
+    VB_BONGO_BONGO_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timer == 80
+    // ```
+    // or once the blue warp has spawned
+    // ```c
+    // this->timer == 0
+    // ```
+    // #### `args`
+    // - `*BossGoma`
+    VB_GOHMA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->unk_1DA == 600
+    // ```
+    // #### `args`
+    // - `*BossDodongo`
+    VB_KING_DODONGO_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timers[0] == 0
+    // ```
+    // #### `args`
+    // - `*BossMo` (core)
+    // - `*BossMo` (tentacle)
+    VB_MORPHA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->work[CS_TIMER_2] >= 120 && this->work[CS_TIMER_2] < 500
+    // ```
+    // #### `args`
+    // - `*BossTw`
+    VB_TWINROVA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timers[0] == 0
+    // ```
+    // #### `args`
+    // - `*BossFd2`
+    VB_VOLVAGIA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    VB_GANONDORF_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon2`
+    VB_PLAY_ESCAPED_TOWER_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    // - `u16` text ID
+    VB_PLAY_GANONDORF_INTRO_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon2`
+    // - `*EnZl3`
+    VB_PLAY_GANON_INTRO_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    VB_PLAY_ZELDA_CRYSTAL_CS,
+
     // #### `result`
     // ```c
     // false if in Jabu, carrying Ruto, abducted flag set, door is id 21 or 3
@@ -2884,6 +3058,16 @@ typedef enum {
     // #### `args`
     // - `*EnKo`
     VB_KOKIRI_GET_FOREST_QUEST_STATE2,
+
+    // #### `result`
+    // ```c
+    // sets `camMode` to new mode if applicable
+    // ```
+    // #### `args`
+    // - `s32` player->heldItemAction
+    // - `s32*` camMode
+    VB_CHANGE_AIMING_CAMERA,
+
 } GIVanillaBehavior;
 
 #endif

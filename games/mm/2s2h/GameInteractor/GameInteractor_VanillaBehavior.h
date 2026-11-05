@@ -2171,6 +2171,107 @@ typedef enum {
     // charge built before the jump is kept (OoTMM's lenientSpikes). Appended rather than sorted in, so no existing
     // id moves.
     VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s32` (sDistortionRequest.type)
+    VB_APPLY_SCREEN_DISTORTION,
+
+    // #### `result`
+    // ```c
+    // (CURRENT_DAY == 3) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)
+    // ```
+    // #### `args`
+    // - None
+    VB_EARTHQUAKE_ON_DAY_3,
+
+    // #### `result`
+    // ```c
+    // ((this->modelAnimType != PLAYER_ANIMTYPE_3) && (this->heldItemAction != PLAYER_IA_DEKU_STICK) &&
+    //  (play->bButtonAmmoPlusOne == 0))
+    // ```
+    // #### `args`
+    // - `Player*`
+    VB_USE_HELD_ITEM_AFTER_CHANGE,
+
+    // #### `result`
+    // ```c
+    // play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].length >= 3
+    // ```
+    // #### `args`
+    // - None
+    VB_LIMIT_EXPLOSIVES,
+
+    // #### `result`
+    // #### In `MM_Item_DropCollectible`:
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `Vec3f` spawnPos
+    // - `s32` params
+    // #### In `MM_Item_DropCollectibleRandom`:
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `Vec3f` spawnPos
+    // - `u8` dropId
+    VB_DROP_COLLECTIBLE,
+
+    // #### `result`
+    // ```c
+    // this->unk152 > 0
+    // ```
+    // #### `args`
+    // - `*EnItem00`
+    VB_UPDATE_ITEM00,
+
+    // #### `result`
+    // ```c
+    // i < ARRAY_COUNT(D_8085D798)
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `*Actor` (interactRangeActor)
+    // - `ItemId`
+    // - `PlayerItemAction`
+    VB_PLAY_BOTTLE_CATCH_TEXT,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `Player*`
+    VB_USE_BOTTLE_ITEM,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s16` (actor ID)
+    VB_APPLY_BOMB_BILLBOARDING,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_ROTATE_GROTTO_ENTRANCE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_CONSUME_EPONA_CARROT,
 } GIVanillaBehavior;
 
 #endif

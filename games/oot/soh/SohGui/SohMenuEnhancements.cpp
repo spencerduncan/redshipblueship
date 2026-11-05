@@ -64,6 +64,8 @@ void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
 // W6-MODES-DIFF (#1236): MM's Modes and Difficulty rows (HostedMm/SohMenuHostedMmModesDifficulty.cpp).
 void AddMmExtraModesRows(SohMenu& menu, WidgetPath& path);
 void AddMmDifficultyRows(SohMenu& menu, WidgetPath& path);
+// #1412: MM's own No Random Drops, held apart from SoH's and drawn right after it (same HostedMm file as above).
+void AddMmNoRandomDropsRow(SohMenu& menu, WidgetPath& path);
 // W6-GFX (#1237): MM's clock, motion blur and scene-geometry rows (HostedMm/SohMenuHostedMmGraphics.cpp), and the
 // reapply of MM's authentic patches that Fix Out of Bounds Textures also chooses.
 void AddMmClockRows(SohMenu& menu, WidgetPath& path);
@@ -439,6 +441,7 @@ void SohMenu::AddMenuEnhancements() {
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Entrances"), true);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), true);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"), true);
+            CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("WarpSongSkipAnimation"), true);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), true);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.QuickBossDeaths"), true);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.OnePoint"), true);
@@ -456,6 +459,7 @@ void SohMenu::AddMenuEnhancements() {
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Entrances"), false);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), false);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"), false);
+            CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("WarpSongSkipAnimation"), false);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), false);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.QuickBossDeaths"), false);
             CVAR_INT_SHIP_INIT(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.OnePoint"), false);
@@ -478,6 +482,10 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
     AddMmSkipTimeSongCutscenesRow(*this, path); // L7 (#1133): MM's Song of Time cutscenes, beside the song skips
+    AddWidget(path, "Skip Warp Cutscenes", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("WarpSongSkipAnimation"))
+        .Options(CheckboxOptions().DefaultValue(IS_RANDO).Tooltip(
+            "Warp songs skip the departure and arrival cutscenes, fading immediately to the destination."));
     AddWidget(path, "Skip Boss Introductions", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"))
         .Options(CheckboxOptions().DefaultValue(IS_RANDO));
@@ -1406,6 +1414,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "No Random Drops", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("NoRandomDrops"))
         .Options(CheckboxOptions().Tooltip("Disables Random Drops, except from the Goron Pot, Dampe, and Bosses."));
+    AddMmNoRandomDropsRow(*this, path);
     AddWidget(path, "Enable Bombchu Drops", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("EnableBombchuDrops"))
         .PreFunc([](WidgetInfo& info) {

@@ -3,6 +3,9 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipUtils.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -10,6 +13,15 @@ extern "C" {
 }
 
 void ApplySwampSpiderHouseHint(u16* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1475: the combined Hint Tracker's resolver builds this text (Rando/
+    // HintSources.h, upstream's expression moved there), so the tracker shows
+    // exactly this; showing it records the hint as read.
+    CustomMessage::Entry entry = {
+        .msg = Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_SPIDER_HOUSE_SWAMP, RANDO_SAVE_CHECKS, nullptr),
+    };
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_SPIDER_HOUSE_SWAMP);
+#else
     CustomMessage::Entry entry = {
         .msg = "Make me...normal again...I'll give you %g{{article}}{{item}}%w...Please...help me...\xE0",
     };
@@ -24,12 +36,20 @@ void ApplySwampSpiderHouseHint(u16* textId, bool* loadFromMessageTable) {
     }
 
     CustomMessage::Replace(&entry.msg, "{{item}}", randoStaticItem.name);
+#endif
 
     CustomMessage::LoadCustomMessageIntoFont(entry);
     *loadFromMessageTable = false;
 }
 
 void ApplyOceanSpiderHouseHint(u16* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1475: as the swamp's above.
+    CustomMessage::Entry entry = {
+        .msg = Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_SPIDER_HOUSE_OCEAN, RANDO_SAVE_CHECKS, nullptr),
+    };
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_SPIDER_HOUSE_OCEAN);
+#else
     CustomMessage::Entry entry = {
         .msg = "Huh? How'd I get up here... Why do I have %g{{article}}{{item}}%w in my pocket...?\xE0",
     };
@@ -43,6 +63,7 @@ void ApplyOceanSpiderHouseHint(u16* textId, bool* loadFromMessageTable) {
     }
 
     CustomMessage::Replace(&entry.msg, "{{item}}", randoStaticItem.name);
+#endif
 
     CustomMessage::LoadCustomMessageIntoFont(entry);
     *loadFromMessageTable = false;

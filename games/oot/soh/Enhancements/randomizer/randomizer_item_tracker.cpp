@@ -653,7 +653,7 @@ void DrawItemCount(ItemTrackerItem item, bool hideMax) {
         CVarGetInteger(CVAR_TRACKER_ITEM("ItemCountType"), ITEM_TRACKER_NUMBER_CURRENT_CAPACITY_ONLY);
     int32_t trackerKeyNumberDisplayMode = CVarGetInteger(CVAR_TRACKER_ITEM("KeyCounts"), KEYS_COLLECTED_MAX);
     float textScalingFactor = static_cast<float>(iconSize) / 36.0f;
-    uint32_t actualItemId = INV_CONTENT(item.id);
+    uint32_t actualItemId = item.id < ARRAY_COUNT(OoT_gItemSlots) ? INV_CONTENT(item.id) : ITEM_NONE;
     bool hasItem = actualItemId != ITEM_NONE;
 
     if (CVarGetInteger(CVAR_TRACKER_ITEM("HookshotIdentifier"), 0)) {
@@ -892,9 +892,10 @@ void DrawItem(ItemTrackerItem item) {
             itemName = "Triforce Piece";
             break;
         case ITEM_NAYRUS_LOVE:
-            if (IS_RANDO && OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_ROCS_FEATHER)) {
-                hasItem = Flags_GetRandomizerInf(RAND_INF_OBTAINED_NAYRUS_LOVE);
-            }
+            // Roc's Feather shares this slot, so the slot being filled isn't enough
+            hasItem = IS_RANDO && OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_ROCS_FEATHER)
+                          ? Flags_GetRandomizerInf(RAND_INF_OBTAINED_NAYRUS_LOVE)
+                          : actualItemId == ITEM_NAYRUS_LOVE;
             break;
         case RG_ROCS_FEATHER:
             actualItemId = item.id;
