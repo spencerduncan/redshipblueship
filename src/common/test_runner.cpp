@@ -1901,15 +1901,17 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr);
 // Drives the real Save_Init with and without the arrival flag.
 extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
-// Arrival-rehydration lock (#482), bodies in the two OoT tracker TUs
-// (randomizer_item_tracker.cpp / randomizer_check_tracker.cpp). Each drives the
-// REAL SaveManager initFunc that the arrival title-demo Save_InitFile(true)
-// dispatches (ItemTrackerInitFile / InitTrackerData), with the OoT arrival flag
+// Arrival-rehydration lock (#482), bodies in the three OoT tracker TUs
+// (randomizer_item_tracker.cpp / randomizer_check_tracker.cpp /
+// randomizer_hint_tracker.cpp). Each drives the REAL SaveManager initFunc that
+// the arrival title-demo Save_InitFile(true) dispatches (ItemTrackerInitFile /
+// InitTrackerData / HintTracker::InitHintTrackerData), with the OoT arrival flag
 // set (the out-of-save tracker global must survive) and without it (the clear
-// must still fire, so the pass is not vacuous). Both are pure -- no OTR/display
+// must still fire, so the pass is not vacuous). All are pure -- no OTR/display
 // -- so they run in the display-free suite. Each returns a failure count.
 extern "C" int RandoTest_ItemTrackerArrivalLock(void);
 extern "C" int RandoTest_CheckTrackerArrivalLock(void);
+extern "C" int RandoTest_HintTrackerArrivalLock(void);
 
 TestResult Test_RandoGen(void) {
     printf("[TEST] rando-gen: seed generation succeeds with default settings (#337)\n");
@@ -2213,22 +2215,25 @@ static TestResult Test_MMMirroredWorld(void) {
     return MM_MirroredWorld_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// Arrival-rehydration lock (#482). Two more instances of the #441 class on the
-// OoT side: the check tracker's `areasSpoiled` and the item tracker's typed
-// `itemTrackerNotes` are blanked by SaveManager initFuncs that the arrival
-// title-demo Save_InitFile(true) dispatches, but the frozen save is restored at
-// Play_ConsumeStartupEntrance without re-running Save_LoadFile, so nothing
-// rehydrates them -- they live OUTSIDE gSaveContext. Both are guarded with
+// Arrival-rehydration lock (#482). More instances of the #441 class on the OoT
+// side: the check tracker's `areasSpoiled`, the item tracker's typed
+// `itemTrackerNotes` and the hint tracker's `readHints` (#1366) are blanked by
+// SaveManager initFuncs that the arrival title-demo Save_InitFile(true)
+// dispatches, but the frozen save is restored at Play_ConsumeStartupEntrance
+// without re-running Save_LoadFile, so nothing rehydrates them -- they live
+// OUTSIDE gSaveContext. All three are guarded with
 // Combo_HasStartupEntranceForGame("oot"). This lock drives the real init
 // functions with the arrival flag set (state must survive) and without it (the
 // clear must still fire, proving the pass is non-vacuous). Pure (no display, no
 // OTR, no game archive), so unlike the rando-hint locks it runs in the
 // display-free suite and is NOT skipped by `--test all`.
 TestResult Test_TrackerArrivalRehydration(void) {
-    printf("[TEST] tracker-arrival-rehydration: check/item tracker state survives a cross-game OoT arrival (#482)\n");
+    printf("[TEST] tracker-arrival-rehydration: check/item/hint tracker state survives a cross-game OoT arrival "
+           "(#482)\n");
     int failures = 0;
     failures += RandoTest_CheckTrackerArrivalLock();
     failures += RandoTest_ItemTrackerArrivalLock();
+    failures += RandoTest_HintTrackerArrivalLock();
     printf("[TEST] %s: tracker arrival rehydration failures=%d\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -6368,7 +6373,7 @@ TestResult Test_MMTrackersGui(void) {
 
 // #797, the source half of the OoTWindowsGate lock. The runtime half proves the
 // wrapper gates; this proves production uses it: SohGui::SetupGuiElements must
-// construct exactly the eight save/play-state windows through OoTActiveGated<>
+// construct exactly the nine save/play-state windows through OoTActiveGated<>
 // and every other window it constructs must be on the exempt list, so a window
 // added upstream later has to be classified here before this row passes.
 static bool OoTWindowsGate_ScanSetupGuiElements(void) {
@@ -6397,7 +6402,7 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         "TimeSplitWindow",
     };
     // #797's census: no save/play-state reads (console, debuggers, input
-    // viewer, mod menu, plandomizer, notifications, the three tracker settings
+    // viewer, mod menu, plandomizer, notifications, the four tracker settings
     // windows, which draw CVar rows only), already guarded (Additional Timers,
     // Actor Viewer, Collision Viewer, Anchor Room), or reading fileCreatedAt
     // only on a user action (Audio Editor, Cosmetics Editor).
@@ -8521,11 +8526,11 @@ const TestDescriptor gTests[] = {
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
-    // #482: two more instances of the #441 class -- the check tracker's
-    // areasSpoiled and the item tracker's typed notes are blanked by arrival
-    // init-funcs and never rehydrated. Pure (no display), so it runs in the
-    // display-free suite (NOT skipped by `--test all`).
-    { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
+    // #482: more instances of the #441 class -- the check tracker's
+    // areasSpoiled, the item tracker's typed notes and the hint tracker's read
+    // hints (#1366) are blanked by arrival init-funcs and never rehydrated. Pure
+    // (no display), so it runs in the display-free suite (NOT skipped by `--test all`).
+    { "tracker-arrival-rehydration", "Check/item/hint tracker state survives a cross-game OoT arrival (#482)",
       Test_TrackerArrivalRehydration },
     // #990: the same arrival must also schedule the tracker's Available Checks recalculation.
     { "tracker-arrival-recalc", "A cross-game arrival into OoT schedules the tracker's Available Checks recalc (#990)",

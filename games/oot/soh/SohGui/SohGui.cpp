@@ -208,10 +208,10 @@ void SetupGuiElements() {
         CVAR_WINDOW("EntranceTrackerSettings"), "Entrance Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mEntranceTrackerSettingsWindow);
     mHintTrackerWindow = std::make_shared<OoTActiveGated<HintTracker::HintTrackerWindow>>(
-        CVAR_WINDOW("HintTracker"), "Hint Tracker", ImVec2(550, 620));
+        CVAR_WINDOW("HintTracker"), "Hint Tracker", ImVec2(500, 600));
     gui->AddGuiWindow(mHintTrackerWindow);
     mHintTrackerSettingsWindow = std::make_shared<HintTracker::HintTrackerSettingsWindow>(
-        CVAR_WINDOW("HintTrackerSettings"), "Hint Tracker Settings", ImVec2(600, 300));
+        CVAR_WINDOW("HintTrackerSettings"), "Hint Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mHintTrackerSettingsWindow);
     // RSBS (#1132, ruling D1): retired as the Check Tracker is; the unified Item Tracker replaces it.
     mItemTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(
@@ -249,12 +249,12 @@ void Destroy() {
     mModalWindow = nullptr;
     mItemTrackerWindow = nullptr;
     mItemTrackerSettingsWindow = nullptr;
-    mHintTrackerWindow = nullptr;
-    mHintTrackerSettingsWindow = nullptr;
     mEntranceTrackerWindow = nullptr;
     mEntranceTrackerSettingsWindow = nullptr;
     mCheckTrackerWindow = nullptr;
     mCheckTrackerSettingsWindow = nullptr;
+    mHintTrackerWindow = nullptr;
+    mHintTrackerSettingsWindow = nullptr;
     mGameplayStatsWindow = nullptr;
     mDLViewerWindow = nullptr;
     mValueViewerWindow = nullptr;

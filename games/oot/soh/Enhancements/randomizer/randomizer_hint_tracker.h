@@ -22,7 +22,8 @@ class HintTrackerSettingsWindow final : public Ship::GuiWindow {
     void UpdateElement() override{};
 };
 
-class HintTrackerWindow final : public Ship::GuiWindow {
+// RSBS (#797): not final, so SohGui's OoTActiveGated<> can wrap it.
+class HintTrackerWindow : public Ship::GuiWindow {
   public:
     using GuiWindow::GuiWindow;
     void Draw() override;

@@ -154,7 +154,7 @@ extern "C" int OoT_MenuRegistrars_RunHeadless(void) {
 
     // Leg 2: the init-func registry. Every registrar in the link pushes exactly
     // one entry before main(), so the size is the number of registrar TUs that
-    // survived. 9 is the whole-archived Enhancements set; the remainder is
+    // survived. 10 is the whole-archived Enhancements set; the remainder is
     // soh_port's.
     const size_t expected = kEnhancementMenuInitRegistrars + kPortMenuInitRegistrars;
     const size_t actual = MenuInit::GetInitFuncs().size();

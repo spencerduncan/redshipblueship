@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio> // RSBS: fprintf in RandoTest_HintTrackerArrivalLock
 #include <map>
 #include <mutex>
 #include <set>
@@ -21,6 +22,10 @@ extern "C" {
 #include "functions.h"
 extern PlayState* OoT_gPlayState;
 }
+// RSBS: cross-game arrival guard (#482, #441 shape). Defined in src/common/entrance.cpp.
+extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
+extern "C" void Combo_SetStartupEntrance(uint16_t entrance);
+extern "C" void Combo_ClearStartupEntrance(void);
 
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/randomizer/hint.h"
@@ -158,7 +163,17 @@ static void MarkHintAsRead(RandomizerHint hintKey) {
 
 void InitHintTrackerData(bool isDebug) {
     std::lock_guard<std::mutex> lock(readHintsMutex);
-    readHints.clear();
+    // RSBS (#482 class): a switch INTO OoT runs this initFunc from the arrival
+    // title chain (Opening_SetupTitleScreen -> OoT_Sram_InitDebugSave ->
+    // Save_InitFile(true)), but the frozen OoT save is restored afterwards at
+    // Play_ConsumeStartupEntrance without Save_LoadFile, so LoadHintTrackerData
+    // never runs to rehydrate readHints (a module static, outside gSaveContext).
+    // Clearing it there would forget every read hint on each round trip, and the
+    // next save would write the empty set over the file's hintTrackerData. A
+    // genuine boot or return-to-title still clears, and the file load refills it.
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        readHints.clear();
+    }
     hintTextCache.clear();
 }
 
@@ -379,7 +394,7 @@ static HintTrackerViewMode DrawViewTabs() {
             if (viewMode != mode && tabRestored) {
                 viewMode = mode;
                 CVarSetInteger(CVAR_TRACKER_HINT("ViewMode"), mode);
-                Ship::Context::GetRawInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
+                Ship::Context::GetInstance()->GetWindow()->GetGui()->SaveConsoleVariablesNextFrame();
             }
             ImGui::EndTabItem();
         }
@@ -680,8 +695,7 @@ void HintTrackerWindow::DrawElement() {
             int comboButton1Mask = buttons[CVarGetInteger(CVAR_TRACKER_HINT("ComboButton1"), TRACKER_COMBO_BUTTON_L)];
             int comboButton2Mask = buttons[CVarGetInteger(CVAR_TRACKER_HINT("ComboButton2"), TRACKER_COMBO_BUTTON_R)];
             OSContPad* trackerButtonsPressed =
-                std::dynamic_pointer_cast<LUS::ControlDeck>(Ship::Context::GetRawInstance()->GetControlDeck())
-                    ->GetPads();
+                std::dynamic_pointer_cast<LUS::ControlDeck>(Ship::Context::GetInstance()->GetControlDeck())->GetPads();
             bool comboButtonsHeld = trackerButtonsPressed != nullptr &&
                                     trackerButtonsPressed[0].button & comboButton1Mask &&
                                     trackerButtonsPressed[0].button & comboButton2Mask;
@@ -885,3 +899,44 @@ void RegisterHintTrackerWidgets() {
 
 static RegisterMenuInitFunc menuInitFunc(RegisterHintTrackerWidgets);
 } // namespace HintTracker
+
+// ---- RSBS: arrival-rehydration lock (#482), hint-tracker half. --------------
+// Drives the REAL InitHintTrackerData (the init function the arrival title-demo
+// Save_InitFile(true) dispatches) with the OoT arrival flag set -- the read set
+// MUST survive -- and without it -- the clear MUST still fire, so the pass is not
+// vacuous. Pure (no OTR/display/SaveManager): it touches only the read set and
+// the text cache. Returns the failure count.
+extern "C" int RandoTest_HintTrackerArrivalLock(void) {
+    int failures = 0;
+    const RandomizerHint kReadHint = RH_KF_DEKU_TREE_LEFT_GOSSIP_STONE; // any real hint
+
+    {
+        std::lock_guard<std::mutex> lock(HintTracker::readHintsMutex);
+        HintTracker::readHints = { kReadHint };
+    }
+
+    // Arrival case: the init function must NOT clear the read set.
+    Combo_SetStartupEntrance(0x0100); // any pending entrance -> "a switch into OoT is in flight"
+    if (!Combo_HasStartupEntranceForGame("oot")) {
+        fprintf(stderr, "[tracker-crossgame] hint: could not arm the OoT arrival flag; test setup is broken\n");
+        Combo_ClearStartupEntrance();
+        return 9;
+    }
+    HintTracker::InitHintTrackerData(true);
+    if (!HintTracker::IsHintRead(kReadHint)) {
+        fprintf(stderr, "[tracker-crossgame] hint: FAIL - readHints cleared by the arrival init\n");
+        failures++;
+    }
+
+    // Control: without the arrival flag the clear MUST fire (non-vacuous).
+    Combo_ClearStartupEntrance();
+    HintTracker::InitHintTrackerData(true);
+    if (HintTracker::IsHintRead(kReadHint)) {
+        fprintf(stderr, "[tracker-crossgame] hint: FAIL - init did NOT clear readHints off the arrival path "
+                        "(lock is vacuous)\n");
+        failures++;
+    }
+
+    fprintf(stderr, "[tracker-crossgame] hint: %d failures\n", failures);
+    return failures;
+}
