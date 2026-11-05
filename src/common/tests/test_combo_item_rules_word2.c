@@ -194,15 +194,17 @@ TestResult ComboItemRulesSecondWord_Run(void) {
     {
         XW2_CHECK(sizeof(ComboItemRules2Record) == 4u, "sizeof(ComboItemRules2Record) is %u, expected 4",
                   (unsigned)sizeof(ComboItemRules2Record));
+        // #1169 XW5 then took one byte from the END of reserved[] (1003), so 74.
         XW2_CHECK(offsetof(ComboContext, comboFillWallets) == 913u && offsetof(ComboContext, comboWoth) == 914u &&
                       offsetof(ComboContext, comboItemRules2) == 925u && offsetof(ComboContext, reserved) == 929u &&
-                      sizeof(((ComboContext*)0)->reserved) == 75u,
+                      sizeof(((ComboContext*)0)->reserved) == 74u,
                   "the second word is at %u and reserved[] is %u bytes at %u; expected 925 (after #1439's 11-byte "
-                  "comboWoth at 914), then 75 at 929",
+                  "comboWoth at 914), then 74 at 929 (#1169 XW5's byte is the tail)",
                   (unsigned)offsetof(ComboContext, comboItemRules2), (unsigned)sizeof(((ComboContext*)0)->reserved),
                   (unsigned)offsetof(ComboContext, reserved));
         XW2_CHECK(sizeof(((ComboContext*)0)->reserved) >= 64u, "the carve took reserved[] under ADR 0009's floor");
-        XW2_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1004u &&
+        XW2_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1003u &&
+                      offsetof(ComboContext, mmWarpSongsOwned) == 1003u &&
                       offsetof(ComboContext, trackerAvailCountOoT) == 1004u && sizeof(ComboContext) == 1844u,
                   "the carve moved the record behind reserved[] (ends %u, captures at %u, sizeof %u): every .redsave "
                   "and every seed package's combo record would be reinterpreted",

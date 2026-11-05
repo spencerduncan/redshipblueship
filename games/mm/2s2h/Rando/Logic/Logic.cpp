@@ -418,6 +418,11 @@ std::set<RandoCheckId> ComputeReachableCheckSet() {
     // and truncate back to it so a simulated completion cannot leak a queued
     // transition into gameplay.
     const size_t gameEventsDepth = MM_GameEvents_Queue().size();
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1169 XW5: Ocarina of Time's warp songs are owned in the combo record,
+    // outside the save snapshot; a simulated collect must not own one.
+    const uint8_t warpSongsOwned = MM_WarpSongsMM_SnapshotOwned();
+#endif
 
     std::set<RandoCheckId> obtainable;
     bool collectedAny = true;
@@ -452,6 +457,9 @@ std::set<RandoCheckId> ComputeReachableCheckSet() {
     if (MM_GameEvents_Queue().size() > gameEventsDepth) {
         MM_GameEvents_Queue().resize(gameEventsDepth);
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_WarpSongsMM_RestoreOwned(warpSongsOwned);
+#endif
     return obtainable;
 }
 

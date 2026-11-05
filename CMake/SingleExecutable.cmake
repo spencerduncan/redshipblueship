@@ -213,6 +213,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the frozen area record Majora's Mask's stones read. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
+    # #1169 XW5: Ocarina of Time's six warp songs as Majora's Mask items: how many
+    # copies MM pools under the frozen rules, their names, and the ownership byte
+    # in ComboContext (ADR 0009 claim 20). Game-header-free. APPENDED, never
+    # reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/warp_songs_mm.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -318,6 +323,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
     # Header for critical_renewables.c above (#1443)
     ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
+    # Header for warp_songs_mm.c above (#1169 XW5)
+    ${CMAKE_SOURCE_DIR}/src/common/warp_songs_mm.h
 )
 
 # ============================================================================

@@ -2613,6 +2613,15 @@ typedef enum {
     RI_MASK_GERUDO,
     RI_MASK_SKULL,
     RI_MASK_SPOOKY,
+    // RedShipBlueShip #1169 lane XW5: Ocarina of Time's six warp songs, added to
+    // Majora's Mask by OoTMM's songMinuetMm .. songPreludeMm (Rando/WarpSongsMM.cpp).
+    // APPENDED after the masks for the same reason: no saved id renumbers.
+    RI_SONG_MINUET,
+    RI_SONG_BOLERO,
+    RI_SONG_SERENADE,
+    RI_SONG_REQUIEM,
+    RI_SONG_NOCTURNE,
+    RI_SONG_PRELUDE,
 #endif
     RI_MAX_TRAP,
     RI_MAX,

@@ -8,6 +8,7 @@
 // under the frozen combo goal?
 extern "C" int MM_ComboGoal_TriforceHuntEnds(void);
 #include "Rando/OoTMasksMM.h" // #980: the OoT masks' owned bits
+#include "Rando/WarpSongsMM.h" // #1169 XW5: the warp songs' owned bits
 #endif
 
 extern "C" {
@@ -402,6 +403,16 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_MASK_SKULL:
         case RI_MASK_SPOOKY:
             MM_OoTMask_Give(randoItemId);
+            break;
+        // #1169 XW5: Ocarina of Time's warp songs (WarpSongsMM.cpp): an owned bit in
+        // the combo record, no quest bit and no inventory slot.
+        case RI_SONG_MINUET:
+        case RI_SONG_BOLERO:
+        case RI_SONG_SERENADE:
+        case RI_SONG_REQUIEM:
+        case RI_SONG_NOCTURNE:
+        case RI_SONG_PRELUDE:
+            MM_WarpSongMM_Give(randoItemId);
             break;
 #endif
         case RI_JUNK:
