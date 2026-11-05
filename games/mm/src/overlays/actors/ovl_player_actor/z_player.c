@@ -4671,11 +4671,13 @@ void MM_Player_UseItem(PlayState* play, Player* this, ItemId item) {
             }
         } else if (((itemAction == PLAYER_IA_DEKU_STICK) && (AMMO(ITEM_DEKU_STICK) == 0)) ||
                    (((play->unk_1887D != 0) || (play->unk_1887E != 0)) &&
-                    (play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].length >= 5)) ||
+                    GameInteractor_Should(VB_LIMIT_EXPLOSIVES,
+                                          play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].length >= 5)) ||
                    ((play->unk_1887D == 0) && (play->unk_1887E == 0) &&
                     ((explosiveType = Player_ExplosiveFromIA(this, itemAction)) > PLAYER_EXPLOSIVE_NONE) &&
                     ((AMMO(sPlayerExplosiveInfo[explosiveType].itemId) == 0) ||
-                     (play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].length >= 3)))) {
+                     GameInteractor_Should(VB_LIMIT_EXPLOSIVES,
+                                           play->actorCtx.actorLists[ACTORCAT_EXPLOSIVES].length >= 3)))) {
             // Prevent some items from being used if player is out of ammo.
             // Also prevent explosives from being used if too many are active
             Audio_PlaySfx(NA_SE_SY_ERROR);
@@ -14165,9 +14167,12 @@ s32 Player_UpperAction_1(Player* this, PlayState* play) {
 s32 MM_Player_UpperAction_ChangeHeldItem(Player* this, PlayState* play) {
     if (PlayerAnimation_Update(play, &this->skelAnimeUpper) ||
         ((MM_Player_ItemToItemAction(this, this->heldItemId) == this->heldItemAction) &&
-         (sPlayerUseHeldItem = (sPlayerUseHeldItem || ((this->modelAnimType != PLAYER_ANIMTYPE_3) &&
-                                                       (this->heldItemAction != PLAYER_IA_DEKU_STICK) &&
-                                                       (play->bButtonAmmoPlusOne == 0)))))) {
+         (sPlayerUseHeldItem =
+              (sPlayerUseHeldItem ||
+               GameInteractor_Should(VB_USE_HELD_ITEM_AFTER_CHANGE,
+                                     ((this->modelAnimType != PLAYER_ANIMTYPE_3) &&
+                                      (this->heldItemAction != PLAYER_IA_DEKU_STICK) && (play->bButtonAmmoPlusOne == 0)),
+                                     this))))) {
         Player_SetUpperAction(play, this, sItemActionUpdateFuncs[this->heldItemAction]);
         this->unk_ACC = 0;
         this->idleType = PLAYER_IDLE_DEFAULT;
@@ -18121,82 +18126,84 @@ u8 D_8085D790[] = {
 };
 
 void Player_Action_67(Player* this, PlayState* play) {
-    func_808323C0(this, play->playerCsIds[PLAYER_CS_ID_ITEM_BOTTLE]);
+    if (GameInteractor_Should(VB_USE_BOTTLE_ITEM, true, this)) {
+        func_808323C0(this, play->playerCsIds[PLAYER_CS_ID_ITEM_BOTTLE]);
 
-    if (PlayerAnimation_Update(play, &this->skelAnime)) {
-        if (this->av2.actionVar2 == 0) {
-            if (this->itemAction == PLAYER_IA_BOTTLE_POE) {
-                s32 health = MM_Rand_S16Offset(-1, 3);
-
-                if (health == 0) {
-                    health = 3;
-                }
-                if ((health < 0) && (gSaveContext.save.saveInfo.playerData.health <= 0x10)) {
-                    health = 3;
-                }
-
-                if (health < 0) {
-                    MM_Health_ChangeBy(play, -0x10);
-                } else {
-                    gSaveContext.healthAccumulator = health * 0x10;
-                }
-            } else {
-                s32 temp_v1 = D_8085D790[this->itemAction - PLAYER_IA_BOTTLE_POTION_RED];
-
-                if (temp_v1 & 1) {
-                    gSaveContext.healthAccumulator = 0x140;
-                }
-                if (temp_v1 & 2) {
-                    Magic_Add(play, MAGIC_FILL_TO_CAPACITY);
-                }
-                if (temp_v1 & 4) {
-                    gSaveContext.healthAccumulator = 0x50;
-                }
-
-                if (this->itemAction == PLAYER_IA_BOTTLE_CHATEAU) {
-                    SET_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI);
-                }
-
-                gSaveContext.jinxTimer = 0;
-            }
-
-            Player_Anim_PlayLoopAdjusted(play, this,
-                                         (this->transformation == PLAYER_FORM_DEKU)
-                                             ? &gPlayerAnim_pn_drink
-                                             : &gPlayerAnim_link_bottle_drink_demo_wait);
-            this->av2.actionVar2 = 1;
-
-        } else if (this->av2.actionVar2 < 0) {
-            this->av2.actionVar2++;
+        if (PlayerAnimation_Update(play, &this->skelAnime)) {
             if (this->av2.actionVar2 == 0) {
-                this->av2.actionVar2 = 3;
-                this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
-            } else if (this->av2.actionVar2 == -6) {
-                func_808530E0(play, this);
-            }
-        } else {
-            Player_StopCutscene(this);
-            func_80839E74(this, play);
-        }
-    } else if (this->av2.actionVar2 == 1) {
-        if ((gSaveContext.healthAccumulator == 0) && (gSaveContext.magicState != MAGIC_STATE_FILL)) {
-            if (this->transformation == PLAYER_FORM_DEKU) {
-                PlayerAnimation_Change(play, &this->skelAnime, &gPlayerAnim_pn_drinkend, PLAYER_ANIM_ADJUSTED_SPEED,
-                                       0.0f, 5.0f, 2, -6.0f);
-                this->av2.actionVar2 = -7;
+                if (this->itemAction == PLAYER_IA_BOTTLE_POE) {
+                    s32 health = MM_Rand_S16Offset(-1, 3);
+
+                    if (health == 0) {
+                        health = 3;
+                    }
+                    if ((health < 0) && (gSaveContext.save.saveInfo.playerData.health <= 0x10)) {
+                        health = 3;
+                    }
+
+                    if (health < 0) {
+                        MM_Health_ChangeBy(play, -0x10);
+                    } else {
+                        gSaveContext.healthAccumulator = health * 0x10;
+                    }
+                } else {
+                    s32 temp_v1 = D_8085D790[this->itemAction - PLAYER_IA_BOTTLE_POTION_RED];
+
+                    if (temp_v1 & 1) {
+                        gSaveContext.healthAccumulator = 0x140;
+                    }
+                    if (temp_v1 & 2) {
+                        Magic_Add(play, MAGIC_FILL_TO_CAPACITY);
+                    }
+                    if (temp_v1 & 4) {
+                        gSaveContext.healthAccumulator = 0x50;
+                    }
+
+                    if (this->itemAction == PLAYER_IA_BOTTLE_CHATEAU) {
+                        SET_WEEKEVENTREG(WEEKEVENTREG_DRANK_CHATEAU_ROMANI);
+                    }
+
+                    gSaveContext.jinxTimer = 0;
+                }
+
+                Player_Anim_PlayLoopAdjusted(play, this,
+                                             (this->transformation == PLAYER_FORM_DEKU)
+                                                 ? &gPlayerAnim_pn_drink
+                                                 : &gPlayerAnim_link_bottle_drink_demo_wait);
+                this->av2.actionVar2 = 1;
+
+            } else if (this->av2.actionVar2 < 0) {
+                this->av2.actionVar2++;
+                if (this->av2.actionVar2 == 0) {
+                    this->av2.actionVar2 = 3;
+                    this->skelAnime.endFrame = this->skelAnime.animLength - 1.0f;
+                } else if (this->av2.actionVar2 == -6) {
+                    func_808530E0(play, this);
+                }
             } else {
-                Player_Anim_PlayOnceMorphAdjusted(play, this, &gPlayerAnim_link_bottle_drink_demo_end);
-                this->av2.actionVar2 = 2;
+                Player_StopCutscene(this);
+                func_80839E74(this, play);
+            }
+        } else if (this->av2.actionVar2 == 1) {
+            if ((gSaveContext.healthAccumulator == 0) && (gSaveContext.magicState != MAGIC_STATE_FILL)) {
+                if (this->transformation == PLAYER_FORM_DEKU) {
+                    PlayerAnimation_Change(play, &this->skelAnime, &gPlayerAnim_pn_drinkend, PLAYER_ANIM_ADJUSTED_SPEED,
+                                           0.0f, 5.0f, 2, -6.0f);
+                    this->av2.actionVar2 = -7;
+                } else {
+                    Player_Anim_PlayOnceMorphAdjusted(play, this, &gPlayerAnim_link_bottle_drink_demo_end);
+                    this->av2.actionVar2 = 2;
+                }
+
+                MM_Player_UpdateBottleHeld(play, this,
+                                        (this->itemAction == PLAYER_IA_BOTTLE_MILK) ? ITEM_MILK_HALF : ITEM_BOTTLE,
+                                        PLAYER_IA_BOTTLE_EMPTY);
             }
 
-            MM_Player_UpdateBottleHeld(play, this,
-                                    (this->itemAction == PLAYER_IA_BOTTLE_MILK) ? ITEM_MILK_HALF : ITEM_BOTTLE,
-                                    PLAYER_IA_BOTTLE_EMPTY);
+            Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_DRINK - SFX_FLAG);
+        } else if ((this->av2.actionVar2 == 2) && PlayerAnimation_OnFrame(&this->skelAnime, 29.0f)) {
+            Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_BREATH_DRINK);
         }
-
-        Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_DRINK - SFX_FLAG);
-    } else if ((this->av2.actionVar2 == 2) && PlayerAnimation_OnFrame(&this->skelAnime, 29.0f)) {
-        Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_BREATH_DRINK);
     }
 }
 
@@ -18273,7 +18280,8 @@ void Player_Action_68(Player* this, PlayState* play) {
                             entry++;
                         }
 
-                        if (i < ARRAY_COUNT(D_8085D798)) {
+                        if (GameInteractor_Should(VB_PLAY_BOTTLE_CATCH_TEXT, i < ARRAY_COUNT(D_8085D798), this,
+                                                  interactRangeActor, entry->itemId, entry->itemAction)) {
                             this->av1.actionVar1 = i + 1;
                             this->av2.actionVar2 = 0;
                             this->stateFlags1 |= PLAYER_STATE1_10000000 | PLAYER_STATE1_20000000;
@@ -18302,7 +18310,8 @@ void Player_Action_68(Player* this, PlayState* play) {
                                 entry++;
                             }
 
-                            if (i < ARRAY_COUNT(D_8085D798)) {
+                            if (GameInteractor_Should(VB_PLAY_BOTTLE_CATCH_TEXT, i < ARRAY_COUNT(D_8085D798), this,
+                                                      interactRangeActor, entry->itemId, entry->itemAction)) {
                                 this->av1.actionVar1 = i + 1;
                                 this->av2.actionVar2 = 0;
                                 this->stateFlags1 |= PLAYER_STATE1_10000000 | PLAYER_STATE1_20000000;
@@ -18326,23 +18335,25 @@ void Player_Action_68(Player* this, PlayState* play) {
 Vec3f D_8085D7EC = { 0.0f, 0.0f, 5.0f };
 
 void Player_Action_69(Player* this, PlayState* play) {
-    func_808323C0(this, play->playerCsIds[PLAYER_CS_ID_ITEM_BOTTLE]);
+    if (GameInteractor_Should(VB_USE_BOTTLE_ITEM, true, this)) {
+        func_808323C0(this, play->playerCsIds[PLAYER_CS_ID_ITEM_BOTTLE]);
 
-    if (PlayerAnimation_Update(play, &this->skelAnime)) {
-        Player_StopCutscene(this);
-        func_80839E74(this, play);
-    } else if (PlayerAnimation_OnFrame(&this->skelAnime, 37.0f)) {
-        s32 fairyParams = FAIRY_PARAMS(FAIRY_TYPE_8, false, 0);
+        if (PlayerAnimation_Update(play, &this->skelAnime)) {
+            Player_StopCutscene(this);
+            func_80839E74(this, play);
+        } else if (PlayerAnimation_OnFrame(&this->skelAnime, 37.0f)) {
+            s32 fairyParams = FAIRY_PARAMS(FAIRY_TYPE_8, false, 0);
 
-        MM_Player_PlaySfx(this, NA_SE_EV_BOTTLE_CAP_OPEN);
-        Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_AUTO_JUMP);
-        if (this->itemAction == PLAYER_IA_BOTTLE_FAIRY) {
-            MM_Player_UpdateBottleHeld(play, this, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
-            MM_Player_PlaySfx(this, NA_SE_EV_FIATY_HEAL - SFX_FLAG);
-            fairyParams = FAIRY_PARAMS(FAIRY_TYPE_1, false, 0);
+            MM_Player_PlaySfx(this, NA_SE_EV_BOTTLE_CAP_OPEN);
+            Player_AnimSfx_PlayVoice(this, NA_SE_VO_LI_AUTO_JUMP);
+            if (this->itemAction == PLAYER_IA_BOTTLE_FAIRY) {
+                MM_Player_UpdateBottleHeld(play, this, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
+                MM_Player_PlaySfx(this, NA_SE_EV_FIATY_HEAL - SFX_FLAG);
+                fairyParams = FAIRY_PARAMS(FAIRY_TYPE_1, false, 0);
+            }
+
+            MM_Player_SpawnFairy(play, this, &this->leftHandWorld.pos, &D_8085D7EC, fairyParams);
         }
-
-        MM_Player_SpawnFairy(play, this, &this->leftHandWorld.pos, &D_8085D7EC, fairyParams);
     }
 }
 
@@ -18396,23 +18407,27 @@ void Player_Action_70(Player* this, PlayState* play) {
     }
 
     MM_Player_DecelerateToZero(this);
-    func_8083249C(this);
 
-    if (PlayerAnimation_Update(play, &this->skelAnime)) {
-        Player_StopCutscene(this);
-        if (!MM_Player_ActionHandler_13(this, play)) {
-            func_80839E74(this, play);
+    if (GameInteractor_Should(VB_USE_BOTTLE_ITEM, true, this)) {
+        func_8083249C(this);
+
+        if (PlayerAnimation_Update(play, &this->skelAnime)) {
+            Player_StopCutscene(this);
+            if (!MM_Player_ActionHandler_13(this, play)) {
+                func_80839E74(this, play);
+            }
+        } else if (PlayerAnimation_OnFrame(&this->skelAnime, 76.0f)) {
+            sp4C = &D_8085D80C[GET_BOTTLE_FROM_IA(this->itemAction) - 1];
+
+            MM_Actor_Spawn(&play->actorCtx, play, sp4C->actorId,
+                        (MM_Math_SinS(this->actor.shape.rot.y) * 5.0f) + this->leftHandWorld.pos.x,
+                        this->leftHandWorld.pos.y,
+                        (MM_Math_CosS(this->actor.shape.rot.y) * 5.0f) + this->leftHandWorld.pos.z, 0x4000,
+                        this->actor.shape.rot.y, 0, sp4C->params);
+            MM_Player_UpdateBottleHeld(play, this, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
+        } else {
+            Player_PlayAnimSfx(this, D_8085D838);
         }
-    } else if (PlayerAnimation_OnFrame(&this->skelAnime, 76.0f)) {
-        sp4C = &D_8085D80C[GET_BOTTLE_FROM_IA(this->itemAction) - 1];
-
-        MM_Actor_Spawn(&play->actorCtx, play, sp4C->actorId,
-                    (MM_Math_SinS(this->actor.shape.rot.y) * 5.0f) + this->leftHandWorld.pos.x, this->leftHandWorld.pos.y,
-                    (MM_Math_CosS(this->actor.shape.rot.y) * 5.0f) + this->leftHandWorld.pos.z, 0x4000,
-                    this->actor.shape.rot.y, 0, sp4C->params);
-        MM_Player_UpdateBottleHeld(play, this, ITEM_BOTTLE, PLAYER_IA_BOTTLE_EMPTY);
-    } else {
-        Player_PlayAnimSfx(this, D_8085D838);
     }
 }
 

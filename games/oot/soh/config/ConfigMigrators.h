@@ -1700,6 +1700,22 @@ std::vector<Migration> version9Migrations = {
     // the manifest row sits in its Group C cutscene block).
     { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipEnemyCutscenes",
       "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
+    // #1412: MM parity rows for settings SoH already ships.
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Player.UnsheatheWithoutSlashing",
+      "gEnhancements.UnsheatheWithoutSlashing" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Items.RemoveExplosiveLimit",
+      "gEnhancements.RemoveExplosiveLimit" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.NoRandomDrops", "gEnhancements.NoRandomDrops" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Timesavers.FasterRupeeAccumulator",
+      "gEnhancements.FasterRupeeAccumulator" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Mods.DisableBombBillboarding",
+      "gEnhancements.DisableBombBillboarding" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Mods.DisableGrottoRotation",
+      "gEnhancements.DisableGrottoRotation" },
 };
 
 /**

@@ -913,6 +913,10 @@ void BenMenu::AddEnhancements() {
         .CVar("gCheats.InfiniteConsumables")
         .Options(
             CheckboxOptions().Tooltip("Always have max Consumables, you must have collected the consumables first."));
+    AddWidget(path, "Infinite Epona Carrots", WIDGET_CVAR_CHECKBOX)
+        .CVar("gCheats.InfiniteEponaCarrots")
+        .Options(CheckboxOptions().Tooltip(
+            "Gives you infinite Epona carrots, preventing them from being consumed when boosting."));
     AddWidget(path, "Easy Frame Advance", WIDGET_CVAR_CHECKBOX)
         .CVar("gCheats.EasyFrameAdvance")
         .Options(CheckboxOptions().Tooltip(
@@ -1034,6 +1038,12 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "When the Great Fairy's Sword is held, pressing B attacks with it instead of drawing "
             "your equipped sword. The sword can still be put away with A as normal."));
+    AddWidget(path, "Unsheathe Without Slashing", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.UnsheatheWithoutSlashing")
+        .Options(CheckboxOptions().Tooltip("Allows Link to unsheathe his sword without automatically slashing."));
+    AddWidget(path, "Remove Explosive Limit", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.RemoveExplosiveLimit")
+        .Options(CheckboxOptions().Tooltip("Removes the cap of 3 active explosives being deployed at once."));
 
     path.column = SECTION_COLUMN_2;
     AddWidget(path, "Modes", WIDGET_SEPARATOR_TEXT);
@@ -1183,6 +1193,14 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Toggle between standard assets and alternate assets. Usually mods will indicate if "
             "this setting has to be used or not."));
+    AddWidget(path, "Disable Bomb Billboarding", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.DisableBombBillboarding")
+        .Options(CheckboxOptions().Tooltip(
+            "Disables bombs always rotating to face the camera. To be used in conjunction with 3D bomb models."));
+    AddWidget(path, "Disable Grotto Fixed Rotation", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.DisableGrottoRotation")
+        .Options(CheckboxOptions().Tooltip("Disables grottos rotating with the camera. Best used in conjunction with "
+                                           "mods that replace grotto models with 3D ones."));
     AddWidget(path, "Motion Blur", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Motion Blur Mode", WIDGET_CVAR_COMBOBOX)
         .CVar("gEnhancements.Graphics.MotionBlur.Mode")
@@ -1408,6 +1426,10 @@ void BenMenu::AddEnhancements() {
     AddWidget(path, "Auto Bombers' Code", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Dialogue.AutoBombersCode")
         .Options(CheckboxOptions().Tooltip("Automatically fill in the Bombers' code once you've got the notebook."));
+    AddWidget(path, "Skip Bottle Pickup Messages", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.FastBottles")
+        .Options(CheckboxOptions().Tooltip(
+            "Holding a bottle up and showing a text box is skipped when bottling something."));
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Other", WIDGET_SEPARATOR_TEXT);
@@ -1445,6 +1467,12 @@ void BenMenu::AddEnhancements() {
             "Automatically deposits excess Rupees into your bank account when your wallet is full. "
             "Deposits stop when the bank reaches maximum capacity. "
             "Bank rewards are granted automatically. Notifications display deposit amount and new balance."));
+    AddWidget(path, "Faster Rupee Accumulator", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.FasterRupeeAccumulator")
+        .Options(CheckboxOptions().Tooltip("Causes your Wallet to fill and drain faster."));
+    AddWidget(path, "Faster Bottles", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.FasterBottleEmpty")
+        .Options(CheckboxOptions().Tooltip("Speeds up catching and pouring out bottle contents."));
 
     // Fixes
     path = { "Enhancements", "Fixes", SECTION_COLUMN_1 };
@@ -1717,6 +1745,18 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Prevents the Takkuri from stealing key items like bottles and swords. It may still steal "
             "other items."));
+    AddWidget(path, "No Heart Drops", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.NoHeartDrops")
+        .Options(CheckboxOptions().Tooltip("Prevents heart drops from appearing."));
+    AddWidget(path, "No Random Drops", WIDGET_CVAR_CHECKBOX)
+        .CVar("gEnhancements.NoRandomDrops")
+        .Options(CheckboxOptions().Tooltip(
+            "Disables random drops from appearing (from grass, bushes, enemies, etc.). Fixed drops "
+            "(like single rupees and recovery hearts) are not affected."));
+    AddWidget(path, "Drops Don't Despawn", WIDGET_CVAR_CHECKBOX)
+        .CVar("gCheats.DropsDontDie")
+        .Options(CheckboxOptions().Tooltip(
+            "Prevents item drops (hearts, rupees, ammo, etc.) from disappearing after a short time."));
     AddWidget(path, "Deku Guard Search Balls", WIDGET_CVAR_COMBOBOX)
         .CVar("gEnhancements.DifficultyOptions.DekuGuardSearchBalls")
         .Options(

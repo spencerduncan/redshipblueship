@@ -711,6 +711,19 @@ if(SINGLE_EXECUTABLE_BUILD)
         # linked whole under the Cheats block above, each CVar drawn by an MM row, and #1224's port of their IS_RANDO
         # halves (Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp's Razor restore) is retired, so
         # every rando gate registers exactly once. MMRegistrarCoverage phase 12 holds that.
+        # #1412 (MFE-6, MFE-11, MFE-17, MFE-18, MFE-25, MFE-27, MFE-29, MFE-31, MFE-35): MM parity registrars for
+        # settings SoH already ships (10 converged onto SoH's keys) plus Infinite Epona Carrots (hosted under Cheats).
+        "2s2h/Enhancements/Cheats/InfiniteEponaCarrots.cpp"
+        "2s2h/Enhancements/Player/UnsheatheWithoutSlashing.cpp"
+        "2s2h/Enhancements/Items/RemoveExplosiveLimit.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoHeartDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoRandomDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoDropDespawning.cpp"
+        "2s2h/Enhancements/Timesavers/FasterRupeeAccumulator.cpp"
+        "2s2h/Enhancements/Dialogue/SkipBottleCatch.cpp"
+        "2s2h/Enhancements/Timesavers/FasterBottles.cpp"
+        "2s2h/Enhancements/Graphics/DisableBombBillboarding.cpp"
+        "2s2h/Enhancements/Graphics/DisableGrottoRotation.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

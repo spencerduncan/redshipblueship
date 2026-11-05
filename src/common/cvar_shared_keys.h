@@ -528,6 +528,17 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // row wrote the MM spelling, so version 10 carries a stored value across.
     { "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", "gSettings.DisableFirstPersonAutoCenterView",
       false },
+    // #1412: MM parity rows for settings SoH already ships.
+    { "gEnhancements.Player.UnsheatheWithoutSlashing", "gEnhancements.UnsheatheWithoutSlashing", false },
+    { "gEnhancements.Items.RemoveExplosiveLimit", "gEnhancements.RemoveExplosiveLimit", false },
+    { "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops", false },
+    { "gEnhancements.DifficultyOptions.NoRandomDrops", "gEnhancements.NoRandomDrops", false },
+    { "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie", false },
+    { "gEnhancements.Timesavers.FasterRupeeAccumulator", "gEnhancements.FasterRupeeAccumulator", false },
+    { "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles", false },
+    { "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty", false },
+    { "gEnhancements.Mods.DisableBombBillboarding", "gEnhancements.DisableBombBillboarding", false },
+    { "gEnhancements.Mods.DisableGrottoRotation", "gEnhancements.DisableGrottoRotation", false },
 };
 
 /**
@@ -589,6 +600,7 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_CHEATS_ELEGY_ANYWHERE "gCheats.ElegyAnywhere"
 #define RSBS_CVAR_MM_CHEATS_TEMPLE_TIME_STOP "gCheats.TempleTimeStop"
 #define RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD "gCheats.UnbreakableRazorSword"
+#define RSBS_CVAR_MM_CHEAT_INFINITE_EPONA_CARROTS "gCheats.InfiniteEponaCarrots"
 #define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_BOTTLE_CONTENT "gEnhancements.Cycle.DoNotResetBottleContent"
 #define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_RAZOR_SWORD "gEnhancements.Cycle.DoNotResetRazorSword"
 #define RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_TIME_SPEED "gEnhancements.Cycle.DoNotResetTimeSpeed"
@@ -1078,6 +1090,7 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_CHEATS_ELEGY_ANYWHERE)                            \
     X(RSBS_CVAR_MM_CHEATS_TEMPLE_TIME_STOP)                          \
     X(RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD)                   \
+    X(RSBS_CVAR_MM_CHEAT_INFINITE_EPONA_CARROTS)                     \
     X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_BOTTLE_CONTENT)                \
     X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_RAZOR_SWORD)                   \
     X(RSBS_CVAR_MM_CYCLE_DO_NOT_RESET_TIME_SPEED)                    \
@@ -2098,11 +2111,13 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
 // right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
-// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering). 32 + 11 + 4 + 1 + 1
-// + 1 = 50. Pinning the count makes a silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering),
+// and #1412 ten (unsheathe without slashing, remove explosive limit, no heart/random/despawn drops,
+// faster rupee accumulator, skip bottle catch, faster bottles, disable bomb billboarding, disable grotto rotation).
+// 32 + 11 + 4 + 1 + 1 + 1 + 10 = 60. Pinning the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 60, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
                                         "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
-                                        "+ #1239 (1) + #1272 (1) = 50");
+                                        "+ #1239 (1) + #1272 (1) + #1412 (10) = 60");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to
