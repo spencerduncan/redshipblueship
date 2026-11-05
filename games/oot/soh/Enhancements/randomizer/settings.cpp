@@ -144,16 +144,22 @@ void Settings::HandleMixedEntrancePoolsUI() {
 
 void Settings::HandleStartingAgeUI() {
     // Starting Age - Disabled under very specific conditions
-    // RANDOTODO: Fix so this is not disabled for No Logic.
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #1425: Shuffle Ocarinas defaults on here (CreateOptions), so an unset key reads on.
     constexpr int kShuffleOcarinasDefault = RO_GENERIC_ON;
 #else
     constexpr int kShuffleOcarinasDefault = RO_GENERIC_OFF;
 #endif
-    if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("DoorOfTime"), RO_DOOROFTIME_CLOSED) == RO_DOOROFTIME_CLOSED &&
-        CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), kShuffleOcarinasDefault) ==
-            RO_GENERIC_OFF) /* closed door of time with ocarina shuffle off */ {
+    if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC &&
+        ((CVarGetInteger(CVAR_RANDOMIZER_SETTING("DoorOfTime"), RO_DOOROFTIME_CLOSED) == RO_DOOROFTIME_CLOSED &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), kShuffleOcarinasDefault) == RO_GENERIC_OFF) ||
+         (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ClosedForest"), RO_CLOSED_FOREST_ON) == RO_CLOSED_FOREST_ON &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), RO_INTERIOR_ENTRANCE_SHUFFLE_OFF) ==
+              RO_INTERIOR_ENTRANCE_SHUFFLE_OFF &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldSpawns"), RO_GENERIC_OFF) == RO_GENERIC_OFF &&
+          !(CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), RO_GENERIC_OFF) == RO_GENERIC_ON &&
+            CVarGetInteger(CVAR_RANDOMIZER_SETTING("DecoupleEntrances"), RO_GENERIC_OFF) == RO_GENERIC_ON)))) {
         mOptions[RSK_STARTING_AGE].Disable("This option is disabled due to other options making the game unbeatable.");
     } else {
         mOptions[RSK_STARTING_AGE].Enable();
@@ -168,6 +174,9 @@ void Settings::CreateOptions() {
     CreateOptionDescriptions();
     // clang-format off
     OPT_U8(RSK_FOREST, "Closed Forest", {"On", "Deku Only", "Off"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ClosedForest"), mOptionDescriptions[RSK_FOREST], WIDGET_CVAR_COMBOBOX, RO_CLOSED_FOREST_ON);
+    OPT_CALLBACK(RSK_FOREST, {
+        HandleStartingAgeUI();
+    });
     OPT_U8(RSK_KAK_GATE, "Kakariko Gate", {"Closed", "Open"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("KakarikoGate"), mOptionDescriptions[RSK_KAK_GATE]);
     OPT_U8(RSK_DOOR_OF_TIME, "Door of Time", {"Closed", "Song only", "Open"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("DoorOfTime"), mOptionDescriptions[RSK_DOOR_OF_TIME], WIDGET_CVAR_COMBOBOX);
     OPT_CALLBACK(RSK_DOOR_OF_TIME, {
@@ -330,6 +339,7 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SHUFFLE_OVERWORLD_ENTRANCES, "Overworld Entrances", CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), mOptionDescriptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES]);
     OPT_CALLBACK(RSK_SHUFFLE_OVERWORLD_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
+        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -341,6 +351,7 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_SHUFFLE_INTERIOR_ENTRANCES, "Interior Entrances", {"Off", "Simple", "All"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), mOptionDescriptions[RSK_SHUFFLE_INTERIOR_ENTRANCES], WIDGET_CVAR_COMBOBOX, RO_INTERIOR_ENTRANCE_SHUFFLE_OFF);
     OPT_CALLBACK(RSK_SHUFFLE_INTERIOR_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
+        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -364,6 +375,7 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SHUFFLE_GROTTO_ENTRANCES, "Grottos Entrances", CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), mOptionDescriptions[RSK_SHUFFLE_GROTTO_ENTRANCES]);
     OPT_CALLBACK(RSK_SHUFFLE_GROTTO_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
+        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -382,6 +394,9 @@ void Settings::CreateOptions() {
         }
     });
     OPT_BOOL(RSK_SHUFFLE_OVERWORLD_SPAWNS, "Overworld Spawns", CVAR_RANDOMIZER_SETTING("ShuffleOverworldSpawns"), mOptionDescriptions[RSK_SHUFFLE_OVERWORLD_SPAWNS]);
+    OPT_CALLBACK(RSK_SHUFFLE_OVERWORLD_SPAWNS, {
+        HandleStartingAgeUI();
+    });
     OPT_BOOL(RSK_MIXED_ENTRANCE_POOLS, "Mixed Entrance Pools", CVAR_RANDOMIZER_SETTING("MixedEntrances"), mOptionDescriptions[RSK_MIXED_ENTRANCE_POOLS]);
     OPT_CALLBACK(RSK_MIXED_ENTRANCE_POOLS, {
         // Show mixed entrance pool options if mixed entrance pools are enabled, but only the ones that aren't off
@@ -424,6 +439,9 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_MIX_THIEVES_HIDEOUT_ENTRANCES, "Mix Thieves' Hideout", CVAR_RANDOMIZER_SETTING("MixThievesHideout"), mOptionDescriptions[RSK_MIX_THIEVES_HIDEOUT_ENTRANCES]);
     OPT_BOOL(RSK_MIX_GROTTO_ENTRANCES, "Mix Grottos", CVAR_RANDOMIZER_SETTING("MixGrottos"), mOptionDescriptions[RSK_MIX_GROTTO_ENTRANCES]);
     OPT_BOOL(RSK_DECOUPLED_ENTRANCES, "Decouple Entrances", CVAR_RANDOMIZER_SETTING("DecoupleEntrances"), mOptionDescriptions[RSK_DECOUPLED_ENTRANCES]);
+    OPT_CALLBACK(RSK_DECOUPLED_ENTRANCES, {
+        HandleStartingAgeUI();
+    });
     OPT_U8(RSK_BOMBCHU_BAG, "Bombchu Bag", {"None", "Single Bag", "Progressive Bags"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("BombchuBag"), mOptionDescriptions[RSK_BOMBCHU_BAG], WIDGET_CVAR_COMBOBOX, RO_BOMBCHU_BAG_NONE);
     OPT_U8(RSK_ENABLE_BOMBCHU_DROPS, "Bombchu Drops", {"No", "Yes"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("EnableBombchuDrops"), mOptionDescriptions[RSK_ENABLE_BOMBCHU_DROPS], WIDGET_CVAR_COMBOBOX, RO_AMMO_DROPS_ON);
     // TODO: AmmoDrops and/or HeartDropRefill, combine with/separate Ammo Drops from Bombchu Drops?
@@ -1380,6 +1398,9 @@ void Settings::CreateOptions() {
     OPT_U8(RSK_STARTING_HEARTS, "Starting Hearts", {NumOpts(1, 20)}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("StartingHearts"), "", WIDGET_CVAR_SLIDER_INT, 2);
     // TODO: Remainder of Starting Items
     OPT_U8(RSK_LOGIC_RULES, "Logic", {"Glitchless", "No Logic"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("LogicRules"), mOptionDescriptions[RSK_LOGIC_RULES], WIDGET_CVAR_COMBOBOX, RO_LOGIC_GLITCHLESS, false, nullptr, IMFLAG_LABEL_INLINE);
+    OPT_CALLBACK(RSK_LOGIC_RULES, {
+        HandleStartingAgeUI();
+    });
     OPT_BOOL(RSK_ALL_LOCATIONS_REACHABLE, "All Locations Reachable", {"Off", "On"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("AllLocationsReachable"), mOptionDescriptions[RSK_ALL_LOCATIONS_REACHABLE], WIDGET_CVAR_CHECKBOX, RO_GENERIC_ON, false, nullptr, IMFLAG_SAME_LINE);
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #1367 (operator ruling 2026-11-02): every randomizer file here is paired, and a
@@ -1390,6 +1411,7 @@ void Settings::CreateOptions() {
     // moves.
     OPT_CALLBACK(RSK_LOGIC_RULES, {
         mOptions[RSK_LOGIC_RULES].Disable("This option is disabled because [Both Games] Logic on Randomizer > Cross-Game sets it: Glitchless under All Locations and Beatable Only, No Logic under No Logic.");
+        HandleStartingAgeUI();
     });
     OPT_CALLBACK(RSK_ALL_LOCATIONS_REACHABLE, {
         mOptions[RSK_ALL_LOCATIONS_REACHABLE].Disable("This option is disabled because [Both Games] Logic on Randomizer > Cross-Game sets it: on under All Locations and Beatable Only, off under No Logic.");
@@ -3100,7 +3122,11 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
     }
 
     // With certain access settings, the seed is only beatable if Starting Age is set to Child.
-    if (mOptions[RSK_DOOR_OF_TIME].Is(RO_DOOROFTIME_CLOSED) && !mOptions[RSK_SHUFFLE_OCARINA]) {
+    if (mOptions[RSK_LOGIC_RULES].IsNot(RO_LOGIC_NO_LOGIC) &&
+        ((mOptions[RSK_DOOR_OF_TIME].Is(RO_DOOROFTIME_CLOSED) && !mOptions[RSK_SHUFFLE_OCARINA]) ||
+         (mOptions[RSK_FOREST].Is(RO_CLOSED_FOREST_ON) && !mOptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES] &&
+          !mOptions[RSK_SHUFFLE_INTERIOR_ENTRANCES] && !mOptions[RSK_SHUFFLE_OVERWORLD_SPAWNS] &&
+          !(mOptions[RSK_SHUFFLE_GROTTO_ENTRANCES] && mOptions[RSK_DECOUPLED_ENTRANCES])))) {
         mOptions[RSK_STARTING_AGE].Set(RO_AGE_CHILD);
     }
 
