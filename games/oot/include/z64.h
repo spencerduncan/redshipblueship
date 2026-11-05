@@ -93,13 +93,19 @@ typedef struct {
     /* 0x14 */ s16  data[REG_GROUPS * REG_PER_GROUP]; // 0xAE0 entries
 } GameInfo; // size = 0x15D4
 
+#define POLY_OPA_BUFFER_SIZE (1 * 1024 * 1024)
+#define POLY_XLU_BUFFER_SIZE (1 * 1024 * 1024)
+#define OVERLAY_BUFFER_SIZE (1 * 1024 * 1024)
+#define WORK_BUFFER_SIZE 0x80
+#define DEBUG_BUFFER_SIZE 0x20
+
 typedef struct {
     /* 0x00000 */ u16 headMagic; // GFXPOOL_HEAD_MAGIC
-    /* 0x00008 */ Gfx polyOpaBuffer[0x2FC0];
-    /* 0x0BF08 */ Gfx polyXluBuffer[0x1000];
-    /* 0x0FF08 */ Gfx overlayBuffer[0x800];
-    /* 0x11F08 */ Gfx workBuffer[0x100];
-    /* 0x11308 */ Gfx unusedBuffer[0x40];
+    /* 0x00008 */ Gfx polyOpaBuffer[POLY_OPA_BUFFER_SIZE];
+    /* 0x0BF08 */ Gfx polyXluBuffer[POLY_XLU_BUFFER_SIZE];
+    /* 0x0FF08 */ Gfx overlayBuffer[OVERLAY_BUFFER_SIZE];
+    /* 0x11F08 */ Gfx workBuffer[WORK_BUFFER_SIZE];
+    /* 0x11308 */ Gfx unusedBuffer[DEBUG_BUFFER_SIZE];
     /* 0x12408 */ u16 tailMagic; // GFXPOOL_TAIL_MAGIC
 } GfxPool; // size = 0x24820
 

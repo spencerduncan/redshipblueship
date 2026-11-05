@@ -461,6 +461,7 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_HYLIA_LAB_KEY:
         case RG_FISHING_HOLE_KEY:
         case RG_RUTOS_LETTER:
+        case RG_ROCS_FEATHER:
         case RG_BLAST_MASK: // [RSBS #979]
         case RG_STONE_MASK: // [RSBS #979]
             return CheckRandoInf(RandoGetToRandInf[itemName]);
@@ -2186,6 +2187,7 @@ static constexpr std::pair<RandomizerGet, uint32_t> randInfTable[] = {
     { RG_SPEAK_KOKIRI, RAND_INF_CAN_SPEAK_KOKIRI },
     { RG_SPEAK_ZORA, RAND_INF_CAN_SPEAK_ZORA },
     { RG_FISHING_POLE, RAND_INF_FISHING_POLE_FOUND },
+    { RG_ROCS_FEATHER, RAND_INF_OBTAINED_ROCS_FEATHER },
     { RG_GUARD_HOUSE_KEY, RAND_INF_GUARD_HOUSE_KEY_OBTAINED },
     { RG_MARKET_BAZAAR_KEY, RAND_INF_MARKET_BAZAAR_KEY_OBTAINED },
     { RG_MARKET_POTION_SHOP_KEY, RAND_INF_MARKET_POTION_SHOP_KEY_OBTAINED },
@@ -2640,6 +2642,7 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_BACK_TOWER_KEY:
                 case RG_HYLIA_LAB_KEY:
                 case RG_FISHING_HOLE_KEY:
+                case RG_ROCS_FEATHER:
                 case RG_BLAST_MASK: // [RSBS #979]
                 case RG_STONE_MASK: // [RSBS #979]
                     SetRandoInf(RandoGetToRandInf[randoGet], state);
