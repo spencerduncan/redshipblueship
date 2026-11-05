@@ -1,6 +1,6 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
-#include "soh/Enhancements/randomizer/3drando/random.hpp"
+#include "soh/ShipUtils.h"
 #include "soh/Notification/Notification.h"
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
@@ -95,8 +95,10 @@ std::vector<AltTrapType> getEnabledAddTraps() {
 // RedShipBlueShip (#1424): the draw, apart from springing it, so the parity row
 // reads the type the production roll picks.
 static AltTrapType PickRandomTrap(uint32_t finalSeed) {
-    Random_Init(finalSeed);
-    return RandomElement(getEnabledAddTraps());
+    uint64_t randomState = 0;
+    ShipUtils::RandInit(finalSeed, &randomState);
+    auto enabledAddTraps = getEnabledAddTraps();
+    return ShipUtils::RandomElement(enabledAddTraps, false, &randomState);
 }
 
 static void RollRandomTrap(uint32_t seed) {
@@ -187,7 +189,7 @@ static void OnPlayerUpdate() {
                 break;
             case ADD_TELEPORT_TRAP: {
                 int entrance;
-                int index = Random(0, 7);
+                int index = ShipUtils::Random(0, 7);
                 switch (index) {
                     case 0:
                         entrance = GI_TP_DEST_SERENADE;
