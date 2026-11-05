@@ -38,7 +38,8 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Exits
         Entrance(RR_ICE_CAVERN_BEGINNING,    []{return true;}),
-        Entrance(RR_ICE_CAVERN_MAP_ROOM,     []{return (logic->IsAdult || (ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && logic->CanGroundJump())) && logic->CanClearStalagmite();}),
+        //child can make this with a ground jump for the first step, and a glitchless jump for the second, but it's a separate trick
+        Entrance(RR_ICE_CAVERN_MAP_ROOM,     []{return (logic->IsAdult /*|| logic->CanGroundJump()*/) && logic->CanClearStalagmite();}),
         Entrance(RR_ICE_CAVERN_COMPASS_ROOM, []{return AnyAgeTime([]{return logic->BlueFire();});}),
         Entrance(RR_ICE_CAVERN_BLOCK_ROOM,   []{return AnyAgeTime([]{return logic->BlueFire();}) && (logic->CanClearStalagmite() || ctx->GetTrickOption(RT_ICE_STALAGMITE_CLIP));}),
     });
@@ -49,10 +50,11 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Locations
         LOCATION(RC_ICE_CAVERN_MAP_CHEST,             logic->BlueFire() && logic->HasItem(RG_OPEN_CHEST)),
-        // very easy to break pot through ice
+        // very easy to break pot through ice with most weapons
+        // Bow extesnion is possible, but very precise: X = 403, Z = 2062-3, Rot = -11475, needs a setup and is its own trick
         LOCATION(RC_ICE_CAVERN_FROZEN_POT_1,          (logic->CanBreakPots() && logic->BlueFire()) || logic->HasExplosives() ||
-                                                      (ctx->GetTrickOption(RT_RUSTED_SWITCHES) && ((logic->CanStandingShield() && logic->CanUse(RG_KOKIRI_SWORD)) || logic->CanUse(RG_MASTER_SWORD) || logic->CanUse(RG_BIGGORON_SWORD) || logic->CanUse(RG_MEGATON_HAMMER))) ||
-                                                      (ctx->GetTrickOption(RT_HOOKSHOT_EXTENSION) && logic->CanUse(RG_HOOKSHOT))),
+                                                      (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && ((logic->CanStandingShield() && logic->CanUse(RG_KOKIRI_SWORD)) || logic->CanUse(RG_MASTER_SWORD) || logic->CanUse(RG_BIGGORON_SWORD) || logic->CanUse(RG_MEGATON_HAMMER))) ||
+                                                      (ctx->GetTrickOption(RT_ITEM_EXTENSION) && logic->CanUse(RG_HOOKSHOT))),
         LOCATION(RC_ICE_CAVERN_MAP_ROOM_LEFT_HEART,   true),
         LOCATION(RC_ICE_CAVERN_MAP_ROOM_MIDDLE_HEART, true),
         LOCATION(RC_ICE_CAVERN_MAP_ROOM_RIGHT_HEART,  true),
@@ -61,7 +63,7 @@ void RegionTable_Init_IceCavern() {
         Entrance(RR_ICE_CAVERN_HUB, []{return true;}),
     });
 
-    areaTable[RR_ICE_CAVERN_COMPASS_ROOM] = Region("Ice Cavern Map Room", SCENE_ICE_CAVERN, {
+    areaTable[RR_ICE_CAVERN_COMPASS_ROOM] = Region("Ice Cavern Compass Room", SCENE_ICE_CAVERN, {
         //Events
         EventAccess(LOGIC_BLUE_FIRE_ACCESS, []{return true;}),
     }, {
@@ -126,7 +128,7 @@ void RegionTable_Init_IceCavern() {
 
     areaTable[RR_ICE_CAVERN_FINAL_ROOM_UNDERWATER] = Region("Ice Cavern Final Room Underwater", SCENE_ICE_CAVERN, {}, {}, {
         //Exits
-        Entrance(RR_ICE_CAVERN_FINAL_ROOM,      []{return logic->CanUse(RG_BRONZE_SCALE);}),
+        Entrance(RR_ICE_CAVERN_FINAL_ROOM,      []{return logic->HasItem(RG_BRONZE_SCALE);}),
         Entrance(RR_ICE_CAVERN_ABOVE_BEGINNING, []{return logic->CanUse(RG_IRON_BOOTS);}),
     });
 
@@ -164,7 +166,8 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Exits
         Entrance(RR_ICE_CAVERN_MQ_MAP_ROOM,       []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_WHITE_WOLFOS) && logic->CanKillEnemy(RE_FREEZARD);});}),
-        Entrance(RR_ICE_CAVERN_MQ_COMPASS_ROOM,   []{return (logic->IsAdult || (ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && logic->CanGroundJump())) && logic->BlueFire();}),
+        //child can make this with a ground jump for the first step, and a glitchless jump for the second, but it's a separate trick
+        Entrance(RR_ICE_CAVERN_MQ_COMPASS_ROOM,   []{return (logic->IsAdult /*|| logic->CanGroundJump()*/) && logic->BlueFire();}),
         Entrance(RR_ICE_CAVERN_MQ_SCARECROW_ROOM, []{return logic->BlueFire();}),
     });
 
@@ -212,7 +215,7 @@ void RegionTable_Init_IceCavern() {
         LOCATION(RC_ICE_CAVERN_MQ_FREESTANDING_POH, logic->HasExplosives()), // can get with rang trick
         //doing RT_ICE_MQ_RED_ICE_GS as child is untested, as I could not perform the trick reliably even as adult
         LOCATION(RC_ICE_CAVERN_MQ_GS_RED_ICE,       (logic->CanUse(RG_BOTTLE_WITH_BLUE_FIRE) && (logic->CanUse(RG_SONG_OF_TIME) || (logic->IsAdult && ctx->GetTrickOption(RT_ICE_MQ_RED_ICE_GS))) && logic->CanGetEnemyDrop(RE_GOLD_SKULLTULA)) ||
-                                                    (ctx->GetOption(RSK_BLUE_FIRE_ARROWS) && logic->CanUse(RG_ICE_ARROWS)) || (ctx->GetTrickOption(RT_HOOKSHOT_EXTENSION) && logic->CanUse(RG_SONG_OF_TIME) && logic->CanUse(RG_HOOKSHOT))),
+                                                    (ctx->GetOption(RSK_BLUE_FIRE_ARROWS) && logic->CanUse(RG_ICE_ARROWS)) || (ctx->GetTrickOption(RT_ITEM_EXTENSION) && logic->CanUse(RG_SONG_OF_TIME) && logic->CanUse(RG_HOOKSHOT))),
         LOCATION(RC_ICE_CAVERN_MQ_COMPASS_POT_1,    logic->CanBreakPots()),
         LOCATION(RC_ICE_CAVERN_MQ_COMPASS_POT_2,    logic->CanBreakPots()),
     }, {});
@@ -229,7 +232,7 @@ void RegionTable_Init_IceCavern() {
 
     areaTable[RR_ICE_CAVERN_MQ_STALFOS_ROOM_UNDERWATER] = Region("Ice Cavern MQ Stalfos Room Underwater", SCENE_ICE_CAVERN, {}, {}, {
         //Exits
-        Entrance(RR_ICE_CAVERN_MQ_STALFOS_ROOM,    []{return logic->CanUse(RG_BRONZE_SCALE);}),
+        Entrance(RR_ICE_CAVERN_MQ_STALFOS_ROOM,    []{return logic->HasItem(RG_BRONZE_SCALE);}),
         Entrance(RR_ICE_CAVERN_MQ_ABOVE_BEGINNING, []{return logic->CanUse(RG_IRON_BOOTS);}),
     });
 

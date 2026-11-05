@@ -1506,10 +1506,15 @@ void Settings::CreateOptions() {
     // RCQUEST_BOTH, RA_NONE, {Tricks::Tag::ADVANCED, Tricks::Tag::EXPERIMENTAL, Tricks::Tag::GLITCH}, "ISG", "Enables
     // locations requiring use of the infinite sword glitch.");
 
-    OPT_TRICK(RT_VISIBLE_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE },
-              "Pass Through Visible One-Way Collision",
-              "Allows climbing through the platform to reach Impa's House Back as adult with no items and going "
-              "through the Kakariko Village Gate as child when coming from the Mountain Trail side.");
+    OPT_TRICK(RT_VISIBLE_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Ignore Visible Collision",
+              "Allows ignoring visible barriers and objects that do not actually stop Link from walking, climbing or "
+              "hitting things, without clipping.\n\n"
+              "This notably allows for walking through Kak's gate backwards, climb into the back of Impa's house as "
+              "Adult from the coop,"
+              "and hitting Rusted Switches or boulders through Blocks, Ice and Walls.\n\n"
+              "This trick only applies to case where doing the thing is trivial, instances where it only works from "
+              "certain angles are not part of this trick,"
+              "niether are any form of clips, including clipping Link's hitbox inside boulders with jumpslash.");
     OPT_TRICK(RT_GROTTOS_WITHOUT_AGONY, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE },
               "Hidden Grottos without Stone of Agony", "Allows entering hidden grottos without the Stone of Agony.");
     OPT_TRICK(RT_FEWER_TUNIC_REQUIREMENTS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE },
@@ -1521,18 +1526,9 @@ void Settings::CreateOptions() {
               "Many ledges can be overcome with particular jumps which are simple to execute without items.\n"
               "This includes jumping from heights to dive deeper without scales,\n"
               "though this trick doesn't cover Water Temple's Dragon Room.");
-    OPT_TRICK(RT_RUSTED_SWITCHES, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Hammer Through Collision",
-              "Applies to:\n"
-              "- Hitting Fire Temple Highest Goron Chest's Rusted Switch in the SoT Block without Song of Time.\n"
-              "- Hitting the rusted switch in Water Trial through the Ice."
-              "- Hitting MQ Fire Temple Lizalfos Maze's Rusted Switch in the wall.\n"
-              "- Having Adult hammer the rock in the west side crawlspace of MQ Spirit so child can get through "
-              "without bombchus."
-              "- MQ Spirit Trial's Rusted Switch between the thrones without hitting the eye target to drop an Iron "
-              "Knuckle.\n");
-    OPT_TRICK(RT_FLAMING_CHESTS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Flaming Chests",
-              "The chests encircled in flames in Gerudo Training Ground and in Spirit Temple can be opened by running "
-              "into the flames while Link is invincible after taking damage.");
+    OPT_TRICK(RT_FIRE_RINGS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Fire Ring",
+              "Fire Rings can be run into while Link is invincible from having taken damage,"
+              "letting you interact with some objects inside them such as large chests");
     // disabled for now, can't check for being able to use bunny hood & bunny hood speedup is currently completely
     // decoupled from rando OPT_TRICK(RT_BUNNY_HOOD_JUMPS, RCQUEST_BOTH, RA_NONE, {Tricks::Tag::ADVANCED}, "Bunny Hood
     // Jumps", "Allows reaching locations using Bunny Hood's extended jumps.");
@@ -1560,12 +1556,14 @@ void Settings::CreateOptions() {
     OPT_TRICK(RT_OPEN_UNDERWATER_CHEST, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Open Underwater Chests",
               "Underwater chests can be opened by wearing iron boots and hookshotting the chest.");
-    OPT_TRICK(RT_DISTANT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
-              "Distant Boulder Collision",
-              "From afar boulder collision is disabled, allowing projectiles to pass through them.");
-    OPT_TRICK(RT_HOOKSHOT_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE },
-              "Hookshot/Projectile Extension",
-              "Slightly extends range. Also allows clipping projectile past collision. Used for:\n"
+    OPT_TRICK(RT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
+              "Flawed Boulder Collision",
+              "From afar, boulder collision is disabled, allowing projectiles to pass through them.\n"
+              "Additionally, boulders do not have projectile collision from below, allow them to be shot into in some "
+              "cases.");
+    OPT_TRICK(RT_ITEM_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Item Extension",
+              "Slightly extends the range of projectiles such as Hookshot, Bow or Slingshot. Also allows clipping "
+              "projectile past collision. Used for:\n"
               "- Crossing Gerudo Valley with Hookshot\n"
               "- Retrieving DMT Gold Skulltula beside bomb flower\n"
               "- Hitting switch through wall in Spirit Temple's big mirror room with Bow, Slingshot, or Hookshot\n"
