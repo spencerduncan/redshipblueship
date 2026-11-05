@@ -15,7 +15,7 @@ void RegionTable_Init_SacredForestMeadow() {
         Entrance(RR_SFM_WOLFOS_GROTTO,    []{return logic->CanOpenBombGrotto();}),
     });
 
-    areaTable[RR_SFM_ABOVE_MAZE] = Region("SFM Maze", SCENE_SACRED_FOREST_MEADOW, {
+    areaTable[RR_SFM_ABOVE_MAZE] = Region("SFM Above Maze", SCENE_SACRED_FOREST_MEADOW, {
         //Events
         EventAccess(LOGIC_FAIRY_ACCESS, []{return logic->CallGossipFairyExceptSuns();}),
     }, {
