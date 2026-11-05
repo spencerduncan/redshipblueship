@@ -27,16 +27,10 @@
                 "IncludeTycoonWallet": 1,
                 "KakarikoGate": 1,
                 "Keysanity": 2,
-                "LacsRewardCount": 6,
                 "MalonHint": 1,
                 "MerchantText": 1,
-                "RainbowBridge": 7,
                 "SariaHint": 1,
                 "SheikLAHint": 0,
-                "ShuffleGanonBossKey": 9,
-                "ShuffleGerudoToken": 0,
-                "ShuffleMasterSword": 0,
-                "ShuffleOcarinas": 1,
                 "SkipChildZelda": 1,
                 "SkipEponaRace": 1,
                 "SkipScarecrowsSong": 1,
@@ -45,7 +39,8 @@
                 "StartingOcarina": 1,
                 "SunlightArrows": 1,
                 "ZorasFountain": 1
-            }
+            },
+            "pairedProfile": null
         }
     },
     "presetName": "Rando Seed Settings - Beginner",

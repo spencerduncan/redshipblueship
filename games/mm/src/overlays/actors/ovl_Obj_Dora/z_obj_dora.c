@@ -285,10 +285,13 @@ void ObjDora_UpdateCollision(ObjDora* this, PlayState* play) {
                 if ((ObjDora_IsHalfHour(time) == true) && (this->rupeeDropTimer == 0)) {
                     Actor_PlaySfx(&this->actor, NA_SE_SY_TRE_BOX_APPEAR);
                     itemDrop = MM_Item_DropCollectible(play, &this->actor.world.pos, ITEM00_RUPEE_BLUE);
-                    itemDrop->world.rot.y = this->actor.world.rot.y;
-                    itemDrop->world.rot.y += (s32)DEG_TO_BINANG_ALT3(MM_Rand_Centered() * 90.0f);
-                    itemDrop->velocity.y = 5.0f;
-                    itemDrop->gravity = -1.0f;
+                    // RSBS (#1412): MM No Random Drops can cancel the drop, and then it returns NULL.
+                    if (itemDrop != NULL) {
+                        itemDrop->world.rot.y = this->actor.world.rot.y;
+                        itemDrop->world.rot.y += (s32)DEG_TO_BINANG_ALT3(MM_Rand_Centered() * 90.0f);
+                        itemDrop->velocity.y = 5.0f;
+                        itemDrop->gravity = -1.0f;
+                    }
                     this->rupeeDropTimer = 40;
                 }
                 break;

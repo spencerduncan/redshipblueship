@@ -335,6 +335,7 @@ static void ComboRuleApplyDecided(WidgetInfo& info, bool decided) {
  * player never touched it".
  */
 static void ComboRuleRefreshOoTHuntRows();
+static void ComboRuleRefreshOoTLogicRows();
 
 static void ComboRuleResetAll() {
     for (int i = 0; i < (int)COMBO_SETTING_COUNT; i++) {
@@ -343,6 +344,8 @@ static void ComboRuleResetAll() {
     // #1389: OoT's own hunt rows follow the goal the reset leaves (the shipped
     // one), as they follow the goal row.
     ComboRuleRefreshOoTHuntRows();
+    // #1337: and OoT's Starting Age row follows the logic it leaves.
+    ComboRuleRefreshOoTLogicRows();
 }
 
 /**
@@ -470,6 +473,14 @@ static void ComboRuleTriforcePreFunc(WidgetInfo& info, bool goalRow) {
  *  option callback (settings.cpp) asks the goal, and runs only when told. */
 static void ComboRuleRefreshOoTHuntRows() {
     Rando::Settings::GetInstance()->GetOption(RSK_TRIFORCE_HUNT_PIECES_REQUIRED).RunCallback();
+}
+
+/** OoT's Starting Age row exempts No Logic from its Closed Door of Time and
+ *  Closed Forest locks (SoH 0e99b30e9, #1337). Here the rung decides OoT's Logic,
+ *  so the row asks the rung (settings.cpp HandleStartingAgeUI), and RSK_LOGIC_RULES's
+ *  option callback, which runs it, runs only when told. */
+static void ComboRuleRefreshOoTLogicRows() {
+    Rando::Settings::GetInstance()->GetOption(RSK_LOGIC_RULES).RunCallback();
 }
 
 /**
@@ -736,7 +747,10 @@ void AddComboRulesWidgets(SohMenu& menu, WidgetPath& path) {
     menu.AddWidget(path, ComboRuleRowName(COMBO_SETTING_LOGIC), WIDGET_COMBOBOX)
         .ValuePointer(&comboRuleLogic)
         .PreFunc(ComboRuleLogicPreFunc)
-        .Callback([](WidgetInfo& info) { Combo_ComboSettingSet(COMBO_SETTING_LOGIC, comboRuleLogic); })
+        .Callback([](WidgetInfo& info) {
+            Combo_ComboSettingSet(COMBO_SETTING_LOGIC, comboRuleLogic);
+            ComboRuleRefreshOoTLogicRows(); // #1337
+        })
         .Options(ComboboxOptions()
                      .ComboMap(comboRuleLogicOptions)
                      .Tooltip("Chooses how the seed is checked before you play it, for both games at once. Each "

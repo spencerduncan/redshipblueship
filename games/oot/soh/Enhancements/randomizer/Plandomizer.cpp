@@ -305,6 +305,13 @@ ImVec4 plandomizerGetItemColor(Rando::Item randoItem) {
     }
     if (randoItem.GetItemType() == ITEMTYPE_SONG) {
         uint32_t questID = Rando::Logic::RandoGetToQuestItem[randoItem.GetRandomizerGet()];
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // [RSBS #1169 XW4] Song of Soaring (OoT) has no quest bit (its row reads 0, a
+        // medallion songMapping.at() would throw on): Song of Time's note stands in.
+        if (randoItem.GetRandomizerGet() == RG_SONG_OF_SOARING_OOT) {
+            questID = QUEST_SONG_TIME;
+        }
+#endif
         textureID = Ship::Context::GetInstance()->GetWindow()->GetGui()->GetTextureByName(
             songMapping.at((QuestItem)questID).name);
         itemColor = songMapping.at((QuestItem)questID).color;

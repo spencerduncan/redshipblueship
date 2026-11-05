@@ -428,8 +428,11 @@ void Rando::MiscBehavior::OfferTrapItem() {
                             currentRupees -= 1;
                         }
                         EnItem00* rupeeActor = (EnItem00*)MM_Item_DropCollectible(MM_gPlayState, &positional, rupee);
-                        rupeeActor->actor.speed = MM_Rand_CenteredFloat(5.0f);
-                        rupeeActor->unk152 = 600; // Extending Time before Despawning
+                        // RSBS (#1412): MM No Random Drops can cancel the drop, and then it returns NULL.
+                        if (rupeeActor != NULL) {
+                            rupeeActor->actor.speed = MM_Rand_CenteredFloat(5.0f);
+                            rupeeActor->unk152 = 600; // Extending Time before Despawning
+                        }
                     }
                 }
             } });

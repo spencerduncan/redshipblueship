@@ -57,13 +57,19 @@ bool IsResetTimeNookCheck(RandoCheckId checkId) {
 
 namespace {
 
-/** The regions OoTMM enters only through an exit gated on can_reset_time_on_moon. */
+/** The regions OoTMM enters only through an exit gated on can_reset_time_on_moon.
+ *  The Link trial is four regions (2Ship cd4d04689, #1342 MLB-4), and every one
+ *  is listed: the guard prunes a finished crawl, so a room left out here would
+ *  stay reached through the pruned entrance room. */
 bool IsMoonTrialRegion(RandoRegionId regionId) {
     switch (regionId) {
         case RR_MOON_DEKU_TRIAL:
         case RR_MOON_GORON_TRIAL:
         case RR_MOON_ZORA_TRIAL:
-        case RR_MOON_LINK_TRIAL:
+        case RR_MOON_LINK_TRIAL_ENTRANCE:
+        case RR_MOON_LINK_TRIAL_GARO_ROOM:
+        case RR_MOON_LINK_TRIAL_KNUCKLE_ROOM:
+        case RR_MOON_LINK_TRIAL_FINAL_ROOM:
             return true;
         default:
             return false;

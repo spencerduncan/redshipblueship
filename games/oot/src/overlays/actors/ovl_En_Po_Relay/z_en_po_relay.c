@@ -247,9 +247,7 @@ void EnPoRelay_Race(EnPoRelay* this, PlayState* play) {
             speed = 3.5f;
         }
 
-        if (CVarGetInteger(CVAR_ENHANCEMENT("FixDampeGoingBackwards"), false)) {
-            speed = ABS(speed);
-        }
+        GameInteractor_Should(VB_DAMPE_GO_BACKWARDS, true, &speed);
 
         multiplier = 250.0f - this->actor.xzDistToPlayer;
         multiplier = CLAMP_MIN(multiplier, 0.0f);
@@ -294,7 +292,7 @@ void EnPoRelay_Talk2(EnPoRelay* this, PlayState* play) {
     OoT_Math_ScaledStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 0x100);
     if (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
         if (OoT_Message_ShouldAdvance(play)) {
-            if (this->hookshotSlotFull != 0) {
+            if (this->hookshotSlotFull) {
                 Actor_SetTextWithPrefix(play, &this->actor, 0x2E);
             } else {
                 Actor_SetTextWithPrefix(play, &this->actor, 0x2D);
@@ -314,7 +312,7 @@ void EnPoRelay_DisappearAndReward(EnPoRelay* this, PlayState* play) {
     Vec3f vec;
     f32 multiplier;
     s32 pad;
-    Vec3f sp60;
+    Vec3f posAtGround;
     s32 pad1;
 
     this->actionTimer++;
@@ -345,43 +343,23 @@ void EnPoRelay_DisappearAndReward(EnPoRelay* this, PlayState* play) {
             Audio_PlayActorSound2(&this->actor, NA_SE_EN_EXTINCT);
         }
     }
-    if (OoT_Math_StepToF(&this->actor.scale.x, 0.0f, 0.001f) != 0) {
-        if (!IS_RANDO) {
-            if (this->hookshotSlotFull != 0) {
-                sp60.x = this->actor.world.pos.x;
-                sp60.y = this->actor.floorHeight;
-                sp60.z = this->actor.world.pos.z;
-                if (gSaveContext.timerSeconds < HIGH_SCORE(HS_DAMPE_RACE)) {
-                    HIGH_SCORE(HS_DAMPE_RACE) = gSaveContext.timerSeconds;
-                }
-                if (OoT_Flags_GetCollectible(play, this->actor.params) == 0 && gSaveContext.timerSeconds <= 60) {
-                    OoT_Item_DropCollectible2(play, &sp60, (this->actor.params << 8) + (0x4000 | ITEM00_HEART_PIECE));
-                } else {
-                    OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ITEM00, sp60.x, sp60.y, sp60.z, 0, 0, 0, 2, true);
-                }
-            } else {
-                Flags_SetTempClear(play, 4);
-                HIGH_SCORE(HS_DAMPE_RACE) = gSaveContext.timerSeconds;
-            }
-        } else {
-            sp60.x = this->actor.world.pos.x;
-            sp60.y = this->actor.floorHeight;
-            sp60.z = this->actor.world.pos.z;
-
-            if (this->hookshotSlotFull == 0) {
-                Flags_SetTempClear(play, 4);
-                OoT_Flags_SetTreasure(OoT_gPlayState, 0x1E);
-                HIGH_SCORE(HS_DAMPE_RACE) = gSaveContext.timerSeconds;
-            }
-
+    if (OoT_Math_StepToF(&this->actor.scale.x, 0.0f, 0.001f)) {
+        if (GameInteractor_Should(VB_DAMPE_AWARD_SECOND_PRIZE, this->hookshotSlotFull)) {
+            posAtGround.x = this->actor.world.pos.x;
+            posAtGround.y = this->actor.floorHeight;
+            posAtGround.z = this->actor.world.pos.z;
             if (gSaveContext.timerSeconds < HIGH_SCORE(HS_DAMPE_RACE)) {
                 HIGH_SCORE(HS_DAMPE_RACE) = gSaveContext.timerSeconds;
             }
             if (OoT_Flags_GetCollectible(play, this->actor.params) == 0 && gSaveContext.timerSeconds <= 60) {
-                OoT_Item_DropCollectible2(play, &sp60, (this->actor.params << 8) + (0x4000 | ITEM00_HEART_PIECE));
-            } else if (OoT_Flags_GetCollectible(play, this->actor.params) != 0) {
-                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ITEM00, sp60.x, sp60.y, sp60.z, 0, 0, 0, 2, true);
+                OoT_Item_DropCollectible2(play, &posAtGround, (this->actor.params << 8) + (0x4000 | ITEM00_HEART_PIECE));
+            } else {
+                OoT_Actor_Spawn(&play->actorCtx, play, ACTOR_EN_ITEM00, posAtGround.x, posAtGround.y, posAtGround.z, 0, 0,
+                            0, 2, true);
             }
+        } else {
+            Flags_SetTempClear(play, 4);
+            HIGH_SCORE(HS_DAMPE_RACE) = gSaveContext.timerSeconds;
         }
         OoT_Actor_Kill(&this->actor);
     }

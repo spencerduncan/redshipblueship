@@ -21,6 +21,7 @@ void MM_EnGirlA_SetupAction(EnGirlA* enGirlA, EnGirlAActionFunc action);
 // #800 pass 1: a shop slot may host a foreign (OoT) item.
 #include "2s2h/Rando/Foreign.h"
 #include "2s2h/Rando/ForeignModel.h"
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
 #endif
 
 #define RANDO_DESC_TEXT_ID 0x083F
@@ -120,6 +121,31 @@ static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
         rc, Rando::StaticData::Items[RANDO_SAVE_CHECKS[rc].randoItemId].name, false);
 }
+
+// The Bomb Shop's next-stock hint (text 0x648 below). The hook calls this in both
+// builds: a directive is ill-formed inside a COND_ID_HOOK argument.
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1475: the combined Hint Tracker's resolver builds the text (Rando/HintSources.h,
+// upstream's expression moved there, kept below under #else), so the tracker
+// shows exactly this; showing it records the hint as read. JunkName::Textbox keeps
+// upstream's junk naming call for call: MM's own junk padding here reads
+// "Junk (<junk item>)", drawn from MM's global stream, where the tracker reads "Junk".
+static std::string BombShopNextStockText() {
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK);
+    const Rando::HintSources::JunkName junk = Rando::HintSources::JunkName::Textbox;
+    return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK, RANDO_SAVE_CHECKS, nullptr, junk);
+}
+#else
+static std::string BombShopNextStockText() {
+    auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM];
+    std::string msg =
+        "If nothing devastating happens to Mommy tonight, we should be able to sell %r{{itemName}}%w.\x19\xA8";
+    const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
+        RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, Rando::StaticData::GetItemName(randoSaveCheck.randoItemId), true);
+    CustomMessage::Replace(&msg, "{{itemName}}", itemName);
+    return msg;
+}
+#endif
 
 void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
     EnGirlA* enGirlA = (EnGirlA*)actor;
@@ -567,14 +593,8 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
     // Bomb Shop "We're expecting new stock" (hint)
     COND_ID_HOOK(OnOpenText, 0x648, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
         Rando::ActorBehavior::MarkCheckSeen(RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, RCSEEN_SEEN);
-        auto randoSaveCheck = RANDO_SAVE_CHECKS[RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM];
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg =
-            "If nothing devastating happens to Mommy tonight, we should be able to sell %r{{itemName}}%w.\x19\xA8";
-        const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
-            RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, Rando::StaticData::GetItemName(randoSaveCheck.randoItemId),
-            true);
-        CustomMessage::Replace(&entry.msg, "{{itemName}}", itemName);
+        entry.msg = BombShopNextStockText();
         CustomMessage::LoadCustomMessageIntoFont(entry);
         *loadFromMessageTable = false;
     });

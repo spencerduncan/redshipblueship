@@ -929,7 +929,7 @@ ComboTrackerSeenItem CtwShopSlot(void) {
 }
 
 int LockSeen(void) {
-    // A seen shop slot names its item (SoH's DrawLocation, RCSHOW_SEEN).
+    // A seen shop slot names its item (SoH's DrawLocation, RCSHOW_SEEN_OR_HINTED).
     ComboTrackerSeenItem shop = CtwShopSlot();
     const std::string seenText = CtwSeenText(shop);
     printf("[TEST] combo-tracker-window #1166: a seen shop slot prints \"%s\"\n", seenText.c_str());
@@ -1629,7 +1629,8 @@ int LockL5(void) {
     const std::string cvars = CtwSource("CMake/soh-cvars.cmake");
     CTW_ASSERT(cvars.find("set(CVAR_PREFIX_WINDOW \"gOpenWindows\")") != std::string::npos);
     const std::string rando = CtwSource("games/oot/soh/SohGui/SohMenuRandomizer.cpp");
-    const std::string checkPage = CtwSlice(rando, "// Check Tracker\n", "\n}\n");
+    // SoH's Hint Tracker page (#1366) follows the Check Tracker page, as upstream orders them.
+    const std::string checkPage = CtwSlice(rando, "// Check Tracker\n", "// Hint Tracker\n");
     const std::string itemPage = CtwSlice(rando, "// Item Tracker\n", "// Entrance Tracker\n");
     CTW_ASSERT(!checkPage.empty() && !itemPage.empty());
     CTW_ASSERT(checkPage.find("AddWidget(path, \"Toggle Check Tracker\", WIDGET_WINDOW_BUTTON)\n        "
