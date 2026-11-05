@@ -125,6 +125,12 @@ void SkeletonPatcher::UpdateSkeletons() {
 
         if (newSkel != nullptr) {
             ApplyEntry(skel, newSkel->skeletonData.skeletonHeader.segment, (uintptr_t)newSkel->GetPointer());
+            // 2S2H 4243fd92f (#1623): an alt flex skeleton can have a different
+            // display-list count, and both games' flex draws allocate dListCount
+            // matrices. SkelAnime keeps dListCount at 0x02 in both games (#1176).
+            if (newSkel->type == SkeletonType::Flex) {
+                skel.skelAnime->dListCount = newSkel->skeletonData.flexSkeletonHeader.dListCount;
+            }
         }
     }
 }

@@ -1233,8 +1233,8 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         prevAltAssets = curAltAssets;
         Ship::Context::GetInstance()->GetResourceManager()->SetAltAssetsEnabled(curAltAssets);
         gfx_texture_cache_clear();
-        // TODO: skeleton patch, hooks
-        // S2H::SkeletonPatcher::UpdateSkeletons();
+        PlayerCustomFlipbooks_Patch();
+        S2H::SkeletonPatcher::UpdateSkeletons();
         // GameInteractor::Instance->ExecuteHooks<GameInteractor::OnAssetAltChange>();
     }
 

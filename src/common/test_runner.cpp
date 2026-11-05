@@ -22,6 +22,7 @@
 #include "test_scratch.h"      // #926: per-process scratch dirs, removed when a row passes
 #include "rsbs_version.h"
 #include <SDL2/SDL_hints.h>
+#include <clocale> // #1346: the windows-utf8-code-page row reads the CRT locale
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -52,6 +53,14 @@
 // For Test_ConsoleSetParseGuard (#935): the Console window registers `set` itself.
 #include <ship/debug/Console.h>
 #include <ship/window/gui/ConsoleWindow.h>
+
+#ifdef _WIN32
+// #1346: the windows-utf8-code-page row reads the OS ANSI code page. Declared here,
+// at file scope, rather than through <windows.h>, which this TU keeps out (it
+// includes libultraship's headers); the declaration matches winnls.h's, so a
+// transitive include agrees with it.
+extern "C" __declspec(dllimport) unsigned int __stdcall GetACP(void);
+#endif
 
 // Shared-context bring-up entries for the boot regression tests (#329/#330).
 // Defined in games/oot/soh/OTRGlobals.cpp and
@@ -3052,6 +3061,64 @@ TestResult Test_TestAudioSilent(void) {
 #undef TAS_ASSERT
     printf("[TEST] %s: test-audio-silent, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1346 (SFX-23) lock: on Windows the CRT and the OS agree that narrow strings are
+// UTF-8, so a path built from getenv, argv or an -A API never throws inside
+// std::filesystem.
+//   U1 main.cpp's setlocale(LC_ALL, ".UTF8") ran (SoH 5ed3db0a7): the CRT's
+//      LC_CTYPE code page (___lc_codepage_func) is CP_UTF8, 65001;
+//   U2 main.cpp put LC_NUMERIC back on "C" (SoH d657862aa), so strtod and printf
+//      stay dot-decimal under a comma-decimal user locale;
+//   U3 the OS ANSI code page (GetACP) is CP_UTF8 too: rsbs/windows/redship.manifest
+//      (activeCodePage UTF-8, SoH 0017fc55b) was embedded and honoured. U1 without
+//      U3 is the split that ends an accented %TEMP% in std::terminate at
+//      OTRGlobals.cpp's std::filesystem::canonical(getenv("TEMP")).
+// Windows 10 1903+ honours activeCodePage, so U3 fails on older Windows by design.
+// Off Windows the row reports and skips (SKIP_RETURN_CODE 77): main sets no locale.
+// Red half: U3 is red on a build without the manifest on an ANSI-code-page machine
+// (not one with the system-wide "Beta: Use Unicode UTF-8" option on, where GetACP is
+// already 65001); U1 and U2 are red without main.cpp's two setlocale calls.
+TestResult Test_WindowsUtf8CodePage(void) {
+    printf("[TEST] windows-utf8-code-page: the CRT locale and the OS ANSI code page are both UTF-8\n");
+#ifndef _WIN32
+    printf("[TEST] SKIP: not Windows, so main sets no locale and there is no ANSI code page to check\n");
+    return TEST_SKIP;
+#else
+    int failures = 0;
+#define WUCP_ASSERT(cond, ...)       \
+    do {                             \
+        if (!(cond)) {               \
+            printf("[TEST] FAIL: "); \
+            printf(__VA_ARGS__);     \
+            printf("\n");            \
+            failures++;              \
+        }                            \
+    } while (0)
+
+    const unsigned int kCpUtf8 = 65001;
+    const unsigned int crtCodePage = ___lc_codepage_func();
+    const unsigned int ansiCodePage = GetACP();
+    const char* ctype = setlocale(LC_CTYPE, nullptr);
+    const char* numeric = setlocale(LC_NUMERIC, nullptr);
+    printf("[LOCALE] row: LC_CTYPE=%s (CRT code page %u), LC_NUMERIC=%s, GetACP()=%u\n",
+           ctype != nullptr ? ctype : "(null)", crtCodePage, numeric != nullptr ? numeric : "(null)", ansiCodePage);
+
+    WUCP_ASSERT(crtCodePage == kCpUtf8,
+                "U1: the CRT's LC_CTYPE code page is %u, not 65001: main.cpp's setlocale(LC_ALL, \".UTF8\") did "
+                "not run",
+                crtCodePage);
+    WUCP_ASSERT(numeric != nullptr && strcmp(numeric, "C") == 0,
+                "U2: LC_NUMERIC is '%s', not 'C': main.cpp's setlocale(LC_NUMERIC, \"C\") did not run",
+                numeric != nullptr ? numeric : "(null)");
+    WUCP_ASSERT(ansiCodePage == kCpUtf8,
+                "U3: GetACP() is %u, not 65001: redship.exe carries no activeCodePage UTF-8 manifest (or Windows "
+                "is older than 10 1903), so getenv and the -A APIs hand the UTF-8 CRT ANSI bytes",
+                ansiCodePage);
+#undef WUCP_ASSERT
+    printf("[TEST] %s: windows-utf8-code-page, %d failure(s)\n", failures == 0 ? "PASS" : "FAIL", failures);
+    return failures == 0 ? TEST_PASS : TEST_FAIL;
+#endif
 }
 
 // #880 lock: the version a person sees names the commit it was built from.
@@ -9932,6 +9999,11 @@ const TestDescriptor gTests[] = {
       "A --test process pins SDL's audio driver to the dummy driver in code (not only from the CTest environment), "
       "so a tier never plays game audio through the speakers of the person at the workstation (S0)",
       Test_TestAudioSilent },
+    { "windows-utf8-code-page",
+      "On Windows the CRT locale main sets (\".UTF8\", LC_NUMERIC \"C\") and the OS ANSI code page redship's "
+      "manifest sets (activeCodePage UTF-8) are both UTF-8, so std::filesystem never throws on an accented path "
+      "from getenv or an -A API (#1346)",
+      Test_WindowsUtf8CodePage },
     { "version-short-commit",
       "The window title and --version read the release version plus the configured short commit (and -dirty), so "
       "a build says which commit it is; the release part stays RSBS_VERSION_STRING (#880)",
