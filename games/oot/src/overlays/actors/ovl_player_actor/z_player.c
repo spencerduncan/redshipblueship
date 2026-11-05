@@ -20,8 +20,8 @@
 #include "overlays/misc/ovl_kaleido_scope/z_kaleido_scope.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/object_link_child/object_link_child.h"
-#include "textures/icon_item_24_static/icon_item_24_static.h"
 #include <soh/Enhancements/custom-message/CustomMessageTypes.h>
+#include "soh/Enhancements/game-interactor/vanilla-behavior/GIVanillaBehavior.h"
 #include "soh/Enhancements/item-tables/ItemTableTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/randomizer/randomizer_entrance.h"
@@ -305,7 +305,7 @@ void Player_Action_8084B9E4(Player* this, PlayState* play);
 void Player_Action_8084BBE4(Player* this, PlayState* play);
 void Player_Action_8084BDFC(Player* this, PlayState* play);
 void Player_Action_8084BF1C(Player* this, PlayState* play);
-void Player_Action_8084C5F8(Player* this, PlayState* play);
+void Player_Action_DismountLadder(Player* this, PlayState* play);
 void Player_Action_8084C760(Player* this, PlayState* play);
 void Player_Action_8084C81C(Player* this, PlayState* play);
 void Player_Action_8084CC98(Player* this, PlayState* play);
@@ -348,8 +348,7 @@ void Player_Action_80850E84(Player* this, PlayState* play);
 void OoT_Player_Action_CsAction(Player* this, PlayState* play);
 
 #pragma region[SoH]
-u8 gWalkSpeedToggle1;
-u8 gWalkSpeedToggle2;
+u8 gWalkSpeedToggle;
 
 s32 spawn_boomerang_ivan(EnPartner* this, PlayState* play) {
     if (!CVarGetInteger(CVAR_ENHANCEMENT("IvanCoopModeEnabled"), 0)) {
@@ -5854,6 +5853,7 @@ void func_8083AA10(Player* this, PlayState* play) {
                         if (OoT_WaterBox_GetSurface1(play, &play->colCtx, sp44.x, sp44.z, &sp3C, &sp50) &&
                             ((sp3C - sp40) > 50.0f)) {
                             func_808389E8(this, &gPlayerAnim_link_normal_run_jump_water_fall, 6.0f, play);
+                            GameInteractor_Should(VB_PLAYER_LIMIT_DIVE_XZ_SPEED, true, this);
                             Player_SetupAction(play, this, Player_Action_80844A44, 0);
                             return;
                         }
@@ -7160,31 +7160,10 @@ void func_8083DFE0(Player* this, f32* arg1, s16* arg2) {
     s16 yawDiff = this->yaw - *arg2;
 
     if (this->meleeWeaponState == 0) {
-        float maxSpeed = R_RUN_SPEED_LIMIT / 100.0f;
-
-        if (OoT_BunnyHoodEffectMode() /* [RSBS #969] */ == BUNNY_HOOD_FAST_AND_JUMP &&
-            this->currentMask == PLAYER_MASK_BUNNY) {
-            maxSpeed *= 1.5f;
+        if (GameInteractor_Should(VB_PLAYER_LIMIT_JUMP_SPEED, true, this)) {
+            this->linearVelocity =
+                CLAMP(this->linearVelocity, -(R_RUN_SPEED_LIMIT / 100.0f), (R_RUN_SPEED_LIMIT / 100.0f));
         }
-
-        if (CVarGetInteger(CVAR_SETTING("WalkModifier.Enabled"), 0) &&
-            !CVarGetInteger(CVAR_SETTING("WalkModifier.DoesntChangeJump"), 0)) {
-            if (CVarGetInteger(CVAR_SETTING("WalkModifier.SpeedToggle"), 0)) {
-                if (gWalkSpeedToggle1) {
-                    maxSpeed *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping1"), 1.0f);
-                } else if (gWalkSpeedToggle2) {
-                    maxSpeed *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping2"), 1.0f);
-                }
-            } else {
-                if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER1)) {
-                    maxSpeed *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping1"), 1.0f);
-                } else if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER2)) {
-                    maxSpeed *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping2"), 1.0f);
-                }
-            }
-        }
-
-        this->linearVelocity = CLAMP(this->linearVelocity, -maxSpeed, maxSpeed);
     }
 
     if (ABS(yawDiff) > 0x6000) {
@@ -7648,8 +7627,8 @@ s32 func_8083EC18(Player* this, PlayState* play, u32 wallFlags) {
     return false;
 }
 
-void func_8083F070(Player* this, LinkAnimationHeader* anim, PlayState* play) {
-    Player_SetupActionPreserveAnimMovement(play, this, Player_Action_8084C5F8, 0);
+void Player_SetupDismountLadder(Player* this, LinkAnimationHeader* anim, PlayState* play) {
+    Player_SetupActionPreserveAnimMovement(play, this, Player_Action_DismountLadder, 0);
     LinkAnimation_PlayOnceSetSpeed(play, &this->skelAnime, anim, (4.0f / 3.0f));
 }
 
@@ -8893,8 +8872,8 @@ void func_80841EE4(Player* this, PlayState* play) {
 }
 
 void Player_Action_80842180(Player* this, PlayState* play) {
-    f32 sp2C;
-    s16 sp2A;
+    f32 speedTarget;
+    s16 yawTarget;
 
     this->stateFlags2 |= PLAYER_STATE2_DISABLE_ROTATION_Z_TARGET;
     func_80841EE4(this, play);
@@ -8905,35 +8884,15 @@ void Player_Action_80842180(Player* this, PlayState* play) {
             return;
         }
 
-        OoT_Player_GetMovementSpeedAndYaw(this, &sp2C, &sp2A, SPEED_MODE_CURVED, play);
+        OoT_Player_GetMovementSpeedAndYaw(this, &speedTarget, &yawTarget, SPEED_MODE_CURVED, play);
 
-        if (!func_8083C484(this, &sp2C, &sp2A)) {
+        if (!func_8083C484(this, &speedTarget, &yawTarget)) {
+            GameInteractor_Should(VB_PLAYER_MODIFY_RUN_SPEED, true, this, &speedTarget);
 
-            if (OoT_BunnyHoodEffectMode() /* [RSBS #969] */ != BUNNY_HOOD_VANILLA &&
-                this->currentMask == PLAYER_MASK_BUNNY) {
-                sp2C *= 1.5f;
-            }
-
-            if (CVarGetInteger(CVAR_SETTING("WalkModifier.Enabled"), 0)) {
-                if (CVarGetInteger(CVAR_SETTING("WalkModifier.SpeedToggle"), 0)) {
-                    if (gWalkSpeedToggle1) {
-                        sp2C *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping1"), 1.0f);
-                    } else if (gWalkSpeedToggle2) {
-                        sp2C *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping2"), 1.0f);
-                    }
-                } else {
-                    if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER1)) {
-                        sp2C *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping1"), 1.0f);
-                    } else if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER2)) {
-                        sp2C *= CVarGetFloat(CVAR_SETTING("WalkModifier.Mapping2"), 1.0f);
-                    }
-                }
-            }
-
-            func_8083DF68(this, sp2C, sp2A);
+            func_8083DF68(this, speedTarget, yawTarget);
             func_8083DDC8(this, play);
 
-            if ((this->linearVelocity == 0.0f) && (sp2C == 0.0f)) {
+            if ((this->linearVelocity == 0.0f) && (speedTarget == 0.0f)) {
                 func_8083C0B8(this, play);
             }
         }
@@ -9892,8 +9851,7 @@ void Player_Action_Roll(Player* this, PlayState* play) {
                 OoT_Player_GetMovementSpeedAndYaw(this, &speedTarget, &yawTarget, SPEED_MODE_CURVED, play);
 
                 // `speedTarget` at this point is the speed that would be used for regular walking.
-                // Rolling speed is 1.5 times faster than what the walking speed would be for the current control stick
-                // input.
+                // Rolling speed is 1.5 times faster than walking speed would be for the current control stick input.
                 speedTarget *= 1.5f;
 
                 if ((speedTarget < 3.0f) || (this->controlStickDirections[this->controlStickDataIndex] != 0)) {
@@ -11786,108 +11744,8 @@ void Player_DetectRumbleSecrets(Player* this) {
 
         this->unk_6A0 += temp;
 
-        /*Prevent it on horse, while jumping and on title screen.
-        If you fly around no stone of agony for you! */
-        Color_RGB8 stoneOfAgonyColor = { 255, 255, 255 };
-        if (CVarGetInteger(CVAR_COSMETIC("HUD.StoneOfAgony.Changed"), 0)) {
-            stoneOfAgonyColor = CVarGetColor24(CVAR_COSMETIC("HUD.StoneOfAgony.Value"), stoneOfAgonyColor);
-        }
-        if (CVarGetInteger(CVAR_ENHANCEMENT("VisualAgony"), 0) && !this->stateFlags1 && !GameInteractor_NoUIActive()) {
-            s16 Top_Margins = (CVarGetInteger(CVAR_COSMETIC("HUD.Margin.T"), 0) * -1);
-            s16 Left_Margins = CVarGetInteger(CVAR_COSMETIC("HUD.Margin.L"), 0);
-            s16 Right_Margins = CVarGetInteger(CVAR_COSMETIC("HUD.Margin.R"), 0);
-            s16 X_Margins_VSOA;
-            s16 Y_Margins_VSOA;
-            if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.UseMargins"), 0) != 0) {
-                if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) == ORIGINAL_LOCATION) {
-                    X_Margins_VSOA = Left_Margins;
-                };
-                Y_Margins_VSOA = Top_Margins;
-            } else {
-                X_Margins_VSOA = 0;
-                Y_Margins_VSOA = 0;
-            }
-            s16 PosX_VSOA_ori = OTRGetRectDimensionFromLeftEdge(26) + X_Margins_VSOA;
-            s16 PosY_VSOA_ori = 60 + Y_Margins_VSOA;
-            s16 PosX_VSOA;
-            s16 PosY_VSOA;
-            if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) != 0) {
-                PosY_VSOA = CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosY"), 0) + Y_Margins_VSOA;
-                if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) == ANCHOR_LEFT) {
-                    if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.UseMargins"), 0) != 0) {
-                        X_Margins_VSOA = Left_Margins;
-                    };
-                    PosX_VSOA = OTRGetDimensionFromLeftEdge(CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosX"), 0) +
-                                                            X_Margins_VSOA);
-                } else if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) == ANCHOR_RIGHT) {
-                    if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.UseMargins"), 0) != 0) {
-                        X_Margins_VSOA = Right_Margins;
-                    };
-                    PosX_VSOA = OTRGetDimensionFromRightEdge(CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosX"), 0) +
-                                                             X_Margins_VSOA);
-                } else if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) == ANCHOR_NONE) {
-                    PosX_VSOA = CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosX"), 0);
-                } else if (CVarGetInteger(CVAR_COSMETIC("HUD.VisualSoA.PosType"), 0) == HIDDEN) {
-                    PosX_VSOA = -9999;
-                }
-            } else {
-                PosY_VSOA = PosY_VSOA_ori;
-                PosX_VSOA = PosX_VSOA_ori;
-            }
-
-            int rectLeft = PosX_VSOA; // Left X Pos
-            int rectTop = PosY_VSOA;  // Top Y Pos
-            int rectWidth = 24;       // Texture Width
-            int rectHeight = 24;      // Texture Heigh
-            int DefaultIconA = 50;    // Default icon alpha (55 on 255)
-
-            OPEN_DISPS(OoT_gPlayState->state.gfxCtx);
-            gDPPipeSync(OVERLAY_DISP++);
-
-            gDPSetPrimColor(OVERLAY_DISP++, 0, 0, stoneOfAgonyColor.r, stoneOfAgonyColor.g, stoneOfAgonyColor.b,
-                            DefaultIconA);
-
-            gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
-                              PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
-            if (this->unk_6A0 > 4000000.0f) {
-                gDPSetPrimColor(OVERLAY_DISP++, 0, 0, stoneOfAgonyColor.r, stoneOfAgonyColor.g, stoneOfAgonyColor.b,
-                                255);
-            } else {
-                gDPSetPrimColor(OVERLAY_DISP++, 0, 0, stoneOfAgonyColor.r, stoneOfAgonyColor.g, stoneOfAgonyColor.b,
-                                DefaultIconA);
-            }
-            if (temp == 0 || temp <= 0.1f) {
-                /*Fail check, it is used to draw off the icon when
-                link is standing out range but do not refresh unk_6A0.
-                Also used to make a default value in my case.*/
-                gDPSetPrimColor(OVERLAY_DISP++, 0, 0, stoneOfAgonyColor.r, stoneOfAgonyColor.g, stoneOfAgonyColor.b,
-                                DefaultIconA);
-            }
-            gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
-            gDPSetOtherMode(OVERLAY_DISP++,
-                            G_AD_DISABLE | G_CD_DISABLE | G_CK_NONE | G_TC_FILT | G_TF_POINT | G_TT_IA16 | G_TL_TILE |
-                                G_TD_CLAMP | G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
-                            G_AC_NONE | G_ZS_PRIM | G_RM_XLU_SURF | G_RM_XLU_SURF2);
-            gDPLoadTextureBlock(OVERLAY_DISP++, gQuestIconStoneOfAgonyTex, G_IM_FMT_RGBA, G_IM_SIZ_32b, 24, 24, 0,
-                                G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMIRROR | G_TX_WRAP, G_TX_NOMASK, G_TX_NOMASK,
-                                G_TX_NOLOD, G_TX_NOLOD);
-            gDPSetOtherMode(OVERLAY_DISP++,
-                            G_AD_DISABLE | G_CD_DISABLE | G_CK_NONE | G_TC_FILT | G_TF_BILERP | G_TT_IA16 | G_TL_TILE |
-                                G_TD_CLAMP | G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
-                            G_AC_NONE | G_ZS_PRIM | G_RM_XLU_SURF | G_RM_XLU_SURF2);
-            gSPWideTextureRectangle(OVERLAY_DISP++, rectLeft << 2, rectTop << 2, (rectLeft + rectWidth) << 2,
-                                    (rectTop + rectHeight) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
-            CLOSE_DISPS(OoT_gPlayState->state.gfxCtx);
-        }
-
-        if (this->unk_6A0 > 4000000.0f) {
+        if (GameInteractor_Should(VB_RUMBLE_FOR_SECRET, this->unk_6A0 > 4000000.0f, this, temp)) {
             this->unk_6A0 = 0.0f;
-            if (CVarGetInteger(CVAR_ENHANCEMENT("VisualAgony"), 0) && !this->stateFlags1 &&
-                !GameInteractor_NoUIActive()) {
-                // This audio is placed here and not in previous CVar check to prevent ears ra.. :)
-                Audio_PlaySoundGeneral(NA_SE_SY_MESSAGE_WOMAN, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
-                                       &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultFreqAndVolScale);
-            }
             OoT_Player_RequestRumble(this, 120, 20, 10, 0);
         }
     }
@@ -12439,13 +12297,13 @@ void OoT_Player_Update(Actor* thisx, PlayState* play) {
             }
         }
 
-        if (CVarGetInteger(CVAR_SETTING("WalkModifier.Enabled"), 0) &&
-            CVarGetInteger(CVAR_SETTING("WalkModifier.SpeedToggle"), 0)) {
-            if (CHECK_BTN_ALL(sControlInput->press.button, BTN_CUSTOM_MODIFIER1)) {
-                gWalkSpeedToggle1 = !gWalkSpeedToggle1;
-            }
-            if (CHECK_BTN_ALL(sControlInput->press.button, BTN_CUSTOM_MODIFIER2)) {
-                gWalkSpeedToggle2 = !gWalkSpeedToggle2;
+        if (CVarGetFloat(CVAR_CHEAT("SpeedModifier.Value"), 1.0f) != 1.0f &&
+            CVarGetInteger(CVAR_CHEAT("SpeedModifier.SpeedToggle"), 0)) {
+            const s32 mod1Mask = CVarGetInteger(CVAR_CHEAT("SpeedModifier.Btn"), BTN_CUSTOM_MODIFIER1);
+
+            if (mod1Mask != 0 && CHECK_BTN_ALL(sControlInput->cur.button, mod1Mask) &&
+                CHECK_BTN_ANY(sControlInput->press.button, mod1Mask)) {
+                gWalkSpeedToggle = !gWalkSpeedToggle;
             }
         }
 
@@ -12863,8 +12721,9 @@ s16 func_8084ABD8(PlayState* play, Player* this, s32 arg2, s16 arg3) {
             movementSpeed *= 1.5f;
         }
 
-        f32 relX = (sControlInput->rel.stick_x / 10 * -invertXAxisMulti);
-        f32 relY = (sControlInput->rel.stick_y / 10);
+        f32 relX =
+            (sControlInput->rel.stick_x * (CVarGetInteger(CVAR_ENHANCEMENT("MirroredWorld"), 0) ? 1 : -1)) / 10.0f;
+        f32 relY = sControlInput->rel.stick_y / 10.0f;
 
         // Normalize so that diagonal movement isn't faster
         f32 relMag = sqrtf((relX * relX) + (relY * relY));
@@ -12893,61 +12752,24 @@ void func_8084AEEC(Player* this, f32* arg1, f32 arg2, s16 arg3) {
     f32 temp1;
     f32 temp2;
 
-    // #region SOH [Enhancement]
-    f32 swimMod = 1.0f;
+    temp1 = this->skelAnime.curFrame - 10.0f;
 
-    if (CVarGetInteger(CVAR_SETTING("WalkModifier.Enabled"), 0) == 1) {
-        if (CVarGetInteger(CVAR_SETTING("WalkModifier.SpeedToggle"), 0) == 1) {
-            if (gWalkSpeedToggle1) {
-                swimMod *= CVarGetFloat(CVAR_SETTING("WalkModifier.SwimMapping1"), 1.0f);
-            } else if (gWalkSpeedToggle2) {
-                swimMod *= CVarGetFloat(CVAR_SETTING("WalkModifier.SwimMapping2"), 1.0f);
-            }
-            // sControlInput is NULL to prevent inputs while surfacing after obtaining an underwater item so we want to
-            // ignore it for that case
-        } else if (sControlInput != NULL) {
-            if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER1)) {
-                swimMod *= CVarGetFloat(CVAR_SETTING("WalkModifier.SwimMapping1"), 1.0f);
-            } else if (CHECK_BTN_ALL(sControlInput->cur.button, BTN_CUSTOM_MODIFIER2)) {
-                swimMod *= CVarGetFloat(CVAR_SETTING("WalkModifier.SwimMapping2"), 1.0f);
-            }
-        }
-        temp1 = this->skelAnime.curFrame - 10.0f;
-
-        temp2 = (R_RUN_SPEED_LIMIT / 100.0f) * 0.8f * swimMod;
-        if (*arg1 > temp2) {
-            *arg1 = temp2;
-        }
-
-        if ((0.0f < temp1) && (temp1 < 10.0f)) {
-            temp1 *= 6.0f;
-        } else {
-            temp1 = 0.0f;
-            arg2 = 0.0f;
-        }
-
-        OoT_Math_AsymStepToF(arg1, arg2 * 0.8f * swimMod, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
-        OoT_Math_ScaledStepToS(&this->yaw, arg3, 1600);
-        // #endregion
-    } else {
-
-        temp1 = this->skelAnime.curFrame - 10.0f;
-
-        temp2 = (R_RUN_SPEED_LIMIT / 100.0f) * 0.8f;
-        if (*arg1 > temp2) {
-            *arg1 = temp2;
-        }
-
-        if ((0.0f < temp1) && (temp1 < 10.0f)) {
-            temp1 *= 6.0f;
-        } else {
-            temp1 = 0.0f;
-            arg2 = 0.0f;
-        }
-
-        OoT_Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
-        OoT_Math_ScaledStepToS(&this->yaw, arg3, 1600);
+    temp2 = (R_RUN_SPEED_LIMIT / 100.0f) * 0.8f;
+    GameInteractor_Should(VB_PLAYER_MODIFY_SWIM_SPEED, true, this, &temp2, sControlInput != NULL);
+    if (*arg1 > temp2) {
+        *arg1 = temp2;
     }
+
+    if ((0.0f < temp1) && (temp1 < 10.0f)) {
+        temp1 *= 6.0f;
+    } else {
+        temp1 = 0.0f;
+        arg2 = 0.0f;
+    }
+
+    GameInteractor_Should(VB_PLAYER_MODIFY_SWIM_SPEED, true, this, &arg2, sControlInput != NULL);
+    OoT_Math_AsymStepToF(arg1, arg2 * 0.8f, temp1, (fabsf(*arg1) * 0.02f) + 0.05f);
+    OoT_Math_ScaledStepToS(&this->yaw, arg3, 1600);
 }
 
 // #region SOH [Enhancement]
@@ -13475,7 +13297,7 @@ void Player_Action_8084BF1C(Player* this, PlayState* play) {
                             func_8083A9B8(this, &gPlayerAnim_link_normal_jump_climb_up_free, play);
                             this->stateFlags1 |= PLAYER_STATE1_CLIMBING_LEDGE;
                         } else {
-                            func_8083F070(this, this->ageProperties->unk_CC[this->av2.actionVar2], play);
+                            Player_SetupDismountLadder(this, this->ageProperties->unk_CC[this->av2.actionVar2], play);
                         }
                     } else {
                         this->skelAnime.prevTransl = this->ageProperties->unk_4A[sp68];
@@ -13489,7 +13311,7 @@ void Player_Action_8084BF1C(Player* this, PlayState* play) {
                             if (this->av2.actionVar2 != 0) {
                                 this->skelAnime.prevTransl = this->ageProperties->unk_44;
                             }
-                            func_8083F070(this, this->ageProperties->unk_C4[this->av2.actionVar2], play);
+                            Player_SetupDismountLadder(this, this->ageProperties->unk_C4[this->av2.actionVar2], play);
                             this->av2.actionVar2 = 1;
                         }
                     } else {
@@ -13538,50 +13360,56 @@ void Player_Action_8084BF1C(Player* this, PlayState* play) {
     }
 }
 
-static f32 D_80854898[] = { 10.0f, 20.0f };
-static f32 D_808548A0[] = { 40.0f, 50.0f };
+static f32 sUpDismountLadderFrames[] = { 10.0f, 20.0f };
+static f32 sDownDismountLadderFrames[] = { 40.0f, 50.0f };
 
-static AnimSfxEntry D_808548A8[] = {
+static AnimSfxEntry sDownDismountLadderAnimSfx[] = {
     { NA_SE_PL_WALK_LADDER, ANIMSFX_DATA(ANIMSFX_TYPE_GENERAL, 10) },
     { NA_SE_PL_WALK_LADDER, ANIMSFX_DATA(ANIMSFX_TYPE_GENERAL, 20) },
     { NA_SE_PL_WALK_LADDER, -ANIMSFX_DATA(ANIMSFX_TYPE_GENERAL, 30) },
 };
 
-void Player_Action_8084C5F8(Player* this, PlayState* play) {
-    s32 temp;
-    f32* sp38;
-    CollisionPoly* sp34;
-    s32 sp30;
-    Vec3f sp24;
+/**
+ * Dismounting ladders, both upwards and downwards.
+ * `actionVar2` true if dismounting down
+ */
+void Player_Action_DismountLadder(Player* this, PlayState* play) {
+    s32 interruptResult;
+    f32* frame;
+    CollisionPoly* groundPoly;
+    s32 bgId;
+    Vec3f raycastPos;
 
     this->stateFlags2 |= PLAYER_STATE2_DISABLE_ROTATION_ALWAYS;
 
-    temp = OoT_Player_TryActionInterrupt(play, this, &this->skelAnime, 4.0f);
+    interruptResult = OoT_Player_TryActionInterrupt(play, this, &this->skelAnime, 4.0f);
 
-    if (temp == 0) {
+    // SoH: Prevent ladder cutscene softlock
+    if (GameInteractor_Should(VB_INTERRUPT_LADDER_DISMOUNT, interruptResult == PLAYER_INTERRUPT_NEW_ACTION,
+                              &this->unk_6AD)) {
         this->stateFlags1 &= ~PLAYER_STATE1_CLIMBING_LADDER;
         return;
     }
 
-    if ((temp > 0) || LinkAnimation_Update(play, &this->skelAnime)) {
+    if ((interruptResult > PLAYER_INTERRUPT_NEW_ACTION) || LinkAnimation_Update(play, &this->skelAnime)) {
         func_8083C0E8(this, play);
         this->stateFlags1 &= ~PLAYER_STATE1_CLIMBING_LADDER;
         return;
     }
 
-    sp38 = D_80854898;
+    frame = sUpDismountLadderFrames;
 
-    if (this->av2.actionVar2 != 0) {
-        Player_ProcessAnimSfxList(this, D_808548A8);
-        sp38 = D_808548A0;
+    if (this->av2.actionVar2 != false) {
+        Player_ProcessAnimSfxList(this, sDownDismountLadderAnimSfx);
+        frame = sDownDismountLadderFrames;
     }
 
-    if (LinkAnimation_OnFrame(&this->skelAnime, sp38[0]) || LinkAnimation_OnFrame(&this->skelAnime, sp38[1])) {
-        sp24.x = this->actor.world.pos.x;
-        sp24.y = this->actor.world.pos.y + 20.0f;
-        sp24.z = this->actor.world.pos.z;
-        if (OoT_BgCheck_EntityRaycastFloor3(&play->colCtx, &sp34, &sp30, &sp24) != 0.0f) {
-            this->floorSfxOffset = func_80041F10(&play->colCtx, sp34, sp30);
+    if (LinkAnimation_OnFrame(&this->skelAnime, frame[0]) || LinkAnimation_OnFrame(&this->skelAnime, frame[1])) {
+        raycastPos.x = this->actor.world.pos.x;
+        raycastPos.y = this->actor.world.pos.y + 20.0f;
+        raycastPos.z = this->actor.world.pos.z;
+        if (OoT_BgCheck_EntityRaycastFloor3(&play->colCtx, &groundPoly, &bgId, &raycastPos) != 0.0f) {
+            this->floorSfxOffset = func_80041F10(&play->colCtx, groundPoly, bgId);
             Player_PlayLandingSfx(this);
         }
     }
@@ -14155,14 +13983,11 @@ void func_8084DBC4(PlayState* play, Player* this, f32 arg2) {
 
     OoT_Player_GetMovementSpeedAndYaw(this, &sp2C, &sp2A, SPEED_MODE_LINEAR, play);
     func_8084AEEC(this, &this->linearVelocity, sp2C * 0.5f, sp2A);
-    // Original implementation of func_8084AEEC (SurfaceWithoutSwimMod) to prevent velocity increases via swim mod which
-    // push Link into the air #region SOH [Enhancement]
-    if (CVarGetInteger(CVAR_SETTING("WalkModifier.Enabled"), 0)) {
-        SurfaceWithoutSwimMod(this, &this->actor.velocity.y, arg2, this->yaw);
-        // #endregion
-    } else {
-        func_8084AEEC(this, &this->actor.velocity.y, arg2, this->yaw);
-    }
+    // #region SOH [Enhancement]
+    // Use swim-mod-free variant for y (surfacing) velocity so an active swim speed modifier can't push Link into air.
+    // This is identical to func_8084AEEC when no modifier active (swimMod == 1.0f), thus safe to always use.
+    SurfaceWithoutSwimMod(this, &this->actor.velocity.y, arg2, this->yaw);
+    // #endregion
 }
 
 void Player_Action_8084DC48(Player* this, PlayState* play) {
@@ -14647,18 +14472,20 @@ void Player_Action_8084EAC0(Player* this, PlayState* play) {
                     gSaveContext.healthAccumulator = rand * FULL_HEART_HEALTH;
                 }
             } else {
-                s32 sp28 = D_808549FC[this->itemAction - PLAYER_IA_BOTTLE_POTION_RED];
+                if (GameInteractor_Should(VB_EMPTY_BOTTLE_OI, this->itemAction != PLAYER_IA_BOTTLE)) {
+                    s32 sp28 = D_808549FC[this->itemAction - PLAYER_IA_BOTTLE_POTION_RED];
 
-                if (sp28 & 1) {
-                    gSaveContext.healthAccumulator = MAX_HEALTH;
-                }
+                    if (sp28 & 1) {
+                        gSaveContext.healthAccumulator = MAX_HEALTH;
+                    }
 
-                if (sp28 & 2) {
-                    Magic_Fill(play);
-                }
+                    if (sp28 & 2) {
+                        Magic_Fill(play);
+                    }
 
-                if (sp28 & 4) {
-                    gSaveContext.healthAccumulator = 0x50;
+                    if (sp28 & 4) {
+                        gSaveContext.healthAccumulator = 0x50;
+                    }
                 }
             }
 

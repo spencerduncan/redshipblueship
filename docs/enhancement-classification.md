@@ -364,8 +364,9 @@ link. They are now carved into `ship__Enh_registrars`, and each key has an MM-la
 `DrawMmCameraRows`), Remote Bombchu Control on Enhancements > Items > Explosives (`SohMenuHostedMmCamGyro.cpp`). Free
 Look stands aside while the debug camera is on, and is unchanged while it is off. The registrar-coverage lock's
 W6-CAM-GYRO phase attributes each TU by registry content; the classification lock's leg 3f-2c holds each binding.
-`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows after SoH's under Modifier
-Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistinct` row.
+`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows under Modifier Buttons, after the
+M1 and M2 bindings), held apart from SoH's `gCheats.SpeedModifier.*` by a `kMustStayDistinct` row. SoH's own rows moved
+to Enhancements > Cheats with #1400 (SoH 2a335b1cd), which also retired `gSettings.WalkModifier.*`.
 
 | MM key | MM default | Row (where) | Call |
 |---|---|---|---|
@@ -376,7 +377,7 @@ Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistin
 | `gEnhancements.Camera.DebugCam.Enable` | off | MM Debug Camera (likewise) | (O) MM-only; listens to port 1 (its port key has no row and is not read in the single exe) |
 | `gEnhancements.Camera.DebugCam.{6DOF,CameraSpeed}` | off / 50% | MM Enable Roll (6° of Freedom), MM Debug Camera Speed (10-300%, shown while MM Debug Camera is on) | (O) MM-only |
 | `gEnhancements.PlayerActions.RemoteBombchu` | off | Remote Bombchu Control (Items > Explosives, after SoH's Prevent Bombchus Forcing First-Person) | (O) nearest relative only |
-| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH's walk modifier has one enable and a 0-500% range |
+| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after the M1 / M2 bindings) | (P) held apart (`kMustStayDistinct`): SoH's speed modifier has no enable and one 100-500% multiplier |
 | `gSettings.SpeedModifier.{WalkEnable,SwimEnable}` | off | MM Enable Walk / Swim Speed Modifier (shown while MM's enable is on) | (P) likewise: SoH has no separate walk and swim enables |
 | `gSettings.SpeedModifier.{WalkMapping1,WalkMapping2}` | 100% | MM Walk Modifier 1 / 2 (0-1500%, likewise) | (P) likewise |
 | `gSettings.SpeedModifier.{SwimMapping1,SwimMapping2}` | 100% | MM Swim Modifier 1 / 2 (0-875%, likewise) | (P) likewise |

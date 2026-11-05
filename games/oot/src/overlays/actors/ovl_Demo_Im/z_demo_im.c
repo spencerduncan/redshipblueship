@@ -917,7 +917,7 @@ void func_80986C30(DemoIm* this, PlayState* play) {
             func_80985F54(this);
         }
         OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_ZELDAS_LULLABY);
-        if (GameInteractor_Should(VB_GIVE_ITEM_ZELDAS_LULLABY, true)) {
+        if (GameInteractor_Should(VB_GIVE_ITEM_SONG, true, ITEM_SONG_LULLABY)) {
             OoT_Item_Give(play, ITEM_SONG_LULLABY);
         }
     }
