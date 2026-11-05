@@ -2817,6 +2817,30 @@ typedef enum {
     // #### `args`
     // - `*EnJj`
     VB_JABU_JABU_EAT_FISH,
+
+    // #### `result`
+    // ```c
+    // gSaveContext.health < STARTING_HEALTH
+    // ```
+    // #### `args`
+    // - None
+    VB_FULL_HEALTH_SPAWN,
+
+    // #### `result`
+    // ```c
+    // this->hookshotSlotFull
+    // ```
+    // #### `args`
+    // - None
+    VB_DAMPE_AWARD_SECOND_PRIZE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*f32` (speed
+    VB_DAMPE_GO_BACKWARDS,
 } GIVanillaBehavior;
 
 #endif
