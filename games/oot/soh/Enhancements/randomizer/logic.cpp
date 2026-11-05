@@ -528,7 +528,8 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_OPEN_CHEST:
             return CheckRandoInf(RAND_INF_CAN_OPEN_CHEST);
         case RG_POCKET_EGG:
-            return CheckRandoInf(RAND_INF_ADULT_TRADES_HAS_POCKET_EGG);
+            return CheckRandoInf(RAND_INF_ADULT_TRADES_HAS_POCKET_EGG) ||
+                   CheckRandoInf(RAND_INF_ADULT_TRADES_HAS_POCKET_CUCCO);
         case RG_COJIRO:
         case RG_ODD_MUSHROOM:
         case RG_ODD_POTION:
