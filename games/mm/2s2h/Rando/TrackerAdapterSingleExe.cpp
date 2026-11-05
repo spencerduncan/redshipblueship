@@ -65,6 +65,7 @@ extern std::unordered_map<RandoCheckId, std::string> accessLogicFuncs;
 // own linkage and pulls context.h, whose <type_traits> include must not be
 // wrapped in C linkage (matching Foreign.cpp).
 #include "combo_tracker_view.h"
+#include "combo_hint_view.h"         // MM_HintAdapter_Register: the Hint Tracker's MM adapter (#1475)
 #include "combo_mm_locations_view.h" // Randomizer > MM Locations' check table (#1101 lane R3)
 #include "combo_mm_options_view.h"   // MM_Rando_PairedLogicShown: the resolved MM Logic (#1367)
 #include "game.h"                    // MM_SAVE_CONTEXT_SIZE
@@ -596,6 +597,11 @@ extern "C" void MM_TrackerAdapter_Register(void) {
     desc.canBePurchased = MMTrackerCanBePurchased;
 
     Combo_Tracker_RegisterMM(&desc);
+
+    // #1475: the combined Hint Tracker's MM adapter (HintSourcesSingleExe.cpp)
+    // reads through this descriptor's save pick, so it comes up with it, on every
+    // path that brings this one up (Combo_TrackerWindow_Init, which main.cpp calls).
+    MM_HintAdapter_Register();
 }
 
 /**

@@ -54,6 +54,10 @@ f32 Ship_GetCharFontWidthNES(u8 character);
 TexturePtr Ship_GetCharFontTextureNES(u8 character);
 void Ship_Random_Seed(u64 seed);
 s32 Ship_Random(s32 min, s32 max);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1475: Ship_Random's draw on a stream the caller holds (ShipUtils.cpp).
+s32 MM_Ship_RandomOnStream(u64* stream, s32 min, s32 max);
+#endif
 
 #ifdef __cplusplus
 }

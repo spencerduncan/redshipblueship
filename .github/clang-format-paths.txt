@@ -51,6 +51,8 @@ games/mm/2s2h/Rando/HintArea.h
 games/mm/2s2h/Rando/HintAreaSingleExe.cpp
 games/mm/2s2h/Rando/HintFoolish.h
 games/mm/2s2h/Rando/HintFoolishSingleExe.cpp
+games/mm/2s2h/Rando/HintSources.h
+games/mm/2s2h/Rando/HintSourcesSingleExe.cpp
 games/mm/2s2h/Rando/HintWoth.h
 games/mm/2s2h/Rando/HintWothSingleExe.cpp
 games/mm/2s2h/Rando/ItemAdapterSingleExe.cpp

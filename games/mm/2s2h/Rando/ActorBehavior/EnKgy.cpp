@@ -8,6 +8,41 @@ extern "C" {
 #include "overlays/actors/ovl_En_Kgy/z_en_kgy.h"
 }
 
+// The two gold dust hints' texts (0xC49 and 0xC4B below). The hooks call these
+// in both builds: a directive is ill-formed inside a COND_ID_HOOK argument.
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+
+// #1475: the combined Hint Tracker's resolver builds each text (Rando/
+// HintSources.h, upstream's expression moved there, kept below under #else), so
+// the tracker shows exactly this; showing one records it as read.
+static std::string GoldDustHintText() {
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_GOLD_DUST);
+    return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_GOLD_DUST, RANDO_SAVE_CHECKS, nullptr);
+}
+
+static std::string GoldDustPrizeHintText() {
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_GOLD_DUST_PRIZE);
+    return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_GOLD_DUST_PRIZE, RANDO_SAVE_CHECKS, nullptr);
+}
+#else
+static std::string GoldDustHintText() {
+    std::string msg = "Huh? You say that gold dust can be found " RANDO_HINT_PREPOS("at") " %r{location}%w?\x19";
+    Rando::HintArea::ReplaceItemLocation(&msg, "{location}", RI_BOTTLE_GOLD_DUST);
+    return msg;
+}
+
+static std::string GoldDustPrizeHintText() {
+    std::string msg = "Gold dust can be found " RANDO_HINT_PREPOS("at") " %p{location}%w.\x10";
+    msg += "Bring me that, and my %r{itemName}%w is all yours.\xE0";
+    CustomMessage::Replace(
+        &msg, "{itemName}",
+        Rando::StaticData::Items[RANDO_SAVE_CHECKS[RC_MOUNTAIN_VILLAGE_SMITHY_GILDED_SWORD].randoItemId].name);
+    Rando::HintArea::ReplaceItemLocation(&msg, "{location}", RI_BOTTLE_GOLD_DUST);
+    return msg;
+}
+#endif
+
 void Rando::ActorBehavior::InitEnKgyBehavior() {
     COND_VB_SHOULD(VB_SMITHY_START_UPGRADING_SWORD, IS_RANDO, {
         EnKgy* refActor = va_arg(args, EnKgy*);
@@ -113,8 +148,7 @@ void Rando::ActorBehavior::InitEnKgyBehavior() {
     // "Gold dust is the prize for winning the Goron race in spring?"
     COND_ID_HOOK(OnOpenText, 0xc49, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Huh? You say that gold dust can be found " RANDO_HINT_PREPOS("at") " %r{location}%w?\x19";
-        Rando::HintArea::ReplaceItemLocation(&entry.msg, "{location}", RI_BOTTLE_GOLD_DUST);
+        entry.msg = GoldDustHintText();
 
         CustomMessage::LoadCustomMessageIntoFont(entry);
         *loadFromMessageTable = false;
@@ -123,12 +157,7 @@ void Rando::ActorBehavior::InitEnKgyBehavior() {
     // "Gold dust happens to be first prize at the racetrack"
     COND_ID_HOOK(OnOpenText, 0xc4b, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Gold dust can be found " RANDO_HINT_PREPOS("at") " %p{location}%w.\x10";
-        entry.msg += "Bring me that, and my %r{itemName}%w is all yours.\xE0";
-        CustomMessage::Replace(
-            &entry.msg, "{itemName}",
-            Rando::StaticData::Items[RANDO_SAVE_CHECKS[RC_MOUNTAIN_VILLAGE_SMITHY_GILDED_SWORD].randoItemId].name);
-        Rando::HintArea::ReplaceItemLocation(&entry.msg, "{location}", RI_BOTTLE_GOLD_DUST);
+        entry.msg = GoldDustPrizeHintText();
 
         CustomMessage::LoadCustomMessageIntoFont(entry);
         *loadFromMessageTable = false;

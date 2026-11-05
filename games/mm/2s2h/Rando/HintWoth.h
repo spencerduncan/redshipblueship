@@ -14,6 +14,8 @@
 #include <cstdint>
 #include <string>
 
+#include "combo_area.h" // src/common: ComboArea, the area the variant names (#1475)
+
 namespace Rando {
 namespace HintWoth {
 
@@ -35,8 +37,11 @@ constexpr int kFreeStoneOneIn = 3;
  * pick (the same stone seed, under its own domain tag), over the frozen record: a
  * pure function of the world and the stone. It never touches MM's global
  * Ship_Random stream, so the item pick and the stone's flavour line never move.
+ *
+ * #1475: `*outArea` (may be NULL) receives the area named, for the combined Hint
+ * Tracker's resolver; untouched when "" is returned.
  */
-std::string FreeStoneText(uint32_t stoneSeed);
+std::string FreeStoneText(uint32_t stoneSeed, ComboArea* outArea = nullptr);
 
 } // namespace HintWoth
 } // namespace Rando
