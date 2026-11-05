@@ -602,8 +602,8 @@ int OoT_ComboLogic_BeginQuery(void* self) {
  * copies to overflow one; review (PR #728) showed that bound is false:
  * `Combo_Logic_RunRound` takes an assumed set of any size (combo-logic-measure's
  * M2b assumes 2489 rows in one round), and the storage is narrow — `dungeonKeys`
- * is an `s8` read back through a `-1` "never had keys" sentinel, so the 255th key
- * copy reads as ZERO keys; `GetGSCount` narrows tokens to `uint8_t`; beans and
+ * is an `s8` that `GetSmallKeyCount` returns as an `int8_t`, so the 128th key
+ * copy wraps the count from 127 to -128; `GetGSCount` narrows tokens to `uint8_t`; beans and
  * triforce pieces are 8-bit. So logic.cpp's small-key, token, triforce-piece,
  * heart and bean rows stop a GRANT at `Rando::ComboLogicCounterMax` — derived
  * from OoT's own static location table (keys, tokens) or the seed's settings
