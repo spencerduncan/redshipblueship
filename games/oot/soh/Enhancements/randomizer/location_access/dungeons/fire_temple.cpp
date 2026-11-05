@@ -327,8 +327,8 @@ void RegionTable_Init_FireTemple() {
     }, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_PILLAR,    []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM);}),
-        Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_ROOM,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->TakeDamage();}), // sidehop towards foyer door
-        Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_DOOR,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->TakeDamage();}), // sidehop towards boss door
+        Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_ROOM,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->FireTimer() >= 8 && logic->TakeDamage();}), // sidehop towards foyer door
+        Entrance(RR_FIRE_TEMPLE_NEAR_BOSS_DOOR,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->FireTimer() >= 8 && logic->TakeDamage();}), // sidehop towards boss door
         Entrance(RR_FIRE_TEMPLE_CORRIDOR,            []{return true;}),
         Entrance(RR_FIRE_TEMPLE_FIRE_MAZE_PLATFORMS, []{return logic->CanUse(RG_HOVER_BOOTS) || (logic->IsAdult && (logic->Get(LOGIC_FIRE_HIT_ABOVE_MAZE_PLATFORM) || logic->CanGroundJump()));}),
         Entrance(RR_FIRE_TEMPLE_CAGELESS_CHEST_ROOM, []{return true;}),
@@ -580,8 +580,8 @@ void RegionTable_Init_FireTemple() {
     areaTable[RR_FIRE_TEMPLE_MQ_NEAR_BOSS_DOOR] = Region("Fire Temple MQ Near Boss Door", SCENE_FIRE_TEMPLE, {}, {}, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM,   []{return logic->FireTimer() >= 8 && (logic->IsAdult || logic->CanUse(RG_HOOKSHOT) || logic->CanUse(RG_HOVER_BOOTS));}),
-        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_PILLAR, []{return logic->FireTimer() >= 8 && (logic->IsAdult || logic->CanUse(RG_HOVER_BOOTS));}),
-        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_TARGET, []{return logic->FireTimer() >= 8 && (logic->CanUse(RG_HOVER_BOOTS) || logic->CanUse(RG_HOOKSHOT));}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_PILLAR, []{return logic->FireTimer() >= 8 && logic->Get(LOGIC_FIRE_HIT_PLATFORM) && (logic->IsAdult || logic->CanUse(RG_HOVER_BOOTS));}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_TARGET, []{return logic->FireTimer() >= 8 && logic->CanUse(RG_HOOKSHOT);}),
         Entrance(RR_FIRE_TEMPLE_BOSS_ENTRYWAY,       []{return true;}),
     });
 
@@ -602,8 +602,8 @@ void RegionTable_Init_FireTemple() {
         LOCATION(RC_FIRE_TEMPLE_MQ_OUTSIDE_BOSS_CRATE_6, logic->CanBreakCrates()),
     }, {
         //Exits
-        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM,       []{return true;}),
-        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM_UPPER, []{return logic->IsAdult || logic->CanUse(RG_HOOKSHOT);}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM,       []{return logic->IsAdult && logic->TakeDamage();}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM_UPPER, []{return logic->IsAdult || logic->CanUse(RG_HOOKSHOT) || logic->CanUse(RG_HOVER_BOOTS) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS);}),
     });
 
     //This region assumes tunic logic is handled on entry.
@@ -939,6 +939,8 @@ void RegionTable_Init_FireTemple() {
     }, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_PILLAR,    []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM);}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->FireTimer() >= 8 && logic->TakeDamage();}), // sidehop towards foyer door
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_DOOR,      []{return logic->Get(LOGIC_FIRE_HIT_PLATFORM) && logic->FireTimer() >= 8 && logic->TakeDamage();}), // sidehop towards boss door
         Entrance(RR_FIRE_TEMPLE_MQ_CORRIDOR,            []{return true;}),
         Entrance(RR_FIRE_TEMPLE_MQ_FIRE_MAZE_PLATFORMS, []{return logic->IsAdult || logic->CanUse(RG_SONG_OF_TIME) || logic->CanUse(RG_HOVER_BOOTS);}),
         //Hover boots get there via the platforms
