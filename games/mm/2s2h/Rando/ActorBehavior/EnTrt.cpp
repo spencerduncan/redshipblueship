@@ -3,6 +3,7 @@
 
 extern "C" {
 #include "variables.h"
+#include "functions.h"
 #include "src/overlays/actors/ovl_En_Trt/z_en_trt.h"
 #include "src/overlays/actors/ovl_En_Trt2/z_en_trt2.h"
 void MM_Player_StartTalking(PlayState* play, Actor* actor);
@@ -38,6 +39,13 @@ void Rando::ActorBehavior::InitEnTrtBehavior() {
 
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_KOTAKE_BOTTLE);
         SET_WEEKEVENTREG(WEEKEVENTREG_RECEIVED_RED_POTION_FOR_KOUME);
+
+        // If the player has an empty bottle, award a red potion refill on the first attempt
+        if (MM_Inventory_HasEmptyBottle()) {
+            *item = GI_POTION_RED;
+            return;
+        }
+
         *should = false;
 
         actor->parent = &player->actor;

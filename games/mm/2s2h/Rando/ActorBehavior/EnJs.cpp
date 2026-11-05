@@ -6,6 +6,11 @@
 extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Js/z_en_js.h"
+#include "objects/object_stk/object_stk.h"
+
+void func_80968DD0(EnJs* enJs, PlayState* play);
+void func_8096971C(EnJs* enJs, PlayState* play);
+extern ColliderCylinderInit D_8096AC30;
 }
 
 void OverrideSubJsText(u16* textId, bool* loadFromMessageTable) {
@@ -143,6 +148,66 @@ void OverrideMainJsText(u16* textId, bool* loadFromMessageTable) {
     }
 }
 
+void EnJs_WaitForPlayer(EnJs* enJs, PlayState* play);
+void EnJs_PromptForDialog(EnJs* enJs, PlayState* play);
+
+void EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* enJs) {
+    if (limbIndex == MOONCHILD_LIMB_HEAD) {
+        static Vec3f D_8096AD14 = { 300.0f, 0.0f, 0.0f };
+        MM_Matrix_MultVec3f(&D_8096AD14, &enJs->focus.pos);
+        OPEN_DISPS(play->state.gfxCtx);
+
+        Gfx_SetupDL25_Opa(play->state.gfxCtx);
+
+        MM_Matrix_RotateZYX(0, -0x4000, -0x8BA, MTXMODE_APPLY);
+        MM_Matrix_Translate(-25.0f, -295.0f, 0.0f, MTXMODE_APPLY);
+        MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
+        MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gSkullKidLinkMask1DL);
+        CLOSE_DISPS(play->state.gfxCtx);
+    }
+}
+
+void EnJs_Draw(Actor* thisx, PlayState* play) {
+    EnJs* enJs = (EnJs*)thisx;
+
+    Gfx_SetupDL25_Opa(play->state.gfxCtx);
+    MM_SkelAnime_DrawFlexOpa(play, enJs->skelAnime.skeleton, enJs->skelAnime.jointTable, enJs->skelAnime.dListCount,
+                             NULL, EnJs_PostLimbDraw, &enJs->actor);
+}
+
+void EnJs_HandleDialog(EnJs* enJs, PlayState* play) {
+    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
+        if (play->msgCtx.choiceIndex != 0) {
+            play->msgCtx.ocarinaMode = OCARINA_MODE_APPLY_SOT;
+            gSaveContext.nextCutsceneIndex = 0;
+            play->nextEntrance = ENTRANCE(CUTSCENE, 0);
+            play->transitionTrigger = TRANS_TRIGGER_START;
+            play->transitionType = 2;
+        }
+        enJs->actionFunc = EnJs_WaitForPlayer;
+    }
+}
+
+void EnJs_PromptForDialog(EnJs* enJs, PlayState* play) {
+    if (Actor_TalkOfferAccepted(&enJs->actor, &play->state)) {
+        enJs->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
+        MM_Message_StartTextbox(play, 0x1B8A, &enJs->actor);
+        play->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_SOT;
+        enJs->actionFunc = EnJs_HandleDialog;
+    } else if (enJs->actor.xzDistToPlayer < 100.0f) {
+        Actor_OfferTalk(&enJs->actor, play, 100.0f);
+    }
+}
+
+void EnJs_WaitForPlayer(EnJs* enJs, PlayState* play) {
+    if (Actor_TalkOfferAccepted(&enJs->actor, &play->state)) {
+        MM_Message_StartTextbox(play, 0x2201, &enJs->actor);
+        enJs->actionFunc = EnJs_PromptForDialog;
+    } else if (enJs->actor.xzDistToPlayer < 100.0f) {
+        Actor_OfferTalk(&enJs->actor, play, 100.0f);
+    }
+}
+
 void Rando::ActorBehavior::InitEnJsBehavior() {
     COND_VB_SHOULD(VB_JS_CONSIDER_ELIGIBLE_FOR_DEITY, IS_RANDO, { *should = false; });
 
@@ -177,4 +242,67 @@ void Rando::ActorBehavior::InitEnJsBehavior() {
     COND_ID_HOOK(OnOpenText, 0x21FC, IS_RANDO, OverrideMainJsText);
     COND_ID_HOOK(OnOpenText, 0x21FE, IS_RANDO, OverrideMainJsText);
     COND_ID_HOOK(OnOpenText, 0x21FD, IS_RANDO, OverrideMainJsText);
+
+    // Handle spawning an extra Moon Child to reset time on the Moon and Clock Tower Rooftop
+    COND_HOOK(OnSceneInit, IS_RANDO, [](s8 sceneId, s8 spawnNum) {
+        if (sceneId == SCENE_SOUGEN) {
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_JS, -140.0f, -21.0f, 800.0f, 0, -25112, 0,
+                           13);
+        } else if (sceneId == SCENE_OKUJOU) {
+            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_JS, 162.0f, 34.0f, 40.0f, 0, -16384, 0,
+                           13);
+        }
+    });
+
+    COND_VB_SHOULD(VB_ENABLE_OBJECT_DEPENDENCY, IS_RANDO, {
+        ObjectId objectId = (ObjectId)va_arg(args, int);
+        if (objectId == OBJECT_OB && MM_gPlayState->sceneId == SCENE_OKUJOU) {
+            *should = false;
+        }
+    });
+
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_JS, IS_RANDO, [](Actor* actor) {
+        EnJs* enJs = (EnJs*)actor;
+        if (ENJS_GET_TYPE(actor) != 13) {
+            return;
+        }
+
+        enJs->actor.draw = EnJs_Draw;
+        func_80968DD0(enJs, MM_gPlayState);
+        enJs->actionFunc = EnJs_WaitForPlayer;
+    });
+
+    COND_ID_HOOK(OnOpenText, 0x2201, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Player* player = GET_PLAYER(MM_gPlayState);
+        if (player->talkActor == NULL || player->talkActor->id != ACTOR_EN_JS) {
+            return;
+        }
+        s32 jsType = ENJS_GET_TYPE(player->talkActor);
+        if (jsType != 13) {
+            return;
+        }
+
+        auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
+        entry.msg = "Still playing? I can return you to the %gFirst Day%w if you want...";
+        entry.nextMessageID = 0xFFFF;
+        CustomMessage::LoadCustomMessageIntoFont(entry);
+        *loadFromMessageTable = false;
+    });
+
+    COND_ID_HOOK(OnOpenText, 0x1B8A, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
+        Player* player = GET_PLAYER(MM_gPlayState);
+        if (player->talkActor == NULL || player->talkActor->id != ACTOR_EN_JS) {
+            return;
+        }
+        s32 jsType = ENJS_GET_TYPE(player->talkActor);
+        if (jsType != 13) {
+            return;
+        }
+
+        auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
+        entry.msg = "Return to the First Day?\n \n%g\xC2Yes\nNo";
+        entry.nextMessageID = 0xFFFF;
+        CustomMessage::LoadCustomMessageIntoFont(entry);
+        *loadFromMessageTable = false;
+    });
 }

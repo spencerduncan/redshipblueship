@@ -3,6 +3,7 @@
 
 extern "C" {
 #include "variables.h"
+#include "functions.h"
 #include "overlays/actors/ovl_En_Gk/z_en_gk.h"
 
 void MM_Player_StartTalking(PlayState* play, Actor* actor);
@@ -17,6 +18,12 @@ void Rando::ActorBehavior::InitEnGKBehavior() {
         switch (actor->id) {
             case ACTOR_EN_GK:
                 if (RANDO_SAVE_CHECKS[RC_GORON_RACETRACK_GOLD_DUST].cycleObtained) {
+                    return;
+                }
+
+                // If the player has an empty bottle, award a gold dust refill on the first attempt
+                if (MM_Inventory_HasEmptyBottle()) {
+                    *item = GI_GOLD_DUST_2;
                     return;
                 }
 
