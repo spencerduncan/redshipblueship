@@ -644,7 +644,7 @@ void RegionTable_Init_GanonsCastle() {
         //Exits
         //I got the trick going backwards, but only while taking damage. this isn't relevant anyway though
         Entrance(RR_GANONS_CASTLE_MQ_LIGHT_TRIAL_BOULDER_ROOM_FRONT, []{return logic->CanUse(RG_HOOKSHOT) || ctx->GetTrickOption(RT_GANON_MQ_LIGHT_TRIAL) || (logic->IsAdult && logic->CanGroundJump());}),
-        Entrance(RR_GANONS_CASTLE_MQ_LIGHT_TRIAL_FINAL_ROOM,         []{return logic->SmallKeys(SCENE_INSIDE_GANONS_CASTLE, 3);}),
+        Entrance(RR_GANONS_CASTLE_MQ_LIGHT_TRIAL_FAKE_FINAL_ROOM,    []{return logic->SmallKeys(SCENE_INSIDE_GANONS_CASTLE, 3);}),
     });
 
     areaTable[RR_GANONS_CASTLE_MQ_LIGHT_TRIAL_FAKE_FINAL_ROOM] = Region("Ganon's Castle MQ Light Trial Fake Final Room", SCENE_INSIDE_GANONS_CASTLE, {}, {}, {
@@ -660,10 +660,7 @@ void RegionTable_Init_GanonsCastle() {
         //Locations
         LOCATION(RC_GANONS_CASTLE_MQ_LIGHT_TRIAL_POT_1, logic->CanBreakPots()),
         LOCATION(RC_GANONS_CASTLE_MQ_LIGHT_TRIAL_POT_2, logic->CanBreakPots()),
-    }, {
-        //Exits
-        Entrance(RR_GANONS_CASTLE_MQ_LIGHT_TRIAL_BOULDER_ROOM_BACK, []{return logic->SmallKeys(SCENE_INSIDE_GANONS_CASTLE, 3);}),
-    });
+    }, {});
 
 #pragma endregion
 
@@ -678,8 +675,10 @@ void RegionTable_Init_GanonsCastle() {
 
     areaTable[RR_GANONS_TOWER_STAIRS_1] = Region("Ganon's Tower Stairs 1", SCENE_GANONS_TOWER, {}, {}, {
         //Exits
-        Entrance(RR_GANONS_TOWER_ENTRYWAY, []{return true;}),
-        Entrance(RR_GANONS_TOWER_FLOOR_1,  []{return true;}),
+        Entrance(RR_GANONS_TOWER_ENTRYWAY,                 []{return true;}),
+        Entrance(RR_GANONS_TOWER_FLOOR_1,                  []{return true;}),
+        // for imaginary blue warp
+        Entrance(RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE,     []{return false;}),
     });
 
     areaTable[RR_GANONS_TOWER_FLOOR_1] = Region("Ganon's Tower Floor 1", SCENE_GANONS_TOWER, {}, {}, {
@@ -688,7 +687,7 @@ void RegionTable_Init_GanonsCastle() {
         Entrance(RR_GANONS_TOWER_STAIRS_2, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_DINOLFOS, ED_CLOSE, true, 2);});}),
     });
 
-    areaTable[RR_GANONS_TOWER_STAIRS_2] = Region("Ganon's Tower Stairs 1", SCENE_GANONS_TOWER, {}, {}, {
+    areaTable[RR_GANONS_TOWER_STAIRS_2] = Region("Ganon's Tower Stairs 2", SCENE_GANONS_TOWER, {}, {}, {
         //Exits
         Entrance(RR_GANONS_TOWER_FLOOR_1, []{return true;}),
         Entrance(RR_GANONS_TOWER_FLOOR_2, []{return true;}),
@@ -703,7 +702,7 @@ void RegionTable_Init_GanonsCastle() {
         Entrance(RR_GANONS_TOWER_STAIRS_3, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_STALFOS, ED_CLOSE, true, 2);});}),
     });
 
-    areaTable[RR_GANONS_TOWER_STAIRS_3] = Region("Ganon's Tower Stairs 1", SCENE_GANONS_TOWER, {}, {}, {
+    areaTable[RR_GANONS_TOWER_STAIRS_3] = Region("Ganon's Tower Stairs 3", SCENE_GANONS_TOWER, {}, {}, {
         //Exits
         Entrance(RR_GANONS_TOWER_FLOOR_2, []{return true;}),
         Entrance(RR_GANONS_TOWER_FLOOR_3, []{return true;}),
@@ -715,7 +714,7 @@ void RegionTable_Init_GanonsCastle() {
         Entrance(RR_GANONS_TOWER_STAIRS_4, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_IRON_KNUCKLE, ED_CLOSE, true, 2);});}),
     });
 
-    areaTable[RR_GANONS_TOWER_STAIRS_4] = Region("Ganon's Tower Stairs 1", SCENE_GANONS_TOWER, {}, {}, {
+    areaTable[RR_GANONS_TOWER_STAIRS_4] = Region("Ganon's Tower Stairs 4", SCENE_GANONS_TOWER, {}, {}, {
         //Exits
         Entrance(RR_GANONS_TOWER_FLOOR_3,  []{return true;}),
         Entrance(RR_GANONS_TOWER_POT_ROOM, []{return true;}),
@@ -761,9 +760,7 @@ void RegionTable_Init_GanonsCastle() {
         LOCATION(RC_GANONDORF_HINT, logic->HasBossSoul(RG_GANON_SOUL)),
     }, {
         //Exits
-        Entrance(RR_GANONS_CASTLE_ESCAPE,               []{return logic->CanKillEnemy(RE_GANONDORF);}),
-        Entrance(RR_GANONS_TOWER_BEFORE_GANONDORF_LAIR, []{return false;}),
-        Entrance(RR_GANONS_TOWER_STAIRS_1,              []{return false;}),
+        Entrance(RR_GANONS_CASTLE_ESCAPE, []{return logic->CanKillEnemy(RE_GANONDORF);}),
     });
 
     areaTable[RR_GANONS_CASTLE_ESCAPE] = Region("Ganon's Castle Escape", SCENE_GANONS_TOWER_COLLAPSE_EXTERIOR, {}, {
