@@ -113,17 +113,19 @@ s32 Object_GetSlot(ObjectContext* objectCtx, s16 objectId) {
         }
     }
 
-#ifdef RSBS_SINGLE_EXECUTABLE
-    // (#344) Don't consult GameInteractor_Should in single-exe builds: it links
-    // to OoT's implementation and MM's GIVanillaBehavior ordinals alias OoT's, so
-    // the hooked call would run OoT vanilla-behavior hooks against MM state. MM's
-    // enhancement layer is excluded here, so use the un-hooked default (object
-    // dependency enabled -> OBJECT_SLOT_NONE). Mirrors the VB_FASTER_FIRST_CYCLE
-    // guard in z_scene_2SH.cpp.
-    return OBJECT_SLOT_NONE;
-#else
+    // RSBS (#1413, supersedes the #344 skip): #344 returned OBJECT_SLOT_NONE here
+    // in single-exe builds because GameInteractor_Should then bound OoT's
+    // dispatcher, whose VB ordinals alias MM's. That cause is gone: the
+    // single-exe block in 2s2h/GameInteractor/GameInteractor.h (#392) rebinds
+    // GameInteractor_Should to MM_GameHooks_ExecuteVBShould, which consults only
+    // MM's own registry (the same reasoning that retired the guard in
+    // z_actor.c's MM_Actor_Init). While the skip stood, every
+    // VB_ENABLE_OBJECT_DEPENDENCY registrant was registered and never run: the
+    // rando Moon Child on the Clock Tower roof (Rando/ActorBehavior/EnJs.cpp),
+    // the trap Like Like and its shield drop (Rando/MiscBehavior/Traps.cpp) and
+    // the Disable Object Dependency developer switch. With no registrant armed
+    // the verdict is the vanilla default (dependency enabled -> OBJECT_SLOT_NONE).
     return GameInteractor_Should(VB_ENABLE_OBJECT_DEPENDENCY, true, objectId) ? OBJECT_SLOT_NONE : 0;
-#endif
 }
 
 s32 MM_Object_IsLoaded(ObjectContext* objectCtx, s32 slot) {

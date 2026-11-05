@@ -2657,6 +2657,52 @@ uint32_t GameInteractor_RightStickOcarina(Input* input) {
     return result;
 }
 
+/**
+ * #1413 (MFE-22): upstream 2Ship's custom ocarina note buttons (ec9e755bb), defined here because MM's
+ * GameInteractor.cpp is excluded from the single exe (games/mm/CMakeLists.txt). Body lifted verbatim from upstream
+ * except the key: MM reads SoH's gSettings.CustomOcarina.Enabled (Settings > Controls > Ocarina Controls, "Customize
+ * Ocarina Controls"), not 2Ship's gEnhancements.Playback.CustomizeOcarinaControls, so one checkbox drives both games.
+ * The BTN_CUSTOM_OCARINA_* masks come from BenPort.h (force-included into every MM C++ TU) and match OTRGlobals.h's
+ * bit for bit; OTRGlobals.cpp registers them in the one shared ControlDeck, so a note bound in SoH's input editor
+ * reaches MM's pad as the same bit.
+ */
+uint32_t GameInteractor_CustomOcarinaControls(Input* input) {
+    uint32_t result = 0;
+
+    if (!CVarGetInteger("gSettings.CustomOcarina.Enabled", 0)) {
+        return result;
+    }
+
+    if (input->cur.button & BTN_CUSTOM_OCARINA_NOTE_D4) {
+        result |= BTN_A;
+    }
+    if (input->cur.button & BTN_CUSTOM_OCARINA_NOTE_F4) {
+        result |= BTN_CDOWN;
+    }
+    if (input->cur.button & BTN_CUSTOM_OCARINA_NOTE_A4) {
+        result |= BTN_CRIGHT;
+    }
+    if (input->cur.button & BTN_CUSTOM_OCARINA_NOTE_B4) {
+        result |= BTN_CLEFT;
+    }
+    if (input->cur.button & BTN_CUSTOM_OCARINA_NOTE_D5) {
+        result |= BTN_CUP;
+    }
+
+    if (input->cur.button & BTN_CUSTOM_OCARINA_DISABLE_SONGS) {
+        result |= BTN_L;
+    }
+
+    if (input->cur.button & BTN_CUSTOM_OCARINA_PITCH_UP) {
+        result |= BTN_R;
+    }
+    if (input->cur.button & BTN_CUSTOM_OCARINA_PITCH_DOWN) {
+        result |= BTN_Z;
+    }
+
+    return result;
+}
+
 extern "C" void MM_Rando_Init(void); // defined below MM_Game_Init
 
 int MM_Game_Init(int argc, char** argv) {
