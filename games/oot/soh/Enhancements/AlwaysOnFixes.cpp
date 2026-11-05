@@ -54,6 +54,17 @@ void RegisterAlwaysOnFixes() {
             *should = true;
         }
     });
+
+    // Child Hookshot in Lakeside Lab sets a camera mode that lacks a mode
+    // handler, softlocking the camera. Switch to first-person mode in the lab.
+    COND_VB_SHOULD(VB_CHANGE_AIMING_CAMERA, true, {
+        s32* camMode = va_arg(args, s32*);
+
+        if (*camMode == CAM_MODE_AIM_ADULT && OoT_gPlayState->sceneNum == SCENE_LAKESIDE_LABORATORY &&
+            OoT_Play_GetCamera(OoT_gPlayState, CAM_ID_MAIN)->setting == CAM_SET_PIVOT_FROM_SIDE) {
+            *camMode = CAM_MODE_FIRST_PERSON;
+        }
+    });
 }
 
 static RegisterShipInitFunc initAlwaysOnFixes(RegisterAlwaysOnFixes, { "" });

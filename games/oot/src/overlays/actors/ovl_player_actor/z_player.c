@@ -5880,28 +5880,33 @@ s32 func_8083AD4C(PlayState* play, Player* this) {
 
     if (this->unk_6AD == 2) {
         if (func_8002DD6C(this)) {
-            bool shouldUseBowCamera = LINK_IS_ADULT;
+            bool shouldUseAdultAimCamera = LINK_IS_ADULT;
 
             if (CVarGetInteger(CVAR_ENHANCEMENT("BowSlingshotAmmoFix"), 0) ||
-                CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0)) {
-                shouldUseBowCamera = this->heldItemAction != PLAYER_IA_SLINGSHOT;
+                CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0) ||
+                this->heldItemAction == PLAYER_IA_HOOKSHOT || this->heldItemAction == PLAYER_IA_LONGSHOT) {
+                shouldUseAdultAimCamera = this->heldItemAction != PLAYER_IA_SLINGSHOT;
             }
 
-            camMode = shouldUseBowCamera ? CAM_MODE_BOWARROW : CAM_MODE_SLINGSHOT;
+            camMode = shouldUseAdultAimCamera ? CAM_MODE_AIM_ADULT : CAM_MODE_AIM_CHILD;
         } else {
             // #region SOH [Enhancement]
             if (CVarGetInteger(CVAR_ENHANCEMENT("BoomerangFirstPerson"), 0)) {
-                camMode = CAM_MODE_FIRSTPERSON;
+                camMode = CAM_MODE_FIRST_PERSON;
                 // #endregion
             } else {
-                camMode = CAM_MODE_BOOMERANG;
+                camMode = CAM_MODE_AIM_BOOMERANG;
             }
         }
     } else {
-        camMode = CAM_MODE_FIRSTPERSON;
+        camMode = CAM_MODE_FIRST_PERSON;
     }
 
-    return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, 0), camMode);
+    if (GameInteractor_Should(VB_CHANGE_AIMING_CAMERA, true, &camMode)) {
+        return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, CAM_ID_MAIN), camMode);
+    }
+
+    return 0;
 }
 
 /**

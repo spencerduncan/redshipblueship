@@ -2675,6 +2675,15 @@ typedef enum {
     // - `s32* item`
     VB_OVERRIDE_BUTTON_ITEM_USED,
 
+    // Upstream SoH 73df35c6a (z_player.c func_8083AD4C).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s32*` (camMode)
+    VB_CHANGE_AIMING_CAMERA,
+
 } GIVanillaBehavior;
 
 #endif
