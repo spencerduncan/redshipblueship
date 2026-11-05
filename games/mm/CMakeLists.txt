@@ -711,6 +711,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         # linked whole under the Cheats block above, each CVar drawn by an MM row, and #1224's port of their IS_RANDO
         # halves (Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp's Razor restore) is retired, so
         # every rando gate registers exactly once. MMRegistrarCoverage phase 12 holds that.
+        # #1411: Disable Final Day Quakes and Disable Screen Distortion (2Ship 6a6d84ab5, 525c1bc62), drawn by MM rows
+        # under SoH's Settings > General > Accessibility (SohGui/HostedMm/SohMenuHostedMmAudio.cpp). Each registers only
+        # through a file-scope RegisterShipInitFunc on its own MM key and rides a VB the single exe dispatches through
+        # MM_GameHooks_ExecuteVBShould: VB_EARTHQUAKE_ON_DAY_3 (z_camera.c, Camera_EarthquakeDay3) and
+        # VB_APPLY_SCREEN_DISTORTION (z_quake.c, Distortion_Update). NoScreenDistortion.cpp's body reads MM_gPlayState
+        # and is guarded (RSBS_SINGLE_EXE_REQUIRE). No stub in mm_stubs.c; no twin of their definitions in games/oot.
+        # MMRegistrarCoverage's key-gap table attributes each TU by registry content.
+        "2s2h/Enhancements/Accessibility/NoFinalDayQuakes.cpp"
+        "2s2h/Enhancements/Accessibility/NoScreenDistortion.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

@@ -213,6 +213,10 @@
  *   - Skip Misc Interactions: the 25 TUs' registrations are summed per bucket in the table
  *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
  *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
+ *   - #1411 adds Accessibility/NoFinalDayQuakes and Accessibility/NoScreenDistortion to the same table. Their keys
+ *     (gEnhancements.A11y.NoFinalDayQuakes, gEnhancements.A11y.NoScreenDistortion) are MM's own, not converged: hosted
+ *     rows on SoH's Settings > General write them. Each TU is the only registrant of its VB (VB_EARTHQUAKE_ON_DAY_3,
+ *     VB_APPLY_SCREEN_DISTORTION), so the probe is the same.
  *
  * PHASE 10 (#1035, #1036, #1038) -- THE THREE REMAINING KEY-GAP TUs. Equipment/SkipMagicArrowEquip,
  * DifficultyOptions/PermanentHeartLoss and Restorations/N64WeirdFrames/N64WeirdFrames have the shape of
@@ -1399,6 +1403,14 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
           "Disable Screen Flash for Finishing Blow",
           { { "VB_FLASH_SCREEN_FOR_ENEMY_KILL (Accessibility/NoScreenFlashForEnemyKill.cpp)",
               GAP_VB_COUNT(VB_FLASH_SCREEN_FOR_ENEMY_KILL), 1 } } },
+        { "gEnhancements.A11y.NoFinalDayQuakes",
+          "Disable Final Day Quakes",
+          { { "VB_EARTHQUAKE_ON_DAY_3 (Accessibility/NoFinalDayQuakes.cpp)", GAP_VB_COUNT(VB_EARTHQUAKE_ON_DAY_3),
+              1 } } },
+        { "gEnhancements.A11y.NoScreenDistortion",
+          "Disable Screen Distortion",
+          { { "VB_APPLY_SCREEN_DISTORTION (Accessibility/NoScreenDistortion.cpp)",
+              GAP_VB_COUNT(VB_APPLY_SCREEN_DISTORTION), 1 } } },
         { "gEnhancements.NewDrops",
           "Enable 3D Dropped Items/Projectiles",
           { { "VB_DRAW_SLIME_BODY_ITEM (Graphics/3DItemDrops.cpp)", GAP_VB_COUNT(VB_DRAW_SLIME_BODY_ITEM), 1 },
@@ -1643,7 +1655,7 @@ void ResetKeyGapKeys() {
 // TatlISG.cpp, WoodfallMountainAppearance.cpp, JPGrottos.cpp and BonkCollision.cpp. Attributed by registry content:
 // every bucket is keyed on a VB id, an actor id or a scene id, and the delta is measured with every other key off.
 // The four row-only Fixes keys (Targeting Camera Snap, Ammo Count Color, Ikana Great Fairy Fountain Color, Text Control
-// Characters) have no TU (z_player.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
+// Characters) have no TU (z_camera.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
 //
 // JP GROTTOS: BOTH LEGS TOGETHER. JPGrottos.cpp's four ShouldActorInit legs delete Deku Palace's vanilla grottos and
 // torches unless isSpawningJPGrottos is set, and its AfterRoomSceneCommands[SCENE_22DEKUCITY] leg is the flag's only

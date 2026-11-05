@@ -393,6 +393,7 @@ bool GetTimePassFromScene(SceneID scene) {
         case SCENE_POTION_SHOP_GRANNY:
         case SCENE_GANON_BOSS:
         case SCENE_HOUSE_OF_SKULLTULA:
+        case SCENE_KAKARIKO_VILLAGE:
         case SCENE_KOKIRI_FOREST:
         case SCENE_SACRED_FOREST_MEADOW:
         case SCENE_LOST_WOODS:
@@ -404,6 +405,7 @@ bool GetTimePassFromScene(SceneID scene) {
         case SCENE_GERUDOS_FORTRESS:
         case SCENE_HAUNTED_WASTELAND:
         case SCENE_DEATH_MOUNTAIN_CRATER:
+        case SCENE_LON_LON_RANCH:
         case SCENE_ID_MAX:
             return false;
 
@@ -414,14 +416,12 @@ bool GetTimePassFromScene(SceneID scene) {
             return false;
 
         case SCENE_HYRULE_FIELD:
-        case SCENE_KAKARIKO_VILLAGE:
         case SCENE_ZORAS_RIVER:
         case SCENE_LAKE_HYLIA:
         case SCENE_GERUDO_VALLEY:
         case SCENE_DESERT_COLOSSUS:
         case SCENE_HYRULE_CASTLE:
         case SCENE_DEATH_MOUNTAIN_TRAIL:
-        case SCENE_LON_LON_RANCH:
             return true;
 
         case SCENE_TEST01:
@@ -755,8 +755,8 @@ std::map<RandomizerRegion, SpiritLogicData> Region::spiritLogicData = {
                                              }},
     {RR_SPIRIT_TEMPLE_MQ_OUTER_RIGHT_HAND,   {7, 7, 4, 4,
                                                  []{return logic->CanHitSwitch() && logic->OuterWestHandMQLogic() && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_LONGSHOT)) && logic->HasItem(RG_POWER_BRACELET);},
-                                                 []{return logic->OuterWestHandMQLogic();},
-                                                 []{return logic->OuterWestHandMQLogic();},
+                                                 []{return logic->OuterWestHandMQLogic() && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT));},
+                                                 []{return logic->OuterWestHandMQLogic() && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT) || logic->CanUse(RG_HOVER_BOOTS));},
                                              }},
     {RR_SPIRIT_TEMPLE_MQ_BIG_BLOCKS_DOOR,    {7, 0, 0, 0,
                                                  []{return logic->CanHitSwitch() && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_LONGSHOT)) && areaTable[RR_SPIRIT_TEMPLE_MQ_BIG_BLOCKS_DOOR].AnyAgeTime([]{return logic->MQSpiritStatueSouthDoor();});},

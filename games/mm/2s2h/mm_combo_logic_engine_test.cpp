@@ -1671,6 +1671,36 @@ int RunLegs() {
                       "(OoTMM gates it on can_reset_time_on_moon)");
         }
         {
+            // The Link trial is four regions (2Ship cd4d04689, #1342 MLB-4). The
+            // guard prunes a finished crawl, so every room must be a trial region:
+            // a room left out would stay reached, with its chests and Heart Piece.
+            const RandoRegionId linkTrialRooms[] = { RR_MOON_LINK_TRIAL_ENTRANCE, RR_MOON_LINK_TRIAL_GARO_ROOM,
+                                                     RR_MOON_LINK_TRIAL_KNUCKLE_ROOM, RR_MOON_LINK_TRIAL_FINAL_ROOM };
+            Rando::Logic::ReachabilityCrawl moon;
+            moon.reachableRegions = { RR_MOON, RR_MAX };
+            moon.regionTimeStates[RR_MOON] = Rando::Logic::InitialTimeState();
+            moon.regionTimeStates[RR_MAX] = Rando::Logic::InitialTimeState();
+            for (RandoRegionId room : linkTrialRooms) {
+                moon.reachableRegions.insert(room);
+                moon.regionTimeStates[room] = Rando::Logic::InitialTimeState();
+            }
+            std::set<RandoCheckId> moonChecks = { RC_MOON_TRIAL_LINK_GARO_MASTER_CHEST,
+                                                  RC_MOON_TRIAL_LINK_IRON_KNUCKLE_CHEST,
+                                                  RC_MOON_TRIAL_LINK_PIECE_OF_HEART };
+            const bool pruned = Rando::Logic::ApplyResetTimeGuard(moon, moonChecks);
+            bool roomKept = false;
+            for (RandoRegionId room : linkTrialRooms) {
+                roomKept = roomKept || moon.reachableRegions.count(room) != 0 || moon.regionTimeStates.count(room) != 0;
+            }
+            CE_ASSERT(pruned && !roomKept && moon.reachableRegions.size() == 2 &&
+                          moonChecks.count(RC_MOON_TRIAL_LINK_GARO_MASTER_CHEST) == 0 &&
+                          moonChecks.count(RC_MOON_TRIAL_LINK_IRON_KNUCKLE_CHEST) == 0 &&
+                          moonChecks.count(RC_MOON_TRIAL_LINK_PIECE_OF_HEART) == 0,
+                      16,
+                      "a Link trial room survived the guard with no playable Song of Time - all four of its regions "
+                      "must be Moon trial regions (ResetTimeGuard.cpp, IsMoonTrialRegion)");
+        }
+        {
             // The Moon is far behind Oath and the remains, so the round reaches
             // a trial and the lair through synthetic edges, as leg 12 does.
             RegionExitsGuard southGuard(RR_CLOCK_TOWN_SOUTH);

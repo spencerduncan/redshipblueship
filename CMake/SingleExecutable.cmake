@@ -213,6 +213,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the frozen area record Majora's Mask's stones read. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
+    # #1169 XW4: the cross-game warp songs' game-neutral item rules: how many
+    # separate Songs of Soaring OoT pools, and OoTMM's "Not enough locations"
+    # refusal when the restricted song pass has more songs than spots.
+    # Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.c
     # #1169 XW5: Ocarina of Time's six warp songs as Majora's Mask items: how many
     # copies MM pools under the frozen rules, their names, and the ownership byte
     # in ComboContext (ADR 0009 claim 20). Game-header-free. APPENDED, never
@@ -323,6 +328,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
     # Header for critical_renewables.c above (#1443)
     ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
+    # Header for warp_song_items.c above (#1169 XW4)
+    ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.h
     # Header for warp_songs_mm.c above (#1169 XW5)
     ${CMAKE_SOURCE_DIR}/src/common/warp_songs_mm.h
 )
@@ -3047,7 +3054,9 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # and stale, on the same paired creation. `rando`: a generation. #1420's
     # paired legs follow on that file: the tower chest is a row under Triforce
     # Hunt, the combo engine's round ignores Link's entrance, age and time, and
-    # Available Checks start from them.
+    # Available Checks start from them. Then #1366's: an item hint at a crossing
+    # host ranks by the crossed MM item in the Hint Tracker's Journal and marks
+    # the host Seen under Obscure and Ambiguous hint clarity.
     redship_add_test(NAME TrackerOoTPanelList COMMAND redship --test tracker-oot-panel-list
         LABEL rando
         TIMEOUT 600
@@ -3351,6 +3360,28 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # seeds, divergence and package record are main's. ROM-free.
     redship_add_test(NAME ComboItemRulesSecondWord COMMAND redship --test combo-item-rules-second-word)
     redship_add_test(NAME RulesOffGoldensUnchanged COMMAND redship --test rules-off-goldens-unchanged)
+    # THE SONG OF SOARING (OoT) (#1169 lane XW4; OoTMM songSoaringOot): an OoT
+    # item pooled only under its hidden second-word rule, and OoTMM's "Not enough
+    # locations" refusal when it makes thirteen songs for twelve spots.
+    # OoTSoaringTableBounds: appended after the masks in the RG, RHT and RAND_INF
+    # enums, no ItemID added, the 129 saved words, the item row and its textbox
+    # icon. OoTSoaringRuleLogic: the pooled-copies rule, OoT's real logic (a child
+    # with C-down, C-up and C-left, only under the rule), the flag effect, the
+    # wording and the warning. OoTSoaringRulesOffUnchanged: hidden bits refused
+    # before the fill, a rules-off world pools and credits nothing, today's song
+    # pass is never refused, main's ids. All three ROM-free. The last two are
+    # `rando`: real paired OoT generations through the hidden-bit test seam.
+    redship_add_test(NAME OoTSoaringTableBounds COMMAND redship --test oot-soaring-table-bounds)
+    redship_add_test(NAME OoTSoaringRuleLogic COMMAND redship --test oot-soaring-rule-logic)
+    redship_add_test(NAME OoTSoaringRulesOffUnchanged COMMAND redship --test oot-soaring-rules-off-unchanged)
+    redship_add_test(NAME OoTSoaringPooledOnlyWhenRuleOn COMMAND redship --test oot-soaring-pooled-only-when-rule-on
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SongLocationsOverflowRefused COMMAND redship --test song-locations-overflow-refused
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # OCARINA OF TIME'S WARP SONGS IN MAJORA'S MASK (#1169 lane XW5; OoTMM
     # songMinuetMm .. songPreludeMm, hidden until XW12). MMWarpSongsItems: the
     # ownership byte carved from the tail of ComboContext's reserved[] (1003,

@@ -33,6 +33,9 @@ extern "C" bool OoT_BlastMaskOoTOn(void);
 // #979 (StoneMaskOoT.cpp): is the frozen Stone Mask (OoT) rule on (OoTMM's
 // has_mask_stone: setting(stoneMaskOot))?
 extern "C" bool OoT_StoneMaskOoTOn(void);
+// #1169 XW4 (SongOfSoaringOoT.cpp): is the frozen Song of Soaring (OoT) rule on
+// (OoTMM songSoaringOot)?
+extern "C" bool OoT_SongOfSoaringOoTOn(void);
 #else
 static bool OoT_SharedSwimSplitsScale(void) {
     return false;
@@ -41,6 +44,9 @@ static bool OoT_BlastMaskOoTOn(void) {
     return false;
 }
 static bool OoT_StoneMaskOoTOn(void) {
+    return false;
+}
+static bool OoT_SongOfSoaringOoTOn(void) {
     return false;
 }
 #endif
@@ -463,6 +469,7 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_RUTOS_LETTER:
         case RG_BLAST_MASK: // [RSBS #979]
         case RG_STONE_MASK: // [RSBS #979]
+        case RG_SONG_OF_SOARING_OOT: // [RSBS #1169 XW4] a song with no quest bit: its flag
             return CheckRandoInf(RandoGetToRandInf[itemName]);
             // Boss Keys
         case RG_FOREST_TEMPLE_BOSS_KEY:
@@ -641,6 +648,7 @@ bool Logic::ItemUseAllowed(RandomizerGet itemName) {
         case RG_MINUET_OF_FOREST:
         case RG_SERENADE_OF_WATER:
         case RG_NOCTURNE_OF_SHADOW:
+        case RG_SONG_OF_SOARING_OOT: // [RSBS #1169 XW4] as the songs: CanUse asks for a usable ocarina
         case RG_CLIMB:
         case RG_CRAWL:
             return true;
@@ -946,6 +954,12 @@ bool Logic::CanUse(RandomizerGet itemName) {
         case RG_NOCTURNE_OF_SHADOW:
             return CanUse(RG_FAIRY_OCARINA) && HasItem(RG_OCARINA_A_BUTTON) && HasItem(RG_OCARINA_C_LEFT_BUTTON) &&
                    HasItem(RG_OCARINA_C_RIGHT_BUTTON) && HasItem(RG_OCARINA_C_DOWN_BUTTON);
+        case RG_SONG_OF_SOARING_OOT:
+            // [RSBS #1169 XW4] OoTMM's OoT can_play_soaring: is_child && has_song_soaring && has_ocarina &&
+            // ocarina_button_down/up/left (MM's notes), only under the frozen rule. No region reads it until XW9.
+            return IsChild && OoT_SongOfSoaringOoTOn() && CanUse(RG_FAIRY_OCARINA) &&
+                   HasItem(RG_OCARINA_C_DOWN_BUTTON) && HasItem(RG_OCARINA_C_UP_BUTTON) &&
+                   HasItem(RG_OCARINA_C_LEFT_BUTTON);
 
         // Misc. Items
         case RG_FISHING_POLE:
@@ -2212,6 +2226,7 @@ static constexpr std::pair<RandomizerGet, uint32_t> randInfTable[] = {
     { RG_FISHING_HOLE_KEY, RAND_INF_FISHING_HOLE_KEY_OBTAINED },
     { RG_BLAST_MASK, RAND_INF_OBTAINED_BLAST_MASK }, // [RSBS #979]
     { RG_STONE_MASK, RAND_INF_OBTAINED_STONE_MASK }, // [RSBS #979]
+    { RG_SONG_OF_SOARING_OOT, RAND_INF_OBTAINED_SONG_OF_SOARING_OOT }, // [RSBS #1169 XW4]
 };
 const std::array<uint32_t, RG_MAX> Logic::RandoGetToRandInf = ToRandoGetArray(randInfTable, RAND_INF_MAX);
 
@@ -2681,6 +2696,12 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
         } break;
         case ITEMTYPE_DUNGEONREWARD:
         case ITEMTYPE_SONG:
+            if (randoGet == RG_SONG_OF_SOARING_OOT) {
+                // [RSBS #1169 XW4] no quest bit (its table row would be 0, the Forest
+                // Medallion): its flag, as its give sets it.
+                SetRandoInf(RandoGetToRandInf[randoGet], state);
+                break;
+            }
             SetQuestItem(RandoGetToQuestItem[randoGet], state);
             break;
         case ITEMTYPE_MAP:

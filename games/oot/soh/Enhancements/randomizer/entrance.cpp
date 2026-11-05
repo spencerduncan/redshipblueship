@@ -355,11 +355,11 @@ void SetAllEntrancesData() {
         { { EntranceType::Interior, RR_DESERT_COLOSSUS,               RR_COLOSSUS_GREAT_FAIRY_FOUNTAIN, ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_NAYRUS_COLOSSUS },
           { EntranceType::Interior, RR_COLOSSUS_GREAT_FAIRY_FOUNTAIN, RR_DESERT_COLOSSUS,               ENTR_DESERT_COLOSSUS_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_HC_PAST_GATE,                  RR_HC_GREAT_FAIRY_FOUNTAIN,       ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_DINS_HC },
-          { EntranceType::Interior, RR_HC_GREAT_FAIRY_FOUNTAIN,       RR_HC_PAST_GATE,                  ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT } },
+          { EntranceType::Interior, RR_HC_GREAT_FAIRY_FOUNTAIN,       RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_GANONS_CASTLE_GROUNDS,         RR_OGC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_OGC_DD },
-        // 0x3E8 is an unused entrance index repurposed to differentiate between the HC and OGC fairy
-        // fountain exits (normally they both use 0x340)
-          { EntranceType::Interior, RR_OGC_GREAT_FAIRY_FOUNTAIN,      RR_CASTLE_GROUNDS,                ENTR_POTION_SHOP_KAKARIKO_1 } },
+        // ENTR_POTION_SHOP_KAKARIKO_1 is an unused entrance index repurposed to differentiate between HC and OGC fairy fountain exits
+        // (normally both use ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT)
+          { EntranceType::Interior, RR_OGC_GREAT_FAIRY_FOUNTAIN,      RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_POTION_SHOP_KAKARIKO_1 } },
         { { EntranceType::Interior, RR_DMC_LOWER_NEARBY,              RR_DMC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_DMC },
           { EntranceType::Interior, RR_DMC_GREAT_FAIRY_FOUNTAIN,      RR_DMC_LOWER_LOCAL,               ENTR_DEATH_MOUNTAIN_CRATER_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_DEATH_MOUNTAIN_SUMMIT,         RR_DMT_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_DMT },
@@ -434,7 +434,7 @@ void SetAllEntrancesData() {
         { { EntranceType::GrottoGrave, RR_KAKARIKO_VILLAGE,         RR_KAK_REDEAD_GROTTO,        ENTRANCE_GROTTO_LOAD(GROTTO_KAK_REDEAD_OFFSET) },
           { EntranceType::GrottoGrave, RR_KAK_REDEAD_GROTTO,        RR_KAKARIKO_VILLAGE,         ENTRANCE_GROTTO_EXIT(GROTTO_KAK_REDEAD_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HC_MOAT,                  RR_HC_STORMS_GROTTO,         ENTRANCE_GROTTO_LOAD(GROTTO_HC_STORMS_OFFSET) },
-          { EntranceType::GrottoGrave, RR_HC_STORMS_GROTTO,         RR_HC_MOAT,                  ENTRANCE_GROTTO_EXIT(GROTTO_HC_STORMS_OFFSET) } },
+          { EntranceType::GrottoGrave, RR_HC_STORMS_GROTTO,         RR_CASTLE_GROUNDS_FROM_GROTTO, ENTRANCE_GROTTO_EXIT(GROTTO_HC_STORMS_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HYRULE_FIELD,             RR_HF_TEKTITE_GROTTO,        ENTRANCE_GROTTO_LOAD(GROTTO_HF_TEKTITE_OFFSET) },
           { EntranceType::GrottoGrave, RR_HF_TEKTITE_GROTTO,        RR_HYRULE_FIELD,             ENTRANCE_GROTTO_EXIT(GROTTO_HF_TEKTITE_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HYRULE_FIELD,             RR_HF_NEAR_KAK_GROTTO,       ENTRANCE_GROTTO_LOAD(GROTTO_HF_NEAR_KAK_OFFSET) },
@@ -601,7 +601,7 @@ void SetAllEntrancesData() {
           NO_RETURN_ENTRANCE },
         { { EntranceType::BlueWarp, RR_SHADOW_TEMPLE_BOSS_ROOM,    RR_GRAVEYARD_WARP_PAD_REGION, ENTR_GRAVEYARD_SHADOW_TEMPLE_BLUE_WARP },
           NO_RETURN_ENTRANCE },
-        { { EntranceType::BlueWarp, RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1,    ENTR_GANONS_TOWER_0 },
+        { { EntranceType::BlueWarp, RR_GANONS_TOWER_STAIRS_1,      RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE, ENTR_OUTSIDE_GANONS_CASTLE_1_2 },
           NO_RETURN_ENTRANCE },
         // clang-format on
     };
@@ -860,6 +860,7 @@ static bool ValidateWorld(Entrance* entrancePlaced) {
 
     bool checkOtherEntranceAccess =
         (ctx->GetOption(RSK_SHUFFLE_OVERWORLD_ENTRANCES) ||
+         (ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_ON) && ctx->GetOption(RSK_SHUFFLE_GROTTO_ENTRANCES)) ||
          ctx->GetOption(RSK_SHUFFLE_INTERIOR_ENTRANCES).Is(RO_INTERIOR_ENTRANCE_SHUFFLE_ALL) ||
          ctx->GetOption(RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES) || ctx->GetOption(RSK_SHUFFLE_OVERWORLD_SPAWNS)) &&
         (entrancePlaced == nullptr || ctx->GetOption(RSK_MIXED_ENTRANCE_POOLS) ||
@@ -1303,39 +1304,27 @@ int EntranceShuffler::ShuffleAllEntrances() {
         if (ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES).Is(RO_BOSS_ROOM_ENTRANCE_SHUFFLE_FULL)) {
             entrancePools[EntranceType::Boss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
             AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::AdultBoss));
+            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE)) {
+                AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::GanonTower));
+            }
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::Boss]) {
                     entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
                 }
             }
-
-            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
-                AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::GanonTower));
-                if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
-                        entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
-                    }
-                }
-            }
         } else {
             entrancePools[EntranceType::ChildBoss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
             entrancePools[EntranceType::AdultBoss] = GetShufflePoolEntrances(EntranceType::AdultBoss);
+            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE)) {
+                AddElementsToPool(entrancePools[EntranceType::AdultBoss],
+                                  GetShufflePoolEntrances(EntranceType::GanonTower));
+            }
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::ChildBoss]) {
                     entrancePools[EntranceType::ChildBossReverse].push_back(entrance->GetReverse());
                 }
                 for (Entrance* entrance : entrancePools[EntranceType::AdultBoss]) {
                     entrancePools[EntranceType::AdultBossReverse].push_back(entrance->GetReverse());
-                }
-            }
-
-            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
-                AddElementsToPool(entrancePools[EntranceType::AdultBoss],
-                                  GetShufflePoolEntrances(EntranceType::GanonTower));
-                if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
-                        entrancePools[EntranceType::AdultBossReverse].push_back(entrance->GetReverse());
-                    }
                 }
             }
         }
@@ -1608,8 +1597,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_ENTRYWAY, RR_DESERT_COLOSSUS_OUTSIDE_TEMPLE) },
             { EntranceNameByRegions(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_SHADOW_TEMPLE_BOSS_ENTRYWAY),
               GetEntrance(RR_SHADOW_TEMPLE_ENTRYWAY, RR_GRAVEYARD_WARP_PAD_REGION) },
-            { EntranceNameByRegions(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_BEFORE_GANONDORF_LAIR),
-              GetEntrance(RR_GANONS_TOWER_ENTRYWAY, RR_GANONS_TOWER_STAIRS_1) },
+            { EntranceNameByRegions(RR_GANONS_TOWER_STAIRS_1, RR_GANONS_TOWER_ENTRYWAY),
+              GetEntrance(RR_GANONS_CASTLE_ENTRYWAY, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE) },
         };
 
         // If a boss room is inside a dungeon entrance (or inside a dungeon which is inside a dungeon entrance), make
@@ -1631,8 +1620,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_BOSS_ROOM, RR_DESERT_COLOSSUS) },
             { EntranceNameByRegions(RR_SHADOW_TEMPLE_ENTRYWAY, RR_GRAVEYARD_WARP_PAD_REGION),
               GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_GRAVEYARD_WARP_PAD_REGION) },
-            { EntranceNameByRegions(RR_GANONS_TOWER_ENTRYWAY, RR_GANONS_TOWER_STAIRS_1),
-              GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1) },
+            { EntranceNameByRegions(RR_GANONS_CASTLE_ENTRYWAY, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE),
+              GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE) },
         };
 
         // Pair <BlueWarp exit, BossRoom reverse exit>
@@ -1653,8 +1642,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_BOSS_ROOM, RR_SPIRIT_TEMPLE_BOSS_ENTRYWAY) },
             { GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_GRAVEYARD_WARP_PAD_REGION),
               GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_SHADOW_TEMPLE_BOSS_ENTRYWAY) },
-            { GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1),
-              GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_BEFORE_GANONDORF_LAIR) },
+            { GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE),
+              GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_GANONS_TOWER_ENTRYWAY) },
         };
 
         for (EntrancePair pair : bossRoomExitPairs) {
@@ -1699,6 +1688,8 @@ void EntranceShuffler::CreateEntranceOverrides() {
         // Include blue warps when dungeons or bosses are shuffled
         bool includeBluewarps =
             entrance->GetType() == Rando::EntranceType::BlueWarp &&
+            (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE) ||
+             entrance->GetParentRegionKey() != RR_GANONS_TOWER_STAIRS_1) &&
             (ctx->GetOption(RSK_SHUFFLE_DUNGEON_ENTRANCES) || ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES));
 
         // Double-check to make sure the entrance is actually shuffled
@@ -1809,9 +1800,10 @@ const Entrance* EntranceShuffler::GetEntranceByIndex(int16_t index) {
     // generation without entrance shuffle never stamps the new graph, so a map
     // entry can point at a freed exit. The live graph is asked instead: its
     // stamped exit with this index (unstamped exits keep index -1 and type
-    // None), or none, which leaves the caller at Root. Of the stamped indices
-    // only ENTR_GANONS_TOWER_0 is used twice, and both exits lead to
-    // RR_GANONS_TOWER_STAIRS_1.
+    // None), or none, which leaves the caller at Root. No stamped index is used
+    // twice: SoH 92cb7f159 (#1337) moved the Ganon's Tower blue warp off
+    // ENTR_GANONS_TOWER_0, the one index that was, onto
+    // ENTR_OUTSIDE_GANONS_CASTLE_1_2.
     if (index < 0) {
         return nullptr;
     }

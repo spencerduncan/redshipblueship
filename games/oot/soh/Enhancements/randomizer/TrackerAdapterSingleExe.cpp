@@ -332,7 +332,7 @@ uint8_t ProjectStatus(RandomizerCheckStatus status, bool skipped) {
     if (skipped) {
         return COMBO_TRACKER_CHECK_SKIPPED;
     }
-    if (status == RCSHOW_SEEN || status == RCSHOW_IDENTIFIED) {
+    if (status == RCSHOW_SEEN_OR_HINTED || status == RCSHOW_IDENTIFIED) {
         return COMBO_TRACKER_CHECK_SEEN;
     }
     if (status == RCSHOW_SCUMMED) {
@@ -530,7 +530,7 @@ bool OoTTrackerCheckAt(int index, ComboTrackerCheckRow* out) {
         uint8_t game = (uint8_t)GAME_NONE;
         out->placedItemName = OoTPlacedItemName(loc, (RandomizerCheck)index, &game);
         out->placedItemGame = out->placedItemName != nullptr ? game : (uint8_t)GAME_NONE;
-    } else if (status == RCSHOW_SEEN || status == RCSHOW_IDENTIFIED) {
+    } else if (status == RCSHOW_SEEN_OR_HINTED || status == RCSHOW_IDENTIFIED) {
         OoTNameSeenItem(ctx.get(), loc, (RandomizerCheck)index, status == RCSHOW_IDENTIFIED, out);
     }
     // #1129: SoH's lock glyph's answer, live only (see OoTAvailabilityCurrent).
@@ -964,8 +964,8 @@ extern "C" int OoT_TrackerAdapter_TestAuthorSeen(int author, uint16_t outIds[5])
         int price; // -1: none authored
     } authored[5] = {
         { RC_KF_SHOP_ITEM_1, RCSHOW_IDENTIFIED, RG_KOKIRI_SWORD, RG_NONE, nullptr, 40 },
-        { RC_KF_SHOP_ITEM_2, RCSHOW_SEEN, RG_KOKIRI_SWORD, RG_NONE, nullptr, -1 },
-        { RC_KF_SHOP_ITEM_3, RCSHOW_SEEN, RG_ICE_TRAP, RG_FAIRY_OCARINA, nullptr, -1 },
+        { RC_KF_SHOP_ITEM_2, RCSHOW_SEEN_OR_HINTED, RG_KOKIRI_SWORD, RG_NONE, nullptr, -1 },
+        { RC_KF_SHOP_ITEM_3, RCSHOW_SEEN_OR_HINTED, RG_ICE_TRAP, RG_FAIRY_OCARINA, nullptr, -1 },
         { RC_KF_SHOP_ITEM_4, RCSHOW_IDENTIFIED, RG_ICE_TRAP, RG_KOKIRI_SWORD, "Kokiri Sord", 15 },
         { RC_KAK_10_GOLD_SKULLTULA_REWARD, RCSHOW_IDENTIFIED, RG_KOKIRI_SWORD, RG_NONE, nullptr, -1 },
     };

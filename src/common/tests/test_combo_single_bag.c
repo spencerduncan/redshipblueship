@@ -572,6 +572,7 @@ const char* const kCsbGiveCVars[][2] = {
     { "gRandoSettings.ShuffleSongs", "3" },       // RO_SONG_SHUFFLE_ANYWHERE: Impa is a general-pass host
     { "gRandoSettings.StartingAge", "1" },        // RO_AGE_ADULT
     { "gRandoSettings.DoorOfTime", "2" },         // open, so an adult start is legal
+    { "gRandoSettings.ClosedForest", "2" },       // RO_CLOSED_FOREST_OFF, so an adult start is legal (#6282)
     { "gRandoSettings.ShuffleMasterSword", "1" }, // the ToT pedestal is a general-pass host
 };
 
