@@ -1114,7 +1114,7 @@ void BossGoma_Defeated(BossGoma* this, PlayState* play) {
             OoT_Math_SmoothStepToF(&this->subCameraAt.y, this->actor.focus.pos.y, 0.5f, 100.0f, 0.1f);
             OoT_Math_SmoothStepToF(&this->subCameraAt.z, this->firstTailLimbWorldPos.z, 0.2f, 50.0f, 0.1f);
 
-            if (this->timer == 80) {
+            if (GameInteractor_Should(VB_GOHMA_DEATH_SCENE, this->timer == 80, this)) {
                 Audio_QueueSeqCmd(SEQ_PLAYER_BGM_MAIN << 24 | NA_BGM_BOSS_CLEAR);
             }
 
@@ -1183,7 +1183,7 @@ void BossGoma_Defeated(BossGoma* this, PlayState* play) {
                 }
             }
 
-            if (this->timer == 0) {
+            if (GameInteractor_Should(VB_GOHMA_DEATH_SCENE, this->timer == 0, this)) {
                 if (OoT_Math_SmoothStepToF(&this->actor.scale.y, 0, 1.0f, 0.00075f, 0.0f) <= 0.001f) {
                     camera = OoT_Play_GetCamera(play, 0);
                     camera->eye = this->subCameraEye;

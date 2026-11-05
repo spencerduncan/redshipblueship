@@ -914,6 +914,8 @@ void BossRush_OnBlueWarpUpdate(void* actor) {
 
 void RegisterBossRush() {
     COND_HOOK(OnLoadGame, true, [](int32_t fileNum) {
+        ShipInit::Init("IS_BOSS_RUSH");
+
         COND_ID_HOOK(OnActorInit, ACTOR_DEMO_SA, IS_BOSS_RUSH, [](void* actorPtr) {
             BossRush_SpawnBlueWarps(OoT_gPlayState);
             OoT_Actor_Kill((Actor*)actorPtr);
