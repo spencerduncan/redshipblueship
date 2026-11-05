@@ -54,6 +54,12 @@
  *   and Anywhere each generate; and with the rule off Song Locations generates as
  *   it always has.
  *
+ *   Both rando rows are skipped by `--test all`, like every other generation
+ *   row (test_runner.cpp's skip list): the world a generation makes stays alive
+ *   in the process (Rando::Settings holds its heap Rando::Context), and the
+ *   ROM-free rows after them in the table, combo-crossing-views first, assert
+ *   that no heap world survives a release.
+ *
  * Every combo key is read through Combo_ComboSettingKey, so the tier-4
  * classification scan sees only the manifest's spelling.
  *

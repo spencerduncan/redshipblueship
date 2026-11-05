@@ -10209,6 +10209,14 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
                 strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
                 strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
+                // #1169 XW4's two generation rows. Like every row above, a real
+                // generation leaves its world alive for the rest of the process
+                // (Rando_HeadlessSeedTest hands the heap Rando::Context to
+                // Rando::Settings), so a later ROM-free row that needs no heap
+                // world (combo-crossing-views' .redsave leg, combo-tracker-view's
+                // never-booted leg) would read it.
+                strcmp(gTests[i].name, "oot-soaring-pooled-only-when-rule-on") == 0 ||
+                strcmp(gTests[i].name, "song-locations-overflow-refused") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,
