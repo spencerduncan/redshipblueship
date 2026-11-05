@@ -114,10 +114,12 @@ std::string PairedInputSeedString() {
  *  only when it is not off, as a named term after the positional ones, so the
  *  strings every world created before the option existed hashed are unchanged
  *  with it off (its default) and still distinct with it on. The two price modes
- *  (#1427) are off at RO_PRICES_VANILLA, their default. */
+ *  (#1427) are off at RO_PRICES_VANILLA, their default, and the three dungeon
+ *  item placements (#1361) at RO_DUNGEON_ITEM_ANYWHERE, theirs. */
 static bool IsAppendedOption(RandoOptionId randoOptionId) {
     return randoOptionId == RO_SHUFFLE_TREE_DROPS || randoOptionId == RO_SHOP_PRICES ||
-           randoOptionId == RO_TINGLE_PRICES;
+           randoOptionId == RO_TINGLE_PRICES || randoOptionId == RO_PLACEMENT_BOSS_KEYS ||
+           randoOptionId == RO_PLACEMENT_SMALL_KEYS || randoOptionId == RO_PLACEMENT_STRAY_FAIRIES;
 }
 
 static void FoldAppendedOptions(std::string& s, const uint32_t* values) {

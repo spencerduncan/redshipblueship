@@ -2999,6 +2999,9 @@ typedef enum {
     // default), so a world created before them keeps its seed and digest.
     RO_SHOP_PRICES,
     RO_TINGLE_PRICES,
+    // Appended for the same reason (#1361): 2Ship's dungeon item placements
+    // (a0c9b12ce, 7bc1c4a8c, 236aa75ba), RandoOptionDungeonItemPlacement values.
+    // The identity strings fold each only when it is not Anywhere (0, the default).
     RO_PLACEMENT_BOSS_KEYS,
     RO_PLACEMENT_SMALL_KEYS,
     RO_PLACEMENT_STRAY_FAIRIES,
