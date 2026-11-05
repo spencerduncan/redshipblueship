@@ -232,6 +232,19 @@ const char* const kPriceLabels[] = {
     "Random",          // RO_PRICES_RANDOM
 };
 
+const char* const kDungeonItemPlacementLabels[] = {
+    "Anywhere",    // RO_DUNGEON_ITEM_ANYWHERE
+    "Own Dungeon", // RO_DUNGEON_ITEM_OWN_DUNGEON
+    "Start With",  // RO_DUNGEON_ITEM_START_WITH
+    "Vanilla",     // RO_DUNGEON_ITEM_VANILLA
+};
+
+const char* const kSongShuffleLabels[] = {
+    "Anywhere",       // RO_SONG_SHUFFLE_ANYWHERE
+    "Song Locations", // RO_SONG_SHUFFLE_SONG_LOCATIONS
+    "Vanilla",        // RO_SONG_SHUFFLE_VANILLA
+};
+
 /**
  * UI metadata for one option. Deliberately does NOT restate the id's cvar
  * string or its default: both are copied from the `Rando::StaticData::Options`
@@ -256,16 +269,27 @@ struct OptionUi {
 
 #define UI_COUNT(a) (uint8_t)(sizeof(a) / sizeof((a)[0]))
 
-// No shared reason strings remain. Both that existed are retired by re-measure:
-// kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
+// The hook-blocker reason strings are gone. Both that existed are retired by
+// re-measure: kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
 // kReasonOpenText (the hint family and the OnOpenText batch — #669). Each named
-// a hook type that has had an MM dispatch point since #512. Exactly ONE row is
-// still gated — RO_ACCESS_MAJORA_REMAINS, retired by operator ruling — and it
-// carries its own reason naming that ruling, not a blocker. (RO_CLOCK_SHUFFLE,
-// the other row that used to be here, went LIVE in #678 when its elision was
-// fixed.) The MMRandoOptions lock REFUSES any reason naming a dispatched hook
-// type, so a shared "waiting on dispatch" constant cannot be reintroduced
-// without the test going red.
+// a hook type that has had an MM dispatch point since #512. RO_ACCESS_MAJORA_REMAINS
+// is gated too, retired by operator ruling, and carries its own reason naming
+// that ruling, not a blocker. (RO_CLOCK_SHUFFLE, the other row that used to be
+// here, went LIVE in #678 when its elision was fixed.) The MMRandoOptions lock
+// REFUSES any reason naming a dispatched hook type, so a shared "waiting on
+// dispatch" constant cannot be reintroduced without the test going red.
+//
+// The one shared reason is a fill blocker, not a hook: 2Ship's dungeon item
+// placements (#1361; RO_PLACEMENT_SMALL_KEYS, _BOSS_KEYS, _STRAY_FAIRIES) and
+// its song placement (#1362; RO_SHUFFLE_SONGS). This pane only authors paired
+// worlds, and a paired world is filled by the single bag
+// (RunPairedSingleBagFill), which has no MM restricted pass: Own Dungeon and
+// Song Locations would confine nothing there (MM's PreplaceConfinedItems and
+// SelectItemForCheck run only in MM's own fills), and the packets keep every
+// value out of the paired generator and the frozen identity until that
+// integration lands. Open each row (GENERATION_ONLY, empty reason) in the
+// change that integrates it.
+const char* const kReasonPairedPlacement = "Not Yet Supported in Paired Worlds";
 
 // clang-format off
 const OptionUi kOptionUi[] = {
@@ -352,6 +376,24 @@ const OptionUi kOptionUi[] = {
       COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
     // ---- Shuffle Items, Shuffle Shops & Merchants --------------------------
+    { RO_SHUFFLE_SONGS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Shuffle Songs",
+      "Where the songs taught in the world may be found. Extra songs have no location of their own, "
+      "so they are always shuffled into the item pool like any other item.\n\n"
+      "Anywhere - Song locations are checks, and their songs can be found anywhere in the world.\n\n"
+      "Song Locations - Song locations are checks, and their songs are shuffled among them.\n\n"
+      "Vanilla - Every song stays where it is, and song locations are not checks.",
+      0, 0, kSongShuffleLabels, UI_COUNT(kSongShuffleLabels),
+      // #1362, 2Ship's song placement (528eed442) with upstream's tooltip and
+      // SoH's label for its twin. Gated with the placement rows below (see
+      // kReasonPairedPlacement): GeneratePools.cpp's legs run (Vanilla drops the
+      // song checks, Song Locations junks the surplus ones), but the single-bag
+      // fill never confines a song. Vanilla also keeps MM's copy of a frozen-on
+      // shared song (Epona's Song, Song of Storms, Song of Time) on its vanilla
+      // check while OoT's copy is placed too, two copies of one shared row; OoT
+      // releases those checks (fill.cpp RsbsReleaseVanillaSharedSongs) and MM has
+      // no counterpart yet. The option stays at Anywhere, which changes no world.
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Cows", "Adds the reward for playing Epona's Song for a cow to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
@@ -380,6 +422,26 @@ const OptionUi kOptionUi[] = {
       "Minimum Skulltula Tokens",
       "Tokens needed for the Spider House reward. Forced to the vanilla value when tokens are not shuffled.",
       1, SPIDER_HOUSE_TOKENS_REQUIRED, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_PLACEMENT_SMALL_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Small Keys",
+      "Where each dungeon's small keys may be placed: anywhere in the world, only within that dungeon, on their "
+      "vanilla checks, or start with every dungeon's small keys.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      // Gated with the next two until the paired restricted pass lands (see
+      // kReasonPairedPlacement); the lock still needs the row for the id.
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
+    { RO_PLACEMENT_BOSS_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Boss Keys",
+      "Where each dungeon's boss key may be placed: anywhere in the world, only within that dungeon, on its vanilla "
+      "check, or start with every dungeon's boss key.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
+    { RO_PLACEMENT_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Stray Fairies",
+      "Where each dungeon's Stray Fairies may be placed: anywhere in the world (with the Clock Town Stray Fairy), only "
+      "within that dungeon (Clock Town Stray Fairy vanilla), on their vanilla checks, or start with every Stray Fairy.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Minimum Stray Fairies",
       "Stray Fairies needed for a Great Fairy reward. Does not affect the Clock Town fairy.",
