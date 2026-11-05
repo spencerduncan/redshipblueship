@@ -41,8 +41,8 @@ void Rando::Spoiler::RefreshOptions() {
             // option rather than letting directory_iterator throw.
             fprintf(stderr, "[MM] spoiler: cannot create spoiler directory '%s' (%s)\n",
                     GetRandomizerFolderPath().string().c_str(), ec.message().c_str());
-            CVarSetInteger("gRando.SpoilerFileIndex", 0);
-            CVarSetString("gRando.SpoilerFile", "");
+            CVarClear("gRando.SpoilerFileIndex");
+            CVarClear("gRando.SpoilerFile");
             return;
         }
     }
@@ -62,8 +62,8 @@ void Rando::Spoiler::RefreshOptions() {
 
     // If the current spoiler file is not in the randomizer folder, reset the cvar
     if (spoilerFileIndex == -1) {
-        CVarSetInteger("gRando.SpoilerFileIndex", 0);
-        CVarSetString("gRando.SpoilerFile", "");
+        CVarClear("gRando.SpoilerFileIndex");
+        CVarClear("gRando.SpoilerFile");
     } else {
         CVarSetInteger("gRando.SpoilerFileIndex", spoilerFileIndex);
     }

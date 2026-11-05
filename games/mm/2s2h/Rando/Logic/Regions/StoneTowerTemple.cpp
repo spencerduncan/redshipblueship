@@ -388,6 +388,7 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_GOMESS_POT_02, true),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_GOMESS_POT_03, true),
             CHECK(RC_STONE_TOWER_TEMPLE_INVERTED_GOMESS_POT_04, true),
+            CHECK(RC_ENEMY_DROP_GOMESS, CanKillEnemy(ACTOR_EN_DEATH)),
         },
         .connections = {
             CONNECTION(RR_STONE_TOWER_TEMPLE_INVERTED_PATH_TO_GOMESS, CanKillEnemy(ACTOR_EN_DEATH)),

@@ -29,7 +29,7 @@ std::map<int16_t, std::vector<RandoCheckId>> tingleMap = {
 // again while RecordForeignPickup refuses the second crossing.
 std::string Rando::ActorBehavior::TingleOfferedItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
-        rc, Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[rc].randoItemId, false), false);
+        rc, Rando::StaticData::GetItemName(Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc), false), false);
 }
 
 bool Rando::ActorBehavior::TingleMapSlotSold(RandoCheckId rc) {
@@ -43,7 +43,7 @@ bool Rando::ActorBehavior::TingleMapSlotSold(RandoCheckId rc) {
                Rando::Foreign::ForeignOutboxFullFor(rc);
     }
 #endif
-    return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc);
+    return !Rando::IsItemObtainable(Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc), rc);
 }
 
 // VB_ALREADY_HAVE_TINGLE_MAP's answer: TingleMapSlotSold, and the toast that says

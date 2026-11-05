@@ -2350,6 +2350,7 @@ typedef enum {
     RC_ZORA_CAPE_TREE_03,
     RC_ZORA_CAPE_TREE_04,
     RC_ZORA_CAPE_TREE_05,
+    RC_ENEMY_DROP_GOMESS,
 
     RC_MAX,
 } RandoCheckId;
