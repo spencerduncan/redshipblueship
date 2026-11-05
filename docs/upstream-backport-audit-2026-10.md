@@ -1807,7 +1807,7 @@ Between the `7c1aecf9` audit baseline and 2026-10-30, PRs `#1177` through `#1325
 
 | Bundle | Landed on `main` (PRs `#1177`–`#1325`) | Landed in current backport wave |
 |---|---|---|
-| **O1** | `60205ec0b` (#1322), `65c7c3e4a` (#1223), `9991a95ab` + `c360b2dee` + `0f948efb5` (#1323) | — |
+| **O1** | `60205ec0b` (#1322), `9991a95ab` + `c360b2dee` + `0f948efb5` (#1323) | `65c7c3e4a` (#1397) |
 | **O2** | — | `d67dcb92f`, `7effe2891`, `29b9b4a5a`, `b15ac97de`, `585530f68`, `371ef6f84`, `04ccd608b` (current wave) |
 | **O3** | `2f262f492`, `af485bf64`, `0dcd52e5c` (#1181); `983d04d36` (#1181, #1207) | `18bf4b315`, `317454574`, `c3ffaa918`, `99e60b81f`, `ba08197d3`, `49aa33038`, `98ec5519c`, `ea76550fc` (current wave) |
 | **O4** | `0702b11b9`, `c906c71f7`, `1413ceb33`, `63597ec63` (#1178); `2bc50f605` (#1205); `c63f57850` (#1226) | `e6947c733`, `a393f48c7`, `a547d51ab` (current wave) |

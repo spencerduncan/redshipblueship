@@ -346,15 +346,15 @@ struct SqpPool {
 };
 
 /** Both shipped pools' SHAPE for these families: OoT's balanced pool at three
- *  starting hearts (item_pool.cpp: the treasure-game piece + 3 + 20 pieces, 20 - 4
- *  - 5 = 11 containers) and MM's 52 + 4. The real counts are printed over the real
+ *  starting hearts (item_pool.cpp: the treasure-game piece + 3 + 32 pieces, 20 - 4
+ *  - 8 = 8 containers) and MM's 52 + 4. The real counts are printed over the real
  *  exports by combo-logic-bag-composition B7. */
 SqpPool SqpShippedShape() {
     const uint8_t O = (uint8_t)GAME_OOT;
     const uint8_t M = (uint8_t)GAME_MM;
     SqpPool p;
-    p.Add(O, kSqpPiece, 24);
-    p.Add(O, kSqpContainer, 11);
+    p.Add(O, kSqpPiece, 36);
+    p.Add(O, kSqpContainer, 8);
     p.Add(O, kSqpDoubleDefense, 1);
     p.Add(O, kSqpQuiver, 3);
     p.Add(O, kSqpHookshot, 2);
@@ -507,8 +507,8 @@ TestResult Test_SharedQuantityPolicy(void) {
                    "Q2: an UNPUBLISHED (0) starting health is refused: no default three hearts");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, -1, -1, &pc, &hc) == 68 && pc == 44 && hc == 6,
                    "Q2: three starting hearts is OoTMM's 44 pieces + 6 containers");
-        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 76, 15, &pc, &hc) == 68 && pc == 44 && hc == 6,
-                   "Q2: 0x30 over the shipped pools' 76 pieces + 15 containers is the same budget");
+        SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x30u, 88, 12, &pc, &hc) == 68 && pc == 44 && hc == 6,
+                   "Q2: 0x30 over the shipped pools' 88 pieces + 12 containers is the same budget");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x40u, -1, -1, &pc, &hc) == 64 && pc == 44 && hc == 5,
                    "Q2: four starting hearts is 44 + 5");
         SQP_ASSERT(Combo_SharedQuantityHealthBudget(0x20u, -1, -1, &pc, &hc) == 72 && pc == 44 && hc == 7,
@@ -595,14 +595,14 @@ TestResult Test_SharedQuantityPolicy(void) {
            SqpCount(trim, M, kSqpQuiver), SqpBoth(trim, kSqpHookshot), SqpBoth(trim, kSqpBombchu),
            trim.res.perGame[O].rows[RSBS_COMBO_COMPOSE_TRIMMED], trim.res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED]);
     // The red half first: the untrimmed bag is the defect.
-    SQP_ASSERT(SqpBoth(full, kSqpPiece) == 76 && SqpBoth(full, kSqpContainer) == 15 &&
+    SQP_ASSERT(SqpBoth(full, kSqpPiece) == 88 && SqpBoth(full, kSqpContainer) == 12 &&
                    SqpBoth(full, kSqpDoubleDefense) == 2 && SqpBoth(full, kSqpQuiver) == 6 && full.trimmed.empty() &&
                    full.res.perGame[O].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 0 &&
                    full.res.perGame[M].rows[RSBS_COMBO_COMPOSE_TRIMMED] == 0,
-               "Q3 RED HALF: KEEP_ALL composes every copy: 76 pieces, 15 containers, 2 double defenses, 6 quivers");
+               "Q3 RED HALF: KEEP_ALL composes every copy: 88 pieces, 12 containers, 2 double defenses, 6 quivers");
     SQP_ASSERT(SqpBoth(trim, kSqpPiece) == 44 && SqpBoth(trim, kSqpContainer) == 6,
                "Q3: the trimmed bag holds exactly 44 pieces + 6 containers across both games");
-    SQP_ASSERT(SqpCount(trim, O, kSqpPiece) == 14 && SqpCount(trim, M, kSqpPiece) == 30 &&
+    SQP_ASSERT(SqpCount(trim, O, kSqpPiece) == 18 && SqpCount(trim, M, kSqpPiece) == 26 &&
                    SqpCount(trim, O, kSqpContainer) == 4 && SqpCount(trim, M, kSqpContainer) == 2,
                "Q3: the spread is proportional, so both worlds keep heart checks");
     SQP_ASSERT(SqpBoth(trim, kSqpDoubleDefense) == 1, "Q3: exactly one double defense");
@@ -654,7 +654,7 @@ TestResult Test_SharedQuantityPolicy(void) {
         }
         SQP_ASSERT(sum == poolG, "Q3: every pool row keeps exactly one disposition");
     }
-    SQP_ASSERT((int)trim.trimmed.size() == 32 + 9 + 1 + 3, "Q3: 32 pieces + 9 containers + 1 DD + 3 quivers trimmed");
+    SQP_ASSERT((int)trim.trimmed.size() == 44 + 6 + 1 + 3, "Q3: 44 pieces + 6 containers + 1 DD + 3 quivers trimmed");
     for (size_t i = 1; i < trim.poolIndex.size(); ++i) {
         SQP_ASSERT(trim.poolIndex[i] > trim.poolIndex[i - 1], "Q3: the bag is a STABLE filter of the pool");
     }
@@ -803,7 +803,7 @@ TestResult Test_SharedQuantityPolicy(void) {
                    "Q5: the trimmed pool's 50 heart pickups end the bar at exactly 320 with ZERO dead pickups");
         SQP_ASSERT(wt2.dead == 0 && wt2.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
                    "Q5: ... in a second pickup order too");
-        SQP_ASSERT(wf.pickups == 91 && wf.dead > 0 && wf.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
+        SQP_ASSERT(wf.pickups == 100 && wf.dead > 0 && wf.finalValue == (int)RSBS_SHARED_RES_MAX_HEALTH_QUARTERS,
                    "Q5 RED HALF: the untrimmed pool clamps: pickups past the 20-heart bar are dead");
 
         // The quiver (equal ceilings 3/3): the trimmed copies all count, in both orders.
