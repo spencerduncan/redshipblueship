@@ -200,7 +200,7 @@ TestResult Test_ComboAreaVocabulary(void) {
     printf("[TEST]   MM: %d check rows, %d enemy drops; %d other rows without an area, %d enemy drops with one\n", rows,
            enemyDrops, rowsWithoutArea, enemyDropsWithArea);
     CA_ASSERT(rows > 0);
-    CA_ASSERT(enemyDrops == 55);
+    CA_ASSERT(enemyDrops == 56);
     CA_ASSERT(rowsWithoutArea == 0);
     CA_ASSERT(enemyDropsWithArea == 0);
     int emptyAreas = 0;
@@ -276,7 +276,7 @@ TestResult Test_ComboAreaVocabulary(void) {
 //
 // MM's gossip stones said where a check is by its SCENE's display name, so all
 // 415 grotto checks (SCENE_KAKUSIANA) read "Lone Peak Shrine & Grottos" wherever
-// the grotto is, and the 55 enemy drops (SCENE_SPOT00, "Cutscene Scene") could
+// the grotto is, and the 56 enemy drops (SCENE_SPOT00, "Cutscene Scene") could
 // be hinted at all. The stone now names the check's area in the shared
 // vocabulary (H1's MM table) with OoTMM's preposition, and hints only checks
 // that have an area. Drives the stone's REAL text (GossipHintText, the function

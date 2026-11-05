@@ -106,11 +106,9 @@ void handleGiantsCheck(SceneId sceneId) {
             .giveItem =
                 [](Actor* actor, PlayState* play) {
                     if (CUSTOM_ITEM_FLAGS & CustomItem::GIVE_ITEM_CUTSCENE) {
-                        CustomMessage::SetActiveCustomMessage("You learned the Oath to Order!",
-                                                              { .textboxType = 2 });
+                        CustomMessage::SetActiveCustomMessage("You learned the Oath to Order!", { .textboxType = 2 });
                     } else {
-                        CustomMessage::StartTextbox("You learned the Oath to Order!\x1C\x02\x10",
-                                                    { .textboxType = 2 });
+                        CustomMessage::StartTextbox("You learned the Oath to Order!\x1C\x02\x10", { .textboxType = 2 });
                     }
                     MM_Item_Give(MM_gPlayState, ITEM_SONG_OATH);
                 },

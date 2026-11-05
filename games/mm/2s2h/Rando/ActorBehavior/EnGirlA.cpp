@@ -119,7 +119,7 @@ bool Rando::ActorBehavior::HagsMushroomLineArms() {
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
 static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
-        rc, Rando::StaticData::GetItemName(Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc), false), false);
+        rc, Rando::StaticData::Items[Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc)].name, false);
 }
 
 void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
@@ -243,7 +243,6 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     RandoCheckId randoCheckId = (RandoCheckId)enGirlA->actor.world.rot.z;
     RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId);
     randoSaveCheck.obtained = true;
-    randoSaveCheck.cycleObtained = true;
     MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
     if (randoItemId == RI_TRAP) {
 #ifdef RSBS_SINGLE_EXECUTABLE

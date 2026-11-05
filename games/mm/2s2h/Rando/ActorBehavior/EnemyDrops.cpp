@@ -197,13 +197,18 @@ void Rando::ActorBehavior::InitEnemyDropBehavior() {
         }
     });
 
-    // Some enemies die in a cutscene and never reach OnActorKill, so spawn based on other flags instead
+    // Igos dies in a cutscene, so spawn that drop once the scene clear flag is set
     COND_HOOK(OnSceneFlagSet, shouldRegister, [](s16 sceneId, FlagType flagType, u32 flag) {
         if (sceneId == SCENE_IKNINSIDE && flagType == FLAG_CYCL_SCENE_CLEARED_ROOM && flag == 1) {
-            // Igos du Ikana: Spawn on the throne
+            // Spawn on the throne
             SpawnDropItem({ 1408.25f, 76.0f, 2863.5f }, RC_ENEMY_DROP_IGOS_DU_IKANA);
-        } else if (sceneId == SCENE_INISIE_R && flagType == FLAG_CYCL_SCENE_CLEARED_ROOM && flag == 0xB) {
-            // Gomess: Spawn near center of the room
+        }
+    });
+
+    // Gomess dies in a cutscene, so spawn that drop once the scene clear flag is set
+    COND_HOOK(OnSceneFlagSet, shouldRegister, [](s16 sceneId, FlagType flagType, u32 flag) {
+        if (sceneId == SCENE_INISIE_R && flagType == FLAG_CYCL_SCENE_CLEARED_ROOM && flag == 0xB) {
+            // Spawn at Gomess's spawn point
             SpawnDropItem({ 2460.0f, -300.0f, -1260.f }, RC_ENEMY_DROP_GOMESS);
         }
     });

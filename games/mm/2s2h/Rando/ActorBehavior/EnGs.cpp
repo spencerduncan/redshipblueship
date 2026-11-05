@@ -82,7 +82,7 @@ static std::vector<GossipHintTarget> GossipHintCandidates(bool excludeObtained) 
         bool hintable = Rando::StaticData::Items[saveCheck.randoItemId].randoItemType != RITYPE_JUNK ||
                         Rando::Foreign::ForeignNameForCheck(randoCheckId) != nullptr;
         // #575 H2: the stone names the check's area, so a check with none (the
-        // 55 enemy drops) has nowhere to name: OoTMM's hints skip region-less
+        // 56 enemy drops) has nowhere to name: OoTMM's hints skip region-less
         // checks the same way.
         hintable = hintable && Rando::HintArea::HasArea(randoCheckId);
         if (saveCheck.shuffled && hintable && (!excludeObtained || !saveCheck.obtained)) {

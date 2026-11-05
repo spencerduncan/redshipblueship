@@ -770,7 +770,9 @@ PairedMMWorldHashes ComputePairedMMWorldHashes() {
  * #982: a golden profile's MM keys must have reached MM's world, as its OoT keys
  * must reach OoT's (Rando_HeadlessWriteDeterminismHead). Read off the save MM's
  * creation froze, so MM's bytes must be in view. Every id in RSBS_GOLDEN_MM_EXCLUDES
- * must be a check GeneratePools skipped and filled with junk, and every
+ * must be a check GeneratePools skipped and filled with junk (so never one whose
+ * vanilla item is junk: GeneratePools leaves that one unshuffled, #1399, which
+ * reads the same as a check type the profile does not shuffle), and every
  * gRando.Tricks.* assignment RSBS_DIAG_CVARS turns on must name an MM trick that
  * froze on: a misspelled CVar names none, and a trick later flagged reserved
  * resolves off (ResolveTrickFromCVar), so either would otherwise let a re-pin
@@ -790,13 +792,7 @@ bool GoldenMMProfileTook() {
             const int id = std::atoi(key.c_str());
             auto it = Rando::StaticData::Checks.find((RandoCheckId)id);
             const bool known = it != Rando::StaticData::Checks.end() && id > (int)RC_UNKNOWN && id < (int)RC_MAX;
-            const bool vanillaIsJunk =
-                known && Rando::StaticData::Items[it->second.randoItemId].randoItemType == RITYPE_JUNK;
-            const bool took = known && (vanillaIsJunk
-                                            ? (!RANDO_SAVE_CHECKS[id].shuffled && !RANDO_SAVE_CHECKS[id].skipped &&
-                                               RANDO_SAVE_CHECKS[id].randoItemId == it->second.randoItemId)
-                                            : (RANDO_SAVE_CHECKS[id].skipped &&
-                                               RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK));
+            const bool took = known && RANDO_SAVE_CHECKS[id].skipped && RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK;
             fprintf(stderr, "[golden-profile] MM exclude %d = %s %s\n", id, known ? it->second.name : "(no such check)",
                     took ? "took" : "DID NOT TAKE");
             ok = ok && took;

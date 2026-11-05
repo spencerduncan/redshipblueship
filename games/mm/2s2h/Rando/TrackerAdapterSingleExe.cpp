@@ -447,8 +447,9 @@ int MMTrackerLiveAvailable(uint16_t checkId) {
  * (each region's CHECK macro, stringified) at MM's rando init; that TU is linked in
  * the single exe (redship.map: 2ship_rando_ui:CheckTracker.cpp.obj, pulled in by
  * Rando::Init's CheckTracker::Init call). Its rule: none for an empty string, and
- * none for an enemy drop (RC_ENEMY_DROP_ALIEN .. RC_ENEMY_DROP_WOLFOS), whose
- * conditions differ per instance. NULL before MM's rando init has filled it.
+ * none for an enemy drop (RC_ENEMY_DROP_ALIEN .. RC_ENEMY_DROP_WOLFOS, plus
+ * RC_ENEMY_DROP_GOMESS, appended at the end of the enum), whose conditions
+ * differ per instance. NULL before MM's rando init has filled it.
  */
 const char* MMTrackerCheckLogic(uint16_t checkId) {
     if (checkId >= (uint16_t)RC_MAX ||
