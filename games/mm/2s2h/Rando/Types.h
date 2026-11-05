@@ -3005,6 +3005,9 @@ typedef enum {
     RO_PLACEMENT_BOSS_KEYS,
     RO_PLACEMENT_SMALL_KEYS,
     RO_PLACEMENT_STRAY_FAIRIES,
+    // Appended for the same reason (#1362): 2Ship's song placement (528eed442),
+    // RandoOptionMMSongShuffle values. The identity strings fold it only when it
+    // is not Anywhere (0, the default).
     RO_SHUFFLE_SONGS,
     RO_MAX,
 } RandoOptionId;

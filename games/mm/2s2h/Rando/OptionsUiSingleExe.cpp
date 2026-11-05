@@ -280,13 +280,15 @@ struct OptionUi {
 // dispatch" constant cannot be reintroduced without the test going red.
 //
 // The one shared reason is a fill blocker, not a hook: 2Ship's dungeon item
-// placements (#1361; RO_PLACEMENT_SMALL_KEYS, _BOSS_KEYS, _STRAY_FAIRIES). This
-// pane only authors paired worlds, and a paired world is filled by the single
-// bag (RunPairedSingleBagFill), which has no MM restricted pass: Own Dungeon
-// would confine nothing there (MM's PreplaceConfinedItems and SelectItemForCheck
-// run only in MM's own fills), and the packet keeps every value out of the
-// paired generator and the frozen identity until that integration lands. Open
-// the three rows (GENERATION_ONLY, empty reason) in the same change.
+// placements (#1361; RO_PLACEMENT_SMALL_KEYS, _BOSS_KEYS, _STRAY_FAIRIES) and
+// its song placement (#1362; RO_SHUFFLE_SONGS). This pane only authors paired
+// worlds, and a paired world is filled by the single bag
+// (RunPairedSingleBagFill), which has no MM restricted pass: Own Dungeon and
+// Song Locations would confine nothing there (MM's PreplaceConfinedItems and
+// SelectItemForCheck run only in MM's own fills), and the packets keep every
+// value out of the paired generator and the frozen identity until that
+// integration lands. Open each row (GENERATION_ONLY, empty reason) in the
+// change that integrates it.
 const char* const kReasonPairedPlacement = "Not Yet Supported in Paired Worlds";
 
 // clang-format off
@@ -375,11 +377,23 @@ const OptionUi kOptionUi[] = {
 
     // ---- Shuffle Items, Shuffle Shops & Merchants --------------------------
     { RO_SHUFFLE_SONGS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
-      "Songs",
-      "Where the songs taught in the world may be found: anywhere in the world, shuffled among song locations, or "
-      "left on their vanilla checks.",
+      "Shuffle Songs",
+      "Where the songs taught in the world may be found. Extra songs have no location of their own, "
+      "so they are always shuffled into the item pool like any other item.\n\n"
+      "Anywhere - Song locations are checks, and their songs can be found anywhere in the world.\n\n"
+      "Song Locations - Song locations are checks, and their songs are shuffled among them.\n\n"
+      "Vanilla - Every song stays where it is, and song locations are not checks.",
       0, 0, kSongShuffleLabels, UI_COUNT(kSongShuffleLabels),
-      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+      // #1362, 2Ship's song placement (528eed442) with upstream's tooltip and
+      // SoH's label for its twin. Gated with the placement rows below (see
+      // kReasonPairedPlacement): GeneratePools.cpp's legs run (Vanilla drops the
+      // song checks, Song Locations junks the surplus ones), but the single-bag
+      // fill never confines a song. Vanilla also keeps MM's copy of a frozen-on
+      // shared song (Epona's Song, Song of Storms, Song of Time) on its vanilla
+      // check while OoT's copy is placed too, two copies of one shared row; OoT
+      // releases those checks (fill.cpp RsbsReleaseVanillaSharedSongs) and MM has
+      // no counterpart yet. The option stays at Anywhere, which changes no world.
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Cows", "Adds the reward for playing Epona's Song for a cow to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
