@@ -396,6 +396,11 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             if (ForcedDialogIsDisabled(FORCED_DIALOG_SKIP_NPC) &&
                 !(OoT_gPlayState->sceneNum == SCENE_ZORAS_RIVER && IS_RANDO && RAND_GET_OPTION(RSK_FROGS_HINT))) {
                 *should = false;
+
+                // We should still come out of a softlock if the setting was changed during forced dialogue
+                if (GET_PLAYER(OoT_gPlayState)->csAction == 8) {
+                    func_8002DF38(OoT_gPlayState, NULL, 7);
+                }
             }
 
             // If it's near a jailed carpenter, skip it along with introduction of Gerudo mini-boss
@@ -1067,8 +1072,8 @@ void TimeSaverOnActorInitHandler(void* actorRef) {
     // This is a bit of a hack, we can't effectively override the behavior of the torches
     // or poes from which the cutscene is triggered until we can have a "BeforeActorInit" hook.
     // So for now we're just going to set the flag before they get to the room the cutscene is in
-    if (OoT_gPlayState->sceneNum == SCENE_FOREST_TEMPLE && actor->id == ACTOR_EN_ST && !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1B) &&
-        !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1C)) {
+    if (OoT_gPlayState->sceneNum == SCENE_FOREST_TEMPLE && actor->id == ACTOR_EN_DOOR &&
+        !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1B) && !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1C)) {
         if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO) &&
             !CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
             OoT_Flags_SetSwitch(OoT_gPlayState, 0x1B);

@@ -1,4 +1,5 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/Enhancements/game-interactor/vanilla-behavior/GIVanillaBehavior.h"
 #include "soh/ShipInit.hpp"
 
 extern "C" {
@@ -6,8 +7,27 @@ extern "C" {
 #include "functions.h"
 #include "variables.h"
 #include "src/overlays/actors/ovl_En_Go2/z_en_go2.h"
+#include "src/overlays/actors/ovl_En_Test/z_en_test.h"
+#include "src/overlays/actors/ovl_En_Horse/z_en_horse.h"
+#include "src/overlays/actors/ovl_Mir_Ray/z_mir_ray.h"
 void OoT_Player_UseItem(PlayState*, Player*, s32);
 extern PlayState* OoT_gPlayState;
+}
+
+// Actor_FindNearby also matches actors killed this same frame (update==NULL) that are
+// still in the list, so when the last Stalfos of a group dies alongside its siblings,
+// vanilla thinks an enemy remains and BGM never restores (seen in MQ Water Temple).
+// Re-check against living actors only.
+static bool EnTest_HasLivingNearby(Actor* refActor) {
+    Actor* actor = OoT_gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head;
+    while (actor != NULL) {
+        if (actor != refActor && actor->id == ACTOR_EN_TEST && actor->update != NULL &&
+            OoT_Actor_WorldDistXYZToActor(refActor, actor) <= 8000.0f) {
+            return true;
+        }
+        actor = actor->next;
+    }
+    return false;
 }
 
 void RegisterAlwaysOnFixes() {
@@ -52,6 +72,62 @@ void RegisterAlwaysOnFixes() {
         EnGo2* GoronLink = va_arg(args, EnGo2*);
         if (GoronLink->interactInfo.talkState == NPC_TALK_STATE_TALKING) {
             *should = true;
+        }
+    });
+
+    // Dismounting a ladder in a cutscene or using cutscene item (using restricted items glitch) i.e.
+    // `player->unk_6AD` == 3 or 4 softlocks as animation update stops. Let animation continue in that case.
+    COND_VB_SHOULD(VB_INTERRUPT_LADDER_DISMOUNT, true, {
+        u8* unk_6AD = va_arg(args, u8*);
+        if (*unk_6AD >= 3) {
+            *should = false;
+        }
+    });
+
+    COND_VB_SHOULD(VB_PREVENT_HBA_FANFARE_SOFTLOCK_TIMER, true, {
+        EnHorse* enHorse = va_arg(args, EnHorse*);
+        if (enHorse->hbaFlags & 1) {
+            *should = true; // hbaFlags 1 = end of tour
+        }
+    });
+
+    COND_VB_SHOULD(VB_PREVENT_HBA_FANFARE_SOFTLOCK_BUTTONS, true, {
+        EnHorse* enHorse = va_arg(args, EnHorse*);
+        if (enHorse->hbaTimer >= 80 &&
+            CHECK_BTN_ANY(OoT_gPlayState->state.input[0].press.button, BTN_A | BTN_B | BTN_START)) {
+            *should = true;
+        }
+    });
+
+    // Mir_Ray draws the reflection image straight on the collision poly's plane, but CollisionPoly
+    // stores that plane quantized (s16 normal, integer dist), so for about half of all walls it
+    // lands a fraction of a unit inside the drawn surface. N64 RDP's decal mode handled that,
+    // but our graphics pipeline does not. Lift the image off the plane along the poly normal.
+    COND_VB_SHOULD(VB_MIRRAY_DRAW_REFLECTION, true, {
+        if (*should) {
+            MirRayShieldReflection* reflection = va_arg(args, MirRayShieldReflection*);
+            CollisionPoly* poly = reflection->reflectionPoly;
+            reflection->pos.x += COLPOLY_GET_NORMAL(poly->normal.x);
+            reflection->pos.y += COLPOLY_GET_NORMAL(poly->normal.y);
+            reflection->pos.z += COLPOLY_GET_NORMAL(poly->normal.z);
+        }
+    });
+
+    // Empty Bottle OI (aka "Drinking Bugs") causes the bottle to read the potion effect array out of bounds
+    // The exact effect this had on N64 depended on the game version, but on ship it seems to depend on the compiler or
+    // build type. To resolve this UB, this hook forces the effect of milk, which is the most useful vanilla effect
+    // (other versions do nothing). A setting can be trivially added if the option for it to do something else is
+    // desired, but it should still be in this hook to avoid UB.
+    COND_VB_SHOULD(VB_EMPTY_BOTTLE_OI, true, {
+        if (!*should) {
+            gSaveContext.healthAccumulator = 0x50;
+        }
+    });
+
+    COND_ID_HOOK(OnActorDestroy, ACTOR_EN_TEST, true, [](void* refActor) {
+        Actor* actor = reinterpret_cast<Actor*>(refActor);
+        if (actor->params != STALFOS_TYPE_2 && !EnTest_HasLivingNearby(actor)) {
+            func_800F5B58();
         }
     });
 }

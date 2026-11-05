@@ -1509,6 +1509,17 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
             }
             break;
         }
+        case VB_JABU_PREVENT_RUTO_REENTER_BIGOCTO: {
+            // Don't let player carry Ruto through doors 21 and 3 to Bigocto room if Ruto abducted flag set
+            Player* player = va_arg(args, Player*);
+            Actor* doorActor = va_arg(args, Actor*);
+            if (OoT_gPlayState->sceneNum == SCENE_JABU_JABU && GET_INFTABLE(INFTABLE_146) &&
+                (((u16)doorActor->params >> 0xA) == 21 || ((u16)doorActor->params >> 0xA) == 3) &&
+                player->heldActor != NULL && player->heldActor->id == ACTOR_EN_RU1) {
+                *should = false;
+            }
+            break;
+        }
         case VB_BIGGORON_CONSIDER_SWORD_COLLECTED: {
             *should = Flags_GetRandomizerInf(RAND_INF_ADULT_TRADES_DMT_TRADE_CLAIM_CHECK);
             break;

@@ -2485,14 +2485,6 @@ typedef enum {
     // - None
     VB_DRAW_2D_BACKGROUND,
 
-    // #### `result`
-    // ```c
-    // CVarGetInteger(CVAR_ENHANCEMENT("3DSceneRender"), 0)
-    // ```
-    // #### `args`
-    // - None
-    VB_LOAD_SKYBOX,
-
     // true
     // ```
     // #### `args`
@@ -2682,6 +2674,58 @@ typedef enum {
     // - `Player*`
     // - `s32* item`
     VB_OVERRIDE_BUTTON_ITEM_USED,
+
+    // #### `result`
+    // ```c
+    // false if in Jabu, carrying Ruto, abducted flag set, door is id 21 or 3
+    // ```
+    // #### `args`
+    // - `*Actor` (shutter door)
+    VB_JABU_PREVENT_RUTO_REENTER_BIGOCTO,
+
+    // #### `result`
+    // ```c
+    // interruptResult == PLAYER_INTERRUPT_NEW_ACTION
+    // ```
+    // #### `args`
+    // - `*u8 (&player->unk_6AD)`
+    VB_INTERRUPT_LADDER_DISMOUNT,
+
+    // #### `result`
+    // ```c
+    // play->interfaceCtx.hbaAmmo == 0
+    // ```
+    // Prevent custom fanfares set to loop from softlocking Horseback Archery by
+    // letting players escape the cutscene with A/B/start after a normal number of playframes.
+    // #### `args`
+    // - none
+    VB_PREVENT_HBA_FANFARE_SOFTLOCK_TIMER,
+
+    // #### `result`
+    // ```c
+    // (isFanfarePlaying != 1 && gSaveContext.minigameState != 3)
+    // ```
+    // Prevent custom fanfares set to loop from softlocking Horseback Archery by
+    // letting players escape the cutscene with A/B/start after a normal number of playframes.
+    // #### `args`
+    // - `EnHorse*`
+    VB_PREVENT_HBA_FANFARE_SOFTLOCK_BUTTONS,
+
+    // #### `result`
+    // ```c
+    // reflection[i].reflectionPoly != NULL
+    // ```
+    // #### `args`
+    // - `*MirRayShieldReflection`
+    VB_MIRRAY_DRAW_REFLECTION,
+
+    // #### `result`
+    // ```c
+    // this->itemAction != PLAYER_IA_BOTTLE
+    // ```
+    // #### `args`
+    // - none
+    VB_EMPTY_BOTTLE_OI,
 
 } GIVanillaBehavior;
 
