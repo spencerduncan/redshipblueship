@@ -2727,6 +2727,13 @@ typedef enum {
     // - none
     VB_EMPTY_BOTTLE_OI,
 
+    // #### `result`
+    // ```c
+    // camera->xzSpeed > 0.001f || <any release button pressed> || params->interfaceFlags & 0x8
+    // ```
+    // #### `args`
+    // - `Camera*` (`camera`)
+    VB_RELEASE_DOORC_CAMERA,
 } GIVanillaBehavior;
 
 #endif
