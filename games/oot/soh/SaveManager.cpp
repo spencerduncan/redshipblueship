@@ -37,6 +37,12 @@
 #include <array>
 #include <mutex>
 #include <unordered_map>
+#include <cstdio>
+#if defined(_WIN32)
+#include <io.h>
+#elif !defined(__SWITCH__) && !defined(__WIIU__)
+#include <unistd.h>
+#endif
 
 extern "C" SaveContext gSaveContext;
 // Shared cross-game resources (#525), defined in soh/GameExports_SingleExe.cpp.
@@ -1114,6 +1120,97 @@ void SaveManager::QuarantineCorruptSave(int fileNum) {
                                                          "The file has been renamed to prevent further issues.");
 }
 
+#if defined(__WIIU__) || defined(__SWITCH__)
+// std::filesystem::copy_file doesn't work properly with the Wii U's toolchain atm
+int copy_file(const char* src, const char* dst) {
+    alignas(0x40) uint8_t buf[4096];
+    FILE* r = fopen(src, "r");
+    if (!r) {
+        return -1;
+    }
+    FILE* w = fopen(dst, "w");
+    if (!w) {
+        return -2;
+    }
+
+    size_t res;
+    while ((res = fread(buf, 1, sizeof(buf), r)) > 0) {
+        if (fwrite(buf, 1, res, w) != res) {
+            break;
+        }
+    }
+
+    fclose(r);
+    fclose(w);
+    return res >= 0 ? 0 : res;
+}
+#endif
+
+static bool SyncFileToDisk(FILE* fp) {
+    if (fflush(fp) != 0) {
+        return false;
+    }
+#if defined(_WIN32)
+    return _commit(_fileno(fp)) == 0;
+#elif defined(__SWITCH__) || defined(__WIIU__)
+    return true;
+#else
+    return fsync(fileno(fp)) == 0;
+#endif
+}
+
+static bool WriteFileSafely(const std::filesystem::path& filePath, const std::filesystem::path& tempFilePath,
+                            const std::string& content) {
+    std::error_code ec;
+    if (std::filesystem::exists(tempFilePath, ec)) {
+        std::filesystem::remove(tempFilePath, ec);
+    }
+
+#if defined(_WIN32)
+    FILE* fp = _wfopen(tempFilePath.c_str(), L"wb");
+#else
+    FILE* fp = fopen(tempFilePath.string().c_str(), "wb");
+#endif
+    if (fp == nullptr) {
+        SPDLOG_ERROR("WriteFileSafely: failed to open temp file '{}' for '{}'", tempFilePath.string(),
+                     filePath.string());
+        return false;
+    }
+
+    const size_t written = content.empty() ? 0 : fwrite(content.data(), 1, content.size(), fp);
+    const bool synced = (written == content.size()) && SyncFileToDisk(fp);
+    const bool closed = (fclose(fp) == 0);
+    if (!synced || !closed) {
+        SPDLOG_ERROR("WriteFileSafely: failed writing/syncing temp file '{}' for '{}'", tempFilePath.string(),
+                     filePath.string());
+        std::filesystem::remove(tempFilePath, ec);
+        return false;
+    }
+
+#if defined(__SWITCH__) || defined(__WIIU__)
+    if (std::filesystem::exists(filePath, ec)) {
+        std::filesystem::remove(filePath, ec);
+    }
+    if (copy_file(tempFilePath.string().c_str(), filePath.string().c_str()) != 0) {
+        SPDLOG_ERROR("WriteFileSafely: copy_file '{}' -> '{}' failed", tempFilePath.string(), filePath.string());
+        std::filesystem::remove(tempFilePath, ec);
+        return false;
+    }
+    if (std::filesystem::exists(tempFilePath, ec)) {
+        std::filesystem::remove(tempFilePath, ec);
+    }
+#else
+    std::filesystem::rename(tempFilePath, filePath, ec);
+    if (ec) {
+        SPDLOG_ERROR("WriteFileSafely: rename '{}' -> '{}' failed ({})", tempFilePath.string(), filePath.string(),
+                     ec.message());
+        std::filesystem::remove(tempFilePath, ec);
+        return false;
+    }
+#endif
+    return true;
+}
+
 void SaveManager::StartupCheckAndInitMetaImpl(int fileNum, nlohmann::json& metaSaveBlock) {
     std::filesystem::path fileName = GetFileName(fileNum);
     if (!metaSaveBlock.contains("version")) {
@@ -1144,23 +1241,7 @@ void SaveManager::StartupCheckAndInitMetaImpl(int fileNum, nlohmann::json& metaS
             std::string serialized = metaSaveBlock.dump(1);
             std::lock_guard<std::mutex> lock(saveMtx);
             std::filesystem::path tempFile = GetFileTempName(fileNum);
-            if (std::filesystem::exists(tempFile)) {
-                std::filesystem::remove(tempFile);
-            }
-            std::ofstream output(tempFile);
-            output << serialized;
-            output.close();
-#if defined(__SWITCH__) || defined(__WIIU__)
-            if (std::filesystem::exists(fileName)) {
-                std::filesystem::remove(fileName);
-            }
-            copy_file(tempFile.c_str(), fileName.c_str());
-            if (std::filesystem::exists(tempFile)) {
-                std::filesystem::remove(tempFile);
-            }
-#else
-            std::filesystem::rename(tempFile, fileName);
-#endif
+            WriteFileSafely(fileName, tempFile, serialized);
         }
         s16 major = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionMajor"];
         s16 minor = metaSaveBlock["sections"]["sohStats"]["data"]["buildVersionMinor"];
@@ -1756,32 +1837,6 @@ void SaveManager::InitFileMaxed() {
     Flags_SetRandomizerInf(RAND_INF_OBTAINED_ROCS_FEATHER);
 }
 
-#if defined(__WIIU__) || defined(__SWITCH__)
-// std::filesystem::copy_file doesn't work properly with the Wii U's toolchain atm
-int copy_file(const char* src, const char* dst) {
-    alignas(0x40) uint8_t buf[4096];
-    FILE* r = fopen(src, "r");
-    if (!r) {
-        return -1;
-    }
-    FILE* w = fopen(dst, "w");
-    if (!w) {
-        return -2;
-    }
-
-    size_t res;
-    while ((res = fread(buf, 1, sizeof(buf), r)) > 0) {
-        if (fwrite(buf, 1, res, w) != res) {
-            break;
-        }
-    }
-
-    fclose(r);
-    fclose(w);
-    return res >= 0 ? 0 : res;
-}
-#endif
-
 // Threaded SaveFile takes copy of gSaveContext for local unmodified storage
 
 void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int sectionID, uint32_t rsbsGeneration,
@@ -1872,33 +1927,12 @@ void SaveManager::SaveFileThreaded(int fileNum, SaveContext* saveContext, int se
 
     std::filesystem::path fileName = GetFileName(fileNum);
     std::filesystem::path tempFile = GetFileTempName(fileNum);
+    std::string serialized = saveBlock.dump(1) + "\n";
 
-    if (std::filesystem::exists(tempFile)) {
-        std::filesystem::remove(tempFile);
+    if (!WriteFileSafely(fileName, tempFile, serialized)) {
+        delete saveContext;
+        return;
     }
-
-#if defined(__SWITCH__) || defined(__WIIU__)
-    FILE* w = fopen(tempFile.c_str(), "w");
-    std::string json_string = saveBlock.dump(1);
-    fwrite(json_string.c_str(), sizeof(char), json_string.length(), w);
-    fclose(w);
-#else
-    std::ofstream output(tempFile);
-    output << std::setw(1) << saveBlock << std::endl;
-    output.close();
-#endif
-
-#if defined(__SWITCH__) || defined(__WIIU__)
-    if (std::filesystem::exists(fileName)) {
-        std::filesystem::remove(fileName);
-    }
-    copy_file(tempFile.c_str(), fileName.c_str());
-    if (std::filesystem::exists(tempFile)) {
-        std::filesystem::remove(tempFile);
-    }
-#else
-    std::filesystem::rename(tempFile, fileName);
-#endif
 
     delete saveContext;
     InitMeta(fileNum);
@@ -1990,9 +2024,10 @@ void SaveManager::SaveGlobal() {
 
     const std::filesystem::path sSavePath(Ship::Context::GetPathRelativeToAppDirectory("Save"));
     const std::filesystem::path sGlobalPath = sSavePath / std::string("global.sav");
+    const std::filesystem::path sGlobalTempPath = sSavePath / std::string("global.tmp");
 
-    std::ofstream output(sGlobalPath);
-    output << std::setw(1) << globalBlock << std::endl;
+    std::string serialized = globalBlock.dump(1) + "\n";
+    WriteFileSafely(sGlobalPath, sGlobalTempPath, serialized);
 }
 
 // The .sav's mirrored commit generation, validated one way for both readers

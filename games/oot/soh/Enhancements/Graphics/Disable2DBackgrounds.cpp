@@ -2,6 +2,7 @@
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
+#include "soh/resource/type/scenecommand/SetTimeSettings.h"
 
 extern "C" {
 extern SaveContext gSaveContext;
@@ -9,6 +10,8 @@ extern PlayState* OoT_gPlayState;
 #include "macros.h"
 #include "variables.h"
 }
+
+bool OoT_Scene_CommandTimeSettings(PlayState* play, SOH::ISceneCommand* cmd);
 
 #define CVAR_NAME CVAR_ENHANCEMENT("3DSceneRender")
 #define CVAR_VALUE CVarGetInteger(CVAR_NAME, 0)
@@ -25,25 +28,6 @@ std::set<SceneID> fogControlList = {
     SCENE_TEMPLE_OF_TIME_EXTERIOR_DAY,
     SCENE_TEMPLE_OF_TIME_EXTERIOR_NIGHT,
     SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS,
-    SCENE_KNOW_IT_ALL_BROS_HOUSE,
-    SCENE_TWINS_HOUSE,
-    SCENE_MIDOS_HOUSE,
-    SCENE_SARIAS_HOUSE,
-    SCENE_BACK_ALLEY_HOUSE,
-    SCENE_BAZAAR,
-    SCENE_KOKIRI_SHOP,
-    SCENE_GORON_SHOP,
-    SCENE_ZORA_SHOP,
-    SCENE_POTION_SHOP_KAKARIKO,
-    SCENE_POTION_SHOP_MARKET,
-    SCENE_BOMBCHU_SHOP,
-    SCENE_HAPPY_MASK_SHOP,
-    SCENE_LINKS_HOUSE,
-    SCENE_DOG_LADY_HOUSE,
-    SCENE_STABLE,
-    SCENE_IMPAS_HOUSE,
-    SCENE_CARPENTERS_TENT,
-    SCENE_GRAVEKEEPERS_HUT,
 };
 
 std::set<SceneID> skyboxSceneControlList = {
@@ -86,9 +70,19 @@ std::set<SkyboxId> skyboxIdControlList = {
     SKYBOX_HOUSE_ALLEY,
 };
 
+static void SyncSkyboxTimeToCurrentTime() {
+    SOH::SetTimeSettings cmd;
+    cmd.settings = { 0xFF, 0xFF, static_cast<uint8_t>(OoT_gPlayState->envCtx.timeIncrement) };
+    OoT_Scene_CommandTimeSettings(OoT_gPlayState, &cmd);
+}
+
 void Register3DPreRenderedScenes() {
+    // Runs after the scene commands have set play->skyboxId, but before Play_InitEnvironment builds the
+    // skybox. Overriding the id here means Skybox_Setup loads a real sky; overriding it any later would
+    // leave the display lists pointing at the pre-rendered skybox's texture slots.
     COND_HOOK(AfterSceneCommands, CVAR_VALUE, [](int16_t sceneNum) {
-        if (!skyboxSceneControlList.contains(static_cast<SceneID>(sceneNum))) {
+        if (!skyboxSceneControlList.contains(static_cast<SceneID>(sceneNum)) &&
+            !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxId))) {
             return;
         }
 
@@ -96,11 +90,13 @@ void Register3DPreRenderedScenes() {
         OoT_gPlayState->envCtx.skyboxDisabled = false;
 
         // Replace skybox with normal sky
+        SyncSkyboxTimeToCurrentTime();
         OoT_gPlayState->skyboxId = SKYBOX_NORMAL_SKY;
         // Apply the always cloudy skybox as an adult for Temple of Time and the Market
         if (sceneNum == SCENE_TEMPLE_OF_TIME_EXTERIOR_RUINS || sceneNum == SCENE_MARKET_RUINS ||
             sceneNum == SCENE_MARKET_ENTRANCE_RUINS) {
             OoT_gWeatherMode = 3;
+            gSaveContext.retainWeatherMode = 1;
         }
     });
 
@@ -112,25 +108,12 @@ void Register3DPreRenderedScenes() {
         if ((HREG(80) != 10) || (HREG(82) != 0)) {
             // Furthest possible fog and zFar
             OoT_gPlayState->view.zFar = 12800;
-            OoT_gPlayState->lightCtx.fogNear = 996; // Set to 1000 to complete disable fog entirely
+            OoT_gPlayState->lightCtx.fogNear = 1000;
             OoT_gPlayState->lightCtx.fogFar = 12800;
-            // General gray fog color
-            OoT_gPlayState->lightCtx.fogColor[0] = 100;
-            OoT_gPlayState->lightCtx.fogColor[1] = 100;
-            OoT_gPlayState->lightCtx.fogColor[2] = 100;
         }
     });
 
     COND_VB_SHOULD(VB_DRAW_2D_BACKGROUND, CVAR_VALUE, { *should = false; });
-
-    COND_VB_SHOULD(VB_LOAD_SKYBOX, CVAR_VALUE, {
-        if (!OoT_gPlayState || !skyboxIdControlList.contains(static_cast<SkyboxId>(OoT_gPlayState->skyboxCtx.skyboxId))) {
-            return;
-        }
-
-        OoT_gPlayState->skyboxCtx.unk_140 = 0;
-        *should = false;
-    });
 }
 
 static RegisterShipInitFunc initFunc(Register3DPreRenderedScenes, { CVAR_NAME });

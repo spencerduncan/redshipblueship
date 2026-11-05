@@ -37,6 +37,8 @@
 extern "C" {
 size_t OoT_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t customCount);
 size_t MM_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t customCount);
+size_t OoT_AudioLoad_PermanentCacheCapacity(void);
+size_t MM_AudioLoad_PermanentCacheCapacity(void);
 }
 
 #define SEQMAP_OOT_MAX_AUTHENTIC_SEQID 110
@@ -101,6 +103,21 @@ TestResult Test_SeqMapBounds(void) {
 
     size_t mmModded = MM_AudioLoad_SequenceMapCapacity(4096, 8);
     SEQMAP_CHECK(mmModded >= 4096 + 8, "MM capacity clamps below an oversized authentic file count");
+
+    // (5) Permanent audio cache capacity (#1344, SoH 4e39d06ac / #6932). Every
+    // soundfont sync-load takes a permanent entry (cache policy 0 in both
+    // games' AudioLoad_SyncLoad), and the vanilla archives ship 38 OoT and 41
+    // MM soundfonts (assets/xml/*/audio/Audio.xml) before any permanent
+    // sequence or custom font. The old 32-entry tables filled during a long
+    // session and AllocPermanent then refused every later font (silent BGM).
+    // Both tables now hold SoH's 512 entries.
+    size_t ootPermCap = OoT_AudioLoad_PermanentCacheCapacity();
+    SEQMAP_CHECK(ootPermCap >= 512,
+                 "OoT permanentCache holds fewer than 512 entries (38 vanilla soundfonts + sequences + custom)");
+
+    size_t mmPermCap = MM_AudioLoad_PermanentCacheCapacity();
+    SEQMAP_CHECK(mmPermCap >= 512,
+                 "MM permanentEntries holds fewer than 512 entries (41 vanilla soundfonts + sequences + custom)");
 
     printf("[TEST] PASS: sequence-map capacity bounds hold for both games\n");
     return TEST_PASS;
