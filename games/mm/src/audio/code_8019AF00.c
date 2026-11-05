@@ -2123,11 +2123,17 @@ void AudioOcarina_ReadControllerInput(void) {
     sOcarinaInputStickRel.x = input->rel.stick_x;
     sOcarinaInputStickRel.y = input->rel.stick_y;
 
-    // 2S2H [Enhancement] Apply right stick ocarina input via GameInteractor
+    // 2S2H [Enhancement] When custom ocarina controls are enabled, block regular ocarina inputs
+    // RSBS (#1413): keyed on SoH's gSettings.CustomOcarina.Enabled, not 2Ship's
+    // gEnhancements.Playback.CustomizeOcarinaControls, so SoH's one checkbox drives both games.
     if (CVarGetInteger("gSettings.CustomOcarina.Enabled", 0)) {
         sOcarinaInputButtonCur &= ~(BTN_A | BTN_CUP | BTN_CDOWN | BTN_CLEFT | BTN_CRIGHT | BTN_L | BTN_R | BTN_Z);
     }
+
+    // 2S2H [Enhancement] Apply right stick ocarina input via GameInteractor
     sOcarinaInputButtonCur |= GameInteractor_RightStickOcarina(input);
+
+    // 2S2H [Enhancement] Apply custom ocarina controls via GameInteractor
     sOcarinaInputButtonCur |= GameInteractor_CustomOcarinaControls(input);
 }
 

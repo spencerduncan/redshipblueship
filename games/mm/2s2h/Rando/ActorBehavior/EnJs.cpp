@@ -2,16 +2,18 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/Rando/Logic/Logic.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 
 extern "C" {
 #include "variables.h"
 #include "overlays/actors/ovl_En_Js/z_en_js.h"
 #include "objects/object_stk/object_stk.h"
-
-void func_80968DD0(EnJs* enJs, PlayState* play);
+s32 func_80968DD0(EnJs* enJs, PlayState* play);
 void func_8096971C(EnJs* enJs, PlayState* play);
-extern ColliderCylinderInit D_8096AC30;
+extern Vec3f D_8096AC30;
 }
+
+void EnJs_PromptForDialog(EnJs* enJs, PlayState* play);
 
 void OverrideSubJsText(u16* textId, bool* loadFromMessageTable) {
     Player* player = GET_PLAYER(MM_gPlayState);
@@ -148,64 +150,61 @@ void OverrideMainJsText(u16* textId, bool* loadFromMessageTable) {
     }
 }
 
-void EnJs_WaitForPlayer(EnJs* enJs, PlayState* play);
-void EnJs_PromptForDialog(EnJs* enJs, PlayState* play);
-
-void EnJs_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* enJs) {
+void EnJs_PostLimbDraw_LinkMask(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, Actor* thisx) {
     if (limbIndex == MOONCHILD_LIMB_HEAD) {
-        static Vec3f D_8096AD14 = { 300.0f, 0.0f, 0.0f };
-        MM_Matrix_MultVec3f(&D_8096AD14, &enJs->focus.pos);
+        MM_Matrix_MultVec3f(&D_8096AC30, &thisx->focus.pos);
         OPEN_DISPS(play->state.gfxCtx);
-
-        Gfx_SetupDL25_Opa(play->state.gfxCtx);
-
-        MM_Matrix_RotateZYX(0, -0x4000, -0x8BA, MTXMODE_APPLY);
-        MM_Matrix_Translate(-25.0f, -295.0f, 0.0f, MTXMODE_APPLY);
+        MM_Matrix_RotateZYX(0x8000, 0x8000, -0x4000, MTXMODE_APPLY);
+        MM_Matrix_Translate(-128.0, -256.0, 0.0, MTXMODE_APPLY);
         MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
         MM_gSPDisplayList(POLY_OPA_DISP++, (Gfx*)gSkullKidLinkMask1DL);
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }
 
-void EnJs_Draw(Actor* thisx, PlayState* play) {
+void EnJs_Draw_LinkMask(Actor* thisx, PlayState* play) {
     EnJs* enJs = (EnJs*)thisx;
 
     Gfx_SetupDL25_Opa(play->state.gfxCtx);
     MM_SkelAnime_DrawFlexOpa(play, enJs->skelAnime.skeleton, enJs->skelAnime.jointTable, enJs->skelAnime.dListCount,
-                             NULL, EnJs_PostLimbDraw, &enJs->actor);
+                             NULL, EnJs_PostLimbDraw_LinkMask, &enJs->actor);
 }
 
-void EnJs_HandleDialog(EnJs* enJs, PlayState* play) {
-    if ((MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && MM_Message_ShouldAdvance(play)) {
-        if (play->msgCtx.choiceIndex != 0) {
-            play->msgCtx.ocarinaMode = OCARINA_MODE_APPLY_SOT;
-            gSaveContext.nextCutsceneIndex = 0;
-            play->nextEntrance = ENTRANCE(CUTSCENE, 0);
-            play->transitionTrigger = TRANS_TRIGGER_START;
-            play->transitionType = 2;
-        }
-        enJs->actionFunc = EnJs_WaitForPlayer;
+void EnJs_ResetTime(EnJs* enJs, PlayState* play) {
+    func_8096971C(enJs, play);
+    if (play->msgCtx.ocarinaMode == OCARINA_MODE_APPLY_SOT) {
+        play->nextEntrance = ENTRANCE(CUTSCENE, 0);
+        gSaveContext.nextCutsceneIndex = 0xFFF7;
+        play->transitionTrigger = TRANS_TRIGGER_START;
+        enJs->actionFunc = func_8096971C;
+    } else if (MM_Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE && MM_Message_ShouldAdvance(play) &&
+               play->msgCtx.choiceIndex == 1) {
+        enJs->actionFunc = EnJs_PromptForDialog;
     }
 }
 
 void EnJs_PromptForDialog(EnJs* enJs, PlayState* play) {
+    func_8096971C(enJs, play);
     if (Actor_TalkOfferAccepted(&enJs->actor, &play->state)) {
-        enJs->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
+        enJs->actionFunc = EnJs_ResetTime;
         MM_Message_StartTextbox(play, 0x1B8A, &enJs->actor);
         play->msgCtx.ocarinaMode = OCARINA_MODE_PROCESS_SOT;
-        enJs->actionFunc = EnJs_HandleDialog;
-    } else if (enJs->actor.xzDistToPlayer < 100.0f) {
-        Actor_OfferTalk(&enJs->actor, play, 100.0f);
+    } else if (func_80968DD0(enJs, play)) {
+        Actor_OfferTalk(&enJs->actor, play, 120.0f);
     }
 }
 
-void EnJs_WaitForPlayer(EnJs* enJs, PlayState* play) {
-    if (Actor_TalkOfferAccepted(&enJs->actor, &play->state)) {
-        MM_Message_StartTextbox(play, 0x2201, &enJs->actor);
-        enJs->actionFunc = EnJs_PromptForDialog;
-    } else if (enJs->actor.xzDistToPlayer < 100.0f) {
-        Actor_OfferTalk(&enJs->actor, play, 100.0f);
+void EnJs_SpawnResetNpc(float rotY) {
+    u32 params = 8;
+    Actor* actor =
+        MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_JS, -150, 40, 50, 0, rotY, 0, params);
+    // RSBS: upstream writes through the spawn result unchecked. MM_Actor_Spawn returns NULL when the actor table is
+    // full, the overlay fails to load, or the object slot is missing, so skip the NPC rather than crash the scene.
+    if (actor == NULL) {
+        return;
     }
+    actor->draw = EnJs_Draw_LinkMask;
+    ((EnJs*)actor)->actionFunc = EnJs_PromptForDialog;
 }
 
 void Rando::ActorBehavior::InitEnJsBehavior() {
@@ -237,72 +236,27 @@ void Rando::ActorBehavior::InitEnJsBehavior() {
         }
     });
 
-    COND_ID_HOOK(OnOpenText, 0x2215, IS_RANDO, OverrideSubJsText);
-    COND_ID_HOOK(OnOpenText, 0x2216, IS_RANDO, OverrideSubJsText);
-    COND_ID_HOOK(OnOpenText, 0x21FC, IS_RANDO, OverrideMainJsText);
-    COND_ID_HOOK(OnOpenText, 0x21FE, IS_RANDO, OverrideMainJsText);
-    COND_ID_HOOK(OnOpenText, 0x21FD, IS_RANDO, OverrideMainJsText);
+    COND_ID_HOOK(OnSceneInit, SCENE_SOUGEN, IS_RANDO, [](s8 sceneId, s8 spawnNum) { EnJs_SpawnResetNpc(-15000); });
+    COND_ID_HOOK(OnSceneInit, SCENE_OKUJOU, IS_RANDO, [](s8 sceneId, s8 spawnNum) { EnJs_SpawnResetNpc(7000); });
 
-    // Handle spawning an extra Moon Child to reset time on the Moon and Clock Tower Rooftop
-    COND_HOOK(OnSceneInit, IS_RANDO, [](s8 sceneId, s8 spawnNum) {
-        if (sceneId == SCENE_SOUGEN) {
-            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_JS, -140.0f, -21.0f, 800.0f, 0, -25112, 0,
-                           13);
-        } else if (sceneId == SCENE_OKUJOU) {
-            MM_Actor_Spawn(&MM_gPlayState->actorCtx, MM_gPlayState, ACTOR_EN_JS, 162.0f, 34.0f, 40.0f, 0, -16384, 0,
-                           13);
-        }
-    });
-
+    // Need to disable this for spawning on the Clock Tower roof
     COND_VB_SHOULD(VB_ENABLE_OBJECT_DEPENDENCY, IS_RANDO, {
         ObjectId objectId = (ObjectId)va_arg(args, int);
-        if (objectId == OBJECT_OB && MM_gPlayState->sceneId == SCENE_OKUJOU) {
+        if (objectId == OBJECT_OB) {
             *should = false;
         }
     });
 
     COND_ID_HOOK(OnActorInit, ACTOR_EN_JS, IS_RANDO, [](Actor* actor) {
-        EnJs* enJs = (EnJs*)actor;
-        if (ENJS_GET_TYPE(actor) != 13) {
-            return;
+        if (actor->draw == EnJs_Draw_LinkMask) {
+            ((EnJs*)actor)->actionFunc = EnJs_PromptForDialog;
+            actor->world.pos.y = 0;
         }
-
-        enJs->actor.draw = EnJs_Draw;
-        func_80968DD0(enJs, MM_gPlayState);
-        enJs->actionFunc = EnJs_WaitForPlayer;
     });
 
-    COND_ID_HOOK(OnOpenText, 0x2201, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(MM_gPlayState);
-        if (player->talkActor == NULL || player->talkActor->id != ACTOR_EN_JS) {
-            return;
-        }
-        s32 jsType = ENJS_GET_TYPE(player->talkActor);
-        if (jsType != 13) {
-            return;
-        }
-
-        auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Still playing? I can return you to the %gFirst Day%w if you want...";
-        entry.nextMessageID = 0xFFFF;
-        CustomMessage::LoadCustomMessageIntoFont(entry);
-        *loadFromMessageTable = false;
-    });
-
-    COND_ID_HOOK(OnOpenText, 0x1B8A, IS_RANDO, [](u16* textId, bool* loadFromMessageTable) {
-        Player* player = GET_PLAYER(MM_gPlayState);
-        if (player->talkActor == NULL || player->talkActor->id != ACTOR_EN_JS) {
-            return;
-        }
-        s32 jsType = ENJS_GET_TYPE(player->talkActor);
-        if (jsType != 13) {
-            return;
-        }
-
-        auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
-        entry.msg = "Return to the First Day?\n \n%g\xC2Yes\nNo";
-        entry.nextMessageID = 0xFFFF;
-        CustomMessage::LoadCustomMessageIntoFont(entry);
-        *loadFromMessageTable = false;
-    });
+    COND_ID_HOOK(OnOpenText, 0x2215, IS_RANDO, OverrideSubJsText);
+    COND_ID_HOOK(OnOpenText, 0x2216, IS_RANDO, OverrideSubJsText);
+    COND_ID_HOOK(OnOpenText, 0x21FC, IS_RANDO, OverrideMainJsText);
+    COND_ID_HOOK(OnOpenText, 0x21FE, IS_RANDO, OverrideMainJsText);
+    COND_ID_HOOK(OnOpenText, 0x21FD, IS_RANDO, OverrideMainJsText);
 }
