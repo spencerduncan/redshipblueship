@@ -6,6 +6,8 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/randomizer/randomizer.h"
+// C++ (namespace Rando, <span>): kept outside the extern "C" block below, which GCC rejects templates in.
+#include "dungeon.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "triforce_hunt.h" // src/common — #1389: the paired hunt's requirement, for the completed model
 #endif
@@ -15,7 +17,6 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "variables.h"
-#include "dungeon.h"
 #include "objects/object_box/object_box.h"
 #include "objects/object_gi_key/object_gi_key.h"
 #include "objects/object_gi_bosskey/object_gi_bosskey.h"
