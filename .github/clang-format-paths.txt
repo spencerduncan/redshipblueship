@@ -156,6 +156,7 @@ games/oot/soh/oot_check_state_load_test.cpp
 games/oot/soh/oot_deku_theater_prize_test.cpp
 games/oot/soh/oot_shuffled_fairy_test.cpp
 games/oot/soh/oot_mask_shop_night_door_test.cpp
+games/oot/soh/oot_room_bg_cam_guard_test.cpp
 games/oot/soh/oot_xml_skeleton_empty_limb_test.cpp
 games/oot/soh/oot_custom_message_text_test.cpp
 games/oot/soh/oot_master_sword_respawn_test.cpp
@@ -285,6 +286,9 @@ games/oot/soh/Enhancements/randomizer/StoneMaskOoT.cpp
 games/oot/soh/oot_stone_mask_test.cpp
 games/oot/soh/oot_trap_parity_test.cpp
 games/mm/2s2h/mm_trap_parity_test.cpp
+games/mm/2s2h/Rando/OoTMasksMM.h
+games/mm/2s2h/Rando/OoTMasksMM.cpp
+games/mm/2s2h/mm_oot_masks_test.cpp
 games/oot/soh/Enhancements/randomizer/SongOfSoaringOoT.h
 games/oot/soh/Enhancements/randomizer/SongOfSoaringOoT.cpp
 games/oot/soh/oot_song_of_soaring_oot_test.cpp

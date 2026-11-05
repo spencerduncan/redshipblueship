@@ -1761,6 +1761,12 @@ if(BUILD_TESTING)
     # another scene -> unchanged. Display-free and ROM-free.
     redship_add_test(NAME OoTMaskShopNightDoor COMMAND redship --test oot-mask-shop-night-door)
 
+    # #1336 (SFX-1, SFX-18): func_80096A74 short-circuits via
+    # VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when
+    # camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages in
+    # ShipInit's IS_RANDO map. Display-free and ROM-free.
+    redship_add_test(NAME OoTRoomBgCamGuard COMMAND redship --test oot-room-bg-cam-guard)
+
     # #682: the curated MM enhancement toggles, in two halves that fail
     # differently on purpose.
     #
@@ -2380,13 +2386,16 @@ if(BUILD_TESTING)
         # sharedMaskBunny, sharedMaskKeaton, sharedMaskTruth) and, since P4's first
         # piece (#979), the Blast Mask in OoT and its shared pair (OoTMM's
         # blastMaskOot, sharedMaskBlast), and since its second, the Stone Mask in
-        # OoT and its shared pair (stoneMaskOot, sharedMaskStone): seven shared
-        # pairs in the bag, their trimmed halves, and a comboSettingsHash no other
-        # golden has. The Blast Mask Cooldown is a value, not an on/off option, and
-        # stays at Default. The rest of P4 (#979, Kamaro's Mask) and P5 (#980)
-        # append their mask options to this line and re-pin this file, rather than
-        # adding a golden each. Same seed and dispatch as seed-digest-default.
-        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1,gCombo.Rando.StoneMaskOoT=1,gCombo.Rando.SharedMaskStone=1"
+        # OoT and its shared pair (stoneMaskOot, sharedMaskStone), and since P5
+        # (#980), the Gerudo, Skull and Spooky Masks in MM and their shared pairs
+        # (gerudoMaskMm, skullMaskMm, spookyMaskMm, sharedMaskGerudo,
+        # sharedMaskSkull, sharedMaskSpooky): ten shared pairs in the bag, their
+        # trimmed halves, and a comboSettingsHash no other golden has. The Blast
+        # Mask Cooldown is a value, not an on/off option, and stays at Default. The
+        # rest of P4 (#979, Kamaro's Mask) appends its mask options to this line and
+        # re-pins this file, rather than adding a golden. Same seed and dispatch as
+        # seed-digest-default.
+        "GoldenSeedDigestAllMasks|seed-digest-all-masks|rando-determinism|RSBS_SEED_DIGEST_OUT|ON|RSBS_DIAG_CVARS=gCombo.Rando.SharedMaskGoron=1,gCombo.Rando.SharedMaskZora=1,gCombo.Rando.SharedMaskBunny=1,gCombo.Rando.SharedMaskKeaton=1,gCombo.Rando.SharedMaskTruth=1,gCombo.Rando.BlastMaskOoT=1,gCombo.Rando.SharedMaskBlast=1,gCombo.Rando.StoneMaskOoT=1,gCombo.Rando.SharedMaskStone=1,gCombo.Rando.GerudoMaskMM=1,gCombo.Rando.SkullMaskMM=1,gCombo.Rando.SpookyMaskMM=1,gCombo.Rando.SharedMaskGerudo=1,gCombo.Rando.SharedMaskSkull=1,gCombo.Rando.SharedMaskSpooky=1"
         # #1367 R5: [Both Games] Logic defaults to All Locations, so every golden
         # above is an All Locations world. The other two rungs get one golden each
         # on the same seed and dispatch: Beatable Only (the default before R5; the
@@ -3055,6 +3064,15 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
         LABEL rando
         TIMEOUT 300
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #980: Ocarina of Time's masks in MM's real logic, each leg with a control
+    # that opens the same edge the native way: the Skull Mask opens the Deku
+    # Palace, the Gerudo Mask gets past the purple guard, and the Spooky Mask
+    # passes the Gibdos at night and not by day, each only under its frozen rule.
+    # games/mm/2s2h/mm_oot_masks_test.cpp. Same bring-up as MMLogicGates.
+    redship_add_test(NAME OoTMasksMMLogic COMMAND redship --test oot-masks-mm-logic
+        LABEL rando
+        TIMEOUT 300
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
     # #1428 (operator ruling 2026-11-03): OoT's goal gates ship at OoTMM's defaults,
     # Rainbow Bridge Medallions (all six) and Ganon's Boss Key Start With (OoTMM's
     # "removed" in play). On one paired creation save (TrackerOoTPanelList's seed):
@@ -3310,6 +3328,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # the rule, and the update seam that hides Link from a listed actor. ROM-free.
     redship_add_test(NAME StoneMaskOoTRule COMMAND redship --test stone-mask-oot-rule)
     redship_add_test(NAME StoneMaskOoTItems COMMAND redship --test stone-mask-oot-items)
+    # OCARINA OF TIME'S MASKS IN MAJORA'S MASK (#980, epic #975 P5; OoTMM
+    # gerudoMaskMm, skullMaskMm, spookyMaskMm and their shared variants): the six
+    # Cross-Game Rules keys (off by default, each shared one only with its mask in
+    # MM, restored at load in OoTMM's order); then the three MM ids appended before
+    # RI_MAX_TRAP with every saved id unchanged, MM's real give and conversion
+    # through the shared slot's owned bits, ownership gated by the frozen rule,
+    # both games' shared members and one bag row per shared rule, the cell a slot
+    # whose own mask is not owned shows, and the actor seam (OoTMM's list, the
+    # Spooky Mask's night, the value put back after the update). ROM-free.
+    redship_add_test(NAME OoTMasksMMRule COMMAND redship --test oot-masks-mm-rule)
+    redship_add_test(NAME OoTMasksMMItems COMMAND redship --test oot-masks-mm-items)
     # THE SECOND CROSS-GAME RULES WORD (#1169 lane XW2): a full 32-bit world field
     # carved at 925, after #1439's Way of the Hero record, for OoTMM's fourteen
     # warp-song rules. ComboItemRulesSecondWord:

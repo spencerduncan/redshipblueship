@@ -2340,6 +2340,8 @@ void OoT_Player_InitHookshotIA(PlayState* play, Player* this) {
     this->heldActor =
         OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_ARMS_HOOK, this->actor.world.pos.x,
                            this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0, 0);
+
+    GameInteractor_Should(VB_INIT_HOOKSHOT_IA, true, this);
 }
 
 void Player_InitBoomerangIA(PlayState* play, Player* this) {
@@ -2561,8 +2563,10 @@ void OoT_Player_ProcessItemButtons(Player* this, PlayState* play) {
             }
             if (!OoT_Player_ItemIsInUse(this, B_BTN_ITEM) && !OoT_Player_ItemIsInUse(this, C_BTN_ITEM(0)) &&
                 !OoT_Player_ItemIsInUse(this, C_BTN_ITEM(1)) && !OoT_Player_ItemIsInUse(this, C_BTN_ITEM(2)) && !hasOnDpad) {
-                OoT_Player_UseItem(play, this, ITEM_NONE);
-                return;
+                if (GameInteractor_Should(VB_PUTAWAY_BECAUSE_DISABLED_ITEM_BUTTONS, true)) {
+                    OoT_Player_UseItem(play, this, ITEM_NONE);
+                    return;
+                }
             }
         }
 
@@ -2573,6 +2577,7 @@ void OoT_Player_ProcessItemButtons(Player* this, PlayState* play) {
         }
 
         item = OoT_Player_GetItemOnButton(play, i);
+        GameInteractor_Should(VB_OVERRIDE_BUTTON_ITEM_USED, true, &i, this, &item);
 
         if (item >= ITEM_NONE_FE) {
             for (i = 0; i < ARRAY_COUNT(sItemButtons); i++) {
@@ -3612,7 +3617,10 @@ int OoT_Player_CanUpdateItems(Player* this) {
  * depending on some conditions. See details below.
  */
 s32 OoT_Player_UpdateUpperBody(Player* this, PlayState* play) {
-    if (!(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) && (this->actor.parent != NULL) && Player_HoldsHookshot(this)) {
+    if (this->actor.parent != NULL &&
+        GameInteractor_Should(VB_PREVENT_HOOKSHOT_PARENT_SOFTLOCK,
+                              !(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) && Player_HoldsHookshot(this),
+                              &this->actor.parent->id)) {
         Player_SetupAction(play, this, Player_Action_80850AEC, 1);
         this->stateFlags3 |= PLAYER_STATE3_FLYING_WITH_HOOKSHOT;
         Player_AnimPlayOnce(play, this, &gPlayerAnim_link_hook_fly_start);

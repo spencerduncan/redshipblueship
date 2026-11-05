@@ -2617,6 +2617,72 @@ typedef enum {
     // - None
     VB_BE_ABLE_TO_TIME_TRAVEL_AT_PEDESTAL,
 
+    // [RSBS #1336] The seven ids below are appended after #1434's, so no earlier
+    // id moves. Upstream SoH e9268c446 / f2c34d8c1 (z_room.c func_80096A74).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*int32_t (camId)`
+    VB_SHOULD_LOAD_BG_IMAGE,
+
+    // Upstream SoH 4b6678b82 (z_item_shield.c ItemShield_Draw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - none
+    VB_ITEMSHIELD_DRAW,
+
+    // Upstream SoH 53b9db5b9 (z_player.c OoT_Player_InitHookshotIA).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_INIT_HOOKSHOT_IA,
+
+    // Upstream SoH 53b9db5b9 (z_player.c OoT_Player_UpdateUpperBody).
+    // #### `result`
+    // ```c
+    // !(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) && Player_HoldsHookshot(this)
+    // ```
+    // #### `args`
+    // - `s16* (&this->actor.parent->id)`
+    VB_PREVENT_HOOKSHOT_PARENT_SOFTLOCK,
+
+    // Upstream SoH 984ccf80e (z_en_go2.c func_80A45288).
+    // #### `result`
+    // ```c
+    // this->isAwake
+    // ```
+    // #### `args`
+    // - `*EnGo2` (Goron Link)
+    VB_PREVENT_GORON_LINK_SOFTLOCK,
+
+    // Upstream SoH 3c565ed6e (z_player.c OoT_Player_ProcessItemButtons).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - none
+    VB_PUTAWAY_BECAUSE_DISABLED_ITEM_BUTTONS,
+
+    // Upstream SoH 3c565ed6e (z_player.c OoT_Player_ProcessItemButtons).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s32* i` (button index)
+    // - `Player*`
+    // - `s32* item`
+    VB_OVERRIDE_BUTTON_ITEM_USED,
+
 } GIVanillaBehavior;
 
 #endif

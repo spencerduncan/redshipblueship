@@ -9,8 +9,7 @@ extern "C" {
 #include <variables.h>
 }
 
-#define NUM_GORON_MESSAGES 9
-static CustomMessage FireTempleGoronMessages[NUM_GORON_MESSAGES] = {
+static CustomMessage FireTempleGoronMessages[] = {
     {
         "Are you the one they call %g@%w?^You look really weird for %rDarunia's kid.%w&Are you adopted?",
         "Du bist also der, den sie @ nennen?^Du siehst nicht aus als wärst Du&%rDarunias Kind.%w Bist Du "
@@ -85,8 +84,7 @@ static CustomMessage FireTempleGoronMessages[NUM_GORON_MESSAGES] = {
 };
 
 void BuildGoronMessage(uint16_t* textId, bool* loadFromMessageTable) {
-    uint16_t choice = ShipUtils::Random(0, NUM_GORON_MESSAGES);
-    CustomMessage msg = FireTempleGoronMessages[choice];
+    CustomMessage msg = ShipUtils::RandomElement(FireTempleGoronMessages);
     msg.Replace("[[days]]", std::to_string(gSaveContext.totalDays));
     msg.Replace("[[a_btn]]", std::to_string(gSaveContext.ship.stats.count[COUNT_BUTTON_PRESSES_A]));
     msg.Format();
@@ -105,3 +103,5 @@ void RegisterGoronMessages() {
     COND_ID_HOOK(OnOpenText, TEXT_FIRE_TEMPLE_GORON_HIDDEN_DOOR_SECRET, IS_RANDO, BuildGoronMessage);
     COND_ID_HOOK(OnOpenText, TEXT_FIRE_TEMPLE_GORON_SOUNDS_DIFFERENT_SECRET, IS_RANDO, BuildGoronMessage);
 }
+
+static RegisterShipInitFunc initFunc(RegisterGoronMessages, { "IS_RANDO" });

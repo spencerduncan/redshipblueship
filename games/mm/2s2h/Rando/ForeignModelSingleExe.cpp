@@ -375,6 +375,11 @@ bool IsCustomDrawn(RandoItemId ri) {
         case RI_OCARINA_BUTTON_C_LEFT:
         case RI_OCARINA_BUTTON_C_RIGHT:
         case RI_OCARINA_BUTTON_C_UP:
+        // #980: Ocarina of Time's masks in MM draw OoT's own model
+        // (OoTMasksMM.cpp, MM_OoTMask_DrawGetItem), which MM does not re-express.
+        case RI_MASK_GERUDO:
+        case RI_MASK_SKULL:
+        case RI_MASK_SPOOKY:
             return true;
         default:
             return false;
@@ -1287,6 +1292,8 @@ namespace {
  *  row as MM's own recipe draws it; either way only when a mounted archive
  *  holds every path. `kindOut` (optional) receives which of the two it is
  *  (COMBO_MODEL_ANSWER_DESCRIPTOR or _HOST_NATIVE) when it returns true. */
+bool ForeignModelForItem(const SharedItem& item, ComboModel* out, uint8_t* kindOut);
+
 bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out, uint8_t* kindOut = nullptr) {
     Combo_ModelInit(out);
     if (checkId == RC_UNKNOWN) {
@@ -1296,9 +1303,17 @@ bool ForeignModelForCheck(RandoCheckId checkId, ComboModel* out, uint8_t* kindOu
     if (item == nullptr) {
         return false;
     }
+    return ForeignModelForItem(*item, out, kindOut);
+}
+
+/** The drawable model of foreign item `item` (#980: split out of
+ *  ForeignModelForCheck so an MM item whose model is the other game's own can
+ *  draw it too, MM_ForeignModel_DrawForeignItem). */
+bool ForeignModelForItem(const SharedItem& item, ComboModel* out, uint8_t* kindOut) {
+    Combo_ModelInit(out);
     ComboModelAnswer answer;
     ComboModel model;
-    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, *item, &answer);
+    const uint8_t kind = Combo_GetForeignItemModel((uint8_t)GAME_MM, item, &answer);
     if (kind == COMBO_MODEL_ANSWER_DESCRIPTOR) {
         model = answer.model;
     } else if (kind == COMBO_MODEL_ANSWER_HOST_NATIVE) {
@@ -1335,6 +1350,27 @@ bool DrawForeignModelForCheck(RandoCheckId randoCheckId, PlayState* play) {
 
 } // namespace Foreign
 } // namespace Rando
+
+/**
+ * #980: draw item `id` of `originGame` (the other game's) under the current
+ * matrix, as the check draw does (OoT's DESCRIPTOR, or MM's own row for a
+ * HOST_NATIVE answer, every path mounted): 1 when drawn, 0 when there is none and
+ * the caller keeps its stand-in. Ocarina of Time's masks in MM are drawn as OoT's
+ * own masks (OoTMasksMM.cpp, MM_OoTMask_DrawGetItem); XW5's warp songs can draw
+ * OoT's the same way. The twin of OoT's OoT_ForeignModel_DrawForeignItem.
+ */
+extern "C" int MM_ForeignModel_DrawForeignItem(PlayState* play, uint8_t originGame, uint16_t id) {
+    SharedItem item;
+    item.originGame = originGame;
+    item.flags = 0;
+    item.id = id;
+    ComboModel model;
+    if (play == nullptr || !ForeignModelForItem(item, &model, nullptr)) {
+        return 0;
+    }
+    ForeignModel_Draw(play, model);
+    return 1;
+}
 
 // ---- TEST BRIDGES (ForeignModel row M10, src/common/tests/test_foreign_model.c)
 

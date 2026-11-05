@@ -7,6 +7,7 @@
 // Rando/ComboGoalEndingMM.cpp — #768: may the triforce piece's win arm end MM
 // under the frozen combo goal?
 extern "C" int MM_ComboGoal_TriforceHuntEnds(void);
+#include "Rando/OoTMasksMM.h" // #980: the OoT masks' owned bits
 #endif
 
 extern "C" {
@@ -395,6 +396,14 @@ void Rando::GiveItem(RandoItemId randoItemId) {
         case RI_OCARINA_BUTTON_C_UP:
             Flags_SetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_A + (randoItemId - RI_OCARINA_BUTTON_A));
             break;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #980: Ocarina of Time's Gerudo, Skull and Spooky Masks (OoTMasksMM.cpp).
+        case RI_MASK_GERUDO:
+        case RI_MASK_SKULL:
+        case RI_MASK_SPOOKY:
+            MM_OoTMask_Give(randoItemId);
+            break;
+#endif
         case RI_JUNK:
         case RI_NONE:
             break;

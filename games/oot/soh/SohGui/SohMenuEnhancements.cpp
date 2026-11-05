@@ -1657,6 +1657,10 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(fishingDisabledFunc)
         .Options(IntSliderOptions().Min(6).Max(13).DefaultValue(13).Format("%d lbs.").Tooltip(
             "The minimum weight for the unique fishing reward as an adult."));
+    AddWidget(path, "Allow fishing with blank B", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("FishingBlankB"))
+        .Options(CheckboxOptions().Tooltip("Allow fishing even when not having any item equipped on the B button, "
+                                           "fixing a vanilla bug. Always enabled in randomizer."));
     AddMmMinigameRows(*this, path); // W6-MINIGAMES: MM's minigames, in a Majora's Mask block
 
     // Extra Modes

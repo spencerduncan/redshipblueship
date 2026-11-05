@@ -98,6 +98,26 @@ extern "C" const char* MM_ForeignMaskTest_PageIcon(int cell, const char* nativeI
     return MM_ForeignMask_PageIcon(cell, nativeIcon);
 }
 
+/** #980: the item mask-page cell `cell` (0-based) shows, MM's REAL
+ *  MM_ForeignMask_PageCellItem over the cell's inventory byte. */
+extern "C" int MM_ForeignMaskTest_PageCellItem(int cell) {
+    return (int)MM_ForeignMask_PageCellItem(cell, gSaveContext.save.saveInfo.inventory.items[cell + ITEM_NUM_SLOTS]);
+}
+
+/** The inventory byte of mask-page cell `cell` (0-based). */
+extern "C" int MM_ForeignMaskTest_CellStored(int cell) {
+    return (int)gSaveContext.save.saveInfo.inventory.items[cell + ITEM_NUM_SLOTS];
+}
+
+/** A shared slot's own item (1 = ITEM_MASK_STONE, 2 = ITEM_MASK_GIBDO). */
+extern "C" int MM_ForeignMaskTest_SlotItem(uint8_t slot) {
+    return slot == 1 ? (int)ITEM_MASK_STONE : (int)ITEM_MASK_GIBDO;
+}
+
+extern "C" int MM_ForeignMaskTest_ItemNone(void) {
+    return (int)ITEM_NONE;
+}
+
 extern "C" void MM_ForeignMaskTest_SetForm(int human) {
     TestPlayer()->transformation = human ? PLAYER_FORM_HUMAN : PLAYER_FORM_DEKU;
 }

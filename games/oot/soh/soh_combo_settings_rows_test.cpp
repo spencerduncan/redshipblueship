@@ -400,6 +400,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         // #979: the Stone Mask in OoT and its shared variant, the Blast Mask's shape.
         { COMBO_SETTING_STONE_MASK_OOT, WIDGET_CHECKBOX, "" },
         { COMBO_SETTING_SHARED_MASK_STONE, WIDGET_CHECKBOX, "" },
+        // #980: the Gerudo, Skull and Spooky Masks in MM and their shared variants,
+        // the Blast Mask's shape.
+        { COMBO_SETTING_GERUDO_MASK_MM, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SKULL_MASK_MM, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SPOOKY_MASK_MM, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_GERUDO, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_SKULL, WIDGET_CHECKBOX, "" },
+        { COMBO_SETTING_SHARED_MASK_SPOOKY, WIDGET_CHECKBOX, "" },
         // ADR 0010 D1's goal: a combobox over the five pinned RSBS_COMBO_GOAL_*
         // enumerators, the direction row's shape.
         { COMBO_SETTING_GOAL, WIDGET_COMBOBOX, "" },
@@ -694,16 +702,17 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             ocarinaRows += retired ? 1 : 0;
             checkboxes += pageRow.first->type == WIDGET_CHECKBOX ? 1 : 0;
         }
-        ROWS_CHECK(checkboxes == 21,
-                   "the Cross-Game Rules page has %d checkbox row(s); the twenty-one expected are the Shared Kokiri "
+        ROWS_CHECK(checkboxes == 27,
+                   "the Cross-Game Rules page has %d checkbox row(s); the twenty-seven expected are the Shared Kokiri "
                    "Sword (#886), the Shared Shields (#1068), the Shared Lens of Truth (#1065), Shared Epona's Song "
                    "and Shared Song of Storms (#1066), the Shared Ocarina Buttons (#1067), the Shared Song of Time "
                    "(#1069), Shared Fire, Ice and Light Arrows (#968), the Shared Bottles (#970), the Shared Goron, "
-                   "Zora, Keaton and Truth masks and Bunny Hood (#978), the Shared Swim (#1369) and the Blast and "
-                   "Stone Masks (OoT) and their shared variants (#979), after #879 retired the Shared Ocarina",
+                   "Zora, Keaton and Truth masks and Bunny Hood (#978), the Shared Swim (#1369), the Blast and "
+                   "Stone Masks (OoT) and their shared variants (#979), and the Gerudo, Skull and Spooky Masks (MM) "
+                   "and their shared variants (#980), after #879 retired the Shared Ocarina",
                    checkboxes);
-        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 21 "
-               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369, #979)\n",
+        printf("[TEST] leg 1e: %d \"Shared Ocarina\" row(s) and %d checkbox(es) on the page, expected 0 and 27 "
+               "(#879, #886, #1068, #1065, #1066, #1067, #1069, #968, #970, #978, #1369, #979, #980)\n",
                ocarinaRows, checkboxes);
     }
 
@@ -741,8 +750,16 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
             // (sharedMaskBlast, sharedMaskStone, then sharedMaskKamaro).
             "Blast Mask (OoT)",
             "Stone Mask (OoT)",
+            // #980: then the masks added to MM (gerudoMaskMm, skullMaskMm,
+            // spookyMaskMm), and after the OoT masks' shared variants, theirs.
+            "Gerudo Mask (MM)",
+            "Skull Mask (MM)",
+            "Spooky Mask (MM)",
             "Shared Blast Mask",
             "Shared Stone Mask",
+            "Shared Gerudo Mask",
+            "Shared Skull Mask",
+            "Shared Spooky Mask",
         };
         // The first rank of OoTMM's Cross-Game Masks section (#979); every rank
         // before it is a Shared Items rule.
@@ -897,11 +914,49 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
         printf("[TEST] leg 3a: with the Stone Mask (OoT) off the Shared Stone Mask row is greyed with the "
                "extension's reason and shows off (#979)\n");
     }
+    // #980: the three shared variants of the masks added to MM, the same way, each
+    // with its own extension's reason.
+    {
+        static const struct {
+            ComboSettingId shared;
+            const char* reason;
+        } kMmSharedRows[] = {
+            { COMBO_SETTING_SHARED_MASK_GERUDO, "Gerudo Mask (MM) Is Off" },
+            { COMBO_SETTING_SHARED_MASK_SKULL, "Skull Mask (MM) Is Off" },
+            { COMBO_SETTING_SHARED_MASK_SPOOKY, "Spooky Mask (MM) Is Off" },
+        };
+        for (const auto& s : kMmSharedRows) {
+            if (settingRow[s.shared] == nullptr) {
+                continue;
+            }
+            WidgetInfo& sharedRow = *settingRow[s.shared];
+            ROWS_CHECK(Combo_ComboSettingSet(s.shared, 1) == 1, "the writer refused a pre-creation %s",
+                       Combo_ComboSettingLabel(s.shared));
+            RunPreFunc(sharedRow);
+            const std::string tip =
+                sharedRow.options->disabledTooltip != nullptr ? sharedRow.options->disabledTooltip : "";
+            ROWS_CHECK(sharedRow.options->disabled && tip.find(s.reason) != std::string::npos,
+                       "the %s row must be greyed with the reason \"%s\" while its extension is off (disabled=%d, "
+                       "tooltip '%s')",
+                       Combo_ComboSettingLabel(s.shared), s.reason, sharedRow.options->disabled ? 1 : 0, tip.c_str());
+            ROWS_CHECK(StagedBool(sharedRow) == 0,
+                       "the %s row staged %d with its extension off; the resolver freezes it off, so the row must "
+                       "show off",
+                       Combo_ComboSettingLabel(s.shared), StagedBool(sharedRow));
+            Combo_ComboSettingClear(s.shared);
+        }
+        printf("[TEST] leg 3a: with the Gerudo, Skull and Spooky Masks (MM) off their shared rows are greyed with "
+               "the extension's reason and show off (#980)\n");
+    }
     // Then the extensions are authored ON for every row to be editable.
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_BLAST_MASK_OOT, 1) == 1,
                "the writer refused a pre-creation Blast Mask (OoT)");
     ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, 1) == 1,
                "the writer refused a pre-creation Stone Mask (OoT)");
+    ROWS_CHECK(Combo_ComboSettingSet(COMBO_SETTING_GERUDO_MASK_MM, 1) == 1 &&
+                   Combo_ComboSettingSet(COMBO_SETTING_SKULL_MASK_MM, 1) == 1 &&
+                   Combo_ComboSettingSet(COMBO_SETTING_SPOOKY_MASK_MM, 1) == 1,
+               "the writer refused a pre-creation Gerudo, Skull or Spooky Mask (MM)");
     // #1065: the lens is authored ON through its own row's Callback (the row's
     // only write path), so the PreFunc below must stage what the writer kept.
     WidgetInfo* lensRow = FindRow(rows, LensRowName());
@@ -1073,6 +1128,18 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
     ROWS_CHECK(StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_STONE]) == 0,
                "the frozen Shared Stone Mask row staged %d; it must show the SAVE's OFF",
                StagedBool(*settingRow[COMBO_SETTING_SHARED_MASK_STONE]));
+    // #980: the six rows of the masks added to MM, the same way: the frozen OFF,
+    // not the authored extension ON.
+    for (const ComboSettingId id :
+         { COMBO_SETTING_GERUDO_MASK_MM, COMBO_SETTING_SKULL_MASK_MM, COMBO_SETTING_SPOOKY_MASK_MM,
+           COMBO_SETTING_SHARED_MASK_GERUDO, COMBO_SETTING_SHARED_MASK_SKULL, COMBO_SETTING_SHARED_MASK_SPOOKY }) {
+        if (settingRow[id] == nullptr) {
+            continue;
+        }
+        ExpectDecided(*settingRow[id], Combo_ComboSettingLabel(id));
+        ROWS_CHECK(StagedBool(*settingRow[id]) == 0, "the frozen %s row staged %d; it must show the SAVE's OFF",
+                   Combo_ComboSettingLabel(id), StagedBool(*settingRow[id]));
+    }
     // #1065: the frozen ITEM RULES record (every rule off: the freeze above
     // passed none) against the authored ON key.
     if (lensRow != nullptr) {
@@ -1316,7 +1383,14 @@ extern "C" int OoT_ComboSettingsRows_RunHeadless(void) {
                            1 &&
                        // #979: the Stone Mask's two rows.
                        Combo_ComboSettingSet(COMBO_SETTING_STONE_MASK_OOT, 1) == 1 &&
-                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, 1) == 1,
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_STONE, 1) == 1 &&
+                       // #980: the masks added to MM and their shared variants.
+                       Combo_ComboSettingSet(COMBO_SETTING_GERUDO_MASK_MM, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SKULL_MASK_MM, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SPOOKY_MASK_MM, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_GERUDO, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_SKULL, 1) == 1 &&
+                       Combo_ComboSettingSet(COMBO_SETTING_SHARED_MASK_SPOOKY, 1) == 1,
                    "the writer refused a pre-creation value leg 9 needs");
         // #1169 XW2: the fourteen warp-song keys have no row until XW12, but the
         // Reset button clears every key, theirs included.

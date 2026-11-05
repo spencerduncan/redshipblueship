@@ -11,6 +11,7 @@ extern "C" {
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/Foreign.h" // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
 #include "ShopPrices.h"    // #1427: the shop and Tingle price modes
+#include "Rando/OoTMasksMM.h" // #980: the OoT masks' frozen rules
 // RedShipBlueShip (#645 increment 3, lane K9): where RO_PLENTIFUL_ITEMS' copies
 // sit in the last `itemPool` this function returned — [from, to), both 0 when
 // plentiful added none — and that pool's final size, so a consumer can tell it is
@@ -245,6 +246,17 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
             itemPool.push_back((RandoItemId)i);
         }
     }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #980 (OoTMM gerudoMaskMm, skullMaskMm, spookyMaskMm): each
+    // Ocarina of Time mask its frozen Cross-Game Rules row adds to Majora's Mask.
+    // Off by default, so a world without the rules builds the pool it always did.
+    for (RandoItemId mask : { RI_MASK_GERUDO, RI_MASK_SKULL, RI_MASK_SPOOKY }) {
+        if (MM_OoTMask_RuleOn(mask)) {
+            itemPool.push_back(mask);
+        }
+    }
+#endif
 
     // Shuffle Triforce Pieces into the Pool
     if (saveInfo.randoSaveOptions[RO_SHUFFLE_TRIFORCE_PIECES] == RO_GENERIC_YES) {
