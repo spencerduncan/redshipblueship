@@ -53,7 +53,7 @@ void Rando::ActorBehavior::InitEnTotoBehavior() {
         Message_BombersNotebookQueueEvent(MM_gPlayState, BOMBERS_NOTEBOOK_EVENT_MET_GORMAN);
     });
 
-    COND_VB_SHOULD(VB_TOTO_START_SOUND_CHECK, IS_RANDO && RsbsTotoShuffleOcarinaButtonsOn(), {
+    COND_VB_SHOULD(VB_TOTO_START_SOUND_CHECK, IS_RANDO && (RsbsTotoShuffleOcarinaButtonsOn() || !HAS_ITEM(ITEM_OCARINA_OF_TIME)), {
         EnToto* totoActor = va_arg(args, EnToto*);
         if (totoActor->text->textId == 0x2B24) {
             if (!(Rando::Logic::canPlaySong(OCARINA_SONG_WIND_FISH_HUMAN) &&
