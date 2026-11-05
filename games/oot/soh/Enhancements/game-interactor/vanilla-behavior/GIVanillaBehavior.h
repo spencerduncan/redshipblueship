@@ -2734,6 +2734,41 @@ typedef enum {
     // #### `args`
     // - `Camera*` (`camera`)
     VB_RELEASE_DOORC_CAMERA,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_PLAYER_LIMIT_DIVE_XZ_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_PLAYER_LIMIT_JUMP_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `f32*` speedTarget
+    VB_PLAYER_MODIFY_RUN_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `f32*` swimSpeed
+    // - `s32` sControlInput != NULL
+    VB_PLAYER_MODIFY_SWIM_SPEED,
 } GIVanillaBehavior;
 
 #endif
