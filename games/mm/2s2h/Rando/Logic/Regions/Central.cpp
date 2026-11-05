@@ -97,6 +97,15 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_CLOCK_TOWN_STRAY_FAIRY,         CAN_BE_DEKU && IS_NIGHT()),
             CHECK(RC_CLOCK_TOWN_EAST_UPPER_CHEST,    true),
             CHECK(RC_CLOCK_TOWN_BOMBERS_NOTEBOOK,    RANDO_EVENTS[RE_BOMBER_CODE]),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_01, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_02, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_03, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_04, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_05, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_06, CAN_USE_SWORD || CAN_USE_PROJECTILE || HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_DEKU_NUT)),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_07, true),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_08, true),
+            CHECK(RC_CLOCK_TOWN_EAST_WONDER_ITEM_09, true),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(TERMINA_FIELD, 7),                ENTRANCE(EAST_CLOCK_TOWN, 0), true),
@@ -242,6 +251,9 @@ static RegisterShipInitFunc initFunc([]() {
             // so that disjunct could never change a verdict and is not written.
             CHECK(RC_CLOCK_TOWN_SOUTH_CHEST_LOWER, (CAN_BE_DEKU && Flags_GetRandoInf(RANDO_INF_OBTAINED_MOONS_TEAR)) || HAS_ITEM(ITEM_HOOKSHOT) || MM_TRICK(MMRT_SCT_NOTHING) || CAN_GORON_BOMB_JUMP),
             CHECK(RC_CLOCK_TOWN_SOUTH_OWL_STATUE, CAN_USE_SWORD),
+            CHECK(RC_CLOCK_TOWN_SOUTH_WONDER_ITEM_01, CAN_USE_PROJECTILE),
+            CHECK(RC_CLOCK_TOWN_SOUTH_WONDER_ITEM_02, CAN_USE_PROJECTILE),
+            CHECK(RC_CLOCK_TOWN_SOUTH_WONDER_ITEM_03, CAN_USE_PROJECTILE),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(CLOCK_TOWER_INTERIOR, 1),         ENTRANCE(SOUTH_CLOCK_TOWN, 0), true),
@@ -371,6 +383,9 @@ static RegisterShipInitFunc initFunc([]() {
                 Flags_GetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_MAMA) || Flags_GetRandoInf(RANDO_INF_OBTAINED_LETTER_TO_KAFEI)) && 
                 MIDNIGHT()
             ),
+            CHECK(RC_STOCK_POT_INN_WONDER_ITEM_01, CAN_BE_ZORA && HAS_MAGIC),
+            CHECK(RC_STOCK_POT_INN_WONDER_ITEM_02, CAN_BE_ZORA && HAS_MAGIC),
+            CHECK(RC_STOCK_POT_INN_WONDER_ITEM_03, CAN_BE_ZORA && HAS_MAGIC),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(EAST_CLOCK_TOWN, 9),              ENTRANCE(STOCK_POT_INN, 0), true), // From ground floor
@@ -458,6 +473,9 @@ static RegisterShipInitFunc initFunc([]() {
             CHECK(RC_SWORDSMAN_SCHOOL_POT_03, CAN_USE_HUMAN_SWORD && AFTER(TIME_NIGHT3_AM_12_00)),
             CHECK(RC_SWORDSMAN_SCHOOL_POT_04, CAN_USE_HUMAN_SWORD && AFTER(TIME_NIGHT3_AM_12_00)),
             CHECK(RC_SWORDSMAN_SCHOOL_POT_05, CAN_USE_HUMAN_SWORD && AFTER(TIME_NIGHT3_AM_12_00)),
+            CHECK(RC_SWORDSMAN_SCHOOL_WONDER_ITEM, (CAN_BE_GORON || CAN_BE_ZORA || CAN_BE_DEKU || CAN_USE_SWORD ||
+                                                    HAS_ITEM(ITEM_DEKU_STICK) || HAS_ITEM(ITEM_HOOKSHOT) || HAS_ITEM(ITEM_BOW)) &&
+                                                    BEFORE(TIME_NIGHT3_PM_11_00)),
         },
         .exits = { //     TO                                         FROM
             EXIT(ENTRANCE(WEST_CLOCK_TOWN, 3),              ENTRANCE(SWORDMANS_SCHOOL, 0), true),

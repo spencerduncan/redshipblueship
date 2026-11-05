@@ -486,6 +486,9 @@ const OptionUi kOptionUi[] = {
       // are ShouldActorInit and ShouldVanillaBehavior (VB_APPLY_BONK_TO_ACTOR in
       // z_player.c, VB_TREE_DROP_COLLECTIBLE in z_obj_yasi.c and z_en_snowwd.c).
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_SHUFFLE_WONDER_ITEMS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
+      "Shuffle Wonder Items", "Adds invisible wonder item drops to the check pool.",
+      0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
 
     // ---- Additional Items, Traps -------------------------------------------
     { RO_PLENTIFUL_ITEMS, COMBO_MM_GROUP_ADDITIONAL_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
