@@ -1985,6 +1985,11 @@ bool Logic::TakeDamage() {
     return CanUse(RG_BOTTLE_WITH_FAIRY) || EffectiveHealth() != 1 || CanUse(RG_NAYRUS_LOVE);
 }
 
+// Voiding consumes 1 full heart, ignores Nayru's Love, Double Defense, and the damage multiplier
+bool Logic::CanVoid() {
+    return GetSaveContext()->healthCapacity > FULL_HEART_HEALTH || CanUse(RG_BOTTLE_WITH_FAIRY);
+}
+
 bool Logic::CanOpenBombGrotto() {
     return BlastOrSmash() && (HasItem(RG_STONE_OF_AGONY) || ctx->GetTrickOption(RT_GROTTOS_WITHOUT_AGONY));
 }
