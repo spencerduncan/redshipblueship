@@ -1,6 +1,6 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/ShipInit.hpp"
-#include "soh/Enhancements/randomizer/3drando/random.hpp"
+#include "soh/ShipUtils.h"
 #include "soh/Notification/Notification.h"
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
@@ -40,6 +40,10 @@ typedef enum {
 static AltTrapType roll = ADD_TRAP_MAX;
 static int statusTimer = -1;
 static int eventTimer = -1;
+// [RSBS #1397] The teleport trap's destination, drawn right after the type from
+// the roll's own seeded state (the way SoH 40425c8c2 draws teleportRoll), so a
+// seeded roll keeps its destination now that it no longer seeds rando_state.
+static int teleportRoll = 0;
 
 const char* altTrapTypeCvars[] = {
     CVAR_ENHANCEMENT("ExtraTraps.Ice"),    CVAR_ENHANCEMENT("ExtraTraps.Burn"),
@@ -94,15 +98,17 @@ std::vector<AltTrapType> getEnabledAddTraps() {
 
 // RedShipBlueShip (#1424): the draw, apart from springing it, so the parity row
 // reads the type the production roll picks.
-static AltTrapType PickRandomTrap(uint32_t finalSeed) {
-    Random_Init(finalSeed);
-    return RandomElement(getEnabledAddTraps());
+static AltTrapType PickRandomTrap(uint32_t finalSeed, uint64_t* randomState) {
+    ShipUtils::RandInit(finalSeed, randomState);
+    auto enabledAddTraps = getEnabledAddTraps();
+    return ShipUtils::RandomElement(enabledAddTraps, false, randomState);
 }
 
 static void RollRandomTrap(uint32_t seed) {
     uint32_t finalSeed = seed + (IS_RANDO ? Rando::Context::GetInstance()->GetSeed()
                                           : static_cast<uint32_t>(gSaveContext.ship.stats.fileCreatedAt));
-    roll = PickRandomTrap(finalSeed);
+    uint64_t randomState = 0;
+    roll = PickRandomTrap(finalSeed, &randomState);
     switch (roll) {
         case ADD_ICE_TRAP:
             GameInteractor::RawAction::FreezePlayer();
@@ -140,6 +146,7 @@ static void RollRandomTrap(uint32_t seed) {
             break;
         case ADD_TELEPORT_TRAP:
             eventTimer = 3;
+            teleportRoll = static_cast<int>(ShipUtils::Random(0, 7, &randomState));
             break;
         // #1424: OoTMM's handlers: the save half, then (Drain, Anti-Magic) its
         // damage response 0 with no damage of its own and 20 invincibility frames.
@@ -187,8 +194,7 @@ static void OnPlayerUpdate() {
                 break;
             case ADD_TELEPORT_TRAP: {
                 int entrance;
-                int index = Random(0, 7);
-                switch (index) {
+                switch (teleportRoll) {
                     case 0:
                         entrance = GI_TP_DEST_SERENADE;
                         break;
@@ -275,7 +281,8 @@ extern "C" int OoT_ExtraTraps_TestEnabledList(int* out, int cap) {
 /** The type the production draw (PickRandomTrap) picks for @p finalSeed under
  *  the live CVars, without springing it. */
 extern "C" int OoT_ExtraTraps_TestPick(uint32_t finalSeed) {
-    return (int)PickRandomTrap(finalSeed);
+    uint64_t randomState = 0;
+    return (int)PickRandomTrap(finalSeed, &randomState);
 }
 
 /** Spring the save half of trap @p type on OoT's live save. 1 when it has one. */
