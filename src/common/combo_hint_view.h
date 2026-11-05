@@ -237,13 +237,17 @@ void Combo_HintGameSummary(uint8_t game, ComboHintGameSummary* out);
  * hint: only once the source is read and the world is readable, so an unread
  * row carries nothing the player has not seen. `display` is what the row
  * prints: "???" until known, then Combo_HintPlainText of the hint's text.
- * `areaName` is Combo_Area_Name(info.area), the group header.
+ * `areaName` is Combo_Area_Name(info.area), the group header. `found` (known
+ * rows only) is SoH's Journal "found": the hint names at least one check and
+ * every check it names is collected in the save the pane reads; a hint naming
+ * another game's check is never found here (that game's state is lane H2's).
  */
 typedef struct {
     ComboHintSourceInfo info;
     const char* areaName;
     bool read;
     bool known;
+    bool found;
     ComboHintResolution hint;
     char display[RSBS_HINT_TEXT_CAP];
 } ComboHintRow;

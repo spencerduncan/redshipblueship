@@ -31,7 +31,8 @@
  *       kill and reload).
  *   S5. THE PANE over an authored MM half while OoT runs: STALE, every source
  *       listed and masked ("???", nothing resolved) until read, grouped by area;
- *       a read stone shows the resolver's text, plain; an off option drops its
+ *       a read stone shows the resolver's text, plain, and reads found (SoH's
+ *       Journal state) once its check is collected; an off option drops its
  *       sources; an unmarked half is UNAVAILABLE; MM played reads LIVE.
  *   S6. Combo_HintPlainText: MM's colour codes and control bytes out.
  *   S7. THE WIRING, from source (RSBS_SOURCE_DIR), each with a counterfactual:
@@ -506,6 +507,24 @@ bool HsPaneLegs(std::vector<uint8_t>* shadow) {
     HS_CHECK(onLensCheck, "S5: stone 0's check holds no Lens");
     Combo_HintGameSummary((uint8_t)GAME_MM, &sum);
     HS_CHECK(sum.readCount == 1, "S5: the summary does not count the read stone");
+
+    // SoH's Journal "found": once the hinted check is collected in the MM half.
+    HS_CHECK(!read.found, "S5: a hint whose check is not collected reads found");
+    {
+        const ComboMMTrackerDesc* tdesc = Combo_Tracker_GetMMDesc();
+        HS_CHECK(tdesc != nullptr, "S5: no MM tracker descriptor");
+        std::vector<uint8_t> collected(*shadow);
+        collected[tdesc->checkTableOffset + (size_t)read.hint.targets[0].check * tdesc->checkStride +
+                  tdesc->obtainedOffset] = 1;
+        Context_UpdateShadowCopy(GAME_MM, collected.data(), collected.size());
+        ComboHintRow again;
+        bool foundRow = false;
+        for (int i = 0; i < Combo_HintRowCount((uint8_t)GAME_MM) && !foundRow; i++) {
+            foundRow = Combo_HintRowAt((uint8_t)GAME_MM, i, &again) && again.info.source == 0;
+        }
+        Context_UpdateShadowCopy(GAME_MM, shadow->data(), shadow->size());
+        HS_CHECK(foundRow && again.known && again.found, "S5: a hint whose check is collected does not read found");
+    }
     HS_CHECK(MM_HintSources_TestKeepsStream(0, shadow->data(), 0, 0x1475000000000000ull) == 1,
              "S5: resolving a stone moved MM's global stream");
 

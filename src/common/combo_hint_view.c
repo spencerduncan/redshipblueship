@@ -188,6 +188,17 @@ static const void* MMHintSave(uint8_t* outFreshness, bool* outWorld) {
     return save;
 }
 
+/** Whether MM check `check` is collected in the save image `save`, through the
+ *  check tracker's MM descriptor (the obtained byte its rows read). */
+static bool MMCheckObtained(const void* save, uint16_t check) {
+    const ComboMMTrackerDesc* desc = Combo_Tracker_GetMMDesc();
+    if (save == NULL || desc == NULL || check >= desc->checkCount) {
+        return false;
+    }
+    const uint8_t* row = (const uint8_t*)save + desc->checkTableOffset + (size_t)check * desc->checkStride;
+    return row[desc->obtainedOffset] != 0;
+}
+
 /**
  * The pane's rows in order, as source ids, into `out` (RSBS_MM_HINT_READ_CAP
  * entries); returns how many. The world's enabled sources only, grouped by
@@ -280,6 +291,13 @@ bool Combo_HintRowAt(uint8_t game, int index, ComboHintRow* out) {
     if (out->read && sMMHintDesc.resolve(save, source, &out->hint)) {
         out->known = true;
         (void)Combo_HintPlainText(out->hint.text, out->display, (int)sizeof(out->display));
+        out->found = out->hint.targetCount > 0;
+        for (int i = 0; i < (int)out->hint.targetCount && i < RSBS_HINT_TARGET_CAP; i++) {
+            const ComboHintTarget* t = &out->hint.targets[i];
+            if (t->checkGame != (uint8_t)GAME_MM || !MMCheckObtained(save, t->check)) {
+                out->found = false;
+            }
+        }
     } else {
         Combo_HintResolutionClear(&out->hint);
         snprintf(out->display, sizeof(out->display), "%s", RSBS_HINT_MASKED_TEXT);
