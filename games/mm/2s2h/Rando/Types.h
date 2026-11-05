@@ -2999,6 +2999,9 @@ typedef enum {
     // default), so a world created before them keeps its seed and digest.
     RO_SHOP_PRICES,
     RO_TINGLE_PRICES,
+    RO_PLACEMENT_BOSS_KEYS,
+    RO_PLACEMENT_SMALL_KEYS,
+    RO_PLACEMENT_STRAY_FAIRIES,
     RO_MAX,
 } RandoOptionId;
 
@@ -3033,6 +3036,11 @@ typedef enum {
     RO_ACCESS_TRIALS_FORMS,
     RO_ACCESS_TRIALS_OPEN,
 } RandoOptionAccessTrials;
+
+typedef enum {
+    RO_DUNGEON_ITEM_ANYWHERE,
+    RO_DUNGEON_ITEM_OWN_DUNGEON,
+} RandoOptionDungeonItemPlacement;
 
 typedef enum {
     RO_CLOCK_SHUFFLE_RANDOM,

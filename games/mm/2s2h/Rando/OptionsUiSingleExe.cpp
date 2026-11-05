@@ -232,6 +232,11 @@ const char* const kPriceLabels[] = {
     "Random",          // RO_PRICES_RANDOM
 };
 
+const char* const kDungeonItemPlacementLabels[] = {
+    "Anywhere",    // RO_DUNGEON_ITEM_ANYWHERE
+    "Own Dungeon", // RO_DUNGEON_ITEM_OWN_DUNGEON
+};
+
 /**
  * UI metadata for one option. Deliberately does NOT restate the id's cvar
  * string or its default: both are copied from the `Rando::StaticData::Options`
@@ -380,6 +385,21 @@ const OptionUi kOptionUi[] = {
       "Minimum Skulltula Tokens",
       "Tokens needed for the Spider House reward. Forced to the vanilla value when tokens are not shuffled.",
       1, SPIDER_HOUSE_TOKENS_REQUIRED, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
+    { RO_PLACEMENT_SMALL_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Small Keys",
+      "Where each dungeon's small keys may be placed.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+    { RO_PLACEMENT_BOSS_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Boss Keys",
+      "Where each dungeon's boss key may be placed.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+    { RO_PLACEMENT_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Stray Fairies",
+      "Where each dungeon's stray fairies may be placed. The Clock Town stray fairy is unaffected.",
+      0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Minimum Stray Fairies",
       "Stray Fairies needed for a Great Fairy reward. Does not affect the Clock Town fairy.",

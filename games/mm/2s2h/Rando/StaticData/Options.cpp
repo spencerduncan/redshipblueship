@@ -109,6 +109,9 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_SHUFFLE_TREE_DROPS,          RO_GENERIC_OFF),
     RO(RO_SHOP_PRICES,                 RO_PRICES_VANILLA), // OoTMM priceMmShops' default (#1427)
     RO(RO_TINGLE_PRICES,               RO_PRICES_VANILLA), // OoTMM priceMmTingle's default (#1427)
+    RO(RO_PLACEMENT_BOSS_KEYS,         RO_DUNGEON_ITEM_ANYWHERE),
+    RO(RO_PLACEMENT_SMALL_KEYS,        RO_DUNGEON_ITEM_ANYWHERE),
+    RO(RO_PLACEMENT_STRAY_FAIRIES,     RO_DUNGEON_ITEM_ANYWHERE),
 };
 // clang-format on
 
