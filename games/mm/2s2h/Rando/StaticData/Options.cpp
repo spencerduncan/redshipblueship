@@ -112,6 +112,7 @@ std::map<RandoOptionId, RandoStaticOption> Options = {
     RO(RO_PLACEMENT_BOSS_KEYS,         RO_DUNGEON_ITEM_ANYWHERE),
     RO(RO_PLACEMENT_SMALL_KEYS,        RO_DUNGEON_ITEM_ANYWHERE),
     RO(RO_PLACEMENT_STRAY_FAIRIES,     RO_DUNGEON_ITEM_ANYWHERE),
+    RO(RO_SHUFFLE_SONGS,               RO_SONG_SHUFFLE_ANYWHERE),
 };
 // clang-format on
 

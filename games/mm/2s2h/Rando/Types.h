@@ -3002,6 +3002,7 @@ typedef enum {
     RO_PLACEMENT_BOSS_KEYS,
     RO_PLACEMENT_SMALL_KEYS,
     RO_PLACEMENT_STRAY_FAIRIES,
+    RO_SHUFFLE_SONGS,
     RO_MAX,
 } RandoOptionId;
 
@@ -3043,6 +3044,14 @@ typedef enum {
     RO_DUNGEON_ITEM_START_WITH,
     RO_DUNGEON_ITEM_VANILLA,
 } RandoOptionDungeonItemPlacement;
+
+// Not "RandoOptionSongShuffle": SoH declares that global name with other
+// enumerators, and one binary links both trees (the ODR declaration gate).
+typedef enum {
+    RO_SONG_SHUFFLE_ANYWHERE,
+    RO_SONG_SHUFFLE_SONG_LOCATIONS,
+    RO_SONG_SHUFFLE_VANILLA,
+} RandoOptionMMSongShuffle;
 
 typedef enum {
     RO_CLOCK_SHUFFLE_RANDOM,

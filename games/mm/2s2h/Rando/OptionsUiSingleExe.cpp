@@ -239,6 +239,12 @@ const char* const kDungeonItemPlacementLabels[] = {
     "Vanilla",     // RO_DUNGEON_ITEM_VANILLA
 };
 
+const char* const kSongShuffleLabels[] = {
+    "Anywhere",       // RO_SONG_SHUFFLE_ANYWHERE
+    "Song Locations", // RO_SONG_SHUFFLE_SONG_LOCATIONS
+    "Vanilla",        // RO_SONG_SHUFFLE_VANILLA
+};
+
 /**
  * UI metadata for one option. Deliberately does NOT restate the id's cvar
  * string or its default: both are copied from the `Rando::StaticData::Options`
@@ -359,6 +365,12 @@ const OptionUi kOptionUi[] = {
       COMBO_MM_LIVENESS_DORMANT, "Option is Retired" },
 
     // ---- Shuffle Items, Shuffle Shops & Merchants --------------------------
+    { RO_SHUFFLE_SONGS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
+      "Songs",
+      "Where the songs taught in the world may be found: anywhere in the world, shuffled among song locations, or "
+      "left on their vanilla checks.",
+      0, 0, kSongShuffleLabels, UI_COUNT(kSongShuffleLabels),
+      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_SHUFFLE_COWS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_CHECKBOX,
       "Shuffle Cows", "Adds the reward for playing Epona's Song for a cow to the check pool.",
       0, 0, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
