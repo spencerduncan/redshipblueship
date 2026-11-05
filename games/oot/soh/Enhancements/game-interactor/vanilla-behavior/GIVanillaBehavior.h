@@ -2769,6 +2769,54 @@ typedef enum {
     // - `f32*` swimSpeed
     // - `s32` sControlInput != NULL
     VB_PLAYER_MODIFY_SWIM_SPEED,
+
+    // #### `result`
+    // ```c
+    // true if one point cutscene skip not enabled, or not randomizer
+    // ```
+    // #### `args`
+    // - none
+    VB_PLAY_TIMEBLOCK_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `int32_t` (owl type)
+    VB_PLAY_OWL_TRAVEL_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `songItemId`
+    VB_GIVE_ITEM_SONG,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnFu`
+    VB_PLAY_SONG_OF_STORMS_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `f32*` speed
+    VB_MODIFY_WATER_TEMPLE_WATER_LEVEL_SPEED,
+
+    // #### `result`
+    // ```c
+    // Math_Vec3f_DistXZ(&feedingSpot, &player->actor.world.pos) < 300.0f && play->isPlayerDroppingFish(play)
+    // ```
+    // #### `args`
+    // - `*EnJj`
+    VB_JABU_JABU_EAT_FISH,
 } GIVanillaBehavior;
 
 #endif
