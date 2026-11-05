@@ -14,6 +14,9 @@ void OnFileLoad();
 RandoCheckId GetObjectRandoCheckId(void* actor);
 void SetObjectRandoCheckId(const void* object, RandoCheckId rc);
 
+void SpawnWonderItemSparkle(Vec3f* pos);
+void DrawWonderItemSparkle(Actor* actor, PlayState* play);
+
 // Record that check `rc` has been observed (`RCSEEN_SEEN`, e.g. on a shop shelf or
 // named in dialogue without a price) or inspected (`RCSEEN_IDENTIFIED`, e.g. a shop
 // or Tingle offer that shows its price). Monotonic: never downgrades an identified
