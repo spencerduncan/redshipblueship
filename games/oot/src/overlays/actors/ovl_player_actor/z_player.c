@@ -5879,38 +5879,33 @@ void func_8083AA10(Player* this, PlayState* play) {
     }
 }
 
+/**
+ * Sets camera mode for first person, depending on what weapon is held if any.
+ * (This causes the "flickering" with action swap with ranged items, as player
+ * cannot be first person with a non-ranged weapon.)
+ * @return new camera mode, `CAM_MODE_NORMAL` if failed
+ */
 s32 func_8083AD4C(PlayState* play, Player* this) {
     s32 camMode;
 
     if (this->unk_6AD == 2) {
         if (func_8002DD6C(this)) {
-            bool shouldUseAdultAimCamera = LINK_IS_ADULT;
-
-            if (CVarGetInteger(CVAR_ENHANCEMENT("BowSlingshotAmmoFix"), 0) ||
-                CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0) ||
-                this->heldItemAction == PLAYER_IA_HOOKSHOT || this->heldItemAction == PLAYER_IA_LONGSHOT) {
-                shouldUseAdultAimCamera = this->heldItemAction != PLAYER_IA_SLINGSHOT;
-            }
-
-            camMode = shouldUseAdultAimCamera ? CAM_MODE_AIM_ADULT : CAM_MODE_AIM_CHILD;
-        } else {
-            // #region SOH [Enhancement]
-            if (CVarGetInteger(CVAR_ENHANCEMENT("BoomerangFirstPerson"), 0)) {
-                camMode = CAM_MODE_FIRST_PERSON;
-                // #endregion
+            if (LINK_IS_ADULT) {
+                camMode = CAM_MODE_AIM_ADULT;
             } else {
-                camMode = CAM_MODE_AIM_BOOMERANG;
+                camMode = CAM_MODE_AIM_CHILD;
             }
+        } else {
+            camMode = CAM_MODE_AIM_BOOMERANG;
         }
     } else {
         camMode = CAM_MODE_FIRST_PERSON;
     }
 
-    if (GameInteractor_Should(VB_CHANGE_AIMING_CAMERA, true, &camMode)) {
-        return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, CAM_ID_MAIN), camMode);
-    }
+    // Check if aiming camera mode should be overridden due to player settings
+    GameInteractor_Should(VB_CHANGE_AIMING_CAMERA, true, &this->heldItemAction, &camMode);
 
-    return 0;
+    return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, CAM_ID_MAIN), camMode);
 }
 
 /**
