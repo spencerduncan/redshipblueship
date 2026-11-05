@@ -2710,6 +2710,364 @@ typedef enum {
     // - `*EnFirefly`
     VB_KEESE_SETUP_FROZENFALL,
 
+    // [RSBS #1365] Appended after #1336's, so no earlier id moves.
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_Init).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossTw`
+    // - `*PlayState`
+    VB_PLAY_TWINROVA_INTRO_CS,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOTAKE,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOUME,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossVa`
+    // - `s8*` sCsState
+    VB_BARINADE_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timer == 0
+    // ```
+    // or while the body darkens
+    // ```c
+    // this->timer != 0
+    // ```
+    // #### `args`
+    // - `*BossSst` (head)
+    // - `*BossSst` (left hand)
+    // - `*BossSst` (right hand)
+    VB_BONGO_BONGO_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timer == 80
+    // ```
+    // or once the blue warp has spawned
+    // ```c
+    // this->timer == 0
+    // ```
+    // #### `args`
+    // - `*BossGoma`
+    VB_GOHMA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->unk_1DA == 600
+    // ```
+    // #### `args`
+    // - `*BossDodongo`
+    VB_KING_DODONGO_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timers[0] == 0
+    // ```
+    // #### `args`
+    // - `*BossMo` (core)
+    // - `*BossMo` (tentacle)
+    VB_MORPHA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->work[CS_TIMER_2] >= 120 && this->work[CS_TIMER_2] < 500
+    // ```
+    // #### `args`
+    // - `*BossTw`
+    VB_TWINROVA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // this->timers[0] == 0
+    // ```
+    // #### `args`
+    // - `*BossFd2`
+    VB_VOLVAGIA_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    VB_GANONDORF_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon2`
+    VB_PLAY_ESCAPED_TOWER_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    // - `u16` text ID
+    VB_PLAY_GANONDORF_INTRO_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon2`
+    // - `*EnZl3`
+    VB_PLAY_GANON_INTRO_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossGanon`
+    VB_PLAY_ZELDA_CRYSTAL_CS,
+
+    // #### `result`
+    // ```c
+    // false if in Jabu, carrying Ruto, abducted flag set, door is id 21 or 3
+    // ```
+    // #### `args`
+    // - `*Actor` (shutter door)
+    VB_JABU_PREVENT_RUTO_REENTER_BIGOCTO,
+
+    // #### `result`
+    // ```c
+    // interruptResult == PLAYER_INTERRUPT_NEW_ACTION
+    // ```
+    // #### `args`
+    // - `*u8 (&player->unk_6AD)`
+    VB_INTERRUPT_LADDER_DISMOUNT,
+
+    // #### `result`
+    // ```c
+    // play->interfaceCtx.hbaAmmo == 0
+    // ```
+    // Prevent custom fanfares set to loop from softlocking Horseback Archery by
+    // letting players escape the cutscene with A/B/start after a normal number of playframes.
+    // #### `args`
+    // - none
+    VB_PREVENT_HBA_FANFARE_SOFTLOCK_TIMER,
+
+    // #### `result`
+    // ```c
+    // (isFanfarePlaying != 1 && gSaveContext.minigameState != 3)
+    // ```
+    // Prevent custom fanfares set to loop from softlocking Horseback Archery by
+    // letting players escape the cutscene with A/B/start after a normal number of playframes.
+    // #### `args`
+    // - `EnHorse*`
+    VB_PREVENT_HBA_FANFARE_SOFTLOCK_BUTTONS,
+
+    // #### `result`
+    // ```c
+    // reflection[i].reflectionPoly != NULL
+    // ```
+    // #### `args`
+    // - `*MirRayShieldReflection`
+    VB_MIRRAY_DRAW_REFLECTION,
+
+    // #### `result`
+    // ```c
+    // this->itemAction != PLAYER_IA_BOTTLE
+    // ```
+    // #### `args`
+    // - none
+    VB_EMPTY_BOTTLE_OI,
+
+    // #### `result`
+    // ```c
+    // camera->xzSpeed > 0.001f || <any release button pressed> || params->interfaceFlags & 0x8
+    // ```
+    // #### `args`
+    // - `Camera*` (`camera`)
+    VB_RELEASE_DOORC_CAMERA,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_PLAYER_LIMIT_DIVE_XZ_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    VB_PLAYER_LIMIT_JUMP_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `f32*` speedTarget
+    VB_PLAYER_MODIFY_RUN_SPEED,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `f32*` swimSpeed
+    // - `s32` sControlInput != NULL
+    VB_PLAYER_MODIFY_SWIM_SPEED,
+
+    // #### `result`
+    // ```c
+    // true if one point cutscene skip not enabled, or not randomizer
+    // ```
+    // #### `args`
+    // - none
+    VB_PLAY_TIMEBLOCK_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `int32_t` (owl type)
+    VB_PLAY_OWL_TRAVEL_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `songItemId`
+    VB_GIVE_ITEM_SONG,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnFu`
+    VB_PLAY_SONG_OF_STORMS_CS,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `f32*` speed
+    VB_MODIFY_WATER_TEMPLE_WATER_LEVEL_SPEED,
+
+    // #### `result`
+    // ```c
+    // Math_Vec3f_DistXZ(&feedingSpot, &player->actor.world.pos) < 300.0f && play->isPlayerDroppingFish(play)
+    // ```
+    // #### `args`
+    // - `*EnJj`
+    VB_JABU_JABU_EAT_FISH,
+
+    // #### `result`
+    // ```c
+    // gSaveContext.health < STARTING_HEALTH
+    // ```
+    // #### `args`
+    // - None
+    VB_FULL_HEALTH_SPAWN,
+
+    // #### `result`
+    // ```c
+    // this->hookshotSlotFull
+    // ```
+    // #### `args`
+    // - None
+    VB_DAMPE_AWARD_SECOND_PRIZE,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*f32` (speed
+    VB_DAMPE_GO_BACKWARDS,
+
+    // #### `result`
+    // ```c
+    // INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_SOLD_OUT
+    // ```
+    // #### `args`
+    // - `*EnOssan` (Happy Mask Shopkeeper)
+    VB_HAPPY_MASK_SHOP_CHECK_SOLD_OUT,
+
+    // #### `result`
+    // ```c
+    // varies
+    // ```
+    // #### `args`
+    // - `s32` (drop id)
+    VB_FLEX_DROP_AMMO,
+
+    // #### `result`
+    // ```c
+    // player->unk_6A0 > 4000000.0f
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `double` (temp - promoted from `f32`)
+    VB_RUMBLE_FOR_SECRET,
+
+    // #### `result`
+    // ```c
+    // (gSaveContext.inventory.items[gSaveContext.equips.cButtonSlots[button - 1]] == ITEM_MILK_BOTTLE) &&
+    //     (item == ITEM_BOTTLE)
+    // ```
+    // #### `args`
+    // - `int32_t` (button - promoted from `u8`)
+    // - `int32_t` (item - promoted from `u8`)
+    VB_EMPTY_BOTTLE_TO_HALF_MILK,
+
+    // #### `result`
+    // ```c
+    // EnKo_GetForestQuestState2(this)
+    // ```
+    // #### `args`
+    // - `*EnKo`
+    VB_KOKIRI_GET_FOREST_QUEST_STATE2,
+
+    // #### `result`
+    // ```c
+    // sets `camMode` to new mode if applicable
+    // ```
+    // #### `args`
+    // - `s32` player->heldItemAction
+    // - `s32*` camMode
+    VB_CHANGE_AIMING_CAMERA,
+
 } GIVanillaBehavior;
 
 #endif

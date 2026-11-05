@@ -11,11 +11,16 @@
 #define CAM_STAT_UNK100     0x100
 
 #define NUM_CAMS 4
-#define MAIN_CAM 0
-#define SUBCAM_FIRST 1
+
+#define CAM_ID_MAIN 0
+#define CAM_ID_SUB_FIRST 1
 #define SUBCAM_FREE 0
 #define SUBCAM_NONE -1
 #define SUBCAM_ACTIVE -1
+// RSBS: upstream 73df35c6a renames MAIN_CAM and SUBCAM_FIRST at every use. Only func_8083AD4C was ported, so the
+// old names stay as aliases for the call sites that were not renamed.
+#define MAIN_CAM CAM_ID_MAIN
+#define SUBCAM_FIRST CAM_ID_SUB_FIRST
 
 #define ONEPOINT_CS_INFO(camera) ((Unique9OnePointCs*)camera->paramData)
 #define PARENT_CAM(cam) ((cam)->play->cameraPtrs[(cam)->parentCamIdx])
@@ -115,6 +120,13 @@ typedef enum {
     /* 0x14 */ CAM_MODE_FOLLOWBOOMERANG, // "BOOKEEPON"
     /* 0x15 */ CAM_MODE_MAX
 } CameraModeType;
+
+// RSBS: upstream 73df35c6a renames these four enum members. The renames at their other uses were not ported, so the
+// enum keeps the old names and the new names are aliases.
+#define CAM_MODE_FIRST_PERSON CAM_MODE_FIRSTPERSON
+#define CAM_MODE_AIM_ADULT CAM_MODE_BOWARROW
+#define CAM_MODE_AIM_BOOMERANG CAM_MODE_BOOMERANG
+#define CAM_MODE_AIM_CHILD CAM_MODE_SLINGSHOT
 
 typedef enum {
     /* 0x00 */ CAM_FUNC_NONE,

@@ -720,6 +720,26 @@ if(SINGLE_EXECUTABLE_BUILD)
         # MMRegistrarCoverage's key-gap table attributes each TU by registry content.
         "2s2h/Enhancements/Accessibility/NoFinalDayQuakes.cpp"
         "2s2h/Enhancements/Accessibility/NoScreenDistortion.cpp"
+        # #1412 (MFE-23, MFE-24, MFE-25, MFE-26, MFX-14): the MM halves of settings SoH already ships. Ten read SoH's
+        # keys (kConvergedKeys; InfiniteEponaCarrots.cpp reads SoH's Epona Boost); NoRandomDrops.cpp keeps 2Ship's key,
+        # held apart and hosted as MM No Random Drops. Each registers through a file-scope RegisterShipInitFunc on a VB
+        # appended to GIVanillaBehavior and dispatched through MM_GameHooks_ExecuteVBShould: z_player.c
+        # (VB_LIMIT_EXPLOSIVES, VB_USE_HELD_ITEM_AFTER_CHANGE, VB_USE_BOTTLE_ITEM, VB_PLAY_BOTTLE_CATCH_TEXT),
+        # z_en_item00.c (VB_DROP_COLLECTIBLE, VB_UPDATE_ITEM00), z_en_bom.c, z_door_ana.c, z_parameter.c and
+        # z_en_horse.c; FasterRupeeAccumulator.cpp hooks OnGameStateUpdate (game.c). Play-state guards where a body reads
+        # MM_gPlayState (FasterRupeeAccumulator, SkipBottleCatch, NoRandomDrops). No stub in mm_stubs.c shadows them.
+        # OoT ships RegisterUnsheatheWithoutSlashing and RegisterFasterRupeeAccumulator, so MM's are MM_-prefixed.
+        "2s2h/Enhancements/Cheats/InfiniteEponaCarrots.cpp"
+        "2s2h/Enhancements/Player/UnsheatheWithoutSlashing.cpp"
+        "2s2h/Enhancements/Items/RemoveExplosiveLimit.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoHeartDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoRandomDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoDropDespawning.cpp"
+        "2s2h/Enhancements/Timesavers/FasterRupeeAccumulator.cpp"
+        "2s2h/Enhancements/Dialogue/SkipBottleCatch.cpp"
+        "2s2h/Enhancements/Timesavers/FasterBottles.cpp"
+        "2s2h/Enhancements/Graphics/DisableBombBillboarding.cpp"
+        "2s2h/Enhancements/Graphics/DisableGrottoRotation.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

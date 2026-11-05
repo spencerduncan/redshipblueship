@@ -4286,7 +4286,8 @@ void OoT_KaleidoScope_Update(PlayState* play) {
                         Interface_ChangeAlpha(50);
                         pauseCtx->unk_1EC = 0;
                         pauseCtx->state = 7;
-                    } else if (CHECK_BTN_ALL(input->press.button, BTN_CUP) && pauseCtx->pageIndex == PAUSE_QUEST) {
+                    } else if (IS_RANDO && CHECK_BTN_ALL(input->press.button, BTN_CUP) &&
+                               pauseCtx->pageIndex == PAUSE_QUEST) {
                         Audio_PlaySoundGeneral(NA_SE_SY_DECIDE, &OoT_gSfxDefaultPos, 4, &OoT_gSfxDefaultFreqAndVolScale,
                                                &OoT_gSfxDefaultFreqAndVolScale, &OoT_gSfxDefaultReverb);
                         pauseCtx->randoQuestMode ^= 1;
