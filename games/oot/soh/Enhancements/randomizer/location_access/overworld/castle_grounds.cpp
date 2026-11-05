@@ -17,7 +17,6 @@ void RegionTable_Init_CastleGrounds() {
     });
 
     areaTable[RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY] = Region("Castle Grounds From Great Fairy", SCENE_OUTSIDE_GANONS_CASTLE, TIME_DOESNT_PASS, {RA_CASTLE_GROUNDS}, {}, {}, {
-        //Exits
         Entrance(RR_HC_PAST_GATE,          []{return logic->IsChild;}),
         Entrance(RR_GANONS_CASTLE_GROUNDS, []{return logic->IsAdult;}),
     });
@@ -127,7 +126,7 @@ void RegionTable_Init_CastleGrounds() {
         LOCATION(RC_HC_GS_STORMS_GROTTO, logic->CanUse(RG_BOOMERANG) && ctx->GetTrickOption(RT_HC_STORMS_GS)),
     }, {
         //Exits
-        Entrance(RR_CASTLE_GROUNDS_FROM_GROTTO,      []{return true;}),
+        Entrance(RR_CASTLE_GROUNDS_FROM_GROTTO,    []{return true;}),
         Entrance(RR_HC_STORMS_GROTTO_BEHIND_WALLS, []{return logic->CanBreakMudWalls();}),
     });
 
@@ -152,7 +151,6 @@ void RegionTable_Init_CastleGrounds() {
     });
 
     areaTable[RR_CASTLE_GROUNDS_FROM_GROTTO] = Region("Castle Grounds From Grotto", SCENE_OUTSIDE_GANONS_CASTLE, TIME_DOESNT_PASS, {RA_CASTLE_GROUNDS}, {}, {}, {
-        //Exits
         Entrance(RR_HC_MOAT,               []{return logic->IsChild;}),
         Entrance(RR_GANONS_CASTLE_GROUNDS, []{return logic->IsAdult;}),
     });

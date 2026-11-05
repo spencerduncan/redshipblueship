@@ -13,6 +13,7 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "static_data.h"         // #702: PopulateExcludeLocationsOptions reads the location table
 #include "combo_settings_view.h" // src/common — #1389: whether [Both Games] Triforce Hunt sets the hunt rows
+#include "foreign_items.h"       // src/common — #1337: Combo_LogicRungProves, for HandleStartingAgeUI
 extern "C" void OoT_Rando_WidenTriforceRequiredOptions(void); // 3drando/playthrough.cpp (#1389)
 #endif
 
@@ -143,23 +144,35 @@ void Settings::HandleMixedEntrancePoolsUI() {
 }
 
 void Settings::HandleStartingAgeUI() {
-    // Starting Age - Disabled under very specific conditions
+    // Starting Age - Disabled under very specific conditions unless it's No Logic
 #ifdef RSBS_SINGLE_EXECUTABLE
     // #1425: Shuffle Ocarinas defaults on here (CreateOptions), so an unset key reads on.
     constexpr int kShuffleOcarinasDefault = RO_GENERIC_ON;
+    // #1367: OoT's Logic is derived from the pair's [Both Games] Logic before
+    // FinalizeSettings reads it (3drando/playthrough.cpp), never from the
+    // LogicRules CVar, which the read-only Logic row no longer writes. So the No
+    // Logic exemption follows the rung the next world is generated at, or the
+    // loaded world's, as the trick lists do (SohMenuRandomizer.cpp). The
+    // [Both Games] Logic row re-runs this through RSK_LOGIC_RULES's callback.
+    const bool logicIsNotNoLogic = Combo_LogicRungProves(Combo_ComboSettingsLogicRungShown());
 #else
     constexpr int kShuffleOcarinasDefault = RO_GENERIC_OFF;
+    const bool logicIsNotNoLogic =
+        CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC;
 #endif
-    if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("LogicRules"), RO_LOGIC_GLITCHLESS) != RO_LOGIC_NO_LOGIC &&
+    if (logicIsNotNoLogic &&
+        // If Closed DoT requires OoT then we can only start as child
         ((CVarGetInteger(CVAR_RANDOMIZER_SETTING("DoorOfTime"), RO_DOOROFTIME_CLOSED) == RO_DOOROFTIME_CLOSED &&
           CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOcarinas"), kShuffleOcarinasDefault) == RO_GENERIC_OFF) ||
+         // If Forest is Closed, we cannot start as Adult unless there's a sphere 0 entrance shuffle in Kokiri forest,
+         // or there's random spawns, as the player may saveload as child and get stuck.
+         // Grottos only lead somewhere if decoupled
          (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ClosedForest"), RO_CLOSED_FOREST_ON) == RO_CLOSED_FOREST_ON &&
-          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF &&
-          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), RO_INTERIOR_ENTRANCE_SHUFFLE_OFF) ==
-              RO_INTERIOR_ENTRANCE_SHUFFLE_OFF &&
           CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldSpawns"), RO_GENERIC_OFF) == RO_GENERIC_OFF &&
-          !(CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), RO_GENERIC_OFF) == RO_GENERIC_ON &&
-            CVarGetInteger(CVAR_RANDOMIZER_SETTING("DecoupleEntrances"), RO_GENERIC_OFF) == RO_GENERIC_ON)))) {
+          (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
+           CVarGetInteger(CVAR_RANDOMIZER_SETTING("DecoupleEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF &&
+          CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF))) {
         mOptions[RSK_STARTING_AGE].Disable("This option is disabled due to other options making the game unbeatable.");
     } else {
         mOptions[RSK_STARTING_AGE].Enable();
@@ -339,7 +352,6 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SHUFFLE_OVERWORLD_ENTRANCES, "Overworld Entrances", CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), mOptionDescriptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES]);
     OPT_CALLBACK(RSK_SHUFFLE_OVERWORLD_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
-        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleOverworldEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -347,11 +359,12 @@ void Settings::CreateOptions() {
         } else {
             mOptions[RSK_MIX_OVERWORLD_ENTRANCES].Unhide();
         }
+
+        HandleStartingAgeUI();
     });
     OPT_U8(RSK_SHUFFLE_INTERIOR_ENTRANCES, "Interior Entrances", {"Off", "Simple", "All"}, OptionCategory::Setting, CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), mOptionDescriptions[RSK_SHUFFLE_INTERIOR_ENTRANCES], WIDGET_CVAR_COMBOBOX, RO_INTERIOR_ENTRANCE_SHUFFLE_OFF);
     OPT_CALLBACK(RSK_SHUFFLE_INTERIOR_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
-        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleInteriorsEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -359,6 +372,8 @@ void Settings::CreateOptions() {
         } else {
             mOptions[RSK_MIX_INTERIOR_ENTRANCES].Unhide();
         }
+
+        HandleStartingAgeUI();
     });
     OPT_BOOL(RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES, "Thieves' Hideout Entrances", CVAR_RANDOMIZER_SETTING("ShuffleThievesHideoutEntrances"), mOptionDescriptions[RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES]);
     OPT_CALLBACK(RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES, {
@@ -375,7 +390,6 @@ void Settings::CreateOptions() {
     OPT_BOOL(RSK_SHUFFLE_GROTTO_ENTRANCES, "Grottos Entrances", CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), mOptionDescriptions[RSK_SHUFFLE_GROTTO_ENTRANCES]);
     OPT_CALLBACK(RSK_SHUFFLE_GROTTO_ENTRANCES, {
         HandleMixedEntrancePoolsUI();
-        HandleStartingAgeUI();
 
         if (CVarGetInteger(CVAR_RANDOMIZER_SETTING("ShuffleGrottosEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF ||
             CVarGetInteger(CVAR_RANDOMIZER_SETTING("MixedEntrances"), RO_GENERIC_OFF) == RO_GENERIC_OFF) {
@@ -383,6 +397,8 @@ void Settings::CreateOptions() {
         } else {
             mOptions[RSK_MIX_GROTTO_ENTRANCES].Unhide();
         }
+
+        HandleStartingAgeUI();
     });
     OPT_BOOL(RSK_SHUFFLE_OWL_DROPS, "Owl Drops", CVAR_RANDOMIZER_SETTING("ShuffleOwlDrops"), mOptionDescriptions[RSK_SHUFFLE_OWL_DROPS]);
     OPT_BOOL(RSK_SHUFFLE_WARP_SONGS, "Warp Songs", CVAR_RANDOMIZER_SETTING("ShuffleWarpSongs"), mOptionDescriptions[RSK_SHUFFLE_WARP_SONGS]);
@@ -1408,7 +1424,9 @@ void Settings::CreateOptions() {
     // Cross-Game), from which 3drando/playthrough.cpp derives these two. So both rows
     // are greyed and say what decides them. Unlike #973's rows nothing is cleared:
     // a paired generation never reads the stored value, and only the generated one
-    // moves.
+    // moves. OPT_CALLBACK replaces the callback above (SoH 0e99b30e9's), so its
+    // HandleStartingAgeUI call is repeated here; the [Both Games] Logic row and
+    // Reset Combo Rules re-run this (SohMenuCombo.cpp, #1337).
     OPT_CALLBACK(RSK_LOGIC_RULES, {
         mOptions[RSK_LOGIC_RULES].Disable("This option is disabled because [Both Games] Logic on Randomizer > Cross-Game sets it: Glitchless under All Locations and Beatable Only, No Logic under No Logic.");
         HandleStartingAgeUI();
@@ -3124,9 +3142,11 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
     // With certain access settings, the seed is only beatable if Starting Age is set to Child.
     if (mOptions[RSK_LOGIC_RULES].IsNot(RO_LOGIC_NO_LOGIC) &&
         ((mOptions[RSK_DOOR_OF_TIME].Is(RO_DOOROFTIME_CLOSED) && !mOptions[RSK_SHUFFLE_OCARINA]) ||
-         (mOptions[RSK_FOREST].Is(RO_CLOSED_FOREST_ON) && !mOptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES] &&
-          !mOptions[RSK_SHUFFLE_INTERIOR_ENTRANCES] && !mOptions[RSK_SHUFFLE_OVERWORLD_SPAWNS] &&
-          !(mOptions[RSK_SHUFFLE_GROTTO_ENTRANCES] && mOptions[RSK_DECOUPLED_ENTRANCES])))) {
+         (mOptions[RSK_FOREST].Is(RO_CLOSED_FOREST_ON) && mOptions[RSK_SHUFFLE_OVERWORLD_SPAWNS].Is(RO_GENERIC_OFF) &&
+          mOptions[RSK_SHUFFLE_OVERWORLD_ENTRANCES].Is(RO_GENERIC_OFF) &&
+          mOptions[RSK_SHUFFLE_INTERIOR_ENTRANCES].Is(RO_GENERIC_OFF) &&
+          (mOptions[RSK_SHUFFLE_GROTTO_ENTRANCES].Is(RO_GENERIC_OFF) &&
+           mOptions[RSK_DECOUPLED_ENTRANCES].Is(RO_GENERIC_OFF))))) {
         mOptions[RSK_STARTING_AGE].Set(RO_AGE_CHILD);
     }
 

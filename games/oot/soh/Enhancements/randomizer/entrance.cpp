@@ -357,8 +357,8 @@ void SetAllEntrancesData() {
         { { EntranceType::Interior, RR_HC_PAST_GATE,                  RR_HC_GREAT_FAIRY_FOUNTAIN,       ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_DINS_HC },
           { EntranceType::Interior, RR_HC_GREAT_FAIRY_FOUNTAIN,       RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_GANONS_CASTLE_GROUNDS,         RR_OGC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_OGC_DD },
-          // 0x3E8 is an unused entrance index repurposed to differentiate between the HC and OGC fairy
-          // fountain exits (normally they both use 0x340), even though they lead to the same region
+        // ENTR_POTION_SHOP_KAKARIKO_1 is an unused entrance index repurposed to differentiate between HC and OGC fairy fountain exits
+        // (normally both use ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT)
           { EntranceType::Interior, RR_OGC_GREAT_FAIRY_FOUNTAIN,      RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_POTION_SHOP_KAKARIKO_1 } },
         { { EntranceType::Interior, RR_DMC_LOWER_NEARBY,              RR_DMC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_DMC },
           { EntranceType::Interior, RR_DMC_GREAT_FAIRY_FOUNTAIN,      RR_DMC_LOWER_LOCAL,               ENTR_DEATH_MOUNTAIN_CRATER_GREAT_FAIRY_EXIT } },
@@ -859,8 +859,8 @@ static bool ValidateWorld(Entrance* entrancePlaced) {
     }
 
     bool checkOtherEntranceAccess =
-        ((ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_ON) && ctx->GetOption(RSK_SHUFFLE_GROTTO_ENTRANCES)) ||
-         ctx->GetOption(RSK_SHUFFLE_OVERWORLD_ENTRANCES) ||
+        (ctx->GetOption(RSK_SHUFFLE_OVERWORLD_ENTRANCES) ||
+         (ctx->GetOption(RSK_FOREST).Is(RO_CLOSED_FOREST_ON) && ctx->GetOption(RSK_SHUFFLE_GROTTO_ENTRANCES)) ||
          ctx->GetOption(RSK_SHUFFLE_INTERIOR_ENTRANCES).Is(RO_INTERIOR_ENTRANCE_SHUFFLE_ALL) ||
          ctx->GetOption(RSK_SHUFFLE_THIEVES_HIDEOUT_ENTRANCES) || ctx->GetOption(RSK_SHUFFLE_OVERWORLD_SPAWNS)) &&
         (entrancePlaced == nullptr || ctx->GetOption(RSK_MIXED_ENTRANCE_POOLS) ||
@@ -1800,9 +1800,10 @@ const Entrance* EntranceShuffler::GetEntranceByIndex(int16_t index) {
     // generation without entrance shuffle never stamps the new graph, so a map
     // entry can point at a freed exit. The live graph is asked instead: its
     // stamped exit with this index (unstamped exits keep index -1 and type
-    // None), or none, which leaves the caller at Root. Of the stamped indices
-    // only ENTR_GANONS_TOWER_0 is used twice, and both exits lead to
-    // RR_GANONS_TOWER_STAIRS_1.
+    // None), or none, which leaves the caller at Root. No stamped index is used
+    // twice: SoH 92cb7f159 (#1337) moved the Ganon's Tower blue warp off
+    // ENTR_GANONS_TOWER_0, the one index that was, onto
+    // ENTR_OUTSIDE_GANONS_CASTLE_1_2.
     if (index < 0) {
         return nullptr;
     }
