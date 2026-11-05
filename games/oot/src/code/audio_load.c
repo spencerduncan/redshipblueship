@@ -127,6 +127,10 @@ size_t OoT_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t custo
     return authentic + customCount + SEQUENCE_MAP_SLACK;
 }
 
+size_t OoT_AudioLoad_PermanentCacheCapacity(void) {
+    return ARRAY_COUNT(gAudioContext.permanentCache);
+}
+
 // A map of authentic sequence IDs to their cache policies, for use with sequence swapping.
 u8 OoT_seqCachePolicyMap[MAX_AUTHENTIC_SEQID];
 size_t fontMapSize;
