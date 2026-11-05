@@ -601,7 +601,7 @@ void SetAllEntrancesData() {
           NO_RETURN_ENTRANCE },
         { { EntranceType::BlueWarp, RR_SHADOW_TEMPLE_BOSS_ROOM,    RR_GRAVEYARD_WARP_PAD_REGION, ENTR_GRAVEYARD_SHADOW_TEMPLE_BLUE_WARP },
           NO_RETURN_ENTRANCE },
-        { { EntranceType::BlueWarp, RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1,    ENTR_GANONS_TOWER_0 },
+        { { EntranceType::BlueWarp, RR_GANONS_TOWER_STAIRS_1,      RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE, ENTR_OUTSIDE_GANONS_CASTLE_1_2 },
           NO_RETURN_ENTRANCE },
         // clang-format on
     };
@@ -1303,39 +1303,27 @@ int EntranceShuffler::ShuffleAllEntrances() {
         if (ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES).Is(RO_BOSS_ROOM_ENTRANCE_SHUFFLE_FULL)) {
             entrancePools[EntranceType::Boss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
             AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::AdultBoss));
+            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE)) {
+                AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::GanonTower));
+            }
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::Boss]) {
                     entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
                 }
             }
-
-            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
-                AddElementsToPool(entrancePools[EntranceType::Boss], GetShufflePoolEntrances(EntranceType::GanonTower));
-                if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
-                        entrancePools[EntranceType::BossReverse].push_back(entrance->GetReverse());
-                    }
-                }
-            }
         } else {
             entrancePools[EntranceType::ChildBoss] = GetShufflePoolEntrances(EntranceType::ChildBoss);
             entrancePools[EntranceType::AdultBoss] = GetShufflePoolEntrances(EntranceType::AdultBoss);
+            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE)) {
+                AddElementsToPool(entrancePools[EntranceType::AdultBoss],
+                                  GetShufflePoolEntrances(EntranceType::GanonTower));
+            }
             if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
                 for (Entrance* entrance : entrancePools[EntranceType::ChildBoss]) {
                     entrancePools[EntranceType::ChildBossReverse].push_back(entrance->GetReverse());
                 }
                 for (Entrance* entrance : entrancePools[EntranceType::AdultBoss]) {
                     entrancePools[EntranceType::AdultBossReverse].push_back(entrance->GetReverse());
-                }
-            }
-
-            if (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE).IsNot(RO_GENERIC_OFF)) {
-                AddElementsToPool(entrancePools[EntranceType::AdultBoss],
-                                  GetShufflePoolEntrances(EntranceType::GanonTower));
-                if (ctx->GetOption(RSK_DECOUPLED_ENTRANCES)) {
-                    for (Entrance* entrance : GetShufflePoolEntrances(EntranceType::GanonTower)) {
-                        entrancePools[EntranceType::AdultBossReverse].push_back(entrance->GetReverse());
-                    }
                 }
             }
         }
@@ -1608,8 +1596,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_ENTRYWAY, RR_DESERT_COLOSSUS_OUTSIDE_TEMPLE) },
             { EntranceNameByRegions(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_SHADOW_TEMPLE_BOSS_ENTRYWAY),
               GetEntrance(RR_SHADOW_TEMPLE_ENTRYWAY, RR_GRAVEYARD_WARP_PAD_REGION) },
-            { EntranceNameByRegions(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_BEFORE_GANONDORF_LAIR),
-              GetEntrance(RR_GANONS_TOWER_ENTRYWAY, RR_GANONS_TOWER_STAIRS_1) },
+            { EntranceNameByRegions(RR_GANONS_TOWER_STAIRS_1, RR_GANONS_TOWER_ENTRYWAY),
+              GetEntrance(RR_GANONS_CASTLE_ENTRYWAY, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE) },
         };
 
         // If a boss room is inside a dungeon entrance (or inside a dungeon which is inside a dungeon entrance), make
@@ -1631,8 +1619,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_BOSS_ROOM, RR_DESERT_COLOSSUS) },
             { EntranceNameByRegions(RR_SHADOW_TEMPLE_ENTRYWAY, RR_GRAVEYARD_WARP_PAD_REGION),
               GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_GRAVEYARD_WARP_PAD_REGION) },
-            { EntranceNameByRegions(RR_GANONS_TOWER_ENTRYWAY, RR_GANONS_TOWER_STAIRS_1),
-              GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1) },
+            { EntranceNameByRegions(RR_GANONS_CASTLE_ENTRYWAY, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE),
+              GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE) },
         };
 
         // Pair <BlueWarp exit, BossRoom reverse exit>
@@ -1653,8 +1641,8 @@ int EntranceShuffler::ShuffleAllEntrances() {
               GetEntrance(RR_SPIRIT_TEMPLE_BOSS_ROOM, RR_SPIRIT_TEMPLE_BOSS_ENTRYWAY) },
             { GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_GRAVEYARD_WARP_PAD_REGION),
               GetEntrance(RR_SHADOW_TEMPLE_BOSS_ROOM, RR_SHADOW_TEMPLE_BOSS_ENTRYWAY) },
-            { GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_STAIRS_1),
-              GetEntrance(RR_GANONS_TOWER_GANONDORF_LAIR, RR_GANONS_TOWER_BEFORE_GANONDORF_LAIR) },
+            { GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE),
+              GetEntrance(RR_GANONS_TOWER_STAIRS_1, RR_GANONS_TOWER_ENTRYWAY) },
         };
 
         for (EntrancePair pair : bossRoomExitPairs) {
@@ -1699,6 +1687,8 @@ void EntranceShuffler::CreateEntranceOverrides() {
         // Include blue warps when dungeons or bosses are shuffled
         bool includeBluewarps =
             entrance->GetType() == Rando::EntranceType::BlueWarp &&
+            (ctx->GetOption(RSK_SHUFFLE_GANONS_TOWER_ENTRANCE) ||
+             entrance->GetParentRegionKey() != RR_GANONS_TOWER_STAIRS_1) &&
             (ctx->GetOption(RSK_SHUFFLE_DUNGEON_ENTRANCES) || ctx->GetOption(RSK_SHUFFLE_BOSS_ENTRANCES));
 
         // Double-check to make sure the entrance is actually shuffled
