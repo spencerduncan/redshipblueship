@@ -1,4 +1,4 @@
-#include "SohMenu.h"
+﻿#include "SohMenu.h"
 #include <soh/Enhancements/enhancementTypes.h>
 #include <soh/Enhancements/mods.h>
 #include <soh/Enhancements/game-interactor/GameInteractor.h>
