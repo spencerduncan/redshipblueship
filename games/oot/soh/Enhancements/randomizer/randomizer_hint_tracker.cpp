@@ -15,6 +15,11 @@
 #include <libultraship/controller/controldeck/ControlDeck.h>
 #include <ship/window/gui/IconsFontAwesome4.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// src/common, outside the extern "C" block below: it manages its own linkage.
+#include "foreign_items.h" // SharedItem
+#endif
+
 extern "C" {
 #include <z64.h>
 #include "macros.h"
@@ -26,6 +31,15 @@ extern PlayState* OoT_gPlayState;
 extern "C" bool Combo_HasStartupEntranceForGame(const char* gameId);
 extern "C" void Combo_SetStartupEntrance(uint16_t entrance);
 extern "C" void Combo_ClearStartupEntrance(void);
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ForeignItemsSingleExe.cpp (#575 H3b): the MM item OoT check `rc` yields for the
+// text of a hint that names it (the crossed item the hint names), else NULL.
+extern "C" const SharedItem* OoT_Combo_HintTextCrossingAt(int rc);
+// ForeignItemsSingleExe.cpp (#577 M5, #862): the item category a chest at OoT check
+// `rc` is dressed by: the crossed MM item's own grade at a crossing host, else
+// `coverCategory`.
+extern "C" int OoT_Rando_Foreign_ChestCategory(uint16_t rc, int coverCategory);
+#endif
 
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/randomizer/hint.h"
@@ -313,6 +327,17 @@ static int ItemCategoryRank(GetItemCategory category) {
             return 4;
         case ITEM_CATEGORY_LESSER:
             return 5;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#1172): Majora's Mask's two extra classes, which only an OoT check
+        // hosting an MM item presents (OoT_Rando_Foreign_ChestCategory). A mask is
+        // major, as the hint pass grades it (OoT_Combo_HintPassCrossingIsMajor) and
+        // as OoTMM grades masks. A stray fairy is not major there, and the Journal
+        // has no fairy group, so it ranks with the lesser items.
+        case ITEM_CATEGORY_MM_MASK:
+            return 0;
+        case ITEM_CATEGORY_MM_STRAY_FAIRY:
+            return 5;
+#endif
         case ITEM_CATEGORY_JUNK:
         default:
             return 6;
@@ -332,6 +357,65 @@ static std::string ItemCategoryRankName(int rank) {
         &junkItemsLabel,       // ITEM_CATEGORY_JUNK
     };
     return rankLabels[rank]->GetForCurrentLanguage(MF_CLEAN);
+}
+
+// RSBS: the group slot after the seven category groups (DrawHintList's
+// kCategorySlots leaves room for it). An item hint none of whose checks holds an
+// OoT item to grade is filed there, under the type's plain "Items" name, rather
+// than under Junk Items.
+static constexpr int kItemSlotUngraded = 7;
+
+// The rank one check an item hint points at gives the hint (an ItemCategoryRank),
+// or -1 when the check holds no OoT item to grade (RSBS).
+static int HintedCheckRank(const std::shared_ptr<Rando::Context>& ctx, RandomizerCheck rc) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS: an OoT item placed in Termina sits at no OoT check (RC_UNKNOWN_CHECK),
+    // and that slot's vanilla item is not the hinted item.
+    if (rc == RC_UNKNOWN_CHECK) {
+        return -1;
+    }
+    // RSBS (#1366): a crossing host holds OoT's junk cover (RG_BLUE_RUPEE) while
+    // the hint names the MM item it yields (hint.cpp, CrossedItemHintName). Rank
+    // it by that item's grade, the category its chest is dressed by, under the
+    // same gate as the hint text.
+    if (OoT_Combo_HintTextCrossingAt(static_cast<int>(rc)) != nullptr) {
+        return ItemCategoryRank(static_cast<GetItemCategory>(
+            OoT_Rando_Foreign_ChestCategory(static_cast<uint16_t>(rc), static_cast<int>(ITEM_CATEGORY_JUNK))));
+    }
+#endif
+    // Pass checkObtainability = false: we want the true placed item's value,
+    // otherwise a genuine major item that isn't reachable yet (e.g. Anju's Lens of
+    // Truth as adult) gets masked to a blue rupee and wrongly sinks to junk rank.
+    GetItemEntry itemEntry = ctx->GetFinalGIEntry(rc, false, GI_NONE);
+    return ItemCategoryRank(Randomizer_AdjustItemCategory(itemEntry));
+}
+
+// Files an item hint in the Journal. Returns its group slot: an ItemCategoryRank
+// (0 Major Items .. 6 Junk Items), or kItemSlotUngraded. Sets the entry's sort
+// rank and whether every location it points at has been collected.
+static int ItemHintSlot(const std::shared_ptr<Rando::Context>& ctx, Rando::Hint* hint, int& sortRank, bool& found) {
+    sortRank = ItemCategoryRank(ITEM_CATEGORY_JUNK) + 1;
+    bool ungraded = false;
+    std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
+    // "Found" means every location this hint points at is collected;
+    // a multi-location hint still matters while any part is uncollected.
+    found = !hintedLocations.empty();
+    for (RandomizerCheck rc : hintedLocations) {
+        const int rank = HintedCheckRank(ctx, rc);
+        if (rank >= 0) {
+            sortRank = std::min(sortRank, rank);
+        } else {
+            ungraded = true;
+        }
+        if (!ctx->GetItemLocation(rc)->HasObtained()) {
+            found = false;
+        }
+    }
+    if (ungraded && sortRank > ItemCategoryRank(ITEM_CATEGORY_JUNK)) {
+        return kItemSlotUngraded;
+    }
+    // The unresolved-item fallback rank shares the Junk group.
+    return std::min(sortRank, ItemCategoryRank(ITEM_CATEGORY_JUNK));
 }
 
 static void DrawHintEntry(const HintEntry& entry) {
@@ -526,27 +610,14 @@ static void DrawHintList() {
                        !CVarGetInteger(CVAR_RANDOMIZER_ENHANCEMENT("MysteriousShuffle"), 0)) {
                 // Rank item hints by their adjusted item category, so ice trap
                 // disguises rank as their cover item. Mysterious Shuffle disables
-                // the ranking. Pass checkObtainability = false: we want the true
-                // placed item's value, otherwise a genuine major item that isn't
-                // reachable yet (e.g. Anju's Lens of Truth as adult) gets masked
-                // to a blue rupee and wrongly sinks to junk rank.
-                sortRank = ItemCategoryRank(ITEM_CATEGORY_JUNK) + 1;
-                std::vector<RandomizerCheck> hintedLocations = hint->GetHintedLocations();
-                // "Found" means every location this hint points at is collected;
-                // a multi-location hint still matters while any part is uncollected.
-                found = !hintedLocations.empty();
-                for (RandomizerCheck rc : hintedLocations) {
-                    GetItemEntry itemEntry = ctx->GetFinalGIEntry(rc, false, GI_NONE);
-                    sortRank = std::min(sortRank, ItemCategoryRank(Randomizer_AdjustItemCategory(itemEntry)));
-                    if (!ctx->GetItemLocation(rc)->HasObtained()) {
-                        found = false;
-                    }
-                }
+                // the ranking. RSBS: the ranking (ItemHintSlot) is split out so
+                // the crossing-host lock drives the code the Journal runs.
+                int slot = ItemHintSlot(ctx, hint, sortRank, found);
                 // Fan the single "Items" group out into the item categories.
-                // The unresolved-item fallback rank shares the Junk group.
-                int rank = std::min(sortRank, ItemCategoryRank(ITEM_CATEGORY_JUNK));
-                effectiveKey = groupKey + static_cast<size_t>(rank);
-                effectiveName = ItemCategoryRankName(rank);
+                effectiveKey = groupKey + static_cast<size_t>(slot);
+                if (slot != kItemSlotUngraded) {
+                    effectiveName = ItemCategoryRankName(slot);
+                }
             }
         }
         if (hintName.empty()) {
@@ -580,6 +651,7 @@ static void DrawHintList() {
         };
         // Keys are scaled so the "Items" slot can fan out into the item
         // categories (+0..+6) without colliding with the next hint type.
+        // RSBS: +7 is kItemSlotUngraded.
         constexpr size_t kCategorySlots = 8;
         auto rank = std::find(priority.begin(), priority.end(), type);
         if (rank == priority.end()) {
@@ -940,3 +1012,33 @@ extern "C" int RandoTest_HintTrackerArrivalLock(void) {
     fprintf(stderr, "[tracker-crossgame] hint: %d failures\n", failures);
     return failures;
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ---- RSBS: the Journal's crossing hosts (#1366, PR #1468). -----------------
+// TEST BRIDGES for row TrackerOoTPanelList (OoT_HintTrackerCrossing_RunPaired in
+// oot_tracker_reachability_test.cpp). The group slot DrawHintList files the
+// enabled item or item-area hint `hintKey` under in the Journal with Mysterious
+// Shuffle off, through the same ItemHintSlot: 0 Major Items .. 6 Junk Items, 7
+// the ungraded "Items" group. -1 for any other hint.
+extern "C" int RandoTest_HintTrackerJournalSlot(int hintKey) {
+    if (OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandoContext == nullptr || hintKey <= RH_NONE ||
+        hintKey >= RH_MAX) {
+        return -1;
+    }
+    auto ctx = OTRGlobals::Instance->gRandoContext;
+    Rando::Hint* hint = ctx->GetHint(static_cast<RandomizerHint>(hintKey));
+    if (hint == nullptr || !hint->IsEnabled() ||
+        (hint->GetHintType() != HINT_TYPE_ITEM && hint->GetHintType() != HINT_TYPE_ITEM_AREA)) {
+        return -1;
+    }
+    int sortRank = 0;
+    bool found = false;
+    return HintTracker::ItemHintSlot(ctx, hint, sortRank, found);
+}
+
+// The Journal group slot item category `category` (an ITEM_CATEGORY_* value)
+// ranks at: ItemCategoryRank.
+extern "C" int RandoTest_HintTrackerCategorySlot(int category) {
+    return HintTracker::ItemCategoryRank(static_cast<GetItemCategory>(category));
+}
+#endif

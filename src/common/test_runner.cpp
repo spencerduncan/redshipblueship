@@ -8076,8 +8076,9 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void);
 extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
 extern "C" int MM_TrackerInLogic_RunArrival(void);
 extern "C" int MM_TrackerFillSuperset_RunMM(void);
-extern "C" int OoT_TrackerOoTPanelList_Run(void);   // #1126, same file as the OoT rows above
-extern "C" int OoT_TrackerSohFixes_RunPaired(void); // #1420, the same file, over the panel list's paired file
+extern "C" int OoT_TrackerOoTPanelList_Run(void);       // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerSohFixes_RunPaired(void);     // #1420, the same file, over the panel list's paired file
+extern "C" int OoT_HintTrackerCrossing_RunPaired(void); // #1366, the same file, over the same paired file
 static bool TrackerReachabilityBringUp(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -8125,16 +8126,20 @@ TestResult Test_TrackerFillSuperset(void) {
 // #1126: the combo tracker's OoT panel against SoH's Check Tracker on one paired
 // creation save. Same bring-up as the rows above. #1420's paired legs (the tower
 // chest row under Triforce Hunt, generation untouched, Available Checks from
-// Link's entrance, age and time) follow over the same file.
+// Link's entrance, age and time) follow over the same file, then #1366's (an item
+// hint at a crossing host: the Hint Tracker's Journal ranks the crossed MM item,
+// and the host is Seen under Obscure and Ambiguous clarity).
 TestResult Test_TrackerOoTPanelList(void) {
     if (!TrackerReachabilityBringUp()) {
         return TEST_FAIL;
     }
     const int list = OoT_TrackerOoTPanelList_Run();
     const int fixes = OoT_TrackerSohFixes_RunPaired();
-    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d)\n",
-           (list == 0 && fixes == 0) ? "PASS" : "FAIL", list, fixes);
-    return (list == 0 && fixes == 0) ? TEST_PASS : TEST_FAIL;
+    const int hints = OoT_HintTrackerCrossing_RunPaired();
+    const bool pass = list == 0 && fixes == 0 && hints == 0;
+    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d, #1366 failures %d)\n",
+           pass ? "PASS" : "FAIL", list, fixes, hints);
+    return pass ? TEST_PASS : TEST_FAIL;
 }
 // #1168: the talking, grabbing and time gates ported from upstream, through each
 // game's real search (OoT's per-region event fixpoint and location question, MM's

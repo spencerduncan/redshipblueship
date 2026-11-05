@@ -560,14 +560,24 @@ static bool HintNamesItemUniquely(RandomizerGet rg) {
     return keyUses[Rando::StaticData::RetrieveItem(rg).GetHintKey()] == 1;
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// ForeignItemsSingleExe.cpp (#575 H3b): the MM item OoT check `rc` yields for the
+// text of a hint that names it (the crossed item the hint names), else NULL.
+extern "C" const SharedItem* OoT_Combo_HintTextCrossingAt(int rc);
+#endif
+
 // Only HINT_TYPE_ITEM hints name a check's item outright; other types stay
 // ambiguous. Marks Seen, not Identified, since hints never state a price.
 static bool ApplyItemHintToChecks(RandomizerHint hintKey) {
     // Ambiguous/obscure hints reuse the same phrase across items (all four swords are
     // just "a sword"), so only clear hints are safe to mark - skip anything else
-    if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_HINT_CLARITY) != RO_HINT_CLARITY_CLEAR) {
+    const bool clearHints =
+        OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_HINT_CLARITY) == RO_HINT_CLARITY_CLEAR;
+#ifndef RSBS_SINGLE_EXECUTABLE
+    if (!clearHints) {
         return false;
     }
+#endif
 
     if (hintKey == RH_NONE) {
         return false;
@@ -586,13 +596,26 @@ static bool ApplyItemHintToChecks(RandomizerHint hintKey) {
             continue;
         }
         auto loc = OTRGlobals::Instance->gRandoContext->GetItemLocation(rc);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // RSBS (#1366): at a crossing host the hint names the MM item the check
+        // yields, by its exact name and " (MM)" under every clarity (hint.cpp's
+        // GetItemHintText returns it before any clarity branch), and that name is
+        // unique. So the host is Seen whatever the clarity. Every other check keeps
+        // SoH's rule, on the item it holds.
+        const bool namesCrossedItem = OoT_Combo_HintTextCrossingAt(static_cast<int>(rc)) != nullptr;
+        if (!namesCrossedItem && !clearHints) {
+            continue;
+        }
+#else
+        const bool namesCrossedItem = false;
+#endif
         // Ice traps hint, and display, as their disguise.
         RandomizerGet named = loc->GetPlacedRandomizerGet();
         auto& overrides = OTRGlobals::Instance->gRandoContext->overrides;
         if (named == RG_ICE_TRAP && overrides.contains(rc)) {
             named = overrides[rc].LooksLike();
         }
-        if (!HintNamesItemUniquely(named)) {
+        if (!namesCrossedItem && !HintNamesItemUniquely(named)) {
             // The hint could mean several items, no spoilers!
             continue;
         }
@@ -2621,6 +2644,13 @@ extern "C" int OoT_CheckTracker_TestStartingAgeTime(int32_t linkAge, int32_t nig
     gSaveContext.linkAge = ageBefore;
     gSaveContext.nightFlag = nightBefore;
     return static_cast<int>(ageTime);
+}
+
+// TEST BRIDGE (#1366, PR #1468): what reading hint `hintKey` does to the checks
+// it names (CheckTrackerHintRevealed's ApplyItemHintToChecks, without that
+// hook's loaded-save gate or its section save). 1 when a check became Seen.
+extern "C" int RandoTest_CheckTrackerApplyItemHint(int hintKey) {
+    return ApplyItemHintToChecks(static_cast<RandomizerHint>(hintKey)) ? 1 : 0;
 }
 #endif
 

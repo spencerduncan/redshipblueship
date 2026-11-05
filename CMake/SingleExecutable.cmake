@@ -3040,7 +3040,9 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # and stale, on the same paired creation. `rando`: a generation. #1420's
     # paired legs follow on that file: the tower chest is a row under Triforce
     # Hunt, the combo engine's round ignores Link's entrance, age and time, and
-    # Available Checks start from them.
+    # Available Checks start from them. Then #1366's: an item hint at a crossing
+    # host ranks by the crossed MM item in the Hint Tracker's Journal and marks
+    # the host Seen under Obscure and Ambiguous hint clarity.
     redship_add_test(NAME TrackerOoTPanelList COMMAND redship --test tracker-oot-panel-list
         LABEL rando
         TIMEOUT 600
