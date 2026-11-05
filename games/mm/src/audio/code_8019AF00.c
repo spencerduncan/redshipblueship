@@ -2124,7 +2124,11 @@ void AudioOcarina_ReadControllerInput(void) {
     sOcarinaInputStickRel.y = input->rel.stick_y;
 
     // 2S2H [Enhancement] Apply right stick ocarina input via GameInteractor
+    if (CVarGetInteger("gSettings.CustomOcarina.Enabled", 0)) {
+        sOcarinaInputButtonCur &= ~(BTN_A | BTN_CUP | BTN_CDOWN | BTN_CLEFT | BTN_CRIGHT | BTN_L | BTN_R | BTN_Z);
+    }
     sOcarinaInputButtonCur |= GameInteractor_RightStickOcarina(input);
+    sOcarinaInputButtonCur |= GameInteractor_CustomOcarinaControls(input);
 }
 
 /**

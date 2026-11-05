@@ -33,7 +33,10 @@ void RegisterSkipMoonCrash() {
         // #1018-#1022, per PR #673's criterion: this TU is in the single-exe link now and the body reads MM_gPlayState;
         // a missing play state leaves the vanilla verdict untouched.
         RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
-        if (gSaveContext.save.cutsceneIndex == 0x0 && gSaveContext.save.entrance == ENTRANCE(TERMINA_FIELD, 12)) {
+        // The respawn flag check here is so that we don't skip if the player is trying to pull off the 4th day
+        // glitch from the telescope
+        if (gSaveContext.save.cutsceneIndex == 0x0 && gSaveContext.save.entrance == ENTRANCE(TERMINA_FIELD, 12) &&
+            gSaveContext.respawnFlag == 0) {
             // This cutscene command would otherwise be run as part of the Fire Wall cutscene that gets skipped.
             // IT MUST BE CALLED HERE IF THAT CUTSCENE IS SKIPPED OR ELSE THE GAME STATE WILL NOT RESET CORRECTLY!
             Sram_ResetSaveFromMoonCrash(&MM_gPlayState->sramCtx);

@@ -1,5 +1,9 @@
 #include "AuthenticGfxPatches.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include "2s2h/ShipInit.hpp"
+#ifdef RSBS_SINGLE_EXECUTABLE
+extern "C" bool MM_Rando_AssetsReady(void);
+#endif
 extern "C" {
 #include "gfx.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
@@ -342,6 +346,30 @@ void GfxPatcher_ApplyGeometryIssuePatches() {
     PatchGeometrySeams();
 }
 
+void PatchCircleShadowStreaks() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    if (!MM_Rando_AssetsReady()) {
+        return;
+    }
+#endif
+    Gfx* instructions = ResourceMgr_LoadGfxByName(gCircleShadowDL);
+
+    if (CVarGetInteger("gFixes.FixCircleShadowStreaks", 0)) {
+        // Use a mask to unset and set the new flags while preserving the rest of the instruction
+        const uintptr_t cmMask = UINTPTR_MAX ^ (_SHIFTL(3, 18, 2)) ^ (_SHIFTL(3, 8, 2));
+
+        Gfx in13 = instructions[13]; // G_SETTILE
+        // Clear both S/T Mirror and Wrap flags, then set the S/T Clamp flags
+        in13.words.w1 = (in13.words.w1 & cmMask) | _SHIFTL(G_TX_CLAMP, 18, 2) | _SHIFTL(G_TX_CLAMP, 8, 2);
+
+        ResourceMgr_PatchGfxByName(gCircleShadowDL, "ShadowStreakFix", 13, in13);
+    } else {
+        ResourceMgr_UnpatchGfxByName(gCircleShadowDL, "ShadowStreakFix");
+    }
+}
+
+static RegisterShipInitFunc circleShadowStreaksInitFunc(PatchCircleShadowStreaks, { "gFixes.FixCircleShadowStreaks" });
+
 void GfxPatcher_ApplyTransitionWipePatch() {
     // Removing G_ZBUFFER as gsDPSetPrimDepth is unimplemented in LUS.
     // This should have the same effect of using a depth test value of 0, and allows it to render over everything.
@@ -385,6 +413,8 @@ void GfxPatcher_ApplyNecessaryAuthenticPatches() {
     GfxPatcher_ApplyOverflowTexturePatches();
 
     GfxPatcher_ApplyGeometryIssuePatches();
+
+    PatchCircleShadowStreaks();
 
     GfxPatcher_ApplyTransitionWipePatch();
 

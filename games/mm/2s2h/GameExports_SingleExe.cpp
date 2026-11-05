@@ -2652,6 +2652,48 @@ uint32_t GameInteractor_RightStickOcarina(Input* input) {
     return result;
 }
 
+uint32_t GameInteractor_CustomOcarinaControls(Input* input) {
+    uint32_t result = 0;
+
+    if (!CVarGetInteger("gSettings.CustomOcarina.Enabled", 0)) {
+        return result;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_NOTE_D4)) {
+        result |= BTN_A;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_NOTE_F4)) {
+        result |= BTN_CDOWN;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_NOTE_A4)) {
+        result |= BTN_CRIGHT;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_NOTE_B4)) {
+        result |= BTN_CLEFT;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_NOTE_D5)) {
+        result |= BTN_CUP;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_DISABLE_SONGS)) {
+        result |= BTN_L;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_PITCH_UP)) {
+        result |= BTN_R;
+    }
+
+    if (CHECK_BTN_ALL(input->cur.button, BTN_CUSTOM_OCARINA_PITCH_DOWN)) {
+        result |= BTN_Z;
+    }
+
+    return result;
+}
+
 extern "C" void MM_Rando_Init(void); // defined below MM_Game_Init
 
 int MM_Game_Init(int argc, char** argv) {

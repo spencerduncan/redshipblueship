@@ -5720,7 +5720,8 @@ void Magic_DrawMeter(PlayState* play) {
                     // All of this information was derived from the original call to gSPTextureRectangle below
                     s16 rectLeft = 104 >> 2;
                     s16 rectTop = magicBarY + 3;
-                    s16 rectWidth = gSaveContext.save.saveInfo.playerData.magic - gSaveContext.magicToConsume;
+                    s16 rectWidth =
+                        MAX(0, gSaveContext.save.saveInfo.playerData.magic - gSaveContext.magicToConsume);
                     s16 rectHeight = 7;
                     s16 dsdx = 512;
                     s16 dtdy = 512;
@@ -5736,7 +5737,8 @@ void Magic_DrawMeter(PlayState* play) {
                 // #endregion
                 gSPTextureRectangle(
                     OVERLAY_DISP++, 26 << 2, (magicBarY + 3) << 2,
-                    ((((void)0, gSaveContext.save.saveInfo.playerData.magic) - ((void)0, gSaveContext.magicToConsume)) +
+                    (MAX(0, (((void)0, gSaveContext.save.saveInfo.playerData.magic) -
+                             ((void)0, gSaveContext.magicToConsume))) +
                      26) << 2,
                     (magicBarY + 10) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
             }
@@ -6365,6 +6367,12 @@ void Interface_DrawBButtonIcons(PlayState* play) {
                     gDPPipeSync(OVERLAY_DISP++);
                     gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE,
                                       0, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+                    // Missing in vanilla, mostly has no effect since these display lists don't use environment color,
+                    // except the Postman's Hat which appears to unintentionally do so, resulting in a slightly
+                    // differently colored brim if the player does not have magic yet
+                    if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+                        gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+                    }
 
                     if ((play->sceneId != SCENE_SYATEKI_MIZU) && (play->sceneId != SCENE_SYATEKI_MORI) &&
                         (play->sceneId != SCENE_BOWLING) &&
@@ -6381,6 +6389,10 @@ void Interface_DrawBButtonIcons(PlayState* play) {
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+        // Missing in vanilla, causes text to have a green shadow if the player does not have magic yet
+        if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+            gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+        }
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->bAlpha);
         gDPLoadTextureBlock_4b(OVERLAY_DISP++, interfaceCtx->doActionSegment[DO_ACTION_SEG_B].mainTex, G_IM_FMT_IA,
                                DO_ACTION_TEX_WIDTH, DO_ACTION_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
@@ -6424,6 +6436,10 @@ void Interface_DrawBButtonIcons(PlayState* play) {
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+        // Missing in vanilla, causes text to have a green shadow if the player does not have magic yet
+        if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+            gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+        }
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->bAlpha);
         gDPLoadTextureBlock_4b(OVERLAY_DISP++, interfaceCtx->doActionSegment[DO_ACTION_SEG_B].subTex, G_IM_FMT_IA,
                                DO_ACTION_TEX_WIDTH, DO_ACTION_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
