@@ -65,7 +65,7 @@ void RegionTable_Init_BottomOfTheWell() {
     }, {
         //Exits
         Entrance(RR_BOTW_PERIMETER,       []{return ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH);}),
-        Entrance(RR_BOTW_PIT_CAGE,        []{return ctx->GetTrickOption(RT_BOTW_PITS) && (ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH));}),
+        Entrance(RR_BOTW_PIT_CAGE,        []{return (ctx->GetTrickOption(RT_BOTW_PITS) || logic->CanUse(RG_HOVER_BOOTS)) && (ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH));}),
         Entrance(RR_BOTW_SKULL_WALL_ROOM, []{return logic->SmallKeys(SCENE_BOTTOM_OF_THE_WELL, 3);}),
         Entrance(RR_BOTW_INVISIBLE_PATH,  []{return logic->SmallKeys(SCENE_BOTTOM_OF_THE_WELL, 3);}),
         Entrance(RR_BOTW_B3_OOZE,         []{return true;}),
@@ -116,7 +116,7 @@ void RegionTable_Init_BottomOfTheWell() {
     }, {
         //Exits
         Entrance(RR_BOTW_PERIMETER, []{return ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH);}),
-        Entrance(RR_BOTW_MIDDLE,    []{return ctx->GetTrickOption(RT_BOTW_PITS) && (ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH));}),
+        Entrance(RR_BOTW_MIDDLE,    []{return (ctx->GetTrickOption(RT_BOTW_PITS) || logic->CanUse(RG_HOVER_BOOTS)) && (ctx->GetTrickOption(RT_LENS_BOTW) || logic->CanUse(RG_LENS_OF_TRUTH));}),
         Entrance(RR_BOTW_B3_OOZE,   []{return true;}),
     });
 
@@ -287,7 +287,7 @@ void RegionTable_Init_BottomOfTheWell() {
         //Exits
         Entrance(RR_BOTW_ENTRYWAY,             []{return logic->CanUse(RG_CRAWL) && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT));}),
         Entrance(RR_BOTW_MQ_MIDDLE,            []{return logic->Get(LOGIC_BOTW_MQ_OPENED_GATES);}),
-        Entrance(RR_BOTW_MQ_PIT_CAGE,          []{return AnyAgeTime([]{return logic->BlastOrSmash();}) && logic->CanPassEnemy(RE_BIG_SKULLTULA);}),
+        Entrance(RR_BOTW_MQ_PIT_CAGE,          []{return AnyAgeTime([]{return logic->BlastOrSmash();}) && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || logic->CanUse(RG_HOVER_BOOTS));}),
         //Climb always needed in case water is lowered out of logic
         Entrance(RR_BOTW_MQ_BEHIND_MOAT,       []{return (logic->Get(LOGIC_BOTW_LOWERED_WATER) && (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT))) || logic->HasItem(RG_BRONZE_SCALE) || 
                                                           (logic->IsAdult && logic->CanUse(RG_IRON_BOOTS) && logic->CanUse(RG_HOOKSHOT));}),
@@ -306,7 +306,7 @@ void RegionTable_Init_BottomOfTheWell() {
     }, {
         //Exits
         Entrance(RR_BOTW_MQ_PERIMETER,      []{return logic->Get(LOGIC_BOTW_MQ_OPENED_GATES);}),
-        Entrance(RR_BOTW_MQ_PIT_CAGE,       []{return (bool)ctx->GetTrickOption(RT_BOTW_PITS);}),
+        Entrance(RR_BOTW_MQ_PIT_CAGE,       []{return ctx->GetTrickOption(RT_BOTW_PITS) || logic->CanUse(RG_HOVER_BOOTS);}),
         Entrance(RR_BOTW_MQ_B3_PLATFORM,    []{return logic->Get(LOGIC_BOTW_MQ_OPENED_MIDDLE_HOLE);}),
         Entrance(RR_BOTW_MQ_B3,             []{return true;}),
         Entrance(RR_BOTW_MQ_INVISIBLE_PATH, []{return AnyAgeTime([]{return logic->HasItem(RG_POWER_BRACELET) || logic->CanHitSwitch(ED_BOMB_THROW);});}),
@@ -351,9 +351,9 @@ void RegionTable_Init_BottomOfTheWell() {
         EventAccess(LOGIC_BOTW_MQ_OPENED_WEST_ROOM, []{return true;}),
     }, {}, {
         //Exits
-        Entrance(RR_BOTW_MQ_PERIMETER, []{return logic->BlastOrSmash() && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || ctx->GetTrickOption(RT_BOTW_PITS));}),
-        Entrance(RR_BOTW_MQ_MIDDLE,    []{return (bool)ctx->GetTrickOption(RT_BOTW_PITS);}),
-        Entrance(RR_BOTW_MQ_B3,   []{return true;}),
+        Entrance(RR_BOTW_MQ_PERIMETER, []{return logic->BlastOrSmash() && (logic->CanPassEnemy(RE_BIG_SKULLTULA) || ctx->GetTrickOption(RT_BOTW_PITS) || logic->CanUse(RG_HOVER_BOOTS));}),
+        Entrance(RR_BOTW_MQ_MIDDLE,    []{return ctx->GetTrickOption(RT_BOTW_PITS) || logic->CanUse(RG_HOVER_BOOTS);}),
+        Entrance(RR_BOTW_MQ_B3,        []{return true;}),
     });
 
     areaTable[RR_BOTW_MQ_BEHIND_MOAT] = Region("Bottom of the Well MQ Behind Moat", SCENE_BOTTOM_OF_THE_WELL, {}, {}, {
