@@ -2603,6 +2603,17 @@ typedef enum {
     RI_WOODFALL_MAP,
     RI_WOODFALL_SMALL_KEY,
     RI_WOODFALL_STRAY_FAIRY,
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #980 (epic #975 P5): Ocarina of Time's Gerudo, Skull and
+    // Spooky Masks, added to Majora's Mask by OoTMM's gerudoMaskMm, skullMaskMm and
+    // spookyMaskMm. APPENDED, not in the alphabetical order above: every RI_* value
+    // is saved (randoSaveChecks[].randoItemId, the crossing store), so an id here
+    // renumbers nothing. RI_MAX_TRAP after them is a draw-only sentinel
+    // (CheckQueue.cpp), never stored.
+    RI_MASK_GERUDO,
+    RI_MASK_SKULL,
+    RI_MASK_SPOOKY,
+#endif
     RI_MAX_TRAP,
     RI_MAX,
 } RandoItemId;

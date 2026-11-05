@@ -312,7 +312,9 @@ static RegisterShipInitFunc initFunc([]() {
             // "Road to Ikana Center" <-> "Front" at `can_play_epona || ... || (can_goron_bomb_jump &&
             // has_bombs)` — the fence Epona jumps.
             CONNECTION(RR_ROAD_TO_IKANA_FIELD_SIDE, CAN_RIDE_EPONA || CAN_GORON_BOMB_JUMP_FENCE),
-            CONNECTION(RR_ROAD_TO_IKANA_ABOVE_LEDGE, HAS_ITEM(ITEM_HOOKSHOT) && (HAS_ITEM(ITEM_MASK_GARO) || HAS_ITEM(ITEM_MASK_GIBDO))),
+            // #980: OoTMM's IKANA_TREE_SPAWNED (`has_mask_garo || has_mask_gibdo || (has_mask_spooky && is_night)`):
+            // CAN_PASS_GIBDO is the Gibdo Mask, or the Spooky Mask (MM) at night (Logic.h).
+            CONNECTION(RR_ROAD_TO_IKANA_ABOVE_LEDGE, HAS_ITEM(ITEM_HOOKSHOT) && (HAS_ITEM(ITEM_MASK_GARO) || CAN_PASS_GIBDO)),
         },
     };
     Regions[RR_ROAD_TO_IKANA_FIELD_SIDE] = RandoRegion{ .name = "Field Side", .sceneId = SCENE_IKANAMAE,

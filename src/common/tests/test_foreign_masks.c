@@ -18,7 +18,9 @@
  *     the rules leaves currentMask a value the engine's own tables cover, and
  *     only a mask the host wears selects a worn list. OoT: one mask at a time,
  *     child only, off at a scene load unless Persistent Masks. MM: human form
- *     only, one mask at a time, the shared pause slots (cycle, equip, icon).
+ *     only, one mask at a time, the shared pause slots (cycle, equip, icon),
+ *     and (#980) a slot whose own mask is not owned lending its cell and C
+ *     button to an owned OoT mask without taking over another slot's.
  *     Both: a mask whose rule the world did not freeze on is neither put on
  *     nor kept. OoT's head draw selects the worn list only for a child with no
  *     native mask on and the head list drawn (OoT_ForeignMask_WornDl). The two
@@ -97,6 +99,10 @@ uint8_t MM_ForeignMaskTest_SlotSelection(uint8_t slot);
 void MM_ForeignMaskTest_SetNativeOwned(uint8_t slot, int owned);
 int MM_ForeignMaskTest_PageCell(uint8_t slot);
 const char* MM_ForeignMaskTest_PageIcon(int cell, const char* nativeIcon);
+int MM_ForeignMaskTest_PageCellItem(int cell);
+int MM_ForeignMaskTest_CellStored(int cell);
+int MM_ForeignMaskTest_SlotItem(uint8_t slot);
+int MM_ForeignMaskTest_ItemNone(void);
 void MM_ForeignMaskTest_SetForm(int human);
 void MM_ForeignMaskTest_SetPlayerMask(uint8_t mask);
 int MM_ForeignMaskTest_PlayerMask(void);
@@ -561,6 +567,55 @@ TestResult Test_ForeignMaskRules(void) {
     MM_ForeignMaskTest_SetSlotSel(COMBO_FOREIGN_MASK_SLOT_MM_STONE, COMBO_FOREIGN_MASK_OOT_SPOOKY);
     FM_CHECK(MM_ForeignMaskTest_SlotSelection(COMBO_FOREIGN_MASK_SLOT_MM_STONE) == 0, "R6",
              "Gibdo's Spooky Mask was chosen in Stone's slot");
+
+    // ---- R6b. MM (#980): a shared slot whose own mask is not owned -------------
+    // An owned OoT mask sharing it shows in the slot's cell as the slot's own item
+    // (the inventory is never written) and that slot's own C button wears it, while
+    // every other slot's C button and cell stay MM's own (R6's rule). Then the
+    // other way round: Gibdo's slot lent to the Spooky Mask, Stone's own mask owned.
+    MM_ForeignMaskTest_ArmLive();
+    MM_ForeignMaskTest_SetForm(1);
+    MM_ForeignMaskTest_SetPlayerMask(0);
+    Combo_ForeignMask_SetOwnedSource(GAME_MM, FmOwned);
+    FmOwn((1u << COMBO_FOREIGN_MASK_OOT_GERUDO) | (1u << COMBO_FOREIGN_MASK_OOT_SKULL));
+    const int stoneCell = MM_ForeignMaskTest_PageCell(COMBO_FOREIGN_MASK_SLOT_MM_STONE);
+    const int gibdoCell = MM_ForeignMaskTest_PageCell(COMBO_FOREIGN_MASK_SLOT_MM_GIBDO);
+    const int itemNone = MM_ForeignMaskTest_ItemNone();
+    FM_CHECK(MM_ForeignMaskTest_SlotSelection(COMBO_FOREIGN_MASK_SLOT_MM_STONE) == COMBO_FOREIGN_MASK_OOT_GERUDO, "R6b",
+             "with the Stone Mask not owned, Stone's slot does not read as its first owned OoT mask");
+    FM_CHECK(MM_ForeignMaskTest_PageCellItem(stoneCell) ==
+                     MM_ForeignMaskTest_SlotItem(COMBO_FOREIGN_MASK_SLOT_MM_STONE) &&
+                 MM_ForeignMaskTest_CellStored(stoneCell) == itemNone,
+             "R6b", "Stone's cell does not show the slot's own item, or the inventory was written");
+    FM_CHECK(MM_ForeignMaskTest_PageCellItem(gibdoCell) == itemNone, "R6b",
+             "Gibdo's cell, with nothing owned in its slot, is not empty");
+    FM_CHECK(MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskStone()) == 1 &&
+                 MM_ForeignMaskTest_Worn() == COMBO_FOREIGN_MASK_OOT_GERUDO && MM_ForeignMaskTest_PlayerMask() == 0,
+             "R6b", "Stone's C button did not put the Gerudo Mask on through the foreign field");
+    FM_CHECK(MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskGibdo()) == 0 &&
+                 MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskKeaton()) == 0 &&
+                 MM_ForeignMaskTest_Worn() == COMBO_FOREIGN_MASK_OOT_GERUDO,
+             "R6b", "another slot's C button was taken over while Stone's cell showed the Gerudo Mask");
+    FM_CHECK(MM_ForeignMaskTest_CycleSlot(COMBO_FOREIGN_MASK_SLOT_MM_STONE, 1) == 1 &&
+                 MM_ForeignMaskTest_SlotSelection(COMBO_FOREIGN_MASK_SLOT_MM_STONE) == COMBO_FOREIGN_MASK_OOT_SKULL &&
+                 MM_ForeignMaskTest_CycleSlot(COMBO_FOREIGN_MASK_SLOT_MM_STONE, 1) == 1 &&
+                 MM_ForeignMaskTest_SlotSelection(COMBO_FOREIGN_MASK_SLOT_MM_STONE) == COMBO_FOREIGN_MASK_OOT_GERUDO,
+             "R6b", "Stone's slot did not cycle Gerudo, Skull, Gerudo with its own mask not owned");
+    FM_CHECK(MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskStone()) == 1 && MM_ForeignMaskTest_Worn() == 0,
+             "R6b", "Stone's C button again did not take the Gerudo Mask off");
+    MM_ForeignMaskTest_SetNativeOwned(COMBO_FOREIGN_MASK_SLOT_MM_STONE, 1);
+    FmOwn(1u << COMBO_FOREIGN_MASK_OOT_SPOOKY);
+    FM_CHECK(MM_ForeignMaskTest_PageCellItem(gibdoCell) ==
+                     MM_ForeignMaskTest_SlotItem(COMBO_FOREIGN_MASK_SLOT_MM_GIBDO) &&
+                 MM_ForeignMaskTest_CellStored(gibdoCell) == itemNone,
+             "R6b", "Gibdo's cell does not show the slot's own item for the Spooky Mask, or the inventory was written");
+    FM_CHECK(MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskGibdo()) == 1 &&
+                 MM_ForeignMaskTest_Worn() == COMBO_FOREIGN_MASK_OOT_SPOOKY,
+             "R6b", "Gibdo's C button did not put the Spooky Mask on");
+    FM_CHECK(MM_ForeignMaskTest_EquipNative(MM_ForeignMaskTest_MaskStone()) == 0 &&
+                 MM_ForeignMaskTest_Worn() == COMBO_FOREIGN_MASK_OOT_SPOOKY,
+             "R6b", "Stone's C button, its own mask owned, was taken over while Gibdo's cell showed the Spooky Mask");
+    MM_ForeignMaskTest_SetStored(0);
 
     // ---- R7. both: a mask whose rule is off is neither put on nor kept --------
     // The two ports' live saves are one storage (src/common/unified_save.c):

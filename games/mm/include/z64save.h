@@ -480,7 +480,9 @@ typedef struct RandoSaveInfo {
     // shifts every later SaveContext field of the raw MM tier). Every reader
     // sanitizes the bytes (Combo_ForeignMask_Sanitize), so a shifted byte selects
     // no mask unless it is a mask MM wears whose rule the world froze on. Not part
-    // of the profile identity: ProfileIdentityString does not fold them.
+    // of the profile identity: ProfileIdentityString does not fold them. #980: a
+    // slot byte's LOW nibble is the chosen variant and its HIGH nibble which OoT
+    // masks sharing the slot MM owns (Combo_ForeignMask_SlotOwnedBit); no byte moved.
     u8 foreignMask;
     u8 foreignMaskSlotSel[2];
 } RandoSaveInfo;
