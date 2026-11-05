@@ -859,10 +859,10 @@ Acmd* AudioSynth_ProcessNote(s32 noteIndex, NoteSubEu* noteSubEu, NoteSynthesisS
                         size_t bytesToRead;
                         nSamplesProcessed += samplesLenAdjusted;
 
-                        if (((synthState->samplePosInt * 2) + (samplesLenAdjusted)*2) < audioFontSample->size) {
-                            bytesToRead = (samplesLenAdjusted)*2;
+                        if ((synthState->samplePosInt + samplesLenAdjusted) < loopEndPos) {
+                            bytesToRead = samplesLenAdjusted * 2;
                         } else {
-                            bytesToRead = audioFontSample->size - (synthState->samplePosInt * 2);
+                            bytesToRead = (loopEndPos - synthState->samplePosInt) * 2;
                         }
                         // 2S2H [Port] [Custom audio] Handle decoding OPUS data
                         if (audioFontSample->codec == CODEC_OPUS) {
