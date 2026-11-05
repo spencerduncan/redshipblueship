@@ -621,7 +621,8 @@ typedef struct {
     /* 0x2B60 */ AudioCache fontCache; // Cache to store soundFonts
     /* 0x2C70 */ AudioCache sampleBankCache; // Cache for loading entire sample banks
     /* 0x2D80 */ AudioAllocPool permanentPool; // Pool to stores audio data that is always loaded in. Primarily used for sfxs
-    /* 0x2D90 */ AudioCacheEntry permanentEntries[32]; // indificual entries to the permanent pool
+    // SOH [Bugfix] 32 -> 512: large custom-music packs overflowed this (see MM_AudioHeap_AllocPermanent).
+    /* 0x2D90 */ AudioCacheEntry permanentEntries[512]; // indificual entries to the permanent pool
     /* 0x3690 */ AudioSampleCache persistentSampleCache; // Stores individual samples persistently
     /* 0x40A4 */ AudioSampleCache temporarySampleCache; // Stores individual samples temporarily
     /* 0x4338 */ AudioSessionPoolSplit sessionPoolSplit; // splits session pool into the cache pool and misc pool

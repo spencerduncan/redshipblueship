@@ -126,7 +126,7 @@ source_group("include" FILES ${Header_Files__include})
 # soh (root) - collect all, then split out Enhancements for separate lib
 file(GLOB_RECURSE soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/*.c" "soh/*.cpp" "soh/*.h" "soh/*.hpp")
 # Collect Enhancements separately (will be soh_enh lib)
-file(GLOB_RECURSE soh__Enhancements RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/*.c" "soh/Enhancements/*.cpp" "soh/Enhancements/*.h" "soh/Enhancements/*.hpp")
+file(GLOB_RECURSE soh__Enhancements CONFIGURE_DEPENDS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/*.c" "soh/Enhancements/*.cpp" "soh/Enhancements/*.h" "soh/Enhancements/*.hpp")
 # Collect randomizer separately (will be soh_rando lib) - it's 5.9MB source and causes soh_enh to exceed 4GB
 file(GLOB_RECURSE soh__Randomizer RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "soh/Enhancements/randomizer/*.c" "soh/Enhancements/randomizer/*.cpp" "soh/Enhancements/randomizer/*.h" "soh/Enhancements/randomizer/*.hpp")
 # Remove randomizer from soh__Enhancements

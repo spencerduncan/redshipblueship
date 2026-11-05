@@ -52,6 +52,9 @@ extern "C" {
 void OoT_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_FlushSceneFlagsForFreeze(void);
 void MM_Combo_ReviveDeadHealthForFreeze(void);
+// #1343: Time Moves When You Move's stored offset (games/mm/2s2h/Enhancements/
+// Modes/TimeMovesWhenYouMove.cpp, which holds that static).
+void MM_Combo_RestoreTimeSpeedForFreeze(void);
 void OoT_Combo_ReviveDeadHealthForFreeze(void);
 void OoT_Combo_ApplySceneExitWritesForFreeze(void);
 void OoT_Combo_StampSavedSceneForFreeze(void);
@@ -200,6 +203,9 @@ void Combo_FlushLiveStateForFreeze(GameId departing) {
             Context_NoteDepartureLiveFile(GAME_MM, MM_Combo_DepartureIsLiveFile());
             MM_Combo_FlushSceneFlagsForFreeze();
             MM_Combo_ReviveDeadHealthForFreeze();
+            // #1343: while Link stands still, Time Moves When You Move keeps the
+            // real time speed outside gSaveContext; put it back before the freeze.
+            MM_Combo_RestoreTimeSpeedForFreeze();
             break;
         default:
             break;

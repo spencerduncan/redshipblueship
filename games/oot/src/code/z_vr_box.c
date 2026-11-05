@@ -453,23 +453,17 @@ void func_800AF178(SkyboxContext* skyboxCtx, s32 arg1) {
 
 void LoadSkyboxTex(SkyboxContext* skyboxCtx, int segmentIndex, int imageIndex, char* tex, int width, int height,
                    int offsetW, int offsetH) {
-    if (GameInteractor_Should(VB_LOAD_SKYBOX, true)) {
-        skyboxCtx->textures[segmentIndex][imageIndex] = tex;
-    }
+    skyboxCtx->textures[segmentIndex][imageIndex] = tex;
 }
 
 void LoadSkyboxTexAtOffset(SkyboxContext* skyboxCtx, int segmentIndex, int imageIndex, char* tex, int width, int height,
                            int offset) {
-    if (GameInteractor_Should(VB_LOAD_SKYBOX, true)) {
-        skyboxCtx->textures[segmentIndex][imageIndex] = tex;
-    }
+    skyboxCtx->textures[segmentIndex][imageIndex] = tex;
 }
 
 void LoadSkyboxPalette(SkyboxContext* skyboxCtx, int paletteIndex, char* palTex, int width, int height) {
-    if (GameInteractor_Should(VB_LOAD_SKYBOX, true)) {
-        skyboxCtx->palettes[paletteIndex] = palTex;
-        skyboxCtx->palette_size = width * height;
-    }
+    skyboxCtx->palettes[paletteIndex] = palTex;
+    skyboxCtx->palette_size = width * height;
 }
 
 static const char* sSBVRFine0Tex[] = { gSunriseSkybox1Tex, gSunriseSkybox2Tex, gSunriseSkybox3Tex, gSunriseSkybox4Tex,
