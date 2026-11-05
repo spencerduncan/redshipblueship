@@ -572,7 +572,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             OoT_Play_ChangeCameraStatus(play, this->csCamIndex, CAM_STAT_ACTIVE);
             this->csCamFov = 60.0f;
 
-            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE) || IS_RANDO || IS_BOSS_RUSH) {
+            if (OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE)) {
                 // watched cutscene already, skip most of it
                 this->csState = 17;
                 this->csTimer = 0;
@@ -905,7 +905,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
                     this->csTimer = 0;
                     this->csCamFov = 60.0f;
                     BossGanon_SetIntroCsCamera(this, 12);
-                    if (!IS_RANDO && !IS_BOSS_RUSH) {
+                    if (GameInteractor_Should(VB_PLAY_GANONDORF_INTRO_CS, true, this)) {
                         OoT_Message_StartTextbox(play, 0x70CB, NULL);
                     }
                 }
@@ -929,7 +929,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
 
             this->csState = 19;
             this->csTimer = 0;
-            if (!IS_BOSS_RUSH) {
+            if (GameInteractor_Should(VB_PLAY_GANONDORF_INTRO_CS, true, this)) {
                 OoT_Message_StartTextbox(play, 0x70CC, NULL);
             }
             OoT_Animation_MorphToPlayOnce(&this->skelAnime, &gGanondorfRaiseHandStartAnim, -5.0f);
@@ -972,8 +972,7 @@ void BossGanon_IntroCutscene(BossGanon* this, PlayState* play) {
             }
 
             if ((this->csTimer > 80) && (OoT_Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
-                // In rando, skip past dark waves section straight to title card phase of the cutscene.
-                if (IS_RANDO || IS_BOSS_RUSH) {
+                if (!GameInteractor_Should(VB_PLAY_GANONDORF_INTRO_CS, true, this)) {
                     this->timers[2] = 30;
                     this->csCamAt.x = this->unk_1FC.x - 10.0f;
                     this->csCamAt.y = this->unk_1FC.y + 30.0f;
@@ -1280,10 +1279,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             this->actor.shape.yOffset = -7000.0f;
 
             this->actor.shape.rot.y = 0;
-            // Skip Ganondorf dying and go straight to next scene.
-            // The cutscene skip met a mixed reaction, so until we figure out a better way of doing it,
-            // it will stay not-skipped outside of Boss Rush (originally implemented for randomizer).
-            if (!IS_BOSS_RUSH) {
+            if (GameInteractor_Should(VB_GANONDORF_DEATH_SCENE, true, this)) {
                 this->csState = 1;
                 this->csTimer = 0;
             } else {
@@ -1557,7 +1553,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             sBossGanonZelda = (EnZl3*)OoT_Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, ACTOR_EN_ZL3, 0.0f,
                                                          6000.0f, 0.0f, 0, 0, 0, 0x2000);
 
-            if (!IS_RANDO && !IS_BOSS_RUSH) {
+            if (GameInteractor_Should(VB_PLAY_ZELDA_CRYSTAL_CS, true, this)) {
                 this->csState = 101;
             } else {
                 this->skelAnime.playSpeed = 1.0f;
@@ -1684,8 +1680,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
             // fallthrough
         case 104:
-            // In rando, fade out the white here as the earlier part is skipped.
-            if (IS_RANDO || IS_BOSS_RUSH) {
+            if (!GameInteractor_Should(VB_PLAY_ZELDA_CRYSTAL_CS, true, this)) {
                 OoT_Math_ApproachZeroF(&this->whiteFillAlpha, 1.0f, 10.0f);
             }
 
@@ -1706,8 +1701,7 @@ void BossGanon_DeathAndTowerCutscene(BossGanon* this, PlayState* play) {
             }
 
             if (this->csTimer == 50) {
-                // In rando, skip the rest of the cutscene after the crystal around Zelda dissapears.
-                if (!IS_RANDO && !IS_BOSS_RUSH) {
+                if (GameInteractor_Should(VB_PLAY_ZELDA_CRYSTAL_CS, true, this)) {
                     sBossGanonZelda->unk_3C8 = 4;
                 } else {
                     this->csState = 108;

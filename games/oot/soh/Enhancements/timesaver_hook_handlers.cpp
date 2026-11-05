@@ -1168,13 +1168,6 @@ void TimeSaverOnSceneInitHandler(int16_t sceneNum) {
                 }
             }
             break;
-        case SCENE_GANONDORF_BOSS:
-            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), IS_RANDO)) {
-                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE)) {
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
-                }
-            }
-            break;
     }
 }
 
