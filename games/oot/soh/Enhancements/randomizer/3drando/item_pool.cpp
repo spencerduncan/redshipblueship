@@ -661,7 +661,7 @@ void GenerateItemPool() {
             ctx->PlaceItemInLocation(RC_TH_DOUBLE_CELL_CARPENTER, RG_RECOVERY_HEART, false, true);
             ctx->PlaceItemInLocation(RC_TH_STEEP_SLOPE_CARPENTER, RG_RECOVERY_HEART, false, true);
         } else {
-            // Only add key ring if 4 Fortress keys necessary
+            // Only add keyring if 4 Fortress keys necessary
             if (ctx->GetOption(RSK_KEYRINGS_GERUDO_FORTRESS) && ctx->GetOption(RSK_KEYRINGS)) {
                 AddItemToPool(RG_GERUDO_FORTRESS_KEY_RING, 2, 1, 1, 1);
             } else {
