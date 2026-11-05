@@ -2683,6 +2683,35 @@ typedef enum {
     // - `s32* item`
     VB_OVERRIDE_BUTTON_ITEM_USED,
 
+    // [RSBS #1365] Appended after #1336's, so no earlier id moves.
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_Init).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*BossTw`
+    // - `*PlayState`
+    VB_PLAY_TWINROVA_INTRO_CS,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOTAKE,
+
+    // Upstream SoH 5d1a39666 (z_boss_tw.c BossTw_SpawnPortalDraw).
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_TWINROVA_SPAWN_PORTAL_TRANSLATION_KOUME,
+
 } GIVanillaBehavior;
 
 #endif
