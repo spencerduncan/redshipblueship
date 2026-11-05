@@ -93,8 +93,16 @@ int IndexOf(uint16_t riId) {
     return -1;
 }
 
+} // namespace
+
+// At file scope, not in the anonymous namespace: OPEN_DISPS / CLOSE_DISPS
+// block-declare MM_FrameInterpolation_RecordOpenChild / _RecordCloseChild, and
+// inside a namespace that declaration names a C++-linkage function of that
+// namespace instead of the extern "C" one FrameInterpolation.h declares, which
+// never links (ForeignMaskMM.cpp's DrawOnHead, ForeignModelSingleExe.cpp's
+// ForeignModel_DrawLayer).
 /** MM's generic note: DrawSong's draw (DrawItem.cpp) in white. */
-void DrawGenericNote() {
+static void DrawGenericNote() {
     OPEN_DISPS(MM_gPlayState->state.gfxCtx);
     Gfx_SetupDL25_Xlu(MM_gPlayState->state.gfxCtx);
     MATRIX_FINALIZE_AND_LOAD(POLY_XLU_DISP++, MM_gPlayState->state.gfxCtx);
@@ -102,8 +110,6 @@ void DrawGenericNote() {
     MM_gSPDisplayList(POLY_XLU_DISP++, (Gfx*)&gGiSongNoteDL);
     CLOSE_DISPS(MM_gPlayState->state.gfxCtx);
 }
-
-} // namespace
 
 extern "C" uint32_t MM_WarpSongMM_RuleBit(uint16_t riId) {
     const int i = IndexOf(riId);
