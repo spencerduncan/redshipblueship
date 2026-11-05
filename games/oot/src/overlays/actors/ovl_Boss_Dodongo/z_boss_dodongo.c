@@ -1856,7 +1856,7 @@ void BossDodongo_DeathCutscene(BossDodongo* this, PlayState* play) {
                         OoT_Math_CosS(this->actor.shape.rot.y) * -50.0f + this->actor.world.pos.z, 0, 0, 0, 0, true);
                 }
             }
-            if (this->unk_1DA == 600) {
+            if (GameInteractor_Should(VB_KING_DODONGO_DEATH_SCENE, this->unk_1DA == 600, this)) {
                 camera = OoT_Play_GetCamera(play, MAIN_CAM);
                 camera->eye = this->cameraEye;
                 camera->eyeNext = this->cameraEye;

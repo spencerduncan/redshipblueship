@@ -3,6 +3,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/Enhancements/randomizer/randomizer_entrance.h"
 
 extern "C" {
 #include "src/overlays/actors/ovl_En_Wonder_Talk2/z_en_wonder_talk2.h"
@@ -30,9 +31,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_Bg_Dy_Yoseizo/z_bg_dy_yoseizo.h"
 #include "src/overlays/actors/ovl_En_Dnt_Demo/z_en_dnt_demo.h"
 #include "src/overlays/actors/ovl_En_Po_Sisters/z_en_po_sisters.h"
-#include <overlays/actors/ovl_Boss_Ganondrof/z_boss_ganondrof.h>
 #include <overlays/actors/ovl_En_Ik/z_en_ik.h>
-#include <objects/object_gnd/object_gnd.h>
 extern SaveContext gSaveContext;
 extern PlayState* OoT_gPlayState;
 extern int32_t D_8011D3AC;
@@ -122,6 +121,20 @@ bool ForcedDialogIsDisabled(ForcedDialogMode type) {
             type) != 0;
 }
 
+static void SkipJabuFeedingCutscene() {
+    OoT_Player_UpdateBottleHeld(OoT_gPlayState, GET_PLAYER(OoT_gPlayState), ITEM_BOTTLE, PLAYER_IA_BOTTLE);
+    OoT_Flags_SetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU);
+    Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
+
+    if (IS_RANDO && RAND_GET_OPTION(RSK_SHUFFLE_ENTRANCES)) {
+        OoT_gPlayState->nextEntranceIndex = Entrance_OverrideNextIndex(ENTR_JABU_JABU_ENTRANCE);
+    } else {
+        OoT_gPlayState->nextEntranceIndex = ENTR_JABU_JABU_ENTRANCE;
+    }
+    OoT_gPlayState->transitionTrigger = TRANS_TRIGGER_START;
+    OoT_gPlayState->transitionType = TRANS_TYPE_FADE_BLACK;
+}
+
 void TimeSaverOnGameFrameUpdateHandler() {
     if (successChimeCooldown > 0) {
         successChimeCooldown--;
@@ -150,7 +163,7 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_REQUIEM_OF_SPIRIT);
                     // Normally happens in the cutscene
                     gSaveContext.dayTime = gSaveContext.skyboxTime = 0xAC60;
-                    if (GameInteractor_Should(VB_GIVE_ITEM_REQUIEM_OF_SPIRIT, true)) {
+                    if (GameInteractor_Should(VB_GIVE_ITEM_SONG, true, ITEM_SONG_REQUIEM)) {
                         OoT_Item_Give(OoT_gPlayState, ITEM_SONG_REQUIEM);
                     }
                     *should = false;
@@ -166,7 +179,7 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_BONGO_BONGO_ESCAPED_FROM_WELL);
                     // Normally happens in the cutscene
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_NOCTURNE_OF_SHADOW);
-                    if (GameInteractor_Should(VB_GIVE_ITEM_NOCTURNE_OF_SHADOW, true)) {
+                    if (GameInteractor_Should(VB_GIVE_ITEM_SONG, true, ITEM_SONG_NOCTURNE)) {
                         OoT_Item_Give(OoT_gPlayState, ITEM_SONG_NOCTURNE);
                     }
                     *should = false;
@@ -182,6 +195,9 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                     !OoT_Flags_GetEventChkInf(EVENTCHKINF_RETURNED_TO_TEMPLE_OF_TIME_WITH_ALL_MEDALLIONS);
                 if (GameInteractor_Should(VB_BE_ELIGIBLE_FOR_LIGHT_ARROWS, meetsLACSRequirements)) {
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_RETURNED_TO_TEMPLE_OF_TIME_WITH_ALL_MEDALLIONS);
+                    if (!IS_RANDO) {
+                        gSaveContext.dayTime = gSaveContext.skyboxTime = 0x2aaa;
+                    }
                     if (GameInteractor_Should(VB_GIVE_ITEM_LIGHT_ARROW, true)) {
                         OoT_Item_Give(OoT_gPlayState, ITEM_ARROW_LIGHT);
                     }
@@ -292,9 +308,10 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                 }
                 switch (actor->id) {
                     case ACTOR_OBJ_SWITCH: {
+                        // The DC boss door can be unlocked with OI; One Point is required for it
+                        // The Water Temple Dragon Room chest can be obtained with a cutscene dive
                         if (((actor->params == 8224 && OoT_gPlayState->sceneNum == SCENE_DODONGOS_CAVERN) ||
-                             (actor->params == 6979 && OoT_gPlayState->sceneNum == SCENE_WATER_TEMPLE) ||
-                             (actor->params == 8961 && OoT_gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE)) &&
+                             (actor->params == 6979 && OoT_gPlayState->sceneNum == SCENE_WATER_TEMPLE)) &&
                             CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
                             break;
                         }
@@ -307,9 +324,12 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                     case ACTOR_BG_BDAN_SWITCH: {
                         // The switch in jabu that you are intended to press with a box to reach barinade
                         // can be skipped by either a frame perfect roll open or with OI
+                        // Additionally, the blue switch that you are intended to press with Ruto
+                        // can be skipped with OI
                         // The One Point for that switch is used in common setups for the former and is required for the
                         // latter to work
-                        if (actor->params == 14848 && OoT_gPlayState->sceneNum == SCENE_JABU_JABU &&
+                        if ((actor->params == 14848 || actor->params == 14336) &&
+                            OoT_gPlayState->sceneNum == SCENE_JABU_JABU &&
                             CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
                             break;
                         }
@@ -334,6 +354,7 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                         break;
                     }
                     case ACTOR_EN_BOX: {
+                        // The chest that drops in MQ Jabu allowing unintended door entry
                         if (actor->params == -30457 && OoT_gPlayState->sceneNum == SCENE_JABU_JABU &&
                             CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
                             break;
@@ -341,6 +362,17 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                         EnBox* boxActor = (EnBox*)actor;
                         *should = false;
                         RateLimitedSuccessChime();
+                        break;
+                    }
+                    case ACTOR_EN_SIOFUKI: {
+                        // The Spirit Temple MQ water jet cutscene is required for an actor glitch
+                        // setup that skips the grate
+                        if (actor->params == 6359 && OoT_gPlayState->sceneNum == SCENE_SPIRIT_TEMPLE &&
+                            CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
+                            *should = true;
+                            break;
+                        }
+                        *should = false;
                         break;
                     }
                     case ACTOR_BG_HIDAN_FWBIG:
@@ -352,7 +384,17 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                         break;
                     }
                     case ACTOR_EN_TA:
-                    case ACTOR_DOOR_SHUTTER:
+                    case ACTOR_DOOR_SHUTTER: {
+                        // The shutter cutscene occurs post-switch cutscene to focus Link on the unlocked doors
+                        if (((actor->params == 9402 && OoT_gPlayState->sceneNum == SCENE_JABU_JABU) ||
+                             (actor->params == 20460 && OoT_gPlayState->sceneNum == SCENE_DODONGOS_CAVERN)) &&
+                            CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
+                            break;
+                        }
+                        *should = false;
+                        RateLimitedSuccessChime();
+                        break;
+                    }
                     case ACTOR_BG_ICE_SHUTTER:
                     case ACTOR_OBJ_LIGHTSWITCH:
                     case ACTOR_OBJ_SYOKUDAI:
@@ -396,6 +438,11 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             if (ForcedDialogIsDisabled(FORCED_DIALOG_SKIP_NPC) &&
                 !(OoT_gPlayState->sceneNum == SCENE_ZORAS_RIVER && IS_RANDO && RAND_GET_OPTION(RSK_FROGS_HINT))) {
                 *should = false;
+
+                // We should still come out of a softlock if the setting was changed during forced dialogue
+                if (GET_PLAYER(OoT_gPlayState)->csAction == 8) {
+                    func_8002DF38(OoT_gPlayState, NULL, 7);
+                }
             }
 
             // If it's near a jailed carpenter, skip it along with introduction of Gerudo mini-boss
@@ -467,23 +514,8 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
                 *should = false;
             }
             break;
-        case VB_PLAY_PULL_MASTER_SWORD_CS:
-            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
-                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL)) {
-                    // Normally, these would be done in the cutscene, but we're skipping it
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_PULLED_MASTER_SWORD_FROM_PEDESTAL);
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_MASTER_SWORD_CHAMBER);
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_SHEIK_SPAWNED_AT_MASTER_SWORD_PEDESTAL);
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_TIME_TRAVELED_TO_ADULT);
-                    if (GameInteractor_Should(VB_GIVE_ITEM_LIGHT_MEDALLION, true)) {
-                        OoT_Item_Give(OoT_gPlayState, ITEM_MEDALLION_LIGHT);
-                    }
-                }
-                *should = false;
-            }
-            break;
         case VB_PLAY_DISPEL_BARRIER_CS: {
-            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.OnePoint"), IS_RANDO)) {
+            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
                 static s16 trialEntrances[] = {
                     0,
                     ENTR_INSIDE_GANONS_CASTLE_3,
@@ -535,9 +567,14 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             }
             break;
         }
+        case VB_JABU_JABU_EAT_FISH:
+            if (*should && CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipMiscInteractions"), IS_RANDO)) {
+                *should = false;
+                SkipJabuFeedingCutscene();
+            }
+            break;
         case VB_PLAY_EYEDROP_CREATION_ANIM:
         case VB_PLAY_EYEDROPS_CS:
-        case VB_PLAY_DROP_FISH_FOR_JABU_CS:
         case VB_PLAY_DARUNIAS_JOY_CS:
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipMiscInteractions"), IS_RANDO)) {
                 *should = false;
@@ -658,6 +695,13 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             }
             break;
         }
+        case VB_PLAY_TIMEBLOCK_CS: {
+            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.OnePoint"), IS_RANDO)) {
+                // Todo: Preferable if possible to turn camera as if SoT block cutscene
+                *should = false;
+            }
+            break;
+        }
         case VB_PLAY_GORON_FREE_CS: {
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO)) {
                 *should = false;
@@ -679,21 +723,11 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             }
             break;
         }
-        case VB_GIVE_ITEM_MINUET_OF_FOREST:
-        case VB_GIVE_ITEM_BOLERO_OF_FIRE:
-        case VB_GIVE_ITEM_SERENADE_OF_WATER:
-        case VB_GIVE_ITEM_REQUIEM_OF_SPIRIT:
-        case VB_GIVE_ITEM_NOCTURNE_OF_SHADOW:
-        case VB_GIVE_ITEM_PRELUDE_OF_LIGHT:
-        case VB_GIVE_ITEM_ZELDAS_LULLABY:
-        case VB_GIVE_ITEM_EPONAS_SONG:
-        case VB_GIVE_ITEM_SARIAS_SONG:
-        case VB_GIVE_ITEM_SUNS_SONG:
-        case VB_GIVE_ITEM_SONG_OF_TIME:
-        case VB_GIVE_ITEM_SONG_OF_STORMS:
+        case VB_GIVE_ITEM_SONG:
         case VB_PLAY_MINUET_OF_FOREST_CS:
         case VB_PLAY_BOLERO_OF_FIRE_CS:
         case VB_PLAY_SERENADE_OF_WATER_CS:
+        case VB_PLAY_SONG_OF_STORMS_CS:
         case VB_PLAY_PRELUDE_OF_LIGHT_CS:
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.LearnSong"), IS_RANDO) || IS_RANDO) {
                 *should = false;
@@ -799,31 +833,6 @@ void TimeSaverOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_li
             }
             break;
         }
-        case VB_PHANTOM_GANON_DEATH_SCENE: {
-            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.QuickBossDeaths"), IS_RANDO || IS_BOSS_RUSH)) {
-                *should = false;
-                BossGanondrof* pg = va_arg(args, BossGanondrof*);
-                Player* player = GET_PLAYER(OoT_gPlayState);
-                if (pg->work[GND_ACTION_STATE] == DEATH_SPASM) {
-                    // Skip to death scream animation and move ganondrof to middle
-                    pg->deathState = DEATH_SCREAM;
-                    pg->timers[0] = 50;
-                    AnimationHeader* screamAnim = (AnimationHeader*)gPhantomGanonScreamAnim;
-                    OoT_Animation_MorphToLoop(&pg->skelAnime, screamAnim, -10.0f);
-                    pg->actor.world.pos.x = GND_BOSSROOM_CENTER_X;
-                    pg->actor.world.pos.y = GND_BOSSROOM_CENTER_Y + 83.0f;
-                    pg->actor.world.pos.z = GND_BOSSROOM_CENTER_Z;
-                    pg->actor.shape.rot.y = 0;
-                    pg->work[GND_BODY_DECAY_INDEX] = 0;
-                    Audio_PlayActorSound2(&pg->actor, NA_SE_EN_FANTOM_LAST);
-
-                    // Move Player out of the center of the room
-                    player->actor.world.pos.x = GND_BOSSROOM_CENTER_X - 200.0f;
-                    player->actor.world.pos.z = GND_BOSSROOM_CENTER_Z;
-                }
-            }
-            break;
-        }
         case VB_NABOORU_KNUCKLE_DEATH_SCENE: {
             EnIk* ik = va_arg(args, EnIk*);
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.QuickBossDeaths"), IS_RANDO)) {
@@ -880,8 +889,6 @@ static uint32_t enMa1UpdateHook = 0;
 static uint32_t enMa1KillHook = 0;
 static uint32_t enFuUpdateHook = 0;
 static uint32_t enFuKillHook = 0;
-static uint32_t enJjUpdateHook = 0;
-static uint32_t enJjKillHook = 0;
 static uint32_t bgSpot02UpdateHook = 0;
 static uint32_t bgSpot02KillHook = 0;
 static uint32_t bgSpot03UpdateHook = 0;
@@ -948,36 +955,12 @@ void TimeSaverOnActorInitHandler(void* actorRef) {
     }
 
     if (actor->id == ACTOR_EN_JJ) {
-        enJjUpdateHook =
-            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorUpdate>([](void* innerActorRef) mutable {
-                Actor* innerActor = static_cast<Actor*>(innerActorRef);
-
-                if (innerActor->id != ACTOR_EN_JJ || OoT_Flags_GetEventChkInf(EVENTCHKINF_OFFERED_FISH_TO_JABU_JABU)) {
-                    return;
-                }
-
-                bool shouldOpen = IS_RANDO ? RAND_GET_OPTION(RSK_JABU_OPEN)
-                                           : CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipJabuJabuFish"), 0);
-                if (!shouldOpen) {
-                    return;
-                }
-
-                EnJj* enJj = static_cast<EnJj*>(innerActorRef);
-                if (enJj->actionFunc == EnJj_WaitForFish) {
-                    EnJj_SetupAction(enJj, EnJj_WaitToOpenMouth);
-                    GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnActorUpdate>(enJjUpdateHook);
-                    GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnSceneInit>(enJjKillHook);
-                    enJjUpdateHook = 0;
-                    enJjKillHook = 0;
-                }
-            });
-        enJjKillHook =
-            GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>([](int16_t sceneNum) mutable {
-                GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnActorUpdate>(enJjUpdateHook);
-                GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnSceneInit>(enJjKillHook);
-                enJjUpdateHook = 0;
-                enJjKillHook = 0;
-            });
+        EnJj* enJj = static_cast<EnJj*>(actorRef);
+        bool shouldOpen = IS_RANDO ? RAND_GET_OPTION(RSK_JABU_OPEN)
+                                   : CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipJabuJabuFish"), 0);
+        if (shouldOpen && enJj->actionFunc == EnJj_WaitForFish) {
+            EnJj_SetupAction(enJj, EnJj_WaitToOpenMouth);
+        }
     }
 
     if (actor->id == ACTOR_EN_OWL && OoT_gPlayState->sceneNum == SCENE_ZORAS_RIVER &&
@@ -1067,8 +1050,8 @@ void TimeSaverOnActorInitHandler(void* actorRef) {
     // This is a bit of a hack, we can't effectively override the behavior of the torches
     // or poes from which the cutscene is triggered until we can have a "BeforeActorInit" hook.
     // So for now we're just going to set the flag before they get to the room the cutscene is in
-    if (OoT_gPlayState->sceneNum == SCENE_FOREST_TEMPLE && actor->id == ACTOR_EN_ST && !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1B) &&
-        !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1C)) {
+    if (OoT_gPlayState->sceneNum == SCENE_FOREST_TEMPLE && actor->id == ACTOR_EN_DOOR &&
+        !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1B) && !OoT_Flags_GetSwitch(OoT_gPlayState, 0x1C)) {
         if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.Story"), IS_RANDO) &&
             !CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.GlitchAiding"), 0)) {
             OoT_Flags_SetSwitch(OoT_gPlayState, 0x1B);
@@ -1180,9 +1163,9 @@ void TimeSaverOnSceneInitHandler(int16_t sceneNum) {
             }
             break;
         case SCENE_SPIRIT_TEMPLE_BOSS:
+            // For Twinrova see Twinrova.cpp
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), IS_RANDO)) {
-                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_TWINROVA_BATTLE)) {
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_TWINROVA_BATTLE);
+                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_NABOORU_BATTLE)) {
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_NABOORU_BATTLE);
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_NABOORU_ORDERED_TO_FIGHT_BY_TWINROVA);
                 }
@@ -1192,13 +1175,6 @@ void TimeSaverOnSceneInitHandler(int16_t sceneNum) {
             if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), IS_RANDO)) {
                 if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BONGO_BONGO_BATTLE)) {
                     OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_BONGO_BONGO_BATTLE);
-                }
-            }
-            break;
-        case SCENE_GANONDORF_BOSS:
-            if (CVarGetInteger(CVAR_ENHANCEMENT("TimeSavers.SkipCutscene.BossIntro"), IS_RANDO)) {
-                if (!OoT_Flags_GetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE)) {
-                    OoT_Flags_SetEventChkInf(EVENTCHKINF_BEGAN_GANONDORF_BATTLE);
                 }
             }
             break;

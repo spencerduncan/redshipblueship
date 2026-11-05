@@ -40,6 +40,10 @@ TYPE OggFileData
 TYPE OggType
 TYPE Op
 TYPE Options
+# OpusDecState (PR #1478, SoH 17a4c2cf8): a C struct (no mangled name) defined in games/oot/soh/mixer.c and
+# games/mm/2s2h/mixer.c with identical layout { OggOpusFile* file; const void* source; }. The MM copy is never
+# linked into the single exe (games/mm/CMakeLists.txt excludes 2s2h/mixer.c); MM's notes use OoT's mixer.
+TYPE OpusDecState
 TYPE Path
 TYPE RandoOptionGenericNoYes
 TYPE RandoOptionGenericOffOn

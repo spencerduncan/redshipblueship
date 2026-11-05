@@ -71,28 +71,29 @@ brief, plus everything in the collision set:
 
 | MM category | MM keys | Covered |
 |---|---:|---|
-| `gCheats.` | 14 | ✅ all |
+| `gCheats.` | 15 | ✅ all. #1412's Infinite Epona Carrots is the fifteenth, converged onto SoH's Epona Boost (§5.3) |
 | `Graphics` | 16 | ✅ all, but per key only since W6-GFX (#1237): the eight keys MM still reads under its own spelling (Clock Type, 24 Hours Clock, the three Motion Blur keys, the two Scene Geometry keys, and Authentic Logo, INTENTIONAL) in §6.1 W6-GFX; Bow Reticle, Disable Black Bars and Enemy Health Bars in §5.3; Actor Culling and Actor Draw Distance in §3.2. The earlier "✅ all" named few of them |
 | `Restorations` | 10 | ✅ all; the eight behaviour restorations per key since W6-FIXES (#1237, §6.1 W6-FIXES), N64 Weird Frames and Pause Buffer Window in §5.3 |
-| `Timesavers` | 9 | ✅ all |
+| `Timesavers` | 11 | ✅ all. #1412 added two, Faster Rupee Accumulator and Faster Bottles, both converged (§5.3) |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
-| `Player` | 10 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven. Invert Zora Swim Y ((O), §6.1 #1411) is the tenth |
+| `Player` | 11 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven. Invert Zora Swim Y ((O), §6.1 #1411) is the tenth, and Unsheathe Sword Without Slashing (converged, §5.3 #1412) the eleventh |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
 | `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and two first-person switches per key since W6-CAM-AIM, §4, the third, auto-centering, converged onto SoH's key by #1272, §5.3; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
-| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 19 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim. #1411 added two `A11y` keys (§6.1 #1411) |
+| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 23 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim. #1411 added two `A11y` keys (§6.1 #1411), and #1412 four converged ones (§5.3): Skip Bottle Pickup Messages (`Dialogue`), Remove Explosive Limit (`Items`), Disable Bomb Billboarding and Disable Grotto Fixed Rotation (`Mods`) |
 | `Masks` | 9 | ✅ all since W6-MASKS-SONGS (#1236): eight (O) rows and the internal `PersistentBunnyHood.State` in §6.1. Counted 10 before that lane counted the keys |
 | `Songs` | 7 | ✅ all since W6-MASKS-SONGS (#1236) and L7 (#1133): five (O) rows in §6.1, and Better Song of Double Time and Skip Song of Time Cutscenes hosted by L7 (§5.3's #1133 table) |
 | `Minigames` | 18 | ✅ all since W6-MINIGAMES (#1236): eighteen (O) rows in §6.1 |
-| `DifficultyOptions` | 12 | ✅ all: Hyper Enemies and Permanent Heart Loss converged (§5.3), Damage Multiplier held apart and hosted (§5.3, #1037), Goron Race with the minigames (§6.1), and since W6-MODES-DIFF (#1236) seven (O) rows and Delete File on Death (INTENTIONAL) in §6.1 |
+| `DifficultyOptions` | 15 | ✅ all: Hyper Enemies and Permanent Heart Loss converged (§5.3), Damage Multiplier held apart and hosted (§5.3, #1037), Goron Race with the minigames (§6.1), and since W6-MODES-DIFF (#1236) seven (O) rows and Delete File on Death (INTENTIONAL) in §6.1. #1412 added three: No Heart Drops and Drops Don't Despawn converged (§5.3), and No Random Drops held apart ((P), hosted, in §6.1's W6-MODES-DIFF table) |
 | `Cycle` | 8 | ✅ all since W6-CYCLE-CHEATS (#1236): six (O) rows and Do Not Reset Rupees / Consumables (INTENTIONAL) in §6.1 |
-| **Subtotal** | **187** | |
+| **Subtotal** | **198** | |
 
 **NOT classified at individual-setting level:** none since the W6 lanes. Until then 55 MM keys in five categories
 (`Minigames`, `DifficultyOptions`, `Masks`, `Cycle`, `Songs`) were classified **(O) MM-only at the category level** on
 the strength of their contents, with the rows inside them that have OoT counterparts pulled out (§5). Each category now
 has a row per key (table above), and `Masks` counts 9 keys, not 10, so the total in scope was 184; #1411's three keys
-(two `A11y`, one `Player`) make it 187.
+(two `A11y`, one `Player`) made it 187, and #1412's eleven 2Ship keys (ten converged, §5.3, and No Random Drops held
+apart, §6.1) make it 198.
 
 Also not covered: OoT's 1570 `gCosmetics.*` keys (overwhelmingly auto-generated per-actor
 colour entries with no MM counterpart — MM has 3, all in the collision set and all
@@ -363,8 +364,9 @@ link. They are now carved into `ship__Enh_registrars`, and each key has an MM-la
 `DrawMmCameraRows`), Remote Bombchu Control on Enhancements > Items > Explosives (`SohMenuHostedMmCamGyro.cpp`). Free
 Look stands aside while the debug camera is on, and is unchanged while it is off. The registrar-coverage lock's
 W6-CAM-GYRO phase attributes each TU by registry content; the classification lock's leg 3f-2c holds each binding.
-`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows after SoH's under Modifier
-Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistinct` row.
+`gSettings.SpeedModifier.*` was not inventoried before: it is MM's (MM-labelled rows under Modifier Buttons, after the
+M1 and M2 bindings), held apart from SoH's `gCheats.SpeedModifier.*` by a `kMustStayDistinct` row. SoH's own rows moved
+to Enhancements > Cheats with #1400 (SoH 2a335b1cd), which also retired `gSettings.WalkModifier.*`.
 
 | MM key | MM default | Row (where) | Call |
 |---|---|---|---|
@@ -375,7 +377,7 @@ Buttons), held apart from SoH's `gSettings.WalkModifier.*` by a `kMustStayDistin
 | `gEnhancements.Camera.DebugCam.Enable` | off | MM Debug Camera (likewise) | (O) MM-only; listens to port 1 (its port key has no row and is not read in the single exe) |
 | `gEnhancements.Camera.DebugCam.{6DOF,CameraSpeed}` | off / 50% | MM Enable Roll (6° of Freedom), MM Debug Camera Speed (10-300%, shown while MM Debug Camera is on) | (O) MM-only |
 | `gEnhancements.PlayerActions.RemoteBombchu` | off | Remote Bombchu Control (Items > Explosives, after SoH's Prevent Bombchus Forcing First-Person) | (O) nearest relative only |
-| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after SoH's) | (P) held apart (`kMustStayDistinct`): SoH's walk modifier has one enable and a 0-500% range |
+| `gSettings.SpeedModifier.{Enable,Toggle}` | off | MM Enable speed modifiers, MM Toggle modifier instead of holding (Modifier Buttons, after the M1 / M2 bindings) | (P) held apart (`kMustStayDistinct`): SoH's speed modifier has no enable and one 100-500% multiplier |
 | `gSettings.SpeedModifier.{WalkEnable,SwimEnable}` | off | MM Enable Walk / Swim Speed Modifier (shown while MM's enable is on) | (P) likewise: SoH has no separate walk and swim enables |
 | `gSettings.SpeedModifier.{WalkMapping1,WalkMapping2}` | 100% | MM Walk Modifier 1 / 2 (0-1500%, likewise) | (P) likewise |
 | `gSettings.SpeedModifier.{SwimMapping1,SwimMapping2}` | 100% | MM Swim Modifier 1 / 2 (0-875%, likewise) | (P) likewise |
@@ -577,6 +579,16 @@ default (off).
 | Containers Match Contents | `gEnhancements.ChestSizeAndTextureMatchContents` | `gRando.CSMC` | #1064 | The #966 audit table listed this OOT-ONLY with no MM reader; that was wrong, the reader is `gRando.CSMC` (chests, pots, grass, crates, barrels). `ChestSizeDependsStoneOfAgony` stays OoT-only (MM has no Stone of Agony). |
 | Disable Navi Call Audio | `gAudioEditor.DisableNaviCallAudio` | `gAudioEditor.DisableTatlCallAudio` | #1239 | Both bool, default off, and both skip the companion fairy's call sound (MM's `VB_PLAY_TATL_CALL_AUDIO`). SoH's row is left as SoH wrote it and now drives both games. |
 | Disable Auto-Centering in First-Person View | `gSettings.DisableFirstPersonAutoCenterView` | `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | #1272 | W6-CAM-AIM held it apart (P3, gating) with an MM row in the Bindings window. Both bool, default off; the gating difference is MM's own Gyro Aiming, which still suppresses MM's auto-centre beside the shared switch, so under the one-game model one switch means one thing in both games. The MM row is gone; SoH's row drives both games. That MM row wrote the MM spelling, so `ConfigVersion10Updater` carries a stored value across (version 9 had already run on those installs). |
+| Unsheathe Sword Without Slashing | `gEnhancements.UnsheatheWithoutSlashing` | `gEnhancements.Player.UnsheatheWithoutSlashing` | #1412 | 2Ship's TU (`Player/UnsheatheWithoutSlashing.cpp`) is new with #1412 and reads SoH's key; no single-exe row ever wrote the MM spelling, so version 9 carries nothing an install could hold. Same for every #1412 row below. |
+| Remove Explosive Limit | `gEnhancements.RemoveExplosiveLimit` | `gEnhancements.Items.RemoveExplosiveLimit` | #1412 | In Termina it also lifts Honey & Darling's cap of 5. |
+| No Heart Drops | `gEnhancements.NoHeartDrops` | `gEnhancements.DifficultyOptions.NoHeartDrops` | #1412 | MM's handler also blocks healing fairies (`ITEM00_FLEXIBLE`); shuffled enemy drops are exempt (the randomizer's `VB_ENEMY_DROP_COLLECTIBLE` runs first). |
+| Drops Don't Despawn | `gCheats.DropsDontDie` | `gEnhancements.DifficultyOptions.NoDropDespawning` | #1412 | |
+| Faster Rupee Accumulator | `gEnhancements.FasterRupeeAccumulator` | `gEnhancements.Timesavers.FasterRupeeAccumulator` | #1412 | MM's step reads `CUR_CAPACITY`, which follows the shared wallet tier (#1297). |
+| Skip Bottle Pickup Messages | `gEnhancements.FastBottles` | `gEnhancements.Dialogue.SkipBottlePickupMessages` | #1412 | |
+| Empty Bottles Faster | `gEnhancements.FasterBottleEmpty` | `gEnhancements.Timesavers.FasterBottles` | #1412 | In Termina it also speeds drinking and releasing a fairy, not only pouring out. |
+| Disable Bomb Billboarding | `gEnhancements.DisableBombBillboarding` | `gEnhancements.Mods.DisableBombBillboarding` | #1412 | |
+| Disable Grotto Fixed Rotation | `gEnhancements.DisableGrottoRotation` | `gEnhancements.Mods.DisableGrottoRotation` | #1412 | |
+| Epona Boost (Cheats > Infinite...) | `gCheats.InfiniteEponaBoost` | `gCheats.InfiniteEponaCarrots` | #1412 | Both games skip the carrot use and hide the carrot HUD, so SoH's row is the one control (the #1412 packet's "differs" was wrong). 2Ship's own No Random Drops is NOT converged: see §6.1 W6-MODES-DIFF. |
 
 ## 6. (O) — only-in-one, by category
 
@@ -629,7 +641,7 @@ default (off).
 | `Minigames.BoatArcheryHealth` | 1 | (O). Slider "Koume's Health" (1-30, default 10; disabled while "Invincible Koume" is on), same block; `Archery.cpp` |
 | `Minigames.BoatArcheryInvincible` | 1 | (O). Row "Invincible Koume", same block; `Archery.cpp` |
 | `Minigames.TreasureChestShopShowFullMaze` | 1 | (O). Row "Treasure Shop Full Maze", same block; `Minigames/TreasureChestShopFullMaze.cpp` linked |
-| `DifficultyOptions` | 12 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…). Eight classified per key since W6-MODES-DIFF (#1236, below): seven rows and Delete File on Death (INTENTIONAL, no row) |
+| `DifficultyOptions` | 15 | ⚠️ minus `HyperEnemies` → (S); rest MM-only (Takkuri, Frog Choir, Gibdo trade…). Eight classified per key since W6-MODES-DIFF (#1236, below): seven rows and Delete File on Death (INTENTIONAL, no row). #1412 added three: `NoHeartDrops` and `NoDropDespawning` → (S) (§5.3), and `NoRandomDrops` → (P), held apart with its own row in the W6-MODES-DIFF table below |
 | `PlayerActions` | 3 | Arrow cycle (MM now reads SoH's `gEnhancements.BowArrowCycle`), instant recall (classified per key: Instant Fin Boomerangs Recall, W6-PLAYER below), remote Bombchu (classified per key: Remote Bombchu Control, §4 W6-CAM-GYRO) |
 | `Restorations` | 10 | ⚠️ minus `PauseBufferWindow` and `N64WeirdFrames` → (S), minus `TatlISG` → (P); the other seven are MM/OoT-behaviour restorations, classified per key in W6-FIXES below |
 | `Modes` (`gModes.*`) | 5 | Play as Kafei, Hyrule Warriors Link, Time Moves When You Move, Mirrored World. **Zero OoT collisions**, but not a clean MM-only block: since W6-MODES-DIFF (#1236, below) three are (O) rows and Mirrored World's `.State` is translated from SoH's `gEnhancements.MirroredWorldMode` (`kTranslatedKeys`), with `.Mode` retired |
@@ -750,6 +762,7 @@ lock's leg 3f-2c holds each binding and leg 3f-3b the Mirrored World translation
 | `gEnhancements.DifficultyOptions.JinxedTimer` | 60 | Jinxed Timer (Difficulty, Majora's Mask block after Enemies) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.LowerBankRewardThresholds` | off | Lower Bank Reward Thresholds (likewise) | (O) MM-only. This row owns the key; W6-TIMESAVERS' `AutoBankDeposit.cpp` also reads it (default off) |
 | `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | off | Disable Takkuri Steal (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.NoRandomDrops` | off | MM No Random Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`, #1412). SoH's `gEnhancements.NoRandomDrops` stops random drops only ("except from the Goron Pot, Dampe, and Bosses"); 2Ship's `NoRandomDrops.cpp` cancels `VB_DROP_COLLECTIBLE` in `MM_Item_DropCollectible` too, so fixed drops vanish as well (a stray fairy in a pot, the Hero's Shield a Like Like drops, the Swordsman's School gong rupee, a rupee trap's rupees), sparing only arrows and magic in a few rooms. Same bool, different rule, so SoH's row would delete Termina contents it never mentions. Converging needs MM's rule narrowed to random drops first. The 2Ship import carries it as MM's own key |
 | `gEnhancements.DifficultyOptions.DekuGuardSearchBalls` | Night Only | Deku Guard Search Balls (likewise) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.GibdoTradeSequence` | Vanilla | Gibdo Trade Sequence Options (likewise) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.HiddenGrottosVisibility` | Off | Hidden Grottos Visibility (likewise) | (O) MM-only |
@@ -866,8 +879,8 @@ before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys 
 Scoped to the enhancement/cheat/cosmetic surface classified at **individual-setting level**
 (MM's 185 `gEnhancements.*` + `gCheats.*` keys, and their OoT counterparts). These counts are the original inventory's
 (2026-07-21) and are not re-derived per row: since then the W6 lanes classified every key per row (§2, where the total
-read 184 because `Masks` holds 9 keys, not the inventory's 10, and reads 187 since #1411), and the #966 rows, #1239 and #1272 converged more keys
-than the 26 below.
+read 184 because `Masks` holds 9 keys, not the inventory's 10, and reads 198 since #1411 and #1412), and the #966 rows,
+#1239, #1272 and #1412 converged more keys than the 26 below.
 
 | Class | Rows | Notes |
 |---|---:|---|

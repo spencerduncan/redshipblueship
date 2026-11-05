@@ -2,6 +2,9 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include "2s2h/ShipUtils.h"
 #include "2s2h/CustomMessage/CustomMessage.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -18,6 +21,15 @@ std::map<u8, RandoCheckId> fairyCheckMap = {
 };
 
 void ApplyClockTownGreatFairyHint(u16* textId, bool* loadFromMessageTable) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1475: the combined Hint Tracker's resolver builds this text (Rando/
+    // HintSources.h, upstream's expression moved there), so the tracker shows
+    // exactly this; showing it records the hint as read.
+    CustomMessage::Entry entry = {
+        .msg = Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_FAIRY_CLOCK_TOWN, RANDO_SAVE_CHECKS, nullptr),
+    };
+    Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_FAIRY_CLOCK_TOWN);
+#else
     CustomMessage::Entry entry = {
         .msg = "%wPlease, find the Stray Fairy who's lost! We will reward you with %g{{article1}}{{item1}}%w and maybe "
                "even %g{{article2}}{{item2}}%w if you are worthy."
@@ -42,12 +54,21 @@ void ApplyClockTownGreatFairyHint(u16* textId, bool* loadFromMessageTable) {
     }
 
     CustomMessage::Replace(&entry.msg, "{{item2}}", randoStaticItem2.name);
+#endif
 
     CustomMessage::LoadCustomMessageIntoFont(entry);
     *loadFromMessageTable = false;
 }
 
 void ApplyGreatFairyHint(u16* textId, bool* loadFromMessageTable, RandoCheckId randoCheckId) {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1475: as the Clock Town fairy's above, for this fairy's reward check.
+    const uint16_t source = Rando::HintSources::GreatFairySource(randoCheckId);
+    CustomMessage::Entry entry = {
+        .msg = Rando::HintSources::FixedText(source, RANDO_SAVE_CHECKS, nullptr),
+    };
+    Rando::HintSources::MarkRead(source);
+#else
     CustomMessage::Entry entry = {
         .msg = "%wPlease, find the Stray Fairies who match our color! We will reward you with %g{{article}}{{item}}%w."
     };
@@ -61,6 +82,7 @@ void ApplyGreatFairyHint(u16* textId, bool* loadFromMessageTable, RandoCheckId r
     }
 
     CustomMessage::Replace(&entry.msg, "{{item}}", randoStaticItem.name);
+#endif
 
     CustomMessage::LoadCustomMessageIntoFont(entry);
     *loadFromMessageTable = false;

@@ -2534,6 +2534,9 @@ void OoT_Environment_WarpSongLeave(PlayState* play) {
     play->transitionType = TRANS_TYPE_FADE_WHITE;
     gSaveContext.nextTransitionType = TRANS_TYPE_FADE_WHITE;
 
+    // Where entrance rando redirects the warp: every warp song path decides its destination here.
+    GameInteractor_ExecuteOnWarpSongLeave();
+
     switch (play->nextEntranceIndex) {
         case ENTR_DEATH_MOUNTAIN_CRATER_UPPER_EXIT:
             OoT_Flags_SetEventChkInf(EVENTCHKINF_ENTERED_DEATH_MOUNTAIN_CRATER);

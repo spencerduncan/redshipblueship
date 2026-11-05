@@ -3,6 +3,9 @@
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipUtils.h"
 #include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+#endif
 
 extern "C" {
 #include "variables.h"
@@ -25,6 +28,16 @@ void ApplyRemainsHint(u16* textId, bool* loadFromMessageTable) {
               "local townfolk, will pay good money "
               "for their remains.";
     } else {
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #1475: the combined Hint Tracker's resolver builds this page's text
+        // (Rando/HintSources.h, upstream's expression moved there), so the
+        // tracker shows exactly this; showing it records the poster as read.
+        const uint16_t source = (uint16_t)(RSBS_MM_HINT_SRC_REMAINS_ODOLWA + remainsHintIndex - 1);
+        msg = Rando::HintSources::FixedText(source, RANDO_SAVE_CHECKS, nullptr);
+        randoItemId = Rando::HintSources::FixedItem(source);
+        icon = Rando::StaticData::GetIconForZMessage(randoItemId);
+        Rando::HintSources::MarkRead(source);
+#else
         msg = "         %g{{boss}}%w:\n"
               "Last seen " RANDO_HINT_PREPOS("in near") " %y{{location}}%w.";
 
@@ -49,6 +62,7 @@ void ApplyRemainsHint(u16* textId, bool* loadFromMessageTable) {
 
         icon = Rando::StaticData::GetIconForZMessage(randoItemId);
         Rando::HintArea::ReplaceItemLocation(&msg, "{{location}}", randoItemId);
+#endif
     }
 
     CustomMessage::Entry entry = {

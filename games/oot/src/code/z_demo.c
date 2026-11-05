@@ -497,18 +497,9 @@ void Cutscene_Command_Terminator(PlayState* play, CutsceneContext* csCtx, CsCmdB
     Player* player = GET_PLAYER(play);
     s32 temp = 0;
 
-    bool shouldSkipCommand = false;
-
-    if (cmd->base == 8 && !GameInteractor_Should(VB_PLAY_PULL_MASTER_SWORD_CS, true)) {
-        shouldSkipCommand = true;
-    }
-
-    if (cmd->base == 24 && !GameInteractor_Should(VB_PLAY_DROP_FISH_FOR_JABU_CS, true)) {
-        shouldSkipCommand = true;
-    }
-
-    bool debugCsSkip = (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
-                        (gSaveContext.fileNum != 0xFEDC) && CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0));
+    bool shouldSkipCommand = cmd->base == 8 && !GameInteractor_Should(VB_PLAY_PULL_MASTER_SWORD_CS, true);
+    bool debugCsSkip = CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
+                       (gSaveContext.fileNum != 0xFEDC) && CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0);
 
     if ((gSaveContext.gameMode != GAMEMODE_NORMAL) && (gSaveContext.gameMode != GAMEMODE_END_CREDITS) &&
         (play->sceneNum != SCENE_HYRULE_FIELD) && (csCtx->frames > 20) &&
@@ -728,7 +719,7 @@ void Cutscene_Command_Terminator(PlayState* play, CutsceneContext* csCtx, CsCmdB
                 play->transitionType = TRANS_TYPE_FADE_WHITE;
                 break;
             case 22:
-                if (GameInteractor_Should(VB_GIVE_ITEM_REQUIEM_OF_SPIRIT, true)) {
+                if (GameInteractor_Should(VB_GIVE_ITEM_SONG, true, ITEM_SONG_REQUIEM)) {
                     OoT_Item_Give(play, ITEM_SONG_REQUIEM);
                 }
                 play->nextEntranceIndex = ENTR_DESERT_COLOSSUS_EAST_EXIT;
@@ -868,7 +859,7 @@ void Cutscene_Command_Terminator(PlayState* play, CutsceneContext* csCtx, CsCmdB
                 play->transitionType = TRANS_TYPE_FADE_BLACK_FAST;
                 break;
             case 47:
-                if (GameInteractor_Should(VB_GIVE_ITEM_NOCTURNE_OF_SHADOW, true)) {
+                if (GameInteractor_Should(VB_GIVE_ITEM_SONG, true, ITEM_SONG_NOCTURNE)) {
                     OoT_Item_Give(play, ITEM_SONG_NOCTURNE);
                 }
                 OoT_Flags_SetEventChkInf(EVENTCHKINF_LEARNED_NOCTURNE_OF_SHADOW);

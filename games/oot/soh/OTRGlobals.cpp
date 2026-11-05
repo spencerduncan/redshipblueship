@@ -2504,29 +2504,6 @@ extern "C" void Graph_StartFrame() {
 #endif
 }
 
-void RunCommands(Gfx* Commands, const std::vector<std::unordered_map<Mtx*, MtxF>>& mtx_replacements) {
-    auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(OTRGlobals::Instance->context->GetWindow());
-
-    if (wnd == nullptr) {
-        return;
-    }
-
-    // Process window events for resize, mouse, keyboard events
-    wnd->HandleEvents();
-
-    auto intp = wnd->GetInterpreterWeak().lock().get();
-    intp->mInterpolationIndex = 0;
-
-    UIWidgets::Colors themeColor =
-        static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
-    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
-    for (const auto& m : mtx_replacements) {
-        wnd->DrawAndRunGraphicsCommands(Commands, m);
-        intp->mInterpolationIndex++;
-    }
-    ImGui::PopStyleColor();
-}
-
 #ifdef RSBS_SINGLE_EXECUTABLE
 // Frames this process has demonstrably finished. Read by
 // OoT_Graph_HasPresentedFrame below; see the increment at the end of
@@ -2594,6 +2571,49 @@ extern "C" int OoT_Graph_ProbeInterpolatedFrame(float step, const void* mtx, flo
 extern "C" void MM_PlayerCustomFlipbooks_RefreshIfScanned(void);
 #endif
 
+// Interpolated frames of a tick are evenly spaced numerators time+step, time+2*step, ... over denom.
+void RunCommands(Gfx* Commands, int time, int step, int denom, int count) {
+    auto wnd = std::dynamic_pointer_cast<Fast::Fast3dWindow>(OTRGlobals::Instance->context->GetWindow());
+
+    if (wnd == nullptr) {
+        return;
+    }
+
+    // Process window events for resize, mouse, keyboard events
+    wnd->HandleEvents();
+
+    auto intp = wnd->GetInterpreterWeak().lock().get();
+    intp->mInterpolationIndex = 0;
+
+    UIWidgets::Colors themeColor =
+        static_cast<UIWidgets::Colors>(CVarGetInteger(CVAR_SETTING("Menu.Theme"), UIWidgets::Colors::LightBlue));
+    ImGui::PushStyleColor(ImGuiCol_TitleBgActive, UIWidgets::ColorValues.at(themeColor));
+    for (int i = 0; i < count; i++) {
+        time += step;
+        const float interpolationStep = (float)time / denom;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        std::unordered_map<Mtx*, MtxF> mtx_replacements =
+            (time == denom) ? std::unordered_map<Mtx*, MtxF>() : Graph_InterpolateActiveRecorder(interpolationStep);
+        if (sGraphFrameRecorder != GraphRecorder::MM) {
+            // Ribbon vertices are shared by every frame of a tick: re-blend them before each run.
+            FrameInterpolation_UpdateRibbonHeads(interpolationStep);
+            // Skinned vertices are shared by every displayed frame, so blend them before each run
+            FrameInterpolation_UpdateSkinnedVertices(interpolationStep);
+        }
+#else
+        std::unordered_map<Mtx*, MtxF> mtx_replacements =
+            (time == denom) ? std::unordered_map<Mtx*, MtxF>() : FrameInterpolation_Interpolate(interpolationStep);
+        // Ribbon vertices are shared by every frame of a tick: re-blend them before each run.
+        FrameInterpolation_UpdateRibbonHeads(interpolationStep);
+        // Skinned vertices are shared by every displayed frame, so blend them before each run
+        FrameInterpolation_UpdateSkinnedVertices(interpolationStep);
+#endif
+        wnd->DrawAndRunGraphicsCommands(Commands, mtx_replacements);
+        intp->mInterpolationIndex++;
+    }
+    ImGui::PopStyleColor();
+}
+
 // C->C++ Bridge
 extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
     // Guard audio runtime calls - only notify audio thread if audio is enabled
@@ -2605,7 +2625,6 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
 
         audio.cv_to_thread.notify_one();
     }
-    std::vector<std::unordered_map<Mtx*, MtxF>> mtx_replacements;
     int target_fps = OTRGlobals::Instance->GetInterpolationFPS();
     static int last_fps;
     static int last_update_rate;
@@ -2628,17 +2647,11 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
 #ifdef RSBS_SINGLE_EXECUTABLE
     Graph_BeginInterpolatedFrame(); // #965: pick this frame's recorder
 #endif
+    int start_time = time;
+    int count = 0;
     while (time + original_fps <= next_original_frame) {
         time += original_fps;
-        if (time != next_original_frame) {
-#ifdef RSBS_SINGLE_EXECUTABLE
-            mtx_replacements.push_back(Graph_InterpolateActiveRecorder((float)time / next_original_frame));
-#else
-            mtx_replacements.push_back(FrameInterpolation_Interpolate((float)time / next_original_frame));
-#endif
-        } else {
-            mtx_replacements.emplace_back();
-        }
+        count++;
     }
 
     time -= fps;
@@ -2647,13 +2660,15 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
         wnd->SetTargetFps(fps);
     }
 
+    int step = original_fps;
     // When the gfx debugger is active, only run with the final mtx
     if (GfxDebuggerIsDebugging()) {
-        mtx_replacements.clear();
-        mtx_replacements.emplace_back();
+        start_time = next_original_frame;
+        step = 0;
+        count = 1;
     }
 
-    RunCommands(commands, mtx_replacements);
+    RunCommands(commands, start_time, step, next_original_frame, count);
 
     last_fps = fps;
     last_update_rate = Ship_GetUpdateRate();

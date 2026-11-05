@@ -4,9 +4,12 @@
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/Rando/HintArea.h" // #575 H2: a hint names the check's area (scene name outside single-exe)
 #ifdef RSBS_SINGLE_EXECUTABLE
-#include "Rando/Foreign.h" // ForeignNameForCheck: a crossing host's hint (#575 item 2)
-#include "game.h"          // src/common: GAME_MM / GAME_OOT, a candidate's host game (#575 H3c)
-#include <cstdio>          // snprintf in the test bridge below
+#include "Rando/Foreign.h"          // ForeignNameForCheck: a crossing host's hint (#575 item 2)
+#include "game.h"                   // src/common: GAME_MM / GAME_OOT, a candidate's host game (#575 H3c)
+#include <cstdio>                   // snprintf in the test bridge below
+#include "2s2h/Rando/HintSources.h" // #1475: the hint tracker's resolver and read hook
+#include "combo_hint_view.h"        // src/common: ComboHintResolution (#1475)
+#include "foreign_items.h"          // src/common: Combo_GetForeignPlacementForCheck (#1475)
 #endif
 
 #include <vector>
@@ -71,10 +74,15 @@ struct GossipHintTarget {
     }
 };
 
-static std::vector<GossipHintTarget> GossipHintCandidates(bool excludeObtained) {
+// #1475 (hint tracker H1): the functions below read the world they are handed
+// (`checks`, a SaveContext image's rando check table: MM's live save at talk
+// time, the frozen MM half the combined Hint Tracker reads while OoT is played)
+// rather than gSaveContext, so the tracker's resolver and the stone's hooks run
+// the same code. Each one-world form without `checks` is the live save's.
+static std::vector<GossipHintTarget> GossipHintCandidates(const RandoSaveCheck* checks, bool excludeObtained) {
     std::vector<GossipHintTarget> availableChecks;
     for (auto& [randoCheckId, _] : Rando::StaticData::Checks) {
-        RandoSaveCheck saveCheck = RANDO_SAVE_CHECKS[randoCheckId];
+        RandoSaveCheck saveCheck = checks[randoCheckId];
         // A crossing host holds MM's junk cover (the item itself is the other
         // game's, in the crossing store), so the junk filter alone would never
         // hint it. Every crossing item is progression (the single-bag composer
@@ -98,7 +106,11 @@ static std::vector<GossipHintTarget> GossipHintCandidates(bool excludeObtained) 
     return availableChecks;
 }
 
-static std::string GossipHintItemName(RandoCheckId randoCheckId) {
+static std::vector<GossipHintTarget> GossipHintCandidates(bool excludeObtained) {
+    return GossipHintCandidates(RANDO_SAVE_CHECKS, excludeObtained);
+}
+
+static std::string GossipHintItemName(const RandoSaveCheck* checks, RandoCheckId randoCheckId) {
     // Name the crossed item, never the cover, with its article like a native
     // one and its game after it: an MM host only ever holds an OoT item, and
     // many names exist in both games ("the Lens of Truth"). " (OoT)" is the
@@ -106,7 +118,11 @@ static std::string GossipHintItemName(RandoCheckId randoCheckId) {
     if (const char* foreignName = Rando::Foreign::ForeignNameForCheck(randoCheckId)) {
         return std::string(Rando::Foreign::ForeignArticleForCheck(randoCheckId)) + foreignName + " (OoT)";
     }
-    return Rando::StaticData::GetItemName(RANDO_SAVE_CHECKS[randoCheckId].randoItemId);
+    return Rando::StaticData::GetItemName(checks[randoCheckId].randoItemId);
+}
+
+static std::string GossipHintItemName(RandoCheckId randoCheckId) {
+    return GossipHintItemName(RANDO_SAVE_CHECKS, randoCheckId);
 }
 
 // #575 H2: what a stone says for a check, before colours and line breaks: the
@@ -114,7 +130,7 @@ static std::string GossipHintItemName(RandoCheckId randoCheckId) {
 // hooks below call it, and so does the test bridge, so the lock reads the very
 // string the player is shown. The check is named by its area in the shared
 // vocabulary, with the area's OoTMM preposition (Rando/HintArea.h).
-static std::string GossipHintText(const GossipHintTarget& target, bool purchased) {
+static std::string GossipHintText(const RandoSaveCheck* checks, const GossipHintTarget& target, bool purchased) {
     std::string msg = purchased ? "Wise choice... They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w."
                                 : "They say %g{{item}}%w is hidden {{prepos}} %y{{location}}%w.";
     if (target.hostGame == (uint8_t)GAME_OOT) {
@@ -126,9 +142,13 @@ static std::string GossipHintText(const GossipHintTarget& target, bool purchased
         return msg;
     }
     const RandoCheckId randoCheckId = (RandoCheckId)target.check;
-    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName(randoCheckId));
+    CustomMessage::Replace(&msg, "{{item}}", GossipHintItemName(checks, randoCheckId));
     Rando::HintArea::ReplaceLocation(&msg, "{{location}}", randoCheckId);
     return msg;
+}
+
+static std::string GossipHintText(const GossipHintTarget& target, bool purchased) {
+    return GossipHintText(RANDO_SAVE_CHECKS, target, purchased);
 }
 #else
 using GossipHintTarget = RandoCheckId;
@@ -159,14 +179,33 @@ static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {
     return (uint32_t)(int32_t)((f32)sceneId + homePos.x + homePos.z);
 }
 
+// #1475 (hint tracker H1): THE FREE STONE'S PICK, shared by the stone's own hook
+// (FreeStonePick below, GetRandomCheck's free path) and the hint tracker's
+// resolver (ResolveFreeStone). The stone seeded `stoneSeed` in a world of seed
+// `finalSeed` picks among `candidates` with upstream's draw, Ship_Random_Seed(
+// finalSeed + stoneSeed) then Ship_Random(0, size - 1), made on a stream the
+// caller holds (MM_Ship_RandomOnStream, ShipUtils.cpp: Ship_Random's own step
+// and rejection rule), never on MM's global one. `*stream` is left where the
+// draw leaves it, which is where upstream's pick left the global stream.
+// (Ship_Random's upper bound is exclusive, so the last candidate is never
+// picked: inherited, and kept so no hint moves.)
+static GossipHintTarget FreeStonePickFrom(const std::vector<GossipHintTarget>& candidates, uint32_t finalSeed,
+                                          uint32_t stoneSeed, u64* stream) {
+    *stream = (u64)(uint32_t)(finalSeed + stoneSeed);
+    return candidates[MM_Ship_RandomOnStream(stream, 0, (s32)(candidates.size() - 1))];
+}
+
 // #1047: the free stone's pick for stone seed `stoneSeed`: what GetRandomCheck
-// returns for the free stone, and what the free-stone digest folds. Reseeds MM's
-// global stream, as upstream's pick always has. (Ship_Random's upper bound is
-// exclusive, so the last candidate is never picked: inherited, and kept so no
-// hint moves.)
+// returns for the free stone. #1475: FreeStonePickFrom on the live world, then
+// MM's global stream is put where upstream's pick left it (seeded with the
+// world's seed plus the stone's, then the draw), because the second message's
+// hook draws the stone's flavour line from it right after.
 static GossipHintTarget FreeStonePick(const std::vector<GossipHintTarget>& candidates, uint32_t stoneSeed) {
-    Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + stoneSeed);
-    return candidates[Ship_Random(0, candidates.size() - 1)];
+    const uint32_t finalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
+    u64 stream = 0;
+    const GossipHintTarget target = FreeStonePickFrom(candidates, finalSeed, stoneSeed, &stream);
+    Ship_Random_Seed(stream);
+    return target;
 }
 #else
 static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {
@@ -226,14 +265,59 @@ GossipHintTarget GetRandomCheck(bool repeatableOnlyObtained = false) {
 // #1439: a stone that keeps its item hint after the foolish draw then draws the
 // Way of the Hero variant from its own stream (HintWothSingleExe.cpp), so every
 // stone that spoke the foolish variant still does.
-static std::string FreeStoneHintTextSeeded(const GossipHintTarget& target, uint32_t stoneSeed) {
-    const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);
+// #1475: over the world `checks`, and, when `out` is non-NULL, what it says as
+// data for the hint tracker (the variant's type and area, or the item hint's
+// check, item and area); the text is unchanged.
+static void FreeStoneAreaHint(ComboHintResolution* out, uint8_t type, ComboArea area) {
+    if (out != nullptr) {
+        out->type = type;
+        (void)Combo_HintResolutionAddArea(out, area);
+    }
+}
+
+static void FreeStoneItemHint(ComboHintResolution* out, const RandoSaveCheck* checks, const GossipHintTarget& target) {
+    if (out == nullptr) {
+        return;
+    }
+    ComboHintTarget t = {};
+    t.checkGame = target.hostGame;
+    t.check = target.check;
+    if (target.hostGame == (uint8_t)GAME_OOT) {
+        t.itemGame = (uint8_t)GAME_MM;
+        t.item = (uint16_t)Rando::HintArea::ItemOnOoTHost(target.check);
+    } else if (const SharedItem* crossed = Combo_GetForeignPlacementForCheck(target.check)) {
+        t.itemGame = crossed->originGame; // the crossed item the text names, not MM's cover
+        t.item = crossed->id;
+    } else {
+        t.itemGame = (uint8_t)GAME_MM;
+        t.item = (uint16_t)checks[target.check].randoItemId;
+    }
+    t.area = Combo_Area_OfCheck(target.hostGame, target.check);
+    out->type = COMBO_HINT_TYPE_ITEM;
+    (void)Combo_HintResolutionAddTarget(out, &t);
+    (void)Combo_HintResolutionAddArea(out, t.area);
+}
+
+static std::string FreeStoneHintTextSeeded(const RandoSaveCheck* checks, const GossipHintTarget& target,
+                                           uint32_t stoneSeed, ComboHintResolution* out) {
+    ComboArea area = { (uint8_t)GAME_NONE, (uint8_t)COMBO_AREA_NONE };
+    const std::string foolish = Rando::HintFoolish::FreeStoneText(checks, stoneSeed, &area);
     if (!foolish.empty()) {
+        FreeStoneAreaHint(out, COMBO_HINT_TYPE_FOOLISH, area);
         return foolish;
     }
-    const std::string woth = Rando::HintWoth::FreeStoneText(stoneSeed);
-    return woth.empty() ? GossipHintText(target, false) : woth;
+    const std::string woth = Rando::HintWoth::FreeStoneText(stoneSeed, &area);
+    if (!woth.empty()) {
+        FreeStoneAreaHint(out, COMBO_HINT_TYPE_WOTH, area);
+        return woth;
+    }
+    FreeStoneItemHint(out, checks, target);
+    return GossipHintText(checks, target, false);
 }
+
+// #1475: the stone at the placement (scene, home position) is a hint tracker
+// source; marks it read (Rando/HintSources.h). Defined beside kMmGossipStones.
+static void MarkGossipStoneRead(s16 sceneId, const Vec3f& homePos);
 
 // The stone seed is GetRandomCheck's own for the free stone (the same expression,
 // read off the same stone), so the variant is a pure function of the frozen world
@@ -245,7 +329,10 @@ static std::string FreeStoneHintText(const GossipHintTarget& target) {
     }
     EnGs* enGs = (EnGs*)player->talkActor;
     uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);
-    return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);
+    // #1475: the hint tracker's read record: this stone's textbox is opening.
+    MarkGossipStoneRead(MM_gPlayState->sceneId, enGs->actor.home.pos);
+    const uint32_t stoneSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed + seed;
+    return FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, target, stoneSeed, nullptr);
 }
 
 /** TEST BRIDGE (redship tier; src/common/tests/test_foolish_hints.c, #575 H5a):
@@ -259,7 +346,7 @@ extern "C" int MM_Rando_Hints_TestFreeStoneText(uint16_t randoCheckId, uint32_t 
     if (randoCheckId <= RC_UNKNOWN || randoCheckId >= RC_MAX || out == nullptr || cap <= 0) {
         return -1;
     }
-    const std::string msg = FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
+    const std::string msg = FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, (RandoCheckId)randoCheckId, stoneSeed, nullptr);
     snprintf(out, (size_t)cap, "%s", msg.c_str());
     return (int)msg.size();
 }
@@ -277,7 +364,7 @@ extern "C" int MM_Rando_Hints_TestFreeStoneKeepsStream(uint16_t randoCheckId, ui
     Ship_Random_Seed(streamSeed);
     const s32 untouched = Ship_Random(0, 0x40000000);
     Ship_Random_Seed(streamSeed);
-    (void)FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);
+    (void)FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, (RandoCheckId)randoCheckId, stoneSeed, nullptr);
     const s32 afterText = Ship_Random(0, 0x40000000);
     return untouched == afterText ? 1 : 0;
 }
@@ -391,15 +478,115 @@ extern "C" int MM_Rando_Hints_TestGossipStone(int index, int16_t* outSceneId, in
     return count;
 }
 
+// #1475: the stone table's length is the hint tracker's stone source count
+// (combo_hint_view.h): each row is a source, keyed by its own (scene, x, z), so a
+// stone placed in two scene versions (the Southern Swamp poisoned and cleared,
+// Mountain Village in winter and spring) is two sources with two stone seeds.
+// A row added or removed renumbers every later source in every .redsave's read
+// record, so the count is pinned here and the change must be a deliberate one.
+static_assert(sizeof(kMmGossipStones) / sizeof(kMmGossipStones[0]) == (size_t)RSBS_MM_HINT_SRC_STONE_COUNT,
+              "kMmGossipStones is the hint tracker's stone source list (#1475): a changed row count renumbers the "
+              "read record's sources");
+
+/** #1475: the row of kMmGossipStones placed at (scene, home position), or -1. */
+static int GossipStoneIndex(s16 sceneId, const Vec3f& homePos) {
+    const int count = (int)(sizeof(kMmGossipStones) / sizeof(kMmGossipStones[0]));
+    for (int i = 0; i < count; i++) {
+        const MmGossipStone& stone = kMmGossipStones[i];
+        if (stone.sceneId == sceneId && (f32)stone.x == homePos.x && (f32)stone.z == homePos.z) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+static void MarkGossipStoneRead(s16 sceneId, const Vec3f& homePos) {
+    const int index = GossipStoneIndex(sceneId, homePos);
+    if (index >= 0) {
+        Rando::HintSources::MarkRead((uint16_t)(RSBS_MM_HINT_SRC_STONE_FIRST + index));
+    }
+}
+
+/** #1475: what one free stone says, as the hint tracker's resolver works it out. */
+struct FreeStoneAnswer {
+    GossipHintTarget target = GossipHintTarget(RC_UNKNOWN); // the check it picks
+    std::string text;                                       // FreeStoneHintText's text for it
+    u64 stream = 0;                                         // where its pick leaves the stream
+    ComboHintResolution hint = {};                          // the text as data (combo_hint_view.h)
+};
+
+/**
+ * #1475: THE RESOLVER for a free stone: what the stone seeded `stoneSeed` says in
+ * the world (`checks`, `finalSeed`), with the stone's own functions: the same
+ * candidates (GossipHintCandidates), the same pick (FreeStonePickFrom, which
+ * GetRandomCheck's FreeStonePick calls) and the same text (FreeStoneHintTextSeeded,
+ * which FreeStoneHintText calls), so the tracker's answer and the textbox's are
+ * one computation. Pure: MM's global stream is not touched (`out->stream` says
+ * where a read would leave it). False with no candidate (the hook shows nothing).
+ */
+static bool ResolveFreeStone(const RandoSaveCheck* checks, uint32_t finalSeed, uint32_t stoneSeed,
+                             FreeStoneAnswer* out) {
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(checks, false);
+    if (candidates.empty()) {
+        return false;
+    }
+    out->target = FreeStonePickFrom(candidates, finalSeed, stoneSeed, &out->stream);
+    Combo_HintResolutionClear(&out->hint);
+    out->text = FreeStoneHintTextSeeded(checks, out->target, finalSeed + stoneSeed, &out->hint);
+    (void)Combo_HintResolutionSetText(&out->hint, out->text.c_str());
+    return true;
+}
+
+int Rando::HintSources::StoneCount() {
+    return (int)(sizeof(kMmGossipStones) / sizeof(kMmGossipStones[0]));
+}
+
+bool Rando::HintSources::StoneAt(int index, int16_t* outScene, int16_t* outX, int16_t* outZ) {
+    if (index < 0 || index >= StoneCount()) {
+        return false;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    if (outScene != nullptr) {
+        *outScene = stone.sceneId;
+    }
+    if (outX != nullptr) {
+        *outX = stone.x;
+    }
+    if (outZ != nullptr) {
+        *outZ = stone.z;
+    }
+    return true;
+}
+
+bool Rando::HintSources::ResolveStone(const RandoSaveCheck* checks, uint32_t finalSeed, int index,
+                                      ComboHintResolution* out) {
+    Combo_HintResolutionClear(out);
+    if (checks == nullptr || index < 0 || index >= StoneCount()) {
+        return false;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+    FreeStoneAnswer answer;
+    if (!ResolveFreeStone(checks, finalSeed, GossipStoneSeed(stone.sceneId, homePos), &answer)) {
+        return false;
+    }
+    if (out != nullptr) {
+        *out = answer.hint;
+    }
+    return true;
+}
+
 /** TEST BRIDGE (#1047, the golden digests): what every free stone of the frozen
  *  world says, in kMmGossipStones order: its seed, the check it picks
  *  (FreeStonePick, GetRandomCheck's own pick) and its text
  *  (FreeStoneHintTextSeeded, FreeStoneHintText's own), folded through Ship_Hash
  *  into `*outDigest`. mmHintDigest pins what a stone MAY say; this pins what each
  *  stone DOES say. Reseeds MM's global stream, as reading a stone does. Returns
- *  the stone count. */
+ *  the stone count.
+ *  #1475: through the hint tracker's resolver (ResolveFreeStone), so the goldens'
+ *  mmFreeStoneDigest pins the resolver; each stone then leaves MM's stream where
+ *  its read would (FreeStonePick's Ship_Random_Seed), as before. */
 extern "C" int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest) {
-    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(false);
     const uint32_t finalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;
     std::string blob;
     int count = 0;
@@ -408,12 +595,13 @@ extern "C" int MM_Rando_Hints_DigestFreeStones(uint32_t* outDigest) {
         const uint32_t seed = GossipStoneSeed(stone.sceneId, homePos);
         blob += std::to_string(stone.sceneId) + ':' + std::to_string(stone.x) + ':' + std::to_string(stone.z) + '|' +
                 std::to_string(seed) + '|';
-        if (candidates.empty()) {
+        FreeStoneAnswer answer;
+        if (!ResolveFreeStone(RANDO_SAVE_CHECKS, finalSeed, seed, &answer)) {
             blob += "none\n";
         } else {
-            const GossipHintTarget target = FreeStonePick(candidates, seed);
-            blob += std::to_string(target.hostGame) + ':' + std::to_string(target.check) + '|' +
-                    FreeStoneHintTextSeeded(target, finalSeed + seed) + '\n';
+            Ship_Random_Seed(answer.stream);
+            blob += std::to_string(answer.target.hostGame) + ':' + std::to_string(answer.target.check) + '|' +
+                    answer.text + '\n';
         }
         count++;
     }
@@ -434,6 +622,86 @@ extern "C" int MM_Rando_Hints_TestFreeStonesAfterStream(uint32_t finalSeed, uint
     const int count = MM_Rando_Hints_DigestFreeStones(outDigest);
     gSaveContext.save.shipSaveInfo.rando.finalSeed = prior;
     return count;
+}
+
+/** TEST BRIDGE (#1475, mm-hint-sources-world): stone `index`'s pick the way
+ *  main made it before the resolver (#1047's FreeStonePick): MM's GLOBAL stream
+ *  seeded with the live world's seed plus the stone's, then Ship_Random over the
+ *  live candidates. The pick's host game and check go to `*outGame` / `*outCheck`;
+ *  `*outNext` receives one more global draw, Ship_Random(0, 0x40000000), which is
+ *  where the stone's flavour line would draw from. Returns 1, 0 with no candidate,
+ *  -1 for a bad argument. Moves MM's global stream, as reading a stone does. */
+extern "C" int MM_Rando_Hints_TestLegacyFreeStonePick(int index, uint8_t* outGame, uint16_t* outCheck,
+                                                      int32_t* outNext) {
+    if (index < 0 || index >= Rando::HintSources::StoneCount() || outGame == nullptr || outCheck == nullptr ||
+        outNext == nullptr) {
+        return -1;
+    }
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(false);
+    if (candidates.empty()) {
+        return 0;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+    Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + GossipStoneSeed(stone.sceneId, homePos));
+    const GossipHintTarget target = candidates[Ship_Random(0, candidates.size() - 1)];
+    *outGame = target.hostGame;
+    *outCheck = target.check;
+    *outNext = Ship_Random(0, 0x40000000);
+    return 1;
+}
+
+/** TEST BRIDGE (#1475): the talk-time pick of stone `index` (FreeStonePick, which
+ *  GetRandomCheck's free path calls), with the same out-parameters as the legacy
+ *  bridge above: the pick, and the next global draw after it. */
+extern "C" int MM_Rando_Hints_TestTalkTimeFreeStonePick(int index, uint8_t* outGame, uint16_t* outCheck,
+                                                        int32_t* outNext) {
+    if (index < 0 || index >= Rando::HintSources::StoneCount() || outGame == nullptr || outCheck == nullptr ||
+        outNext == nullptr) {
+        return -1;
+    }
+    const std::vector<GossipHintTarget> candidates = GossipHintCandidates(false);
+    if (candidates.empty()) {
+        return 0;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+    const GossipHintTarget target = FreeStonePick(candidates, GossipStoneSeed(stone.sceneId, homePos));
+    *outGame = target.hostGame;
+    *outCheck = target.check;
+    *outNext = Ship_Random(0, 0x40000000);
+    return 1;
+}
+
+/** TEST BRIDGE (#1475): the text the free stone at row `index` shows at talk time
+ *  in the LIVE world for the pick `(hostGame, check)`: FreeStoneHintText's own
+ *  expression (the live table, the live final seed plus the stone's seed), before
+ *  colours and line breaks. Returns the full length, or -1. */
+extern "C" int MM_Rando_Hints_TestTalkTimeFreeStoneText(int index, uint8_t hostGame, uint16_t check, char* out,
+                                                        int cap) {
+    if (index < 0 || index >= Rando::HintSources::StoneCount() || out == nullptr || cap <= 0) {
+        return -1;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+    const uint32_t stoneSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed + GossipStoneSeed(stone.sceneId, homePos);
+    const std::string msg = FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, GossipHintTarget(hostGame, check), stoneSeed,
+                                                    nullptr);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** TEST BRIDGE (#1475): the read hook a stone's textbox runs (MarkGossipStoneRead,
+ *  from FreeStoneHintText) for the placement at row `index`, as if that stone were
+ *  being read now. Returns the row, or -1 out of range. */
+extern "C" int MM_Rando_Hints_TestMarkStoneRead(int index) {
+    if (index < 0 || index >= Rando::HintSources::StoneCount()) {
+        return -1;
+    }
+    const MmGossipStone& stone = kMmGossipStones[index];
+    const Vec3f homePos = { (f32)stone.x, 0.0f, (f32)stone.z };
+    MarkGossipStoneRead(stone.sceneId, homePos);
+    return GossipStoneIndex(stone.sceneId, homePos);
 }
 #else
 static std::string FreeStoneHintText(GossipHintTarget randoCheckId) {

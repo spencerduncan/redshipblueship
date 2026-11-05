@@ -1396,6 +1396,7 @@ RegisterW6Phase sCamGyroPhase{ "W6-CAM-GYRO (#1235, #1236, #1240)", CamGyroProbe
 // Same shape as Phase 5 (SkipKeyProbe).
 #define GAP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
 #define GAP_HOOK_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+#define GAP_UNKEYED_COUNT(hook) []() { return SettledUnkeyedCount<GameInteractor::hook>(); }
 
 const std::vector<SkipKeyProbe>& KeyGapProbes() {
     static const std::vector<SkipKeyProbe> probes = {
@@ -1531,6 +1532,44 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
               1 },
             { "OnActorUpdate[EN_KAIZOKU] (Cutscenes/SkipEnemyCutscenes.cpp)",
               GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_KAIZOKU), 1 } } },
+        // #1412: the MM halves of settings SoH already ships, each on SoH's own key (kConvergedKeys). No Random Drops
+        // is not here: its MM rule differs from SoH's, so its key is held apart and probed in W6-MODES-DIFF.
+        { "gEnhancements.UnsheatheWithoutSlashing",
+          "Unsheathe Sword Without Slashing",
+          { { "VB_USE_HELD_ITEM_AFTER_CHANGE (Player/UnsheatheWithoutSlashing.cpp)",
+              GAP_VB_COUNT(VB_USE_HELD_ITEM_AFTER_CHANGE), 1 } } },
+        { "gEnhancements.RemoveExplosiveLimit",
+          "Remove Explosive Limit",
+          { { "VB_LIMIT_EXPLOSIVES (Items/RemoveExplosiveLimit.cpp)", GAP_VB_COUNT(VB_LIMIT_EXPLOSIVES), 1 } } },
+        { "gEnhancements.NoHeartDrops",
+          "No Heart Drops",
+          { { "VB_DROP_COLLECTIBLE (DifficultyOptions/NoHeartDrops.cpp)", GAP_VB_COUNT(VB_DROP_COLLECTIBLE), 1 } } },
+        { "gCheats.DropsDontDie",
+          "Drops Don't Despawn",
+          { { "VB_UPDATE_ITEM00 (DifficultyOptions/NoDropDespawning.cpp)", GAP_VB_COUNT(VB_UPDATE_ITEM00), 1 } } },
+        { "gEnhancements.FasterRupeeAccumulator",
+          "Faster Rupee Accumulator",
+          { { "OnGameStateUpdate, unkeyed (Timesavers/FasterRupeeAccumulator.cpp)",
+              GAP_UNKEYED_COUNT(OnGameStateUpdate), 1 } } },
+        { "gEnhancements.FastBottles",
+          "Skip Bottle Pickup Messages",
+          { { "VB_PLAY_BOTTLE_CATCH_TEXT (Dialogue/SkipBottleCatch.cpp)", GAP_VB_COUNT(VB_PLAY_BOTTLE_CATCH_TEXT),
+              1 } } },
+        { "gEnhancements.FasterBottleEmpty",
+          "Empty Bottles Faster",
+          { { "VB_USE_BOTTLE_ITEM (Timesavers/FasterBottles.cpp)", GAP_VB_COUNT(VB_USE_BOTTLE_ITEM), 1 } } },
+        { "gEnhancements.DisableBombBillboarding",
+          "Disable Bomb Billboarding",
+          { { "VB_APPLY_BOMB_BILLBOARDING (Graphics/DisableBombBillboarding.cpp)",
+              GAP_VB_COUNT(VB_APPLY_BOMB_BILLBOARDING), 1 } } },
+        { "gEnhancements.DisableGrottoRotation",
+          "Disable Grotto Fixed Rotation",
+          { { "VB_ROTATE_GROTTO_ENTRANCE (Graphics/DisableGrottoRotation.cpp)", GAP_VB_COUNT(VB_ROTATE_GROTTO_ENTRANCE),
+              1 } } },
+        { "gCheats.InfiniteEponaBoost",
+          "Epona Boost",
+          { { "VB_CONSUME_EPONA_CARROT (Cheats/InfiniteEponaCarrots.cpp)", GAP_VB_COUNT(VB_CONSUME_EPONA_CARROT),
+              1 } } },
     };
     return probes;
 }
@@ -1595,6 +1634,12 @@ const std::vector<SkipKeyProbe>& W6ModesDifficultyProbes() {
         { "gEnhancements.DifficultyOptions.DisableTakkuriSteal",
           "Disable Takkuri Steal",
           { { "VB_THIEF_BIRD_STEAL (DifficultyOptions/DisableTakkuriSteal.cpp)", W6_MODES_VB_COUNT(VB_THIEF_BIRD_STEAL),
+              1 } } },
+        // #1412: MM's No Random Drops, held apart from SoH's (kMustStayDistinct) and hosted as "MM No Random Drops".
+        // VB_DROP_COLLECTIBLE's other registrant, No Heart Drops (Phase 9), is off while this probe runs.
+        { "gEnhancements.DifficultyOptions.NoRandomDrops",
+          "MM No Random Drops",
+          { { "VB_DROP_COLLECTIBLE (DifficultyOptions/NoRandomDrops.cpp)", W6_MODES_VB_COUNT(VB_DROP_COLLECTIBLE),
               1 } } },
         { "gEnhancements.DifficultyOptions.DekuGuardSearchBalls",
           "Deku Guard Search Balls",

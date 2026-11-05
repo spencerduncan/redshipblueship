@@ -533,6 +533,22 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // row wrote the MM spelling, so version 10 carries a stored value across.
     { "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView", "gSettings.DisableFirstPersonAutoCenterView",
       false },
+    // #1412: the MM halves of ten settings SoH already ships (2Ship's TUs, ported in that change). Each MM spelling is
+    // 2Ship's own; no single-exe row ever wrote one. All bool, default off on both sides. Each MM TU covers its own
+    // game's content, which reaches a little further for three of them: Remove Explosive Limit also lifts Honey &
+    // Darling's cap of 5, No Heart Drops also blocks healing fairies, and Empty Bottles Faster also speeds drinking
+    // and releasing a fairy. Epona Boost: both games skip the carrot use and hide the carrot HUD. No Random Drops is
+    // NOT here: MM's rule blocks set drops too, so it is held apart (kMustStayDistinct) with its own hosted row.
+    { "gEnhancements.Player.UnsheatheWithoutSlashing", "gEnhancements.UnsheatheWithoutSlashing", false },
+    { "gEnhancements.Items.RemoveExplosiveLimit", "gEnhancements.RemoveExplosiveLimit", false },
+    { "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops", false },
+    { "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie", false },
+    { "gEnhancements.Timesavers.FasterRupeeAccumulator", "gEnhancements.FasterRupeeAccumulator", false },
+    { "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles", false },
+    { "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty", false },
+    { "gEnhancements.Mods.DisableBombBillboarding", "gEnhancements.DisableBombBillboarding", false },
+    { "gEnhancements.Mods.DisableGrottoRotation", "gEnhancements.DisableGrottoRotation", false },
+    { "gCheats.InfiniteEponaCarrots", "gCheats.InfiniteEponaBoost", false },
 };
 
 /**
@@ -643,7 +659,7 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_PLAYER_UNDERWATER_OCARINA "gEnhancements.Player.UnderwaterOcarina"
 // W6-CAM-GYRO
 // #1235, #1236, #1240: MM's gyro aiming, free-look pitch limits, debug camera, Remote Bombchu Control and speed
-// modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gSettings.WalkModifier.*
+// modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gCheats.SpeedModifier.*
 // (kMustStayDistinct below: different ranges, and MM enables walking and swimming separately). The camera and speed
 // rows sit in SoH's Bindings window (SohInputEditorWindow.cpp, DrawMmCameraRows), Remote Bombchu Control on
 // Enhancements > Items > Explosives (HostedMm/SohMenuHostedMmCamGyro.cpp).
@@ -713,6 +729,9 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT "gEnhancements.DifficultyOptions.FrogChoirCount"
 #define RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS "gEnhancements.Minigames.CremiaHugs"
 #define RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK "gEnhancements.Items.AmmoBuyback"
+// #1412: MM's No Random Drops (2Ship's own key), held apart from SoH's gEnhancements.NoRandomDrops (kMustStayDistinct)
+// and bound by its hosted row, "MM No Random Drops", right after SoH's on Enhancements > Difficulty > Drops.
+#define RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS "gEnhancements.DifficultyOptions.NoRandomDrops"
 // W6-MINIGAMES
 // #1236: MM's minigame options and its Mark Shooting Gallery Octoroks row, each bound by one hosted row on SoH's
 // Enhancements > Minigames page (SohGui/HostedMm/SohMenuHostedMmMinigames.cpp). No SoH twin shares a key. The three
@@ -861,12 +880,14 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "shape as P1 text speed. Converge only after a maintainer decides which unit wins and MM's read/menu are "
       "converted to it — a plain key swap is a regression, not a fix." },
     // W6-CAM-GYRO (#1235): the speed modifiers, the #1037 value-space ruling applied.
+    // #1400 (SoH 2a335b1cd) moved SoH's side from gSettings.WalkModifier.* to gCheats.SpeedModifier.*.
     { "Speed modifier value space (W6-CAM-GYRO)", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1,
-      "gSettings.WalkModifier.Mapping1",
-      "Same idea (hold or toggle M1 / M2 to scale Link's speed), different value spaces and gating: SoH's walk and "
-      "swim multipliers run 0-5x behind one enable, while MM's walk runs 0-15x and its swim 0-8.75x, each behind "
-      "its own walk or swim enable as well as the master one. A shared slider would clip MM's range or hand SoH "
-      "values it never offers. Each game keeps its own rows under the Bindings window's Modifier Buttons." },
+      "gCheats.SpeedModifier.Value",
+      "Same idea (hold or toggle a button to scale Link's speed), different value spaces and gating: SoH's one "
+      "multiplier runs 1-5x for walking and swimming alike with no enable, while MM's walk runs 0-15x and its swim "
+      "0-8.75x, each behind its own walk or swim enable as well as the master one. A shared slider would clip MM's "
+      "range or hand SoH values it never offers. SoH keeps its rows on Enhancements > Cheats, MM its own under the "
+      "Bindings window's Modifier Buttons." },
     { "Autosave interval (inventory §5.3 group A caveat)", "gEnhancements.Saving.AutosaveInterval",
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "
@@ -892,6 +913,18 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "two rules, and a seed-forced SoH row would show on while MM followed the hidden value. Ruled: the keys stay "
       "distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. MM-only key: an "
       "importer must carry it as MM's own and never onto SoH's." },
+    { "No Random Drops rule (#1412, held apart and hosted)", RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS,
+      "gEnhancements.NoRandomDrops",
+      "Same bool and JSON shape, different RULE: SoH's key returns early from OoT_Item_DropCollectibleRandom (and "
+      "stops the random drops of grass, beehives and the Shadow Temple's giant skull jar), and its row says random "
+      "drops only, 'except from the Goron Pot, Dampe, and Bosses'. 2Ship's NoRandomDrops.cpp ('Prevents spawning of "
+      "any collectibles.') cancels VB_DROP_COLLECTIBLE in MM_Item_DropCollectible as well as "
+      "MM_Item_DropCollectibleRandom, so SET drops vanish too: a stray fairy in a pot, the Hero's Shield a Like Like "
+      "gives back, the Swordsman's School gong rupee, a rupee trap's rupees. It spares only arrows and magic in a "
+      "few rooms that need them. On SoH's key one switch would delete Termina contents its row never mentions, so "
+      "the keys stay distinct and MM's row is hosted beside SoH's on Enhancements > Difficulty > Drops. Converging "
+      "needs MM's rule narrowed to random drops first. MM-only key: an importer must carry it as MM's own and never "
+      "onto SoH's." },
     { "PARKED: infinite ammo scope", RSBS_CVAR_MM_CHEATS_INFINITE_CONSUMABLES, "gCheats.InfiniteAmmo",
       "MM's 'consumables' scope may be wider than OoT's 'ammo'. Pending a maintainer answer; do not "
       "converge until it lands." },
@@ -1181,6 +1214,8 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_DIFFICULTY_FROG_CHOIR_COUNT)                      \
     X(RSBS_CVAR_MM_MINIGAMES_CREMIA_HUGS)                            \
     X(RSBS_CVAR_MM_ITEMS_AMMO_BUYBACK)                               \
+    /* #1412: MM's own No Random Drops, held apart */                \
+    X(RSBS_CVAR_MM_DIFFICULTY_NO_RANDOM_DROPS)                       \
     /* W6-MINIGAMES */                                               \
     X(RSBS_CVAR_MM_MINIGAMES_BOMBERS_HIDE_AND_SEEK)                  \
     X(RSBS_CVAR_MM_MINIGAMES_SWORDSMAN_SCHOOL_SCORE)                 \
@@ -2117,11 +2152,14 @@ inline constexpr std::size_t kMenuIndexKeyCount = sizeof(kMenuIndexKeys) / sizeo
 // key-name-gap rows (#1027-#1036 and #1038; #1037's damage multiplier is held
 // out in kMustStayDistinct), and #1062 / #1064 add four more (the ocarina D-pad,
 // right-stick and no-dropped-input switches, Containers Match Contents), and #1123 one (Skip Boss
-// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering). 32 + 11 + 4 + 1 + 1
-// + 1 = 50. Pinning the count makes a silently dropped or double-added row a compile error.
-static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
+// Introductions), and #1239 one (the fairy's call), and #1272 one (first-person auto-centering),
+// and #1412 ten (unsheathe without slashing, remove explosive limit, no heart drops, drops don't despawn, faster
+// rupee accumulator, skip bottle pickup messages, empty bottles faster, bomb billboarding, grotto rotation, Epona
+// boost; its No Random Drops is held out in kMustStayDistinct).
+// 32 + 11 + 4 + 1 + 1 + 1 + 10 = 60. Pinning the count makes a silently dropped or double-added row a compile error.
+static_assert(kConvergedKeyCount == 60, "tier 1 (9) + inventory §5.3 remainder (23 of 26; 3 held out) + the #966 "
                                         "key-name gaps (11 of 12; #1037 held out) + #1062 (3) + #1064 (1) + #1123 (1) "
-                                        "+ #1239 (1) + #1272 (1) = 50");
+                                        "+ #1239 (1) + #1272 (1) + #1412 (10 of 11; No Random Drops held out) = 60");
 
 // ADR 0003 Appendix B measured 26 class-(S) collisions. DebugSaveFileMode
 // rejoined when #454 was fixed (MM's clobber retired, read default aligned to

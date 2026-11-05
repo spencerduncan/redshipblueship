@@ -38,6 +38,8 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #define RANDO_HINT_PREPOS(upstream) "{{prepos}}"
+#include "combo_area.h" // src/common: ComboArea (#1475)
+struct RandoSaveCheck;  // z64save.h: one row of a save's rando check table (#1475)
 #else
 #include "2s2h/CustomMessage/CustomMessage.h"
 #include "2s2h/ShipUtils.h"
@@ -65,6 +67,27 @@ bool HasArea(RandoCheckId randoCheckId);
  *  The static hints (Oath, remains, Hookshot, gold dust) fill their location
  *  through it. Defined in HintAreaSingleExe.cpp. */
 void ReplaceItemLocation(std::string* msg, const char* key, RandoItemId randoItemId);
+
+/** #1475: ReplaceItemLocation over the save table `checks` (a SaveContext
+ *  image's rando check table: MM's live save, or the frozen MM half the combined
+ *  Hint Tracker reads) instead of the live save's. The form above is this one
+ *  over RANDO_SAVE_CHECKS. */
+void ReplaceItemLocation(const RandoSaveCheck* checks, std::string* msg, const char* key, RandoItemId randoItemId);
+
+/** #1475: where ReplaceItemLocation(checks, ...) says MM item `randoItemId` is,
+ *  as data: the MM check holding it in `checks` (Rando::FindItemPlacement's rule,
+ *  the first in check order), or else the OoT host the crossing store puts it on,
+ *  in `*outGame` / `*outCheck` (either may be NULL), and the area the text names
+ *  in `*outArea` (may be NULL; "nowhere" when no check holds it). False when no
+ *  check of either game holds it. */
+bool ItemLocation(const RandoSaveCheck* checks, RandoItemId randoItemId, uint8_t* outGame, uint16_t* outCheck,
+                  ComboArea* outArea);
+
+/** #1475: the area of MM scene `sceneId` in the shared vocabulary, where a hint
+ *  read there is listed: the scene's default area (the check table's), and the
+ *  gossip-stone grottos' scene (SCENE_KAKUSIANA, whose four gossip grottos all
+ *  open off Termina Field) is Termina Field. */
+ComboArea SceneArea(int16_t sceneId);
 
 /** #575 H3c: the OoT checks a gossip stone may hint as holding an MM item: the
  *  crossing store's OoT-hosted rows, in insertion order, whose OoT check has an
