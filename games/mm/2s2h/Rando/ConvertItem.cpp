@@ -3,6 +3,9 @@
 #include "Rando/MiscBehavior/ClockShuffle.h"
 #include "2s2h/ShipUtils.h"
 #include <cassert>
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/OoTMasksMM.h" // #980: the OoT masks' owned bits
+#endif
 
 // Copied from z_player.c, we could instead move this to a header file, idk
 typedef struct GetItemEntry {
@@ -475,6 +478,13 @@ bool Rando::IsItemObtainable(RandoItemId randoItemId, RandoCheckId randoCheckId)
             return !Flags_GetRandoInf(SOUL_RI_TO_RANDO_INF(randoItemId));
         case RI_ABILITY_SWIM:
             return !Flags_GetRandoInf(RANDO_INF_OBTAINED_SWIM);
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #980: Ocarina of Time's Gerudo, Skull and Spooky Masks (OoTMasksMM.cpp).
+        case RI_MASK_GERUDO:
+        case RI_MASK_SKULL:
+        case RI_MASK_SPOOKY:
+            return !MM_OoTMask_Owned(randoItemId);
+#endif
         case RI_FROG_BLUE:
             return !CHECK_WEEKEVENTREG(WEEKEVENTREG_33_01);
         case RI_FROG_CYAN:

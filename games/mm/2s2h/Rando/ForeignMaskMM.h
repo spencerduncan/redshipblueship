@@ -50,6 +50,12 @@ int MM_ForeignMask_OnEquipNative(struct Player* player, int maskId);
  *  redship-mm.o2r holds it, else `nativeIcon`. */
 const char* MM_ForeignMask_PageIcon(int maskSlot, const char* nativeIcon);
 
+/** #980: the item mask-page cell `maskSlot` (0-based) shows, whose inventory holds
+ *  `stored`: `stored`, or for a shared slot whose own mask is not owned while MM
+ *  owns an OoT mask sharing it, the slot's own ItemId (the inventory is never
+ *  written). */
+uint8_t MM_ForeignMask_PageCellItem(int maskSlot, uint8_t stored);
+
 /** The list MM's head draw would emit for the live worn field, or NULL. */
 const char* MM_ForeignMask_WornDl(struct Player* player);
 

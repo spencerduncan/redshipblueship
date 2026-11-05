@@ -1,5 +1,9 @@
 #include "entrance.h"
 
+#include "soh/OTRGlobals.h"
+#include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/ShipInit.hpp"
+#include "soh/Enhancements/gameconsole.h"
 #include "3drando/fill.hpp"
 #include "3drando/pool_functions.hpp"
 #include "3drando/item_pool.hpp"
@@ -7,6 +11,15 @@
 #include "../debugger/performanceTimer.h"
 
 #include <spdlog/spdlog.h>
+#include "z64camera.h"
+#include "z64scene.h"
+
+extern "C" {
+#include "variables.h"
+#include "macros.h"
+#include "functions.h"
+extern PlayState* OoT_gPlayState;
+}
 
 namespace Rando {
 EntranceLinkInfo NO_RETURN_ENTRANCE = { EntranceType::None, RR_NONE, RR_NONE, -1 };
@@ -1820,6 +1833,37 @@ const Entrance* EntranceShuffler::GetEntranceByIndex(int16_t index) {
 extern "C" EntranceOverride* Randomizer_GetEntranceOverrides() {
     return Rando::Context::GetInstance()->GetEntranceShuffler()->entranceOverrides.data();
 }
+
+static SceneID backedUpScene = (SceneID)0xFF;
+static Camera backupCamera;
+
+void RegisterEntranceShuffleHooks() {
+    // Upstream f2c34d8c1 resets the backup from an OnLoadGame hook. This registrar already
+    // runs on every load (hook_handlers.cpp's OnLoadGame calls ShipInit::Init("IS_RANDO")),
+    // so the reset happens here instead: registering an OnLoadGame hook from inside the
+    // OnLoadGame dispatch would insert into the unordered_map ExecuteHooks is iterating.
+    backedUpScene = (SceneID)0xFF;
+
+    // Upstream returns early when there is no backup for this scene; that is folded into
+    // the restore branch here so the hook body always reaches va_end.
+    COND_VB_SHOULD(VB_SHOULD_LOAD_BG_IMAGE,
+                   IS_RANDO && Rando::Context::GetInstance()->GetOption(RSK_SHUFFLE_ENTRANCES).Get(), {
+                       int32_t* camId = va_arg(args, int32_t*);
+                       Camera* camera = GET_ACTIVE_CAM(OoT_gPlayState);
+                       if (*camId == -1) {
+                           if (backedUpScene == OoT_gPlayState->sceneNum) {
+                               memcpy(camera, &backupCamera, sizeof(Camera));
+                               OoT_Camera_ChangeMode(camera, CAM_MODE_TALK);
+                           }
+                           *should = false;
+                       } else if (backedUpScene != OoT_gPlayState->sceneNum) {
+                           memcpy(&backupCamera, camera, sizeof(Camera));
+                           backedUpScene = (SceneID)OoT_gPlayState->sceneNum;
+                       }
+                   });
+}
+
+static RegisterShipInitFunc initFunc(RegisterEntranceShuffleHooks, { "IS_RANDO" });
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #661 probe surface for the OoTEntrancePin lock (games/oot/soh/

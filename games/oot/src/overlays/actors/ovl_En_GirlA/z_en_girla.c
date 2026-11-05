@@ -704,8 +704,7 @@ s32 EnGirlA_CanBuy_DekuShield(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuy_GoronTunic(PlayState* play, EnGirlA* this) {
-    if (LINK_AGE_IN_YEARS == YEARS_CHILD &&
-        (!IS_RANDO || Randomizer_GetSettingValue(RSK_SHOPSANITY) == RO_SHOPSANITY_OFF)) {
+    if (LINK_AGE_IN_YEARS == YEARS_CHILD && !IS_RANDO) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
     if (CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_TUNIC, EQUIP_INV_TUNIC_GORON)) {
@@ -721,8 +720,7 @@ s32 EnGirlA_CanBuy_GoronTunic(PlayState* play, EnGirlA* this) {
 }
 
 s32 EnGirlA_CanBuy_ZoraTunic(PlayState* play, EnGirlA* this) {
-    if (LINK_AGE_IN_YEARS == YEARS_CHILD &&
-        (!IS_RANDO || Randomizer_GetSettingValue(RSK_SHOPSANITY) == RO_SHOPSANITY_OFF)) {
+    if (LINK_AGE_IN_YEARS == YEARS_CHILD && !IS_RANDO) {
         return CANBUY_RESULT_CANT_GET_NOW;
     }
     if (CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_TUNIC, EQUIP_INV_TUNIC_ZORA)) {

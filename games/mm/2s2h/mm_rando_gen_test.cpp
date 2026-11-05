@@ -3206,9 +3206,10 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
 
     // #978: the all-masks golden's keys: five shared masks, then #979's Blast Mask
     // in OoT and Shared Blast Mask, then its Stone Mask in OoT and Shared Stone
-    // Mask. The rest of P4 (#979, Kamaro's Mask) and P5 (#980) add their options to
-    // that profile and widen this.
-    static constexpr int kGoldenCVarCap = 9;
+    // Mask, then #980's Gerudo, Skull and Spooky Masks in MM and their shared
+    // variants. The rest of P4 (#979, Kamaro's Mask) adds its options to that
+    // profile and widens this.
+    static constexpr int kGoldenCVarCap = 15;
     struct GoldenSeed {
         const char* golden;
         const char* ootSeed;
@@ -3247,18 +3248,23 @@ extern "C" int MM_Rando_HeadlessGoldenSeedsRoundBudget(void) {
           0, 1 },
         // #978: every mask option on (the GoldenSeedDigestAllMasks row's RSBS_DIAG_CVARS);
         // #979 added the Blast Mask in OoT and its shared pair (0000083F), then the
-        // Stone Mask in OoT and its shared pair (0000187F).
+        // Stone Mask in OoT and its shared pair (0000187F); #980 the Gerudo, Skull and
+        // Spooky Masks in MM and their shared pairs (0001DF7F).
         { "seed-digest-all-masks",
           "RSBSUNIFIED1",
           { "gCombo.Rando.SharedMaskGoron", "gCombo.Rando.SharedMaskZora", "gCombo.Rando.SharedMaskBunny",
             "gCombo.Rando.SharedMaskKeaton", "gCombo.Rando.SharedMaskTruth", "gCombo.Rando.BlastMaskOoT",
-            "gCombo.Rando.SharedMaskBlast", "gCombo.Rando.StoneMaskOoT", "gCombo.Rando.SharedMaskStone" },
-          { 1, 1, 1, 1, 1, 1, 1, 1, 1 },
+            "gCombo.Rando.SharedMaskBlast", "gCombo.Rando.StoneMaskOoT", "gCombo.Rando.SharedMaskStone",
+            "gCombo.Rando.GerudoMaskMM", "gCombo.Rando.SkullMaskMM", "gCombo.Rando.SpookyMaskMM",
+            "gCombo.Rando.SharedMaskGerudo", "gCombo.Rando.SharedMaskSkull", "gCombo.Rando.SharedMaskSpooky" },
+          { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 },
           0,
           1,
           RSBS_XITEM_SHARED_GORON | RSBS_XITEM_SHARED_ZORA | RSBS_XITEM_SHARED_BUNNY | RSBS_XITEM_SHARED_KEATON |
               RSBS_XITEM_SHARED_TRUTH | RSBS_XITEM_BLAST_MASK_OOT | RSBS_XITEM_SHARED_BLAST |
-              RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_SHARED_STONE },
+              RSBS_XITEM_STONE_MASK_OOT | RSBS_XITEM_SHARED_STONE | RSBS_XITEM_GERUDO_MASK_MM |
+              RSBS_XITEM_SKULL_MASK_MM | RSBS_XITEM_SPOOKY_MASK_MM | RSBS_XITEM_SHARED_GERUDO |
+              RSBS_XITEM_SHARED_SKULL | RSBS_XITEM_SHARED_SPOOKY },
         // #1367 R5: the default is All Locations, so Beatable Only, the default before
         // it, has its own golden. seed-digest-no-logic has no entry: No Logic runs no
         // round, so there is no round budget to fit (its golden row pins the world).

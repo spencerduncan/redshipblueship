@@ -5,6 +5,9 @@
 #include "Rando/ActorBehavior/Souls.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/ShipUtils.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "Rando/OoTMasksMM.h" // #980: HAS_OOT_MASK
+#endif
 
 #include <set>
 #include <cassert>
@@ -332,6 +335,22 @@ uint64_t GetOwnedTimeSlices();
 void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, uint64_t regionTime,
                                  const char* context);
 } // namespace TimeLogic
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip #980 (OoTMM macros_mm.yml): has_mask_gerudo, has_mask_skull and
+// has_mask_spooky, Ocarina of Time's masks under their frozen Cross-Game Rules row
+// (Rando/OoTMasksMM.cpp). The shared variants credit the same item: the bag's
+// shared row gives MM its own copy (RI_MASK_GERUDO ...).
+#define HAS_OOT_MASK(ri) MM_OoTMask_Usable(ri)
+// OoTMM's can_pass_gibdo: the Gibdo Mask, or the Spooky Mask at night.
+#define CAN_PASS_GIBDO (HAS_ITEM(ITEM_MASK_GIBDO) || (HAS_OOT_MASK(RI_MASK_SPOOKY) && IS_NIGHT()))
+// OoTMM's can_evade_gerudo has has_mask_gerudo beside has_mask_stone: the purple
+// guards (En_Ge2) read the Gerudo Mask as the Stone Mask.
+#define CAN_FOOL_PURPLE_GUARDS (HAS_ITEM(ITEM_MASK_STONE) || HAS_OOT_MASK(RI_MASK_GERUDO))
+#else
+#define CAN_PASS_GIBDO HAS_ITEM(ITEM_MASK_GIBDO)
+#define CAN_FOOL_PURPLE_GUARDS HAS_ITEM(ITEM_MASK_STONE)
+#endif
 
 // TODO: This may not stay here
 #define IS_DEKU (GET_PLAYER_FORM == PLAYER_FORM_DEKU)

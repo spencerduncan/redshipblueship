@@ -180,6 +180,34 @@ uint8_t Combo_ForeignMask_SlotCycle(uint8_t slot, uint8_t current, int nativeOwn
 int Combo_ListCycle_Step(const uint8_t* owned, int n, int currentIndex, int dir);
 
 /**
+ * MM'S SHARED-SLOT STATE BYTE (#980, P5). MM persists one byte per shared pause
+ * slot (`rando.foreignMaskSlotSel[slot - 1]`, z64save.h). P3 stored only the
+ * chosen variant there, a ComboForeignMask (0..6), so the high nibble was always
+ * zero. P5 keeps the variant in the LOW nibble and stores which Ocarina of Time
+ * masks sharing the slot Majora's Mask OWNS in the HIGH nibble, one bit per mask
+ * (Combo_ForeignMask_SlotOwnedBit). Why there and not a RANDO_INF flag or a new
+ * field: MM's randoInf array has two free bits before it grows (78 of 80 used),
+ * and RandoSaveInfo has no tail padding left (P3's three bytes filled it), so
+ * either would grow Save and shift every later field of the raw MM tier of a
+ * frozen world. A byte every existing world holds as zero (nothing could own or
+ * choose a P5 mask before P5) can carry both without moving a byte.
+ */
+#define COMBO_FOREIGN_MASK_SLOT_SEL_BITS 0x0Fu
+#define COMBO_FOREIGN_MASK_SLOT_OWNED_BITS 0xF0u
+
+/** The owned bit of MM-hosted mask `id` in its slot's state byte: 0x10 for the
+ *  Gerudo Mask, 0x20 for the Skull Mask (both in Stone's slot), 0x40 for the
+ *  Spooky Mask (Gibdo's slot); 0 for any other value. Pure. */
+uint8_t Combo_ForeignMask_SlotOwnedBit(uint8_t id);
+
+/** The chosen variant a slot state byte holds (its low nibble). Pure. */
+uint8_t Combo_ForeignMask_SlotByteSelection(uint8_t slotByte);
+
+/** `slotByte` with its chosen variant replaced by `sel` (low nibble only), its
+ *  owned bits kept. Pure. */
+uint8_t Combo_ForeignMask_SlotByteWithSelection(uint8_t slotByte, uint8_t sel);
+
+/**
  * THE BLAST MASK'S COOLDOWN (#979; OoTMM blastMaskCooldown), in frames, for one
  * RSBS_BLAST_COOLDOWN_* value of the frozen item rules: OoTMM's own table
  * (packages/generator/src/oot/actors/Player.c, blastMaskDelay): Instant 1, Very

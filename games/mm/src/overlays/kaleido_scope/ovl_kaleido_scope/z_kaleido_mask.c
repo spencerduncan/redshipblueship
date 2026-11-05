@@ -13,6 +13,13 @@
 #ifdef RSBS_SINGLE_EXECUTABLE
 // games/mm/2s2h/Rando/ForeignMaskMM.cpp (#977).
 const char* MM_ForeignMask_PageIcon(int maskSlot, const char* nativeIcon);
+// #980: the item a mask-page cell shows. A shared slot whose own mask is not owned
+// shows the Ocarina of Time mask MM owns in it; the inventory is never written.
+u8 MM_ForeignMask_PageCellItem(int maskSlot, u8 stored);
+#define RSBS_KALEIDO_MASK_CELL(i) \
+    MM_ForeignMask_PageCellItem((i), gSaveContext.save.saveInfo.inventory.items[(i) + ITEM_NUM_SLOTS])
+#else
+#define RSBS_KALEIDO_MASK_CELL(i) (gSaveContext.save.saveInfo.inventory.items[(i) + ITEM_NUM_SLOTS])
 #endif
 
 s16 sMaskEquipState = EQUIP_STATE_MAGIC_ARROW_GROW_ORB;
@@ -247,7 +254,7 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
     for (j = 0, i = 0; i < MASK_NUM_SLOTS; i++, j += 4) {
         gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, pauseCtx->alpha);
 
-        if (((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS]) != ITEM_NONE) {
+        if (((void)0, RSBS_KALEIDO_MASK_CELL(i)) != ITEM_NONE) {
             if (!CHECK_GIVEN_MASK_ON_MOON(i)) {
                 if ((pauseCtx->mainState == PAUSE_MAIN_STATE_IDLE) && (pauseCtx->pageIndex == PAUSE_MASK) &&
                     (pauseCtx->cursorSpecialPos == 0) && gMaskPlayerFormSlotRestrictions[GET_PLAYER_FORM][i]) {
@@ -287,9 +294,8 @@ void KaleidoScope_DrawMaskSelect(PlayState* play) {
                 // chosen in it (ForeignMaskMM.cpp); every other cell its own icon.
                 KaleidoScope_DrawTexQuadRGBA32(
                     play->state.gfxCtx,
-                    (TexturePtr)MM_ForeignMask_PageIcon(
-                        i, MM_gItemIcons[((void)0, gSaveContext.save.saveInfo.inventory.items[i + ITEM_NUM_SLOTS])]),
-                    32, 32, 0);
+                    (TexturePtr)MM_ForeignMask_PageIcon(i, MM_gItemIcons[((void)0, RSBS_KALEIDO_MASK_CELL(i))]), 32, 32,
+                    0);
 #else
                 KaleidoScope_DrawTexQuadRGBA32(
                     play->state.gfxCtx,
@@ -410,8 +416,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                 }
 
                 if (moveCursorResult == PAUSE_CURSOR_RESULT_SLOT) {
-                    cursorItem =
-                        gSaveContext.save.saveInfo.inventory.items[pauseCtx->cursorPoint[PAUSE_MASK] + ITEM_NUM_SLOTS];
+                    cursorItem = RSBS_KALEIDO_MASK_CELL(pauseCtx->cursorPoint[PAUSE_MASK]);
                     if (CHECK_GIVEN_MASK_ON_MOON(pauseCtx->cursorPoint[PAUSE_MASK])) {
                         cursorItem = ITEM_NONE;
                     }
@@ -427,7 +432,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                 // Search for slot to move to
                 while (true) {
                     // Check if current cursor has an item in its slot
-                    if ((gSaveContext.save.saveInfo.inventory.items[cursorPoint + ITEM_NUM_SLOTS] != ITEM_NONE) &&
+                    if ((RSBS_KALEIDO_MASK_CELL(cursorPoint) != ITEM_NONE) &&
                         !CHECK_GIVEN_MASK_ON_MOON(cursorPoint)) {
                         pauseCtx->cursorPoint[PAUSE_MASK] = cursorPoint;
                         pauseCtx->cursorXIndex[PAUSE_MASK] = cursorXIndex;
@@ -468,7 +473,7 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
                 // Search for slot to move to
                 while (true) {
                     // Check if current cursor has an item in its slot
-                    if ((gSaveContext.save.saveInfo.inventory.items[cursorPoint + ITEM_NUM_SLOTS] != ITEM_NONE) &&
+                    if ((RSBS_KALEIDO_MASK_CELL(cursorPoint) != ITEM_NONE) &&
                         !CHECK_GIVEN_MASK_ON_MOON(cursorPoint)) {
                         pauseCtx->cursorPoint[PAUSE_MASK] = cursorPoint;
                         pauseCtx->cursorXIndex[PAUSE_MASK] = cursorXIndex;
@@ -540,14 +545,12 @@ void KaleidoScope_UpdateMaskCursor(PlayState* play) {
             pauseCtx->cursorColorSet = PAUSE_CURSOR_COLOR_SET_YELLOW;
 
             if (moveCursorResult == PAUSE_CURSOR_RESULT_SLOT) {
-                cursorItem =
-                    gSaveContext.save.saveInfo.inventory.items[pauseCtx->cursorPoint[PAUSE_MASK] + ITEM_NUM_SLOTS];
+                cursorItem = RSBS_KALEIDO_MASK_CELL(pauseCtx->cursorPoint[PAUSE_MASK]);
                 if (CHECK_GIVEN_MASK_ON_MOON(pauseCtx->cursorPoint[PAUSE_MASK])) {
                     cursorItem = ITEM_NONE;
                 }
             } else if (moveCursorResult != PAUSE_CURSOR_RESULT_SPECIAL_POS) {
-                cursorItem =
-                    gSaveContext.save.saveInfo.inventory.items[pauseCtx->cursorPoint[PAUSE_MASK] + ITEM_NUM_SLOTS];
+                cursorItem = RSBS_KALEIDO_MASK_CELL(pauseCtx->cursorPoint[PAUSE_MASK]);
                 if (CHECK_GIVEN_MASK_ON_MOON(pauseCtx->cursorPoint[PAUSE_MASK])) {
                     cursorItem = ITEM_NONE;
                 }

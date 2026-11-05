@@ -2269,3 +2269,37 @@ first-word bits, divergence bits or shared-resource slots. Locked by
 `ComboItemRulesSecondWord` and `RulesOffGoldensUnchanged` (new),
 `CrossItemRulesRecord` and `ComboSettingsFormat` (the carve), `CVarClassification`
 and `ComboSettingsRows` (leg 9 sets the fourteen keys the Reset clears).
+
+### 2026-11-04 -- Ocarina of Time's Gerudo, Skull and Spooky Masks in Majora's Mask and their shared variants (#980)
+
+Epic #975 P5, OoTMM's `gerudoMaskMm`, `skullMaskMm`, `spookyMaskMm` and
+`sharedMaskGerudo`, `sharedMaskSkull`, `sharedMaskSpooky`, all off, the P4
+pattern in the MM direction, so no default world moves; the all-masks profile
+gains the six keys (`docs/determinism-goldens.md`). Six rows join "Cross-Game
+Masks", in OoTMM's order: the masks added to OoT, **Gerudo Mask (MM)**, **Skull
+Mask (MM)**, **Spooky Mask (MM)**, the OoT masks' shared variants, then **Shared
+Gerudo Mask**, **Shared Skull Mask**, **Shared Spooky Mask**, then the Blast Mask
+Cooldown.
+
+- **The three extensions** (keys `gCombo.Rando.GerudoMaskMM`, `SkullMaskMM`,
+  `SpookyMaskMM`; the reserved bits `RSBS_XITEM_*_MASK_MM` 0x100, 0x200, 0x400).
+  Frozen on, MM's pool gains `RI_MASK_GERUDO`, `RI_MASK_SKULL` or
+  `RI_MASK_SPOOKY`, ids appended before the draw-only `RI_MAX_TRAP` so no saved id
+  moves, worn through #977's foreign-mask field. Ownership is a bit in the high
+  nibble of MM's shared-slot state byte (`foreignMaskSlotSel`, foreign_masks.h):
+  MM's `randoInf` has two free bits before it grows and `RandoSaveInfo` has no tail
+  padding left, so a flag or a field would shift every frozen world's MM tier.
+  Their effects and logic are OoTMM's (games/mm/2s2h/Rando/OoTMasksMM.cpp).
+- **The three shared extensions** (keys `gCombo.Rando.SharedMaskGerudo`,
+  `SharedMaskSkull`, `SharedMaskSpooky`; bits 0x4000, 0x8000, 0x10000), each a
+  family of OoT's own mask (`RG_GERUDO_MASK` ...) and MM's copy. Greyed with
+  their extension's reason and shown off while it is off, and dropped by the
+  resolver then.
+
+Capacity spent: six `ComboSettingId`s (appended after #1169 XW2's fourteen
+warp-song ids, so no id moves), six identity keys (manifest 61 to 67, identity 41
+to 47), no new `RSBS_XITEM_*` bits, format bytes, divergence bits or
+shared-resource slots: the six are first-word bits #976 reserved. Locked by
+`OoTMasksMMRule`, `OoTMasksMMItems`, `OoTMasksMMLogic` (rando tier),
+`ComboSettingsRows`, `CVarClassification`, `GoldenSeedDigestAllMasks` and
+`GoldenSeedsRoundBudget` (whose all-masks entry requires `0001DF7F`).

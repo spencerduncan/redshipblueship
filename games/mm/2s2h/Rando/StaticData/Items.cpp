@@ -3,6 +3,9 @@
 #include "2s2h/ShipUtils.h"
 #include "2s2h/Rando/Rando.h"
 #include "2s2h_assets.h"
+#ifdef RSBS_SINGLE_EXECUTABLE
+#include "2s2h/Rando/OoTMasksMM.h" // #980: the OoT masks' icons
+#endif
 
 extern "C" {
 extern s16 D_801CFF94[250];
@@ -259,6 +262,13 @@ std::map<RandoItemId, RandoStaticItem> Items = {
     RI(RI_WOODFALL_MAP,               "the",  "Woodfall Map",               RITYPE_LESSER,          ITEM_DUNGEON_MAP,                GI_MAP,                      GID_DUNGEON_MAP),
     RI(RI_WOODFALL_SMALL_KEY,         "a",    "Woodfall Small Key",         RITYPE_SMALL_KEY,       ITEM_KEY_SMALL,                  GI_KEY_SMALL,                GID_KEY_SMALL),
     RI(RI_WOODFALL_STRAY_FAIRY,       "a",    "Woodfall Stray Fairy",       RITYPE_STRAY_FAIRY,     ITEM_STRAY_FAIRIES,              GI_STRAY_FAIRY,              GID_NONE),
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RedShipBlueShip #980: Ocarina of Time's masks under OoTMM's gerudoMaskMm, skullMaskMm and spookyMaskMm, named as
+    // OoTMM names them. No MM ItemId, get-item or draw row: Rando/OoTMasksMM.cpp gives, draws and names their icon.
+    RI(RI_MASK_GERUDO,                "the",  "Gerudo Mask (MM)",           RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_MASK_SKULL,                 "the",  "Skull Mask (MM)",            RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_MASK_SPOOKY,                "the",  "Spooky Mask (MM)",           RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
+#endif
 };
 
 std::map<StartingItemCategory, std::vector<RandoItemId>> StartingItemsMap = {
@@ -504,6 +514,13 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
             return (const char*)gThreeDayClockSunHourTex;
         case RI_ABILITY_SWIM:
             return (const char*)MM_gItemIcons[ITEM_MASK_ZORA];
+#ifdef RSBS_SINGLE_EXECUTABLE
+        // #980: the OoT mask's own icon from the curated half, else its pause slot's own mask's.
+        case RI_MASK_GERUDO:
+        case RI_MASK_SKULL:
+        case RI_MASK_SPOOKY:
+            return MM_OoTMask_IconPath(randoItemId);
+#endif
         default:
             break;
     }

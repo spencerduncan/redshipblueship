@@ -556,6 +556,10 @@ int OoTTest_TrackerSohFixes(void);
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
 int OoT_MaskShopNightDoor_RunHeadless(void);
+// #1336: func_80096A74 guards camId == -1 through VB_SHOULD_LOAD_BG_IMAGE, and
+// Goron.cpp registers RegisterGoronMessages in ShipInit ("IS_RANDO"). ROM-free
+// and display-free; body in games/oot/soh/oot_room_bg_cam_guard_test.cpp.
+int OoT_RoomBgCamGuard_RunHeadless(void);
 // #702: the per-area exclude-location groups reach OoT's settings fingerprint at
 // their shipped sizes, whichever archives are mounted. Body in
 // games/oot/soh/oot_settings_fold_test.cpp. Runs a real generation, so it needs
@@ -1156,6 +1160,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // Blast Mask, the shared pair, OoT's logic and the update seam
 // (stone-mask-oot-items). FILE SCOPE (compiled as C++), after the Blast Mask's.
 #include "tests/test_stone_mask_oot.c"
+// Ocarina of Time's Gerudo, Skull and Spooky Masks in Majora's Mask (#980, epic
+// #975 P5): their six Cross-Game Rules keys and the record's round trip
+// (oot-masks-mm-rule), then the appended MM ids, the give and the owned bits,
+// rule-gated ownership, the shared pairs, the wear path and the actor seam
+// (oot-masks-mm-items). FILE SCOPE (compiled as C++), after the Stone Mask's.
+#include "tests/test_oot_masks_mm.c"
 // #1169 lane XW2: the second cross-game rules word and its fourteen hidden
 // warp-song keys (combo-item-rules-second-word, needs the CVar store), and the
 // rules-off world staying main's byte for byte (rules-off-goldens-unchanged).
@@ -1442,6 +1452,12 @@ static TestResult Test_OoTPriceRangeMinimum(void) {
 // games/oot/soh/oot_mask_shop_night_door_test.cpp.
 static TestResult Test_OoTMaskShopNightDoor(void) {
     return OoT_MaskShopNightDoor_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1336 (see the extern decl above). Thin wrapper over the C entry point in
+// games/oot/soh/oot_room_bg_cam_guard_test.cpp.
+static TestResult Test_OoTRoomBgCamGuard(void) {
+    return OoT_RoomBgCamGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The project hash in each game, declared here at file scope (not inside the
@@ -7539,6 +7555,21 @@ TestResult Test_StoneMaskOoTRule(void) {
     return StoneMaskOoTRule_Run();
 }
 
+// #980: the Gerudo, Skull and Spooky Masks (MM)'s Cross-Game Rules rows, the Blast
+// Mask's bring-up.
+TestResult Test_OoTMasksMMRule(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return OoTMasksMMRule_Run();
+}
+
 // #1169 XW2: the second rules word's fourteen keys read and write the CVar
 // store, the same bring-up as blast-mask-oot-rule.
 TestResult Test_ComboItemRulesSecondWord(void) {
@@ -8048,6 +8079,15 @@ TestResult Test_MMLogicGates(void) {
         return TEST_FAIL;
     }
     return MM_LogicGates_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+// #980: Ocarina of Time's masks in MM's logic (games/mm/2s2h/mm_oot_masks_test.cpp),
+// over MM's real region lambdas. Same bring-up as mm-logic-gates.
+extern "C" int MM_OoTMasksLogic_RunHeadless(void);
+TestResult Test_OoTMasksMMLogic(void) {
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return MM_OoTMasksLogic_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 // #1428: OoT's goal gates at OoTMM's defaults on one paired creation save, Triforce
 // Hunt's override of Ganon's Boss Key and a stored world's own gates. Same bring-up
@@ -9308,6 +9348,13 @@ const TestDescriptor gTests[] = {
       "In a paired world the night Market's Happy Mask Shop door opens as the day door does, so the crossing works "
       "at night; a vanilla file keeps the sign, and the other night shops and the day door are unchanged (#948)",
       Test_OoTMaskShopNightDoor },
+    // #1336: display-free and ROM-free: func_80096A74 short-circuits via
+    // VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when
+    // camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages.
+    { "oot-room-bg-cam-guard",
+      "func_80096A74 short-circuits via VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when "
+      "camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages (#1336)",
+      Test_OoTRoomBgCamGuard },
     // #682's two halves. Both display-free and ROM-free, and both order-free:
     // menu-mm-enhancement-rows builds its own SohMenu probes and touches only
     // their private registries, and mm-enhancement-toggles leaves every key at 0,
@@ -9561,6 +9608,11 @@ const TestDescriptor gTests[] = {
       "Romani Ranch's cows, Epona's Song and the alien drop need the Milk Road boulder broken on Day 1, and the "
       "Circus Leader's Mask needs Romani's Mask (#1168)",
       Test_MMLogicGates },
+    // #980. Skipped by `--test all` below like its siblings.
+    { "oot-masks-mm-logic",
+      "Under their frozen rules the Skull Mask opens the Deku Palace, the Gerudo Mask gets past the purple guard, "
+      "and the Spooky Mask passes the Gibdos at night only, in MM's real logic (#980)",
+      Test_OoTMasksMMLogic },
     // #1428. Needs a paired creation; skipped by `--test all` below like its siblings.
     { "rando-goal-gate-defaults",
       "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
@@ -9709,6 +9761,15 @@ const TestDescriptor gTests[] = {
       "Mask only under the frozen rule, pairs into one bag row under the shared rule, OoT's logic credits it for a "
       "child only then, and a listed actor's update runs with Link out of sight (#979)",
       Test_StoneMaskOoTItems },
+    { "oot-masks-mm-rule",
+      "The Gerudo, Skull and Spooky Masks (MM) and their shared variants are six Cross-Game Rules, off by default, "
+      "each shared one only with its mask in MM, restored from the file at load in OoTMM's order (#980)",
+      Test_OoTMasksMMRule },
+    { "oot-masks-mm-items",
+      "The three MM ids are appended with every saved id unchanged, owned through the slot state byte only under the "
+      "frozen rule, pair into one bag row under the shared rule, are worn from a cell whose own mask is not owned, "
+      "and OoTMM's actors read them for exactly their update (#980)",
+      Test_OoTMasksMMItems },
     // #1169 XW2: the second cross-game rules word. The first needs the CVar store
     // (its wrapper brings it up); the second is ROM-free and store-free.
     { "combo-item-rules-second-word",
@@ -10125,6 +10186,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "tracker-fill-superset") == 0 ||
                 strcmp(gTests[i].name, "tracker-oot-panel-list") == 0 ||
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
+                strcmp(gTests[i].name, "oot-masks-mm-logic") == 0 ||
                 strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||

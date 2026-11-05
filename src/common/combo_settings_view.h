@@ -193,6 +193,18 @@ typedef enum {
     COMBO_SETTING_SHARED_SONG_REQUIEM,  // gCombo.Rando.SharedSongRequiem -> RSBS_XITEM2_SHARED_SONG_REQUIEM
     COMBO_SETTING_SHARED_SONG_NOCTURNE, // gCombo.Rando.SharedSongNocturne -> RSBS_XITEM2_SHARED_SONG_NOCTURNE
     COMBO_SETTING_SHARED_SONG_PRELUDE,  // gCombo.Rando.SharedSongPrelude -> RSBS_XITEM2_SHARED_SONG_PRELUDE
+    // #980 (epic #975 P5): Ocarina of Time's Gerudo, Skull and Spooky Masks in
+    // Majora's Mask (OoTMM gerudoMaskMm, skullMaskMm, spookyMaskMm) and their shared
+    // variants (sharedMaskGerudo, sharedMaskSkull, sharedMaskSpooky), the Blast
+    // Mask's shape: 0 or 1, default 0 each, and each shared one is dropped by the
+    // resolver while its mask in MM is off (OoTMM's `cond`). Bits of the FIRST
+    // rules word, appended after XW2's ids so no id moves.
+    COMBO_SETTING_GERUDO_MASK_MM,     // gCombo.Rando.GerudoMaskMM -> RSBS_XITEM_GERUDO_MASK_MM
+    COMBO_SETTING_SKULL_MASK_MM,      // gCombo.Rando.SkullMaskMM -> RSBS_XITEM_SKULL_MASK_MM
+    COMBO_SETTING_SPOOKY_MASK_MM,     // gCombo.Rando.SpookyMaskMM -> RSBS_XITEM_SPOOKY_MASK_MM
+    COMBO_SETTING_SHARED_MASK_GERUDO, // gCombo.Rando.SharedMaskGerudo -> RSBS_XITEM_SHARED_GERUDO
+    COMBO_SETTING_SHARED_MASK_SKULL,  // gCombo.Rando.SharedMaskSkull -> RSBS_XITEM_SHARED_SKULL
+    COMBO_SETTING_SHARED_MASK_SPOOKY, // gCombo.Rando.SharedMaskSpooky -> RSBS_XITEM_SHARED_SPOOKY
     COMBO_SETTING_COUNT
 } ComboSettingId;
 
