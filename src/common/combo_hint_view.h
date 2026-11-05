@@ -25,7 +25,11 @@
  *     save's placement table, its final seed, the crossing store and the frozen
  *     Way of the Hero) and the source, computed by the MM TU (Rando/HintSources.h)
  *     with the very functions MM's textbox hooks call, so the pane's text is the
- *     textbox's text. It never touches MM's global random stream.
+ *     textbox's text. It never touches MM's global random stream or MM's live
+ *     save. One name differs on purpose: where the Bomb Shop's next-stock line
+ *     names MM's own junk padding, the textbox says "Junk (<junk item>)" with a
+ *     junk item drawn from that stream every 20 frames, and the pane says "Junk"
+ *     (Rando/HintSources.h, JunkName).
  *   - THE READ RECORD. One bit per source in the combo save record
  *     (ComboContext.mmHintsRead, ADR 0009 claim 20), set by MM's read hook when a
  *     source's hint textbox opens. It rides every .redsave write, survives every

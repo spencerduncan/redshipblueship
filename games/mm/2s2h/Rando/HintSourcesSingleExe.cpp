@@ -12,7 +12,10 @@
  * the frozen MM half otherwise). The texts are upstream's, moved here verbatim
  * (each hook keeps upstream's own expression under its #else); the item-location
  * hints fill their location through Rando::HintArea::ReplaceItemLocation's
- * table-taking form, which the live form now calls too.
+ * table-taking form, which the live form now calls too. One name differs on
+ * purpose: MM's own junk padding in the Bomb Shop's line, which the textbox
+ * suffixes with a junk item drawn from MM's global stream and the resolver does
+ * not (HintSources.h, JunkName).
  *
  * WHERE A SOURCE IS LISTED (the pane groups by it). A gossip stone: its scene's
  * area (Rando::HintArea::SceneArea; the gossip grottos are Termina Field's). A
@@ -230,6 +233,37 @@ void AddCheckItem(ComboHintResolution* out, const RandoSaveCheck* checks, RandoC
     (void)Combo_HintResolutionAddTarget(out, &t);
 }
 
+/** GetItemName's article and name (StaticData/Items.cpp) without the
+ *  " (<junk item>)" it appends to RI_JUNK: that suffix is Rando::CurrentJunkItem's
+ *  pick, drawn from MM's global stream against MM's live save, so the resolver
+ *  never asks for it (HintSources.h, THE ONE DELIBERATE DIFFERENCE). */
+std::string PlainItemName(RandoItemId item) {
+    auto& randoStaticItem = Rando::StaticData::Items[item];
+    std::string name;
+    if (!Ship_IsCStringEmpty(randoStaticItem.article)) {
+        name += randoStaticItem.article;
+        name += " ";
+    }
+    name += randoStaticItem.name;
+    return name;
+}
+
+/** The Bomb Shop line's item phrase (text 0x648). Textbox: the hook's own
+ *  expression, call for call: GetItemName runs first whatever the slot holds, so
+ *  an RI_JUNK there (MM's own padding, or the cover of a slot whose OoT item
+ *  crossed) draws its suffix as main drew it, even when ShopOfferedItemName then
+ *  names the crossed item instead. Plain: GetItemName is never asked about
+ *  RI_JUNK; ShopOfferedItemName names a crossed item first (the foreign name, so
+ *  a cover's suffix was never shown), and MM's own padding is "Junk". */
+std::string BombShopItemPhrase(const RandoSaveCheck* checks, Rando::HintSources::JunkName junkName) {
+    const RandoCheckId rc = RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM;
+    const RandoItemId item = checks[rc].randoItemId;
+    const std::string nativeName = (junkName == Rando::HintSources::JunkName::Plain && item == RI_JUNK)
+                                       ? PlainItemName(item)
+                                       : Rando::StaticData::GetItemName(item);
+    return Rando::ActorBehavior::ShopOfferedItemName(rc, nativeName, true);
+}
+
 /** A remains poster's boss line, padded as upstream pads it. */
 const char* RemainsBoss(uint16_t source) {
     switch (source) {
@@ -245,8 +279,10 @@ const char* RemainsBoss(uint16_t source) {
 }
 
 /** Upstream's message for fixed source `source` over `checks` (the hook's own
- *  text, moved here; each hook's #else keeps upstream's expression). */
-std::string BuildFixedText(const MmFixedSource& row, const RandoSaveCheck* checks) {
+ *  text, moved here; each hook's #else keeps upstream's expression). `junkName`
+ *  matters to the Bomb Shop's line only (BombShopItemPhrase). */
+std::string BuildFixedText(const MmFixedSource& row, const RandoSaveCheck* checks,
+                           Rando::HintSources::JunkName junkName) {
     std::string msg;
     switch (row.source) {
         case RSBS_MM_HINT_SRC_REMAINS_ODOLWA:
@@ -316,9 +352,7 @@ std::string BuildFixedText(const MmFixedSource& row, const RandoSaveCheck* check
             // EnGirlA.cpp, text 0x648.
             msg =
                 "If nothing devastating happens to Mommy tonight, we should be able to sell %r{{itemName}}%w.\x19\xA8";
-            const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
-                RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM,
-                Rando::StaticData::GetItemName(checks[RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM].randoItemId), true);
+            const std::string itemName = BombShopItemPhrase(checks, junkName);
             CustomMessage::Replace(&msg, "{{itemName}}", itemName);
             break;
         }
@@ -414,13 +448,14 @@ bool MMHintResolve(const void* save, uint16_t source, ComboHintResolution* out) 
 // Rando/HintSources.h
 // ============================================================================
 
-std::string Rando::HintSources::FixedText(uint16_t source, const RandoSaveCheck* checks, ComboHintResolution* out) {
+std::string Rando::HintSources::FixedText(uint16_t source, const RandoSaveCheck* checks, ComboHintResolution* out,
+                                          JunkName junkName) {
     Combo_HintResolutionClear(out);
     const MmFixedSource* row = FixedSourceOf(source);
     if (row == nullptr || checks == nullptr) {
         return "";
     }
-    const std::string msg = BuildFixedText(*row, checks);
+    const std::string msg = BuildFixedText(*row, checks, junkName);
     if (out != nullptr) {
         out->type = (uint8_t)COMBO_HINT_TYPE_FIXED;
         if (row->item != RI_UNKNOWN) {
@@ -486,8 +521,10 @@ bool Rando::HintSources::Resolve(const SaveContext* save, uint16_t source, Combo
         return ResolveStone(checks, save->save.shipSaveInfo.rando.finalSeed,
                             (int)(source - RSBS_MM_HINT_SRC_STONE_FIRST), out);
     }
+    // Plain: the resolver names MM's own junk padding without the textbox's drawn
+    // suffix, so it reads no stream and no live save (HintSources.h).
     ComboHintResolution resolved;
-    if (FixedText(source, checks, &resolved).empty()) {
+    if (FixedText(source, checks, &resolved, JunkName::Plain).empty()) {
         return false;
     }
     if (out != nullptr) {
@@ -586,12 +623,19 @@ extern "C" void MM_HintSources_TestMarkRead(uint16_t source) {
     Rando::HintSources::MarkRead(source);
 }
 
+// CurrentJunkItem's cache made cold (ConvertItem.cpp's test bridge).
+extern "C" void MM_Rando_TestColdJunkCache(void);
+
 /** 1 when the read hook for `source` (with `mark` nonzero) or the resolver over
  *  the image `save` (NULL: the live save; with `mark` zero) leaves MM's global
  *  Ship_Random stream where it was: put at `streamSeed`, it draws the same next
  *  value with or without the call in between. The stone's flavour line draws from
- *  that stream right after its text, so neither may move it. */
+ *  that stream right after its text, so neither may move it. Rando::CurrentJunkItem's
+ *  cache is made cold first, as after more than 20 frames or with MM not running:
+ *  a warm cache answers without a draw, so a call that named MM's junk padding
+ *  through GetItemName would otherwise pass. */
 extern "C" int MM_HintSources_TestKeepsStream(int mark, const void* save, uint16_t source, uint64_t streamSeed) {
+    MM_Rando_TestColdJunkCache();
     Ship_Random_Seed(streamSeed);
     const s32 untouched = Ship_Random(0, 0x40000000);
     Ship_Random_Seed(streamSeed);
@@ -603,6 +647,31 @@ extern "C" int MM_HintSources_TestKeepsStream(int mark, const void* save, uint16
         (void)Rando::HintSources::Resolve(image, source, &resolved);
     }
     return Ship_Random(0, 0x40000000) == untouched ? 1 : 0;
+}
+
+/** The text fixed source `source`'s textbox hook shows over MM's live save:
+ *  FixedText with JunkName::Textbox, as the Bomb Shop hook calls it (every other
+ *  hook's text is the same with either). Draws as the hook draws. Returns the full
+ *  length, or -1 for a source that is not fixed. */
+extern "C" int MM_HintSources_TestTextboxText(uint16_t source, char* out, int cap) {
+    if (out == nullptr || cap <= 0 || FixedSourceOf(source) == nullptr) {
+        return -1;
+    }
+    const std::string msg =
+        Rando::HintSources::FixedText(source, RANDO_SAVE_CHECKS, nullptr, Rando::HintSources::JunkName::Textbox);
+    snprintf(out, (size_t)cap, "%s", msg.c_str());
+    return (int)msg.size();
+}
+
+/** The Bomb Shop line's check (RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM) and
+ *  MM's junk padding item (RI_JUNK), for the rows that put the one in the other. */
+extern "C" void MM_HintSources_TestBombShopIds(uint16_t* outCheck, uint16_t* outJunk) {
+    if (outCheck != nullptr) {
+        *outCheck = (uint16_t)RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM;
+    }
+    if (outJunk != nullptr) {
+        *outJunk = (uint16_t)RI_JUNK;
+    }
 }
 
 /** Check `check`'s seen byte in the image `save` (NULL: MM's live save); -1 out of range. */
@@ -652,9 +721,10 @@ extern "C" void MM_HintSources_TestStreamReplica(uint64_t seed, int32_t max, int
 /**
  * Fixed source `source`'s text the way main's hooks built it, before #1475 moved
  * it here: upstream's expressions over MM's LIVE save (RANDO_SAVE_CHECKS and the
- * live ReplaceItemLocation), copied from each hook's #else. The world row holds
- * FixedText to it, so the move changed no byte. Returns the full length, or -1
- * for a source that is not fixed.
+ * live ReplaceItemLocation), copied from each hook's #else. The rows hold the
+ * hook's text (FixedText, JunkName::Textbox) to it, so the move changed no byte,
+ * and the resolver's to it but for the one junk suffix (HintSources.h). Draws as
+ * the hook drew. Returns the full length, or -1 for a source that is not fixed.
  */
 extern "C" int MM_HintSources_TestLegacyFixedText(uint16_t source, char* out, int cap) {
     if (out == nullptr || cap <= 0 || FixedSourceOf(source) == nullptr) {

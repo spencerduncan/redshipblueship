@@ -13,8 +13,21 @@
  * THE WORLD IS AN ARGUMENT. Every text here is built from the save table it is
  * handed (`checks`, a SaveContext image's RANDO_SAVE_CHECKS) rather than from
  * gSaveContext: MM's live save at talk time, the frozen MM half the combined
- * tracker reads while Ocarina of Time is played. Nothing here draws from MM's
- * global Ship_Random stream, writes a save, or changes what a hint says.
+ * tracker reads while Ocarina of Time is played. The resolver (Resolve,
+ * ResolveStone, FixedText with JunkName::Plain) reads nothing else of MM's: no
+ * global Ship_Random draw, no live save, no save written, no hint changed.
+ *
+ * THE ONE DELIBERATE DIFFERENCE (JunkName). MM names its own junk padding
+ * (RI_JUNK) "Junk (<junk item>)" (Rando::StaticData::GetItemName), and the
+ * suffix is Rando::CurrentJunkItem's pick: drawn from MM's global stream, checked
+ * against MM's live save, cached for 20 frames. The only hint text that can name
+ * it is the Bomb Shop's next-stock line, when its slot holds MM's own RI_JUNK
+ * (junk filled there, or the check skipped or excluded). Its hook keeps main's
+ * expression (JunkName::Textbox) so the textbox and the stream are byte for byte
+ * main's; the resolver names that item "Junk" (JunkName::Plain), so the tracker
+ * reads the same text without the frame's suffix. A slot whose OoT item crossed
+ * also holds RI_JUNK, as a cover: both forms name the OoT item there, and the
+ * resolver never asks GetItemName about the cover.
  *
  * THE READ HOOK. MarkRead is called by each hook as it shows a source's hint:
  * it sets the source's bit in the combo save record (ComboContext.mmHintsRead)
@@ -57,14 +70,28 @@ bool ResolveStone(const RandoSaveCheck* checks, uint32_t finalSeed, int index, C
 
 // ---- The fixed-location hints (HintSourcesSingleExe.cpp) ----
 
+/** How FixedText names MM's own junk padding (RI_JUNK); see THE ONE DELIBERATE
+ *  DIFFERENCE above. Only the Bomb Shop's next-stock line can name it. */
+enum class JunkName : uint8_t {
+    // "Junk": a pure function of the world. The resolver's, and every hook's but
+    // the Bomb Shop's.
+    Plain,
+    // GetItemName's "Junk (<junk item>)", the suffix drawn by
+    // Rando::CurrentJunkItem from MM's global stream: the Bomb Shop hook's,
+    // main's expression call for call.
+    Textbox,
+};
+
 /**
  * The message fixed source `source` (RSBS_MM_HINT_SRC_REMAINS_ODOLWA ..
  * RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK) shows, built from `checks` exactly as its
  * textbox hook builds it (before colours and line breaks), and, when `out` is
  * non-NULL, the resolution (type FIXED, the item(s) and check(s) it names, the
- * areas its text names, the text). "" for a source that is not fixed.
+ * areas its text names, the text). "" for a source that is not fixed. With
+ * `junkName` Plain (the default) it is pure; Textbox is the Bomb Shop hook's form.
  */
-std::string FixedText(uint16_t source, const RandoSaveCheck* checks, ComboHintResolution* out);
+std::string FixedText(uint16_t source, const RandoSaveCheck* checks, ComboHintResolution* out,
+                      JunkName junkName = JunkName::Plain);
 
 /** The item fixed source `source` locates (a remains poster's remains, the Oath's
  *  song, ...); RI_UNKNOWN when it names a check's item instead, or is not fixed. */

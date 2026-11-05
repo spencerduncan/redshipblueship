@@ -127,10 +127,13 @@ static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
 #ifdef RSBS_SINGLE_EXECUTABLE
 // #1475: the combined Hint Tracker's resolver builds the text (Rando/HintSources.h,
 // upstream's expression moved there, kept below under #else), so the tracker
-// shows exactly this; showing it records the hint as read.
+// shows exactly this; showing it records the hint as read. JunkName::Textbox keeps
+// upstream's junk naming call for call: MM's own junk padding here reads
+// "Junk (<junk item>)", drawn from MM's global stream, where the tracker reads "Junk".
 static std::string BombShopNextStockText() {
     Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK);
-    return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK, RANDO_SAVE_CHECKS, nullptr);
+    const Rando::HintSources::JunkName junk = Rando::HintSources::JunkName::Textbox;
+    return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK, RANDO_SAVE_CHECKS, nullptr, junk);
 }
 #else
 static std::string BombShopNextStockText() {

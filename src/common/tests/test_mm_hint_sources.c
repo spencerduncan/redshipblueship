@@ -29,15 +29,27 @@
  *       OoT -> MM -> OoT crossing pair through the real GameRunner_SwitchTo and
  *       its whole-file commits (a bit set in MM survives both crossings and a
  *       kill and reload).
- *   S5. THE PANE over an authored MM half while OoT runs: STALE, every source
- *       listed and masked ("???", nothing resolved) until read, grouped by area;
- *       a read stone shows the resolver's text, plain, and reads found (SoH's
- *       Journal state) once its check is collected; an off option drops its
- *       sources; an unmarked half is UNAVAILABLE; MM played reads LIVE.
+ *   S5. THE PANE over an authored MM half while OoT runs, with MM's live save
+ *       another world (as after a .redsave load with MM not booted), so nothing
+ *       passes by reading gSaveContext: STALE, every source listed and masked
+ *       ("???", nothing resolved) until read, grouped by area; a read stone shows
+ *       the resolver's answer worked out while the live save was the world, plain,
+ *       and reads found (SoH's Journal state) once its check is collected; an off
+ *       option drops its sources; an unmarked half is UNAVAILABLE; MM played reads
+ *       LIVE.
  *   S6. Combo_HintPlainText: MM's colour codes and control bytes out.
+ *   S8. THE BOMB SHOP'S JUNK (Rando/HintSources.h, JunkName): with MM's own junk
+ *       padding (RI_JUNK) in the line's slot and Rando::CurrentJunkItem's cache
+ *       cold, neither the resolver nor the read hook draws from MM's global
+ *       stream; the hook's text is main's, "Junk (<junk item>)", and the
+ *       resolver's is the same less that one suffix; another live save leaves the
+ *       answer alone. With an OoT item crossed there (RI_JUNK as its cover) the
+ *       resolver and the read hook still draw nothing, and main's text, the
+ *       hook's and the resolver's all name the OoT item.
  *   S7. THE WIRING, from source (RSBS_SOURCE_DIR), each with a counterfactual:
  *       every textbox hook builds its text with the resolver's function and calls
- *       the read hook, the stone's pick and text go through the resolver's
+ *       the read hook (the Bomb Shop's with main's junk naming, the resolver with
+ *       the plain one), the stone's pick and text go through the resolver's
  *       functions, the free-stone digest goes through the resolver, and the hint
  *       adapter is registered by MM_TrackerAdapter_Register, which
  *       Combo_TrackerWindow_Init calls (main.cpp calls that; locked by
@@ -48,20 +60,27 @@
  * half, MM never booted):
  *   W1. For every source, the resolver over the frozen MM half (what the pane
  *       reads while OoT runs) equals the resolver over MM's live save (what the
- *       hooks read), field by field.
+ *       hooks read), field by field; then, with MM's live save another world (as
+ *       after a .redsave load with MM not booted), every source over the frozen
+ *       half still says exactly what it said, so the resolver reads the image it
+ *       is handed and never gSaveContext.
  *   W2. For every stone, main's pick (MM's GLOBAL stream seeded with the world's
  *       seed plus the stone's, then Ship_Random) equals the talk-time pick
  *       (FreeStonePick) and both leave the next global draw equal; the talk-time
  *       text for that pick is the resolver's text, and an item hint's target is
  *       that pick. For every fixed hint, main's text (each hook's upstream
- *       expression, MM_HintSources_TestLegacyFixedText) is the resolver's.
- *   W3. Neither the read hook nor the resolver moves MM's global stream.
+ *       expression, MM_HintSources_TestLegacyFixedText) is the hook's, and the
+ *       resolver's, but for the one deliberate difference S8 pins: the Bomb
+ *       Shop's line over MM's own junk padding, one junk suffix shorter.
+ *   W3. Neither the read hook nor the resolver (over the live save and over the
+ *       frozen half) moves MM's global stream, probed with
+ *       Rando::CurrentJunkItem's cache cold.
  *   W4. THE SEEN MARK: reading a stone whose item hint names an MM check marks
  *       that check Seen in MM's live save, so the combined Check Tracker's MM
  *       pane shows it SEEN while MM is played; the frozen half is untouched; a
  *       fixed hint (the Hookshot's) marks its check too.
- *   W5. The pane over the world: every listed source masked until read, then
- *       the resolver's text.
+ *   W5. The pane over the world, MM's live save another world: every listed
+ *       source masked until read, then the resolver's answer from W1's first pass.
  * The free-stone digest and the goldens are the rest of the proof: the digest now
  * goes through the resolver (S7), and every Golden* row (GoldenSeedDigestDefault,
  * ...ProfileV1, ...Entrances, ...ExcludesTricks, ...Shopsanity, ...DirectionForward,
@@ -121,6 +140,8 @@ int MM_HintSources_TestSetSeen(uint16_t check, int seen);
 void MM_HintSources_TestStreamReplica(uint64_t seed, int32_t max, int32_t* outGlobal, int32_t* outGlobalNext,
                                       int32_t* outLocal, int32_t* outLocalNext, int* outUntouched);
 int MM_HintSources_TestLegacyFixedText(uint16_t source, char* out, int cap);
+int MM_HintSources_TestTextboxText(uint16_t source, char* out, int cap);
+void MM_HintSources_TestBombShopIds(uint16_t* outCheck, uint16_t* outJunk);
 // MM: the check table and the tracker adapter's live seam
 int MM_HintArea_TestCheckRow(uint16_t id, int* outIsEnemyDrop);
 int MM_HintArea_TestCheckIdMax(void);
@@ -170,6 +191,32 @@ std::string HsPlain(const char* msg) {
     char buf[RSBS_HINT_TEXT_CAP];
     (void)Combo_HintPlainText(msg, buf, (int)sizeof(buf));
     return buf;
+}
+
+/** True when `textbox` is `plain` with one " (...)" put in where the two first
+ *  differ: the junk suffix the Bomb Shop's textbox adds to MM's own junk padding
+ *  and the resolver leaves out (Rando/HintSources.h, JunkName). The suffix's
+ *  item name may hold parentheses of its own ("Arrows (10)"). */
+bool HsOneJunkSuffixApart(const char* textbox, const char* plain) {
+    size_t i = 0;
+    while (textbox[i] != '\0' && textbox[i] == plain[i]) {
+        i++;
+    }
+    const size_t textboxLen = strlen(textbox);
+    const size_t tailLen = strlen(plain + i);
+    if (textboxLen < i + tailLen + 4) { // " (" + a name + ")"
+        return false;
+    }
+    const size_t insertEnd = textboxLen - tailLen;
+    return strncmp(textbox + i, " (", 2) == 0 && textbox[insertEnd - 1] == ')' &&
+           strcmp(textbox + insertEnd, plain + i) == 0;
+}
+
+/** A live MM save that is not the world under test: what MM's gSaveContext holds
+ *  while OoT runs after a .redsave load (MM not booted) stands for any of them. A
+ *  resolver that read it instead of the image it is handed changes its answer. */
+void HsAuthorOtherLiveSave() {
+    MM_HintSources_TestAuthorSave(nullptr, 0x5EEDF00Du, 0);
 }
 
 // ---- S1. the sources -------------------------------------------------------
@@ -458,6 +505,20 @@ bool HsPaneLegs(std::vector<uint8_t>* shadow) {
     MM_HintSources_TestCopyLive(shadow->data());
     Context_UpdateShadowCopy(GAME_MM, shadow->data(), shadow->size());
 
+    // What stone 0 says in that world, worked out while MM's live save is that
+    // world. Then MM's live save becomes another one, as while OoT runs after a
+    // .redsave load with MM not booted, so every leg below until MM is played
+    // reads the half or fails: the same answer over the half proves the resolver
+    // reads the image it is handed, not MM's gSaveContext.
+    ComboHintResolution direct;
+    HS_CHECK(MM_HintSources_TestResolve(shadow->data(), 0, &direct) == 1, "S5: the resolver says nothing for stone 0");
+    HsAuthorOtherLiveSave();
+    {
+        ComboHintResolution overOther;
+        HS_CHECK(MM_HintSources_TestResolve(shadow->data(), 0, &overOther) == 1 && HsSameResolution(direct, overOther),
+                 "S5: stone 0 over the MM half changed with MM's live save: the resolver read the live save");
+    }
+
     ComboHintGameSummary sum;
     Combo_HintGameSummary((uint8_t)GAME_MM, &sum);
     printf("[TEST]   S5: OoT plays: freshness %u, world %d, %d source(s), %d read\n", (unsigned)sum.freshness,
@@ -489,10 +550,9 @@ bool HsPaneLegs(std::vector<uint8_t>* shadow) {
         found = Combo_HintRowAt((uint8_t)GAME_MM, i, &read) && read.info.source == 0;
     }
     HS_CHECK(found && read.read && read.known, "S5: the read stone's row is not known");
-    ComboHintResolution direct;
-    HS_CHECK(MM_HintSources_TestResolve(shadow->data(), 0, &direct) == 1, "S5: the resolver says nothing for stone 0");
     printf("[TEST]   S5: stone 0 (\"%s\") reads \"%s\"\n", read.info.name, read.display);
-    HS_CHECK(HsSameResolution(read.hint, direct), "S5: the row's hint is not the resolver's");
+    HS_CHECK(HsSameResolution(read.hint, direct),
+             "S5: the row's hint is not the resolver's answer over the MM half (MM's live save is another world)");
     HS_CHECK(read.display == HsPlain(direct.text) && strchr(read.display, '%') == nullptr,
              "S5: the row's display is not the resolver's text, plain");
     HS_CHECK(read.hint.type == (uint8_t)COMBO_HINT_TYPE_ITEM && read.hint.targetCount == 1 &&
@@ -545,7 +605,8 @@ bool HsPaneLegs(std::vector<uint8_t>* shadow) {
                  Combo_HintRowCount((uint8_t)GAME_MM) == 0,
              "S5: an unmarked MM half is not UNAVAILABLE");
 
-    // MM played: the pane reads MM's live save (the authored world), LIVE.
+    // MM played: the pane reads MM's live save (the authored world again), LIVE.
+    MM_HintSources_TestSetLive(shadow->data());
     MM_TrackerAdapter_TestLiveSeam(1);
     Context_SetCurrentGame(GAME_MM);
     Combo_HintGameSummary((uint8_t)GAME_MM, &sum);
@@ -598,6 +659,90 @@ bool HsCheckPlainText() {
     const int full = Combo_HintPlainText("They say", tiny, (int)sizeof(tiny));
     HS_CHECK(full == 8 && strcmp(tiny, "They ") == 0, "S6: a short buffer does not truncate and report the length");
     return true;
+}
+
+// ---- S8. the Bomb Shop's junk ------------------------------------------------------
+
+bool HsBombShopLegs(std::vector<uint8_t>* world) {
+    const uint16_t src = (uint16_t)RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK;
+    uint16_t shopCheck = 0;
+    uint16_t junk = 0;
+    MM_HintSources_TestBombShopIds(&shopCheck, &junk);
+    HS_CHECK(shopCheck != 0 && junk != 0, "S8: no Bomb Shop check or junk item id");
+    ComboContext_Init(); // no foreign placement anywhere
+    MM_HintSources_TestAuthorSave(nullptr, 0x1475B0B5u, 1);
+    MM_Rando_Hints_TestSetCheck(shopCheck, junk, 1, 0, nullptr, nullptr, nullptr);
+    world->assign((size_t)MM_HintSources_TestSaveSize(), 0);
+    MM_HintSources_TestCopyLive(world->data());
+
+    // (a) MM's own junk padding in the slot (junk filled there, or the check
+    // skipped or excluded). With Rando::CurrentJunkItem's cache cold (the stream
+    // probe makes it cold), neither the resolver nor the read hook draws.
+    HS_CHECK(MM_HintSources_TestKeepsStream(0, world->data(), src, 0xB0B5000000000001ull) == 1,
+             "S8: resolving the Bomb Shop's line over MM's junk padding drew from MM's global stream "
+             "(GetItemName -> Rando::CurrentJunkItem)");
+    HS_CHECK(MM_HintSources_TestKeepsStream(1, nullptr, src, 0xB0B5000000000002ull) == 1,
+             "S8: the Bomb Shop's read hook drew from MM's global stream over MM's junk padding");
+    ComboHintResolution plain;
+    HS_CHECK(MM_HintSources_TestResolve(world->data(), src, &plain) == 1, "S8: the Bomb Shop's line says nothing");
+    char textbox[RSBS_HINT_TEXT_CAP];
+    char legacy[RSBS_HINT_TEXT_CAP];
+    HS_CHECK(MM_HintSources_TestTextboxText(src, textbox, (int)sizeof(textbox)) >= 0 &&
+                 MM_HintSources_TestLegacyFixedText(src, legacy, (int)sizeof(legacy)) >= 0,
+             "S8: no textbox text for the Bomb Shop's line");
+    printf("[TEST]   S8: MM's junk padding: the textbox says \"%s\", the resolver \"%s\"\n", HsPlain(textbox).c_str(),
+           HsPlain(plain.text).c_str());
+    HS_CHECK(strcmp(legacy, textbox) == 0, "S8: the hook's text \"%s\" is not main's \"%s\"", textbox, legacy);
+    HS_CHECK(strstr(plain.text, "%rJunk%w") != nullptr && HsOneJunkSuffixApart(textbox, plain.text),
+             "S8: the resolver's \"%s\" is not the textbox's \"%s\" less its one junk suffix", plain.text, textbox);
+    HS_CHECK(plain.type == (uint8_t)COMBO_HINT_TYPE_FIXED && plain.targetCount == 1 &&
+                 plain.targets[0].checkGame == (uint8_t)GAME_MM && plain.targets[0].check == shopCheck &&
+                 plain.targets[0].itemGame == (uint8_t)GAME_MM && plain.targets[0].item == junk,
+             "S8: the line does not name MM's junk padding at the Bomb Shop's check");
+    // The world is the image's: another live save leaves the answer alone.
+    HsAuthorOtherLiveSave();
+    {
+        ComboHintResolution again;
+        HS_CHECK(MM_HintSources_TestResolve(world->data(), src, &again) == 1 && HsSameResolution(plain, again),
+                 "S8: the Bomb Shop's line over the image changed with MM's live save");
+    }
+    MM_HintSources_TestSetLive(world->data());
+
+    // (b) An OoT item crossed there: the slot holds RI_JUNK as its cover. The
+    // text names the OoT item in every form, and the resolver never asks
+    // GetItemName about the cover.
+    SharedItem sword;
+    HS_CHECK(TestNamedItem((uint8_t)GAME_OOT, "Kokiri Sword", &sword), "S8: OoT's Kokiri Sword was not found");
+    HS_CHECK(Combo_SetForeignPlacement(shopCheck, sword) >= 0, "S8: setup: the crossing at the Bomb Shop's check");
+    HS_CHECK(MM_HintSources_TestKeepsStream(0, world->data(), src, 0xB0B5000000000003ull) == 1,
+             "S8: resolving the Bomb Shop's line over a crossed slot drew from MM's global stream: GetItemName "
+             "was asked about the cover");
+    HS_CHECK(MM_HintSources_TestKeepsStream(1, nullptr, src, 0xB0B5000000000004ull) == 1,
+             "S8: the Bomb Shop's read hook drew from MM's global stream over a crossed slot");
+    ComboHintResolution crossed;
+    HS_CHECK(MM_HintSources_TestResolve(world->data(), src, &crossed) == 1, "S8: the crossed line says nothing");
+    HS_CHECK(MM_HintSources_TestTextboxText(src, textbox, (int)sizeof(textbox)) >= 0 &&
+                 MM_HintSources_TestLegacyFixedText(src, legacy, (int)sizeof(legacy)) >= 0,
+             "S8: no textbox text for the crossed line");
+    printf("[TEST]   S8: a crossed slot: \"%s\"\n", HsPlain(crossed.text).c_str());
+    HS_CHECK(strcmp(legacy, textbox) == 0 && strcmp(textbox, crossed.text) == 0,
+             "S8: over a crossed slot main says \"%s\", the hook \"%s\", the resolver \"%s\"", legacy, textbox,
+             crossed.text);
+    HS_CHECK(strstr(crossed.text, "Kokiri Sword") != nullptr && crossed.targetCount == 1 &&
+                 crossed.targets[0].itemGame == (uint8_t)GAME_OOT && crossed.targets[0].item == sword.id,
+             "S8: the crossed line does not name the OoT item");
+    return true;
+}
+
+bool HsCheckBombShopJunk() {
+    const ComboContext savedCtx = gComboCtx;
+    std::vector<uint8_t> priorLive((size_t)MM_HintSources_TestSaveSize());
+    MM_HintSources_TestCopyLive(priorLive.data());
+    std::vector<uint8_t> world;
+    const bool ok = HsBombShopLegs(&world);
+    MM_HintSources_TestSetLive(priorLive.data());
+    gComboCtx = savedCtx;
+    return ok;
 }
 
 // ---- S7. the wiring, from source -------------------------------------------------
@@ -703,8 +848,15 @@ const HsSite kHsSites[] = {
     { "games/mm/2s2h/Rando/ActorBehavior/EnGirlA.cpp", "static std::string BombShopNextStockText() {", "}",
       "Rando::HintSources::MarkRead(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK);", "the Bomb Shop's read hook" },
     { "games/mm/2s2h/Rando/ActorBehavior/EnGirlA.cpp", "static std::string BombShopNextStockText() {", "}",
-      "return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK, RANDO_SAVE_CHECKS, nullptr);",
+      "return Rando::HintSources::FixedText(RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK, RANDO_SAVE_CHECKS, nullptr, junk);",
       "the Bomb Shop's text" },
+    { "games/mm/2s2h/Rando/ActorBehavior/EnGirlA.cpp", "static std::string BombShopNextStockText() {", "}",
+      "const Rando::HintSources::JunkName junk = Rando::HintSources::JunkName::Textbox;",
+      "the Bomb Shop's textbox keeps main's junk naming (its drawn suffix)" },
+    // The resolver names MM's junk padding without a draw (the Bomb Shop's line, HintSources.h).
+    { "games/mm/2s2h/Rando/HintSourcesSingleExe.cpp", "bool Rando::HintSources::Resolve(", "}",
+      "if (FixedText(source, checks, &resolved, JunkName::Plain).empty()) {",
+      "the resolver's fixed texts name MM's junk padding plainly" },
     { "games/mm/2s2h/Rando/ActorBehavior/EnGirlA.cpp", "COND_ID_HOOK(OnOpenText, 0x648, IS_RANDO,", "    });",
       "entry.msg = BombShopNextStockText();", "the Bomb Shop textbox shows the next-stock text" },
     // The registration: the hint adapter rides the check tracker's MM adapter.
@@ -770,6 +922,13 @@ bool HsWorldLegs(const std::vector<uint8_t>& shadow) {
     int fixedSaid = 0;
     int seenStone = -1;
     uint16_t seenCheck = 0;
+    // Every source's answer over the frozen half, kept for the second W1 pass and W5.
+    std::vector<ComboHintResolution> firstPass((size_t)RSBS_MM_HINT_SRC_COUNT);
+    std::vector<int> firstSaid((size_t)RSBS_MM_HINT_SRC_COUNT, 0);
+    uint16_t shopCheck = 0;
+    uint16_t junkItem = 0;
+    MM_HintSources_TestBombShopIds(&shopCheck, &junkItem);
+    const char* bombShopSlot = "not listed";
     for (uint16_t s = 0; s < (uint16_t)RSBS_MM_HINT_SRC_COUNT; s++) {
         ComboHintResolution live;
         ComboHintResolution frozen;
@@ -778,6 +937,14 @@ bool HsWorldLegs(const std::vector<uint8_t>& shadow) {
         HS_CHECK(saidLive == saidFrozen && HsSameResolution(live, frozen),
                  "W1: source %u says \"%s\" over MM's live save and \"%s\" over the frozen half", (unsigned)s,
                  live.text, frozen.text);
+        firstPass[s] = frozen;
+        firstSaid[s] = saidFrozen;
+        // W3 with Rando::CurrentJunkItem's cache cold (the probe makes it cold), over
+        // the live save and over the frozen half.
+        HS_CHECK(MM_HintSources_TestKeepsStream(0, nullptr, s, 0x1475ull << 32 | s) == 1,
+                 "W3: resolving source %u over MM's live save moved MM's global stream", (unsigned)s);
+        HS_CHECK(MM_HintSources_TestKeepsStream(0, shadow.data(), s, 0x1476ull << 32 | s) == 1,
+                 "W3: resolving source %u over the frozen half moved MM's global stream", (unsigned)s);
         if (saidLive == 0) {
             continue;
         }
@@ -821,22 +988,44 @@ bool HsWorldLegs(const std::vector<uint8_t>& shadow) {
             }
         } else {
             fixedSaid++;
+            // Main's text (each hook's upstream expression) is the hook's, byte for
+            // byte, and the resolver's, except where the Bomb Shop's line names MM's
+            // own junk padding: the hook adds the junk item it draws, the resolver
+            // does not (Rando/HintSources.h, JunkName).
             char legacy[RSBS_HINT_TEXT_CAP];
+            char textbox[RSBS_HINT_TEXT_CAP];
             HS_CHECK(MM_HintSources_TestLegacyFixedText(s, legacy, (int)sizeof(legacy)) >= 0 &&
-                         strcmp(legacy, live.text) == 0,
-                     "W2: fixed source %u: main's text \"%s\", the resolver's \"%s\"", (unsigned)s, legacy, live.text);
+                         MM_HintSources_TestTextboxText(s, textbox, (int)sizeof(textbox)) >= 0 &&
+                         strcmp(legacy, textbox) == 0,
+                     "W2: fixed source %u: main's text \"%s\", the hook's \"%s\"", (unsigned)s, legacy, textbox);
             HS_CHECK(live.type == (uint8_t)COMBO_HINT_TYPE_FIXED && live.targetCount >= 1,
                      "W2: fixed source %u names nothing", (unsigned)s);
+            const bool nativeJunk = s == (uint16_t)RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK &&
+                                    live.targets[0].itemGame == (uint8_t)GAME_MM &&
+                                    live.targets[0].check == shopCheck && live.targets[0].item == junkItem;
+            if (s == (uint16_t)RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK) {
+                bombShopSlot = nativeJunk
+                                   ? "MM's junk padding"
+                                   : (live.targets[0].itemGame == (uint8_t)GAME_MM ? "an MM item" : "an OoT item");
+            }
+            if (nativeJunk) {
+                HS_CHECK(HsOneJunkSuffixApart(textbox, live.text),
+                         "W2: the Bomb Shop's line over MM's junk padding: the hook's \"%s\" is not the resolver's "
+                         "\"%s\" plus one junk suffix",
+                         textbox, live.text);
+            } else {
+                HS_CHECK(strcmp(textbox, live.text) == 0,
+                         "W2: fixed source %u: the hook's text \"%s\", the resolver's \"%s\"", (unsigned)s, textbox,
+                         live.text);
+            }
         }
-        if (s < 2 || s == RSBS_MM_HINT_SRC_HOOKSHOT) {
+        if (s < 2 || s == RSBS_MM_HINT_SRC_HOOKSHOT || s == RSBS_MM_HINT_SRC_BOMB_SHOP_STOCK) {
             printf("[TEST]   W2: source %u: \"%s\"\n", (unsigned)s, HsPlain(live.text).c_str());
         }
-        HS_CHECK(MM_HintSources_TestKeepsStream(0, nullptr, s, 0x1475ull << 32 | s) == 1,
-                 "W3: resolving source %u moved MM's global stream", (unsigned)s);
     }
     printf("[TEST]   W1-W2: %d source(s) say something: %d stone(s) (%d item, %d foolish, %d Way of the Hero; %d "
-           "cross-game), %d fixed\n",
-           listed, stonesSaid, items, foolish, woth, crossGame, fixedSaid);
+           "cross-game), %d fixed; the Bomb Shop's slot holds %s\n",
+           listed, stonesSaid, items, foolish, woth, crossGame, fixedSaid, bombShopSlot);
     HS_CHECK(stonesSaid == RSBS_MM_HINT_SRC_STONE_COUNT,
              "W1: %d of the 58 stones say something; the default world has gossip-stone hints on", stonesSaid);
     HS_CHECK(items > 0, "W2: no stone gives an item hint, so the pick legs proved nothing");
@@ -890,6 +1079,23 @@ bool HsWorldLegs(const std::vector<uint8_t>& shadow) {
             "[TEST]   W4: the Hookshot is not on an MM check in this world (crossed or nowhere); fixed leg skipped\n");
     }
 
+    // W1 again, the frozen half on its own. Until now MM's live save held the
+    // world too, so a resolver reading gSaveContext instead of the image it is
+    // handed would have passed. MM's live save becomes another world (as while OoT
+    // runs after a .redsave load, MM not booted): every source over the frozen
+    // half must still say what it said, field for field, and so must the pane.
+    HsAuthorOtherLiveSave();
+    for (uint16_t s = 0; s < (uint16_t)RSBS_MM_HINT_SRC_COUNT; s++) {
+        ComboHintResolution again;
+        const int said = MM_HintSources_TestResolve(shadow.data(), s, &again);
+        HS_CHECK(said == firstSaid[s] && HsSameResolution(again, firstPass[s]),
+                 "W1: source %u over the frozen half says \"%s\" once MM's live save is another world, \"%s\" before: "
+                 "the resolver read the live save",
+                 (unsigned)s, again.text, firstPass[s].text);
+    }
+    printf("[TEST]   W1: with MM's live save another world, all %d source(s) over the frozen half say the same\n",
+           (int)RSBS_MM_HINT_SRC_COUNT);
+
     // W5: the pane over the frozen half while OoT plays.
     memset(gComboCtx.mmHintsRead, 0, sizeof(gComboCtx.mmHintsRead));
     const int rows = Combo_HintRowCount((uint8_t)GAME_MM);
@@ -904,15 +1110,17 @@ bool HsWorldLegs(const std::vector<uint8_t>& shadow) {
     int known = 0;
     for (int i = 0; i < rows; i++) {
         ComboHintRow row;
-        HS_CHECK(Combo_HintRowAt((uint8_t)GAME_MM, i, &row), "W5: row %d vanished", i);
-        ComboHintResolution frozen;
-        const int said = MM_HintSources_TestResolve(shadow.data(), row.info.source, &frozen);
+        HS_CHECK(Combo_HintRowAt((uint8_t)GAME_MM, i, &row) && row.info.source < RSBS_MM_HINT_SRC_COUNT,
+                 "W5: row %d vanished", i);
+        const ComboHintResolution& frozen = firstPass[row.info.source];
+        const int said = firstSaid[row.info.source];
         HS_CHECK(row.read && row.known == (said == 1), "W5: read row %d (source %u) is not known as its resolution is",
                  i, (unsigned)row.info.source);
         if (row.known) {
             known++;
             HS_CHECK(HsSameResolution(row.hint, frozen) && row.display == HsPlain(frozen.text),
-                     "W5: row %d's text is not the resolver's over the frozen half", i);
+                     "W5: row %d's text is not the resolver's over the frozen half (MM's live save is another world)",
+                     i);
         }
     }
     printf("[TEST]   W5: %d row(s), %d known once read\n", rows, known);
@@ -926,7 +1134,7 @@ TestResult MmHintSources_RunSynthetic(void) {
            "the pane and the wiring (#1475)\n");
     const ComboContext savedCtx = gComboCtx;
     const bool ok = HsCheckSources() && HsCheckStream() && HsCheckRecord() && HsCheckRoundTrips() && HsCheckPane() &&
-                    HsCheckPlainText() && HsCheckWiring();
+                    HsCheckPlainText() && HsCheckBombShopJunk() && HsCheckWiring();
     gComboCtx = savedCtx;
     if (!ok) {
         return TEST_FAIL;
