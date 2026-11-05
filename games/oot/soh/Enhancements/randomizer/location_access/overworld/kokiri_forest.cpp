@@ -72,7 +72,9 @@ void RegionTable_Init_KokiriForest() {
     }, {
         //Exits
         Entrance(RR_KF_BOULDER_LOOP,       []{return logic->CanUse(RG_CRAWL);}),
-        Entrance(RR_KF_LINKS_PORCH,        []{return logic->IsChild ? logic->CanClimbLadder() : logic->CanUse(RG_CLIMB) || logic->CanUse(RG_HOVER_BOOTS);}),
+        //The Deku Baba blocks the setup as Adult, and stunning doesn't last long enough to perform it.
+        Entrance(RR_KF_LINKS_PORCH,        []{return logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOVER_BOOTS) ||
+                                                     ((logic->IsChild || logic->CanKillEnemy(RE_DEKU_BABA) || logic->Get(LOGIC_FOREST_TEMPLE_CLEAR)) && logic->CanClimbLadder());}),
         Entrance(RR_KF_MIDOS_HOUSE,        []{return true;}),
         Entrance(RR_KF_SARIAS_HOUSE,       []{return true;}),
         Entrance(RR_KF_HOUSE_OF_TWINS,     []{return true;}),

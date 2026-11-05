@@ -23,7 +23,7 @@ void RegionTable_Init_ZoraRiver() {
         LOCATION(RC_ZR_TREE,     logic->IsChild && logic->CanBonkTrees()),
     }, {
         //Exits
-        Entrance(RR_ZORAS_RIVER,  []{return logic->IsAdult || logic->BlastOrSmash();}),
+        Entrance(RR_ZORAS_RIVER,  []{return logic->IsAdult || logic->BlastOrSmash() || logic->CanUse(RG_HOVER_BOOTS);}),
         Entrance(RR_HYRULE_FIELD, []{return true;}),
     });
 
@@ -58,8 +58,8 @@ void RegionTable_Init_ZoraRiver() {
         LOCATION(RC_ZR_NEAR_FREESTANDING_POH_GRASS,          logic->CanUse(RG_BOOMERANG)),
     }, {
         //Exits
-        Entrance(RR_ZR_FRONT,            []{return true;}),
-        Entrance(RR_ZR_ATOP_LADDER,      []{return (logic->IsAdult || logic->HasItem(RG_POWER_BRACELET)) && (logic->CanClimbLadder() || CanPlantBean(RR_ZORAS_RIVER, RG_ZORAS_RIVER_BEAN_SOUL));}),
+        Entrance(RR_ZR_FRONT,            []{return logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE) || logic->HasItem(RG_POWER_BRACELET) || logic->BlastOrSmash() || logic->HasItem(RG_HOVER_BOOTS);}),
+        Entrance(RR_ZR_ATOP_LADDER,      []{return ((logic->IsAdult || logic->HasItem(RG_POWER_BRACELET)) && logic->CanClimbLadder()) || (logic->IsAdult && CanPlantBean(RR_ZORAS_RIVER, RG_ZORAS_RIVER_BEAN_SOUL));}),
         Entrance(RR_ZR_PILLAR,           []{return (logic->IsChild && logic->HasItem(RG_POWER_BRACELET)) || logic->CanUse(RG_HOVER_BOOTS) || (logic->IsAdult && ctx->GetTrickOption(RT_ZR_LOWER));}),
         Entrance(RR_ZR_FROM_SHORTCUT,    []{return logic->HasItem(RG_SILVER_SCALE) || logic->CanUse(RG_IRON_BOOTS);}),
         Entrance(RR_ZR_STORMS_GROTTO,    []{return logic->CanOpenStormsGrotto();}),
