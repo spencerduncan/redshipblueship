@@ -32,6 +32,11 @@
 #include <string>
 #include <system_error>
 #include <vector>
+#if defined(_WIN32)
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace rsbs {
 
@@ -520,23 +525,34 @@ bool SaveManager::WriteSlotFile(int slot, const ComboContext& combo, const uint8
     std::error_code ec;
     std::filesystem::create_directories(mSaveDir, ec);
 
-    // Atomic write: fill a temp file, then rename over the real slot so a
-    // crash mid-write never leaves a half-written slot.
+    // Atomic write: fill a temp file, sync to disk, then rename over the real
+    // slot so a crash mid-write or post-rename never leaves a half-written or
+    // zeroed slot (#1344).
     const std::string finalPath = SlotPath(slot);
     const std::string tmpPath = finalPath + ".tmp";
     {
-        std::ofstream out(tmpPath, std::ios::binary | std::ios::trunc);
-        if (!out) {
+#if defined(_WIN32)
+        std::FILE* fp = _wfopen(std::filesystem::path(tmpPath).c_str(), L"wb");
+#else
+        std::FILE* fp = std::fopen(tmpPath.c_str(), "wb");
+#endif
+        if (fp == nullptr) {
             std::fprintf(stderr, "[RsbsSave] slot %d NOT saved: cannot open '%s' for writing\n", slot, tmpPath.c_str());
             return false;
         }
-        out.write(reinterpret_cast<const char*>(&header), sizeof(header));
-        out.write(reinterpret_cast<const char*>(payload.data()), static_cast<std::streamsize>(payload.size()));
-        out.flush();
-        if (!out) {
-            out.close();
+        const bool wroteHeader = std::fwrite(&header, sizeof(header), 1, fp) == 1;
+        const bool wrotePayload =
+            payload.empty() || std::fwrite(payload.data(), 1, payload.size(), fp) == payload.size();
+        const bool flushed = (std::fflush(fp) == 0);
+#if defined(_WIN32)
+        const bool synced = flushed && (_commit(_fileno(fp)) == 0);
+#else
+        const bool synced = flushed && (fsync(fileno(fp)) == 0);
+#endif
+        const bool closed = (std::fclose(fp) == 0);
+        if (!wroteHeader || !wrotePayload || !synced || !closed) {
             std::filesystem::remove(tmpPath, ec);
-            return SaveLogFail(slot, "write failed (disk full or permissions?); temp file discarded");
+            return SaveLogFail(slot, "write/sync failed (disk full or permissions?); temp file discarded");
         }
     }
 

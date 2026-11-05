@@ -148,6 +148,10 @@ size_t MM_AudioLoad_SequenceMapCapacity(size_t authenticFileCount, size_t custom
     return authentic + customCount + SEQUENCE_MAP_SLACK;
 }
 
+size_t MM_AudioLoad_PermanentCacheCapacity(void) {
+    return ARRAY_COUNT(gAudioCtx.permanentEntries);
+}
+
 u8 MM_seqCachePolicyMap[MAX_AUTHENTIC_SEQID];
 char** gFontMap;
 size_t gFontMapSize;
