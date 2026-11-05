@@ -1649,6 +1649,10 @@ void Player_AnimPlayOnceAdjusted(PlayState* play, Player* this, LinkAnimationHea
 }
 
 void Player_ApplyYawFromAnim(Player* this) {
+    // Blending big turn squishes model, skip it
+    if (ABS(this->skelAnime.jointTable[1].y) > 0x4000) {
+        FrameInterpolation_DontInterpolateChild(&this->actor);
+    }
     this->actor.shape.rot.y += this->skelAnime.jointTable[1].y;
     this->skelAnime.jointTable[1].y = 0;
 }
