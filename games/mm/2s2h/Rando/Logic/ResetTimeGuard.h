@@ -38,8 +38,9 @@
  *     `can_reset_time`. NOT the roof's checks (RC_CLOCK_TOWER_ROOF_*): OoTMM
  *     gates every one on a reset, because under Last Save the roof is a dead
  *     end. The tower interior stays in, so the MM->OoT crossing never closes.
- *   - MmCanResetTime() && !MmCanResetTimeOnMoon(): the four Moon trial regions
- *     and RC_MOON_FIERCE_DEITY_MASK are not reached (OoTMM gates the trial
+ *   - MmCanResetTime() && !MmCanResetTimeOnMoon(): the Moon trial regions (the
+ *     Deku, Goron and Zora trials and the Link trial's four rooms) and
+ *     RC_MOON_FIERCE_DEITY_MASK are not reached (OoTMM gates the trial
  *     entrances and the mask on can_reset_time_on_moon). The Moon itself and
  *     Majora's lair stay reachable: OoTMM's "Moon Boss" exit carries no reset
  *     term, and in this build (ADR 0010 D1, ComboGoalEndingMM.cpp) beating
@@ -108,8 +109,10 @@ bool IsResetTimeNookCheck(RandoCheckId checkId);
  * graph as authored: the nook's four checks read no event and no time slice
  * (so events fired outside the nook cannot open them), every nook region is
  * reached from the arrival without leaving the nook, and the trial regions'
- * exits lead only back to RR_MOON, which reaches them. A region reachable ONLY
- * through a pruned one would need the guard inside CrawlReachableRegions.
+ * exits and connections lead only back to RR_MOON, which reaches them, or to
+ * another trial region (the Link trial's rooms), which is pruned too. A region
+ * reachable ONLY through a pruned one would need the guard inside
+ * CrawlReachableRegions.
  */
 bool ApplyResetTimeGuard(ReachabilityCrawl& crawl, std::set<RandoCheckId>& checks);
 
