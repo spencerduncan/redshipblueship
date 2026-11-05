@@ -614,6 +614,8 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
+// #1411: 2Ship's Invert Zora Swim Y Axis (dabc3aadc), a Player row in 2Ship, hosted in the same Quality of Life >
+// Controls "Majora's Mask" block. MM reads it with default 1, which is vanilla (the row draws ticked).
 #define RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y "gEnhancements.Player.InvertZoraSwimY"
 // W6-MASKS-SONGS
 // W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
@@ -1063,6 +1065,7 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     /* W6-AUDIO-SFX */                                               \
     X(RSBS_CVAR_MM_MUTE_CARPENTER_SFX)                               \
     X(RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY)                             \
+    /* #1411 */                                                      \
     X(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)                         \
     X(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)                        \
     /* W6-TIMESAVERS */                                              \

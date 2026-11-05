@@ -1,20 +1,28 @@
 /**
  * @file SohMenuHostedMmAudio.cpp
- * @brief Majora's Mask rows hosted on SoH's Settings > Audio page (#1235), through the hosted-row seam.
+ * @brief Majora's Mask rows hosted on SoH's Settings pages (#1235, #1411), through the hosted-row seam.
  *
- * Ambience Volume. MM has a fifth sequence player SoH does not (wind, birds, night sounds), and MM_AudioMgr_Init reads
- * its volume from RSBS_CVAR_VOLUME_AMBIENCE, the volume family's spelling (ADR 0003 section 5.1: integer percent,
- * default 100). 2Ship's own slider lives in the excluded BenMenu.cpp, so nothing in the single exe wrote the key. The
- * row is SoH's slider in SoH's shape, right after Sound Effects Volume: SohMenuSettings.cpp calls
+ * Ambience Volume (Settings > Audio). MM has a fifth sequence player SoH does not (wind, birds, night sounds), and
+ * MM_AudioMgr_Init reads its volume from RSBS_CVAR_VOLUME_AMBIENCE, the volume family's spelling (ADR 0003 section 5.1:
+ * integer percent, default 100). 2Ship's own slider lives in the excluded BenMenu.cpp, so nothing in the single exe
+ * wrote the key. The row is SoH's slider in SoH's shape, right after Sound Effects Volume: SohMenuSettings.cpp calls
  * AddMmAmbienceVolumeRow in one line. It has no OoT twin, so it keeps its plain label and says "Majora's Mask only."
  * Locked by MenuMmEnhancementRows legs 8 and 9.
+ *
+ * Accessibility (Settings > General, #1411). Disable Final Day Quakes and Disable Screen Distortion, 2Ship's two
+ * motion-sensitivity toggles (6a6d84ab5, 525c1bc62). 2Ship draws them under its own Accessibility heading in the
+ * excluded BenMenu.cpp; here they sit under SoH's Accessibility heading right after Disable Jabu Wobble, the nearest
+ * relative of screen distortion: SohMenuSettings.cpp calls AddMmAccessibilityRows in one line. Neither has an OoT twin,
+ * so both keep their plain labels and say "Majora's Mask only." Their providers (Enhancements/Accessibility/
+ * NoFinalDayQuakes.cpp and NoScreenDistortion.cpp) are carved into ship__Enh_registrars, and MMRegistrarCoverage's
+ * key-gap table attributes each one.
  */
 
 #include "SohMenuHostedMm.h"
 
 #include "soh/SohGui/UIWidgets.hpp"
 
-#include "cvar_shared_keys.h" // src/common: RSBS_CVAR_VOLUME_AMBIENCE
+#include "cvar_shared_keys.h" // src/common: RSBS_CVAR_VOLUME_AMBIENCE and the RSBS_CVAR_MM_A11Y_* defines
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "mm_volume_bridge.h" // src/common: the live apply to MM's sequence players
 #endif
@@ -39,8 +47,7 @@ void AddMmAccessibilityRows(SohMenu& menu, WidgetPath& path) {
     AddHostedMmWidget(menu, path, "Accessibility", "Disable Final Day Quakes", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)
         .RaceDisable(false)
-        .Options(
-            UIWidgets::CheckboxOptions().Tooltip("Earthquakes will not occur on the final day. Majora's Mask only."));
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Prevents earthquakes on the final day. Majora's Mask only."));
     AddHostedMmWidget(menu, path, "Accessibility", "Disable Screen Distortion", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)
         .RaceDisable(false)

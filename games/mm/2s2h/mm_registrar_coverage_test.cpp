@@ -213,6 +213,10 @@
  *   - Skip Misc Interactions: the 25 TUs' registrations are summed per bucket in the table
  *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
  *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
+ *   - #1411 adds Accessibility/NoFinalDayQuakes and Accessibility/NoScreenDistortion to the same table. Their keys
+ *     (gEnhancements.A11y.NoFinalDayQuakes, gEnhancements.A11y.NoScreenDistortion) are MM's own, not converged: hosted
+ *     rows on SoH's Settings > General write them. Each TU is the only registrant of its VB (VB_EARTHQUAKE_ON_DAY_3,
+ *     VB_APPLY_SCREEN_DISTORTION), so the probe is the same.
  *
  * PHASE 10 (#1035, #1036, #1038) -- THE THREE REMAINING KEY-GAP TUs. Equipment/SkipMagicArrowEquip,
  * DifficultyOptions/PermanentHeartLoss and Restorations/N64WeirdFrames/N64WeirdFrames have the shape of

@@ -77,21 +77,22 @@ brief, plus everything in the collision set:
 | `Timesavers` | 9 | ✅ all |
 | `Cutscenes` | 10 | ✅ all |
 | `Saving` | 7 | ✅ all |
-| `Player` | 9 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven |
+| `Player` | 10 | ✅ all, and only since W6-PLAYER and W6-MASKS-SONGS (#1236): Instant Putaway (§5.3), Climb Speed ((P), §4 W6-PLAYER), six (O) keys (§6.1 W6-PLAYER) and Underwater Ocarina ((O), §6.1, hosted with the Ocarina rows by W6-MASKS-SONGS). The earlier "✅ all" predated any per-key row for the seven. Invert Zora Swim Y ((O), §6.1 #1411) is the tenth |
 | `Equipment` | 7 | ✅ all since W6-PLAYER (#1236): Item Unequip and Magic Arrow Equip Speed (§5.3), Invert Shield Y ((P) P7, §4), Bombchu Drops ((P), §4 W6-PLAYER) and three (O) keys (§6.1 W6-PLAYER). The earlier "✅ all" predated any per-key row for the last four |
 | `Camera` | 31 | ✅ all (the aiming and camera inversion / sensitivity keys and two first-person switches per key since W6-CAM-AIM, §4, the third, auto-centering, converged onto SoH's key by #1272, §5.3; the gyro axes, the free-look pitch limits and the debug camera per key since W6-CAM-GYRO, §4) |
-| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 17 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim |
+| `Dialogue` / `Dpad` / `Playback` / `Items` / `A11y` / `Mods` / `Fixes` | 19 | ✅ all; `Fixes` (and the `gFixes.*` namespace) per key only since W6-FIXES (#1237, §6.1 W6-FIXES): the earlier "✅ all" was a category-level claim. #1411 added two `A11y` keys (§6.1 #1411) |
 | `Masks` | 9 | ✅ all since W6-MASKS-SONGS (#1236): eight (O) rows and the internal `PersistentBunnyHood.State` in §6.1. Counted 10 before that lane counted the keys |
 | `Songs` | 7 | ✅ all since W6-MASKS-SONGS (#1236) and L7 (#1133): five (O) rows in §6.1, and Better Song of Double Time and Skip Song of Time Cutscenes hosted by L7 (§5.3's #1133 table) |
 | `Minigames` | 18 | ✅ all since W6-MINIGAMES (#1236): eighteen (O) rows in §6.1 |
 | `DifficultyOptions` | 12 | ✅ all: Hyper Enemies and Permanent Heart Loss converged (§5.3), Damage Multiplier held apart and hosted (§5.3, #1037), Goron Race with the minigames (§6.1), and since W6-MODES-DIFF (#1236) seven (O) rows and Delete File on Death (INTENTIONAL) in §6.1 |
 | `Cycle` | 8 | ✅ all since W6-CYCLE-CHEATS (#1236): six (O) rows and Do Not Reset Rupees / Consumables (INTENTIONAL) in §6.1 |
-| **Subtotal** | **184** | |
+| **Subtotal** | **187** | |
 
 **NOT classified at individual-setting level:** none since the W6 lanes. Until then 55 MM keys in five categories
 (`Minigames`, `DifficultyOptions`, `Masks`, `Cycle`, `Songs`) were classified **(O) MM-only at the category level** on
 the strength of their contents, with the rows inside them that have OoT counterparts pulled out (§5). Each category now
-has a row per key (table above), and `Masks` counts 9 keys, not 10, so the total in scope is 184.
+has a row per key (table above), and `Masks` counts 9 keys, not 10, so the total in scope was 184; #1411's three keys
+(two `A11y`, one `Player`) make it 187.
 
 Also not covered: OoT's 1570 `gCosmetics.*` keys (overwhelmingly auto-generated per-actor
 colour entries with no MM counterpart — MM has 3, all in the collision set and all
@@ -807,6 +808,20 @@ that could share its key.
 | `gEnhancements.Restorations.JPGrottos` | off | JP Deku Palace Grottos (Misc Restorations) | (O) MM-only; `Restorations/JPGrottos.cpp` linked whole: its AfterRoomSceneCommands leg is the only writer of the flag its four ShouldActorInit legs wait on, so linking the deleting legs alone would leave Deku Palace with no grottos (guards added to the four legs) |
 | `gEnhancements.Restorations.BonkCollision` | off | Bonk Collision (Misc Restorations) | (O) restores OoT behaviour in MM; `Restorations/BonkCollision.cpp` linked |
 
+**#1411 — MM's motion-sensitivity and Zora swim toggles, backported from 2Ship and hosted.** Three keys from 2Ship
+525c1bc62, 6a6d84ab5 and dabc3aadc that our tree did not have. 2Ship draws them in the excluded `BenMenu.cpp`; each
+has a row added through the hosted-row seam and bound through its `RSBS_CVAR_MM_*` define, and each is on
+`RSBS_TWOSHIP_IMPORT_KEYS`. The two Accessibility TUs are carved into `ship__Enh_registrars`, and the
+registrar-coverage lock's key-gap table attributes each by registry content; the classification lock's leg 3f-2c holds
+each binding. All three are player preferences: they touch only MM's camera quakes, view distortion and the Zora swim
+stick, not generation or combo identity.
+
+| MM key | MM default | Row (page > section) | Call |
+|---|---|---|---|
+| `gEnhancements.A11y.NoFinalDayQuakes` | off | Disable Final Day Quakes (Settings > General, Accessibility, after SoH's Disable Jabu Wobble) | (O) MM-only; `Accessibility/NoFinalDayQuakes.cpp` linked |
+| `gEnhancements.A11y.NoScreenDistortion` | off | Disable Screen Distortion (likewise) | (O) nearest relative only: SoH's `gSettings.A11yNoJabuWobble` covers Jabu-Jabu's geometry wobble and camera distortion; MM's covers every distortion request (underwater and other sources). `Accessibility/NoScreenDistortion.cpp` linked (play-state guard added) |
+| `gEnhancements.Player.InvertZoraSwimY` | on | Invert Zora Swim Y Axis (Quality of Life > Controls, Majora's Mask block) | (O) MM-only: Zora Link. On is vanilla; row only, `GameExports_SingleExe.cpp`'s `GameInteractor_InvertControl` reads it |
+
 ### 6.2 OoT-only (category level)
 
 Dungeon/trade/age machinery with no MM counterpart: `gRandoSettings.*` (232),
@@ -849,7 +864,7 @@ before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys 
 Scoped to the enhancement/cheat/cosmetic surface classified at **individual-setting level**
 (MM's 185 `gEnhancements.*` + `gCheats.*` keys, and their OoT counterparts). These counts are the original inventory's
 (2026-07-21) and are not re-derived per row: since then the W6 lanes classified every key per row (§2, where the total
-reads 184 because `Masks` holds 9 keys, not the inventory's 10), and the #966 rows, #1239 and #1272 converged more keys
+read 184 because `Masks` holds 9 keys, not the inventory's 10, and reads 187 since #1411), and the #966 rows, #1239 and #1272 converged more keys
 than the 26 below.
 
 | Class | Rows | Notes |
