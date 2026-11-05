@@ -382,7 +382,7 @@ void RegionTable_Init_FireTemple() {
     areaTable[RR_FIRE_TEMPLE_FIRE_MAZE_SWITCH] = Region("Fire Temple Fire Maze Switch", SCENE_FIRE_TEMPLE, {}, {}, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_FIRE_MAZE_MAIN,      []{return (ctx->GetTrickOption(RT_FIRE_SKIP_FLAME_WALLS) && logic->TakeDamage()) ||
-                                                               (ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && logic->IsAdult && logic->CanStandingShield() && logic->CanUse(RG_BOMB_BAG) && (logic->CanJumpslash() || logic->CanUse(RG_HOVER_BOOTS)));}),
+                                                               (logic->IsAdult && logic->CanStandingShield() && logic->CanUse(RG_BOMB_BAG) && ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && (logic->CanJumpslash() || logic->CanUse(RG_HOVER_BOOTS)));}),
         Entrance(RR_FIRE_TEMPLE_SOT_CAGE_LOWER,      []{return true;}),
         Entrance(RR_FIRE_TEMPLE_FIRE_MAZE_PAST_WALL, []{return true;}),
     });
@@ -603,7 +603,7 @@ void RegionTable_Init_FireTemple() {
     }, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM,       []{return logic->IsAdult && logic->TakeDamage();}),
-        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM_UPPER, []{return logic->IsAdult || logic->CanUse(RG_HOOKSHOT) || logic->CanUse(RG_HOVER_BOOTS) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS);}),
+        Entrance(RR_FIRE_TEMPLE_MQ_NEAR_BOSS_ROOM_UPPER, []{return logic->IsAdult || logic->CanUse(RG_HOOKSHOT) || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS);}),
     });
 
     //This region assumes tunic logic is handled on entry.

@@ -1593,7 +1593,7 @@ typedef enum {
     RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY,
     RR_CASTLE_GROUNDS_FROM_GROTTO,
 
-    // SoH a40ca58ab puts these before RR_SHADOW_TEMPLE_ACROSS_CHASM;
+    // SoH a40ca58ab puts these just before and just after RR_SHADOW_TEMPLE_ACROSS_CHASM;
     // appended here so no other region id moves.
     RR_SHADOW_TEMPLE_CHASM_SCARECROW,
     RR_SHADOW_TEMPLE_BROKEN_PILLAR,

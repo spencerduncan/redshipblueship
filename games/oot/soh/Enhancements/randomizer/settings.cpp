@@ -1506,10 +1506,15 @@ void Settings::CreateOptions() {
     // RCQUEST_BOTH, RA_NONE, {Tricks::Tag::ADVANCED, Tricks::Tag::EXPERIMENTAL, Tricks::Tag::GLITCH}, "ISG", "Enables
     // locations requiring use of the infinite sword glitch.");
 
-    OPT_TRICK(RT_VISIBLE_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE },
-              "Ignore Visible Collision",
-              "Allows moving through visible but non-solid geometry, as well as hitting switches, walls, pots, "
-              "etc. behind visible collision when part of an attack's hitbox passes through it.");
+    OPT_TRICK(RT_VISIBLE_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE }, "Ignore Visible Collision",
+              "Allows ignoring visible barriers and objects that do not actually stop Link from walking, climbing or "
+              "hitting things, without clipping.\n\n"
+              "This notably allows for walking through Kak's gate backwards, climb into the back of Impa's house as "
+              "Adult from the coop,"
+              "and hitting Rusted Switches or boulders through Blocks, Ice and Walls.\n\n"
+              "This trick only applies to case where doing the thing is trivial, instances where it only works from "
+              "certain angles are not part of this trick,"
+              "niether are any form of clips, including clipping Link's hitbox inside boulders with jumpslash.");
     OPT_TRICK(RT_GROTTOS_WITHOUT_AGONY, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE },
               "Hidden Grottos without Stone of Agony", "Allows entering hidden grottos without the Stone of Agony.");
     OPT_TRICK(RT_FEWER_TUNIC_REQUIREMENTS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE },
@@ -1521,10 +1526,9 @@ void Settings::CreateOptions() {
               "Many ledges can be overcome with particular jumps which are simple to execute without items.\n"
               "This includes jumping from heights to dive deeper without scales,\n"
               "though this trick doesn't cover Water Temple's Dragon Room.");
-    OPT_TRICK(RT_FIRE_RINGS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Take Damage from Fire Rings",
-              "Being hit by a circle of fire will launch Link in the opposite direction of his movement.\n"
-              "Allows getting past the flame circles in Gerudo Training Ground, Spirit Temple, and MQ Spirit Temple "
-              "by walking backwards into the fire or jumping in and getting hit on the way out.");
+    OPT_TRICK(RT_FIRE_RINGS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Fire Ring",
+              "Fire Rings can be run into while Link is invincible from having taken damage,"
+              "letting you interact with some objects inside them such as large chests");
     // disabled for now, can't check for being able to use bunny hood & bunny hood speedup is currently completely
     // decoupled from rando OPT_TRICK(RT_BUNNY_HOOD_JUMPS, RCQUEST_BOTH, RA_NONE, {Tricks::Tag::ADVANCED}, "Bunny Hood
     // Jumps", "Allows reaching locations using Bunny Hood's extended jumps.");
@@ -1554,12 +1558,17 @@ void Settings::CreateOptions() {
               "Underwater chests can be opened by wearing iron boots and hookshotting the chest.");
     OPT_TRICK(RT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Flawed Boulder Collision",
-              "The edges of a boulder's mesh will not have collision, allowing you to shoot past them.\n"
-              "Also from afar boulder collision is disabled completely, allowing projectiles to pass through them.");
-    OPT_TRICK(RT_ITEM_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE, Tricks::Tag::GLITCH },
-              "Item Extension",
-              "Slightly extends range. Also allows clipping items past thin collision, such as gates, ice, and water, "
-              "since item use starts inside the wall.");
+              "From afar, boulder collision is disabled, allowing projectiles to pass through them.\n"
+              "Additionally, boulders do not have projectile collision from below, allow them to be shot into in some "
+              "cases.");
+    OPT_TRICK(RT_ITEM_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Item Extension",
+              "Slightly extends the range of projectiles such as Hookshot, Bow or Slingshot. Also allows clipping "
+              "projectile past collision. Used for:\n"
+              "- Crossing Gerudo Valley with Hookshot\n"
+              "- Retrieving DMT Gold Skulltula beside bomb flower\n"
+              "- Hitting switch through wall in Spirit Temple's big mirror room with Bow, Slingshot, or Hookshot\n"
+              "- Hitting switch through wall in Spirit Trial with Bow or Slingshot\n"
+              "- Hitting switch through gate in Shadow Temple MQ with Bow or Slingshot");
     OPT_TRICK(RT_BIG_SKULLTULA_PAUSE_LIFT, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Lift Big Skulltulas with Pausing",
               "Pausing while a big skulltula is bobbing upwards slightly lifts it,\n"

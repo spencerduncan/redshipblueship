@@ -96,7 +96,7 @@ void RegionTable_Init_ForestTemple() {
     }, {
         //Exits
         Entrance(RR_FOREST_TEMPLE_LOBBY,                     []{return true;}),
-        Entrance(RR_FOREST_TEMPLE_NW_COURTYARD_UPPER,        []{return (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT)) && logic->CanUse(RG_HOVER_BOOTS) && ((ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives()) || (logic->IsAdult && logic->CanMiddairGroundJump()));}),
+        Entrance(RR_FOREST_TEMPLE_NW_COURTYARD_UPPER,        []{return (logic->HasItem(RG_CLIMB) || logic->CanUse(RG_HOOKSHOT)) && logic->CanUse(RG_HOVER_BOOTS) && ((ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && (ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives())) || logic->CanMiddairGroundJump());}),
         Entrance(RR_FOREST_TEMPLE_NW_COURTYARD_UPPER_ALCOVE, []{return logic->HasItem(RG_CLIMB) || logic->CanUse(RG_LONGSHOT);}),
         Entrance(RR_FOREST_TEMPLE_SEWER,                     []{return logic->HasItem(RG_GOLDEN_SCALE) || logic->CanUse(RG_IRON_BOOTS);}),
         Entrance(RR_FOREST_TEMPLE_DRAINED_SEWER,             []{return logic->Get(LOGIC_FOREST_DRAINED_WELL);}),
@@ -627,7 +627,7 @@ void RegionTable_Init_ForestTemple() {
     }, {
         //Exits
         Entrance(RR_FOREST_TEMPLE_MQ_NW_COURTYARD,       []{return true;}),
-        Entrance(RR_FOREST_TEMPLE_MQ_NW_COURTYARD_LEDGE, []{return (logic->CanUse(RG_HOVER_BOOTS) && ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives()) || (logic->IsAdult && logic->CanMiddairGroundJump());}),
+        Entrance(RR_FOREST_TEMPLE_MQ_NW_COURTYARD_LEDGE, []{return logic->CanUse(RG_HOVER_BOOTS) && ((ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && ctx->GetTrickOption(RT_DAMAGE_BOOST_SIMPLE) && logic->HasExplosives()) || logic->CanMiddairGroundJump());}),
     });
 
     areaTable[RR_FOREST_TEMPLE_MQ_NW_COURTYARD_UPPER_ALCOVE] = Region("Forest Temple MQ NW Courtyard Upper Alcove", SCENE_FOREST_TEMPLE, {

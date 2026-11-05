@@ -262,13 +262,13 @@ void RegionTable_Init_BottomOfTheWell() {
 
     areaTable[RR_BOTW_MQ_PERIMETER] = Region("Bottom of the Well MQ Perimeter", SCENE_BOTTOM_OF_THE_WELL, {
         //Events
-        // Fairies are in slingshot wonder item, & pot behind grate.
+        // Fairies are in slingshot wonder item, & pot behind grate. Pot can also be broken with boomerang trick
         EventAccess(LOGIC_FAIRY_ACCESS,         []{return (logic->IsChild && logic->CanUse(RG_FAIRY_SLINGSHOT)) ||
-                                                          ((ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OFF) || ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OVERWORLD)) &&
-                                                           ((logic->CanBreakPots() &&
-                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
-                                                              (ctx->GetTrickOption(RT_ITEM_EXTENSION) && ((logic->IsChild && logic->CanUse(RG_FAIRY_SLINGSHOT)) || logic->CanUse(RG_FAIRY_BOW) || logic->CanUse(RG_LONGSHOT))))) ||
-                                                            (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->CanUse(RG_BOOMERANG))));}),
+                                                          (AnyAgeTime([]{return logic->BlastOrSmash();}) && logic->CanHitEyeTargets()) ||
+                                                          //Item extension can get a fairy by either shooting the pot through the grate and letting the fairy fly through the wall
+                                                          //This cannot be done if the pot has an item in it, as it cannot be collected this way.
+                                                          (ctx->GetTrickOption(RT_ITEM_EXTENSION) && (ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OFF) || ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OVERWORLD)) && logic->CanHitEyeTargets()) ||
+                                                          (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild ? logic->CanHitEyeTargets() : logic->CanUse(RG_FAIRY_SLINGSHOT));}),
         //It is possible to hit the water switch with a pot from RR_BOTW_MQ_MIDDLE, however the hitbox for making it activate is very unintuitive
         //You have to throw the pot from further back to hit the switch from the front instead of the top, trying to hit the "fingers" directly
         //This unintuitiveness means it should be a trick. ZL is needed to get a clear path to carry the pot
@@ -276,11 +276,12 @@ void RegionTable_Init_BottomOfTheWell() {
         EventAccess(LOGIC_BOTW_MQ_OPENED_GATES, []{return logic->CanUse(RG_ZELDAS_LULLABY);}),
     }, {
         //Locations
-        //Free Standing Collectible behind the gate doesn't have collision to shoot through the gate with Bow/Slingshot, unlike the Pot, only Hookshot works for both
-        LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_OUTER_LOBBY_POT,  (logic->CanBreakPots() &&
-                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
-                                                              (ctx->GetTrickOption(RT_ITEM_EXTENSION) && logic->CanUse(RG_LONGSHOT)))) ||
-                                                            (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->CanUse(RG_BOOMERANG))),
+        //Implies CanBreakPots(). Hitting this with rang through the wall is possible but would be a trick.
+        //Instead of blowing up the boulder, you can aim through the lower left side with sling(either age) or as child with bow
+        //Not even bow extension seems to get adult's bow to work
+        //this would be a trick
+        LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_OUTER_LOBBY_POT,  (AnyAgeTime([]{return logic->BlastOrSmash();}) && logic->CanHitEyeTargets()) ||
+                                                            (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild ? logic->CanHitEyeTargets() : logic->CanUse(RG_FAIRY_SLINGSHOT))),
         LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_BOMB_LEFT_HEART,  logic->HasExplosives()),
         LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_BOMB_RIGHT_HEART, logic->HasExplosives()),
     }, {

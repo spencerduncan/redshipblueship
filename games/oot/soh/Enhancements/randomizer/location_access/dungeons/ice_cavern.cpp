@@ -38,7 +38,8 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Exits
         Entrance(RR_ICE_CAVERN_BEGINNING,    []{return true;}),
-        Entrance(RR_ICE_CAVERN_MAP_ROOM,     []{return logic->IsAdult && logic->CanClearStalagmite();}),
+        //child can make this with a ground jump for the first step, and a glitchless jump for the second, but it's a separate trick
+        Entrance(RR_ICE_CAVERN_MAP_ROOM,     []{return (logic->IsAdult /*|| logic->CanGroundJump()*/) && logic->CanClearStalagmite();}),
         Entrance(RR_ICE_CAVERN_COMPASS_ROOM, []{return AnyAgeTime([]{return logic->BlueFire();});}),
         Entrance(RR_ICE_CAVERN_BLOCK_ROOM,   []{return AnyAgeTime([]{return logic->BlueFire();}) && (logic->CanClearStalagmite() || ctx->GetTrickOption(RT_ICE_STALAGMITE_CLIP));}),
     });
@@ -49,7 +50,8 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Locations
         LOCATION(RC_ICE_CAVERN_MAP_CHEST,             logic->BlueFire() && logic->HasItem(RG_OPEN_CHEST)),
-        // It is easy to break the pot through the ice with proximity drops on, otherwise the item inside is unaffected by attacks through the Red Ice except Hookshot
+        // very easy to break pot through ice with most weapons
+        // Bow extesnion is possible, but very precise: X = 403, Z = 2062-3, Rot = -11475, needs a setup and is its own trick
         LOCATION(RC_ICE_CAVERN_FROZEN_POT_1,          (logic->CanBreakPots() && logic->BlueFire()) || logic->HasExplosives() ||
                                                       (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && ((logic->CanStandingShield() && logic->CanUse(RG_KOKIRI_SWORD)) || logic->CanUse(RG_MASTER_SWORD) || logic->CanUse(RG_BIGGORON_SWORD) || logic->CanUse(RG_MEGATON_HAMMER))) ||
                                                       (ctx->GetTrickOption(RT_ITEM_EXTENSION) && logic->CanUse(RG_HOOKSHOT))),
@@ -164,7 +166,8 @@ void RegionTable_Init_IceCavern() {
     }, {
         //Exits
         Entrance(RR_ICE_CAVERN_MQ_MAP_ROOM,       []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_WHITE_WOLFOS) && logic->CanKillEnemy(RE_FREEZARD);});}),
-        Entrance(RR_ICE_CAVERN_MQ_COMPASS_ROOM,   []{return logic->IsAdult && logic->BlueFire();}),
+        //child can make this with a ground jump for the first step, and a glitchless jump for the second, but it's a separate trick
+        Entrance(RR_ICE_CAVERN_MQ_COMPASS_ROOM,   []{return (logic->IsAdult /*|| logic->CanGroundJump()*/) && logic->BlueFire();}),
         Entrance(RR_ICE_CAVERN_MQ_SCARECROW_ROOM, []{return logic->BlueFire();}),
     });
 

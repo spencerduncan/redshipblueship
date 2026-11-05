@@ -562,9 +562,8 @@ void RegionTable_Init_SpiritTemple() {
     }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_FRONT_LEFT_CHEST,  logic->HasItem(RG_OPEN_CHEST)),
-        LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_BACK_LEFT_CHEST,   ((AnyAgeTime([]{return logic->BlastOrSmash();}) && logic->CanHitEyeTargets()) ||
-                                                                  (ctx->GetTrickOption(RT_BOULDER_COLLISION) && (logic->IsChild ? logic->CanUse(RG_FAIRY_SLINGSHOT) : logic->CanUse(RG_FAIRY_BOW)))) &&
-                                                                 logic->HasItem(RG_OPEN_CHEST)),
+        LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_BACK_LEFT_CHEST,   logic->HasItem(RG_OPEN_CHEST) &&
+                                                                 ((AnyAgeTime([]{return logic->BlastOrSmash();}) && logic->CanHitEyeTargets()) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild ? logic->CanHitEyeTargets() : logic->CanUse(RG_FAIRY_SLINGSHOT)))),
         LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_BACK_RIGHT_CHEST,  logic->CanHitSwitch(ED_BOOMERANG) && logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_FRONT_RIGHT_CHEST, logic->Get(LOGIC_SPIRIT_1F_SILVER_RUPEES) && logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_SPIRIT_TEMPLE_MQ_ENTRANCE_POT_1,             logic->CanBreakPots()),
@@ -581,13 +580,16 @@ void RegionTable_Init_SpiritTemple() {
 
     areaTable[RR_SPIRIT_TEMPLE_MQ_CHILD_SIDE_HUB] = Region("Spirit Temple MQ Child Side Hub", SCENE_SPIRIT_TEMPLE, {
         //Events
+        //not technically a rusted switch, but a boulder through a wall, but is part of the same trick on N64
         EventAccess(LOGIC_SPIRIT_MQ_CRAWL_BOULDER, []{return logic->CanUse(RG_BOMBCHU_5) || (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->CanUse(RG_MEGATON_HAMMER));}),
     }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_HAMMER_SWITCH_CHEST, logic->Get(LOGIC_SPIRIT_MQ_TIME_TRAVEL_CHEST) && logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_SLUGMA_POT,          logic->CanBreakPots()),
-        LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_LEFT_HEART,          logic->CanHitEyeTargets() || (ctx->GetTrickOption(RT_FIRE_RINGS) && logic->TakeDamage())),
-        LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_RIGHT_HEART,         logic->CanHitEyeTargets() || (ctx->GetTrickOption(RT_FIRE_RINGS) && logic->TakeDamage())),
+        LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_LEFT_HEART,          logic->CanHitEyeTargets() || logic->CanUse(RG_BOOMERANG) ||
+                                                                (ctx->GetTrickOption(RT_FIRE_RINGS) && ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->TakeDamage() && logic->CanJumpslash())),
+        LOCATION(RC_SPIRIT_TEMPLE_MQ_CHILD_RIGHT_HEART,         logic->CanHitEyeTargets() || logic->CanUse(RG_BOOMERANG) ||
+                                                                (ctx->GetTrickOption(RT_FIRE_RINGS) && ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->TakeDamage() && logic->CanJumpslash())),
     }, {
         //Exits
         //Nabooru's legs are technically visible one way collision here, but I'm not sure if this counts
@@ -1087,8 +1089,8 @@ void RegionTable_Init_SpiritTemple() {
 
     areaTable[RR_SPIRIT_TEMPLE_MQ_BIG_MIRROR_ROOM] = Region("Spirit Temple MQ Big Mirror Room", SCENE_SPIRIT_TEMPLE, {
         //Events
-        EventAccess(LOGIC_SPIRIT_PUSHED_4F_MIRRORS, []{return logic->HasItem(RG_POWER_BRACELET);}),
-        EventAccess(LOGIC_SPIRIT_PLATFORM_LOWERED,  []{return (logic->Get(LOGIC_SPIRIT_PUSHED_4F_MIRRORS) && logic->CanUse(RG_MIRROR_SHIELD)) || logic->SunlightArrows();}),
+        //Needs the mirror in the cave to be a perm flag and event for doorsanity
+        EventAccess(LOGIC_SPIRIT_PLATFORM_LOWERED, []{return (logic->Get(LOGIC_SPIRIT_PUSHED_4F_MIRRORS) && logic->CanUse(RG_MIRROR_SHIELD)) || logic->SunlightArrows();}),
     }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_MQ_BIG_MIRROR_POT_1,   logic->CanBreakPots()),
@@ -1106,7 +1108,10 @@ void RegionTable_Init_SpiritTemple() {
         Entrance(RR_SPIRIT_TEMPLE_MQ_PLATFORM,        []{return logic->Get(LOGIC_SPIRIT_PLATFORM_LOWERED);}),
     });
 
-    areaTable[RR_SPIRIT_TEMPLE_MQ_BIG_MIRROR_CAVE] = Region("Spirit Temple MQ Big Mirror Cave", SCENE_SPIRIT_TEMPLE, {}, {
+    areaTable[RR_SPIRIT_TEMPLE_MQ_BIG_MIRROR_CAVE] = Region("Spirit Temple MQ Big Mirror Cave", SCENE_SPIRIT_TEMPLE, {
+        //Events
+        EventAccess(LOGIC_SPIRIT_PUSHED_4F_MIRRORS, []{return ((logic->IsAdult && logic->CanUse(RG_MIRROR_SHIELD)) || logic->SunlightArrows() || (ctx->GetTrickOption(RT_FIRE_RINGS) && logic->TakeDamage())) && logic->HasItem(RG_POWER_BRACELET);}),
+    }, {
         //Locations
         LOCATION(RC_SPIRIT_TEMPLE_MQ_MIRROR_PUZZLE_INVISIBLE_CHEST, (ctx->GetTrickOption(RT_LENS_SPIRIT_MQ) || logic->CanUse(RG_LENS_OF_TRUTH)) && logic->HasItem(RG_OPEN_CHEST)),
     }, {

@@ -292,18 +292,8 @@ void RegionTable_Init_ShadowTemple() {
         LOCATION(RC_SHADOW_TEMPLE_AFTER_SHIP_UPPER_RIGHT_HEART, true),
     }, {
         //Exits
-        Entrance(RR_SHADOW_TEMPLE_BEYOND_BOAT,   []{return logic->CanUse(RG_HOVER_BOOTS) || logic->CanJumpslash();}),
-        Entrance(RR_SHADOW_TEMPLE_BROKEN_PILLAR, []{return logic->CanUse(RG_HOVER_BOOTS) || (logic->IsAdult && logic->CanJumpslash());}),
         Entrance(RR_SHADOW_TEMPLE_ACROSS_CHASM,  []{return true;}),
-    });
-
-    areaTable[RR_SHADOW_TEMPLE_BROKEN_PILLAR] = Region("Shadow Temple Broken Pillar", SCENE_SHADOW_TEMPLE, {}, {
-        //Locations
-        LOCATION(RC_SHADOW_TEMPLE_AFTER_SHIP_LOWER_HEART, true),
-    }, {
-        //Exits
-        Entrance(RR_SHADOW_TEMPLE_CHASM_SCARECROW, []{return logic->ReachScarecrow();}),
-        Entrance(RR_SHADOW_TEMPLE_ACROSS_CHASM,    []{return logic->IsAdult || logic->CanUse(RG_HOVER_BOOTS) || logic->CanJumpslash();}),
+        Entrance(RR_SHADOW_TEMPLE_BROKEN_PILLAR, []{return logic->CanUse(RG_HOVER_BOOTS) || (ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) && logic->IsAdult && logic->CanJumpslash());}),
     });
 
     areaTable[RR_SHADOW_TEMPLE_ACROSS_CHASM] = Region("Shadow Temple Across Chasm", SCENE_SHADOW_TEMPLE, {
@@ -313,11 +303,21 @@ void RegionTable_Init_ShadowTemple() {
         //Locations
         LOCATION(RC_SHADOW_TEMPLE_AFTER_BOAT_POT_3, logic->CanBreakPots()),
         LOCATION(RC_SHADOW_TEMPLE_AFTER_BOAT_POT_4, logic->CanBreakPots()),
+        //RC_SHADOW_TEMPLE_AFTER_SHIP_LOWER_HEART requires an indirect boomerang from here due to invisible collision
     }, {
         //Exits
         Entrance(RR_SHADOW_TEMPLE_BEYOND_BOAT,   []{return (logic->Get(LOGIC_SHADOW_BRIDGE_BEYOND_BOAT_LOWERED) && logic->IsAdult) || (ctx->GetTrickOption(RT_HOVER_BOOST_SIMPLE) && logic->CanUse(RG_HOVER_BOOTS) && logic->CanUse(RG_MEGATON_HAMMER));}),
         Entrance(RR_SHADOW_TEMPLE_BROKEN_PILLAR, []{return logic->IsAdult && logic->CanUse(RG_SONG_OF_TIME);}),
         Entrance(RR_SHADOW_TEMPLE_PRE_BOSS_ROOM, []{return logic->SmallKeys(SCENE_SHADOW_TEMPLE, 5);}),
+    });
+
+    areaTable[RR_SHADOW_TEMPLE_BROKEN_PILLAR] = Region("Shadow Temple Broken Pillar", SCENE_SHADOW_TEMPLE, {}, {
+        //Locations
+        LOCATION(RC_SHADOW_TEMPLE_AFTER_SHIP_LOWER_HEART, true),
+    }, {
+        //Exits
+        Entrance(RR_SHADOW_TEMPLE_ACROSS_CHASM,    []{return true;}),
+        Entrance(RR_SHADOW_TEMPLE_CHASM_SCARECROW, []{return logic->IsAdult ? logic->ReachScarecrow() : logic->ReachDistantScarecrow();}),
     });
 
     areaTable[RR_SHADOW_TEMPLE_MAZE] = Region("Shadow Temple Maze", SCENE_SHADOW_TEMPLE, {}, {}, {

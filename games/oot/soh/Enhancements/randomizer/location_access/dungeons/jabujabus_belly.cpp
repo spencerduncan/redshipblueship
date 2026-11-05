@@ -333,9 +333,8 @@ void RegionTable_Init_JabuJabusBelly() {
         //Events
         EventAccess(LOGIC_JABU_MQ_FORKED_ROOM_DOOR, []{return ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->CanUse(RG_FAIRY_SLINGSHOT);}),
     }, {}, {
-        //Exits
         Entrance(RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM,      []{return logic->CanUse(RG_BOOMERANG);}),
-        //It is possible to open the door here without crossing the jiggly using RT_BOULDER_COLLISION and good timing
+        //It is possible to open the door here without crossing the jiggly using RT_DISTANT_BOULDER and good timing
         Entrance(RR_JABU_JABUS_BELLY_MQ_FORKED_CORRIDOR, []{return logic->Get(LOGIC_JABU_MQ_FORKED_ROOM_DOOR);}),
     });
 
