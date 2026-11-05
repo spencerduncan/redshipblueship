@@ -170,13 +170,15 @@ TestResult Test_CrossItemRulesRecord(void) {
     // #1169 XW2 the 4-byte second rules word.
     XIR_CHECK(offsetof(ComboContext, mmKeepItemsReset) == 912u && offsetof(ComboContext, comboFillWallets) == 913u &&
                   offsetof(ComboContext, comboWoth) == 914u && offsetof(ComboContext, comboItemRules2) == 925u &&
-                  offsetof(ComboContext, reserved) == 929u && sizeof(((ComboContext*)0)->reserved) == 75u,
-              "reserved[] is %u bytes at %u, expected 75 at 929 after #1175's byte at 912, #1284's at 913, "
-              "#1439's record at 914 and #1169 XW2's word at 925",
+                  offsetof(ComboContext, reserved) == 929u && sizeof(((ComboContext*)0)->reserved) == 74u,
+              "reserved[] is %u bytes at %u, expected 74 at 929 after #1175's byte at 912, #1284's at 913, "
+              "#1439's record at 914, #1169 XW2's word at 925 and #1169 XW5's tail byte at 1003",
               (unsigned)sizeof(((ComboContext*)0)->reserved), (unsigned)offsetof(ComboContext, reserved));
     // #976's carves fit the record's headroom: everything up to the end of
-    // reserved[] still ends at 1004 (the #1129 captures are appended after it).
-    XIR_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1004u,
+    // reserved[] and #1169 XW5's tail byte still ends at 1004 (the #1129 captures
+    // are appended after it).
+    XIR_CHECK(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) == 1003u &&
+                  offsetof(ComboContext, mmWarpSongsOwned) + sizeof(uint8_t) == 1004u,
               "reserved[] ends at %u; #976's carves must not change the record ahead of it",
               (unsigned)(offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved)));
     XIR_CHECK(sizeof(ComboItemRulesRecord) == 8u, "sizeof(ComboItemRulesRecord) is %u, expected 8",

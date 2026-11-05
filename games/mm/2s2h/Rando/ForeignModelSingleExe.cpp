@@ -380,6 +380,14 @@ bool IsCustomDrawn(RandoItemId ri) {
         case RI_MASK_GERUDO:
         case RI_MASK_SKULL:
         case RI_MASK_SPOOKY:
+        // #1169 XW5: Ocarina of Time's warp songs in MM draw OoT's own song
+        // (WarpSongsMM.cpp, MM_WarpSongMM_DrawGetItem), as the masks do.
+        case RI_SONG_MINUET:
+        case RI_SONG_BOLERO:
+        case RI_SONG_SERENADE:
+        case RI_SONG_REQUIEM:
+        case RI_SONG_NOCTURNE:
+        case RI_SONG_PRELUDE:
             return true;
         default:
             return false;

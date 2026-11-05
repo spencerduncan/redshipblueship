@@ -5,6 +5,7 @@
 #include "2s2h_assets.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "2s2h/Rando/OoTMasksMM.h" // #980: the OoT masks' icons
+#include "2s2h/Rando/WarpSongsMM.h" // #1169 XW5: the warp songs' icon
 #endif
 
 extern "C" {
@@ -268,6 +269,14 @@ std::map<RandoItemId, RandoStaticItem> Items = {
     RI(RI_MASK_GERUDO,                "the",  "Gerudo Mask (MM)",           RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
     RI(RI_MASK_SKULL,                 "the",  "Skull Mask (MM)",            RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
     RI(RI_MASK_SPOOKY,                "the",  "Spooky Mask (MM)",           RITYPE_MASK,            ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    // RedShipBlueShip #1169 XW5: Ocarina of Time's warp songs under OoTMM's songMinuetMm .. songPreludeMm, named as
+    // OoTMM names them. No MM ItemId, get-item or draw row: Rando/WarpSongsMM.cpp gives, draws and names their icon.
+    RI(RI_SONG_MINUET,                "the",  "Minuet of Forest (MM)",      RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_SONG_BOLERO,                "the",  "Bolero of Fire (MM)",        RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_SONG_SERENADE,              "the",  "Serenade of Water (MM)",     RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_SONG_REQUIEM,               "the",  "Requiem of Spirit (MM)",     RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_SONG_NOCTURNE,              "the",  "Nocturne of Shadow (MM)",    RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
+    RI(RI_SONG_PRELUDE,               "the",  "Prelude of Light (MM)",      RITYPE_MAJOR,           ITEM_NONE,                       GI_NONE,                     GID_NONE),
 #endif
 };
 
@@ -520,6 +529,14 @@ const char* GetIconTexturePath(RandoItemId randoItemId) {
         case RI_MASK_SKULL:
         case RI_MASK_SPOOKY:
             return MM_OoTMask_IconPath(randoItemId);
+        // #1169 XW5: Ocarina of Time's warp songs show MM's own song note.
+        case RI_SONG_MINUET:
+        case RI_SONG_BOLERO:
+        case RI_SONG_SERENADE:
+        case RI_SONG_REQUIEM:
+        case RI_SONG_NOCTURNE:
+        case RI_SONG_PRELUDE:
+            return MM_WarpSongMM_IconPath(randoItemId);
 #endif
         default:
             break;

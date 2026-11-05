@@ -218,6 +218,11 @@ set(REDSHIP_COMMON_SOURCES
     # refusal when the restricted song pass has more songs than spots.
     # Game-header-free. APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.c
+    # #1169 XW5: Ocarina of Time's six warp songs as Majora's Mask items: how many
+    # copies MM pools under the frozen rules, their names, and the ownership byte
+    # in ComboContext (ADR 0009 claim 20). Game-header-free. APPENDED, never
+    # reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/warp_songs_mm.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -325,6 +330,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
     # Header for warp_song_items.c above (#1169 XW4)
     ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.h
+    # Header for warp_songs_mm.c above (#1169 XW5)
+    ${CMAKE_SOURCE_DIR}/src/common/warp_songs_mm.h
 )
 
 # ============================================================================
@@ -3374,6 +3381,26 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     redship_add_test(NAME SongLocationsOverflowRefused COMMAND redship --test song-locations-overflow-refused
         LABEL rando
         TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # OCARINA OF TIME'S WARP SONGS IN MAJORA'S MASK (#1169 lane XW5; OoTMM
+    # songMinuetMm .. songPreludeMm, hidden until XW12). MMWarpSongsItems: the
+    # ownership byte carved from the tail of ComboContext's reserved[] (1003,
+    # ADR 0009 claim 20), the six RI ids appended after the masks, their rows and
+    # names, MM's real give and conversion, rule-gated ownership, the copies rule,
+    # MM's real pool, OoTMM's button sets through MM's logic macro, and the
+    # snapshot brackets. MMWarpSongsOwnershipSurvives: a starting song owned after
+    # creation, an MM in-game save, a freeze and the .redsave reloads. Both bring
+    # up the CVar store. MMWarpSongsRulesOffUnchanged: hidden bits refused, a
+    # rules-off world pools and credits nothing, and main's fingerprint, bag seeds
+    # and package record with the byte at 0 or full. All three ROM-free.
+    # MMWarpSongsPooledOnlyWhenRuleOn: `rando`, real paired creations through the
+    # hidden-bit test seam.
+    redship_add_test(NAME MMWarpSongsItems COMMAND redship --test mm-warp-songs-items)
+    redship_add_test(NAME MMWarpSongsOwnershipSurvives COMMAND redship --test mm-warp-songs-ownership)
+    redship_add_test(NAME MMWarpSongsRulesOffUnchanged COMMAND redship --test mm-warp-songs-rules-off-unchanged)
+    redship_add_test(NAME MMWarpSongsPooledOnlyWhenRuleOn COMMAND redship --test mm-warp-songs-pooled-only-when-rule-on
+        LABEL rando
+        TIMEOUT 900
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over

@@ -370,6 +370,11 @@ size_t sSnapshotQueueDepth = 0;
 // Rando::Logic::gCurrentRegionTime — thread_local, outside the save, written by
 // both halves of every crawl. See the bracket note in the file header.
 uint64_t sSnapshotRegionTime = 0;
+// #1169 XW5: which of Ocarina of Time's warp songs MM owns lives in the combo
+// record (gComboCtx.mmWarpSongsOwned), outside the save, and a round's copy of a
+// song is given there like every other copy. One byte, in the pair for the same
+// reason as the region time.
+uint8_t sSnapshotWarpSongs = 0;
 bool sSnapshotLive = false;
 
 // Diagnostics the lock reads. Observable rather than internal because "did MM's
@@ -636,6 +641,7 @@ int Snapshot(void* self) {
     memcpy(sSnapshot.get(), &gSaveContext, sizeof(SaveContext));
     sSnapshotQueueDepth = MM_GameEvents_Queue().size();
     sSnapshotRegionTime = Rando::Logic::gCurrentRegionTime;
+    sSnapshotWarpSongs = MM_WarpSongsMM_SnapshotOwned();
     sSnapshotLive = true;
     return 1;
 }
@@ -655,6 +661,7 @@ void Restore(void* self) {
         MM_GameEvents_Queue().resize(sSnapshotQueueDepth);
     }
     Rando::Logic::gCurrentRegionTime = sSnapshotRegionTime;
+    MM_WarpSongsMM_RestoreOwned(sSnapshotWarpSongs);
     // The buffer stays allocated (it is reused every round) but stops being
     // LIVE, so a second restore cannot re-apply a stale save over newer state.
     sSnapshotLive = false;

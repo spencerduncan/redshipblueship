@@ -12,6 +12,7 @@ extern "C" {
 #include "Rando/Foreign.h" // #1369: ShuffleSwimForWorld / ShuffleOcarinaButtonsForWorld
 #include "ShopPrices.h"    // #1427: the shop and Tingle price modes
 #include "Rando/OoTMasksMM.h" // #980: the OoT masks' frozen rules
+#include "Rando/WarpSongsMM.h" // #1169 XW5: the warp songs' frozen rules
 // RedShipBlueShip (#645 increment 3, lane K9): where RO_PLENTIFUL_ITEMS' copies
 // sit in the last `itemPool` this function returned — [from, to), both 0 when
 // plentiful added none — and that pool's final size, so a consumer can tell it is
@@ -254,6 +255,17 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
     for (RandoItemId mask : { RI_MASK_GERUDO, RI_MASK_SKULL, RI_MASK_SPOOKY }) {
         if (MM_OoTMask_RuleOn(mask)) {
             itemPool.push_back(mask);
+        }
+    }
+    // RedShipBlueShip #1169 XW5 (OoTMM songMinuetMm .. songPreludeMm): each Ocarina
+    // of Time warp song its frozen rule adds to Majora's Mask, one copy, none under
+    // its shared rule (lane XW10's family, held back). Hidden until XW12 and off by
+    // default, so every world a player can make builds the pool it always did. A
+    // starting copy leaves the pool with the other starting items below.
+    for (RandoItemId song : { RI_SONG_MINUET, RI_SONG_BOLERO, RI_SONG_SERENADE, RI_SONG_REQUIEM, RI_SONG_NOCTURNE,
+                              RI_SONG_PRELUDE }) {
+        for (int copy = 0; copy < MM_WarpSongMM_PooledCopies(song); copy++) {
+            itemPool.push_back(song);
         }
     }
 #endif

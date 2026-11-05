@@ -5,6 +5,7 @@
 #include <cassert>
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/OoTMasksMM.h" // #980: the OoT masks' owned bits
+#include "Rando/WarpSongsMM.h" // #1169 XW5: the warp songs' owned bits
 #endif
 
 // Copied from z_player.c, we could instead move this to a header file, idk
@@ -484,6 +485,14 @@ bool Rando::IsItemObtainable(RandoItemId randoItemId, RandoCheckId randoCheckId)
         case RI_MASK_SKULL:
         case RI_MASK_SPOOKY:
             return !MM_OoTMask_Owned(randoItemId);
+        // #1169 XW5: Ocarina of Time's warp songs (WarpSongsMM.cpp).
+        case RI_SONG_MINUET:
+        case RI_SONG_BOLERO:
+        case RI_SONG_SERENADE:
+        case RI_SONG_REQUIEM:
+        case RI_SONG_NOCTURNE:
+        case RI_SONG_PRELUDE:
+            return !MM_WarpSongMM_Owned(randoItemId);
 #endif
         case RI_FROG_BLUE:
             return !CHECK_WEEKEVENTREG(WEEKEVENTREG_33_01);

@@ -327,7 +327,9 @@ TestResult Test_OoTMasksMMItems(void) {
                "%d, RI_ABILITY_SWIM %d, RI_JUNK %d\n",
                woodfallFairy, (unsigned)gerudo, (unsigned)skull, (unsigned)spooky, maxTrap, riMax,
                MM_OoTMasksTest_Id(6), MM_OoTMasksTest_Id(7), MM_OoTMasksTest_Id(8));
-        OMM_CHECK(gerudo == woodfallFairy + 1 && skull == gerudo + 1 && spooky == skull + 1 && maxTrap == spooky + 1 &&
+        // RI_MAX_TRAP is not pinned to the last mask: a later lane appends after it
+        // (#1169 XW5's warp songs).
+        OMM_CHECK(gerudo == woodfallFairy + 1 && skull == gerudo + 1 && spooky == skull + 1 && maxTrap > spooky &&
                       riMax == maxTrap + 1,
                   "the three ids are not appended between RI_WOODFALL_STRAY_FAIRY and RI_MAX_TRAP");
         // Saved ids (randoSaveChecks[].randoItemId, the crossing store): pinned at

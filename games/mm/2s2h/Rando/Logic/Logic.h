@@ -7,6 +7,7 @@
 #include "2s2h/ShipUtils.h"
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "Rando/OoTMasksMM.h" // #980: HAS_OOT_MASK
+#include "Rando/WarpSongsMM.h" // #1169 XW5: CAN_PLAY_OOT_WARP_SONG
 #endif
 
 #include <set>
@@ -347,6 +348,14 @@ void ValidateRegionTimeOwnership(RandoRegionId regionId, RandoCheckId checkId, u
 // OoTMM's can_evade_gerudo has has_mask_gerudo beside has_mask_stone: the purple
 // guards (En_Ge2) read the Gerudo Mask as the Stone Mask.
 #define CAN_FOOL_PURPLE_GUARDS (HAS_ITEM(ITEM_MASK_STONE) || HAS_OOT_MASK(RI_MASK_GERUDO))
+// RedShipBlueShip #1169 XW5 (OoTMM macros_common.yml): can_play_tp_forest ..
+// can_play_tp_light in MM, for Ocarina of Time's warp songs as MM items
+// (Rando/WarpSongsMM.cpp): the ocarina, the song under its frozen rule and owned,
+// and its notes' buttons (canPlayOoTWarpSong below, which Ocarina Button Shuffle
+// decides as it does MM's own songs). No region reads it yet: the songs' travel
+// facts are lane XW9's.
+#define CAN_PLAY_OOT_WARP_SONG(ri) \
+    (HAS_ITEM(ITEM_OCARINA_OF_TIME) && MM_WarpSongMM_Usable(ri) && Rando::Logic::canPlayOoTWarpSong(ri))
 #else
 #define CAN_PASS_GIBDO HAS_ITEM(ITEM_MASK_GIBDO)
 #define CAN_FOOL_PURPLE_GUARDS HAS_ITEM(ITEM_MASK_STONE)
@@ -607,6 +616,39 @@ inline bool canPlaySong(u8 songId) {
             return true;
     }
 }
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip #1169 XW5: the buttons of Ocarina of Time's warp songs as MM
+// items, OoTMM's can_play_tp_* sets (macros_common.yml), in canPlaySong's style.
+// Not a canPlaySong case: MM's OCARINA_SONG_* has no OoT warp song, so these are
+// keyed by the item.
+inline bool canPlayOoTWarpSong(RandoItemId randoItemId) {
+    switch (randoItemId) {
+        case RI_SONG_MINUET: // can_play_tp_forest
+            return (Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_A) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_UP) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_RIGHT) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_LEFT));
+        case RI_SONG_BOLERO:  // can_play_tp_fire
+        case RI_SONG_REQUIEM: // can_play_tp_spirit
+            return (Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_A) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_RIGHT) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_DOWN));
+        case RI_SONG_SERENADE: // can_play_tp_water
+        case RI_SONG_NOCTURNE: // can_play_tp_shadow
+            return (Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_A) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_RIGHT) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_DOWN) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_LEFT));
+        case RI_SONG_PRELUDE: // can_play_tp_light
+            return (Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_UP) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_RIGHT) &&
+                    Flags_GetRandoInf(RANDO_INF_OBTAINED_OCARINA_BUTTON_C_LEFT));
+        default:
+            return false;
+    }
+}
+#endif
 
 inline bool CanAccessDungeon(DungeonSceneIndex dungeonIndex) {
     bool hasSongAccess = false;

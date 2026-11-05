@@ -53,6 +53,12 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
 
     SaveContext copiedSaveContext;
     memcpy(&copiedSaveContext, &gSaveContext, sizeof(SaveContext));
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // #1169 XW5: the fill GIVES each placed item into the live save to crawl on;
+    // Ocarina of Time's warp songs are owned in the combo record, outside that
+    // snapshot, so their byte goes back with it at both restores below.
+    const uint8_t rsbsWarpSongsOwned = MM_WarpSongsMM_SnapshotOwned();
+#endif
 
     std::set<RandoRegionId> regionsInLogic = { RR_MAX };
     std::map<RandoCheckId, bool> checksInLogic;
@@ -93,6 +99,9 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
         }
 
         memcpy(&gSaveContext, &copiedSaveContext, sizeof(SaveContext));
+#ifdef RSBS_SINGLE_EXECUTABLE
+        MM_WarpSongsMM_RestoreOwned(rsbsWarpSongsOwned);
+#endif
         if (wallClock) {
             throw GenerationTimeout(message);
         }
@@ -343,6 +352,9 @@ void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std
     }
 
     memcpy(&gSaveContext, &copiedSaveContext, sizeof(SaveContext));
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_WarpSongsMM_RestoreOwned(rsbsWarpSongsOwned);
+#endif
 
     SPDLOG_INFO("Successfully placed all items with Glitchless logic");
 }

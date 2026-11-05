@@ -1262,6 +1262,10 @@ typedef struct {
     // #976) = 92, then - 1 (mmKeepItemsReset, #1175) = 91, then - 1
     // (comboFillWallets, #1284) = 90, then - 11 (comboWoth, #1439) = 79, then
     // - 4 (comboItemRules2, #1169 XW2) = 75.
+    // Then - 1 (mmWarpSongsOwned, #1169 XW5) = 74, taken from the END of the
+    // array (offset 1003) rather than the front: lane H1 of the combined Hint
+    // Tracker (#1475) carves from the front at the same time, and two carvers
+    // walking in from opposite ends never claim the same byte.
     // ADR 0009 publishes the remaining
     // allocation across the other claimants and sets a 64-byte floor:
     // Test_SaveComboRecordFixed's scribble loop iterates sizeof(reserved), so
@@ -1294,8 +1298,42 @@ typedef struct {
     // #1175's byte at 912 leaves 91 at 913, 27 over the floor; #1284's byte at
     // 913 leaves 90 at 914, 26 over it; #1439's 11 bytes at 914 leave 79 at 925,
     // 15 over it; #1169 XW2's second rules word (4 bytes at 925) leaves 75 at
-    // 929, 11 over it.
-    uint8_t reserved[75];
+    // 929, 11 over it; #1169 XW5's ownership byte, carved from the END at 1003,
+    // leaves 74 at 929, 10 over it. The next FRONT carver still starts at 929.
+    uint8_t reserved[74];
+
+    // #1169 lane XW5 (ADR 0009 claim 20): which of Ocarina of Time's six warp
+    // songs Majora's Mask OWNS as its own items (OoTMM's songMinuetMm ..
+    // songPreludeMm, "Minuet of Forest (MM)" ...), one bit each in OoTMM's order
+    // (RSBS_MM_WARP_SONG_OWNED_*, warp_songs_mm.h; bits 6-7 unallocated, zero).
+    // MM's give sets a bit (games/mm/2s2h/Rando/WarpSongsMM.cpp); nothing in play
+    // reads it until lane XW7's matcher, and MM's logic only through lane XW9.
+    //
+    // HERE AND NOT IN THE MM HALF: RandoSaveInfo has no tail padding and its
+    // randoInf has two free bits, so six flags there would grow it and shift every
+    // later SaveContext field of every older .redsave (and refuse every seed
+    // package as LAYOUT); a new RO_* grows randoSaveOptions the same way.
+    //
+    // SESSION STATE, with one world moment. During play it is ownership: it
+    // changes at a pickup, rides every commit in Tier-1 (an MM in-game save, a
+    // crossing, the .redsave), and a moon crash's last-commit restore takes it
+    // back with the rest of the file. At Generate it is the WORLD's starting
+    // songs (MM's starting grant gives them), so a seed package's world record
+    // copies it (SeedPackageSingleExe.cpp, WorldRecordBytes/ApplyComboWorld), and
+    // the creation's bind applies it AFTER the file-create invalidation has
+    // dropped it: deliberately NOT in Context_InvalidateSessionState's KEEP set,
+    // which would carry a failed Generate's starting songs into the next world.
+    // NOT folded into comboSettingsHash: every load and arrival re-derives that
+    // fingerprint from the stored record, so a byte a pickup changes would read
+    // as FINGERPRINT damage after the first song found; the package's own entry
+    // digest (identity.json) covers the bytes it carries. Every snapshot of MM's
+    // save that a logic simulation restores (the bag's MM engine, MM's crawl,
+    // its glitchless fill, the attempt ladder) restores this byte too, so a
+    // simulated pickup never becomes ownership.
+    //
+    // Carved from the END of the old reserved[75]: a zero-extended record reads
+    // 0, nothing owned, which every world before XW5 is.
+    uint8_t mmWarpSongsOwned;
 
     // #1129 (lane L3, ruling D6 "inactive should be captured at freeze"): each
     // game's TRACKER AVAILABILITY CAPTURE, the set its check tracker marks
@@ -1581,9 +1619,21 @@ RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, reserved) == 929u,
 RSBS_CTX_STATIC_ASSERT(sizeof(((ComboContext*)0)->reserved) >= 64u,
                        "reserved[] must keep at least 64 bytes: Test_SaveComboRecordFixed's headroom "
                        "round-trip degenerates to a vacuous pass when it empties (ADR 0009)");
+// #1169 XW5's ownership byte (ADR 0009 claim 20) is carved from the END of
+// reserved[]: it sits at 1003, directly after the 74 bytes left at 929, and
+// directly before #1129's captures, so no offset ahead of it or behind it moved.
+// A FRONT carver (lane H1, #1475) shrinks reserved[] from 929 and this stays put.
+RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, mmWarpSongsOwned) == 1003u &&
+                           offsetof(ComboContext, mmWarpSongsOwned) ==
+                               offsetof(ComboContext, reserved) + sizeof(((ComboContext*)0)->reserved) &&
+                           sizeof(((ComboContext*)0)->mmWarpSongsOwned) == 1u,
+                       "mmWarpSongsOwned (#1169 XW5, ADR 0009 claim 20) is carved from the END of reserved[] at "
+                       ".redsave byte offset 1003; if this fires, a field ahead of it grew in place or a carver took "
+                       "the tail instead of the front");
 // #1129's append, pinned to literals on the same terms as every carve above:
-// directly after reserved[] (92 bytes then, 90 after #1175's and #1284's bytes, 75 now
-// after #1439's record and #1169 XW2's second rules word), the two counts, then the two bitsets.
+// directly after reserved[] (92 bytes then, 90 after #1175's and #1284's bytes, 75
+// after #1439's record and #1169 XW2's second rules word) and #1169 XW5's tail byte,
+// the two counts, then the two bitsets.
 RSBS_CTX_STATIC_ASSERT(offsetof(ComboContext, trackerAvailCountOoT) == 1004u &&
                            offsetof(ComboContext, trackerAvailCountMM) == 1006u &&
                            offsetof(ComboContext, trackerAvailOoT) == 1008u &&

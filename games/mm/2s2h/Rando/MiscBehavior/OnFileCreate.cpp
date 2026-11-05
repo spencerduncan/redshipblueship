@@ -70,6 +70,11 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
         // recorded for any previous world must not leak into it (they are
         // re-placed below iff this world pairs with a live OoT rando world).
         Combo_ClearForeignPlacements();
+        // #1169 XW5: likewise, a new MM file owns none of Ocarina of Time's warp
+        // songs (the combo record's ownership byte, outside the rando struct zeroed
+        // above): its starting grant below gives the world's starting songs, and
+        // a byte an earlier, abandoned generation left must not reach this one.
+        MM_WarpSongsMM_RestoreOwned(0);
 #endif
 
         try {
@@ -330,6 +335,9 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     gComboCtx.mmPairedAttempt = 0;
                     static SaveContext sPreAttemptSave;
                     memcpy(&sPreAttemptSave, &gSaveContext, sizeof(SaveContext));
+                    // #1169 XW5: the warp songs' ownership byte lives outside the
+                    // save image; a retry restores it with the image.
+                    const uint8_t rsbsPreAttemptWarpSongs = MM_WarpSongsMM_SnapshotOwned();
                     // ------------------------------------------------------
                     // THE FILL BUDGET (#582's operator decision; ADR 0010
                     // increment 2), COUNTED IN ROUNDS since #950. Every number
@@ -350,6 +358,7 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     for (int attempt = 0;; attempt++) {
                         if (attempt > 0) {
                             memcpy(&gSaveContext, &sPreAttemptSave, sizeof(SaveContext));
+                            MM_WarpSongsMM_RestoreOwned(rsbsPreAttemptWarpSongs);
                             Combo_ClearForeignPlacements();
                             // ROUNDS SPENT, summed over every attempt so far: each
                             // single-bag fill charges the rounds it ran, dead end
@@ -528,6 +537,8 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
             // increment 1.2): the reverted file authored no paired world.
             Combo_ClearForeignPlacements();
             gComboCtx.mmPairedAttempt = 0;
+            // #1169 XW5: nor may the aborted world's starting warp songs.
+            MM_WarpSongsMM_RestoreOwned(0);
 #endif
             gSaveContext.save.shipSaveInfo.saveType = SAVETYPE_VANILLA;
             char invalidName[8] = { 18, 23, 31, 10, 21, 18, 13, 62 };

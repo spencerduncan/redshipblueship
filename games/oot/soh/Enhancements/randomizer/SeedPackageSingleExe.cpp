@@ -223,6 +223,10 @@ std::string WorldRecordBytes(const ComboContext& live) {
     memcpy(&rec->comboWoth, &live.comboWoth, sizeof(rec->comboWoth));
     // #1169 XW2: the second rules word, a world field like the first.
     memcpy(&rec->comboItemRules2, &live.comboItemRules2, sizeof(rec->comboItemRules2));
+    // #1169 XW5: the warp songs MM owns, which at Generate are the world's starting
+    // songs (MM's starting grant gave them). 0 in every world without one, so a
+    // package written before XW5 reads the same.
+    memcpy(&rec->mmWarpSongsOwned, &live.mmWarpSongsOwned, sizeof(rec->mmWarpSongsOwned));
     return std::string(reinterpret_cast<const char*>(rec.get()), sizeof(ComboContext));
 }
 
@@ -538,6 +542,10 @@ void ApplyComboWorld(const ComboContext& rec) {
     gComboCtx.mmProfileDigest = rec.mmProfileDigest;
     gComboCtx.mmKeepItemsReset = rec.mmKeepItemsReset;
     gComboCtx.mmPairedAttempt = rec.mmPairedAttempt;
+    // #1169 XW5: the world's starting MM warp songs. The file-create invalidation
+    // dropped the byte (it is session state, not KEPT); the creation's bind puts
+    // the world's back here, after it.
+    gComboCtx.mmWarpSongsOwned = rec.mmWarpSongsOwned;
     memcpy(gComboCtx.foreignPlacements, rec.foreignPlacements, sizeof(gComboCtx.foreignPlacements));
     memcpy(gComboCtx.foreignPlacementsOoT, rec.foreignPlacementsOoT, sizeof(gComboCtx.foreignPlacementsOoT));
     ComboCreationRecords records;
