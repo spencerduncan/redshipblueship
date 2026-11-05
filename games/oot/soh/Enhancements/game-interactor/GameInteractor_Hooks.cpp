@@ -164,6 +164,11 @@ void GameInteractor_ExecuteOnOcarinaSongAction() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnOcarinaSongAction>();
 }
 
+void GameInteractor_ExecuteOnWarpSongLeave() {
+    GI_SINGLE_EXE_GATE();
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnWarpSongLeave>();
+}
+
 void GameInteractor_ExecuteOnOcarinaNote(uint8_t note, float modulator, int8_t bend) {
     GI_SINGLE_EXE_GATE();
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnOcarinaNote>(note, modulator, bend);
