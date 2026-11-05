@@ -598,10 +598,11 @@ static bool ApplyItemHintToChecks(RandomizerHint hintKey) {
         auto loc = OTRGlobals::Instance->gRandoContext->GetItemLocation(rc);
 #ifdef RSBS_SINGLE_EXECUTABLE
         // RSBS (#1366): at a crossing host the hint names the MM item the check
-        // yields, by its exact name and " (MM)" under every clarity (hint.cpp's
-        // GetItemHintText returns it before any clarity branch), and that name is
-        // unique. So the host is Seen whatever the clarity. Every other check keeps
-        // SoH's rule, on the item it holds.
+        // yields, by its own name and " (MM)" under every clarity (hint.cpp's
+        // GetItemHintText returns it before any clarity branch), and the tracker
+        // names that same MM item. So the host is Seen whatever the clarity; no
+        // uniqueness test is needed. Every other check keeps SoH's rule, on the
+        // item it holds.
         const bool namesCrossedItem = OoT_Combo_HintTextCrossingAt(static_cast<int>(rc)) != nullptr;
         if (!namesCrossedItem && !clearHints) {
             continue;
