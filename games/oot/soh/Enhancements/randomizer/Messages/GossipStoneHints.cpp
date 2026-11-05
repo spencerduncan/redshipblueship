@@ -4,6 +4,7 @@
  */
 #include <soh/OTRGlobals.h>
 #include "soh/Enhancements/randomizer/randomizer.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 extern "C" {
 extern PlayState* OoT_gPlayState;
@@ -13,6 +14,13 @@ extern PlayState* OoT_gPlayState;
 }
 
 #define RAND_GET_OPTION(rsk) OTRGlobals::Instance->gRandoContext->GetOption(rsk)
+
+// Resolves a hint's message for textbox display, firing OnRandoHintRevealed so
+// observers such as the Hint Tracker know the player has seen the hint.
+static CustomMessage ReadHintMessage(RandomizerHint rh, MessageFormat format = MF_AUTO_FORMAT, size_t id = 0) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnRandoHintRevealed>(rh);
+    return OTRGlobals::Instance->gRandoContext->GetHint(rh)->GetHintMessage(format, id);
+}
 
 void BuildHintStoneMessage(uint16_t* textId, bool* loadFromMessageTable) {
     if ((RAND_GET_OPTION(RSK_GOSSIP_STONE_HINTS).Is(RO_GOSSIP_STONES_NEED_TRUTH) &&
@@ -45,7 +53,7 @@ void BuildHintStoneMessage(uint16_t* textId, bool* loadFromMessageTable) {
         msg = CustomMessage("INVALID STONE. PARAMS: " + std::to_string(hintParams));
         msg.AutoFormat();
     } else {
-        msg = OTRGlobals::Instance->gRandoContext->GetHint(stoneHint)->GetHintMessage(MF_AUTO_FORMAT);
+        msg = ReadHintMessage(stoneHint, MF_AUTO_FORMAT);
     }
     // Remove "Buy " if present.
     msg.Replace("Buy ", "");

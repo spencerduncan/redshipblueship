@@ -31,7 +31,7 @@ u32 OoT_EffectSsDFire_Init(PlayState* play, u32 index, EffectSs* this, void* ini
     EffectSsDFireInitParams* initParams = (EffectSsDFireInitParams*)initParamsx;
     s32 objBankIndex = Object_GetIndex(&play->objectCtx, OBJECT_DODONGO);
 
-    if (objBankIndex >= 0) {
+    if (objBankIndex >= 0 || CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemies"), false)) {
         this->pos = initParams->pos;
         this->velocity = initParams->velocity;
         this->accel = initParams->accel;
@@ -73,7 +73,8 @@ void OoT_EffectSsDFire_Draw(PlayState* play, u32 index, EffectSs* this) {
 
     OPEN_DISPS(gfxCtx);
 
-    if (Object_GetIndex(&play->objectCtx, OBJECT_DODONGO) > -1) {
+    if (Object_GetIndex(&play->objectCtx, OBJECT_DODONGO) > -1 ||
+        CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemies"), false)) {
         OoT_gSegments[6] = VIRTUAL_TO_PHYSICAL(object);
         gSPSegment(POLY_XLU_DISP++, 0x06, object);
         scale = this->rScale / 100.0f;

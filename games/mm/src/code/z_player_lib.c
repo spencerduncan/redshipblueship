@@ -44,10 +44,14 @@
 // Assets for other actors
 #include "overlays/actors/ovl_En_Arrow/z_en_arrow.h"
 
+// Play as Kafei waist DL override
+#include "objects/object_test3/object_test3.h"
+
 #include "2s2h/BenPort.h"
 #include "2s2h/GameInteractor/GameInteractor.h"
 #include "2s2h/Enhancements/FrameInterpolation/FrameInterpolation.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include <libultraship/bridge/resourcebridge.h>
 
 typedef struct {
     /* 0x00 */ Vec3f unk_00;
@@ -651,6 +655,20 @@ void func_80123140(PlayState* play, Player* player) {
 
     MM_Actor_SetScale(&player->actor, scale);
 }
+
+// #region 2S2H [Port] Determine if we're using a custom model for link
+uint8_t MM_Player_IsCustomLinkModel(Player* player) {
+    return ((player->transformation == PLAYER_FORM_HUMAN) && ResourceGetIsCustomByName(gLinkHumanSkel)) ||
+           ((player->transformation == PLAYER_FORM_DEKU) && ResourceGetIsCustomByName(gLinkDekuSkel)) ||
+           ((player->transformation == PLAYER_FORM_GORON) && ResourceGetIsCustomByName(gLinkGoronSkel)) ||
+           ((player->transformation == PLAYER_FORM_ZORA) && ResourceGetIsCustomByName(gLinkZoraSkel)) ||
+           ((player->transformation == PLAYER_FORM_FIERCE_DEITY) && ResourceGetIsCustomByName(gLinkFierceDeitySkel)) ||
+
+           // special case for kafei model swaps when using Play as Kafei enhancement
+           ((player->transformation == PLAYER_FORM_HUMAN) && CVarGetInteger("gModes.PlayAsKafei", 0) &&
+            ResourceGetIsCustomByName(gKafeiSkel));
+}
+// #endregion
 
 bool MM_Player_InBlockingCsMode(PlayState* play, Player* player) {
     return (player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_200 | PLAYER_STATE1_20000000)) ||
@@ -2080,6 +2098,10 @@ void MM_Player_DrawImpl(PlayState* play, void** skeleton, Vec3s* jointTable, s32
     POLY_OPA_DISP = &gfx[2];
 
     D_801F59E0 = playerForm * 2;
+    // 2S2H [Port] Disable LOD when a custom player model is used
+    if (MM_Player_IsCustomLinkModel((Player*)actor)) {
+        lod = 0;
+    }
     sPlayerLod = lod;
     MM_SkelAnime_DrawFlexLod(play, skeleton, jointTable, dListCount, overrideLimbDraw, postLimbDraw, actor, lod);
 
@@ -2768,7 +2790,9 @@ s32 MM_Player_OverrideLimbDrawGameplayDefault(PlayState* play, s32 limbIndex, Gf
 
             *dList = sheathDLists[sPlayerLod];
         } else if (limbIndex == PLAYER_LIMB_WAIST) {
-            *dList = player->waistDLists[sPlayerLod];
+            if (!MM_Player_IsCustomLinkModel(player)) {
+                *dList = player->waistDLists[sPlayerLod];
+            }
         } else if (limbIndex == PLAYER_LIMB_HAT) {
             if (player->transformation == PLAYER_FORM_ZORA) {
                 MM_Matrix_Scale((player->unk_B10[0] * 1) + 1.0f, 1.0f, 1.0f, MTXMODE_APPLY);

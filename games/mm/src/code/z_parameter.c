@@ -6366,6 +6366,11 @@ void Interface_DrawBButtonIcons(PlayState* play) {
                     gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE,
                                       0, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
 
+                    //! @bug Same missing gDPSetEnvColor as in Interface_DrawAmmoCount. The B button ammo count
+                    //! will be drawn with the last env color set prior to obtaining magic.
+                    if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+                        gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+                    }
                     if ((play->sceneId != SCENE_SYATEKI_MIZU) && (play->sceneId != SCENE_SYATEKI_MORI) &&
                         (play->sceneId != SCENE_BOWLING) &&
                         ((gSaveContext.minigameStatus != MINIGAME_STATUS_ACTIVE) ||
@@ -6381,6 +6386,12 @@ void Interface_DrawBButtonIcons(PlayState* play) {
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+        //! @bug Same missing gDPSetEnvColor as in Interface_DrawAmmoCount. The B button action label
+        //! uses ENVIRONMENT in its combine mode and will be drawn with the last env color set (e.g. green
+        //! from the wallet icon) prior to obtaining magic.
+        if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+            gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+        }
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->bAlpha);
         gDPLoadTextureBlock_4b(OVERLAY_DISP++, interfaceCtx->doActionSegment[DO_ACTION_SEG_B].mainTex, G_IM_FMT_IA,
                                DO_ACTION_TEX_WIDTH, DO_ACTION_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
@@ -6424,6 +6435,12 @@ void Interface_DrawBButtonIcons(PlayState* play) {
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
                           PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+        //! @bug Same missing gDPSetEnvColor as in Interface_DrawAmmoCount. The B button action label
+        //! uses ENVIRONMENT in its combine mode and will be drawn with the last env color set (e.g. green
+        //! from the wallet icon) prior to obtaining magic.
+        if (CVarGetInteger("gFixes.FixAmmoCountEnvColor", 0)) {
+            gDPSetEnvColor(OVERLAY_DISP++, 0, 0, 0, 255);
+        }
         gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->bAlpha);
         gDPLoadTextureBlock_4b(OVERLAY_DISP++, interfaceCtx->doActionSegment[DO_ACTION_SEG_B].subTex, G_IM_FMT_IA,
                                DO_ACTION_TEX_WIDTH, DO_ACTION_TEX_HEIGHT, 0, G_TX_NOMIRROR | G_TX_WRAP,
@@ -9941,9 +9958,10 @@ void MM_Interface_Update(PlayState* play) {
 
     // Update Sun Song
     if (gSaveContext.sunsSongState != SUNSSONG_INACTIVE) {
-        // exit out of ocarina mode after suns song finishes playing
+        // exit out of ocarina mode after suns song finishes playing, only if faster playback is off
         if ((msgCtx->ocarinaAction != OCARINA_ACTION_CHECK_NOTIME_DONE) &&
-            (gSaveContext.sunsSongState == SUNSSONG_START)) {
+            (gSaveContext.sunsSongState == SUNSSONG_START) &&
+            !CVarGetInteger("gEnhancements.Songs.FasterSongPlayback", 0)) {
             play->msgCtx.ocarinaMode = OCARINA_MODE_END;
         }
 

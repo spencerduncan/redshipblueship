@@ -108,8 +108,9 @@ namespace {
 // cosmetics/CosmeticsEditor.cpp, Lang/Lang.cpp, mod_menu.cpp,
 // Presets/Presets.cpp (soh_enh), randomizer/randomizer_check_tracker.cpp,
 // randomizer/randomizer_entrance_tracker.cpp,
+// randomizer/randomizer_hint_tracker.cpp,
 // randomizer/randomizer_item_tracker.cpp (soh_rando).
-constexpr size_t kEnhancementMenuInitRegistrars = 9;
+constexpr size_t kEnhancementMenuInitRegistrars = 10;
 
 // soh_port's own: SohGui/ResolutionEditor.cpp always; Network/Anchor/Menu.cpp
 // only when the Anchor client is compiled in.
@@ -153,7 +154,7 @@ extern "C" int OoT_MenuRegistrars_RunHeadless(void) {
 
     // Leg 2: the init-func registry. Every registrar in the link pushes exactly
     // one entry before main(), so the size is the number of registrar TUs that
-    // survived. 9 is the whole-archived Enhancements set; the remainder is
+    // survived. 10 is the whole-archived Enhancements set; the remainder is
     // soh_port's.
     const size_t expected = kEnhancementMenuInitRegistrars + kPortMenuInitRegistrars;
     const size_t actual = MenuInit::GetInitFuncs().size();

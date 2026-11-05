@@ -24,6 +24,8 @@ using namespace UIWidgets;
 
 // #1235: MM's Ambience Volume (SohGui/HostedMm/SohMenuHostedMmAudio.cpp), drawn right after Sound Effects Volume.
 void AddMmAmbienceVolumeRow(SohMenu& menu, WidgetPath& path);
+// #1411: MM's Accessibility toggles (SohGui/HostedMm/SohMenuHostedMmAudio.cpp), drawn right after Disable Jabu Wobble.
+void AddMmAccessibilityRows(SohMenu& menu, WidgetPath& path);
 
 // #1235: a moved volume slider also reaches MM's sequence players while MM's audio is up (src/common/
 // mm_volume_bridge.h); MM otherwise reads the keys only in MM_AudioMgr_Init, once per bring-up.
@@ -251,6 +253,7 @@ void SohMenu::AddMenuSettings() {
         .CVar(CVAR_SETTING("A11yNoJabuWobble"))
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip("Disable the geometry wobble and camera distortion inside Jabu."));
+    AddMmAccessibilityRows(*this, path);
     AddWidget(path, "EXPERIMENTAL", WIDGET_SEPARATOR_TEXT).Options(TextOptions().Color(Colors::Orange));
     AddWidget(path, "ImGui Menu Scaling", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_SETTING("ImGuiScale"))

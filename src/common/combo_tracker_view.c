@@ -493,7 +493,7 @@ void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerChe
     if (seen == NULL || row == NULL) {
         return;
     }
-    // SoH's DrawLocation, RCSHOW_SEEN / RCSHOW_IDENTIFIED (randomizer_check_tracker.cpp).
+    // SoH's DrawLocation, RCSHOW_SEEN_OR_HINTED / RCSHOW_IDENTIFIED (randomizer_check_tracker.cpp).
     const bool hideMerchant =
         seen->saleKind == (uint8_t)COMBO_TRACKER_SALE_MERCHANT && (!seen->merchantTextHint || seen->mystery);
     const bool hideScrub =

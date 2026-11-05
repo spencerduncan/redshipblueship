@@ -239,6 +239,7 @@ void RegionTable_Init_WaterTemple() {
         LOCATION(RC_WATER_TEMPLE_BASEMENT_BLOCK_PUZZLE_POT_2, logic->CanBreakPots(ED_HOOKSHOT, false, true) && logic->CanUse(RG_IRON_BOOTS) && logic->WaterTimer() >= 8),
     }, {
         //Exits
+        Entrance(RR_WATER_TEMPLE_BOULDERS_NORTH,    []{return true;}),
         Entrance(RR_WATER_TEMPLE_BLOCK_ROOM,        []{return true;}),
         Entrance(RR_WATER_TEMPLE_BLOCK_ROOM_STAIRS, []{return logic->CanUse(RG_HOVER_BOOTS);}),
     });
@@ -265,6 +266,7 @@ void RegionTable_Init_WaterTemple() {
     areaTable[RR_WATER_TEMPLE_BLOCK_ROOM_STAIRS] = Region("Water Temple Block Room Stairs", SCENE_WATER_TEMPLE, {}, {}, {
         //Exits
         Entrance(RR_WATER_TEMPLE_BLOCK_ROOM,        []{return true;}),
+        Entrance(RR_WATER_TEMPLE_3_JETS_SWITCH,     []{return true;}),
         Entrance(RR_WATER_TEMPLE_BLOCK_ROOM_TARGET, []{return logic->CanUse(RG_HOOKSHOT) || logic->CanUse(RG_HOVER_BOOTS);}),
     });
 
@@ -289,9 +291,9 @@ void RegionTable_Init_WaterTemple() {
                                                          logic->CanUse(RG_HOVER_BOOTS) && logic->CanKillEnemy(RE_GOLD_SKULLTULA, logic->HasItem(RG_BRONZE_SCALE) && logic->IsAdult ? ED_SHORT_JUMPSLASH : ED_BOOMERANG))),
     }, {
         //Exits
-        Entrance(RR_WATER_TEMPLE_3_JETS_SWITCH, []{return true;}),
-        Entrance(RR_WATER_TEMPLE_BOULDER_CANAL, []{return logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE) || (logic->CanUse(RG_IRON_BOOTS) && logic->WaterTimer() >= 8);}),
-        Entrance(RR_WATER_TEMPLE_BEHIND_CANAL,  []{return logic->IsAdult && ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) && logic->HasItem(RG_BRONZE_SCALE);}),
+        Entrance(RR_WATER_TEMPLE_3_JETS_NO_SWITCH, []{return true;}),
+        Entrance(RR_WATER_TEMPLE_BOULDER_CANAL,    []{return logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE) || (logic->CanUse(RG_IRON_BOOTS) && logic->WaterTimer() >= 8);}),
+        Entrance(RR_WATER_TEMPLE_BEHIND_CANAL,     []{return logic->IsAdult && ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS) && logic->HasItem(RG_BRONZE_SCALE);}),
     });
 
     areaTable[RR_WATER_TEMPLE_BOULDER_CANAL] = Region("Water Temple Boulder Canal", SCENE_WATER_TEMPLE, {}, {
