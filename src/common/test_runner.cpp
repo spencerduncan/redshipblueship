@@ -1187,6 +1187,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // rules-off world staying main's byte for byte (rules-off-goldens-unchanged).
 // FILE SCOPE (compiled as C++).
 #include "tests/test_combo_item_rules_word2.c"
+// #1169 lane XW4: the Song of Soaring (OoT) item, its rule and OoTMM's "Not
+// enough locations" refusal: three ROM-free rows (oot-soaring-table-bounds,
+// oot-soaring-rule-logic, oot-soaring-rules-off-unchanged) and two rando rows
+// over real paired OoT generations through the hidden-bit test seam. FILE SCOPE
+// (compiled as C++).
+#include "tests/test_song_soaring_oot.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -1908,15 +1914,17 @@ extern "C" int Rando_HeadlessHintReloadTest(const char* seedStr);
 // Drives the real Save_Init with and without the arrival flag.
 extern "C" int Rando_HeadlessHintCrossGameTest(const char* seedStr);
 extern "C" void InitOTRForMMFirstBoot(int argc, char* argv[]);
-// Arrival-rehydration lock (#482), bodies in the two OoT tracker TUs
-// (randomizer_item_tracker.cpp / randomizer_check_tracker.cpp). Each drives the
-// REAL SaveManager initFunc that the arrival title-demo Save_InitFile(true)
-// dispatches (ItemTrackerInitFile / InitTrackerData), with the OoT arrival flag
+// Arrival-rehydration lock (#482), bodies in the three OoT tracker TUs
+// (randomizer_item_tracker.cpp / randomizer_check_tracker.cpp /
+// randomizer_hint_tracker.cpp). Each drives the REAL SaveManager initFunc that
+// the arrival title-demo Save_InitFile(true) dispatches (ItemTrackerInitFile /
+// InitTrackerData / HintTracker::InitHintTrackerData), with the OoT arrival flag
 // set (the out-of-save tracker global must survive) and without it (the clear
-// must still fire, so the pass is not vacuous). Both are pure -- no OTR/display
+// must still fire, so the pass is not vacuous). All are pure -- no OTR/display
 // -- so they run in the display-free suite. Each returns a failure count.
 extern "C" int RandoTest_ItemTrackerArrivalLock(void);
 extern "C" int RandoTest_CheckTrackerArrivalLock(void);
+extern "C" int RandoTest_HintTrackerArrivalLock(void);
 
 TestResult Test_RandoGen(void) {
     printf("[TEST] rando-gen: seed generation succeeds with default settings (#337)\n");
@@ -2220,22 +2228,25 @@ static TestResult Test_MMMirroredWorld(void) {
     return MM_MirroredWorld_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
-// Arrival-rehydration lock (#482). Two more instances of the #441 class on the
-// OoT side: the check tracker's `areasSpoiled` and the item tracker's typed
-// `itemTrackerNotes` are blanked by SaveManager initFuncs that the arrival
-// title-demo Save_InitFile(true) dispatches, but the frozen save is restored at
-// Play_ConsumeStartupEntrance without re-running Save_LoadFile, so nothing
-// rehydrates them -- they live OUTSIDE gSaveContext. Both are guarded with
+// Arrival-rehydration lock (#482). More instances of the #441 class on the OoT
+// side: the check tracker's `areasSpoiled`, the item tracker's typed
+// `itemTrackerNotes` and the hint tracker's `readHints` (#1366) are blanked by
+// SaveManager initFuncs that the arrival title-demo Save_InitFile(true)
+// dispatches, but the frozen save is restored at Play_ConsumeStartupEntrance
+// without re-running Save_LoadFile, so nothing rehydrates them -- they live
+// OUTSIDE gSaveContext. All three are guarded with
 // Combo_HasStartupEntranceForGame("oot"). This lock drives the real init
 // functions with the arrival flag set (state must survive) and without it (the
 // clear must still fire, proving the pass is non-vacuous). Pure (no display, no
 // OTR, no game archive), so unlike the rando-hint locks it runs in the
 // display-free suite and is NOT skipped by `--test all`.
 TestResult Test_TrackerArrivalRehydration(void) {
-    printf("[TEST] tracker-arrival-rehydration: check/item tracker state survives a cross-game OoT arrival (#482)\n");
+    printf("[TEST] tracker-arrival-rehydration: check/item/hint tracker state survives a cross-game OoT arrival "
+           "(#482)\n");
     int failures = 0;
     failures += RandoTest_CheckTrackerArrivalLock();
     failures += RandoTest_ItemTrackerArrivalLock();
+    failures += RandoTest_HintTrackerArrivalLock();
     printf("[TEST] %s: tracker arrival rehydration failures=%d\n", failures == 0 ? "PASS" : "FAIL", failures);
     return failures == 0 ? TEST_PASS : TEST_FAIL;
 }
@@ -6375,7 +6386,7 @@ TestResult Test_MMTrackersGui(void) {
 
 // #797, the source half of the OoTWindowsGate lock. The runtime half proves the
 // wrapper gates; this proves production uses it: SohGui::SetupGuiElements must
-// construct exactly the eight save/play-state windows through OoTActiveGated<>
+// construct exactly the nine save/play-state windows through OoTActiveGated<>
 // and every other window it constructs must be on the exempt list, so a window
 // added upstream later has to be classified here before this row passes.
 static bool OoTWindowsGate_ScanSetupGuiElements(void) {
@@ -6399,11 +6410,12 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         "GameplayStatsWindow",
         "CheckTracker::CheckTrackerWindow",
         "EntranceTracker::EntranceTrackerWindow",
+        "HintTracker::HintTrackerWindow",
         "ItemTrackerWindow",
         "TimeSplitWindow",
     };
     // #797's census: no save/play-state reads (console, debuggers, input
-    // viewer, mod menu, plandomizer, notifications, the three tracker settings
+    // viewer, mod menu, plandomizer, notifications, the four tracker settings
     // windows, which draw CVar rows only), already guarded (Additional Timers,
     // Actor Viewer, Collision Viewer, Anchor Room), or reading fileCreatedAt
     // only on a user action (Audio Editor, Cosmetics Editor).
@@ -6422,6 +6434,7 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         "DLViewerWindow",
         "CheckTracker::CheckTrackerSettingsWindow",
         "EntranceTracker::EntranceTrackerSettingsWindow",
+        "HintTracker::HintTrackerSettingsWindow",
         "ItemTrackerSettingsWindow",
         "PlandomizerWindow",
         "Notification::Window",
@@ -6541,9 +6554,9 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         }
     }
     const int expectedSites = (int)(sizeof(kGated) / sizeof(kGated[0]) + sizeof(kExempt) / sizeof(kExempt[0]));
-    if (wrapped != 8 || sites != expectedSites) {
+    if (wrapped != 9 || sites != expectedSites) {
         printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements has %d make_shared sites (%d OoTActiveGated<>), want "
-               "%d (8)\n",
+               "%d (9)\n",
                sites, wrapped, expectedSites);
         ok = false;
     }
@@ -7894,6 +7907,31 @@ TestResult Test_SharedSongsOneCopyAnywhere(void) {
     return SharedSongsOneCopyRow(3);
 }
 
+// #1169 XW4: the Song of Soaring (OoT)'s pool and OoTMM's overflow refusal over
+// real paired OoT generations, shared-songs-one-copy's bring-up.
+TestResult Test_OoTSoaringPooledOnlyWhenRuleOn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char xw4PoolArg0[] = "redship";
+    static char* xw4PoolArgv[] = { xw4PoolArg0, nullptr };
+    InitOTRForMMFirstBoot(1, xw4PoolArgv);
+    return OoTSoaringPooledOnlyWhenRuleOn_Run();
+}
+TestResult Test_SongLocationsOverflowRefused(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char xw4OverArg0[] = "redship";
+    static char* xw4OverArgv[] = { xw4OverArg0, nullptr };
+    InitOTRForMMFirstBoot(1, xw4OverArgv);
+    return SongLocationsOverflowRefused_Run();
+}
+
 // #968: the shared arrows' bag rows over a real generation, shared-lens-bag's
 // bring-up.
 TestResult Test_SharedArrowsBag(void) {
@@ -8076,8 +8114,9 @@ extern "C" int OoT_TrackerAvailability_RunArrival(void);
 extern "C" int OoT_TrackerFillSuperset_RunOoT(void);
 extern "C" int MM_TrackerInLogic_RunArrival(void);
 extern "C" int MM_TrackerFillSuperset_RunMM(void);
-extern "C" int OoT_TrackerOoTPanelList_Run(void);   // #1126, same file as the OoT rows above
-extern "C" int OoT_TrackerSohFixes_RunPaired(void); // #1420, the same file, over the panel list's paired file
+extern "C" int OoT_TrackerOoTPanelList_Run(void);       // #1126, same file as the OoT rows above
+extern "C" int OoT_TrackerSohFixes_RunPaired(void);     // #1420, the same file, over the panel list's paired file
+extern "C" int OoT_HintTrackerCrossing_RunPaired(void); // #1366, the same file, over the same paired file
 static bool TrackerReachabilityBringUp(void) {
     auto ctx = CreateHarnessStyleContext();
     if (!ctx) {
@@ -8125,16 +8164,20 @@ TestResult Test_TrackerFillSuperset(void) {
 // #1126: the combo tracker's OoT panel against SoH's Check Tracker on one paired
 // creation save. Same bring-up as the rows above. #1420's paired legs (the tower
 // chest row under Triforce Hunt, generation untouched, Available Checks from
-// Link's entrance, age and time) follow over the same file.
+// Link's entrance, age and time) follow over the same file, then #1366's (an item
+// hint at a crossing host: the Hint Tracker's Journal ranks the crossed MM item,
+// and the host is Seen under Obscure and Ambiguous clarity).
 TestResult Test_TrackerOoTPanelList(void) {
     if (!TrackerReachabilityBringUp()) {
         return TEST_FAIL;
     }
     const int list = OoT_TrackerOoTPanelList_Run();
     const int fixes = OoT_TrackerSohFixes_RunPaired();
-    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d)\n",
-           (list == 0 && fixes == 0) ? "PASS" : "FAIL", list, fixes);
-    return (list == 0 && fixes == 0) ? TEST_PASS : TEST_FAIL;
+    const int hints = OoT_HintTrackerCrossing_RunPaired();
+    const bool pass = list == 0 && fixes == 0 && hints == 0;
+    printf("[TEST] %s: tracker-oot-panel-list (list failures %d, #1420 failures %d, #1366 failures %d)\n",
+           pass ? "PASS" : "FAIL", list, fixes, hints);
+    return pass ? TEST_PASS : TEST_FAIL;
 }
 // #1168: the talking, grabbing and time gates ported from upstream, through each
 // game's real search (OoT's per-region event fixpoint and location question, MM's
@@ -8551,11 +8594,11 @@ const TestDescriptor gTests[] = {
     // #575 H1: the shared area vocabulary. Display-free and ROM-free, so it
     // runs in the redship tier and in `--test all`.
     { "combo-area-vocabulary", "One shared hint area vocabulary over both games (#575 H1)", Test_ComboAreaVocabulary },
-    // #482: two more instances of the #441 class -- the check tracker's
-    // areasSpoiled and the item tracker's typed notes are blanked by arrival
-    // init-funcs and never rehydrated. Pure (no display), so it runs in the
-    // display-free suite (NOT skipped by `--test all`).
-    { "tracker-arrival-rehydration", "Check/item tracker state survives a cross-game OoT arrival (#482)",
+    // #482: more instances of the #441 class -- the check tracker's
+    // areasSpoiled, the item tracker's typed notes and the hint tracker's read
+    // hints (#1366) are blanked by arrival init-funcs and never rehydrated. Pure
+    // (no display), so it runs in the display-free suite (NOT skipped by `--test all`).
+    { "tracker-arrival-rehydration", "Check/item/hint tracker state survives a cross-game OoT arrival (#482)",
       Test_TrackerArrivalRehydration },
     // #990: the same arrival must also schedule the tracker's Available Checks recalculation.
     { "tracker-arrival-recalc", "A cross-game arrival into OoT schedules the tracker's Available Checks recalc (#990)",
@@ -9894,6 +9937,30 @@ const TestDescriptor gTests[] = {
       "With every second-word rule off, the fingerprint, the world hash, the single bag's seeds, the divergence diff "
       "and a seed package's record are main's (#1169)",
       Test_RulesOffGoldensUnchanged },
+    // #1169 XW4: the Song of Soaring (OoT). Three ROM-free rows; the last two run
+    // real paired OoT generations (rando tier) through the hidden-bit test seam.
+    { "oot-soaring-table-bounds",
+      "The Song of Soaring (OoT) is appended after the masks in OoT's item, hint and RAND_INF enums, adds no ItemID, "
+      "still fits the 129 saved RAND_INF words, and its item row is a song with its own flag, note, text and hint "
+      "(#1169)",
+      Test_OoTSoaringTableBounds },
+    { "oot-soaring-rule-logic",
+      "The frozen Song of Soaring (OoT) rule pools one copy unless the song is shared, OoT's logic plays it only as a "
+      "child with an ocarina and C-down, C-up and C-left under the rule, its effect is its flag, and OoTMM's refusal "
+      "and warning are worded (#1169)",
+      Test_OoTSoaringRuleLogic },
+    { "oot-soaring-rules-off-unchanged",
+      "While the warp-song rules are hidden no world a player can make pools the Song of Soaring (OoT), credits it or "
+      "meets the song-spot refusal, and every id before it is main's (#1169)",
+      Test_OoTSoaringRulesOffUnchanged },
+    { "oot-soaring-pooled-only-when-rule-on",
+      "A real paired OoT generation pools no Song of Soaring (OoT) with the rule off, exactly one with it on through "
+      "the test seam, and none with the shared song; its hint names it and its give sets only its flag (#1169)",
+      Test_OoTSoaringPooledOnlyWhenRuleOn },
+    { "song-locations-overflow-refused",
+      "Thirteen songs on the twelve spots of Song Locations or Dungeon Rewards are refused at Generate with OoTMM's "
+      "\"Not enough locations\" wording; a starting song, a shared song or Anywhere generates (#1169)",
+      Test_SongLocationsOverflowRefused },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
@@ -10335,6 +10402,14 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
                 strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
                 strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
+                // #1169 XW4's two generation rows. Like every row above, a real
+                // generation leaves its world alive for the rest of the process
+                // (Rando_HeadlessSeedTest hands the heap Rando::Context to
+                // Rando::Settings), so a later ROM-free row that needs no heap
+                // world (combo-crossing-views' .redsave leg, combo-tracker-view's
+                // never-booted leg) would read it.
+                strcmp(gTests[i].name, "oot-soaring-pooled-only-when-rule-on") == 0 ||
+                strcmp(gTests[i].name, "song-locations-overflow-refused") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

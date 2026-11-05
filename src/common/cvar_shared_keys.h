@@ -83,6 +83,10 @@
 // W6-AUDIO-SFX (#1239): MM's two sound mutes with no SoH twin, drawn as MM rows in SoH's Audio Editor (Audio Options).
 #define RSBS_CVAR_MM_MUTE_CARPENTER_SFX "gAudioEditor.MuteCarpenterSfx"
 #define RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY "gAudioEditor.ChildGoronCry"
+// #1411: MM's two accessibility toggles with no SoH twin, hosted on SoH's Settings > General under Accessibility
+// (SohGui/HostedMm/SohMenuHostedMmAudio.cpp).
+#define RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES "gEnhancements.A11y.NoFinalDayQuakes"
+#define RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION "gEnhancements.A11y.NoScreenDistortion"
 
 /* Character colour — issue #453, inventory §3.3 BUG 1 / §4 row P4.
  *
@@ -512,8 +516,9 @@ inline constexpr ConvergedKey kConvergedKeys[] = {
     // Controls > Ocarina Controls) and gEnhancements.DpadNoDropOcarinaInput.
     // All bool, default off, read per frame by GameInteractor_Dpad,
     // GameInteractor_RightStickOcarina and the two ocarina input loops, so a plain rename. The held-apart P6 pair that
-    // stood in kMustStayDistinct is gone: both games have all three switches, and the one genuinely OoT-only piece (the
-    // custom button-mapping layer, gSettings.CustomOcarina.Enabled) has no MM key to pair.
+    // stood in kMustStayDistinct is gone: both games have all three switches. The custom button-mapping layer
+    // (gSettings.CustomOcarina.Enabled) had no MM key to pair here; #1413 ported 2Ship's mapping layer onto SoH's key
+    // directly, so it is an ADOPTED shared-intent key (kSharedIntentKeys), not a rename row.
     { "gEnhancements.Playback.DpadOcarina", "gSettings.CustomOcarina.Dpad", false },
     { "gEnhancements.Playback.RightStickOcarina", "gSettings.CustomOcarina.RightStick", false },
     { "gEnhancements.Playback.NoDropOcarinaInput", "gEnhancements.DpadNoDropOcarinaInput", false },
@@ -610,6 +615,9 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
+// #1411: 2Ship's Invert Zora Swim Y Axis (dabc3aadc), a Player row in 2Ship, hosted in the same Quality of Life >
+// Controls "Majora's Mask" block. MM reads it with default 1, which is vanilla (the row draws ticked).
+#define RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y "gEnhancements.Player.InvertZoraSwimY"
 // W6-MASKS-SONGS
 // W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
 // Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
@@ -1058,6 +1066,9 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     /* W6-AUDIO-SFX */                                               \
     X(RSBS_CVAR_MM_MUTE_CARPENTER_SFX)                               \
     X(RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY)                             \
+    /* #1411 */                                                      \
+    X(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)                         \
+    X(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)                        \
     /* W6-TIMESAVERS */                                              \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_TEXT)                               \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION)                     \
@@ -1097,6 +1108,7 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE)                   \
     X(RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL)                    \
     X(RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS)                              \
+    X(RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y)                        \
     /* W6-MASKS-SONGS */                                             \
     X(RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING)                       \
     X(RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG)                             \
@@ -1393,6 +1405,13 @@ inline constexpr const char* kSharedIntentKeys[] = {
     // SoH's key with SoH's default (off), the way OoT's z_camera.c does, so the one row drives both games and the
     // marker pass labels it. Adopted, not converged: there is no MM spelling to retire or migrate.
     "gEnhancements.DisableCritWiggle",
+    // #1413 (MFE-22): SoH's "Customize Ocarina Controls" (the custom note-button mapping layer). 2Ship's port of it
+    // (ec9e755bb, gEnhancements.Playback.CustomizeOcarinaControls) never reached our MM tree under that spelling;
+    // the backport reads SoH's key with SoH's default (off) in MM's GameInteractor_CustomOcarinaControls
+    // (GameExports_SingleExe.cpp) and AudioOcarina_ReadControllerInput (code_8019AF00.c), and the note bindings
+    // are the BTN_CUSTOM_OCARINA_* bits of the one shared ControlDeck. Adopted, not converged: nothing to migrate.
+    // The checkbox is a raw CVarCheckbox in SoH's input editor, which the menu marker pass does not reach.
+    "gSettings.CustomOcarina.Enabled",
 };
 
 /**
@@ -2110,13 +2129,14 @@ static_assert(kConvergedKeyCount == 50, "tier 1 (9) + inventory §5.3 remainder 
 // widescreen-culling spellings matched only in OoT's uncalled ShipUtils.cpp, so
 // #966 (#1027, #1028) converged them as ordinary rows and this table carried 24.
 // #1426 adds one adopted key, SoH's DisableCritWiggle, which MM's camera now
-// reads too: 25. Pinning the count makes a silent drop a compile error rather
-// than a quietly weaker lock.
-static_assert(kSharedIntentKeyCount == 25,
+// reads too: 25. #1413 adopts SoH's gSettings.CustomOcarina.Enabled, which MM's
+// ocarina input now reads too: 26. Pinning the count makes a silent drop a
+// compile error rather than a quietly weaker lock.
+static_assert(kSharedIntentKeyCount == 26,
               "ADR 0003 Appendix B's 26 class-(S) keys less the two actor-cull spellings #966 moved to converged "
               "rows (#1027, #1028); includes DebugSaveFileMode — restored to (S) by #454 once MM's "
               "DeveloperTools.cpp write was retired and its read default aligned to OoT's 1; plus #1426's "
-              "adopted gEnhancements.DisableCritWiggle");
+              "adopted gEnhancements.DisableCritWiggle and #1413's adopted gSettings.CustomOcarina.Enabled");
 static_assert(kMenuIndexKeyCount == 4, "four menu-index keys — #451");
 // The disputed table is empty since #454's fix. Pinned at 0 like every other
 // table here, so a key silently re-added to it is a compile error rather than a

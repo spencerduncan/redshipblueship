@@ -2403,7 +2403,7 @@ typedef enum {
 
     // #### `result`
     // ```c
-    // true
+    // varies
     // ```
     // #### `args`
     // - `*Actor`
@@ -2674,6 +2674,41 @@ typedef enum {
     // - `Player*`
     // - `s32* item`
     VB_OVERRIDE_BUTTON_ITEM_USED,
+
+    // [RSBS #1345] The next four are appended last so no existing id shifts.
+    // Upstream SoH 917a9b78d puts the two Guay ids after VB_GUAY_FORCE_FLY_AWAY
+    // and 5f52af7ef puts the two Keese ids after VB_KEESE_FORCE_FLY_AWAY.
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnCrow`
+    VB_GUAY_SETUP_DAMAGED,
+
+    // #### `result`
+    // ```c
+    // this->actor.colChkInfo.health != 0
+    // ```
+    // #### `args`
+    // - `*f32` (scale)
+    VB_GUAY_ALIVE_MOVE_HEIGHT_OFFSET,
+
+    // #### `result`
+    // ```c
+    // varies
+    // ```
+    // #### `args`
+    // - `*EnFirefly`
+    VB_KEESE_SETUP_FALL,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnFirefly`
+    VB_KEESE_SETUP_FROZENFALL,
 
 } GIVanillaBehavior;
 

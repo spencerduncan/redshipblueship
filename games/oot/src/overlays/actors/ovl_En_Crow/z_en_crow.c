@@ -427,7 +427,7 @@ void OoT_EnCrow_UpdateDamage(EnCrow* this, PlayState* play) {
         if ((this->actor.colChkInfo.damageEffect != 0) || (this->actor.colChkInfo.damage != 0)) {
             if (this->actor.colChkInfo.damageEffect == 1) { // Deku Nuts
                 OoT_EnCrow_SetupTurnAway(this);
-            } else {
+            } else if (GameInteractor_Should(VB_GUAY_SETUP_DAMAGED, true, this)) {
                 OoT_Actor_ApplyDamage(&this->actor);
                 this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
                 OoT_Enemy_StartFinishingBlow(play, &this->actor);
@@ -450,7 +450,7 @@ void OoT_EnCrow_Update(Actor* thisx, PlayState* play) {
     this->actor.world.rot.x = -this->actor.shape.rot.x;
 
     if (this->actionFunc != OoT_EnCrow_Respawn) {
-        if (this->actor.colChkInfo.health != 0) {
+        if (GameInteractor_Should(VB_GUAY_ALIVE_MOVE_HEIGHT_OFFSET, this->actor.colChkInfo.health != 0, &scale)) {
             height = 20.0f * scale;
             Actor_MoveXYZ(&this->actor);
         } else {

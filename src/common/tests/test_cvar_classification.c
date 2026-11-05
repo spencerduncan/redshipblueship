@@ -1650,6 +1650,47 @@ TestResult Test_CVarClassification(void) {
             printf("[TEST] (3e-2) Disable Crit Wiggle is one shared-intent key, read by both games' cameras\n");
         }
 
+        // (3e-3) #1413: SoH's Customize Ocarina Controls is ADOPTED by Majora's Mask. 2Ship's custom ocarina note
+        // buttons (ec9e755bb) read SoH's key in MM's two live readers: GameInteractor_CustomOcarinaControls (in
+        // GameExports_SingleExe.cpp, because MM's GameInteractor.cpp is excluded from the single exe) and the
+        // vanilla-input block in AudioOcarina_ReadControllerInput (code_8019AF00.c). Red on a tree where either
+        // reader moves off the key, or where the manifest drops it: a later pass trusting an "OoT-only" manifest
+        // could rename or retire the key and MM's remapped notes would stop with nothing else going red.
+        {
+            constexpr const char* kCustomOcarinaKey = "gSettings.CustomOcarina.Enabled";
+            bool shared = false;
+            for (std::size_t i = 0; i < RSBS::kSharedIntentKeyCount; i++) {
+                shared = shared || strcmp(RSBS::kSharedIntentKeys[i], kCustomOcarinaKey) == 0;
+            }
+            CVARCLASS_CHECK(shared, "(3e-3) #1413: gSettings.CustomOcarina.Enabled is not in RSBS::kSharedIntentKeys, "
+                                    "but Majora's Mask's ocarina input reads it");
+            const std::filesystem::path mmReaders[] = {
+                sourceRoot / "games" / "mm" / "2s2h" / "GameExports_SingleExe.cpp",
+                sourceRoot / "games" / "mm" / "src" / "audio" / "code_8019AF00.c",
+            };
+            for (const std::filesystem::path& reader : mmReaders) {
+                std::ifstream readerFile(reader, std::ios::binary);
+                const std::string readerText((std::istreambuf_iterator<char>(readerFile)),
+                                             std::istreambuf_iterator<char>());
+                if (readerText.empty()) {
+                    printf("[TEST] FAIL: (3e-3) #1413: could not read %s\n", reader.string().c_str());
+                    return TEST_FAIL;
+                }
+                const std::vector<std::string> readerTree = { CvarClassStripComments(readerText) };
+                if (!CvarClassTreeContainsExactKey(readerTree, kCustomOcarinaKey)) {
+                    printf("[TEST] FAIL: (3e-3) #1413: %s does not read SoH's \"gSettings.CustomOcarina.Enabled\", so "
+                           "notes remapped in SoH's input editor are ignored in Majora's Mask\n",
+                           reader.string().c_str());
+                    return TEST_FAIL;
+                }
+            }
+            CVARCLASS_CHECK(CvarClassOotTreeNamesKey(ootTree, kCustomOcarinaKey),
+                            "(3e-3) #1413: nothing under games/oot names \"gSettings.CustomOcarina.Enabled\" any more "
+                            "(SoH's input editor reaches it through CVAR_SETTING)");
+            printf("[TEST] (3e-3) Customize Ocarina Controls is one shared-intent key, read by both games' ocarina "
+                   "input\n");
+        }
+
         // (3f) The canonical keys are actually read by OoT. Catches a typo in
         // the manifest that would otherwise make every check above pass while
         // pointing at a key nothing uses. Skips Volume.Ambience, which is an
