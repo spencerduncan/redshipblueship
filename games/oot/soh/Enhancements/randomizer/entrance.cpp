@@ -355,11 +355,11 @@ void SetAllEntrancesData() {
         { { EntranceType::Interior, RR_DESERT_COLOSSUS,               RR_COLOSSUS_GREAT_FAIRY_FOUNTAIN, ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_NAYRUS_COLOSSUS },
           { EntranceType::Interior, RR_COLOSSUS_GREAT_FAIRY_FOUNTAIN, RR_DESERT_COLOSSUS,               ENTR_DESERT_COLOSSUS_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_HC_PAST_GATE,                  RR_HC_GREAT_FAIRY_FOUNTAIN,       ENTR_GREAT_FAIRYS_FOUNTAIN_SPELLS_DINS_HC },
-          { EntranceType::Interior, RR_HC_GREAT_FAIRY_FOUNTAIN,       RR_HC_PAST_GATE,                  ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT } },
+          { EntranceType::Interior, RR_HC_GREAT_FAIRY_FOUNTAIN,       RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_CASTLE_GROUNDS_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_GANONS_CASTLE_GROUNDS,         RR_OGC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_OGC_DD },
-        // 0x3E8 is an unused entrance index repurposed to differentiate between the HC and OGC fairy
-        // fountain exits (normally they both use 0x340)
-          { EntranceType::Interior, RR_OGC_GREAT_FAIRY_FOUNTAIN,      RR_CASTLE_GROUNDS,                ENTR_POTION_SHOP_KAKARIKO_1 } },
+          // 0x3E8 is an unused entrance index repurposed to differentiate between the HC and OGC fairy
+          // fountain exits (normally they both use 0x340), even though they lead to the same region
+          { EntranceType::Interior, RR_OGC_GREAT_FAIRY_FOUNTAIN,      RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY, ENTR_POTION_SHOP_KAKARIKO_1 } },
         { { EntranceType::Interior, RR_DMC_LOWER_NEARBY,              RR_DMC_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_DMC },
           { EntranceType::Interior, RR_DMC_GREAT_FAIRY_FOUNTAIN,      RR_DMC_LOWER_LOCAL,               ENTR_DEATH_MOUNTAIN_CRATER_GREAT_FAIRY_EXIT } },
         { { EntranceType::Interior, RR_DEATH_MOUNTAIN_SUMMIT,         RR_DMT_GREAT_FAIRY_FOUNTAIN,      ENTR_GREAT_FAIRYS_FOUNTAIN_MAGIC_DMT },
@@ -434,7 +434,7 @@ void SetAllEntrancesData() {
         { { EntranceType::GrottoGrave, RR_KAKARIKO_VILLAGE,         RR_KAK_REDEAD_GROTTO,        ENTRANCE_GROTTO_LOAD(GROTTO_KAK_REDEAD_OFFSET) },
           { EntranceType::GrottoGrave, RR_KAK_REDEAD_GROTTO,        RR_KAKARIKO_VILLAGE,         ENTRANCE_GROTTO_EXIT(GROTTO_KAK_REDEAD_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HC_MOAT,                  RR_HC_STORMS_GROTTO,         ENTRANCE_GROTTO_LOAD(GROTTO_HC_STORMS_OFFSET) },
-          { EntranceType::GrottoGrave, RR_HC_STORMS_GROTTO,         RR_HC_MOAT,                  ENTRANCE_GROTTO_EXIT(GROTTO_HC_STORMS_OFFSET) } },
+          { EntranceType::GrottoGrave, RR_HC_STORMS_GROTTO,         RR_CASTLE_GROUNDS_FROM_GROTTO, ENTRANCE_GROTTO_EXIT(GROTTO_HC_STORMS_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HYRULE_FIELD,             RR_HF_TEKTITE_GROTTO,        ENTRANCE_GROTTO_LOAD(GROTTO_HF_TEKTITE_OFFSET) },
           { EntranceType::GrottoGrave, RR_HF_TEKTITE_GROTTO,        RR_HYRULE_FIELD,             ENTRANCE_GROTTO_EXIT(GROTTO_HF_TEKTITE_OFFSET) } },
         { { EntranceType::GrottoGrave, RR_HYRULE_FIELD,             RR_HF_NEAR_KAK_GROTTO,       ENTRANCE_GROTTO_LOAD(GROTTO_HF_NEAR_KAK_OFFSET) },

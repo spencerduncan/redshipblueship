@@ -1588,6 +1588,11 @@ typedef enum {
     RR_LW_UNDER_BRIDGE,
     RR_GF_TOWER,
 
+    // SoH 8fd41474c puts these after RR_CASTLE_GROUNDS_FROM_GANONS_CASTLE;
+    // appended here so no other region id moves.
+    RR_CASTLE_GROUNDS_FROM_GREAT_FAIRY,
+    RR_CASTLE_GROUNDS_FROM_GROTTO,
+
     RR_MAX,
 } RandomizerRegion;
 
