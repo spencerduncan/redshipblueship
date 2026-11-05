@@ -213,6 +213,10 @@
  *   - Skip Misc Interactions: the 25 TUs' registrations are summed per bucket in the table
  *     below, each bucket attributed to its TU(s) by name. Several TUs share a bucket
  *     (VB_START_CUTSCENE has eight of them), so one dropped TU leaves its bucket short.
+ *   - #1411 adds Accessibility/NoFinalDayQuakes and Accessibility/NoScreenDistortion to the same table. Their keys
+ *     (gEnhancements.A11y.NoFinalDayQuakes, gEnhancements.A11y.NoScreenDistortion) are MM's own, not converged: hosted
+ *     rows on SoH's Settings > General write them. Each TU is the only registrant of its VB (VB_EARTHQUAKE_ON_DAY_3,
+ *     VB_APPLY_SCREEN_DISTORTION), so the probe is the same.
  *
  * PHASE 10 (#1035, #1036, #1038) -- THE THREE REMAINING KEY-GAP TUs. Equipment/SkipMagicArrowEquip,
  * DifficultyOptions/PermanentHeartLoss and Restorations/N64WeirdFrames/N64WeirdFrames have the shape of
@@ -1392,6 +1396,7 @@ RegisterW6Phase sCamGyroPhase{ "W6-CAM-GYRO (#1235, #1236, #1240)", CamGyroProbe
 // Same shape as Phase 5 (SkipKeyProbe).
 #define GAP_VB_COUNT(vb) []() { return SettledCountForId<GameInteractor::ShouldVanillaBehavior>(vb); }
 #define GAP_HOOK_COUNT(hook, id) []() { return SettledCountForId<GameInteractor::hook>(id); }
+#define GAP_UNKEYED_COUNT(hook) []() { return SettledUnkeyedCount<GameInteractor::hook>(); }
 
 const std::vector<SkipKeyProbe>& KeyGapProbes() {
     static const std::vector<SkipKeyProbe> probes = {
@@ -1399,6 +1404,14 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
           "Disable Screen Flash for Finishing Blow",
           { { "VB_FLASH_SCREEN_FOR_ENEMY_KILL (Accessibility/NoScreenFlashForEnemyKill.cpp)",
               GAP_VB_COUNT(VB_FLASH_SCREEN_FOR_ENEMY_KILL), 1 } } },
+        { "gEnhancements.A11y.NoFinalDayQuakes",
+          "Disable Final Day Quakes",
+          { { "VB_EARTHQUAKE_ON_DAY_3 (Accessibility/NoFinalDayQuakes.cpp)", GAP_VB_COUNT(VB_EARTHQUAKE_ON_DAY_3),
+              1 } } },
+        { "gEnhancements.A11y.NoScreenDistortion",
+          "Disable Screen Distortion",
+          { { "VB_APPLY_SCREEN_DISTORTION (Accessibility/NoScreenDistortion.cpp)",
+              GAP_VB_COUNT(VB_APPLY_SCREEN_DISTORTION), 1 } } },
         { "gEnhancements.NewDrops",
           "Enable 3D Dropped Items/Projectiles",
           { { "VB_DRAW_SLIME_BODY_ITEM (Graphics/3DItemDrops.cpp)", GAP_VB_COUNT(VB_DRAW_SLIME_BODY_ITEM), 1 },
@@ -1519,6 +1532,44 @@ const std::vector<SkipKeyProbe>& KeyGapProbes() {
               1 },
             { "OnActorUpdate[EN_KAIZOKU] (Cutscenes/SkipEnemyCutscenes.cpp)",
               GAP_HOOK_COUNT(OnActorUpdate, ACTOR_EN_KAIZOKU), 1 } } },
+        // #1412: the MM halves of settings SoH already ships, each on SoH's own key (kConvergedKeys). No Random Drops
+        // is not here: its MM rule differs from SoH's, so its key is held apart and probed in W6-MODES-DIFF.
+        { "gEnhancements.UnsheatheWithoutSlashing",
+          "Unsheathe Sword Without Slashing",
+          { { "VB_USE_HELD_ITEM_AFTER_CHANGE (Player/UnsheatheWithoutSlashing.cpp)",
+              GAP_VB_COUNT(VB_USE_HELD_ITEM_AFTER_CHANGE), 1 } } },
+        { "gEnhancements.RemoveExplosiveLimit",
+          "Remove Explosive Limit",
+          { { "VB_LIMIT_EXPLOSIVES (Items/RemoveExplosiveLimit.cpp)", GAP_VB_COUNT(VB_LIMIT_EXPLOSIVES), 1 } } },
+        { "gEnhancements.NoHeartDrops",
+          "No Heart Drops",
+          { { "VB_DROP_COLLECTIBLE (DifficultyOptions/NoHeartDrops.cpp)", GAP_VB_COUNT(VB_DROP_COLLECTIBLE), 1 } } },
+        { "gCheats.DropsDontDie",
+          "Drops Don't Despawn",
+          { { "VB_UPDATE_ITEM00 (DifficultyOptions/NoDropDespawning.cpp)", GAP_VB_COUNT(VB_UPDATE_ITEM00), 1 } } },
+        { "gEnhancements.FasterRupeeAccumulator",
+          "Faster Rupee Accumulator",
+          { { "OnGameStateUpdate, unkeyed (Timesavers/FasterRupeeAccumulator.cpp)",
+              GAP_UNKEYED_COUNT(OnGameStateUpdate), 1 } } },
+        { "gEnhancements.FastBottles",
+          "Skip Bottle Pickup Messages",
+          { { "VB_PLAY_BOTTLE_CATCH_TEXT (Dialogue/SkipBottleCatch.cpp)", GAP_VB_COUNT(VB_PLAY_BOTTLE_CATCH_TEXT),
+              1 } } },
+        { "gEnhancements.FasterBottleEmpty",
+          "Empty Bottles Faster",
+          { { "VB_USE_BOTTLE_ITEM (Timesavers/FasterBottles.cpp)", GAP_VB_COUNT(VB_USE_BOTTLE_ITEM), 1 } } },
+        { "gEnhancements.DisableBombBillboarding",
+          "Disable Bomb Billboarding",
+          { { "VB_APPLY_BOMB_BILLBOARDING (Graphics/DisableBombBillboarding.cpp)",
+              GAP_VB_COUNT(VB_APPLY_BOMB_BILLBOARDING), 1 } } },
+        { "gEnhancements.DisableGrottoRotation",
+          "Disable Grotto Fixed Rotation",
+          { { "VB_ROTATE_GROTTO_ENTRANCE (Graphics/DisableGrottoRotation.cpp)", GAP_VB_COUNT(VB_ROTATE_GROTTO_ENTRANCE),
+              1 } } },
+        { "gCheats.InfiniteEponaBoost",
+          "Epona Boost",
+          { { "VB_CONSUME_EPONA_CARROT (Cheats/InfiniteEponaCarrots.cpp)", GAP_VB_COUNT(VB_CONSUME_EPONA_CARROT),
+              1 } } },
     };
     return probes;
 }
@@ -1584,6 +1635,12 @@ const std::vector<SkipKeyProbe>& W6ModesDifficultyProbes() {
           "Disable Takkuri Steal",
           { { "VB_THIEF_BIRD_STEAL (DifficultyOptions/DisableTakkuriSteal.cpp)", W6_MODES_VB_COUNT(VB_THIEF_BIRD_STEAL),
               1 } } },
+        // #1412: MM's No Random Drops, held apart from SoH's (kMustStayDistinct) and hosted as "MM No Random Drops".
+        // VB_DROP_COLLECTIBLE's other registrant, No Heart Drops (Phase 9), is off while this probe runs.
+        { "gEnhancements.DifficultyOptions.NoRandomDrops",
+          "MM No Random Drops",
+          { { "VB_DROP_COLLECTIBLE (DifficultyOptions/NoRandomDrops.cpp)", W6_MODES_VB_COUNT(VB_DROP_COLLECTIBLE),
+              1 } } },
         { "gEnhancements.DifficultyOptions.DekuGuardSearchBalls",
           "Deku Guard Search Balls",
           { { "VB_DEKU_GUARD_SHOW_SEARCH_BALLS (DifficultyOptions/DekuGuardSearchBalls.cpp)",
@@ -1643,7 +1700,7 @@ void ResetKeyGapKeys() {
 // TatlISG.cpp, WoodfallMountainAppearance.cpp, JPGrottos.cpp and BonkCollision.cpp. Attributed by registry content:
 // every bucket is keyed on a VB id, an actor id or a scene id, and the delta is measured with every other key off.
 // The four row-only Fixes keys (Targeting Camera Snap, Ammo Count Color, Ikana Great Fairy Fountain Color, Text Control
-// Characters) have no TU (z_player.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
+// Characters) have no TU (z_camera.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
 //
 // JP GROTTOS: BOTH LEGS TOGETHER. JPGrottos.cpp's four ShouldActorInit legs delete Deku Palace's vanilla grottos and
 // torches unless isSpawningJPGrottos is set, and its AfterRoomSceneCommands[SCENE_22DEKUCITY] leg is the flag's only

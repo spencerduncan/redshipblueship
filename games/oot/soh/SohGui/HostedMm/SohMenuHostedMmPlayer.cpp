@@ -8,7 +8,9 @@
  * Each row binds its RSBS_CVAR_MM_* define (src/common/cvar_shared_keys.h), and SoH's page calls each function below
  * in one line:
  *  - Quality of Life > Controls: a "Majora's Mask" block (Manual Jump, Prevent Diving Over Water, Infinite Deku
- *    Hopping). SoH has no twin of any of them.
+ *    Hopping, and since #1411 Invert Zora Swim Y Axis). SoH has no twin of any of them. Invert Zora Swim Y Axis
+ *    (2Ship dabc3aadc) has no TU: MM reads its key inline in GameInteractor_InvertControl (GameExports_SingleExe.cpp)
+ *    with default 1, which is vanilla, so the row declares DefaultValue(true) and draws ticked when unset.
  *  - Skips & Speed-ups > Animations: "MM Vine/Ladder Climb Speed" right after SoH's own. The pair is held apart
  *    (kMustStayDistinct): SoH adds an offset (+0-12), MM multiplies (1-5x). Faster Push/Pull right after SoH's Block
  *    Pushing Speed, its nearest relative (one switch over every pushed and pulled object, not a speed step). A
@@ -48,6 +50,10 @@ void AddMmControlsRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING)
         .Options(UIWidgets::CheckboxOptions().Tooltip("Lets Deku Link hop across water without limit and without "
                                                       "losing speed in the air. Majora's Mask only."));
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Invert Zora Swim Y Axis", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y)
+        .Options(UIWidgets::CheckboxOptions().DefaultValue(true).Tooltip(
+            "Inverts the Y axis while swimming as Zora with the left stick. Majora's Mask only."));
 }
 
 /** Skips & Speed-ups > Animations, right after SoH's Vine/Ladder Climb Speed. */

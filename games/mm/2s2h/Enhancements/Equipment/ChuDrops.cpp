@@ -85,7 +85,8 @@ void RegisterChuDrops() {
         // would grant Hyrule the Bombchu item and open its Bombchu shops before the seed placed them. Without
         // Bombchus the Bomb drop stays a Bomb drop.
         RSBS_SINGLE_EXE_REQUIRE(INV_CONTENT(ITEM_BOMBCHU) == ITEM_BOMBCHU);
-        if (actor->params == ITEM00_BOMBS_0 || actor->params == ITEM00_BOMBS_A || actor->params == ITEM00_BOMBS_B) {
+        u8 params = actor->params & 0xFF;
+        if (params == ITEM00_BOMBS_0 || params == ITEM00_BOMBS_A || params == ITEM00_BOMBS_B) {
             if (Ship_Random(0, 100) < 50) {
                 *should = false;
                 EnItem00* newItem =

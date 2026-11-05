@@ -258,6 +258,10 @@ static const uint8_t* MMBlobIfPresent(uint8_t* outFreshness) {
     return blob;
 }
 
+const void* Combo_TrackerMMSave(uint8_t* outFreshness) {
+    return MMBlobIfPresent(outFreshness);
+}
+
 /**
  * MM's answer for check `id` on a panel of `freshness` (#1129): the adapter's
  * in-logic set on the LIVE panel, the departure capture on the STALE one, never
@@ -489,7 +493,7 @@ void Combo_TrackerNameSeenItem(const ComboTrackerSeenItem* seen, ComboTrackerChe
     if (seen == NULL || row == NULL) {
         return;
     }
-    // SoH's DrawLocation, RCSHOW_SEEN / RCSHOW_IDENTIFIED (randomizer_check_tracker.cpp).
+    // SoH's DrawLocation, RCSHOW_SEEN_OR_HINTED / RCSHOW_IDENTIFIED (randomizer_check_tracker.cpp).
     const bool hideMerchant =
         seen->saleKind == (uint8_t)COMBO_TRACKER_SALE_MERCHANT && (!seen->merchantTextHint || seen->mystery);
     const bool hideScrub =

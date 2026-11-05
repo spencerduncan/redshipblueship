@@ -711,6 +711,35 @@ if(SINGLE_EXECUTABLE_BUILD)
         # linked whole under the Cheats block above, each CVar drawn by an MM row, and #1224's port of their IS_RANDO
         # halves (Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp's Razor restore) is retired, so
         # every rando gate registers exactly once. MMRegistrarCoverage phase 12 holds that.
+        # #1411: Disable Final Day Quakes and Disable Screen Distortion (2Ship 6a6d84ab5, 525c1bc62), drawn by MM rows
+        # under SoH's Settings > General > Accessibility (SohGui/HostedMm/SohMenuHostedMmAudio.cpp). Each registers only
+        # through a file-scope RegisterShipInitFunc on its own MM key and rides a VB the single exe dispatches through
+        # MM_GameHooks_ExecuteVBShould: VB_EARTHQUAKE_ON_DAY_3 (z_camera.c, Camera_EarthquakeDay3) and
+        # VB_APPLY_SCREEN_DISTORTION (z_quake.c, Distortion_Update). NoScreenDistortion.cpp's body reads MM_gPlayState
+        # and is guarded (RSBS_SINGLE_EXE_REQUIRE). No stub in mm_stubs.c; no twin of their definitions in games/oot.
+        # MMRegistrarCoverage's key-gap table attributes each TU by registry content.
+        "2s2h/Enhancements/Accessibility/NoFinalDayQuakes.cpp"
+        "2s2h/Enhancements/Accessibility/NoScreenDistortion.cpp"
+        # #1412 (MFE-23, MFE-24, MFE-25, MFE-26, MFX-14): the MM halves of settings SoH already ships. Ten read SoH's
+        # keys (kConvergedKeys; InfiniteEponaCarrots.cpp reads SoH's Epona Boost); NoRandomDrops.cpp keeps 2Ship's key,
+        # held apart and hosted as MM No Random Drops. Each registers through a file-scope RegisterShipInitFunc on a VB
+        # appended to GIVanillaBehavior and dispatched through MM_GameHooks_ExecuteVBShould: z_player.c
+        # (VB_LIMIT_EXPLOSIVES, VB_USE_HELD_ITEM_AFTER_CHANGE, VB_USE_BOTTLE_ITEM, VB_PLAY_BOTTLE_CATCH_TEXT),
+        # z_en_item00.c (VB_DROP_COLLECTIBLE, VB_UPDATE_ITEM00), z_en_bom.c, z_door_ana.c, z_parameter.c and
+        # z_en_horse.c; FasterRupeeAccumulator.cpp hooks OnGameStateUpdate (game.c). Play-state guards where a body reads
+        # MM_gPlayState (FasterRupeeAccumulator, SkipBottleCatch, NoRandomDrops). No stub in mm_stubs.c shadows them.
+        # OoT ships RegisterUnsheatheWithoutSlashing and RegisterFasterRupeeAccumulator, so MM's are MM_-prefixed.
+        "2s2h/Enhancements/Cheats/InfiniteEponaCarrots.cpp"
+        "2s2h/Enhancements/Player/UnsheatheWithoutSlashing.cpp"
+        "2s2h/Enhancements/Items/RemoveExplosiveLimit.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoHeartDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoRandomDrops.cpp"
+        "2s2h/Enhancements/DifficultyOptions/NoDropDespawning.cpp"
+        "2s2h/Enhancements/Timesavers/FasterRupeeAccumulator.cpp"
+        "2s2h/Enhancements/Dialogue/SkipBottleCatch.cpp"
+        "2s2h/Enhancements/Timesavers/FasterBottles.cpp"
+        "2s2h/Enhancements/Graphics/DisableBombBillboarding.cpp"
+        "2s2h/Enhancements/Graphics/DisableGrottoRotation.cpp"
     )
     list(REMOVE_ITEM ship__Enhancements ${ship__Enh_registrars})
 

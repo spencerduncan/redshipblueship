@@ -71,6 +71,23 @@
  *      is reached at Link's age and time (child day, child night, adult day, adult
  *      night), nothing Root reaches is lost, and an unknown index is Root again.
  *
+ * OoT_HintTrackerCrossing_RunPaired (row TrackerOoTPanelList, last, over the same
+ * paired file; #1366, PR #1468, the Hint Tracker at crossing hosts). An OoT check
+ * hosting an MM item holds the junk cover RG_BLUE_RUPEE, while an item hint there
+ * names the MM item. A probe item hint is put on a gossip stone's slot for each
+ * crossing host, with the hint text's gate open (OoT_Combo_HintTextCrossingAt; its
+ * paired-spoiler term, since this tier has no Player for the in-play term).
+ *   J  The Hint Tracker's Journal files every probe under the crossed item's
+ *      category group (the category its chest is dressed by), and at least one
+ *      host's group is not Junk Items. With the gate shut the same probe falls
+ *      back to the cover's Junk Items (the control). An MM mask joins Major Items
+ *      and an MM stray fairy Lesser Items. An item hint whose only location is
+ *      RC_UNKNOWN_CHECK (an OoT item placed in Termina) is not ranked as an OoT
+ *      item: it is filed in the ungraded "Items" group, not under Junk Items.
+ *   K  Reading the probe under Obscure and under Ambiguous hint clarity marks the
+ *      host Seen in the Check Tracker. With the gate shut, Obscure leaves it
+ *      unchecked, SoH's own rule (the control).
+ *
  * Every check runs and reports; the entry point returns the failure count.
  */
 
@@ -92,6 +109,7 @@
 #include "soh/Enhancements/randomizer/logic.h"
 #include "soh/Enhancements/randomizer/randomizer_check_tracker.h"
 #include "soh/Enhancements/randomizer/3drando/fill.hpp" // ReachabilitySearch (#1420's G legs)
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 // At file scope, not inside an extern "C" block (see oot_shared_kokiri_sword_test.cpp).
 #include <z64.h>
@@ -138,6 +156,19 @@ int OoT_TrackerAdapter_TestSkipSeam(int saveLoaded);
 int OoT_TrackerAdapter_TestListSeam(int settingsLoaded, const uint16_t* visible, int count);
 s32 Flags_GetRandomizerInf(RandomizerInf flag);
 void Flags_SetRandomizerInf(RandomizerInf flag);
+// randomizer_hint_tracker.cpp (#1366): the Journal group slot of an item hint, and
+// of an item category.
+int RandoTest_HintTrackerJournalSlot(int hintKey);
+int RandoTest_HintTrackerCategorySlot(int category);
+// randomizer_check_tracker.cpp (#1366): reading a hint, as the hint-revealed hook does.
+int RandoTest_CheckTrackerApplyItemHint(int hintKey);
+// ForeignItemsSingleExe.cpp: the hint text's crossed item (#575 H3b), and the
+// category a crossing chest presents with the cover in the OoT table (#862).
+const SharedItem* OoT_Combo_HintTextCrossingAt(int rc);
+int OoT_Rando_Foreign_TestChestCategory(uint16_t rc);
+// ComboLogicEngineOoT.cpp: the paired spoiler's term of the hint text's gate.
+int OoT_ComboLogic_WritingSingleBagSpoiler(void);
+void OoT_ComboLogic_TestSetWritingSingleBagSpoiler(int on);
 }
 
 namespace {
@@ -903,6 +934,206 @@ extern "C" int OoT_TrackerSohFixes_RunPaired(void) {
         printf("[TEST] PASS: tracker-soh-fixes (paired file)\n");
     } else {
         printf("[TEST] FAIL: tracker-soh-fixes (paired file): %d check(s) failed\n", sFailures);
+    }
+    return sFailures;
+}
+
+namespace {
+
+// ---- #1366: the Hint Tracker at crossing hosts (PR #1468) -------------------------------
+
+/** Puts a probe item hint naming `host` alone on hint slot `key`, as CreateHint
+ *  builds a stone's item hint. */
+void TrrPutProbeHint(RandomizerHint key, RandomizerCheck host) {
+    auto ctx = Rando::Context::GetInstance();
+    ctx->AddHint(key, Rando::Hint(key, HINT_TYPE_ITEM, "hint tracker crossing probe", {}, { host },
+                                  { ctx->GetItemLocation(host)->GetFirstArea() }, {}));
+}
+
+/** A crossing host a probe can name: an MM item placed there, the junk cover in
+ *  the OoT table, and an area for the hint to name. */
+bool TrrProbeableHost(RandomizerCheck rc) {
+    Rando::ItemLocation* il = Rando::Context::GetInstance()->GetItemLocation(rc);
+    return Combo_GetForeignPlacementForOoTCheck((uint16_t)rc) != nullptr &&
+           il->GetPlacedRandomizerGet() == RG_BLUE_RUPEE && !il->GetAreas().empty();
+}
+
+const char* TrrCrossedName(RandomizerCheck rc) {
+    const SharedItem* item = Combo_GetForeignPlacementForOoTCheck((uint16_t)rc);
+    const char* name = item != nullptr ? Combo_GetForeignItemName(*item) : nullptr;
+    return name != nullptr ? name : "?";
+}
+
+/**
+ * J: the Journal's group for a probe at every crossing host, then the control. Returns
+ * the host whose crossed item grades best (the K legs' host), or RC_UNKNOWN_CHECK
+ * when every host's crossed item grades junk.
+ */
+RandomizerCheck TrrJournalLegs(RandomizerHint key) {
+    auto ctx = Rando::Context::GetInstance();
+    const int junkSlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_JUNK);
+    const int majorSlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_MAJOR);
+    const int lesserSlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_LESSER);
+    const int maskSlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_MM_MASK);
+    const int fairySlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_MM_STRAY_FAIRY);
+    printf("[TEST] J (Journal slots): major %d, lesser %d, junk %d; MM mask %d, MM stray fairy %d\n", majorSlot,
+           lesserSlot, junkSlot, maskSlot, fairySlot);
+    TRR_CHECK(maskSlot == majorSlot, "J: an MM mask is not filed under Major Items (it fell to Junk Items)");
+    TRR_CHECK(fairySlot == lesserSlot, "J: an MM stray fairy is not filed under Lesser Items (it fell to Junk Items)");
+
+    OoT_ComboLogic_TestSetWritingSingleBagSpoiler(1);
+    RandomizerCheck best = RC_UNKNOWN_CHECK;
+    int bestSlot = junkSlot;
+    int hosts = 0;
+    int mismatches = 0;
+    int slotCounts[8] = {};
+    for (const RandomizerCheck rc : ctx->allLocations) {
+        if (!TrrProbeableHost(rc)) {
+            continue;
+        }
+        hosts++;
+        const int want = RandoTest_HintTrackerCategorySlot(OoT_Rando_Foreign_TestChestCategory((uint16_t)rc));
+        TrrPutProbeHint(key, rc);
+        const int got = RandoTest_HintTrackerJournalSlot((int)key);
+        if (got >= 0 && got < 8) {
+            slotCounts[got]++;
+        }
+        if (got != want) {
+            if (mismatches < 6) {
+                printf("[TEST]   J: an item hint at crossing host %s (MM %s) is filed in Journal slot %d, want %d\n",
+                       TrrName(rc), TrrCrossedName(rc), got, want);
+            }
+            mismatches++;
+        }
+        if (want < bestSlot) {
+            best = rc;
+            bestSlot = want;
+        }
+    }
+    printf("[TEST] J (gate open): %d crossing host(s) probed; Journal slots: major %d, boss key %d, small key %d, "
+           "token %d, hearts %d, lesser %d, junk %d, ungraded %d; %d mismatch(es)\n",
+           hosts, slotCounts[0], slotCounts[1], slotCounts[2], slotCounts[3], slotCounts[4], slotCounts[5],
+           slotCounts[6], slotCounts[7], mismatches);
+    TRR_CHECK(hosts > 0, "J: the paired file has no crossing host holding the cover, so every J and K leg is vacuous");
+    TRR_CHECK(mismatches == 0, "J: an item hint at a crossing host is not filed under the crossed MM item's category "
+                               "(see the J lines above)");
+    TRR_CHECK(best != RC_UNKNOWN_CHECK, "J: no crossing host's MM item grades above junk, so the Journal legs cannot "
+                                        "tell the crossed item from the cover");
+    if (best == RC_UNKNOWN_CHECK) {
+        return best;
+    }
+
+    // The control: with the gate shut the hint names the cover, and so must rank it.
+    OoT_ComboLogic_TestSetWritingSingleBagSpoiler(0);
+    const bool gateShut = OoT_Combo_HintTextCrossingAt((int)best) == nullptr;
+    TrrPutProbeHint(key, best);
+    const int shutSlot = RandoTest_HintTrackerJournalSlot((int)key);
+    printf("[TEST] J (control, gate shut): an item hint at %s (MM %s) is filed in Journal slot %d (the crossed item's "
+           "%d, Junk Items %d); gate shut %d\n",
+           TrrName(best), TrrCrossedName(best), shutSlot, bestSlot, junkSlot, gateShut ? 1 : 0);
+    TRR_CHECK(gateShut, "J: the hint text's gate is open with its terms shut, so the control is no control");
+    TRR_CHECK(shutSlot == junkSlot, "J: with the gate shut an item hint at a crossing host is not filed under the "
+                                    "cover's Junk Items, so the gate-open legs did not prove the crossing moved it");
+    return best;
+}
+
+/**
+ * J (Termina): an OoT item placed in Termina is at no OoT check (RC_UNKNOWN_CHECK).
+ * The hints that name one are area and altar hints, which the Journal files by type
+ * and never ranks; an item hint pointing only there is filed in the ungraded "Items"
+ * group, never under Junk Items as an OoT item it does not hold.
+ */
+void TrrUngradedLeg(RandomizerHint key) {
+    auto ctx = Rando::Context::GetInstance();
+    ctx->AddHint(
+        key, Rando::Hint(key, HINT_TYPE_ITEM, "hint tracker Termina probe", {}, { RC_UNKNOWN_CHECK }, { RA_NONE }, {}));
+    const int slot = RandoTest_HintTrackerJournalSlot((int)key);
+    const int junkSlot = RandoTest_HintTrackerCategorySlot((int)ITEM_CATEGORY_JUNK);
+    printf("[TEST] J (Termina): an item hint at no OoT check is filed in Journal slot %d (Junk Items %d)\n", slot,
+           junkSlot);
+    TRR_CHECK(slot > junkSlot, "J: an item hint at no OoT check (RC_UNKNOWN_CHECK) is ranked as an OoT item");
+}
+
+/**
+ * K: reading the probe at `host` marks it Seen under Obscure and Ambiguous clarity
+ * with the gate open, and leaves it unchecked under Obscure with the gate shut.
+ */
+void TrrSeenLegs(RandomizerHint key, RandomizerCheck host) {
+    auto ctx = Rando::Context::GetInstance();
+    Rando::ItemLocation* il = ctx->GetItemLocation(host);
+    const uint8_t clarityBefore = ctx->GetOption(RSK_HINT_CLARITY).Get();
+    const RandomizerCheckStatus statusBefore = il->GetCheckStatus();
+    // SetCheckStatus dispatches a GameInteractor hook (TrackerAdapterSingleExe.cpp's pattern).
+    if (GameInteractor::Instance == nullptr) {
+        GameInteractor::Instance = new GameInteractor();
+    }
+    struct TrrClarityLeg {
+        uint8_t clarity;
+        bool gateOpen;
+        const char* name;
+    };
+    const TrrClarityLeg legs[] = {
+        { RO_HINT_CLARITY_OBSCURE, true, "Obscure" },
+        { RO_HINT_CLARITY_AMBIGUOUS, true, "Ambiguous" },
+        { RO_HINT_CLARITY_OBSCURE, false, "Obscure, gate shut (control)" },
+    };
+    for (const TrrClarityLeg& leg : legs) {
+        ctx->GetOption(RSK_HINT_CLARITY).Set(leg.clarity);
+        OoT_ComboLogic_TestSetWritingSingleBagSpoiler(leg.gateOpen ? 1 : 0);
+        TrrPutProbeHint(key, host);
+        il->SetCheckStatus(RCSHOW_UNCHECKED);
+        const int changed = RandoTest_CheckTrackerApplyItemHint((int)key);
+        const bool seen = il->GetCheckStatus() == RCSHOW_SEEN_OR_HINTED;
+        printf("[TEST] K (%s): reading an item hint at %s (MM %s) changed %d, host Seen %d (want %d)\n", leg.name,
+               TrrName(host), TrrCrossedName(host), changed, seen ? 1 : 0, leg.gateOpen ? 1 : 0);
+        if (leg.gateOpen) {
+            TRR_CHECK(changed == 1 && seen, "K: an Obscure or Ambiguous item hint naming a crossing host's MM item "
+                                            "does not mark the host Seen (see the K lines above)");
+        } else {
+            TRR_CHECK(changed == 0 && !seen, "K: with the gate shut an Obscure item hint marks the host Seen, so the "
+                                             "gate-open legs did not prove the crossing marked it");
+        }
+    }
+    OoT_ComboLogic_TestSetWritingSingleBagSpoiler(0);
+    ctx->GetOption(RSK_HINT_CLARITY).Set(clarityBefore);
+    il->SetCheckStatus(statusBefore);
+}
+
+} // namespace
+
+/**
+ * #1366 (PR #1468) over the paired file the panel-list legs above created (row
+ * TrackerOoTPanelList, after the #1420 legs). The probe takes the Kokiri Forest
+ * gossip stone's hint slot, which is put back. Returns the failure count.
+ */
+extern "C" int OoT_HintTrackerCrossing_RunPaired(void) {
+    printf("[TEST] hint-tracker-crossing (paired file): an item hint at a crossing host ranks by the crossed MM item "
+           "in the Hint Tracker's Journal and marks the host Seen under every hint clarity (#1366)\n");
+    sFailures = 0;
+    auto ctx = Rando::Context::GetInstance();
+    if (ctx == nullptr || OTRGlobals::Instance == nullptr || OTRGlobals::Instance->gRandomizer == nullptr ||
+        OTRGlobals::Instance->gRandoContext != ctx || !Combo_ForeignPairingActive() ||
+        gSaveContext.ship.quest.id != QUEST_RANDOMIZER) {
+        printf(
+            "[TEST] FAIL: hint-tracker-crossing: no paired randomizer file to drive (the panel-list legs make it)\n");
+        return 1;
+    }
+    const int gateBefore = OoT_ComboLogic_WritingSingleBagSpoiler();
+    const RandomizerHint key = Rando::StaticData::gossipStoneCheckToHint[RC_KF_GOSSIP_STONE];
+    const Rando::Hint savedHint = *ctx->GetHint(key);
+
+    const RandomizerCheck host = TrrJournalLegs(key);
+    TrrUngradedLeg(key);
+    if (host != RC_UNKNOWN_CHECK) {
+        TrrSeenLegs(key, host);
+    }
+
+    ctx->AddHint(key, savedHint);
+    OoT_ComboLogic_TestSetWritingSingleBagSpoiler(gateBefore);
+    if (sFailures == 0) {
+        printf("[TEST] PASS: hint-tracker-crossing (paired file)\n");
+    } else {
+        printf("[TEST] FAIL: hint-tracker-crossing (paired file): %d check(s) failed\n", sFailures);
     }
     return sFailures;
 }

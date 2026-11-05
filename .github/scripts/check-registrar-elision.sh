@@ -740,6 +740,20 @@ main() {
         "RegisterSkipEnemyIntros()"
         "RegisterSkipBossWarpCutscenes()"
         "RegisterSkipEnemyCutscenes()"
+        # #1412: the MM halves of settings SoH already ships, in lib2ship_enh_registrars.a. OoT ships
+        # RegisterUnsheatheWithoutSlashing and RegisterFasterRupeeAccumulator, so MM's are MM_-prefixed in the source
+        # and probed by that name; no other name has an OoT twin (grep games/oot).
+        "MM_RegisterUnsheatheWithoutSlashing()"
+        "RegisterRemoveExplosiveLimit()"
+        "RegisterNoHeartDrops()"
+        "RegisterNoRandomDrops()"
+        "RegisterNoDropDespawning()"
+        "MM_RegisterFasterRupeeAccumulator()"
+        "RegisterSkipBottleCatchCutscene()"
+        "RegisterFasterBottles()"
+        "RegisterDisableBombBillboarding()"
+        "RegisterDisableGrottoRotation()"
+        "RegisterInfiniteEponaCarrots()"
     )
     local sym
     for sym in "${required_mm_registrars[@]}"; do

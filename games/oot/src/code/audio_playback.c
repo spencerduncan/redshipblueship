@@ -122,10 +122,12 @@ void Audio_NoteSetResamplingRate(NoteSubEu* noteSubEu, f32 resamplingRateInput) 
     } else {
         noteSubEu->bitField1.hasTwoParts = true;
         if (3.99996f < resamplingRateInput) {
+            resamplingRate = 1.99998f;
             if (AudioSettings_GetOctaveDrop() || noteSubEu->bitField1.isSyntheticWave) {
-                resamplingRate = resamplingRateInput * 0.25;
-            } else {
-                resamplingRate = 1.99998f;
+                resamplingRate = resamplingRateInput * 0.5f;
+                while (resamplingRate > 1.99998f) {
+                    resamplingRate *= 0.5f;
+                }
             }
         } else {
             resamplingRate = resamplingRateInput * 0.5f;
@@ -148,7 +150,7 @@ void Audio_NoteInit(Note* note) {
     note->noteSubEu = gDefaultNoteSub;
 }
 
-extern void aOPUSFree(struct OggOpusFile* opusFile);
+extern void aOPUSFree(struct OpusDecState* dec);
 void Audio_NoteDisable(Note* note) {
     if (note->noteSubEu.bitField0.needsInit == true) {
         note->noteSubEu.bitField0.needsInit = false;

@@ -347,6 +347,34 @@ extern "C" s32 Ship_Random(s32 min, s32 max) {
     }
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RedShipBlueShip (#1475, the hint tracker): Ship_Random's draw on a stream the
+// CALLER holds, never the global one above, so a pure reader (the hint tracker's
+// resolver, EnGs.cpp's FreeStonePickFrom) can make the free gossip stone's pick
+// without moving what the stone's flavour line draws next. next32's PCG step and
+// Ship_Random's rejection rule, line for line: `*stream` plays `state` after
+// Ship_Random_Seed(*stream) and is left where Ship_Random leaves `state`, so
+// Ship_Random_Seed(*stream) afterwards puts the global stream exactly where the
+// global draw would have. Locked against Ship_Random by mm-hint-sources.
+extern "C" s32 MM_Ship_RandomOnStream(u64* stream, s32 min, s32 max) {
+    if (min == max) {
+        return min;
+    }
+    assert(max > min);
+    uint32_t n = max - min;
+    uint32_t cutoff = UINT32_MAX - UINT32_MAX % static_cast<uint32_t>(n);
+    for (;;) {
+        *stream = *stream * multiplier + increment;
+        uint32_t xorshifted = static_cast<uint32_t>(((*stream >> 18) ^ *stream) >> 27);
+        uint32_t rot = static_cast<int>(*stream >> 59);
+        uint32_t r = std::rotr(xorshifted, rot);
+        if (r <= cutoff) {
+            return min + r % n;
+        }
+    }
+}
+#endif
+
 extern uint32_t Ship_Hash(std::string str) {
     // FNV-1a
     const size_t len = str.size();

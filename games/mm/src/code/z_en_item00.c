@@ -496,7 +496,7 @@ void MM_EnItem00_Update(Actor* thisx, PlayState* play) {
     s32 getItemId = GI_NONE;
     s32 params;
 
-    if (this->unk152 > 0) {
+    if (GameInteractor_Should(VB_UPDATE_ITEM00, this->unk152 > 0, this)) {
         this->unk152--;
     }
 
@@ -929,7 +929,8 @@ Actor* MM_Item_DropCollectible(PlayState* play, Vec3f* spawnPos, u32 params) {
     s32 paramFF = params & 0xFF;
     s32 i;
 
-    if ((GameInteractor_Should(VB_ENEMY_DROP_COLLECTIBLE, true, *spawnPos, params))) {
+    if ((GameInteractor_Should(VB_ENEMY_DROP_COLLECTIBLE, true, *spawnPos, params)) &&
+        (GameInteractor_Should(VB_DROP_COLLECTIBLE, true, *spawnPos, params))) {
         params &= 0x7FFF;
         newParamFF = params & 0xFF;
 
@@ -1353,6 +1354,9 @@ void MM_Item_DropCollectibleRandom(PlayState* play, Actor* fromActor, Vec3f* spa
     if (params < 0x101) {
         dropId = sDropTable[params + dropTableIndex];
         dropQuantity = sDropTableAmounts[params + dropTableIndex];
+        if (!(GameInteractor_Should(VB_DROP_COLLECTIBLE, true, *spawnPos, dropId))) {
+            return;
+        }
 
         if (dropId == ITEM00_MASK) {
             switch (GET_PLAYER_FORM) {
