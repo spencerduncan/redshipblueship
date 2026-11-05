@@ -1754,6 +1754,12 @@ if(BUILD_TESTING)
     # another scene -> unchanged. Display-free and ROM-free.
     redship_add_test(NAME OoTMaskShopNightDoor COMMAND redship --test oot-mask-shop-night-door)
 
+    # #1336 (SFX-1, SFX-18): func_80096A74 short-circuits via
+    # VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when
+    # camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages in
+    # ShipInit's IS_RANDO map. Display-free and ROM-free.
+    redship_add_test(NAME OoTRoomBgCamGuard COMMAND redship --test oot-room-bg-cam-guard)
+
     # #682: the curated MM enhancement toggles, in two halves that fail
     # differently on purpose.
     #

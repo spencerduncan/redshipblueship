@@ -556,6 +556,10 @@ int OoTTest_TrackerSohFixes(void);
 // scene-exit door, so the crossing works at night. ROM-free and display-free;
 // body in games/oot/soh/oot_mask_shop_night_door_test.cpp. Return 0 on pass.
 int OoT_MaskShopNightDoor_RunHeadless(void);
+// #1336: func_80096A74 guards camId == -1 through VB_SHOULD_LOAD_BG_IMAGE, and
+// Goron.cpp registers RegisterGoronMessages in ShipInit ("IS_RANDO"). ROM-free
+// and display-free; body in games/oot/soh/oot_room_bg_cam_guard_test.cpp.
+int OoT_RoomBgCamGuard_RunHeadless(void);
 // #702: the per-area exclude-location groups reach OoT's settings fingerprint at
 // their shipped sizes, whichever archives are mounted. Body in
 // games/oot/soh/oot_settings_fold_test.cpp. Runs a real generation, so it needs
@@ -1448,6 +1452,12 @@ static TestResult Test_OoTPriceRangeMinimum(void) {
 // games/oot/soh/oot_mask_shop_night_door_test.cpp.
 static TestResult Test_OoTMaskShopNightDoor(void) {
     return OoT_MaskShopNightDoor_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// #1336 (see the extern decl above). Thin wrapper over the C entry point in
+// games/oot/soh/oot_room_bg_cam_guard_test.cpp.
+static TestResult Test_OoTRoomBgCamGuard(void) {
+    return OoT_RoomBgCamGuard_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
 // The project hash in each game, declared here at file scope (not inside the
@@ -9338,6 +9348,13 @@ const TestDescriptor gTests[] = {
       "In a paired world the night Market's Happy Mask Shop door opens as the day door does, so the crossing works "
       "at night; a vanilla file keeps the sign, and the other night shops and the day door are unchanged (#948)",
       Test_OoTMaskShopNightDoor },
+    // #1336: display-free and ROM-free: func_80096A74 short-circuits via
+    // VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when
+    // camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages.
+    { "oot-room-bg-cam-guard",
+      "func_80096A74 short-circuits via VB_SHOULD_LOAD_BG_IMAGE when camDataIdx == -1, loads normally when "
+      "camDataIdx >= 0, and Goron.cpp registers RegisterGoronMessages (#1336)",
+      Test_OoTRoomBgCamGuard },
     // #682's two halves. Both display-free and ROM-free, and both order-free:
     // menu-mm-enhancement-rows builds its own SohMenu probes and touches only
     // their private registries, and mm-enhancement-toggles leaves every key at 0,
