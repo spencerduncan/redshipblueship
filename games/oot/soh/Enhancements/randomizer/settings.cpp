@@ -1521,9 +1521,10 @@ void Settings::CreateOptions() {
               "Many ledges can be overcome with particular jumps which are simple to execute without items.\n"
               "This includes jumping from heights to dive deeper without scales,\n"
               "though this trick doesn't cover Water Temple's Dragon Room.");
-    OPT_TRICK(RT_FLAMING_CHESTS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Flaming Chests",
-              "The chests encircled in flames in Gerudo Training Ground and in Spirit Temple can be opened by running "
-              "into the flames while Link is invincible after taking damage.");
+    OPT_TRICK(RT_FIRE_RINGS, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE }, "Take Damage from Fire Rings",
+              "Being hit by a circle of fire will launch Link in the opposite direction of his movement.\n"
+              "Allows getting past the flame circles in Gerudo Training Ground, Spirit Temple, and MQ Spirit Temple "
+              "by walking backwards into the fire or jumping in and getting hit on the way out.");
     // disabled for now, can't check for being able to use bunny hood & bunny hood speedup is currently completely
     // decoupled from rando OPT_TRICK(RT_BUNNY_HOOD_JUMPS, RCQUEST_BOTH, RA_NONE, {Tricks::Tag::ADVANCED}, "Bunny Hood
     // Jumps", "Allows reaching locations using Bunny Hood's extended jumps.");
@@ -1554,14 +1555,10 @@ void Settings::CreateOptions() {
     OPT_TRICK(RT_DISTANT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Distant Boulder Collision",
               "From afar boulder collision is disabled, allowing projectiles to pass through them.");
-    OPT_TRICK(RT_HOOKSHOT_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE },
-              "Hookshot/Projectile Extension",
-              "Slightly extends range. Also allows clipping projectile past collision. Used for:\n"
-              "- Crossing Gerudo Valley with Hookshot\n"
-              "- Retrieving DMT Gold Skulltula beside bomb flower\n"
-              "- Hitting switch through wall in Spirit Temple's big mirror room with Bow, Slingshot, or Hookshot\n"
-              "- Hitting switch through wall in Spirit Trial with Bow or Slingshot\n"
-              "- Hitting switch through gate in Shadow Temple MQ with Bow or Slingshot");
+    OPT_TRICK(RT_ITEM_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE, Tricks::Tag::GLITCH },
+              "Item Extension",
+              "Slightly extends range. Also allows clipping items past thin collision, such as gates, ice, and water, "
+              "since item use starts inside the wall.");
     OPT_TRICK(RT_BIG_SKULLTULA_PAUSE_LIFT, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Lift Big Skulltulas with Pausing",
               "Pausing while a big skulltula is bobbing upwards slightly lifts it,\n"

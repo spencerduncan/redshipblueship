@@ -126,7 +126,7 @@ void RegionTable_Init_FireTemple() {
         //Locations
         //it's also possible to use the like like trick to grab this as child, but there's no generic version of that yet
         LOCATION(RC_FIRE_TEMPLE_GS_SONG_OF_TIME_ROOM, logic->CanGetEnemyDrop(RE_GOLD_SKULLTULA, logic->IsAdult ? ED_CLOSE : ED_BOOMERANG) ||
-                                                      logic->CanGroundJumpJumpSlash()),
+                                                      logic->CanGroundJumpslash()),
     }, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_BIG_LAVA_ROOM, []{return true;}),
@@ -194,7 +194,7 @@ void RegionTable_Init_FireTemple() {
     areaTable[RR_FIRE_TEMPLE_BOULDER_MAZE_LOWER] = Region("Fire Temple Boulder Maze Lower", SCENE_FIRE_TEMPLE, {}, {
         //Locations
         LOCATION(RC_FIRE_TEMPLE_BOULDER_MAZE_LOWER_CHEST, logic->HasItem(RG_OPEN_CHEST)),
-        LOCATION(RC_FIRE_TEMPLE_GS_BOULDER_MAZE,          logic->HasExplosives() && (logic->IsAdult || logic->HookshotOrBoomerang() || logic->CanGroundJumpJumpSlash())),
+        LOCATION(RC_FIRE_TEMPLE_GS_BOULDER_MAZE,          logic->HasExplosives() && (logic->IsAdult || logic->HookshotOrBoomerang() || logic->CanGroundJumpslash())),
     }, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_SHORTCUT_ROOM,      []{return true;}),
@@ -356,7 +356,7 @@ void RegionTable_Init_FireTemple() {
     areaTable[RR_FIRE_TEMPLE_FIRE_MAZE_SWITCH] = Region("Fire Temple Fire Maze Switch", SCENE_FIRE_TEMPLE, {}, {}, {
         //Exits
         Entrance(RR_FIRE_TEMPLE_FIRE_MAZE_MAIN,      []{return (ctx->GetTrickOption(RT_FIRE_SKIP_FLAME_WALLS) && logic->TakeDamage()) ||
-                                                               (logic->IsAdult && logic->CanGroundJump() && ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && (logic->CanJumpslash() || logic->CanUse(RG_HOVER_BOOTS)));}),
+                                                               (ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && logic->IsAdult && logic->CanStandingShield() && logic->CanUse(RG_BOMB_BAG) && (logic->CanJumpslash() || logic->CanUse(RG_HOVER_BOOTS)));}),
         Entrance(RR_FIRE_TEMPLE_SOT_CAGE_LOWER,      []{return true;}),
         Entrance(RR_FIRE_TEMPLE_FIRE_MAZE_PAST_WALL, []{return true;}),
     });

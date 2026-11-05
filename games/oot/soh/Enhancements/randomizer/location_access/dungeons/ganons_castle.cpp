@@ -149,7 +149,7 @@ void RegionTable_Init_GanonsCastle() {
     areaTable[RR_GANONS_CASTLE_WATER_TRIAL_BLOCK_ROOM] = Region("Ganon's Castle Water Trial Block Room", SCENE_INSIDE_GANONS_CASTLE, {
         //Events
         EventAccess(LOGIC_FAIRY_ACCESS,              []{return logic->CanBreakPots();}),
-        EventAccess(LOGIC_WATER_TRIAL_RUSTED_SWITCH, []{return logic->IsAdult && (logic->HasItem(RG_POWER_BRACELET) || (logic->CanMiddairGroundJump())) && 
+        EventAccess(LOGIC_WATER_TRIAL_RUSTED_SWITCH, []{return logic->IsAdult && (logic->HasItem(RG_POWER_BRACELET) || logic->CanMiddairGroundJump()) && 
                                                                (logic->BlueFire() || ctx->GetTrickOption(RT_VISIBLE_COLLISION)) && 
                                                                logic->CanUse(RG_MEGATON_HAMMER);}),
     }, {
@@ -263,7 +263,7 @@ void RegionTable_Init_GanonsCastle() {
     }, {
         //Exits
         Entrance(RR_GANONS_CASTLE_SPIRIT_TRIAL_BEAMOS_ROOM,  []{return true;}),
-        Entrance(RR_GANONS_CASTLE_SPIRIT_TRIAL_AFTER_SWITCH, []{return logic->CanUse(RG_BOMBCHU_5) || (ctx->GetTrickOption(RT_HOOKSHOT_EXTENSION) && (logic->CanUse(RG_FAIRY_BOW) || logic->CanUse(RG_FAIRY_SLINGSHOT)));}),
+        Entrance(RR_GANONS_CASTLE_SPIRIT_TRIAL_AFTER_SWITCH, []{return logic->CanUse(RG_BOMBCHU_5) || (ctx->GetTrickOption(RT_ITEM_EXTENSION) && (logic->CanUse(RG_FAIRY_BOW) || logic->CanUse(RG_FAIRY_SLINGSHOT)));}),
     });
 
     areaTable[RR_GANONS_CASTLE_SPIRIT_TRIAL_AFTER_SWITCH] = Region("Ganon's Castle Spirit Trial After Switch", SCENE_INSIDE_GANONS_CASTLE, {}, {
