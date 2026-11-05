@@ -11,7 +11,7 @@
  * re-sync (OoT's own menu opens and closes its windows through Show()/Hide()). It gates all three ways into a
  * window's body:
  *
- *  - Draw(): the per-frame Gui::DrawFloatingWindows path, both GuiWindow::Draw and the four overrides (the three
+ *  - Draw(): the per-frame Gui::DrawFloatingWindows path, both GuiWindow::Draw and the five overrides (the four
  *    trackers and Time Splits).
  *  - UpdateElement(): Gui's unconditional per-frame Update() (the Message Viewer's "Display Message" crash path).
  *  - DrawElement(): the Port Menu's embed path. SohGui/Menu.cpp calls window->DrawElement() through a GuiWindow pointer
@@ -23,7 +23,7 @@
  * with the same contents when OoT is the running game again.
  *
  * The predicate is OoT_Gui_ShouldDraw(): Context_GetCurrentGame() == GAME_OOT. GAME_NONE is excluded, matching
- * MM_TrackersGui_ShouldDraw. The production wrap sites are the eight in SohGui::SetupGuiElements; the OoTWindowsGate
+ * MM_TrackersGui_ShouldDraw. The production wrap sites are the nine in SohGui::SetupGuiElements; the OoTWindowsGate
  * row (games/oot/soh/oot_windows_gate_test.cpp plus a source scan in src/common/test_runner.cpp) locks the gate and
  * holds every window that function constructs to a gated or an exempt list.
  */

@@ -520,7 +520,7 @@ typedef enum {
 // Check tracker check visibility categories
 typedef enum {
     RCSHOW_UNCHECKED,
-    RCSHOW_SEEN,
+    RCSHOW_SEEN_OR_HINTED,
     RCSHOW_IDENTIFIED,
     RCSHOW_SCUMMED,
     RCSHOW_COLLECTED,
