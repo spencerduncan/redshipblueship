@@ -1588,9 +1588,9 @@ void Settings::CreateOptions() {
               "Adult Kokiri Forest GS with Hover Boots",
               "Can be obtained without Hookshot by using the Hover Boots off of one of the roots.");
     OPT_TRICK(RT_LW_BRIDGE, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::EXPERT },
-              "Jump onto the Lost Woods Bridge as Adult with Nothing",
-              "With very precise movement it's possible for adult to jump onto the bridge without needing Longshot, "
-              "Hover Boots, or Bean.");
+              "Jump onto the Lost Woods Bridge as Adult with a Jumpslash",
+              "With very precise movement and a jumpslash it's possible for Adult to jump onto the bridge without "
+              "needing Longshot, Hover Boots, or Bean.");
     OPT_TRICK(RT_LW_MIDO_BACKFLIP, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::NOVICE },
               "Backflip over Mido as Adult", "With a specific position and angle, you can backflip over Mido.");
     OPT_TRICK(RT_LOST_WOOD_NAVI_DIVE, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },

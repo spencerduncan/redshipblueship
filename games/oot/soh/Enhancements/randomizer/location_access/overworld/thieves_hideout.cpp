@@ -91,7 +91,7 @@ void RegionTable_Init_ThievesHideout() {
         Entrance(RR_TH_KITCHEN_MAIN, []{return logic->CanPassEnemy(RE_GERUDO_GUARD);}),
     });
 
-    areaTable[RR_TH_KITCHEN_MAIN] = Region("Thieves Hideout Kitchen Bottom", SCENE_THIEVES_HIDEOUT, {}, {
+    areaTable[RR_TH_KITCHEN_MAIN] = Region("Thieves Hideout Kitchen Main", SCENE_THIEVES_HIDEOUT, {}, {
         //Locations
         LOCATION(RC_TH_KITCHEN_POT_1,     logic->CanBreakPots() && logic->CanPassEnemy(RE_GERUDO_GUARD)),
         LOCATION(RC_TH_KITCHEN_POT_2,     logic->CanBreakPots() && logic->CanPassEnemy(RE_GERUDO_GUARD)),

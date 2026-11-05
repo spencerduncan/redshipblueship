@@ -102,6 +102,7 @@ class Logic {
     uint8_t FireTimer();
     uint8_t WaterTimer();
     bool TakeDamage();
+    bool CanVoid();
     bool CanOpenBombGrotto();
     bool CanOpenStormsGrotto();
     bool CanClimbLadder();
