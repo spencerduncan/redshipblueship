@@ -1648,6 +1648,10 @@ void Player_AnimPlayOnceAdjusted(PlayState* play, Player* this, LinkAnimationHea
 }
 
 void Player_ApplyYawFromAnim(Player* this) {
+    // Blending big turn squishes model, skip it
+    if (ABS(this->skelAnime.jointTable[1].y) > 0x4000) {
+        FrameInterpolation_DontInterpolateChild(&this->actor);
+    }
     this->actor.shape.rot.y += this->skelAnime.jointTable[1].y;
     this->skelAnime.jointTable[1].y = 0;
 }
@@ -5875,33 +5879,33 @@ void func_8083AA10(Player* this, PlayState* play) {
     }
 }
 
+/**
+ * Sets camera mode for first person, depending on what weapon is held if any.
+ * (This causes the "flickering" with action swap with ranged items, as player
+ * cannot be first person with a non-ranged weapon.)
+ * @return new camera mode, `CAM_MODE_NORMAL` if failed
+ */
 s32 func_8083AD4C(PlayState* play, Player* this) {
     s32 camMode;
 
     if (this->unk_6AD == 2) {
         if (func_8002DD6C(this)) {
-            bool shouldUseBowCamera = LINK_IS_ADULT;
-
-            if (CVarGetInteger(CVAR_ENHANCEMENT("BowSlingshotAmmoFix"), 0) ||
-                CVarGetInteger(CVAR_ENHANCEMENT("EquipmentAlwaysVisible"), 0)) {
-                shouldUseBowCamera = this->heldItemAction != PLAYER_IA_SLINGSHOT;
-            }
-
-            camMode = shouldUseBowCamera ? CAM_MODE_BOWARROW : CAM_MODE_SLINGSHOT;
-        } else {
-            // #region SOH [Enhancement]
-            if (CVarGetInteger(CVAR_ENHANCEMENT("BoomerangFirstPerson"), 0)) {
-                camMode = CAM_MODE_FIRSTPERSON;
-                // #endregion
+            if (LINK_IS_ADULT) {
+                camMode = CAM_MODE_AIM_ADULT;
             } else {
-                camMode = CAM_MODE_BOOMERANG;
+                camMode = CAM_MODE_AIM_CHILD;
             }
+        } else {
+            camMode = CAM_MODE_AIM_BOOMERANG;
         }
     } else {
-        camMode = CAM_MODE_FIRSTPERSON;
+        camMode = CAM_MODE_FIRST_PERSON;
     }
 
-    return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, 0), camMode);
+    // Check if aiming camera mode should be overridden due to player settings
+    GameInteractor_Should(VB_CHANGE_AIMING_CAMERA, true, &this->heldItemAction, &camMode);
+
+    return OoT_Camera_ChangeMode(OoT_Play_GetCamera(play, CAM_ID_MAIN), camMode);
 }
 
 /**

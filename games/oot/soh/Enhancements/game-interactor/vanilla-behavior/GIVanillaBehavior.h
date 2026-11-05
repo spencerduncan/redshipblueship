@@ -3058,6 +3058,16 @@ typedef enum {
     // #### `args`
     // - `*EnKo`
     VB_KOKIRI_GET_FOREST_QUEST_STATE2,
+
+    // #### `result`
+    // ```c
+    // sets `camMode` to new mode if applicable
+    // ```
+    // #### `args`
+    // - `s32` player->heldItemAction
+    // - `s32*` camMode
+    VB_CHANGE_AIMING_CAMERA,
+
 } GIVanillaBehavior;
 
 #endif
