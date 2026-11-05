@@ -2841,6 +2841,49 @@ typedef enum {
     // #### `args`
     // - `*f32` (speed
     VB_DAMPE_GO_BACKWARDS,
+
+    // #### `result`
+    // ```c
+    // INV_CONTENT(ITEM_TRADE_CHILD) == ITEM_SOLD_OUT
+    // ```
+    // #### `args`
+    // - `*EnOssan` (Happy Mask Shopkeeper)
+    VB_HAPPY_MASK_SHOP_CHECK_SOLD_OUT,
+
+    // #### `result`
+    // ```c
+    // varies
+    // ```
+    // #### `args`
+    // - `s32` (drop id)
+    VB_FLEX_DROP_AMMO,
+
+    // #### `result`
+    // ```c
+    // player->unk_6A0 > 4000000.0f
+    // ```
+    // #### `args`
+    // - `*Player`
+    // - `double` (temp - promoted from `f32`)
+    VB_RUMBLE_FOR_SECRET,
+
+    // #### `result`
+    // ```c
+    // (gSaveContext.inventory.items[gSaveContext.equips.cButtonSlots[button - 1]] == ITEM_MILK_BOTTLE) &&
+    //     (item == ITEM_BOTTLE)
+    // ```
+    // #### `args`
+    // - `int32_t` (button - promoted from `u8`)
+    // - `int32_t` (item - promoted from `u8`)
+    VB_EMPTY_BOTTLE_TO_HALF_MILK,
+
+    // #### `result`
+    // ```c
+    // EnKo_GetForestQuestState2(this)
+    // ```
+    // #### `args`
+    // - `*EnKo`
+    VB_KOKIRI_GET_FOREST_QUEST_STATE2,
 } GIVanillaBehavior;
 
 #endif

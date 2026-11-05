@@ -944,6 +944,12 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip("Turns Bunny Hood Invisible while still maintaining its effects."));
     AddWidget(path, "Mask Select in Inventory", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("MaskSelect"))
+        .PreFunc([](WidgetInfo& info) {
+            info.options->disabled =
+                OTRGlobals::Instance->gRandoContext->GetOption(RSK_MASK_QUEST).IsNot(RO_MASK_QUEST_VANILLA);
+            info.options->disabledTooltip =
+                "This setting is forcefully enabled when Mask Quest is Completed from the start or Shuffled";
+        })
         .Options(CheckboxOptions().Tooltip(
             "After completing the mask trading sub-quest, press A and any direction on the mask "
             "slot to change masks."));
@@ -1082,6 +1088,10 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("FixDampeGoingBackwards"))
         .Options(CheckboxOptions().Tooltip(
             "Fixes Dampé going backwards in certain circumstances when the player is going backwards."));
+    AddWidget(path, "Fix Kokiri Forest Quest State", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("FixKokiriForestQuestState"))
+        .Options(CheckboxOptions().Tooltip("Fixes kokiri animation state to match their text state when getting "
+                                           "Zelda's Letter before Kokiri Emerald."));
     AddWidget(path, "Fix Raised Floor Switches", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FixFloorSwitches"))
         .Options(CheckboxOptions().Tooltip(
@@ -1100,6 +1110,11 @@ void SohMenu::AddMenuEnhancements() {
         .CVar(CVAR_ENHANCEMENT("BushDropFix"))
         .Options(CheckboxOptions().Tooltip(
             "Fixes the bushes to drop items correctly rather than spawning undefined items."));
+    AddWidget(path, "Fix Flex Drops", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("FixFlexDrops"))
+        .Options(CheckboxOptions().Tooltip(
+            "The flex drop gives whichever ammo you are lowest on, but doesn't check that you own the item to hold "
+            "it, so the drop is lost. This makes it skip ammo you can't carry."));
     AddWidget(path, "Fix Enemies not Spawning Near Water", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("EnemySpawnsOverWaterboxes"))
         .Options(CheckboxOptions().Tooltip(
@@ -1122,6 +1137,17 @@ void SohMenu::AddMenuEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Forces Goron City doors open if you somehow complete Fire Temple without talking to Goron Link "
             " and receiving the Goron Tunic."));
+
+    AddWidget(path, "Fix MQ Water 1F Lock", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("MQWaterLockFix"))
+        .PreFunc([](WidgetInfo& info) {
+            info.options->disabled = IS_RANDO && GameInteractor::IsSaveLoaded(true);
+            info.options->disabledTooltip = "This setting is forcefully enabled when you are playing a Randomizer.";
+        })
+        .Options(CheckboxOptions().Tooltip(
+            "The second small key lock MQ water is removed before the player can reach it by a shared flag with some "
+            "Stalfos on the way to Dark Link.\n"
+            "Enabling this will cause that lock to use a different flag, working as intended."));
     AddMmGameplayFixesRows(*this, path); // W6-FIXES (#1237)
 
     AddWidget(path, "Item-related Fixes", WIDGET_SEPARATOR_TEXT);
