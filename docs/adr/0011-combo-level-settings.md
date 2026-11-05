@@ -2303,3 +2303,46 @@ shared-resource slots: the six are first-word bits #976 reserved. Locked by
 `OoTMasksMMRule`, `OoTMasksMMItems`, `OoTMasksMMLogic` (rando tier),
 `ComboSettingsRows`, `CVarClassification`, `GoldenSeedDigestAllMasks` and
 `GoldenSeedsRoundBudget` (whose all-masks entry requires `0001DF7F`).
+
+### 2026-11-04 -- Ocarina of Time's six warp songs as Majora's Mask items, hidden (#1169 lane XW5)
+
+The items behind XW2's `songMinuetMm` .. `songPreludeMm` bits, still hidden
+(every `RSBS_XITEM2_*` bit is refused at Generate until XW12), so no world a
+player can make changes and no golden moves.
+
+- **The items.** `RI_SONG_MINUET` .. `RI_SONG_PRELUDE`, appended after masks P5's
+  ids and before the draw-only `RI_MAX_TRAP` (238-243; no saved id moves), named
+  as OoTMM names them ("Minuet of Forest (MM)" ...), `RITYPE_MAJOR` (progression
+  to the bag), no MM `ItemId`. Frozen on, MM's pool gains one copy each
+  (`Combo_MMWarpSongCopies`, warp_songs_mm.h); under the shared rule the MM copy
+  is held back, never placed: the shared family is lane XW10's. A starting copy
+  leaves the pool with the other starting items. The give sets an owned bit, a
+  second copy converts to junk. The get-item model is OoT's own song through the
+  co-mounted archives (MM's host-native note in that song's colour), else MM's
+  white note; hosted by OoT the item answers the masks' named no-model. MM's
+  logic knows only how to play each one (`CAN_PLAY_OOT_WARP_SONG`, OoTMM's
+  `can_play_tp_*` buttons); no region reads it until XW9. The six tooltips drop
+  OoTMM's Song Locations sentence (2Ship has no song-location pass).
+- **Ownership** is one byte, `mmWarpSongsOwned`, carved from the END of
+  `reserved[]` at **1003** (ADR 0009 claim 20; lane H1 carves from the front),
+  one bit per song in OoTMM's order. Not in MM's half: `RandoSaveInfo` has no tail
+  padding and two free `randoInf` bits, and a new `RO_*` grows
+  `randoSaveOptions`; either would shift MM's half and refuse every seed package
+  as LAYOUT. Session state that every commit carries (an MM in-game save, a
+  crossing, the `.redsave`), and at Generate the world's starting songs, so the
+  seed package's world record copies it (`WorldRecordBytes`, `ApplyComboWorld`).
+  NOT in the file-create KEEP set (the creation's bind re-applies the package
+  after the invalidation, and a KEPT byte would carry a failed Generate's songs
+  into the next world) and NOT folded into `comboSettingsHash` (every load and
+  arrival re-derives the fingerprint, so a pickup would read as FINGERPRINT
+  damage; the package's entry digest covers the bytes it carries). Every
+  snapshot of MM's save that a simulated playthrough restores (the bag's MM
+  engine, MM's crawl, its glitchless fill, the attempt ladder) restores the byte
+  too, and a new or failed MM file owns nothing.
+
+Capacity spent: one format byte (ADR 0009 claim 20), six `RI_*` ids; no
+`ComboSettingId`, first- or second-word bit, `RO_*`, divergence bit or
+shared-resource slot. Locked by `MMWarpSongsItems`, `MMWarpSongsOwnershipSurvives`,
+`MMWarpSongsRulesOffUnchanged` (new), `MMWarpSongsPooledOnlyWhenRuleOn` (rando
+tier, new), and the carve pins in `ComboItemRulesSecondWord`,
+`CrossItemRulesRecord` and `ComboSettingsFormat`.

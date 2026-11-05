@@ -38,9 +38,8 @@ static const MMWarpSongInfo kMMWarpSongs[RSBS_MM_WARP_SONG_COUNT] = {
 
 RSBS_CTX_STATIC_ASSERT(RSBS_MM_WARP_SONG_OWNED_MINUET == (RSBS_XITEM2_SONG_MINUET_MM >> 1) &&
                            RSBS_MM_WARP_SONG_OWNED_PRELUDE == (RSBS_XITEM2_SONG_PRELUDE_MM >> 1) &&
-                           RSBS_MM_WARP_SONG_OWNED_ALL == ((RSBS_XITEM2_WARP_SONG_EXTENSIONS &
-                                                            ~(uint32_t)RSBS_XITEM2_SONG_SOARING_OOT) >>
-                                                           1),
+                           RSBS_MM_WARP_SONG_OWNED_ALL ==
+                               ((RSBS_XITEM2_WARP_SONG_EXTENSIONS & ~(uint32_t)RSBS_XITEM2_SONG_SOARING_OOT) >> 1),
                        "each MM warp song's ownership bit is its extension rule bit shifted down by one (#1169 XW5)");
 
 static const MMWarpSongInfo* InfoForRule(uint32_t ruleBit) {

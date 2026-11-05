@@ -1180,6 +1180,13 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // rules-off world staying main's byte for byte (rules-off-goldens-unchanged).
 // FILE SCOPE (compiled as C++).
 #include "tests/test_combo_item_rules_word2.c"
+// #1169 lane XW5: Ocarina of Time's six warp songs as Majora's Mask items and
+// their ownership byte: the items, the pool and the button sets
+// (mm-warp-songs-items, needs the CVar store), ownership surviving creation, an
+// MM in-game save, a freeze and a .redsave reload (mm-warp-songs-ownership, the
+// same bring-up), and the rules-off world staying main's
+// (mm-warp-songs-rules-off-unchanged). FILE SCOPE (compiled as C++).
+#include "tests/test_warp_songs_mm.c"
 // #755 + #757: the Combo Tracker's and the Cross-Game Spoiler's crossing rows
 // read the crossing store in both directions, named, with found state per host
 // check from each game's save. combo-crossing-views is ROM-free (redship tier);
@@ -4874,6 +4881,26 @@ TestResult Test_MMPairedStartSharedSongTime(void) {
     return MM_PairedStartSharedSongTime_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1169 XW5: Ocarina of Time's warp songs as MM items over real paired creations,
+// rules off, on through the hidden-bit test seam, and shared. Body in
+// games/mm/2s2h/mm_warp_songs_mm_test.cpp; mm-paired-start's bring-up; `--test all`
+// skips it.
+extern "C" int MM_WarpSongsPooled_RunHeadless(void);
+
+TestResult Test_MMWarpSongsPooledOnlyWhenRuleOn(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+
+    static char xw5PoolArg0[] = "redship";
+    static char* xw5PoolArgv[] = { xw5PoolArg0, nullptr };
+    InitOTRForMMFirstBoot(1, xw5PoolArgv);
+
+    return MM_WarpSongsPooled_RunHeadless() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
 // Attempt-ladder convergence + determinism digest (ADR 0010 increment 1.2
 // lock (b)). Single-run assertions here; the two-process byte-diff runs via
 // the MMPairedAttemptDeterminism row (CMake/CheckPairedAttemptDeterminism
@@ -7652,6 +7679,34 @@ TestResult Test_ComboItemRulesSecondWord(void) {
     return ComboItemRulesSecondWord_Run();
 }
 
+// #1169 XW5: the MM warp songs' pool reads the CVar store (GeneratePools) and a
+// .redsave load compares the warp-song keys, the same bring-up as
+// combo-item-rules-second-word.
+TestResult Test_MMWarpSongsItems(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MMWarpSongsItems_Run();
+}
+TestResult Test_MMWarpSongsOwnership(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MMWarpSongsOwnership_Run();
+}
+
 // The combo settings pane's window (ADR 0011 increment 2). Same bring-up as
 // the Gui bridges above and for the same reason.
 TestResult Test_ComboSettingsWindow(void) {
@@ -9848,6 +9903,26 @@ const TestDescriptor gTests[] = {
       "With every second-word rule off, the fingerprint, the world hash, the single bag's seeds, the divergence diff "
       "and a seed package's record are main's (#1169)",
       Test_RulesOffGoldensUnchanged },
+    // #1169 XW5: Ocarina of Time's warp songs as MM items. The first two need the
+    // CVar store (their wrappers bring it up); the third is ROM-free and
+    // store-free; the fourth runs real paired creations (rando tier).
+    { "mm-warp-songs-items",
+      "Ocarina of Time's six warp songs are MM items appended after the masks with OoTMM's names, owned through one "
+      "byte of the combo record only under their frozen rules, pooled once each unless shared, played with OoTMM's "
+      "buttons, and no simulated pickup owns one (#1169)",
+      Test_MMWarpSongsItems },
+    { "mm-warp-songs-ownership",
+      "A starting MM warp song is owned after creation, after an MM in-game save and a .redsave load, and a pickup "
+      "after a freeze, the crossing's commit and a reload; the fingerprint never moves (#1169)",
+      Test_MMWarpSongsOwnership },
+    { "mm-warp-songs-rules-off-unchanged",
+      "While the warp-song rules are hidden no world pools or credits an MM warp song, and owning one moves no "
+      "fingerprint, bag seed or package record (#1169)",
+      Test_MMWarpSongsRulesOffUnchanged },
+    { "mm-warp-songs-pooled-only-when-rule-on",
+      "Real paired creations pool no MM warp song with the rules off, one of each with them on through the test seam, "
+      "none of a shared song, place every copy and leave none owned (#1169)",
+      Test_MMWarpSongsPooledOnlyWhenRuleOn },
     { "combo-crossing-views",
       "The Combo Tracker and the Cross-Game Spoiler list the crossing store's rows in both directions, named, with "
       "found state per host check from each game's save, across a game switch and a .redsave load (#755, #757)",
@@ -10288,6 +10363,9 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
                 strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
                 strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
+                // #1169 XW5's generation row: like every row above, a real
+                // generation leaves its world alive for the rest of the process.
+                strcmp(gTests[i].name, "mm-warp-songs-pooled-only-when-rule-on") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

@@ -175,8 +175,7 @@ extern "C" void MM_WarpSongMM_DrawGetItem(uint16_t riId) {
         const char* name = Combo_MMWarpSongOoTName(kWarpSongs[i].ruleBit);
         sResolved[i] = name != nullptr && Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, &sOoTSong[i]);
     }
-    if (sResolved[i] &&
-        MM_ForeignModel_DrawForeignItem(MM_gPlayState, sOoTSong[i].originGame, sOoTSong[i].id) == 1) {
+    if (sResolved[i] && MM_ForeignModel_DrawForeignItem(MM_gPlayState, sOoTSong[i].originGame, sOoTSong[i].id) == 1) {
         return;
     }
     DrawGenericNote();
