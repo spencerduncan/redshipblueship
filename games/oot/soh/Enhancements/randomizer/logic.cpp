@@ -461,7 +461,6 @@ bool Logic::HasItem(RandomizerGet itemName) {
         case RG_HYLIA_LAB_KEY:
         case RG_FISHING_HOLE_KEY:
         case RG_RUTOS_LETTER:
-        case RG_ROCS_FEATHER:
         case RG_BLAST_MASK: // [RSBS #979]
         case RG_STONE_MASK: // [RSBS #979]
             return CheckRandoInf(RandoGetToRandInf[itemName]);
@@ -2643,7 +2642,6 @@ void Logic::ApplyItemEffect(Item& item, bool state) {
                 case RG_BACK_TOWER_KEY:
                 case RG_HYLIA_LAB_KEY:
                 case RG_FISHING_HOLE_KEY:
-                case RG_ROCS_FEATHER:
                 case RG_BLAST_MASK: // [RSBS #979]
                 case RG_STONE_MASK: // [RSBS #979]
                     SetRandoInf(RandoGetToRandInf[randoGet], state);
