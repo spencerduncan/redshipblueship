@@ -2550,6 +2550,11 @@ int GameInteractor_InvertControl(GIInvertType type) {
                 result *= -1;
             }
             break;
+        case GI_INVERT_ZORA_SWIM_Y:
+            if (CVarGetInteger("gEnhancements.Player.InvertZoraSwimY", 1)) {
+                result *= -1;
+            }
+            break;
         default:
             break;
     }
