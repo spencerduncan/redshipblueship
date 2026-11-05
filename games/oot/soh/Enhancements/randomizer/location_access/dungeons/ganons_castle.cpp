@@ -413,7 +413,7 @@ void RegionTable_Init_GanonsCastle() {
         Entrance(RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_MIDDLE, []{return true;}),
     });
 
-    areaTable[RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_MIDDLE] = Region("Ganon's Castle MQ Forest Trial Beamos Room End", SCENE_INSIDE_GANONS_CASTLE, {
+    areaTable[RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_MIDDLE] = Region("Ganon's Castle MQ Forest Trial Beamos Room Middle", SCENE_INSIDE_GANONS_CASTLE, {
         //Events
         EventAccess(LOGIC_FOREST_TRIAL_MQ_SPAWN_BEAMOS_CHEST, []{return logic->CanHitEyeTargets();})
     }, {
@@ -425,7 +425,7 @@ void RegionTable_Init_GanonsCastle() {
         Entrance(RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_END, []{return logic->IsAdult || logic->CanGroundJump() || ctx->GetTrickOption(RT_UNINTUITIVE_JUMPS);}),
     });
 
-    areaTable[RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_END] = Region("Ganon's Castle MQ Forest Trial Beamos Room Final Door", SCENE_INSIDE_GANONS_CASTLE, {}, {}, {
+    areaTable[RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_END] = Region("Ganon's Castle MQ Forest Trial Beamos Room End", SCENE_INSIDE_GANONS_CASTLE, {}, {}, {
         //Exits
         Entrance(RR_GANONS_CASTLE_MQ_FOREST_TRIAL_BEAMOS_ROOM_MIDDLE, []{return true;}),
         Entrance(RR_GANONS_CASTLE_MQ_FOREST_TRIAL_FINAL_ROOM,         []{return logic->CanUse(RG_SONG_OF_TIME);}),

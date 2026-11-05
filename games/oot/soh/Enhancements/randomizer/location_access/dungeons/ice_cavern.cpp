@@ -61,7 +61,7 @@ void RegionTable_Init_IceCavern() {
         Entrance(RR_ICE_CAVERN_HUB, []{return true;}),
     });
 
-    areaTable[RR_ICE_CAVERN_COMPASS_ROOM] = Region("Ice Cavern Map Room", SCENE_ICE_CAVERN, {
+    areaTable[RR_ICE_CAVERN_COMPASS_ROOM] = Region("Ice Cavern Compass Room", SCENE_ICE_CAVERN, {
         //Events
         EventAccess(LOGIC_BLUE_FIRE_ACCESS, []{return true;}),
     }, {
