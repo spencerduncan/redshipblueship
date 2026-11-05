@@ -24,8 +24,6 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "static_data.h" // ComboLogicCounterMax reads the static location table
-#include "combo_single_bag.h"
-#include "foreign_items.h"
 // #1369 (GameExports_SingleExe.cpp): under the frozen Shared Swim rule the bronze
 // tier is its own pool row (RG_BRONZE_SCALE), so Progressive Scale starts at silver.
 extern "C" bool OoT_SharedSwimSplitsScale(void);
@@ -1932,33 +1930,31 @@ bool Logic::CallGossipFairy() {
     return CallGossipFairyExceptSuns() || CanUse(RG_SUNS_SONG);
 }
 
+// Our health pool in OoT health units (16 per heart). Environmental damage, such as the hot/cold and
+// underwater timers, is subtracted from health directly, so it ignores the multiplier and double defense
 uint16_t Logic::Health() {
     return GetSaveContext()->healthCapacity;
 }
 
+// Our health pool in OoT health units (16 per heart), scaled by how much damage taking a hit costs us
 uint16_t Logic::EffectiveHealth() {
-    /* Multiplier will be:
-    0 for half daamge
-    1 for normal damage
-    2 for double damage
-    3 for quad damage
-    4 for 8* damage
-    5 for 16* damage
-    10 for OHKO.
-    This is the number of shifts to apply, not a real multiplier
-    */
-    uint8_t Multiplier =
-        (ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Get() < 6) ? ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Get() : 10;
-    uint8_t shift = Multiplier - 1 - HasItem(RG_DOUBLE_DEFENSE);
-    // Uses exact health (16 per heart) where standard non-modified damage is 16 (full heart)
-    if (Multiplier == 0) {
-        return Health() << (1 + HasItem(RG_DOUBLE_DEFENSE));
+    uint8_t Multiplier = ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Get();
+    // any damage at all is lethal on OHKO
+    if (Multiplier >= RO_DAMAGE_MULTIPLIER_OHKO) {
+        return 1;
     }
-    return (Health() >> shift) +
-           // Adds an extra point of health if the damage won't divide exact
-           (Health() % (1 << shift) > 0);
+    // Double defense halves the damage we take, which is the same as doubling the health it has to chew through.
+    // The extra shift up cancels out the -1 in the multiplier's exponent.
+    uint32_t health = Health() << (1 + HasItem(RG_DOUBLE_DEFENSE));
+    // round up, as damage that leaves us on exactly 0 health still kills
+    return (health + (1 << Multiplier) - 1) >> Multiplier;
 }
 
+// [RSBS #1397] Upstream b52c31f85 deletes Hearts(). Ours keeps it because our
+// tree still calls it: death_mountain_crater.cpp predates upstream's crater
+// refactor (Hearts() >= N is exactly Health() >= N * 16), PR #1493 (packet
+// #1395) moves the two void-out exits to CanVoid(), and oot_logic_gates_test.cpp
+// leg G reads it.
 uint8_t Logic::Hearts() {
     return Health() / 16;
 }
@@ -1990,21 +1986,23 @@ uint8_t Logic::MedallionCount() {
 }
 
 uint16_t Logic::FireTimer() {
-    return CanUse(RG_GORON_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Health() / 2) : 0;
+    if (CanUse(RG_GORON_TUNIC)) {
+        return UINT16_MAX;
+    }
+    return ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS) ? Health() / 2 : 0;
 }
 
 // Tunic is not required if you are using irons to do something that a simple gold scale dive could do, and you are not
 // in water temple. (celing swimming and long walks through water do not count)
 uint16_t Logic::WaterTimer() {
-    return CanUse(RG_ZORA_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Health() / 2) : 0;
+    if (CanUse(RG_ZORA_TUNIC)) {
+        return UINT16_MAX;
+    }
+    return ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS) ? Health() / 2 : 0;
 }
 
 bool Logic::TakeDamage() {
     return CanUse(RG_BOTTLE_WITH_FAIRY) || EffectiveHealth() > 8 || CanUse(RG_NAYRUS_LOVE);
-}
-
-bool Logic::CanVoid() {
-    return CanUse(RG_BOTTLE_WITH_FAIRY) || Health() > 4 || CanUse(RG_NAYRUS_LOVE);
 }
 
 bool Logic::CanOpenBombGrotto() {
@@ -3292,14 +3290,6 @@ void Logic::Reset(bool resetSaveContext /*= true*/) {
     if (resetSaveContext) {
         GetSaveContext()->linkAge = !ctx->GetOption(RSK_SELECTED_STARTING_AGE).Get();
         GetSaveContext()->healthCapacity = BaseHearts * FULL_HEART_HEALTH;
-#ifdef RSBS_SINGLE_EXECUTABLE
-        if (Combo_ForeignPairingActive()) {
-            const uint16_t startMM = Combo_SingleBag_LastReport()->startingHealthMM;
-            if (startMM > GetSaveContext()->healthCapacity) {
-                GetSaveContext()->healthCapacity = startMM;
-            }
-        }
-#endif
         GetSaveContext()->health = GetSaveContext()->healthCapacity;
     }
 

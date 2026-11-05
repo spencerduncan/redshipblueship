@@ -27,6 +27,7 @@ class Logic {
     bool IsChild = false;
     bool IsAdult = false;
     uint8_t BigPoes = 0;
+    // hearts we start the seed with, health itself lives in the save context
     uint8_t BaseHearts = 0;
     bool AtDay = false;
     bool AtNight = false;
@@ -101,7 +102,6 @@ class Logic {
     uint16_t FireTimer();
     uint16_t WaterTimer();
     bool TakeDamage();
-    bool CanVoid();
     bool CanOpenBombGrotto();
     bool CanOpenStormsGrotto();
     bool CanClimbLadder();

@@ -497,14 +497,14 @@ void RegionTable_Init_ShadowTemple() {
     areaTable[RR_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_ROOM] = Region("Shadow Temple MQ Invisible Blades Room", SCENE_SHADOW_TEMPLE, {}, {
         //Locations
         //RT_SHADOW_MQ_INVISIBLE_BLADES does not work with NL as like-likes will not swallow you, likewise like-likes will not spit you with a fairy revive
-        //you take half a heart base from a spit out, double check EffectiveHealth when damage logic gets reworked
+        //you take half a heart from a spit out
         //Child is too small to get hit by the blades doesn't need the trick or lens for dodging them
-        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_VISIBLE_CHEST,   (logic->CanUse(RG_SONG_OF_TIME) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 1)) &&
+        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_VISIBLE_CHEST,   (logic->CanUse(RG_SONG_OF_TIME) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 8)) &&
                                                                                                           (ctx->GetTrickOption(RT_LENS_SHADOW_MQ_INVISIBLE_BLADES) || logic->IsChild || logic->CanUse(RG_NAYRUS_LOVE) || logic->CanUse(RG_LENS_OF_TRUTH)) && logic->HasItem(RG_OPEN_CHEST)),
-        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_INVISIBLE_CHEST, (logic->CanUse(RG_SONG_OF_TIME) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 1)) &&
+        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_INVISIBLE_CHEST, (logic->CanUse(RG_SONG_OF_TIME) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 8)) &&
                                                                                                           ((ctx->GetTrickOption(RT_LENS_SHADOW_MQ) && (ctx->GetTrickOption(RT_LENS_SHADOW_MQ_INVISIBLE_BLADES) || logic->IsChild || logic->CanUse(RG_NAYRUS_LOVE))) || logic->CanUse(RG_LENS_OF_TRUTH)) && logic->HasItem(RG_OPEN_CHEST)),
-        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_LEFT_HEART,      (logic->CanUse(RG_SONG_OF_TIME) && logic->IsAdult) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 1) || logic->CanUse(RG_BOOMERANG)),
-        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_RIGHT_HEART,     (logic->CanUse(RG_SONG_OF_TIME) && logic->IsAdult) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 1) || logic->CanUse(RG_BOOMERANG)),
+        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_LEFT_HEART,      (logic->CanUse(RG_SONG_OF_TIME) && logic->IsAdult) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 8) || logic->CanUse(RG_BOOMERANG)),
+        LOCATION(RC_SHADOW_TEMPLE_MQ_INVISIBLE_BLADES_RIGHT_HEART,     (logic->CanUse(RG_SONG_OF_TIME) && logic->IsAdult) || (ctx->GetTrickOption(RT_SHADOW_MQ_INVISIBLE_BLADES) && logic->EffectiveHealth() > 8) || logic->CanUse(RG_BOOMERANG)),
     }, {
         //Exits
         Entrance(RR_SHADOW_TEMPLE_MQ_UPPER_HUGE_PIT, []{return true;}),
