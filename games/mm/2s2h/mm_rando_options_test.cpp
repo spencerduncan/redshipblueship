@@ -553,6 +553,7 @@ extern "C" int MM_RandoOptions_RunHeadless(void) {
             { RO_ACCESS_MAJORA_REMAINS, "Win Condition" },
             { RO_ACCESS_DUNGEONS, "Area Access" },
             { RO_ACCESS_TRIALS, "Area Access" },
+            { RO_SHUFFLE_SONGS, "Shuffle Items" },
             { RO_SHUFFLE_COWS, "Shuffle Items" },
             { RO_SHUFFLE_OWL_STATUES, "Shuffle Items" },
             { RO_SHUFFLE_FREESTANDING_ITEMS, "Shuffle Items" },
