@@ -269,16 +269,25 @@ struct OptionUi {
 
 #define UI_COUNT(a) (uint8_t)(sizeof(a) / sizeof((a)[0]))
 
-// No shared reason strings remain. Both that existed are retired by re-measure:
-// kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
+// The hook-blocker reason strings are gone. Both that existed are retired by
+// re-measure: kReasonActorInitDrop (crate, barrel, grass — #438's remainder) and
 // kReasonOpenText (the hint family and the OnOpenText batch — #669). Each named
-// a hook type that has had an MM dispatch point since #512. Exactly ONE row is
-// still gated — RO_ACCESS_MAJORA_REMAINS, retired by operator ruling — and it
-// carries its own reason naming that ruling, not a blocker. (RO_CLOCK_SHUFFLE,
-// the other row that used to be here, went LIVE in #678 when its elision was
-// fixed.) The MMRandoOptions lock REFUSES any reason naming a dispatched hook
-// type, so a shared "waiting on dispatch" constant cannot be reintroduced
-// without the test going red.
+// a hook type that has had an MM dispatch point since #512. RO_ACCESS_MAJORA_REMAINS
+// is gated too, retired by operator ruling, and carries its own reason naming
+// that ruling, not a blocker. (RO_CLOCK_SHUFFLE, the other row that used to be
+// here, went LIVE in #678 when its elision was fixed.) The MMRandoOptions lock
+// REFUSES any reason naming a dispatched hook type, so a shared "waiting on
+// dispatch" constant cannot be reintroduced without the test going red.
+//
+// The one shared reason is a fill blocker, not a hook: 2Ship's dungeon item
+// placements (#1361; RO_PLACEMENT_SMALL_KEYS, _BOSS_KEYS, _STRAY_FAIRIES). This
+// pane only authors paired worlds, and a paired world is filled by the single
+// bag (RunPairedSingleBagFill), which has no MM restricted pass: Own Dungeon
+// would confine nothing there (MM's PreplaceConfinedItems and SelectItemForCheck
+// run only in MM's own fills), and the packet keeps every value out of the
+// paired generator and the frozen identity until that integration lands. Open
+// the three rows (GENERATION_ONLY, empty reason) in the same change.
+const char* const kReasonPairedPlacement = "Not Yet Supported in Paired Worlds";
 
 // clang-format off
 const OptionUi kOptionUi[] = {
@@ -404,19 +413,21 @@ const OptionUi kOptionUi[] = {
       "Where each dungeon's small keys may be placed: anywhere in the world, only within that dungeon, on their "
       "vanilla checks, or start with every dungeon's small keys.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
-      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+      // Gated with the next two until the paired restricted pass lands (see
+      // kReasonPairedPlacement); the lock still needs the row for the id.
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_PLACEMENT_BOSS_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Boss Keys",
       "Where each dungeon's boss key may be placed: anywhere in the world, only within that dungeon, on its vanilla "
       "check, or start with every dungeon's boss key.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
-      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_PLACEMENT_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Stray Fairies",
       "Where each dungeon's Stray Fairies may be placed: anywhere in the world (with the Clock Town Stray Fairy), only "
       "within that dungeon (Clock Town Stray Fairy vanilla), on their vanilla checks, or start with every Stray Fairy.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
-      COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
+      COMBO_MM_LIVENESS_PARTIAL, kReasonPairedPlacement },
     { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,
       "Minimum Stray Fairies",
       "Stray Fairies needed for a Great Fairy reward. Does not affect the Clock Town fairy.",

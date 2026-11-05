@@ -149,13 +149,17 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 // ONE generation attempt, from starting items through the
                 // foreign-placement pass. Factored into a callable because the
                 // paired path below runs it under the deterministic attempt
-                // ladder (ADR 0010 increment 1.2) while the solo path keeps
-                // its single-shot upstream behavior. Everything inside is a
-                // pure function of (the save state at entry, the live RNG
-                // stream, the resolved options) — the ladder restores the
-                // first two per attempt, which is what makes a retry a
-                // genuinely fresh derivation rather than a mutation of a
-                // half-failed one.
+                // ladder (ADR 0010 increment 1.2) while the solo path runs it
+                // once, as upstream does (upstream's own Glitchless retry loop,
+                // a0c9b12ce, sits inside it and is never reached by a paired
+                // world, which returns into the single bag first; that loop
+                // retries any std::exception, GenerationTimeout included, so a
+                // solo Glitchless fill may take up to ten budgets of wall
+                // clock). Everything inside is a pure function of (the save
+                // state at entry, the live RNG stream, the resolved options) —
+                // the ladder restores the first two per attempt, which is what
+                // makes a retry a genuinely fresh derivation rather than a
+                // mutation of a half-failed one.
                 // ------------------------------------------------------------
 #ifdef RSBS_SINGLE_EXECUTABLE
                 // The ladder attempt the next runGenerationOnce belongs to: the
