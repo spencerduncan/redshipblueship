@@ -745,6 +745,13 @@ extern "C" {
 // like the window lock it replaces.
 #include "tests/test_combo_mm_options_page.c"
 
+// Operator ruling 2026-11-05: the shipped Standard and Beginner presets pin no
+// option whose default the D wave moved to OoTMM's, and reset the paired profile.
+// ROM-free: it reads the checkout only. FILE SCOPE (compiled as C++); its
+// RandoPresets_ReadShipped also hands the files to the rando-preset-world rows
+// below, because RSBS_SOURCE_DIR is this translation unit's.
+#include "tests/test_rando_presets.c"
+
 // The combo settings pane's window (ADR 0011 increment 2, ADR 0004 §6 + 0008):
 // same registration/idempotence/de-collision shape as the two above, plus the
 // draw-path tripwire under all three pairing states the pane renders
@@ -8210,6 +8217,31 @@ TestResult Test_RandoGoalGateDefaults(void) {
     return OoT_GoalGateDefaults_Run() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// Operator ruling 2026-11-05: a paired world made from the shipped Standard or
+// Beginner preset takes the D wave's OoTMM defaults and is proved under All
+// Locations. The preset is read from the checkout here (RandoPresets_ReadShipped,
+// tests/test_rando_presets.c); same bring-up as the rows above; body in
+// games/oot/soh/oot_preset_world_test.cpp.
+extern "C" int OoT_PresetWorld_Run(const char* presetName, const char* presetJson, const char* seed);
+static TestResult RandoPresetWorld(const char* name, const char* seed) {
+    std::string json;
+    std::string why;
+    if (!RandoPresets_ReadShipped(name, &json, &why)) {
+        printf("[TEST] FAIL: rando-preset-world (%s): %s\n", name, why.c_str());
+        return TEST_FAIL;
+    }
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_PresetWorld_Run(name, json.c_str(), seed) == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_RandoPresetWorldStandard(void) {
+    return RandoPresetWorld("Standard", "RSBSPRESETS1");
+}
+TestResult Test_RandoPresetWorldBeginner(void) {
+    return RandoPresetWorld("Beginner", "RSBSPRESETB1");
+}
+
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason; the row
 // body lives in tests/test_combo_logic_measure.c beside the composition helpers
@@ -9403,6 +9435,10 @@ const TestDescriptor gTests[] = {
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
     { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
       Test_PresetsSkipNonJson },
+    { "rando-presets-follow-defaults",
+      "The shipped Standard and Beginner presets pin no option whose default the D wave moved to OoTMM's, and "
+      "reset the paired profile (operator ruling 2026-11-05)",
+      Test_RandoPresetsFollowDefaults },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
@@ -9728,6 +9764,16 @@ const TestDescriptor gTests[] = {
       "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
       "paired creation, Triforce Hunt still decides the key, and a stored world keeps its own gates (#1428)",
       Test_RandoGoalGateDefaults },
+    // Operator ruling 2026-11-05. Each needs a paired creation; skipped by `--test
+    // all` below like its siblings.
+    { "rando-preset-world-standard",
+      "A paired world from the shipped Standard preset takes the D wave's OoTMM defaults and is proved under All "
+      "Locations (operator ruling 2026-11-05)",
+      Test_RandoPresetWorldStandard },
+    { "rando-preset-world-beginner",
+      "A paired world from the shipped Beginner preset takes the D wave's OoTMM defaults and is proved under All "
+      "Locations (operator ruling 2026-11-05)",
+      Test_RandoPresetWorldBeginner },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -10327,6 +10373,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
                 strcmp(gTests[i].name, "oot-masks-mm-logic") == 0 ||
                 strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
+                strncmp(gTests[i].name, "rando-preset-world-", 19) == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||

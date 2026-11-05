@@ -27,10 +27,8 @@
                 "IncludeTycoonWallet": 1,
                 "KakarikoGate": 1,
                 "Keysanity": 5,
-                "LacsRewardCount": 7,
                 "MalonHint": 1,
                 "MerchantText": 1,
-                "RainbowBridge": 7,
                 "SariaHint": 1,
                 "ScrubsFixedPrice": 2,
                 "ScrubsPrices": 3,
@@ -38,14 +36,10 @@
                 "Shopsanity": 1,
                 "ShopsanityCount": 4,
                 "ShopsanityPrices": 2,
-                "ShuffleGanonBossKey": 9,
-                "ShuffleGerudoToken": 1,
                 "ShuffleKeyRings": 2,
                 "ShuffleKeyRingsRandomCount": 8,
                 "ShuffleKokiriSword": 1,
-                "ShuffleMasterSword": 0,
                 "ShuffleMerchants": 1,
-                "ShuffleOcarinas": 1,
                 "ShuffleScrubs": 2,
                 "ShuffleSongs": 2,
                 "ShuffleTokens": 3,
@@ -56,7 +50,8 @@
                 "StartingOcarina": 1,
                 "SunlightArrows": 1,
                 "ZorasFountain": 1
-            }
+            },
+            "pairedProfile": null
         }
     },
     "presetName": "Rando Seed Settings - Standard",
