@@ -790,7 +790,13 @@ bool GoldenMMProfileTook() {
             const int id = std::atoi(key.c_str());
             auto it = Rando::StaticData::Checks.find((RandoCheckId)id);
             const bool known = it != Rando::StaticData::Checks.end() && id > (int)RC_UNKNOWN && id < (int)RC_MAX;
-            const bool took = known && RANDO_SAVE_CHECKS[id].skipped && RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK;
+            const bool vanillaIsJunk =
+                known && Rando::StaticData::Items[it->second.randoItemId].randoItemType == RITYPE_JUNK;
+            const bool took = known && (vanillaIsJunk
+                                            ? (!RANDO_SAVE_CHECKS[id].shuffled && !RANDO_SAVE_CHECKS[id].skipped &&
+                                               RANDO_SAVE_CHECKS[id].randoItemId == it->second.randoItemId)
+                                            : (RANDO_SAVE_CHECKS[id].skipped &&
+                                               RANDO_SAVE_CHECKS[id].randoItemId == RI_JUNK));
             fprintf(stderr, "[golden-profile] MM exclude %d = %s %s\n", id, known ? it->second.name : "(no such check)",
                     took ? "took" : "DID NOT TAKE");
             ok = ok && took;
