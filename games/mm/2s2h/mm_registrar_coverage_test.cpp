@@ -80,10 +80,11 @@
  * probe. What this row probes instead is that MM_Rando_Init REACHED them, and
  * in the right order, through the state MM_ExtensionRescan_AfterArchiveMount
  * records (GameExports_SingleExe.cpp). The order matters on its own:
- * PlayerCustomFlipbooks_PatchOnce latches on its first call, so running it
- * before the rescan would permanently pin MM's faces to vanilla against a cache
- * that had never seen mm.o2r. That the rescan actually ADDS MM-scoped entries
- * and removes none of OoT's is the separate MMExtensionRescan row's job
+ * PlayerCustomFlipbooks_Patch latches the Alt Assets state it resolved for, so
+ * running it before the rescan would pin MM's faces to vanilla, until the next
+ * Alt Assets toggle, against a cache that had never seen mm.o2r. That the
+ * rescan actually ADDS MM-scoped entries and removes none of OoT's is the
+ * separate MMExtensionRescan row's job
  * (src/common/tests/test_mm_extension_rescan.c), which needs a staged archive
  * and so SKIPs where this row cannot.
  *
@@ -1549,7 +1550,9 @@ const std::vector<SkipKeyProbe>& W6ModesDifficultyProbes() {
         { "gModes.TimeMovesWhenYouMove",
           "Time Moves when you Move",
           { { "OnActorUpdate[ACTOR_PLAYER] (Modes/TimeMovesWhenYouMove.cpp)",
-              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 } } },
+              W6_MODES_ID_COUNT(OnActorUpdate, ACTOR_PLAYER), 1 },
+            { "OnKaleidoUpdate, unkeyed (Modes/TimeMovesWhenYouMove.cpp)",
+              []() { return SettledUnkeyedCount<GameInteractor::OnKaleidoUpdate>(); }, 1 } } },
         { "gEnhancements.MirroredWorldMode",
           "Mirrored World (SoH's row, translated)",
           { { "OnSceneInit, unkeyed (Modes/MirroredWorld.cpp)",
@@ -2246,10 +2249,10 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
               "real MM boot's asset work (ADR 0010 increment 2, P13)");
 
     // #618's trailing InitOTR pair belongs to the ASSET phase (the flipbook
-    // patch self-latches, so it must not run before the ExtensionCache has seen
-    // MM's archives). Driven by name here, which is what keeps this row's #618
-    // coverage ROM-free: it is the SAME function the asset phase calls, at the
-    // same point in the order.
+    // patch latches the Alt Assets state it resolved for, so it must not run
+    // before the ExtensionCache has seen MM's archives). Driven by name here,
+    // which is what keeps this row's #618 coverage ROM-free: it is the SAME
+    // function the asset phase calls, at the same point in the order.
     MM_ExtensionRescan_AfterArchiveMount();
 
     // ---- CustomItem::RegisterHooks (#516 critical) -------------------------
@@ -2308,13 +2311,14 @@ extern "C" int MM_RegistrarCoverage_RunHeadless(void) {
     RC_ASSERT(MM_ExtensionRescan_Scanned() == 1, 8,
               "the MM-scoped ExtensionCache scan did not complete during MM_Rando_Init — MM custom assets are "
               "invisible to ResourceMgr_FileExists (#618)");
-    // Order. PlayerCustomFlipbooks_PatchOnce latches sFacePatchState on its
-    // FIRST call and never re-evaluates, so being called before the rescan would
-    // permanently decide "no custom faces" from a cache that had not yet seen
-    // MM's archives. This flag is only set when the patch ran with the scan
+    // Order. PlayerCustomFlipbooks_Patch latches the Alt Assets state it
+    // resolved for (sFacePatchAltState) and re-evaluates only when that state
+    // changes, so being called before the rescan would decide "no custom faces"
+    // from a cache that had not yet seen MM's archives, until the next Alt
+    // Assets toggle. This flag is only set when the patch ran with the scan
     // already complete, which is the ROM-free evidence of that ordering.
     RC_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 1, 9,
-              "PlayerCustomFlipbooks_Patch did not run after the ExtensionCache rescan — its one-shot latch "
+              "PlayerCustomFlipbooks_Patch did not run after the ExtensionCache rescan — its Alt Assets latch "
               "would fix MM's faces to vanilla against an unscanned cache (#618)");
 
     // ---- #1005-#1009: the five Cheats TUs -----------------------------------
