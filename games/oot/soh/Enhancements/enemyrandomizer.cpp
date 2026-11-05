@@ -13,13 +13,29 @@ extern "C" {
 #include <z64.h>
 #include "src/overlays/actors/ovl_En_Rr/z_en_rr.h"
 #include "src/overlays/actors/ovl_En_GeldB/z_en_geldb.h"
+#include "src/overlays/actors/ovl_En_Peehat/z_en_peehat.h"
+#include "src/overlays/actors/ovl_En_Skb/z_en_skb.h"
+#include "src/overlays/actors/ovl_En_Tp/z_en_tp.h"
+#include "src/overlays/actors/ovl_En_Crow/z_en_crow.h"
+#include "src/overlays/actors/ovl_En_Firefly/z_en_firefly.h"
 
 extern PlayState* OoT_gPlayState;
+extern void OoT_EnCrow_TurnAway(EnCrow*, PlayState*);
+extern void OoT_EnFirefly_SetupFlyAway(EnFirefly*);
+extern void OoT_EnFirefly_Fall(EnFirefly*, PlayState*);
 }
 
 #define CVAR_ENEMY_RANDOMIZER_NAME CVAR_ENHANCEMENT("RandomizedEnemies")
 #define CVAR_ENEMY_RANDOMIZER_DEFAULT ENEMY_RANDOMIZER_OFF
 #define CVAR_ENEMY_RANDOMIZER_VALUE CVarGetInteger(CVAR_ENEMY_RANDOMIZER_NAME, CVAR_ENEMY_RANDOMIZER_DEFAULT)
+
+#define CVAR_RANDO_ENEMY_SIZE_NAME CVAR_ENHANCEMENT("RandomizedEnemySizes")
+#define CVAR_RANDO_ENEMY_SIZE_DEFAULT 0
+#define CVAR_RANDO_ENEMY_SIZE_VALUE CVarGetInteger(CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_RANDO_ENEMY_SIZE_DEFAULT)
+
+#define CVAR_ENEMY_SCALE_HEALTH_NAME CVAR_ENHANCEMENT("EnemySizeScalesHealth")
+#define CVAR_ENEMY_SCALE_HEALTH_DEFAULT 0
+#define CVAR_ENEMY_SCALE_HEALTH_VALUE CVarGetInteger(CVAR_ENEMY_SCALE_HEALTH_NAME, CVAR_ENEMY_SCALE_HEALTH_DEFAULT)
 
 typedef struct EnemyEntry {
     int16_t id;
@@ -289,9 +305,11 @@ extern "C" uint8_t GetRandomizedEnemy(PlayState* play, int16_t* actorId, f32* po
     // This should probably be handled on OTR generation in the future when object dependency is fully removed.
     // Remove bats and Skulltulas from graveyard.
     // Remove Octorok in Lost Woods.
+    // Remove signs in Gerudo Fortress as child
     if (((*actorId == ACTOR_EN_FIREFLY || (*actorId == ACTOR_EN_SW && *params == 0)) &&
          play->sceneNum == SCENE_GRAVEYARD) ||
-        (*actorId == ACTOR_EN_OKUTA && play->sceneNum == SCENE_LOST_WOODS)) {
+        (*actorId == ACTOR_EN_OKUTA && play->sceneNum == SCENE_LOST_WOODS) ||
+        (*actorId == ACTOR_EN_KANBAN && play->sceneNum == SCENE_GERUDOS_FORTRESS && LINK_IS_CHILD)) {
         return 0;
     }
 
@@ -330,6 +348,11 @@ extern "C" uint8_t GetRandomizedEnemy(PlayState* play, int16_t* actorId, f32* po
             *posY = *posY - 200;
         }
 
+        // One enemy in GTG hammer room doesn't raycast properly, move it slightly
+        if (*posY == 117 && play->sceneNum == SCENE_GERUDO_TRAINING_GROUND && play->roomCtx.curRoom.num == 5) {
+            *posY = 118;
+        }
+
         // Do a raycast from the original position of the actor to find the ground below it, then try to place
         // the new actor on the ground. This way enemies don't spawn very high in the sky, and gives us control
         // over height offsets per enemy from a proven grounded position.
@@ -340,16 +363,24 @@ extern "C" uint8_t GetRandomizedEnemy(PlayState* play, int16_t* actorId, f32* po
         pos.x = *posX;
         pos.y = *posY + 50;
         pos.z = *posZ;
-        raycastResult = OoT_BgCheck_AnyRaycastFloor1(&play->colCtx, &poly, &pos);
+        if (isMQ && play->sceneNum == SCENE_SPIRIT_TEMPLE && play->roomCtx.curRoom.num == 27) {
+            // Similar to the twisted hallway, the turntable here is an actor used as flooring, so the enemy needs
+            // spawning on it
+            *posY = 50;
+        } else {
+            raycastResult = OoT_BgCheck_AnyRaycastFloor1(&play->colCtx, &poly, &pos);
 
-        // If ground is found below actor, move actor to that height.
-        if (raycastResult > BGCHECK_Y_MIN) {
-            *posY = raycastResult;
+            // If ground is found below actor, move actor to that height.
+            if (raycastResult > BGCHECK_Y_MIN) {
+                *posY = raycastResult;
+            }
         }
 
         // Get randomized enemy ID and parameter.
+        // Dark Link's rotation is inconsistent (yawTowardsPlayer), breaking seeded randomizer.
+        int16_t seededRotY = (*actorId == ACTOR_EN_TORCH2) ? 6969 : *rotY;
         uint32_t seed =
-            play->sceneNum + *actorId + (int)*posX + (int)*posY + (int)*posZ + *rotX + *rotY + *rotZ + *params;
+            play->sceneNum + *actorId + (int)*posX + (int)*posY + (int)*posZ + *rotX + seededRotY + *rotZ + *params;
         EnemyEntry randomEnemy = GetRandomizedEnemyEntry(seed, play);
 
         *actorId = randomEnemy.id;
@@ -380,6 +411,10 @@ extern "C" uint8_t GetRandomizedEnemy(PlayState* play, int16_t* actorId, f32* po
             case ACTOR_EN_CLEAR_TAG:
             case ACTOR_EN_CROW:
                 *posY = *posY + 75;
+                break;
+            // Remove switch flag setting from Wolfos
+            case ACTOR_EN_WF:
+                *params |= 0xFF00;
                 break;
             default:
                 break;
@@ -511,13 +546,20 @@ bool IsEnemyAllowedToSpawn(int16_t sceneNum, int8_t roomNum, EnemyEntry enemy) {
     // Flare dancer, Arwing & Dark Link - Both go out of bounds way too easily, softlocking the player.
     // Wallmaster - Not easily visible, often makes players think they're softlocked and that there's no enemies left.
     // Club Moblin - Many issues with them falling or placing out of bounds. Maybe fixable in the future?
+    // Withered Deku Baba - Stationary, can get stuck in air/on chests, softlock risk.
     bool enemiesToExcludeClearRooms =
         enemy.id == ACTOR_EN_FZ || enemy.id == ACTOR_EN_VM || enemy.id == ACTOR_EN_SB || enemy.id == ACTOR_EN_NY ||
         enemy.id == ACTOR_EN_CLEAR_TAG || enemy.id == ACTOR_EN_WALLMAS || enemy.id == ACTOR_EN_TORCH2 ||
-        (enemy.id == ACTOR_EN_MB && enemy.params == 0) || enemy.id == ACTOR_EN_FD || enemy.id == ACTOR_EN_ANUBICE_TAG;
+        (enemy.id == ACTOR_EN_MB && enemy.params == 0) || enemy.id == ACTOR_EN_FD || enemy.id == ACTOR_EN_ANUBICE_TAG ||
+        enemy.id == ACTOR_EN_KAREBABA;
 
     // Bari - Spawns 3 more enemies, potentially extremely difficult in timed rooms.
     bool enemiesToExcludeTimedRooms = enemiesToExcludeClearRooms || enemy.id == ACTOR_EN_VALI;
+
+    // Don't allow Lizalfos in the silver rupee bridge room of spirit, as they spawn in the room above
+    if (sceneNum == SCENE_SPIRIT_TEMPLE && roomNum == 2 && enemy.id == ACTOR_EN_ZF && enemy.params == -1) {
+        return false;
+    }
 
     switch (sceneNum) {
         // Deku Tree
@@ -623,6 +665,44 @@ void FixClubMoblinScale(void* ptr) {
     }
 }
 
+// EnTp, EnSkb and EnPeehat update collider position only in their draw functions,
+// causes 0,0,0 issues, so set their collider positions once on actor init
+void EnemyRando_SetColliderPosTp(void* ptr) {
+    EnTp* enTp = (EnTp*)ptr;
+
+    enTp->collider.elements[0].dim.worldSphere.center.x = (s16)enTp->actor.world.pos.x;
+    enTp->collider.elements[0].dim.worldSphere.center.y = (s16)enTp->actor.world.pos.y;
+    enTp->collider.elements[0].dim.worldSphere.center.z = (s16)enTp->actor.world.pos.z;
+    enTp->collider.elements[0].dim.worldSphere.radius =
+        (s16)(enTp->collider.elements[0].dim.modelSphere.radius * enTp->collider.elements[0].dim.scale);
+}
+
+void EnemyRando_SetColliderPosSkb(void* ptr) {
+    EnSkb* enSkb = (EnSkb*)ptr;
+    u8 i;
+
+    for (i = 0; i < 2; i++) {
+        enSkb->collider.elements[i].dim.worldSphere.center.x = (s16)enSkb->actor.world.pos.x;
+        enSkb->collider.elements[i].dim.worldSphere.center.y = (s16)enSkb->actor.world.pos.y;
+        enSkb->collider.elements[i].dim.worldSphere.center.z = (s16)enSkb->actor.world.pos.z;
+        enSkb->collider.elements[i].dim.worldSphere.radius =
+            (s16)(enSkb->collider.elements[i].dim.modelSphere.radius * enSkb->collider.elements[i].dim.scale);
+    }
+}
+
+void EnemyRando_SetColliderPosPeehat(void* ptr) {
+    EnPeehat* enPeehat = (EnPeehat*)ptr;
+    u8 i;
+
+    for (i = 0; i < 4; i++) {
+        enPeehat->colQuad.dim.quad[i].x = enPeehat->actor.world.pos.x + (f32)i;
+        enPeehat->colQuad.dim.quad[i].y = enPeehat->actor.world.pos.y + (f32)i;
+        enPeehat->colQuad.dim.quad[i].z = enPeehat->actor.world.pos.z + (f32)i;
+    }
+    OoT_Collider_SetQuadVertices(&enPeehat->colQuad, &enPeehat->colQuad.dim.quad[0], &enPeehat->colQuad.dim.quad[1],
+                                 &enPeehat->colQuad.dim.quad[2], &enPeehat->colQuad.dim.quad[3]);
+}
+
 static void OnGerudoFighterDefeat(void* refActor) {
     EnGeldB* enGeldB = reinterpret_cast<EnGeldB*>(refActor);
 
@@ -633,12 +713,19 @@ static void OnGerudoFighterDefeat(void* refActor) {
 
 void RegisterEnemyRandomizer() {
     COND_ID_HOOK(OnActorInit, ACTOR_EN_MB, CVAR_ENEMY_RANDOMIZER_VALUE, FixClubMoblinScale);
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_TP, CVAR_ENEMY_RANDOMIZER_VALUE != CVAR_ENEMY_RANDOMIZER_DEFAULT,
+                 EnemyRando_SetColliderPosTp);
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_SKB, CVAR_ENEMY_RANDOMIZER_VALUE != CVAR_ENEMY_RANDOMIZER_DEFAULT,
+                 EnemyRando_SetColliderPosSkb);
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_PEEHAT, CVAR_ENEMY_RANDOMIZER_VALUE != CVAR_ENEMY_RANDOMIZER_DEFAULT,
+                 EnemyRando_SetColliderPosPeehat);
 
     // prevent dark link from triggering a voidout
     COND_VB_SHOULD(VB_TRIGGER_VOIDOUT, CVAR_ENEMY_RANDOMIZER_VALUE != CVAR_ENEMY_RANDOMIZER_DEFAULT, {
         Actor* actor = va_arg(args, Actor*);
 
-        if (actor->category != ACTORCAT_PLAYER) {
+        if (*should == true && actor->category != ACTORCAT_PLAYER) {
+            // Improvement opportunity: Play sfx
             *should = false;
             OoT_Actor_Kill(actor);
         }
@@ -728,3 +815,67 @@ void RegisterEnemyRandomizer() {
 }
 
 static RegisterShipInitFunc initFunc(RegisterEnemyRandomizer, { CVAR_ENEMY_RANDOMIZER_NAME });
+
+// If scale > normal, start downscaling already during death fall
+void EnemyRandoSize_KeeseFallScale(void* ptr) {
+    EnFirefly* enFirefly = (EnFirefly*)ptr;
+    if (enFirefly->actionFunc == OoT_EnFirefly_Fall && enFirefly->actor.scale.x > 0.005f) {
+        OoT_Math_StepToF(&enFirefly->actor.scale.x, 0.005f, 0.00034f);
+        enFirefly->actor.scale.y = enFirefly->actor.scale.z = enFirefly->actor.scale.x;
+    }
+}
+
+static void RegisterEnemyRandoSizeFixes() {
+    COND_ID_HOOK(OnActorUpdate, ACTOR_EN_FIREFLY, CVAR_RANDO_ENEMY_SIZE_VALUE, EnemyRandoSize_KeeseFallScale);
+
+    // Guays try to die on any damage, but EnCrow_Update doesn't let them reach ground if health != 0
+    // Makeshift "damaged but not dead" action setup
+    COND_VB_SHOULD(VB_GUAY_SETUP_DAMAGED, CVAR_RANDO_ENEMY_SIZE_VALUE && CVAR_ENEMY_SCALE_HEALTH_VALUE, {
+        EnCrow* enCrow = va_arg(args, EnCrow*);
+
+        if (enCrow->actor.colChkInfo.damage < enCrow->actor.colChkInfo.health) {
+            *should = false;
+            OoT_Actor_ApplyDamage(&enCrow->actor);
+            enCrow->actor.colorFilterTimer = 40;
+            OoT_Actor_SetColorFilter(&enCrow->actor, 0x4000, 255, 0, 40);
+            Audio_PlayActorSound2(&enCrow->actor, NA_SE_EN_KAICHO_DEAD);
+            enCrow->timer = 50;
+            enCrow->actor.speedXZ = 3.5f;
+            enCrow->aimRotX = -0x1000;
+            enCrow->aimRotY = enCrow->actor.yawTowardsPlayer + 0x8000;
+            enCrow->skelAnime.playSpeed = 2.0f;
+            enCrow->actionFunc = OoT_EnCrow_TurnAway;
+        }
+    });
+
+    // Clamp distance from ground due to hard to hit with Kokiri
+    COND_VB_SHOULD(VB_GUAY_ALIVE_MOVE_HEIGHT_OFFSET, CVAR_RANDO_ENEMY_SIZE_VALUE && CVAR_ENEMY_SCALE_HEALTH_VALUE, {
+        f32* scale = va_arg(args, f32*);
+
+        if (*should && *scale > 2.0f) {
+            *scale = 2.0f;
+        }
+    });
+
+    // Keese try to fall/die on any damage which behaves oddly if health is above normal 1
+    // Makeshift "damaged but not dead" action setup
+    COND_VB_SHOULD(VB_KEESE_SETUP_FALL, CVAR_RANDO_ENEMY_SIZE_VALUE && CVAR_ENEMY_SCALE_HEALTH_VALUE, {
+        EnFirefly* enFirefly = va_arg(args, EnFirefly*);
+
+        if (*should && enFirefly->actor.colChkInfo.health != 0) {
+            *should = false;
+            Audio_PlayActorSound2(&enFirefly->actor, NA_SE_EN_FFLY_DEAD);
+            OoT_Actor_SetColorFilter(&enFirefly->actor, 0x4000, 0xFF, 0, 40);
+            OoT_EnFirefly_SetupFlyAway(enFirefly);
+        }
+    });
+
+    // Ensure Keese just die on Ice Arrows
+    COND_VB_SHOULD(VB_KEESE_SETUP_FROZENFALL, CVAR_RANDO_ENEMY_SIZE_VALUE && CVAR_ENEMY_SCALE_HEALTH_VALUE, {
+        EnFirefly* enFirefly = va_arg(args, EnFirefly*);
+        enFirefly->actor.colChkInfo.health = 0;
+    });
+}
+
+static RegisterShipInitFunc initSizeFixesFunc(RegisterEnemyRandoSizeFixes,
+                                              { CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_ENEMY_SCALE_HEALTH_NAME });
