@@ -1675,6 +1675,13 @@ if(BUILD_TESTING)
     # and names each bad file in one log line. Display-free and ROM-free.
     # games/oot/soh/soh_presets_folder_test.cpp.
     redship_add_test(NAME PresetsSkipNonJson COMMAND redship --test presets-skip-non-json)
+    # Operator ruling 2026-11-05: the shipped "Rando Seed Settings - Standard" and
+    # "- Beginner" presets pin no gRandoSettings key whose default the D wave moved
+    # to OoTMM's (#1425, #1428, #1434, #1367), carry a null pairedProfile (#1368's
+    # reset, so the MM and Cross-Game defaults apply too), and Beginner keeps its
+    # own excluded checks and starting Kokiri Sword. Reads the checkout only:
+    # ROM-free, display-free. src/common/tests/test_rando_presets.c.
+    redship_add_test(NAME RandoPresetsFollowDefaults COMMAND redship --test rando-presets-follow-defaults)
     # #1298 / #1302: an MM Pause Menu Save commits both halves into the .redsave,
     # persists and clears pauseSaveEntrance + shipSaveInfo.respawn, and a reload
     # reconciles OoT's check statuses and MM's Combo Tracker panel. Display-free
@@ -3074,6 +3081,22 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # chest in SoH's tracker, Triforce Hunt still deciding the key, and a stored
     # world's OLD gates restoring unchanged. `rando`: a paired creation.
     redship_add_test(NAME RandoGoalGateDefaults COMMAND redship --test rando-goal-gate-defaults
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # Operator ruling 2026-11-05: one paired world from each shipped preset the
+    # ruling covers. The preset is applied as Settings > Presets applies it (over a
+    # session holding the old pins), every value it holds is one its option offers,
+    # the D wave's OoTMM defaults are read, and the world is created on the file
+    # select's path with nothing left unproved under All Locations, holding the
+    # defaults, the preset's own values and Beginner's excluded checks; after it the
+    # same preset is refused. `rando`: a paired creation.
+    # games/oot/soh/oot_preset_world_test.cpp.
+    redship_add_test(NAME RandoPresetWorldStandard COMMAND redship --test rando-preset-world-standard
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME RandoPresetWorldBeginner COMMAND redship --test rando-preset-world-beginner
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

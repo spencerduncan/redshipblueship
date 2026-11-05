@@ -194,7 +194,10 @@ triforce count ([#740](https://github.com/spencerduncan/redshipblueship/pull/740
   so the door to Ganondorf opens, and the Tower Boss Key Chest holds a random item that
   the Check Tracker lists. The Light Arrow Cutscene still needs the Shadow and Spirit
   Medallions. With Triforce Hunt on, the hunt still gives you Ganon's Boss Key. The
-  shipped presets keep their own values; "Reset to Default" uses these.
+  Standard and Beginner presets and "Reset to Default" use these, and the Standard and
+  Beginner presets also leave the Master Sword, both ocarinas and the Gerudo Membership
+  Card shuffled, as OoTMM's defaults do (operator ruling 2026-11-05); the Advanced and
+  Hell Mode presets keep their own values.
 - **Every randomizer file is a paired file.** Every OoT randomizer generation is a
   paired creation, so a single-game OoT randomizer file cannot be created (PR [#775](https://github.com/spencerduncan/redshipblueship/pull/775)).
 

@@ -289,3 +289,4 @@ games/mm/2s2h/mm_trap_parity_test.cpp
 games/mm/2s2h/Rando/OoTMasksMM.h
 games/mm/2s2h/Rando/OoTMasksMM.cpp
 games/mm/2s2h/mm_oot_masks_test.cpp
+games/oot/soh/oot_preset_world_test.cpp

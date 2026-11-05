@@ -27,17 +27,17 @@
   closest Ship of Harkinian value to OoTMM's "Removed": you hold the key from the start, so the door to Ganondorf opens,
   and the Tower Boss Key Chest holds a random item that the Check Tracker lists and counts. The Light Arrow Cutscene is
   unchanged (the Shadow and Spirit Medallions). With Triforce Hunt on, the hunt still gives you Ganon's Boss Key: Start
-  With does not hand it out at the start, so the hunt stays the lock on the door. The Beginner, Standard, Advanced and
-  Hell Mode presets keep their own bridge and boss key; "Reset to Default" uses the new defaults. This changes every new
-  world, and a seed package from an earlier build is refused. Saved files keep the gates they were made with.
+  With does not hand it out at the start, so the hunt stays the lock on the door. The Standard and Beginner presets and
+  "Reset to Default" use the new defaults (see "The Standard and Beginner presets follow OoTMM's defaults" below); the
+  Advanced and Hell Mode presets keep their own bridge and boss key. This changes every new world, and a seed package
+  from an earlier build is refused. Saved files keep the gates they were made with.
 - **Shuffle Ocarinas, Shuffle Master Sword and Shuffle Gerudo Membership Card are now on by default** (#1436, issue
   #1425). This follows OoTMM's defaults. Ocarina of Time's two ocarinas, the Master Sword and the Gerudo Membership
   Card are in the item pool, and each can turn up in either game. Saria's gift, the Ocarina of Time at the castle moat,
   the Master Sword pedestal and the Gerudo Membership Card for freeing the carpenters hold other items. All three are
   on Randomizer > Shuffles > Shuffle Items. With the Master Sword shuffled, Link now needs it to travel through time
-  at the pedestal, as in OoTMM (Time Travel Requires Master Sword, #1446, below). The Standard and Beginner
-  presets still leave the Master Sword on its pedestal, and Beginner still leaves the Gerudo Membership Card with the
-  carpenters. A saved file keeps the settings it was made with.
+  at the pedestal, as in OoTMM (Time Travel Requires Master Sword, #1446, below). The Standard and Beginner presets
+  shuffle all three too (below). A saved file keeps the settings it was made with.
 - **Time Travel Requires Master Sword is on by default** (#1446, issue #1434), as OoTMM's `timeTravelSword` is. With
   Shuffle Master Sword on (the default above), Link must hold the Master Sword to travel through time at the Pedestal
   of Time, in either direction, and logic agrees: a child start reaches the adult world only once the sword is found,
@@ -45,6 +45,19 @@
   the sword the pedestal offers no pull. The row sits right under Shuffle Master Sword on Randomizer > Shuffles >
   Shuffle Items, greyed while the sword is not shuffled (pulling it then hands it over). A saved file or seed package
   made before this keeps the pedestal it was made with.
+- **The Standard and Beginner presets follow OoTMM's defaults** (operator ruling 2026-11-05). Applying either preset
+  now leaves Rainbow Bridge, Ganon's Boss Key, Shuffle Ocarinas, Shuffle Master Sword, Shuffle Gerudo Membership Card
+  and Time Travel Requires Master Sword at the defaults above: the bridge needs all six Medallions, you start with
+  Ganon's Boss Key, and both ocarinas, the Master Sword and the Gerudo Membership Card are shuffled. Before, both
+  presets opened the bridge once you found Greg the Green Rupee and handed out the boss key at the Light Arrow
+  Cutscene after six (Beginner) or seven (Standard) dungeon rewards, both left the Master Sword on its pedestal, and
+  Beginner left the Gerudo Membership Card with the carpenters. Both presets now also put Majora's Mask's settings and
+  the Cross-Game rules back to their defaults, as "Reset to Default" does: [Both Games] Logic is All Locations again,
+  and Majora's Mask's hints, Time Progression and shop and Tingle prices are at the defaults described in this
+  document. Everything else each preset sets is unchanged, Beginner's easier choices among them: it starts with the
+  Kokiri Sword and still excludes the 40 and 50 Gold Skulltula rewards, the Frogs' Ocarina Game and the 1500-point
+  horseback archery prize. The Advanced and Hell Mode presets are unchanged. As before, a preset cannot change a world
+  that is already created.
 
 ### Majora's Mask randomizer
 
