@@ -167,15 +167,19 @@ extern "C" void MM_WarpSongMM_DrawGetItem(uint16_t riId) {
         return;
     }
     // Ocarina of Time's own song, by the name OoT's item table gives it, through
-    // the co-mounted archives. Resolved once per song: the name registry is
-    // static once both games' tables are registered.
+    // the co-mounted archives. Looked up once per song, a miss included (-1 not
+    // yet asked, 0 no such OoT item, 1 found; StoneMaskOoT.cpp's shape): the name
+    // registry is static once both games' tables are registered at bring-up, and
+    // a miss asked again every frame would walk the whole registry per draw.
     static SharedItem sOoTSong[RSBS_MM_WARP_SONG_COUNT];
-    static bool sResolved[RSBS_MM_WARP_SONG_COUNT] = {};
-    if (!sResolved[i]) {
+    static_assert(RSBS_MM_WARP_SONG_COUNT == 6u, "one 'not yet asked' (-1) per MM warp song below");
+    static int8_t sResolved[RSBS_MM_WARP_SONG_COUNT] = { -1, -1, -1, -1, -1, -1 };
+    if (sResolved[i] < 0) {
         const char* name = Combo_MMWarpSongOoTName(kWarpSongs[i].ruleBit);
-        sResolved[i] = name != nullptr && Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, &sOoTSong[i]);
+        sResolved[i] = name != nullptr && Combo_GetForeignItemByNameFor((uint8_t)GAME_OOT, name, &sOoTSong[i]) ? 1 : 0;
     }
-    if (sResolved[i] && MM_ForeignModel_DrawForeignItem(MM_gPlayState, sOoTSong[i].originGame, sOoTSong[i].id) == 1) {
+    if (sResolved[i] == 1 &&
+        MM_ForeignModel_DrawForeignItem(MM_gPlayState, sOoTSong[i].originGame, sOoTSong[i].id) == 1) {
         return;
     }
     DrawGenericNote();
