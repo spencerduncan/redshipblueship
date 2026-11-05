@@ -593,7 +593,7 @@ typedef struct ComboLogicEngine {
      *     round has no bag cap (Combo_Logic_RunRound takes an assumed set of any
      *     size, and combo-logic-measure's M2b assumes 2489 rows in one), and the
      *     ports' counters are narrow — OoT's small keys are an `s8` read back
-     *     through a `-1` sentinel, so its 255th key copy reads as ZERO keys. The
+     *     as an `int8_t`, so its 128th key copy wraps the count to -128. The
      *     maximum must be derived from the game's own data or the seed's
      *     settings, and must be at least the largest count any of that game's
      *     logic terms asks for, so the clamp can never lower an answer. A copy
@@ -622,7 +622,7 @@ typedef struct ComboLogicEngine {
      * maximum clamps above exist precisely because the unclamped give paths CAN
      * lower a capacity once copies outnumber tiers or the counter's storage
      * (OoT's wallet: a fourth upgrade copy wraps its two-bit field to zero; OoT's
-     * small keys: the 255th copy reads as zero keys).
+     * small keys: the 128th copy wraps the count to -128).
      */
     void (*assumeOwnItem)(void* self, uint16_t ownItemId);
 

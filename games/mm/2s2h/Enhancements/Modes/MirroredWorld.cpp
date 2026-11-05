@@ -40,6 +40,7 @@ extern "C" {
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "context.h" // src/common: Context_GetCurrentGame
+extern "C" void MM_AudioSettings_SetMirroredWorld(int32_t mirrored);
 #endif
 
 namespace {
@@ -123,11 +124,15 @@ bool MmMirror_ShouldMirror(SohMirrorMode mode, int32_t sceneId) {
 }
 
 void MmMirror_Apply(int32_t sceneId) {
-    if (MmMirror_ShouldMirror(MmMirror_SohMode(), sceneId)) {
+    const bool mirrored = MmMirror_ShouldMirror(MmMirror_SohMode(), sceneId);
+    if (mirrored) {
         CVarSetInteger("gModes.MirroredWorld.State", 1);
     } else {
         CVarClear("gModes.MirroredWorld.State");
     }
+#ifdef RSBS_SINGLE_EXECUTABLE
+    MM_AudioSettings_SetMirroredWorld(mirrored ? 1 : 0);
+#endif
 }
 
 /** The MM scene running now, or -1 (no MM play state, or Ocarina of Time runs). */

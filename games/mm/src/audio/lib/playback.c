@@ -3,6 +3,10 @@
 #include "BenPort.h"
 #include <libultraship/bridge/consolevariablebridge.h>
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+float AudioSettings_GetMasterVolume(void);
+#endif
+
 void AudioPlayback_NoteSetResamplingRate(NoteSampleState* sampleState, f32 resamplingRateInput);
 void AudioPlayback_AudioListPushFront(AudioListItem* list, AudioListItem* item);
 void AudioPlayback_NoteInitForLayer(Note* note, SequenceLayer* layer);
@@ -114,7 +118,11 @@ void AudioPlayback_InitSampleState(Note* note, NoteSampleState* sampleState, Not
     // key as integer percent, so read it the way OoT's audio_playback.c does —
     // CVarGetFloat on an Integer-typed CVar returns the default and the slider
     // would silently never apply. Canonical spelling: src/common/cvar_shared_keys.h
+#ifdef RSBS_SINGLE_EXECUTABLE
+    float master_vol = AudioSettings_GetMasterVolume();
+#else
     float master_vol = (float)CVarGetInteger("gSettings.Volume.Master", 40) / 100.0f;
+#endif
     sampleState->targetVolLeft = (s32)((velocity * volLeft) * (0x1000 - 0.001f)) * master_vol;
     sampleState->targetVolRight = (s32)((velocity * volRight) * (0x1000 - 0.001f)) * master_vol;
 

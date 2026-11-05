@@ -13,7 +13,38 @@ extern "C" {
 #define DEFAULT_TIME_OFFSET -12345
 static s32 sStoredTimeOffset = DEFAULT_TIME_OFFSET;
 
-void RegisterTimeMovesWhenYouMove() {
+static void UpdateTimeSpeedOffset(PauseContext* pauseCtx) {
+    // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
+    RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
+    Player* player = GET_PLAYER(MM_gPlayState);
+
+    // Time is considered to be moving when any of the following is true:
+    // - The player is moving (since that's the basis of this enhancement)
+    // - The player is playing the Ocarina (so that Inverted SoT still works properly)
+    // - The player is choosing whether to save at an Owl Statue (so that it doesn't save the wrong time speed)
+    // - The Cremia's Milk Run minigame has started (to prevent a softlock)
+    // - The pause menu save prompt is open (so that Pause Save doesn't either)
+    // - The Game Over save prompt is open (not reachable right now, but there for future-proofing)
+    bool timeShouldMove =
+        (player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) || player->speedXZ != 0.0f ||
+        (MM_Message_GetState(&MM_gPlayState->msgCtx) == TEXT_STATE_CHOICE &&
+         MM_gPlayState->msgCtx.currentTextId == 0xC01) ||
+        CHECK_WEEKEVENTREG(WEEKEVENTREG_31_80) || pauseCtx->state == PAUSE_STATE_SAVEPROMPT ||
+        pauseCtx->state == PAUSE_STATE_GAMEOVER_SAVE_PROMPT;
+
+    if (timeShouldMove && sStoredTimeOffset != DEFAULT_TIME_OFFSET) {
+        gSaveContext.save.timeSpeedOffset = sStoredTimeOffset;
+        sStoredTimeOffset = DEFAULT_TIME_OFFSET;
+
+        // This is for the section above, lets arrows continue flying after they were fired with time frozen
+        // player->unk_D57 = 4;
+    } else if (!timeShouldMove && sStoredTimeOffset == DEFAULT_TIME_OFFSET) {
+        sStoredTimeOffset = gSaveContext.save.timeSpeedOffset;
+        gSaveContext.save.timeSpeedOffset = -R_TIME_SPEED;
+    }
+}
+
+static void RegisterTimeMovesWhenYouMove() {
     if (!CVAR && sStoredTimeOffset != DEFAULT_TIME_OFFSET) {
         gSaveContext.save.timeSpeedOffset = sStoredTimeOffset;
         sStoredTimeOffset = DEFAULT_TIME_OFFSET;
@@ -61,22 +92,42 @@ void RegisterTimeMovesWhenYouMove() {
     // });
 
     COND_ID_HOOK(OnActorUpdate, ACTOR_PLAYER, CVAR, [](Actor* actor) {
-        // W6-MODES-DIFF (#1236): the #516 play-state guard (expands to nothing outside the single exe).
         RSBS_SINGLE_EXE_REQUIRE(MM_gPlayState != NULL);
-        Player* player = GET_PLAYER(MM_gPlayState);
-        bool timeShouldMove = (player->stateFlags2 & PLAYER_STATE2_USING_OCARINA) || player->speedXZ != 0.0f;
+        UpdateTimeSpeedOffset(&MM_gPlayState->pauseCtx);
+    });
 
-        if (timeShouldMove && sStoredTimeOffset != DEFAULT_TIME_OFFSET) {
-            gSaveContext.save.timeSpeedOffset = sStoredTimeOffset;
-            sStoredTimeOffset = DEFAULT_TIME_OFFSET;
+    COND_HOOK(OnKaleidoUpdate, CVAR, UpdateTimeSpeedOffset);
+}
 
-            // This is for the section above, lets arrows continue flying after they were fired with time frozen
-            // player->unk_D57 = 4;
-        } else if (!timeShouldMove && sStoredTimeOffset == DEFAULT_TIME_OFFSET) {
-            sStoredTimeOffset = gSaveContext.save.timeSpeedOffset;
-            gSaveContext.save.timeSpeedOffset = -R_TIME_SPEED;
+static void RegisterTimeSpeedOffsetRepair() {
+    COND_HOOK(OnSaveLoad, true, [](s16) {
+        sStoredTimeOffset = DEFAULT_TIME_OFFSET;
+        if (gSaveContext.save.timeSpeedOffset < -2) {
+            gSaveContext.save.timeSpeedOffset = 0;
         }
     });
 }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// RSBS (#1343): put the real time speed back before MM's gSaveContext is frozen
+// for a crossing or an F10 swap. Called from Combo_FlushLiveStateForFreeze
+// (src/common/switch.cpp). While Link stands still this mode holds the real
+// offset in sStoredTimeOffset and writes -R_TIME_SPEED into the save. Every
+// crossing commits the frozen half to the .redsave (#837), and every arrival
+// into MM dispatches OnSaveLoad (z_opening.c, then z_play.c after the restore).
+// The repair above would then turn the frozen -3 into 0 and drop the stored
+// offset, so an Inverted Song of Time (-2) would be lost on every round trip.
+// This is the same restore the hook makes when time starts moving again. If
+// MM keeps running for a frame after the freeze, the hook stores the offset
+// again on its next update.
+extern "C" void MM_Combo_RestoreTimeSpeedForFreeze(void) {
+    if (sStoredTimeOffset == DEFAULT_TIME_OFFSET) {
+        return;
+    }
+    gSaveContext.save.timeSpeedOffset = sStoredTimeOffset;
+    sStoredTimeOffset = DEFAULT_TIME_OFFSET;
+}
+#endif
+
+static RegisterShipInitFunc initFunc_Repair(RegisterTimeSpeedOffsetRepair);
 static RegisterShipInitFunc initFunc(RegisterTimeMovesWhenYouMove, { CVAR_NAME });

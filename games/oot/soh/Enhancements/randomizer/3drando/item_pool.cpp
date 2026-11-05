@@ -169,6 +169,7 @@ void GenerateItemPool() {
     junkPool.clear();
     plentifulPool.clear();
     lesserPool.clear();
+    ctx->possibleIceTrapModels.clear();
 #ifdef RSBS_SINGLE_EXECUTABLE
     gRsbsComboPlentifulAdded.clear();
 #endif
