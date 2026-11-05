@@ -6,7 +6,7 @@
  * Fifteen 2Ship rows whose only widgets sat in the excluded BenMenu.cpp, so nothing in the single exe wrote their keys.
  * Eleven of them also had their TU dropped from the link (games/mm/CMakeLists.txt carves them into
  * ship__Enh_registrars beside this change); the other four are read in MM's own C (Fix Targeting Camera Snap in
- * z_player.c, Fix Ammo Count Color in z_parameter.c, Fix Ikana Great Fairy Fountain Color in z_kankyo.c, Fix Text
+ * z_camera.c, Fix Ammo Count Color in z_parameter.c, Fix Ikana Great Fairy Fountain Color in z_kankyo.c, Fix Text
  * Control Characters in z_message_nes.c) and needed only a row. Each row binds its RSBS_CVAR_MM_* define
  * (src/common/cvar_shared_keys.h), and SoH's page calls each function below in one line, at the end of the section
  * that holds its nearest relatives:
@@ -82,8 +82,8 @@ void AddMmGraphicalFixesRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_FIXES_AMMO_COUNT_ENV_COLOR)
         .RaceDisable(false)
         .Options(UIWidgets::CheckboxOptions().Tooltip(
-            "Fixes a missing color setting that draws the ammo count in the wrong color before Link has magic, among "
-            "other conditions. Majora's Mask only."));
+            "Fixes a missing color setting that draws ammo counts and B button action labels in the wrong color before "
+            "Link has magic, among other conditions. Majora's Mask only."));
     AddHostedMmWidget(menu, path, "Graphical Fixes", "Fix Ikana Great Fairy Fountain Color", WIDGET_CVAR_CHECKBOX)
         .CVar(RSBS_CVAR_MM_FIXES_IKANA_GREAT_FAIRY_FOUNTAIN_COLOR)
         .RaceDisable(false)

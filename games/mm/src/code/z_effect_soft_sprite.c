@@ -22,6 +22,7 @@ void MM_EffectSs_InitInfo(PlayState* play, s32 tableSize) {
 
     for (effectSs = &MM_sEffectSsInfo.table[0]; effectSs < &MM_sEffectSsInfo.table[MM_sEffectSsInfo.tableSize]; effectSs++) {
         MM_EffectSs_Reset(effectSs);
+        effectSs->epoch = 0;
     }
 
     overlay = &MM_gEffectSsOverlayTable[0];
@@ -161,8 +162,11 @@ void MM_EffectSs_Insert(PlayState* play, EffectSs* effectSs) {
 
     if (MM_FrameAdvance_IsEnabled(play) != true) {
         if (MM_EffectSs_FindSlot(effectSs->priority, &index) == 0) {
+            u32 epoch = MM_sEffectSsInfo.table[index].epoch + 1;
+
             MM_sEffectSsInfo.searchStartIndex = index + 1;
             MM_sEffectSsInfo.table[index] = *effectSs;
+            MM_sEffectSsInfo.table[index].epoch = epoch;
         }
     }
 }
@@ -211,6 +215,7 @@ void MM_EffectSs_Spawn(PlayState* play, s32 type, s32 priority, void* initData) 
 
     MM_sEffectSsInfo.table[index].type = type;
     MM_sEffectSsInfo.table[index].priority = priority;
+    MM_sEffectSsInfo.table[index].epoch++;
 
     if (profile->init(play, index, &MM_sEffectSsInfo.table[index], initData) == 0) {
         MM_EffectSs_Reset(&MM_sEffectSsInfo.table[index]);
