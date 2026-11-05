@@ -1643,7 +1643,7 @@ void ResetKeyGapKeys() {
 // TatlISG.cpp, WoodfallMountainAppearance.cpp, JPGrottos.cpp and BonkCollision.cpp. Attributed by registry content:
 // every bucket is keyed on a VB id, an actor id or a scene id, and the delta is measured with every other key off.
 // The four row-only Fixes keys (Targeting Camera Snap, Ammo Count Color, Ikana Great Fairy Fountain Color, Text Control
-// Characters) have no TU (z_player.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
+// Characters) have no TU (z_camera.c, z_parameter.c, z_kankyo.c and z_message_nes.c read them), so they have no probe.
 //
 // JP GROTTOS: BOTH LEGS TOGETHER. JPGrottos.cpp's four ShouldActorInit legs delete Deku Palace's vanilla grottos and
 // torches unless isSpawningJPGrottos is set, and its AfterRoomSceneCommands[SCENE_22DEKUCITY] leg is the flag's only

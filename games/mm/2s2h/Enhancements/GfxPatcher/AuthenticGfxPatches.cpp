@@ -346,30 +346,6 @@ void GfxPatcher_ApplyGeometryIssuePatches() {
     PatchGeometrySeams();
 }
 
-void PatchCircleShadowStreaks() {
-#ifdef RSBS_SINGLE_EXECUTABLE
-    if (!MM_Rando_AssetsReady()) {
-        return;
-    }
-#endif
-    Gfx* instructions = ResourceMgr_LoadGfxByName(gCircleShadowDL);
-
-    if (CVarGetInteger("gFixes.FixCircleShadowStreaks", 0)) {
-        // Use a mask to unset and set the new flags while preserving the rest of the instruction
-        const uintptr_t cmMask = UINTPTR_MAX ^ (_SHIFTL(3, 18, 2)) ^ (_SHIFTL(3, 8, 2));
-
-        Gfx in13 = instructions[13]; // G_SETTILE
-        // Clear both S/T Mirror and Wrap flags, then set the S/T Clamp flags
-        in13.words.w1 = (in13.words.w1 & cmMask) | _SHIFTL(G_TX_CLAMP, 18, 2) | _SHIFTL(G_TX_CLAMP, 8, 2);
-
-        ResourceMgr_PatchGfxByName(gCircleShadowDL, "ShadowStreakFix", 13, in13);
-    } else {
-        ResourceMgr_UnpatchGfxByName(gCircleShadowDL, "ShadowStreakFix");
-    }
-}
-
-static RegisterShipInitFunc circleShadowStreaksInitFunc(PatchCircleShadowStreaks, { "gFixes.FixCircleShadowStreaks" });
-
 void GfxPatcher_ApplyTransitionWipePatch() {
     // Removing G_ZBUFFER as gsDPSetPrimDepth is unimplemented in LUS.
     // This should have the same effect of using a depth test value of 0, and allows it to render over everything.
@@ -406,6 +382,64 @@ void GfxPatcher_ApplyBombShopkeeperPatch() {
                                gsSPClearGeometryMode(G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR));
 }
 
+// gCircleShadowDL draws the circle shadow as a single large triangle which results
+// in a visible streaking effect, instead we draw it as a quad to fix this
+static Vtx sCircleShadowQuadVtx[4] = {
+    { { { -57, 0, 57 }, 0, { 0, 0 }, { 0xA0, 0x97, 0xCD, 0xFF } } },
+    { { { 57, 0, 57 }, 0, { 1016, 0 }, { 0xA0, 0x97, 0xCD, 0xFF } } },
+    { { { -57, 0, -57 }, 0, { 0, 1016 }, { 0xA0, 0x97, 0xCD, 0xFF } } },
+    { { { 57, 0, -57 }, 0, { 1016, 1016 }, { 0xA0, 0x97, 0xCD, 0xFF } } },
+};
+
+void PatchCircleShadowStreaks() {
+    static s32 sVtxIndex = -1;
+    static s32 sTriIndex = -1;
+
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS: S2H::ShipInit::InitAll() fires the registrar below from MM_Rando_InitCore, which OoT's file-create
+    // seam runs before MM has mounted mm.o2r (and every ROM-free row runs with none), where
+    // ResourceMgr_LoadGfxByName null-derefs. MM's asset phase calls this again by name
+    // (GfxPatcher_ApplyNecessaryAuthenticPatches) once the archives are there.
+    if (!MM_Rando_AssetsReady()) {
+        return;
+    }
+#endif
+
+    if (sVtxIndex == -1 || sTriIndex == -1) {
+        Gfx* gfx = ResourceMgr_LoadGfxByName(gCircleShadowDL);
+
+        for (s32 i = 0; i < 32; i++) {
+            u8 opcode = (u8)(gfx[i].words.w0 >> 24);
+
+            if (opcode == G_VTX_OTR_HASH && sVtxIndex == -1) {
+                sVtxIndex = i;
+            } else if (opcode == G_TRI1 && sTriIndex == -1) {
+                sTriIndex = i;
+            } else if (opcode == G_ENDDL) {
+                break;
+            }
+        }
+
+        if (sVtxIndex == -1 || sTriIndex == -1) {
+            return;
+        }
+    }
+
+    if (CVarGetInteger("gFixes.FixCircleShadowStreaks", 1)) {
+        ResourceMgr_PatchGfxByName(gCircleShadowDL, "circleShadowQuadVtx", sVtxIndex,
+                                   gsSPVertex(sCircleShadowQuadVtx, 4, 0));
+        ResourceMgr_PatchGfxByName(gCircleShadowDL, "circleShadowQuadVtxHash", sVtxIndex + 1, gsSPNoOp());
+        ResourceMgr_PatchGfxByName(gCircleShadowDL, "circleShadowQuadTris", sTriIndex,
+                                   gsSP2Triangles(0, 1, 2, 0, 1, 3, 2, 0));
+    } else {
+        ResourceMgr_UnpatchGfxByName(gCircleShadowDL, "circleShadowQuadVtx");
+        ResourceMgr_UnpatchGfxByName(gCircleShadowDL, "circleShadowQuadVtxHash");
+        ResourceMgr_UnpatchGfxByName(gCircleShadowDL, "circleShadowQuadTris");
+    }
+}
+
+static RegisterShipInitFunc circleShadowStreaksInitFunc(PatchCircleShadowStreaks, { "gFixes.FixCircleShadowStreaks" });
+
 // Applies required patches for authentic bugs to allow the game to play and render properly
 void GfxPatcher_ApplyNecessaryAuthenticPatches() {
     PatchMiniGameCrossAndCircleSymbols();
@@ -414,7 +448,11 @@ void GfxPatcher_ApplyNecessaryAuthenticPatches() {
 
     GfxPatcher_ApplyGeometryIssuePatches();
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+    // RSBS: the registrar's InitAll pass may have run before mm.o2r was mounted and returned early (see
+    // PatchCircleShadowStreaks), and ShipInit never fires it again, so MM's asset phase applies it here.
     PatchCircleShadowStreaks();
+#endif
 
     GfxPatcher_ApplyTransitionWipePatch();
 

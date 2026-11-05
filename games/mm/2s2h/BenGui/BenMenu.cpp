@@ -261,7 +261,6 @@ std::vector<std::string> contributors = {
     "Liam Scholte",
     "Nicholas Estelami",
     "ReddestDream",
-    "SeeminglyUnreal",
     "Sirius902",
     "Spodi",
     "lightmanLP",
@@ -1465,12 +1464,12 @@ void BenMenu::AddEnhancements() {
                      .DefaultValue(true));
     AddWidget(path, "Fix Ammo Count Color", WIDGET_CVAR_CHECKBOX)
         .CVar("gFixes.FixAmmoCountEnvColor")
-        .Options(
-            CheckboxOptions().Tooltip("Fixes missing gDPSetEnvColor instructions, which causes a few HUD elements to "
-                                      "be the wrong color prior to obtaining magic or under other conditions:\n\n"
-                                      "- Ammo counts on the B and C buttons\n"
-                                      "- Text displayed on the B button (such as \"Put Away\" or \"Stop\")\n"
-                                      "- Postmans Hat icon when equipped on a C button"));
+        .Options(CheckboxOptions().Tooltip(
+            "Fixes a missing gDPSetEnvColor, which causes ammo counts and B button "
+            "action labels to be the wrong color prior to obtaining magic or other conditions."));
+    AddWidget(path, "Fix Circle Shadow Streaks", WIDGET_CVAR_CHECKBOX)
+        .CVar("gFixes.FixCircleShadowStreaks")
+        .Options(CheckboxOptions().Tooltip("Fixes faint streaks on round actor shadows").DefaultValue(true));
     AddWidget(path, "Fix Epona stealing Sword", WIDGET_CVAR_CHECKBOX)
         .CVar("gFixes.FixEponaStealingSword")
         .Options(CheckboxOptions().Tooltip(
@@ -1498,11 +1497,6 @@ void BenMenu::AddEnhancements() {
         .Options(CheckboxOptions().Tooltip(
             "Fixes a bug that results in the wrong audio playing upon receiving a 4th piece of heart to "
             "fill a new heart container."));
-    AddWidget(path, "Fix Circle Shadow Streaks", WIDGET_CVAR_CHECKBOX)
-        .CVar("gFixes.FixCircleShadowStreaks")
-        .Options(CheckboxOptions().Tooltip(
-            "Patches the circle shadow texture flags from Wrap to Clamp to avoid visible streaks when shadows "
-            "get scaled down across certain surfaces."));
 
     // Restorations
     path = { "Enhancements", "Restorations", SECTION_COLUMN_1 };
