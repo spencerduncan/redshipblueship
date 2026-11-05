@@ -574,6 +574,8 @@ if(SINGLE_EXECUTABLE_BUILD)
         # reads gEnhancements.NewDrops inline but is its own row (gEnhancements.Equipment.ChuDrops), linked by W6-PLAYER.
         # #1030
         "2s2h/Enhancements/Accessibility/NoScreenFlashForEnemyKill.cpp"
+        "2s2h/Enhancements/Accessibility/NoFinalDayQuakes.cpp"
+        "2s2h/Enhancements/Accessibility/NoScreenDistortion.cpp"
         # #1031
         "2s2h/Enhancements/Graphics/3DItemDrops.cpp"
         # W6-DEV (#1238): MM's developer switches, debug save and warp point, drawn by hosted rows on SoH's Dev Tools >

@@ -48,6 +48,10 @@ void AddMmControlsRows(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_PLAYER_INFINITE_DEKU_HOPPING)
         .Options(UIWidgets::CheckboxOptions().Tooltip("Lets Deku Link hop across water without limit and without "
                                                       "losing speed in the air. Majora's Mask only."));
+    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Invert Zora Swim Y Axis", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y)
+        .Options(UIWidgets::CheckboxOptions().DefaultValue(true).Tooltip(
+            "Invert the Y axis while swimming as Zora with the left stick. Majora's Mask only."));
 }
 
 /** Skips & Speed-ups > Animations, right after SoH's Vine/Ladder Climb Speed. */

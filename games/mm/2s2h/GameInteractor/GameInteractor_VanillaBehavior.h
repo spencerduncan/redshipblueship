@@ -2171,6 +2171,22 @@ typedef enum {
     // charge built before the jump is kept (OoTMM's lenientSpikes). Appended rather than sorted in, so no existing
     // id moves.
     VB_GORON_ROLL_RESET_SPIKE_LEVEL_ON_LANDING,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `s32` (sDistortionRequest.type)
+    VB_APPLY_SCREEN_DISTORTION,
+
+    // #### `result`
+    // ```c
+    // (CURRENT_DAY == 3) && (CutsceneManager_GetCurrentCsId() == CS_ID_NONE)
+    // ```
+    // #### `args`
+    // - None
+    VB_EARTHQUAKE_ON_DAY_3,
 } GIVanillaBehavior;
 
 #endif

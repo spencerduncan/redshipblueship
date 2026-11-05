@@ -35,4 +35,17 @@ void AddMmAmbienceVolumeRow(SohMenu& menu, WidgetPath& path) {
         });
 }
 
+void AddMmAccessibilityRows(SohMenu& menu, WidgetPath& path) {
+    AddHostedMmWidget(menu, path, "Accessibility", "Disable Final Day Quakes", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)
+        .RaceDisable(false)
+        .Options(
+            UIWidgets::CheckboxOptions().Tooltip("Earthquakes will not occur on the final day. Majora's Mask only."));
+    AddHostedMmWidget(menu, path, "Accessibility", "Disable Screen Distortion", WIDGET_CVAR_CHECKBOX)
+        .CVar(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)
+        .RaceDisable(false)
+        .Options(UIWidgets::CheckboxOptions().Tooltip("Disables the wobbling/warping of the screen while swimming "
+                                                      "underwater, and other various sources. Majora's Mask only."));
+}
+
 } // namespace SohGui

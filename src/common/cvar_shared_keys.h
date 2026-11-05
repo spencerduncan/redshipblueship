@@ -83,6 +83,10 @@
 // W6-AUDIO-SFX (#1239): MM's two sound mutes with no SoH twin, drawn as MM rows in SoH's Audio Editor (Audio Options).
 #define RSBS_CVAR_MM_MUTE_CARPENTER_SFX "gAudioEditor.MuteCarpenterSfx"
 #define RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY "gAudioEditor.ChildGoronCry"
+// #1411: MM's two accessibility toggles with no SoH twin, hosted on SoH's Settings > General under Accessibility
+// (SohGui/HostedMm/SohMenuHostedMmAudio.cpp).
+#define RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES "gEnhancements.A11y.NoFinalDayQuakes"
+#define RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION "gEnhancements.A11y.NoScreenDistortion"
 
 /* Character colour — issue #453, inventory §3.3 BUG 1 / §4 row P4.
  *
@@ -610,6 +614,7 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE "gEnhancements.Equipment.BetterPictoMessage"
 #define RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL "gEnhancements.PlayerActions.InstantRecall"
 #define RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS "gEnhancements.Equipment.ChuDrops"
+#define RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y "gEnhancements.Player.InvertZoraSwimY"
 // W6-MASKS-SONGS
 // W6-MASKS-SONGS (#1236, #1240): MM's Masks and Ocarina rows, hosted in two "Majora's Mask" blocks on SoH's
 // Enhancements > Items (SohGui/HostedMm/SohMenuHostedMmMasksSongs.cpp). Each stays MM's own key (SoH's Fast Ocarina
@@ -1058,6 +1063,8 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     /* W6-AUDIO-SFX */                                               \
     X(RSBS_CVAR_MM_MUTE_CARPENTER_SFX)                               \
     X(RSBS_CVAR_MM_MUTE_GORON_CHILD_CRY)                             \
+    X(RSBS_CVAR_MM_A11Y_NO_FINAL_DAY_QUAKES)                         \
+    X(RSBS_CVAR_MM_A11Y_NO_SCREEN_DISTORTION)                        \
     /* W6-TIMESAVERS */                                              \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_TEXT)                               \
     X(RSBS_CVAR_MM_DIALOGUE_FAST_BANK_SELECTION)                     \
@@ -1097,6 +1104,7 @@ inline constexpr std::size_t kTranslatedKeyCount = sizeof(kTranslatedKeys) / siz
     X(RSBS_CVAR_MM_EQUIPMENT_BETTER_PICTO_MESSAGE)                   \
     X(RSBS_CVAR_MM_PLAYER_ACTIONS_INSTANT_RECALL)                    \
     X(RSBS_CVAR_MM_EQUIPMENT_CHU_DROPS)                              \
+    X(RSBS_CVAR_MM_PLAYER_INVERT_ZORA_SWIM_Y)                        \
     /* W6-MASKS-SONGS */                                             \
     X(RSBS_CVAR_MM_MASKS_EQUIP_WHILE_SWIMMING)                       \
     X(RSBS_CVAR_MM_MASKS_BLAST_MASK_KEG)                             \
