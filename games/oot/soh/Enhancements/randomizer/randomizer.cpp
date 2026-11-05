@@ -549,7 +549,6 @@ ItemObtainability Randomizer::GetItemObtainabilityFromRandomizerGet(RandomizerGe
         // TODO: Do we want to be strict about any of this?
         // case RG_WEIRD_EGG:
         // case RG_ZELDAS_LETTER:
-        // case RG_POCKET_EGG:
         // case RG_COJIRO:
         // case RG_ODD_MUSHROOM:
         // case RG_ODD_POTION:

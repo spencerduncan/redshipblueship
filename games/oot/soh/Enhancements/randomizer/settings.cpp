@@ -1634,6 +1634,10 @@ void Settings::CreateOptions() {
               "Shadow Temple Entry with Fire Arrows",
               "It is possible to light all of the torches to open the Shadow Temple entrance with just Fire Arrows, "
               "but you must be very quick, precise, and strategic with how you take your shots.");
+    OPT_TRICK(RT_DMT_SHIELDLESS_CLIMB, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::NOVICE },
+              "Death Mountain Trail Child Climb Without Shield",
+              "Child can make it past the eruption to reach DMT Summit without a Hylian Shield or Nayru's Love"
+              "by backwalking or simply taking damage.");
     OPT_TRICK(RT_DMT_SOIL_GS, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::INTERMEDIATE },
               "Death Mountain Trail Soil GS without Destroying Boulder",
               "Bugs will go into the soft soil even while the boulder is still blocking the entrance. Then, using a "
@@ -1664,10 +1668,6 @@ void Settings::CreateOptions() {
         RT_DMT_UPPER_GS, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::NOVICE },
         "Death Mountain Trail Upper Red Rock GS with Backflip",
         "After killing the Skulltula, the token can be collected by backflipping into the rock at the correct angle.");
-    OPT_TRICK(RT_DMT_SHIELDLESS_CLIMB, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::NOVICE },
-              "Death Mountain Trail Climb Past Rocks Without Shield",
-              "Child can climb past the falling rocks on Death Mountain Trail without taking damage, without shielding "
-              "with Hylian Shield or using Nayru\'s Love.");
     // disabled for now, only applies when trade quest is not shuffled so there's a timer (currently not considered in
     // logic) OPT_TRICK(RT_DMT_BOLERO_BIGGORON, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, {Tricks::Tag::INTERMEDIATE},
     // "Deliver Eye Drops with Bolero of Fire", "Playing a warp song normally causes a trade item to spoil immediately,

@@ -23,15 +23,15 @@
  *      so the bar is never left short); tier budgets from the pools' own
  *      ceilings; unequal ceilings kept whole; double defense capped at 1; the
  *      proportional spread.
- *   Q3 THE TRIM over a pool shaped like both shipped pools (OoT's balanced 24
- *      pieces + 11 containers, MM 52 + 4, one double defense each, 3 + 3 quivers,
+ *   Q3 THE TRIM over a pool shaped like both shipped pools (OoT's balanced 36
+ *      pieces + 8 containers, MM 52 + 4, one double defense each, 3 + 3 quivers,
  *      2 + 1 hookshots, rupees and bombchus): exactly 44 + 6 + 1 kept, quiver 3 of 6
  *      (a kind with N max and 2N copies keeps exactly N), the hookshot whole,
  *      every removed copy counted as filler under its ORIGIN and listed; rupees
  *      (renewable, keep-all) and bombchus (progression, keep-all) untouched; the
  *      bag a stable filter of the pool. Deterministic per seed, different across
  *      seeds (the sensitivity control). RED HALF: RSBS_COMBO_QUANTITY_KEEP_ALL
- *      composes the untrimmed bag (91 heart rows, 2 double defenses). THE
+ *      composes the untrimmed bag (100 heart rows, 2 double defenses). THE
  *      OCARINA GATE at composer level: 2 + 2 ocarinas (equal effective ceilings)
  *      keep all 4 whether or not the frozen record carries the shared-ocarina
  *      bit, which #879 retired. THE STARTING BAR: a request with either starting health 0 is
@@ -563,11 +563,11 @@ TestResult Test_SharedQuantityPolicy(void) {
         Combo_SharedQuantitySplit(44, 36, 52, 0u, &a, &b);
         SQP_ASSERT(a == 18 && b == 26, "Q2: 44 pieces over 36/52 split 18/26 (proportional)");
         Combo_SharedQuantitySplit(44, 24, 52, 0u, &a, &b);
-        SQP_ASSERT(a == 14 && b == 30, "Q2: 44 pieces over the shipped 24/52 split 14/30");
+        SQP_ASSERT(a == 14 && b == 30, "Q2: 44 pieces over the pre-#6226 24/52 split 14/30");
         Combo_SharedQuantitySplit(6, 8, 4, 0u, &a, &b);
         SQP_ASSERT(a == 4 && b == 2, "Q2: 6 containers over 8/4 split 4/2");
         Combo_SharedQuantitySplit(6, 11, 4, 0u, &a, &b);
-        SQP_ASSERT(a == 4 && b == 2, "Q2: 6 containers over the shipped 11/4 split 4/2");
+        SQP_ASSERT(a == 4 && b == 2, "Q2: 6 containers over the pre-#6226 11/4 split 4/2");
         Combo_SharedQuantitySplit(1, 1, 1, 0u, &a, &b);
         SQP_ASSERT(a == 1 && b == 0, "Q2: an exact tie goes to OoT on an even tie seed");
         Combo_SharedQuantitySplit(1, 1, 1, 1u, &a, &b);
