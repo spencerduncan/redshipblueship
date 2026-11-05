@@ -513,17 +513,19 @@ constexpr CvarClassKeyGapRow kCvarClassKeyGapRows[] = {
     // under the one-game model, migrated by version 10. Both bool, default off.
     { 1272, "gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView",
       "gSettings.DisableFirstPersonAutoCenterView" },
-    // #1412: MM parity rows for settings SoH already ships.
+    // #1412: the MM halves of ten settings SoH already ships. 2Ship's TUs (ported in that change) read 2Ship's
+    // spellings; they read SoH's keys instead. All bool, default off. MM's No Random Drops is held apart
+    // (kMustStayDistinct: MM's rule also blocks set drops), so it has no row here.
     { 1412, "gEnhancements.Player.UnsheatheWithoutSlashing", "gEnhancements.UnsheatheWithoutSlashing" },
     { 1412, "gEnhancements.Items.RemoveExplosiveLimit", "gEnhancements.RemoveExplosiveLimit" },
     { 1412, "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops" },
-    { 1412, "gEnhancements.DifficultyOptions.NoRandomDrops", "gEnhancements.NoRandomDrops" },
     { 1412, "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie" },
     { 1412, "gEnhancements.Timesavers.FasterRupeeAccumulator", "gEnhancements.FasterRupeeAccumulator" },
     { 1412, "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles" },
     { 1412, "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty" },
     { 1412, "gEnhancements.Mods.DisableBombBillboarding", "gEnhancements.DisableBombBillboarding" },
     { 1412, "gEnhancements.Mods.DisableGrottoRotation", "gEnhancements.DisableGrottoRotation" },
+    { 1412, "gCheats.InfiniteEponaCarrots", "gCheats.InfiniteEponaBoost" },
 };
 
 /// The migration table a key-gap row's stored MM spelling rides: version 9's for the #966 audit's rows, version 10's
@@ -563,17 +565,19 @@ constexpr CvarClassLinkedReader kCvarClassLinkedReaders[] = {
     { 1239, "gAudioEditor.LinkVoiceFreqMultiplier", "Audio/Sfx/LinksVoicePitchMultiplier.cpp" },
     { 1239, "gAudioEditor.MuteCarpenterSfx", "Audio/Sfx/MuteCarpenterSfx.cpp" },
     { 1239, "gAudioEditor.ChildGoronCry", "Audio/Sfx/MuteCryingGoronChild.cpp" },
-    // #1412: MM parity providers for settings SoH already ships.
+    // #1412: the providers of the ten converged MM halves, and MM's held-apart No Random Drops (its own key, hosted
+    // as "MM No Random Drops"), which has the same file-scope-registrar exposure.
     { 1412, "gEnhancements.UnsheatheWithoutSlashing", "Player/UnsheatheWithoutSlashing.cpp" },
     { 1412, "gEnhancements.RemoveExplosiveLimit", "Items/RemoveExplosiveLimit.cpp" },
     { 1412, "gEnhancements.NoHeartDrops", "DifficultyOptions/NoHeartDrops.cpp" },
-    { 1412, "gEnhancements.NoRandomDrops", "DifficultyOptions/NoRandomDrops.cpp" },
+    { 1412, "gEnhancements.DifficultyOptions.NoRandomDrops", "DifficultyOptions/NoRandomDrops.cpp" },
     { 1412, "gCheats.DropsDontDie", "DifficultyOptions/NoDropDespawning.cpp" },
     { 1412, "gEnhancements.FasterRupeeAccumulator", "Timesavers/FasterRupeeAccumulator.cpp" },
     { 1412, "gEnhancements.FastBottles", "Dialogue/SkipBottleCatch.cpp" },
     { 1412, "gEnhancements.FasterBottleEmpty", "Timesavers/FasterBottles.cpp" },
     { 1412, "gEnhancements.DisableBombBillboarding", "Graphics/DisableBombBillboarding.cpp" },
     { 1412, "gEnhancements.DisableGrottoRotation", "Graphics/DisableGrottoRotation.cpp" },
+    { 1412, "gCheats.InfiniteEponaBoost", "Cheats/InfiniteEponaCarrots.cpp" },
 };
 
 /// #1037: held APART, not mapped, and HOSTED: OoT's DamageMult list runs 0-8, MM's 0-4 plus 10, so each game keeps its

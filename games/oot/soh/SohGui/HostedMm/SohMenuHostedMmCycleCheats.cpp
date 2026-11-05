@@ -79,11 +79,6 @@ void AddMmCheatsBlock(SohMenu& menu, WidgetPath& path) {
         .CVar(RSBS_CVAR_MM_CHEATS_UNBREAKABLE_RAZOR_SWORD)
         .Options(CheckboxOptions().Tooltip("Allows the Razor Sword to be used indefinitely without dulling its blade. "
                                            "Always on in a randomizer file. Majora's Mask only."));
-    AddHostedMmWidget(menu, path, kHostedMmBlockLabel, "Infinite Epona Carrots", WIDGET_CVAR_CHECKBOX)
-        .CVar(RSBS_CVAR_MM_CHEAT_INFINITE_EPONA_CARROTS)
-        .Options(CheckboxOptions().Tooltip(
-            "Gives you infinite Epona carrots, preventing them from being consumed when boosting. Majora's Mask "
-            "only."));
 }
 
 // Quality of Life > Time of Day: MM's Time Cycle options, under their own block.

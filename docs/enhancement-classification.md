@@ -575,6 +575,16 @@ default (off).
 | Containers Match Contents | `gEnhancements.ChestSizeAndTextureMatchContents` | `gRando.CSMC` | #1064 | The #966 audit table listed this OOT-ONLY with no MM reader; that was wrong, the reader is `gRando.CSMC` (chests, pots, grass, crates, barrels). `ChestSizeDependsStoneOfAgony` stays OoT-only (MM has no Stone of Agony). |
 | Disable Navi Call Audio | `gAudioEditor.DisableNaviCallAudio` | `gAudioEditor.DisableTatlCallAudio` | #1239 | Both bool, default off, and both skip the companion fairy's call sound (MM's `VB_PLAY_TATL_CALL_AUDIO`). SoH's row is left as SoH wrote it and now drives both games. |
 | Disable Auto-Centering in First-Person View | `gSettings.DisableFirstPersonAutoCenterView` | `gEnhancements.Camera.FirstPerson.DisableFirstPersonAutoCenterView` | #1272 | W6-CAM-AIM held it apart (P3, gating) with an MM row in the Bindings window. Both bool, default off; the gating difference is MM's own Gyro Aiming, which still suppresses MM's auto-centre beside the shared switch, so under the one-game model one switch means one thing in both games. The MM row is gone; SoH's row drives both games. That MM row wrote the MM spelling, so `ConfigVersion10Updater` carries a stored value across (version 9 had already run on those installs). |
+| Unsheathe Sword Without Slashing | `gEnhancements.UnsheatheWithoutSlashing` | `gEnhancements.Player.UnsheatheWithoutSlashing` | #1412 | 2Ship's TU (`Player/UnsheatheWithoutSlashing.cpp`) is new with #1412 and reads SoH's key; no single-exe row ever wrote the MM spelling, so version 9 carries nothing an install could hold. Same for every #1412 row below. |
+| Remove Explosive Limit | `gEnhancements.RemoveExplosiveLimit` | `gEnhancements.Items.RemoveExplosiveLimit` | #1412 | In Termina it also lifts Honey & Darling's cap of 5. |
+| No Heart Drops | `gEnhancements.NoHeartDrops` | `gEnhancements.DifficultyOptions.NoHeartDrops` | #1412 | MM's handler also blocks healing fairies (`ITEM00_FLEXIBLE`); shuffled enemy drops are exempt (the randomizer's `VB_ENEMY_DROP_COLLECTIBLE` runs first). |
+| Drops Don't Despawn | `gCheats.DropsDontDie` | `gEnhancements.DifficultyOptions.NoDropDespawning` | #1412 | |
+| Faster Rupee Accumulator | `gEnhancements.FasterRupeeAccumulator` | `gEnhancements.Timesavers.FasterRupeeAccumulator` | #1412 | MM's step reads `CUR_CAPACITY`, which follows the shared wallet tier (#1297). |
+| Skip Bottle Pickup Messages | `gEnhancements.FastBottles` | `gEnhancements.Dialogue.SkipBottlePickupMessages` | #1412 | |
+| Empty Bottles Faster | `gEnhancements.FasterBottleEmpty` | `gEnhancements.Timesavers.FasterBottles` | #1412 | In Termina it also speeds drinking and releasing a fairy, not only pouring out. |
+| Disable Bomb Billboarding | `gEnhancements.DisableBombBillboarding` | `gEnhancements.Mods.DisableBombBillboarding` | #1412 | |
+| Disable Grotto Fixed Rotation | `gEnhancements.DisableGrottoRotation` | `gEnhancements.Mods.DisableGrottoRotation` | #1412 | |
+| Epona Boost (Cheats > Infinite...) | `gCheats.InfiniteEponaBoost` | `gCheats.InfiniteEponaCarrots` | #1412 | Both games skip the carrot use and hide the carrot HUD, so SoH's row is the one control (the #1412 packet's "differs" was wrong). 2Ship's own No Random Drops is NOT converged: see §6.1 W6-MODES-DIFF. |
 
 ## 6. (O) — only-in-one, by category
 
@@ -748,6 +758,7 @@ lock's leg 3f-2c holds each binding and leg 3f-3b the Mirrored World translation
 | `gEnhancements.DifficultyOptions.JinxedTimer` | 60 | Jinxed Timer (Difficulty, Majora's Mask block after Enemies) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.LowerBankRewardThresholds` | off | Lower Bank Reward Thresholds (likewise) | (O) MM-only. This row owns the key; W6-TIMESAVERS' `AutoBankDeposit.cpp` also reads it (default off) |
 | `gEnhancements.DifficultyOptions.DisableTakkuriSteal` | off | Disable Takkuri Steal (likewise) | (O) MM-only |
+| `gEnhancements.DifficultyOptions.NoRandomDrops` | off | MM No Random Drops (Difficulty > Drops, after SoH's) | (P) held apart (`kMustStayDistinct`, #1412). SoH's `gEnhancements.NoRandomDrops` stops random drops only ("except from the Goron Pot, Dampe, and Bosses"); 2Ship's `NoRandomDrops.cpp` cancels `VB_DROP_COLLECTIBLE` in `MM_Item_DropCollectible` too, so fixed drops vanish as well (a stray fairy in a pot, the Hero's Shield a Like Like drops, the Swordsman's School gong rupee, a rupee trap's rupees), sparing only arrows and magic in a few rooms. Same bool, different rule, so SoH's row would delete Termina contents it never mentions. Converging needs MM's rule narrowed to random drops first. The 2Ship import carries it as MM's own key |
 | `gEnhancements.DifficultyOptions.DekuGuardSearchBalls` | Night Only | Deku Guard Search Balls (likewise) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.GibdoTradeSequence` | Vanilla | Gibdo Trade Sequence Options (likewise) | (O) MM-only |
 | `gEnhancements.DifficultyOptions.HiddenGrottosVisibility` | Off | Hidden Grottos Visibility (likewise) | (O) MM-only |
@@ -849,8 +860,8 @@ before the menu exists. CvarClassification leg (2b) and the TwoShipImportMmKeys 
 Scoped to the enhancement/cheat/cosmetic surface classified at **individual-setting level**
 (MM's 185 `gEnhancements.*` + `gCheats.*` keys, and their OoT counterparts). These counts are the original inventory's
 (2026-07-21) and are not re-derived per row: since then the W6 lanes classified every key per row (§2, where the total
-reads 184 because `Masks` holds 9 keys, not the inventory's 10), and the #966 rows, #1239 and #1272 converged more keys
-than the 26 below.
+reads 184 because `Masks` holds 9 keys, not the inventory's 10), and the #966 rows, #1239, #1272 and #1412 converged
+more keys than the 26 below.
 
 | Class | Rows | Notes |
 |---|---:|---|

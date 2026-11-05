@@ -64,6 +64,8 @@ void AddMmBombchuDropsRow(SohMenu& menu, WidgetPath& path);
 // W6-MODES-DIFF (#1236): MM's Modes and Difficulty rows (HostedMm/SohMenuHostedMmModesDifficulty.cpp).
 void AddMmExtraModesRows(SohMenu& menu, WidgetPath& path);
 void AddMmDifficultyRows(SohMenu& menu, WidgetPath& path);
+// #1412: MM's own No Random Drops, held apart from SoH's and drawn right after it (same HostedMm file as above).
+void AddMmNoRandomDropsRow(SohMenu& menu, WidgetPath& path);
 // W6-GFX (#1237): MM's clock, motion blur and scene-geometry rows (HostedMm/SohMenuHostedMmGraphics.cpp), and the
 // reapply of MM's authentic patches that Fix Out of Bounds Textures also chooses.
 void AddMmClockRows(SohMenu& menu, WidgetPath& path);
@@ -1379,6 +1381,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "No Random Drops", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("NoRandomDrops"))
         .Options(CheckboxOptions().Tooltip("Disables Random Drops, except from the Goron Pot, Dampe, and Bosses."));
+    AddMmNoRandomDropsRow(*this, path);
     AddWidget(path, "Enable Bombchu Drops", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("EnableBombchuDrops"))
         .PreFunc([](WidgetInfo& info) {

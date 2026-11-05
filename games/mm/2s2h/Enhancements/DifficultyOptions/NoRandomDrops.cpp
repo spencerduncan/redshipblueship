@@ -6,7 +6,7 @@ extern "C" {
 #include "variables.h"
 }
 
-#define CVAR_NAME "gEnhancements.NoRandomDrops"
+#define CVAR_NAME "gEnhancements.DifficultyOptions.NoRandomDrops"
 #define CVAR CVarGetInteger(CVAR_NAME, 0)
 
 #define DISABLE_VB_DROP(vb) COND_VB_SHOULD(vb, CVAR, { *should = false; })

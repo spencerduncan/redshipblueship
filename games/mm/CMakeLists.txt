@@ -711,8 +711,15 @@ if(SINGLE_EXECUTABLE_BUILD)
         # linked whole under the Cheats block above, each CVar drawn by an MM row, and #1224's port of their IS_RANDO
         # halves (Rando/MiscBehavior/ForcedGatesSingleExe.cpp and OnCycleSave.cpp's Razor restore) is retired, so
         # every rando gate registers exactly once. MMRegistrarCoverage phase 12 holds that.
-        # #1412 (MFE-6, MFE-11, MFE-17, MFE-18, MFE-25, MFE-27, MFE-29, MFE-31, MFE-35): MM parity registrars for
-        # settings SoH already ships (10 converged onto SoH's keys) plus Infinite Epona Carrots (hosted under Cheats).
+        # #1412 (MFE-23, MFE-24, MFE-25, MFE-26, MFX-14): the MM halves of settings SoH already ships. Ten read SoH's
+        # keys (kConvergedKeys; InfiniteEponaCarrots.cpp reads SoH's Epona Boost); NoRandomDrops.cpp keeps 2Ship's key,
+        # held apart and hosted as MM No Random Drops. Each registers through a file-scope RegisterShipInitFunc on a VB
+        # appended to GIVanillaBehavior and dispatched through MM_GameHooks_ExecuteVBShould: z_player.c
+        # (VB_LIMIT_EXPLOSIVES, VB_USE_HELD_ITEM_AFTER_CHANGE, VB_USE_BOTTLE_ITEM, VB_PLAY_BOTTLE_CATCH_TEXT),
+        # z_en_item00.c (VB_DROP_COLLECTIBLE, VB_UPDATE_ITEM00), z_en_bom.c, z_door_ana.c, z_parameter.c and
+        # z_en_horse.c; FasterRupeeAccumulator.cpp hooks OnGameStateUpdate (game.c). Play-state guards where a body reads
+        # MM_gPlayState (FasterRupeeAccumulator, SkipBottleCatch, NoRandomDrops). No stub in mm_stubs.c shadows them.
+        # OoT ships RegisterUnsheatheWithoutSlashing and RegisterFasterRupeeAccumulator, so MM's are MM_-prefixed.
         "2s2h/Enhancements/Cheats/InfiniteEponaCarrots.cpp"
         "2s2h/Enhancements/Player/UnsheatheWithoutSlashing.cpp"
         "2s2h/Enhancements/Items/RemoveExplosiveLimit.cpp"
