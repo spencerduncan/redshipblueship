@@ -1216,6 +1216,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // scan and validation, the ROM search dirs and the tools check, ROM-free; plus
 // the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
 #include "tests/test_mm_extract.c"
+// #1475 (lane H1): the combined Hint Tracker's Majora's Mask side: MM's hint
+// sources, the resolver, the read record and its round trips, the pane and the
+// hooks' wiring (mm-hint-sources, ROM-free), and the same over a real paired world
+// (mm-hint-sources-world, rando tier). FILE SCOPE (compiled as C++): it drives
+// rsbs::SaveManager, after test_crossing_commit.c and test_combo_crossing_views.c.
+#include "tests/test_mm_hint_sources.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -7958,6 +7964,34 @@ TestResult Test_MMCreationNewFileWorld(void) {
     return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1475's two rows (tests/test_mm_hint_sources.c): the ROM-free row gets the
+// display-free shared bring-up, like combo-crossing-views (it saves, loads and
+// switches games); the world row needs a generation, like combo-crossing-views-world.
+TestResult Test_MmHintSources(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MmHintSources_RunSynthetic();
+}
+
+TestResult Test_MmHintSourcesWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char mhsArg0[] = "redship";
+    static char* mhsArgv[] = { mhsArg0, nullptr };
+    InitOTRForMMFirstBoot(1, mhsArgv);
+    return MmHintSources_RunWorld();
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -8696,6 +8730,16 @@ const TestDescriptor gTests[] = {
       "The pair's Way of the Hero is the hosts its goal cannot do without in either game, both games' stones name "
       "it, and MM's hints default on (#1439)",
       Test_WothHints },
+    // #1475 (lane H1): the combined Hint Tracker's MM side. The world row needs a
+    // generation; skipped by `--test all` below like its siblings.
+    { "mm-hint-sources",
+      "MM's 74 hint sources, the resolver's stream, the read record (cleared by a new file, round-tripped by a "
+      ".redsave and an OoT -> MM -> OoT crossing pair), the masked pane and the hooks' wiring (#1475)",
+      Test_MmHintSources },
+    { "mm-hint-sources-world",
+      "Over a real paired world the MM hint resolver is the textbox for every source, over the frozen half as over "
+      "the live save, moves no stream, and a read item hint marks its MM check Seen (#1475)",
+      Test_MmHintSourcesWorld },
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
@@ -10288,6 +10332,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "shuffled-fairy-exists") == 0 ||
                 strcmp(gTests[i].name, "oot-time-travel-sword") == 0 ||
                 strcmp(gTests[i].name, "critical-renewables-world") == 0 ||
+                strcmp(gTests[i].name, "mm-hint-sources-world") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

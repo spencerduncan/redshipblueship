@@ -560,7 +560,8 @@ const char* const kWhForeignDraw =
     "if (dist.type == HINT_TYPE_WOTH && RsbsPlaceForeignWothHint(hintPool.size(), dist.copies, dist.name)) {";
 const char* const kWhLoadForeign =
     "RsbsLoadForeignWothAreas(); // #1439: empty unless OoT's paired remainder is hinting";
-const char* const kWhMmWoth = "const std::string woth = Rando::HintWoth::FreeStoneText(stoneSeed);";
+// #1475: both variants report the area they name (the hint tracker's resolver).
+const char* const kWhMmWoth = "const std::string woth = Rando::HintWoth::FreeStoneText(stoneSeed, &area);";
 const char* const kWhClaimGate = "if (!Combo_ComboLogicClaimsAllowed()) {";
 const char* const kWhOoTWindow =
     "return OoT_ComboLogic_HintingPairedRemainder() != 0 && Combo_ComboLogicClaimsAllowed();";
@@ -580,12 +581,15 @@ const WhSite kWhSites[] = {
     { "games/oot/soh/Enhancements/randomizer/3drando/hints.cpp", "void CreateStoneHints() {", "}", kWhLoadForeign,
       "DistributeAndPlaceHints(distTable, totalStones);", kWhLoadForeign,
       "OoT's stone pass loads the MM areas before it draws" },
+    // #1475: the free stone's text reads the world it is handed (the hint
+    // tracker's resolver and the stone's hook share it), so its head names it.
     { "games/mm/2s2h/Rando/ActorBehavior/EnGs.cpp",
-      "static std::string FreeStoneHintTextSeeded(const GossipHintTarget& target, uint32_t stoneSeed) {", "}",
-      "const std::string foolish = Rando::HintFoolish::FreeStoneText(stoneSeed);", kWhMmWoth, kWhMmWoth,
+      "static std::string FreeStoneHintTextSeeded(const RandoSaveCheck* checks, const GossipHintTarget& target,", "}",
+      "const std::string foolish = Rando::HintFoolish::FreeStoneText(checks, stoneSeed, &area);", kWhMmWoth, kWhMmWoth,
       "MM's free stone consults the WotH variant after the foolish one" },
-    { "games/mm/2s2h/Rando/HintWothSingleExe.cpp", "std::string Rando::HintWoth::FreeStoneText(uint32_t stoneSeed) {",
-      "}", kWhClaimGate, "return \"\";", kWhClaimGate, "MM's WotH stone asks the No Logic gate first" },
+    { "games/mm/2s2h/Rando/HintWothSingleExe.cpp",
+      "std::string Rando::HintWoth::FreeStoneText(uint32_t stoneSeed, ComboArea* outArea) {", "}", kWhClaimGate,
+      "return \"\";", kWhClaimGate, "MM's WotH stone asks the No Logic gate first" },
     { "games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp", "static bool OoTWothWindowOpen() {", "}", kWhOoTWindow,
       nullptr, kWhOoTWindow,
       "OoT speaks of the Way of the Hero only in its remainder and only when the rung proved something" },

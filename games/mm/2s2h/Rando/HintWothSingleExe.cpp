@@ -69,7 +69,7 @@ std::vector<ComboArea> FrozenWothAreas() {
 
 } // namespace
 
-std::string Rando::HintWoth::FreeStoneText(uint32_t stoneSeed) {
+std::string Rando::HintWoth::FreeStoneText(uint32_t stoneSeed, ComboArea* outArea) {
     // No Logic (combo rung `none`) proved nothing, so nothing is claimed needed
     // (the creation froze no record then either; this is the reader's half).
     if (!Combo_ComboLogicClaimsAllowed()) {
@@ -90,6 +90,9 @@ std::string Rando::HintWoth::FreeStoneText(uint32_t stoneSeed) {
     }
     std::string msg = "They say %y{{location}}%w is on the %yWay of the Hero%w.";
     CustomMessage::Replace(&msg, "{{location}}", name);
+    if (outArea != nullptr) {
+        *outArea = area;
+    }
     return msg;
 }
 

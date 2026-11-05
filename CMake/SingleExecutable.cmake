@@ -213,6 +213,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the frozen area record Majora's Mask's stones read. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
+    # #1475 (lane H1): the combined Hint Tracker's view model, Majora's Mask pane:
+    # MM's hint sources, the read record in the combo save record and the masked
+    # rows over the MM save the check tracker reads. Game-header-free. APPENDED,
+    # never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/combo_hint_view.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -260,6 +265,7 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/combo_spoiler_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboSpoilerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_tracker_view.h
+    ${CMAKE_SOURCE_DIR}/src/common/combo_hint_view.h
     ${CMAKE_SOURCE_DIR}/src/common/combo_item_view.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboTrackerWindow.h
     ${CMAKE_SOURCE_DIR}/src/common/ComboItemTrackerWindow.h
@@ -666,6 +672,14 @@ if(BUILD_TESTING)
     # checked from source (RSBS_SOURCE_DIR). The generated half is ComboSingleBag
     # D2's P8 (rando tier).
     redship_add_test(NAME WothHints COMMAND redship --test woth-hints)
+    # #1475 (lane H1): the combined Hint Tracker's MM side, ROM-free: MM's 74 hint
+    # sources (58 stone placements, scene versions apart, and 16 fixed hints), the
+    # resolver's caller-held stream against Ship_Random, the read record carved at
+    # .redsave 929 (cleared by a new file, round-tripped by a .redsave and an
+    # OoT -> MM -> OoT crossing pair through the real switch commits), the masked
+    # pane over an authored MM half, and the hooks' wiring from source. The
+    # generated half is MmHintSourcesWorld (rando tier).
+    redship_add_test(NAME MmHintSources COMMAND redship --test mm-hint-sources)
     # #1047: what MM decides while you play is a pure function of the frozen world.
     # A free stone's seed was a float sum converted to uint32_t (undefined when
     # negative, which 23 of MM's 58 stones are); a trap's type was rolled at pickup
@@ -3251,6 +3265,17 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # spoiler's combo.crossingStore section (rando tier: it needs a generation).
     redship_add_test(NAME ComboCrossingViews COMMAND redship --test combo-crossing-views)
     redship_add_test(NAME ComboCrossingViewsWorld COMMAND redship --test combo-crossing-views-world
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    # #1475 (lane H1): over the ComboSingleBag pinned seed's real paired world, the
+    # Hint Tracker's MM resolver over the frozen MM half equals it over MM's live
+    # save for every source, every stone's pick is main's global-stream pick and
+    # its text the textbox's, every fixed hint's text is main's, neither the
+    # resolver nor the read hook moves MM's stream, and reading a stone's item hint
+    # marks its MM check Seen in the combined Check Tracker (rando tier: it needs a
+    # generation).
+    redship_add_test(NAME MmHintSourcesWorld COMMAND redship --test mm-hint-sources-world
         LABEL rando
         TIMEOUT 600
         ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")

@@ -13,6 +13,10 @@
 #include <cstdint>
 #include <string>
 
+#include "combo_area.h" // src/common: ComboArea, the area the variant names (#1475)
+
+struct RandoSaveCheck; // z64save.h: one row of a save's rando check table
+
 namespace Rando {
 namespace HintFoolish {
 
@@ -30,8 +34,13 @@ constexpr int kFreeStoneOneIn = 5;
  * recomputed from the frozen world: a pure function of the world and the stone,
  * chosen nowhere and persisted nowhere. It never touches MM's global Ship_Random
  * stream, so the item pick and the stone's flavour line after it never move.
+ *
+ * #1475: the world is `checks`, a SaveContext image's rando check table (MM's
+ * live save at talk time, the frozen MM half for the combined Hint Tracker), so
+ * the tracker's resolver and the stone share this one function; `*outArea` (may
+ * be NULL) receives the area named, untouched when "" is returned.
  */
-std::string FreeStoneText(uint32_t stoneSeed);
+std::string FreeStoneText(const RandoSaveCheck* checks, uint32_t stoneSeed, ComboArea* outArea = nullptr);
 
 } // namespace HintFoolish
 } // namespace Rando

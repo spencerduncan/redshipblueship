@@ -51,11 +51,17 @@ namespace {
  *    reconciles to PROGRESSION. A class the owner cannot give yet (NONE) is
  *    IMPORTANT: an unknown is never a foolish claim.
  */
+/** #1475: the save table MmHostStanding reads: MM's live save's, or, while
+ *  FreeStoneText answers for another SaveContext image (the frozen MM half the
+ *  combined Hint Tracker reads), that image's. Set only for the length of that
+ *  one computation, so the adapter's signature (a check id) stays the rule's. */
+const RandoSaveCheck* sStandingChecks = nullptr;
+
 uint8_t MmHostStanding(uint16_t check) {
     if (check <= RC_UNKNOWN || check >= RC_MAX) {
         return 0;
     }
-    const RandoSaveCheck& saveCheck = RANDO_SAVE_CHECKS[check];
+    const RandoSaveCheck& saveCheck = (sStandingChecks != nullptr) ? sStandingChecks[check] : RANDO_SAVE_CHECKS[check];
     if (!saveCheck.shuffled) {
         return 0;
     }
@@ -110,14 +116,19 @@ uint64_t NextStoneDraw(uint64_t* state) {
 
 } // namespace
 
-std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {
+std::string Rando::HintFoolish::FreeStoneText(const RandoSaveCheck* checks, uint32_t stoneSeed, ComboArea* outArea) {
     // No Logic (combo rung `none`) proved nothing: the stone keeps its item hint
     // and claims no area foolish (foreign_items.h, Combo_ComboLogicClaimsAllowed).
     if (!Combo_ComboLogicClaimsAllowed()) {
         return "";
     }
+    // #1475: the rule reads the world it is handed (MmHostStanding's table), for
+    // this computation only.
     ComboFoolishAreas foolish;
-    if (Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &foolish) <= 0) {
+    sStandingChecks = checks;
+    const int foolishCount = Combo_Area_ComputeFoolish((uint8_t)GAME_MM, &foolish);
+    sStandingChecks = nullptr;
+    if (foolishCount <= 0) {
         return "";
     }
     std::vector<uint8_t> areas;
@@ -136,6 +147,9 @@ std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {
     // item hint names it).
     std::string msg = "They say plundering %y{{location}}%w is a %pfoolish choice%w.";
     CustomMessage::Replace(&msg, "{{location}}", Combo_Area_Name(area));
+    if (outArea != nullptr) {
+        *outArea = area;
+    }
     return msg;
 }
 
