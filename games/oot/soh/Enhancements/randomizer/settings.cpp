@@ -1552,9 +1552,10 @@ void Settings::CreateOptions() {
     OPT_TRICK(RT_OPEN_UNDERWATER_CHEST, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
               "Open Underwater Chests",
               "Underwater chests can be opened by wearing iron boots and hookshotting the chest.");
-    OPT_TRICK(RT_DISTANT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
-              "Distant Boulder Collision",
-              "From afar boulder collision is disabled, allowing projectiles to pass through them.");
+    OPT_TRICK(RT_BOULDER_COLLISION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
+              "Flawed Boulder Collision",
+              "The edges of a boulder's mesh will not have collision, allowing you to shoot past them.\n"
+              "Also from afar boulder collision is disabled completely, allowing projectiles to pass through them.");
     OPT_TRICK(RT_ITEM_EXTENSION, RCQUEST_BOTH, RA_NONE, { Tricks::Tag::INTERMEDIATE, Tricks::Tag::GLITCH },
               "Item Extension",
               "Slightly extends range. Also allows clipping items past thin collision, such as gates, ice, and water, "

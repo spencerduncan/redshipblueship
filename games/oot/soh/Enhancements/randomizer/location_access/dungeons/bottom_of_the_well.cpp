@@ -208,7 +208,7 @@ void RegionTable_Init_BottomOfTheWell() {
         Entrance(RR_BOTW_HIDDEN_POTS,      []{return logic->CanClimbHighLadder();}),
         //It's possible to abuse boulder's limited range of collision detection to detonate the flowers through the boulder with bow, but this is a glitch
         //the exact range is just past the furthest away plank in the green goo section
-        Entrance(RR_BOTW_B3_BOMB_FLOWERS,  []{return AnyAgeTime([]{return logic->BlastOrSmash() || logic->CanUse(RG_DINS_FIRE) || (ctx->GetTrickOption(RT_BOTW_BASEMENT) && logic->CanUse(RG_STICKS)) || (ctx->GetTrickOption(RT_DISTANT_BOULDER_COLLISION) && logic->CanUse(RG_FAIRY_BOW));});}),
+        Entrance(RR_BOTW_B3_BOMB_FLOWERS,  []{return AnyAgeTime([]{return logic->BlastOrSmash() || logic->CanUse(RG_DINS_FIRE) || (ctx->GetTrickOption(RT_BOTW_BASEMENT) && logic->CanUse(RG_STICKS)) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->CanUse(RG_FAIRY_BOW));});}),
         Entrance(RR_BOTW_B3_BLOCKED_GRASS, []{return AnyAgeTime([]{return logic->BlastOrSmash();});}),
         Entrance(RR_BOTW_B3_CHEST_AREA,    []{return AnyAgeTime([]{return logic->BlastOrSmash();});}),
     });
@@ -266,7 +266,7 @@ void RegionTable_Init_BottomOfTheWell() {
         EventAccess(LOGIC_FAIRY_ACCESS,         []{return (logic->IsChild && logic->CanUse(RG_FAIRY_SLINGSHOT)) ||
                                                           ((ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OFF) || ctx->GetOption(RSK_SHUFFLE_POTS).Is(RO_SHUFFLE_POTS_OVERWORLD)) &&
                                                            ((logic->CanBreakPots() &&
-                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_DISTANT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
+                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
                                                               (ctx->GetTrickOption(RT_ITEM_EXTENSION) && ((logic->IsChild && logic->CanUse(RG_FAIRY_SLINGSHOT)) || logic->CanUse(RG_FAIRY_BOW) || logic->CanUse(RG_LONGSHOT))))) ||
                                                             (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->CanUse(RG_BOOMERANG))));}),
         //It is possible to hit the water switch with a pot from RR_BOTW_MQ_MIDDLE, however the hitbox for making it activate is very unintuitive
@@ -278,7 +278,7 @@ void RegionTable_Init_BottomOfTheWell() {
         //Locations
         //Free Standing Collectible behind the gate doesn't have collision to shoot through the gate with Bow/Slingshot, unlike the Pot, only Hookshot works for both
         LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_OUTER_LOBBY_POT,  (logic->CanBreakPots() &&
-                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_DISTANT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
+                                                             (((AnyAgeTime([]{return logic->BlastOrSmash();}) || (ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->IsChild)) && logic->CanHitEyeTargets()) ||
                                                               (ctx->GetTrickOption(RT_ITEM_EXTENSION) && logic->CanUse(RG_LONGSHOT)))) ||
                                                             (ctx->GetTrickOption(RT_VISIBLE_COLLISION) && logic->CanUse(RG_BOOMERANG))),
         LOCATION(RC_BOTTOM_OF_THE_WELL_MQ_BOMB_LEFT_HEART,  logic->HasExplosives()),
