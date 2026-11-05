@@ -45,9 +45,9 @@
   the sword the pedestal offers no pull. The row sits right under Shuffle Master Sword on Randomizer > Shuffles >
   Shuffle Items, greyed while the sword is not shuffled (pulling it then hands it over). A saved file or seed package
   made before this keeps the pedestal it was made with.
-- **The Standard and Beginner presets follow OoTMM's defaults** (operator ruling 2026-11-05). Applying either preset
-  now leaves Rainbow Bridge, Ganon's Boss Key, Shuffle Ocarinas, Shuffle Master Sword, Shuffle Gerudo Membership Card
-  and Time Travel Requires Master Sword at the defaults above: the bridge needs all six Medallions, you start with
+- **The Standard and Beginner presets follow OoTMM's defaults** (#1486, operator ruling 2026-11-05). Applying either
+  preset now leaves Rainbow Bridge, Ganon's Boss Key, Shuffle Ocarinas, Shuffle Master Sword, Shuffle Gerudo Membership
+  Card and Time Travel Requires Master Sword at the defaults above: the bridge needs all six Medallions, you start with
   Ganon's Boss Key, and both ocarinas, the Master Sword and the Gerudo Membership Card are shuffled. Before, both
   presets opened the bridge once you found Greg the Green Rupee and handed out the boss key at the Light Arrow
   Cutscene after six (Beginner) or seven (Standard) dungeon rewards, both left the Master Sword on its pedestal, and
