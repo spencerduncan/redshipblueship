@@ -6325,6 +6325,7 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         "GameplayStatsWindow",
         "CheckTracker::CheckTrackerWindow",
         "EntranceTracker::EntranceTrackerWindow",
+        "HintTracker::HintTrackerWindow",
         "ItemTrackerWindow",
         "TimeSplitWindow",
     };
@@ -6348,6 +6349,7 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         "DLViewerWindow",
         "CheckTracker::CheckTrackerSettingsWindow",
         "EntranceTracker::EntranceTrackerSettingsWindow",
+        "HintTracker::HintTrackerSettingsWindow",
         "ItemTrackerSettingsWindow",
         "PlandomizerWindow",
         "Notification::Window",
@@ -6467,9 +6469,9 @@ static bool OoTWindowsGate_ScanSetupGuiElements(void) {
         }
     }
     const int expectedSites = (int)(sizeof(kGated) / sizeof(kGated[0]) + sizeof(kExempt) / sizeof(kExempt[0]));
-    if (wrapped != 8 || sites != expectedSites) {
+    if (wrapped != 9 || sites != expectedSites) {
         printf("[TEST] FAIL: oot-windows-gate: SetupGuiElements has %d make_shared sites (%d OoTActiveGated<>), want "
-               "%d (8)\n",
+               "%d (9)\n",
                sites, wrapped, expectedSites);
         ok = false;
     }

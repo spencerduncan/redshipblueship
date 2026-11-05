@@ -105,6 +105,8 @@ std::shared_ptr<CheckTracker::CheckTrackerSettingsWindow> mCheckTrackerSettingsW
 std::shared_ptr<CheckTracker::CheckTrackerWindow> mCheckTrackerWindow;
 std::shared_ptr<EntranceTracker::EntranceTrackerSettingsWindow> mEntranceTrackerSettingsWindow;
 std::shared_ptr<EntranceTracker::EntranceTrackerWindow> mEntranceTrackerWindow;
+std::shared_ptr<HintTracker::HintTrackerSettingsWindow> mHintTrackerSettingsWindow;
+std::shared_ptr<HintTracker::HintTrackerWindow> mHintTrackerWindow;
 std::shared_ptr<ItemTrackerSettingsWindow> mItemTrackerSettingsWindow;
 std::shared_ptr<ItemTrackerWindow> mItemTrackerWindow;
 std::shared_ptr<TimeSplitWindow> mTimeSplitWindow;
@@ -205,6 +207,12 @@ void SetupGuiElements() {
     mEntranceTrackerSettingsWindow = std::make_shared<EntranceTracker::EntranceTrackerSettingsWindow>(
         CVAR_WINDOW("EntranceTrackerSettings"), "Entrance Tracker Settings", ImVec2(600, 375));
     gui->AddGuiWindow(mEntranceTrackerSettingsWindow);
+    mHintTrackerWindow = std::make_shared<OoTActiveGated<HintTracker::HintTrackerWindow>>(
+        CVAR_WINDOW("HintTracker"), "Hint Tracker", ImVec2(550, 620));
+    gui->AddGuiWindow(mHintTrackerWindow);
+    mHintTrackerSettingsWindow = std::make_shared<HintTracker::HintTrackerSettingsWindow>(
+        CVAR_WINDOW("HintTrackerSettings"), "Hint Tracker Settings", ImVec2(600, 300));
+    gui->AddGuiWindow(mHintTrackerSettingsWindow);
     // RSBS (#1132, ruling D1): retired as the Check Tracker is; the unified Item Tracker replaces it.
     mItemTrackerWindow = std::make_shared<OoTActiveGated<RetiredInSingleExe<ItemTrackerWindow>>>(
         SOH_RETIRED_ITEM_TRACKER_KEY, kSohRetiredItemTrackerWindowName, ImVec2(350, 600));
@@ -241,6 +249,8 @@ void Destroy() {
     mModalWindow = nullptr;
     mItemTrackerWindow = nullptr;
     mItemTrackerSettingsWindow = nullptr;
+    mHintTrackerWindow = nullptr;
+    mHintTrackerSettingsWindow = nullptr;
     mEntranceTrackerWindow = nullptr;
     mEntranceTrackerSettingsWindow = nullptr;
     mCheckTrackerWindow = nullptr;

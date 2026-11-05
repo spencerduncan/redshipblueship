@@ -108,8 +108,9 @@ namespace {
 // cosmetics/CosmeticsEditor.cpp, Lang/Lang.cpp, mod_menu.cpp,
 // Presets/Presets.cpp (soh_enh), randomizer/randomizer_check_tracker.cpp,
 // randomizer/randomizer_entrance_tracker.cpp,
+// randomizer/randomizer_hint_tracker.cpp,
 // randomizer/randomizer_item_tracker.cpp (soh_rando).
-constexpr size_t kEnhancementMenuInitRegistrars = 9;
+constexpr size_t kEnhancementMenuInitRegistrars = 10;
 
 // soh_port's own: SohGui/ResolutionEditor.cpp always; Network/Anchor/Menu.cpp
 // only when the Anchor client is compiled in.

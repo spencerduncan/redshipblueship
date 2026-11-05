@@ -144,7 +144,7 @@ const char* StatusName(RandomizerCheckStatus s) {
     switch (s) {
         case RCSHOW_UNCHECKED:
             return "UNCHECKED";
-        case RCSHOW_SEEN:
+        case RCSHOW_SEEN_OR_HINTED:
             return "SEEN";
         case RCSHOW_IDENTIFIED:
             return "IDENTIFIED";

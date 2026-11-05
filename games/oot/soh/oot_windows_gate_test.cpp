@@ -147,6 +147,7 @@ struct GatedWindow {
 const char* kTrackerLayoutCVars[] = {
     CVAR_TRACKER_ITEM("WindowType"),      CVAR_TRACKER_ITEM("ShowOnlyPaused"), CVAR_TRACKER_CHECK("WindowType"),
     CVAR_TRACKER_CHECK("ShowOnlyPaused"), CVAR_TRACKER_ENTRANCE("WindowType"), CVAR_TRACKER_ENTRANCE("ShowOnlyPaused"),
+    CVAR_TRACKER_HINT("WindowType"),      CVAR_TRACKER_HINT("ShowOnlyPaused"),
 };
 
 #define OWG_SPY_CVAR CVAR_WINDOW("OoTWindowsGateSpy")
@@ -1005,6 +1006,7 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
         { "Gameplay Stats", CVAR_WINDOW("GameplayStats"), nullptr },
         { "Check Tracker", CVAR_WINDOW("CheckTracker"), nullptr },
         { "Entrance Tracker", CVAR_WINDOW("EntranceTracker"), nullptr },
+        { "Hint Tracker", CVAR_WINDOW("HintTracker"), nullptr },
         { "Item Tracker", CVAR_WINDOW("ItemTracker"), nullptr },
         { "Time Splits", CVAR_WINDOW("TimeSplits"), nullptr },
     };
@@ -1031,10 +1033,12 @@ extern "C" int OoT_WindowsGate_RunHeadless(void) {
         windows[4].visibilityCVar, windows[4].name, ImVec2(400, 540));
     windows[5].window = std::make_shared<OoTActiveGated<EntranceTracker::EntranceTrackerWindow>>(
         windows[5].visibilityCVar, windows[5].name, ImVec2(500, 750));
-    windows[6].window = std::make_shared<OoTActiveGated<ItemTrackerWindow>>(windows[6].visibilityCVar, windows[6].name,
+    windows[6].window = std::make_shared<OoTActiveGated<HintTracker::HintTrackerWindow>>(
+        windows[6].visibilityCVar, windows[6].name, ImVec2(550, 620));
+    windows[7].window = std::make_shared<OoTActiveGated<ItemTrackerWindow>>(windows[7].visibilityCVar, windows[7].name,
                                                                             ImVec2(350, 600));
     // W6-TIMERS (#1237): SohGui builds Time Splits as OoTGatedHostingMm<>; un-hosted here, it must gate as the others.
-    windows[7].window = std::make_shared<OoTGatedHostingMm<TimeSplitWindow>>(windows[7].visibilityCVar, windows[7].name,
+    windows[8].window = std::make_shared<OoTGatedHostingMm<TimeSplitWindow>>(windows[8].visibilityCVar, windows[8].name,
                                                                              ImVec2(450, 660));
 
     for (const GatedWindow& w : windows) {
