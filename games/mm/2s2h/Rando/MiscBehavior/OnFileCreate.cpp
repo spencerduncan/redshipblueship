@@ -138,19 +138,28 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                 if (!RANDO_SAVE_OPTIONS[RO_SHUFFLE_GOLD_SKULLTULAS]) {
                     RANDO_SAVE_OPTIONS[RO_MINIMUM_SKULLTULA_TOKENS] = SPIDER_HOUSE_TOKENS_REQUIRED;
                 }
+
+                // Starting with every Stray Fairy means the Great Fairies always have their full set
+                if (RANDO_SAVE_OPTIONS[RO_PLACEMENT_STRAY_FAIRIES] == RO_DUNGEON_ITEM_START_WITH) {
+                    RANDO_SAVE_OPTIONS[RO_MINIMUM_STRAY_FAIRIES] = STRAY_FAIRY_SCATTERED_TOTAL;
+                }
 #endif
 
                 // ------------------------------------------------------------
                 // ONE generation attempt, from starting items through the
                 // foreign-placement pass. Factored into a callable because the
                 // paired path below runs it under the deterministic attempt
-                // ladder (ADR 0010 increment 1.2) while the solo path keeps
-                // its single-shot upstream behavior. Everything inside is a
-                // pure function of (the save state at entry, the live RNG
-                // stream, the resolved options) — the ladder restores the
-                // first two per attempt, which is what makes a retry a
-                // genuinely fresh derivation rather than a mutation of a
-                // half-failed one.
+                // ladder (ADR 0010 increment 1.2) while the solo path runs it
+                // once, as upstream does (upstream's own Glitchless retry loop,
+                // a0c9b12ce, sits inside it and is never reached by a paired
+                // world, which returns into the single bag first; that loop
+                // retries any std::exception, GenerationTimeout included, so a
+                // solo Glitchless fill may take up to ten budgets of wall
+                // clock). Everything inside is a pure function of (the save
+                // state at entry, the live RNG stream, the resolved options) —
+                // the ladder restores the first two per attempt, which is what
+                // makes a retry a genuinely fresh derivation rather than a
+                // mutation of a half-failed one.
                 // ------------------------------------------------------------
 #ifdef RSBS_SINGLE_EXECUTABLE
                 // The ladder attempt the next runGenerationOnce belongs to: the
@@ -285,7 +294,22 @@ void Rando::MiscBehavior::OnFileCreate(s16 fileNum) {
                     } else if (RANDO_SAVE_OPTIONS[RO_LOGIC] == RO_LOGIC_NEARLY_NO_LOGIC) {
                         Rando::Logic::ApplyNearlyNoLogicToSaveContext(checkPool, itemPool);
                     } else if (RANDO_SAVE_OPTIONS[RO_LOGIC] == RO_LOGIC_GLITCHLESS) {
-                        Rando::Logic::ApplyGlitchlessLogicToSaveContext(checkPool, itemPool);
+                        // Various things can result in failed generation now (confined placement, junked items,
+                        // too many traps, etc), so we retry a few times before giving up
+                        const int maxAttempts = 10;
+                        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                            std::vector<RandoCheckId> attemptCheckPool = checkPool;
+                            std::vector<RandoItemId> attemptItemPool = itemPool;
+                            try {
+                                Rando::Logic::ApplyGlitchlessLogicToSaveContext(attemptCheckPool, attemptItemPool);
+                                break;
+                            } catch (const std::exception& e) {
+                                if (attempt >= maxAttempts) {
+                                    throw;
+                                }
+                                SPDLOG_WARN("Glitchless generation attempt {} failed ({}), retrying", attempt, e.what());
+                            }
+                        }
                     } else {
                         throw std::runtime_error("Logic option not implemented: " +
                                                  std::to_string(RANDO_SAVE_OPTIONS[RO_LOGIC]));

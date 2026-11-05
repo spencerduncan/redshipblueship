@@ -97,7 +97,7 @@ void RegionTable_Init_ZoraRiver() {
 
     areaTable[RR_ZR_FROM_SHORTCUT] = Region("ZR From Shortcut", SCENE_ZORAS_RIVER, {}, {}, {
         //Exits
-        Entrance(RR_ZORAS_RIVER,    []{return logic->Hearts() > 1 || logic->HasItem(RG_BOTTLE_WITH_FAIRY) || logic->HasItem(RG_BRONZE_SCALE);}),
+        Entrance(RR_ZORAS_RIVER,    []{return logic->CanVoid() || logic->HasItem(RG_BRONZE_SCALE);}),
         Entrance(RR_THE_LOST_WOODS, []{return logic->HasItem(RG_SILVER_SCALE) || logic->CanUse(RG_IRON_BOOTS);}),
     });
 
@@ -145,9 +145,9 @@ void RegionTable_Init_ZoraRiver() {
 
     areaTable[RR_ZR_STORMS_GROTTO] = Region("ZR Storms Grotto", SCENE_GROTTOS, {}, {
         //Locations
-        LOCATION(RC_ZR_DEKU_SCRUB_GROTTO_REAR,  logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_ZR_DEKU_SCRUB_GROTTO_FRONT, logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
-        LOCATION(RC_ZR_STORMS_GROTTO_BEEHIVE,   logic->CanBreakUpperBeehives()),
+        LOCATION(RC_ZR_DEKU_SCRUB_GROTTO_REAR,    logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_ZR_DEKU_SCRUB_GROTTO_FRONT,   logic->CanStunDeku() && logic->HasItem(RG_SPEAK_DEKU) && GetCheckPrice() <= GetWalletCapacity()),
+        LOCATION(RC_ZR_DEKU_SCRUB_GROTTO_BEEHIVE, logic->CanBreakUpperBeehives()),
     }, {
         //Exits
         Entrance(RR_ZORAS_RIVER, []{return true;}),

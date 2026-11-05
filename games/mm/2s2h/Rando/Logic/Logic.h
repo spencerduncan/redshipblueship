@@ -296,6 +296,12 @@ extern unsigned int gRsbsGlitchlessTimeoutMsOverride;
 void ApplyGlitchlessLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyNearlyNoLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 void ApplyNoLogicToSaveContext(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
+bool StaysAtVanillaCheck(RandoItemId itemId, const RandoSaveInfo& saveInfo);
+bool IsSongLocationItem(RandoItemId itemId);
+bool IsItemAllowedAtCheck(RandoItemId itemId, RandoCheckId checkId);
+size_t SelectItemForCheck(const std::vector<RandoItemId>& itemPool, const std::vector<RandoCheckId>& checkPool,
+                          RandoCheckId checkId);
+void PreplaceConfinedItems(std::vector<RandoCheckId>& checkPool, std::vector<RandoItemId>& itemPool);
 
 struct RandoRegionExit {
     s32 returnEntrance;
