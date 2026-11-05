@@ -24,6 +24,8 @@
 
 #ifdef RSBS_SINGLE_EXECUTABLE
 #include "static_data.h" // ComboLogicCounterMax reads the static location table
+#include "combo_single_bag.h"
+#include "foreign_items.h"
 // #1369 (GameExports_SingleExe.cpp): under the frozen Shared Swim rule the bronze
 // tier is its own pool row (RG_BRONZE_SCALE), so Progressive Scale starts at silver.
 extern "C" bool OoT_SharedSwimSplitsScale(void);
@@ -1417,7 +1419,7 @@ bool Logic::CanKillEnemy(RandomizerEnemy enemy, EnemyDistance distance, bool wal
                    CanUse(RG_STICKS) || CanUse(RG_DINS_FIRE) || (TakeDamage() && CanUseSword());
         case RE_SHABOM:
             return CanUse(RG_BOOMERANG) || CanUse(RG_NUTS) || CanJumpslash() || CanUse(RG_DINS_FIRE) ||
-                   CanUse(RG_ICE_ARROWS) || EffectiveHealth() * 2 > quantity;
+                   CanUse(RG_ICE_ARROWS) || EffectiveHealth() > quantity * 4;
         case RE_OCTOROK:
             return CanReflectNuts() || HookshotOrBoomerang() || CanUse(RG_FAIRY_BOW) || CanUse(RG_FAIRY_SLINGSHOT) ||
                    CanUse(RG_BOMB_BAG) || (wallOrFloor && CanUse(RG_BOMBCHU_5));
@@ -1646,7 +1648,7 @@ bool Logic::CanDetonateBombFlowers() {
 bool Logic::CanDetonateUprightBombFlower() {
     return CanDetonateBombFlowers() || HasItem(RG_GORONS_BRACELET) ||
            (ctx->GetTrickOption(RT_BLUE_FIRE_MUD_WALLS) && CanUse(RG_BOTTLE_WITH_BLUE_FIRE) &&
-            (EffectiveHealth() != 1 || CanUse(RG_NAYRUS_LOVE)));
+            (EffectiveHealth() > 8 || CanUse(RG_NAYRUS_LOVE)));
 }
 
 bool Logic::CanHammerRecoilHover(bool needShield) {
@@ -1930,9 +1932,11 @@ bool Logic::CallGossipFairy() {
     return CallGossipFairyExceptSuns() || CanUse(RG_SUNS_SONG);
 }
 
-// the number returned by this is in half heart hits taken.
-// RANDOTODO work in OoT side health instead for greater applicability (16 per heart)
-uint8_t Logic::EffectiveHealth() {
+uint16_t Logic::Health() {
+    return GetSaveContext()->healthCapacity;
+}
+
+uint16_t Logic::EffectiveHealth() {
     /* Multiplier will be:
     0 for half daamge
     1 for normal damage
@@ -1945,16 +1949,18 @@ uint8_t Logic::EffectiveHealth() {
     */
     uint8_t Multiplier =
         (ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Get() < 6) ? ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Get() : 10;
-    //(Hearts() << (2 + HasItem(RG_DOUBLE_DEFENSE))) is quarter hearts after DD
-    //>> Multiplier halves on normal and does nothing on half, meaning we're working with half hearts on normal damage
-    return ((Hearts() << (2 + HasItem(RG_DOUBLE_DEFENSE))) >> Multiplier) +
-           // As 1 is a quarter heart, (1 << Multiplier) is effectivly half-hearts of unmodified damage
-           // Adds an extra hit if the damage is not exact lethal
-           ((Hearts() << (2 + HasItem(RG_DOUBLE_DEFENSE))) % (1 << Multiplier) > 0);
+    uint8_t shift = Multiplier - 1 - HasItem(RG_DOUBLE_DEFENSE);
+    // Uses exact health (16 per heart) where standard non-modified damage is 16 (full heart)
+    if (Multiplier == 0) {
+        return Health() << (1 + HasItem(RG_DOUBLE_DEFENSE));
+    }
+    return (Health() >> shift) +
+           // Adds an extra point of health if the damage won't divide exact
+           (Health() % (1 << shift) > 0);
 }
 
 uint8_t Logic::Hearts() {
-    return GetSaveContext()->healthCapacity / 16;
+    return Health() / 16;
 }
 
 uint8_t Logic::DungeonCount() {
@@ -1983,18 +1989,22 @@ uint8_t Logic::MedallionCount() {
            HasItem(RG_SPIRIT_MEDALLION) + HasItem(RG_SHADOW_MEDALLION) + HasItem(RG_LIGHT_MEDALLION);
 }
 
-uint8_t Logic::FireTimer() {
-    return CanUse(RG_GORON_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Hearts() * 8) : 0;
+uint16_t Logic::FireTimer() {
+    return CanUse(RG_GORON_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Health() / 2) : 0;
 }
 
 // Tunic is not required if you are using irons to do something that a simple gold scale dive could do, and you are not
 // in water temple. (celing swimming and long walks through water do not count)
-uint8_t Logic::WaterTimer() {
-    return CanUse(RG_ZORA_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Hearts() * 8) : 0;
+uint16_t Logic::WaterTimer() {
+    return CanUse(RG_ZORA_TUNIC) ? 255 : (ctx->GetTrickOption(RT_FEWER_TUNIC_REQUIREMENTS)) ? (Health() / 2) : 0;
 }
 
 bool Logic::TakeDamage() {
-    return CanUse(RG_BOTTLE_WITH_FAIRY) || EffectiveHealth() != 1 || CanUse(RG_NAYRUS_LOVE);
+    return CanUse(RG_BOTTLE_WITH_FAIRY) || EffectiveHealth() > 8 || CanUse(RG_NAYRUS_LOVE);
+}
+
+bool Logic::CanVoid() {
+    return CanUse(RG_BOTTLE_WITH_FAIRY) || Health() > 4 || CanUse(RG_NAYRUS_LOVE);
 }
 
 bool Logic::CanOpenBombGrotto() {
@@ -3270,8 +3280,6 @@ void Logic::Reset(bool resetSaveContext /*= true*/) {
 
     Bottles = 0;
     NumBottles = 0;
-    PieceOfHeart = 0;
-    HeartContainer = 0;
 
     IsChild = false;
     IsAdult = false;
@@ -3283,6 +3291,16 @@ void Logic::Reset(bool resetSaveContext /*= true*/) {
     AtNight = false;
     if (resetSaveContext) {
         GetSaveContext()->linkAge = !ctx->GetOption(RSK_SELECTED_STARTING_AGE).Get();
+        GetSaveContext()->healthCapacity = BaseHearts * FULL_HEART_HEALTH;
+#ifdef RSBS_SINGLE_EXECUTABLE
+        if (Combo_ForeignPairingActive()) {
+            const uint16_t startMM = Combo_SingleBag_LastReport()->startingHealthMM;
+            if (startMM > GetSaveContext()->healthCapacity) {
+                GetSaveContext()->healthCapacity = startMM;
+            }
+        }
+#endif
+        GetSaveContext()->health = GetSaveContext()->healthCapacity;
     }
 
     CalculatingAvailableChecks = false;
