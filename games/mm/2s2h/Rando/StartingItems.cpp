@@ -71,6 +71,8 @@ std::vector<RandoItemId> GetComputedStartingItems(RandoSaveInfo& randoSaveInfo) 
         for (RandoItemId itemId : strayFairies) {
             startingItems.insert(startingItems.end(), STRAY_FAIRY_SCATTERED_TOTAL, itemId);
         }
+
+        startingItems.push_back(RI_CLOCK_TOWN_STRAY_FAIRY);
     }
 
     if (!RsbsWorldShuffles(randoSaveInfo, RO_SHUFFLE_SWIM)) {

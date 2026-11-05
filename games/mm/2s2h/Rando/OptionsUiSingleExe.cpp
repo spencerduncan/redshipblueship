@@ -236,6 +236,7 @@ const char* const kDungeonItemPlacementLabels[] = {
     "Anywhere",    // RO_DUNGEON_ITEM_ANYWHERE
     "Own Dungeon", // RO_DUNGEON_ITEM_OWN_DUNGEON
     "Start With",  // RO_DUNGEON_ITEM_START_WITH
+    "Vanilla",     // RO_DUNGEON_ITEM_VANILLA
 };
 
 /**
@@ -388,20 +389,20 @@ const OptionUi kOptionUi[] = {
       1, SPIDER_HOUSE_TOKENS_REQUIRED, nullptr, 0, COMBO_MM_LIVENESS_LIVE, "" },
     { RO_PLACEMENT_SMALL_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Small Keys",
-      "Where each dungeon's small keys may be placed: anywhere in the world, only within that dungeon, or start with "
-      "every dungeon's small keys.",
+      "Where each dungeon's small keys may be placed: anywhere in the world, only within that dungeon, on their "
+      "vanilla checks, or start with every dungeon's small keys.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
       COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_PLACEMENT_BOSS_KEYS, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Boss Keys",
-      "Where each dungeon's boss key may be placed: anywhere in the world, only within that dungeon, or start with "
-      "every dungeon's boss key.",
+      "Where each dungeon's boss key may be placed: anywhere in the world, only within that dungeon, on its vanilla "
+      "check, or start with every dungeon's boss key.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
       COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_PLACEMENT_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_COMBO,
       "Stray Fairies",
-      "Where each dungeon's Stray Fairies may be placed: anywhere in the world, only within that dungeon, or start "
-      "with every dungeon's Stray Fairies. The Clock Town Stray Fairy is unaffected.",
+      "Where each dungeon's Stray Fairies may be placed: anywhere in the world (with the Clock Town Stray Fairy), only "
+      "within that dungeon (Clock Town Stray Fairy vanilla), on their vanilla checks, or start with every Stray Fairy.",
       0, 0, kDungeonItemPlacementLabels, UI_COUNT(kDungeonItemPlacementLabels),
       COMBO_MM_LIVENESS_GENERATION_ONLY, "" },
     { RO_MINIMUM_STRAY_FAIRIES, COMBO_MM_GROUP_SHUFFLE_ITEMS, COMBO_MM_WIDGET_SLIDER,

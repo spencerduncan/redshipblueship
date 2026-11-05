@@ -40,6 +40,7 @@ std::unordered_map<int32_t, const char*> dungeonItemPlacementOptions = {
     { RO_DUNGEON_ITEM_ANYWHERE, "Anywhere" },
     { RO_DUNGEON_ITEM_OWN_DUNGEON, "Own Dungeon" },
     { RO_DUNGEON_ITEM_START_WITH, "Start With" },
+    { RO_DUNGEON_ITEM_VANILLA, "Vanilla" },
 };
 
 // clang-format off
@@ -402,6 +403,8 @@ static void DrawShufflesTab() {
             "Where each dungeon's small keys may be placed.\n\n"
             "Anywhere - Small keys can be found anywhere in the world.\n\n"
             "Own Dungeon - Each dungeon's small keys are only found within that dungeon.\n\n"
+            "Vanilla - Small keys stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
             "Start With - You begin with every dungeon's small keys, and none are added to the item pool."));
     UIWidgets::CVarCombobox(
         "Boss Keys", Rando::StaticData::Options[RO_PLACEMENT_BOSS_KEYS].cvar, &dungeonItemPlacementOptions,
@@ -409,14 +412,20 @@ static void DrawShufflesTab() {
             "Where each dungeon's boss key may be placed.\n\n"
             "Anywhere - Boss keys can be found anywhere in the world.\n\n"
             "Own Dungeon - Each dungeon's boss key is only found within that dungeon.\n\n"
+            "Vanilla - Boss keys stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
             "Start With - You begin with every dungeon's boss key, and none are added to the item pool."));
     UIWidgets::CVarCombobox(
         "Stray Fairies", Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, &dungeonItemPlacementOptions,
         UIWidgets::ComboboxOptions().Tooltip(
-            "Where each dungeon's Stray Fairies may be placed. The Clock Town Stray Fairy is unaffected.\n\n"
-            "Anywhere - Stray Fairies can be found anywhere in the world.\n\n"
-            "Own Dungeon - Each dungeon's Stray Fairies are only found within that dungeon.\n\n"
-            "Start With - You begin with every dungeon's Stray Fairies, and none are added to the item pool."));
+            "Where each dungeon's Stray Fairies may be placed.\n\n"
+            "Anywhere - Stray Fairies can be found anywhere in the world. The Clock Town Stray Fairy joins the "
+            "item pool with them.\n\n"
+            "Own Dungeon - Each dungeon's Stray Fairies are only found within that dungeon. The Clock Town Stray "
+            "Fairy is vanilla.\n\n"
+            "Vanilla - Stray Fairies stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
+            "Start With - You begin with every Stray Fairy, and none are added to the item pool."));
     if (CVarGetInteger(Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, RO_DUNGEON_ITEM_ANYWHERE) !=
         RO_DUNGEON_ITEM_START_WITH) {
         CVarSliderInt("Minimum Required Stray Fairies", Rando::StaticData::Options[RO_MINIMUM_STRAY_FAIRIES].cvar,
