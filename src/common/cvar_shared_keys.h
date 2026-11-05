@@ -635,7 +635,7 @@ struct DistinctPair {
 #define RSBS_CVAR_MM_PLAYER_UNDERWATER_OCARINA "gEnhancements.Player.UnderwaterOcarina"
 // W6-CAM-GYRO
 // #1235, #1236, #1240: MM's gyro aiming, free-look pitch limits, debug camera, Remote Bombchu Control and speed
-// modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gSettings.WalkModifier.*
+// modifiers. None has an SoH twin except the speed modifiers, which are held apart from SoH's gCheats.SpeedModifier.*
 // (kMustStayDistinct below: different ranges, and MM enables walking and swimming separately). The camera and speed
 // rows sit in SoH's Bindings window (SohInputEditorWindow.cpp, DrawMmCameraRows), Remote Bombchu Control on
 // Enhancements > Items > Explosives (HostedMm/SohMenuHostedMmCamGyro.cpp).
@@ -853,12 +853,14 @@ inline constexpr DistinctPair kMustStayDistinct[] = {
       "shape as P1 text speed. Converge only after a maintainer decides which unit wins and MM's read/menu are "
       "converted to it — a plain key swap is a regression, not a fix." },
     // W6-CAM-GYRO (#1235): the speed modifiers, the #1037 value-space ruling applied.
+    // #1400 (SoH 2a335b1cd) moved SoH's side from gSettings.WalkModifier.* to gCheats.SpeedModifier.*.
     { "Speed modifier value space (W6-CAM-GYRO)", RSBS_CVAR_MM_SPEED_MODIFIER_WALK_MAPPING1,
-      "gSettings.WalkModifier.Mapping1",
-      "Same idea (hold or toggle M1 / M2 to scale Link's speed), different value spaces and gating: SoH's walk and "
-      "swim multipliers run 0-5x behind one enable, while MM's walk runs 0-15x and its swim 0-8.75x, each behind "
-      "its own walk or swim enable as well as the master one. A shared slider would clip MM's range or hand SoH "
-      "values it never offers. Each game keeps its own rows under the Bindings window's Modifier Buttons." },
+      "gCheats.SpeedModifier.Value",
+      "Same idea (hold or toggle a button to scale Link's speed), different value spaces and gating: SoH's one "
+      "multiplier runs 1-5x for walking and swimming alike with no enable, while MM's walk runs 0-15x and its swim "
+      "0-8.75x, each behind its own walk or swim enable as well as the master one. A shared slider would clip MM's "
+      "range or hand SoH values it never offers. SoH keeps its rows on Enhancements > Cheats, MM its own under the "
+      "Bindings window's Modifier Buttons." },
     { "Autosave interval (inventory §5.3 group A caveat)", "gEnhancements.Saving.AutosaveInterval",
       "(none — OoT hardcodes THREE_MINUTES_IN_UNIX)",
       "The Autosave ENABLE flag is genuinely shared-intent, but OoT's interval is hardcoded with no CVar. "

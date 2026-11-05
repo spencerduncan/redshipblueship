@@ -4102,47 +4102,54 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
                 INV_CONTENT(ITEM_BEAN) = ITEM_BEAN;
                 AMMO(ITEM_BEAN) = 10;
                 if (OTRGlobals::Instance->gRandomizer->GetRandoSettingValue(RSK_SKIP_PLANTING_BEANS)) {
+                    // RSBS: a cross-game arrival redeems this pack through
+                    // Randomizer_Item_Give(NULL, ...) before OoT_gPlayState is
+                    // assigned (ForeignItemsSingleExe.cpp, z_play.c), so the
+                    // live-scene sync below runs only when a scene is loaded.
+                    // The sceneFlags writes already cover the no-scene case.
                     gSaveContext.sceneFlags[SCENE_DEATH_MOUNTAIN_CRATER].swch |= (1 << 3);
-                    if (OoT_gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_CRATER) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_CRATER) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 3);
                     }
                     gSaveContext.sceneFlags[SCENE_DEATH_MOUNTAIN_TRAIL].swch |= (1 << 6);
-                    if (OoT_gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_TRAIL) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_DEATH_MOUNTAIN_TRAIL) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 6);
                     }
                     gSaveContext.sceneFlags[SCENE_DESERT_COLOSSUS].swch |= (1 << 24);
-                    if (OoT_gPlayState->sceneNum == SCENE_DESERT_COLOSSUS) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_DESERT_COLOSSUS) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 24);
                     }
                     gSaveContext.sceneFlags[SCENE_GERUDO_VALLEY].swch |= (1 << 3);
-                    if (OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_GERUDO_VALLEY) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 3);
                     }
                     gSaveContext.sceneFlags[SCENE_GRAVEYARD].swch |= (1 << 3);
-                    if (OoT_gPlayState->sceneNum == SCENE_GRAVEYARD) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_GRAVEYARD) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 3);
                     }
                     gSaveContext.sceneFlags[SCENE_KOKIRI_FOREST].swch |= (1 << 9);
-                    if (OoT_gPlayState->sceneNum == SCENE_KOKIRI_FOREST) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_KOKIRI_FOREST) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 9);
                     }
                     gSaveContext.sceneFlags[SCENE_LAKE_HYLIA].swch |= (1 << 1);
-                    if (OoT_gPlayState->sceneNum == SCENE_LAKE_HYLIA) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_LAKE_HYLIA) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 1);
                     }
                     gSaveContext.sceneFlags[SCENE_LOST_WOODS].swch |= (1 << 4) | (1 << 18);
-                    if (OoT_gPlayState->sceneNum == SCENE_LOST_WOODS) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_LOST_WOODS) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 4);
                         OoT_Flags_SetSwitch(OoT_gPlayState, 18);
                     }
                     gSaveContext.sceneFlags[SCENE_ZORAS_RIVER].swch |= (1 << 3);
-                    if (OoT_gPlayState->sceneNum == SCENE_ZORAS_RIVER) {
+                    if (OoT_gPlayState != nullptr && OoT_gPlayState->sceneNum == SCENE_ZORAS_RIVER) {
                         OoT_Flags_SetSwitch(OoT_gPlayState, 3);
                     }
-                    ObjBean* bean = (ObjBean*)Actor_Find(&OoT_gPlayState->actorCtx, ACTOR_OBJ_BEAN, ACTORCAT_BG);
-                    if (bean != nullptr) {
-                        OoT_Flags_SetSwitch(OoT_gPlayState, bean->dyna.actor.params & 0x3F);
-                        func_80B8FE00(bean);
+                    if (OoT_gPlayState != nullptr) {
+                        ObjBean* bean = (ObjBean*)Actor_Find(&OoT_gPlayState->actorCtx, ACTOR_OBJ_BEAN, ACTORCAT_BG);
+                        if (bean != nullptr) {
+                            OoT_Flags_SetSwitch(OoT_gPlayState, bean->dyna.actor.params & 0x3F);
+                            func_80B8FE00(bean);
+                        }
                     }
                     AMMO(ITEM_BEAN) = 0;
                 }
