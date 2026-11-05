@@ -520,7 +520,7 @@ typedef enum {
 // Check tracker check visibility categories
 typedef enum {
     RCSHOW_UNCHECKED,
-    RCSHOW_SEEN,
+    RCSHOW_SEEN_OR_HINTED,
     RCSHOW_IDENTIFIED,
     RCSHOW_SCUMMED,
     RCSHOW_COLLECTED,
@@ -4755,6 +4755,10 @@ typedef enum {
     // [RSBS #979] Majora's Mask's Stone Mask in OoT (OoTMM stoneMaskOot), the Blast
     // Mask's shape: pooled only under its frozen rule, before the logic-only ids.
     RG_STONE_MASK,
+    // [RSBS #1169 XW4] Majora's Mask's Song of Soaring in OoT (OoTMM songSoaringOot,
+    // "Song of Soaring (OoT)"): pooled only under its frozen second-word rule, after
+    // the masks and before the logic-only ids, so no placed id moves.
+    RG_SONG_OF_SOARING_OOT,
 
     // Logic Only
     RG_STICKS,
@@ -6381,6 +6385,9 @@ typedef enum {
     RHT_BLAST_MASK,
     // [RSBS #979] the hint text of RG_STONE_MASK. Appended last, as RHT_BLAST_MASK is.
     RHT_STONE_MASK,
+    // [RSBS #1169 XW4] the hint text of RG_SONG_OF_SOARING_OOT. Appended last, as
+    // RHT_STONE_MASK is.
+    RHT_SONG_OF_SOARING_OOT,
     // MAX
     RHT_MAX,
 } RandomizerHintTextKey;

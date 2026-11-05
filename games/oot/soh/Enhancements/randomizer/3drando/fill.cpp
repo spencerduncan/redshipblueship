@@ -29,6 +29,8 @@ extern "C" int OoT_ComboLogic_DeferGeneralPassWanted(void);
 extern "C" int OoT_ComboLogic_SharedSongHeldBack(uint16_t rg);
 extern "C" void OoT_ComboLogic_SetGeneralPassDeferred(int deferred);
 #include "soh/Enhancements/randomizer/TimeTravelSword.h"
+// #1169 XW4: OoTMM's "Not enough locations" refusal for the song pass.
+#include "soh/Enhancements/randomizer/SongOfSoaringOoT.h"
 #endif
 
 using namespace Rando;
@@ -1514,6 +1516,17 @@ int Fill() {
                 });
             }
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+            // #1169 XW4: OoTMM refuses more songs than spots before placing any
+            // (solve.ts placeSemiShuffled), counted here, after the starting songs
+            // (item_pool.cpp) and the #1085 hold-back above. Only a separate Song
+            // of Soaring (OoT) makes thirteen for twelve; it ends Generate, no retry.
+            if (OoT_SongSpots_RefuseOverflow(songs, songLocations.size(),
+                                             (uint8_t)ctx->GetOption(RSK_SHUFFLE_SONGS).Get()) != 0) {
+                StopPerformanceTimer(PT_LIMITED_CHECKS);
+                return -2;
+            }
+#endif
             AssumedFill(songs, songLocations, true);
         }
 #ifdef RSBS_SINGLE_EXECUTABLE

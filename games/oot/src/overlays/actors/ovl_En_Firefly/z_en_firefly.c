@@ -651,9 +651,9 @@ void OoT_EnFirefly_UpdateDamage(EnFirefly* this, PlayState* play) {
                     }
                 }
             } else if (damageEffect == 3) { // Ice Arrows or Ice Magic
-                if (this->actor.params == KEESE_ICE_FLY) {
+                if (GameInteractor_Should(VB_KEESE_SETUP_FALL, this->actor.params == KEESE_ICE_FLY, this)) {
                     OoT_EnFirefly_SetupFall(this);
-                } else {
+                } else if (GameInteractor_Should(VB_KEESE_SETUP_FROZENFALL, true, this)) {
                     EnFirefly_SetupFrozenFall(this, play);
                 }
             } else if (damageEffect == 1) { // Deku Nuts
@@ -664,7 +664,9 @@ void OoT_EnFirefly_UpdateDamage(EnFirefly* this, PlayState* play) {
                 if ((damageEffect == 0xF) && (this->actor.params == KEESE_ICE_FLY)) {
                     EnFirefly_Combust(this, play);
                 }
-                OoT_EnFirefly_SetupFall(this);
+                if (GameInteractor_Should(VB_KEESE_SETUP_FALL, true, this)) {
+                    OoT_EnFirefly_SetupFall(this);
+                }
             }
         }
     }

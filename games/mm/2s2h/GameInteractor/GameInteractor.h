@@ -53,6 +53,7 @@ typedef enum {
     GI_INVERT_FIRST_PERSON_RIGHT_STICK_X,
     GI_INVERT_FIRST_PERSON_RIGHT_STICK_Y,
     GI_INVERT_FIRST_PERSON_MOVING_X,
+    GI_INVERT_ZORA_SWIM_Y,
 } GIInvertType;
 
 typedef enum {
@@ -657,6 +658,7 @@ bool GameInteractor_Should(GIVanillaBehavior flag, uint32_t result, ...);
 int GameInteractor_InvertControl(GIInvertType type);
 uint32_t GameInteractor_Dpad(GIDpadType type, uint32_t buttonCombo);
 uint32_t GameInteractor_RightStickOcarina(Input* input);
+uint32_t GameInteractor_CustomOcarinaControls(Input* input);
 
 #if defined(RSBS_SINGLE_EXECUTABLE)
 //

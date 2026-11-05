@@ -5057,8 +5057,7 @@ void MM_Player_UpdateZTargeting(Player* this, PlayState* play) {
         } else {
             this->zTargetActiveTimer--;
         }
-    } else if (this->stateFlags1 & PLAYER_STATE1_PARALLEL &&
-               !CVarGetInteger("gEnhancements.Camera.FixTargettingCameraSnap", 0)) {
+    } else if (this->stateFlags1 & PLAYER_STATE1_PARALLEL) {
         // If the above code block which checks `zButtonHeld` is not taken, that means Z has been released.
         // In that case, setting `zTargetActiveTimer` to 0 will stop Parallel if it is currently active.
         this->zTargetActiveTimer = 0;
@@ -17341,8 +17340,10 @@ void Player_Action_56(Player* this, PlayState* play) {
     s16 sp3C;
     s16 sp3A;
     s8 stickX = sPlayerControlInput->rel.stick_x;
+    s8 stickY = sPlayerControlInput->rel.stick_y;
 
     stickX *= GameInteractor_InvertControl(GI_INVERT_ZORA_SWIM_X);
+    stickY *= -GameInteractor_InvertControl(GI_INVERT_ZORA_SWIM_Y);
 
     this->stateFlags2 |= PLAYER_STATE2_20;
 
@@ -17408,7 +17409,7 @@ void Player_Action_56(Player* this, PlayState* play) {
         }
 
         // Y
-        sp3E = sPlayerControlInput->rel.stick_y * 0xC8;
+        sp3E = stickY * 0xC8;
         if (this->unk_B8C != 0) {
             this->unk_B8C--;
             sp3E = CLAMP_MAX(sp3E, (s16)(this->floorPitch - 0xFA0));
