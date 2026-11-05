@@ -240,6 +240,10 @@ extern "C" int OoT_ComboTextboxIcon(uint16_t id, ComboTextboxIcon* out) {
             // #979: the Stone Mask's, the same way.
             return IconForTexture(static_cast<const char*>(OoT_gItemIcons[ITEM_MASK_STONE]), COMBO_TEXTBOX_ICON_ITEM,
                                   out);
+        case RG_SONG_OF_SOARING_OOT:
+            // #1169 XW4: a song with no ItemID of its own: OoT's note in white, the
+            // tint Majora's Mask's textbox gives its own Song of Soaring.
+            return IconForItemId(ITEM_SONG_TIME, out);
         case RG_GREG_RUPEE:
             // SoH's gregMapping: the rupee counter icon in Greg green.
             *out = { kOoTRupeeCounterIconTex, (uint8_t)COMBO_TEXTBOX_ICON_RUPEE, 42, 169, 40 };

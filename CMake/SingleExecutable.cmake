@@ -213,6 +213,11 @@ set(REDSHIP_COMMON_SOURCES
     # and the frozen area record Majora's Mask's stones read. Game-header-free.
     # APPENDED, never reordered.
     ${CMAKE_SOURCE_DIR}/src/common/combo_woth.c
+    # #1169 XW4: the cross-game warp songs' game-neutral item rules: how many
+    # separate Songs of Soaring OoT pools, and OoTMM's "Not enough locations"
+    # refusal when the restricted song pass has more songs than spots.
+    # Game-header-free. APPENDED, never reordered.
+    ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.c
 )
 
 # Windows-specific: import thunks for libultraship compatibility
@@ -318,6 +323,8 @@ set(REDSHIP_COMMON_HEADERS
     ${CMAKE_SOURCE_DIR}/src/common/seed_package.h
     # Header for critical_renewables.c above (#1443)
     ${CMAKE_SOURCE_DIR}/src/common/critical_renewables.h
+    # Header for warp_song_items.c above (#1169 XW4)
+    ${CMAKE_SOURCE_DIR}/src/common/warp_song_items.h
 )
 
 # ============================================================================
@@ -3344,6 +3351,28 @@ redship --test combo-logic-give-probe, RSBS_COMBO_PROBE_FROM=<n> to resume past 
     # seeds, divergence and package record are main's. ROM-free.
     redship_add_test(NAME ComboItemRulesSecondWord COMMAND redship --test combo-item-rules-second-word)
     redship_add_test(NAME RulesOffGoldensUnchanged COMMAND redship --test rules-off-goldens-unchanged)
+    # THE SONG OF SOARING (OoT) (#1169 lane XW4; OoTMM songSoaringOot): an OoT
+    # item pooled only under its hidden second-word rule, and OoTMM's "Not enough
+    # locations" refusal when it makes thirteen songs for twelve spots.
+    # OoTSoaringTableBounds: appended after the masks in the RG, RHT and RAND_INF
+    # enums, no ItemID added, the 129 saved words, the item row and its textbox
+    # icon. OoTSoaringRuleLogic: the pooled-copies rule, OoT's real logic (a child
+    # with C-down, C-up and C-left, only under the rule), the flag effect, the
+    # wording and the warning. OoTSoaringRulesOffUnchanged: hidden bits refused
+    # before the fill, a rules-off world pools and credits nothing, today's song
+    # pass is never refused, main's ids. All three ROM-free. The last two are
+    # `rando`: real paired OoT generations through the hidden-bit test seam.
+    redship_add_test(NAME OoTSoaringTableBounds COMMAND redship --test oot-soaring-table-bounds)
+    redship_add_test(NAME OoTSoaringRuleLogic COMMAND redship --test oot-soaring-rule-logic)
+    redship_add_test(NAME OoTSoaringRulesOffUnchanged COMMAND redship --test oot-soaring-rules-off-unchanged)
+    redship_add_test(NAME OoTSoaringPooledOnlyWhenRuleOn COMMAND redship --test oot-soaring-pooled-only-when-rule-on
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
+    redship_add_test(NAME SongLocationsOverflowRefused COMMAND redship --test song-locations-overflow-refused
+        LABEL rando
+        TIMEOUT 600
+        ENVIRONMENT "SDL_AUDIODRIVER=dummy;RSBS_DISABLE_OTR_INIT=1")
 
     # THE PAIRED GAME'S END (#762, OoTMM parity): the frozen goal's predicate over
     # the two final-boss defeats recorded in sharedFlags, the decision for every

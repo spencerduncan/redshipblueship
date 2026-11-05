@@ -2119,3 +2119,8 @@ DEFINE_RAND_INF(RAND_INF_OBTAINED_BLAST_MASK)
 // [RSBS #979] OoT owns the Stone Mask (OoTMM stoneMaskOot). Appended last, as the
 // Blast Mask's: 2062 flags still fit the 129 u16 words (2064 bits).
 DEFINE_RAND_INF(RAND_INF_OBTAINED_STONE_MASK)
+// [RSBS #1169 XW4] OoT owns the Song of Soaring (OoT) (OoTMM songSoaringOot).
+// Appended last, as the masks': 2063 flags fill 2063 of the 129 u16 words' 2064
+// bits, so the save layout is unchanged and ONE flag is left before a 130th word
+// (SongOfSoaringOoT.cpp static_asserts the word count).
+DEFINE_RAND_INF(RAND_INF_OBTAINED_SONG_OF_SOARING_OOT)
