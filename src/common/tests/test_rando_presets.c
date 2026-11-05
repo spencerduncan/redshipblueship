@@ -19,8 +19,9 @@
  *      trap types, tricks and excluded checks and the Cross-Game rules go back to
  *      "never chosen". So every default the D wave moved on the MM and [Both Games]
  *      side applies too (MM's hints, PR #1446; Time Progression, PR #1440; MM shop
- *      and Tingle prices, PR #1436; trap types, PR #1432; [Both Games] Logic, PR
- *      #1392), and two players who apply the same preset get one paired profile.
+ *      and Tingle prices, PR #1436; [Both Games] Logic, PR #1392), and two players
+ *      who apply the same preset get one paired profile. (PR #1432 moved no default:
+ *      its new trap types ship off. The reset clears any trap type the session chose.)
  *   J2 NO D-WAVE PIN. gRandoSettings holds no key in kRandoPresetDWaveKeys: none
  *      whose default a D-wave lane moved, none that tunes a gate mode the new default
  *      does not select, and neither of the two rows [Both Games] Logic decides.

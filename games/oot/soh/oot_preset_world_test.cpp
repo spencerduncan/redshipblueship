@@ -44,10 +44,11 @@
  *    writes nothing.
  *
  * RED HALVES, derived, not run (this lane had no local build): with the presets as
- * main shipped them, A's reset is skipped (no pairedProfile), D fails on Shuffle
- * Master Sword (both), Shuffle Gerudo Membership Card (Beginner), the bridge and
- * Ganon's Boss Key (both), [Both Games] Logic (left at S's Beatable Only), the MM
- * hint row and the trap type; W fails on the same OoT values and on the rung.
+ * main shipped them, OoT_PresetWorld_Run fails at once at its parse guard, because
+ * neither preset holds a pairedProfile, and S..F never run. With only the
+ * pairedProfile line added (the old pins kept), D fails on Shuffle Master Sword
+ * (both), Shuffle Gerudo Membership Card (Beginner), the bridge and Ganon's Boss Key
+ * (both), and W fails on the same OoT values.
  *
  * Every CVar and environment variable the row touches is put back in memory at the
  * end; nothing here writes a config file.
