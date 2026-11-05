@@ -1535,7 +1535,8 @@ void OoT_AudioLoad_Init(void* heap, size_t heapSize) {
             Messagebox_ShowErrorBox("Too Many Sequences",
                                     "The number of custom sequences exceeds the supported limit (65535). Some custom "
                                     "music will not be available. Please reduce the size of your music pack(s).");
-            LUSLOG_ERROR("Custom sequence limit (0xFFFF) exceeded; remaining custom sequences skipped.");
+            // RSBS: our pinned LUSLOG_ERROR(msg, ...) needs at least one variadic argument on GCC/Clang.
+            LUSLOG_ERROR("%s", "Custom sequence limit (0xFFFF) exceeded; remaining custom sequences skipped.");
             break;
         }
 
