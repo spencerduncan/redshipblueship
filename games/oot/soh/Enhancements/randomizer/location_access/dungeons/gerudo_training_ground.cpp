@@ -139,8 +139,8 @@ void RegionTable_Init_GerudoTrainingGround() {
         LOCATION(RC_GERUDO_TRAINING_GROUND_HAMMER_ROOM_SWITCH_CHEST, (logic->CanUse(RG_MEGATON_HAMMER) || (logic->TakeDamage() && ctx->GetTrickOption(RT_FLAMING_CHESTS))) && logic->HasItem(RG_OPEN_CHEST)),
     }, {
         //Exits
-        Entrance(RR_GERUDO_TRAINING_GROUND_EYE_STATUE_LOWER, []{return logic->CanUse(RG_MEGATON_HAMMER) && logic->CanUse(RG_FAIRY_BOW);}),
-        Entrance(RR_GERUDO_TRAINING_GROUND_LAVA_ROOM,        []{return true;}),
+        Entrance(RR_GERUDO_TRAINING_GROUND_EYE_STATUE_LOWER,      []{return logic->CanUse(RG_MEGATON_HAMMER) && logic->CanUse(RG_FAIRY_BOW);}),
+        Entrance(RR_GERUDO_TRAINING_GROUND_LAVA_ROOM_UPPER_LEDGE, []{return true;}),
     });
 
     areaTable[RR_GERUDO_TRAINING_GROUND_LAVA_ROOM] = Region("Gerudo Training Ground Lava Room", SCENE_GERUDO_TRAINING_GROUND, {

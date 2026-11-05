@@ -120,7 +120,7 @@ void RegionTable_Init_BottomOfTheWell() {
         Entrance(RR_BOTW_B3_OOZE,   []{return true;}),
     });
 
-    areaTable[RR_BOTW_SKULL_WALL_ROOM] = Region("Bottom of the Well SKull Wall Room", SCENE_BOTTOM_OF_THE_WELL, {
+    areaTable[RR_BOTW_SKULL_WALL_ROOM] = Region("Bottom of the Well Skull Wall Room", SCENE_BOTTOM_OF_THE_WELL, {
         //Events
         EventAccess(LOGIC_STICK_ACCESS, []{return logic->CanGetDekuBabaSticks();}),
         EventAccess(LOGIC_NUT_ACCESS,   []{return logic->CanGetDekuBabaNuts();}),

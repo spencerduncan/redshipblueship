@@ -126,7 +126,7 @@ void RegionTable_Init_IceCavern() {
 
     areaTable[RR_ICE_CAVERN_FINAL_ROOM_UNDERWATER] = Region("Ice Cavern Final Room Underwater", SCENE_ICE_CAVERN, {}, {}, {
         //Exits
-        Entrance(RR_ICE_CAVERN_FINAL_ROOM,      []{return logic->CanUse(RG_BRONZE_SCALE);}),
+        Entrance(RR_ICE_CAVERN_FINAL_ROOM,      []{return logic->HasItem(RG_BRONZE_SCALE);}),
         Entrance(RR_ICE_CAVERN_ABOVE_BEGINNING, []{return logic->CanUse(RG_IRON_BOOTS);}),
     });
 
@@ -229,7 +229,7 @@ void RegionTable_Init_IceCavern() {
 
     areaTable[RR_ICE_CAVERN_MQ_STALFOS_ROOM_UNDERWATER] = Region("Ice Cavern MQ Stalfos Room Underwater", SCENE_ICE_CAVERN, {}, {}, {
         //Exits
-        Entrance(RR_ICE_CAVERN_MQ_STALFOS_ROOM,    []{return logic->CanUse(RG_BRONZE_SCALE);}),
+        Entrance(RR_ICE_CAVERN_MQ_STALFOS_ROOM,    []{return logic->HasItem(RG_BRONZE_SCALE);}),
         Entrance(RR_ICE_CAVERN_MQ_ABOVE_BEGINNING, []{return logic->CanUse(RG_IRON_BOOTS);}),
     });
 

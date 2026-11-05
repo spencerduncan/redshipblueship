@@ -191,8 +191,8 @@ void RegionTable_Init_ForestTemple() {
         LOCATION(RC_FOREST_TEMPLE_MAP_CHEST, logic->CanKillEnemy(RE_BLUE_BUBBLE) && logic->HasItem(RG_OPEN_CHEST)),
     }, {
         //Exits
-        Entrance(RR_FOREST_TEMPLE_NW_COURTYARD_LOWER, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BLUE_BUBBLE);});}),
-        Entrance(RR_FOREST_TEMPLE_NE_COURTYARD_UPPER, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BLUE_BUBBLE);});}),
+        Entrance(RR_FOREST_TEMPLE_NW_COURTYARD_UPPER_ALCOVE, []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BLUE_BUBBLE);});}),
+        Entrance(RR_FOREST_TEMPLE_NE_COURTYARD_UPPER,        []{return AnyAgeTime([]{return logic->CanKillEnemy(RE_BLUE_BUBBLE);});}),
     });
 
     areaTable[RR_FOREST_TEMPLE_SEWER] = Region("Forest Temple Sewer", SCENE_FOREST_TEMPLE, {}, {
@@ -206,7 +206,7 @@ void RegionTable_Init_ForestTemple() {
         Entrance(RR_FOREST_TEMPLE_NE_COURTYARD_LOWER, []{return logic->HasItem(RG_BRONZE_SCALE);}),
     });
 
-    areaTable[RR_FOREST_TEMPLE_DRAINED_SEWER] = Region("Forest Temple Drained Well", SCENE_FOREST_TEMPLE, {}, {
+    areaTable[RR_FOREST_TEMPLE_DRAINED_SEWER] = Region("Forest Temple Drained Sewer", SCENE_FOREST_TEMPLE, {}, {
         //Locations
         LOCATION(RC_FOREST_TEMPLE_WELL_CHEST,      logic->HasItem(RG_OPEN_CHEST)),
         LOCATION(RC_FOREST_TEMPLE_WELL_WEST_HEART, true),
