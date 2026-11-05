@@ -39,6 +39,7 @@ std::unordered_map<int32_t, const char*> accessTrialsOptions = {
 std::unordered_map<int32_t, const char*> dungeonItemPlacementOptions = {
     { RO_DUNGEON_ITEM_ANYWHERE, "Anywhere" },
     { RO_DUNGEON_ITEM_OWN_DUNGEON, "Own Dungeon" },
+    { RO_DUNGEON_ITEM_START_WITH, "Start With" },
 };
 
 // clang-format off
@@ -224,6 +225,9 @@ static RegisterShipInitFunc refreshMetricsInit(RefreshMetrics, {
                                                                    "gRando.Options.RO_LOGIC",
                                                                    "gRando.Options.RO_MINIMUM_SKULLTULA_TOKENS",
                                                                    "gRando.Options.RO_MINIMUM_STRAY_FAIRIES",
+                                                                   "gRando.Options.RO_PLACEMENT_BOSS_KEYS",
+                                                                   "gRando.Options.RO_PLACEMENT_SMALL_KEYS",
+                                                                   "gRando.Options.RO_PLACEMENT_STRAY_FAIRIES",
                                                                    "gRando.Options.RO_PLENTIFUL_ITEMS",
                                                                    "gRando.Options.RO_SHUFFLE_BARREL_DROPS",
                                                                    "gRando.Options.RO_SHUFFLE_BOSS_REMAINS",
@@ -343,15 +347,6 @@ static void DrawLogicConditionsTab() {
         "the Moon.\n\n"
         "Vanilla - The items are not shuffled.\n"
         "Not compatible with settings that add items to the pool, like Boss Souls or Plentiful Items.");
-    UIWidgets::CVarCombobox("Small Keys", Rando::StaticData::Options[RO_PLACEMENT_SMALL_KEYS].cvar,
-                            &dungeonItemPlacementOptions);
-    UIWidgets::Tooltip("Where each dungeon's small keys may be placed.");
-    UIWidgets::CVarCombobox("Boss Keys", Rando::StaticData::Options[RO_PLACEMENT_BOSS_KEYS].cvar,
-                            &dungeonItemPlacementOptions);
-    UIWidgets::Tooltip("Where each dungeon's boss key may be placed.");
-    UIWidgets::CVarCombobox("Stray Fairies", Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar,
-                            &dungeonItemPlacementOptions);
-    UIWidgets::Tooltip("Where each dungeon's stray fairies may be placed. The Clock Town stray fairy is unaffected.");
     ImGui::EndChild();
     ImGui::SameLine();
     ImGui::BeginChild("randoLogicColumn2", ImVec2(columnWidth, 0));
@@ -401,13 +396,36 @@ static void DrawShufflesTab() {
                       .Min(1)
                       .Max(SPIDER_HOUSE_TOKENS_REQUIRED)
                       .DefaultValue(SPIDER_HOUSE_TOKENS_REQUIRED));
-    CVarSliderInt(
-        "Minimum Required Stray Fairies", Rando::StaticData::Options[RO_MINIMUM_STRAY_FAIRIES].cvar,
-        IntSliderOptions({ { .tooltip = "Minimum Stray Fairies needed to obtain the corresponding Great Fairy check.\n"
-                                        "Does not affect the Clock Town fairy." } })
-            .Min(1)
-            .Max(STRAY_FAIRY_SCATTERED_TOTAL)
-            .DefaultValue(STRAY_FAIRY_SCATTERED_TOTAL));
+    UIWidgets::CVarCombobox(
+        "Small Keys", Rando::StaticData::Options[RO_PLACEMENT_SMALL_KEYS].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's small keys may be placed.\n\n"
+            "Anywhere - Small keys can be found anywhere in the world.\n\n"
+            "Own Dungeon - Each dungeon's small keys are only found within that dungeon.\n\n"
+            "Start With - You begin with every dungeon's small keys, and none are added to the item pool."));
+    UIWidgets::CVarCombobox(
+        "Boss Keys", Rando::StaticData::Options[RO_PLACEMENT_BOSS_KEYS].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's boss key may be placed.\n\n"
+            "Anywhere - Boss keys can be found anywhere in the world.\n\n"
+            "Own Dungeon - Each dungeon's boss key is only found within that dungeon.\n\n"
+            "Start With - You begin with every dungeon's boss key, and none are added to the item pool."));
+    UIWidgets::CVarCombobox(
+        "Stray Fairies", Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's Stray Fairies may be placed. The Clock Town Stray Fairy is unaffected.\n\n"
+            "Anywhere - Stray Fairies can be found anywhere in the world.\n\n"
+            "Own Dungeon - Each dungeon's Stray Fairies are only found within that dungeon.\n\n"
+            "Start With - You begin with every dungeon's Stray Fairies, and none are added to the item pool."));
+    if (CVarGetInteger(Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, RO_DUNGEON_ITEM_ANYWHERE) !=
+        RO_DUNGEON_ITEM_START_WITH) {
+        CVarSliderInt("Minimum Required Stray Fairies", Rando::StaticData::Options[RO_MINIMUM_STRAY_FAIRIES].cvar,
+                      IntSliderOptions({ { .tooltip = "Minimum Stray Fairies needed to obtain the corresponding Great "
+                                                      "Fairy check.\nDoes not affect the Clock Town fairy." } })
+                          .Min(1)
+                          .Max(STRAY_FAIRY_SCATTERED_TOTAL)
+                          .DefaultValue(STRAY_FAIRY_SCATTERED_TOTAL));
+    }
     ImGui::EndChild();
     ImGui::SameLine();
     ImGui::BeginChild("randoShufflesColumn2", ImVec2(columnWidth, halfHeight));
