@@ -45,6 +45,7 @@ std::unordered_map<int16_t, std::tuple<RandoCheckId, ActorType, EnemyDropType>> 
     { ACTOR_EN_BIGSLIME,    { RC_ENEMY_DROP_GEKKO, ACTORCAT_BOSS, DROP_TYPE_KILL } },
     { ACTOR_EN_PAMETFROG,   { RC_ENEMY_DROP_GEKKO, ACTORCAT_BOSS, DROP_TYPE_KILL } },
     { ACTOR_EN_BEE,         { RC_ENEMY_DROP_GIANT_BEE, ACTORCAT_ENEMY, DROP_TYPE_KILL } },
+    // Gomess dies in a cutscene, so that drop is handled specially below.
     { ACTOR_EN_CROW,        { RC_ENEMY_DROP_GUAY, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     { ACTOR_EN_PP,          { RC_ENEMY_DROP_HIPLOOP, ACTORCAT_ENEMY, DROP_TYPE_NORMAL } },
     // Igos du Ikana dies in a cutscene, so that drop is handled specially below.
@@ -196,11 +197,14 @@ void Rando::ActorBehavior::InitEnemyDropBehavior() {
         }
     });
 
-    // Igos dies in a cutscene, so spawn that drop once the scene clear flag is set
+    // Some enemies die in a cutscene and never reach OnActorKill, so spawn based on other flags instead
     COND_HOOK(OnSceneFlagSet, shouldRegister, [](s16 sceneId, FlagType flagType, u32 flag) {
         if (sceneId == SCENE_IKNINSIDE && flagType == FLAG_CYCL_SCENE_CLEARED_ROOM && flag == 1) {
-            // Spawn on the throne
+            // Igos du Ikana: Spawn on the throne
             SpawnDropItem({ 1408.25f, 76.0f, 2863.5f }, RC_ENEMY_DROP_IGOS_DU_IKANA);
+        } else if (sceneId == SCENE_INISIE_R && flagType == FLAG_CYCL_SCENE_CLEARED_ROOM && flag == 0xB) {
+            // Gomess: Spawn near center of the room
+            SpawnDropItem({ 2460.0f, -300.0f, -1260.f }, RC_ENEMY_DROP_GOMESS);
         }
     });
 

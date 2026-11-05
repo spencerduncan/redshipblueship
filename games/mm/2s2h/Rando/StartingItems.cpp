@@ -108,6 +108,7 @@ void GrantStartingItems() {
 
     if (RANDO_SAVE_OPTIONS[RO_STARTING_RUPEES]) {
         gSaveContext.save.saveInfo.playerData.rupees = CUR_CAPACITY(UPG_WALLET);
+        gSaveContext.rupeeAccumulator = 0;
     }
 }
 

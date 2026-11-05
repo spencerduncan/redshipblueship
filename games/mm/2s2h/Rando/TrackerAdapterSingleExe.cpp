@@ -452,7 +452,8 @@ int MMTrackerLiveAvailable(uint16_t checkId) {
  */
 const char* MMTrackerCheckLogic(uint16_t checkId) {
     if (checkId >= (uint16_t)RC_MAX ||
-        (checkId >= (uint16_t)RC_ENEMY_DROP_ALIEN && checkId <= (uint16_t)RC_ENEMY_DROP_WOLFOS)) {
+        (checkId >= (uint16_t)RC_ENEMY_DROP_ALIEN && checkId <= (uint16_t)RC_ENEMY_DROP_WOLFOS) ||
+        checkId == (uint16_t)RC_ENEMY_DROP_GOMESS) {
         return nullptr;
     }
     auto it = accessLogicFuncs.find((RandoCheckId)checkId);

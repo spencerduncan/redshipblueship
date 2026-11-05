@@ -75,7 +75,8 @@ bool Rando::ActorBehavior::ShopShelfSlotSold(RandoCheckId rc) {
         return Rando::Foreign::IsDeliveredForeignHost(rc);
     }
 #endif
-    return !Rando::IsItemObtainable(RANDO_SAVE_CHECKS[rc].randoItemId, rc) && RANDO_SAVE_CHECKS[rc].obtained;
+    return !Rando::IsItemObtainable(Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc), rc) &&
+           RANDO_SAVE_CHECKS[rc].cycleObtained;
 }
 
 bool Rando::ActorBehavior::HagsMushroomSlotArmable() {
@@ -118,7 +119,7 @@ bool Rando::ActorBehavior::HagsMushroomLineArms() {
 // The name the shelf lines give slot `rc`'s item (no article, as the native lines).
 static std::string EnGirlA_RandoItemName(RandoCheckId rc) {
     return Rando::ActorBehavior::ShopOfferedItemName(
-        rc, Rando::StaticData::Items[RANDO_SAVE_CHECKS[rc].randoItemId].name, false);
+        rc, Rando::StaticData::GetItemName(Rando::ConvertItem(RANDO_SAVE_CHECKS[rc].randoItemId, rc), false), false);
 }
 
 void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
@@ -142,7 +143,8 @@ void EnGirlA_RandoDrawFunc(Actor* actor, PlayState* play) {
     }
 #endif
 
-    Rando::DrawItem(randoSaveCheck.randoItemId, actor);
+    RandoCheckId randoCheckId = (RandoCheckId)actor->world.rot.z;
+    Rando::DrawItem(Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId), actor);
 }
 
 void EnGirlA_RandoBought(PlayState* play, EnGirlA* enGirlA) {
@@ -173,7 +175,8 @@ void EnGirlA_RandoRestock(PlayState* play, EnGirlA* enGirlA) {
     }
 #endif
 
-    if (Rando::IsItemObtainable(randoSaveCheck.randoItemId, (RandoCheckId)enGirlA->actor.world.rot.z)) {
+    RandoCheckId randoCheckId = (RandoCheckId)enGirlA->actor.world.rot.z;
+    if (Rando::IsItemObtainable(Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId), randoCheckId)) {
         enGirlA->isOutOfStock = false;
         enGirlA->actor.draw = EnGirlA_RandoDrawFunc;
     }
@@ -203,7 +206,8 @@ s32 EnGirlA_RandoCanBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     }
 #endif
 
-    if (!Rando::IsItemObtainable(randoSaveCheck.randoItemId, (RandoCheckId)enGirlA->actor.world.rot.z)) {
+    RandoCheckId randoCheckId = (RandoCheckId)enGirlA->actor.world.rot.z;
+    if (!Rando::IsItemObtainable(Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId), randoCheckId)) {
         return CANBUY_RESULT_CANNOT_GET_NOW;
     }
 
@@ -239,6 +243,7 @@ void EnGirlA_RandoBuyFunc(PlayState* play, EnGirlA* enGirlA) {
     RandoCheckId randoCheckId = (RandoCheckId)enGirlA->actor.world.rot.z;
     RandoItemId randoItemId = Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId);
     randoSaveCheck.obtained = true;
+    randoSaveCheck.cycleObtained = true;
     MM_Rupees_ChangeBy(-play->msgCtx.unk1206C);
     if (randoItemId == RI_TRAP) {
 #ifdef RSBS_SINGLE_EXECUTABLE
@@ -544,7 +549,8 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "I used this to make %r{{itemName}}%w, take it!\x19";
         const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
-            randoCheckId, Rando::StaticData::GetItemName(randoSaveCheck.randoItemId), true);
+            randoCheckId, Rando::StaticData::GetItemName(Rando::ConvertItem(randoSaveCheck.randoItemId, randoCheckId)),
+            true);
         CustomMessage::Replace(&entry.msg, "{{itemName}}", itemName);
 
         // Mark the item as eligible for purchase
@@ -572,7 +578,9 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         entry.msg =
             "If nothing devastating happens to Mommy tonight, we should be able to sell %r{{itemName}}%w.\x19\xA8";
         const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
-            RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, Rando::StaticData::GetItemName(randoSaveCheck.randoItemId),
+            RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM,
+            Rando::StaticData::GetItemName(
+                Rando::ConvertItem(randoSaveCheck.randoItemId, RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM)),
             true);
         CustomMessage::Replace(&entry.msg, "{{itemName}}", itemName);
         CustomMessage::LoadCustomMessageIntoFont(entry);
@@ -598,7 +606,9 @@ void Rando::ActorBehavior::InitEnGirlABehavior() {
         auto entry = CustomMessage::LoadVanillaMessageTableEntry(*textId);
         entry.msg = "It's over... Now we'll never sell %r{{itemName}}%w...\x19\xA8";
         const std::string itemName = Rando::ActorBehavior::ShopOfferedItemName(
-            RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM, Rando::StaticData::GetItemName(randoSaveCheck.randoItemId),
+            RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM,
+            Rando::StaticData::GetItemName(
+                Rando::ConvertItem(randoSaveCheck.randoItemId, RC_BOMB_SHOP_ITEM_04_OR_CURIOSITY_SHOP_ITEM)),
             true);
         CustomMessage::Replace(&entry.msg, "{{itemName}}", itemName);
 

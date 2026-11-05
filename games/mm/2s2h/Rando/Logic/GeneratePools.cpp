@@ -157,17 +157,21 @@ void GeneratePools(RandoSaveInfo& saveInfo, std::vector<RandoCheckId>& checkPool
                 }
             }
 
-            // When a check is skipped, we still want to add it's vanilla item to the pool, but we don't add the check.
-            // Mark it as skipped and set it to junk. These leaves an inbalance in the pools that will get sorted
-            // automatically if there is enough space.
+            // Excluded checks are always left out of the check pool, but what happens to them depends on what their
+            // vanilla item is worth. A check whose vanilla item is junk (grass, pots, snowballs...) has nothing worth
+            // preserving, so it stays unshuffled and behaves exactly like it does in vanilla, and its item never enters
+            // the item pool. Every other check keeps its item in the pool and is marked as skipped with junk in its
+            // place. That leaves an inbalance in the pools that will get sorted automatically if there is enough space.
             if (saveInfo.randoSaveOptions[RO_LOGIC] != RO_LOGIC_VANILLA) {
                 auto it = std::find(excludedChecks.begin(), excludedChecks.end(), randoCheckId);
                 if (it != excludedChecks.end()) {
-                    itemPool.push_back(randoStaticCheck.randoItemId);
+                    if (Rando::StaticData::Items[randoStaticCheck.randoItemId].randoItemType != RITYPE_JUNK) {
+                        itemPool.push_back(randoStaticCheck.randoItemId);
 
-                    saveInfo.randoSaveChecks[randoCheckId].shuffled = true;
-                    saveInfo.randoSaveChecks[randoCheckId].randoItemId = RI_JUNK;
-                    saveInfo.randoSaveChecks[randoCheckId].skipped = true;
+                        saveInfo.randoSaveChecks[randoCheckId].shuffled = true;
+                        saveInfo.randoSaveChecks[randoCheckId].randoItemId = RI_JUNK;
+                        saveInfo.randoSaveChecks[randoCheckId].skipped = true;
+                    }
                     continue;
                 }
             }
