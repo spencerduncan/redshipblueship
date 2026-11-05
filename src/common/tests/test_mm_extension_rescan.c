@@ -238,7 +238,7 @@ extern "C" int MMExtensionRescan_RunHeadless(const char* mmArchivePath) {
     MER_ASSERT(MM_ExtensionRescan_CallCount() == callsBefore + 1, 6, "the rescan entry point did not run");
     MER_ASSERT(MM_ExtensionRescan_Scanned() == 1, 6, "the MM-scoped scan did not complete");
     MER_ASSERT(MM_ExtensionRescan_FlipbooksPatchedAfterScan() == 1, 6,
-               "PlayerCustomFlipbooks_Patch did not run after the scan — its one-shot latch would fix MM's "
+               "PlayerCustomFlipbooks_Patch did not run after the scan — its Alt Assets latch would fix MM's "
                "faces to vanilla against an unscanned cache (#618)");
 
     const int added = MM_ExtensionRescan_LastEntriesAdded();

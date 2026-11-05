@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<assembly xmlns='urn:schemas-microsoft-com:asm.v1' manifestVersion='1.0'>
+  <!-- redship's own application manifest, merged into the linker's default one
+       (root CMakeLists.txt). It carries only the activeCodePage line of SoH
+       0017fc55b (#7446); SHIPOFHARKINIAN.manifest's DPI and common-controls
+       entries are left out so redship's DPI behaviour does not change. -->
+  <asmv3:application xmlns:asmv3="urn:schemas-microsoft-com:asm.v3">
+    <asmv3:windowsSettings>
+      <!-- narrow file APIs take utf-8 like our paths do, so accented folder names work (Windows 10 1903+) -->
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </asmv3:windowsSettings>
+  </asmv3:application>
+</assembly>
