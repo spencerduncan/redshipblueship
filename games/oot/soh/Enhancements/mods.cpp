@@ -80,6 +80,12 @@ void SwitchAge() {
         Entrance_SetEntranceDiscovered(ENTR_LINKS_HOUSE_CHILD_SPAWN, false);
     }
 
+    // If paused, restore things as if unpausing
+    if (OoT_gPlayState->pauseCtx.state != 0) {
+        // Restore A button enabled alpha (disabled if changing on item/equip subscreen, difficult to get re-enable)
+        gSaveContext.buttonStatus[4] = 0;
+    }
+
     static HOOK_ID hookId = 0;
     if (hookId != 0) {
         GameInteractor::Instance->UnregisterGameHookForID<GameInteractor::OnVanillaBehavior>(hookId);

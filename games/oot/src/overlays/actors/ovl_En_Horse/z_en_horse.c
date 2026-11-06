@@ -9,6 +9,7 @@
 #include "objects/object_horse/object_horse.h"
 #include "objects/object_hni/object_hni.h"
 #include "scenes/overworld/spot09/spot09_scene.h"
+#include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include <assert.h>
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
@@ -2519,14 +2520,17 @@ void OoT_EnHorse_UpdateHorsebackArchery(EnHorse* this, PlayState* play) {
     if (this->animationIdx == ENHORSE_ANIM_WALK) {
         OoT_EnHorse_PlayWalkingSound(this);
     }
-    if (play->interfaceCtx.hbaAmmo == 0) {
+
+    if (GameInteractor_Should(VB_PREVENT_HBA_FANFARE_SOFTLOCK_TIMER, play->interfaceCtx.hbaAmmo == 0, this)) {
         this->hbaTimer++;
     }
 
     sp20 = func_800F5A58(NA_BGM_HORSE_GOAL);
+
     OoT_EnHorse_UpdateHbaRaceInfo(this, play, &OoT_sHbaInfo);
     if (this->hbaFlags & 1 || this->hbaTimer >= 46) {
-        if (sp20 != 1 && gSaveContext.minigameState != 3) {
+        if (GameInteractor_Should(VB_PREVENT_HBA_FANFARE_SOFTLOCK_BUTTONS,
+                                  (sp20 != 1 && gSaveContext.minigameState != 3), this)) {
             gSaveContext.cutsceneIndex = 0;
             play->nextEntranceIndex = ENTR_GERUDOS_FORTRESS_16;
             play->transitionTrigger = TRANS_TRIGGER_START;

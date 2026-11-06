@@ -745,6 +745,13 @@ extern "C" {
 // like the window lock it replaces.
 #include "tests/test_combo_mm_options_page.c"
 
+// Operator ruling 2026-11-05: the shipped Standard and Beginner presets pin no
+// option whose default the D wave moved to OoTMM's, and reset the paired profile.
+// ROM-free: it reads the checkout only. FILE SCOPE (compiled as C++); its
+// RandoPresets_ReadShipped also hands the files to the rando-preset-world rows
+// below, because RSBS_SOURCE_DIR is this translation unit's.
+#include "tests/test_rando_presets.c"
+
 // The combo settings pane's window (ADR 0011 increment 2, ADR 0004 §6 + 0008):
 // same registration/idempotence/de-collision shape as the two above, plus the
 // draw-path tripwire under all three pairing states the pane renders
@@ -1222,6 +1229,12 @@ extern "C" int MM_VolumeLiveApply_RunHeadless(void);
 // scan and validation, the ROM search dirs and the tools check, ROM-free; plus
 // the staged MM ROM when OTRExporter/mm.z64 exists. FILE SCOPE (compiled as C++).
 #include "tests/test_mm_extract.c"
+// #1475 (lane H1): the combined Hint Tracker's Majora's Mask side: MM's hint
+// sources, the resolver, the read record and its round trips, the pane and the
+// hooks' wiring (mm-hint-sources, ROM-free), and the same over a real paired world
+// (mm-hint-sources-world, rando tier). FILE SCOPE (compiled as C++): it drives
+// rsbs::SaveManager, after test_crossing_commit.c and test_combo_crossing_views.c.
+#include "tests/test_mm_hint_sources.c"
 
 // MM scene-command EXECUTE regression (issue #344). Unlike the parse test, the
 // body runs the parsed commands against a PlayState, so it needs MM's global.h
@@ -7996,6 +8009,34 @@ TestResult Test_MMCreationNewFileWorld(void) {
     return MM_CreationNewFile_RunWorld() == 0 ? TEST_PASS : TEST_FAIL;
 }
 
+// #1475's two rows (tests/test_mm_hint_sources.c): the ROM-free row gets the
+// display-free shared bring-up, like combo-crossing-views (it saves, loads and
+// switches games); the world row needs a generation, like combo-crossing-views-world.
+TestResult Test_MmHintSources(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    if (OoT_InitSharedContextSubsystems() != 0) {
+        printf("[TEST] FAIL: shared bring-up reported failure\n");
+        return TEST_FAIL;
+    }
+    return MmHintSources_RunSynthetic();
+}
+
+TestResult Test_MmHintSourcesWorld(void) {
+    auto ctx = CreateHarnessStyleContext();
+    if (!ctx) {
+        printf("[TEST] FAIL: could not create Ship::Context singleton\n");
+        return TEST_FAIL;
+    }
+    static char mhsArg0[] = "redship";
+    static char* mhsArgv[] = { mhsArg0, nullptr };
+    InitOTRForMMFirstBoot(1, mhsArgv);
+    return MmHintSources_RunWorld();
+}
+
 // ADR 0010 answer O6's grow-check over both real engines (#645, #500). Same
 // bring-up split as Test_ComboLogicMeasure above, for the same reason.
 TestResult Test_ComboLogicMonotonicity(void) {
@@ -8208,6 +8249,31 @@ TestResult Test_RandoGoalGateDefaults(void) {
         return TEST_FAIL;
     }
     return OoT_GoalGateDefaults_Run() == 0 ? TEST_PASS : TEST_FAIL;
+}
+
+// Operator ruling 2026-11-05: a paired world made from the shipped Standard or
+// Beginner preset takes the D wave's OoTMM defaults and is proved under All
+// Locations. The preset is read from the checkout here (RandoPresets_ReadShipped,
+// tests/test_rando_presets.c); same bring-up as the rows above; body in
+// games/oot/soh/oot_preset_world_test.cpp.
+extern "C" int OoT_PresetWorld_Run(const char* presetName, const char* presetJson, const char* seed);
+static TestResult RandoPresetWorld(const char* name, const char* seed) {
+    std::string json;
+    std::string why;
+    if (!RandoPresets_ReadShipped(name, &json, &why)) {
+        printf("[TEST] FAIL: rando-preset-world (%s): %s\n", name, why.c_str());
+        return TEST_FAIL;
+    }
+    if (!TrackerReachabilityBringUp()) {
+        return TEST_FAIL;
+    }
+    return OoT_PresetWorld_Run(name, json.c_str(), seed) == 0 ? TEST_PASS : TEST_FAIL;
+}
+TestResult Test_RandoPresetWorldStandard(void) {
+    return RandoPresetWorld("Standard", "RSBSPRESETS1");
+}
+TestResult Test_RandoPresetWorldBeginner(void) {
+    return RandoPresetWorld("Beginner", "RSBSPRESETB1");
 }
 
 // The bag composition rule over both real pools (#645 lane K9; #731, #733). Same
@@ -8739,6 +8805,16 @@ const TestDescriptor gTests[] = {
       "The pair's Way of the Hero is the hosts its goal cannot do without in either game, both games' stones name "
       "it, and MM's hints default on (#1439)",
       Test_WothHints },
+    // #1475 (lane H1): the combined Hint Tracker's MM side. The world row needs a
+    // generation; skipped by `--test all` below like its siblings.
+    { "mm-hint-sources",
+      "MM's 74 hint sources, the resolver's stream, the read record (cleared by a new file, round-tripped by a "
+      ".redsave and an OoT -> MM -> OoT crossing pair), the masked pane and the hooks' wiring (#1475)",
+      Test_MmHintSources },
+    { "mm-hint-sources-world",
+      "Over a real paired world the MM hint resolver is the textbox for every source, over the frozen half as over "
+      "the live save, moves no stream, and a read item hint marks its MM check Seen (#1475)",
+      Test_MmHintSourcesWorld },
     // #1047: a free stone's seed and a trap's type are pure functions of the frozen world.
     { "mm-gossip-stone-seed", "MM's free gossip stone seeds are defined integers (#1047)", Test_MmGossipStoneSeed },
     { "mm-trap-roll-frozen", "MM trap types come from the frozen world and the check (#1047)", Test_MmTrapRollFrozen },
@@ -9403,6 +9479,10 @@ const TestDescriptor gTests[] = {
     { "setmenu-count", "Exactly one menu shell reaches Ship::Gui::SetMenu (#497, ADR 0004 §3)", Test_SetMenuCount },
     { "presets-skip-non-json", "A non-JSON file in presets/ is skipped with one log line, not thrown (#1210)",
       Test_PresetsSkipNonJson },
+    { "rando-presets-follow-defaults",
+      "The shipped Standard and Beginner presets pin no option whose default the D wave moved to OoTMM's, and "
+      "reset the paired profile (operator ruling 2026-11-05)",
+      Test_RandoPresetsFollowDefaults },
     // #658: MM_GOAL's "Majora defeated" conjunct. Display-free and ROM-free,
     // but it MUST stay after mm-registrar-coverage in this table: it drives
     // MM_Rando_InitCore, and that row's non-vacuity requires the registries to
@@ -9728,6 +9808,16 @@ const TestDescriptor gTests[] = {
       "OoT's Rainbow Bridge and Ganon's Boss Key ship at OoTMM's defaults (Medallions, all six; Start With) on a "
       "paired creation, Triforce Hunt still decides the key, and a stored world keeps its own gates (#1428)",
       Test_RandoGoalGateDefaults },
+    // Operator ruling 2026-11-05. Each needs a paired creation; skipped by `--test
+    // all` below like its siblings.
+    { "rando-preset-world-standard",
+      "A paired world from the shipped Standard preset takes the D wave's OoTMM defaults and is proved under All "
+      "Locations (operator ruling 2026-11-05)",
+      Test_RandoPresetWorldStandard },
+    { "rando-preset-world-beginner",
+      "A paired world from the shipped Beginner preset takes the D wave's OoTMM defaults and is proved under All "
+      "Locations (operator ruling 2026-11-05)",
+      Test_RandoPresetWorldBeginner },
     // The bag composition rule over both real pools (#645 lane K9). Needs a
     // generation; skipped by `--test all` below like its siblings.
     { "combo-logic-bag-composition",
@@ -10327,6 +10417,7 @@ int TestRunner_Run(const char* testName) {
                 strcmp(gTests[i].name, "oot-logic-gates") == 0 || strcmp(gTests[i].name, "mm-logic-gates") == 0 ||
                 strcmp(gTests[i].name, "oot-masks-mm-logic") == 0 ||
                 strcmp(gTests[i].name, "rando-goal-gate-defaults") == 0 ||
+                strncmp(gTests[i].name, "rando-preset-world-", 19) == 0 ||
                 strcmp(gTests[i].name, "combo-logic-bag-composition") == 0 ||
                 strcmp(gTests[i].name, "oot-plentiful-progressive") == 0 ||
                 strcmp(gTests[i].name, "combo-single-bag") == 0 || strcmp(gTests[i].name, "shared-lens-bag") == 0 ||
@@ -10363,6 +10454,7 @@ int TestRunner_Run(const char* testName) {
                 // never-booted leg) would read it.
                 strcmp(gTests[i].name, "oot-soaring-pooled-only-when-rule-on") == 0 ||
                 strcmp(gTests[i].name, "song-locations-overflow-refused") == 0 ||
+                strcmp(gTests[i].name, "mm-hint-sources-world") == 0 ||
                 // A window and soh.o2r, and a run of its own: the `ui` CTest label.
                 strcmp(gTests[i].name, "ui-snapshot") == 0) {
                 printf("\n--- Skipping: %s (needs display; runs as a %s-label CTest) ---\n", gTests[i].name,

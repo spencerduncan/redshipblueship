@@ -297,9 +297,16 @@ bool FhRunNoLogic(uint16_t lensCheck) {
 const char* const kFhEnGs = "games/mm/2s2h/Rando/ActorBehavior/EnGs.cpp";
 // #1047: both read the stone seed through GossipStoneSeed, and the free stone's
 // pick is FreeStonePick, which seeds with the world's seed plus the stone's.
+// #1475: FreeStonePick hands the live world's seed to FreeStonePickFrom (the hint
+// tracker's resolver's pick, on a stream of its own seeded with the world's seed
+// plus the stone's) and then puts MM's global stream where that draw left it.
 const char* const kFhSeedLine = "uint32_t seed = GossipStoneSeed(MM_gPlayState->sceneId, enGs->actor.home.pos);";
 const char* const kFhPickSeed = "return FreeStonePick(availableChecks, seed);";
-const char* const kFhPickStream = "Ship_Random_Seed(gSaveContext.save.shipSaveInfo.rando.finalSeed + stoneSeed);";
+const char* const kFhPickWorldSeed = "const uint32_t finalSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed;";
+const char* const kFhPickFrom =
+    "const GossipHintTarget target = FreeStonePickFrom(candidates, finalSeed, stoneSeed, &stream);";
+const char* const kFhPickLeaves = "Ship_Random_Seed(stream);";
+const char* const kFhPickStream = "*stream = (u64)(uint32_t)(finalSeed + stoneSeed);";
 // #1351: the purchasable hint's pick (GetRandomCheck(true), frame-seeded) passes
 // the full size, since Ship_Random's upper bound is exclusive (ShipUtils.cpp);
 // size() - 1 never picked the last candidate. FreeStonePick keeps size() - 1 on
@@ -312,10 +319,13 @@ const char* const kFhPurchasedPick = "return availableChecks[Ship_Random(0, avai
 const char* const kFhStoneSeedHead = "static uint32_t GossipStoneSeed(s16 sceneId, const Vec3f& homePos) {";
 const char* const kFhStoneSeedBody = "return (uint32_t)(int32_t)((f32)sceneId + homePos.x + homePos.z);";
 const char* const kFhHookCall = "entry.msg = FreeStoneHintText(randoCheckId);";
-const char* const kFhTextReturn =
-    "return FreeStoneHintTextSeeded(target, gSaveContext.save.shipSaveInfo.rando.finalSeed + seed);";
+// #1475: the variant's seed is the live world's seed plus the stone's, over the
+// live save's table (the resolver hands the same function another table).
+const char* const kFhTextSeed = "const uint32_t stoneSeed = gSaveContext.save.shipSaveInfo.rando.finalSeed + seed;";
+const char* const kFhTextReturn = "return FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, target, stoneSeed, nullptr);";
 const char* const kFhBridgeCall =
-    "const std::string msg = FreeStoneHintTextSeeded((RandoCheckId)randoCheckId, stoneSeed);";
+    "const std::string msg = FreeStoneHintTextSeeded(RANDO_SAVE_CHECKS, (RandoCheckId)randoCheckId, stoneSeed, "
+    "nullptr);";
 
 std::vector<std::string> FhLines(const std::string& text) {
     std::vector<std::string> lines;
@@ -416,15 +426,24 @@ std::string FhWiringProblem(const std::string& text) {
         lines,
         "static GossipHintTarget FreeStonePick(const std::vector<GossipHintTarget>& candidates, uint32_t stoneSeed) {",
         "}");
-    if (!FhHasLine(pickSeeded, kFhPickStream)) {
-        return "FreeStonePick does not seed the pick with the world's seed plus the stone's";
+    if (!FhHasLine(pickSeeded, kFhPickWorldSeed) || !FhHasLine(pickSeeded, kFhPickFrom) ||
+        !FhHasLine(pickSeeded, kFhPickLeaves)) {
+        return "FreeStonePick does not pick through FreeStonePickFrom with the live world's seed and leave MM's "
+               "stream where that pick left it";
+    }
+    const std::vector<std::string> pickFrom = FhBlock(lines,
+                                                      "static GossipHintTarget FreeStonePickFrom(const "
+                                                      "std::vector<GossipHintTarget>& candidates, uint32_t finalSeed,",
+                                                      "}");
+    if (!FhHasLine(pickFrom, kFhPickStream)) {
+        return "FreeStonePickFrom does not seed the pick with the world's seed plus the stone's";
     }
     const std::vector<std::string> freeText =
         FhBlock(lines, "static std::string FreeStoneHintText(const GossipHintTarget& target) {", "}");
     if (freeText.empty()) {
         return "the single-exe FreeStoneHintText was not found";
     }
-    if (!FhHasLine(freeText, kFhSeedLine) || !FhHasLine(freeText, kFhTextReturn)) {
+    if (!FhHasLine(freeText, kFhSeedLine) || !FhHasLine(freeText, kFhTextSeed) || !FhHasLine(freeText, kFhTextReturn)) {
         return "FreeStoneHintText does not seed the variant with GetRandomCheck's stone seed";
     }
     const std::vector<std::string> bridge = FhBlock(lines, "extern \"C\" int MM_Rando_Hints_TestFreeStoneText(", "}");
@@ -469,10 +488,11 @@ bool FhCheckWiring() {
     };
     const FhMutant mutants[] = {
         { "the hook back on the plain item hint", kFhHookCall, "entry.msg = GossipHintText(randoCheckId, false);" },
-        { "FreeStoneHintText seeded without the world's seed", kFhTextReturn,
-          "return FreeStoneHintTextSeeded(target, seed);" },
+        { "FreeStoneHintText seeded without the world's seed", kFhTextSeed, "const uint32_t stoneSeed = seed;" },
         { "GetRandomCheck's free-stone seed changed alone", kFhPickSeed, "return FreeStonePick(availableChecks, 0);" },
-        { "FreeStonePick seeded without the world's seed", kFhPickStream, "Ship_Random_Seed(stoneSeed);" },
+        { "FreeStonePickFrom seeded without the world's seed", kFhPickStream, "*stream = (u64)stoneSeed;" },
+        { "FreeStonePick handing the pick a world seed of 0", kFhPickWorldSeed, "const uint32_t finalSeed = 0;" },
+        { "FreeStonePick leaving MM's stream unmoved", kFhPickLeaves, "(void)stream;" },
         { "GossipStoneSeed back on upstream's float-to-uint32_t conversion", kFhStoneSeedBody,
           "return sceneId + homePos.x + homePos.z;" },
         { "the bridge off FreeStoneHintTextSeeded", kFhBridgeCall,
@@ -513,7 +533,9 @@ const FhClaimSite kFhClaimSites[] = {
     { "games/oot/soh/Enhancements/randomizer/HintAreaOoT.cpp",
       "extern \"C\" int OoT_HintArea_MarkPairedFoolish(void) {", "return 0;" },
     { "games/mm/2s2h/Rando/HintFoolishSingleExe.cpp",
-      "std::string Rando::HintFoolish::FreeStoneText(uint32_t stoneSeed) {", "return \"\";" },
+      "std::string Rando::HintFoolish::FreeStoneText(const RandoSaveCheck* checks, uint32_t stoneSeed, ComboArea* "
+      "outArea) {",
+      "return \"\";" },
     { "games/mm/2s2h/Rando/Foreign.cpp",
       "extern \"C\" int MM_Rando_AugmentSpoilerWithPairedHalf(const char* ootSpoilerPath) {",
       "doc[\"logicWarning\"] =" },

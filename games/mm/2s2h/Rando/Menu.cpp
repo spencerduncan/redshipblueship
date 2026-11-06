@@ -36,6 +36,19 @@ std::unordered_map<int32_t, const char*> accessTrialsOptions = {
     { RO_ACCESS_TRIALS_OPEN, "Open" },
 };
 
+std::unordered_map<int32_t, const char*> dungeonItemPlacementOptions = {
+    { RO_DUNGEON_ITEM_ANYWHERE, "Anywhere" },
+    { RO_DUNGEON_ITEM_OWN_DUNGEON, "Own Dungeon" },
+    { RO_DUNGEON_ITEM_START_WITH, "Start With" },
+    { RO_DUNGEON_ITEM_VANILLA, "Vanilla" },
+};
+
+std::unordered_map<int32_t, const char*> songShuffleOptions = {
+    { RO_SONG_SHUFFLE_ANYWHERE, "Anywhere" },
+    { RO_SONG_SHUFFLE_SONG_LOCATIONS, "Song Locations" },
+    { RO_SONG_SHUFFLE_VANILLA, "Vanilla" },
+};
+
 // clang-format off
 std::vector<int32_t> incompatibleWithVanilla = {
     RO_SHUFFLE_BOSS_SOULS,
@@ -219,6 +232,9 @@ static RegisterShipInitFunc refreshMetricsInit(RefreshMetrics, {
                                                                    "gRando.Options.RO_LOGIC",
                                                                    "gRando.Options.RO_MINIMUM_SKULLTULA_TOKENS",
                                                                    "gRando.Options.RO_MINIMUM_STRAY_FAIRIES",
+                                                                   "gRando.Options.RO_PLACEMENT_BOSS_KEYS",
+                                                                   "gRando.Options.RO_PLACEMENT_SMALL_KEYS",
+                                                                   "gRando.Options.RO_PLACEMENT_STRAY_FAIRIES",
                                                                    "gRando.Options.RO_PLENTIFUL_ITEMS",
                                                                    "gRando.Options.RO_SHUFFLE_BARREL_DROPS",
                                                                    "gRando.Options.RO_SHUFFLE_BOSS_REMAINS",
@@ -237,6 +253,7 @@ static RegisterShipInitFunc refreshMetricsInit(RefreshMetrics, {
                                                                    "gRando.Options.RO_SHUFFLE_POT_DROPS",
                                                                    "gRando.Options.RO_SHUFFLE_SHOPS",
                                                                    "gRando.Options.RO_SHUFFLE_SNOWBALL_DROPS",
+                                                                   "gRando.Options.RO_SHUFFLE_SONGS",
                                                                    "gRando.Options.RO_SHUFFLE_SWIM",
                                                                    "gRando.Options.RO_SHUFFLE_TINGLE_SHOPS",
                                                                    "gRando.Options.RO_SHUFFLE_TREE_DROPS",
@@ -370,8 +387,14 @@ static void DrawShufflesTab() {
     f32 halfHeight = 0;
     ImGui::SeparatorText("Shuffle Options");
     ImGui::BeginChild("randoShufflesColumn1", ImVec2(columnWidth, halfHeight));
-    CVarCheckbox("Shuffle Songs", "gPlaceholderBool",
-                 CheckboxOptions({ { .disabled = true, .disabledTooltip = "Coming Soon" } }).DefaultValue(true));
+    UIWidgets::CVarCombobox(
+        "Songs", Rando::StaticData::Options[RO_SHUFFLE_SONGS].cvar, &songShuffleOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where the songs taught in the world may be found. Extra songs have no location of their own, "
+            "so they are always shuffled into the item pool like any other item.\n\n"
+            "Anywhere - Song locations are checks, and their songs can be found anywhere in the world.\n\n"
+            "Song Locations - Song locations are checks, and their songs are shuffled among them.\n\n"
+            "Vanilla - Every song stays where it is, and song locations are not checks."));
     CVarCheckbox("Shuffle Owl Statues", Rando::StaticData::Options[RO_SHUFFLE_OWL_STATUES].cvar);
     CVarCheckbox("Shuffle Shops", Rando::StaticData::Options[RO_SHUFFLE_SHOPS].cvar);
     CVarCheckbox("Shuffle Tingle Maps", Rando::StaticData::Options[RO_SHUFFLE_TINGLE_SHOPS].cvar);
@@ -387,13 +410,44 @@ static void DrawShufflesTab() {
                       .Min(1)
                       .Max(SPIDER_HOUSE_TOKENS_REQUIRED)
                       .DefaultValue(SPIDER_HOUSE_TOKENS_REQUIRED));
-    CVarSliderInt(
-        "Minimum Required Stray Fairies", Rando::StaticData::Options[RO_MINIMUM_STRAY_FAIRIES].cvar,
-        IntSliderOptions({ { .tooltip = "Minimum Stray Fairies needed to obtain the corresponding Great Fairy check.\n"
-                                        "Does not affect the Clock Town fairy." } })
-            .Min(1)
-            .Max(STRAY_FAIRY_SCATTERED_TOTAL)
-            .DefaultValue(STRAY_FAIRY_SCATTERED_TOTAL));
+    UIWidgets::CVarCombobox(
+        "Small Keys", Rando::StaticData::Options[RO_PLACEMENT_SMALL_KEYS].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's small keys may be placed.\n\n"
+            "Anywhere - Small keys can be found anywhere in the world.\n\n"
+            "Own Dungeon - Each dungeon's small keys are only found within that dungeon.\n\n"
+            "Vanilla - Small keys stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
+            "Start With - You begin with every dungeon's small keys, and none are added to the item pool."));
+    UIWidgets::CVarCombobox(
+        "Boss Keys", Rando::StaticData::Options[RO_PLACEMENT_BOSS_KEYS].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's boss key may be placed.\n\n"
+            "Anywhere - Boss keys can be found anywhere in the world.\n\n"
+            "Own Dungeon - Each dungeon's boss key is only found within that dungeon.\n\n"
+            "Vanilla - Boss keys stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
+            "Start With - You begin with every dungeon's boss key, and none are added to the item pool."));
+    UIWidgets::CVarCombobox(
+        "Stray Fairies", Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, &dungeonItemPlacementOptions,
+        UIWidgets::ComboboxOptions().Tooltip(
+            "Where each dungeon's Stray Fairies may be placed.\n\n"
+            "Anywhere - Stray Fairies can be found anywhere in the world. The Clock Town Stray Fairy joins the "
+            "item pool with them.\n\n"
+            "Own Dungeon - Each dungeon's Stray Fairies are only found within that dungeon. The Clock Town Stray "
+            "Fairy is vanilla.\n\n"
+            "Vanilla - Stray Fairies stay on the checks that hold them in the vanilla game, and none are added to "
+            "the item pool.\n\n"
+            "Start With - You begin with every Stray Fairy, and none are added to the item pool."));
+    if (CVarGetInteger(Rando::StaticData::Options[RO_PLACEMENT_STRAY_FAIRIES].cvar, RO_DUNGEON_ITEM_ANYWHERE) !=
+        RO_DUNGEON_ITEM_START_WITH) {
+        CVarSliderInt("Minimum Required Stray Fairies", Rando::StaticData::Options[RO_MINIMUM_STRAY_FAIRIES].cvar,
+                      IntSliderOptions({ { .tooltip = "Minimum Stray Fairies needed to obtain the corresponding Great "
+                                                      "Fairy check.\nDoes not affect the Clock Town fairy." } })
+                          .Min(1)
+                          .Max(STRAY_FAIRY_SCATTERED_TOTAL)
+                          .DefaultValue(STRAY_FAIRY_SCATTERED_TOTAL));
+    }
     ImGui::EndChild();
     ImGui::SameLine();
     ImGui::BeginChild("randoShufflesColumn2", ImVec2(columnWidth, halfHeight));

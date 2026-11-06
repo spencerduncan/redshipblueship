@@ -2005,6 +2005,20 @@ bool Logic::TakeDamage() {
     return CanUse(RG_BOTTLE_WITH_FAIRY) || EffectiveHealth() > 8 || CanUse(RG_NAYRUS_LOVE);
 }
 
+// Voiding out, be it swimming too far or falling in a pit, costs a heart.
+// Void damage skips damage multiplier, but double defense still halves it & OHKO still kills.
+// RSBS: upstream b52c31f85 reads Health(); this tree has no Health() yet (#1397 / PR #1494 ports it),
+// so read the same value, healthCapacity, directly.
+bool Logic::CanVoid() {
+    if (HasItem(RG_BOTTLE_WITH_FAIRY)) {
+        return true;
+    }
+    if (ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Is(RO_DAMAGE_MULTIPLIER_OHKO)) {
+        return false;
+    }
+    return GetSaveContext()->healthCapacity > (FULL_HEART_HEALTH >> (HasItem(RG_DOUBLE_DEFENSE) ? 1 : 0));
+}
+
 bool Logic::CanOpenBombGrotto() {
     return BlastOrSmash() && (HasItem(RG_STONE_OF_AGONY) || ctx->GetTrickOption(RT_GROTTOS_WITHOUT_AGONY));
 }
@@ -2220,6 +2234,7 @@ static constexpr std::pair<RandomizerGet, uint32_t> randInfTable[] = {
     { RG_SPEAK_KOKIRI, RAND_INF_CAN_SPEAK_KOKIRI },
     { RG_SPEAK_ZORA, RAND_INF_CAN_SPEAK_ZORA },
     { RG_FISHING_POLE, RAND_INF_FISHING_POLE_FOUND },
+    { RG_ROCS_FEATHER, RAND_INF_OBTAINED_ROCS_FEATHER },
     { RG_GUARD_HOUSE_KEY, RAND_INF_GUARD_HOUSE_KEY_OBTAINED },
     { RG_MARKET_BAZAAR_KEY, RAND_INF_MARKET_BAZAAR_KEY_OBTAINED },
     { RG_MARKET_POTION_SHOP_KEY, RAND_INF_MARKET_POTION_SHOP_KEY_OBTAINED },

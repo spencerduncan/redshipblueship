@@ -1652,9 +1652,9 @@ std::vector<Migration> version8Migrations = {
 };
 
 /**
- * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038, #1062, #1064, #1123, #1239).
+ * RSBS version 9 — the #966 key-name gaps (#1027-#1036, #1038, #1062, #1064, #1123, #1239) and #1412's ten.
  *
- * Seventeen more MM keys move onto the spelling Ship of Harkinian's menu writes,
+ * Twenty-seven more MM keys move onto the spelling Ship of Harkinian's menu writes,
  * for settings both games mean identically. MM's readers sat on a differently
  * spelled twin with no manifest row, so the control moved a key nothing in MM
  * read. Direction MM -> OoT per ADR 0003 decision (3).
@@ -1663,10 +1663,13 @@ std::vector<Migration> version8Migrations = {
  * block at the end of RSBS::kConvergedKeys), so all are pure renames and need
  * no value transform. Same conflict rule as versions 7 and 8 (ADR 0003 §6.3):
  * OoT's value wins, and the MM spelling is cleared either way so the migration
- * cannot oscillate. This table mirrors those seventeen rows of RSBS::kConvergedKeys
+ * cannot oscillate. This table mirrors those twenty-seven rows of RSBS::kConvergedKeys
  * (the 2Ship importer maps through the manifest itself); test_cvar_classification
  * fails when a row is missing from either place. #1037's damage multiplier is
  * not here: its value spaces differ, so the keys stay distinct (RSBS::kMustStayDistinct) and MM's own row is hosted.
+ * #1412's ten (2Ship TUs ported in that change) only run on an install that has not reached version 9 yet. That loses
+ * nothing: no single-exe row ever wrote their MM spellings, and the 2Ship import walks kConvergedKeys itself. #1412's
+ * No Random Drops is not here either: MM's rule also blocks set drops, so it is held apart and hosted.
  */
 std::vector<Migration> version9Migrations = {
     { MigrationAction::RenameIfAbsent, "gEnhancements.Graphics.IncreaseActorDrawDistance",
@@ -1700,6 +1703,23 @@ std::vector<Migration> version9Migrations = {
     // the manifest row sits in its Group C cutscene block).
     { MigrationAction::RenameIfAbsent, "gEnhancements.Cutscenes.SkipEnemyCutscenes",
       "gEnhancements.TimeSavers.SkipCutscene.BossIntro" },
+    // #1412: the MM halves of ten settings SoH already ships (2Ship's own spellings). MM's No Random Drops is held
+    // apart, so it is not here.
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Player.UnsheatheWithoutSlashing",
+      "gEnhancements.UnsheatheWithoutSlashing" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Items.RemoveExplosiveLimit",
+      "gEnhancements.RemoveExplosiveLimit" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.NoHeartDrops", "gEnhancements.NoHeartDrops" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.DifficultyOptions.NoDropDespawning", "gCheats.DropsDontDie" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Timesavers.FasterRupeeAccumulator",
+      "gEnhancements.FasterRupeeAccumulator" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Dialogue.SkipBottlePickupMessages", "gEnhancements.FastBottles" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Timesavers.FasterBottles", "gEnhancements.FasterBottleEmpty" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Mods.DisableBombBillboarding",
+      "gEnhancements.DisableBombBillboarding" },
+    { MigrationAction::RenameIfAbsent, "gEnhancements.Mods.DisableGrottoRotation",
+      "gEnhancements.DisableGrottoRotation" },
+    { MigrationAction::RenameIfAbsent, "gCheats.InfiniteEponaCarrots", "gCheats.InfiniteEponaBoost" },
 };
 
 /**

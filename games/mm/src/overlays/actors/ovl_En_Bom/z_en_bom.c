@@ -8,6 +8,7 @@
 #include "z64rumble.h"
 #include "overlays/actors/ovl_En_Clear_Tag/z_en_clear_tag.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
+#include "2s2h/GameInteractor/GameInteractor.h"
 
 #define FLAGS (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED)
 
@@ -629,7 +630,9 @@ void MM_EnBom_Draw(Actor* thisx, PlayState* play) {
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);
             MM_gSPDisplayList(POLY_OPA_DISP++, gBombCapDL);
 
-            MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            if (GameInteractor_Should(VB_APPLY_BOMB_BILLBOARDING, true, this->actor.id)) {
+                MM_Matrix_ReplaceRotation(&play->billboardMtxF);
+            }
             Matrix_RotateXS(0x4000, MTXMODE_APPLY);
 
             MATRIX_FINALIZE_AND_LOAD(POLY_OPA_DISP++, play->state.gfxCtx);

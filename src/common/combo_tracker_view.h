@@ -390,6 +390,16 @@ void Combo_Tracker_RegisterMM(const ComboMMTrackerDesc* desc);
 const ComboMMTrackerDesc* Combo_Tracker_GetMMDesc(void);
 
 /**
+ * The MM save image every MM read of this view uses (THE SOURCE PICK, #799), for
+ * the other MM views that must switch source together with the check panes (the
+ * combined Hint Tracker's MM pane, #1475): MM's live save while MM is played and
+ * marked (LIVE), else the marked frozen shadow (STALE), else NULL (UNAVAILABLE).
+ * The image is MM's SaveContext layout. `*outFreshness` (may be NULL) receives
+ * the ComboTrackerFreshness. NULL, UNAVAILABLE, with no MM descriptor registered.
+ */
+const void* Combo_TrackerMMSave(uint8_t* outFreshness);
+
+/**
  * Build and register MM's descriptor. DEFINED MM-SIDE
  * (games/mm/2s2h/Rando/TrackerAdapterSingleExe.cpp), declared here because
  * the combo entry point is what calls it. A call rather than a file-scope
