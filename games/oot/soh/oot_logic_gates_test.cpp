@@ -1119,9 +1119,11 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     const uint8_t savedShuffleSpeak = randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Get();
     const uint8_t savedShuffleGrab = randoCtx->GetOption(RSK_SHUFFLE_GRAB).Get();
     const uint8_t savedShufflePots = randoCtx->GetOption(RSK_SHUFFLE_POTS).Get();
+    const uint8_t savedStartingHearts = randoCtx->GetOption(RSK_STARTING_HEARTS).Get();
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(1);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(1);
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(2);
 
     // The world graph, bound to this context's logic (location_access.cpp).
     RegionTable_Init();
@@ -1260,6 +1262,7 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(savedShuffleSpeak);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(savedShuffleGrab);
     randoCtx->GetOption(RSK_SHUFFLE_POTS).Set(savedShufflePots);
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(savedStartingHearts);
     logic->Reset(true);
     logic->IsChild = savedChild;
     logic->IsAdult = savedAdult;

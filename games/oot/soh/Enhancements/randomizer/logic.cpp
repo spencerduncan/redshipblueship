@@ -2007,8 +2007,6 @@ bool Logic::TakeDamage() {
 
 // Voiding out, be it swimming too far or falling in a pit, costs a heart.
 // Void damage skips damage multiplier, but double defense still halves it & OHKO still kills.
-// RSBS: upstream b52c31f85 reads Health(); this tree has no Health() yet (#1397 / PR #1494 ports it),
-// so read the same value, healthCapacity, directly.
 bool Logic::CanVoid() {
     if (HasItem(RG_BOTTLE_WITH_FAIRY)) {
         return true;
@@ -2016,7 +2014,7 @@ bool Logic::CanVoid() {
     if (ctx->GetOption(RSK_DAMAGE_MULTIPLIER).Is(RO_DAMAGE_MULTIPLIER_OHKO)) {
         return false;
     }
-    return GetSaveContext()->healthCapacity > (FULL_HEART_HEALTH >> (HasItem(RG_DOUBLE_DEFENSE) ? 1 : 0));
+    return Health() > (FULL_HEART_HEALTH >> (HasItem(RG_DOUBLE_DEFENSE) ? 1 : 0));
 }
 
 bool Logic::CanOpenBombGrotto() {
