@@ -828,8 +828,11 @@ int Expand(void* self) {
         // NEVER a pooled check's content: that host's item is the coordinator's
         // to decide (its vanilla item is merely what GeneratePools pre-wrote). And
         // never a USER-EXCLUDED check's (`skipped`): it holds junk by the player's
-        // choice. With no host pool set (a caller that never ran GeneratePools)
-        // there is no "outside", and nothing is granted — the pre-#737 behaviour.
+        // choice. An excluded check whose vanilla item is junk is not `skipped`:
+        // GeneratePools leaves it unshuffled with that item (#1399, upstream
+        // 99ff06284), so it is granted here like any other fixed check. With no
+        // host pool set (a caller that never ran GeneratePools) there is no
+        // "outside", and nothing is granted — the pre-#737 behaviour.
         if (sHostPoolSet && sFixedGrantsEnabled) {
             for (RandoCheckId randoCheckId : sRound.checks) {
                 const uint16_t check = (uint16_t)randoCheckId;

@@ -15,7 +15,7 @@
  * 46 MM areas holds checks. It is stored as a scene default plus a per-check
  * override list. The table was derived by a script over OoTMM's world and check
  * files; the 636 2ship rows whose names match an OoTMM location by name all
- * agree with OoTMM's region (PR for #575 H1). OoTMM gives the 55 enemy drops no
+ * agree with OoTMM's region (PR for #575 H1). OoTMM gives the 56 enemy drops no
  * region (packages/logic/src/hints.ts ignores region-less checks), so they are
  * COMBO_AREA_NONE, as is RC_UNKNOWN.
  *
