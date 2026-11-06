@@ -1,6 +1,18 @@
-# Release notes: next release (draft)
+# Release notes: v0.5.0-alpha ("Ellen Alfa")
 
-**Status:** draft, for the release after `v0.4.4-alpha`. Pull requests add their lines here as they merge.
+**Status:** released. The release is cut as the tag `v0.5.0-alpha` on the commit that merges this text (the version
+bump, the release workflow's title and these notes), whose code is `main` at `a6d80794` and whose docs are that commit.
+The next release's draft starts above this section when something merges after the tag.
+**Version:** `v0.5.0-alpha`, codename "Connor Alfa" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `y`
+bump: major cross-game randomizer feature parity with OoTMM (`[Both Games] Logic` All Locations default, OoTMM goal gates and shuffles, Way of the Hero and Hint Tracker across both games, Shared Swim, Paired Triforce Hunt, Cross-Game Masks, Song of Soaring in OoT, and the SoH 9.1.2–9.2.0 and 2Ship2Harkinian 3.0.0–4.0.1 backport waves) without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is unchanged), so it takes a new film character ("Connor") and resets the NATO phonetic code word to Alfa. A build's window title reads `RedShipBlueShip v0.5.0-alpha+<commit> (Connor Alfa)`, and `redship --version` prints the same first line. Saves written by this version remain version 5; seeds come from generator 4.
+**Last release:** `v0.4.4-alpha` ("Deckard Echo"), tagged 2026-11-01 at `a3a146d2`. Its notes follow this section.
+**Merged up to:** `main` at `a6d80794` (2026-11-05) for the code, 60 commits after the tag: pull requests #1331 and #1353 to #1495.
+**Covers:** everything merged after `a3a146d2`. Numbers in parentheses are pull requests; issues are written "issue #N".
+**Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.5.0-alpha) carries
+`redshipblueship-v0.5.0-alpha-windows.zip` and `redshipblueship-v0.5.0-alpha-linux.AppImage` once the tag's
+`generate-builds` run finishes.
+
+---
 
 ## Since v0.4.4-alpha
 
@@ -139,7 +151,7 @@
 
 ### Traps
 
-- **Every OoTMM trap type works in both games** (#1424). Majora's Mask gains Fire, Knockback, Drain, Anti-Magic and
+- **Every OoTMM trap type works in both games** (#1432, issue #1424). Majora's Mask gains Fire, Knockback, Drain, Anti-Magic and
   Rupoor Traps on Randomizer > MM Randomizer, after Time Traps. Ocarina of Time gains Drain, Anti-Magic and Rupoor
   Traps under Additional Traps, beside SoH's own (its Burn and Knockback Traps stand for OoTMM's Fire and Knockback).
   The new ones do what OoTMM's do: in Majora's Mask, Fire sets Link on fire (Goron Link does not burn) and Knockback
@@ -147,6 +159,22 @@
   (and, in Majora's Mask, ends the Chateau Romani's endless magic), and a Rupoor takes 10 rupees. Health, magic and
   rupees are shared, so the loss counts in both games. All of them are off by default, and a file or seed that does
   not turn one on springs the same traps as before.
+
+### Hint Tracker, Shared Swim, Paired Triforce Hunt, Cross-Game Masks & Songs
+
+- **Hint Tracker window across both games** (#1468, #1480; issues #1366, #1475). Backported SoH's Hint Tracker window (`Randomizer > Hint Tracker`) and extended it with Majora's Mask's hint sources (Gossip Stones, boss remains posters, Oath to Order, spider house rewards, and the Hookshot hint), a unified hint resolver for both textboxes and the tracker, persistent read-state records, and automatic Check Tracker "Seen" marking when a hint names a location.
+- **Shared Swim, Shuffle Swim and Shuffle Ocarina Buttons** (#1375, issue #1369). Added unified `[Both Games] Shared Swim` and paired `Shuffle Swim` / `Shuffle Ocarina Buttons` support, OoT ability tracker rows, and MM ocarina button glyphs across both games.
+- **Paired Triforce Hunt** (#1390, issue #1389). `[Both Games] Triforce Pieces` / `Triforce Goal` generates a unified Triforce Hunt across both Hyrule and Termina and can be won from either game upon collecting the required pieces.
+- **Blast Mask in Ocarina of Time and Gerudo, Skull and Spooky Masks in Majora's Mask** (#1391, #1450; issues #979, #980). Added `[Both Games] Blast Mask (OoT)`, `[Both Games] Shared Blast Mask`, and `Blast Mask Cooldown`, plus `Gerudo Mask (MM)`, `Skull Mask (MM)`, `Spooky Mask (MM)` and their shared mask rules on `Randomizer > Cross-Game` (all off by default).
+- **Song of Soaring in Ocarina of Time and MM Song Placement** (#1455, #1492; issues #1169, #1362). Added the Song of Soaring item and pool integration in OoT (gated behind the cross-game warp song rule, #1448, #1449) with OoTMM's "Not enough locations" capacity check, and backported 2Ship's MM Song Shuffle placement options (`Song Locations`, `Dungeon Rewards`, `Anywhere`).
+
+### Upstream SoH (9.1.2–9.2.0) and 2Ship2Harkinian (3.0.0–4.0.1) Backports & Engine Hardening
+
+- **Ocarina of Time logic, shuffles, and runtime backports** (#1454, #1457, #1458, #1463, #1466, #1469, #1490, #1493, #1495; issues #1336–#1342, #1345, #1363–#1365, #1395–#1397, #1400, #1401, #1414). Backported SoH 9.1.2–9.2.0 overworld and dungeon logic fixes (Hyrule Castle grounds, Ganon's Tower blue warp, Closed Forest start age, Fire/Water/Shadow/Spirit/BotW/GTG/Ice Cavern/MQ dungeons, `Health()`/`EffectiveHealth()` heart-unit thresholds, and `RT_DMT_SHIELDLESS_CLIMB`), Shuffle Grass, Shuffle Crate/Pot/Freestanding/Fairy/Beehive updates, Quick Boss Deaths, Enemy Randomizer fixes, pause menu and actor fixes, and randomizer QoL options.
+- **Majora's Mask logic, shuffles, accessibility, and runtime backports** (#1461, #1466, #1470, #1471, #1474, #1488, #1490; issues #1341–#1343, #1399, #1402, #1406, #1407, #1410–#1413). Backported 2Ship 3.0.0–4.0.1 region logic, Gomess enemy drop (`RC_ENEMY_DROP_GOMESS`), excluded junk-vanilla check handling, Barrel and Snowball shuffles, Moon Child time reset, Goron race and Kotake gifts, custom ocarina buttons, accessibility toggles (no screen distortion, no final-day earthquakes, invert Zora swim Y), and parity enhancement rows.
+- **Cross-game, tracker, audio, save, and renderer hardening** (#1353–#1360, #1370–#1372, #1380–#1388, #1421–#1423, #1462, #1464). Fixed Majora's Mask pause-save entrance reload (#1353), texture cache eviction use-after-free (#1356), Item Tracker layout boot resilience (#1357) and Shared Ocarina Button labels (#1354), OoT No Logic paired Glitchless proving (#1355), MM cycle-reset arrival reachability (#1360), MM Reset returning paired files to the combo title (#1380), far-game Kokiri Sword progressive stepping (#1381), Check Tracker and OoT tracker pane accuracy (#1382, #1423), OoT mod menu archive-path keying (#1385), libultraship renderer/DX11/WASAPI/config hardening (#1386, #1422), audio and save bounds hardening (#1462), and UTF-8 / floating-point contraction build flags (#1464).
+
+---
 
 # Release notes: v0.4.4-alpha ("Deckard Echo")
 
