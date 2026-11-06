@@ -56,7 +56,7 @@ namespace HintArea {
  *  drops "{{prepos}} " instead. Defined in HintAreaSingleExe.cpp. */
 void ReplaceLocation(std::string* msg, const char* key, RandoCheckId randoCheckId);
 
-/** Whether `randoCheckId` has an area a hint can name: false for the 55 enemy
+/** Whether `randoCheckId` has an area a hint can name: false for the 56 enemy
  *  drops and RC_UNKNOWN. A gossip stone hints only such checks. */
 bool HasArea(RandoCheckId randoCheckId);
 
