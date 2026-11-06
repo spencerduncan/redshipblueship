@@ -2420,7 +2420,10 @@ extern "C" int OoT_HintArea_TestSetArea(uint16_t rc, int ra);
 // generator 4, was 0x759F783D): Ganon's door names Link's pocket for the Start With
 // key (#1435), and Time Travel Requires Master Sword and MM's hint defaults move the
 // placements every static hint names; the count stays 17.
-static const uint32_t kStaticHintTextDigest = 0xAC30C06Bu;
+// Re-pinned again by the OoT logic P3 backports (#1396, #1397; still generator 4,
+// was 0xAC30C06B): the OoT logic changes move the default world's placements named
+// by the static hints; the count stays 17.
+static const uint32_t kStaticHintTextDigest = 0x2DC34889u;
 static const int kStaticHintCount = 17;
 static const char* const kStaticHintSeed = "RSBSUNIFIED1";
 
