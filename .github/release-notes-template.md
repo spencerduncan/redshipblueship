@@ -1,18 +1,20 @@
 RedShipBlueShip combines Ocarina of Time (Ship of Harkinian) and Majora's Mask (2Ship2Harkinian) into a single executable with cross-game randomization inspired by OoTMM.
 
-**This is an alpha build.** Expect bugs, missing features, and breaking changes between releases. Windows and Linux only.
+**This is an alpha build.** Expect bugs, missing features, and breaking changes between releases.
 
 ## Downloads
 
 - **Windows (x64):** `redshipblueship-{{TAG}}-windows.zip`
 - **Linux (x86_64):** `redshipblueship-{{TAG}}-linux.AppImage`
+- **macOS (Universal, macOS 15+):** `redshipblueship-{{TAG}}-macos.dmg`
 
-Both builds bundle `soh.o2r` and the asset extraction tools (`assets/extractor/`, `assets/xml/`). You need your own original Ocarina of Time and Majora's Mask ROMs: on first launch the game asks for them and extracts the remaining assets.
+All builds bundle `soh.o2r`, `2ship.o2r`, and the asset extraction tools (`assets/extractor/`, `assets/xml/`). You need your own original Ocarina of Time and Majora's Mask ROMs: on first launch the game asks for them and extracts the remaining assets.
 
 ## Running
 
 - **Windows:** extract the zip anywhere and run `redship.exe`.
 - **Linux:** `chmod +x redshipblueship-{{TAG}}-linux.AppImage`, then run it.
+- **macOS:** open `redshipblueship-{{TAG}}-macos.dmg`, copy `RedShipBlueShip.app` to a writable folder (such as `Applications`), and run it.
 
 ## Before you play: saves from earlier builds
 

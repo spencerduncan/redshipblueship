@@ -1129,10 +1129,8 @@ jobs:
     # download URL that outlives the short CI artifact retention window.
     # Also runs on workflow_dispatch, where it creates the tag itself at the
     # dispatched commit (see the trigger comment at the top of this file).
-    # macOS is intentionally absent: build-macos packages a bundle, but nobody
-    # has run it on a Mac yet, so releases do not carry it.
     if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v') || github.event_name == 'workflow_dispatch'
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1194,6 +1192,11 @@ jobs:
       with:
         name: redship-map-windows
         path: redship-map-windows
+    - name: Download macOS build
+      uses: actions/download-artifact@v4
+      with:
+        name: rsbs-mac
+        path: rsbs-mac
     - name: Prepare release assets
       run: |
         mv rsbs-linux/rsbs.appimage "redshipblueship-${RELEASE_TAG}-linux.AppImage"
@@ -1202,6 +1205,7 @@ jobs:
         # extracted so PR testers get a browsable tree); re-zip it for release.
         (cd rsbs-windows && zip -qr "../redshipblueship-${RELEASE_TAG}-windows.zip" .)
         mv redship-map-windows/redship.map "redshipblueship-${RELEASE_TAG}-windows.map"
+        mv rsbs-mac/RedShipBlueShip.dmg "redshipblueship-${RELEASE_TAG}-macos.dmg"
     # The notes name the seed generator version a package must match, read from
     # RSBS_GENERATOR_VERSION (src/common/foreign_items.h) so it never goes
     # stale. tools/tests/test_repo_invariants.py runs this step's script
@@ -1227,6 +1231,7 @@ jobs:
           "redshipblueship-${RELEASE_TAG}-linux.map"
           "redshipblueship-${RELEASE_TAG}-windows.zip"
           "redshipblueship-${RELEASE_TAG}-windows.map"
+          "redshipblueship-${RELEASE_TAG}-macos.dmg"
         )
         # Idempotent on re-runs: if the release already exists, refresh its assets.
         if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" > /dev/null 2>&1; then
