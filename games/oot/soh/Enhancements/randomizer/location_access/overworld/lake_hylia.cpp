@@ -92,7 +92,7 @@ void RegionTable_Init_LakeHylia() {
 
     areaTable[RR_LH_FROM_SHORTCUT] = Region("LH From Shortcut", SCENE_LAKE_HYLIA, TIME_DOESNT_PASS, {RA_LAKE_HYLIA}, {}, {}, {
         //Exits
-        Entrance(RR_LAKE_HYLIA,   []{return logic->Hearts() > 1 || logic->HasItem(RG_BOTTLE_WITH_FAIRY) || logic->HasItem(RG_BRONZE_SCALE) || logic->CanUse(RG_IRON_BOOTS);}),
+        Entrance(RR_LAKE_HYLIA,   []{return logic->CanVoid() || logic->HasItem(RG_BRONZE_SCALE) || logic->CanUse(RG_IRON_BOOTS);}),
         Entrance(RR_ZORAS_DOMAIN, []{return logic->IsChild && (logic->HasItem(RG_SILVER_SCALE) || logic->CanUse(RG_IRON_BOOTS));}),
     });
 

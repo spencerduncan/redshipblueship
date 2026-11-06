@@ -170,7 +170,7 @@ void AudioPlayback_NoteInit(Note* note) {
     note->sampleState = gDefaultSampleState;
 }
 
-extern void aOPUSFree(struct OggOpusFile* opusFile);
+extern void aOPUSFree(struct OpusDecState* dec);
 void AudioPlayback_NoteDisable(Note* note) {
     if (note->sampleState.bitField0.needsInit == true) {
         note->sampleState.bitField0.needsInit = false;

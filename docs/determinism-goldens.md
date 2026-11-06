@@ -621,10 +621,12 @@ relied on. The OoT changes are default changes that `settingsHash`, and so the
 fingerprint, folds, so a default world made after this change does not share a
 fingerprint with one made before it. #1427 changes the generator behind an
 unchanged MM profile digest. A profile that sets all five OoT options explicitly
-(each shipped preset does) therefore keeps its `comboSettingsHash` while its MM
-half moves. That is true only against the unreleased generator-4 builds between
-#1392 and this change, and a seed package one of them wrote is refused anyway,
-because #1427's two new option slots change the MM half's size (`ERR_LAYOUT`).
+(each shipped preset did then; Advanced and Hell Mode still do, while Standard and
+Beginner set none of them since the operator's 2026-11-05 ruling) therefore keeps
+its `comboSettingsHash` while its MM half moves. That is true only against the
+unreleased generator-4 builds between #1392 and this change, and a seed package one
+of them wrote is refused anyway, because #1427's two new option slots change the MM
+half's size (`ERR_LAYOUT`).
 `RandoStaticHintOrder`'s hand pin `kStaticHintTextDigest` moved in the same re-pin
 (`2387DBDD` to `759F783D`, still 17 hints, 15 of them drawing).
 

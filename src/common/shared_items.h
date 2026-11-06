@@ -834,10 +834,10 @@ uint32_t Combo_ItemClassArmedFromFrozen(uint8_t originGame);
 // tiers, the hookshot, the wallet and (when armed) the ocarina ONE quantity
 // spanning both games, but both games' full pools of those items were still
 // placed. Each port sizes its heart pool to take ITS OWN bar from the starting
-// hearts to 20: on the shipped (balanced) profile OoT's pool carries 11 heart
-// containers + 24 pieces (the treasure-game piece included; item_pool.cpp sizes
-// it from RSK_STARTING_HEARTS, so vanilla OoT's 8 + 36 is not the randomizer's
-// shape) and MM's 4 + 52, 17 hearts of items EACH,
+// hearts to 20: on the shipped (balanced) profile OoT's pool carries 8 heart
+// containers + 36 pieces (the treasure-game piece included; item_pool.cpp sizes
+// it from RSK_STARTING_HEARTS, matching vanilla OoT's 8 + 36 at 3 starting
+// hearts after Shipwright#6226) and MM's 4 + 52, 17 hearts of items EACH,
 // against a shared bar that starts at 3 hearts and clamps at
 // RSBS_SHARED_RES_MAX_HEALTH_QUARTERS (20): about half of every heart pickup in a
 // full paired run lands on a bar the carrier has already clamped, a DEAD pickup.

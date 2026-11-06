@@ -1586,9 +1586,9 @@ void Settings::CreateOptions() {
               "Adult Kokiri Forest GS with Hover Boots",
               "Can be obtained without Hookshot by using the Hover Boots off of one of the roots.");
     OPT_TRICK(RT_LW_BRIDGE, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::EXPERT },
-              "Jump onto the Lost Woods Bridge as Adult with Nothing",
-              "With very precise movement it's possible for adult to jump onto the bridge without needing Longshot, "
-              "Hover Boots, or Bean.");
+              "Jump onto the Lost Woods Bridge as Adult with a Jumpslash",
+              "With very precise movement and a jumpslash it's possible for Adult to jump onto the bridge without "
+              "needing Longshot, Hover Boots, or Bean.");
     OPT_TRICK(RT_LW_MIDO_BACKFLIP, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::NOVICE },
               "Backflip over Mido as Adult", "With a specific position and angle, you can backflip over Mido.");
     OPT_TRICK(RT_LOST_WOOD_NAVI_DIVE, RCQUEST_BOTH, RA_THE_LOST_WOODS, { Tricks::Tag::NOVICE, Tricks::Tag::GLITCH },
@@ -1632,6 +1632,10 @@ void Settings::CreateOptions() {
               "Shadow Temple Entry with Fire Arrows",
               "It is possible to light all of the torches to open the Shadow Temple entrance with just Fire Arrows, "
               "but you must be very quick, precise, and strategic with how you take your shots.");
+    OPT_TRICK(RT_DMT_SHIELDLESS_CLIMB, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::NOVICE },
+              "Death Mountain Trail Child Climb Without Shield",
+              "Child can make it past the eruption to reach DMT Summit without a Hylian Shield or Nayru's Love"
+              "by backwalking or simply taking damage.");
     OPT_TRICK(RT_DMT_SOIL_GS, RCQUEST_BOTH, RA_DEATH_MOUNTAIN_TRAIL, { Tricks::Tag::INTERMEDIATE },
               "Death Mountain Trail Soil GS without Destroying Boulder",
               "Bugs will go into the soft soil even while the boulder is still blocking the entrance. Then, using a "
@@ -3350,7 +3354,7 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
         }
     }
 
-    // Set key ring for each dungeon
+    // Set keyring for each dungeon
     for (const auto dungeon : dungeons) {
         dungeon->ClearKeyRing();
     }
@@ -3363,7 +3367,7 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
     };
 
     if (mOptions[RSK_KEYRINGS]) {
-        // Random Key Rings
+        // Random Keyrings
         auto keyrings = keyRingOptions;
         if (mOptions[RSK_GERUDO_FORTRESS].Is(RO_GF_CARPENTERS_NORMAL) &&
             mOptions[RSK_GERUDO_KEYS].IsNot(RO_GERUDO_KEYS_VANILLA)) {
@@ -3414,6 +3418,11 @@ void Context::FinalizeSettings(const std::set<RandomizerCheck>& excludedLocation
         if (mOptions[RSK_KEYRINGS_GANONS_CASTLE].Is(RO_KEYRING_FOR_DUNGEON_ON) ||
             (mOptions[RSK_KEYRINGS_GANONS_CASTLE].Is(RO_KEYRING_FOR_DUNGEON_RANDOM) && Random(0, 2) == 1)) {
             this->GetDungeon(GANONS_CASTLE)->SetKeyRing();
+        }
+        // Gerudo Fortress has no DungeonInfo, so resolve its random roll into the option
+        if (mOptions[RSK_KEYRINGS_GERUDO_FORTRESS].Is(RO_KEYRING_FOR_DUNGEON_RANDOM)) {
+            mOptions[RSK_KEYRINGS_GERUDO_FORTRESS].Set(Random(0, 2) == 0 ? RO_KEYRING_FOR_DUNGEON_ON
+                                                                         : RO_KEYRING_FOR_DUNGEON_OFF);
         }
     }
 

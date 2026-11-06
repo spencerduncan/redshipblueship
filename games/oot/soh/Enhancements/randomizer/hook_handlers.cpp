@@ -623,8 +623,8 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
                     static_cast<uint32_t>(rc));
         if (
             // Skipping ItemGet animation incompatible with checks that require closing a text box to finish
-            rc != RC_HF_OCARINA_OF_TIME_ITEM && rc != RC_SPIRIT_TEMPLE_SILVER_GAUNTLETS_CHEST &&
-            rc != RC_MARKET_BOMBCHU_BOWLING_FIRST_PRIZE && rc != RC_MARKET_BOMBCHU_BOWLING_SECOND_PRIZE &&
+            rc != RC_HF_OCARINA_OF_TIME_ITEM && rc != RC_MARKET_BOMBCHU_BOWLING_FIRST_PRIZE &&
+            rc != RC_MARKET_BOMBCHU_BOWLING_SECOND_PRIZE &&
             // Always show ItemGet animation for ice traps
             !(getItemEntry.modIndex == MOD_RANDOMIZER && getItemEntry.getItemId == RG_ICE_TRAP) &&
             // Always show ItemGet animation outside of randomizer to keep behaviour consistent in vanilla
@@ -1505,6 +1505,17 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
         }
         case VB_KING_ZORA_TUNIC_CHECK: {
             if (!Flags_GetRandomizerInf(RAND_INF_KING_ZORA_THAWED)) {
+                *should = false;
+            }
+            break;
+        }
+        case VB_JABU_PREVENT_RUTO_REENTER_BIGOCTO: {
+            // Don't let player carry Ruto through doors 21 and 3 to Bigocto room if Ruto abducted flag set
+            Player* player = va_arg(args, Player*);
+            Actor* doorActor = va_arg(args, Actor*);
+            if (OoT_gPlayState->sceneNum == SCENE_JABU_JABU && GET_INFTABLE(INFTABLE_146) &&
+                (((u16)doorActor->params >> 0xA) == 21 || ((u16)doorActor->params >> 0xA) == 3) &&
+                player->heldActor != NULL && player->heldActor->id == ACTOR_EN_RU1) {
                 *should = false;
             }
             break;
@@ -2873,8 +2884,8 @@ void RandomizerOnActorInitHandler(void* actorRef) {
     }
 
     if (RAND_GET_OPTION(RSK_SHUFFLE_BEAN_SOULS)) {
+        RandomizerInf currentBeanSoulRandInf = RAND_INF_MAX;
         if (actor->id == ACTOR_OBJ_BEAN) {
-            RandomizerInf currentBeanSoulRandInf = RAND_INF_MAX;
             switch (OoT_gPlayState->sceneNum) {
                 case SCENE_DEATH_MOUNTAIN_CRATER:
                     currentBeanSoulRandInf = RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL;
@@ -2908,13 +2919,7 @@ void RandomizerOnActorInitHandler(void* actorRef) {
                     currentBeanSoulRandInf = RAND_INF_ZORAS_RIVER_BEAN_SOUL;
                     break;
             }
-            if (currentBeanSoulRandInf != RAND_INF_MAX && !Flags_GetRandomizerInf(currentBeanSoulRandInf)) {
-                OoT_Actor_Kill(actor);
-                return;
-            }
-        }
-        if (actor->id == ACTOR_OBJ_MAKEKINSUTA) {
-            RandomizerInf currentBeanSoulRandInf = RAND_INF_MAX;
+        } else if (actor->id == ACTOR_OBJ_MAKEKINSUTA) {
             switch (OoT_gPlayState->sceneNum) {
                 case SCENE_DEATH_MOUNTAIN_CRATER:
                     currentBeanSoulRandInf = RAND_INF_DEATH_MOUNTAIN_CRATER_BEAN_SOUL;
@@ -2948,10 +2953,10 @@ void RandomizerOnActorInitHandler(void* actorRef) {
                     currentBeanSoulRandInf = RAND_INF_ZORAS_RIVER_BEAN_SOUL;
                     break;
             }
-            if (currentBeanSoulRandInf != RAND_INF_MAX && !Flags_GetRandomizerInf(currentBeanSoulRandInf)) {
-                OoT_Actor_Kill(actor);
-                return;
-            }
+        }
+        if (currentBeanSoulRandInf != RAND_INF_MAX && !Flags_GetRandomizerInf(currentBeanSoulRandInf)) {
+            OoT_Actor_Kill(actor);
+            return;
         }
     }
 
@@ -3057,10 +3062,12 @@ void RandomizerOnActorUpdateHandler(void* refActor) {
             Flags_UnsetRandomizerInf(RAND_INF_SPIRIT_BIG_MIRROR_STATUE_TURNED);
         }
     }
+}
 
-    // In ER, override the warp song locations. Also removes the warp song cutscene
-    if (RAND_GET_OPTION(RSK_SHUFFLE_ENTRANCES) && actor->id == ACTOR_DEMO_KANKYO &&
-        actor->params == 0x000F) { // Warp Song particles
+// In ER, warp songs lead to their shuffled entrance rather than their warp pad. Every warp path commits its
+// destination through Environment_WarpSongLeave, so that is the one place the override has to happen.
+void RandomizerOnWarpSongLeaveHandler() {
+    if (RAND_GET_OPTION(RSK_SHUFFLE_ENTRANCES)) {
         Entrance_SetWarpSongEntrance();
     }
 }
@@ -3222,6 +3229,7 @@ static void RandomizerRegisterHooks() {
     static uint32_t afterSceneCommandsHook = 0;
     static uint32_t onActorInitHook = 0;
     static uint32_t onActorUpdateHook = 0;
+    static uint32_t onWarpSongLeaveHook = 0;
     static uint32_t onPlayerUpdateHook = 0;
     static uint32_t onGameFrameUpdateHook = 0;
     static uint32_t onSceneSpawnActorsHook = 0;
@@ -3260,6 +3268,7 @@ static void RandomizerRegisterHooks() {
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::AfterSceneCommands>(afterSceneCommandsHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnActorInit>(onActorInitHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnActorUpdate>(onActorUpdateHook);
+        GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnWarpSongLeave>(onWarpSongLeaveHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnPlayerUpdate>(onPlayerUpdateHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnGameFrameUpdate>(onGameFrameUpdateHook);
         GameInteractor::Instance->UnregisterGameHook<GameInteractor::OnSceneSpawnActors>(onSceneSpawnActorsHook);
@@ -3279,6 +3288,7 @@ static void RandomizerRegisterHooks() {
         afterSceneCommandsHook = 0;
         onActorInitHook = 0;
         onActorUpdateHook = 0;
+        onWarpSongLeaveHook = 0;
         onPlayerUpdateHook = 0;
         onGameFrameUpdateHook = 0;
         onSceneSpawnActorsHook = 0;
@@ -3321,6 +3331,8 @@ static void RandomizerRegisterHooks() {
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorInit>(RandomizerOnActorInitHandler);
         onActorUpdateHook =
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnActorUpdate>(RandomizerOnActorUpdateHandler);
+        onWarpSongLeaveHook = GameInteractor::Instance->RegisterGameHook<GameInteractor::OnWarpSongLeave>(
+            RandomizerOnWarpSongLeaveHandler);
         onPlayerUpdateHook =
             GameInteractor::Instance->RegisterGameHook<GameInteractor::OnPlayerUpdate>(RandomizerOnPlayerUpdateHandler);
         onGameFrameUpdateHook = GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameFrameUpdate>(

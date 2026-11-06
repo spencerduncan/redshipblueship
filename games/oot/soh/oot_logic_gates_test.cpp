@@ -128,6 +128,17 @@
  *  Logic::CanUse(RG_HOOKSHOT/RG_LONGSHOT) requires IsAdult (logic.cpp:829-831),
  *  so they are not lockable. Q2 locks 09b0fdbc9.
  *
+ * #1397 (packet SLC-12 and SLC-13), at the x1 damage multiplier unless named:
+ *  Y. Health (SoH b52c31f85): Logic::Reset seeds the logic save from Starting
+ *     Hearts (one heart is health 16), and the region thresholds read
+ *     EffectiveHealth in 16-per-heart units: a child with one heart must NOT
+ *     leave the GC grotto platform through the lava (the dive costs a heart);
+ *     with two he must. Three hearts are EffectiveHealth 48, and Double Defense
+ *     doubles it to 96 (it must never shrink it); OHKO is 1.
+ *  Z. DMT rockfall (SoH 91425a39a): a child with Climb but no shield, Nayru's
+ *     Love or RT_DMT_SHIELDLESS_CLIMB must NOT reach the summit; an adult with
+ *     Climb must, and so must the child once the trick is on.
+ *
  * Every "must NOT" leg is paired with a "must" leg on the same save plus one
  * thing, so a location that is never reachable (a vacuous probe) fails too.
  * Each probe sets logic->CurrentRegionKey to its region, as ProcessRegion does.
@@ -1026,6 +1037,64 @@ void RunHookshotLaddersLegs(const std::shared_ptr<Rando::Context>& randoCtx) {
     randoCtx->GetTrickOption(kGfWastelandGateSidehopSkip).Set(savedGateSkip);
 }
 
+// ---- #1397: health in 16-per-heart units and the DMT rockfall (Y..Z) ---------
+void RunHealthLegs(const std::shared_ptr<Rando::Context>& randoCtx) {
+    const uint8_t savedHearts = randoCtx->GetOption(RSK_STARTING_HEARTS).Get();
+    const uint8_t savedDamage = randoCtx->GetOption(RSK_DAMAGE_MULTIPLIER).Get();
+    const uint8_t savedShieldless = randoCtx->GetTrickOption(RT_DMT_SHIELDLESS_CLIMB).Get();
+    randoCtx->GetOption(RSK_DAMAGE_MULTIPLIER).Set(RO_DAMAGE_MULTIPLIER_DEFAULT);
+    randoCtx->GetTrickOption(RT_DMT_SHIELDLESS_CLIMB).Set(0);
+
+    // ---- Y: Logic::Reset seeds Starting Hearts; EffectiveHealth is 16/heart (SoH b52c31f85)
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(0); // one heart
+    ResetLogic();
+    if (logic->Health() != 16) {
+        GateFail("Y1: Logic::Reset left health capacity %d under one Starting Heart, not 16", (int)logic->Health());
+    }
+    ExpectExit("Y1 GC grotto platform to Goron City, child, one heart, x1", RR_GC_GROTTO_PLATFORM, RR_GORON_CITY, false,
+               false, "one heart survives the lava dive that costs a heart (a half-heart threshold)");
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(1); // two hearts
+    ResetLogic();
+    ExpectExit("Y2 GC grotto platform to Goron City, child, two hearts, x1", RR_GC_GROTTO_PLATFORM, RR_GORON_CITY,
+               false, true, "two hearts do not survive the lava dive that costs one");
+
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(2); // three hearts
+    ResetLogic();
+    const int plain = (int)logic->EffectiveHealth();
+    Give(RG_DOUBLE_DEFENSE);
+    const int doubled = (int)logic->EffectiveHealth();
+    if (plain != 48 || doubled != 96) {
+        GateFail("Y3: three hearts at x1 are EffectiveHealth %d, %d with Double Defense (expected 48, 96): "
+                 "Double Defense must double what a hit chews through, never shrink it",
+                 plain, doubled);
+    } else {
+        printf("[TEST]   ok: Y3 three hearts at x1: EffectiveHealth 48, 96 with Double Defense\n");
+    }
+    randoCtx->GetOption(RSK_DAMAGE_MULTIPLIER).Set(RO_DAMAGE_MULTIPLIER_OHKO);
+    if (logic->EffectiveHealth() != 1) {
+        GateFail("Y4: OHKO with Double Defense is EffectiveHealth %d, not 1", (int)logic->EffectiveHealth());
+    } else {
+        printf("[TEST]   ok: Y4 OHKO with Double Defense: EffectiveHealth 1\n");
+    }
+    randoCtx->GetOption(RSK_DAMAGE_MULTIPLIER).Set(RO_DAMAGE_MULTIPLIER_DEFAULT);
+
+    // ---- Z: the rockfall needs adult, a shield, Nayru's Love or the trick (SoH 91425a39a)
+    ResetLogic();
+    GiveClimb();
+    ExpectExit("Z1 DMT rockfall to summit, child with Climb, no shield", RR_DEATH_MOUNTAIN_ROCKFALL,
+               RR_DEATH_MOUNTAIN_SUMMIT, false, false,
+               "a child climbs past the eruption with no shield, Nayru's Love or RT_DMT_SHIELDLESS_CLIMB");
+    ExpectExit("Z2 DMT rockfall to summit, adult with Climb", RR_DEATH_MOUNTAIN_ROCKFALL, RR_DEATH_MOUNTAIN_SUMMIT,
+               true, true, "an adult with Climb cannot reach the summit");
+    randoCtx->GetTrickOption(RT_DMT_SHIELDLESS_CLIMB).Set(1);
+    ExpectExit("Z3 DMT rockfall to summit, child with Climb, RT_DMT_SHIELDLESS_CLIMB on", RR_DEATH_MOUNTAIN_ROCKFALL,
+               RR_DEATH_MOUNTAIN_SUMMIT, false, true, "the shieldless-climb trick does not let a child past");
+
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(savedHearts);
+    randoCtx->GetOption(RSK_DAMAGE_MULTIPLIER).Set(savedDamage);
+    randoCtx->GetTrickOption(RT_DMT_SHIELDLESS_CLIMB).Set(savedShieldless);
+}
+
 } // namespace
 
 extern "C" int OoT_LogicGates_RunHeadless(void) {
@@ -1050,9 +1119,11 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     const uint8_t savedShuffleSpeak = randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Get();
     const uint8_t savedShuffleGrab = randoCtx->GetOption(RSK_SHUFFLE_GRAB).Get();
     const uint8_t savedShufflePots = randoCtx->GetOption(RSK_SHUFFLE_POTS).Get();
+    const uint8_t savedStartingHearts = randoCtx->GetOption(RSK_STARTING_HEARTS).Get();
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(RO_LOGIC_GLITCHLESS);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(1);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(1);
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(2);
 
     // The world graph, bound to this context's logic (location_access.cpp).
     RegionTable_Init();
@@ -1184,11 +1255,14 @@ extern "C" int OoT_LogicGates_RunHeadless(void) {
     RunShuffleClimbLegs(randoCtx);
     // ---- Q..X: Hookshot Ladders and ladder cleanups (#1300, SoH bundle O28) -
     RunHookshotLaddersLegs(randoCtx);
+    // ---- Y..Z: health in 16-per-heart units, the DMT rockfall (#1397) -------
+    RunHealthLegs(randoCtx);
     // ---- restore -------------------------------------------------------------
     randoCtx->GetOption(RSK_LOGIC_RULES).Set(savedLogicRules);
     randoCtx->GetOption(RSK_SHUFFLE_SPEAK).Set(savedShuffleSpeak);
     randoCtx->GetOption(RSK_SHUFFLE_GRAB).Set(savedShuffleGrab);
     randoCtx->GetOption(RSK_SHUFFLE_POTS).Set(savedShufflePots);
+    randoCtx->GetOption(RSK_STARTING_HEARTS).Set(savedStartingHearts);
     logic->Reset(true);
     logic->IsChild = savedChild;
     logic->IsAdult = savedAdult;

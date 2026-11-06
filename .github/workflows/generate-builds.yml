@@ -187,11 +187,9 @@ jobs:
       if: steps.rsbs-otr-cache.outputs.cache-hit != 'true'
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        # Save on every branch (same rationale as build-linux's ccache step).
-        # This step only runs when the port-archive cache missed, and it uses
-        # the action's default 500M cap, so its quota footprint is small and
-        # infrequent.
-        save: true
+        # Saved on main only, like every other build cache (see build-linux's
+        # ccache step for why). A pull request restores main's entry.
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
         key: ${{ runner.os }}-otr-ccache-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-otr-ccache-${{ github.ref }}
@@ -424,22 +422,15 @@ jobs:
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        # Save on every branch, not just main. Compilation is 31.42 of this
-        # job's 32.7 minutes, so a cache miss is essentially the whole job.
-        # Under the old main-only policy a PR restored main's cache but never
-        # wrote one back, so every push to a long-lived claude/** branch
-        # re-compiled that branch's own touched files from scratch — the same
-        # misses, forever. With save on, push N+1 restores push N's cache
-        # (the key below is ref-scoped and the action appends a timestamp, so
-        # restore-keys prefix-matches the newest entry for this ref).
-        #
-        # This cannot poison main's cache: GitHub scopes a cache to the ref
-        # that wrote it. A PR run writes to refs/pull/<n>/merge, which only
-        # that PR can read; main still restores only main-written entries.
-        # The real cost is quota — see the sccache step below, which stays
-        # main-only because its per-run save is ~2.3GB. This one is capped at
-        # 1.5G and PR-scoped caches are released when the PR closes.
-        save: true
+        # Saved on main only (operator, 2026-11-05). A pull request restores
+        # main's newest entry (restore-keys below) and recompiles only the files
+        # it touches, on every push. Saving on every branch (2026-06 to
+        # 2026-11) made each PR write ~700 MB, and with a dozen open PRs the
+        # repository's 10 GB Actions cache cap evicted, least recently used
+        # first, the caches only main writes: the macOS ccache (a cold macOS
+        # build is ~4.5 hours), the MacPorts tree and the Windows sccache.
+        # Main-only saving keeps those alive between releases.
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
         # The action's default 500M cap is too small for the full OoT+MM build
         # (~8180 objects): measured 2026-06-11 at 89.66% full with 15 cleanups
         # and a 73.24% hit rate. The working set is ~1.0-1.2G compressed.
@@ -692,11 +683,14 @@ jobs:
     - name: Configure ccache
       uses: hendrikmuhs/ccache-action@v1.2
       with:
-        save: true
+        # Saved on main only, like build-linux's ccache (see the reason there);
+        # a pull request restores main's netplay entry first.
+        save: ${{ github.ref_name == github.event.repository.default_branch }}
         max-size: "1.5G"
         key: ${{ runner.os }}-ccache-netplay-${{ github.ref }}
         restore-keys: |
           ${{ runner.os }}-ccache-netplay-${{ github.ref }}
+          ${{ runner.os }}-ccache-netplay-refs/heads/main
           ${{ runner.os }}-ccache-${{ github.ref }}
           ${{ runner.os }}-ccache-refs/heads/main
           ${{ runner.os }}-ccache

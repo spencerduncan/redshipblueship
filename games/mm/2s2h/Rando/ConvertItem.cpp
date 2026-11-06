@@ -81,10 +81,31 @@ static std::vector<RandoItemId> junkItems = {
     RI_NONE,
 };
 
+#ifdef RSBS_SINGLE_EXECUTABLE
+// #1475: CurrentJunkItem's cache sits at file scope rather than in the function,
+// so a ROM-free row can make it cold again (MM_Rando_TestColdJunkCache below) and
+// see whether a caller draws a junk item from MM's global stream. The function
+// reads and writes it exactly as it did its function-local statics.
+static RandoItemId sLastJunkItem = RI_UNKNOWN;
+static u32 sLastChosenAt = 0;
+
+/** TEST BRIDGE (#1475, mm-hint-sources): CurrentJunkItem's cache made cold, as
+ *  at process start. Draws nothing. */
+extern "C" void MM_Rando_TestColdJunkCache(void) {
+    sLastJunkItem = RI_UNKNOWN;
+    sLastChosenAt = 0;
+}
+#endif
+
 // Pick a random junk item every second
 RandoItemId Rando::CurrentJunkItem() {
+#ifdef RSBS_SINGLE_EXECUTABLE
+    RandoItemId& lastJunkItem = sLastJunkItem;
+    u32& lastChosenAt = sLastChosenAt;
+#else
     static RandoItemId lastJunkItem = RI_UNKNOWN;
     static u32 lastChosenAt = 0;
+#endif
     if (MM_gPlayState != NULL && ABS(MM_gPlayState->gameplayFrames - lastChosenAt) > 20) {
         lastChosenAt = MM_gPlayState->gameplayFrames;
         lastJunkItem = RI_UNKNOWN;

@@ -251,8 +251,7 @@ void func_808FD5F4(BossGanon2* this, PlayState* play) {
                 sBossGanon2Zelda->actor.world.pos.z = -214.0f;
                 sBossGanon2Zelda->actor.shape.rot.y = -0x7000;
 
-                // In rando, skip past the cutscene to the part where the player takes control again.
-                if (!IS_RANDO && !IS_BOSS_RUSH) {
+                if (GameInteractor_Should(VB_PLAY_ESCAPED_TOWER_CS, true, this)) {
                     this->csState = 1;
                     this->csTimer = 0;
                 } else {
@@ -389,6 +388,9 @@ void func_808FD5F4(BossGanon2* this, PlayState* play) {
                 this->unk_39E = OoT_Play_CreateSubCamera(play);
                 OoT_Play_ChangeCameraStatus(play, MAIN_CAM, CAM_STAT_WAIT);
                 OoT_Play_ChangeCameraStatus(play, this->unk_39E, CAM_STAT_ACTIVE);
+                if (!GameInteractor_Should(VB_PLAY_GANON_INTRO_CS, true, this, sBossGanon2Zelda)) {
+                    break;
+                }
             } else {
                 break;
             }

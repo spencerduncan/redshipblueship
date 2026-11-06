@@ -1,7 +1,7 @@
 #include "enemyrandomizer.h"
 #include "functions.h"
 #include "macros.h"
-#include "soh/Enhancements/randomizer/3drando/random.hpp"
+#include "soh/ShipUtils.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 #include "soh/Enhancements/enhancementTypes.h"
 #include "variables.h"
@@ -64,7 +64,7 @@ const char* enemyCVarList[RANDOMIZED_ENEMY_SPAWN_TABLE_SIZE] = {
     CVAR_ENHANCEMENT("RandomizedEnemyList.Dinolfos"),
     CVAR_ENHANCEMENT("RandomizedEnemyList.Dodongo"),
     CVAR_ENHANCEMENT("RandomizedEnemyList.FireKeese"),
-    // CVAR_ENHANCEMENT("RandomizedEnemyList.FlareDancer"),
+    CVAR_ENHANCEMENT("RandomizedEnemyList.FlareDancer"),
     CVAR_ENHANCEMENT("RandomizedEnemyList.FloorTile"),
     CVAR_ENHANCEMENT("RandomizedEnemyList.Floormaster"),
     CVAR_ENHANCEMENT("RandomizedEnemyList.FlyingPeahat"),
@@ -128,7 +128,7 @@ const char* enemyNameList[RANDOMIZED_ENEMY_SPAWN_TABLE_SIZE] = {
     "Dinolfos",
     "Dodongo",
     "Fire Keese",
-    //"Flare Dancer",
+    "Flare Dancer",
     "Floor Tile",
     "Floormaster",
     "Flying Peahat",
@@ -192,8 +192,7 @@ static EnemyEntry randomizedEnemySpawnTable[RANDOMIZED_ENEMY_SPAWN_TABLE_SIZE] =
     { ACTOR_EN_ZF, -2 },         // Dinolfos
     { ACTOR_EN_DODONGO, -1 },    // Dodongo
     { ACTOR_EN_FIREFLY, 1 },     // Fire Keese
-    // { ACTOR_EN_FD, 0 },          // Flare Dancer (possible cause of crashes because of spawning flame actors on
-    // sloped ground)
+    { ACTOR_EN_FD, 0 },          // Flare Dancer
     { ACTOR_EN_YUKABYUN, 0 },      // Flying Floor Tile
     { ACTOR_EN_FLOORMAS, 0 },      // Floormaster
     { ACTOR_EN_PEEHAT, -1 },       // Flying Peahat (big grounded, doesn't spawn larva)
@@ -455,15 +454,16 @@ EnemyEntry GetRandomizedEnemyEntry(uint32_t seed, PlayState* play) {
         filteredEnemyList = selectedEnemyList;
     }
     if (CVAR_ENEMY_RANDOMIZER_VALUE == ENEMY_RANDOMIZER_RANDOM_SEEDED) {
-        uint32_t finalSeed =
-            seed + (IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : gSaveContext.ship.stats.fileCreatedAt);
-        Random_Init(finalSeed);
-        uint32_t randomNumber = Random(0, filteredEnemyList.size());
-        return filteredEnemyList[randomNumber];
-    } else {
-        uint32_t randomSelectedEnemy = Random(0, filteredEnemyList.size());
-        return filteredEnemyList[randomSelectedEnemy];
+        uint64_t randomState = 0;
+
+        ShipUtils::RandInit(
+            seed + (IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : gSaveContext.ship.stats.fileCreatedAt),
+            &randomState);
+
+        return ShipUtils::RandomElement(filteredEnemyList, false, &randomState);
     }
+
+    return ShipUtils::RandomElement(filteredEnemyList, false);
 }
 
 bool IsEnemyFoundToRandomize(int16_t sceneNum, int8_t roomNum, int16_t actorId, int16_t params, float posX) {

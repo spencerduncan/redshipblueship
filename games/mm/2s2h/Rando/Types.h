@@ -2999,6 +2999,16 @@ typedef enum {
     // default), so a world created before them keeps its seed and digest.
     RO_SHOP_PRICES,
     RO_TINGLE_PRICES,
+    // Appended for the same reason (#1361): 2Ship's dungeon item placements
+    // (a0c9b12ce, 7bc1c4a8c, 236aa75ba), RandoOptionDungeonItemPlacement values.
+    // The identity strings fold each only when it is not Anywhere (0, the default).
+    RO_PLACEMENT_BOSS_KEYS,
+    RO_PLACEMENT_SMALL_KEYS,
+    RO_PLACEMENT_STRAY_FAIRIES,
+    // Appended for the same reason (#1362): 2Ship's song placement (528eed442),
+    // RandoOptionMMSongShuffle values. The identity strings fold it only when it
+    // is not Anywhere (0, the default).
+    RO_SHUFFLE_SONGS,
     RO_MAX,
 } RandoOptionId;
 
@@ -3033,6 +3043,21 @@ typedef enum {
     RO_ACCESS_TRIALS_FORMS,
     RO_ACCESS_TRIALS_OPEN,
 } RandoOptionAccessTrials;
+
+typedef enum {
+    RO_DUNGEON_ITEM_ANYWHERE,
+    RO_DUNGEON_ITEM_OWN_DUNGEON,
+    RO_DUNGEON_ITEM_START_WITH,
+    RO_DUNGEON_ITEM_VANILLA,
+} RandoOptionDungeonItemPlacement;
+
+// Not "RandoOptionSongShuffle": SoH declares that global name with other
+// enumerators, and one binary links both trees (the ODR declaration gate).
+typedef enum {
+    RO_SONG_SHUFFLE_ANYWHERE,
+    RO_SONG_SHUFFLE_SONG_LOCATIONS,
+    RO_SONG_SHUFFLE_VANILLA,
+} RandoOptionMMSongShuffle;
 
 typedef enum {
     RO_CLOCK_SHUFFLE_RANDOM,
