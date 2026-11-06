@@ -61,14 +61,12 @@
  *      PROGRESSION content other than the remains is load-bearing", and a fixed
  *      renewable is regainable in play by construction. The remains-only round is
  *      still run and printed, and the red half is untouched.
- *      AMENDED (D wave 2 re-pin, #1434/#1439/#1443): the re-pinned world also runs
- *      through the Progressive Bomb Bag MM's vanilla Bomb Shop sells
- *      (RC_BOMB_SHOP_ITEM_03; Shuffle Shops is off by default), named by
- *      single-content probes and nothing else. It is a NAMED exception
- *      (kCsbFLoadBearingFixedChecks), asserted both ways: remains + renewables
- *      alone leave goalMM=0, and with the named content goalMM=1. When either
- *      fails, the leg prints every single fixed content whose probe restores
- *      goalMM.
+ *      AMENDED (D wave 2 re-pin, #1434/#1439/#1443; OoT logic P3 re-pin,
+ *      #1396/#1397): when a re-pinned world runs through a fixed PROGRESSION
+ *      content besides the remains, it is listed in kCsbFLoadBearingFixedChecks
+ *      (nullptr-terminated) and asserted both ways (necessary and sufficient).
+ *      Under the OoT logic P3 re-pin (#1396, #1397), remains + renewables alone
+ *      restore goalMM=1 again, so kCsbFLoadBearingFixedChecks is empty.
  *
  * PR #743 REVIEW LEGS, each with its red half observed when it was written:
  *
@@ -1295,8 +1293,8 @@ TestResult ComboSingleBag_Run(void) {
         // not that rule. Named by check, and required both ways below: sufficient (no OTHER
         // fixed progression content is load-bearing) and necessary (an exception the
         // world stops needing must be dropped here, so the claim stays exact).
-        static const char* const kCsbFLoadBearingFixedChecks[] = { "RC_BOMB_SHOP_ITEM_03" };
-        const int namedCount = (int)(sizeof(kCsbFLoadBearingFixedChecks) / sizeof(kCsbFLoadBearingFixedChecks[0]));
+        static const char* const kCsbFLoadBearingFixedChecks[] = { nullptr };
+        const int namedCount = (int)(sizeof(kCsbFLoadBearingFixedChecks) / sizeof(kCsbFLoadBearingFixedChecks[0])) - 1;
         std::vector<ComboLogicBagItem> remainsRenewablesAndNamed = remainsAndRenewables;
         int namedFound = 0;
         int namedProgression = 0;
@@ -1343,7 +1341,7 @@ TestResult ComboSingleBag_Run(void) {
         // When the claim fails, the single-content probes that name the culprit: each
         // distinct fixed content not assumed above, added alone (printed, not asserted).
         int probesRestoring = 0;
-        if (namedRc != RSBS_COMBO_LOGIC_OK || withNamed.goalMM != 1 || withRenewables.goalMM != 0) {
+        if (namedRc != RSBS_COMBO_LOGIC_OK || withNamed.goalMM != 1 || (namedCount > 0 && withRenewables.goalMM != 0)) {
             std::vector<uint16_t> probed;
             for (size_t i = 0; i < fixedItems.size(); i++) {
                 bool skip = false;
@@ -1406,7 +1404,7 @@ TestResult ComboSingleBag_Run(void) {
         CSB_ASSERT(namedFound == namedCount && namedProgression == namedCount,
                    "a named fixed content of leg F is not a fixed PROGRESSION content of this world (see "
                    "kCsbFLoadBearingFixedChecks)");
-        CSB_ASSERT(renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 0,
+        CSB_ASSERT(namedCount == 0 || (renewablesRc == RSBS_COMBO_LOGIC_OK && withRenewables.goalMM == 0),
                    "assuming the fixed boss remains and every fixed renewable restores MM's goal without the named "
                    "fixed content, so the named exception is no longer load-bearing: drop it from "
                    "kCsbFLoadBearingFixedChecks");
@@ -2395,7 +2393,7 @@ TestResult ComboSingleBag_Run(void) {
             }
         } restoreCVars{ &savedCVars };
 
-        CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSTATICHINTS1") == 0,
+        CSB_ASSERT(Rando_HeadlessSeedTest("RSBSSTATICHINTS2") == 0,
                    "the paired generation with Mido's and the boss-door hints on failed");
         CSB_ASSERT(MM_Rando_HeadlessPairedHalf() == 0, "MM's creation-time half failed with the static hints on");
         const int stored = OoT_Creation_FinishPairedHalf(0);
