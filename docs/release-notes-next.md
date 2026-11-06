@@ -3,14 +3,14 @@
 **Status:** released. The release is cut as the tag `v0.5.0-alpha` on the commit that merges this text (the version
 bump, the release workflow's title and these notes), whose code is `main` at `a6d80794` and whose docs are that commit.
 The next release's draft starts above this section when something merges after the tag.
-**Version:** `v0.5.0-alpha`, codename "Connor Alfa" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `y`
-bump: major cross-game randomizer feature parity with OoTMM (`[Both Games] Logic` All Locations default, OoTMM goal gates and shuffles, Way of the Hero and Hint Tracker across both games, Shared Swim, Paired Triforce Hunt, Cross-Game Masks, Song of Soaring in OoT, and the SoH 9.1.2–9.2.0 and 2Ship2Harkinian 3.0.0–4.0.1 backport waves) without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is unchanged), so it takes a new film character ("Connor") and resets the NATO phonetic code word to Alfa. A build's window title reads `RedShipBlueShip v0.5.0-alpha+<commit> (Connor Alfa)`, and `redship --version` prints the same first line. Saves written by this version remain version 5; seeds come from generator 4.
+**Version:** `v0.5.0-alpha`, codename "Ellen Alfa" (`src/common/rsbs_version.h`). Under [`VERSIONING.md`](VERSIONING.md) the number is a `y`
+bump: major cross-game randomizer feature parity with OoTMM (`[Both Games] Logic` All Locations default, OoTMM goal gates and shuffles, Way of the Hero and Hint Tracker across both games, Shared Swim, Paired Triforce Hunt, Cross-Game Masks, Song of Soaring in OoT, and the SoH 9.1.2–9.2.0 and 2Ship2Harkinian 3.0.0–4.0.1 backport waves) without a new `oot.otr` (the archive version, `project(Ship VERSION 9.1.1)`, is unchanged), so it takes a new film character ("Ellen") and resets the NATO phonetic code word to Alfa. A build's window title reads `RedShipBlueShip v0.5.0-alpha+<commit> (Ellen Alfa)`, and `redship --version` prints the same first line. Saves written by this version remain version 5; seeds come from generator 4.
 **Last release:** `v0.4.4-alpha` ("Deckard Echo"), tagged 2026-11-01 at `a3a146d2`. Its notes follow this section.
 **Merged up to:** `main` at `a6d80794` (2026-11-05) for the code, 60 commits after the tag: pull requests #1331 and #1353 to #1495.
 **Covers:** everything merged after `a3a146d2`. Numbers in parentheses are pull requests; issues are written "issue #N".
 **Get it:** the [release page](https://github.com/spencerduncan/redshipblueship/releases/tag/v0.5.0-alpha) carries
-`redshipblueship-v0.5.0-alpha-windows.zip` and `redshipblueship-v0.5.0-alpha-linux.AppImage` once the tag's
-`generate-builds` run finishes.
+`redshipblueship-v0.5.0-alpha-windows.zip`, `redshipblueship-v0.5.0-alpha-linux.AppImage`, and
+`redshipblueship-v0.5.0-alpha-macos.dmg` once the tag's `generate-builds` run finishes.
 
 ---
 

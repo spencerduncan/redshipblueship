@@ -1030,6 +1030,9 @@ def test_link_map_emitted_verified_and_shipped_outside_player_zip():
     assert "name: redship-map-linux" in release_job and "name: redship-map-windows" in release_job, (
         "#1303: create-release must download redship-map-linux and redship-map-windows"
     )
+    assert "name: rsbs-mac" in release_job, (
+        "create-release must download rsbs-mac so releases include the macOS dmg"
+    )
     assets_block = re.search(r"ASSETS=\(\s*(.+?)\s*\)", release_job, re.DOTALL)
     assert assets_block, "could not find ASSETS=(...) in create-release"
     assert '"redshipblueship-${RELEASE_TAG}-windows.map"' in assets_block.group(1), (
@@ -1037,6 +1040,9 @@ def test_link_map_emitted_verified_and_shipped_outside_player_zip():
     )
     assert '"redshipblueship-${RELEASE_TAG}-linux.map"' in assets_block.group(1), (
         "#1303: create-release must attach redshipblueship-${RELEASE_TAG}-linux.map to the GitHub Release"
+    )
+    assert '"redshipblueship-${RELEASE_TAG}-macos.dmg"' in assets_block.group(1), (
+        "create-release must attach redshipblueship-${RELEASE_TAG}-macos.dmg to the GitHub Release"
     )
 
 
@@ -1162,6 +1168,7 @@ def test_release_notes_render_fills_the_generator_version(tmp_path):
     notes = (tmp_path / "release-notes.md").read_text(encoding="utf-8")
     assert f"seed generator is version {generator}:" in notes
     assert "redshipblueship-v9.8.7-test-windows.zip" in notes
+    assert "redshipblueship-v9.8.7-test-macos.dmg" in notes
     assert "{{" not in notes
 
     # A placeholder the step does not know fails the step instead of shipping.
