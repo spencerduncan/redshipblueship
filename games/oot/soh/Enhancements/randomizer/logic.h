@@ -24,11 +24,10 @@ class Logic {
   public:
     uint8_t Bottles = 0;
     uint8_t NumBottles = 0;
-    uint8_t PieceOfHeart = 0;
-    uint8_t HeartContainer = 0;
     bool IsChild = false;
     bool IsAdult = false;
     uint8_t BigPoes = 0;
+    // hearts we start the seed with, health itself lives in the save context
     uint8_t BaseHearts = 0;
     bool AtDay = false;
     bool AtNight = false;
@@ -49,7 +48,10 @@ class Logic {
     bool CanOpenOverworldDoor(RandomizerGet itemName);
     bool SmallKeys(s16 scene, uint8_t requiredAmount);
     bool CanGroundJump(bool hasBombflower = false);
-    bool CanGroundJumpJumpSlash(bool hasBombflower = false);
+    bool CanGroundJumpslash(bool hasBombflower = false);
+    bool CanGroundJumpJumpSlash(bool hasBombflower = false) {
+        return CanGroundJumpslash(hasBombflower);
+    }
     bool CanMiddairGroundJump(bool hasBombflower = false);
     bool CanOpenUnderwaterChest();
     bool CanDoGlitch(GlitchType glitch);
@@ -94,13 +96,14 @@ class Logic {
     bool CanStunDeku();
     bool CallGossipFairy();
     bool CallGossipFairyExceptSuns();
-    uint8_t EffectiveHealth();
+    uint16_t Health();
+    uint16_t EffectiveHealth();
     uint8_t Hearts();
     uint8_t StoneCount();
     uint8_t MedallionCount();
     uint8_t DungeonCount();
-    uint8_t FireTimer();
-    uint8_t WaterTimer();
+    uint16_t FireTimer();
+    uint16_t WaterTimer();
     bool TakeDamage();
     bool CanVoid();
     bool CanOpenBombGrotto();

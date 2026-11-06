@@ -60,7 +60,7 @@ void RegionTable_Init_JabuJabusBelly() {
         Entrance(RR_JABU_JABUS_BELLY_WATER_SWITCH_ROOM_NORTH, []{return true;}),
     });
 
-    areaTable[RR_JABU_JABUS_BELLY_B1_JIGGLY] = Region("Jabu Jabus Belly B1 Cube", SCENE_JABU_JABU, {
+    areaTable[RR_JABU_JABUS_BELLY_B1_JIGGLY] = Region("Jabu Jabus Belly B1 Jiggly", SCENE_JABU_JABU, {
         //Events
         EventAccess(LOGIC_FAIRY_ACCESS, []{return logic->CanUse(RG_BOOMERANG) || (logic->CanBreakPots() && ctx->GetTrickOption(RT_JABU_B1_CUBE_HOVER) && logic->CanUse(RG_HOVER_BOOTS));}),
     }, {
@@ -86,7 +86,7 @@ void RegionTable_Init_JabuJabusBelly() {
         //there's tricks for getting here with bunny-jumps or just side-hops
         Entrance(RR_JABU_JABUS_BELLY_WATER_SWITCH_ROOM_LEDGE, []{return (logic->HasItem(RG_BRONZE_SCALE) || logic->CanUse(RG_HOVER_BOOTS)) && logic->HasItem(RG_CLIMB);}),
         Entrance(RR_JABU_JABUS_BELLY_WATER_SWITCH_ROOM_SOUTH, []{return logic->IsAdult || logic->HasItem(RG_BRONZE_SCALE);}),
-        Entrance(RR_JABU_JABUS_BELLY_HOLES_BASEMENT,          []{return true;}),
+        Entrance(RR_JABU_JABUS_BELLY_HOLES_LOWER_DOOR_LEDGE,  []{return true;}),
     });
 
     areaTable[RR_JABU_JABUS_BELLY_WATER_SWITCH_ROOM_SOUTH] = Region("Jabu Jabus Belly Water Switch Room South", SCENE_JABU_JABU, {}, {
@@ -142,7 +142,7 @@ void RegionTable_Init_JabuJabusBelly() {
     });
 
     // this handles spawning in tentacle
-    areaTable[RR_JABU_JABUS_BELLY_TO_FORK_NORTH_WEST] = Region("Jabu Jabus Belly To Fork West", SCENE_JABU_JABU, {}, {}, {
+    areaTable[RR_JABU_JABUS_BELLY_TO_FORK_NORTH_WEST] = Region("Jabu Jabus Belly To Fork North West", SCENE_JABU_JABU, {}, {}, {
         //Exits
         Entrance(RR_JABU_JABUS_BELLY_FORKED_CORRIDOR, []{return logic->Get(LOGIC_JABU_WEST_TENTACLE) || logic->TakeDamage();}),
         Entrance(RR_JABU_JABUS_BELLY_FORK_NORTH_WEST, []{return logic->Get(LOGIC_JABU_WEST_TENTACLE);}),
@@ -174,7 +174,7 @@ void RegionTable_Init_JabuJabusBelly() {
     });
 
     // this handles spawning in tentacle
-    areaTable[RR_JABU_JABUS_BELLY_TO_FORK_NORTH_EAST] = Region("Jabu Jabus Belly MQ To Fork West", SCENE_JABU_JABU, {}, {}, {
+    areaTable[RR_JABU_JABUS_BELLY_TO_FORK_NORTH_EAST] = Region("Jabu Jabus Belly To Fork North East", SCENE_JABU_JABU, {}, {}, {
         //Exits
         Entrance(RR_JABU_JABUS_BELLY_FORKED_CORRIDOR, []{return logic->Get(LOGIC_JABU_WEST_TENTACLE) || logic->TakeDamage();}),
         Entrance(RR_JABU_JABUS_BELLY_FORK_NORTH_EAST, []{return logic->Get(LOGIC_JABU_WEST_TENTACLE);}),
@@ -317,7 +317,7 @@ void RegionTable_Init_JabuJabusBelly() {
 
     areaTable[RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM] = Region("Jabu Jabus Belly MQ Holes Room", SCENE_JABU_JABU, {
         //Events
-        EventAccess(LOGIC_JABU_MQ_FORKED_ROOM_DOOR, []{return (logic->HasExplosives() || ctx->GetTrickOption(RT_DISTANT_BOULDER_COLLISION)) && logic->CanUse(RG_FAIRY_SLINGSHOT);}),
+        EventAccess(LOGIC_JABU_MQ_FORKED_ROOM_DOOR, []{return (logic->HasExplosives() || ctx->GetTrickOption(RT_BOULDER_COLLISION)) && logic->CanUse(RG_FAIRY_SLINGSHOT);}),
     }, {
         //Locations
         LOCATION(RC_JABU_JABUS_BELLY_MQ_PIT_GRASS_1, logic->CanCutShrubs() && logic->HasExplosives()),
@@ -329,7 +329,10 @@ void RegionTable_Init_JabuJabusBelly() {
         Entrance(RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM_PAST_JIGGLY, []{return logic->CanUse(RG_BOOMERANG);}),
     });
 
-    areaTable[RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM_PAST_JIGGLY] = Region("Jabu Jabus Belly MQ Holes Room Past Jiggly", SCENE_JABU_JABU, {}, {}, {
+    areaTable[RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM_PAST_JIGGLY] = Region("Jabu Jabus Belly MQ Holes Room Past Jiggly", SCENE_JABU_JABU, {
+        //Events
+        EventAccess(LOGIC_JABU_MQ_FORKED_ROOM_DOOR, []{return ctx->GetTrickOption(RT_BOULDER_COLLISION) && logic->CanUse(RG_FAIRY_SLINGSHOT);}),
+    }, {}, {
         Entrance(RR_JABU_JABUS_BELLY_MQ_HOLES_ROOM,      []{return logic->CanUse(RG_BOOMERANG);}),
         //It is possible to open the door here without crossing the jiggly using RT_DISTANT_BOULDER and good timing
         Entrance(RR_JABU_JABUS_BELLY_MQ_FORKED_CORRIDOR, []{return logic->Get(LOGIC_JABU_MQ_FORKED_ROOM_DOOR);}),
@@ -456,7 +459,7 @@ void RegionTable_Init_JabuJabusBelly() {
         LOCATION(RC_JABU_JABUS_BELLY_MQ_GS_INVISIBLE_ENEMIES_ROOM, //firstly, we can just use FAs to clear the web and then longshot the skull
                                                                    logic->CanUse(RG_FIRE_ARROWS) && logic->CanGetEnemyDrop(RE_GOLD_SKULLTULA, ED_LONGSHOT) ||
                                                                    //Otherwise, we have to cross the gap and kill the skull.
-                                                                   ((logic->CanGetEnemyDrop(RE_GOLD_SKULLTULA, ED_BOOMERANG) || (ctx->GetTrickOption(RT_GROUND_JUMP_HARD) && logic->IsAdult && logic->CanGroundJump())) &&
+                                                                   ((logic->CanGetEnemyDrop(RE_GOLD_SKULLTULA, ED_BOOMERANG) || (logic->IsAdult && logic->CanGroundJumpslash())) &&
                                                                    //We can cheese the gap with hovers
                                                                     ((logic->CanUse(RG_HOVER_BOOTS) ||
                                                                    //Otherwise we have to kill the enemies to raise the platform. This persists so we can do it as the other age.
@@ -495,7 +498,7 @@ void RegionTable_Init_JabuJabusBelly() {
         Entrance(RR_JABU_JABUS_BELLY_MQ_BIGOCTO,       []{return logic->TakeDamage() && AnyAgeTime([]{return logic->CanKillEnemy(RE_BIG_OCTO);});}),
     });
 
-    areaTable[RR_JABU_JABUS_BELLY_MQ_JIGGLIES_ROOM] = Region("Jabu Jabus Belly MQ Cubes Room", SCENE_JABU_JABU, {}, {
+    areaTable[RR_JABU_JABUS_BELLY_MQ_JIGGLIES_ROOM] = Region("Jabu Jabus Belly MQ Jigglies Room", SCENE_JABU_JABU, {}, {
         //Locations
         LOCATION(RC_JABU_JABUS_BELLY_MQ_COW,                    logic->CanUse(RG_EPONAS_SONG) && logic->CanUse(RG_FAIRY_SLINGSHOT)),
         LOCATION(RC_JABU_JABUS_BELLY_MQ_JIGGLIES_GRASS,         logic->CanCutShrubs()),
